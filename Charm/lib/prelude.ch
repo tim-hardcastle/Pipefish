@@ -28,3 +28,13 @@ given :
 tail (L) : 
     len(L) <= 1 : []
     else : L[1::len L]
+
+(L) behead (i int) :
+    len(L) < i : error "behead removing more elements than the object contains"
+    len(L) == i : []
+    else : L[i::len L]
+
+(L) curtail (i int) :
+    len(L) < i : error "curtail removing more elements than the object contains"
+    len(L) == i : []
+    else : L[0::len(L) - i]

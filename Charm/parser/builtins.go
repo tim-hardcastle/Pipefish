@@ -11,6 +11,48 @@ import (
 
 var Builtins = map[string] func(args ...object.Object) object.Object {
 
+    "add_pair_to_list" : func(args ...object.Object) object.Object {
+        index := args[2].(*object.Pair).Left
+        if object.TrueType(index) != "int" {
+            return &object.Error{Message: "lists are indexed by integers, not by things of type " + 
+			/**/text.Emph(object.TrueType(index))}
+        }
+        if index.(*object.Integer).Value < 0 {
+            return &object.Error{Message: "list index should not be negative"}
+        }
+		if index.(*object.Integer).Value >= int64(len(args[0].(*object.List).Elements)) {
+            return &object.Error{Message: "list index should not be negative"}
+        }
+		newElements := []object.Object{}
+        for _, v := range(args[0].(*object.List).Elements) {
+            newElements = append(newElements, v)
+        }
+		newElements[index.(*object.Integer).Value] = args[2].(*object.Pair).Right
+        return &object.List{Elements: newElements}
+    }, 
+
+	"rune" : func(args ...object.Object) object.Object {
+        return &object.String{Value: string(args[0].(*object.Integer).Value)}
+    }, 
+
+    "add_pair_to_struct"    : func(args ...object.Object) object.Object {
+        field := args[2].(*object.Pair).Left
+        if object.TrueType(field) != "label" {
+            return &object.Error{Message: "structs are indexed by labels, not by things of type " + text.Emph(object.TrueType(field))}
+        }
+        _, ok := args[0].(*object.Struct).Value[field.(*object.Label).Value]
+        if ! ok {
+            return &object.Error{Message: text.Emph(field.(*object.Label).Value) + " is not a field of structs of type " + text.Emph(args[0].(*object.Struct).Name)}
+        }
+
+        newValue := make(map[string] object.Object)
+        for k, v := range(args[0].(*object.Struct).Value) {
+            newValue[k] = v
+        }
+        newValue[field.(*object.Label).Value] = args[2].(*object.Pair).Right
+        return &object.Struct{Name : args[0].(*object.Struct).Name, Labels: args[0].(*object.Struct).Labels, Value: newValue}
+    },  
+
 	"charm_single" : func(args ...object.Object) object.Object {
 		return &object.String{Value: args[0].Inspect(object.ViewCharmLiteral)}
 	},
@@ -247,7 +289,10 @@ var Builtins = map[string] func(args ...object.Object) object.Object {
 	},
 
 	"string_to_int" : func(args ...object.Object) object.Object {
-		result, _ := strconv.ParseInt(args[0].(*object.String).Value, 0, 64)
+		result, ok := strconv.ParseInt(args[0].(*object.String).Value, 0, 64)
+		if ok != nil {
+			return &object.Error{Message: "trying to parse string as integer when the string doesn't represent an integer"}
+		}
 		return &object.Integer{Value: result}
 	},
 
@@ -367,8 +412,8 @@ func evalArraySliceExpression(array, index object.Object) object.Object {
 	max := int64(len(arrayObject.Elements) - 1)
 	if idy < 0 { idy = max + idy + 1}
 
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max + 1) {
-		return &object.Error{Message: "index out of bounds"}
+	if (idx < 0 || idx > max) || (idy < 0 || idy > max + 1) || (idy < idx) {
+		return &object.Error{Message: "slice index out of bounds"}
 	}
 
 	return &object.List{Elements: arrayObject.Elements[idx:idy]}

@@ -1,5 +1,8 @@
 def
 
+(S struct) ++ (p pair) : builtin "add_pair_to_struct"
+(L list) ++ (p pair) : builtin "add_pair_to_list"
+rune(i int) : builtin "rune"
 charm(s single) : builtin "charm_single"
 charm(s tuple) : builtin "charm_tuple"
 tuple(s single) : builtin "single_to_tuple"

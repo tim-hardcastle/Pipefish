@@ -138,7 +138,7 @@ func (uP *Uberparser) MakeParserAndTokenizedProgram(){
 			expressionIsStruct = true
 		}
 
-		if tok.Literal == "=" && ! (tok.Type == token.GVN_ASSIGN) {
+		if tok.Literal == "=" && ! (tok.Type == token.GVN_ASSIGN || tok.Type == token.STRING) {
 			if currentSection != CmdSection {
 				colonMeansFunction = false
 				expressionIsAssignment = true
