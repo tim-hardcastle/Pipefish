@@ -1,0 +1,10 @@
+ld a, #fd
+ld c, #02
+add a, c
+ld hl, #0027
+push hl
+jp nz, @over
+ld a, #99
+@over
+pop de
+ld (de), a
