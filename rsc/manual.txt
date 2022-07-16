@@ -1,0 +1,528 @@
+edit
+
+'hub edit' followed by a filename will open the file in vim.
+
+***
+halt
+
+'hub halt' followed by the name of a service will halt the service.
+
+If no service name is given, the hub will halt the current service.
+
+***
+help
+
+'hub help' followed by the name of a topic will supply you with information on that topic."
+
+'hub help' on its own will get you a list of help topics.
+
+***
+services
+
+'hub services' will list all services currently running on the hub.
+
+***
+peek
+
+'hub peek on' will allow you to see what the lexer, relexer, and parser are doing; 'hub peek off' turns this off, and 'hub peek' without a parameter toggles between on and off.
+
+***
+reset
+
+'hub reset' followed by the name of a service will re-intialize the script and reread the associated data file, if there is one. If no service name is given the hub will reset the current service.
+
+***
+run
+
+'hub run' without parameters will start a REPL with no script. With one parameter (a valid filename) it will run the script as an anonymous service. By adding 'as <name>' you can name the service; by adding 'with <filename>' you can specify a datafile.
+
+***
+quit
+
+'hub quit' will close down all the services and the hub.
+
+***
+why
+
+'hub why <error number>' will provide a more detailed explanation of an error.
+
+***
+where
+
+'hub where <error number>' will show the line in which the error occurred with the specific problem area of the line highlighted and underlined.
+
+***
+snap
+
+The 'hub snap' command allows you to record your interactions with the REPL for testing purposes
+
+The syntax is either 'hub snap <filename>' or 'hub snap <filename> with <data filename>' or 'hub snap <filename> with <data filename> as <test filename>'. If no test file name is given Charm will supply a suitable one, and if no data file is supplied Charm will just initialize the service as usual.
+
+Charm will then turn serialization on, so that you can tell the difference between "true" and 'true'; and between four spaces and a tab, etc.
+
+And then what you type and the service's responses will be recorded. (There will be a '#snap →' prompt to remind you that this is what you're doing.) To finish recording, you tell it what to do with the snap:
+
+* 'hub snap good': this is the desired behavior and I want to make it into a test that will ensure it keeps happening
+* 'hub snap bad' : this is undesirable behavior and I want to make it into a test that checks that it doesn't happen
+* 'hub snap record' : I want to be able to replay this and see how the output changes as I change the script and/or data
+* 'hub snap discard' : I don't need this
+
+All the tests classed good or bad associated with a script will be run by 'hub test <script filename>'. As an example, try running 'hub test src/testall.ch': Charm will run the associated test in the 'tst' folder and hopefully confirm that the interpreter hasn't regressed since I wrote this bit of the manual.
+
+To run a test classed as record, use 'hub replay <test filename>'.
+
+***
+replay
+
+'hub replay <test filename>' allows you to replay a previously recorded snapshot of your interactions with the REPL to see what it does. For more information on this feature, see 'hub help snap'.
+
+***
+test
+
+'hub test <filename>' will run all the regression tests associated with the file. For more information on this feature, see 'hub help snap'.
+
+***
+continuations
+
+Charm expects the end of a line to coincide with the end of an expression, i.e. you can't write something like this:
+
+|-----------------------------------------------
+
+foo = "hello " + 
+"world"
+
+bar = 1, 2, 3,
+4, 5, 6
+
+|-
+
+Continuations must be marked by a '..' at the end of the continued line and a corresponding '..' at the beginning. The allowed exception is that the continued line may end in a comma where this is syntactic, in which case the continuation must begin with '..' just the same. The continuations can be placed wherever is most readable: they are exempt from whitespace rules.
+
+For example, the following are valid assignments:
+
+|-----------------------------------------------
+
+foo = "hello " + ..
+   .. "world"
+
+bar = 1, 2, 3,
+   .. 4, 5, 6
+
+|-
+
+***
+overloading
+
+It is possible to overload functions in Charm: the following code works as you'd expect it to:
+
+|-----------------------------------------------
+
+def
+
+twice(x string) : x + x
+
+twice(x int) : 2 * x
+
+twice(b bool) :
+    b : "That's as true as things get!"
+    else : "That's as false as things get!"
+
+twice(x any) :
+    "Can't double " + string (type x) + "."
+
+|-
+
+In deciding which version of a function to use, Charm will look at the types of the parameters it's passed. When a value could be accepted by more than one version of a function, Charm will use the version with the most specific type signature. So in the example above, both the second version of the function and the fourth could equally well accept an integer, but Charm will always use the second version because 'int' is a subtype of 'any'.
+
+In the unlikely event that you defined functions in such a way that this can't always be resolved, for example like this:
+
+|-----------------------------------------------
+
+def
+
+integersFirst(i int, a any) : i, a
+
+integersFirst(a any, i int) : i, a
+
+|-
+
+... then Charm will throw an error when it tries to initialize the script. (The problem being, if you passed two integers to 'integersFirst' then Charm wouldn't be able to resolve which version of the function to use.
+
+Most things in Charm can be overloaded, including the arithmetic operators, This, for example, works:
+
+|-----------------------------------------------
+
+def
+
+(i int) * (b bool) :
+    b : i
+    else : 0
+
+|-
+
+However, 'and', 'or', 'not', '==' and '!=' can't be overloaded, and really, why would you want to?
+
+This sort of ad-hoc polymorphism can lead to bad code and should be used with caution, under circumstances where you really need the degree of abstraction that it supplies.
+
+***
+functions
+
+Functions in Charm are defined in the 'def' section. Here is an example of a simple function:
+
+|-----------------------------------------------
+
+def
+
+foo(x) :
+    x + x
+
+|-
+
+This does what you would think it does: returns twice what is passed to it. (Or throws a runtime error if addition is not defined on the type of the parameter.)
+
+In a function where the body is a single line, it is permitted to write it in one line with the definition:
+
+|-----------------------------------------------
+
+def
+
+foo(x) : x + x
+
+|-
+
+As functions are stateless, the only thing they can do is return a value or values, and so the only reason you would want a function to have multiple lines is to make your conditionals more readable, as in the following example:
+
+|-----------------------------------------------
+
+def
+
+sign(n) :
+    n > 0 : "positive"
+    n == 0 : "zero"
+    else : "negative"
+
+|-
+
+Typing of a function's parameters is optional. If you we replace the earlier example with this:
+
+|-----------------------------------------------
+
+def
+
+foo(x int) :
+    x + x
+
+|-
+
+... then 'foo' will be defined for integers but will now throw an error if you try to pass it a float or a string.
+
+Functions can be overloaded. For a full discussion of this topic, see 'hub help overloading'.
+
+Functions can have multiple return values:
+
+|-----------------------------------------------
+
+def
+
+swap(x, y) : x, y
+
+|-
+
+The parameters of functions need parentheses in their declarations, but they are optional when calling the function: i.e. 'foo 1' and 'swap "oyster", 32' are valid function calls.
+
+Parentheses can still be required to disambiguate precedence. 'foo x + y' would be interpreted as 'foo(x + y)', and if you want it to be interpreted as 'foo(x) + y' then you can either write that, or '(foo x) + y'.
+
+Functions can have very flexible syntax:
+
+|-----------------------------------------------
+
+def
+
+(x) divides (y) :
+    y % x == 0
+
+(x) is even:
+    2 divides x
+
+say (x) nicely :
+    "*~*" + x + "*~*"
+
+|-
+
+Typing of a function's return values has not yet been implemented.
+
+***
+constants
+
+Constants are defined the same way as variables, only in the 'def' section of the script, making them unchangeable. E.g:
+
+|-----------------------------------------------
+
+def
+
+pi = 3.141592
+monthsInAYear = 12
+
+|-
+
+***
+comments
+
+Comments begin with '//' and are simply ignored by Charm when it tries to make sense of your program, e.g. if you write
+
+|-----------------------------------------------
+
+// This is a comment.
+
+def   // Another comment.
+
+foo = "walrus"
+
+// Woo-hoo! Comments!
+
+|-
+
+then to Charm this will read the same as if you'd just written
+
+
+|-----------------------------------------------
+
+def
+
+foo = "walrus"
+
+|-
+
+***
+headwords
+
+Charm's headwords are 'import', 'var', 'def', and 'cmd'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
+
+A headword my occur more than once in the script, with the exception of 'import', which, if it occurs, must do so only once, at the top.
+
+Your script must (with the exception of comments) begin with some headword, since without one Charm doesn't know what you want to do with the code.
+
+For further information, see the help files on the individual headwords, e.g. 'hub help import'.
+
+***
+import
+
+The import section consists of filepaths expressed as string constants and separated by newlines:
+
+|-----------------------------------------------
+
+import
+
+"lib/owl_moistening_tools.ch"
+"lib/walrus_utils.ch"
+
+|-
+
+Namespaces have not yet been implemented.
+
+***
+cmd
+
+The 'cmd' section of the script consists of commands that can be issued by the end-user, and which can change and return the state of the variables, including those declared private. For example:
+
+|-----------------------------------------------
+
+cmd
+
+get :
+    return x
+
+set (y) :
+    x = y
+
+var
+
+private
+
+x = "heffalump"
+
+|-
+
+***
+var
+
+'var' is one of Charm's headwords, defining which section of the program you're in, and so what it is permissible to do.
+
+In the 'var' section of the script you can declare variables. Their type is inferred as narrowly as possible unless you explicitly declare them of wider type. E.g. given the following declarations ...
+
+|-----------------------------------------------
+
+var
+
+foo = "bananas"
+
+zort single = "bananas"
+
+troz any = "bananas"
+
+|-
+
+... it will then be possible to reassign 'foo' only to other strings, 'zort' to anything that isn't a tuple, and 'troz' to anything at all.
+
+After the occurrence of 'private' in a 'var' block, the variables will be private, i.e. they can be changed or accessed only by commands defined in the 'cmd' section, but not directly through the REPL. For more information see 'hub help private' and 'hub help cmd'.
+
+***
+variables
+
+Variables are declared in the 'var' section by initializing them:
+
+|-----------------------------------------------
+
+var
+
+foo = "bananas"
+
+bar = 42
+
+|-
+
+Variables are typed, and their type is inferred from their declaration as narrowly as possible, unless you specifically say you want a broader type. E.g. given the following declarations ...
+
+|-----------------------------------------------
+
+var
+
+foo = "bananas"
+
+zort single = "bananas"
+
+troz any = "bananas"
+
+|-
+
+... it will then be possible to reassign 'foo' only to other strings, 'zort' to anything that isn't a tuple, and 'troz' to anything at all.
+
+Variables can be reassigned either directly from the REPL, or in the 'cmd' section of the code, and nowhere else.
+
+After the occurrence of 'private' in a 'var' block, the variables will be private, i.e. they can be changed or accessed only by commands defined in the 'cmd' section, but not directly through the REPL. 
+
+For more information see 'hub help private', 'hub help cmd', 'hub help var', and 'hub help types'.
+***
+types
+
+Charm has the usual basic types, 'int', 'float', 'string', and 'bool'.
+
+Container types are 'tuple', 'list', 'set', ''map', pair', and 'struct'.
+
+Besides this there are some special-purpose types such as 'func', 'error', 'nil', 'type', 'file', 'label' and a notional top type 'any' which at present and in practice will be indistinguishable from a tuple.
+
+The type system is then as follows: 'any' contains 'tuple', which contains the abstract class 'single' consisting of anything that isn't a tuple (but can, when necessary, be considered a tuple of arity 1). This contains 'int', 'float', 'string', and 'bool', 'list', 'set', 'map', 'pair', 'error', 'label', and the abstract type 'struct'.
+
+'struct' contains all the user-defined structs, and every struct type contains the 'nil' type.
+
+***
+tuples
+
+Tuples are flat, i.e. '((1, 2), (3,4)), 5' is the same as '1, 2, 3, 4, 5'.
+
+They are therefore concatenated simply by commas.
+
+They may be written with or without surrounding parentheses as convenient. '()' represents an empty tuple.
+
+Tuples do not have length, but arity. To see why, consider that the length of "banana" is 6 but the arity of "banana" is 1.
+
+'tuple x' will leave x unchanged if 'x' is a tuple, otherwise it will return a tuple of arity 1, the sole member of which is x. If instead you want to spread the members of a list or set into a tuple, use the 'spread' function.
+
+When 'tuple' is given as the type of the last parameter in a function/command definition, then the parameter will be variadic.
+
+***
+func
+
+The word func is used to make an object of type func — a function which can be treated as a value, assigned to a variable, passed as a parameter to another function, etc.
+
+The syntax for creating one is similar to the initialization of regular functions, except that you put 'func' where the name of the function would be. E.g:
+
+|-----------------------------------------------
+
+var
+
+foo = func(x) : x * x
+
+|-
+
+... assigns to foo a function which returns the square of its input, so that 'foo 4' would return '16'.
+
+Note however that 'foo' is not the name of the function, but of the variable that contains it. This may seem like a mere quibble, but it means that if we wanted to make the function recursive, we couldn't refer to it inside its own definition as 'foo': we have to use the special keyword 'this'.
+
+***
+this
+
+The 'this' keyword is used when using 'func' to define an anonymous function, allowing the function to refer to itself when required.
+
+For more information on anonymous functions, see 'hub help func'.
+
+***
+errors
+
+The 'error' type in Charm has the following properties:
+
+(1) With almost all functions/operations, the result of taking an error as a parameter is to return that same error as a result. This includes the ',' operator: concatenating an error with anything else returns the error. It also includes assignment to a variable: Charm will never actually assign an error to the variable, but will pass the error up the stack as usual.
+
+(2) If an error is assigned to a local constant, this is not passed up the stack unless the value of the constant is actually used.
+
+(3) Using 'type' to take the type of an error returns 'error', allowing it to be handled.
+
+You can throw an error yourself by using 'error <string>'.
+
+***
+def
+
+The 'def' section is where you define structs, constants, and functions. For more information, see the relevant help files for each topic, e.g. 'hub help structs'.
+
+***
+eval
+
+'eval <string>' evaluates a string as though it was a Charm expression, e.g. 'eval "2 + 2"' will return '4'.
+
+***
+structs
+
+Struct types are declared in the 'def' section of the script using the using the form 'nameOfStruct = struct(<type signature of constructor>)'.
+
+|-----------------------------------------------
+
+person = struct(name string, age int)
+
+cat = struct(name string, pink bool)
+
+|-
+
+Then instances of the structs can be created in the 'def' or 'var' sections of the script using the constructors ...
+
+|-----------------------------------------------
+
+joe = person("Joe", 42)
+
+myCat = struct("Rose", true)
+
+|-
+
+Or there are also long-form constructors for when clarity is needed:
+
+|-----------------------------------------------
+
+joe = person with name :: "Joe", age :: 42
+
+myCat = cat with name :: "Rose", pink :: true
+
+|-
+
+Struct objects are indexed using square brackets: 'myCat[pink]' or 'joe[name]'.
+
+The names of the fields are first-class objects of type 'label'.
+
+***
+private
+
+When a variable is private, it can only be accessed via getters and setters supplied in the 'cmd' section of the script.
+
+The 'private' modifier makes everything after it private until the next headword or the end of the script. There is no corresponding public modifier: things are public first by default, and private after you say so. Using 'private' twice without a change of headwords is a syntax error.
+
+At present, 'private' only affects variables, and cannot be used to hide functions, constants, commands, etc from direct access via the REPL.
+
+***
