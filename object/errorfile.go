@@ -187,6 +187,16 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
+	"built/list/int" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "a list can only be indexed by something of type <integer>"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A list L can be indexed by an expression of the form L[n], where n is a number from 0 up to " +
+			"but not including the length of the list."
+		},
+	},
+
 	"built/mod" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "taking the remainder on division by zero"
@@ -477,13 +487,33 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 
 	"eval/field/type" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
-			return "field '" + args[0].(string) + " of variable '" + args[1].(string) +
-			 "' should have type <" + args[2].(string) + "> not <" + args[3].(string) + ">."
+			return "field '" + args[0].(string) + "' of variable '" + args[1].(string) +
+			 "' should have type <" + args[2].(string) + "> not <" + args[3].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You will see this error when you try to index a struct by a label which exists " +
-			"but doesn't label a field of that particular type of struct." +
+			return "You will see this error when you try to assign a value to a field of a struct " +
+			"and the value is not compatible with the type of the field in the struct declaration." +
 			"\n\nFor more information about structs see 'hub help structs'."
+		},
+	},
+
+	"eval/given/a" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "inexplicable use of 'given'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A 'given' block should follow a command, function, or inner function. Either " +
+			"this doesn't follow one at all, or it's so malformed that Charm doesn't recognize it as one."
+		},
+	},
+
+	"eval/given/b" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "inexplicable use of 'given'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A 'given' block should follow a command, function, or inner function. Either " +
+			"this doesn't follow one at all, or it's so malformed that Charm doesn't recognize it as one."
 		},
 	},
 
@@ -636,11 +666,11 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 
 	"eval/pair" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
-			return "the parameters after 'with' should all be pairs"
+			return "malformed constructor"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using a long-form constructor to create a new instance of a struct, " +
-			"and have given it a parameter which is not of the form '<field name> :: <value>'."
+			return "You're trying to construct an instance of a struct, but your syntax has gotten Charm so " +
+			/**/"confused that it's not sure what you mean to do."
 		},
 	},
 
@@ -676,9 +706,9 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
-	"eval/repl/var" : ErrorCreator {
+	"eval/repl/assign" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempt to access the value of a private or non-existent variable or constant " + Emph(args[0].(string))
+			return "attempt to assign the value of a private or non-existent variable or constant " + Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're referring in the REPL to an identifier " + Emph(args[0].(string)) + " as though it " +
@@ -688,7 +718,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
-	"eval/repl/assign" : ErrorCreator {
+	"eval/repl/const" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "reassigning to a constant '" + args[0].(string) + "'in the REPL."
 		},
@@ -706,6 +736,29 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 			"to it are objects of that type or of one of its subtypes."
 		},
 	},
+
+	"eval/repl/var" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "attempt to access the value of a private or non-existent variable or constant " + Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You're referring in the REPL to an identifier " + Emph(args[0].(string)) + " as though it " +
+			"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
+			"declare it as a variable or constant in the script, or perhaps you declared it private." +
+			"\n\nFor more information about the 'private' modifier see 'hub help private'."
+		},
+	},
+
+	"eval/rets/match" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "return value doesn't match function definition"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The function in question has a return type, given after the '->' operator, and what you have " +
+			"returned violates this constraint."
+		},
+	},
+
 
 	"eval/return" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
@@ -769,7 +822,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	}, 
 	
-	"eval/unknown/operator/" : ErrorCreator {
+	"eval/unknown/operator" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "unknown operator: " + EmphType(args[0].(Object)) + " " + text.DescribeTok(tok) + " " + EmphType(args[0].(Object))
 		},
@@ -779,7 +832,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
-	"eval/unknown/unfix/" : ErrorCreator {
+	"eval/unknown/unfix" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "unknown command or function"
 		},
@@ -1611,7 +1664,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error is typically returned when a binary operator is missing its left-hand side, e.g. if " +
-			"yo ask the REPL to evaluate 'and false'."
+			"you ask the REPL to evaluate 'and false'."
 		},
 	},
 
@@ -1622,9 +1675,9 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
-			"hasn't been supplied with a corresponding " + text.DescribeOpposite(args[0].(token.Token)) +
+			" hasn't been supplied with a corresponding " + text.DescribeOpposite(args[0].(token.Token)) +
 			" by the time the parser reaches the unmatching nesting closure " +  text.DescribeTok(tok) +
-			text.DescribePos(tok)
+			text.DescribePos(tok) + "."
 		},
 	},
 
@@ -1636,6 +1689,26 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You've put "  + text.DescribeTok(tok) + " in such a position that it looks like you want it to " +
 			"function as a prefix, but it isn't one."
+		},
+	},
+
+	"parse/ret/a" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "unexpected occurence of " + text.DescribeTok(tok) + " in return types"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
+			"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
+		},
+	},
+
+	"parse/ret/b" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "unexpected occurence of " + text.DescribeTok(tok) + " in return types"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
+			"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
 		},
 	},
 
@@ -1772,6 +1845,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 }
 
 func blame(errors Errors, pos int, args ...string) string {
+	if pos == 0 {return ""}
 	for _, v := range args {
 		if errors[pos - 1].ErrorId == v {
 			very := ""

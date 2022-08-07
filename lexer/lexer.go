@@ -155,6 +155,12 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			return tok
 		}
+		if l.ch == '-' && l.peekChar() == '>' {
+			l.readChar()
+			tok = l.NewToken(token.RIGHTARROW, "->")
+			l.readChar()
+			return tok
+		}
 		if l.ch == '!' && l.peekChar() == '=' {
 			l.readChar()
 			l.readChar()

@@ -12,22 +12,23 @@ while (p) do (f) to (x tuple) :
     else : x
 
 power (x) :
-    while condition do action to x, 1
+    (while condition do action to x, 1)[1]
 given : 
-    condition = func (x, y) : x > 0
-    action = func (x, y) : x - 1, y * 2
+    condition(x, y) : x > 0
+    action(x, y) : x - 1, y * 2
 
-// Lambdas can have 'given' blocks too.
-// And lambdas in 'given' blocks can have 'given' blocks, etc.
+// Inner functions can have their own 'given' blocks,
+// as can lambdas.
 
 var 
 
 f = func (x) : a * b(x)
 given : 
     a = x + 1
-    b = func(x) : x + c
+    b(x) : x + c(x)
     given :
-        c = 2
+        c = func(x): m * x
+        given m = 5
 
 
 

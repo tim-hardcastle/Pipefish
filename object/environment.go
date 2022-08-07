@@ -10,6 +10,7 @@ const (
 
 type Environment struct {
 	Store map[string]Storage
+	Pending map[string]Object
 	Ext *Environment
 }
 
@@ -21,12 +22,19 @@ type Storage struct{
 
 func NewEnvironment() *Environment {
 	s := make(map[string]Storage)
-	return &Environment{Store: s}
+	p := make(map[string]Object)
+	return &Environment{Store: s, Pending: p}
 }
 
 
 func (e *Environment) Get(name string) (Object, bool) {
 	storage, ok := e.Store[name]
+	if storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE {
+		// Then it is a variable, and we check in the pending variables to see if there's anything to return.
+		if pendingObject, exists := e.Pending[name]; exists {
+			return pendingObject, exists
+		}
+	}
 	if ok || e.Ext == nil { return storage.obj, ok }
 	return e.Ext.Get(name)
 }
@@ -49,8 +57,12 @@ func (e *Environment) Exists(name string) bool {
 
 // Variable assumed to exist, and type check to have been done.
 func (e *Environment) UpdateVar(name string, val Object) {
-	_, ok := e.Store[name]
+	storage, ok := e.Store[name]
 	if ok {
+		if (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
+			e.Pending[name] = val 
+			return
+		} 
 		e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 		return
 	}
@@ -66,9 +78,20 @@ func (e *Environment) getAccess(name string) AccessType {
 }
 
 func (e *Environment) Set(name string, val Object) Object {
+	storage, ok := e.Store[name]
+	if ok && (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
+		e.Pending[name] = val 
+		return val
+	} 
 	e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 	return val
 }
+
+func (e *Environment) HardSet(name string, val Object) Object {
+	e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
+	return val
+}
+
 
 func (e *Environment) InitializeVariable(name string, val Object, ty string) Object {
 	e.Store[name] = Storage{val, ACCESS_PUBLIC, ty}

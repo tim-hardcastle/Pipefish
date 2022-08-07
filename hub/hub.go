@@ -18,7 +18,6 @@ import (
 	"charm/parser"
 	"charm/relexer"
 	"charm/text"
-	"charm/token"
 )
 
 var (
@@ -102,8 +101,8 @@ func (hub *Hub) Do(line string) bool {
 		service.Parser.ParseDump(hub.currentServiceName, line)
 	}
 
-	// Primitive built-in file-handling, done up here so that ExtractVariables doesn't take the
-	// keywords for variables. 
+	// Primitive built-in file-handling.
+
 	if line == "save" || line == "open" || len(line) > 4 && (line[0:5] == "save "|| line[0:5] == "open ") {
 			obj := service.Do(line)
 			if obj.Type() == object.ERROR_OBJ {
@@ -120,16 +119,6 @@ func (hub *Hub) Do(line string) bool {
 	service.Parser.ClearErrors()
 
 	hub.Sources["REPL input"] = []string{line}
-
-	// We can check here if the input directly references a private variable or non-existent variable.
-	LHS, RHS := service.Parser.ExtractVariables(relexer.New("REPL input", line))
-	LHS.AddSet(RHS)
-	for k, _ := range(LHS) {
-		if (! service.Env.Exists(k)) || service.Env.IsPrivate(k) { 
-			service.Parser.Throw("repl/var", token.Token{Source:"REPL input", Line: -1}, k)
-		}
-	}
-
 
 	if service.Parser.ErrorsExist() {
 		hub.GetAndReportErrors(service.Parser)
@@ -148,7 +137,11 @@ func (hub *Hub) Do(line string) bool {
 		hub.ers = []*object.Error{obj.(*object.Error)}
 	} else {
 		hub.WriteString(objToString(service, obj))
+		for k, v := range(service.Env.Pending) {
+			service.Env.HardSet(k, v)
+		}
 	}
+	service.Env.Pending = make(map[string]object.Object)
 
 	if hub.currentServiceName == "#snap" {
 		hub.snap.AddInput(line)

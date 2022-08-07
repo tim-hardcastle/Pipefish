@@ -33,8 +33,8 @@ const (
 	FMIDFIX     // user-defined midfix or forefix
 	FENDFIX     // user-defined endfix
 	COMMA       // ,
-	FINFIX      // user-defined infix
-	SUM         // + or -	
+	FINFIX      // user-defined infix or ->
+	SUM         // + or -
 	PRODUCT     // * or / or %
 	FSUFFIX     // user-defined suffix, or type in type declaration
 	PREFIX      // -X or not X , the "native prefixes"
@@ -56,6 +56,7 @@ var precedences = map[token.TokenType]int{
 	token.TYP_ASSIGN: ASSIGN,
 	token.PVR_ASSIGN: ASSIGN,
 	token.COLON:    COLON,
+	token.MAGIC_COLON: COLON,
 	token.OR:		OR,
 	token.AND:		AND,
 	token.EQ:       EQUALS,
@@ -65,6 +66,7 @@ var precedences = map[token.TokenType]int{
 	token.LBRACK:	INDEX,
 	token.NOT:		PREFIX,
 	token.EVAL:		FPREFIX,
+	token.RIGHTARROW : OR,
 }
 
 type TokenSupplier interface{NextToken() token.Token}
@@ -108,7 +110,7 @@ type Parser struct {
 	Globals *object.Environment
 	TypeSystem TypeSystem
 
-	BuiltinFunctions map[string] func(args ...object.Object) object.Object
+	BuiltinFunctions map[string] func(p *Parser, args ...object.Object) object.Object
 
 	Enums map[string] []*object.Label
 
@@ -128,9 +130,9 @@ func New() *Parser {
 		Unfixes: make(set.Set[string]),
 		AllFunctionIdents:  make(set.Set[string]),
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
-			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, 
+			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, 
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.LBRACK}),
+			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.LBRACK, token.MAGIC_COLON}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 				token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable : make(FunctionTable),
@@ -146,7 +148,7 @@ func New() *Parser {
 
 	// The parser adds constructors for structs to the builtins and so must keep its own
 	// collection of them.
-	p.BuiltinFunctions = make(map[string] func(args ...object.Object) object.Object)
+	p.BuiltinFunctions = make(map[string] func(p *Parser, args ...object.Object) object.Object)
 
 	for k, v := range Builtins {
 		p.BuiltinFunctions[k] = v
@@ -296,6 +298,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			p.noPrefixParseFnError(p.curToken)
 		}
 	}
+
 	for precedence < p.peekPrecedence() {
 		for p.Suffixes.Contains(p.peekToken.Literal) || p.Endfixes.Contains(p.peekToken.Literal) {
 			if p.curToken.Type == token.NOT|| p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
@@ -576,7 +579,32 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	   p.curToken.Type == token.TYP_ASSIGN { 
 		   return p.parseAssignmentExpression(left) 
 		}
-	
+
+	if p.curToken.Type == token.MAGIC_COLON {
+		// Then we will magically convert a function declaration into an assignment of a lambda to a
+		// constant.
+		newTok := p.curToken
+		newTok.Type = token.GVN_ASSIGN
+		newTok.Literal = "="
+		p.NextToken()
+		right := p.parseExpression(COLON)
+		switch left := left.(type) {
+		case *ast.PrefixExpression :
+			expression := &ast.AssignmentExpression {
+				Token:    newTok,
+				Left:     &ast.Identifier{Token: left.Token, Value : left.Token.Literal},
+			}
+			fn :=  &ast.FuncExpression{Token: p.curToken}
+			fn.Body = right
+			fn.Sig = p.RecursivelySlurpSignature(left.Right, "single")
+			expression.Right = fn
+			return expression
+		default :
+			p.Throw("parse/inner", p.curToken)
+		}
+	}
+
+
 	expression := &ast.InfixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
@@ -585,6 +613,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	precedence := p.curPrecedence()
 	p.NextToken()
 	expression.Right = p.parseExpression(precedence)
+	
 	return expression
 
 }
@@ -778,6 +807,69 @@ func (p *Parser)  ClearErrors() {
 	p.Errors = []*object.Error{}
 }
 
+
+
+// Slurps the signature of a function out of it. As the colon after a function definition has
+// extremely low precedence, we should find it at the root of the tree.
+// We extract the keyword first and then hand its branch or branches off to a recursive tree-slurper.
+func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node, *object.Error) {
+	var (
+		keyword string
+		sig signature.Signature
+		rTypes signature.Signature
+		start, content, given ast.Node
+	)
+	if fn.GetToken().Type == token.GIVEN {   
+		given = fn.(*ast.InfixExpression).Right
+		fn = fn.(*ast.InfixExpression).Left
+	}
+
+
+	switch fn := fn.(type) {
+	case *ast.LazyInfixExpression :	
+		if fn.Token.Type != token.COLON {
+			return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+		}
+		start = fn.Left
+		content = fn.Right
+	case *ast.InfixExpression :
+		if fn.Token.Type != token.MAGIC_COLON {
+			return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+		}
+		start = fn.Left
+		content = fn.Right
+	default :
+		return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+	}
+	
+	if start.GetToken().Type == token.RIGHTARROW {
+		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.InfixExpression).Right)
+		start = start.(*ast.InfixExpression).Left
+	}
+
+	switch start := start.(type) {
+		case *ast.PrefixExpression :
+			keyword = start.Operator
+			sig = prsr.RecursivelySlurpSignature(start.Right, "single")
+		case *ast.InfixExpression :
+			keyword = start.Operator
+			LHS := prsr.RecursivelySlurpSignature(start.Left, "single")
+			RHS := prsr.RecursivelySlurpSignature(start.Right, "single")
+			middle := signature.NameTypePair{VarName: start.Operator, VarType: "bling"}
+			sig = append(append(LHS, middle), RHS...) 
+		case *ast.SuffixExpression :
+			keyword = start.Operator
+			sig = prsr.RecursivelySlurpSignature(start.Left, "single")
+		case *ast.UnfixExpression :
+			keyword = start.Operator
+			sig = signature.Signature{}
+		default :
+			return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+	}
+	return keyword, sig, rTypes, content, given, nil
+}
+
+
 func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature.Signature {
     switch typednode := node.(type) {
     case *ast.InfixExpression :
@@ -824,6 +916,27 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 	}
     return nil
 }
+
+
+func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature {
+    switch typednode := node.(type) {
+    case *ast.InfixExpression :
+        switch {
+        case typednode.Token.Type == token.COMMA :
+            LHS := p.RecursivelySlurpReturnTypes(typednode.Left)
+            RHS := p.RecursivelySlurpReturnTypes(typednode.Right)
+            return append(LHS, RHS...)
+        default :
+			p.Throw("parse/ret/a", typednode.Token)
+		}
+	case *ast.TypeLiteral :
+		return signature.Signature{signature.NameTypePair{VarName: "x", VarType: typednode.Value}}
+	default:
+		p.Throw("parse/ret/b", typednode.GetToken())
+	}
+    return nil
+}
+
 
 // Variable assumed to exist.
 func (p *Parser) CanHold(e *object.Environment, name string, ty string) bool {

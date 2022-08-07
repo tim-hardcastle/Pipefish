@@ -30,7 +30,6 @@ import (
 	"charm/object"
 	"charm/parser"
 	"charm/relexer"
-	"charm/signature"
 	"charm/sysvars"
 	"charm/token"
 	"charm/tokenized_code_chunk"
@@ -141,7 +140,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 	line := tokenized_code_chunk.New()
 	
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken()  {
-		// if tok.Source != "builtin library" { fmt.Printf("Relexer says %v\n", tok) }
+		// if tok.Source != "rsc/builtins.ch" { fmt.Printf("Relexer says %v\n", tok) }
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
 				uP.Throw("init/import/first", tok)
@@ -290,7 +289,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 
 		lastTokenWasColon = (tok.Type == token.COLON) 
 
-		if lastTokenWasColon && colonMeansFunctionOrCommand {
+		if (lastTokenWasColon && colonMeansFunctionOrCommand) || tok.Type == token.RIGHTARROW {
 			colonMeansFunctionOrCommand = false
 			uP.addWordsToParser(line)
 			if currentSection == DefSection {
@@ -298,6 +297,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 				definingToken = tok
 			}
 		}
+
+
 
         line.Append(tok)
 	}
@@ -513,9 +514,9 @@ func (uP *Initializer) returnOrderOfAssignments(declarations declarationType) *[
 func (uP *Initializer) makeFunctions() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(uP.parsedDeclarations[j]) ; i++ {
-			keyword, sig, body, given, error := uP.extractSignature(*uP.parsedDeclarations[j][i])
+			keyword, sig, rTypes, body, given, error := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
 			if error == nil {
-				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword, ast.Function{Sig: sig, Body: body, Given: given, Cmd: j == commandDeclaration})
+				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword, ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given, Cmd: j == commandDeclaration})
 				if ! ok {
 					uP.Throw("init/overload", token.Token{}, keyword) 
 				}
@@ -526,51 +527,6 @@ func (uP *Initializer) makeFunctions() {
 	}
 }
 
-// Slurps the signature of a function out of it. As the colon after a function definition has
-// extremely low precedence, we should find it at the root of the tree.
-// We extract the keyword first and then hand its branch or branches off to a recursive tree-slurper.
-func (uP *Initializer) extractSignature(fn ast.Node) (string, signature.Signature, ast.Node, ast.Node, *object.Error) {
-	var (
-		keyword string
-		sig signature.Signature
-		start, content, given ast.Node
-	)
-	if fn.TokenLiteral() == "given" {
-		given = fn.(*ast.InfixExpression).Right
-		fn = fn.(*ast.InfixExpression).Left
-	}
-
-	switch fn := fn.(type) {
-	case *ast.LazyInfixExpression :	
-		if fn.Token.Type != token.COLON {
-			return keyword, sig, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
-		}
-		start = fn.Left
-		content = fn.Right
-	default :
-		return keyword, sig, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
-	}
-	switch start := start.(type) {
-		case *ast.PrefixExpression :
-			keyword = start.Operator
-			sig = uP.Parser.RecursivelySlurpSignature(start.Right, "single")
-		case *ast.InfixExpression :
-			keyword = start.Operator
-			LHS := uP.Parser.RecursivelySlurpSignature(start.Left, "single")
-			RHS := uP.Parser.RecursivelySlurpSignature(start.Right, "single")
-			middle := signature.NameTypePair{VarName: start.Operator, VarType: "bling"}
-			sig = append(append(LHS, middle), RHS...) 
-		case *ast.SuffixExpression :
-			keyword = start.Operator
-			sig = uP.Parser.RecursivelySlurpSignature(start.Left, "single")
-		case *ast.UnfixExpression :
-			keyword = start.Operator
-			sig = signature.Signature{}
-		default :
-			return keyword, sig, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
-	}
-	return keyword, sig, content, given, nil
-}
 
 
 func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.TokenizedCodeChunk){
@@ -585,7 +541,7 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 	currentChunk.ToStart()
 	for j := 0; j < currentChunk.Length(); j++ {
 		tok := currentChunk.NextToken()
-		
+
 		if tok.Type == token.LPAREN {
 			hasParams = true
 			inParenthesis = true

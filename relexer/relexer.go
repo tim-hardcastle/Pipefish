@@ -38,6 +38,8 @@ type Relexer struct {
 	lexer     lexer.Lexer
 	preTok, curTok, nexTok token.Token
 	givenHappened bool
+	lparenMeansInnerFunction bool
+	innerFunctionIsHappening bool
 	nestingLevel int
 	Errors object.Errors
 	funcDef bool
@@ -68,9 +70,14 @@ func (rl *Relexer) NextToken() token.Token {
 	// We use this last facility to expand out the END statements.
 
 
+	if rl.innerFunctionIsHappening && rl.preTok.Type == token.IDENT && rl.curTok.Type == token.IDENT &&
+	/**/rl.nexTok.Type == token.COMMA {
+		rl.nexTok.Type = token.WEAK_COMMA
+	}
+
 	if rl.nexTok.Type == token.BEGIN && 
-			 !(rl.curTok.Literal == "given" || rl.curTok.Type == token.COLON ||
-			  (rl.curTok.Type == token.NEWLINE && (rl.preTok.Type == token.COLON) || (rl.preTok.Literal == "given")) ) {
+			 !(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON ||
+			  (rl.curTok.Type == token.NEWLINE && ((rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON)) || (rl.preTok.Type == token.GIVEN)) ) {
 				 fmt.Println(rl.curTok)
 		rl.Throw("relex/indent", rl.curTok)
 	}
@@ -85,6 +92,8 @@ func (rl *Relexer) NextToken() token.Token {
 		case token.NEWLINE :
 			if rl.nestingLevel == 0 && rl.preTok.Type != token.GIVEN {
 				rl.givenHappened = false
+				rl.lparenMeansInnerFunction = false
+				rl.innerFunctionIsHappening = false
 			}
 			if rl.nexTok.Type == token.NO_INDENT || 
 			/**/ rl.nexTok.Type == token.NEWLINE {
@@ -97,6 +106,7 @@ func (rl *Relexer) NextToken() token.Token {
 			/**/ token.TokenTypeIsHeadword(rl.preTok.Type) ||
 			/**/ rl.preTok.Type == token.PRIVATE ||
 			/**/ rl.preTok.Type == token.COLON ||
+			/**/ rl.preTok.Type == token.MAGIC_COLON ||
 			/**/ rl.nexTok.Type == token.END ||
 			/**/ rl.nexTok.Type == token.RPAREN {
 				return rl.burnToken()
@@ -105,6 +115,8 @@ func (rl *Relexer) NextToken() token.Token {
 		case token.ASSIGN : 
 			if rl.givenHappened {
 				rl.curTok.Type = token.GVN_ASSIGN
+				rl.lparenMeansInnerFunction = false
+				rl.innerFunctionIsHappening = false
 			}
 		case token.IDENT :
 			if rl.curTok.Literal == "struct" {
@@ -119,6 +131,12 @@ func (rl *Relexer) NextToken() token.Token {
 		case token.ILLEGAL :
 			return rl.burnToken()
 		case token.COLON :
+			if rl.innerFunctionIsHappening {
+				rl.innerFunctionIsHappening = false
+				rl.lparenMeansInnerFunction = false
+				rl.curTok.Type = token.MAGIC_COLON
+				rl.curTok.Literal = ":"
+			}
 			if rl.preTok.Type == token.GIVEN {
 				return rl.burnToken()
 			}
@@ -132,9 +150,12 @@ func (rl *Relexer) NextToken() token.Token {
 			rl.nestingLevel = rl.nestingLevel + 1
 		case token.LPAREN :
 			rl.nestingLevel = rl.nestingLevel + 1
+			if rl.lparenMeansInnerFunction { 
+				rl.innerFunctionIsHappening = true
+				rl.lparenMeansInnerFunction = false
+			 }
 		case token.RPAREN :
 			rl.nestingLevel = rl.nestingLevel - 1
-			rl.structDef = false
 		case token.END :
 			n, _ := strconv.Atoi(rl.curTok.Literal)	
 			switch {
@@ -143,6 +164,7 @@ func (rl *Relexer) NextToken() token.Token {
 				case n == 0 :
 					if rl.nexTok.Type == token.GIVEN {
 						rl.givenHappened = true
+						rl.lparenMeansInnerFunction = true
 						return rl.burnToken()
 					}
 					rl.curTok.Literal = strconv.Itoa(n - 1)
@@ -159,6 +181,8 @@ func (rl *Relexer) NextToken() token.Token {
 			}	
 		case token.GIVEN :
 			rl.givenHappened = true
+			rl.innerFunctionIsHappening = false
+			rl.lparenMeansInnerFunction = true
 			if rl.nexTok.Type == token.COLON {
 				return rl.burnNextToken()
 			}
@@ -166,6 +190,7 @@ func (rl *Relexer) NextToken() token.Token {
 				rl.getToken();
 			}
 	}
+	
 	rl.getToken()  // We shuffle them all along before returning 'cos we sure can't do it afterwards.
 	//fmt.Println(rl.preTok, rl.nestingLevel, rl.givenHappened)
 	return rl.preTok // Which up until now has been the curTok

@@ -26,7 +26,8 @@ clearall:
 
 def
 
-state = struct(code, stack, mem list, defs, vars, consts map, output, err string, loopVar any)
+state = struct(code list, stack list, mem list, defs map, vars map, consts map, 
+        .. output string, err string, loopVar single)
 
 forthOutput(S state) :
     S[err] != "" : S[err]
