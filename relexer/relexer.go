@@ -70,6 +70,12 @@ func (rl *Relexer) NextToken() token.Token {
 	// We use this last facility to expand out the END statements.
 
 
+	if rl.nestingLevel == 0 && (rl.curTok.ChStart == 0 && !(rl.curTok.Type == token.BEGIN)) {
+		rl.givenHappened = false
+		rl.lparenMeansInnerFunction = false
+		rl.innerFunctionIsHappening = false
+	}
+
 	if rl.innerFunctionIsHappening && rl.preTok.Type == token.IDENT && rl.curTok.Type == token.IDENT &&
 	/**/rl.nexTok.Type == token.COMMA {
 		rl.nexTok.Type = token.WEAK_COMMA
@@ -90,11 +96,7 @@ func (rl *Relexer) NextToken() token.Token {
 		case token.COMMENT :
 			return rl.burnToken()
 		case token.NEWLINE :
-			if rl.nestingLevel == 0 && rl.preTok.Type != token.GIVEN {
-				rl.givenHappened = false
-				rl.lparenMeansInnerFunction = false
-				rl.innerFunctionIsHappening = false
-			}
+		
 			if rl.nexTok.Type == token.NO_INDENT || 
 			/**/ rl.nexTok.Type == token.NEWLINE {
 				return rl.burnNextToken()
@@ -189,6 +191,11 @@ func (rl *Relexer) NextToken() token.Token {
 			if rl.preTok.Type == token.NEWLINE {
 				rl.getToken();
 			}
+	}
+
+	if rl.curTok.Type == token.NEWLINE && rl.givenHappened { 
+		rl.lparenMeansInnerFunction = true
+		rl.innerFunctionIsHappening = false
 	}
 	
 	rl.getToken()  // We shuffle them all along before returning 'cos we sure can't do it afterwards.
