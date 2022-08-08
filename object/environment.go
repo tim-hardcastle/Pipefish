@@ -39,12 +39,23 @@ func (e *Environment) Get(name string) (Object, bool) {
 	return e.Ext.Get(name)
 }
 
-func (e *Environment) StringDumpVariables() string {
+func (e *Environment) StringDumpVariables() string { // For outputting them as a file of assignments
 	result := ""
 	for k, v := range e.Store {
 		if v.access != ACCESS_CONSTANT {
 			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + "\n"
 		}
+	}
+	return result
+}
+
+func (e *Environment) String() string { // For outputting them as a file of assignments
+	result := ""
+	for k, v := range e.Store {
+			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
+	}
+	if e.Ext != nil {
+		result = result + "\n    + {" + e.Ext.String() + "}"
 	}
 	return result
 }

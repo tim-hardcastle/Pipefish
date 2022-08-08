@@ -1,15 +1,13 @@
 def
 
-while (p) do (f) to (x tuple) :
-    p x : while p do f to f x
-    else : x
+while (p) do (f) to (z tuple) :
+    p z : while p do f to f z
+    else : z
 
-apply (f func) to (L list):
-    applier (L, [])
-given :
-    applier = func(L, R) :
-        not L : R
-        else : this(L behead 1, R + [f L[0]])
+(L) apply (f func) :
+    (for len(L) do action to 0, [])[1]
+given:
+    action(i, R) : i + 1, R + [f L[i]]
 
 for (n) do (f) to (x tuple) :
     (while unfinished do loop to 0, x)[1::arity(x) + 1]

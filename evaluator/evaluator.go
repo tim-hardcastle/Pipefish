@@ -243,7 +243,8 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		return object.SetFromSlice([]object.Object{list})
 
 	case *ast.FuncExpression :
-		newEnv := parser.Globals
+		newEnv := object.NewEnvironment()
+		newEnv.Ext = parser.Globals
 		for key, value := range env.Store {
 			newEnv.Store[key] = value
 		  }
@@ -390,11 +391,7 @@ func evalUnfixExpression(token token.Token, operator string, prsr *parser.Parser
 
 
 func evalInfixExpression(
-	tok token.Token,
-	operator string,
-	left, right object.Object,
-	prsr *parser.Parser,
-	env *object.Environment,
+	tok token.Token, operator string, left, right object.Object, prsr *parser.Parser, env *object.Environment,
 ) object.Object {
 	switch {
 	case left.Type() == object.UNSATISFIED_OBJ: 
@@ -715,11 +712,7 @@ func evalTupleExpression(
 	}
 }
 
-func evalIdentifier(
-	node *ast.Identifier,
-	prsr *parser.Parser,
-	env *object.Environment,
-) object.Object {
+func evalIdentifier(node *ast.Identifier, prsr *parser.Parser, env *object.Environment) object.Object {
 
 	val, ok := env.Get(node.Value);
 	
