@@ -243,12 +243,7 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		return object.SetFromSlice([]object.Object{list})
 
 	case *ast.FuncExpression :
-		newEnv := object.NewEnvironment()
-		newEnv.Ext = parser.Globals
-		for key, value := range env.Store {
-			newEnv.Store[key] = value
-		  }
-		return &object.Func{Function : ast.Function{Sig: node.Sig, Body: node.Body, Given: node.Given}, Env: newEnv}
+		return &object.Func{Function : ast.Function{Sig: node.Sig, Body: node.Body, Given: node.Given}, Env: env}
 
 	case *ast.StructExpression :
 		return &object.StructDef{Sig : node.Sig} 
