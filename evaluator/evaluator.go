@@ -540,7 +540,7 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 			if ok {
 				prsr.Throw("eval/struct/enum", tok)
 			}
-			env.InitializeConstant(v.VarName, &object.Label{Value: v.VarName, Name: "label"})
+			env.InitializeConstant(v.VarName, &object.Label{Value: v.VarName, Name: "field"})
 		}
 
 		return nil
@@ -784,6 +784,9 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 	default :
 		env := object.NewEnvironment()
 		env.Ext = ext
+		if !prsr.ParamsFitSig(f.Sig, params) {
+			return newError("eval/sig/lambda", token, params)
+		}
 		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
 		if !f.Cmd {
 			newEnvironment.Set("this", &object.Func{Function: f, Env: env})

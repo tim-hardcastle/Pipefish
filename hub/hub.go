@@ -2,9 +2,11 @@ package hub
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+    "net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,6 +37,7 @@ type Hub struct{
 	snap *Snap
 	oldServiceName string // Somewhere to keep the old service name while taking a snap
 	Sources map[string] []string
+	lastRun []string
 }
 
 //
@@ -126,6 +129,7 @@ func (hub *Hub) Do(line string) bool {
 	}
 
 	obj := service.Do(line)
+
 	if service.Parser.ErrorsExist() {
 		hub.GetAndReportErrors(service.Parser)
 		return false
@@ -160,7 +164,7 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 	switch verb {
 
 	// Verbs are in alphabetical order :
-	// edit, errors, help, peek, quit, replay, run, services, snap, test, trace
+	// edit, errors, help, listen, peek, quit, replay, run, services, snap, test, trace
 
 	case "edit" :
 		switch {
@@ -217,6 +221,13 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 					/**/ "'" + hubWords[1] + "' as a parameter.")
 				}
 			}
+	case "listen" :	
+		switch {
+			case fieldCount == 3 :
+				hub.StartHttp(hubWords[1], hubWords[2])
+			default :
+				hub.WriteError("the 'hub listen' command takes two parameters, a path and a port.")	
+			}
 	case "peek" : 	
 		switch {
 			case fieldCount == 1 : hub.peek = !hub.peek 
@@ -232,7 +243,7 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 
 		}
 	case "quit" : if fieldCount > 1 {
-		hub.WriteError("the 'hub quit' command takes no parameters")
+		hub.WriteError("the 'hub quit' command takes no parameters.")
 		} else {
 			hub.quit()
 			return true
@@ -247,7 +258,7 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 			case fieldCount == 3 :	
 				if hubWords[2] != "diff" {
 					hub.WriteError("the word '" + hubWords[2] + 
-					/**/ "' makes no sense there")
+					/**/ "' makes no sense there.")
 				} else {
 					hub.playTest(hubWords[1], true)
 				}
@@ -265,14 +276,18 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 		}
 	case "reset" : 
 		if len(hubWords) > 2 {
-			hub.WriteError("the " + text.Emph("hub reset") + " command takes at most one parameter, the name of a service")
+			hub.WriteError("the " + text.Emph("hub reset") + " command takes at most one parameter, the name of a service.")
 		}
 		service, ok := hub.services[hub.currentServiceName]
 		if len(hubWords) == 2  {
 			service, ok = hub.services[hubWords[1]]
 		}
 		if !ok {
-			hub.WriteError("the hub can't find the service '" + hub.currentServiceName + "'")
+			hub.WriteError("the hub can't find the service '" + hub.currentServiceName + "'.")
+			return false
+		}
+		if hub.currentServiceName == "" {
+			hub.WriteError("service is empty, nothing to reset.")
 			return false
 		}
 		hub.WritePretty("Restarting script '" + service.GetScriptFilepath() + 
@@ -282,7 +297,19 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 			service.OpenDataFile(service.GetDataFilepath())
 		}
 		return false
+	case "rerun" :
+		if len(hubWords) > 1 {
+			hub.WriteError("the 'hub rerun' command takes no parameters.")
+			return false
+		}
+		if len(hub.lastRun) == 0 {
+			hub.WriteError("nothing to rerun.")
+			return false
+		}
+		hub.ParseHubCommand(hub.lastRun)
+		return false
 	case "run" :
+		hub.lastRun = hubWords 
 		switch fieldCount {
 		case 1 :
 			hub.currentServiceName = ""
@@ -295,18 +322,22 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 		case 3 :
 			if hubWords[2] == "as" {
 				hub.WriteError("missing service name after 'as'.")
+				hub.lastRun = []string{}
 				return false
 			}
 			hub.WriteError("the word '" + hubWords[2] + "' doesn't make any sense there.")
+			hub.lastRun = []string{}
 			return false
 		case 4:
 			if hubWords[2] != "as" {
 				hub.WriteError("the word '" + hubWords[2] + "' doesn't make any sense there.")
+				hub.lastRun = []string{}
 				return false
 			}
 			hub.WritePretty("Starting script '" + hubWords[1] + "' as service '" + hubWords[3] + "'.\n")
 			hub.Start(hubWords[3], hubWords[1])
 		default :
+			hub.lastRun = []string{}
 			hub.WriteError("too many words after 'hub run'.")
 			return false
 		}
@@ -750,7 +781,7 @@ func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
-	hub := Hub{services : make(map[string]*Service), currentServiceName: "", in: in, out: out}
+	hub := Hub{services : make(map[string]*Service), currentServiceName: "", in: in, out: out, lastRun: []string{}}
 	return &hub
 }
 
@@ -968,3 +999,25 @@ func objToString(service *Service, obj object.Object) string {
 		}
 }
 
+
+func (h *Hub) StartHttp(path, port string) {
+    http.HandleFunc(path, h.handleRequest)
+    err := http.ListenAndServe(":" + port, nil)
+    if errors.Is(err, http.ErrServerClosed) {
+        fmt.Printf("server closed\n")
+    } else if err != nil {
+        fmt.Printf("error starting server: %s\n", err)
+        os.Exit(1)
+    }
+}  
+
+func (h *Hub) handleRequest(w http.ResponseWriter, r *http.Request) {
+    body, err := io.ReadAll(r.Body)
+    if err != nil {
+        fmt.Printf("could not read body: %s\n", err)
+    }
+    input := string(body[:])
+	h.out = w
+	h.Do(input)
+	io.WriteString(w, "\n")
+}

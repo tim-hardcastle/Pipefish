@@ -348,7 +348,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you create a struct, the names you give to the parameters in the constructor are automatically " +
-			"converted to a set of labels for the fields of the struct. These are the only things you can index the struct by."
+			"converted to a set of labels of type 'field' for the fields of the struct. These are the only things you can index the struct by."
 		},
 	},
 
@@ -640,6 +640,17 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 			"match the supplied parameters."
 		},
 	},
+
+	"eval/sig/lambda" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "There is a mismatch between the parametera of the anonymous function you defined " +
+			"and the arguments you tried to pass to it."
+		},
+	},
+
 
 	"eval/malret" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {

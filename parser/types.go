@@ -17,6 +17,7 @@ func NewTypeSystem() TypeSystem {
 	}
 	T.AddTransitiveArrow("nil", "struct")
 	T.AddTransitiveArrow("enum", "label")
+	T.AddTransitiveArrow("field", "label")
 	return &T
 }
 

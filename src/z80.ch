@@ -43,7 +43,7 @@ load(filename) :
     S = S with lbls :: getLbls(S[code])
 
 ex(s) :
-    S = execute S, s
+    S = execute(S, s)
     show
 
 run :
@@ -128,7 +128,7 @@ execute(S State, line string) :
 given :
     operator = getOperator(line)
     operands = (line == operator : []; else : csvToList(line behead len(operator) + 1))
-    parsedOperands = parse S, operands
+    parsedOperands = parse (S, operands)
 
 // And now another big conditional to deal with all the whacky things
 // ld can get up to. (Again, modulo me not caring about IX very much.)
@@ -355,7 +355,7 @@ given :
 // they hold, and a literal.
 
 parse(S State, operands list) :
-    apply f to operands
+    operands apply f
 given :
     f = func(s string) :
         len s == 5 and s[0] == "#" and type hexToNum16(s[1::5]) != error :
@@ -439,7 +439,7 @@ given :
     csver = func(L, p, i) :
         i == len(remainder) : L + [trimWhitespace(remainder[p::i])]
         remainder[i] == "," : this L + [trimWhitespace(remainder[p::i])], i + 1, i + 1
-        else : this L, p, i + 1
+        else : this (L, p, i + 1)
 
 trimLeft(s) :
     s behead (while condition do action to 0)

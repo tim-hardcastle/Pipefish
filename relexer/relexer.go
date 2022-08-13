@@ -8,32 +8,32 @@ package relexer
 // superfluous newlines and also the colon after GIVEN, since the lexer will
 // treat both of these as infix operators.
 //
-// We're also going to kludge the func definitions. They need to have "weak commas"
-// between the func keyword and the colon. A newline after this colon must be discarded as usual.
-//
-// For this purpose we have the funcDef flag. Is it not written that flags are a Code
-// Smell? It is so written.
-//
-// To add to the stench, we also need a givenHappened flag. Assignments in the "given"
-// section of a function have to be treated differently from everything else, but they
-// also have to be treated the same whether they appear in the var section, the def
-// section, and the REPL.
-//
-// To cope with this, we will keep a crude count of the nesting level. After "given", all
-// the assignments will be turned into GVN_ASSIGN until the nesting level goes down to 
-// zero. 
-//
+
 
 import (
 	"charm/lexer"
 	"charm/object"
+	"charm/stack"
 	"charm/token"
 
 	"fmt"
 	"strconv"
 )
 
+var (
+	GIVEN = 0
+	FN_REWRITE = 1
+	FN_REWRITTEN = 2
+	ASSIGNMENT = 3
+)
+
+type keepTrack struct {
+	state int
+	depth int
+}
+
 type Relexer struct {
+	stack 	  *stack.Stack[keepTrack]
 	source    string
 	lexer     lexer.Lexer
 	preTok, curTok, nexTok token.Token
@@ -56,11 +56,59 @@ func New(source, input string) *Relexer {
 				   funcDef : false,
 				   structDef : false,
 				   Errors : []*object.Error{},
+				   stack : stack.NewStack[keepTrack](),
 				}
 	return rl
 }
 
 func (rl *Relexer) NextToken() token.Token {
+// In this we call NextSemanticToken, which, as its name implies, returns a stream from which the syntactic
+// whitespace has been stripped.
+
+tok := rl.NextSemanticToken()
+
+switch tok.Type {
+case token.ASSIGN:
+	top, ok := rl.stack.HeadValue();
+	if ok {
+		tok.Type = token.GVN_ASSIGN
+		if top.state == GIVEN {
+			rl.stack.Push(keepTrack{state : ASSIGNMENT, depth : rl.nestingLevel})
+		}
+	}
+case token.COLON:
+	top, ok := rl.stack.HeadValue()
+	if ok && top.state == FN_REWRITE {
+		rl.stack.Pop()
+		rl.stack.Push(keepTrack{state: FN_REWRITTEN, depth: rl.nestingLevel})
+		tok.Type = token.MAGIC_COLON
+	}
+case token.LPAREN :
+	if tok.Literal == token.LPAREN {
+		top, ok := rl.stack.HeadValue()
+		if ok && top.state == GIVEN {
+			rl.stack.Push(keepTrack{state : FN_REWRITE, depth : rl.nestingLevel})
+		}
+	}
+case token.GIVEN:
+	rl.stack.Push(keepTrack{GIVEN, rl.nestingLevel})
+}
+
+for {
+	top, ok := rl.stack.HeadValue()
+	if tok.Type == token.NEWLINE && ok && rl.nestingLevel <= top.depth {
+		rl.stack.Pop()
+	} else { break }
+
+}
+
+if tok.Type == token.NEWLINE { rl.structDef = false }
+
+return tok
+
+}
+
+func (rl *Relexer) NextSemanticToken() token.Token {
 	// So, this is almost all a big case switch on the current token.
 	// Depending on what it is, we may return it () as the default, or "burn" it, in which
 	// case it disappears so completely it doesn't even become the preTok, the previous token,
@@ -70,21 +118,9 @@ func (rl *Relexer) NextToken() token.Token {
 	// We use this last facility to expand out the END statements.
 
 
-	if rl.nestingLevel == 0 && (rl.curTok.ChStart == 0 && !(rl.curTok.Type == token.BEGIN)) {
-		rl.givenHappened = false
-		rl.lparenMeansInnerFunction = false
-		rl.innerFunctionIsHappening = false
-	}
-
-	if rl.innerFunctionIsHappening && rl.preTok.Type == token.IDENT && rl.curTok.Type == token.IDENT &&
-	/**/rl.nexTok.Type == token.COMMA {
-		rl.nexTok.Type = token.WEAK_COMMA
-	}
-
 	if rl.nexTok.Type == token.BEGIN && 
 			 !(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON ||
 			  (rl.curTok.Type == token.NEWLINE && ((rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON)) || (rl.preTok.Type == token.GIVEN)) ) {
-				 fmt.Println(rl.curTok)
 		rl.Throw("relex/indent", rl.curTok)
 	}
 	
@@ -114,12 +150,6 @@ func (rl *Relexer) NextToken() token.Token {
 				return rl.burnToken()
 			}
 			
-		case token.ASSIGN : 
-			if rl.givenHappened {
-				rl.curTok.Type = token.GVN_ASSIGN
-				rl.lparenMeansInnerFunction = false
-				rl.innerFunctionIsHappening = false
-			}
 		case token.IDENT :
 			if rl.curTok.Literal == "struct" {
 				rl.structDef = true
@@ -127,35 +157,24 @@ func (rl *Relexer) NextToken() token.Token {
 			if rl.curTok.Literal == "func" {
 				rl.funcDef = true
 			}
-			if rl.preTok.Type == token.IDENT && rl.nexTok.Type == token.COMMA && (rl.funcDef || rl.structDef) {
+			top, ok := rl.stack.HeadValue()
+			if rl.preTok.Type == token.IDENT && rl.nexTok.Type == token.COMMA && 
+					(rl.funcDef || rl.structDef || ok && top.state == FN_REWRITE) {
 				rl.nexTok.Type = token.WEAK_COMMA
 			}
 		case token.ILLEGAL :
 			return rl.burnToken()
 		case token.COLON :
-			if rl.innerFunctionIsHappening {
-				rl.innerFunctionIsHappening = false
-				rl.lparenMeansInnerFunction = false
-				rl.curTok.Type = token.MAGIC_COLON
-				rl.curTok.Literal = ":"
-			}
 			if rl.preTok.Type == token.GIVEN {
 				return rl.burnToken()
 			}
-			if rl.funcDef {
-				rl.curTok.Type = token.COLON
-				rl.funcDef = false
-			}
+			rl.funcDef = false
 		case token.BEGIN :
 			rl.curTok.Type = token.LPAREN
 			rl.curTok.Literal = "|->"
 			rl.nestingLevel = rl.nestingLevel + 1
 		case token.LPAREN :
 			rl.nestingLevel = rl.nestingLevel + 1
-			if rl.lparenMeansInnerFunction { 
-				rl.innerFunctionIsHappening = true
-				rl.lparenMeansInnerFunction = false
-			 }
 		case token.RPAREN :
 			rl.nestingLevel = rl.nestingLevel - 1
 		case token.END :
@@ -165,8 +184,6 @@ func (rl *Relexer) NextToken() token.Token {
 					return rl.burnToken()
 				case n == 0 :
 					if rl.nexTok.Type == token.GIVEN {
-						rl.givenHappened = true
-						rl.lparenMeansInnerFunction = true
 						return rl.burnToken()
 					}
 					rl.curTok.Literal = strconv.Itoa(n - 1)
@@ -175,27 +192,16 @@ func (rl *Relexer) NextToken() token.Token {
 				default:
 					rl.nestingLevel = rl.nestingLevel - 1
 					rl.curTok.Literal = strconv.Itoa(n - 1)
-					if rl.nestingLevel == 0 && rl.preTok.Type != token.GIVEN {
-						rl.givenHappened = false
-					}
 					return token.Token{Type: token.RPAREN, Literal: "<-|", Line: rl.curTok.Line,
 					/**/ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
 			}	
 		case token.GIVEN :
-			rl.givenHappened = true
-			rl.innerFunctionIsHappening = false
-			rl.lparenMeansInnerFunction = true
 			if rl.nexTok.Type == token.COLON {
 				return rl.burnNextToken()
 			}
 			if rl.preTok.Type == token.NEWLINE {
 				rl.getToken();
 			}
-	}
-
-	if rl.curTok.Type == token.NEWLINE && rl.givenHappened { 
-		rl.lparenMeansInnerFunction = true
-		rl.innerFunctionIsHappening = false
 	}
 	
 	rl.getToken()  // We shuffle them all along before returning 'cos we sure can't do it afterwards.
@@ -207,17 +213,18 @@ func (rl *Relexer) getToken() {
 	rl.preTok = rl.curTok
 	rl.curTok = rl.nexTok
 	rl.nexTok = rl.lexer.NextNonCommentToken()
+
 }
 
 func (rl *Relexer) burnToken() token.Token {
 	rl.curTok = rl.nexTok
 	rl.nexTok = rl.lexer.NextNonCommentToken()
-	return rl.NextToken()
+	return rl.NextSemanticToken()
 }
 
 func (rl *Relexer) burnNextToken() token.Token {
 	rl.nexTok = rl.lexer.NextNonCommentToken()
-	return rl.NextToken()
+	return rl.NextSemanticToken()
 }
 
 func (rl *Relexer) insertTokenBeforeCurrentToken(token token.Token) token.Token {
@@ -232,7 +239,7 @@ func (rl *Relexer) PeekToken() token.Token {
 func RelexDump(input string) {
     fmt.Print("Relexer output: \n\n")
     rl := New("", input)
-    for tok := rl.NextToken() ; tok.Type != token.EOF ; tok = rl.NextToken() {
+    for tok := rl.NextSemanticToken() ; tok.Type != token.EOF ; tok = rl.NextSemanticToken() {
         fmt.Println(tok)
     }
     fmt.Println()

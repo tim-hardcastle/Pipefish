@@ -691,7 +691,7 @@ func addPairToStruct (args ...object.Object) object.Object {
 					Right: args[2].(*object.Pair).Right})})
 		}
 	}
-	if object.TrueType(index) != "label" {
+	if object.TrueType(index) != "field" {
 		return makeErr("built/struct/label", object.TrueType(index))
 	}
 	_, ok := args[0].(*object.Struct).Value[index.(*object.Label).Value]
