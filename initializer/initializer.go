@@ -53,12 +53,14 @@ const (
 type declarationType int
 
 const (	importDeclaration declarationType = iota
-		enumDeclaration       //
-		typeDeclaration       // The fact that these things come
-		constantDeclaration   // in this order is used in the code
-		variableDeclaration   // and should not be changed without
-		functionDeclaration   // a great deal of forethought.
-		commandDeclaration    // 
+		enumDeclaration            //
+		typeDeclaration            // The fact that these things come
+		constantDeclaration        // in this order is used in the code
+		variableDeclaration        // and should not be changed without
+		functionDeclaration        // a great deal of forethought.
+		privateFunctionDeclaration //
+		commandDeclaration         // 
+		privateCommandDeclaration  //
 		   
 )
 
@@ -79,8 +81,8 @@ var tokenTypeToSection = map[token.TokenType] Section {
 type Initializer struct {
 	rl                 relexer.Relexer
 	Parser             parser.Parser
-	tokenizedDeclarations [7]tokenizedCodeChunks
-	parsedDeclarations	  [7]parsedCodeChunks
+	tokenizedDeclarations [9]tokenizedCodeChunks
+	parsedDeclarations	  [9]parsedCodeChunks
 	Sources map[string] []string
 }
 
@@ -229,8 +231,13 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 			if expressionIsAssignment {
 				uP.Throw("init/cmd/assign", definingToken)
 			} else {
+				if isPrivate {
+					uP.tokenizedDeclarations[privateCommandDeclaration] = 
+					/**/append(uP.tokenizedDeclarations[privateCommandDeclaration], line)
+				} else {
 				uP.tokenizedDeclarations[commandDeclaration] = 
-				/**/append(uP.tokenizedDeclarations[commandDeclaration], line)
+					/**/append(uP.tokenizedDeclarations[commandDeclaration], line)
+				}
 			}
 			case VarSection:
 				if !expressionIsAssignment {
@@ -238,7 +245,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 				} else {
 
 					// As a wretched kludge, we will now weaken some of the commas on the LHS of
-					// the assignment so that it parses properly.
+					// the assignment so that it parses properly. (TODO: at this point it would be much easier to
+					// do this in the relexer.)
 					lastWasType := false
 					lastWasVar := false
 					line.ToStart()
@@ -270,8 +278,13 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 					uP.tokenizedDeclarations[enumDeclaration] = 
 					/**/append(uP.tokenizedDeclarations[enumDeclaration], line)					
 				default :
-					uP.tokenizedDeclarations[functionDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[functionDeclaration], line)
+					if isPrivate{
+						uP.tokenizedDeclarations[privateFunctionDeclaration] = 
+						/**/append(uP.tokenizedDeclarations[privateFunctionDeclaration], line)
+					} else {
+						uP.tokenizedDeclarations[functionDeclaration] = 
+						/**/append(uP.tokenizedDeclarations[functionDeclaration], line)
+					}
 				}
 			}
 			line = tokenized_code_chunk.New()
@@ -387,7 +400,7 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 }
 
 func (uP *Initializer) ParseEverything() {
-	for declarations := constantDeclaration; declarations <= commandDeclaration; declarations++ {
+	for declarations := constantDeclaration; declarations <= privateCommandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.tokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.tokenizedDeclarations[declarations][chunk]
 			uP.tokenizedDeclarations[declarations][chunk].ToStart()
@@ -512,11 +525,14 @@ func (uP *Initializer) returnOrderOfAssignments(declarations declarationType) *[
 // slice. We want to read their signatures and order them according to specificity for the purposes of 
 // implementing overloading.
 func (uP *Initializer) makeFunctions() {
-	for j := functionDeclaration; j <= commandDeclaration; j++ {
+	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.parsedDeclarations[j]) ; i++ {
 			keyword, sig, rTypes, body, given, error := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
 			if error == nil {
-				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword, ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given, Cmd: j == commandDeclaration})
+				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword, 
+					ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given, 
+						Cmd: j == commandDeclaration || j == privateCommandDeclaration,
+					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
 				if ! ok {
 					uP.Throw("init/overload", token.Token{}, keyword) 
 				}

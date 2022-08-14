@@ -192,7 +192,7 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 	case "halt" : 
 		name := hub.currentServiceName
 		if fieldCount > 2 {
-			hub.WriteError("the 'hub reset' command takes at most one parameter, the name of a service.")
+			hub.WriteError("the 'hub halt' command takes at most one parameter, the name of a service.")
 		}
 		ok := true
 		if fieldCount == 2  {
@@ -200,13 +200,17 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 			if ok {
 				name = hubWords[1]
 			} else {
-				hub.WriteError("the hub can't find the service '" + hub.currentServiceName + "'.")
+				hub.WriteError("the hub can't find the service '" + hubWords[1] + "'.")
 				return false
 			}
 		}
-		if name == hub.currentServiceName { hub.currentServiceName = "" }
+		if name == "" { 
+			hub.WriteError("the hub doesn't know what you want to halt.") 
+			return false
+		}
 		delete(hub.services, name) 
 		hub.WriteString(text.OK + "\n")
+		if name == hub.currentServiceName { hub.currentServiceName = "" }
 		return false	
 	case "help" :	
 		switch {
@@ -224,6 +228,8 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 	case "listen" :	
 		switch {
 			case fieldCount == 3 :
+				hub.WriteString(text.OK)
+				hub.WriteString("\nHub is listening.\n\n")
 				hub.StartHttp(hubWords[1], hubWords[2])
 			default :
 				hub.WriteError("the 'hub listen' command takes two parameters, a path and a port.")	
@@ -344,10 +350,14 @@ func (hub *Hub) ParseHubCommand(hubWords []string) bool { // Returns true if the
 	case "services" :	
 		switch {
 			case fieldCount == 1 :
+				if len(hub.services) == 1 {
+					hub.WriteString("\nThe hub is not presently running any services.\n")
+				}
 				hub.WriteString("\n") 
 				hub.list()
 			default :
 				hub.WriteError("the 'hub services' command takes no parameters.")
+			return false
 		}
 	case "snap" :
 		switch fieldCount {
@@ -582,7 +592,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 	return tryName
 }
 
-func (hub *Hub)  quit() {
+func (hub *Hub) quit() {
 	hub.save()
 	hub.WriteString(text.OK + "\n" + text.Logo() + "Thank you for using Charm. Have a nice day!\n\n")
 }
@@ -860,17 +870,16 @@ func (hub *Hub) Open() {
 }
 
 func (hub *Hub) list() {
-	if len(hub.services) == 1 { return } // The would be the empty service, the REPL
+	if len(hub.services) == 1 { return }
 	hub.WriteString("The hub is running the following services:\n\n")
 	for k := range(hub.services) {
 		if k == "" { continue }
-		hub.WritePretty("service '" + k + "' running script '" + filepath.Base(hub.services[k].GetScriptFilepath()) + "'")
+		hub.WritePretty(text.BULLET + "Service '" + k + "' running script '" + filepath.Base(hub.services[k].GetScriptFilepath()) + "'.")
 		if hub.services[k].GetDataFilepath() != "" {
 			hub.WriteString(" with data '" + filepath.Base(hub.services[k].GetDataFilepath()) + "'")
 		}
 		hub.WriteString("\n")
 	}
-	hub.WriteString("\n")
 }
 
 

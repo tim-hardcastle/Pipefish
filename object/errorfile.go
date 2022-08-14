@@ -15,8 +15,11 @@ import (
 //
 // Major categories are built, err, eval, init, lex, parse, repl, and serve.
 //
-// Two otherwise identical errors thrown in different places in the Go code *must* be assigned
-// different identifiers, if only by suffixing /a, /b, etc to the identifier.
+// Two otherwise identical errors thrown in different places in the Go code must be assigned
+// different identifiers, if only by suffixing /a, /b, etc to the identifier, with the following exception:
+// for the purposes of information-hiding, the same error should be shown when either a private or
+// a non-existent variable/constant/function is referenced from the REPL, even if these errors are
+// generated in slightly different places in the code.
 
 var ErrorCreatorMap = map[string] ErrorCreator {
 
@@ -729,12 +732,42 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
+	"eval/repl/a" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't find function " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Either there is no function/command matching the given parameters, or it has been declared " +
+			/**/"private and cannot be accessed through the REPL."
+		},
+	},
+
+	"eval/repl/b" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't find suffix " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Either there is no function/command matching the given parameters, or it has been declared " +
+			/**/"private and cannot be accessed through the REPL."
+		},
+	},
+
 	"eval/repl/const" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "reassigning to a constant '" + args[0].(string) + "'in the REPL."
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The value of a constant can only be declared once."
+		},
+	},
+
+	"eval/repl/d" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't find infix " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Either there is no function/command matching the given parameters, or it has been declared " +
+			/**/"private and cannot be accessed through the REPL."
 		},
 	},
 

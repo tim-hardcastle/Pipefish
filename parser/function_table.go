@@ -20,12 +20,12 @@ func (ft FunctionTable) Add(T TypeSystem, keyword string, f ast.Function) (ok bo
 	return true
 } 
 
-func (p *Parser) FindFunction(keyword string, parameters []object.Object) (returnFunction ast.Function, returnError string) {
+func (p *Parser) FindFunction(keyword string, parameters []object.Object, fromRepl bool) (returnFunction ast.Function, returnError string) {
 	if _, ok := p.FunctionTable[keyword]; !ok {
 		return returnFunction, "keyword"
 	}
 	for _, f := range p.FunctionTable[keyword] {
-		if p.ParamsFitSig(f.Sig, parameters) {
+		if p.ParamsFitSig(f.Sig, parameters) && !(fromRepl && f.Private) {
 			return f, ""
 		}	
 	}	

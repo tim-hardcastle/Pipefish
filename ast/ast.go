@@ -302,7 +302,9 @@ func (bi *BuiltInExpression) String() string       { return "builtin \"" + bi.Na
 
 type Function = struct {
 	Sig signature.Signature
+	Rets signature.Signature
 	Body Node
 	Given Node
 	Cmd bool
+	Private bool
 }

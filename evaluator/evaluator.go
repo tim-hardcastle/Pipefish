@@ -290,6 +290,7 @@ func evalLazyLeftExpression(token token.Token, operator string, left object.Obje
 func evalPrefixExpression(token token.Token, operator string, right object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
 	if isUnsatisfiedConditional(right) { return newError("eval/unsatisfied/h", token) }
 	variable, ok := env.Get(operator)
+	params := make([]object.Object, 0) 
 	switch {
 	case operator == "not":
 		return evalNotOperatorExpression(token, right, prsr, env)
@@ -299,7 +300,6 @@ func evalPrefixExpression(token token.Token, operator string, right object.Objec
 		return evalReturnExpression(token, right)
 	case prsr.Prefixes.Contains(operator) || prsr.Functions.Contains(operator) || 
 	/**/ prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
-		params := make([]object.Object, 0) 
 		if right.Type() == object.TUPLE_OBJ {
 			params = right.(*object.Tuple).Elements
 		} else {
@@ -318,11 +318,17 @@ func evalPrefixExpression(token token.Token, operator string, right object.Objec
 		// Otherwise we have a function or prefix, which work the same at this point.
 		return evaluateFunction(token, operator, params, prsr, env)
 	}
+	if token.Source == "REPL input" {
+		return newError("eval/repl/a", token, params)
+	}
 	return newError("eval/unknown/prefix", token, right)
 }
 
 func evaluateFunction(token token.Token, operator string, params []object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	f, err := prsr.FindFunction(operator, params)
+	f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
+	if err != "" && token.Source == "REPL input" {
+		return newError("eval/repl/a", token, params) 
+	}
 	if err == "keyword" {
 		return newError("eval/keyword/a", token)
 	}
@@ -337,9 +343,9 @@ func evaluateFunction(token token.Token, operator string, params []object.Object
 
 
 func evalSuffixExpression(token token.Token, operator string, left object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
+	params := make([]object.Object, 0) 
 	if isUnsatisfiedConditional(left) { return newError("eval/unsatisfied/i", token) }
 	if prsr.Suffixes.Contains(operator) || prsr.Endfixes.Contains(operator) {
-		params := make([]object.Object, 0) 
 		if left.Type() == object.TUPLE_OBJ {
 			params = left.(*object.Tuple).Elements
 		} else {
@@ -352,7 +358,10 @@ func evalSuffixExpression(token token.Token, operator string, left object.Object
 			return &object.Tuple{Elements: params}
 		}
 		// Otherwise we have a suffix function
-		f, err := prsr.FindFunction(operator, params)
+		f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
+		if err != "" && token.Source == "REPL input" {
+			return newError("eval/repl/b", token, params) 
+		}
 		if err == "keyword" {
 			return newError("eval/keyword/b", token)
 		}
@@ -365,13 +374,19 @@ func evalSuffixExpression(token token.Token, operator string, left object.Object
 		return applyFunction(f, params, prsr, token, prsr.Globals)
 		
 	}
+	if token.Source == "REPL input" {
+		return newError("eval/repl/b", token, params)
+	}
 	return newError("eval/unknown/suffix", token, left)
 }
 
 
 func evalUnfixExpression(token token.Token, operator string, prsr *parser.Parser, env *object.Environment) object.Object {
 	params := make([]object.Object, 0) 
-	f, err := prsr.FindFunction(operator, params)
+	f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
+	if err != "" && token.Source == "REPL input" {
+		return newError("eval/repl/c", token, params) 
+	}
 	if err == "keyword" {
 		return newError("eval/keyword/c", token)
 	}
@@ -388,6 +403,7 @@ func evalUnfixExpression(token token.Token, operator string, prsr *parser.Parser
 func evalInfixExpression(
 	tok token.Token, operator string, left, right object.Object, prsr *parser.Parser, env *object.Environment,
 ) object.Object {
+	params := make([]object.Object, 0)
 	switch {
 	case left.Type() == object.UNSATISFIED_OBJ: 
 		return newError("eval/unsatisfied/j", tok)
@@ -401,9 +417,8 @@ func evalInfixExpression(
 	case right.Type() == object.ERROR_OBJ:
 		right.(*object.Error).Trace = append(right.(*object.Error).Trace, tok)
 		 return right
-	case prsr.Infixes.Contains(operator) || prsr.Midfixes.Contains(operator):
+	case prsr.Infixes.Contains(operator) || prsr.Midfixes.Contains(operator) :
 		// Either way we start by assembling a parameters list ...
-		params := make([]object.Object, 0)
 		rparams := make([]object.Object, 0) 
 		if left.Type() == object.TUPLE_OBJ {
 			params = left.(*object.Tuple).Elements
@@ -429,7 +444,10 @@ func evalInfixExpression(
 			return constructor(prsr, params...)
 		}
 		// Otherwise we have an infix function
-		f, err := prsr.FindFunction(operator, params)
+		f, err := prsr.FindFunction(operator, params, tok.Source == "REPL input")
+		if err != "" && tok.Source == "REPL input" {
+			return newError("eval/repl/d", tok, params) 
+		}
 		if err == "keyword" {
 			return newError("eval/keyword/d", tok)
 		}
@@ -445,6 +463,9 @@ func evalInfixExpression(
 	case operator == "!=":
 		return object.MakeInverseBool(object.Equals(left, right))
 	default:
+		if tok.Source == "REPL input" {
+			return newError("eval/repl/b", tok, params)
+		}
 		return newError("eval/unknown/operator", tok, left, right)
 	}
 }

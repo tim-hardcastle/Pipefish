@@ -3,9 +3,10 @@ import "lib/prelude.ch"
 cmd
 
 add (n string, s int) :
-    data = data + [student(n, s)]
+    data = data + [Student(n, s)]
 
-show : return prettyPrint(data, formula)
+show :
+    return prettyPrint(data, formula)
 
 use(f) :
     formula = f
@@ -18,19 +19,19 @@ var private
 data = []
 formula = func(x) : "N/A"
 
-def
+def private
 
-student = struct(name string, score int)
+Student = struct(name string, score int)
 
-(s student) < (t student) : s[score] > t[score]
+(s Student) < (t Student) : s[score] > t[score]
 
 prettyPrint(data, formula) :
     "\n    # | Name                 | Score   | Adjusted\n" ..
     .. + "-------------------------------------------------\n" ..
-    .. + (while condition do action to 0, "")[1]
+    .. + (while condition do action to 0, "")[1] + "\n"
 given:
-    condition = func(i, s) : i < len(data)
-    action = func(i, s) : i + 1, s + prettyString(data[i], formula, i)
+    condition(i, s) : i < len(data)
+    action(i, s) : i + 1, s + prettyString(data[i], formula, i)
 
 prettyString(item, formula, number) : 
     spaces(5 - len string number) + string(number) + " | "  + item[name] ..
@@ -39,4 +40,5 @@ prettyString(item, formula, number) :
     .. + string (formula item[score]) + "\n"
 
 spaces (n) : for n do action to ""
-given : action = func(x) : x + " "
+given :
+    action(x) : x + " "
