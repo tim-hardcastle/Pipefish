@@ -1,7 +1,6 @@
 package lexer
 
 import (
-
 	"fmt"
 	"strconv"
 	"strings"
@@ -482,7 +481,7 @@ func isHexDigit(ch rune) bool {
 
 func isProtectedPunctuation(ch rune) bool {
 	return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' || ch == ' ' || ch == ',' || 
-	/**/ ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == 0
+	     ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == 0
 }
 
 func isWhitespace(ch rune) bool {

@@ -225,7 +225,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 					uP.Throw("init/import/assign", definingToken)
 				} else {
 					uP.tokenizedDeclarations[importDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[importDeclaration], line)
+					    append(uP.tokenizedDeclarations[importDeclaration], line)
 				}
 			case CmdSection:
 			if expressionIsAssignment {
@@ -233,10 +233,10 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 			} else {
 				if isPrivate {
 					uP.tokenizedDeclarations[privateCommandDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[privateCommandDeclaration], line)
+					    append(uP.tokenizedDeclarations[privateCommandDeclaration], line)
 				} else {
 				uP.tokenizedDeclarations[commandDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[commandDeclaration], line)
+					    append(uP.tokenizedDeclarations[commandDeclaration], line)
 				}
 			}
 			case VarSection:
@@ -264,26 +264,26 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 					}
 
 					uP.tokenizedDeclarations[variableDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[variableDeclaration], line)
+					    append(uP.tokenizedDeclarations[variableDeclaration], line)
 				}
 			case DefSection:
 				switch {
 				case expressionIsAssignment :
 					uP.tokenizedDeclarations[constantDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[constantDeclaration], line)
+					    append(uP.tokenizedDeclarations[constantDeclaration], line)
 				case expressionIsStruct :
 					uP.tokenizedDeclarations[typeDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[typeDeclaration], line)
+					    append(uP.tokenizedDeclarations[typeDeclaration], line)
 				case expressionIsEnum :
 					uP.tokenizedDeclarations[enumDeclaration] = 
-					/**/append(uP.tokenizedDeclarations[enumDeclaration], line)					
+					    append(uP.tokenizedDeclarations[enumDeclaration], line)					
 				default :
 					if isPrivate{
 						uP.tokenizedDeclarations[privateFunctionDeclaration] = 
-						/**/append(uP.tokenizedDeclarations[privateFunctionDeclaration], line)
+						    append(uP.tokenizedDeclarations[privateFunctionDeclaration], line)
 					} else {
 						uP.tokenizedDeclarations[functionDeclaration] = 
-						/**/append(uP.tokenizedDeclarations[functionDeclaration], line)
+						    append(uP.tokenizedDeclarations[functionDeclaration], line)
 					}
 				}
 			}

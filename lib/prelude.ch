@@ -53,3 +53,16 @@ tail (L) :
     len(s) < i : error "curtail removing more elements than the object contains"
     len(s) == i : ""
     else : s[0::len(s) - i]
+
+max (x, y) :
+    x > y : x
+    else : y
+
+min (x, y) :
+    x < y : x
+    else : y
+
+zip (L, R list):
+    (for (len L) do action to 0, map ())[1]
+given :
+    action(i, M) : i + 1, (M with L[i] :: R[i])

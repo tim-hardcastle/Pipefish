@@ -1,7 +1,6 @@
 package object
 
 import (
-	
 	"charm/text"
 	"charm/token"
 
@@ -148,7 +147,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "An error that very much means what it says. You tried to index a list with something of type <" + 
-			/**/args[0].(string) + ">, and Charm has no idea what you mean by that."
+			    args[0].(string) + ">, and Charm has no idea what you mean by that."
 		},
 	},
 
@@ -158,7 +157,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "An error that very much means what it says. You tried to index a string with something of type <" + 
-			/**/args[0].(string) + ">, and Charm has no idea what you mean by that."
+			    args[0].(string) + ">, and Charm has no idea what you mean by that."
 		},
 	},
 
@@ -168,7 +167,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "An error that very much means what it says. You tried to index a tuple with something of type <" + 
-			/**/args[0].(string) + ">, and Charm has no idea what you mean by that."
+			    args[0].(string) + ">, and Charm has no idea what you mean by that."
 		},
 	},
 
@@ -387,6 +386,18 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
+	"eval/apply" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "Can't apply <" + args[0].(string) + "> as a function" 
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "In this line you have written something of the form '(<expression 1>) (<expression 2>)'. " +
+			"The only way Charm can evaluate something like that is if expression 1 evaluates to something of " + 
+			" type <func>, in which case this will be applied to expression 2. However, in this case the " +
+			"first expression evaluated to something of type <" + args[0].(string) + ">." 
+		},
+	},
+
 	"eval/cmd/assign" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "Variables cannot be assigned types in the 'cmd' section." 
@@ -473,7 +484,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 				return "'eval' takes a string as a parameter"},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "'eval' takes a string as a parameter and returns the result of interpreting that string as an " +
-			/**/"expression in Charm: e.g. 'eval \"2 + 2\"' would return 4."
+			    "expression in Charm: e.g. 'eval \"2 + 2\"' would return 4."
 		},
 	},
 
@@ -684,7 +695,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're trying to construct an instance of a struct, but your syntax has gotten Charm so " +
-			/**/"confused that it's not sure what you mean to do."
+			    "confused that it's not sure what you mean to do."
 		},
 	},
 
@@ -738,7 +749,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Either there is no function/command matching the given parameters, or it has been declared " +
-			/**/"private and cannot be accessed through the REPL."
+			    "private and cannot be accessed through the REPL."
 		},
 	},
 
@@ -748,7 +759,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Either there is no function/command matching the given parameters, or it has been declared " +
-			/**/"private and cannot be accessed through the REPL."
+			    "private and cannot be accessed through the REPL."
 		},
 	},
 
@@ -767,7 +778,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Either there is no function/command matching the given parameters, or it has been declared " +
-			/**/"private and cannot be accessed through the REPL."
+			    "private and cannot be accessed through the REPL."
 		},
 	},
 
@@ -1251,7 +1262,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 	"init/import/infix" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok) +
-			/**/ " in the 'import' section"
+			     " in the 'import' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you should be doing in the 'import' section is specifying " +
@@ -1275,7 +1286,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 	"init/import/pair" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok) +
-			/**/ " in the 'import' section"
+			     " in the 'import' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only function or operator that Charm expects to find in the 'import' section is " +
@@ -1287,7 +1298,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 	"init/import/string/a" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok) +
-			/**/ " in the 'import' section"
+			     " in the 'import' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you should be doing in the 'import' section is specifying " +
@@ -1300,7 +1311,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 	"init/import/string/b" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok) +
-			/**/ " in the 'import' section"
+			     " in the 'import' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you should be doing in the 'import' section is specifying " +
@@ -1525,7 +1536,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Having begun a string literal with an opening quote, you haven't concluded it with a matching " +
-			/**/"closing quote before the end of your line of code."
+			    "closing quote before the end of your line of code."
 		},
 	},
 
@@ -1535,7 +1546,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Having begun a string literal with an opening quote, you haven't concluded it with a matching " +
-			/**/"closing quote before the end of your line of code."
+			    "closing quote before the end of your line of code."
 		},
 	},
 
@@ -1607,7 +1618,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 	"parse/eol" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
-			/**/" unclosed by " + text.DescribeTok(tok)
+			    " unclosed by " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You've reached the end of an expression and the " + 
@@ -1616,10 +1627,33 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
+	"parse/exec/found" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "couldn't find service '" + args[0].(string) + "'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The 'exec' keyword is supposed to be preceded by the name of a service running on " +
+			"the hub. Instead you supplied '" + args[0].(string) + "'"
+		},
+	},
+
+	"parse/exec/name" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "the keyword 'exec' should be preceded by the name of a service running on " +
+			"the hub"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The 'exec' keyword is supposed to be preceded by the name of a service running on " +
+			"the hub. Note that you cannot supply an expression: a command 'bar' of service 'FOO' must " +
+			"be invoked in the form 'FOO exec bar': there is no way to set 'x' equal to 'FOO' and 'y' equal to " +
+			"'bar', and then invoke 'x exec y'."
+		},
+	},
+
 	"parse/expect" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "expected token " + text.DescribeTok(tok) + ", got token " + 
-			/**/text.DescribeTok(args[0].(token.Token)) + " instead."
+			    text.DescribeTok(args[0].(token.Token)) + " instead."
 		},
 
 		// I can improve this when I see which tokens are actually affected. We already have a lot of
@@ -1637,8 +1671,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error occurs when an otherwise well-formed expression " +
-			"is followed by some stray bit of code that shouldn't be there, e.g. '(2 + 2) \"wombat\"'." + blame(errors, pos, "lex/comma") +
-			"\n\n"
+			"is followed by some stray bit of code that shouldn't be there, e.g. '(2 + 2) \"wombat\"'." + blame(errors, pos, "lex/comma")
 		},
 	},
 
@@ -1658,7 +1691,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error occurs when something which only makes sense as a prefix, such as 'not', is " +
-			/**/ "then not followed by anything."
+			     "then not followed by anything."
 		},
 	},
 
@@ -1698,7 +1731,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The " + text.DescribeTok(tok) + " at " + text.DescribePos(tok) + " doesn't " +
-			/**/"correspond to  any " + text.DescribeOpposite(tok) + "that needs closing."
+			    "correspond to  any " + text.DescribeOpposite(tok) + "that needs closing."
 		},
 	},
 
@@ -1715,10 +1748,10 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 	"parse/nesting" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
-			/**/" unclosed by " + text.DescribeTok(tok)
+			    " unclosed by " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
+			return "The " + text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
 			" hasn't been supplied with a corresponding " + text.DescribeOpposite(args[0].(token.Token)) +
 			" by the time the parser reaches the unmatching nesting closure " +  text.DescribeTok(tok) +
 			text.DescribePos(tok) + "."
@@ -1863,7 +1896,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The main body of the error message was generated by the os of your computer when you tried to " +
-			/**/"save the file. If you don't know what it means, you should consult the documentation of your os."
+			    "save the file. If you don't know what it means, you should consult the documentation of your os."
 		},
 	},
 
@@ -1873,7 +1906,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The main body of the error message was generated by the os of your computer when you tried to " +
-			/**/"save the file. If you don't know what it means, you should consult the documentation of your os."
+			    "save the file. If you don't know what it means, you should consult the documentation of your os."
 		},
 	},
 
@@ -1883,7 +1916,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The main body of the error message was generated by the os of your computer when you tried to " +
-			/**/"save the file. If you don't know what it means, you should consult the documentation of your os."
+			    "save the file. If you don't know what it means, you should consult the documentation of your os."
 		},
 	},
 }

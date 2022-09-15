@@ -1,5 +1,5 @@
 //
-// Charm version 0.3
+// Charm version 0.3.2
 //
 // Acknowledgments
 //
@@ -16,6 +16,7 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"charm/hub"
 	"charm/repl"
 	"charm/text"
@@ -28,7 +29,7 @@ func main() {
 	
 	hub := hub.New(os.Stdin, os.Stdout)
 	hub.Open()
-	if len(os.Args) == 1 || !hub.ParseHubCommand(os.Args[1:]) { // Thus taking care of the case where some cheeky 
+	if len(os.Args) == 1 || !hub.ParseHubCommand("", "", os.Args[1:]) { // Thus taking care of the case where some cheeky 
 		repl.Start(hub, os.Stdin, os.Stdout)                    // goose starts it up with ./charm quit
 	}
 } 

@@ -3,8 +3,8 @@ package parser
 import (
 	"bufio"
 	"fmt"
-	"strconv"
 	"os"
+	"strconv"
 	"unicode/utf8"
 
 	"charm/object"
@@ -41,12 +41,12 @@ var Builtins = map[string] func(p *Parser, args ...object.Object) object.Object 
 		defer file.Close()
 
 		result := &object.Struct{Name: "file",
-		/**/Value: map[string]object.Object{"filename": &object.String{Value: fname}, 
-		/**/"contents" : &object.List{Elements: []object.Object{}}}}
+		    Value: map[string]object.Object{"filename": &object.String{Value: fname}, 
+		    "contents" : &object.List{Elements: []object.Object{}}}}
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			result.Value["contents"].(*object.List).Elements = 
-			/**/append(result.Value["contents"].(*object.List).Elements, &object.String{Value: scanner.Text()})
+			    append(result.Value["contents"].(*object.List).Elements, &object.String{Value: scanner.Text()})
 		}
 		return result
 	},
@@ -580,7 +580,7 @@ func addTupleToList(args ...object.Object) object.Object {
 	if len(args) == 2 { return args[0] }
 	if len(args) == 3 { return addPairToList(args...) }
 	newParams := []object.Object{ addPairToList(args[0:3]...), &object.Bling{Value: "with"} }
-	newParams = append(newParams, args[3:len(args)]...)
+	newParams = append(newParams, args[3:]...)
 	return addTupleToList(newParams...)
 }
 
@@ -588,7 +588,7 @@ func addTupleToStruct(args ...object.Object) object.Object {
 	if len(args) == 2 { return args[0] }
 	if len(args) == 3 { return addPairToStruct(args...) }
 	newParams := []object.Object{ addPairToStruct(args[0:3]...), &object.Bling{Value: "with"} }
-	newParams = append(newParams, args[3:len(args)]...)
+	newParams = append(newParams, args[3:]...)
 	return addTupleToStruct(newParams...)
 }
 
@@ -596,7 +596,7 @@ func addTupleToMap(args ...object.Object) object.Object {
 	if len(args) == 2 { return args[0] }
 	if len(args) == 3 { return addPairToMap(args...) }
 	newParams := []object.Object{ addPairToMap(args[0:3]...), &object.Bling{Value: "with"} }
-	newParams = append(newParams, args[3:len(args)]...)
+	newParams = append(newParams, args[3:]...)
 	return addTupleToMap(newParams...)
 }
 
@@ -749,7 +749,7 @@ func addPairToMap (args ...object.Object) object.Object {
 
 	hashKey, ok := args[2].(*object.Pair).Left.(object.Hashable)
 	if !ok {
-		return makeErr("built/hash", object.TrueType(args[1]))
+		return makeErr("built/hash/a", object.TrueType(args[1]))
 	}
 
 	hashed := hashKey.HashKey()

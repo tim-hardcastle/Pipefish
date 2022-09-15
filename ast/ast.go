@@ -155,6 +155,28 @@ func (ie *InfixExpression) String() string {
 	return out.String()
 }
 
+
+type ExecExpression struct {
+	Token    token.Token 
+	Left     Node
+	Right    Node
+}
+
+func (ee *ExecExpression) GetToken() token.Token { return ee.Token }
+func (ee *ExecExpression) TokenLiteral() string { return ee.Token.Literal }
+func (ee *ExecExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(ee.Left.String())
+	out.WriteString(" exec ")
+	out.WriteString(ee.Right.String())
+	out.WriteString(")")
+
+	return out.String()
+}
+
+
 type LazyInfixExpression struct {
 	Token    token.Token 
 	Left     Node
@@ -193,6 +215,26 @@ func (ae *AssignmentExpression) String() string {
 	out.WriteString(" = ")
 	out.WriteString(ae.Right.String())
 	out.WriteString(")")
+
+	return out.String()
+}
+
+type ApplicationExpression struct {
+	Left     Node
+	Right    Node
+	Token    token.Token
+}
+
+func (ae *ApplicationExpression) GetToken() token.Token { return ae.Token }
+func (ae *ApplicationExpression) TokenLiteral() string { return "(" }
+func (ae *ApplicationExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(ae.Left.String())
+	out.WriteString(" (")
+	out.WriteString(ae.Right.String())
+	out.WriteString("))")
 
 	return out.String()
 }

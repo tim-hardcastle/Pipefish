@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-
 	"charm/ast"
 	"charm/object"
 	"charm/relexer"
@@ -45,6 +44,7 @@ const (
 
 var precedences = map[token.TokenType]int{
 	token.GIVEN:	GIVEN,
+	token.EXEC:		FUNC,
 	token.RETURN:	FUNC,
 	token.SEMICOLON: SEMICOLON,
 	token.NEWLINE: SEMICOLON,
@@ -114,6 +114,8 @@ type Parser struct {
 
 	Enums map[string] []*object.Label
 
+	Parsers map[string] *Parser
+
 }
 
 func New() *Parser {
@@ -132,7 +134,7 @@ func New() *Parser {
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
 			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, 
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.LBRACK, token.MAGIC_COLON}),
+			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC, token.LBRACK, token.MAGIC_COLON}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 				token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable : make(FunctionTable),
@@ -140,7 +142,7 @@ func New() *Parser {
 		TypeSystem : NewTypeSystem(),
 	}
 		
-	for k, _ := range *p.TypeSystem {
+	for k := range *p.TypeSystem {
 		p.Suffixes.Add(k)
 	}
 
@@ -155,6 +157,8 @@ func New() *Parser {
 	}
 
 	p.Enums = make(map[string] []*object.Label)
+
+	p.Parsers = make(map[string] *Parser)
 
 	return p
 }
@@ -209,6 +213,7 @@ func (p *Parser) ParseTokenizedChunk() *ast.Node {
 	expn := p.parseExpression(LOWEST)
 	p.NextToken()
 	if p.curToken.Type != token.EOF {
+		fmt.Println("Check 3")
 		p.Throw("parse/expected", p.curToken)
 	}
 	return &expn
@@ -219,7 +224,7 @@ var literals = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, toke
 var literalsAndLParen = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE, 
 	token.LPAREN, token.LBRACE, token.EVAL})
 var assignmentTokens = *set.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN, 
-	/**/ token.CMD_ASSIGN, token.GVN_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
+	     token.CMD_ASSIGN, token.GVN_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
 
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
@@ -310,7 +315,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		}
 
 		if precedence >= p.peekPrecedence() {break}
-	
+
 		foundInfix := p.nativeInfixes.Contains(p.peekToken.Type) ||
 			 p.lazyInfixes.Contains(p.peekToken.Type) ||
 		     p.Infixes.Contains(p.peekToken.Literal) || 
@@ -318,18 +323,19 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		if !foundInfix {
 			return leftExp
 		}
-
 		p.NextToken()
+
 		
 		if foundInfix {
-			if p.lazyInfixes.Contains(p.curToken.Type) {
+			switch {
+			case p.lazyInfixes.Contains(p.curToken.Type) :
 				leftExp = p.parseLazyInfixExpression(leftExp)
-			} else {
-				if p.curToken.Type == token.LBRACK {
-					leftExp = p.parseIndexExpression(leftExp)
-				} else {
-					leftExp = p.parseInfixExpression(leftExp)
-				}
+			case p.curToken.Type == token.EXEC :
+				leftExp = p.parseExecExpression(leftExp)
+			case p.curToken.Type == token.LBRACK :
+				leftExp = p.parseIndexExpression(leftExp)
+			default :
+				leftExp = p.parseInfixExpression(leftExp)
 			}
 		}
 	}
@@ -339,10 +345,11 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			return nil
 		}
 		if p.curToken.Literal == "<-|" || p.curToken.Literal == ")" || 
-		/**/p.curToken.Literal == "]" || p.curToken.Literal == "}" {
+		    p.curToken.Literal == "]" || p.curToken.Literal == "}" {
 			p.Throw("parse/close", p.curToken)
 			return nil
 		}
+		fmt.Println("Check 2")
 		p.Throw("parse/missing", p.curToken)
 		return nil
 	}
@@ -353,7 +360,7 @@ func (p *Parser) positionallyFunctional() bool {
 	if assignmentTokens.Contains(p.peekToken.Type) {return false}
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) { return true }
 	if p.Functions.Contains(p.curToken.Literal) && ! TypeExists(p.curToken.Literal, p.TypeSystem) && 
-	/**/ p.peekToken.Type != token.EOF { return true }
+	     p.peekToken.Type != token.EOF { return true }
 	if p.Prefixes.Contains(p.curToken.Literal){ return p.peekToken.Type != token.EOF }
 	if literalsAndLParen.Contains(p.peekToken.Type) { return true }
 	if p.peekToken.Type != token.IDENT { return false }
@@ -618,6 +625,39 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 
 }
 
+func (p *Parser) parseExecExpression(left ast.Node) ast.Node {
+
+	expression := &ast.ExecExpression{
+		Token:    p.curToken,
+		Left:     left,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+
+	switch t := left.(type) {
+		case *ast.Identifier :
+			q, ok := p.Parsers[t.Value]
+			if !ok {
+				p.Throw("parse/exec/found", p.curToken, t.Value)
+				return nil
+			}
+			q.TokenizedCode = p.TokenizedCode		
+			q.Errors = p.Errors
+			q.nesting = p.nesting
+			q.curToken = p.curToken
+			q.peekToken = p.peekToken
+			expression.Right = q.parseExpression(precedence)
+			p.TokenizedCode = q.TokenizedCode	
+			p.curToken = q.curToken
+			p.peekToken = q.peekToken
+			p.nesting = q.nesting
+			return expression
+		default :
+			p.Throw("parse/exec/name", p.curToken)
+			return nil
+	}
+}
+
 func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {	
 	expression := &ast.AssignmentExpression {
 		Token:    p.curToken,
@@ -663,7 +703,31 @@ func (p *Parser) parseGroupedExpression() ast.Node {
 		p.NextToken() // Forces emission of the error
 		return nil
 	}
+	if p.peekToken.Type == token.LPAREN {
+		p.NextToken()
+		exp = p.parsePresumedApplication(exp)
+	}
 	return exp
+}
+
+// We assume that in things of the form (<expression 1>) (<expression 2>), the intention is that expression 1
+// should return a function which is applied to expression 2.
+func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {	
+	expression := &ast.ApplicationExpression {
+		Token:    p.curToken,
+		Left:     left,
+	}
+	p.NextToken()
+	if p.curToken.Type == token.RPAREN {   // then what we must have is an empty tuple
+		expression.Right = &ast.EmptyTuple{Token: p.curToken}
+		return expression
+	}
+	expression.Right = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RPAREN) {
+		p.NextToken() // Forces emission of the error
+		return nil
+	}
+	return expression
 }
 
 func (p *Parser) parseReturnExpression() ast.Node {
@@ -739,22 +803,23 @@ func (p *Parser) parseSetExpression() ast.Node {
 func (p *Parser) checkNesting() {
 	// if p.curToken.Source != "builtin library" {fmt.Printf("Checking nesting %v\n", p.curToken)}
 	if p.curToken.Type == token.LPAREN || p.curToken.Type == token.LBRACE || 
-	/**/ p.curToken.Type == token.LBRACK {
+	     p.curToken.Type == token.LBRACK {
 		p.nesting.Push(p.curToken)
 	}
 	if p.curToken.Type == token.RPAREN || p.curToken.Type == token.RBRACE || 
-	/**/ p.curToken.Type == token.RBRACK {
+	     p.curToken.Type == token.RBRACK {
 		popped, poppable := p.nesting.Pop()
 		if !poppable {
 			p.Throw("parse/match", p.curToken)
 			return
 		}
 		if !checkConsistency(popped, p.curToken) {
+			fmt.Println("Nesting error")
 			p.Throw("parse/nesting", p.curToken, popped)
 		}
 	}
 	if p.curToken.Type == token.EOF {
-		for popped, poppable := p.nesting.Pop(); poppable == true; popped, poppable = p.nesting.Pop() {
+		for popped, poppable := p.nesting.Pop(); poppable; popped, poppable = p.nesting.Pop() {
 			p.Throw("parse/eol", p.curToken, popped)
 		}
 	}
@@ -766,9 +831,9 @@ func checkConsistency(left, right token.Token) bool {
 	//	fmt.Printf("Checking consistency: %v, %v\n", left, right)
 	// }
 	if left.Type == token.LPAREN && left.Literal == "(" && 
-	/**/ right.Type == token.RPAREN && right.Literal == ")" { return true }
+	     right.Type == token.RPAREN && right.Literal == ")" { return true }
 	if left.Type == token.LPAREN && left.Literal == "|->" && 
-	/**/ right.Type == token.RPAREN && right.Literal == "<-|" { return true }
+	     right.Type == token.RPAREN && right.Literal == "<-|" { return true }
 	if left.Type == token.LBRACK && right.Type == token.RBRACK { return true }
 	if left.Type == token.LBRACE && right.Type == token.RBRACE { return true }
 	return false
@@ -890,7 +955,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
         switch {
         case TypeExists(typednode.Operator, p.TypeSystem):
             LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
-            for k, _ := range(LHS) {
+            for k := range(LHS) {
                 LHS[k].VarType = typednode.Operator
             }
             return LHS
@@ -953,8 +1018,8 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (set.Set[string], set.Set[str
 	assignHasHappened := false
 	for tok:= T.NextToken(); tok.Type != token.EOF; tok = T.NextToken() {
 		if tok.Type == token.IDENT && 
-			/**/ ! p.AllFunctionIdents.Contains(tok.Literal) &&
-			/**/ ! TypeExists(tok.Literal, p.TypeSystem) {
+			     ! p.AllFunctionIdents.Contains(tok.Literal) &&
+			     ! TypeExists(tok.Literal, p.TypeSystem) {
 			if assignHasHappened {RHS.Add(tok.Literal)} else {LHS.Add(tok.Literal)}
 		}
 		if tok.Type == token.ASSIGN || tok.Type == token.DEF_ASSIGN ||

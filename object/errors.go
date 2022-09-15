@@ -13,21 +13,19 @@ import (
 // The logic to create a specific error given its error identifier and the relevant parameters
 // is in errorfile.go.
 
-
 type Errors = []*Error
 
 type ErrorCreator struct {
-	Message func(tok token.Token, args ...any) string
+	Message     func(tok token.Token, args ...any) string
 	Explanation func(errors Errors, pos int, tok token.Token, args ...any) string
 }
-
 
 func Emph(s string) string {
 	return text.Emph(s)
 }
 
 func Put(message string, tok token.Token, ers Errors) []*Error {
-	for _, v := range(ers) {
+	for _, v := range ers {
 		if v.Token.Line == tok.Line && v.Token.ChStart == tok.ChStart {
 			return ers
 		}
@@ -38,31 +36,31 @@ func Put(message string, tok token.Token, ers Errors) []*Error {
 
 func GetList(ers Errors) string {
 	result := "\n"
-	for i, v := range(ers) {
+	for i, v := range ers {
 		result = result + "[" + strconv.Itoa(i) + "] " + v.Inspect(ViewStdOut) + "\n"
 	}
 	return result + "\n"
-} 
+}
 
 func AddErr(err *Error, ers Errors, tok token.Token) Errors {
-	for _, v := range(ers) {
+	for _, v := range ers {
 		if v.Token.Line == tok.Line && v.Token.ChStart == tok.ChStart {
 			return ers
 		}
-	} 
+	}
 	ers = append(ers, err)
-	return ers		
+	return ers
 }
 
 func Throw(errorId string, ers Errors, tok token.Token, args ...any) Errors {
 	ers = AddErr(CreateErr(errorId, tok, args...), ers, tok)
-	return ers		
+	return ers
 }
 
 func CreateErr(errorId string, tok token.Token, args ...any) *Error {
 	errorCreator, ok := ErrorCreatorMap[errorId]
 	if !ok {
-	return CreateErr("err/misdirect", tok, errorId)
+		return CreateErr("err/misdirect", tok, errorId)
 	}
 	return &Error{ErrorId: errorId, Message: errorCreator.Message(tok, args...),
 		Token: tok, Info: args}
@@ -88,13 +86,14 @@ func MergeErrors(a, b Errors) Errors {
 
 		if a[i].Token.Line == b[j].Token.Line && a[i].Token.ChStart == b[j].Token.ChStart {
 			result = append(result, a[i])
-			i++; j++ // By policy we don't report two errors in the same place
+			i++
+			j++ // By policy we don't report two errors in the same place
 			continue
 		}
-		if a[i].Token.Line < b[j].Token.Line || 
-		/**/a[i].Token.Line == b[j].Token.Line && a[i].Token.ChStart < b[j].Token.ChStart {
+		if a[i].Token.Line < b[j].Token.Line ||
+			a[i].Token.Line == b[j].Token.Line && a[i].Token.ChStart < b[j].Token.ChStart {
 			result = append(result, a[i])
-			i++;
+			i++
 			continue
 		}
 		result = append(result, b[j])
@@ -102,7 +101,3 @@ func MergeErrors(a, b Errors) Errors {
 	}
 	return result
 }
-
-
-
-

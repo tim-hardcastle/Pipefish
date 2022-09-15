@@ -9,7 +9,6 @@ package relexer
 // treat both of these as infix operators.
 //
 
-
 import (
 	"charm/lexer"
 	"charm/object"
@@ -134,19 +133,19 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		case token.NEWLINE :
 		
 			if rl.nexTok.Type == token.NO_INDENT || 
-			/**/ rl.nexTok.Type == token.NEWLINE {
+			     rl.nexTok.Type == token.NEWLINE {
 				return rl.burnNextToken()
 			}
 
 			if rl.preTok.Type == token.NEWLINE ||
-			/**/ rl.nexTok.Type == token.GIVEN ||
-			/**/ rl.preTok.Type == token.GIVEN ||
-			/**/ token.TokenTypeIsHeadword(rl.preTok.Type) ||
-			/**/ rl.preTok.Type == token.PRIVATE ||
-			/**/ rl.preTok.Type == token.COLON ||
-			/**/ rl.preTok.Type == token.MAGIC_COLON ||
-			/**/ rl.nexTok.Type == token.END ||
-			/**/ rl.nexTok.Type == token.RPAREN {
+			     rl.nexTok.Type == token.GIVEN ||
+			     rl.preTok.Type == token.GIVEN ||
+			     token.TokenTypeIsHeadword(rl.preTok.Type) ||
+			     rl.preTok.Type == token.PRIVATE ||
+			     rl.preTok.Type == token.COLON ||
+			     rl.preTok.Type == token.MAGIC_COLON ||
+			     rl.nexTok.Type == token.END ||
+			     rl.nexTok.Type == token.RPAREN {
 				return rl.burnToken()
 			}
 			
@@ -188,12 +187,12 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 					}
 					rl.curTok.Literal = strconv.Itoa(n - 1)
 					return token.Token{Type: token.NEWLINE, Literal: ";", Line: rl.curTok.Line,
-					/**/ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
+					    ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
 				default:
 					rl.nestingLevel = rl.nestingLevel - 1
 					rl.curTok.Literal = strconv.Itoa(n - 1)
 					return token.Token{Type: token.RPAREN, Literal: "<-|", Line: rl.curTok.Line,
-					/**/ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
+					    ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
 			}	
 		case token.GIVEN :
 			if rl.nexTok.Type == token.COLON {

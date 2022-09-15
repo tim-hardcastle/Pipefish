@@ -26,19 +26,22 @@ func TypeExists(s string, t TypeSystem) bool {
 	return ok
 }
 
-var BaseTypes = []string{"int", "float", "bool", "string", "error", "type", "list", 
-/**/ "pair", "set", "map", "func", "struct", "label"}
-
+var BaseTypes = []string{"int", "float", "bool", "string", "error", "type", "list",
+	"pair", "set", "map", "func", "struct", "label"}
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (result bool, ok bool) {
 	if len(sigA) > len(sigB) {
-		if sigB[len(sigB) - 1].VarType != "tuple" && sigB[len(sigB) - 1].VarType != "any" {
-			result = false; ok = true; return 
+		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" && sigB[len(sigB)-1].VarType != "any" {
+			result = false
+			ok = true
+			return
 		}
 	}
 	if len(sigB) > len(sigA) {
-		if len(sigA) == 0 || sigA[len(sigA) - 1].VarType != "tuple" && sigA[len(sigA) - 1].VarType != "any" {
-			result = false; ok = true; return 
+		if len(sigA) == 0 || sigA[len(sigA)-1].VarType != "tuple" && sigA[len(sigA)-1].VarType != "any" {
+			result = false
+			ok = true
+			return
 		}
 	}
 	var aIsMoreSpecific, bIsMoreSpecific bool
@@ -48,16 +51,24 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 		aIsMoreSpecific = aIsMoreSpecific || asubb
 		bIsMoreSpecific = bIsMoreSpecific || bsuba
 		if aIsMoreSpecific && bIsMoreSpecific {
-			result = false; ok = false; return
+			result = false
+			ok = false
+			return
 		}
 		if !(asubb || bsuba || sigA[i].VarType == sigB[i].VarType) {
-			result = false; ok = true; return
+			result = false
+			ok = true
+			return
 		}
 	}
 	if !(aIsMoreSpecific || bIsMoreSpecific) {
-		result = false; ok = false; return 
+		result = false
+		ok = false
+		return
 	}
-	result = aIsMoreSpecific; ok = true; return
+	result = aIsMoreSpecific
+	ok = true
+	return
 }
 
 func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
@@ -65,19 +76,20 @@ func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
 }
 
 func insert(a []ast.Function, value ast.Function, index int) []ast.Function {
-    if len(a) == index { // nil or empty slice or after last element
-        return append(a, value)
-    }
-    a = append(a[:index+1], a[index:]...) // index < len(a)
-    a[index] = value
-    return a
+	if len(a) == index { // nil or empty slice or after last element
+		return append(a, value)
+	}
+	a = append(a[:index+1], a[index:]...) // index < len(a)
+	a[index] = value
+	return a
 }
 
 func AddInOrder(T TypeSystem, S []ast.Function, f ast.Function) ([]ast.Function, bool) {
-	for i := 0 ; i < len(S) ; i++ {
+	for i := 0; i < len(S); i++ {
 		yes, ok := IsMoreSpecific(T, f.Sig, S[i].Sig)
 		if !ok {
-			return []ast.Function{}, false}
+			return []ast.Function{}, false
+		}
 		if yes {
 			S = insert(S, f, i)
 			return S, true
@@ -88,8 +100,8 @@ func AddInOrder(T TypeSystem, S []ast.Function, f ast.Function) ([]ast.Function,
 }
 
 func min(a, b int) int {
-    if a < b {
-        return a
-    }
-    return b
+	if a < b {
+		return a
+	}
+	return b
 }

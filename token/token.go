@@ -44,6 +44,8 @@ const (
 
 	DOTDOT = ".."
 
+	RIGHTARROW = "->"
+
 	NO_INDENT = "|||"
 
 	COMMA     = ","
@@ -69,6 +71,9 @@ const (
 	ELSE     = "else"
 	GIVEN	 = "given"
 	EVAL     = "eval"
+	EXEC	 = "exec"
+
+	MAGIC_COLON = "MAGIC_COLON"
 )
 
 type Token struct {
@@ -89,6 +94,7 @@ var keywords = map[string] TokenType{
 
 	"eval":		EVAL,
 	"given":	GIVEN,
+	"exec":		EXEC,
 
 	"import":	IMPORT,
 	"var":		VAR,

@@ -3,21 +3,21 @@ package evaluator
 // This is basically your standard tree-walking evaluator, with one or two minor peculiarities.
 
 import (
-
 	"strconv"
 	"strings"
 
 	"charm/ast"
 	"charm/object"
-	"charm/token"
 	"charm/parser"
 	"charm/signature"
 	"charm/sysvars"
+	"charm/token"
 )
 
 var (
 	UNSATISFIED = &object.UnsatisfiedConditional{}
 	SUCCESS = &object.SuccessfulAssignment{}
+	
 )
 
 func Evaluate(node ast.Node, parser *parser.Parser, env *object.Environment) object.Object {
@@ -85,11 +85,11 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		right := Eval(node.Right, parser, env)
 		if isError(right)  {
 			if node.Token.Type == token.GVN_ASSIGN {
-				for i := 0 ; i < lLen - 1 ; i++ {
+				for i := 0 ; i < lLen; i++ {
 					err := Assign(variables[i], right, parser, env, node.Token)
 					if err != nil { return err }
-					return SUCCESS
 				}
+				return SUCCESS
 			} else {
 				right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
 				return right
@@ -167,7 +167,7 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		}
 		leftEvaluation := evalLazyLeftExpression(node.Token, node.Operator, left, parser, env)
 		if leftEvaluation != nil && leftEvaluation != SUCCESS && 
-		/**/ (leftEvaluation.Type() != object.RETURN_OBJ){
+		     (leftEvaluation.Type() != object.RETURN_OBJ){
 			return leftEvaluation
 		}
 		right := Eval(node.Right, parser, env)
@@ -187,6 +187,9 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 			return newError("eval/malret", node.Token)
 		}
 		return evalLazyRightExpression(node.Token, node.Operator, right, parser, env)
+
+	case *ast.ExecExpression :
+		return Eval(node.Right, parser.Parsers[node.Left.(*ast.Identifier).Value], env)
 
 	case *ast.Identifier:
 		// We may have reached a bit of orphaned endbling.
@@ -247,6 +250,27 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 
 	case *ast.StructExpression :
 		return &object.StructDef{Sig : node.Sig} 
+	case *ast.ApplicationExpression :
+		left := Eval(node.Left, parser, env)
+		if isError(left) {
+			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
+			return left
+		}
+		right := Eval(node.Right, parser, env)
+		if isError(right) {
+			right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
+			return right
+		}
+		if !(left.Type() == object.FUNC_OBJ) {
+			return newError("eval/apply", node.Token, object.TrueType(left))
+		}
+		params := []object.Object{}
+		if right.Type() == object.TUPLE_OBJ {
+			params = right.(*object.Tuple).Elements
+		} else {
+			params = []object.Object{right}
+		}
+		return applyFunction(left.(*object.Func).Function, params, parser, node.Token, left.(*object.Func).Env)
 	}
 	return newError("eval/oops", token.Token{Line: 0})
 }
@@ -299,7 +323,7 @@ func evalPrefixExpression(token token.Token, operator string, right object.Objec
 	case operator == "return":
 		return evalReturnExpression(token, right)
 	case prsr.Prefixes.Contains(operator) || prsr.Functions.Contains(operator) || 
-	/**/ prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
+	     prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
 		if right.Type() == object.TUPLE_OBJ {
 			params = right.(*object.Tuple).Elements
 		} else {
@@ -440,7 +464,7 @@ func evalInfixExpression(
 		if operator == "with" && params[0].Type() == object.TYPE_OBJ {
 			constructor, ok := prsr.BuiltinFunctions[params[0].(*object.Type).Value + "_with"]
 			if !ok { return newError("eval/with/type", tok, params[0].(*object.Type).Value) }
-			params = params[2:len(params)]
+			params = params[2:]
 			return constructor(prsr, params...)
 		}
 		// Otherwise we have an infix function
@@ -504,8 +528,8 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 
 		prsr.FunctionTable.Add(prsr.TypeSystem,
 			variable.VarName, // The function name ...
-		/**/ ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
-		/**/ Body: &ast.BuiltInExpression{Name: variable.VarName} }) // ... and a reference to the built-in as the body
+		     ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
+		     Body: &ast.BuiltInExpression{Name: variable.VarName} }) // ... and a reference to the built-in as the body
 
 		// The second constructor function ...
 
@@ -550,9 +574,9 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 		// And the second constructor function as it appears in the parser's function table.
 
 		prsr.FunctionTable.Add(prsr.TypeSystem, variable.VarName, // The function name ...
-		/**/ ast.Function{Sig: signature.Signature{
-		/**/ signature.NameTypePair{VarName: "t",  VarType: "tuple"}}, // ... signature ...
-		/**/ Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"} }) // ... and a reference to the built-in as the body
+		     ast.Function{Sig: signature.Signature{
+		     signature.NameTypePair{VarName: "t",  VarType: "tuple"}}, // ... signature ...
+		     Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"} }) // ... and a reference to the built-in as the body
 
 		// Now the labels ...
 
@@ -699,10 +723,6 @@ func evalReturnExpression(token token.Token, right object.Object) object.Object 
 	return &object.Return{Elements: []object.Object{right}}
 } 
 
-func evalStructDefExpression(token token.Token, sig signature.Signature) object.Object {
-	return &object.StructDef{Sig: sig}
-} 
-
 func evalTupleExpression(
 	left, right object.Object,
 ) object.Object {
@@ -717,11 +737,11 @@ func evalTupleExpression(
 			return &object.Tuple{Elements: append(left.(*object.Tuple).Elements, right)}
 		}	
 	default:	
-		switch right.(type) {
+		switch t := right.(type) {
 		case *object.SuccessfulAssignment :
 			return left
 		case *object.Tuple:
-			return &object.Tuple{Elements: append([]object.Object{left}, right.(*object.Tuple).Elements ...)}
+			return &object.Tuple{Elements: append([]object.Object{left}, t.Elements ...)}
 		default:
 			return &object.Tuple{Elements: []object.Object{left, right}}
 		}		
@@ -784,7 +804,7 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 	
 	switch f.Body.(type) {
 	case *ast.BuiltInExpression :
-		funcToApply, _ := prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
+		funcToApply := prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
 		result := funcToApply(prsr, params...)
 		if result.Type() == object.ERROR_OBJ {
 			result.(*object.Error).Trace = append(result.(*object.Error).Trace, token)
@@ -797,7 +817,7 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 					result.(*object.Error).Message = "Oopsie, can't find errorId " + result.(*object.Error).ErrorId
 				} else {
 					result.(*object.Error).Message = msgCreate.
-					/**/Message(token, result.(*object.Error).Info...)
+					    Message(token, result.(*object.Error).Info...)
 				}
 			}
 		}
@@ -834,9 +854,9 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 }
 
 func toObjectList(obj object.Object) []object.Object {
-	switch obj.(type) {
+	switch t := obj.(type) {
 	case *object.Tuple :
-		return obj.(*object.Tuple).Elements
+		return t.Elements
 	default:
 		return []object.Object{obj}
 	}

@@ -1,10 +1,10 @@
 package hub
 
 import (
+	"charm/text"
 	"fmt"
 	"os"
 	"strings"
-	"charm/text"
 )
 
 type ioPair struct{
@@ -27,7 +27,7 @@ const (
 
 func NewSnap(scriptFilepath, testFilename, dataFilepath string) *Snap {
 	sn := Snap{scriptFilepath: scriptFilepath, testFilename: testFilename, dataFilepath: dataFilepath,
-	/**/	ioList: []ioPair{}}
+	    	ioList: []ioPair{}}
 	return &sn
 }
 

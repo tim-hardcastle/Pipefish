@@ -1,7 +1,6 @@
 package parser
 
 import (
-
 	"charm/ast"
 	"charm/object"
 	"charm/signature"
@@ -36,11 +35,11 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 	
 	if len(parameters) == 0 && len(s) == 0 { return true } 
 	if len(parameters) > len(s) &&
-	/**/ !(s[len(s) - 1].VarType == "tuple" || s[len(s) - 1].VarType == "any") {
+	    ((len(s) == 0) || !(s[len(s) - 1].VarType == "tuple" || s[len(s) - 1].VarType == "any")) {
 		return false
 	}
 	if len(parameters) < len(s) && 
-	/**/! (len(s) == len(parameters) + 1 && (s[len(parameters)].VarType == "tuple") || s[len(parameters)].VarType == "any")   {
+	    ! (len(s) == len(parameters) + 1 && (s[len(parameters)].VarType == "tuple") || s[len(parameters)].VarType == "any")   {
 		return false
 	}
 	for i, param := range parameters {
@@ -62,7 +61,7 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 	}
 
 	if (len(s) == len(parameters) + 1 && 
-	/**/(s[len(parameters)].VarType == "tuple") || s[len(parameters)].VarType == "any") { return true }
+	    (s[len(parameters)].VarType == "tuple") || s[len(parameters)].VarType == "any") { return true }
 
 	return false
 }

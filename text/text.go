@@ -1,10 +1,9 @@
 package text
 
-// This consists of a bunch of text utilities to help in generating pretty and meaningful 
+// This consists of a bunch of text utilities to help in generating pretty and meaningful
 // help messages, error messages, etc.
 
 import (
-
 	"strconv"
 	"strings"
 
@@ -14,8 +13,8 @@ import (
 )
 
 const (
-	VERSION = "0.3"
-	BULLET = " ▪ "
+	VERSION = "0.3.2"
+	BULLET = "  ▪ "
 	PROMPT = "→ ")
 
 func ToEscapedText(s string) string {
@@ -126,9 +125,13 @@ func DescribeTok(tok token.Token) string {
 func DescribeOpposite(tok token.Token) string {
 	switch tok.Literal {
 	case "<-|" : { return "indent" }
+	case "|->" : { return "indent" }
 	case ")" : { return "'('" }
 	case "]" : { return "[" }
 	case "}" : { return "{" }
+	case "(" : { return "')'" }
+	case "[" : { return "]" }
+	case "{" : { return "}" }
 	}
 	return "You goofed, that doesn't have an opposite."
 }
@@ -170,7 +173,7 @@ func HighlightLine (plainLine string, highlighter rune) string {
 
 	for _, ch := range(plainLine) {
 		if highlighter == ' ' && (((prevCh == ' ' || prevCh == '\n' || prevCh == '$') &&
-				/**/(ch == '\'' || ch == '"' || ch == '<' || ch == '$') || ch == '@')) {
+				    (ch == '\'' || ch == '"' || ch == '<' || ch == '$') || ch == '@')) {
 			highlighter = ch
 			if highlighter == '<' { highlighter = '>' }
 			if highlighter == '$' {
