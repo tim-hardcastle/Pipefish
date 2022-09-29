@@ -1,6 +1,7 @@
 import
 
-"lib/prelude.ch"
+"lib/prelude.ch" :: ""
+"lib/strings.ch"
 
 def
 
@@ -133,25 +134,10 @@ given :
             i + 1, tokens + [Token(SYMBOL, words[i])]
 
 toWords(input string):
-    (for len(paddedInput) do action to 0, "", [])[2]
+    strings.split(strings.trim(pad(input), " "), " ")
 given :
-    paddedInput = pad input
-    action(i int, word string, words list):
-        paddedInput[i] == " ":
-            word != "" :
-                i + 1, "", words + [word]
-            else :
-                i + 1, "", words
-        else : 
-            i + 1, word + paddedInput[i], words
-
-// Add a space after every parenthesis and at the end.
-pad (s) :
-    (for len(s) do action to (0, ""))[1] + " "
-given :
-    action(i, t) :
-        s[i] in {"(", ")"} : i + 1, t + " " + s[i] + " "
-        else : i + 1, t + s[i]
+    pad (s) :
+        strings.replaceAll(strings.replaceAll(s, "(", " ( ") , ")", " ) ")
 
 (t Token) is (tT TokenType) : t[tokenType] == tT
 

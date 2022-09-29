@@ -1,4 +1,4 @@
-import "lib/prelude.ch"
+import "lib/prelude.ch" :: ""
 
 cmd
 

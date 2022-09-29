@@ -65,7 +65,7 @@ func extractCycle [E comparable] (D *Digraph[E]) *[]E {
 			panic ("extractCycle has found a leaf node, this is bad.")
 		}
 		if i := Index(result, next); i != -1 {
-			result = result[i:len(result)]
+			result = result[i:]
 			break
 		}
 		result = append(result, next)

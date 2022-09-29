@@ -114,7 +114,15 @@ type Parser struct {
 
 	Enums map[string] []*object.Label
 
+	Structs set.Set[string]
+
 	Parsers map[string] *Parser
+
+	GolangImports []string
+
+	Namespace string
+
+	Namespaces map[string]string
 
 }
 
@@ -140,11 +148,16 @@ func New() *Parser {
 		FunctionTable : make(FunctionTable),
 		Globals : object.NewEnvironment(), // I need my functions to be able to see the global constants.
 		TypeSystem : NewTypeSystem(),
+		Structs : make(set.Set[string]),
+		GolangImports: []string{},
+		Namespaces: make(map[string] string),
 	}
 		
 	for k := range *p.TypeSystem {
 		p.Suffixes.Add(k)
 	}
+
+	p.Suffixes.Add("raw")
 
 	p.Functions.AddSet(*set.MakeFromSlice([]string{"builtin"}))
 
@@ -213,7 +226,6 @@ func (p *Parser) ParseTokenizedChunk() *ast.Node {
 	expn := p.parseExpression(LOWEST)
 	p.NextToken()
 	if p.curToken.Type != token.EOF {
-		fmt.Println("Check 3")
 		p.Throw("parse/expected", p.curToken)
 	}
 	return &expn
@@ -248,6 +260,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		case token.LBRACK : leftExp = p.parseListExpression()
 		case token.LBRACE : leftExp = p.parseSetExpression()
 		case token.RETURN : leftExp = p.parseReturnExpression()
+		case token.GOLANG : leftExp = p.parseGolangExpression()
 		default : 
 		if p.curToken.Type == token.IDENT {
 			if p.curToken.Literal == "-" {
@@ -349,7 +362,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			p.Throw("parse/close", p.curToken)
 			return nil
 		}
-		fmt.Println("Check 2")
 		p.Throw("parse/missing", p.curToken)
 		return nil
 	}
@@ -740,6 +752,14 @@ func (p *Parser) parseReturnExpression() ast.Node {
 	return expression
 }
 
+func (p *Parser) parseGolangExpression() ast.Node {
+	expression := &ast.GolangExpression{
+		Token: p.curToken,
+	}
+	p.NextToken()
+	return expression
+}
+
 
 func (p *Parser) parseFuncExpression() ast.Node {
 	expression := &ast.FuncExpression{
@@ -957,6 +977,12 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
             LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
             for k := range(LHS) {
                 LHS[k].VarType = typednode.Operator
+            }
+            return LHS
+		case typednode.Operator == "raw" :
+			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
+            for k := range(LHS) {
+                LHS[k].VarType = LHS[k].VarType + " raw"
             }
             return LHS
         case p.Endfixes.Contains(typednode.Operator):

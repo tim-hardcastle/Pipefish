@@ -74,6 +74,8 @@ const (
 	EXEC	 = "exec"
 
 	MAGIC_COLON = "MAGIC_COLON"
+
+	GOLANG = "golang"
 )
 
 type Token struct {
@@ -95,6 +97,7 @@ var keywords = map[string] TokenType{
 	"eval":		EVAL,
 	"given":	GIVEN,
 	"exec":		EXEC,
+	"golang":	GOLANG,
 
 	"import":	IMPORT,
 	"var":		VAR,

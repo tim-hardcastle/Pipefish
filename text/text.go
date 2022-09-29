@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	VERSION = "0.3.2"
+	VERSION = "0.3.3"
 	BULLET = "  ▪ "
 	PROMPT = "→ ")
 
@@ -79,6 +79,7 @@ func Logo() string {
 
 func DescribePos(token token.Token) string {
 	prettySource := token.Source
+	if prettySource == "" { return "" }
 	if prettySource != "REPL input" {
 		prettySource = "'" + prettySource + "'"
 	}

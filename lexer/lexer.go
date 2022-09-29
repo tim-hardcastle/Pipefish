@@ -112,7 +112,7 @@ func (l *Lexer) NextToken() token.Token {
 	case ')':
 		tok = l.NewToken(token.RPAREN, ")")
 	case '"':
-		tok= l.NewToken(token.STRING, ")")
+		tok= l.NewToken(token.STRING, "")
 		s, ok := l.readFormattedString()
 		tok.Literal = s
 		if !ok {
@@ -195,6 +195,9 @@ func (l *Lexer) NextToken() token.Token {
 		if isLegalStart(l.ch) {
 			tok.Literal = l.readIdentifier()
 			tok = l.NewToken(token.LookupIdent(tok.Literal), tok.Literal)
+			if tok.Type == token.GOLANG {
+				tok.Literal = l.readGolang()
+			}
 			if strings.HasSuffix(tok.Literal, "_") {
 				l.Throw("lex/ident/underscore", tok)
 				tok = l.NewToken(token.ILLEGAL, "lex/ident/underscore")
@@ -394,6 +397,68 @@ func (l *Lexer) readComment() string {
 	return result
 }
 
+func (l *Lexer) readGolang() string {
+	result := ""
+	for (l.peekChar() == ' ' || l.peekChar() == '\t') {
+		l.readChar()
+	}
+	// We expect a brace after the golang keyword.
+	if l.peekChar() != '{' && l.peekChar() != '"'  && l.peekChar() != '`' {
+		l.Throw("lex/char", l.NewToken(token.ILLEGAL, "lex/char"))
+		return ""
+	}
+	if l.peekChar() == '"' {
+		l.readChar()
+		s, ok := l.readFormattedString()
+		if !ok {
+			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "lex/quote/c"))
+		}
+		l.readChar()
+		return s
+	}
+	if l.peekChar() == '`' {
+		l.readChar()
+		s, ok := l.readPlaintextString()
+		if !ok {
+			l.Throw("lex/quote/d", l.NewToken(token.ILLEGAL, "lex/quote/d"))
+		}
+		l.readChar()
+		return s
+	}
+	// So now we look for the closing brace, ignoring those inside strings
+	l.readChar()
+	braces := 1
+	escaped := false
+	quote := ' '
+	for (braces > 0) {
+		l.readChar()
+		if l.ch == 0 { break }	
+		if !escaped {
+			if l.ch == '"' || l.ch == '`' || l.ch == '\'' {
+				if quote == ' ' {
+					quote = l.ch
+				} else {
+					if quote == l.ch {
+						quote = ' '
+					}
+				}
+			}
+			if l.ch == '\\' {
+				escaped = true
+			}
+			if l.ch == '{' && quote == ' ' {
+				braces ++
+			}
+			if l.ch == '}' && quote == ' ' {
+				braces --
+			}
+		}
+		result = result + string(l.ch)
+	}
+	l.readChar()
+	return result
+}
+
 func (l *Lexer) readFormattedString() (string, bool) {
 	escape := false
 	result := ""
@@ -446,7 +511,7 @@ func (l *Lexer) readIdentifier() string {
 	result := ""
 	for isLegalNonStart(l.ch) {
 		result = result + string(l.ch)
-		if (isSymbol(l.ch) != isSymbol(l.peekChar())) && !(isUnderscore(l.ch) || isUnderscore(l.peekChar())) {
+		if (isSymbol(l.ch) != isSymbol(l.peekChar())) && !(isPeriod(l.ch) || isPeriod(l.peekChar())) {
 			l.readChar()
 			break
 		}
@@ -459,8 +524,8 @@ func isLetter(ch rune) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'  || ch == '\'' || ch == '$' || ch == '.'
 }
 
-func isUnderscore(ch rune) bool {
-	return ch == '_'
+func isPeriod(ch rune) bool {
+	return ch == '.'
 }
 
 func isDigit(ch rune) bool {
@@ -493,7 +558,7 @@ func isSymbol(ch rune) bool {
 }
 
 func isLegalStart(ch rune) bool {
-	return !(isProtectedPunctuation(ch) || isDigit(ch) || isUnderscore(ch))
+	return !(isProtectedPunctuation(ch) || isDigit(ch) || isPeriod(ch))
 }
 
 func isLegalNonStart(ch rune) bool {

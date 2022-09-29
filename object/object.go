@@ -514,3 +514,7 @@ func DescribeParams(params []Object) string {
 	}
 	return "'" + s + "'"
 }
+
+type GoReturn struct{
+	Elements []any
+}

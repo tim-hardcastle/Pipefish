@@ -1,6 +1,6 @@
 import
 
-"lib/prelude.ch"
+"lib/prelude.ch" :: ""
 
 def
 

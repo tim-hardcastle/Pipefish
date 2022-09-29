@@ -940,6 +940,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	for k, v := range(hub.services) {
 		init.Parser.Parsers[k] = v.Parser
 	}
+	init.Parser.Namespaces[scriptFilepath] = ""
 	init.MakeParserAndTokenizedProgram()
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
@@ -947,19 +948,33 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 		hub.currentServiceName = ""
 		return
 	}
-	init.ParseImports()
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		hub.currentServiceName = ""
-		return
-	}
-	init.ImportEverything()
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		hub.currentServiceName = ""
-		return
+
+	// Import the standard library
+
+	libDat, _ := os.ReadFile("rsc/builtins.ch")
+	stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
+	init.SetRelexer(*relexer.New("rsc/builtins.ch", stdImp))
+	init.MakeParserAndTokenizedProgram()
+	init.GetSource("rsc/builtins.ch")
+
+	for init.ImportsExist() {
+
+		init.ParseImports()
+		if init.ErrorsExist() {
+			hub.GetAndReportErrors(&init.Parser)
+			hub.Sources = init.Sources
+			hub.currentServiceName = ""
+			return
+		}
+
+		init.ImportEverything()
+		if init.ErrorsExist() {
+			hub.GetAndReportErrors(&init.Parser)
+			hub.Sources = init.Sources
+			hub.currentServiceName = ""
+			return
+		}
+
 	}
 
 	env := object.NewEnvironment()
@@ -995,7 +1010,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 		return
 	}
 
-	init.InitializeEverything(env)
+	init.InitializeEverything(env, scriptFilepath)
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources

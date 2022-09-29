@@ -802,7 +802,7 @@ func evalIndexExpression(token token.Token, left, index object.Object, prsr *par
 
 func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, token token.Token, ext *object.Environment) object.Object {
 	
-	switch f.Body.(type) {
+	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression :
 		funcToApply := prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
 		result := funcToApply(prsr, params...)
@@ -822,6 +822,44 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 			}
 		}
 		return result
+	case *ast.GolangExpression :
+		gh := NewGoHandler(prsr)
+		goParams := []any{}
+		for i := 0; i < len(body.Sig); i++ {
+			switch {
+			case body.Raw[i] :
+				goParams = append(goParams, params[i])
+			case body.Sig[i].VarType == "tuple" :
+				lastEl := []any{}
+				for j := i; j < len(params); j++ {
+					lastEl = append(lastEl, gh.CharmToGo(params[j]))
+				}
+				goParams = append(goParams, lastEl)
+				break
+			default :
+				goParams = append(goParams, gh.CharmToGo(params[i]))
+			}
+		}
+		var result object.Object
+		args := getArgs(body.ObjectCode(goParams...))
+		if len(args) == 1 {
+			result = gh.goToCharm(args[0])
+		} else {
+			result = &object.Tuple{Elements: []object.Object{}}
+			for _, v := range(args) {
+				el := gh.goToCharm(v)
+				if el.Type() == object.ERROR_OBJ {
+					result = el
+					break
+				}
+				result.(*object.Tuple).Elements = append(result.(*object.Tuple).Elements, el)
+			}
+		}
+	switch result := result.(type) {
+	case *object.Error :
+		prsr.Throw("eval/golang", f.Body.GetToken(), result.Message)
+	}
+	return result
 	default :
 		env := object.NewEnvironment()
 		env.Ext = ext
@@ -851,6 +889,10 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 		}
 		return result
 	}
+}
+
+func getArgs(args ...any) []any {
+	return args
 }
 
 func toObjectList(obj object.Object) []object.Object {

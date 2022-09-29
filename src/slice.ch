@@ -1,4 +1,4 @@
-import "lib/prelude.ch"
+import "lib/prelude.ch" :: ""
 
 def // We'll make some data types and data to demonstrate:
 

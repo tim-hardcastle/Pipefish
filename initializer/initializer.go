@@ -35,7 +35,6 @@ import (
 	"charm/tokenized_code_chunk"
 )
 
-
 type tokenizedCodeChunks []*tokenized_code_chunk.TokenizedCodeChunk
 
 type parsedCodeChunks []*ast.Node
@@ -43,8 +42,8 @@ type parsedCodeChunks []*ast.Node
 type Section int
 
 const (
-	ImportSection Section =  iota
-	VarSection 
+	ImportSection Section = iota
+	VarSection
 	CmdSection
 	DefSection
 	UndefinedSection
@@ -52,96 +51,95 @@ const (
 
 type declarationType int
 
-const (	importDeclaration declarationType = iota
-		enumDeclaration            //
-		typeDeclaration            // The fact that these things come
-		constantDeclaration        // in this order is used in the code
-		variableDeclaration        // and should not be changed without
-		functionDeclaration        // a great deal of forethought.
-		privateFunctionDeclaration //
-		commandDeclaration         // 
-		privateCommandDeclaration  //
-		   
+const (
+	importDeclaration          declarationType = iota
+	enumDeclaration                            //
+	typeDeclaration                            // The fact that these things come
+	constantDeclaration                        // in this order is used in the code
+	variableDeclaration                        // and should not be changed without
+	functionDeclaration                        // a great deal of forethought.
+	privateFunctionDeclaration                 //
+	commandDeclaration                         //
+	privateCommandDeclaration                  //
+
 )
 
-var sectionMap = map[Section]string {
-	ImportSection : "import",
-	VarSection : "var",
-	CmdSection : "cmd",
-	DefSection : "def",	
+var sectionMap = map[Section]string{
+	ImportSection: "import",
+	VarSection:    "var",
+	CmdSection:    "cmd",
+	DefSection:    "def",
 }
 
-var tokenTypeToSection = map[token.TokenType] Section {
-	token.IMPORT : ImportSection,
-	token.VAR : VarSection,
-	token.CMD : CmdSection,
-	token.DEF : DefSection,
+var tokenTypeToSection = map[token.TokenType]Section{
+	token.IMPORT: ImportSection,
+	token.VAR:    VarSection,
+	token.CMD:    CmdSection,
+	token.DEF:    DefSection,
 }
 
 type Initializer struct {
-	rl                 relexer.Relexer
-	Parser             parser.Parser
+	rl                    relexer.Relexer
+	Parser                parser.Parser
 	tokenizedDeclarations [9]tokenizedCodeChunks
-	parsedDeclarations	  [9]parsedCodeChunks
-	Sources map[string] []string
+	parsedDeclarations    [9]parsedCodeChunks
+	Sources               map[string][]string
 }
 
-func New(source, input string) *Initializer {	
+func New(source, input string) *Initializer {
 	uP := &Initializer{
-		rl:     *relexer.New(source, input),
-		Parser: *parser.New(),
-		Sources : make(map[string] []string),
+		rl:      *relexer.New(source, input),
+		Parser:  *parser.New(),
+		Sources: make(map[string][]string),
 	}
 	uP.GetSource(source)
 	return uP
 }
 
-
 func (uP *Initializer) GetSource(source string) {
 	file, err := os.Open(source)
-    if err != nil {
-        uP.Throw("init/source/open", token.Token{}, source)
-    }
-    defer file.Close()
+	if err != nil {
+		uP.Throw("init/source/open", token.Token{}, source)
+	}
+	defer file.Close()
 
 	uP.Sources[source] = []string{}
 
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        uP.Sources[source] = append(uP.Sources[source], scanner.Text())
-    }
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		uP.Sources[source] = append(uP.Sources[source], scanner.Text())
+	}
 }
 
-
-func (uP *Initializer) MakeParserAndTokenizedProgram(){
-	currentSection:= UndefinedSection
-	beginCount:= 0
-	indentCount:=0;
-	lastTokenWasColon:= false
-	colonMeansFunctionOrCommand:= true
+func (uP *Initializer) MakeParserAndTokenizedProgram() {
+	currentSection := UndefinedSection
+	beginCount := 0
+	indentCount := 0
+	lastTokenWasColon := false
+	colonMeansFunctionOrCommand := true
 	expressionIsAssignment := false
 	expressionIsStruct := false
 	expressionIsFunction := false
 	expressionIsEnum := false
 	isPrivate := false
 	var (
-		tok token.Token
+		tok           token.Token
 		definingToken token.Token
 	)
 
-	tok = uP.rl.NextToken() // note that we've already removed leading newlines.
+	tok = uP.rl.NextToken()    // note that we've already removed leading newlines.
 	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
 		return
 	}
 	if !token.TokenTypeIsHeadword(tok.Type) {
-		uP.Throw("init/head" , tok)
+		uP.Throw("init/head", tok)
 		return
 	}
 	currentSection = tokenTypeToSection[tok.Type]
 
 	line := tokenized_code_chunk.New()
-	
-	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken()  {
+
+	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
 		// if tok.Source != "rsc/builtins.ch" { fmt.Printf("Relexer says %v\n", tok) }
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
@@ -155,7 +153,9 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 		}
 
 		if tok.Type == token.PRIVATE {
-			if isPrivate { uP.Throw("init/private", tok) }
+			if isPrivate {
+				uP.Throw("init/private", tok)
+			}
 			isPrivate = true
 			continue
 		}
@@ -172,43 +172,47 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 			definingToken = tok
 		}
 
-		if tok.Literal == "=" && ! (tok.Type == token.GVN_ASSIGN || tok.Type == token.STRING) {
+		if tok.Literal == "=" && !(tok.Type == token.GVN_ASSIGN || tok.Type == token.STRING) {
 			if currentSection != CmdSection {
 				colonMeansFunctionOrCommand = false
 				expressionIsAssignment = true
 				definingToken = tok
 			}
 			switch currentSection {
-			case DefSection :
+			case DefSection:
 				tok.Type = token.DEF_ASSIGN
-				if expressionIsFunction { uP.Throw("init/def/assign", definingToken) }
-			case VarSection :
+				if expressionIsFunction {
+					uP.Throw("init/def/assign", definingToken)
+				}
+			case VarSection:
 				if isPrivate {
 					tok.Type = token.PVR_ASSIGN
 				} else {
-					tok.Type = token.VAR_ASSIGN	
+					tok.Type = token.VAR_ASSIGN
 				}
-			case CmdSection : tok.Type = token.CMD_ASSIGN
-			default : tok.Type = token.ASSIGN
+			case CmdSection:
+				tok.Type = token.CMD_ASSIGN
+			default:
+				tok.Type = token.ASSIGN
 			}
 		}
 
 		if tok.Type == token.LPAREN {
 			beginCount++
 			if tok.Literal == "|->" {
-				indentCount ++
+				indentCount++
 			}
 		}
 
 		if tok.Type == token.RPAREN {
 			beginCount--
 			if tok.Literal == "<-|" {
-				indentCount --
+				indentCount--
 			}
 		}
 
-		if (tok.Type == token.NEWLINE) && 
-		       !lastTokenWasColon && indentCount == 0 && line.Length() != 0 {
+		if (tok.Type == token.NEWLINE) &&
+			!lastTokenWasColon && indentCount == 0 && line.Length() != 0 {
 			if beginCount != 0 {
 				uP.Throw("init/close", tok)
 				beginCount = 0 // Prevents error storm.
@@ -224,21 +228,21 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 				if expressionIsAssignment {
 					uP.Throw("init/import/assign", definingToken)
 				} else {
-					uP.tokenizedDeclarations[importDeclaration] = 
-					    append(uP.tokenizedDeclarations[importDeclaration], line)
+					uP.tokenizedDeclarations[importDeclaration] =
+						append(uP.tokenizedDeclarations[importDeclaration], line)
 				}
 			case CmdSection:
-			if expressionIsAssignment {
-				uP.Throw("init/cmd/assign", definingToken)
-			} else {
-				if isPrivate {
-					uP.tokenizedDeclarations[privateCommandDeclaration] = 
-					    append(uP.tokenizedDeclarations[privateCommandDeclaration], line)
+				if expressionIsAssignment {
+					uP.Throw("init/cmd/assign", definingToken)
 				} else {
-				uP.tokenizedDeclarations[commandDeclaration] = 
-					    append(uP.tokenizedDeclarations[commandDeclaration], line)
+					if isPrivate {
+						uP.tokenizedDeclarations[privateCommandDeclaration] =
+							append(uP.tokenizedDeclarations[privateCommandDeclaration], line)
+					} else {
+						uP.tokenizedDeclarations[commandDeclaration] =
+							append(uP.tokenizedDeclarations[commandDeclaration], line)
+					}
 				}
-			}
 			case VarSection:
 				if !expressionIsAssignment {
 					uP.Throw("init/var/function", definingToken)
@@ -250,7 +254,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 					lastWasType := false
 					lastWasVar := false
 					line.ToStart()
-					for t := line.NextToken() ; !(t.Type == token.VAR_ASSIGN || t.Type == token.PVR_ASSIGN) ; t = line.NextToken() {
+					for t := line.NextToken(); !(t.Type == token.VAR_ASSIGN || t.Type == token.PVR_ASSIGN); t = line.NextToken() {
 						if t.Type == token.COMMA {
 							if lastWasType {
 								line.Change(token.Token{Type: token.WEAK_COMMA, Line: tok.Line, Literal: ","})
@@ -263,27 +267,27 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 						}
 					}
 
-					uP.tokenizedDeclarations[variableDeclaration] = 
-					    append(uP.tokenizedDeclarations[variableDeclaration], line)
+					uP.tokenizedDeclarations[variableDeclaration] =
+						append(uP.tokenizedDeclarations[variableDeclaration], line)
 				}
 			case DefSection:
 				switch {
-				case expressionIsAssignment :
-					uP.tokenizedDeclarations[constantDeclaration] = 
-					    append(uP.tokenizedDeclarations[constantDeclaration], line)
-				case expressionIsStruct :
-					uP.tokenizedDeclarations[typeDeclaration] = 
-					    append(uP.tokenizedDeclarations[typeDeclaration], line)
-				case expressionIsEnum :
-					uP.tokenizedDeclarations[enumDeclaration] = 
-					    append(uP.tokenizedDeclarations[enumDeclaration], line)					
-				default :
-					if isPrivate{
-						uP.tokenizedDeclarations[privateFunctionDeclaration] = 
-						    append(uP.tokenizedDeclarations[privateFunctionDeclaration], line)
+				case expressionIsAssignment:
+					uP.tokenizedDeclarations[constantDeclaration] =
+						append(uP.tokenizedDeclarations[constantDeclaration], line)
+				case expressionIsStruct:
+					uP.tokenizedDeclarations[typeDeclaration] =
+						append(uP.tokenizedDeclarations[typeDeclaration], line)
+				case expressionIsEnum:
+					uP.tokenizedDeclarations[enumDeclaration] =
+						append(uP.tokenizedDeclarations[enumDeclaration], line)
+				default:
+					if isPrivate {
+						uP.tokenizedDeclarations[privateFunctionDeclaration] =
+							append(uP.tokenizedDeclarations[privateFunctionDeclaration], line)
 					} else {
-						uP.tokenizedDeclarations[functionDeclaration] = 
-						    append(uP.tokenizedDeclarations[functionDeclaration], line)
+						uP.tokenizedDeclarations[functionDeclaration] =
+							append(uP.tokenizedDeclarations[functionDeclaration], line)
 					}
 				}
 			}
@@ -300,7 +304,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 			continue
 		}
 
-		lastTokenWasColon = (tok.Type == token.COLON) 
+		lastTokenWasColon = (tok.Type == token.COLON)
 
 		if (lastTokenWasColon && colonMeansFunctionOrCommand) || tok.Type == token.RIGHTARROW {
 			colonMeansFunctionOrCommand = false
@@ -311,14 +315,13 @@ func (uP *Initializer) MakeParserAndTokenizedProgram(){
 			}
 		}
 
-
-
-        line.Append(tok)
+		line.Append(tok)
 	}
 	uP.Parser.Errors = object.MergeErrors(uP.rl.GetErrors(), uP.Parser.Errors)
 }
 
 func (uP *Initializer) ParseImports() {
+	uP.parsedDeclarations[importDeclaration] = parsedCodeChunks{}
 	for chunk := 0; chunk < len(uP.tokenizedDeclarations[importDeclaration]); chunk++ {
 		uP.Parser.TokenizedCode = uP.tokenizedDeclarations[importDeclaration][chunk]
 		uP.tokenizedDeclarations[importDeclaration][chunk].ToStart()
@@ -326,29 +329,28 @@ func (uP *Initializer) ParseImports() {
 	}
 }
 
-
 func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 	// We add the name of the enum to the type system.
 	for chunk := 0; chunk < len(uP.tokenizedDeclarations[enumDeclaration]); chunk++ {
 		uP.tokenizedDeclarations[enumDeclaration][chunk].ToStart()
-		tok1 := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken();
-		tok2 := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken();
+		tok1 := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken()
+		tok2 := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken()
 		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
 			uP.Throw("init/enum/lhs", tok1)
-		} 
+		}
 		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		uP.Parser.Enums[tok1.Literal] = []*object.Label{}
-		uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken(); // This says "enum" or we wouldn't be here.
+		uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken() // This says "enum" or we wouldn't be here.
 		for tok := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
 				uP.Throw("init/enum/ident", tok)
 			}
 			if env.Exists(tok.Literal) {
 				uP.Throw("init/enum/free", tok)
-			}  
+			}
 			labelConst := &object.Label{Value: tok.Literal, Name: tok1.Literal}
 			env.InitializeConstant(tok.Literal, labelConst)
-			
+
 			uP.Parser.Enums[tok1.Literal] = append(uP.Parser.Enums[tok1.Literal], labelConst)
 
 			tok = uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken()
@@ -357,29 +359,30 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 			}
 			tok = uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken()
 			uP.Parser.Suffixes.Add(tok1.Literal)
-		} 
+		}
 	}
 
 }
 
 func (uP *Initializer) ParseTypeDefs() {
-		// First we need to make the struct types into types so the parser parses them properly.
-		for chunk := 0; chunk < len(uP.tokenizedDeclarations[typeDeclaration]); chunk++ {
-			uP.tokenizedDeclarations[typeDeclaration][chunk].ToStart()
-			tok1 := uP.tokenizedDeclarations[typeDeclaration][chunk].NextToken();
-			tok2 := uP.tokenizedDeclarations[typeDeclaration][chunk].NextToken();
-			if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
-				uP.Throw("init/struct", tok1)
-			} else {
-				uP.tokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
-				uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
-				uP.Parser.TypeSystem.AddTransitiveArrow("nil", tok1.Literal)
-				uP.Parser.Suffixes.Add(tok1.Literal)
-				uP.Parser.AllFunctionIdents.Add(tok1.Literal)
-				uP.Parser.Functions.Add(tok1.Literal)
-			}
+	// First we need to make the struct types into types so the parser parses them properly.
+	for chunk := 0; chunk < len(uP.tokenizedDeclarations[typeDeclaration]); chunk++ {
+		uP.tokenizedDeclarations[typeDeclaration][chunk].ToStart()
+		tok1 := uP.tokenizedDeclarations[typeDeclaration][chunk].NextToken()
+		tok2 := uP.tokenizedDeclarations[typeDeclaration][chunk].NextToken()
+		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
+			uP.Throw("init/struct", tok1)
+		} else {
+			uP.tokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
+			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
+			uP.Parser.TypeSystem.AddTransitiveArrow("nil", tok1.Literal)
+			uP.Parser.Suffixes.Add(tok1.Literal)
+			uP.Parser.AllFunctionIdents.Add(tok1.Literal)
+			uP.Parser.Functions.Add(tok1.Literal)
+			uP.Parser.Structs.Add(tok1.Literal)
 		}
-		// Now we can parse them.
+	}
+	// Now we can parse them.
 
 	for chunk := 0; chunk < len(uP.tokenizedDeclarations[typeDeclaration]); chunk++ {
 		uP.Parser.TokenizedCode = uP.tokenizedDeclarations[typeDeclaration][chunk]
@@ -388,9 +391,8 @@ func (uP *Initializer) ParseTypeDefs() {
 	}
 }
 
-
 func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
-	for _, v := range(uP.parsedDeclarations[typeDeclaration]) {
+	for _, v := range uP.parsedDeclarations[typeDeclaration] {
 		result := evaluator.Evaluate(*v, &(uP.Parser), env)
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
@@ -419,13 +421,13 @@ func (uP *Initializer) ParseEverything() {
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Unfixes)
 }
 
-func (uP *Initializer) InitializeEverything(env *object.Environment) {
-	uP.makeFunctions()
+func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName string) {
+	uP.makeFunctions(sourceName)
 	env.InitializeConstant("NIL", object.NIL)
 	// Initialize the user-declared constants and variables
-	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations ++ {
-		assignmentOrder := uP.returnOrderOfAssignments(declarations);
-		for k := range(*assignmentOrder) {
+	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
+		assignmentOrder := uP.returnOrderOfAssignments(declarations)
+		for k := range *assignmentOrder {
 			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], &(uP.Parser), env)
 			if result.Type() == object.ERROR_OBJ {
 				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
@@ -437,47 +439,58 @@ func (uP *Initializer) InitializeEverything(env *object.Environment) {
 				uP.Parser.Globals.Store[k] = v
 			}
 			// And we intialize the sysvars before doing the user variables.
-			for k, v := range (sysvars.Sysvars) {
+			for k, v := range sysvars.Sysvars {
 				env.InitializeVariable(k, v.Dflt, object.TrueType(v.Dflt))
 			}
 		}
 	}
 }
 
+func (uP *Initializer) SetRelexer(rl relexer.Relexer) {
+	uP.rl = rl
+}
+
+func (uP *Initializer) ImportsExist() bool {
+	return len(uP.tokenizedDeclarations[importDeclaration]) > 0
+}
+
 func (uP *Initializer) ImportEverything() {
-	// First the standard library
 
-	libDat, _ := os.ReadFile("rsc/builtins.ch")
-	stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
-	uP.rl = *relexer.New("rsc/builtins.ch", stdImp)
-	uP.MakeParserAndTokenizedProgram()
-	uP.GetSource("rsc/builtins.ch")
-
-	// And then the declared imports
-	for _, imp := range(uP.parsedDeclarations[importDeclaration]) {
+	for _, imp := range uP.parsedDeclarations[importDeclaration] {
 		scriptFilepath := ""
 		namespace := ""
 		switch imp := (*imp).(type) {
-		case *ast.StringLiteral : 
+		case *ast.StringLiteral:
 			scriptFilepath = imp.Value
-		case *ast.InfixExpression :
+			namespace = scriptFilepath
+			if strings.LastIndex(namespace, ".") >=0 {
+				namespace = namespace[:strings.LastIndex(namespace, ".")]
+			}
+			if strings.LastIndex(namespace, "/") >=0 {
+				namespace = namespace[strings.LastIndex(namespace, "/") + 1:]
+			}
+		case *ast.InfixExpression:
 			if imp.TokenLiteral() != "::" {
 				uP.Throw("init/import/infix", imp.Token)
 			}
-			lhs := imp.Left; rhs := imp.Right
+			lhs := imp.Left
+			rhs := imp.Right
 			switch rhs := rhs.(type) {
-			case *ast.StringLiteral :
+			case *ast.StringLiteral:
 				namespace = rhs.Value
 				switch lhs := lhs.(type) {
-					case *ast.StringLiteral : 
-						scriptFilepath = lhs.Value
-					default :
-					uP.Throw("init/import/string/a", lhs.GetToken())	
+				case *ast.StringLiteral:
+					scriptFilepath = lhs.Value
+				default:
+					uP.Throw("init/import/string/a", lhs.GetToken())
 				}
-			default :
-			uP.Throw("init/import/string/b", lhs.GetToken())	
-			}	
-		default :
+			default:
+				uP.Throw("init/import/string/b", lhs.GetToken())
+			}
+		case *ast.GolangExpression:
+			uP.Parser.GolangImports = append(uP.Parser.GolangImports, imp.Token.Literal)
+			continue
+		default:
 			uP.Throw("init/import/pair", imp.GetToken())
 		}
 		code := ""
@@ -490,31 +503,42 @@ func (uP *Initializer) ImportEverything() {
 				code = strings.TrimRight(string(dat), "\n") + "\n"
 			}
 		}
-	uP.rl = *relexer.New(scriptFilepath, code)
-	if namespace != "" { fmt.Println("Unimplemented ****namespace = " + namespace) }
-	uP.MakeParserAndTokenizedProgram()
-	uP.GetSource(scriptFilepath)
+		uP.rl = *relexer.New(scriptFilepath, code)
+		if namespace == "" {
+			uP.Parser.Namespace = ""
+		} else {
+			uP.Parser.Namespace = namespace + "."
+		}
+
+		uP.Parser.Namespaces[scriptFilepath] = uP.Parser.Namespace
+
+		uP.MakeParserAndTokenizedProgram()
+		uP.GetSource(scriptFilepath)
 	}
+	uP.tokenizedDeclarations[importDeclaration] =
+		uP.tokenizedDeclarations[importDeclaration][len(uP.parsedDeclarations[importDeclaration]):]
 }
 
 func (uP *Initializer) returnOrderOfAssignments(declarations declarationType) *[]int {
-	
+
 	D := digraph.Digraph[int]{}
 	// I build the map and the digraph.
-	for i := range(uP.tokenizedDeclarations[declarations]) {
+	for i := range uP.tokenizedDeclarations[declarations] {
 		D.AddSafe(i, []int{})
 		// Then for each constant assignment i we slurp out the variables used on the RHS into a set.Set[string]
 		uP.tokenizedDeclarations[declarations][i].ToStart()
-		_, RHS := uP.Parser.ExtractVariables(uP.tokenizedDeclarations[declarations][i]);
-		for j := range(uP.tokenizedDeclarations[declarations])  {
+		_, RHS := uP.Parser.ExtractVariables(uP.tokenizedDeclarations[declarations][i])
+		for j := range uP.tokenizedDeclarations[declarations] {
 			// And then the same for the left hand side of each assignment j.
 			uP.tokenizedDeclarations[declarations][j].ToStart()
-			LHS, _ := uP.Parser.ExtractVariables(uP.tokenizedDeclarations[declarations][j]);
+			LHS, _ := uP.Parser.ExtractVariables(uP.tokenizedDeclarations[declarations][j])
 			// If the RHS of i refers to variables on the LHS of j, then assignment j
 			// must be performed before assignment i, and we represent this by adding an arrow
 			// from i to j in the digraph with transitive closure.
-			if RHS.OverlapsWith(LHS) { D.AddTransitiveArrow(i, j) }
-		}	
+			if RHS.OverlapsWith(LHS) {
+				D.AddTransitiveArrow(i, j)
+			}
+		}
 	}
 	// And then we use the topological sort method of the digraph and return the result of the sort:
 	result, _ := digraph.Ordering(D)
@@ -522,30 +546,63 @@ func (uP *Initializer) returnOrderOfAssignments(declarations declarationType) *[
 }
 
 // At this point we have our functions as parsed code chunks in the uP.parsedDeclarations(functionDeclaration)
-// slice. We want to read their signatures and order them according to specificity for the purposes of 
+// slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
-func (uP *Initializer) makeFunctions() {
+func (uP *Initializer) makeFunctions(sourceName string) {
+	goHandler := evaluator.NewGoHandler(&uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
-		for i := 0; i < len(uP.parsedDeclarations[j]) ; i++ {
+		for i := 0; i < len(uP.parsedDeclarations[j]); i++ {
 			keyword, sig, rTypes, body, given, error := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
+			keyword = uP.Parser.Namespaces[body.GetToken().Source] + keyword
 			if error == nil {
-				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword, 
-					ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given, 
-						Cmd: j == commandDeclaration || j == privateCommandDeclaration,
-					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
-				if ! ok {
-					uP.Throw("init/overload", token.Token{}, keyword) 
+				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword,
+					ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
+						Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
+						Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
+				if !ok {
+					uP.Throw("init/overload", token.Token{}, keyword)
+				}
+				if body.GetToken().Type == token.GOLANG {
+					body.(*ast.GolangExpression).Raw = []bool{}
+					for i, v := range sig {
+						body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,
+							len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw")
+						if len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw" {
+							sig[i].VarType = v.VarType[:len(v.VarType)-4]
+						}
+					}
+					goHandler.MakeFunction(flatten(keyword), sig, rTypes, body.(*ast.GolangExpression))
+					if uP.Parser.ErrorsExist() {
+						return
+					}
+					body.(*ast.GolangExpression).Sig = sig
+					body.(*ast.GolangExpression).ReturnTypes = rTypes
 				}
 			} else {
 				uP.Throw("init/sig", error.Token, error.Message)
 			}
-		}	
+		}
 	}
+	goHandler.BuildGo()
+	if uP.Parser.ErrorsExist() {
+		uP.Parser.Errors[len(uP.Parser.Errors)-1].Token = token.Token{Source: sourceName}
+		return
+	}
+	for keyword, fns := range uP.Parser.FunctionTable {
+		for _, v := range fns {
+			if v.Body.GetToken().Type == token.GOLANG {
+				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(flatten(keyword), v.Body.GetToken())
+			}
+		}
+	}
+	goHandler.CleanUp()
 }
 
+func flatten(s string) string {
+	return strings.ReplaceAll(s, ".", "_")
+}
 
-
-func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.TokenizedCodeChunk){
+func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.TokenizedCodeChunk) {
 	inParenthesis := false
 	hasPrefix := false
 	hasParams := false
@@ -566,10 +623,10 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 			continue
 		}
 
-		if inParenthesis {   // We identify types in function definitions syntactically and give their commas 
-			if tok.Type == token.COMMA {   // lower precedence.
+		if inParenthesis { // We identify types in function definitions syntactically and give their commas
+			if tok.Type == token.COMMA { // lower precedence.
 				if lastTokenWasType {
-					currentChunk.Change(token.Token{Type: token.WEAK_COMMA, Literal: ",,", Line: tok.Line,})
+					currentChunk.Change(token.Token{Type: token.WEAK_COMMA, Literal: ",,", Line: tok.Line})
 				}
 				lastTokenWasType = false
 			}
@@ -586,7 +643,7 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 
 		if tok.Type == token.RPAREN {
 			inParenthesis = false
-	        lastTokenWasType = false
+			lastTokenWasType = false
 			continue
 		}
 
@@ -597,15 +654,15 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 		if tok.Type != token.IDENT {
 			uP.Throw("init/inexplicable", tok)
 		}
-			
+
 		if j == 0 {
 			prefix = tok.Literal
 			hasPrefix = true
 			lastTokenWasFix = true
 			continue
 		}
-			
-		if j < currentChunk.Length() - 1 {
+
+		if j < currentChunk.Length()-1 {
 			if hasPrefix {
 				if lastTokenWasFix {
 					uP.Parser.Forefixes.Add(tok.Literal)
@@ -613,7 +670,7 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 					uP.Parser.Midfixes.Add(tok.Literal)
 				}
 			} else {
-				uP.Parser.Infixes.Add(tok.Literal)
+				uP.Parser.Infixes.Add(uP.Parser.Namespace + tok.Literal)
 			}
 			hasMidOrEndfix = true
 			lastTokenWasFix = true
@@ -623,20 +680,20 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 		if hasPrefix || hasMidOrEndfix {
 			uP.Parser.Endfixes.Add(tok.Literal)
 		} else {
-			uP.Parser.Suffixes.Add(tok.Literal)
+			uP.Parser.Suffixes.Add(uP.Parser.Namespace + tok.Literal)
 		}
 		hasMidOrEndfix = true
 		lastTokenWasFix = true
-	}  
+	}
 
 	if hasPrefix {
 		if hasMidOrEndfix {
-			uP.Parser.Prefixes.Add(prefix)
+			uP.Parser.Prefixes.Add(uP.Parser.Namespace + prefix)
 		} else {
 			if hasParams {
-				uP.Parser.Functions.Add(prefix)
+				uP.Parser.Functions.Add(uP.Parser.Namespace + prefix)
 			} else {
-				uP.Parser.Unfixes.Add(prefix)
+				uP.Parser.Unfixes.Add(uP.Parser.Namespace + prefix)
 			}
 		}
 	}
@@ -661,7 +718,3 @@ func (uP *Initializer) ErrorsExist() bool {
 func (uP *Initializer) ReturnErrors() string {
 	return uP.Parser.ReturnErrors()
 }
-
-
-
-

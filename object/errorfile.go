@@ -541,6 +541,15 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
+	"eval/golang" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return args[0].(string)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "This is a runtime error returned by a function written in Go."
+		},
+	},
+
 	"eval/ident/context" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "Charm can't make any sense of '" + args[0].(string) + "' in that context"
@@ -614,57 +623,6 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 			return "You're tring to use " + text.DescribeTok(tok) + " as an infix when it isn't one."
 		},
 	},
-
-	"eval/sig/a" : ErrorCreator {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a function "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
-			"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/b" : ErrorCreator {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a function "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
-			"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/c" : ErrorCreator {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a function "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
-			"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/d" : ErrorCreator {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " in context " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is an infix operator "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
-			"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/lambda" : ErrorCreator {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a mismatch between the parametera of the anonymous function you defined " +
-			"and the arguments you tried to pass to it."
-		},
-	},
-
 
 	"eval/malret" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
@@ -833,6 +791,56 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error is almost self-explanatory: it's what you get if for some reason " +
 			"your code includes something of the form 'return return <expression>'."
+		},
+	},
+
+	"eval/sig/a" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "There is a function "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
+			"match the supplied parameters."
+		},
+	},
+
+	"eval/sig/b" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "There is a function "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
+			"match the supplied parameters."
+		},
+	},
+
+	"eval/sig/c" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "There is a function "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
+			"match the supplied parameters."
+		},
+	},
+
+	"eval/sig/d" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " in context " + DescribeParams(args[0].([]Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "There is an infix operator "  + text.DescribeTok(tok) + ", but its type signature doesn't " +
+			"match the supplied parameters."
+		},
+	},
+
+	"eval/sig/lambda" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "There is a mismatch between the parametera of the anonymous function you defined " +
+			"and the arguments you tried to pass to it."
 		},
 	},
 
@@ -1138,6 +1146,32 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 		},
 	},
 
+	"golang/build" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+				return "failed to compile Go"},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A Charm function written in Go has failed to compile at initialization time."
+		},
+	},
+
+	"golang/found" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+				return "couldn't find Go function '" + args[0].(string) + "'"},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm's system for handling functions written in Go has broken down.\n\n" +
+			"There are no circumstances under which you should actually see this error: if you ever " +
+			"do, please report it to the author of Charm as an issue."
+		},
+	},
+
+	"golang/type" : ErrorCreator {
+		Message: func(tok token.Token, args ...any) string {
+				return "golang type conversion failed for type <" + args[0].(string) + ">"},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A Charm function written in Go has failed to compile at initialization time."
+		},
+	},
+
 	"init/close" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
 			return "'(' unclosed by outdent"
@@ -1385,7 +1419,7 @@ var ErrorCreatorMap = map[string] ErrorCreator {
 
 	"init/source/open" : ErrorCreator {
 		Message: func(tok token.Token, args ...any) string {
-			return "unable to get source '" + args[0].(string)
+			return "unable to get source '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The initializer can't retrieve the source code for the given file. Check that it exists."

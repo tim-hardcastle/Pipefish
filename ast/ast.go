@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	
 	"charm/signature"
 	"charm/token"
 )
@@ -340,6 +341,18 @@ type BuiltInExpression struct {
 func (bi *BuiltInExpression) GetToken() token.Token { return token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1} }
 func (bi *BuiltInExpression) TokenLiteral() string { return "builtin \"" + bi.Name + "\"" }
 func (bi *BuiltInExpression) String() string       { return "builtin \"" + bi.Name + "\"" }
+
+type GolangExpression struct {
+	Token token.Token
+	ObjectCode func(args ...any) any
+	Raw []bool
+	Sig signature.Signature
+	ReturnTypes signature.Signature
+}
+
+func (ge *GolangExpression) GetToken() token.Token { return ge.Token }
+func (ge *GolangExpression) TokenLiteral() string { return "golang expression" }
+func (ge *GolangExpression) String() string       { return ge.Token.Literal }
 
 
 type Function = struct {
