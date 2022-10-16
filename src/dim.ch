@@ -2,25 +2,25 @@ import "lib/prelude.ch" :: ""
 
 def
 
-DVal = struct(val float, KG, M, S int)
+DVal = struct(val float64, KG, M, S int)
 
-unit(x float) : DVal(x, 0, 0, 0)
+unit(x float64) : DVal(x, 0, 0, 0)
 
-(x float) * (v DVal) : unit(x) * v
+(x float64) * (v DVal) : unit(x) * v
 
-(v DVal) * (x float) : v * unit(x)
+(v DVal) * (x float64) : v * unit(x)
 
-(x float) / (v DVal) : unit(x) / v
+(x float64) / (v DVal) : unit(x) / v
 
-(v DVal) / (x float): v / unit(x)
+(v DVal) / (x float64): v / unit(x)
 
-(x float) + (v DVal) : unit(x) + v
+(x float64) + (v DVal) : unit(x) + v
 
-(v DVal) + (x float) : v + unit(x)
+(v DVal) + (x float64) : v + unit(x)
 
-(x float) - (v DVal) : unit(x) - v
+(x float64) - (v DVal) : unit(x) - v
 
-(v DVal) - (x float) : v - unit(x)
+(v DVal) - (x float64) : v - unit(x)
 
 (u DVal) * (v DVal) :
     DVal(u[val] * v[val], u[KG] + v[KG], u[M] + v[M], u[S] + v[S])
@@ -40,15 +40,15 @@ unit(x float) : DVal(x, 0, 0, 0)
     else :
         DVal(u[val] - v[val], u[KG], u[M], u[S])
 
-(f float) kg : (unit f) kg
+(f float64) kg : (unit f) kg
 
 (v DVal) kg : v with KG :: v[KG] + 1
 
-(f float) m : (unit f) m
+(f float64) m : (unit f) m
 
 (v DVal) m : v with M :: v[M] + 1
 
-(f float) s : (unit f) s
+(f float64) s : (unit f) s
 
 (v DVal) s : v with S :: v[S] + 1
 

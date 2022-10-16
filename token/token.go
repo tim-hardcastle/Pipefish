@@ -8,34 +8,34 @@ const (
 	BUILTIN = "BUILTIN"
 
 	// Identifiers + literals
-	IDENT = "IDENT" // add, foobar, x, y, ...
-	INT   = "int"   // 1343456
-	FLOAT = "float" // 1.23
-	STRING = "string" // "foo", `bar`
-	TRUE     = "true"
-	FALSE    = "false"
+	IDENT   = "IDENT"   // add, foobar, x, y, ...
+	INT     = "int"     // 1343456
+	FLOAT   = "float64" // 1.23
+	STRING  = "string"  // "foo", `bar`
+	TRUE    = "true"
+	FALSE   = "false"
 	COMMENT = "COMMENT" // // foo bar zort troz
 
 	BEGIN = "BEGIN"
-	END = "END"
+	END   = "END"
 
 	// Operators
-	ASSIGN      = "="
-	CMD_ASSIGN	= "=cmd="
-	VAR_ASSIGN	= "=var="
-	DEF_ASSIGN	= "=def="
-	GVN_ASSIGN  = "=gvn="
-	PVR_ASSIGN  = "=pvr="
-	TYP_ASSIGN  = "=typ="
+	ASSIGN     = "="
+	CMD_ASSIGN = "=cmd="
+	VAR_ASSIGN = "=var="
+	DEF_ASSIGN = "=def="
+	GVN_ASSIGN = "=gvn="
+	PVR_ASSIGN = "=pvr="
+	TYP_ASSIGN = "=typ="
 
 	COLON     = ":"
 	DOT       = "."
 	NEWLINE   = "\n"
 	SEMICOLON = ";"
 
-	AND      = "and"
-	OR       = "or"
-	NOT		= "not"
+	AND = "and"
+	OR  = "or"
+	NOT = "not"
 
 	EQ     = "=="
 	NOT_EQ = "!="
@@ -48,7 +48,7 @@ const (
 
 	NO_INDENT = "|||"
 
-	COMMA     = ","
+	COMMA      = ","
 	WEAK_COMMA = ",,"
 
 	LPAREN = "("
@@ -60,18 +60,18 @@ const (
 
 	// Headwords
 
-	IMPORT 	= "import"
+	IMPORT  = "import"
 	VAR     = "var"
 	CMD     = "cmd"
 	DEF     = "def"
 	PRIVATE = "private"
 
 	// Keywords
-	RETURN	 = "return"
-	ELSE     = "else"
-	GIVEN	 = "given"
-	EVAL     = "eval"
-	EXEC	 = "exec"
+	RETURN = "return"
+	ELSE   = "else"
+	GIVEN  = "given"
+	EVAL   = "eval"
+	EXEC   = "exec"
 
 	MAGIC_COLON = "MAGIC_COLON"
 
@@ -83,33 +83,32 @@ type Token struct {
 	Literal string
 	Line    int
 	ChStart int
-	ChEnd	int
-	Source	string
-} 
+	ChEnd   int
+	Source  string
+}
 
-
-var keywords = map[string] TokenType{
+var keywords = map[string]TokenType{
 	"true":   TRUE,
 	"false":  FALSE,
 	"else":   ELSE,
 	"return": RETURN,
 
-	"eval":		EVAL,
-	"given":	GIVEN,
-	"exec":		EXEC,
-	"golang":	GOLANG,
+	"eval":   EVAL,
+	"given":  GIVEN,
+	"exec":   EXEC,
+	"golang": GOLANG,
 
-	"import":	IMPORT,
-	"var":		VAR,
-	"cmd":		CMD,
-	"def":		DEF,
-	"private":	PRIVATE,
+	"import":  IMPORT,
+	"var":     VAR,
+	"cmd":     CMD,
+	"def":     DEF,
+	"private": PRIVATE,
 
-	"and":		AND,
-	"or":		OR,
-	"not":		NOT,
+	"and": AND,
+	"or":  OR,
+	"not": NOT,
 
-	"=cmd=":	CMD_ASSIGN,
+	"=cmd=": CMD_ASSIGN,
 }
 
 func LookupIdent(ident string) TokenType {

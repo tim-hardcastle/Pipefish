@@ -214,7 +214,7 @@ foo(x int) :
 
 |-
 
-... then 'foo' will be defined for integers but will now throw an error if you try to pass it a float or a string.
+... then 'foo' will be defined for integers but will now throw an error if you try to pass it a float64 or a string.
 
 Functions can be overloaded. For a full discussion of this topic, see 'hub help overloading'.
 
@@ -405,13 +405,13 @@ For more information see 'hub help private', 'hub help cmd', 'hub help var', and
 ***
 types
 
-Charm has the usual basic types, 'int', 'float', 'string', and 'bool'.
+Charm has the usual basic types, 'int', 'float64', 'string', and 'bool'.
 
 Container types are 'tuple', 'list', 'set', ''map', pair', and 'struct'.
 
 Besides this there are some special-purpose types such as 'func', 'error', 'nil', 'type', 'file', 'label' and a notional top type 'any' which at present and in practice will be indistinguishable from a tuple.
 
-The type system is then as follows: 'any' contains 'tuple', which contains the abstract class 'single' consisting of anything that isn't a tuple (but can, when necessary, be considered a tuple of arity 1). This contains 'int', 'float', 'string', and 'bool', 'list', 'set', 'map', 'pair', 'error', 'label', and the abstract type 'struct'.
+The type system is then as follows: 'any' contains 'tuple', which contains the abstract class 'single' consisting of anything that isn't a tuple (but can, when necessary, be considered a tuple of arity 1). This contains 'int', 'float64', 'string', and 'bool', 'list', 'set', 'map', 'pair', 'error', 'label', and the abstract type 'struct'.
 
 'struct' contains all the user-defined structs, and every struct type contains the 'nil' type.
 

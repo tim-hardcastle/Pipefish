@@ -16,7 +16,7 @@ given :
     deReturn(s) : s[0::len(s) - 8]
     de64(s) : strings.replaceAll(s, "64", "")
     makeFn(s) : strings.toLower(s[0]) + s[1::len(s)] + " : golang {\n    " + ..
-        .. "return math." + strings.replaceAll(s, " float", "") + "\n}\n"
+        .. "return math." + strings.replaceAll(s, " float64", "") + "\n}\n"
 
 prettyPrint(L):
     (for len(L) do f to 0, "")[1]

@@ -53,7 +53,7 @@ func (b *BooleanLiteral) String() string       { return b.Token.Literal }
 
 type IntegerLiteral struct {
 	Token token.Token
-	Value int64
+	Value int
 }
 
 func (il *IntegerLiteral) GetToken() token.Token { return il.Token }
