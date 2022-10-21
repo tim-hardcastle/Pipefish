@@ -515,7 +515,7 @@ sign(n) :
     else : "negative"
 ```
 
-... is just a nicer way of writing the [conditional syntax](#conditionals) we met earlier:
+... is just a nicer way of writing the [conditional syntax](#bool) we met earlier:
 
 ```
 sign(n) : (n > 0 : "positive"; n == 0 : "zero"; else : "negative")
