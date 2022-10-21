@@ -1481,7 +1481,7 @@ Charm is meant to be small, and hopefully I can keep the core language small. Bu
 - The Go interoperability could still be improved.
 - It could use an FFI. (Specifically, it will use Go's FFI.)
 - Since Charm functions are pure, they could all be run concurrently. This was one of my reasons for choosing Go, but I haven't done it yet.
-- I've tried to keep Charm as small as possible but there are a few features I should add to the core language to make it a better functional language: a piping operator, sum types, and the ability to write foo[x, y, z] for foo[x][y][z].
+- I've tried to keep Charm as small as possible but there are a few features I should add to the core language to make it a better functional language: a piping operator, sum types, and the ability to write `foo[x, y, z]` for `foo[x][y][z]`.
 - In general, it needs a better type system.
 - I need to change how functions work so they can accept any number of variadics.
 - I could do macros, but I'm not sure if it's a good idea.
