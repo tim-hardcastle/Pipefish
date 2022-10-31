@@ -32,7 +32,7 @@ Features already implemented include:
 
 ## Getting started
 
-You can either download the object code from the repo and build it in Go, or you can use the [Mac OS object code](https://github.com/tim-hardcastle/Charm-MacOS) supplied.
+You can either download the object code from the repo and build it in Go, or you can use the [Mac OS object code](https://github.com/tim-hardcastle/Charm-MacOS) supplied. (Note that until next weekend or so the distribution requires the Go compiler to be installed anyway.)
 
 Having one way or another obtained a working executable, run it with `./charm` in the root directory. You should see something like this:
 
