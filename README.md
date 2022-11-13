@@ -685,7 +685,7 @@ Zeros are bad! Bad!
 #3 → 
 ```
 
-## Import
+## `import`
 
 The `import` section has to come at the top of the script, if there is an import section at all. It consists of filepaths expressed as string constants and separated by newlines:
 
