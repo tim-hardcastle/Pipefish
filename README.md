@@ -176,7 +176,7 @@ A "slice" can be taken out of a list like this:
 "har"
 ```
 
-Note that the slice is from-including up-to-and-not-including, i.e. rune `1`, the `h`, is included in the slice, while rune `4`, the `m`, is not.
+Note that the slice is from-including up-to-and-not-including, as is everything else in Charm.
 
 ## Variables
 
