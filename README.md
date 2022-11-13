@@ -77,7 +77,7 @@ The underlying size of the integer is platform-dependent, according to whether y
 
 The `float64` type contains decimal numbers: `6.5`, `-9.33`, `3.141592`, etc.
 
-It operations are `+`, `-`, `*` and `/`, all of which work as you expect.
+Its operations are `+`, `-`, `*` and `/`, all of which work as you expect.
 
 ```
 → 2.5 / 0.25                                                                                                
