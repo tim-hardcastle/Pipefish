@@ -971,6 +971,7 @@ graph TD;
     single-->map;
     single-->func;
     single-->type;
+    single-->code;
     struct-->X[user-defined structs]
     X-->nil
     label-->enum
@@ -1410,8 +1411,7 @@ By using `varname` and not `eval`, we have recovered the name and not the value 
 In the example of the `++` operator we want the variable to act as a name on the left of the `=`(for which we use `varname`) and as a value on the right (for which we use `eval`).
 
 ```
-#9 →
-x++ 
+#9 → x++ 
 ok
 #9 → x 
 1
@@ -1421,8 +1421,7 @@ ok
 The final example shows that it is possible to achieve some sophistication even with such a simple system.
 
 ```
-#9→
-sum i over i range 0::10 
+#9→ sum i over i range 0::10 
 45
 #9 → sum i * i over i range 0::10 
 285
