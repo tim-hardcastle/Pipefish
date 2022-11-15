@@ -23,6 +23,7 @@ Features already implemented include:
 - A growing number of standard libraries including math, strings, and fmt
 - Throwing and handling errors
 - Embeddable Go
+- Macros
 - Interactive error messages and trace
 - A helpful way of writing tests from the REPL
 - A Functional Core / Imperative Shell architecture
@@ -1318,6 +1319,115 @@ piglet
 Commands and functions can also be made private in the same way, by use of the `private` modifier. `private` does not apply to user-defined types (enums and structs) because I don’t know what it should mean for such things to be private; and not to constants because I’ve only just noticed I didn’t do that and have decided to leave it ‘til the next sprint.
 
 That’s pretty much everything you need to know about imperative programming in Charm.
+
+## Macros
+
+By treating bit of Charm code as Charm data, we can extend the language in ways that functions alone would not allow.
+
+To fully exploit this we would need some sort of library for manipulating abstract syntax trees. However, the few basic features built in will in fact meet most reasonable and many unreasonable requirements.
+
+Examples are given in the file `src/macros.ch`. The source code is below.
+
+```
+import
+
+"lib/prelude.ch" :: ""
+
+var
+
+x = 42
+c = code NIL
+
+def
+
+capture (exp ast) : exp
+
+cmd
+
+zero (v ast) :
+    v varname = 0
+
+(v ast) ++ :
+	v varname = (eval v) + 1
+
+def
+
+sum (exp ast) over (ix ast) range (p pair):
+    (while condition do action to p[0], 0)[1]
+given:
+    condition(j, s): j < p[1]
+    action(ix varname, s) : (eval ix) + 1, s + (eval exp)
+```
+
+Let's explore this a bit at a time via the REPL. First of all, there is a `code` type. This is a perfectly normal Charm type which happens to contain a Charm expression:
+
+```
+#8 → hub run src/macros.ch                                              
+Starting script 'src/macros.ch' as service '#9'.
+#9 → c
+code NIL
+#9 → type c
+code
+#9 → c = code x * 2 
+ok
+#9 → c 
+code (x * 2)
+#9 →
+```
+
+This code can be evaluated using `eval` just like code stored in string form:
+
+```
+#9 → eval c 
+84
+#9 → x = 33 
+ok
+#9 → eval c
+66
+#9 → 
+```
+
+The word `ast` used in a function declaration mean that it casts what it's given as a parameter to code rather than evaluating it as a value, as demonstrated by the `capture` function in the example file:
+
+```
+#9 → capture x + 3 
+code (x + 3)
+#9 → 
+```
+
+Within the body of the function, we can of course use `eval` to turn the code object so produced into a value. But we also need a way to turn it into a name. This is achieved by the `varname` keyword. Consider the REPL output:
+
+```
+#9 → zero x        
+ok
+#9 → x 
+0
+#9 →
+```
+
+By using `varname` and not `eval`, we have recovered the name and not the value of `x` from `v`.
+
+In the example of the `++` operator we want the variable to act as a name on the left of the `=`(for which we use `varname`) and as a value on the right (for which we use `eval`).
+
+```
+#9 →
+x++ 
+ok
+#9 → x 
+1
+#9→
+```
+
+The final example shows that it is possible to achieve some sophistication even with such a simple system.
+
+```
+#9→
+sum i over i range 0::10 
+45
+#9 → sum i * i over i range 0::10 
+285
+#9 → 
+```
 
 ## Communication between services: `exec`
 
