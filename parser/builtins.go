@@ -76,7 +76,7 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 	},
 
 	"rune": func(p *Parser, args ...object.Object) object.Object {
-		return &object.String{Value: string(args[0].(*object.Integer).Value)}
+		return &object.String{Value: string(rune(args[0].(*object.Integer).Value))}
 	},
 
 	"codepoint": func(p *Parser, args ...object.Object) object.Object {

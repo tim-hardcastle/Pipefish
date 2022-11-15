@@ -397,9 +397,39 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/args/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "Can't find function " + text.DescribeTok(tok) + " accepting parameters of the given types" 
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "While the function or operator you have used is defined, it is not defined for the " +
+			"data type or types to which you're trying to apply it."
+		},
+	},
+
+	"eval/args/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "Can't find function " + text.DescribeTok(tok) + " accepting parameters of the given types" 
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "While the function or operator you have used is defined, it is not defined for the " +
+			"data type or types to which you're trying to apply it."
+		},
+	},
+
+	"eval/args/c": {
+		Message: func(tok token.Token, args ...any) string {
+			return "Can't find function " + text.DescribeTok(tok) + " accepting parameters of the given types" 
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "While the function or operator you have used is defined, it is not defined for the " +
+			"data type or types to which you're trying to apply it."
+		},
+	},
+
 	"eval/cmd/assign": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Variables cannot be assigned types in the 'cmd' section."
+			return "Variables cannot be assigned types in the 'cmd' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A variable can only be given a type when it is created in the 'var' section of " +
@@ -482,11 +512,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/eval": {
 		Message: func(tok token.Token, args ...any) string {
-			return "'eval' takes a string as a parameter"
+			return "'eval' takes a string or code object as a parameter"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "'eval' takes a string as a parameter and returns the result of interpreting that string as an " +
-				"expression in Charm: e.g. 'eval \"2 + 2\"' would return 4."
+			return "'eval' takes a string or code object as a parameter and returns the result of " +
+			    "evaluating that string or code object as an " +
+				"expression in Charm: e.g. 'eval \"2 + 2\"' would return '4'."
 		},
 	},
 
@@ -742,11 +773,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to constant of type <" +
+			return "attempting to assign object of type <" + args[0].(string) + "> to a variable of type <" +
 				args[1].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Once you've declared a constant as being of a given type, the only things you can assign " +
+			return "Once you've declared a variable as being of a given type, the only things you can assign " +
 				"to it are objects of that type or of one of its subtypes."
 		},
 	},
@@ -838,7 +869,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a mismatch between the parametera of the anonymous function you defined " +
+			return "There is a mismatch between the parameters of the anonymous function you defined " +
 				"and the arguments you tried to pass to it."
 		},
 	},
@@ -1798,7 +1829,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	// This is another error I'm having some difficulty triggering. Is it reachable code?
 	"parse/prefix": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't parse " + text.DescribeTok(tok) + " as a prefix."
+			return "can't parse " + text.DescribeTok(tok) + " as a prefix"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You've put " + text.DescribeTok(tok) + " in such a position that it looks like you want it to " +

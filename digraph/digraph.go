@@ -93,8 +93,8 @@ func (D *Digraph[E]) Check() (bool, E) {
 
 func (D *Digraph[E]) SetOfNodes() *set.Set[E] {
 	result := set.Set[E]{}
-	for v, _ := range *D {
-		result.Add(v)
+	for x:= range *D {
+		result.Add(x)
 	}
 	return &result
 }
@@ -102,7 +102,7 @@ func (D *Digraph[E]) SetOfNodes() *set.Set[E] {
 func (D *Digraph[E]) GetArbitraryNode() (E, bool) {
 	var result E
 	var ok bool
-	for k, _ := range(*D) {  // There should be a less clumsy way to do this but ...
+	for k := range(*D) {  // There should be a less clumsy way to do this but ...
 		result = k
 		ok = true
 		break
@@ -158,7 +158,7 @@ func (D *Digraph[E]) StripLeafnodes() set.Set[E] {
 			result.Add(k)
 		}
 	}
-	for k, _ := range result {
+	for k := range result {
 		delete(*D, k)
 	}
 	for _, V := range(*D) {

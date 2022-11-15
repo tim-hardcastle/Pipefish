@@ -39,6 +39,12 @@ func (e *Environment) Get(name string) (Object, bool) {
 	return e.Ext.Get(name)
 }
 
+func (e *Environment) Type(name string) (string, bool) {
+	storage, ok := e.Store[name]
+	if ok || e.Ext == nil { return storage.VarType, ok }
+	return e.Ext.Type(name)
+}
+
 func (e *Environment) StringDumpVariables() string { // For outputting them as a file of assignments
 	result := ""
 	for k, v := range e.Store {

@@ -4,9 +4,16 @@ import (
 	"charm/set"
 )
 
-type NameTypePair = struct {
+type NameTypePair struct {
 	VarName string
 	VarType string
+}
+
+func (ntp NameTypePair) TypeOrBling() string {
+	if ntp.VarType == "bling" {
+		return ntp.VarName
+	}
+	return ntp.VarType
 }
 
 type Signature []NameTypePair

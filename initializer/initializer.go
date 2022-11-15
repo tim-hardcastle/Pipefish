@@ -20,7 +20,6 @@ package initializer
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"strings"
 
@@ -423,6 +422,7 @@ func (uP *Initializer) ParseEverything() {
 
 func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName string) {
 	uP.makeFunctions(sourceName)
+	uP.makeFunctionTrees()
 	env.InitializeConstant("NIL", object.NIL)
 	// Initialize the user-declared constants and variables
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
@@ -473,8 +473,8 @@ func (uP *Initializer) ImportEverything() {
 			if imp.TokenLiteral() != "::" {
 				uP.Throw("init/import/infix", imp.Token)
 			}
-			lhs := imp.Left
-			rhs := imp.Right
+			lhs := imp.Args[0]
+			rhs := imp.Args[2]
 			switch rhs := rhs.(type) {
 			case *ast.StringLiteral:
 				namespace = rhs.Value
@@ -602,6 +602,201 @@ func flatten(s string) string {
 	return strings.ReplaceAll(s, ".", "_")
 }
 
+// After performing makeFunctionTable, each keyword is associated with an (partially) ordered list of
+// associated functions such that a more specific type signature comes before a less specific one.
+
+// In order to handle dispatch at runtime, we will re-represent this as a tree. This will apart
+// from anything else be rather faster. It also allows us to perform dispatch by evaluating one
+// argument of the function at a time, which is essential to the implementation of macros.
+func (uP *Initializer) makeFunctionTrees() {
+	uP.Parser.FunctionTreeMap = map[string]*ast.FnTreeNode{}
+	for k, v := range uP.Parser.FunctionTable {
+		tree := ast.FnTreeNode{Fn: nil, Branch: []ast.TypeNodePair{}}		
+		for i := range v {
+			// First we must take care of the cases where the first n > 0 args of the sig have
+			// types containing the first n types of an existing branch.
+			tree = uP.overlayTree(tree, &v[i], 0)
+			// And then we also add the arg sequence as we would usually add it to a tree.
+			tree = uP.addToTree(tree, &v[i], 0)
+		}
+		uP.Parser.FunctionTreeMap[k] = &tree	
+	}
+}
+
+// If we just created a tree from the arguments as normal with a search tree, then something like:
+//	foo(x int, y string) :<body>
+//  foo(x single, y bool) : <body>
+
+// would give us a tree like:
+
+//  int
+//		string
+//			func(int, string)
+//  single
+//		bool
+//			func(single, bool)
+
+// But what we want is 
+
+//  int
+//		string
+//			func(int, string)
+//		bool
+//			func(single, bool)
+//  single
+//		bool
+//			func(single, bool)
+
+// The overlay function achieves this sort of thing for us.
+
+func (uP *Initializer) overlayTree(tree ast.FnTreeNode, fn *ast.Function, argumentNumber int) ast.FnTreeNode {
+
+	// If an argument list being overlayed on the tree reaches the end of the list at the same
+	// time as we reach the end of a branch, then since the branch being overlayed must have
+	// precedence, we don't need to do anything.
+	if argumentNumber >= len(fn.Sig) {
+		for _, branch := range tree.Branch {
+			if branch.TypeName == "" {
+				return tree
+			}
+		}
+
+	// If OTOH it reaches the end of its argument list and the tree *isn't* at a leaf node, then
+	// we add a leaf node.
+
+		leaf := ast.FnTreeNode{fn, []ast.TypeNodePair{}}
+		tree =  tree.AddOrReplace("", leaf)
+		return tree
+	}
+
+	// An element matched with tuple can always be followed by tuple.
+	if fn.Sig[argumentNumber].VarType == "tuple" {
+		if tree.Index("tuple") == -1 {
+			tree = tree.AddOrReplace("tuple", uP.addToTree(ast.FnTreeNode{nil, []ast.TypeNodePair{}}, fn, argumentNumber))
+		}
+
+	// Or by whatever marks the end of that tuple.
+
+		tupleStop := ""
+		if argumentNumber < len(fn.Sig) - 1 {
+			tupleStop = fn.Sig[argumentNumber + 1].TypeOrBling()
+		}
+
+		if tree.Index(tupleStop) == -1 {
+			tree = tree.AddOrReplace(tupleStop, uP.addToTree(ast.FnTreeNode{nil, []ast.TypeNodePair{}}, fn, argumentNumber + 2))
+		} 
+	}
+
+	// If it's not the end of the list, then we look at each branch of the current node 
+	// to see if we can go on overlaying the argument list on it.
+	for i, v := range tree.Branch {
+		if v.TypeName == fn.Sig[argumentNumber].TypeOrBling() ||
+				uP.Parser.TypeSystem.PointsTo(v.TypeName, fn.Sig[argumentNumber].VarType) {
+			newTree := uP.overlayTree(v.Node, fn, argumentNumber + 1)
+			tree.Branch[i].Node = newTree
+			
+			if fn.Sig[argumentNumber].VarType == "tuple" {
+
+				// If the current item in the argument list is a tuple, then we should also try 
+				// overlaying it on each branch that the branch leads to.
+				if uP.Parser.TypeSystem.PointsTo(v.TypeName, "tuple") {
+					newBranch := uP.overlayTree(v.Node, fn, argumentNumber)
+					tree.Branch[i].Node = newBranch
+				}
+			}
+		} else { // The types are unrelated. We can add the tail of the argument list. 
+			twig := ast.FnTreeNode{nil, []ast.TypeNodePair{}}
+			twig = uP.addToTree(twig, fn, argumentNumber + 1)
+	
+			tree = tree.AddOrReplace(fn.Sig[argumentNumber].TypeOrBling(), twig)
+		}
+	}
+	return tree
+}
+
+// Probably don't need this.
+// func makeTree(fn *ast.Function) ast.FnTreeNode {
+// 	result := &ast.FnTreeNode{nil, []ast.TypeNodePair{}}
+// 	currentNode := result
+// 	for _, v := range fn.Sig {
+// 		newNode := &ast.FnTreeNode{nil, []ast.TypeNodePair{}}
+// 		currentNode.Branch = append(currentNode.Branch, ast.TypeNodePair{v.TypeOrBling(), *newNode})
+// 		currentNode = newNode
+// 	}
+// 	currentNode.Branch = append(currentNode.Branch ,ast.TypeNodePair{"", ast.FnTreeNode{fn, []ast.TypeNodePair{}}})
+// 	return *result
+// }
+
+func (uP *Initializer) addToTree(tree ast.FnTreeNode, fn *ast.Function, argumentNumber int) ast.FnTreeNode {
+
+	if argumentNumber >= len(fn.Sig) {
+		for _, branch := range tree.Branch {
+			if branch.TypeName == "" {
+				return tree
+			}
+		}
+		leaf := ast.FnTreeNode{fn, []ast.TypeNodePair{}}
+		tree = tree.AddOrReplace("", leaf)
+		return tree
+	}
+
+	if fn.Sig[argumentNumber].VarType == "tuple" {
+
+		// We find what (whether bling or the end of the params) is expected to mark the end
+		// of the tuple.
+
+		tupleStop := ""
+		if argumentNumber + 1 < len(fn.Sig) {
+			tupleStop = fn.Sig[argumentNumber + 1].TypeOrBling()
+		}
+
+		// We see if that's already a branch of the node.
+
+		// If so, we have to follow along that branch.
+
+		foundTupleStop := false
+		for i, v := range tree.Branch {
+			if v.TypeName == tupleStop {
+				newTree := uP.addToTree(v.Node, fn, argumentNumber + 2)
+			    tree.Branch[i].Node = newTree
+				foundTupleStop = true
+				break
+			}
+		}
+
+		// If not, then we make a new branch off the node.
+
+		if !foundTupleStop {
+			twig := ast.FnTreeNode{nil, []ast.TypeNodePair{}}
+			if tupleStop == "" {
+				twig = ast.FnTreeNode{fn, []ast.TypeNodePair{}}
+			} else {
+	        	twig = uP.addToTree(twig, fn, argumentNumber + 2)
+			}
+			tree = tree.AddOrReplace(tupleStop, twig)
+		}
+	}
+
+	for i, v := range tree.Branch {
+		if v.TypeName == fn.Sig[argumentNumber].TypeOrBling() {
+			newTree := uP.addToTree(v.Node, fn, argumentNumber + 1)
+			tree.Branch[i].Node = newTree
+			return tree
+		} 	
+	}
+	twig := ast.FnTreeNode{nil, []ast.TypeNodePair{}}
+	twig = uP.addToTree(twig, fn, argumentNumber + 1)
+    tree = tree.AddOrReplace(fn.Sig[argumentNumber].TypeOrBling(), twig)
+	return tree
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+// This extracts the words from a function definition and decides on their "grammatical" role:
+// are they prefixes, suffixes, bling?
+
 func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.TokenizedCodeChunk) {
 	inParenthesis := false
 	hasPrefix := false
@@ -700,12 +895,9 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 
 }
 
-// The initializer keeps its errors inside the parser it's initializing.
+////////////////////////////////////////////////////////////////////////////
 
-func (uP *Initializer) ReportScriptFailure() {
-	fmt.Print("\nThere were errors in initializing the script:\n\n")
-	fmt.Println(uP.ReturnErrors())
-}
+// The initializer keeps its errors inside the parser it's initializing.
 
 func (uP *Initializer) Throw(errorID string, tok token.Token, args ...any) {
 	uP.Parser.Throw(errorID, tok, args...)

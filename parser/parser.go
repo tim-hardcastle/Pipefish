@@ -105,6 +105,7 @@ type Parser struct {
 	lazyInfixes   set.Set[token.TokenType]
 
 	FunctionTable FunctionTable
+	FunctionTreeMap map[string]*ast.FnTreeNode
 
 	Globals    *object.Environment
 	TypeSystem TypeSystem
@@ -144,6 +145,7 @@ func New() *Parser {
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable: make(FunctionTable),
+		FunctionTreeMap: make(map[string]*ast.FnTreeNode),
 		Globals:       object.NewEnvironment(), // I need my functions to be able to see the global constants.
 		TypeSystem:    NewTypeSystem(),
 		Structs:       make(set.Set[string]),
@@ -156,6 +158,8 @@ func New() *Parser {
 	}
 
 	p.Suffixes.Add("raw")
+	p.Suffixes.Add("ast")
+	p.Suffixes.Add("varname")
 
 	p.Functions.AddSet(*set.MakeFromSlice([]string{"builtin"}))
 
@@ -270,13 +274,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
 	default:
-		if p.curToken.Type == token.IDENT {
-			if p.curToken.Literal == "-" {
-				leftExp = p.parseNativePrefixExpression()
-			} else {
-				noNativePrefix = true
-			}
-		}
+		noNativePrefix = true
 	}
 
 	// So what we're going to do is find out if the identifier *thinks* it's a function, i.e. if it precedes
@@ -296,11 +294,15 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				return leftExp
 			}
 
+			if p.curToken.Literal == "code" {
+				leftExp = p.parseCodeLiteral()
+				return leftExp
+			}
+
 			if p.curToken.Literal == "struct" {
 				leftExp = p.parseStructExpression()
 				return leftExp
 			}
-
 			// Here we step in and deal with things that are functions and objects, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
@@ -568,6 +570,7 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 	}
 	p.NextToken()
 	expression.Right = p.parseExpression(FPREFIX)
+	expression.Args = p.recursivelyListify(expression.Right)
 	return expression
 }
 
@@ -595,6 +598,13 @@ func (p *Parser) parseBuiltInExpression() ast.Node {
 	return expression
 }
 
+func (p *Parser) parseCodeLiteral() ast.Node {
+	expression := &ast.CodeLiteral{}
+	p.NextToken()
+	expression.Right = p.parseExpression(FUNC)
+	return expression
+}
+
 func (p *Parser) parseFunctionExpression() ast.Node {
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
@@ -602,11 +612,13 @@ func (p *Parser) parseFunctionExpression() ast.Node {
 	}
 
 	p.NextToken()
-	if p.curToken.Type == token.LPAREN {
+	if p.curToken.Type == token.LPAREN || expression.Operator == "-" {
 		expression.Right = p.parseExpression(PREFIX)
 	} else {
 		expression.Right = p.parseExpression(FPREFIX)
 	}
+
+	expression.Args = p.recursivelyListify(expression.Right)
 
 	return expression
 }
@@ -617,6 +629,13 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 		Operator: p.curToken.Literal,
 		Left:     left,
 	}
+
+
+	if p.curToken.Source != "rsc/builtins.ch" {
+		//printNodeList(p.recursivelyListify(expression.Left))
+	}
+	expression.Args = p.recursivelyListify(expression.Left)
+
 	return expression
 }
 
@@ -661,7 +680,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	precedence := p.curPrecedence()
 	p.NextToken()
 	expression.Right = p.parseExpression(precedence)
-
+	expression.Args = p.listify(expression)
 	return expression
 
 }
@@ -847,6 +866,60 @@ func (p *Parser) parseSetExpression() ast.Node {
 	return expression
 }
 
+// The next two functions take the arguments at the *call site* of a function and puts them
+// into a list for us.
+
+// This first one allows us to treat infixes as a special case. (We can't treat infixes as bling 
+// recursively, 'cos they aren't.)
+func (p *Parser) listify(start ast.Node) []ast.Node {
+	switch start := start.(type) {
+	case *ast.InfixExpression :
+		if start.Operator == "," { break }
+		left := p.recursivelyListify(start.Left)
+		left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
+		left = append(left, p.recursivelyListify(start.Right)...)
+		return left
+	}
+	return p.recursivelyListify(start)
+}
+
+func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
+	switch start := start.(type) {
+	case *ast.InfixExpression :
+		if start.Operator == "," {
+			left := p.recursivelyListify(start.Left)
+			left = append(left, p.recursivelyListify(start.Right)...)
+			return left
+		}
+		if p.Midfixes.Contains(start.Operator) {
+			left := p.recursivelyListify(start.Left)
+			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
+			left = append(left, p.recursivelyListify(start.Right)...)
+			return left
+		}
+	case *ast.PrefixExpression :
+		if p.Forefixes.Contains(start.Operator) {
+			left := []ast.Node{&ast.Bling{Value: start.Operator, Token: start.Token}}
+			left = append(left, p.recursivelyListify(start.Right)...)
+			return left
+		}
+	case *ast.SuffixExpression :
+		if p.Endfixes.Contains(start.Operator) {
+			left := p.recursivelyListify(start.Left)
+			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
+			return left
+		}
+	}
+	return []ast.Node{start}
+}
+
+func printNodeList(L []ast.Node) {
+	for _, v := range L {
+		fmt.Println(v.String())
+	}
+}
+
+
 func (p *Parser) checkNesting() {
 	// if p.curToken.Source != "builtin library" {fmt.Printf("Checking nesting %v\n", p.curToken)}
 	if p.curToken.Type == token.LPAREN || p.curToken.Type == token.LBRACE ||
@@ -861,7 +934,6 @@ func (p *Parser) checkNesting() {
 			return
 		}
 		if !checkConsistency(popped, p.curToken) {
-			fmt.Println("Nesting error")
 			p.Throw("parse/nesting", p.curToken, popped)
 		}
 	}
@@ -1000,7 +1072,8 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 		}
 	case *ast.SuffixExpression:
 		switch {
-		case TypeExists(typednode.Operator, p.TypeSystem):
+		case TypeExists(typednode.Operator, p.TypeSystem) || 
+				typednode.Operator == "ast" || typednode.Operator == "varname" :
 			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
 			for k := range LHS {
 				LHS[k].VarType = typednode.Operator
@@ -1028,7 +1101,6 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 			front := signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
 			return append(front, RHS...)
 		} else {
-			fmt.Println()
 			p.Throw("parse/sig/a", typednode.Token)
 		}
 	}

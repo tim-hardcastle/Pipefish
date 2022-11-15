@@ -16,8 +16,7 @@ import (
 
 var (
 	UNSATISFIED = &object.UnsatisfiedConditional{}
-	SUCCESS = &object.SuccessfulAssignment{}
-	
+	SUCCESS     = &object.SuccessfulAssignment{}
 )
 
 func Evaluate(node ast.Node, parser *parser.Parser, env *object.Environment) object.Object {
@@ -56,38 +55,30 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		return &object.Tuple{Elements: []object.Object{}}
 
 	case *ast.PrefixExpression:
-		right := Eval(node.Right, parser, env)
-		if isError(right) && node.Operator != "type" {
-			right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
-			return right
-		}
-		return evalPrefixExpression(node.Token, node.Operator, right, parser, env)
+		return evalPrefixExpression(node.Token, node.Operator, node, parser, env)
 
 	case *ast.UnfixExpression:
 		return evalUnfixExpression(node.Token, node.Operator, parser, env)
 
 	case *ast.SuffixExpression:
-		left := Eval(node.Left, parser, env)
-		if isError(left) {
-			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
-			return left
-		}
-		return evalSuffixExpression(node.Token, node.Operator, left, parser, env)
+		return functionCall(parser.FunctionTreeMap[node.Operator], node.Args, parser, node.Token, env)
 
 	case *ast.AssignmentExpression:
 		variables := signature.Signature{}
 		if node.Token.Type == token.TYP_ASSIGN {
-			variables = append(variables, signature.NameTypePair{node.Left.(*ast.TypeLiteral).Token.Literal, "type"})
+			variables = append(variables, signature.NameTypePair{VarName: node.Left.(*ast.TypeLiteral).Token.Literal, VarType: "type"})
 		} else {
 			variables = parser.RecursivelySlurpSignature(node.Left, "*")
 		}
 		lLen := len(variables)
 		right := Eval(node.Right, parser, env)
-		if isError(right)  {
+		if isError(right) {
 			if node.Token.Type == token.GVN_ASSIGN {
-				for i := 0 ; i < lLen; i++ {
+				for i := 0; i < lLen; i++ {
 					err := Assign(variables[i], right, parser, env, node.Token)
-					if err != nil { return err }
+					if err != nil {
+						return err
+					}
 				}
 				return SUCCESS
 			} else {
@@ -99,7 +90,7 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 			return newError("eval/unsatisfied/b", node.Token)
 		}
 
-		if lLen == 1 { 
+		if lLen == 1 {
 			err := Assign(variables[0], right, parser, env, node.Token)
 			if err == nil {
 				return SUCCESS
@@ -110,54 +101,63 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 
 		if right.Type() != object.TUPLE_OBJ ||
 			right.(*object.Tuple).Len() < len(variables) {
-				return newError("eval/values", node.Token)
+			return newError("eval/values", node.Token)
 		}
 
 		rLen := right.(*object.Tuple).Len()
 
-		for i := 0 ; i < lLen - 1 ; i++ {
+		for i := 0; i < lLen-1; i++ {
 			err := Assign(variables[i], right.(*object.Tuple).Elements[i], parser, env, node.Token)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 		}
 		if lLen == rLen {
-			err := Assign(variables[lLen - 1], right.(*object.Tuple).Elements[lLen - 1], parser, env, node.Token)
-			if err != nil { return err }
+			err := Assign(variables[lLen-1], right.(*object.Tuple).Elements[lLen-1], parser, env, node.Token)
+			if err != nil {
+				return err
+			}
 			return SUCCESS
 		}
-		err := Assign(variables[lLen - 1], &object.Tuple{Elements : right.(*object.Tuple).Elements[lLen - 1 :]}, parser, env, node.Token)
-		if err != nil { return err }
+		err := Assign(variables[lLen-1], &object.Tuple{Elements: right.(*object.Tuple).Elements[lLen-1:]}, parser, env, node.Token)
+		if err != nil {
+			return err
+		}
 		return SUCCESS
 
 	case *ast.InfixExpression:
 
 		if node.GetToken().Type == token.GIVEN { // Then either something has gone very wrong or we
-			leftBranch := node.Left	// are looking at the given block of an inner function
+			leftBranch := node.Left // are looking at the given block of an inner function
 			switch leftBranch := leftBranch.(type) {
-			case *ast.AssignmentExpression :
+			case *ast.AssignmentExpression:
 				rightBranchOfLeftBranch := leftBranch.Right
 				switch rightBranchOfLeftBranch := rightBranchOfLeftBranch.(type) {
-				case *ast.FuncExpression :
+				case *ast.FuncExpression:
 					rightBranchOfLeftBranch.Given = node.Right
-					default: return newError("eval/given/a", node.GetToken())
+				default:
+					return newError("eval/given/a", node.GetToken())
 				}
-			default: return newError("eval/given/b", node.GetToken())
+			default:
+				return newError("eval/given/b", node.GetToken())
 			}
 			return Eval(leftBranch, parser, env)
 		}
 
-		left := Eval(node.Left, parser, env)
-		if isError(left) {
-			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
-			return left
-		}
-		if isUnsatisfiedConditional(left) { return newError("unsatisfied/c", node.Token) }
-		right := Eval(node.Right, parser, env)
-		if isError(right) {
-			right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
-			return right
-		}
-		if isUnsatisfiedConditional(right) { return newError("unsatisfied/d", node.Token) }
-		return evalInfixExpression(node.Token, node.Operator, left, right, parser, env)
+		// left := Eval(node.Left, parser, env)
+		// if isError(left) {
+		// 	left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
+		// 	return left
+		// }
+		// if isUnsatisfiedConditional(left) { return newError("unsatisfied/c", node.Token) }
+		// right := Eval(node.Right, parser, env)
+		// if isError(right) {
+		// 	right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
+		// 	return right
+		// }
+		// if isUnsatisfiedConditional(right) { return newError("unsatisfied/d", node.Token) }
+
+		return evalInfixExpression(node, parser, env)
 
 	case *ast.LazyInfixExpression:
 		left := Eval(node.Left, parser, env)
@@ -166,29 +166,31 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 			return left
 		}
 		leftEvaluation := evalLazyLeftExpression(node.Token, node.Operator, left, parser, env)
-		if leftEvaluation != nil && leftEvaluation != SUCCESS && 
-		     (leftEvaluation.Type() != object.RETURN_OBJ){
+		if leftEvaluation != nil && leftEvaluation != SUCCESS &&
+			(leftEvaluation.Type() != object.RETURN_OBJ) {
 			return leftEvaluation
 		}
 		right := Eval(node.Right, parser, env)
-		if isError(right) {              
-			right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken()) 
+		if isError(right) {
+			right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
 			return right
 		}
 		if leftEvaluation != nil && leftEvaluation.Type() == object.RETURN_OBJ {
 			if node.Operator != ";" {
 				return newError("eval/return", node.Token)
 			}
-			if right == SUCCESS { return left }
+			if right == SUCCESS {
+				return left
+			}
 			if right.Type() == object.RETURN_OBJ {
-				left.(*object.Return).Elements = append(left.(*object.Return).Elements, right.(*object.Return).Elements ...)
-			return left
+				left.(*object.Return).Elements = append(left.(*object.Return).Elements, right.(*object.Return).Elements...)
+				return left
 			}
 			return newError("eval/malret", node.Token)
 		}
 		return evalLazyRightExpression(node.Token, node.Operator, right, parser, env)
 
-	case *ast.ExecExpression :
+	case *ast.ExecExpression:
 		return Eval(node.Right, parser.Parsers[node.Left.(*ast.Identifier).Value], env)
 
 	case *ast.Identifier:
@@ -213,7 +215,7 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		return evalIndexExpression(node.Token, left, index, parser, env)
 	case *ast.ListExpression:
 		if node.List == nil {
-			return &object.List{Elements: []object.Object{}} 
+			return &object.List{Elements: []object.Object{}}
 		}
 		list := Eval(node.List, parser, env)
 		if list.Type() == object.TUPLE_OBJ {
@@ -245,12 +247,14 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		}
 		return object.SetFromSlice([]object.Object{list})
 
-	case *ast.FuncExpression :
-		return &object.Func{Function : ast.Function{Sig: node.Sig, Body: node.Body, Given: node.Given}, Env: env}
+	case *ast.FuncExpression:
+		return &object.Func{Function: ast.Function{Sig: node.Sig, Body: node.Body, Given: node.Given}, Env: env}
 
-	case *ast.StructExpression :
-		return &object.StructDef{Sig : node.Sig} 
-	case *ast.ApplicationExpression :
+	case *ast.StructExpression:
+		return &object.StructDef{Sig: node.Sig}
+	case *ast.Bling:
+		return &object.Bling{Value: node.Value}
+	case *ast.ApplicationExpression:
 		left := Eval(node.Left, parser, env)
 		if isError(left) {
 			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
@@ -271,13 +275,19 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 			params = []object.Object{right}
 		}
 		return applyFunction(left.(*object.Func).Function, params, parser, node.Token, left.(*object.Func).Env)
+	case *ast.CodeLiteral:
+		return &object.Code{Value: node.Right}
 	}
 	return newError("eval/oops", token.Token{Line: 0})
 }
 
 func evalLazyRightExpression(token token.Token, operator string, right object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	if isUnsatisfiedConditional(right) { return UNSATISFIED }
-	if operator == ":" || operator == ";" { return right }
+	if isUnsatisfiedConditional(right) {
+		return UNSATISFIED
+	}
+	if operator == ":" || operator == ";" {
+		return right
+	}
 	return isTruthy(token, right, prsr, env)
 }
 
@@ -288,7 +298,9 @@ func evalLazyLeftExpression(token token.Token, operator string, left object.Obje
 		}
 		return left
 	}
-	if isUnsatisfiedConditional(left) { return newError("eval/unsatisfied/g", token) }
+	if isUnsatisfiedConditional(left) {
+		return newError("eval/unsatisfied/g", token)
+	}
 	truthiness := isTruthy(token, left, prsr, env)
 	if truthiness.Type() == object.ERROR_OBJ {
 		truthiness.(*object.Error).Trace = append(truthiness.(*object.Error).Trace, token)
@@ -297,62 +309,63 @@ func evalLazyLeftExpression(token token.Token, operator string, left object.Obje
 	switch operator {
 	case ":":
 		if truthiness == object.FALSE {
-			return UNSATISFIED 
+			return UNSATISFIED
 		}
-		case "and":	
-			if truthiness == object.FALSE { 
-				return object.FALSE
-			}
-		case "or":
-			if truthiness == object.TRUE { 
-				return object.TRUE
+	case "and":
+		if truthiness == object.FALSE {
+			return object.FALSE
+		}
+	case "or":
+		if truthiness == object.TRUE {
+			return object.TRUE
 		}
 	}
 	return nil
 }
 
-func evalPrefixExpression(token token.Token, operator string, right object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	if isUnsatisfiedConditional(right) { return newError("eval/unsatisfied/h", token) }
+func evalPrefixExpression(token token.Token, operator string, node *ast.PrefixExpression, prsr *parser.Parser, env *object.Environment) object.Object {
 	variable, ok := env.Get(operator)
-	params := make([]object.Object, 0) 
+	params := []object.Object{}
 	switch {
 	case operator == "not":
-		return evalNotOperatorExpression(token, right, prsr, env)
+		return evalNotOperatorExpression(token, Eval(node.Right, prsr, env), prsr, env)
 	case operator == "eval":
-		return evalEvalExpression(token, right, prsr, env)
+		return evalEvalExpression(token, Eval(node.Right, prsr, env), prsr, env)
 	case operator == "return":
-		return evalReturnExpression(token, right)
-	case prsr.Prefixes.Contains(operator) || prsr.Functions.Contains(operator) || 
-	     prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
-		if right.Type() == object.TUPLE_OBJ {
-			params = right.(*object.Tuple).Elements
-		} else {
-			params = []object.Object{right}
-		}
-		// A forefix is merely bling.
-		if prsr.Forefixes.Contains(operator) {
-			lparams := []object.Object{&object.Bling{Value: operator}}
-			lparams = append(lparams, params...)
-			return &object.Tuple{Elements: lparams}
-		}
+		return evalReturnExpression(token, Eval(node.Right, prsr, env))
+	case prsr.Prefixes.Contains(operator) || prsr.Functions.Contains(operator) ||
+		prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
+
 		// We may have ourselves a lambda
 		if ok && variable.Type() == object.FUNC_OBJ {
+			right := Eval(node.Right, prsr, env)
+			if right.Type() == object.TUPLE_OBJ {
+				params = right.(*object.Tuple).Elements
+			} else {
+				params = []object.Object{right}
+			}
+			if !prsr.ParamsFitSig(variable.(*object.Func).Sig, params) {
+				return newError("eval/sig/lambda", token, params)
+			}
 			return applyFunction(variable.(*object.Func).Function, params, prsr, token, variable.(*object.Func).Env)
 		}
 		// Otherwise we have a function or prefix, which work the same at this point.
-		return evaluateFunction(token, operator, params, prsr, env)
+		result := functionCall(prsr.FunctionTreeMap[node.Operator], node.Args, prsr, node.Token, env)
+		if result.Type() == object.ERROR_OBJ {
+			if operator == "type" {
+				return &object.Type{Value: "error"}
+			}
+		}
+		return result
 	}
 	if token.Source == "REPL input" {
 		return newError("eval/repl/a", token, params)
 	}
-	return newError("eval/unknown/prefix", token, right)
+	return newError("eval/unknown/prefix", token, Eval(node.Right, prsr, env))
 }
 
 func evaluateFunction(token token.Token, operator string, params []object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
 	f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
-	if err != "" && token.Source == "REPL input" {
-		return newError("eval/repl/a", token, params) 
-	}
 	if err == "keyword" {
 		return newError("eval/keyword/a", token)
 	}
@@ -365,10 +378,11 @@ func evaluateFunction(token token.Token, operator string, params []object.Object
 	return applyFunction(f, params, prsr, token, prsr.Globals)
 }
 
-
 func evalSuffixExpression(token token.Token, operator string, left object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	params := make([]object.Object, 0) 
-	if isUnsatisfiedConditional(left) { return newError("eval/unsatisfied/i", token) }
+	params := make([]object.Object, 0)
+	if isUnsatisfiedConditional(left) {
+		return newError("eval/unsatisfied/i", token)
+	}
 	if prsr.Suffixes.Contains(operator) || prsr.Endfixes.Contains(operator) {
 		if left.Type() == object.TUPLE_OBJ {
 			params = left.(*object.Tuple).Elements
@@ -384,7 +398,7 @@ func evalSuffixExpression(token token.Token, operator string, left object.Object
 		// Otherwise we have a suffix function
 		f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
 		if err != "" && token.Source == "REPL input" {
-			return newError("eval/repl/b", token, params) 
+			return newError("eval/repl/b", token, params)
 		}
 		if err == "keyword" {
 			return newError("eval/keyword/b", token)
@@ -396,7 +410,7 @@ func evalSuffixExpression(token token.Token, operator string, left object.Object
 			return applyFunction(f, params, prsr, token, env)
 		}
 		return applyFunction(f, params, prsr, token, prsr.Globals)
-		
+
 	}
 	if token.Source == "REPL input" {
 		return newError("eval/repl/b", token, params)
@@ -404,12 +418,11 @@ func evalSuffixExpression(token token.Token, operator string, left object.Object
 	return newError("eval/unknown/suffix", token, left)
 }
 
-
 func evalUnfixExpression(token token.Token, operator string, prsr *parser.Parser, env *object.Environment) object.Object {
-	params := make([]object.Object, 0) 
+	params := make([]object.Object, 0)
 	f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
 	if err != "" && token.Source == "REPL input" {
-		return newError("eval/repl/c", token, params) 
+		return newError("eval/repl/c", token, params)
 	}
 	if err == "keyword" {
 		return newError("eval/keyword/c", token)
@@ -423,78 +436,52 @@ func evalUnfixExpression(token token.Token, operator string, prsr *parser.Parser
 	return applyFunction(f, params, prsr, token, prsr.Globals)
 }
 
-
-func evalInfixExpression(
-	tok token.Token, operator string, left, right object.Object, prsr *parser.Parser, env *object.Environment,
+func evalInfixExpression(node *ast.InfixExpression, prsr *parser.Parser, env *object.Environment,
 ) object.Object {
-	params := make([]object.Object, 0)
-	switch {
-	case left.Type() == object.UNSATISFIED_OBJ: 
-		return newError("eval/unsatisfied/j", tok)
-	case right.Type() == object.UNSATISFIED_OBJ:
-		return newError("eval/unsatisfied/k" , tok)
-	case operator == "," :
-		return evalTupleExpression(left, right)
-	case left.Type() == object.ERROR_OBJ:
-		left.(*object.Error).Trace = append(left.(*object.Error).Trace, tok)
-		return left
-	case right.Type() == object.ERROR_OBJ:
-		right.(*object.Error).Trace = append(right.(*object.Error).Trace, tok)
-		 return right
-	case prsr.Infixes.Contains(operator) || prsr.Midfixes.Contains(operator) :
-		// Either way we start by assembling a parameters list ...
-		rparams := make([]object.Object, 0) 
-		if left.Type() == object.TUPLE_OBJ {
-			params = left.(*object.Tuple).Elements
-		} else {
-			params = []object.Object{left}
-		}
-		mparam := object.Bling{Value: operator}
-		if right.Type() == object.TUPLE_OBJ {
-			rparams = right.(*object.Tuple).Elements
-		} else {
-			rparams = []object.Object{right}
-		}
-		params = append(params, &mparam)
-		params = append(params, rparams...)
-		// If it's a midfix then the operator was merely bling and we return a tuple ...
-		if prsr.Midfixes.Contains(operator) {
-			return &object.Tuple{Elements: params}
-		}
-		if operator == "with" && params[0].Type() == object.TYPE_OBJ {
-			constructor, ok := prsr.BuiltinFunctions[params[0].(*object.Type).Value + "_with"]
-			if !ok { return newError("eval/with/type", tok, params[0].(*object.Type).Value) }
-			params = params[2:]
-			return constructor(prsr, params...)
+	if prsr.Infixes.Contains(node.Operator) {
+		if node.Operator == "with" {
+			params := listArgs(node.Args, prsr, node.Token, env)
+			if params[0].Type() == object.TYPE_OBJ {
+				constructor, ok := prsr.BuiltinFunctions[params[0].(*object.Type).Value+"_with"]
+				if !ok {
+					return newError("eval/with/type", node.Token, params[0].(*object.Type).Value)
+				}
+				params = params[2:]
+				return constructor(prsr, params...)
+			}
 		}
 		// Otherwise we have an infix function
-		f, err := prsr.FindFunction(operator, params, tok.Source == "REPL input")
-		if err != "" && tok.Source == "REPL input" {
-			return newError("eval/repl/d", tok, params) 
-		}
-		if err == "keyword" {
-			return newError("eval/keyword/d", tok)
-		}
-		if err == "sig" {
-			return newError("eval/sig/d", tok, params)
-		}
-		if f.Cmd {
-			return applyFunction(f, params, prsr, tok, env)
-		}
-		return applyFunction(f, params, prsr, tok, prsr.Globals)
-	case operator == "==":
+		return functionCall(prsr.FunctionTreeMap[node.Operator], node.Args, prsr, node.Token, env)
+	}
+
+	left, right := evalLeftRightArgs(node.Args, prsr, node.Token, env)
+
+	switch {
+
+	case left.Type() == object.ERROR_OBJ:
+		left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.Token)
+		return left
+	case right.Type() == object.ERROR_OBJ:
+		right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.Token)
+		return right
+	case left.Type() == object.UNSATISFIED_OBJ:
+		return newError("eval/unsatisfied/j", node.Token)
+	case right.Type() == object.UNSATISFIED_OBJ:
+		return newError("eval/unsatisfied/k", node.Token)
+	case node.Operator == ",":
+		result := evalTupleExpression(left, right)
+		return result
+	case node.Operator == "==":
 		return object.MakeBool(object.Equals(left, right))
-	case operator == "!=":
+	case node.Operator == "!=":
 		return object.MakeInverseBool(object.Equals(left, right))
 	default:
-		if tok.Source == "REPL input" {
-			return newError("eval/repl/b", tok, params)
+		if node.Token.Source == "REPL input" {
+			return newError("eval/repl/b", node.Token, listArgs(node.Args, prsr, node.Token, env))
 		}
-		return newError("eval/unknown/operator", tok, left, right)
+		return newError("eval/unknown/operator", node.Token, left, right)
 	}
 }
-
-
 
 func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.Parser, env *object.Environment, tok token.Token) *object.Error {
 	if right.Type() == object.UNSATISFIED_OBJ {
@@ -513,8 +500,8 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 
 		// The first constructor function ...
 		constructor := func(p *parser.Parser, args ...object.Object) object.Object {
-			result := &object.Struct{Value: make(map[string] object.Object)}
-			for k, v := range(args) {
+			result := &object.Struct{Value: make(map[string]object.Object)}
+			for k, v := range args {
 				result.Labels = append(result.Labels, right.(*object.StructDef).Sig[k].VarName)
 				result.Value[right.(*object.StructDef).Sig[k].VarName] = v
 			}
@@ -528,59 +515,58 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 
 		prsr.FunctionTable.Add(prsr.TypeSystem,
 			variable.VarName, // The function name ...
-		     ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
-		     Body: &ast.BuiltInExpression{Name: variable.VarName} }) // ... and a reference to the built-in as the body
+			ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
+				Body: &ast.BuiltInExpression{Name: variable.VarName}}) // ... and a reference to the built-in as the body
 
 		// The second constructor function ...
 
 		constructor_2 := func(p *parser.Parser, args ...object.Object) object.Object {
-			result := &object.Struct{Value: make(map[string] object.Object)}
-			for _, v := range(args) {
+			result := &object.Struct{Value: make(map[string]object.Object)}
+			for _, v := range args {
 				if v.Type() != object.PAIR_OBJ {
 					return newError("eval/pair", tok)
 				}
 				if v.(*object.Pair).Left.Type() != object.LABEL_OBJ {
 					return newError("eval/label", tok)
 				}
-				positionOfLabelInFields := - 1
-				for i, w := range(right.(*object.StructDef).Sig) {
+				positionOfLabelInFields := -1
+				for i, w := range right.(*object.StructDef).Sig {
 					if string(v.(*object.Pair).Left.(*object.Label).Value) == w.VarName {
 						positionOfLabelInFields = i
 						break
 					}
 				}
-				if positionOfLabelInFields == - 1 {
+				if positionOfLabelInFields == -1 {
 					return newError("eval/field/struct", tok, v.(*object.Pair).Left.(*object.Label).Value, variable.VarName)
 				}
-				if ! parser.IsSameTypeOrSubtype(p.TypeSystem, object.TrueType(v.(*object.Pair).Right), right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
-					return newError("eval/field/type", tok, v.(*object.Pair).Left.(*object.Label).Value ,
+				if !parser.IsSameTypeOrSubtype(p.TypeSystem, object.TrueType(v.(*object.Pair).Right), right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
+					return newError("eval/field/type", tok, v.(*object.Pair).Left.(*object.Label).Value,
 						variable.VarName, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType,
 						object.TrueType(v.(*object.Pair).Right))
-				} 
-				
-				
+				}
+
 				result.Value[v.(*object.Pair).Left.(*object.Label).Value] =
 					v.(*object.Pair).Right
-			
+
 			}
-			for _, v := range(right.(*object.StructDef).Sig) {
+			for _, v := range right.(*object.StructDef).Sig {
 				result.Labels = append(result.Labels, v.VarName)
 			}
 			result.Name = variable.VarName
 			return result
 		}
 
-		prsr.BuiltinFunctions[variable.VarName + "_with"] = constructor_2
+		prsr.BuiltinFunctions[variable.VarName+"_with"] = constructor_2
 		// And the second constructor function as it appears in the parser's function table.
 
 		prsr.FunctionTable.Add(prsr.TypeSystem, variable.VarName, // The function name ...
-		     ast.Function{Sig: signature.Signature{
-		     signature.NameTypePair{VarName: "t",  VarType: "tuple"}}, // ... signature ...
-		     Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"} }) // ... and a reference to the built-in as the body
+			ast.Function{Sig: signature.Signature{
+				signature.NameTypePair{VarName: "t", VarType: "tuple"}}, // ... signature ...
+				Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"}}) // ... and a reference to the built-in as the body
 
 		// Now the labels ...
 
-		for _, v := range(right.(*object.StructDef).Sig) {
+		for _, v := range right.(*object.StructDef).Sig {
 			_, ok := prsr.Enums[v.VarName]
 			if ok {
 				prsr.Throw("eval/struct/enum", tok)
@@ -591,15 +577,17 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 		return nil
 	}
 	inferredType := variable.VarType
-	if inferredType == "*" { inferredType = object.TrueType(right)}
+	if inferredType == "*" {
+		inferredType = object.TrueType(right)
+	}
 	switch tok.Type {
-	case token.GVN_ASSIGN :
+	case token.GVN_ASSIGN:
 		if !parser.IsSameTypeOrSubtype(prsr.TypeSystem, object.TrueType(right), inferredType) {
 			return newError("eval/var/type/a", tok, object.TrueType(right), inferredType)
 		}
 		env.Set(variable.VarName, right)
 		return nil
-	case token.PVR_ASSIGN :
+	case token.PVR_ASSIGN:
 		if env.IsConstant(variable.VarName) {
 			return newError("eval/var/const/a", tok, variable.VarName)
 		}
@@ -614,16 +602,16 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 		}
 		env.InitializePrivate(variable.VarName, right, inferredType)
 		return nil
-	case token.DEF_ASSIGN :
+	case token.DEF_ASSIGN:
 		if env.Exists(variable.VarName) {
 			return newError("eval/const/assign", tok)
 		}
 		if !parser.IsSameTypeOrSubtype(prsr.TypeSystem, object.TrueType(right), inferredType) {
-			return newError("eval/const/type", tok, object.TrueType(right), inferredType);
+			return newError("eval/const/type", tok, object.TrueType(right), inferredType)
 		}
 		env.InitializeConstant(variable.VarName, right)
 		return nil
-	case token.VAR_ASSIGN :
+	case token.VAR_ASSIGN:
 		if env.IsConstant(variable.VarName) {
 			return newError("eval/var/const/a", tok, variable.VarName)
 		}
@@ -638,8 +626,8 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 		}
 		env.InitializeVariable(variable.VarName, right, inferredType)
 		return nil
-	case token.CMD_ASSIGN :
-		if variable.VarType != "*" {
+	case token.CMD_ASSIGN:
+		if variable.VarType != "*" && variable.VarType != "varname" {
 			return newError("eval/cmd/assign", tok)
 		}
 		if !env.Exists(variable.VarName) {
@@ -651,15 +639,40 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 		if strings.HasPrefix(variable.VarName, "$") {
 			return assignSysVar(tok, variable.VarName, right, env)
 		}
-		if !parser.IsSameTypeOrSubtype(prsr.TypeSystem, object.TrueType(right), inferredType) {
-			return newError("eval/cmd/type", tok, object.TrueType(right) , env.Store[variable.VarName].VarType)
-		}
+		if variable.VarType == "*" {
+			if !parser.IsSameTypeOrSubtype(prsr.TypeSystem, object.TrueType(right), inferredType) && variable.VarType != "varname" {
+				return newError("eval/cmd/type", tok, object.TrueType(right), env.Store[variable.VarName].VarType)
+			}
 		env.UpdateVar(variable.VarName, right) // Unlike Set, this will work through linked environments.
-											   // I can't remember why that seemed necessary.
+		// I can't remember why that seemed necessary.
+		} else { // Otherwise we need to retrieve a variable name from it.
+			contents, _ := env.Get(variable.VarName)
+			if contents.Type() != object.CODE_OBJ {
+				return newError("eval/cmd/varname/code", tok, variable.VarName)
+			}
+			if contents.(*object.Code).Value.GetToken().Type != token.IDENT {
+				return newError("eval/cmd/varname/ident", tok, variable.VarName)
+			}
+			refName := contents.(*object.Code).Value.GetToken().Literal
+			if !env.Exists(refName) {
+				return newError("eval/cmd/varname/var", tok, refName)
+			}
+			if env.IsConstant(refName) {
+				return newError("eval/cmd/varname/const", tok, refName)
+			}
+			if strings.HasPrefix(refName, "$") {
+				return assignSysVar(tok, refName, right, env)
+			}
+			contType, _ := env.Type(refName)
+			if !parser.IsSameTypeOrSubtype(prsr.TypeSystem, object.TrueType(right), contType) {
+				return newError("eval/cmd/varname/type", tok, object.TrueType(right), contType)
+			}
+			env.UpdateVar(refName, right)
+		}
 		return nil
-	default : // We must be assigning from the REPL.
+	default: // We must be assigning from the REPL.
 		if (!env.Exists(variable.VarName)) || env.IsPrivate(variable.VarName) {
-			return newError("eval/repl/assign", tok, variable.VarName) 
+			return newError("eval/repl/assign", tok, variable.VarName)
 		}
 		if env.IsConstant(variable.VarName) {
 			return newError("eval/repl/const", tok, variable.VarName)
@@ -673,10 +686,8 @@ func Assign(variable signature.NameTypePair, right object.Object, prsr *parser.P
 		env.Set(variable.VarName, right)
 		return nil
 	}
-	
 
 }
-
 
 func assignSysVar(tok token.Token, keyword string, right object.Object, env *object.Environment) *object.Error {
 	if _, ok := sysvars.Sysvars[keyword]; ok {
@@ -690,10 +701,9 @@ func assignSysVar(tok token.Token, keyword string, right object.Object, env *obj
 	return newError("eval/sys/exists", tok, keyword)
 }
 
-
 func evalNotOperatorExpression(token token.Token, right object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
 	truthiness := isTruthy(token, right, prsr, env)
-	if truthiness.Type() == object.ERROR_OBJ { 
+	if truthiness.Type() == object.ERROR_OBJ {
 		truthiness.(*object.Error).Trace = append(truthiness.(*object.Error).Trace, token)
 		return truthiness
 	}
@@ -703,14 +713,19 @@ func evalNotOperatorExpression(token token.Token, right object.Object, prsr *par
 	return object.TRUE
 }
 
-
 func evalEvalExpression(token token.Token, right object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	if right.Type() != object.STRING_OBJ {
-		return newError("eval/eval", token)
+	if right.Type() == object.ERROR_OBJ {
+		return right
 	}
-	source := "string evaluated at line " + strconv.Itoa(token.Line) + " of " + token.Source
-	parsedCode := prsr.ParseLine(source, right.(*object.String).Value)
-	return Evaluate(*parsedCode, prsr, env)
+	if right.Type() == object.CODE_OBJ {
+		return Evaluate(right.(*object.Code).Value, prsr, env)
+	}
+	if right.Type() == object.STRING_OBJ {
+		source := "string evaluated at line " + strconv.Itoa(token.Line) + " of " + token.Source
+		parsedCode := prsr.ParseLine(source, right.(*object.String).Value)
+		return Evaluate(*parsedCode, prsr, env)
+	}
+	return newError("eval/eval", token)
 }
 
 func evalReturnExpression(token token.Token, right object.Object) object.Object {
@@ -721,41 +736,41 @@ func evalReturnExpression(token token.Token, right object.Object) object.Object 
 		return &object.Return{Elements: right.(*object.Tuple).Elements}
 	}
 	return &object.Return{Elements: []object.Object{right}}
-} 
+}
 
 func evalTupleExpression(
 	left, right object.Object,
 ) object.Object {
 	switch left.(type) {
-	case *object.SuccessfulAssignment :
+	case *object.SuccessfulAssignment:
 		return right
 	case *object.Tuple:
 		switch right.(type) {
 		case *object.Tuple:
-			return &object.Tuple{Elements: append(left.(*object.Tuple).Elements, right.(*object.Tuple).Elements ...)}
+			return &object.Tuple{Elements: append(left.(*object.Tuple).Elements, right.(*object.Tuple).Elements...)}
 		default:
 			return &object.Tuple{Elements: append(left.(*object.Tuple).Elements, right)}
-		}	
-	default:	
+		}
+	default:
 		switch t := right.(type) {
-		case *object.SuccessfulAssignment :
+		case *object.SuccessfulAssignment:
 			return left
 		case *object.Tuple:
-			return &object.Tuple{Elements: append([]object.Object{left}, t.Elements ...)}
+			return &object.Tuple{Elements: append([]object.Object{left}, t.Elements...)}
 		default:
 			return &object.Tuple{Elements: []object.Object{left, right}}
-		}		
+		}
 	}
 }
 
 func evalIdentifier(node *ast.Identifier, prsr *parser.Parser, env *object.Environment) object.Object {
 
-	val, ok := env.Get(node.Value);
-	
-	if ((!ok || env.IsPrivate(node.Value)) && node.GetToken().Source == "REPL input") {
+	val, ok := env.Get(node.Value)
+
+	if (!ok || env.IsPrivate(node.Value)) && node.GetToken().Source == "REPL input" {
 		return newError("eval/repl/var", node.Token, node.Value)
 	}
-	
+
 	if ok {
 		return val
 	}
@@ -775,7 +790,6 @@ func isTruthy(token token.Token, obj object.Object, prsr *parser.Parser, env *ob
 	return evaluateFunction(token, "bool", []object.Object{obj}, prsr, env)
 }
 
-
 func newError(ident string, token token.Token, args ...any) *object.Error {
 	return object.CreateErr(ident, token, args...)
 }
@@ -794,21 +808,220 @@ func isUnsatisfiedConditional(obj object.Object) bool {
 	return false
 }
 
-
 func evalIndexExpression(token token.Token, left, index object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
 	return evaluateFunction(token, "index", []object.Object{index, left}, prsr, env)
 }
 
+type functionTreeWalker struct {
+	functionTree *ast.FnTreeNode
+	position     *ast.FnTreeNode
+	lastWasTuple bool
+}
+
+func (ft *functionTreeWalker) followBranch(prsr *parser.Parser, branch string) bool {
+
+	if ft.lastWasTuple && parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, "tuple") {
+		return true
+	}
+
+	for _, v := range ft.position.Branch {
+		if parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, v.TypeName) ||
+				branch == "code" && v.TypeName == "ast" {
+			ft.position = &v.Node
+			ft.lastWasTuple = (v.TypeName == "tuple")
+			return true
+		}
+	}
+	return false
+}
+
+func newFunctionTreeWalker(functionTree *ast.FnTreeNode) *functionTreeWalker {
+	return &functionTreeWalker{functionTree: functionTree, position: functionTree, lastWasTuple: false}
+}
+
+func tuplify(args []object.Object) object.Object {
+	if len(args) == 1 {
+		return args[0]
+	}
+	result := []object.Object{}
+	for _, v := range args {
+		if v.Type() == object.TUPLE_OBJ {
+			result = append(result, v.(*object.Tuple).Elements...)
+		} else {
+			result = append(result, v)
+		}
+	}
+	if len(result) == 1 {
+		return result[0]
+	} else {
+		return &object.Tuple{Elements: result}
+	}
+}
+
+// For special cases like the 'not' operator, we need (for now) to evaluate the arguments
+// without the treewalker.
+func listArgs(args []ast.Node, prsr *parser.Parser, token token.Token, env *object.Environment) []object.Object {
+	values := []object.Object{}
+	for _, arg := range args {
+		newObject := Eval(arg, prsr, env)
+		if isUnsatisfiedConditional(newObject) {
+			return []object.Object{newError("eval/unsatisfied/h", token)}
+		}
+		if isError(newObject) {
+			return []object.Object{newObject}
+		}
+		if newObject.Type() == object.TUPLE_OBJ {
+			values = append(values, newObject.(*object.Tuple).Elements...)
+		} else {
+			values = append(values, newObject)
+		}
+	}
+	return values
+}
+
+// func evalArgs(args []ast.Node, prsr *parser.Parser, token token.Token, env *object.Environment) object.Object {
+// 	fmt.Println(listArgs(args, prsr, token, env))
+// 	return tuplify(listArgs(args, prsr, token, env))
+// }
+
+func evalLeftRightArgs(args []ast.Node, prsr *parser.Parser, token token.Token, env *object.Environment) (object.Object, object.Object) {
+	leftValues := []object.Object{}
+	rightValues := []object.Object{}
+	blingHappened := false
+	for _, arg := range args {
+		newObject := Eval(arg, prsr, env)
+		if newObject.Type() == object.BLING_OBJ {
+			blingHappened = true
+			continue
+		}
+
+		if isUnsatisfiedConditional(newObject) {
+			return newError("eval/unsatisfied/h", token), object.FALSE
+		}
+		if isError(newObject) {
+			return newObject, object.FALSE
+		}
+		if blingHappened {
+			rightValues = append(rightValues, newObject)
+		} else {
+			leftValues = append(leftValues, newObject)
+		}
+	}
+	return tuplify(leftValues), tuplify(rightValues)
+}
+
+func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, prsr *parser.Parser, token token.Token, env *object.Environment) object.Object {
+
+	// We need to evaluate the arguments one by one. If they are tuples, we need to look at
+	// the elements of those one by one as we navigate the function tree.
+
+	pos := 0
+	values := []object.Object{}
+	treeWalker := newFunctionTreeWalker(functionTree)
+
+	var (
+		currentObject       object.Object
+		currentSingleObject object.Object
+	)
+
+	for arg := 0; arg < len(args); {
+
+		astHappening := (len(treeWalker.position.Branch) > 0 && treeWalker.position.Branch[0].TypeName == "ast")
+
+		if currentObject == nil {
+			if astHappening {
+				currentObject = &object.Code{Value:  args[arg]}
+			} else {
+				currentObject = Eval(args[arg], prsr, env)
+			}
+		}
+
+		//We may be at the end of a tuple, or at the start of an empty tuple.
+		if currentObject.Type() == object.TUPLE_OBJ {
+			for currentObject.Type() == object.TUPLE_OBJ &&
+				len(currentObject.(*object.Tuple).Elements) == pos {
+				arg++
+				pos = 0
+				if arg == len(args) {
+					break
+				}
+				if astHappening {
+					if pos > 0 {
+						return newError("eval/ast", token)
+					} else {
+						currentObject = &object.Code{Value:  args[arg]}
+					}
+				} else {
+					currentObject = Eval(args[arg], prsr, env)
+				}
+			}
+		} else {
+			if arg > 0 {
+				if astHappening {
+					currentObject = &object.Code{Value:  args[arg]}
+				} else {
+					currentObject = Eval(args[arg], prsr, env)
+				}
+			}
+		}
+
+		if arg == len(args) {
+			break
+		}
+
+		// And now if we are looking at a tuple then it is definitely inhabited at position
+		// pos.
+		if currentObject.Type() == object.TUPLE_OBJ {
+			currentSingleObject = currentObject.(*object.Tuple).Elements[pos]
+		} else {
+			currentSingleObject = currentObject
+		}
+
+		if isUnsatisfiedConditional(currentSingleObject) {
+			return newError("eval/unsatisfied/h", token)
+		}
+		if isError(currentSingleObject) {
+			currentSingleObject.(*object.Error).Trace = append(currentSingleObject.(*object.Error).Trace, token)
+			return currentSingleObject
+		}
+
+		values = append(values, currentSingleObject)
+		ok := treeWalker.followBranch(prsr, object.TypeOrBling(currentSingleObject))
+		if !ok {
+			return newError("eval/args/a", token)
+		}
+
+		if currentObject.Type() == object.TUPLE_OBJ {
+			pos++
+		} else {
+			arg++
+		}
+	}
+
+	if len(values) == 0 {
+		ok := treeWalker.followBranch(prsr, "tuple")
+		if !ok {
+			return newError("eval/args/b", token)
+		}
+	}
+
+	ok := treeWalker.followBranch(prsr, "")
+	if !ok {
+		return newError("eval/args/c", token)
+	}
+
+	return applyFunction(*treeWalker.position.Fn, values, prsr, token, env)
+}
 
 func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, token token.Token, ext *object.Environment) object.Object {
-	
+
 	switch body := f.Body.(type) {
-	case *ast.BuiltInExpression :
+	case *ast.BuiltInExpression:
 		funcToApply := prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
 		result := funcToApply(prsr, params...)
 		if result.Type() == object.ERROR_OBJ {
 			result.(*object.Error).Trace = append(result.(*object.Error).Trace, token)
-			result.(*object.Error).Token = token 
+			result.(*object.Error).Token = token
 			if result.(*object.Error).Message == "" {
 
 				msgCreate, ok := object.ErrorCreatorMap[result.(*object.Error).ErrorId]
@@ -817,26 +1030,26 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 					result.(*object.Error).Message = "Oopsie, can't find errorId " + result.(*object.Error).ErrorId
 				} else {
 					result.(*object.Error).Message = msgCreate.
-					    Message(token, result.(*object.Error).Info...)
+						Message(token, result.(*object.Error).Info...)
 				}
 			}
 		}
 		return result
-	case *ast.GolangExpression :
+	case *ast.GolangExpression:
 		gh := NewGoHandler(prsr)
 		goParams := []any{}
 		for i := 0; i < len(body.Sig); i++ {
 			switch {
-			case body.Raw[i] :
+			case body.Raw[i]:
 				goParams = append(goParams, params[i])
-			case body.Sig[i].VarType == "tuple" :
+			case body.Sig[i].VarType == "tuple":
 				lastEl := []any{}
 				for j := i; j < len(params); j++ {
 					lastEl = append(lastEl, gh.CharmToGo(params[j]))
 				}
 				goParams = append(goParams, lastEl)
 				break
-			default :
+			default:
 				goParams = append(goParams, gh.CharmToGo(params[i]))
 			}
 		}
@@ -846,7 +1059,7 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 			result = gh.goToCharm(args[0])
 		} else {
 			result = &object.Tuple{Elements: []object.Object{}}
-			for _, v := range(args) {
+			for _, v := range args {
 				el := gh.goToCharm(v)
 				if el.Type() == object.ERROR_OBJ {
 					result = el
@@ -855,17 +1068,15 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 				result.(*object.Tuple).Elements = append(result.(*object.Tuple).Elements, el)
 			}
 		}
-	switch result := result.(type) {
-	case *object.Error :
-		prsr.Throw("eval/golang", f.Body.GetToken(), result.Message)
-	}
-	return result
-	default :
+		switch result := result.(type) {
+		case *object.Error:
+			prsr.Throw("eval/golang", f.Body.GetToken(), result.Message)
+		}
+		return result
+	default:
 		env := object.NewEnvironment()
 		env.Ext = ext
-		if !prsr.ParamsFitSig(f.Sig, params) {
-			return newError("eval/sig/lambda", token, params)
-		}
+
 		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
 		if !f.Cmd {
 			newEnvironment.Set("this", &object.Func{Function: f, Env: env})
@@ -897,7 +1108,7 @@ func getArgs(args ...any) []any {
 
 func toObjectList(obj object.Object) []object.Object {
 	switch t := obj.(type) {
-	case *object.Tuple :
+	case *object.Tuple:
 		return t.Elements
 	default:
 		return []object.Object{obj}

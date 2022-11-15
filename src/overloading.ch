@@ -20,6 +20,6 @@ foo(n nil) : "foo of nil"
 
 var
 
-myDog = dog with name :: "Bonzo", age :: 4
+//myDog = dog with name :: "Bonzo", age :: 4
 
-myCat = cat with name :: "Tibbles", age :: 10
+//myCat = cat with name :: "Tibbles", age :: 10

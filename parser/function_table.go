@@ -4,6 +4,8 @@ import (
 	"charm/ast"
 	"charm/object"
 	"charm/signature"
+	"charm/token"
+	"fmt"
 )
 
 
@@ -47,7 +49,8 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 			return true
 		}
 		if s[i].VarType != object.TrueType(param) &&
-		!p.TypeSystem.PointsTo(object.TrueType(param), s[i].VarType){
+		!p.TypeSystem.PointsTo(object.TrueType(param), s[i].VarType) &&
+				s[i].VarType != "varname" {
 			return false
 		}
 		if param.Type() == object.BLING_OBJ &&
@@ -66,17 +69,48 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 	return false
 }
 
-
 func UpdateEnvironment(sig signature.Signature, params []object.Object, env *object.Environment) *object.Environment { 
-	for i := 0; i < len(sig); i++ {
-		if sig[i].VarType == object.BLING_OBJ {
+	if len(sig) == 0 {
+		return env
+	}
+	sigPos := 0;
+	tupleAccumulator := []object.Object{}
+	
+	for paramPos := 0; paramPos < len(params); paramPos++ {
+		if sig[sigPos].VarType == object.TUPLE_OBJ {
+			if params[paramPos].Type() == object.BLING_OBJ {
+				env.Set(sig[sigPos].VarName, &object.Tuple{Elements: tupleAccumulator})
+				tupleAccumulator = []object.Object{}
+				sigPos = sigPos + 2
+				continue
+			}
+			if paramPos == len(params) - 1 {
+				tupleAccumulator = append(tupleAccumulator, params[paramPos])
+				env.Set(sig[sigPos].VarName, &object.Tuple{Elements: tupleAccumulator})
+				break
+			}
+			tupleAccumulator = append(tupleAccumulator, params[paramPos])
 			continue
-		}
-		if i < len(sig) - 1 || sig[i].VarType != object.TUPLE_OBJ {
-			env.Set(sig[i].VarName, params[i])
+		}	
+		if sig[sigPos].VarType == "varname" {
+			obj, ok := env.Get(sig[sigPos].VarName)
+			if !ok {
+				fmt.Println("Oops 1")
+				return env
+			}
+			if obj.Type() != object.CODE_OBJ {
+				fmt.Println("Oops 2")
+				return env
+			}
+			if obj.(*object.Code).Value.GetToken().Type != token.IDENT {
+				fmt.Println("Oops 3")
+				return env
+			}
+			env.Set(obj.(*object.Code).Value.GetToken().Literal, params[paramPos])
 		} else {
-			env.Set(sig[i].VarName, &object.Tuple{Elements: params[i:]})
+			env.Set(sig[sigPos].VarName, params[paramPos])
 		}
+		sigPos++
 	}
 	return env
 }

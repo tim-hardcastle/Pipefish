@@ -14,6 +14,18 @@ type Node interface {
 	String() string
 }
 
+
+type CodeLiteral struct {
+	Token      token.Token
+	Right Node
+}
+func (cl *CodeLiteral) GetToken() token.Token { return cl.Token }
+func (cl *CodeLiteral) TokenLiteral() string { return cl.Token.Literal }
+func (cl *CodeLiteral) String() string {
+	return "code (" + cl.Right.String() + ")"
+}
+
+
 type Expression struct {
 	Token      token.Token // the first token of the expression
 	Node Node
@@ -32,6 +44,16 @@ type Identifier struct {
 func (i *Identifier) GetToken() token.Token { return i.Token }
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 func (i *Identifier) String() string       { return i.Value }
+
+type Bling struct {
+	Token token.Token 
+	Value string
+}
+
+func (bl *Bling) GetToken() token.Token { return bl.Token }
+func (bl *Bling) TokenLiteral() string { return bl.Token.Literal }
+func (bl *Bling) String() string       { return bl.Value }
+
 
 type TypeLiteral struct {
 	Token token.Token 
@@ -99,6 +121,7 @@ type PrefixExpression struct {
 	Token    token.Token 
 	Operator string
 	Right    Node
+	Args []Node
 }
 
 func (pe *PrefixExpression) GetToken() token.Token { return pe.Token }
@@ -118,7 +141,6 @@ func (pe *PrefixExpression) String() string {
 type UnfixExpression struct {
 	Token    token.Token 
 	Operator string
-	Right    Node
 }
 
 func (uf *UnfixExpression) GetToken() token.Token { return uf.Token }
@@ -128,8 +150,6 @@ func (uf *UnfixExpression) String() string {
 
 	out.WriteString("(")
 	out.WriteString(uf.Operator)
-	out.WriteString(" ")
-	out.WriteString(uf.Right.String())
 	out.WriteString(")")
 
 	return out.String()
@@ -140,6 +160,7 @@ type InfixExpression struct {
 	Left     Node
 	Operator string
 	Right    Node
+	Args []Node
 }
 
 func (ie *InfixExpression) GetToken() token.Token { return ie.Token }
@@ -244,6 +265,7 @@ type SuffixExpression struct {
 	Token    token.Token // The prefix token, e.g. !
 	Operator string
 	Left    Node
+	Args []Node
 }
 
 func (se *SuffixExpression) GetToken() token.Token { return se.Token }
@@ -363,3 +385,61 @@ type Function = struct {
 	Cmd bool
 	Private bool
 }
+
+type FnTreeNode struct {
+	Fn *Function
+	Branch []TypeNodePair
+}
+
+type TypeNodePair struct {
+	TypeName string
+	Node FnTreeNode
+}
+
+
+func (tree FnTreeNode) Index(typeName string) int {
+	index := -1;
+	for i, v := range tree.Branch {
+		if v.TypeName == typeName { index = i }
+	}
+	return index
+}
+
+func (tree FnTreeNode) AddOrReplace(typeName string, twig FnTreeNode) FnTreeNode {
+	if tree.Index(typeName) == -1 {
+		tree.Branch = append(tree.Branch, TypeNodePair{typeName, twig})
+	} else {
+		tree.Branch[tree.Index(typeName)] = TypeNodePair{typeName, twig}
+	}
+	return tree
+}
+
+func (tree FnTreeNode) String() string {
+	result := "["
+	for i, v := range tree.Branch {
+		result = result + v.TypeName
+		if v.Node.Fn != nil {
+			result = result + "func " + v.Node.Fn.Sig.String()
+		} else {
+			result = result + v.Node.String()
+		}
+		if i < len(tree.Branch) - 1 {
+			result = result + ", "
+		}
+	}
+	return result + "]"
+}
+
+func (tree FnTreeNode) IndentString(indent string) string {
+	result := ""
+	for _, v := range tree.Branch {
+		result = result + "\n" + indent + v.TypeName
+		if v.Node.Fn != nil {
+			result = result + "func " + v.Node.Fn.Sig.String()
+		} else {
+			result = result + v.Node.IndentString(indent + "    ")
+		}
+	}
+	return result
+}
+
