@@ -52,13 +52,22 @@ You're now using Charm's REPL, its Read-Evaluate-Print Loop. If you enter someth
 ```
 → 2 + 2
 4 
+→ 
 ```
+
+## `"Hello world!"` ... ?
+
+It is usual when introducing a programming language to give, as the first example, a piece of code which, when executed, prints the words `Hello world!` and then turns itself off.
+
+Charm is not that sort of language, any more than, for example, SQL is. Charm is a REPL language, and when you run a Charm script, this defines what the end-user can and can't do in the REPL. (Without a script, they can just evaluate expressions using the standard set of built-in functions, as above.)
+
+As you progress through this manual, you will come to appreciate how this approach works to build applications.
 
 Before we get around to writing Charm scripts, let's use the REPL to explore some of the basic features of the language.
 
 ## Standard types
 
-First, let's look at some of the standard data types and their literals.
+First, let's look at some of the standard data types, their literals, and the supplied built-in operations.
 
 ### `int`
 
@@ -83,9 +92,10 @@ Its operations are `+`, `-`, `*` and `/`, all of which work as you expect.
 ```
 → 2.5 / 0.25                                                                                                
 10.000000
+→ 
 ```
 
-Mixing the arithmetic of integers and floating-point numbers will result in an error. We will see how to avoid this in the [section on type conversion](*****).
+Mixing the arithmetic of integers and floating-point numbers will result in an error. We will see how to avoid this in the section on type conversion.
 
 ### `bool`
 
@@ -110,6 +120,7 @@ The boolean valued relations `<`, `>`, `<=` and `>=` work as you would expect th
 true
 → 3 + 3 != 6
 false
+→ 
 ```
 
 There is also a conditional operator, as in the following example.
@@ -152,13 +163,15 @@ Strings can be added together with the `+` operator:
 ```
 → "mac" + "hine" 
 machine
+→ 
 ```
 
 The `len` function returns the length of a string:
 
 ```
 → len "Charm" 
-5       
+5   
+→ 
 ```
 
 The runes in a string can be indexed, starting at `0`: i.e.:
@@ -168,6 +181,7 @@ The runes in a string can be indexed, starting at `0`: i.e.:
 C
 → "Charm"[4]      
 m
+→ 
 ```
 
 A "slice" can be taken out of a list like this:
@@ -175,6 +189,7 @@ A "slice" can be taken out of a list like this:
 ```
 → "Charm"[1::4]      
 "har"
+→ 
 ```
 
 Note that the slice is from-including up-to-and-not-including, as is everything else in Charm.
@@ -214,7 +229,7 @@ ok
 
 Let's talk about what's happening here. The "hub", the housekeeping part of Charm (see [here](#the-hub) for more information), has run the script and given the resulting service the name `#0`, since we didn't name it ourselves. Running the script has created the variables and intitialized them. We can then access them through the REPL, or, to be pedantic, through the REPL of service `#0`.
 
-This is how a Charm service generally works. Charm is a "REPL language": that is, running a script doesn't immediately *do* anything besides initialization. Rather, what it achieves is to extend what the end-user can do in the REPL: in this case allowing them to access and set the variables `x` and `h`. If this style of language is new to you, you will see how it works out to produce applications as we go along.
+This is how a Charm service generally works. Charm is a "REPL language", as explained above: a Charm program doesn't *do* anything. Rather, it permits the end-user to do things in the REPL: in this case allowing them to access and set the variables `x` and `h`. If this style of language is new to you, you will see how it works out to produce applications as we go along.
 
 You will note from the example above that it is perfectly valid to initialize a variable with an expression, in this case `2 + 2`.
 
