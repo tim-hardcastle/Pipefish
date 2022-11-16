@@ -55,9 +55,9 @@ You're now using Charm's REPL, its Read-Evaluate-Print Loop. If you enter someth
 → 
 ```
 
-## `"Hello world!"` ... ?
+## "Hello world!" ... ?
 
-It is usual when introducing a programming language to give, as the first example, a piece of code which, when executed, prints the words `Hello world!` and then turns itself off.
+It is usual when introducing a programming language to give, as the first example, a piece of code which when executed prints the words `Hello world!` and then turns itself off.
 
 Charm is not that sort of language, any more than, for example, SQL is. Charm is a REPL language, and when you run a Charm script, this defines what the end-user can and can't do in the REPL. (Without a script, they can just evaluate expressions using the standard set of built-in functions, as above.)
 
