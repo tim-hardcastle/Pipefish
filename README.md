@@ -184,7 +184,7 @@ m
 → 
 ```
 
-A "slice" can be taken out of a list like this:
+A "slice" can be taken out of a string like this:
 
 ```
 → "Charm"[1::4]      
