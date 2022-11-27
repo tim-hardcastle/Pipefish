@@ -207,11 +207,11 @@ h = "Hello world!"
 x = 2 + 2
 ```
 
-This will be found in the example code of the distribution under `src/variables.ch`, and can be run like this:
+This will be found in the example code of the distribution under `examples/variables.ch`, and can be run like this:
 
 ```
-→ hub run src/variables.ch 
-Starting script 'src/variables.ch' as service '#0'.
+→ hub run examples/variables.ch 
+Starting script 'examples/variables.ch' as service '#0'.
 #0 →
 ```
 
@@ -237,7 +237,7 @@ You will note from the example above that it is perfectly valid to initialize a 
 
 ## Comments and continuations
 
-These are illustrated by the example file `src/com&con.ch`, given in full below.
+These are illustrated by the example file `examples/com&con.ch`, given in full below.
 
 ```
 var
@@ -363,7 +363,7 @@ Charm has built-in *truthiness* for some of these types: `int`, `string`, `set`,
 
 ## Headwords
 
-In our example (`src/variables.ch`) of creating variables, you will notice that the declarations were preceeded by the word `var`. This is a *headword*, meaning, in this case, "please treat everything that follows this as a variable declaration until either the end of the script, or until you reach another headword".
+In our example (`examples/variables.ch`) of creating variables, you will notice that the declarations were preceeded by the word `var`. This is a *headword*, meaning, in this case, "please treat everything that follows this as a variable declaration until either the end of the script, or until you reach another headword".
 
 The other headwords are `import`, `cmd`, and `def`. Headwords can be used in any order and as many times as you like, except for `import` which can occur at most once, at the top. (So when I refer to “the def section” etc in what follows I am not necessarily talking about one continuous piece of the script, but rather about everything in it which has `def` as its headword.)
 
@@ -371,7 +371,7 @@ In the def section we define constants, functions, and user-defined types. (In a
 
 ## Constants
 
-In the example file `src/constants.ch` we define two variables and a constant:
+In the example file `examples/constants.ch` we define two variables and a constant:
 
 ```
 var
@@ -387,8 +387,8 @@ pi = 3.141592
 If we try it out ...
 
 ```
-#0 → hub run src/constants.ch
-Starting script 'src/constants.ch' as service '#1'.
+#0 → hub run examples/constants.ch
+Starting script 'examples/constants.ch' as service '#1'.
 #1 → pi     
 3.141592
 #1 → pi = 4 
@@ -400,13 +400,13 @@ Starting script 'src/constants.ch' as service '#1'.
 #1 → 
 ```
 
-You will notice that the order of declaration is free: `src/constants.ch` declares `pi` after `circumference`: the initializer copes.
+You will notice that the order of declaration is free: `examples/constants.ch` declares `pi` after `circumference`: the initializer copes.
 
 ## Functions
 
 ### Introducing functions
 
-Functions are pure and stateless and so the only thing they can do is specify return values. (For this reason, Charm functions have no `return` statement, since the whole body of the function is just one single expression saying what to return.) The basics are demonstrated in `src/functions.ch`. Here’s the code:
+Functions are pure and stateless and so the only thing they can do is specify return values. (For this reason, Charm functions have no `return` statement, since the whole body of the function is just one single expression saying what to return.) The basics are demonstrated in `examples/functions.ch`. Here’s the code:
 
 ```
 def
@@ -451,8 +451,8 @@ gcd (x, y) :
 And it all does what you’d think it would do:
 
 ```
-#1 → hub run src/functions.ch                                                                                  
-Starting script 'src/functions.ch' as service '#2'.
+#1 → hub run examples/functions.ch                                                                                  
+Starting script 'examples/functions.ch' as service '#2'.
 #2 → twice 2                                                                                                         
 4
 #2 → twice true                                                                                                      
@@ -492,7 +492,7 @@ Some minor points to note about the syntax: (1) The parentheses around the param
 
 ### Return types
 
-Function can optionally be given return types. A small example is given in `src/returntypes.ch`:
+Function can optionally be given return types. A small example is given in `examples/returntypes.ch`:
 
 ```
 def
@@ -554,8 +554,8 @@ action = func (x, y) : x - 1, y * 2
 Let’s give it a spin in the REPL.
 
 ```
-#2 → hub run src/lambdas.ch                                                                                             
-Starting script 'src/lambdas.ch' as service '#3'.
+#2 → hub run examples/lambdas.ch                                                                                             
+Starting script 'examples/lambdas.ch' as service '#3'.
 #3 → add 7, 3                                                                                                           
 10
 #3 → g 3                                                                                                                
@@ -571,7 +571,7 @@ Fans of functional programming idioms will realize that what that last one needs
 
 ### Local constants and inner functions
 
-These are demonstrated in `src/given.ch`:
+These are demonstrated in `examples/given.ch`:
 
 ```
 def
@@ -611,7 +611,7 @@ Note that an inner function is syntactic sugar for a lambda. So it must have a v
 
 ### this
 
-Functions can refer to themselves as `this`. This isn’t just syntactic sugar: there isn’t any other way for a lambda to refer to itself, since they have no names. The file `src/this.ch` has an example.
+Functions can refer to themselves as `this`. This isn’t just syntactic sugar: there isn’t any other way for a lambda to refer to itself, since they have no names. The file `examples/this.ch` has an example.
 
 ```
 def
@@ -631,7 +631,7 @@ max (x, y int) :
 
 ## More about conditionals
 
-The file `src/conditionals.ch` shows some more things you can do with conditionals.
+The file `examples/conditionals.ch` shows some more things you can do with conditionals.
 
 ```
 def
@@ -666,8 +666,8 @@ objectToZero(x) :
 The `classify` function does what you think it will.
 
 ```
-#3 → hub run src/conditionals.ch
-Starting script 'src/conditionals.ch' as service '#4'.
+#3 → hub run examples/conditionals.ch
+Starting script 'examples/conditionals.ch' as service '#4'.
 #4 → classify 100
 big number
 #4 → classify -5 
@@ -725,7 +725,7 @@ import
 
 Now `zort` will be called `oof.zort` when imported. Using the empty string as a namespace will mean that the functions aren't namespaced at all.
 
-An example is given in `src/import.ch`, which imports `lib/complex.ch`, which is a tiny library to overload the `+` and `* `operators to let you treat pairs as complex numbers. Here’s the main script:
+An example is given in `examples/import.ch`, which imports `lib/complex.ch`, which is a tiny library to overload the `+` and `* `operators to let you treat pairs as complex numbers. Here’s the main script:
 
 ```
 import
@@ -761,7 +761,7 @@ Most of the other libraries supplied wrap around Go functions rather than native
 
 ## Recursion
 
-Functional programming has a reputation of requiring recursive functions (as in the previous example), which sometimes alarms people. In fact, except in cases where you’d reach for recursion in any other language, you really only need one recursive function, it’s very short, and I’ve already written it for you: it’s in `src/recursion.ch`:
+Functional programming has a reputation of requiring recursive functions (as in the previous example), which sometimes alarms people. In fact, except in cases where you’d reach for recursion in any other language, you really only need one recursive function, it’s very short, and I’ve already written it for you: it’s in `examples/recursion.ch`:
 
 ```
 def
@@ -803,8 +803,8 @@ max (x, y int) :
 A quick look at the REPL to see this working:
 
 ```
-#4 → hub run src/recursion.ch                                                                                    
-Starting script 'src/recursion.ch' as service '#5'.
+#4 → hub run examples/recursion.ch                                                                                    
+Starting script 'examples/recursion.ch' as service '#5'.
 #5 → stars 5                                                            
 *****
 #5 → power2 8                                                            
@@ -824,7 +824,7 @@ More functions like this will be provided when I’ve decided what they should b
 
 ## `struct`
 
-This type is demonstrated in the file `src/structs.ch`:
+This type is demonstrated in the file `examples/structs.ch`:
 
 ```
 def
@@ -853,8 +853,8 @@ myField = name
 Let’s give this a spin in the REPL:
 
 ```
-#5 → hub run src/struct.ch                                                                                            
-Starting script 'src/struct.ch' as service '#6'.
+#5 → hub run examples/struct.ch                                                                                            
+Starting script 'examples/struct.ch' as service '#6'.
 #6 → doug                                                                                                               
 (name :: Douglas, age :: 42)
 #6 → joe[name]                                      
@@ -948,7 +948,7 @@ map (1 :: one, 2 :: two, 3 :: three)
 
 You can create your own enumerated types. Each such type is a subtype of `enum`, which is a subtype of `label`.
 
-The script `src/enums.ch` supplies an example of usage:
+The script `examples/enums.ch` supplies an example of usage:
 
 ```
 def
@@ -1000,7 +1000,7 @@ Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract
 
 ## Widening variable types
 
-As we have seen, a variable is by default assigned the type of the data object its initialized with in the `var` section. However, we can explicitly declare a variable to be of a more general type than would be inferred. An example is given in the file `src/typing.ch`:
+As we have seen, a variable is by default assigned the type of the data object its initialized with in the `var` section. However, we can explicitly declare a variable to be of a more general type than would be inferred. An example is given in the file `examples/typing.ch`:
 
 ```
 var
@@ -1020,7 +1020,7 @@ As we have seen, there is support for overloading functions. This includes built
 
 Also, by overloading the `bool` function, you can make a type truthy; and by overloading the `index` function, you can make it indexable by whatever type you like (except tuple, because of the current restrictions on what you can do with variadics). So if you define `index(i int, t yourType)` then you can index it by integers, if you define `index(p pair, t yourType)`, you can index it by pairs, etc.
 
-When you overload a function, the interpreter’s choice of which version of the function to use depends of course on the types of the passed parameters. If there are two such choices, for example if you have a function foo defined for `foo(x int)` and `foo(x any)` and you pass it an integer, then it will always use the more specific type signature, in this case foo(x int). A file `src/overloading.ch` has been supplied to demonstrate this behavior.
+When you overload a function, the interpreter’s choice of which version of the function to use depends of course on the types of the passed parameters. If there are two such choices, for example if you have a function foo defined for `foo(x int)` and `foo(x any)` and you pass it an integer, then it will always use the more specific type signature, in this case foo(x int). A file `examples/overloading.ch` has been supplied to demonstrate this behavior.
 
 
 ## Type conversion and reflection
@@ -1131,7 +1131,7 @@ But there are things you can do to stop errors from propagating.
 - You can assign it to a local constant. (Of course this means you’d be assigning the valid data to the same constant if there was any, so you still have to do something with it.)
 - (Not implemented yet.) You can index it by its fields, e.g. message and line number.
 
-Let’s have a look at `src/error.ch`. This shows four possible implementations of a true `mod` function to supplement the `%` operator.
+Let’s have a look at `examples/error.ch`. This shows four possible implementations of a true `mod` function to supplement the `%` operator.
 
 ```
 def
@@ -1228,7 +1228,7 @@ The `strings`, `math`, and `fmt` libraries are implemented by wrapping Charm fun
 
 The `cmd` section of a Charm script, if you declare one, allows you to string together the sort of actions you can perform only via the REPL, i.e. inspect and change the state of the variables.
 
-The `cmd` section is demonstrated in `src/cmd.ch`:
+The `cmd` section is demonstrated in `examples/cmd.ch`:
 
 ```
 var
@@ -1259,8 +1259,8 @@ given n = 1
 In the REPL :
 
 ```
-#6 → hub run src/cmd.ch                                         
-Starting script 'src/cmd.ch' as service '#7'.
+#6 → hub run examples/cmd.ch                                         
+Starting script 'examples/cmd.ch' as service '#7'.
 #7 → x                                                                   
 42
 #7 → times 5                                                             
@@ -1290,7 +1290,7 @@ Conditionals currently don’t work in the `cmd` section: when they do they will
 
 Every command is a transaction: if it returns a runtime error, no matter at what point in its execution, none of the variables will be changed.
 
-In fact, any single line you type into the REPL is treated as a transaction, so if you had `src/variables.ch` running and you entered `h = "bar"; x = 1 / 0`, then you would find that the division by zero error prevents `h` from updating as well as `x`.
+In fact, any single line you type into the REPL is treated as a transaction, so if you had `examples/variables.ch` running and you entered `h = "bar"; x = 1 / 0`, then you would find that the division by zero error prevents `h` from updating as well as `x`.
 
 ### Encapsulation
 
@@ -1298,7 +1298,7 @@ Now that the `cmd` section is supplying us with getters and setters for our data
 
 Things following any headword are public by default. The `private` modifier makes everything after it private until the next headword or the end of the script. There is no corresponding public modifier: things are public first by default, and private after you say so. Using `private` twice without a change of headwords is a syntax error.
 
-Here is a tiny demonstration in `src/private.ch`:
+Here is a tiny demonstration in `examples/private.ch`:
 
 ```
 cmd
@@ -1319,8 +1319,8 @@ x = "heffalump"
 In the REPL:
 
 ```
-#7 → hub run src/private.ch                                               
-Starting script 'src/private.ch' as service '#8'.
+#7 → hub run examples/private.ch                                               
+Starting script 'examples/private.ch' as service '#8'.
 #8 → x = "piglet"  
 [0] Error: reference to private or non-existent variable 'x' in REPL input.
 #8 → x                                                                                     
@@ -1344,7 +1344,7 @@ By treating bit of Charm code as Charm data, we can extend the language in ways 
 
 To fully exploit this we would need some sort of library for manipulating abstract syntax trees. However, the few basic features built in will in fact meet most reasonable and many unreasonable requirements.
 
-Examples are given in the file `src/macros.ch`. The source code is below.
+Examples are given in the file `examples/macros.ch`. The source code is below.
 
 ```
 import
@@ -1380,8 +1380,8 @@ given:
 Let's explore this a bit at a time via the REPL. First of all, there is a `code` type. This is a perfectly normal Charm type which happens to contain a Charm expression:
 
 ```
-#8 → hub run src/macros.ch                                              
-Starting script 'src/macros.ch' as service '#9'.
+#8 → hub run examples/macros.ch                                              
+Starting script 'examples/macros.ch' as service '#9'.
 #9 → c
 code NIL
 #9 → type c
@@ -1447,7 +1447,7 @@ The final example shows that it is possible to achieve some sophistication even 
 
 ## Communication between services: `exec`
 
-The exec keyword allows one service to use the public functions and commands of another named service. The calling service is the inner scope. For example, if we have the script `src/foo.ch`:
+The exec keyword allows one service to use the public functions and commands of another named service. The calling service is the inner scope. For example, if we have the script `examples/foo.ch`:
 
 ```
 var
@@ -1460,19 +1460,19 @@ def
 (x) times (y) : x * y
 ```
 
-... and the script `src/bar.ch`:
+... and the script `examples/bar.ch`:
 
 
 
 ... then we can do this:
 
 ```
-→ hub run src/foo.ch as FOO
-Starting script 'src/foo.ch' as service 'FOO'.
+→ hub run examples/foo.ch as FOO
+Starting script 'examples/foo.ch' as service 'FOO'.
 FOO → a times b
 6
-FOO → hub run src/bar.ch as BAR
-Starting script 'src/bar.ch' as service 'BAR'.
+FOO → hub run examples/bar.ch as BAR
+Starting script 'examples/bar.ch' as service 'BAR'.
 BAR → multiply a by b
 35
 BAR →
@@ -1522,23 +1522,23 @@ If you start Charm up with `./charm <parameters>` then Charm will behave as desc
 
 ### Errors: `why`, `where`, and `trace`
 
-When Charm produces syntax or runtime errors, you can ask it for an explanation. A demonstration is given in src/errordemo.ch. If you try to start this up, you will find that it’s riddled with syntax errors, to each of which Charm gives a number in square brackets when it reports them. You can get further information on these errors with `hub why <error number>`. E.g:
+When Charm produces syntax or runtime errors, you can ask it for an explanation. A demonstration is given in examples/errordemo.ch. If you try to start this up, you will find that it’s riddled with syntax errors, to each of which Charm gives a number in square brackets when it reports them. You can get further information on these errors with `hub why <error number>`. E.g:
 
 ```
-→ hub run src/errordemo.ch as OOPSIE                                                                                                                       
+→ hub run examples/errordemo.ch as OOPSIE                                                                                                                       
 
-Starting script 'src/errordemo.ch' as service 'OOPSIE'.
+Starting script 'examples/errordemo.ch' as service 'OOPSIE'.
 
 [0] Error: attempted assignment in 'import' section at line 3:2 of
-'src/errordemo.ch'.
+'examples/errordemo.ch'.
 [1] Error: declaration of function in 'var' section at line 7:2 of
-'src/errordemo.ch'.
-[2] Error: redeclaration of 'private' at line 15:0-7 of 'src/errordemo.ch'.
-[3] Error: '(' unclosed by outdent at line 24:0 of 'src/errordemo.ch'.
-[4] Error: inexplicable occurrence of ':' at line 21:8 of 'src/errordemo.ch'.
-[5] Error: a line ending in ',' must be followed by a line beginning with '..' at line 26:0-3 of 'src/errordemo.ch'.
-[6] Error: inexplicable occurrence of 'else' at line 26:4-8 of 'src/errordemo.ch'.
-[7] Error: if it occurs, 'import' must be the first headword at line 28:0-6 of 'src/errordemo.ch'.
+'examples/errordemo.ch'.
+[2] Error: redeclaration of 'private' at line 15:0-7 of 'examples/errordemo.ch'.
+[3] Error: '(' unclosed by outdent at line 24:0 of 'examples/errordemo.ch'.
+[4] Error: inexplicable occurrence of ':' at line 21:8 of 'examples/errordemo.ch'.
+[5] Error: a line ending in ',' must be followed by a line beginning with '..' at line 26:0-3 of 'examples/errordemo.ch'.
+[6] Error: inexplicable occurrence of 'else' at line 26:4-8 of 'examples/errordemo.ch'.
+[7] Error: if it occurs, 'import' must be the first headword at line 28:0-6 of 'examples/errordemo.ch'.
 
 →  hub why 2
 
@@ -1553,7 +1553,7 @@ You're seeing this error because you used the 'private' modifier twice after the
                                                             Error has reference 'init/private'.
 ```
 
-If Charm produces a runtime error, then you can see the trace of the error with `hub trace`. There is no need to give the number of the error, since you will only ever get one runtime error, which will therefore be number `0`. You can demonstrate the trace feature right now just by putting `1 / 0` into the REPL, but as that doesn’t produce a very interesting trace we have supplied a file `src/rtedemo.ch`.
+If Charm produces a runtime error, then you can see the trace of the error with `hub trace`. There is no need to give the number of the error, since you will only ever get one runtime error, which will therefore be number `0`. You can demonstrate the trace feature right now just by putting `1 / 0` into the REPL, but as that doesn’t produce a very interesting trace we have supplied a file `examples/rtedemo.ch`.
 
 The `hub where <error number>` command has the same syntax as `hub why` but will show you the line with the relevant token in red and underlined, for when it’s hard to find it in a long and complicated line.
 
@@ -1582,7 +1582,7 @@ And then what you type and the service’s responses will be recorded. (There wi
 - `hub snap record` : I want to be able to replay this and see how the output changes as I change the script and/or data
 - `hub snap discard` : I don’t need this
 
-All the tests classed good or bad associated with a script will be run by `hub test <script filename>`. As an example, try running `hub test src/testall.ch: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual`.
+All the tests classed good or bad associated with a script will be run by `hub test <script filename>`. As an example, try running `hub test examples/testall.ch: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual`.
 
 To run a test classed as record, use `hub replay <test filename>`.
 
