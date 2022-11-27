@@ -118,7 +118,7 @@ type Parser struct {
 
 	Parsers map[string]*Parser
 
-	GolangImports []string
+	GoImports map[string] []string
 
 	Namespace string
 
@@ -149,7 +149,7 @@ func New() *Parser {
 		Globals:       object.NewEnvironment(), // I need my functions to be able to see the global constants.
 		TypeSystem:    NewTypeSystem(),
 		Structs:       make(set.Set[string]),
-		GolangImports: []string{},
+		GoImports:     make(map[string][]string),
 		Namespaces:    make(map[string]string),
 	}
 

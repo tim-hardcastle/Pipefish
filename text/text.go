@@ -41,6 +41,12 @@ func FlattenedFilename(s string) string {
 	return s
 }
 
+func Flatten(s string) string {
+	s = strings.Replace(s, ".", "_", -1)
+	s = strings.Replace(s, "/", "_", -1)
+	return s
+}
+
 func Cyan(s string) string {
 	return CYAN + s + RESET
 }

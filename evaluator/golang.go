@@ -3,8 +3,8 @@ package evaluator
 // Code for handling the embedded golang.
 
 import (
+	"bufio"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"plugin"
@@ -15,6 +15,7 @@ import (
 	"charm/object"
 	"charm/parser"
 	"charm/signature"
+	"charm/text"
 	"charm/token"
 )
 
@@ -22,8 +23,9 @@ var counter int
 
 type GoHandler struct {
 	Prsr        *parser.Parser
-	result      string
-	plug        *plugin.Plugin
+	timeMap		map[string] int
+	modules     map[string] string
+	plugins     map[string]*plugin.Plugin
 	rawHappened bool
 }
 
@@ -32,16 +34,61 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	gh := GoHandler{
 		Prsr: prsr,
 	}
+
+	gh.timeMap = make(map[string]int)
+	gh.modules = make(map[string]string)
+	gh.plugins = make(map[string]*plugin.Plugin)
+
+	file, err := os.Open("rsc/gotimes.dat")
+	if err != nil {
+		panic("Can't file 'rsc/gotimes.dat'.")
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	for i := 0; i < (len(lines)/2); i++ {
+		time, _ := strconv.Atoi(lines[(2 * i) + 1])
+		gh.timeMap[lines[2 * i]] = time
+	}
+
 	return &gh
 }
 
 func (gh *GoHandler) CleanUp() {
-	os.Remove("golang" + strconv.Itoa(counter) + ".go")
+
+	// We add the newly compiled modules to the list of times.
+
+	for k := range(gh.modules) {
+		file, err := os.Stat(k)
+
+		if err != nil {
+			panic("Something weird has happened!")
+		}
+
+		modifiedTime := file.ModTime().UnixMilli()
+		gh.timeMap[k] = int(modifiedTime)
+	}
+
+	// And then write out the list of times to the .dat file.
+	f, err := os.Create("rsc/gotimes.dat")
+		if err != nil {
+			panic("Can't create file rsc/gotimes.dat")
+		}
+		defer f.Close()
+	for k, v := range(gh.timeMap) {
+		f.WriteString(k + "\n")
+		f.WriteString(strconv.Itoa(v) + "\n")
+	}
 }
 
-func (gh *GoHandler) BuildGo() {
 
-	preface := "package main\n\n"
+
+func (gh *GoHandler) BuildGoMods() {
 
 	appendix := `func tuplify(args ...any) any {
 	if len(args) == 1 {
@@ -54,47 +101,95 @@ func (gh *GoHandler) BuildGo() {
 	return result
 }`
 
-	objectHappened := false
-
-	for _, v := range gh.Prsr.GolangImports {
-		if v == "charm/object" {
-			objectHappened = true
-			break
+	for source, functionBodies := range(gh.modules) {
+	
+		var modifiedTime int64
+		f, err := os.Stat(source)
+		if err == nil {
+			modifiedTime = f.ModTime().UnixMilli()
 		}
-	}
-	if !objectHappened {
-		gh.Prsr.GolangImports = append(gh.Prsr.GolangImports, "charm/object")
-	}
 
-	if len(gh.Prsr.GolangImports) > 0 {
-		preface = preface + "import (\n"
-		for _, v := range gh.Prsr.GolangImports {
-			preface = preface + "    \"" + v + "\"\n"
+		lastChange, ok := gh.timeMap[source]
+		if ok {
+			if modifiedTime == int64(lastChange) {
+				soFile := "rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
+				gh.plugins[source], err = plugin.Open(soFile)
+				if err != nil {
+					gh.Prsr.Throw("golang/file", token.Token{})
+				}
+				continue
+			}
 		}
-		preface = preface + ")\n\n"
-	}
 
-	// You can't reuse the names of shared object files.
-	counter++
-	soFile := "golang" + strconv.Itoa(counter) + ".so"
-	goFile := "golang" + strconv.Itoa(counter) + ".go"
+		preface := "package main\n\n"
 
-	file, _ := os.Create(goFile)
-	file.WriteString(preface + gh.result + appendix)
-	file.Close()
-	var err error
-	exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile).Output()
-	gh.plug, err = plugin.Open(soFile)
-	//os.Remove(goFile)
-	os.Remove(soFile)
+		objectHappened := false
 
-	if err != nil {
-		gh.Prsr.Throw("golang/build", token.Token{})
+		// We make sure it imports charm/object exactly once.
+
+		for _, v := range gh.Prsr.GoImports[source] {
+			if v == "charm/object" {
+				objectHappened = true
+				break
+			}
+		}
+		if !objectHappened {
+			gh.Prsr.GoImports[source] = append(gh.Prsr.GoImports[source], "charm/object")
+		}
+
+		if len(gh.Prsr.GoImports[source]) > 0 {
+			preface = preface + "import (\n"
+			for _, v := range gh.Prsr.GoImports[source] {
+				preface = preface + "    \"" + v + "\"\n"
+			}
+			preface = preface + ")\n\n"
+		}
+
+		// You can't reuse the names of shared object files.
+		counter++
+		soFile := "rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
+		if lastChange != 0 {
+			os.Remove("rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
+		}
+		goFile := "golang" + strconv.Itoa(counter) + ".go"
+		file, _ := os.Create(goFile)
+		file.WriteString(preface + functionBodies + appendix)
+		file.Close()
+		exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile).Output()
+		gh.plugins[source], err = plugin.Open(soFile)
+		if err != nil {
+			gh.Prsr.Throw("golang/build", token.Token{})
+		} else {
+			os.Remove("golang" + strconv.Itoa(counter) + ".go")
+		}
 	}
 }
 
 func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signature, golang *ast.GolangExpression) {
-	gh.result = gh.result + "func " + capitalize(keyword) + "(args ...any) any {\n\n"
+
+	source := golang.GetToken().Source
+
+	// We check to see whether the source code has been modified.
+
+	if lastChange, ok := gh.timeMap[source]; ok {
+		file, err := os.Stat(source)
+
+		if err != nil {
+			panic("Something weird has happened!")
+		}
+
+		modifiedTime := file.ModTime().UnixMilli()
+
+		if modifiedTime == int64(lastChange) {
+			gh.modules[golang.Token.Source] = ""
+			return
+		}
+
+	}
+
+	// If the source has been modified, we proceed ...
+
+	fnString := "func " + capitalize(keyword) + "(args ...any) any {\n\n"
 	for i, v := range sig {
 		ty := ""
 		ok := false
@@ -117,26 +212,23 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 			ty = ty + ")"
 			kludge = "int("
 		}
-		gh.result = gh.result + "    " + v.VarName + " := " + kludge + "args[" + strconv.Itoa(i) + "]" + ty + "\n"
+		fnString = fnString + "    " + v.VarName + " := " + kludge + "args[" + strconv.Itoa(i) + "]" + ty + "\n"
 	}
 
-	gh.result = gh.result + doctorReturns(golang.Token.Literal) + "\n\n"
+	fnString = fnString + doctorReturns(golang.Token.Literal) + "\n\n"
+
+	gh.modules[golang.Token.Source] = gh.modules[golang.Token.Source] + fnString
 }
 
 func (gh *GoHandler) GetFn(fnName string, tok token.Token) func(args ...any) any {
 	name := capitalize(fnName)
-	fn, err := gh.plug.Lookup(name)
+	fn, err := gh.plugins[tok.Source].Lookup(name)
 	if err != nil {
-		fmt.Println(err.Error())
 		gh.Prsr.Throw("golang/found", tok, name)
 		return nil
 	}
 	fnToReturn := fn.(func(args ...any) any)
 	return fnToReturn
-}
-
-func (gh *GoHandler) ShowResult() {
-	fmt.Println(gh.result)
 }
 
 var rawConv = map[string]string{"bling": ".(*object.Bling)",

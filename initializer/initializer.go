@@ -488,7 +488,7 @@ func (uP *Initializer) ImportEverything() {
 				uP.Throw("init/import/string/b", lhs.GetToken())
 			}
 		case *ast.GolangExpression:
-			uP.Parser.GolangImports = append(uP.Parser.GolangImports, imp.Token.Literal)
+			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
 			uP.Throw("init/import/pair", imp.GetToken())
@@ -583,7 +583,8 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 			}
 		}
 	}
-	goHandler.BuildGo()
+	
+	goHandler.BuildGoMods()
 	if uP.Parser.ErrorsExist() {
 		uP.Parser.Errors[len(uP.Parser.Errors)-1].Token = token.Token{Source: sourceName}
 		return
@@ -713,19 +714,6 @@ func (uP *Initializer) overlayTree(tree ast.FnTreeNode, fn *ast.Function, argume
 	}
 	return tree
 }
-
-// Probably don't need this.
-// func makeTree(fn *ast.Function) ast.FnTreeNode {
-// 	result := &ast.FnTreeNode{nil, []ast.TypeNodePair{}}
-// 	currentNode := result
-// 	for _, v := range fn.Sig {
-// 		newNode := &ast.FnTreeNode{nil, []ast.TypeNodePair{}}
-// 		currentNode.Branch = append(currentNode.Branch, ast.TypeNodePair{v.TypeOrBling(), *newNode})
-// 		currentNode = newNode
-// 	}
-// 	currentNode.Branch = append(currentNode.Branch ,ast.TypeNodePair{"", ast.FnTreeNode{fn, []ast.TypeNodePair{}}})
-// 	return *result
-// }
 
 func (uP *Initializer) addToTree(tree ast.FnTreeNode, fn *ast.Function, argumentNumber int) ast.FnTreeNode {
 

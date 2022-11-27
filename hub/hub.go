@@ -882,7 +882,7 @@ var helpTopics = []string{}
 func init() {
 	file, err := os.Open("rsc/manual.txt")
 	if err != nil {
-		return
+		panic("Can't find manual in file 'rsc/manual.txt'.")
 	}
 	defer file.Close()
 
