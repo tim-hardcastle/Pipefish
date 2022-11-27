@@ -16,9 +16,9 @@ import (
 	"fmt"
 	"os"
 
-	"charm/hub"
-	"charm/repl"
-	"charm/text"
+	"charm/source/hub"
+	"charm/source/repl"
+	"charm/source/text"
 )
 
 func main() {

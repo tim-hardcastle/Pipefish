@@ -1,0 +1,48 @@
+snap: good
+script: examples/testall.ch
+data: 
+
+-> w
+"umbrella", 3
+-> x
+1, true, ["banana", false], "elephant"
+-> y
+["marmalade", ["owl", 2]]
+-> z
+"♥Charm♥"
+-> a
+"umbrella"
+-> b
+3
+-> z + y[0]
+"♥Charm♥marmalade"
+-> 1/0
+error "division by zero"
+-> false and 1/0
+false
+-> false : 1/0; else : 1
+1
+-> 2 + 3 * 4 == 14
+true
+-> not true
+false
+-> -5 + -6
+-11
+-> -1 + 1 -1
+-1
+-> z[0]
+"♥"
+-> x[2]
+["banana", false]
+-> w, z
+"umbrella", 3, "♥Charm♥"
+-> x[0] + b
+4
+-> true or false and true
+true
+-> max [1, 2, 3]
+3
+-> f 1
+6
+-> g 5
+10
