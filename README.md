@@ -253,7 +253,7 @@ y = 1, 2, 3,
  .. 4, 5, 6
 ```
 
-Comments are very much what you’re used to from other languages. Continuations must be marked by a `..` at the end of the continued line and a corresponding .. at the beginning. The allowed exception is that the continued line may end in a comma *where this is syntactic*, in which case the continuation must begin with `..` just the same. The continuations can be placed wherever is most readable: they are exempt from whitespace rules.
+Comments are very much what you’re used to from other languages. Continuations must be marked by a `..` at the end of the continued line and a corresponding `..` at the beginning. The allowed exception is that the continued line may end in a comma *where this is syntactic*, in which case the continuation must begin with `..` just the same. The continuations can be placed wherever is most readable: they are exempt from whitespace rules.
 
 
 ## Compound types
