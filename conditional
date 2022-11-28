@@ -332,7 +332,7 @@ The `tuple` type does not have a `len` function: it has an `arity` function. To 
 
 The index and slice operators work for tuples. However, there is only one case where this is idiomatic. The essential purpose of the `tuple` type is to pass multiple values to [functions](#functions) and to get multiple values back. Indexing and slicing tuples should be done when (as will often be the case in functional programming) you wish to keep only some of the return values of a function, and discard others.
 
-As with all languages that implement tuples, this type is the red-headed stepchild of the type system. If you find yourself using it for reasons other than those given above, you should ask yourself why and then use a list instead.
+As with all languages that implement tuples, this type is the Cinderella of the type system. If you find yourself using it for reasons other than those given above, you should ask yourself why and then use a list instead.
 
 ### `map`
 
@@ -687,7 +687,7 @@ small number
 #4 → 
 ```
 
-But note the `objectToZero` function and its use. Charm always needs a conditional to evaluate to something *in the end*. But this doesn’t need this to happen all in one function. The last two functions demonstrate what I mean more quickly than I could explain it. If `objectToZero` finds its conditional unsatisfied, it would return an error to the end user, but it merely reports its unsatisfied state and not an unsatisfied conditional error to `divides`, or generally to any calling function. It’s only when such an unsatisfied state works its way up to the REPL or to assignment to a variable that it’s treated as an error:
+But note the `objectToZero` function and its use. Charm always needs a conditional to evaluate to something *in the end*. But this doesn’t need this to happen all in one function. The last two functions demonstrate what I mean more quickly than I could explain it. If `objectToZero` finds its conditional unsatisfied, it would return an error to the end user, but it merely reports its unsatisfied state and not an unsatisfied conditional error to `divides`, or generally to any calling function. If it is returned in a context where an unsatisfied conditional makes sense (i.e. during the evaluation of a conditional expression) then this is not an error:
 
 ```
 #3 → 2 divides 4  
