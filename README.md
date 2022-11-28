@@ -1016,7 +1016,7 @@ If you run the script you will find that `foo` can only be assigned string value
 
 ## Overloading
 
-As we have seen, there is support for overloading functions. This includes built-in functions and operators (except the logical operators and the “protected punctuation”: `{` `}` `[` `]` `(` `)` `:` `;` `,` `"` and `` ` ``.
+As we have seen, there is support for overloading functions. This includes built-in functions and operators, except for the logical operators and the “protected punctuation”: `{` `}` `[` `]` `(` `)` `:` `;` `,` `"` and `` ` ``.
 
 Also, by overloading the `bool` function, you can make a type truthy; and by overloading the `index` function, you can make it indexable by whatever type you like (except tuple, because of the current restrictions on what you can do with variadics). So if you define `index(i int, t yourType)` then you can index it by integers, if you define `index(p pair, t yourType)`, you can index it by pairs, etc.
 
