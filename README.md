@@ -11,6 +11,7 @@ Features already implemented include:
 - Overloading of pretty much everything including arithmetic operators
 - Multiple dispatch.
 - First-class functions, lambdas, closures, inner functions.
+- Streaming operators
 - First-class types including int, string, bool, float, list, tuple, pair, map, structs, enumerated types, error, type, func, and label.
 - Variables static by default, dynamic by request
 - Transactions
@@ -41,7 +42,7 @@ Having one way or another obtained a working executable, run it with `./charm` i
 
 ```
   ╔══════════♥══════════╗
-  ║ Charm version 0.3.4 ║
+  ║ Charm version 0.3.5 ║
   ╚══════════♥══════════╝
 
 →  
@@ -701,6 +702,48 @@ Zeros are bad! Bad!
 [0] Runtime error: unsatisfied conditional at line 1 of REPL input.
 
 #3 → 
+```
+
+## Streaming operators
+
+There are three streaiming operators, pipe `>>`, map `]>` and filter `?>`. 
+
+Each operator implicitly defines a very local constant called `that`. Let's demonstrate it in the REPL:
+
+```
+#3 → 2 >> that + 1 >> 5 * that                                        
+15
+#3 → [1, 2, 3, 4, 5, 6] ]> 2 * that
+[2, 4, 6, 8, 10, 12]
+#3 → [1, 2, 3, 4, 5, 6] ?> that % 2 == 1                              
+[1, 3, 5]
+#3 → [1, 2, 3, 4, 5, 6] ?> that % 2 == 1 ]> that * that 
+[1, 9, 25]
+#3 → 2 >> that + 1
+3
+#3 → 
+```
+
+As a piece of syntactic sugar, when the right-hand side of a streaming operator consists only of the name of a function (or variable containing a lambda) then the left-hand side is fed to the function without the necessity of specifying `that` as its argument:
+
+```
+#3 → "Hello" >> len                                                   
+5
+#3 → ["The", "walrus", "and", "the", "carpenter"] ]> len 
+[3, 6, 3, 3, 9]
+→  
+```
+
+The use of meaningfully-named inner functions can make for very readable code, as demonstrated in `exampes/streaming.ch`:
+
+```
+def
+
+squaresOfOddNumbers(L):
+    L ?> isOdd ]> squared
+given:
+    isOdd(x) : x % 2 == 1
+    squared(x) : x * x
 ```
 
 ## `import`
