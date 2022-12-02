@@ -76,6 +76,12 @@ const (
 	MAGIC_COLON = "MAGIC_COLON"
 
 	GOLANG = "golang"
+
+	// Streaming operators
+	PIPE = ">>"
+	MAP = "]>"
+	FILTER = "?>"
+
 )
 
 type Token struct {

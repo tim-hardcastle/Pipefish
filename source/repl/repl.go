@@ -13,7 +13,7 @@ func Start(hub *hub.Hub, in io.Reader, out io.Writer) {
 	rline := readline.NewInstance()
 	for {
 
-		// The hub's CurrentForm setting allow it to ask for information from the user instead of
+		// The hub's CurrentForm setting allows it to ask for information from the user instead of
 		// just sitting waiting to be told. If CurrentForm is not nil then it contains a structured
 		// request for information which must be completed before returnng to the regular REPL.
 		if hub.CurrentForm != nil {

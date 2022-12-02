@@ -175,11 +175,34 @@ func (ie *InfixExpression) String() string {
 	return out.String()
 }
 
+type StreamingExpression struct {
+	Token    token.Token
+	Left     Node
+	Operator string
+	Right    Node
+}
+
+func (se *StreamingExpression) GetToken() token.Token { return se.Token }
+func (se *StreamingExpression) TokenLiteral() string  { return se.Token.Literal }
+func (se *StreamingExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(se.Left.String())
+	out.WriteString(" " + se.Operator + " ")
+	out.WriteString(se.Right.String())
+	out.WriteString(")")
+
+	return out.String()
+}
+
 type ExecExpression struct {
 	Token token.Token
 	Left  Node
 	Right Node
 }
+
+
 
 func (ee *ExecExpression) GetToken() token.Token { return ee.Token }
 func (ee *ExecExpression) TokenLiteral() string  { return ee.Token.Literal }

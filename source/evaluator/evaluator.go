@@ -144,19 +144,6 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 			return Eval(leftBranch, parser, env)
 		}
 
-		// left := Eval(node.Left, parser, env)
-		// if isError(left) {
-		// 	left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
-		// 	return left
-		// }
-		// if isUnsatisfiedConditional(left) { return newError("unsatisfied/c", node.Token) }
-		// right := Eval(node.Right, parser, env)
-		// if isError(right) {
-		// 	right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
-		// 	return right
-		// }
-		// if isUnsatisfiedConditional(right) { return newError("unsatisfied/d", node.Token) }
-
 		return evalInfixExpression(node, parser, env)
 
 	case *ast.LazyInfixExpression:
@@ -277,6 +264,111 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		return applyFunction(left.(*object.Func).Function, params, parser, node.Token, left.(*object.Func).Env)
 	case *ast.CodeLiteral:
 		return &object.Code{Value: node.Right}
+	case *ast.StreamingExpression:
+		left := Eval(node.Left, parser, env)
+		if isError(left) {
+			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
+			return left
+		}
+		switch node.Token.Type {
+		case token.PIPE:
+			if node.Right.GetToken().Type == token.IDENT {
+				val, ok := env.Get(node.Right.GetToken().Literal)
+				if ok {
+					if val.Type() == object.FUNC_OBJ {
+						return applyFunction(val.(*object.Func).Function, []object.Object{left}, parser, node.Token, env)
+					}
+				}
+			}
+			envWithThat := object.NewEnvironment()
+			envWithThat.HardSet("that", left)
+			envWithThat.Ext = env
+			return Eval(node.Right, parser, envWithThat)
+		case token.MAP:
+			if left.Type() == object.ERROR_OBJ {
+				left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
+				return left
+			}
+			if left.Type() != object.LIST_OBJ {
+				return newError("eval/map/list", node.Token, left)
+			}
+			resultList := &object.List{Elements: []object.Object{}}
+			if node.Right.GetToken().Type == token.IDENT {
+				val, ok := env.Get(node.Right.GetToken().Literal)
+				if ok {
+					if val.Type() == object.FUNC_OBJ {
+						for _, v := range left.(*object.List).Elements {
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, parser, node.Token, env)
+							if result.Type() == object.ERROR_OBJ {
+								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
+								return result
+							}
+							resultList.Elements = append(resultList.Elements, result)
+						}
+						return resultList
+					}
+				}
+			}
+			envWithThat := object.NewEnvironment()
+			envWithThat.Ext = env
+			for _, v := range left.(*object.List).Elements {
+				envWithThat.HardSet("that", v)
+				result := Eval(node.Right, parser, envWithThat)
+				if result.Type() == object.ERROR_OBJ {
+					result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
+					return result
+				}
+				resultList.Elements = append(resultList.Elements, result)
+			}
+			return resultList
+		case token.FILTER:
+			if left.Type() == object.ERROR_OBJ {
+				left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
+				return left
+			}
+			if left.Type() != object.LIST_OBJ {
+				return newError("eval/filter/list", node.Token, left)
+			}
+			resultList := &object.List{Elements: []object.Object{}}
+			if node.Right.GetToken().Type == token.IDENT {
+				val, ok := env.Get(node.Right.GetToken().Literal)
+				if ok {
+					if val.Type() == object.FUNC_OBJ {
+						for _, v := range left.(*object.List).Elements {
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, parser, node.Token, env)
+							if result.Type() == object.ERROR_OBJ {
+								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
+								return result
+							}
+							if result.Type() != object.BOOLEAN_OBJ {
+								return newError("eval/filter/bool/a", node.Token, result)
+							}
+							if result.(*object.Boolean) == object.TRUE {
+								resultList.Elements = append(resultList.Elements, v)
+							}
+						}
+						return resultList
+					}
+				}
+			}
+			envWithThat := object.NewEnvironment()
+			envWithThat.Ext = env
+			for _, v := range left.(*object.List).Elements {
+				envWithThat.HardSet("that", v)
+				result := Eval(node.Right, parser, envWithThat)
+				if result.Type() == object.ERROR_OBJ {
+					result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
+					return result
+				}
+				if result.Type() != object.BOOLEAN_OBJ {
+					return newError("eval/filter/bool/b", node.Token, result)
+				}
+				if result.(*object.Boolean) == object.TRUE {
+					resultList.Elements = append(resultList.Elements, v)
+				}
+			}
+			return resultList
+		}
 	}
 	return newError("eval/oops", token.Token{Line: 0})
 }

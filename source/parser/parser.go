@@ -45,6 +45,9 @@ var precedences = map[token.TokenType]int{
 	token.GIVEN:       GIVEN,
 	token.EXEC:        FUNC,
 	token.RETURN:      FUNC,
+	token.PIPE:        FUNC,
+	token.MAP:		   FUNC,
+	token.FILTER:	   FUNC,
 	token.SEMICOLON:   SEMICOLON,
 	token.NEWLINE:     SEMICOLON,
 	token.ASSIGN:      ASSIGN,
@@ -139,9 +142,10 @@ func New() *Parser {
 		Unfixes:           make(set.Set[string]),
 		AllFunctionIdents: make(set.Set[string]),
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
-			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
+			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, 
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC, token.LBRACK, token.MAGIC_COLON}),
+			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC, 
+			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:   make(FunctionTable),
@@ -212,9 +216,7 @@ func (p *Parser) peekError(t token.Token) {
 	p.Throw("parse/expect", t, p.peekToken)
 }
 
-func (p *Parser) noPrefixParseFnError(t token.Token) {
-	p.Throw("parse/prefix", t)
-}
+
 
 func (p *Parser) prefixSuffixError() {
 	p.Throw("parse/before", p.curToken, p.peekToken)
@@ -325,7 +327,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				}
 			}
 		} else {
-			p.noPrefixParseFnError(p.curToken)
+			p.Throw("parse/prefix", p.curToken)
 		}
 	}
 
@@ -360,6 +362,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseExecExpression(leftExp)
 			case p.curToken.Type == token.LBRACK:
 				leftExp = p.parseIndexExpression(leftExp)
+			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAP || 
+					p.curToken.Type ==  token.FILTER:
+				leftExp = p.parseStreamingExpression(leftExp)
 			default:
 				leftExp = p.parseInfixExpression(leftExp)
 			}
@@ -383,6 +388,10 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 
 func (p *Parser) positionallyFunctional() bool {
 	if assignmentTokens.Contains(p.peekToken.Type) {
+		return false
+	}
+	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE || 
+			p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER {
 		return false
 	}
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {
@@ -682,6 +691,35 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	expression.Args = p.listify(expression)
 	return expression
 
+}
+
+// In a streaming expression we need to desugar e.g. 'x >> foo' to 'x >> foo that', etc.
+func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
+
+	expression := &ast.StreamingExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
+	// Now the desugaring, if necessary
+	if expression.Right.GetToken().Type == token.IDENT {
+		if p.Functions.Contains(expression.Right.GetToken().Literal) {
+			expression.Right = &ast.PrefixExpression{Token: expression.Right.GetToken(), 
+				Operator: expression.Right.GetToken().Literal, 
+				Args: []ast.Node{&ast.Identifier{Value: "that"}},
+				Right: &ast.Identifier{Value: "that"},}
+		} 
+		if p.Suffixes.Contains(expression.Right.GetToken().Literal)  {
+			expression.Right = &ast.SuffixExpression{Token: expression.Right.GetToken(), 
+				Operator: expression.Right.GetToken().Literal, 
+				Args: []ast.Node{&ast.Identifier{Value: "that"}},
+				Left: &ast.Identifier{Value: "that"},}
+		}
+	}
+	return expression
 }
 
 func (p *Parser) parseExecExpression(left ast.Node) ast.Node {

@@ -105,7 +105,12 @@ func (l *Lexer) NextToken() token.Token {
 	case '[':
 		tok = l.NewToken(token.LBRACK, "[")
 	case ']':
-		tok = l.NewToken(token.RBRACK, "]")
+		if l.peekChar() == '>' {
+			l.readChar()
+			tok = l.NewToken(token.MAP, "]>")
+		} else {
+			tok = l.NewToken(token.RBRACK, "]")
+		}
 	case '(':
 		tok = l.NewToken(token.LPAREN, "(")
 	case ')':
@@ -164,6 +169,24 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			tok = l.NewToken(token.NOT_EQ, "!=")
 			l.afterWhitespace = false
+			return tok
+		}
+		if l.ch == '>' && l.peekChar() == '>' {
+			l.readChar()
+			tok = l.NewToken(token.PIPE, ">>")
+			l.readChar()
+			return tok
+		}
+		if l.ch == ']' && l.peekChar() == '>' {
+			l.readChar()
+			tok = l.NewToken(token.MAP, "]>")
+			l.readChar()
+			return tok
+		}
+		if l.ch == '?' && l.peekChar() == '>' {
+			l.readChar()
+			tok = l.NewToken(token.FILTER, "?>")
+			l.readChar()
 			return tok
 		}
 		if l.ch == '0' {
