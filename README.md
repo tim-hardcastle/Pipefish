@@ -1631,7 +1631,7 @@ And then what you type and the service’s responses will be recorded. (There wi
 - `hub snap record` : I want to be able to replay this and see how the output changes as I change the script and/or data
 - `hub snap discard` : I don’t need this
 
-All the tests classed good or bad associated with a script will be run by `hub test <script filename>`. As an example, try running `hub test examples/testall.ch: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual`.
+All the tests classed good or bad associated with a script will be run by `hub test <script filename>`. As an example, try running `hub test examples/testall.ch`: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual.
 
 To run a test classed as record, use `hub replay <test filename>`.
 
@@ -1644,7 +1644,7 @@ Charm is meant to be small, and hopefully I can keep the core language small. Bu
 - It needs more libraries, both wrapping more of Go's standard libraries and some of its own.
 - It should have a native way of interacting with databases.
 - The bit where it turns into a server and does role-based access management still has a lot of unfinished business.
-- It needs optimization. It has had none.
+- It needs optimization. It has had little.
 - Specifically, it needs persistent data structures: a functional language can't run efficiently off Go's containers.
 - And tail-call optimization.
 - And something other than a tree-walking interpreter.
