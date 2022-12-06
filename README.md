@@ -1582,21 +1582,24 @@ Starting script 'examples/errordemo.ch' as service 'OOPSIE'.
 [2] Error: redeclaration of 'private' at line 15:0-7 of 'examples/errordemo.ch'.
 [3] Error: '(' unclosed by outdent at line 24:0 of 'examples/errordemo.ch'.
 [4] Error: inexplicable occurrence of ':' at line 21:8 of 'examples/errordemo.ch'.
-[5] Error: a line ending in ',' must be followed by a line beginning with '..' at line 26:0-3 of 'examples/errordemo.ch'.
+[5] Error: a line ending in ',' must be followed by a line beginning with '..' at line 
+26:0-3 of 'examples/errordemo.ch'.
 [6] Error: inexplicable occurrence of 'else' at line 26:4-8 of 'examples/errordemo.ch'.
-[7] Error: if it occurs, 'import' must be the first headword at line 28:0-6 of 'examples/errordemo.ch'.
+[7] Error: if it occurs, 'import' must be the first headword at line 28:0-6 of 
+'examples/errordemo.ch'.
 
 →  hub why 2
 
 Error: redeclaration of 'private'.
 
-In blocks of the script where things can be declared private (at present only 'var' blocks), the 
-'private' modifier can only be used once after each headword: things before the 'private' modifier 
-are private, things after it are public.
+In blocks of the script where things can be declared private (at present only 'var'
+blocks), the private' modifier can only be used once after each headword: things before
+the 'private' modifier are private, things after it are public.
 
-You're seeing this error because you used the 'private' modifier twice after the same headword.
+You're seeing this error because you used the 'private' modifier twice after the same
+headword.
 
-                                                            Error has reference 'init/private'.
+                                                    Error has reference 'init/private'.
 ```
 
 If Charm produces a runtime error, then you can see the trace of the error with `hub trace`. There is no need to give the number of the error, since you will only ever get one runtime error, which will therefore be number `0`. You can demonstrate the trace feature right now just by putting `1 / 0` into the REPL, but as that doesn’t produce a very interesting trace we have supplied a file `examples/rtedemo.ch`.
