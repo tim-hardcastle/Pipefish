@@ -823,8 +823,8 @@ while (p) do (f) to (x tuple) :
 for (n) do (f) to (x tuple) :
     (while unfinished do loop to 0, x)[1::count(x) + 1]
 given :
-    unfinished = func(i int, x tuple) : i < n
-    loop = func(i int, x tuple) : i + 1, f x
+    unfinished(i int, x tuple) : i < n
+    loop(i int, x tuple) : i + 1, f x
 
 // And all the nasty recursion disappears ...
 
@@ -832,14 +832,15 @@ power2 (n int) : for n do action to 1
 given : action = func(x) : 2 * x
 
 stars (n int) : for n do action to ""
-given : action = func(x) : x + "*"
+given :
+	action(x) : x + "*"
 
 // Let’s make that max function shorter
 
 max(L list) : (while condition do action to 1, L[0])[1]
 given :
-    condition = func(i, m) : i < len(L)
-    action = func(i, m) : i + 1, max(m, L[i])
+    condition(i, m) : i < len(L)
+    action (i, m) : i + 1, max(m, L[i])
 
 max (x, y int) :
     x > y : x
