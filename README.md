@@ -1650,13 +1650,12 @@ Charm is meant to be small, and hopefully I can keep the core language small. Bu
 - And something other than a tree-walking interpreter.
 - The command-line documentation has fallen behind the project, as documentation does.
 - I'm using someone else's readline library for my CLI and I've used only a fraction of what it can do, there's other stuff like highlighting and autocomplete I could use.
-- It could use highlighters for the more popular text editors
+- It only has text highlighting for VS Code.
 - It's a very static sort of dynamic language, a lot more errors could be caught on initialization.
 - For the same reason, a language server would be genuinely helpful to my users, we could get close to the if-it-compiles-it-runs feeling you get in Go.
 - The Go interoperability could still be improved.
 - It could use an FFI. (Specifically, it will use Go's FFI.)
 - Since Charm functions are pure, they could all be run concurrently. This was one of my reasons for choosing Go, but I haven't done it yet.
-- I've tried to keep Charm as small as possible but there are a few features I should add to the core language to make it a better functional language: a piping operator, sum types, and the ability to write `foo[x, y, z]` for `foo[x][y][z]`.
-- In general, it needs a better type system.
+- It needs a slightly better type system.
   
 And so on.
