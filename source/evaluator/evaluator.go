@@ -456,18 +456,22 @@ func evalPrefixExpression(token token.Token, operator string, node *ast.PrefixEx
 	return newError("eval/unknown/prefix", token, Eval(node.Right, prsr, env))
 }
 
-func evaluateFunction(token token.Token, operator string, params []object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
+func evaluateFunction(tok token.Token, operator string, params []object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
+	f, err := prsr.FindFunction(operator, params, tok.Source == "REPL input")
 	if err == "keyword" {
-		return newError("eval/keyword/a", token)
+		return newError("eval/keyword/a", tok)
 	}
 	if err == "sig" {
-		return newError("eval/sig/a", token, params)
+		if tok.Type == token.LBRACK {
+			return newError("eval/sig/index", tok, params)
+		} else {
+			return newError("eval/sig/a", tok, params)
+		}
 	}
 	if f.Cmd {
-		return applyFunction(f, params, prsr, token, env)
+		return applyFunction(f, params, prsr, tok, env)
 	}
-	return applyFunction(f, params, prsr, token, prsr.Globals)
+	return applyFunction(f, params, prsr, tok, prsr.Globals)
 }
 
 func evalSuffixExpression(token token.Token, operator string, left object.Object, prsr *parser.Parser, env *object.Environment) object.Object {

@@ -864,6 +864,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/sig/index": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't index " + EmphType(args[0].([]Object)[1]) + " by " + EmphType(args[0].([]Object)[0])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A string, list, tuple or enum may be indexed by a number, a map by a hashable " +
+			"label, and a struct by its keys. This fits none of these cases."
+		},
+	},
+
 	"eval/sig/lambda": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))

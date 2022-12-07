@@ -21,8 +21,9 @@ const (
 	GIVEN       // given
 	ASSIGN      // =
 	COLON       // :
-	OR          // ||
-	AND         // &&
+	OR          // or
+	AND         // and
+	NOT			// not
 	EQUALS      // == or !=
 	LESSGREATER // > or < or <= or >=
 	WEAK_COMMA  // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
@@ -35,21 +36,21 @@ const (
 	SUM     // + or -
 	PRODUCT // * or / or %
 	FSUFFIX // user-defined suffix, or type in type declaration
-	PREFIX  // -X or not X , the "native prefixes"
+	MINUS  //  - as a prefix
 
 	INDEX // after [
 
 )
 
 var precedences = map[token.TokenType]int{
-	token.GIVEN:       GIVEN,
+	token.SEMICOLON:   SEMICOLON,
+	token.NEWLINE:     SEMICOLON,
 	token.EXEC:        FUNC,
 	token.RETURN:      FUNC,
 	token.PIPE:        FUNC,
 	token.MAP:		   FUNC,
 	token.FILTER:	   FUNC,
-	token.SEMICOLON:   SEMICOLON,
-	token.NEWLINE:     SEMICOLON,
+	token.GIVEN:       GIVEN,
 	token.ASSIGN:      ASSIGN,
 	token.CMD_ASSIGN:  ASSIGN,
 	token.VAR_ASSIGN:  ASSIGN,
@@ -61,12 +62,12 @@ var precedences = map[token.TokenType]int{
 	token.MAGIC_COLON: COLON,
 	token.OR:          OR,
 	token.AND:         AND,
+	token.NOT:		   NOT,
 	token.EQ:          EQUALS,
 	token.NOT_EQ:      EQUALS,
 	token.WEAK_COMMA:  WEAK_COMMA,
 	token.COMMA:       COMMA,
 	token.LBRACK:      INDEX,
-	token.NOT:         PREFIX,
 	token.EVAL:        FPREFIX,
 	token.RIGHTARROW:  OR,
 }
@@ -565,7 +566,11 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 	}
 	prefix := p.curToken
 	p.NextToken()
-	expression.Right = p.parseExpression(PREFIX)
+	if prefix.Type == token.NOT {
+		expression.Right = p.parseExpression(NOT)
+	} else {
+		expression.Right = p.parseExpression(MINUS)
+	}
 	if expression.Right == nil {
 		p.Throw("parse/follow", prefix)
 	}
@@ -622,7 +627,7 @@ func (p *Parser) parseFunctionExpression() ast.Node {
 
 	p.NextToken()
 	if p.curToken.Type == token.LPAREN || expression.Operator == "-" {
-		expression.Right = p.parseExpression(PREFIX)
+		expression.Right = p.parseExpression(MINUS)
 	} else {
 		expression.Right = p.parseExpression(FPREFIX)
 	}
