@@ -18,6 +18,9 @@
 		},
 		{
 			"include": "#continuations"
+		},
+		{	
+			"include": "#logging"
 		}
 	],
 	"repository": {
@@ -55,6 +58,14 @@
 				}
 			]
 		},
+		"logging": {
+                        "patterns": [
+                                {
+                                "name": "variable.other.charm",
+                                "match": "\\\\\\\\([^\\/]|\/[^\\/])*"
+                                }
+                        ]
+                },
 		"punctuation": {
 			"patterns": [
 				{

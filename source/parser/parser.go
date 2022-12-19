@@ -19,11 +19,13 @@ const (
 	SEMICOLON   // semantic newline or ;
 	FUNC        // Lambda declaration
 	GIVEN       // given
+	WEAK_COLON  // kludge to make logging work
+	LOGGING     // \\
 	ASSIGN      // =
 	COLON       // :
 	OR          // or
 	AND         // and
-	NOT			// not
+	NOT         // not
 	EQUALS      // == or !=
 	LESSGREATER // > or < or <= or >=
 	WEAK_COMMA  // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
@@ -36,7 +38,7 @@ const (
 	SUM     // + or -
 	PRODUCT // * or / or %
 	FSUFFIX // user-defined suffix, or type in type declaration
-	MINUS  //  - as a prefix
+	MINUS   //  - as a prefix
 
 	INDEX // after [
 
@@ -45,11 +47,15 @@ const (
 var precedences = map[token.TokenType]int{
 	token.SEMICOLON:   SEMICOLON,
 	token.NEWLINE:     SEMICOLON,
+	token.WEAK_COLON:  WEAK_COLON,
+	token.LOG:         LOGGING,
+	token.IFLOG:       LOGGING,
+	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
 	token.RETURN:      FUNC,
 	token.PIPE:        FUNC,
-	token.MAP:		   FUNC,
-	token.FILTER:	   FUNC,
+	token.MAP:         FUNC,
+	token.FILTER:      FUNC,
 	token.GIVEN:       GIVEN,
 	token.ASSIGN:      ASSIGN,
 	token.CMD_ASSIGN:  ASSIGN,
@@ -62,7 +68,7 @@ var precedences = map[token.TokenType]int{
 	token.MAGIC_COLON: COLON,
 	token.OR:          OR,
 	token.AND:         AND,
-	token.NOT:		   NOT,
+	token.NOT:         NOT,
 	token.EQ:          EQUALS,
 	token.NOT_EQ:      EQUALS,
 	token.WEAK_COMMA:  WEAK_COMMA,
@@ -143,12 +149,13 @@ func New() *Parser {
 		Unfixes:           make(set.Set[string]),
 		AllFunctionIdents: make(set.Set[string]),
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
-			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, 
+			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC, 
-			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER}),
+			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC,
+			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER, token.LOG,
+			token.IFLOG, token.PRELOG}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
-			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
+			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:   make(FunctionTable),
 		FunctionTreeMap: make(map[string]*ast.FnTreeNode),
 		Globals:         object.NewEnvironment(), // I need my functions to be able to see the global constants.
@@ -217,8 +224,6 @@ func (p *Parser) peekError(t token.Token) {
 	p.Throw("parse/expect", t, p.peekToken)
 }
 
-
-
 func (p *Parser) prefixSuffixError() {
 	p.Throw("parse/before", p.curToken, p.peekToken)
 }
@@ -256,6 +261,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseFloatLiteral()
 	case token.STRING:
 		leftExp = p.parseStringLiteral()
+	case token.AUTOLOG:
+		leftExp = p.parseAutoLog()
 	case token.NOT:
 		leftExp = p.parseNativePrefixExpression()
 	case token.EVAL:
@@ -363,9 +370,13 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseExecExpression(leftExp)
 			case p.curToken.Type == token.LBRACK:
 				leftExp = p.parseIndexExpression(leftExp)
-			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAP || 
-					p.curToken.Type ==  token.FILTER:
+			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAP ||
+				p.curToken.Type == token.FILTER:
 				leftExp = p.parseStreamingExpression(leftExp)
+			case p.curToken.Type == token.LOG || p.curToken.Type == token.IFLOG:
+				leftExp = p.parseLogExpression(leftExp)
+			case p.curToken.Type == token.PRELOG:
+				leftExp = p.parsePrelogExpression(leftExp)
 			default:
 				leftExp = p.parseInfixExpression(leftExp)
 			}
@@ -391,8 +402,8 @@ func (p *Parser) positionallyFunctional() bool {
 	if assignmentTokens.Contains(p.peekToken.Type) {
 		return false
 	}
-	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE || 
-			p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER {
+	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
+		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER {
 		return false
 	}
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {
@@ -559,6 +570,10 @@ func (p *Parser) parseStringLiteral() ast.Node {
 	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
 }
 
+func (p *Parser) parseAutoLog() ast.Node {
+	return &ast.StringLiteral{Token: p.curToken}
+}
+
 func (p *Parser) parseNativePrefixExpression() ast.Node {
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
@@ -698,6 +713,48 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 
 }
 
+// Parses a log expression.
+func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
+
+	expression := &ast.LogExpression{
+		Token: p.curToken,
+		Code:  left,
+		LogType: ast.LogUser,
+	}
+	precedence := p.curPrecedence()
+	tok := p.curToken
+	p.NextToken()
+	right := p.parseExpression(precedence)
+	expression.Args = p.recursivelyListify(right)
+	if right.GetToken().Type == token.AUTOLOG {
+		if tok.Type == token.IFLOG {
+			expression.LogType = ast.LogIf
+		} else {
+			expression.LogType = ast.LogReturn
+		}
+	}
+	return expression
+}
+
+// Also parses a log expression, but expects the token indicating this to be
+// the the right of the logging string and to the left of the remaining code.
+// 'Cos of kludges and stuff, I have no shame at this point.
+func (p *Parser) parsePrelogExpression(left ast.Node) ast.Node {
+
+	expression := &ast.LogExpression{
+		Token: p.curToken,
+		Args:  p.recursivelyListify(left),
+		LogType: ast.LogUser,
+	}
+	if left.GetToken().Type == token.AUTOLOG {
+		expression.LogType = ast.LogStart
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Code = p.parseExpression(precedence)
+	return expression
+}
+
 // In a streaming expression we need to desugar e.g. 'x >> foo' to 'x >> foo that', etc.
 func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 
@@ -712,16 +769,16 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	// Now the desugaring, if necessary
 	if expression.Right.GetToken().Type == token.IDENT {
 		if p.Functions.Contains(expression.Right.GetToken().Literal) {
-			expression.Right = &ast.PrefixExpression{Token: expression.Right.GetToken(), 
-				Operator: expression.Right.GetToken().Literal, 
-				Args: []ast.Node{&ast.Identifier{Value: "that"}},
-				Right: &ast.Identifier{Value: "that"},}
-		} 
-		if p.Suffixes.Contains(expression.Right.GetToken().Literal)  {
-			expression.Right = &ast.SuffixExpression{Token: expression.Right.GetToken(), 
-				Operator: expression.Right.GetToken().Literal, 
-				Args: []ast.Node{&ast.Identifier{Value: "that"}},
-				Left: &ast.Identifier{Value: "that"},}
+			expression.Right = &ast.PrefixExpression{Token: expression.Right.GetToken(),
+				Operator: expression.Right.GetToken().Literal,
+				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
+				Right:    &ast.Identifier{Value: "that"}}
+		}
+		if p.Suffixes.Contains(expression.Right.GetToken().Literal) {
+			expression.Right = &ast.SuffixExpression{Token: expression.Right.GetToken(),
+				Operator: expression.Right.GetToken().Literal,
+				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
+				Left:     &ast.Identifier{Value: "that"}}
 		}
 	}
 	return expression
@@ -1041,7 +1098,7 @@ func (p *Parser) ClearErrors() {
 // Slurps the signature of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the keyword first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node, *object.Error) {
+func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node) {
 	var (
 		keyword               string
 		sig                   signature.Signature
@@ -1055,19 +1112,22 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 
 	switch fn := fn.(type) {
 	case *ast.LazyInfixExpression:
-		if fn.Token.Type != token.COLON {
-			return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+		if !(fn.Token.Type == token.COLON || fn.Token.Type == token.WEAK_COLON) {
+			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
+			return keyword, sig, rTypes, content, given
 		}
 		start = fn.Left
 		content = fn.Right
 	case *ast.InfixExpression:
 		if fn.Token.Type != token.MAGIC_COLON {
-			return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
+			return keyword, sig, rTypes, content, given
 		}
 		start = fn.Left
 		content = fn.Right
 	default:
-		return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
+		return keyword, sig, rTypes, content, given
 	}
 
 	if start.GetToken().Type == token.RIGHTARROW {
@@ -1092,9 +1152,10 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 		keyword = start.Operator
 		sig = signature.Signature{}
 	default:
-		return keyword, sig, rTypes, content, given, &object.Error{Message: "malformed command or function definition", Token: fn.GetToken()}
+		prsr.Throw("parse/sig/malformed/d", fn.GetToken())
+		return keyword, sig, rTypes, content, given
 	}
-	return keyword, sig, rTypes, content, given, nil
+	return keyword, sig, rTypes, content, given
 }
 
 func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature.Signature {

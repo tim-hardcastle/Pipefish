@@ -3,14 +3,18 @@ package evaluator
 // This is basically your standard tree-walking evaluator, with one or two minor peculiarities.
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm/source/ast"
 	"charm/source/object"
 	"charm/source/parser"
 	"charm/source/signature"
 	"charm/source/sysvars"
+	"charm/source/text"
 	"charm/source/token"
 )
 
@@ -216,6 +220,32 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 			return newError("eval/unsatisfied/e", node.Token)
 		}
 		return &object.List{Elements: []object.Object{list}}
+
+	case *ast.LogExpression:
+		logStr := "Log at line " + text.YELLOW + strconv.Itoa(node.Token.Line) + text.RESET
+		logTime, _ := env.Get("$logTime")
+		if logTime == object.TRUE {
+			logStr = logStr + " @ " + text.BLUE + time.Now().Local().String() + text.RESET
+		}
+		logStr = logStr + ":\n    "
+		for i, arg := range(node.Args) {
+			if arg.GetToken().Type == token.AUTOLOG {
+				logStr = logStr + autolog(node, parser, env) + "\n\n"
+				emit(logStr, parser, env, node.GetToken())
+				return Eval(node.Code, parser, env)
+			}
+			if isLiteral(arg) {
+				logStr = logStr + (Eval(arg, parser, env).Inspect(object.ViewStdOut) + " ")
+			} else {
+				logStr = logStr + arg.String() + " = " + (Eval(arg, parser, env)).Inspect(object.ViewCharmLiteral) 
+				if i + 1 < len(node.Args) && !isLiteral(node.Args[i + 1]) {
+					logStr = logStr + "; "
+				}
+			}
+		}
+		logStr = logStr + "\n\n"
+		emit(logStr, parser, env, node.GetToken())
+		return Eval(node.Code, parser, env)
 
 	case *ast.SetExpression:
 		if node.Set == nil {
@@ -792,7 +822,7 @@ func assignSysVar(tok token.Token, keyword string, right object.Object, env *obj
 			env.Set(keyword, right)
 			return nil
 		}
-		return newError("eval/sys/valid", tok, err)
+		return newError(err, tok)
 	}
 	return newError("eval/sys/exists", tok, keyword)
 }
@@ -1208,5 +1238,142 @@ func toObjectList(obj object.Object) []object.Object {
 		return t.Elements
 	default:
 		return []object.Object{obj}
+	}
+}
+
+func isLiteral(node ast.Node) bool {
+	switch node := node.(type) {
+		case *ast.BooleanLiteral, *ast.FloatLiteral, *ast.IntegerLiteral, *ast.StringLiteral:
+			return node == node // Yes, Go, you made me do this.
+		default:
+			return false
+	} 
+}
+
+func autolog(log *ast.LogExpression, prsr *parser.Parser, env *object.Environment) string {
+	// If the log expression is an autolog, it will carry some information about
+	// the circumstances under which it was generated.
+
+	switch log.LogType {
+	case ast.LogStart:
+		return("Function called.")
+	case ast.LogIf:
+		if log.Code.GetToken().Type == token.ELSE {
+			return "The 'else' branch is taken."
+		}
+		result, story := narrate(log.Code, prsr, env)
+		if result {
+			return story + ", so the condition is met."
+		} else {
+			return story + ", so the condition fails."
+		}
+	case ast.LogReturn:
+		if log.Code.GetToken().Type == token.COLON {
+			if log.Code.(*ast.LazyInfixExpression).Left.GetToken().Type == token.ELSE {
+				return "The 'else' branch is taken. Returning " + niceReturn(log.Code.(*ast.LazyInfixExpression).Right, prsr, env)
+						
+			}
+			result, story := narrate(log.Code.(*ast.LazyInfixExpression).Left, prsr, env)
+			if result {
+				return story + ", so the condition is met. Returning " + 
+						niceReturn(log.Code.(*ast.LazyInfixExpression).Right, prsr, env)
+			} else {
+				return story + ", so the condition fails."
+			}
+		} else {
+			return "Returning " + niceReturn(log.Code, prsr, env)
+		}
+	default :
+		panic("Tim, you goofed. That was not supposed to happen.")
+	}
+}
+
+func narrate(conditional ast.Node,  prsr *parser.Parser, env *object.Environment) (bool, string) {
+	switch conditional := conditional.(type) {
+	case *ast.LazyInfixExpression :
+		if conditional.Operator == "and" {
+			leftResult, leftStory := narrate(conditional.Left, prsr, env)
+			if !leftResult {
+				return false, leftStory
+			}
+			rightResult, rightStory := narrate(conditional.Right, prsr, env)
+			if rightResult {
+				return true, leftStory + " and " + rightStory
+			}
+			return false, leftStory + ", but " + rightStory
+		}
+		if conditional.Operator == "or" {
+			leftResult, leftStory := narrate(conditional.Left, prsr, env)
+			if leftResult {
+				return true, leftStory
+			}
+			rightResult, rightStory := narrate(conditional.Right, prsr, env)
+			if rightResult {
+				return true, leftStory + ", but " + rightStory
+			}
+			return false, leftStory + " and " + rightStory
+		}
+	case *ast.InfixExpression:
+		if conditional.Operator == "==" || conditional.Operator == "!=" || conditional.Operator == "<" ||
+			conditional.Operator == "<=" || conditional.Operator == ">" || conditional.Operator == ">=" {
+				result := Eval(conditional, prsr, env)
+				val := isTruthy(conditional.GetToken(), result, prsr, env) == object.TRUE
+				if isLiteral(conditional.Left) && isLiteral(conditional.Right) {
+					return val, conditional.String()
+				}
+				if isLiteral(conditional.Left) {
+					return val, conditional.Right.String() + " is " + 
+						Eval(conditional.Right, prsr, env).Inspect(object.ViewCharmLiteral)
+				}
+				if isLiteral(conditional.Right) {
+					return val, conditional.Left.String() + " is " + 
+						Eval(conditional.Left, prsr, env).Inspect(object.ViewCharmLiteral)
+				}
+				leftVal := Eval(conditional.Left, prsr, env)
+				rightVal := Eval(conditional.Right, prsr, env)
+				if object.Equals(leftVal, rightVal) {
+					return val, conditional.Left.String() + " and " + conditional.Right.String() + " are both " +
+						leftVal.Inspect(object.ViewCharmLiteral)
+				}
+				if val {
+					return val, conditional.Left.String() + " is " + leftVal.Inspect(object.ViewCharmLiteral) +
+						" and " + conditional.Right.String() + " is " + rightVal.Inspect(object.ViewCharmLiteral)
+				}
+			}
+	}
+	result := Eval(conditional, prsr, env)
+	description := ""
+	val := isTruthy(conditional.GetToken(), result, prsr, env) == object.TRUE
+	if val  {
+		description = "true"
+	} else {
+		description = "false"
+	}
+	resultString := conditional.String() + " is " + description
+	return val, resultString
+}
+
+func niceReturn(node ast.Node, prsr *parser.Parser, env *object.Environment) string {
+	if isLiteral(node) {
+		return Eval(node, prsr, env).Inspect(object.ViewCharmLiteral) + "."
+	}
+	return node.String() + " = " + 
+						Eval(node, prsr, env).Inspect(object.ViewCharmLiteral) + "."
+}
+
+func emit(logStr string, prsr *parser.Parser, env *object.Environment, tok token.Token) {
+	logPath, _ := env.Get("$logPath")
+	logPathStr := logPath.(*object.String).Value
+	if logPathStr == "stdout" {
+		fmt.Print(logStr)
+		return 
+	}
+	f, err := os.OpenFile(logPathStr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			prsr.Throw("eval/log/file", tok)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(logStr); err != nil {
+		prsr.Throw("eval/log/append", tok)
 	}
 }

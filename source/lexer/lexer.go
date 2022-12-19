@@ -82,6 +82,11 @@ func (l *Lexer) NextToken() token.Token {
 		} else {
 			tok = l.NewToken(token.ASSIGN, "=")
 		}
+	case '\\':
+		if l.peekChar() == '\\' {
+			l.readChar()
+			tok = l.NewToken(token.LOG, "\\\\")
+		}
 	case ';':
 		tok = l.NewToken(token.SEMICOLON, ";")
 	case ':':
@@ -148,8 +153,6 @@ func (l *Lexer) NextToken() token.Token {
 				tok.ChEnd = l.tstart + 2
 				return tok
 			}
-		} else {
-			tok = l.NewToken(token.DOT, ".")
 		}
 	default:
 		if l.ch == '/' && l.peekChar() == '/' {

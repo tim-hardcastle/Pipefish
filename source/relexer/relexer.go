@@ -37,6 +37,7 @@ type Relexer struct {
 	lexer                    lexer.Lexer
 	preTok, curTok, nexTok   token.Token
 	givenHappened            bool
+	ifLogHappened			 bool
 	lparenMeansInnerFunction bool
 	innerFunctionIsHappening bool
 	nestingLevel             int
@@ -121,8 +122,8 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	// We use this last facility to expand out the END statements.
 
 	if rl.nexTok.Type == token.BEGIN &&
-		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON ||
-			(rl.curTok.Type == token.NEWLINE && ((rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON)) || (rl.preTok.Type == token.GIVEN))) {
+		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON || rl.curTok.Type == token.WEAK_COLON ||
+			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) || (rl.preTok.Type == token.GIVEN))) {
 		rl.Throw("relex/indent", rl.curTok)
 	}
 
@@ -134,6 +135,19 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	case token.COMMENT:
 		return rl.burnToken()
 	case token.NEWLINE:
+
+		if rl.preTok.Type == token.LOG || rl.preTok.Type == token.IFLOG {
+			newToken := rl.curTok
+			newToken.Type = token.AUTOLOG
+			return rl.insertTokenBeforeCurrentToken(newToken)
+		}
+
+		if rl.ifLogHappened {
+			rl.curTok.Type = token.WEAK_COLON
+			rl.curTok.Literal = ":"
+		}
+
+		rl.ifLogHappened = false
 
 		if rl.nexTok.Type == token.NO_INDENT ||
 			rl.nexTok.Type == token.NEWLINE {
@@ -152,6 +166,8 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			return rl.burnToken()
 		}
 
+		
+
 	case token.IDENT:
 		if rl.curTok.Literal == "struct" {
 			rl.structDef = true
@@ -167,10 +183,14 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	case token.ILLEGAL:
 		return rl.burnToken()
 	case token.COLON:
+		if rl.nexTok.Type == token.LOG {
+			rl.nexTok.Type = token.IFLOG
+			rl.ifLogHappened = true
+			return rl.burnToken()
+		}
 		if rl.preTok.Type == token.GIVEN {
 			return rl.burnToken()
 		}
-		rl.funcDef = false
 	case token.BEGIN:
 		rl.curTok.Type = token.LPAREN
 		rl.curTok.Literal = "|->"
@@ -203,6 +223,10 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		}
 		if rl.preTok.Type == token.NEWLINE {
 			rl.getToken()
+		}
+	case token.LOG:
+		if rl.preTok.Type == token.COMMA ||  rl.preTok.Type ==token.DOTDOT {
+			rl.Throw("relex/log", rl.curTok)
 		}
 	}
 

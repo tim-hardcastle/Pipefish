@@ -1,9 +1,13 @@
 package sysvars
 
 import (
+	"os"
+	"path/filepath"
+
 	"charm/source/object"
-	"charm/source/text"
 )
+
+// This was written before variables had types even, and should be rewritten.
 
 type sysvar = struct {
 	Dflt      object.Object
@@ -17,12 +21,40 @@ var Sysvars = map[string]sysvar{
 			switch obj.(type) {
 			case *object.String:
 				if obj.(*object.String).Value != "charm" && obj.(*object.String).Value != "plain" {
-					return "system variable " + text.Emph("$view") + " takes values " +
-						text.Emph("\"charm\"") + " or " + text.Emph("\"plain\"")
+					return "sys/view/vals"
 				}
 				return ""
 			default:
-				return "system variable " + text.Emph("$view") + " is of type " + text.Emph("string")
+				return "sys/view/string"
+			}
+		},
+	},
+	"$logTime": sysvar{
+		Dflt: object.FALSE,
+		Validator: func(obj object.Object) string {
+			switch obj.(type) {
+			case *object.Boolean:
+				return ""
+			default:
+				return "sys/logtime/bool"
+			}
+		},
+	},
+	"$logPath": sysvar{
+		Dflt: &object.String{Value: "stdout"},
+		Validator: func(obj object.Object) string {
+			switch obj.(type) {
+			case *object.String:
+				if obj.(*object.String).Value == "stdout" {
+					return ""
+				} 
+				_, err := os.Stat(filepath.Dir(obj.(*object.String).Value))
+						if err != nil {
+					return "sys/logpath/path"
+				}
+				return ""
+			default:
+				return "sys/logpath/string"
 			}
 		},
 	},

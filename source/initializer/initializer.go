@@ -116,6 +116,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	indentCount := 0
 	lastTokenWasColon := false
 	colonMeansFunctionOrCommand := true
+	weakColonShouldBePrelog := false
 	expressionIsAssignment := false
 	expressionIsStruct := false
 	expressionIsFunction := false
@@ -139,7 +140,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	line := tokenized_code_chunk.New()
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
-		// if tok.Source != "rsc/builtins.ch" { fmt.Printf("Relexer says %v\n", tok) }
+		 
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
 				uP.Throw("init/import/first", tok)
@@ -220,6 +221,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				expressionIsEnum = false
 				expressionIsFunction = false
 				colonMeansFunctionOrCommand = true
+
 				continue
 			}
 			switch currentSection {
@@ -303,7 +305,19 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			continue
 		}
 
-		lastTokenWasColon = (tok.Type == token.COLON)
+		if (tok.Type == token.WEAK_COLON) && weakColonShouldBePrelog {
+			weakColonShouldBePrelog = false
+			tok.Type = token.PRELOG
+			tok.Literal = "\\\\"
+		}
+
+		if tok.Type == token.IFLOG && colonMeansFunctionOrCommand {
+			tok.Type = token.WEAK_COLON
+			tok.Literal = ":"
+			weakColonShouldBePrelog = true
+		}
+
+		lastTokenWasColon = (tok.Type == token.COLON || tok.Type == token.WEAK_COLON)
 
 		if (lastTokenWasColon && colonMeansFunctionOrCommand) || tok.Type == token.RIGHTARROW {
 			colonMeansFunctionOrCommand = false
@@ -314,6 +328,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			}
 		}
 
+		//if tok.Source != "rsc/builtins.ch" { fmt.Printf("Appending %v\n", tok) }
 		line.Append(tok)
 	}
 	uP.Parser.Errors = object.MergeErrors(uP.rl.GetErrors(), uP.Parser.Errors)
@@ -552,35 +567,35 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 	goHandler := evaluator.NewGoHandler(&uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.parsedDeclarations[j]); i++ {
-			keyword, sig, rTypes, body, given, error := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
-			keyword = uP.Parser.Namespaces[body.GetToken().Source] + keyword
-			if error == nil {
-				ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword,
-					ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
-						Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
-						Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
-				if !ok {
-					uP.Throw("init/overload", token.Token{}, keyword)
-				}
-				if body.GetToken().Type == token.GOLANG {
-					body.(*ast.GolangExpression).Raw = []bool{}
-					for i, v := range sig {
-						body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,
-							len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw")
-						if len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw" {
-							sig[i].VarType = v.VarType[:len(v.VarType)-4]
-						}
-					}
-					goHandler.MakeFunction(flatten(keyword), sig, rTypes, body.(*ast.GolangExpression))
-					if uP.Parser.ErrorsExist() {
-						return
-					}
-					body.(*ast.GolangExpression).Sig = sig
-					body.(*ast.GolangExpression).ReturnTypes = rTypes
-				}
-			} else {
-				uP.Throw("init/sig", error.Token, error.Message)
+			keyword, sig, rTypes, body, given := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
+			if uP.Parser.ErrorsExist() {
+				return
 			}
+			keyword = uP.Parser.Namespaces[body.GetToken().Source] + keyword
+			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword,
+				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
+					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
+					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
+			if !ok {
+				uP.Throw("init/overload", token.Token{}, keyword)
+			}
+			if body.GetToken().Type == token.GOLANG {
+				body.(*ast.GolangExpression).Raw = []bool{}
+				for i, v := range sig {
+					body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,
+						len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw")
+					if len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw" {
+						sig[i].VarType = v.VarType[:len(v.VarType)-4]
+					}
+				}
+				goHandler.MakeFunction(flatten(keyword), sig, rTypes, body.(*ast.GolangExpression))
+				if uP.Parser.ErrorsExist() {
+					return
+				}
+				body.(*ast.GolangExpression).Sig = sig
+				body.(*ast.GolangExpression).ReturnTypes = rTypes
+			}
+			
 		}
 	}
 

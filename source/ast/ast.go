@@ -136,6 +136,41 @@ func (pe *PrefixExpression) String() string {
 	return out.String()
 }
 
+// 
+type LogExpression struct {
+	Token    token.Token
+	Args     []Node
+	Code     Node
+	LogType  LogType
+}
+
+func (le *LogExpression) GetToken() token.Token { return le.Token }
+func (le *LogExpression) TokenLiteral() string  { return le.Token.Literal }
+func (le *LogExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(le.Code.String())
+	out.WriteString(") \\ ")
+	for i, arg := range(le.Args) {
+		out.WriteString(arg.String())
+		if i + 1 < len(le.Args) {
+			out.WriteString(", ")
+		}
+	}
+	return out.String()
+}
+
+type LogType int
+
+const (
+	LogUser = 0
+	LogReturn = 1
+	LogIf = 2
+	LogStart = 3
+)
+
+
 type UnfixExpression struct {
 	Token    token.Token
 	Operator string
@@ -201,9 +236,6 @@ type ExecExpression struct {
 	Left  Node
 	Right Node
 }
-
-
-
 func (ee *ExecExpression) GetToken() token.Token { return ee.Token }
 func (ee *ExecExpression) TokenLiteral() string  { return ee.Token.Literal }
 func (ee *ExecExpression) String() string {

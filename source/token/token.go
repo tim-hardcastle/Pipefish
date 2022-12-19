@@ -29,7 +29,6 @@ const (
 	TYP_ASSIGN = "=typ="
 
 	COLON     = ":"
-	DOT       = "."
 	NEWLINE   = "\n"
 	SEMICOLON = ";"
 
@@ -41,6 +40,11 @@ const (
 	NOT_EQ = "!="
 
 	DOUBLESLASH = "//"
+
+	LOG = "LOG"
+	IFLOG = "IFLOG"
+	PRELOG = "PRELOG"
+	AUTOLOG = "AUTOLOG"
 
 	DOTDOT = ".."
 
@@ -74,6 +78,7 @@ const (
 	EXEC   = "exec"
 
 	MAGIC_COLON = "MAGIC_COLON"
+	WEAK_COLON = "WEAK_COLON"
 
 	GOLANG = "golang"
 
@@ -114,7 +119,6 @@ var keywords = map[string]TokenType{
 	"or":  OR,
 	"not": NOT,
 
-	"=cmd=": CMD_ASSIGN,
 }
 
 func LookupIdent(ident string) TokenType {
