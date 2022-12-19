@@ -26,6 +26,7 @@ Features already implemented include:
 - Embeddable Go
 - Macros
 - Interactive error messages and trace
+- Logging
 - A helpful way of writing tests from the REPL
 - A Functional Core / Imperative Shell architecture
 - Turns into a server on demand
