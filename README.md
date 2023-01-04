@@ -19,7 +19,6 @@ Features already implemented include:
 - Serialization and eval
 - Reflection
 - Comparison by value
-- Truthiness
 - Imports
 - A growing number of standard libraries including math, strings, and fmt
 - Throwing and handling errors
@@ -361,11 +360,6 @@ An error will be returned if the key is not in the map:
 input.
 #0 → 
 ```
-
-## Truthiness
-
-Charm has built-in *truthiness* for some of these types: `int`, `string`, `set`, `list` and `map`. That is to say, if you pass an object of one of these types to an operator expecting a boolean value, then it will automatically evaluate to `false` if it is (respectively) `0`, the empty string, the empty set, the empty list, or the empty map.
-
 ## Headwords
 
 In our example (`examples/variables.ch`) of creating variables, you will notice that the declarations were preceeded by the word `var`. This is a *headword*, meaning, in this case, "please treat everything that follows this as a variable declaration until either the end of the script, or until you reach another headword".
@@ -1066,7 +1060,7 @@ If you run the script you will find that `foo` can only be assigned string value
 
 As we have seen, there is support for overloading functions. This includes built-in functions and operators, except for the logical operators and the “protected punctuation”: `{` `}` `[` `]` `(` `)` `:` `;` `,` `"` and `` ` ``.
 
-Also, by overloading the `bool` function, you can make a type truthy; and by overloading the `index` function, you can make it indexable by whatever type you like (except tuple, because of the current restrictions on what you can do with variadics). So if you define `index(i int, t yourType)` then you can index it by integers, if you define `index(p pair, t yourType)`, you can index it by pairs, etc.
+Also, by overloading the `index` function, you can make it indexable by whatever type you like (except tuple, because of the current restrictions on what you can do with variadics). So if you define `index(i int, t yourType)` then you can index it by integers, if you define `index(p pair, t yourType)`, you can index it by pairs, etc.
 
 When you overload a function, the interpreter’s choice of which version of the function to use depends of course on the types of the passed parameters. If there are two such choices, for example if you have a function foo defined for `foo(x int)` and `foo(x any)` and you pass it an integer, then it will always use the more specific type signature, in this case foo(x int). A file `examples/overloading.ch` has been supplied to demonstrate this behavior.
 
