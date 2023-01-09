@@ -781,6 +781,7 @@ Log at line 17:
 
 The logging can be tweaked by setting service variables:
 
+```
 #0 → $logTime = true                                                                                                                          
 ok 
 #0 → $logPath = "./rsc/test.log" 
