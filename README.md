@@ -702,6 +702,127 @@ Zeros are bad! Bad!
 #3 → 
 ```
 
+## Logging / instrumentation
+
+One of the problems with pure functions is seeing what's going on inside them. Fortunately it's only the tiniest blemish on the purity of our functions if we do just that. Logging/instumentation markup is provided by the `\\` operator, as demostrated in `examples/logging.ch`:
+
+### Basic logging
+
+```
+def
+    
+foo(x, y) :                  \\ "Called with parameters", x, y
+    x % 2 == 0:              \\ "Testing if x is even."
+        x                    \\ "x is even. Returning", x
+    else :                   \\ "Else branch taken"
+        3 * y                \\ "Returning", 3 * y
+    
+zort(x, y) :                 \\ 
+    x % 2 == 0 and y > 7:    \\ 
+        x                    \\ 
+    else :                   \\
+        x < y : 42           \\
+        else : x + y         \\ 
+
+Run it in the REPL ...
+
+→ hub run examples/logging.ch     
+Starting script 'examples/logging.ch' as service '#0'.
+#0 → foo 1, 2   
+Log at line 6:
+    Called with parameters x = 1; y = 2
+    
+Log at line 7:
+    Testing if x is even. 
+    
+Log at line 9:
+    Else branch taken 
+    
+Log at line 10:
+    Returning (3 * y) = 6
+    
+6  
+#0 →
+```
+
+Note that a log statement is executed if the line it is adjoined to is executed. In particular, in a line of the form `<condition> : <return value> \\ <log statement>`, the logging will take place whether or not the condition is met. If you want to avoid that, then you can of course write:
+
+```
+`<condition> :
+    <return value> \\ <log statement>`
+```
+
+It is a syntax error to adjoin a logging statement to a line saying only `given :` because there is no meaningful interpretation of what that should do. Loggingstatements attached to inneer functions will execute when they are called as with normal functions.
+
+### Autologging
+
+The sort of things you might want to log at each line could be inferred for you, so if you leave the logging statement empty, as in the function `zort`, Charm will take a stab at doing that:
+
+```
+#0 → zort 2, 2 
+Log at line 12:
+    Function called.
+    
+Log at line 13:
+    (x % 2) is 0, but y is 2, so the condition fails.
+    
+Log at line 15:
+    The 'else' branch is taken.
+    
+Log at line 16:
+    x and y are both 2, so the condition fails.
+    
+Log at line 17:
+    The 'else' branch is taken. Returning (x + y) = 4.
+    
+4  
+#0 →   
+```
+
+The logging can be tweaked by setting service variables:
+
+#0 → $logTime = true                                                                                                                          
+ok 
+#0 → $logPath = "./rsc/test.log" 
+ok
+#0 → zort 3, 5 
+42
+#0 → os cat ./rsc/test.log 
+Log at line 12 @ 2022-12-19 05:02:46.134767 -0800 PST:
+    Function called.
+    
+Log at line 13 @ 2022-12-19 05:02:46.13737 -0800 PST:
+    (x % 2) is 1, so the condition fails.
+    
+Log at line 15 @ 2022-12-19 05:02:46.137498 -0800 PST:
+    The 'else' branch is taken.
+    
+Log at line 16 @ 2022-12-19 05:02:46.137561 -0800 PST:
+    x is 3 and y is 5, so the condition is met. Returning 42.
+    
+#0 →
+```
+### Conditional logging
+
+It is desirable to be able to turn logging on and off. A log statement of the form `\\ <condition> : <logging statement>` won't log anything if the condition isn't met. For example:
+
+```
+def
+
+log = true
+simonSaysLog = true
+
+classify(n):
+    n == 0 :
+        "n is zero"                 \\ log : "Zero branch"
+    n > 0 :
+        n < 10 : "n is small"       \\ log or simonSaysLog : "Positive branch"
+        n > 100 : "n is large"
+        else : "n is medium"
+    else:
+        "n is negative"             \\ log : "Negative branch"
+```
+
 ## Streaming operators
 
 There are three streaiming operators, pipe `>>`, map `]>` and filter `?>`. 
