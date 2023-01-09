@@ -723,9 +723,11 @@ zort(x, y) :                 \\
     else :                   \\
         x < y : 42           \\
         else : x + y         \\ 
+```
 
 Run it in the REPL ...
 
+```
 → hub run examples/logging.ch     
 Starting script 'examples/logging.ch' as service '#0'.
 #0 → foo 1, 2   
@@ -748,11 +750,11 @@ Log at line 10:
 Note that a log statement is executed if the line it is adjoined to is executed. In particular, in a line of the form `<condition> : <return value> \\ <log statement>`, the logging will take place whether or not the condition is met. If you want to avoid that, then you can of course write:
 
 ```
-`<condition> :
-    <return value> \\ <log statement>`
+<condition> :
+    <return value> \\ <log statement>
 ```
 
-It is a syntax error to adjoin a logging statement to a line saying only `given :` because there is no meaningful interpretation of what that should do. Loggingstatements attached to inneer functions will execute when they are called as with normal functions.
+It is a syntax error to adjoin a logging statement to a line saying only `given :` because there is no meaningful interpretation of what that should do. Logging statements attached to inner functions will execute when they are called as with normal functions.
 
 ### Autologging
 
@@ -1653,7 +1655,9 @@ This is pretty much a stopgap to let me write test programs, I haven’t put muc
 
 ## Service variables
 
-As the name suggests, these are settable variables that change the state of the service. For example `$view`, which can be set to `"plain"` or `"charm"`, (and which is the only one I’ve actually implemented) determines how things are output: if `"charm"` is selected output will be in the form of Charm literals.
+As the name suggests, these are settable variables that change the state of the service. For example `$view`, which can be set to `"plain"` or `"charm"`, determines how things are output: if `"charm"` is selected output will be in the form of Charm literals.
+
+The other service variables implemented so far are `$logTime`, a boolean determining whether the time is recorded in logging statements, and `$logPath` which should contain either `stdout` or a valid file path.
 
 They are loaded and saved with the rest of the data of a service.
 
