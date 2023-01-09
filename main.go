@@ -1,13 +1,11 @@
 //
-// Charm version 0.3.6
+// Charm version 0.3.7
 //
 // Acknowledgments
 //
 // I began with Thorsten Ball’s Writing An Interpreter In Go (https://interpreterbook.com/) and the
 // accompanying code, and although his language and mine differ very much in their syntax, semantics,
 // implementation, and ambitions, I still owe him a considerable debt.
-//
-// The readline library is by Lawrence Morgan. https://github.com/lmorg
 //
 
 package main

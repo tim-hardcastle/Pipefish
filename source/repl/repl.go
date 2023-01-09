@@ -2,11 +2,12 @@ package repl
 
 import (
 	"charm/source/hub"
-	"charm/readline"
 	"charm/source/text"
 
 	"io"
 	"strings"
+
+	"github.com/lmorg/readline"
 )
 
 func Start(hub *hub.Hub, in io.Reader, out io.Writer) {

@@ -15,3 +15,16 @@ zort(x, y) :                      \\
     else :                        \\
         x < y : 42                \\
         else : x + y              \\ 
+
+// The execution of inner functions can also be logged.
+
+troz(x) :                \\ "Called troz."
+    spoit(x)             \\ "Executing troz."
+given : 
+    spoit(x) :           \\ "Called spoit."
+        fnarf * moo x    \\ "Executing spoit." 
+    given :
+        moo(x) :         \\ "Called moo."
+            3 * x        \\ "Executing moo."
+        fnarf = 2
+
