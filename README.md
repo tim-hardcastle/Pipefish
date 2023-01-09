@@ -779,7 +779,7 @@ Log at line 17:
 #0 →   
 ```
 
-The logging can be tweaked by setting service variables:
+The logging can be tweaked by setting [service variables](#service-variables):
 
 ```
 #0 → $logTime = true                                                                                                                          
@@ -803,6 +803,7 @@ Log at line 16 @ 2022-12-19 05:02:46.137561 -0800 PST:
     
 #0 →
 ```
+
 ### Conditional logging
 
 It is desirable to be able to turn logging on and off. A log statement of the form `\\ <condition> : <logging statement>` won't log anything if the condition isn't met. For example:
