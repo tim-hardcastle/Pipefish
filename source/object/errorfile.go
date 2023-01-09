@@ -69,53 +69,57 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This is an error the os of your computer returned when you tried to access a file. If you " +
-				"aren't sure what it means, you should consult the coumentation of your os."
+				"aren't sure what it means, you should consult the documentation of your os."
 		},
 	},
 
 	"built/hash/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "objects of type <" + args[0].(string) + "> cannot be used as hashkeys"
+			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not <" + args[0].(string) + ">."
+				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
 		},
 	},
 
 	"built/hash/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "objects of type <" + args[0].(string) + "> cannot be used as hashkeys"
+			return "objects of type" + EmphType(args[0].(Object)) + " cannot be used as hashkeys" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not <" + args[0].(string) + ">."
+				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
 		},
 	},
 
 	"built/hash/c": {
 		Message: func(tok token.Token, args ...any) string {
-			return "objects of type <" + args[0].(string) + "> cannot be used as hashkeys"
+			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not <" + args[0].(string) + ">."
+				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
 		},
 	},
 
 	"built/hash/d": {
 		Message: func(tok token.Token, args ...any) string {
-			return "objects of type <" + args[0].(string) + "> cannot be used as hashkeys"
+			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not <" + args[0].(string) + ">."
+				"<int>, <string>, <float64>, <label> and <bool> — but not" + EmphType(args[0].(Object))
 		},
 	},
 
 	"built/hash/key": {
 		Message: func(tok token.Token, args ...any) string {
-			return "object '" + args[0].(string) + "' is not in the keys of map"
+			return "object " + DescribeObject(args[0].(Object)) + " is not in the keys of map"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "If you try to retrieve a value from a map by indexing the map with a key that isn't in the map " +
@@ -125,7 +129,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/hash/pairs/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "a map must be constructed from things of type <pair>, not of type <" + args[0].(string) + ">"
+			return "a map must be constructed from things of type <pair>, not of type " + EmphType(args[0].(Object)) +
+				" (non-pair value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A map in Charm consists of '<key> :: <value>' pairs, and if you try to make a map out of anything else this will fail."
@@ -134,49 +139,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/hash/pairs/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "a map must be constructed from things of type <pair>, not of type <" + args[0].(string) + ">"
+			return "a map must be constructed from things of type <pair>, not of type " + EmphType(args[0].(Object)) +
+				" (non-pair value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A map in Charm consists of '<key> :: <value>' pairs, and if you try to make a map out of anything else this will fail."
-		},
-	},
-
-	"built/index/int/list": {
-		Message: func(tok token.Token, args ...any) string {
-			return "a list must be indexed by an integer, not by something of type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "An error that very much means what it says. You tried to index a list with something of type <" +
-				args[0].(string) + ">, and Charm has no idea what you mean by that."
-		},
-	},
-
-	"built/index/int/string": {
-		Message: func(tok token.Token, args ...any) string {
-			return "a string must be indexed by an integer, not by something of type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "An error that very much means what it says. You tried to index a string with something of type <" +
-				args[0].(string) + ">, and Charm has no idea what you mean by that."
-		},
-	},
-
-	"built/index/int/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return "a tuple must be indexed by an integer, not by something of type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "An error that very much means what it says. You tried to index a tuple with something of type <" +
-				args[0].(string) + ">, and Charm has no idea what you mean by that."
-		},
-	},
-
-	"built/index/tuple/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't index object of type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Unless the index operator has been overloaded, you can only index things of type <list>, <pair>, <string>, or <tuple>."
 		},
 	},
 
@@ -191,10 +158,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/list/int": {
 		Message: func(tok token.Token, args ...any) string {
-			return "a list can only be indexed by something of type <integer>"
+			return "a list can only be indexed by something of type <integer>, not of type " + EmphType(args[0].(Object)) +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A list L can be indexed by an expression of the form L[n], where n is a number from 0 up to " +
+			return "A list L can be indexed by an expression of the form L[n], where n is an integer from 0 up to " +
 				"but not including the length of the list."
 		},
 	},
@@ -276,34 +244,37 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/slice/int/list": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice indexed by '<" + args[0].(string) +
-				"> :: <" + args[1].(string) + ">'"
+			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object)) +
+				" (pair supplied was " + DescribeObject(args[3].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice needs an index of the form '<int> :: <int>' but you have supplied '<" + args[0].(string) +
-				"> :: <" + args[1].(string) + ">'."
+			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
 		},
 	},
 
 	"built/slice/int/string": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice indexed by '<" + args[0].(string) +
-				"> :: <" + args[1].(string) + ">'"
+			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object)) +
+				" (pair supplied was " + DescribeObject(args[3].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice needs an index of the form '<int> :: <int>' but you have supplied '<" + args[0].(string) +
-				"> :: <" + args[1].(string) + ">'."
+			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
 		},
 	},
 
 	"built/slice/int/tuple": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice indexed by '<" + args[0].(string) +
-				"> :: <" + args[1].(string) + ">'"
+			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object)) +
+				" (pair supplied was " + DescribeObject(args[3].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice needs an index of the form '<int> :: <int>' but you have supplied '<" + args[0].(string) +
-				"> :: <" + args[1].(string) + ">'."
+			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
 		},
 	},
 
@@ -334,28 +305,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"built/slice/tuple/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't slice object of type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Unless the slice operator has been overloaded, you can only slice things of type <list>, <string> or <tuple>."
-		},
-	},
-
-	"built/struct/label": {
-		Message: func(tok token.Token, args ...any) string {
-			return "structs are indexed by things of type <label>, not of type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "When you create a struct, the names you give to the parameters in the constructor are automatically " +
-				"converted to a set of labels of type 'field' for the fields of the struct. These are the only things you can index the struct by."
-		},
-	},
-
 	"built/struct/field/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "'" + args[0].(string) + "' doesn't label a field of structs of type <" + args[1].(string) + ">"
+			return DescribeObject(args[0].(Object)) + " doesn't label a field of structs of type <" + args[1].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you create a struct, the names you give to the parameters in the constructor are automatically " +
@@ -366,7 +318,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/struct/field/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "'" + args[0].(string) + "' doesn't label a field of structs of type <" + args[1].(string) + ">"
+			return DescribeObject(args[0].(Object)) + " doesn't label a field of structs of type <" + args[1].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you create a struct, the names you give to the parameters in the constructor are automatically " +
@@ -387,13 +339,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/apply": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Can't apply <" + args[0].(string) + "> as a function"
+			return "Can't apply " + EmphType(args[0].(Object)) + " as a function" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In this line you have written something of the form '(<expression 1>) (<expression 2>)'. " +
 				"The only way Charm can evaluate something like that is if expression 1 evaluates to something of " +
 				" type <func>, in which case this will be applied to expression 2. However, in this case the " +
-				"first expression evaluated to something of type <" + args[0].(string) + ">."
+				"first expression evaluated to something of type " + EmphType(args[0].(Object)) + "."
 		},
 	},
 
@@ -427,6 +380,39 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/bool/left": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object)) +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm has no concept of \"truthiness\": the only valid left-hand side of the " +
+				text.DescribeTok(tok) + " operator is a boolean value."
+		},
+	},
+
+	"eval/bool/not": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object)) +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm has no concept of \"truthiness\": the only valid argument of the " +
+				text.DescribeTok(tok) + " operator is a boolean value."
+		},
+	},
+
+	"eval/bool/right": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object)) +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm has no concept of \"truthiness\": the only valid right-hand side of the " +
+				text.DescribeTok(tok) + " operator is a boolean value."
+		},
+	},
+
 	"eval/cmd/assign": {
 		Message: func(tok token.Token, args ...any) string {
 			return "Variables cannot be assigned types in the 'cmd' section"
@@ -450,8 +436,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/cmd/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to variable of type <" +
-				args[1].(string) + ">"
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type <" +
+				args[1].(string) + ">" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a variable as being of a given type, the only things you can assign " +
@@ -472,8 +459,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/const/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to constant of type <" +
-				args[1].(string) + ">"
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to constant of type <" +
+				args[1].(string) + ">" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a constant as being of a given type, the only things you can assign " +
@@ -535,7 +523,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/field/type": {
 		Message: func(tok token.Token, args ...any) string {
 			return "field '" + args[0].(string) + "' of variable '" + args[1].(string) +
-				"' should have type <" + args[2].(string) + "> not <" + args[3].(string) + ">"
+				"' should have type <" + args[2].(string) + ">, not " + EmphType(args[3].(Object)) +
+				" (value supplied was " + DescribeObject(args[3].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You will see this error when you try to assign a value to a field of a struct " +
@@ -566,7 +555,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/given/return": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempt to return value in 'given' block"
+			return "attempt to return value in 'given' block (value returned was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you're allowed to do in the 'given' block of a function is assign values " +
@@ -773,8 +762,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to a variable of type <" +
-				args[1].(string) + ">"
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to a variable of type <" +
+				args[1].(string) + ">" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a variable as being of a given type, the only things you can assign " +
@@ -866,7 +856,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/sig/index": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't index " + EmphType(args[0].([]Object)[1]) + " by " + EmphType(args[0].([]Object)[0])
+			return "can't index " + EmphType(args[0].([]Object)[1]) + " by " + EmphType(args[0].([]Object)[0]) +
+				" (index supplied was " + DescribeObject(args[0].([]Object)[0]) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A string, list, tuple or enum may be indexed by a number, a map by a hashable " +
@@ -907,17 +898,19 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/unknown/suffix": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unknown operator: <" + TrueType(args[0].(Object)) + "> " + text.DescribeTok(tok)
+			return "can't find operator: " + EmphType(args[0].(Object)) + " " + text.DescribeTok(tok) +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using " + text.DescribeTok(tok) + " as though it was a suffix operator, but " +
-				"it isn't."
+			return "You're using " + text.DescribeTok(tok) + " as though it was a suffix operator on " +
+				EmphType(args[0].(Object)) + ", but it isn't."
 		},
 	},
 
 	"eval/unknown/prefix": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unknown function: " + text.DescribeTok(tok) + " " + EmphType(args[0].(Object))
+			return "unknown function: " + text.DescribeTok(tok) + " " + EmphType(args[0].(Object)) +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using " + text.DescribeTok(tok) + " as though it was a prefix operator, but " +
@@ -927,7 +920,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/unknown/operator": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unknown operator: " + EmphType(args[0].(Object)) + " " + text.DescribeTok(tok) + " " + EmphType(args[0].(Object))
+			return "unknown operator: " + EmphType(args[0].(Object)) + " " + text.DescribeTok(tok) + " " + EmphType(args[1].(Object)) +
+				" (arguments supplied were " + DescribeObject(args[0].(Object)) + " and " + DescribeObject(args[1].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using " + text.DescribeTok(tok) + " as though it was an infix operator, but " +
@@ -1150,8 +1144,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/var/type/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to variable of type <" +
-				args[1].(string) + ">"
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type <" +
+				args[1].(string) + ">" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a variable as being of a given type, the only things you can assign " +
@@ -1161,8 +1156,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/var/type/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to variable of type <" +
-				args[1].(string) + ">"
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type <" +
+				args[1].(string) + ">" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a variable as being of a given type, the only things you can assign " +
@@ -1172,8 +1168,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/var/type/c": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type <" + args[0].(string) + "> to variable of type <" +
-				args[1].(string) + ">"
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type <" +
+				args[1].(string) + ">" +
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a variable as being of a given type, the only things you can assign " +
@@ -1183,7 +1180,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/with/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to initialize or object of type <" + args[0].(string) + "> using 'with'"
+			return "attempting to initialize object of type <" + args[0].(string) + "> using 'with'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You can only use 'with' to initialize objects that are a subtype of <struct>."
@@ -1990,7 +1987,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "no filename supplied"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "To open a data file you need to put 'open <dat file name>' or Charm doesn't know what to open."
+			return "To open a data file you need to put 'open <filename>' or Charm doesn't know what to open."
 		},
 	},
 
@@ -2073,7 +2070,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The '$timeLog' service variable exists to choose whether logstrings should indicate " +
-			"the time. So 'true' and 'false' are really your only options."
+				"the time. So 'true' and 'false' are really your only options."
 		},
 	},
 	"sys/logpath/string": {
@@ -2109,4 +2106,12 @@ func blame(errors Errors, pos int, args ...string) string {
 		}
 	}
 	return ""
+}
+
+func DescribeObject(obj Object) string {
+	if obj.Type() == STRING_OBJ {
+		return obj.Inspect(ViewCharmLiteral)
+	} else {
+		return "'" + obj.Inspect(ViewCharmLiteral) + "'"
+	}
 }

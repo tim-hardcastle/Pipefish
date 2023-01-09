@@ -50,6 +50,7 @@ var precedences = map[token.TokenType]int{
 	token.WEAK_COLON:  WEAK_COLON,
 	token.LOG:         LOGGING,
 	token.IFLOG:       LOGGING,
+	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
 	token.RETURN:      FUNC,
@@ -97,6 +98,7 @@ type Parser struct {
 	nesting       stack.Stack[token.Token]
 	curToken      token.Token
 	peekToken     token.Token
+	Logging		  bool
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -138,6 +140,7 @@ type Parser struct {
 func New() *Parser {
 	p := &Parser{
 		Errors:            []*object.Error{},
+		Logging: 		   true,	
 		nesting:           *stack.NewStack[token.Token](),
 		Functions:         make(set.Set[string]),
 		Prefixes:          make(set.Set[string]),
@@ -683,7 +686,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Type = token.GVN_ASSIGN
 		newTok.Literal = "="
 		p.NextToken()
-		right := p.parseExpression(COLON)
+		right := p.parseExpression(WEAK_COLON)
 		switch left := left.(type) {
 		case *ast.PrefixExpression:
 			expression := &ast.AssignmentExpression{

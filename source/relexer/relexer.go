@@ -83,6 +83,13 @@ func (rl *Relexer) NextToken() token.Token {
 			rl.stack.Push(keepTrack{state: FN_REWRITTEN, depth: rl.nestingLevel})
 			tok.Type = token.MAGIC_COLON
 		}
+	case token.IFLOG:
+		top, ok := rl.stack.HeadValue()
+		if ok && top.state == FN_REWRITE {
+			rl.stack.Pop()
+			rl.stack.Push(keepTrack{state: FN_REWRITTEN, depth: rl.nestingLevel})
+			tok.Type = token.MAGIC_IFLOG
+		}
 	case token.LPAREN:
 		if tok.Literal == token.LPAREN {
 			top, ok := rl.stack.HeadValue()

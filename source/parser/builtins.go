@@ -424,7 +424,7 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 func evalStructIndexExpression(structure, index object.Object) object.Object {
 	result, ok := structure.(*object.Struct).Value[index.(*object.Label).Value]
 	if !ok {
-		return makeErr("built/struct/field/b", index.(*object.Label).Value, structure.(*object.Struct).Name)
+		return makeErr("built/struct/field/b", index.(*object.Label), structure.(*object.Struct).Name)
 	}
 	return result
 }
@@ -446,7 +446,7 @@ func evalPairIndexExpression(pair, index object.Object) object.Object {
 func evalArraySliceExpression(array, index object.Object) object.Object {
 	arrayObject := array.(*object.List)
 	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return makeErr("built/slice/int/list", index.(*object.Pair).Left.Type(), index.(*object.Pair).Right.Type())
+		return makeErr("built/slice/int/list", index.(*object.Pair).Left, index.(*object.Pair).Right, index)
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
@@ -463,12 +463,9 @@ func evalArraySliceExpression(array, index object.Object) object.Object {
 }
 
 func evalTupleSliceExpression(array, index object.Object) object.Object {
-	if array.Type() != object.TUPLE_OBJ {
-		return makeErr("built/slice/tuple/tuple", object.TrueType(array))
-	}
 	arrayObject := array.(*object.Tuple)
 	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return makeErr("built/slice/int/tuple", index.(*object.Pair).Left.Type(), index.(*object.Pair).Right.Type())
+		return makeErr("built/slice/int/tuple", index.(*object.Pair).Left, index.(*object.Pair).Right, index)
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
@@ -487,7 +484,7 @@ func evalTupleSliceExpression(array, index object.Object) object.Object {
 func evalStringSliceExpression(string, index object.Object) object.Object {
 	stringObject := string.(*object.String)
 	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return makeErr("built/slice/int/string", index.(*object.Pair).Left.Type(), index.(*object.Pair).Right.Type())
+		return makeErr("string", index.(*object.Pair).Left, index.(*object.Pair).Right, index)
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
@@ -504,9 +501,6 @@ func evalStringSliceExpression(string, index object.Object) object.Object {
 }
 
 func evalTupleIndexExpression(tuple, index object.Object) object.Object {
-	if tuple.Type() != object.TUPLE_OBJ {
-		return makeErr("built/index/tuple/tuple", object.TrueType(tuple))
-	}
 	tupleObject := tuple.(*object.Tuple)
 	idx := index.(*object.Integer).Value
 	max := len(tupleObject.Elements) - 1
@@ -540,7 +534,7 @@ func evalHashIndexExpression(hash, index object.Object) object.Object {
 
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return makeErr("built/hash/key", index.Inspect(object.ViewCharmLiteral))
+		return makeErr("built/hash/key", object.ViewCharmLiteral)
 	}
 
 	return pair.Value
@@ -550,11 +544,11 @@ func tupleToMap(elements []object.Object) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
 	for _, v := range elements {
 		if v.Type() != object.PAIR_OBJ {
-			return makeErr("built/hash/pairs/a", object.TrueType(v))
+			return makeErr("built/hash/pairs/a", v)
 		}
 		hashKey, ok := v.(*object.Pair).Left.(object.Hashable)
 		if !ok {
-			return makeErr("built/hash/c", object.TrueType(v))
+			return makeErr("built/hash/c", v)
 		}
 
 		hashed := hashKey.HashKey()
@@ -569,11 +563,11 @@ func setToMap(setObject object.Object) object.Object {
 	elements := setObject.(*object.Set).Elements
 	for _, v := range elements {
 		if v.Type() != object.PAIR_OBJ {
-			return makeErr("built/hash/pairs/b", object.TrueType(v))
+			return makeErr("built/hash/pairs/b", v)
 		}
 		hashKey, ok := v.(*object.Pair).Left.(object.Hashable)
 		if !ok {
-			return makeErr("built/hash/d", object.TrueType(v))
+			return makeErr("built/hash/d", v)
 		}
 
 		hashed := hashKey.HashKey()
@@ -661,7 +655,7 @@ func addPairToList(args ...object.Object) object.Object {
 		}
 	}
 	if object.TrueType(index) != "int" {
-		return makeErr("built/list/int", object.TrueType(index))
+		return makeErr("built/list/int", index)
 	}
 	if index.(*object.Integer).Value < 0 {
 		return makeErr("built/list/pos")
@@ -714,12 +708,9 @@ func addPairToStruct(args ...object.Object) object.Object {
 					Right: args[2].(*object.Pair).Right})})
 		}
 	}
-	if object.TrueType(index) != "field" {
-		return makeErr("built/struct/label", object.TrueType(index))
-	}
 	_, ok := args[0].(*object.Struct).Value[index.(*object.Label).Value]
 	if !ok {
-		return makeErr("built/struct/field/a", index.(*object.Label).Value, args[0].(*object.Struct).Name)
+		return makeErr("built/struct/field/a", index.(*object.Label), args[0].(*object.Struct).Name)
 	}
 
 	newValue := make(map[string]object.Object)
@@ -771,7 +762,7 @@ func addPairToMap(args ...object.Object) object.Object {
 
 	hashKey, ok := args[2].(*object.Pair).Left.(object.Hashable)
 	if !ok {
-		return makeErr("built/hash/a", object.TrueType(args[1]))
+		return makeErr("built/hash/a", args[1])
 	}
 
 	hashed := hashKey.HashKey()

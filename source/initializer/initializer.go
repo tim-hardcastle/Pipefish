@@ -140,6 +140,10 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	line := tokenized_code_chunk.New()
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
+
+		// if tok.Source != "rsc/builtins.ch" {
+		// 	fmt.Println("Relexer says ", tok)
+		// }
 		 
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
@@ -313,6 +317,12 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 		if tok.Type == token.IFLOG && colonMeansFunctionOrCommand {
 			tok.Type = token.WEAK_COLON
+			tok.Literal = ":"
+			weakColonShouldBePrelog = true
+		}
+
+		if tok.Type == token.MAGIC_IFLOG {
+			tok.Type = token.MAGIC_COLON
 			tok.Literal = ":"
 			weakColonShouldBePrelog = true
 		}
