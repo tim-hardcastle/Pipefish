@@ -770,19 +770,21 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	p.NextToken()
 	expression.Right = p.parseExpression(precedence)
 	// Now the desugaring, if necessary
-	if expression.Right.GetToken().Type == token.IDENT {
+	switch right := expression.Right.(type) {
+	case *ast.Identifier :
 		if p.Functions.Contains(expression.Right.GetToken().Literal) {
-			expression.Right = &ast.PrefixExpression{Token: expression.Right.GetToken(),
+			expression.Right = &ast.PrefixExpression{Token: right.GetToken(),
 				Operator: expression.Right.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
 				Right:    &ast.Identifier{Value: "that"}}
 		}
 		if p.Suffixes.Contains(expression.Right.GetToken().Literal) {
-			expression.Right = &ast.SuffixExpression{Token: expression.Right.GetToken(),
+			expression.Right = &ast.SuffixExpression{Token: right.GetToken(),
 				Operator: expression.Right.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
 				Left:     &ast.Identifier{Value: "that"}}
-		}
+			}
+		
 	}
 	return expression
 }

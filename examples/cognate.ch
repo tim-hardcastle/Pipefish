@@ -5,8 +5,9 @@ import
 def
 
 toWords(s string):
-    padBrackets(s) >> strings.split(that, " ")
+    padBrackets(s) >> strings.split(that, " ") ?> that != ""
 given :
     padBrackets(s string) :
-        strings.replaceAll(s, "(", " ( ") //>> strings.replaceAll(that, ")", " ) ")
+        strings.replaceAll(s, "(", " ( ") >> strings.replaceAll(that, ")", " ) ")
+
 

@@ -1052,8 +1052,9 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, prsr *parser.Pa
 		currentObject       object.Object
 		currentSingleObject object.Object
 	)
-
-	for arg := 0; arg < len(args); {
+ 
+	arg := 0
+	for ; arg < len(args); {
 
 		astHappening := (len(treeWalker.position.Branch) > 0 && treeWalker.position.Branch[0].TypeName == "ast")
 
@@ -1117,7 +1118,8 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, prsr *parser.Pa
 		values = append(values, currentSingleObject)
 		ok := treeWalker.followBranch(prsr, object.TypeOrBling(currentSingleObject))
 		if !ok {
-			return newError("eval/args/a", token)
+			return newError("eval/args/a", token, values, (arg < len(args) - 1) || 
+			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 		}
 
 		if currentObject.Type() == object.TUPLE_OBJ {
@@ -1130,13 +1132,15 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, prsr *parser.Pa
 	if len(values) == 0 {
 		ok := treeWalker.followBranch(prsr, "tuple")
 		if !ok {
-			return newError("eval/args/b", token)
+			return newError("eval/args/b", token, values, (arg < len(args) - 1) || 
+			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 		}
 	}
 
 	ok := treeWalker.followBranch(prsr, "")
 	if !ok {
-		return newError("eval/args/c", token)
+		return newError("eval/args/c", token, values, (arg < len(args) - 1) || 
+		currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
 
 	return applyFunction(*treeWalker.position.Fn, values, prsr, token, env)

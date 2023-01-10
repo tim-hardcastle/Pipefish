@@ -548,7 +548,39 @@ var (
 		Name:  "nil"}
 )
 
+func DescribeSomeParams(params []Object, incomplete bool) string {
+	out := "'" + describeParamsWithoutQuotes(params)
+	if incomplete { out = out + " ..."}
+	return out + "'"
+}
+
 func DescribeParams(params []Object) string {
+	return "'" + describeParamsWithoutQuotes(params) + "'"
+}
+
+func DescribeSomeObjects(params []Object, incomplete bool) string {
+	s := ""
+	for k, v := range params {
+		if TrueType(v) == "bling" {
+			s = s + v.(*Bling).Value
+		} else {
+			s = s + (v.Inspect(ViewCharmLiteral))
+		}
+		if k < len(params)-1 && !(TrueType(v) == "bling") && !(TrueType(params[k+1]) == "bling") {
+			s = s + ","
+		}
+		if k < len(params)-1 {
+			s = s + " "
+		}
+	}
+	if incomplete { s = s + " ..."}
+	if (len(params) == 1 && params[0].Type() == STRING_OBJ) && ! incomplete {
+		return s
+	}
+	return "'" + s + "'"
+}
+
+func describeParamsWithoutQuotes(params []Object) string {
 	s := ""
 	for k, v := range params {
 		if TrueType(v) == "bling" {
@@ -563,7 +595,7 @@ func DescribeParams(params []Object) string {
 			s = s + " "
 		}
 	}
-	return "'" + s + "'"
+	return s
 }
 
 type GoReturn struct {

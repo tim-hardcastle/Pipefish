@@ -113,7 +113,7 @@ func (gh *GoHandler) BuildGoMods() {
 				soFile := "rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.plugins[source], err = plugin.Open(soFile)
 				if err != nil {
-					gh.Prsr.Throw("golang/file", token.Token{})
+					gh.Prsr.Throw("golang/file", token.Token{}, soFile)
 				}
 				continue
 			}

@@ -352,7 +352,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find function " + text.DescribeTok(tok) + " accepting parameters of the given types"
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " + 
+			DescribeSomeParams(args[0].([]Object), args[1].(bool)) + 
+			" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -362,7 +364,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find function " + text.DescribeTok(tok) + " accepting parameters of the given types"
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " + 
+			DescribeSomeParams(args[0].([]Object), args[1].(bool)) + 
+			" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -372,7 +376,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/c": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find function " + text.DescribeTok(tok) + " accepting parameters of the given types"
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " + 
+			DescribeSomeParams(args[0].([]Object), args[1].(bool)) + 
+			" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -1193,6 +1199,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A Charm function written in Go has failed to compile at initialization time."
+		},
+	},
+
+	"golang/file": {
+		Message: func(tok token.Token, args ...any) string {
+			return "couldn't find Go file '" + args[0].(string) + "'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm's system for handling functions written in Go has broken down.\n\n" +
+				"There are no circumstances under which you should actually see this error: if you ever " +
+				"do, please report it to the author of Charm as an issue."
 		},
 	},
 

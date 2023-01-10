@@ -68,11 +68,11 @@ replaceAll(s string, old string, new string) : golang {
     return strings.ReplaceAll(s, old, new)
 }
 
-split(s, sep string) : golang {
+split(s string, sep string) : golang {
     return strings.Split(s, sep)
 }
 
-splitAfter(s, sep string) : golang {
+splitAfter(s string, sep string) : golang {
     return strings.SplitAfter(s, sep)
 }
 
