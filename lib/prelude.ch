@@ -15,6 +15,13 @@ given :
     unfinished = func(i int, x tuple) : i < n
     loop = func(i int, x tuple) : i + 1, f x
 
+reverse(L list) :
+    (while condition do action to (len(L) - 1, []))[1]
+given :
+    condition(i, out) : i >= 0 
+    action(i, out) : i - 1, out + [L[i]]
+
+
 mergesort (L list) :
     len L <= 1 : L
     else :

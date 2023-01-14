@@ -115,25 +115,17 @@ type Parser struct {
 
 	nativeInfixes set.Set[token.TokenType]
 	lazyInfixes   set.Set[token.TokenType]
-
+	
 	FunctionTable   FunctionTable
 	FunctionTreeMap map[string]*ast.FnTreeNode
-
 	Globals    *object.Environment
 	TypeSystem TypeSystem
-
 	BuiltinFunctions map[string]func(p *Parser, args ...object.Object) object.Object
-
 	Enums map[string][]*object.Label
-
 	Structs set.Set[string]
-
 	Parsers map[string]*Parser
-
 	GoImports map[string][]string
-
 	Namespace string
-
 	Namespaces map[string]string
 }
 
@@ -945,7 +937,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 func (p *Parser) parseListExpression() ast.Node {
 	p.NextToken()
 	if p.curToken.Type == token.RBRACK { // Deals with the case where the list is []
-		return &ast.ListExpression{List: nil, Token: p.curToken}
+		return &ast.ListExpression{List: &ast.Nothing{Token: p.curToken}, Token: p.curToken}
 	}
 	exp := p.parseExpression(LOWEST)
 	if !p.expectPeek(token.RBRACK) {
@@ -959,7 +951,7 @@ func (p *Parser) parseListExpression() ast.Node {
 func (p *Parser) parseSetExpression() ast.Node {
 	p.NextToken()
 	if p.curToken.Type == token.RBRACE { // Deals with the case where the set is {}
-		return &ast.SetExpression{Set: nil, Token: p.curToken}
+		return &ast.SetExpression{Set: &ast.Nothing{Token: p.curToken}, Token: p.curToken}
 	}
 	exp := p.parseExpression(LOWEST)
 	if !p.expectPeek(token.RBRACE) {

@@ -63,13 +63,6 @@ const (
 
 )
 
-var sectionMap = map[Section]string{
-	ImportSection: "import",
-	VarSection:    "var",
-	CmdSection:    "cmd",
-	DefSection:    "def",
-}
-
 var tokenTypeToSection = map[token.TokenType]Section{
 	token.IMPORT: ImportSection,
 	token.VAR:    VarSection,
@@ -459,11 +452,11 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 			}
 		}
 		if declarations == constantDeclaration {
-			// We copy this to the global constants map
+			// We copy the constants to the global constants map
 			for k, v := range env.Store {
 				uP.Parser.Globals.Store[k] = v
 			}
-			// And we intialize the sysvars before doing the user variables.
+			// And we intialize the sysvars before doing the user variables. TODO: won't that stop you from declaring them constant?
 			for k, v := range sysvars.Sysvars {
 				env.InitializeVariable(k, v.Dflt, object.TrueType(v.Dflt))
 			}

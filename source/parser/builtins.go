@@ -12,6 +12,18 @@ import (
 
 var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 
+	"range": func(p *Parser, args ...object.Object) object.Object {
+		index := args[0]
+		if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
+			return makeErr("built/slice/int/string", index.(*object.Pair).Left, index.(*object.Pair).Right, index)
+		}
+		returnList := &object.List{Elements: []object.Object{}}
+		for i := index.(*object.Pair).Left.(*object.Integer).Value; i < index.(*object.Pair).Right.(*object.Integer).Value; i++ {
+			returnList.Elements = append(returnList.Elements, &object.Integer{Value: i})
+		}
+		return returnList
+	},
+
 	"index_int_of_type": func(p *Parser, args ...object.Object) object.Object {
 		if p.TypeSystem.PointsTo(args[1].(*object.Type).Value, "enum") {
 			ix := args[0].(*object.Integer).Value
@@ -310,6 +322,11 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 		return &object.String{Value: fmt.Sprint(args[0].(*object.Integer).Value)}
 	},
 
+	"bool_to_string": func(p *Parser, args ...object.Object) object.Object {
+		if args[0] == object.TRUE { return  &object.String{Value: "true"} }
+		return  &object.String{Value: "false"}
+	},
+
 	"float_to_string": func(p *Parser, args ...object.Object) object.Object {
 		return &object.String{Value: fmt.Sprint(args[0].(*object.Float).Value)}
 	},
@@ -484,7 +501,7 @@ func evalTupleSliceExpression(array, index object.Object) object.Object {
 func evalStringSliceExpression(string, index object.Object) object.Object {
 	stringObject := string.(*object.String)
 	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return makeErr("string", index.(*object.Pair).Left, index.(*object.Pair).Right, index)
+		return makeErr("built/slice/int/string", index.(*object.Pair).Left, index.(*object.Pair).Right, index)
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
@@ -501,15 +518,17 @@ func evalStringSliceExpression(string, index object.Object) object.Object {
 }
 
 func evalTupleIndexExpression(tuple, index object.Object) object.Object {
-	tupleObject := tuple.(*object.Tuple)
-	idx := index.(*object.Integer).Value
-	max := len(tupleObject.Elements) - 1
-
-	if idx < 0 || idx > max {
-		return makeErr("built/index/range/tuple")
+	switch tupleObject := tuple.(type) {
+	case *object.Tuple :
+		idx := index.(*object.Integer).Value
+		max := len(tupleObject.Elements) - 1
+		if idx < 0 || idx > max {
+			return makeErr("built/index/range/tuple")
+		}
+		return tupleObject.Elements[idx]
+	default :
+		return makeErr("built/index/type", tuple)
 	}
-
-	return tupleObject.Elements[idx]
 }
 
 func evalStringIndexExpression(str, index object.Object) object.Object {
@@ -534,7 +553,7 @@ func evalHashIndexExpression(hash, index object.Object) object.Object {
 
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return makeErr("built/hash/key", object.ViewCharmLiteral)
+		return makeErr("built/hash/key", index)
 	}
 
 	return pair.Value

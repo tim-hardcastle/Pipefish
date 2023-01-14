@@ -301,6 +301,8 @@ func Eval(node ast.Node, parser *parser.Parser, env *object.Environment) object.
 		return applyFunction(left.(*object.Func).Function, params, parser, node.Token, left.(*object.Func).Env)
 	case *ast.CodeLiteral:
 		return &object.Code{Value: node.Right}
+	case *ast.Nothing:
+		return &object.Tuple{Elements: []object.Object{}}
 	case *ast.StreamingExpression:
 		left := Eval(node.Left, parser, env)
 		if isError(left) {
@@ -477,7 +479,8 @@ func evalPrefixExpression(token token.Token, operator string, node *ast.PrefixEx
 			if !prsr.ParamsFitSig(variable.(*object.Func).Sig, params) {
 				return newError("eval/sig/lambda", token, params)
 			}
-			return applyFunction(variable.(*object.Func).Function, params, prsr, token, variable.(*object.Func).Env)
+			lamdbaResult := applyFunction(variable.(*object.Func).Function, params, prsr, token, variable.(*object.Func).Env)
+			return lamdbaResult
 		}
 		// Otherwise we have a function or prefix, which work the same at this point.
 		result := functionCall(prsr.FunctionTreeMap[node.Operator], node.Args, prsr, node.Token, env)
@@ -510,46 +513,6 @@ func evaluateFunction(tok token.Token, operator string, params []object.Object, 
 		return applyFunction(f, params, prsr, tok, env)
 	}
 	return applyFunction(f, params, prsr, tok, prsr.Globals)
-}
-
-func evalSuffixExpression(token token.Token, operator string, left object.Object, prsr *parser.Parser, env *object.Environment) object.Object {
-	params := make([]object.Object, 0)
-	if isUnsatisfiedConditional(left) {
-		return newError("eval/unsatisfied/i", token)
-	}
-	if prsr.Suffixes.Contains(operator) || prsr.Endfixes.Contains(operator) {
-		if left.Type() == object.TUPLE_OBJ {
-			params = left.(*object.Tuple).Elements
-		} else {
-			params = []object.Object{left}
-		}
-		// If it's an endfix, it's just bling and should be added to the params ...
-		if prsr.Endfixes.Contains(operator) {
-			eparam := object.Bling{Value: operator}
-			params = append(params, &eparam)
-			return &object.Tuple{Elements: params}
-		}
-		// Otherwise we have a suffix function
-		f, err := prsr.FindFunction(operator, params, token.Source == "REPL input")
-		if err != "" && token.Source == "REPL input" {
-			return newError("eval/repl/b", token, params)
-		}
-		if err == "keyword" {
-			return newError("eval/keyword/b", token)
-		}
-		if err == "sig" {
-			return newError("eval/sig/b", token, params)
-		}
-		if f.Cmd {
-			return applyFunction(f, params, prsr, token, env)
-		}
-		return applyFunction(f, params, prsr, token, prsr.Globals)
-
-	}
-	if token.Source == "REPL input" {
-		return newError("eval/repl/b", token, params)
-	}
-	return newError("eval/unknown/suffix", token, left)
 }
 
 func evalUnfixExpression(token token.Token, operator string, prsr *parser.Parser, env *object.Environment) object.Object {
@@ -1142,8 +1105,11 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, prsr *parser.Pa
 		return newError("eval/args/c", token, values, (arg < len(args) - 1) || 
 		currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
-
-	return applyFunction(*treeWalker.position.Fn, values, prsr, token, env)
+	if treeWalker.position.Fn.Cmd {
+		return applyFunction(*treeWalker.position.Fn, values, prsr, token, env)
+	} else {
+		return applyFunction(*treeWalker.position.Fn, values, prsr, token, prsr.Globals)
+	}
 }
 
 func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, token token.Token, ext *object.Environment) object.Object {
@@ -1181,7 +1147,6 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 					lastEl = append(lastEl, gh.CharmToGo(params[j]))
 				}
 				goParams = append(goParams, lastEl)
-				break
 			default:
 				goParams = append(goParams, gh.CharmToGo(params[i]))
 			}
@@ -1214,6 +1179,7 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 		if !f.Cmd {
 			newEnvironment.Set("this", &object.Func{Function: f, Env: env})
 		}
+		// if token.Literal == "functionToApply" { fmt.Print("before given: \n" + object.ToString(newEnvironment)) }
 		if f.Given != nil {
 			prsr.Logging = false
 			resultOfGiven := Eval(f.Given, prsr, newEnvironment)
@@ -1226,6 +1192,7 @@ func applyFunction(f ast.Function, params []object.Object, prsr *parser.Parser, 
 				return newError("eval/given/return", token, resultOfGiven)
 			}
 		}
+		// if token.Literal == "functionToApply" { fmt.Println("after given: \n", object.ToString(newEnvironment)) }
 		result := Eval(f.Body, prsr, newEnvironment)
 		if result.Type() == object.ERROR_OBJ {
 			result.(*object.Error).Trace = append(result.(*object.Error).Trace, token)

@@ -2,6 +2,7 @@ def
 
 file = struct(filename string, contents list)
 
+range(p pair) : builtin "range"
 len(t type) : builtin "len_of_type" // Note that this is implemented in the evaluator
 file(s string) : builtin "init_file"
 codepoint(s string) : builtin "codepoint"
@@ -65,6 +66,7 @@ len(x string) : builtin "len_string"
 len(x list)	: builtin "len_list"
 arity(x tuple) : builtin "arity_tuple"
 string(x int) : builtin "int_to_string"
+string(x bool) : builtin "bool_to_string"
 string(x float64) : builtin "float_to_string"
 string(x string) : builtin "string_to_string"
 string(x type) : builtin "type_to_string"

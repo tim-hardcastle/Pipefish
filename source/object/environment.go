@@ -14,6 +14,27 @@ type Environment struct {
 	Ext *Environment
 }
 
+func ToString(env *Environment) string {
+	return "Environment : " + ToStringRecursive(env, "")
+}
+
+func ToStringRecursive(env *Environment, pad string) string {
+	result := pad
+	if env == nil {
+		return pad + "nil"
+	} else {
+		
+		for k, v := range env.Store {
+				result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
+		}
+		if len(env.Store) == 0 {
+			result = result + "Env has no vars"
+		}
+	}
+	result = result + "\n" + pad + "Inner :" 
+	return result + ToStringRecursive(env.Ext, pad + "  ")
+}
+
 type Storage struct{
 	obj Object
 	access AccessType

@@ -156,6 +156,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"built/index/type": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't index things of type " + EmphType(args[0].(Object)) +
+			" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Strings, lists, and tuples can be indexed by position, maps by their keys, and " +
+			"structs by their field labels. This fits none of these cases."
+		},
+	},
+
 	"built/list/int": {
 		Message: func(tok token.Token, args ...any) string {
 			return "a list can only be indexed by something of type <integer>, not of type " + EmphType(args[0].(Object)) +
@@ -512,6 +523,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "'eval' takes a string or code object as a parameter and returns the result of " +
 				"evaluating that string or code object as an " +
 				"expression in Charm: e.g. 'eval \"2 + 2\"' would return '4'."
+		},
+	},
+
+	"eval/filter/list":  {
+		Message: func(tok token.Token, args ...any) string {
+			return "'?>' operates on a list, not an object of type " + EmphType(args[0].(Object)) +
+			" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "the filter operator '?>' takes a list as its left-hand parameter, and" +
+			"on the right, and expression to filter by."
 		},
 	},
 
