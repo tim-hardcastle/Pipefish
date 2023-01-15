@@ -99,18 +99,7 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 		return &object.Integer{Value: int(slice[0])}
 	},
 
-	"charm_single": func(p *Parser, args ...object.Object) object.Object {
-		return &object.String{Value: args[0].Inspect(object.ViewCharmLiteral)}
-	},
-
-	"charm_tuple": func(p *Parser, args ...object.Object) object.Object {
-		s := ""
-		for i := 0; i < len(args); i++ {
-			s = s + args[i].Inspect(object.ViewCharmLiteral)
-			if i < len(args)-1 {
-				s = s + ", "
-			}
-		}
+	"charm_any": func(p *Parser, args ...object.Object) object.Object {
 		return &object.String{Value: args[0].Inspect(object.ViewCharmLiteral)}
 	},
 
@@ -142,7 +131,8 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 	},
 
 	"tuple_to_map": func(p *Parser, args ...object.Object) object.Object {
-		return tupleToMap(args)
+		if len(args) == 0 { return &object.Hash{}}
+		return tupleToMap(args[0].(*object.Tuple).Elements)
 	},
 
 	"set_to_map": func(p *Parser, args ...object.Object) object.Object {
@@ -314,7 +304,7 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 	},
 
 	"arity_tuple": func(p *Parser, args ...object.Object) object.Object {
-		return &object.Integer{Value: len(args)}
+		return &object.Integer{Value: len(args[0].(*object.Tuple).Elements)}
 	},
 
 	"int_to_string": func(p *Parser, args ...object.Object) object.Object {
@@ -603,36 +593,33 @@ func addTupleToList(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	if len(args) == 3 {
-		return addPairToList(args...)
+	outList := args[0]
+	for _, v := range(args[2].(*object.Tuple).Elements) {
+		outList = addPairToList(outList, &object.Bling{}, v)
 	}
-	newParams := []object.Object{addPairToList(args[0:3]...), &object.Bling{Value: "with"}}
-	newParams = append(newParams, args[3:]...)
-	return addTupleToList(newParams...)
+	return outList
 }
 
 func addTupleToStruct(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	if len(args) == 3 {
-		return addPairToStruct(args...)
+	outList := args[0]
+	for _, v := range(args[2].(*object.Tuple).Elements) {
+		outList = addPairToStruct(outList, &object.Bling{}, v)
 	}
-	newParams := []object.Object{addPairToStruct(args[0:3]...), &object.Bling{Value: "with"}}
-	newParams = append(newParams, args[3:]...)
-	return addTupleToStruct(newParams...)
+	return outList
 }
 
 func addTupleToMap(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	if len(args) == 3 {
-		return addPairToMap(args...)
+	outList := args[0]
+	for _, v := range(args[2].(*object.Tuple).Elements) {
+		outList = addPairToMap(outList, &object.Bling{}, v)
 	}
-	newParams := []object.Object{addPairToMap(args[0:3]...), &object.Bling{Value: "with"}}
-	newParams = append(newParams, args[3:]...)
-	return addTupleToMap(newParams...)
+	return outList
 }
 
 func addPairToList(args ...object.Object) object.Object {

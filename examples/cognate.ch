@@ -18,9 +18,12 @@ state = MachineState([], "", Env(map(), NIL), Env(map(), NIL))
 
 cmd // All the imperative shell we need ...
 
-ex(lineToExecute string) :
+greet(x) :
+    return 42
+
+ex (lineToExecute string) :
     state = execute(lineToExecute, (state with outStr :: ""))
-    return state[outStr]
+    //return (state[outStr])
 
 show(i label) :
     return state[i]

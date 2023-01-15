@@ -473,11 +473,11 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Conditions) object.Obje
 	tok := node.Token
 	operator := node.Token.Literal
 	switch {
-	case operator == "not":
+	case tok.Type == token.NOT:
 		return evalNotOperatorExpression(tok, Eval(node.Right, c))
-	case operator == "eval":
+	case tok.Type == token.EVAL:
 		return evalEvalExpression(tok, Eval(node.Right, c), c)
-	case operator == "return":
+	case tok.Type == token.RETURN:
 		return evalReturnExpression(tok, Eval(node.Right, c))
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator) ||
 		c.prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:

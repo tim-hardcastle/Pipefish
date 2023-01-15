@@ -886,12 +886,12 @@ func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseReturnExpression() ast.Node {
-	p.NextToken()
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
 		Operator: token.RETURN,
-		Right:    p.parseExpression(FUNC),
 	}
+	p.NextToken()
+	expression.Right = p.parseExpression(FUNC)
 	return expression
 }
 
