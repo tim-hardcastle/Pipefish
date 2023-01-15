@@ -10,7 +10,6 @@ import (
 // The base Node interface
 type Node interface {
 	GetToken() token.Token
-	TokenLiteral() string
 	String() string
 }
 
@@ -23,7 +22,6 @@ type ApplicationExpression struct {
 }
 
 func (ae *ApplicationExpression) GetToken() token.Token { return ae.Token }
-func (ae *ApplicationExpression) TokenLiteral() string  { return "(" }
 func (ae *ApplicationExpression) String() string {
 	var out bytes.Buffer
 
@@ -43,7 +41,6 @@ type AssignmentExpression struct {
 }
 
 func (ae *AssignmentExpression) GetToken() token.Token { return ae.Token }
-func (ae *AssignmentExpression) TokenLiteral() string  { return "=" }
 func (ae *AssignmentExpression) String() string {
 	var out bytes.Buffer
 
@@ -62,7 +59,6 @@ type Bling struct {
 }
 
 func (bl *Bling) GetToken() token.Token { return bl.Token }
-func (bl *Bling) TokenLiteral() string  { return bl.Token.Literal }
 func (bl *Bling) String() string        { return bl.Value }
 
 type BooleanLiteral struct {
@@ -71,7 +67,6 @@ type BooleanLiteral struct {
 }
 
 func (b *BooleanLiteral) GetToken() token.Token { return b.Token }
-func (b *BooleanLiteral) TokenLiteral() string  { return b.Token.Literal }
 func (b *BooleanLiteral) String() string        { return b.Token.Literal }
 
 type BuiltInExpression struct {
@@ -81,7 +76,6 @@ type BuiltInExpression struct {
 func (bi *BuiltInExpression) GetToken() token.Token {
 	return token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1}
 }
-func (bi *BuiltInExpression) TokenLiteral() string { return "builtin \"" + bi.Name + "\"" }
 func (bi *BuiltInExpression) String() string       { return "builtin \"" + bi.Name + "\"" }
 
 type CodeLiteral struct {
@@ -90,7 +84,6 @@ type CodeLiteral struct {
 }
 
 func (cl *CodeLiteral) GetToken() token.Token { return cl.Token }
-func (cl *CodeLiteral) TokenLiteral() string  { return cl.Token.Literal }
 func (cl *CodeLiteral) String() string {
 	return "code (" + cl.Right.String() + ")"
 }
@@ -101,7 +94,6 @@ type EmptyTuple struct {
 }
 
 func (et *EmptyTuple) GetToken() token.Token { return et.Token }
-func (et *EmptyTuple) TokenLiteral() string  { return "()" }
 func (et *EmptyTuple) String() string        { return "()" }
 
 type ExecExpression struct {
@@ -110,7 +102,6 @@ type ExecExpression struct {
 	Right Node
 }
 func (ee *ExecExpression) GetToken() token.Token { return ee.Token }
-func (ee *ExecExpression) TokenLiteral() string  { return ee.Token.Literal }
 func (ee *ExecExpression) String() string {
 	var out bytes.Buffer
 
@@ -129,7 +120,6 @@ type Expression struct {
 }
 
 func (es *Expression) GetToken() token.Token { return es.Token }
-func (es *Expression) TokenLiteral() string  { return es.Token.Literal }
 func (es *Expression) String() string {
 	return es.Node.String()
 }
@@ -140,7 +130,6 @@ type FloatLiteral struct {
 }
 
 func (fl *FloatLiteral) GetToken() token.Token { return fl.Token }
-func (fl *FloatLiteral) TokenLiteral() string  { return fl.Token.Literal }
 func (fl *FloatLiteral) String() string        { return fl.Token.Literal }
 
 type FuncExpression struct {
@@ -149,7 +138,6 @@ type FuncExpression struct {
 }
 
 func (fe *FuncExpression) GetToken() token.Token { return fe.Token }
-func (fe *FuncExpression) TokenLiteral() string  { return "func" }
 func (fe *FuncExpression) String() string {
 	result := "func " + fe.Sig.String() + " : " + fe.Body.String()
 	if fe.Given != nil {
@@ -168,7 +156,6 @@ type GolangExpression struct {
 }
 
 func (ge *GolangExpression) GetToken() token.Token { return ge.Token }
-func (ge *GolangExpression) TokenLiteral() string  { return "golang expression" }
 func (ge *GolangExpression) String() string        { return ge.Token.Literal }
 
 type Identifier struct {
@@ -177,7 +164,6 @@ type Identifier struct {
 }
 
 func (i *Identifier) GetToken() token.Token { return i.Token }
-func (i *Identifier) TokenLiteral() string  { return i.Token.Literal }
 func (i *Identifier) String() string        { return i.Value }
 
 type IndexExpression struct {
@@ -187,7 +173,6 @@ type IndexExpression struct {
 }
 
 func (ie *IndexExpression) GetToken() token.Token { return ie.Token }
-func (ie *IndexExpression) TokenLiteral() string  { return ie.Token.Literal }
 func (ie *IndexExpression) String() string {
 	var out bytes.Buffer
 
@@ -209,7 +194,6 @@ type InfixExpression struct {
 }
 
 func (ie *InfixExpression) GetToken() token.Token { return ie.Token }
-func (ie *InfixExpression) TokenLiteral() string  { return ie.Token.Literal }
 func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
 
@@ -228,7 +212,6 @@ type IntegerLiteral struct {
 }
 
 func (il *IntegerLiteral) GetToken() token.Token { return il.Token }
-func (il *IntegerLiteral) TokenLiteral() string  { return il.Token.Literal }
 func (il *IntegerLiteral) String() string        { return il.Token.Literal }
 
 type LazyInfixExpression struct {
@@ -239,7 +222,6 @@ type LazyInfixExpression struct {
 }
 
 func (ie *LazyInfixExpression) GetToken() token.Token { return ie.Token }
-func (ie *LazyInfixExpression) TokenLiteral() string  { return ie.Token.Literal }
 func (ie *LazyInfixExpression) String() string {
 	var out bytes.Buffer
 
@@ -258,7 +240,6 @@ type ListExpression struct {
 }
 
 func (le *ListExpression) GetToken() token.Token { return le.Token }
-func (le *ListExpression) TokenLiteral() string  { return "list" }
 func (le *ListExpression) String() string {
 	var out bytes.Buffer
 
@@ -280,7 +261,6 @@ type LogExpression struct {
 }
 
 func (le *LogExpression) GetToken() token.Token { return le.Token }
-func (le *LogExpression) TokenLiteral() string  { return le.Token.Literal }
 func (le *LogExpression) String() string {
 	var out bytes.Buffer
 
@@ -301,7 +281,6 @@ type Nothing struct {
 }
 
 func (ne *Nothing) GetToken() token.Token { return ne.Token }
-func (ne *Nothing) TokenLiteral() string  { return "" }
 func (ne *Nothing) String() string {return ""}
 
 type PrefixExpression struct {
@@ -312,7 +291,6 @@ type PrefixExpression struct {
 }
 
 func (pe *PrefixExpression) GetToken() token.Token { return pe.Token }
-func (pe *PrefixExpression) TokenLiteral() string  { return pe.Token.Literal }
 func (pe *PrefixExpression) String() string {
 	var out bytes.Buffer
 
@@ -331,7 +309,6 @@ type SetExpression struct {
 }
 
 func (se *SetExpression) GetToken() token.Token { return se.Token }
-func (se *SetExpression) TokenLiteral() string  { return "set" }
 func (se *SetExpression) String() string {
 	var out bytes.Buffer
 
@@ -350,7 +327,6 @@ type StreamingExpression struct {
 }
 
 func (se *StreamingExpression) GetToken() token.Token { return se.Token }
-func (se *StreamingExpression) TokenLiteral() string  { return se.Token.Literal }
 func (se *StreamingExpression) String() string {
 	var out bytes.Buffer
 
@@ -369,7 +345,6 @@ type StringLiteral struct {
 }
 
 func (sl *StringLiteral) GetToken() token.Token { return sl.Token }
-func (sl *StringLiteral) TokenLiteral() string  { return sl.Token.Literal }
 func (sl *StringLiteral) String() string        { return "\"" + sl.Token.Literal + "\"" }
 
 type StructExpression struct {
@@ -378,7 +353,6 @@ type StructExpression struct {
 }
 
 func (st *StructExpression) GetToken() token.Token { return st.Token }
-func (st *StructExpression) TokenLiteral() string  { return "func" }
 func (st *StructExpression) String() string        { return "struct " + st.Sig.String() }
 
 type SuffixExpression struct {
@@ -389,7 +363,6 @@ type SuffixExpression struct {
 }
 
 func (se *SuffixExpression) GetToken() token.Token { return se.Token }
-func (se *SuffixExpression) TokenLiteral() string  { return se.Token.Literal }
 func (se *SuffixExpression) String() string {
 	var out bytes.Buffer
 
@@ -407,7 +380,6 @@ type TypeLiteral struct {
 }
 
 func (t *TypeLiteral) GetToken() token.Token { return t.Token }
-func (t *TypeLiteral) TokenLiteral() string  { return t.Token.Literal }
 func (t *TypeLiteral) String() string        { return t.Value }
 
 type UnfixExpression struct {
@@ -416,7 +388,6 @@ type UnfixExpression struct {
 }
 
 func (uf *UnfixExpression) GetToken() token.Token { return uf.Token }
-func (uf *UnfixExpression) TokenLiteral() string  { return uf.Token.Literal }
 func (uf *UnfixExpression) String() string {
 	var out bytes.Buffer
 

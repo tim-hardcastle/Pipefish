@@ -488,7 +488,7 @@ func (uP *Initializer) ImportEverything() {
 				namespace = namespace[strings.LastIndex(namespace, "/")+1:]
 			}
 		case *ast.InfixExpression:
-			if imp.TokenLiteral() != "::" {
+			if imp.GetToken().Literal != "::" {
 				uP.Throw("init/import/infix", imp.Token)
 			}
 			lhs := imp.Args[0]
