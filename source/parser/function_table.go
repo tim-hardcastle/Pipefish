@@ -20,17 +20,7 @@ func (ft FunctionTable) Add(T TypeSystem, keyword string, f ast.Function) (ok bo
 	return true
 }
 
-func (p *Parser) FindFunction(keyword string, parameters []object.Object, fromRepl bool) (returnFunction ast.Function, returnError string) {
-	if _, ok := p.FunctionTable[keyword]; !ok {
-		return returnFunction, "keyword"
-	}
-	for _, f := range p.FunctionTable[keyword] {
-		if p.ParamsFitSig(f.Sig, parameters) && !(fromRepl && f.Private) {
-			return f, ""
-		}
-	}
-	return returnFunction, "sig"
-}
+
 
 func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object) bool {
 
@@ -98,7 +88,7 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 		if sig[sigPos].VarType == "varname" {
 			obj, ok := env.Get(sig[sigPos].VarName)
 			if !ok {
-				fmt.Println("Oops 1")
+				fmt.Println("Oops 1")   //TODO ... some actual error messages?
 				return env
 			}
 			if obj.Type() != object.CODE_OBJ {
@@ -117,3 +107,38 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 	}
 	return env
 }
+
+// Yeah, this isn't very DRY, but it disentangles this from the GoLang bits which is helpful.
+func GetValueList(sig signature.Signature, params []object.Object) []object.Object {
+	if len(sig) == 0 {
+		return []object.Object{}
+	}
+	sigPos := 0
+	result := []object.Object{}
+	tupleAccumulator := []object.Object{}
+
+	for paramPos := 0; paramPos < len(params); paramPos++ {
+		if sig[sigPos].VarType == object.TUPLE_OBJ {
+			if params[paramPos].Type() == object.BLING_OBJ {
+				result = append(result, &object.Tuple{Elements: tupleAccumulator})
+				result = append(result, &object.Bling{})
+				tupleAccumulator = []object.Object{}
+				sigPos = sigPos + 2
+				continue
+			}
+			if paramPos == len(params)-1 {
+				tupleAccumulator = append(tupleAccumulator, params[paramPos])
+				result = append(result, &object.Tuple{Elements: tupleAccumulator})
+				break
+			}
+			tupleAccumulator = append(tupleAccumulator, params[paramPos])
+			continue
+		}
+		
+		result = append(result, params[paramPos])
+		
+		sigPos++
+	}
+	return result
+}
+

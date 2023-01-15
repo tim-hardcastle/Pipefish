@@ -31,7 +31,7 @@ func ToStringRecursive(env *Environment, pad string) string {
 			result = result + "Env has no vars"
 		}
 	}
-	result = result + "\n" + pad + "Inner :" 
+	result = result + "\n" + pad + "Outer :" 
 	return result + ToStringRecursive(env.Ext, pad + "  ")
 }
 

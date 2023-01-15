@@ -26,9 +26,10 @@ func NewService() *Service {
 
 // For opening data files.
 func (service *Service) SuDo(line string) {
-	tree := *service.Parser.ParseLine("REPL input", line)
+	tree := *service.Parser.ParseLine("data file", line)
 	tree.(*ast.AssignmentExpression).Token.Type = token.CMD_ASSIGN
-	evaluator.Evaluate(tree, service.Parser, service.Env).Inspect(object.ViewCharmLiteral)
+	c := evaluator.NewConditions(service.Parser, service.Env, evaluator.CMD, false)
+	evaluator.Evaluate(tree, c)
 }
 
 func (service *Service) Do(line string) object.Object {
@@ -67,7 +68,7 @@ func (service *Service) Do(line string) object.Object {
 	}
 	// Otherwise we just execute the line.
 	return evaluator.Evaluate(*service.Parser.ParseLine(
-		"REPL input", line), service.Parser, service.Env)
+		"REPL input", line), evaluator.NewConditions(service.Parser, service.Env, evaluator.REPL, true))
 
 }
 

@@ -410,7 +410,7 @@ func (uP *Initializer) ParseTypeDefs() {
 
 func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 	for _, v := range uP.parsedDeclarations[typeDeclaration] {
-		result := evaluator.Evaluate(*v, &(uP.Parser), env)
+		result := evaluator.Evaluate(*v, evaluator.NewConditions(&uP.Parser, env, evaluator.DEF, false))
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
 		}
@@ -446,7 +446,7 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
 		for k := range *assignmentOrder {
-			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], &(uP.Parser), env)
+			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], evaluator.NewConditions(&uP.Parser, env, evaluator.DEF, false))
 			if result.Type() == object.ERROR_OBJ {
 				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
 			}
@@ -630,171 +630,46 @@ func flatten(s string) string {
 func (uP *Initializer) makeFunctionTrees() {
 	uP.Parser.FunctionTreeMap = map[string]*ast.FnTreeNode{}
 	for k, v := range uP.Parser.FunctionTable {
-		tree := ast.FnTreeNode{Fn: nil, Branch: []ast.TypeNodePair{}}
+		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
 		for i := range v {
-			// First we must take care of the cases where the first n > 0 args of the sig have
-			// types containing the first n types of an existing branch.
-			tree = uP.overlayTree(tree, &v[i], 0)
-			// And then we also add the arg sequence as we would usually add it to a tree.
-			tree = uP.addToTree(tree, &v[i], 0)
-		}
-		uP.Parser.FunctionTreeMap[k] = &tree
+			tree = uP.addSigToTree(tree, &v[i], 0)
+		}	
+		uP.Parser.FunctionTreeMap[k] = tree
 	}
 }
 
-// If we just created a tree from the arguments as normal with a search tree, then something like:
-//	foo(x int, y string) :<body>
-//  foo(x single, y bool) : <body>
-
-// would give us a tree like:
-
-//  int
-//		string
-//			func(int, string)
-//  single
-//		bool
-//			func(single, bool)
-
-// But what we want is
-
-//  int
-//		string
-//			func(int, string)
-//		bool
-//			func(single, bool)
-//  single
-//		bool
-//			func(single, bool)
-
-// The overlay function achieves this sort of thing for us.
-
-func (uP *Initializer) overlayTree(tree ast.FnTreeNode, fn *ast.Function, argumentNumber int) ast.FnTreeNode {
-
-	// If an argument list being overlayed on the tree reaches the end of the list at the same
-	// time as we reach the end of a branch, then since the branch being overlayed must have
-	// precedence, we don't need to do anything.
-	if argumentNumber >= len(fn.Sig) {
-		for _, branch := range tree.Branch {
-			if branch.TypeName == "" {
-				return tree
-			}
+// Note that the sigs have already been sorted on their specificity.
+func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.Function, pos int) *ast.FnTreeNode {
+	sig := fn.Sig
+	if pos < len(sig) {
+		var currentType string
+		if sig[pos].VarType == "bling" {currentType = sig[pos].VarName} else {currentType = sig[pos].VarType}
+		isPresent := false
+		for _, v := range tree.Branch {
+			if currentType == v.TypeName { isPresent = true; break }
 		}
-
-		// If OTOH it reaches the end of its argument list and the tree *isn't* at a leaf node, then
-		// we add a leaf node.
-
-		leaf := ast.FnTreeNode{fn, []ast.TypeNodePair{}}
-		tree = tree.AddOrReplace("", leaf)
-		return tree
-	}
-
-	// An element matched with tuple can always be followed by tuple.
-	if fn.Sig[argumentNumber].VarType == "tuple" {
-		if tree.Index("tuple") == -1 {
-			tree = tree.AddOrReplace("tuple", uP.addToTree(ast.FnTreeNode{nil, []ast.TypeNodePair{}}, fn, argumentNumber))
+		if !isPresent {
+			tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}} }) 
 		}
-
-		// Or by whatever marks the end of that tuple.
-
-		tupleStop := ""
-		if argumentNumber < len(fn.Sig)-1 {
-			tupleStop = fn.Sig[argumentNumber+1].TypeOrBling()
-		}
-
-		if tree.Index(tupleStop) == -1 {
-			tree = tree.AddOrReplace(tupleStop, uP.addToTree(ast.FnTreeNode{nil, []ast.TypeNodePair{}}, fn, argumentNumber+2))
-		}
-	}
-
-	// If it's not the end of the list, then we look at each branch of the current node
-	// to see if we can go on overlaying the argument list on it.
-	for i, v := range tree.Branch {
-		if v.TypeName == fn.Sig[argumentNumber].TypeOrBling() ||
-			uP.Parser.TypeSystem.PointsTo(v.TypeName, fn.Sig[argumentNumber].VarType) {
-			newTree := uP.overlayTree(v.Node, fn, argumentNumber+1)
-			tree.Branch[i].Node = newTree
-
-			if fn.Sig[argumentNumber].VarType == "tuple" {
-
-				// If the current item in the argument list is a tuple, then we should also try
-				// overlaying it on each branch that the branch leads to.
-				if uP.Parser.TypeSystem.PointsTo(v.TypeName, "tuple") {
-					newBranch := uP.overlayTree(v.Node, fn, argumentNumber)
-					tree.Branch[i].Node = newBranch
+		for _, branch := range(tree.Branch) {
+			if parser.IsSameTypeOrSubtype(uP.Parser.TypeSystem, branch.TypeName, currentType) {
+				branch.Node = uP.addSigToTree(branch.Node, fn, pos + 1)
+				if currentType == "tuple" && ! (branch.TypeName ==  "tuple") {
+					uP.addSigToTree(branch.Node, fn, pos)
 				}
 			}
-		} else { // The types are unrelated. We can add the tail of the argument list.
-			twig := ast.FnTreeNode{nil, []ast.TypeNodePair{}}
-			twig = uP.addToTree(twig, fn, argumentNumber+1)
-
-			tree = tree.AddOrReplace(fn.Sig[argumentNumber].TypeOrBling(), twig)
+		}
+		// if !isPresent && currentType == "tuple" {
+		// 	tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: "tuple", Node: tree }) 
+		// }
+	} else {
+		if tree.Fn == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
+		tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: "", Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}} }) 
 		}
 	}
 	return tree
 }
 
-func (uP *Initializer) addToTree(tree ast.FnTreeNode, fn *ast.Function, argumentNumber int) ast.FnTreeNode {
-
-	if argumentNumber >= len(fn.Sig) {
-		for _, branch := range tree.Branch {
-			if branch.TypeName == "" {
-				return tree
-			}
-		}
-		leaf := ast.FnTreeNode{fn, []ast.TypeNodePair{}}
-		tree = tree.AddOrReplace("", leaf)
-		return tree
-	}
-
-	if fn.Sig[argumentNumber].VarType == "tuple" {
-
-		// We find what (whether bling or the end of the params) is expected to mark the end
-		// of the tuple.
-
-		tupleStop := ""
-		if argumentNumber+1 < len(fn.Sig) {
-			tupleStop = fn.Sig[argumentNumber+1].TypeOrBling()
-		}
-
-		// We see if that's already a branch of the node.
-
-		// If so, we have to follow along that branch.
-
-		foundTupleStop := false
-		for i, v := range tree.Branch {
-			if v.TypeName == tupleStop {
-				newTree := uP.addToTree(v.Node, fn, argumentNumber+2)
-				tree.Branch[i].Node = newTree
-				foundTupleStop = true
-				break
-			}
-		}
-
-		// If not, then we make a new branch off the node.
-
-		if !foundTupleStop {
-			twig := ast.FnTreeNode{nil, []ast.TypeNodePair{}}
-			if tupleStop == "" {
-				twig = ast.FnTreeNode{fn, []ast.TypeNodePair{}}
-			} else {
-				twig = uP.addToTree(twig, fn, argumentNumber+2)
-			}
-			tree = tree.AddOrReplace(tupleStop, twig)
-		}
-	}
-
-	for i, v := range tree.Branch {
-		if v.TypeName == fn.Sig[argumentNumber].TypeOrBling() {
-			newTree := uP.addToTree(v.Node, fn, argumentNumber+1)
-			tree.Branch[i].Node = newTree
-			return tree
-		}
-	}
-	twig := ast.FnTreeNode{nil, []ast.TypeNodePair{}}
-	twig = uP.addToTree(twig, fn, argumentNumber+1)
-	tree = tree.AddOrReplace(fn.Sig[argumentNumber].TypeOrBling(), twig)
-	return tree
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 

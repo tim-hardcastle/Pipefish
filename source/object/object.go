@@ -19,7 +19,7 @@ import (
 type View int
 
 const (
-	ViewStdOut = iota
+	ViewStdOut View = iota
 	ViewCharmLiteral
 )
 

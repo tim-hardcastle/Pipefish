@@ -150,32 +150,32 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 	},
 
 	"index_label_of_struct": func(p *Parser, args ...object.Object) object.Object {
-		return evalStructIndexExpression(args[1], args[0])
+		return evalStructIndexExpression(args[0], args[2])
 	},
 
 	"index_int_of_list": func(p *Parser, args ...object.Object) object.Object {
-		return evalArrayIndexExpression(args[1], args[0])
+		return evalArrayIndexExpression(args[0], args[2])
 	},
 	"index_pair_of_list": func(p *Parser, args ...object.Object) object.Object {
-		return evalArraySliceExpression(args[1], args[0])
+		return evalArraySliceExpression(args[0], args[2])
 	},
 	"index_pair_of_string": func(p *Parser, args ...object.Object) object.Object {
-		return evalStringSliceExpression(args[1], args[0])
+		return evalStringSliceExpression(args[0], args[2])
 	},
 	"index_pair_of_tuple": func(p *Parser, args ...object.Object) object.Object {
-		return evalTupleSliceExpression(args[1], args[0])
+		return evalTupleSliceExpression(args[0], args[2])
 	},
 	"index_int_of_tuple": func(p *Parser, args ...object.Object) object.Object {
-		return evalTupleIndexExpression(args[1], args[0])
+		return evalTupleIndexExpression(args[0], args[2])
 	},
 	"index_int_of_string": func(p *Parser, args ...object.Object) object.Object {
-		return evalStringIndexExpression(args[1], args[0])
+		return evalStringIndexExpression(args[0], args[2])
 	},
 	"index_int_of_pair": func(p *Parser, args ...object.Object) object.Object {
-		return evalPairIndexExpression(args[1], args[0])
+		return evalPairIndexExpression(args[0], args[2])
 	},
 	"index_any_of_map": func(p *Parser, args ...object.Object) object.Object {
-		return evalHashIndexExpression(args[1], args[0])
+		return evalHashIndexExpression(args[0], args[2])
 	},
 	"make_pair": func(p *Parser, args ...object.Object) object.Object {
 		return &object.Pair{Left: args[0], Right: args[2]}
@@ -191,9 +191,8 @@ var Builtins = map[string]func(p *Parser, args ...object.Object) object.Object{
 
 	"add_sets": func(p *Parser, args ...object.Object) object.Object {
 		result := args[0].(*object.Set).Copy()
-		for _, v := range args[2].(*object.Set).Elements {
-			result.Elements = append(result.Elements, v)
-		}
+		result.Elements = append(result.Elements, args[2].(*object.Set).Elements...)
+
 		return result
 	},
 

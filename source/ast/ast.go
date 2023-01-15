@@ -438,42 +438,23 @@ type Function = struct {
 	Private bool
 }
 
-type FnTreeNode struct {
-	Fn     *Function
-	Branch []TypeNodePair
-}
-
-type TypeNodePair struct {
-	TypeName string
-	Node     FnTreeNode
-}
-
 type LogType int
 
 const (
-	LogUser = 0
+	LogUser LogType = iota
 	LogReturn = 1
 	LogIf = 2
 	LogStart = 3
 )
 
-func (tree FnTreeNode) Index(typeName string) int {
-	index := -1
-	for i, v := range tree.Branch {
-		if v.TypeName == typeName {
-			index = i
-		}
-	}
-	return index
+type FnTreeNode struct {
+	Fn     *Function
+	Branch []*TypeNodePair
 }
 
-func (tree FnTreeNode) AddOrReplace(typeName string, twig FnTreeNode) FnTreeNode {
-	if tree.Index(typeName) == -1 {
-		tree.Branch = append(tree.Branch, TypeNodePair{typeName, twig})
-	} else {
-		tree.Branch[tree.Index(typeName)] = TypeNodePair{typeName, twig}
-	}
-	return tree
+type TypeNodePair struct { // This exists because we need an *ordered* collection of type-node pairs.
+	TypeName string
+	Node     *FnTreeNode
 }
 
 func (tree FnTreeNode) String() string {

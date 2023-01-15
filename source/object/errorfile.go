@@ -159,11 +159,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"built/index/type": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't index things of type " + EmphType(args[0].(Object)) +
-			" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Strings, lists, and tuples can be indexed by position, maps by their keys, and " +
-			"structs by their field labels. This fits none of these cases."
+				"structs by their field labels. This fits none of these cases."
 		},
 	},
 
@@ -363,9 +363,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " + 
-			DescribeSomeParams(args[0].([]Object), args[1].(bool)) + 
-			" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
+				DescribeSomeParams(args[0].([]Object), args[1].(bool)) +
+				" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -375,9 +375,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " + 
-			DescribeSomeParams(args[0].([]Object), args[1].(bool)) + 
-			" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
+				DescribeSomeParams(args[0].([]Object), args[1].(bool)) +
+				" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -387,9 +387,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/c": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " + 
-			DescribeSomeParams(args[0].([]Object), args[1].(bool)) + 
-			" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
+				DescribeSomeParams(args[0].([]Object), args[1].(bool)) +
+				" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -526,14 +526,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/filter/list":  {
+	"eval/filter/list": {
 		Message: func(tok token.Token, args ...any) string {
 			return "'?>' operates on a list, not an object of type " + EmphType(args[0].(Object)) +
-			" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "the filter operator '?>' takes a list as its left-hand parameter, and" +
-			"on the right, and expression to filter by."
+				"on the right, and expression to filter by."
 		},
 	},
 
@@ -638,7 +638,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/keyword/a": {
+	"eval/name/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "undefined function " + text.DescribeTok(tok)
 		},
@@ -647,7 +647,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/keyword/b": {
+	"eval/name/b": {
 		Message: func(tok token.Token, args ...any) string {
 			return "undefined function " + text.DescribeTok(tok)
 		},
@@ -656,7 +656,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/keyword/c": {
+	"eval/name/c": {
 		Message: func(tok token.Token, args ...any) string {
 			return "undefined function " + text.DescribeTok(tok)
 		},
@@ -665,7 +665,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/keyword/d": {
+	"eval/name/d": {
 		Message: func(tok token.Token, args ...any) string {
 			return "undefined function " + text.DescribeTok(tok)
 		},
