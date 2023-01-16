@@ -23,7 +23,7 @@ greet(x) :
 
 ex (lineToExecute string) :
     state = execute(lineToExecute, (state with outStr :: ""))
-    //return (state[outStr])
+    return (state[outStr])
 
 show(i label) :
     return state[i]
@@ -154,7 +154,7 @@ given :
             else :
                 i + 1, runningTotal + [L[i]], outList 
 
-tokenize(s) :
+tokenize(s) : 
     wordify(s) ]> tokenizer(that)
 given :
     tokenizer(s) :
@@ -190,13 +190,8 @@ given :
 
 // It remains only to define the builtins.
 
-add = func(S) : 
-    S with stack :: (S[stack] curtail 2) + [Token(INT, ((S[stack][len(S[stack]) - 2][value]) + (S[stack][len(S[stack]) - 1][value])))] 
-given :
-    op1 = S[stack][len(S[stack]) - 2][value]
-    op2 = S[stack][len(S[stack]) - 1][value]
-
-builtins = map( "+" :: Builtin([INT, INT], add),
+builtins = map( "+" :: Builtin([INT, INT], func(S): S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(INT, ((S[stack][len(S[stack]) - 2][value]) + (S[stack][len(S[stack]) - 1][value])))]),
             ..  "-" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
                     .. [Token(INT, S[stack][len(S[stack]) - 2][value] - S[stack][len(S[stack]) - 1][value])]),
             ..  "*" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..

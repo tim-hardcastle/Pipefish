@@ -464,8 +464,9 @@ func evalArraySliceExpression(array, index object.Object) object.Object {
 	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) || (idy < idx) {
 		return makeErr("built/slice/range/list", idx, idy, max+1)
 	}
-
-	return &object.List{Elements: arrayObject.Elements[idx:idy]}
+	slice := make([]object.Object, len(arrayObject.Elements))
+	copy (slice, arrayObject.Elements)
+	return &object.List{Elements: slice[idx:idy]}
 }
 
 func evalTupleSliceExpression(array, index object.Object) object.Object {
@@ -483,8 +484,9 @@ func evalTupleSliceExpression(array, index object.Object) object.Object {
 	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) {
 		return makeErr("built/slice/range/tuple", idx, idy, max+1)
 	}
-
-	return &object.Tuple{Elements: arrayObject.Elements[idx:idy]}
+	slice := make([]object.Object, len(arrayObject.Elements))
+	copy (slice, arrayObject.Elements)
+	return &object.Tuple{Elements: slice[idx:idy]}
 }
 
 func evalStringSliceExpression(string, index object.Object) object.Object {
@@ -502,7 +504,6 @@ func evalStringSliceExpression(string, index object.Object) object.Object {
 	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) {
 		return makeErr("built/slice/range/string", idx, idy, max+1)
 	}
-
 	return &object.String{Value: stringObject.Value[idx:idy]}
 }
 

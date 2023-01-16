@@ -1166,7 +1166,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 			newAccess = DEF
 			newEnvironment.Set("this", &object.Func{Function: f, Env: env})
 		}
-		newConditions := &Conditions{prsr: c.prsr, logging: false, env: newEnvironment, access: newAccess}
+		newConditions := &Conditions{prsr: c.prsr, logging: true, env: newEnvironment, access: newAccess}
 		// if token.Literal == "functionToApply" { fmt.Print("before given: \n" + object.ToString(newEnvironment)) }
 		if f.Given != nil {
 			resultOfGiven := Eval(f.Given, newConditions)
