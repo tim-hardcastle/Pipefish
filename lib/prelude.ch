@@ -73,3 +73,10 @@ zip (L, R list):
     (for (len L) do action to 0, map ())[1]
 given :
     action(i, M) : i + 1, (M with L[i] :: R[i])
+
+
+sum(L list, start single) :
+    len L == 0 : start
+    else : (for (len L) do action to 0, start)[1]
+given :
+    action(i, total) : i + 1, total + L[i]

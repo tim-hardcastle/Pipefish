@@ -446,7 +446,7 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
 		for k := range *assignmentOrder {
-			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], evaluator.NewConditions(&uP.Parser, env, evaluator.DEF, false))
+			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], evaluator.NewConditions(&uP.Parser, env, evaluator.INIT, false))
 			if result.Type() == object.ERROR_OBJ {
 				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
 			}

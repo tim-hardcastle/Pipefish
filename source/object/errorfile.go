@@ -814,7 +814,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/rets/match": {
 		Message: func(tok token.Token, args ...any) string {
-			return "return value doesn't match function definition"
+			return "return value " + DescribeParams(args[0].([]Object)) + " doesn't match function definition " + 
+				"(value supplied: " + DescribeSomeObjects(args[0].([]Object), false) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The function in question has a return type, given after the '->' operator, and what you have " +

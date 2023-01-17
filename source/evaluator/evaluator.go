@@ -29,6 +29,8 @@ const (
 	REPL Access = iota
 	CMD
 	DEF
+	INIT
+	LAMBDA
 )
 
 type Conditions struct {
@@ -300,13 +302,14 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 		if !(left.Type() == object.FUNC_OBJ) {
 			return newError("eval/apply", node.Token, left)
 		}
-		params := []object.Object{}
+		var params []object.Object
 		if right.Type() == object.TUPLE_OBJ {
 			params = right.(*object.Tuple).Elements
 		} else {
 			params = []object.Object{right}
 		}
-		newConditions := &Conditions{prsr: c.prsr, env: left.(*object.Func).Env, access: c.access, logging: c.logging}
+		left.(*object.Func).Env.Ext = c.env
+		newConditions := NewConditions(c.prsr, left.(*object.Func).Env, c.access, c.logging)
 		return applyFunction(left.(*object.Func).Function, params, node.Token, newConditions)
 	case *ast.CodeLiteral:
 		return &object.Code{Value: node.Right}
@@ -324,7 +327,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				val, ok := c.env.Get(node.Right.GetToken().Literal)
 				if ok {
 					if val.Type() == object.FUNC_OBJ {
-						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.Token, c)
+						newConditions := NewConditions(c.prsr, val.(*object.Func).Env, c.access, c.logging)
+						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.Token, newConditions)
 					}
 				}
 			}
@@ -347,7 +351,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				if ok {
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
-							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, c)
+							newConditions := NewConditions(c.prsr, val.(*object.Func).Env, c.access, c.logging)
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newConditions)
 							if result.Type() == object.ERROR_OBJ {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
@@ -385,7 +390,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				if ok {
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
-							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, c)
+							newConditions := NewConditions(c.prsr, val.(*object.Func).Env, c.access, c.logging)
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newConditions)
 							if result.Type() == object.ERROR_OBJ {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
@@ -485,6 +491,10 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Conditions) object.Obje
 		// We may have ourselves a lambda
 		if ok && variable.Type() == object.FUNC_OBJ {
 			right := Eval(node.Right, c)
+			if right.Type() == object.ERROR_OBJ {
+				right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.Token)
+				return right
+			}
 			if right.Type() == object.TUPLE_OBJ {
 				params = right.(*object.Tuple).Elements
 			} else {
@@ -493,12 +503,13 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Conditions) object.Obje
 			if !c.prsr.ParamsFitSig(variable.(*object.Func).Sig, params) {
 				return newError("eval/sig/lambda", tok, params)
 			}
-			newConditions := &Conditions{prsr: c.prsr, logging: c.logging, env: variable.(*object.Func).Env, access: c.access}
+			newConditions := NewConditions(c.prsr, variable.(*object.Func).Env, LAMBDA, c.logging)
 			lamdbaResult := applyFunction(variable.(*object.Func).Function, params, tok, newConditions)
 			return lamdbaResult
 		}
 		// Otherwise we have a function or prefix, which work the same at this point.
-		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+		var result object.Object 
+		result = functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 		if result.Type() == object.ERROR_OBJ {
 			if operator == "type" {
 				return &object.Type{Value: "error"}
@@ -1152,22 +1163,17 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		return result
 	default:
 		env := object.NewEnvironment()
-		if c.access == CMD || c.access == REPL {
-			env.Ext = c.env
-		} else {
-			env.Ext = c.prsr.Globals
-		}
-		var newAccess Access
-
-		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
-		if f.Cmd {
-			newAccess = CMD
-		} else {
+		env.Ext = c.env
+		newAccess := c.access
+		if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd { // In this case we are going from the REPL or a cmd to a 
+			env.Ext = c.prsr.Globals     // function and should drop all the environment except the globals.
 			newAccess = DEF
+		}
+		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
+		if !f.Cmd {
 			newEnvironment.Set("this", &object.Func{Function: f, Env: env})
 		}
 		newConditions := &Conditions{prsr: c.prsr, logging: true, env: newEnvironment, access: newAccess}
-		// if token.Literal == "functionToApply" { fmt.Print("before given: \n" + object.ToString(newEnvironment)) }
 		if f.Given != nil {
 			resultOfGiven := Eval(f.Given, newConditions)
 			if resultOfGiven.Type() == object.ERROR_OBJ {
@@ -1178,14 +1184,13 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 				return newError("eval/given/return", tok, resultOfGiven)
 			}
 		}
-		newConditions.access = c.access
-		// if token.Literal == "functionToApply" { fmt.Println("after given: \n", object.ToString(newEnvironment)) }
 		result := Eval(f.Body, newConditions)
 		if result.Type() == object.ERROR_OBJ {
 			result.(*object.Error).Trace = append(result.(*object.Error).Trace, tok)
+			return result
 		}
-		if len(f.Rets) > 0 && !c.prsr.ParamsFitSig(f.Rets, toObjectList(result)) {
-			return newError("eval/rets/match", tok)
+		if res := toObjectList(result); len(f.Rets) > 0 && !c.prsr.ParamsFitSig(f.Rets, res) {
+			return newError("eval/rets/match", tok, res)
 		}
 		return result
 	}

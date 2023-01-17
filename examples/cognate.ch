@@ -18,15 +18,18 @@ state = MachineState([], "", Env(map(), NIL), Env(map(), NIL))
 
 cmd // All the imperative shell we need ...
 
-greet(x) :
-    return 42
-
 ex (lineToExecute string) :
     state = execute(lineToExecute, (state with outStr :: ""))
     return (state[outStr])
 
+print(filename string) :
+    return ((file filename)[contents] ]> that + "\n" >> sum(that, "\n") + "\n")
+
 show(i label) :
     return state[i]
+
+run(filename string) :
+    ex((file filename)[contents] >> sum(that, "\n"))
 
 def // And the rest is the functional core. Nothing but pure functions with local constants.
 
@@ -53,8 +56,8 @@ interpret(parsedCode list, state MachineState) :
             type(getFromEnv(state[funcs], currentToken[value])) != error :
                 (interpret (codeTail, interpret((getFromEnv(state[funcs], currentToken[value]))[value][codeBlock] , 
                                   .. (state with vars::(getFromEnv(state[funcs], currentToken[value]))[value][vars] ..
-                                        .. with funcs::(getFromEnv(state[funcs], currentToken[value]))[value][funcs]))) ..
-                                  .. with vars::state[vars] with funcs::state[funcs])
+                                        .. with funcs::(getFromEnv(state[funcs], currentToken[value]))[value][funcs])))) ..
+                                  .. with vars::state[vars] with funcs::state[funcs]
             else :
                 error "Cognate error: unknown identifier " + currentToken[value]
         else :
@@ -73,12 +76,12 @@ given :
 setVar(name, S) :
     gatekeepName(name, S)   
     gatekeepStack([ANY], S)    
-    S with [vars, inner, name] :: S[stack][len(S[stack]) - 1] with stack::(S[stack] behead 1)
+    S with [vars, inner, name] :: S[stack][len(S[stack]) - 1] with stack::(S[stack] curtail 1)
 
 setDef(name, S) :
     gatekeepName(name, S)
     gatekeepStack([BLOCK], S)
-    S with [funcs, inner, name] :: (S[stack][len(S[stack]) - 1]) with stack::(S[stack] behead 1)
+    S with [funcs, inner, name] :: (S[stack][len(S[stack]) - 1]) with stack::(S[stack] curtail 1)
 
 gatekeepStack(sig , S) :     
     len(S[stack]) < len sig : 
@@ -114,22 +117,26 @@ given :
     action(i, outList) :              
         L[i][tokenType] in [DEF, LET] :  
             i == len(L) - 1 or L[i + 1][tokenType] != IDENT : 
-                error "Cognate error: " + describeToken(L[i]) + " should be followed by an identifier"
+                error "Cognate error: '" + L[i][value] + "' should be followed by an identifier"
             else : 
                 i + 2, outList + [Token(L[i][tokenType], L[i + 1][value])] 
         else : 
             i + 1, outList + [L[i]] 
-    
-describeToken(t) :
-    t[tokenType] == DEF : "'Def'"
-    t[tokenType] == LET : "'Let'"
-    else : error "asked to describe a token I don't know how to describe"
+ 
+prettyPrint(t Token) :
+    t[tokenType] == INT : string(t[value]) + " "
+    t[tokenType] == BOOL :
+        t[value] : "True "
+        else : "False "
+    t[tokenType] == LIST : "List(" + (t[value] ]> prettyPrint >> sum(that, "") >> strings.trimRight(that, " ")) + ")"
+    t[tokenType] == BLOCK : "Block-RPN(" + (t[value][codeBlock] ]> prettyPrint >> sum(that, "")  >> strings.trimRight(that, " ")) + ")"
+    else : t[value] + " "
 
 parseBlocks(L) :
     (blockParser 0, L, [])[1]
 
-blockParser(i int, L list, outList list) -> int, list:                                
-    i >= len L or L[i][tokenType] == RBRACK :      
+blockParser(i int, L list, outList list):                               
+    i >= len L or L[i][tokenType] == RBRACK :     
         i, outList                                      
     L[i][tokenType] == LBRACK :
         blockParser(slurpBlock(i))
@@ -140,6 +147,7 @@ given :
         endIndex + 1, L, outList + [Token(BLOCK, Closure(tokenList, NIL, NIL))]
     given :
         endIndex, tokenList = blockParser(i + 1, L, []) 
+        
 
 desugarToRpn(L) :
     (while condition do action to 0, [], [])[2]
@@ -179,7 +187,7 @@ given :
             else : wordifier(i + 1, runningTotal + s[i], outList, true)
         s[i] == "\"" : wordifier(i + 1, "\"", outList + [runningTotal], true)
         s[i] in ["(", ")", ";"] : wordifier (i + 1, "", outList + [runningTotal, s[i]], false)
-        s[i] == " ": wordifier(i + 1, "", outList + [runningTotal], false)
+        s[i] in [" ", "\t", "\n"] : wordifier(i + 1, "", outList + [runningTotal], false)
         else : wordifier(i + 1, runningTotal + s[i], outList, false)
     removeEmptyStrings(L) :
         L ?> (that != "")
@@ -188,49 +196,111 @@ given :
                       .. "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
         // Yes, I need a 'rune' type and a way to convert it to a number.
 
-// It remains only to define the builtins.
+// It remains only to define the builtins. Yeah I could make this a lot DRY-er with a little work but meh.
 
-builtins = map( "+" :: Builtin([INT, INT], func(S): S with stack :: (S[stack] curtail 2) + ..
-            .. [Token(INT, ((S[stack][len(S[stack]) - 2][value]) + (S[stack][len(S[stack]) - 1][value])))]),
-            ..  "-" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(INT, S[stack][len(S[stack]) - 2][value] - S[stack][len(S[stack]) - 1][value])]),
-            ..  "*" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(INT, S[stack][len(S[stack]) - 2][value] * S[stack][len(S[stack]) - 1][value])]),
-            ..  "/" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(INT, S[stack][len(S[stack]) - 2][value] / S[stack][len(S[stack]) - 1][value])]),
-            ..  "<" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] < S[stack][len(S[stack]) - 1][value]))]),
-            ..  "<=" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] <= S[stack][len(S[stack]) - 1][value]))]),
-            ..  ">" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] > S[stack][len(S[stack]) - 1][value]))]),
-            ..  ">=" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] >= S[stack][len(S[stack]) - 1][value]))]),
-            ..  "==" :: Builtin([ANY, ANY], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 2] == S[stack][len(S[stack]) - 1]))]),
-            ..  "!=" :: Builtin([ANY, ANY], func(S) : S with stack :: (S[stack] curtail 2) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 2] != S[stack][len(S[stack]) - 1]))]),
-            ..  "Integer?" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 1][tokenType] == INT))]),
-            ..  "String?" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 1][tokenType] == STRING))]),
-            ..  "Boolean?" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) + ..
-                    .. [Token(BOOL, (S[stack][len(S[stack]) - 1][tokenType] == BOOL))]),
-            ..  "Not" :: Builtin([BOOL], func(S) : S with stack :: (S[stack] curtail 1) + ..
-                    .. [Token(BOOL, not (S[stack][len(S[stack]) - 1][value]))]),
-            ..  "If" :: Builtin([ANY, ANY, BOOL], func(S) : (S[stack][len(S[stack]) - 1][value] : S with stack :: (S[stack] curtail 3) + [S[stack][len(S[stack]) - 2]] ; ..
-                                .. else : S with stack :: (S[stack] curtail 3) + [S[stack][len(S[stack]) - 3]])),
-            ..  "Do" :: Builtin([BLOCK], func(S) : interpret(S[stack][len(S[stack]) - 1][value][codeBlock], (S with stack :: (S[stack] curtail 1) ..
-                            .. with vars::S[stack][len(S[stack]) - 1][value][vars] with funcs::S[stack][len(S[stack]) - 1][value][funcs]))) ,
-            ..  "Drop" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1)),
-            ..  "Twin" :: Builtin([ANY], func(S) : S with stack :: S[stack] + [S[stack][len(S[stack]) - 1]]),
-            ..  "Triplet" :: Builtin([ANY], func(S) : S with stack :: S[stack] ..
-                                .. + [S[stack][len(S[stack]) - 1], S[stack][len(S[stack]) - 1]]),
-            ..  "Swap" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 2) ..
-                                .. + [S[stack][len(S[stack]) - 1], S[stack][len(S[stack]) - 2]]),
-            ..  "List" :: Builtin([BLOCK], func(S) : S with stack :: (S[stack] curtail 1) ..
-                                .. + [Token(LIST, reverse((interpret(S[stack][len(S[stack]) - 1][value][codeBlock], (S with stack::[] ..
-                                .. with vars::S[stack][len(S[stack]) - 1][value][vars] with funcs::S[stack][len(S[stack]) - 1][value][funcs])))[stack]))]),
-            ..  "Print" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) ..
-                                                   .. with outStr :: S[outStr] + string (S[stack][len(S[stack]) - 1][value]) + " ") ..
+builtins = map( "+" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(INT, S[stack][len(S[stack]) - 2][value] + S[stack][len(S[stack]) - 1][value])]),
+    ..  "-" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(INT, S[stack][len(S[stack]) - 2][value] - S[stack][len(S[stack]) - 1][value])]),
+    ..  "*" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(INT, S[stack][len(S[stack]) - 2][value] * S[stack][len(S[stack]) - 1][value])]),
+    ..  "/" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(INT, S[stack][len(S[stack]) - 2][value] / S[stack][len(S[stack]) - 1][value])]),
+    .. "Modulo" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+        .. [Token(INT, S[stack][len(S[stack]) - 2][value] % S[stack][len(S[stack]) - 1][value])]),
+    ..  "<" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] < S[stack][len(S[stack]) - 1][value]))]),
+    ..  "<=" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] <= S[stack][len(S[stack]) - 1][value]))]),
+    ..  ">" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] > S[stack][len(S[stack]) - 1][value]))]),
+    ..  ">=" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] >= S[stack][len(S[stack]) - 1][value]))]),
+    ..  "==" :: Builtin([ANY, ANY], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2] == S[stack][len(S[stack]) - 1]))]),
+    ..  "!=" :: Builtin([ANY, ANY], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2] != S[stack][len(S[stack]) - 1]))]),
+    ..  "Integer?" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 1][tokenType] == INT))]),
+    ..  "String?" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 1][tokenType] == STRING))]),
+    ..  "Boolean?" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 1][tokenType] == BOOL))]),
+    ..  "Zero?" :: Builtin([INT], func(S) : S with stack :: (S[stack] curtail 1) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 1][value] == Token(INT, 0)))]), 
+    ..  "Integer!" :: Builtin([ANY], func(S) : (S[stack][len(S[stack]) - 1][tokenType] == INT : S; ..
+            .. else : error "Cognate error: expected integer")),
+    ..  "String!" :: Builtin([ANY], func(S) : (S[stack][len(S[stack]) - 1][tokenType] == STRING : S; ..
+            .. else : error "Cognate error: expected string")),
+    ..  "Boolean!" :: Builtin([ANY], func(S) : (S[stack][len(S[stack]) - 1][tokenType] == BOOL : S; ..
+            .. else : error "Cognate error: expected boolean")),
+    ..  "Not" :: Builtin([BOOL], func(S) : S with stack :: (S[stack] curtail 1) + ..
+            .. [Token(BOOL, not (S[stack][len(S[stack]) - 1][value]))]),
+    ..  "Either" :: Builtin([BOOL, BOOL], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] or S[stack][len(S[stack]) - 1][value]))]),
+    ..  "Both" :: Builtin([BOOL, BOOL], func(S) : S with stack :: (S[stack] curtail 2) + ..
+            .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] and S[stack][len(S[stack]) - 1][value]))]),
+    ..  "One-of" :: Builtin([BOOL, BOOL], func(S) : S with stack :: (S[stack] curtail 2) + ..
+                .. [Token(BOOL, (S[stack][len(S[stack]) - 2][value] != S[stack][len(S[stack]) - 1][value]))]),          
+    ..  "If" :: Builtin([ANY, ANY, BOOL], func(S) : (S[stack][len(S[stack]) - 1][value] : S with stack :: (S[stack] curtail 3) ..
+            ..+ [S[stack][len(S[stack]) - 2]] ; else : S with stack :: (S[stack] curtail 3) + [S[stack][len(S[stack]) - 3]])),
+    ..  "Do" :: Builtin([BLOCK], func(S) : interpret(S[stack][len(S[stack]) - 1][value][codeBlock], (S with stack :: (S[stack] curtail 1) ..
+            .. with vars::S[stack][len(S[stack]) - 1][value][vars] with funcs::S[stack][len(S[stack]) - 1][value][funcs]))) ,
+    ..  "When" :: Builtin([BLOCK, BOOL], func(S) : (S[stack][len(S[stack]) - 1][value] : interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
+            .. (S with stack :: (S[stack] curtail 2) with vars::S[stack][len(S[stack]) - 2][value][vars] .. 
+            .. with funcs::S[stack][len(S[stack]) - 2][value][funcs])); else : S  with stack :: (S[stack] curtail 2))) ,
+    ..  "Unless" :: Builtin([BLOCK, BOOL], func(S) : (not S[stack][len(S[stack]) - 1][value] : interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
+            .. (S with stack :: (S[stack] curtail 2) with vars::S[stack][len(S[stack]) - 2][value][vars] .. 
+            .. with funcs::S[stack][len(S[stack]) - 2][value][funcs])); else : S  with stack :: (S[stack] curtail 2))) ,
+    ..  "Drop" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1)),
+    ..  "Twin" :: Builtin([ANY], func(S) : S with stack :: S[stack] + [S[stack][len(S[stack]) - 1]]),
+    ..  "Triplet" :: Builtin([ANY], func(S) : S with stack :: S[stack] ..
+                .. + [S[stack][len(S[stack]) - 1], S[stack][len(S[stack]) - 1]]),
+    ..  "Swap" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 2) ..
+            .. + [S[stack][len(S[stack]) - 1], S[stack][len(S[stack]) - 2]]),
+    ..  "List" :: Builtin([BLOCK], func(S) : S with stack :: (S[stack] curtail 1) ..
+            .. + [Token(LIST, reverse((interpret(S[stack][len(S[stack]) - 1][value][codeBlock], (S with stack::[] ..
+            .. with vars::S[stack][len(S[stack]) - 1][value][vars] with funcs::S[stack][len(S[stack]) - 1][value][funcs])))[stack]))]),
+    ..  "Push" :: Builtin([LIST, ANY], func(S) : S with stack :: (S[stack] curtail 2) + [S[stack][len(S[stack]) - 2] with value:: ..
+            .. [S[stack][len(S[stack]) - 1]] + S[stack][len(S[stack]) - 2][value]]),
+    ..  "First" :: Builtin([LIST], func(S) : S with stack :: (S[stack] curtail 1) + [S[stack][len(S[stack]) - 1][value][0]]),
+    ..  "Rest" :: Builtin([LIST], func(S) : S with stack :: (S[stack] curtail 1) + [S[stack][len(S[stack]) - 1] with value:: ..
+            .. (S[stack][len(S[stack]) - 1][value] behead 1)]),
+    ..  "Range" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] curtail 2) + ..
+        .. [Token(LIST, (range(S[stack][len(S[stack]) - 1][value]::S[stack][len(S[stack]) - 2][value]) ]> Token(INT, that))) ]),
+    ..  "For" :: Builtin([BLOCK, LIST], func(S) : doFor((S with stack::(S[stack] curtail 2)), S[stack][len(S[stack]) - 1][value], 
+        .. S[stack][len(S[stack]) - 2][value][codeBlock])),
+    ..  "While" :: Builtin([BLOCK, BLOCK], func(S) : doWhile((S with stack::(S[stack] curtail 2)),
+        .. S[stack][len(S[stack]) - 1][value][codeBlock], S[stack][len(S[stack]) - 2][value][codeBlock])),
+    ..  "Until" :: Builtin([BLOCK, BLOCK], func(S) : doUntil((S with stack::(S[stack] curtail 2)),
+        .. S[stack][len(S[stack]) - 1][value][codeBlock], S[stack][len(S[stack]) - 2][value][codeBlock])),
+    ..  "Print" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1) ..
+            .. with outStr :: S[outStr] + prettyPrint(S[stack][len(S[stack]) - 1]) + "\n") ..
 .. )
+
+doFor = func (S, conditionBlock, actionBlock) :
+    (for (len L) do action to 0, S)[1]
+given :
+    action(i, S) : i + 1, interpret(block, (S with stack:: S[stack] + [L[i]]))
+
+doWhile = func(S, conditionBlock, actionBlock):
+    resultOfWhiler with stack::(resultOfWhiler[stack] curtail 1) // gets rid of last False from stack.
+given :
+    resultOfWhiler = whiler(S, conditionBlock, actionBlock, true)
+
+doUntil = func(S, conditionBlock, actionBlock):
+    resultOfWhiler with stack::(resultOfWhiler[stack] curtail 1) // gets rid of last False from stack.
+given :
+    resultOfWhiler = whiler(S, conditionBlock, actionBlock, false)
+
+whiler(S, conditionBlock, actionBlock, flag) : 
+    (while condition do action to (S))[0] 
+given :                                                                    
+    condition(S) :
+        (interpret(conditionBlock, S))[stack][len((interpret(conditionBlock, S))[stack]) - 1][tokenType] != BOOL:
+            error "Cognate error: 'While' requires a boolean value"
+        else :
+            (interpret(conditionBlock, S))[stack][len((interpret(conditionBlock, S))[stack]) - 1][value] == flag
+    action(S) :
+        interpret(actionBlock, ((interpret(conditionBlock, S)) with (stack::((interpret(conditionBlock, S))[stack] curtail 1)))),
+            .. conditionBlock, actionBlock, flag
