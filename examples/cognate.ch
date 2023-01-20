@@ -5,9 +5,6 @@ import // All the imports we need ...
 
 def // All the types we need ...
 
-
-
-
 TokenType = enum STRING, INT, BOOL, BLOCK, LIST, BUILTIN, IDENT, SEMICOLON, LBRACK, RBRACK, LET, DEF, ANY
 Token = struct(tokenType TokenType, value single)
 Env = struct(inner map, ext Env)
@@ -39,9 +36,9 @@ def // And the rest is the functional core. Nothing but pure functions with loca
 execute(lineToExecute, state) :
     tokenize(lineToExecute) >> parseBindings >> parseBlocks >> desugarToRpn >> interpret(that, state)
 
-interpret(parsedCode list, state MachineState) : \\ currentToken, state[stack][len(state[stack]) - 1]
-    parsedCode == [] : state
-    else :
+interpret(parsedCode list, state MachineState) :
+    parsedCode == [] : state \\
+    else : 
         currentToken[tokenType] in [INT, STRING, BOOL] :
             interpret (codeTail, (state with stack :: state[stack] + [currentToken]))
         currentToken[tokenType] == BLOCK :
@@ -57,7 +54,7 @@ interpret(parsedCode list, state MachineState) : \\ currentToken, state[stack][l
                 interpret (codeTail, (state with stack::state[stack] + [getFromEnv(state[vars], currentToken[value])]))
             type(getFromEnv(state[funcs], currentToken[value])) != error : 
                 (interpret (codeTail, (applyFunction(getFromEnv(state[funcs], currentToken[value]), state)))) ..
-                                        .. with (vars::state[vars], funcs::state[funcs]) \\ "****", currentToken[value]
+                                        .. with (vars::state[vars], funcs::state[funcs]) 
             else :
                 error "Cognate error: unknown identifier " + currentToken[value]
         else :
@@ -76,8 +73,8 @@ given :
     functionToApply = builtins[nameOfBuiltin][function]
     signatureOfBuiltin = builtins[nameOfBuiltin][signature]
 
-applyFunction(fn, S) : \\ "apply function"
-    interpret(fn[value][codeBlock], (S with funcs::Env(fn[value][funcs][inner], S[funcs]))) \\fn[value][codeBlock] 
+applyFunction(fn, S) : 
+    interpret(fn[value][codeBlock], (S with funcs::Env(fn[value][funcs][inner], S[funcs])))
 
 setVar(name, S) :
     gatekeepName(name, S)   
