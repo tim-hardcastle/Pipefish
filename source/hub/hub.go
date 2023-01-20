@@ -1271,7 +1271,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 
 func objToString(service *Service, obj object.Object) string {
 
-	value, _ := service.Env.Get("$view")
+	value, _ := service.Parser.AllGlobals.Get("$view")
 	switch value.(*object.String).Value {
 	case "charm":
 		return obj.Inspect(object.ViewCharmLiteral)

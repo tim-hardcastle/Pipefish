@@ -98,7 +98,7 @@ type Parser struct {
 	nesting       stack.Stack[token.Token]
 	curToken      token.Token
 	peekToken     token.Token
-	Logging		  bool
+	Logging       bool
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -115,24 +115,25 @@ type Parser struct {
 
 	nativeInfixes set.Set[token.TokenType]
 	lazyInfixes   set.Set[token.TokenType]
-	
-	FunctionTable   FunctionTable
-	FunctionTreeMap map[string]*ast.FnTreeNode
-	Globals    *object.Environment
-	TypeSystem TypeSystem
+
+	FunctionTable    FunctionTable
+	FunctionTreeMap  map[string]*ast.FnTreeNode
+	GlobalConstants  *object.Environment
+	AllGlobals       *object.Environment
+	TypeSystem       TypeSystem
 	BuiltinFunctions map[string]func(p *Parser, args ...object.Object) object.Object
-	Enums map[string][]*object.Label
-	Structs set.Set[string]
-	Parsers map[string]*Parser
-	GoImports map[string][]string
-	Namespace string
-	Namespaces map[string]string
+	Enums            map[string][]*object.Label
+	Structs          set.Set[string]
+	Parsers          map[string]*Parser
+	GoImports        map[string][]string
+	Namespace        string
+	Namespaces       map[string]string
 }
 
 func New() *Parser {
 	p := &Parser{
 		Errors:            []*object.Error{},
-		Logging: 		   true,	
+		Logging:           true,
 		nesting:           *stack.NewStack[token.Token](),
 		Functions:         make(set.Set[string]),
 		Prefixes:          make(set.Set[string]),
@@ -151,13 +152,14 @@ func New() *Parser {
 			token.IFLOG, token.PRELOG}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
-		FunctionTable:   make(FunctionTable),
-		FunctionTreeMap: make(map[string]*ast.FnTreeNode),
-		Globals:         object.NewEnvironment(), // I need my functions to be able to see the global constants.
-		TypeSystem:      NewTypeSystem(),
-		Structs:         make(set.Set[string]),
-		GoImports:       make(map[string][]string),
-		Namespaces:      make(map[string]string),
+		FunctionTable:    make(FunctionTable),
+		FunctionTreeMap:  make(map[string]*ast.FnTreeNode),
+		GlobalConstants:  object.NewEnvironment(), // I need my functions to be able to see the global constants.
+		AllGlobals:       object.NewEnvironment(), // The logger needs to be able to see service variables and this is the simplest way.
+		TypeSystem:       NewTypeSystem(),
+		Structs:          make(set.Set[string]),
+		GoImports:        make(map[string][]string),
+		Namespaces:       make(map[string]string),
 	}
 
 	for k := range *p.TypeSystem {
@@ -213,10 +215,6 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 		return true
 	}
 	return false
-}
-
-func (p *Parser) peekError(t token.Token) {
-	p.Throw("parse/expect", t, p.peekToken)
 }
 
 func (p *Parser) prefixSuffixError() {
@@ -654,9 +652,9 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 		Left:     left,
 	}
 
-	if p.curToken.Source != "rsc/builtins.ch" {
-		//printNodeList(p.recursivelyListify(expression.Left))
-	}
+	//if p.curToken.Source != "rsc/builtins.ch" {
+	//printNodeList(p.recursivelyListify(expression.Left))
+	//}
 	expression.Args = p.recursivelyListify(expression.Left)
 
 	return expression
@@ -712,8 +710,8 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
 
 	expression := &ast.LogExpression{
-		Token: p.curToken,
-		Code:  left,
+		Token:   p.curToken,
+		Code:    left,
 		LogType: ast.LogUser,
 	}
 	precedence := p.curPrecedence()
@@ -737,8 +735,8 @@ func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
 func (p *Parser) parsePrelogExpression(left ast.Node) ast.Node {
 
 	expression := &ast.LogExpression{
-		Token: p.curToken,
-		Args:  p.recursivelyListify(left),
+		Token:   p.curToken,
+		Args:    p.recursivelyListify(left),
 		LogType: ast.LogUser,
 	}
 	if left.GetToken().Type == token.AUTOLOG {
@@ -763,7 +761,7 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	expression.Right = p.parseExpression(precedence)
 	// Now the desugaring, if necessary
 	switch right := expression.Right.(type) {
-	case *ast.Identifier :
+	case *ast.Identifier:
 		if p.Functions.Contains(expression.Right.GetToken().Literal) {
 			expression.Right = &ast.PrefixExpression{Token: right.GetToken(),
 				Operator: expression.Right.GetToken().Literal,
@@ -775,8 +773,8 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 				Operator: expression.Right.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
 				Left:     &ast.Identifier{Value: "that"}}
-			}
-		
+		}
+
 	}
 	return expression
 }
@@ -1009,12 +1007,6 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 		}
 	}
 	return []ast.Node{start}
-}
-
-func printNodeList(L []ast.Node) {
-	for _, v := range L {
-		fmt.Println(v.String())
-	}
 }
 
 func (p *Parser) checkNesting() {

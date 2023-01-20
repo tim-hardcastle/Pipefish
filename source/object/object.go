@@ -65,6 +65,7 @@ type Hashable interface {
 }
 
 type Object interface {
+	DeepCopy() Object
 	Type() ObjectType
 	Inspect(view View) string
 }
@@ -77,10 +78,16 @@ type Object interface {
 
 // The "bling" type is internal: it is the type assigned to those parts of a Fancy Function
 // Definition that aren't keywords: midfixes, endfixes, etc.
+
+// The DeepCopy method is a stopgap until I have persistent data structures. Its name is often a lie in terms of its
+// implementation, in that it's only necessary to actually do a deep copy, or indeed a copy of any sort, if we have operations
+// returning an updated version of the object. Most often we don't, and so 'DeepCopy' can in fact just return the object. We need to
+// perform an actual deep copy for container types, however, because of 'with' and the slice operator.
+
 type Bling struct {
 	Value string
 }
-
+func (b *Bling) DeepCopy() Object {return b}
 func (b *Bling) Type() ObjectType         { return BLING_OBJ }
 func (b *Bling) Inspect(view View) string { return b.Value }
 
@@ -89,6 +96,7 @@ type Boolean struct {
 	Value bool
 }
 
+func (b *Boolean) DeepCopy() Object {return b}
 func (b *Boolean) Type() ObjectType         { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect(view View) string { return fmt.Sprintf("%t", b.Value) }
 func (b *Boolean) HashKey() HashKey {
@@ -108,6 +116,7 @@ type Code struct {
 	Value ast.Node
 }
 
+func (c *Code) DeepCopy() Object {return c}
 func (c *Code) Type() ObjectType { return CODE_OBJ }
 func (c *Code) Inspect(view View) string {
 	return fmt.Sprintf("code %s", c.Value.String())
@@ -122,6 +131,7 @@ type Error struct {
 	Token   token.Token
 }
 
+func (e *Error) DeepCopy() Object {return e}
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect(view View) string {
 	if view == ViewStdOut {
@@ -139,6 +149,7 @@ type Float struct {
 	Value float64
 }
 
+func (f *Float) DeepCopy() Object {return f}
 func (f *Float) Type() ObjectType         { return FLOAT_OBJ }
 func (f *Float) Inspect(view View) string { return fmt.Sprintf("%f", f.Value) }
 func (f *Float) HashKey() HashKey {
@@ -151,6 +162,7 @@ type Func struct {
 	Env *Environment
 }
 
+func (fn *Func) DeepCopy() Object {return fn} 
 func (fn *Func) Type() ObjectType { return FUNC_OBJ }
 func (fn *Func) Inspect(view View) string {
 	result := "func " + fn.Sig.String() + " : " + fn.Body.String()
@@ -165,6 +177,14 @@ type Hash struct {
 	Pairs map[HashKey]HashPair
 }
 
+func (h *Hash) DeepCopy() Object {
+	newHash := &Hash{Pairs:  make(map[HashKey]HashPair)}
+	for hashKey, pair := range h.Pairs {
+		newPair := HashPair{Key: pair.Key, Value: pair.Value.DeepCopy()}
+		newHash.Pairs[hashKey] = newPair 
+	}
+	return newHash
+}
 func (h *Hash) Type() ObjectType { return HASH_OBJ }
 func (h *Hash) Inspect(view View) string {
 	var out bytes.Buffer
@@ -194,6 +214,7 @@ type Integer struct {
 	Value int
 }
 
+func (i *Integer) DeepCopy() Object {return i}
 func (i *Integer) Type() ObjectType         { return INTEGER_OBJ }
 func (i *Integer) Inspect(view View) string { return fmt.Sprintf("%d", i.Value) }
 func (i *Integer) HashKey() HashKey {
@@ -208,6 +229,7 @@ type Label struct {
 	Name  string
 }
 
+func (la *Label) DeepCopy() Object {return la}
 func (la *Label) Type() ObjectType         { return LABEL_OBJ }
 func (la *Label) Inspect(view View) string { return la.Value }
 func (la *Label) HashKey() HashKey {
@@ -222,6 +244,20 @@ type List struct {
 	Elements []Object
 }
 
+func (lo *List) DeepCopy() Object {
+	newList := make([]Object, len(lo.Elements))
+		for i := 0; i < len(lo.Elements); i++ {
+			newList[i] = lo.Elements[i].DeepCopy()
+		}
+	return &List{Elements: newList}
+}
+func (lo *List) DeepSlice(start, end int) Object {
+	newList := make([]Object, end - start)
+		for i := start; i < end; i++ {
+			newList[i - start] = lo.Elements[i].DeepCopy()
+		}
+	return &List{Elements: newList}
+}
 func (lo *List) Type() ObjectType { return LIST_OBJ }
 func (lo *List) Inspect(view View) string {
 	var out bytes.Buffer
@@ -244,6 +280,7 @@ type Pair struct {
 	Right Object
 }
 
+func (p *Pair) DeepCopy() Object {return &Pair{Left: p.Left.DeepCopy(), Right: p.Right.DeepCopy()}}
 func (p *Pair) Type() ObjectType { return PAIR_OBJ }
 func (p *Pair) Inspect(view View) string {
 	return fmt.Sprintf("%s :: %s", p.Left.Inspect(view), p.Right.Inspect(view))
@@ -255,8 +292,8 @@ type Return struct {
 	Elements []Object
 }
 
+func (r *Return) DeepCopy() Object {return r}
 func (r *Return) Type() ObjectType { return RETURN_OBJ }
-
 func (r *Return) Inspect(view View) string {
 	var out bytes.Buffer
 
@@ -275,13 +312,19 @@ type Set struct {
 	Elements []Object
 }
 
+func (so *Set) DeepCopy() Object {
+	newSet := make([]Object, len(so.Elements))
+		for i := 0; i < len(so.Elements); i++ {
+			newSet[i] = so.Elements[i].DeepCopy()
+		}
+	return &Set{Elements: newSet}
+}
 func (so *Set) Type() ObjectType { return SET_OBJ }
 func (so *Set) Inspect(view View) string {
 	var out bytes.Buffer
 	elements := []string{}
 	for _, element := range so.Elements {
-		elements = append(elements, fmt.Sprintf("%s",
-			element.Inspect(view)))
+		elements = append(elements, element.Inspect(view))
 	}
 
 	out.WriteString("{")
@@ -296,6 +339,7 @@ type String struct {
 	Value string
 }
 
+func (s *String) DeepCopy() Object {return s}
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect(view View) string {
 	if view == ViewStdOut {
@@ -316,7 +360,13 @@ type Struct struct {
 	Value  map[string]Object
 	Name   string
 }
-
+func (s *Struct) DeepCopy() Object {
+	newStruct := &Struct{Labels: s.Labels, Value: make(map[string]Object), Name: s.Name}
+	for k, v := range(s.Value) {
+		newStruct.Value[k] = v.DeepCopy() 
+	}
+	return newStruct
+}
 func (st *Struct) Type() ObjectType { return STRUCT_OBJ }
 func (st *Struct) Inspect(view View) string {
 	var out bytes.Buffer
@@ -345,6 +395,7 @@ type StructDef struct {
 	Sig signature.Signature
 }
 
+func (st *StructDef) DeepCopy() Object { return st }
 func (st *StructDef) Type() ObjectType         { return STRUCTDEF_OBJ }
 func (st *StructDef) Inspect(view View) string { return st.Sig.String() }
 
@@ -352,6 +403,7 @@ func (st *StructDef) Inspect(view View) string { return st.Sig.String() }
 // returns.
 type SuccessfulAssignment struct{}
 
+func (s *SuccessfulAssignment) DeepCopy() Object { return s }
 func (s *SuccessfulAssignment) Type() ObjectType         { return SUCCESSFUL_OBJ }
 func (s *SuccessfulAssignment) Inspect(view View) string { return text.OK }
 
@@ -360,6 +412,20 @@ type Tuple struct {
 	Elements []Object
 }
 
+func (to *Tuple) DeepCopy() Object {
+	newList := make([]Object, len(to.Elements))
+		for i := 0; i < len(to.Elements); i++ {
+			newList[i] = to.Elements[i].DeepCopy()
+		}
+	return &Tuple{Elements: newList}
+}
+func (to *Tuple) DeepSlice(start, end int) Object {
+	newTuple := make([]Object, end - start)
+		for i := start; i < end; i++ {
+			newTuple[i - start] = to.Elements[i].DeepCopy()
+		}
+	return &Tuple{Elements: newTuple}
+}
 func (to *Tuple) Type() ObjectType { return TUPLE_OBJ }
 func (to *Tuple) Inspect(view View) string {
 	var out bytes.Buffer
@@ -388,31 +454,26 @@ type Type struct {
 	Value string
 }
 
+func (t *Type) DeepCopy() Object {return t}
 func (t *Type) Type() ObjectType { return TYPE_OBJ }
 func (t *Type) Inspect(view View) string {
-	if view == ViewStdOut {
-		return fmt.Sprintf("%s", t.Value)
-	}
-	return fmt.Sprintf("type %s", t.Value)
-}
-
-func (t *Type) HashKey() HashKey {
-	h := fnv.New64a()
-	h.Write([]byte(t.Value))
-	return HashKey{Type: t.Type(), Value: h.Sum64()}
+	return t.Value
 }
 
 // An 'unsatisfied conditional' is returned by anything of the form x : y where x is not true.
-// This is an internal type in that before any end-user gets to see it it will be turned into
+// This is an internal type in that before any user gets to see it it will be turned into
 // a unsatisfied conditional error.
 type UnsatisfiedConditional struct{}
 
+func (u *UnsatisfiedConditional) DeepCopy() Object {return u}
 func (u *UnsatisfiedConditional) Type() ObjectType         { return UNSATISFIED_OBJ }
 func (u *UnsatisfiedConditional) Inspect(view View) string { return "unsatisfied conditional" }
 
 ///////////////////////////////////////////////////////////////
 // Functions for pretending the 'set' type is actually a set.
 ///////////////////////////////////////////////////////////////
+
+// This is gross but it will all be removed when I do persistent data structures so I feel no obligation to do better.
 
 func (so *Set) Contains(ob Object) bool {
 	return contains(so.Elements, ob)
@@ -452,6 +513,12 @@ func SetFromSlice(slice []Object) *Set {
 //////////////////////////
 // Helper functions etc
 //////////////////////////
+
+func (t *Type) HashKey() HashKey {
+	h := fnv.New64a()
+	h.Write([]byte(t.Value))
+	return HashKey{Type: t.Type(), Value: h.Sum64()}
+}
 
 func Equals(lhs, rhs Object) bool {
 	if TrueType(lhs) != TrueType(rhs) {

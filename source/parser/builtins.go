@@ -464,9 +464,7 @@ func evalArraySliceExpression(array, index object.Object) object.Object {
 	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) || (idy < idx) {
 		return makeErr("built/slice/range/list", idx, idy, max+1)
 	}
-	slice := make([]object.Object, len(arrayObject.Elements))
-	copy (slice, arrayObject.Elements)
-	return &object.List{Elements: slice[idx:idy]}
+	return arrayObject.DeepSlice(idx, idy)
 }
 
 func evalTupleSliceExpression(array, index object.Object) object.Object {
@@ -484,9 +482,7 @@ func evalTupleSliceExpression(array, index object.Object) object.Object {
 	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) {
 		return makeErr("built/slice/range/tuple", idx, idy, max+1)
 	}
-	slice := make([]object.Object, len(arrayObject.Elements))
-	copy (slice, arrayObject.Elements)
-	return &object.Tuple{Elements: slice[idx:idy]}
+	return arrayObject.DeepSlice(idx, idy)
 }
 
 func evalStringSliceExpression(string, index object.Object) object.Object {
@@ -594,7 +590,7 @@ func addTupleToList(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	outList := args[0]
+	outList := args[0].DeepCopy()
 	for _, v := range(args[2].(*object.Tuple).Elements) {
 		outList = addPairToList(outList, &object.Bling{}, v)
 	}
@@ -605,25 +601,30 @@ func addTupleToStruct(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	outList := args[0]
+	outStruct := args[0].DeepCopy()
 	for _, v := range(args[2].(*object.Tuple).Elements) {
-		outList = addPairToStruct(outList, &object.Bling{}, v)
+		outStruct = addPairToStruct(outStruct, &object.Bling{}, v)
 	}
-	return outList
+	return outStruct
 }
 
 func addTupleToMap(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	outList := args[0]
+	outMap := args[0]
 	for _, v := range(args[2].(*object.Tuple).Elements) {
-		outList = addPairToMap(outList, &object.Bling{}, v)
+		outMap = addPairToMap(outMap, &object.Bling{}, v)
 	}
-	return outList
+	return outMap
 }
 
 func addPairToList(args ...object.Object) object.Object {
+	args[0] = args[0].DeepCopy()
+	return unsafeAddPairToList(args ...)
+}
+
+func unsafeAddPairToList(args ...object.Object) object.Object {
 	index := args[2].(*object.Pair).Left
 	if object.TrueType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
@@ -670,21 +671,24 @@ func addPairToList(args ...object.Object) object.Object {
 		return makeErr("built/range/list/a", index.(*object.Integer).Value, len(args[0].(*object.List).Elements))
 	}
 	newElements := []object.Object{}
-	for _, v := range args[0].(*object.List).Elements {
-		newElements = append(newElements, v)
-	}
+	newElements = append(newElements, args[0].(*object.List).Elements ...)
 	newElements[index.(*object.Integer).Value] = args[2].(*object.Pair).Right
 	return &object.List{Elements: newElements}
 }
 
 func addPairToStruct(args ...object.Object) object.Object {
+	args[0] = args[0].DeepCopy()
+	return unsafeAddPairToStruct(args ...)
+}
+
+func unsafeAddPairToStruct(args ...object.Object) object.Object {
 	index := args[2].(*object.Pair).Left
 	if object.TrueType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
 			return makeErr("built/struct/empty", object.TrueType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
-			return addPairToStruct(args[0], args[1], &object.Pair{
+			return unsafeAddPairToStruct(args[0], args[1], &object.Pair{
 				Left:  index.(*object.List).Elements[0],
 				Right: args[2].(*object.Pair).Right})
 		}
@@ -693,23 +697,23 @@ func addPairToStruct(args ...object.Object) object.Object {
 			return objectToChange
 		}
 		if objectToChange.Type() == "list" {
-			return addPairToStruct(args[0], args[1], &object.Pair{
+			return unsafeAddPairToStruct(args[0], args[1], &object.Pair{
 				Left: index.(*object.List).Elements[0],
-				Right: addPairToList(objectToChange, args[1], &object.Pair{
+				Right: unsafeAddPairToList(objectToChange, args[1], &object.Pair{
 					Left:  &object.List{Elements: index.(*object.List).Elements[1:len(index.(*object.List).Elements)]},
 					Right: args[2].(*object.Pair).Right})})
 		}
 		if objectToChange.Type() == "struct" {
-			return addPairToStruct(args[0], args[1], &object.Pair{
+			return unsafeAddPairToStruct(args[0], args[1], &object.Pair{
 				Left: index.(*object.List).Elements[0],
-				Right: addPairToStruct(objectToChange, args[1], &object.Pair{
+				Right: unsafeAddPairToStruct(objectToChange, args[1], &object.Pair{
 					Left:  &object.List{Elements: index.(*object.List).Elements[1:len(index.(*object.List).Elements)]},
 					Right: args[2].(*object.Pair).Right})})
 		}
 		if objectToChange.Type() == "map" {
-			return addPairToStruct(args[0], args[1], &object.Pair{
+			return unsafeAddPairToStruct(args[0], args[1], &object.Pair{
 				Left: index.(*object.List).Elements[0],
-				Right: addPairToMap(objectToChange, args[1], &object.Pair{
+				Right: unsafeAddPairToMap(objectToChange, args[1], &object.Pair{
 					Left:  &object.List{Elements: index.(*object.List).Elements[1:len(index.(*object.List).Elements)]},
 					Right: args[2].(*object.Pair).Right})})
 		}
@@ -728,6 +732,11 @@ func addPairToStruct(args ...object.Object) object.Object {
 }
 
 func addPairToMap(args ...object.Object) object.Object {
+	args[0] = args[0].DeepCopy()
+	return unsafeAddPairToMap(args ...)
+}
+
+func unsafeAddPairToMap(args ...object.Object) object.Object {
 
 	index := args[2].(*object.Pair).Left
 	if object.TrueType(index) == "list" {
@@ -735,7 +744,7 @@ func addPairToMap(args ...object.Object) object.Object {
 			return makeErr("built/map/empty", object.TrueType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
-			return addPairToMap(args[0], args[1], &object.Pair{
+			return unsafeAddPairToMap(args[0], args[1], &object.Pair{
 				Left:  index.(*object.List).Elements[0],
 				Right: args[2].(*object.Pair).Right})
 		}
@@ -744,23 +753,23 @@ func addPairToMap(args ...object.Object) object.Object {
 			return objectToChange
 		}
 		if objectToChange.Type() == "list" {
-			return addPairToMap(args[0], args[1], &object.Pair{
+			return unsafeAddPairToMap(args[0], args[1], &object.Pair{
 				Left: index.(*object.List).Elements[0],
-				Right: addPairToList(objectToChange, args[1], &object.Pair{
+				Right: unsafeAddPairToList(objectToChange, args[1], &object.Pair{
 					Left:  &object.List{Elements: index.(*object.List).Elements[1:len(index.(*object.List).Elements)]},
 					Right: args[2].(*object.Pair).Right})})
 		}
 		if objectToChange.Type() == "struct" {
 			return addPairToMap(args[0], args[1], &object.Pair{
 				Left: index.(*object.List).Elements[0],
-				Right: addPairToStruct(objectToChange, args[1], &object.Pair{
+				Right: unsafeAddPairToStruct(objectToChange, args[1], &object.Pair{
 					Left:  &object.List{Elements: index.(*object.List).Elements[1:len(index.(*object.List).Elements)]},
 					Right: args[2].(*object.Pair).Right})})
 		}
 		if objectToChange.Type() == "map" {
-			return addPairToMap(args[0], args[1], &object.Pair{
+			return unsafeAddPairToMap(args[0], args[1], &object.Pair{
 				Left: index.(*object.List).Elements[0],
-				Right: addPairToMap(objectToChange, args[1], &object.Pair{
+				Right: unsafeAddPairToMap(objectToChange, args[1], &object.Pair{
 					Left:  &object.List{Elements: index.(*object.List).Elements[1:len(index.(*object.List).Elements)]},
 					Right: args[2].(*object.Pair).Right})})
 		}

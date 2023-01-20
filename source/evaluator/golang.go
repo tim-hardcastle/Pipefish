@@ -275,7 +275,7 @@ func (gh *GoHandler) CharmToGo(ch object.Object) any {
 			for _, v := range args {
 				params = append(params, gh.goToCharm(v))
 			}
-			charmResult := applyFunction(ch.Function, params, token.Token{}, &Conditions{env : &object.Environment{}, prsr: gh.Prsr, access: DEF, logging: false})
+			charmResult := applyFunction(ch.Function, params, token.Token{}, &Context{env: &object.Environment{}, prsr: gh.Prsr, access: DEF, logging: false})
 			return gh.goToCharm(charmResult)
 		}
 	case *object.Float:

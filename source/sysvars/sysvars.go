@@ -15,12 +15,12 @@ type sysvar = struct {
 }
 
 var Sysvars = map[string]sysvar{
-	"$view": sysvar{
+	"$view": {
 		Dflt: &object.String{Value: "plain"},
 		Validator: func(obj object.Object) string {
-			switch obj.(type) {
+			switch obj := obj.(type) {
 			case *object.String:
-				if obj.(*object.String).Value != "charm" && obj.(*object.String).Value != "plain" {
+				if obj.Value != "charm" && obj.Value != "plain" {
 					return "sys/view/vals"
 				}
 				return ""
@@ -29,7 +29,7 @@ var Sysvars = map[string]sysvar{
 			}
 		},
 	},
-	"$logTime": sysvar{
+	"$logTime": {
 		Dflt: object.FALSE,
 		Validator: func(obj object.Object) string {
 			switch obj.(type) {
@@ -40,15 +40,15 @@ var Sysvars = map[string]sysvar{
 			}
 		},
 	},
-	"$logPath": sysvar{
+	"$logPath": {
 		Dflt: &object.String{Value: "stdout"},
 		Validator: func(obj object.Object) string {
-			switch obj.(type) {
+			switch obj := obj.(type) {
 			case *object.String:
-				if obj.(*object.String).Value == "stdout" {
+				if obj.Value == "stdout" {
 					return ""
 				} 
-				_, err := os.Stat(filepath.Dir(obj.(*object.String).Value))
+				_, err := os.Stat(filepath.Dir(obj.Value))
 						if err != nil {
 					return "sys/logpath/path"
 				}

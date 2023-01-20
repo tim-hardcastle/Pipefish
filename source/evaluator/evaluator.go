@@ -33,18 +33,18 @@ const (
 	LAMBDA
 )
 
-type Conditions struct {
+type Context struct {
 	prsr    *parser.Parser
 	env     *object.Environment
 	access  Access
 	logging bool
 }
 
-func NewConditions(p *parser.Parser, e *object.Environment, a Access, log bool) *Conditions {
-	return &Conditions{prsr: p, env: e, access: a, logging: log}
+func NewContext(p *parser.Parser, e *object.Environment, a Access, log bool) *Context {
+	return &Context{prsr: p, env: e, access: a, logging: log}
 }
 
-func Evaluate(node ast.Node, c *Conditions) object.Object {
+func Evaluate(node ast.Node, c *Context) object.Object {
 	result := Eval(node, c)
 	if result.Type() == object.UNSATISFIED_OBJ {
 		return newError("eval/unsatisfied/a", node.GetToken())
@@ -52,7 +52,7 @@ func Evaluate(node ast.Node, c *Conditions) object.Object {
 	return result
 }
 
-func Eval(node ast.Node, c *Conditions) object.Object {
+func Eval(node ast.Node, c *Context) object.Object {
 
 	switch node := node.(type) {
 
@@ -203,8 +203,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 		return evalLazyRightExpression(node.Token, right, c)
 
 	case *ast.ExecExpression:
-		newConditions := &Conditions{prsr: c.prsr.Parsers[node.Left.(*ast.Identifier).Value], env: c.env, access: c.access, logging: c.logging}
-		return Eval(node.Right, newConditions)
+		newContext := &Context{prsr: c.prsr.Parsers[node.Left.(*ast.Identifier).Value], env: c.env, access: c.access, logging: c.logging}
+		return Eval(node.Right, newContext)
 
 	case *ast.Identifier:
 		// We may have reached a bit of orphaned endbling.
@@ -236,15 +236,15 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 	case *ast.LogExpression:
 		if c.logging {
 			logStr := "Log at line " + text.YELLOW + strconv.Itoa(node.Token.Line) + text.RESET
-			logTime, _ := c.env.Get("$logTime")
+			logTime, _ := c.prsr.AllGlobals.Get("$logTime")
 			if logTime == object.TRUE {
 				logStr = logStr + " @ " + text.BLUE + time.Now().Local().String() + text.RESET
 			}
 			logStr = logStr + ":\n    "
 			for i, arg := range node.Args {
 				if arg.GetToken().Type == token.AUTOLOG {
-					newConditions := &Conditions{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-					logStr = logStr + autolog(node, newConditions) + "\n\n"
+					newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
+					logStr = logStr + autolog(node, newContext) + "\n\n"
 					emit(logStr, node.GetToken(), c)
 
 					return Eval(node.Code, c)
@@ -252,8 +252,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				if isLiteral(arg) {
 					logStr = logStr + (Eval(arg, c).Inspect(object.ViewStdOut) + " ")
 				} else {
-					newConditions := &Conditions{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-					logStr = logStr + arg.String() + " = " + (Eval(arg, newConditions)).Inspect(object.ViewCharmLiteral)
+					newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
+					logStr = logStr + arg.String() + " = " + (Eval(arg, newContext)).Inspect(object.ViewCharmLiteral)
 					if i+1 < len(node.Args) && !isLiteral(node.Args[i+1]) {
 						logStr = logStr + "; "
 					}
@@ -309,8 +309,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 			params = []object.Object{right}
 		}
 		left.(*object.Func).Env.Ext = c.env
-		newConditions := NewConditions(c.prsr, left.(*object.Func).Env, c.access, c.logging)
-		return applyFunction(left.(*object.Func).Function, params, node.Token, newConditions)
+		newContext := NewContext(c.prsr, left.(*object.Func).Env, c.access, c.logging)
+		return applyFunction(left.(*object.Func).Function, params, node.Token, newContext)
 	case *ast.CodeLiteral:
 		return &object.Code{Value: node.Right}
 	case *ast.Nothing:
@@ -327,16 +327,16 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				val, ok := c.env.Get(node.Right.GetToken().Literal)
 				if ok {
 					if val.Type() == object.FUNC_OBJ {
-						newConditions := NewConditions(c.prsr, val.(*object.Func).Env, c.access, c.logging)
-						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.Token, newConditions)
+						newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
+						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.Token, newContext)
 					}
 				}
 			}
 			envWithThat := object.NewEnvironment()
 			envWithThat.HardSet("that", left)
 			envWithThat.Ext = c.env
-			newConditions := &Conditions{prsr: c.prsr, env: envWithThat, access: c.access, logging: c.logging}
-			return Eval(node.Right, newConditions)
+			newContext := &Context{prsr: c.prsr, env: envWithThat, access: c.access, logging: c.logging}
+			return Eval(node.Right, newContext)
 		case token.MAP:
 			if left.Type() == object.ERROR_OBJ {
 				left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
@@ -351,8 +351,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				if ok {
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
-							newConditions := NewConditions(c.prsr, val.(*object.Func).Env, c.access, c.logging)
-							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newConditions)
+							newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newContext)
 							if result.Type() == object.ERROR_OBJ {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
@@ -367,8 +367,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 			envWithThat.Ext = c.env
 			for _, v := range left.(*object.List).Elements {
 				envWithThat.HardSet("that", v)
-				newConditions := &Conditions{prsr: c.prsr, env: envWithThat, access: c.access, logging: c.logging}
-				result := Eval(node.Right, newConditions)
+				newContext := &Context{prsr: c.prsr, env: envWithThat, access: c.access, logging: c.logging}
+				result := Eval(node.Right, newContext)
 				if result.Type() == object.ERROR_OBJ {
 					result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 					return result
@@ -390,8 +390,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 				if ok {
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
-							newConditions := NewConditions(c.prsr, val.(*object.Func).Env, c.access, c.logging)
-							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newConditions)
+							newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newContext)
 							if result.Type() == object.ERROR_OBJ {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
@@ -411,8 +411,8 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 			envWithThat.Ext = c.env
 			for _, v := range left.(*object.List).Elements {
 				envWithThat.HardSet("that", v)
-				newConditions := &Conditions{prsr: c.prsr, env: envWithThat, access: c.access, logging: c.logging}
-				result := Eval(node.Right, newConditions)
+				newContext := &Context{prsr: c.prsr, env: envWithThat, access: c.access, logging: c.logging}
+				result := Eval(node.Right, newContext)
 				if result.Type() == object.ERROR_OBJ {
 					result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 					return result
@@ -430,7 +430,7 @@ func Eval(node ast.Node, c *Conditions) object.Object {
 	return newError("eval/oops", token.Token{Line: 0})
 }
 
-func evalLazyRightExpression(tok token.Token, right object.Object, c *Conditions) object.Object {
+func evalLazyRightExpression(tok token.Token, right object.Object, c *Context) object.Object {
 	if isUnsatisfiedConditional(right) {
 		return UNSATISFIED
 	}
@@ -443,7 +443,7 @@ func evalLazyRightExpression(tok token.Token, right object.Object, c *Conditions
 	return right
 }
 
-func evalLazyLeftExpression(tok token.Token, left object.Object, c *Conditions) object.Object {
+func evalLazyLeftExpression(tok token.Token, left object.Object, c *Context) object.Object {
 	if tok.Literal == ";" {
 		if isUnsatisfiedConditional(left) {
 			return nil
@@ -473,7 +473,7 @@ func evalLazyLeftExpression(tok token.Token, left object.Object, c *Conditions) 
 	return nil
 }
 
-func evalPrefixExpression(node *ast.PrefixExpression, c *Conditions) object.Object {
+func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object {
 	variable, ok := c.env.Get(node.Token.Literal)
 	params := []object.Object{}
 	tok := node.Token
@@ -503,12 +503,12 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Conditions) object.Obje
 			if !c.prsr.ParamsFitSig(variable.(*object.Func).Sig, params) {
 				return newError("eval/sig/lambda", tok, params)
 			}
-			newConditions := NewConditions(c.prsr, variable.(*object.Func).Env, LAMBDA, c.logging)
-			lamdbaResult := applyFunction(variable.(*object.Func).Function, params, tok, newConditions)
+			newContext := NewContext(c.prsr, variable.(*object.Func).Env, LAMBDA, c.logging)
+			lamdbaResult := applyFunction(variable.(*object.Func).Function, params, tok, newContext)
 			return lamdbaResult
 		}
 		// Otherwise we have a function or prefix, which work the same at this point.
-		var result object.Object 
+		var result object.Object
 		result = functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 		if result.Type() == object.ERROR_OBJ {
 			if operator == "type" {
@@ -523,11 +523,11 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Conditions) object.Obje
 	return newError("eval/unknown/prefix", tok, Eval(node.Right, c))
 }
 
-func evalUnfixExpression(node *ast.UnfixExpression, c *Conditions) object.Object {
+func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	return functionCall(c.prsr.FunctionTreeMap[node.Operator], []ast.Node{}, node.Token, c)
 }
 
-func evalInfixExpression(node *ast.InfixExpression, c *Conditions) object.Object {
+func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 	if c.prsr.Infixes.Contains(node.Operator) {
 		if node.Operator == "with" {
 			params := listArgs(node.Args, node.Token, c)
@@ -573,7 +573,7 @@ func evalInfixExpression(node *ast.InfixExpression, c *Conditions) object.Object
 	}
 }
 
-func Assign(variable signature.NameTypePair, right object.Object, tok token.Token, c *Conditions) *object.Error {
+func Assign(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
 	if right.Type() == object.UNSATISFIED_OBJ {
 		return newError("eval/unsatisfied/l", tok)
 	}
@@ -805,7 +805,7 @@ func evalNotOperatorExpression(token token.Token, right object.Object) object.Ob
 	return object.TRUE
 }
 
-func evalEvalExpression(token token.Token, right object.Object, c *Conditions) object.Object {
+func evalEvalExpression(token token.Token, right object.Object, c *Context) object.Object {
 	if right.Type() == object.ERROR_OBJ {
 		return right
 	}
@@ -855,8 +855,7 @@ func evalTupleExpression(
 	}
 }
 
-func evalIdentifier(node *ast.Identifier, c *Conditions) object.Object {
-
+func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	val, ok := c.env.Get(node.Value)
 
 	if (!ok || c.env.IsPrivate(node.Value)) && node.GetToken().Source == "REPL input" {
@@ -893,8 +892,8 @@ func isUnsatisfiedConditional(obj object.Object) bool {
 	return false
 }
 
-func evalIndexExpression(tok token.Token, left, index ast.Node, c *Conditions) object.Object {
-	return functionCall(c.prsr.FunctionTreeMap["index"], []ast.Node{left, &ast.Bling{Value: "by"}, index}, tok, c)	
+func evalIndexExpression(tok token.Token, left, index ast.Node, c *Context) object.Object {
+	return functionCall(c.prsr.FunctionTreeMap["index"], []ast.Node{left, &ast.Bling{Value: "by"}, index}, tok, c)
 }
 
 type functionTreeWalker struct {
@@ -945,7 +944,7 @@ func tuplify(args []object.Object) object.Object {
 
 // For special cases like the 'not' operator, we need (for now) to evaluate the arguments
 // without the treewalker.
-func listArgs(args []ast.Node, tok token.Token, c *Conditions) []object.Object {
+func listArgs(args []ast.Node, tok token.Token, c *Context) []object.Object {
 	values := []object.Object{}
 	for _, arg := range args {
 		newObject := Eval(arg, c)
@@ -964,7 +963,7 @@ func listArgs(args []ast.Node, tok token.Token, c *Conditions) []object.Object {
 	return values
 }
 
-func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Conditions) (object.Object, object.Object) {
+func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Context) (object.Object, object.Object) {
 	leftValues := []object.Object{}
 	rightValues := []object.Object{}
 	blingHappened := false
@@ -990,7 +989,7 @@ func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Conditions) (object.
 	return tuplify(leftValues), tuplify(rightValues)
 }
 
-func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token, c *Conditions) object.Object {
+func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token, c *Context) object.Object {
 
 	// We need to evaluate the arguments one by one. If they are tuples, we need to look at
 	// the elements of those one by one as we navigate the function tree.
@@ -1096,7 +1095,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 	return applyFunction(*treeWalker.position.Fn, values, tok, c)
 }
 
-func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Conditions) object.Object {
+func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	if f.Private && c.access == REPL {
 		return newError("eval/repl/private", tok)
 	}
@@ -1165,17 +1164,17 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		env := object.NewEnvironment()
 		env.Ext = c.env
 		newAccess := c.access
-		if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd { // In this case we are going from the REPL or a cmd to a 
-			env.Ext = c.prsr.Globals     // function and should drop all the environment except the globals.
+		if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd { // In this case we are going from the REPL or a cmd to a
+			env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the globals.
 			newAccess = DEF
 		}
 		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
 		if !f.Cmd {
 			newEnvironment.Set("this", &object.Func{Function: f, Env: env})
 		}
-		newConditions := &Conditions{prsr: c.prsr, logging: true, env: newEnvironment, access: newAccess}
+		newContext := &Context{prsr: c.prsr, logging: true, env: newEnvironment, access: newAccess}
 		if f.Given != nil {
-			resultOfGiven := Eval(f.Given, newConditions)
+			resultOfGiven := Eval(f.Given, newContext)
 			if resultOfGiven.Type() == object.ERROR_OBJ {
 				resultOfGiven.(*object.Error).Trace = append(resultOfGiven.(*object.Error).Trace, tok)
 				return resultOfGiven
@@ -1184,7 +1183,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 				return newError("eval/given/return", tok, resultOfGiven)
 			}
 		}
-		result := Eval(f.Body, newConditions)
+		result := Eval(f.Body, newContext)
 		if result.Type() == object.ERROR_OBJ {
 			result.(*object.Error).Trace = append(result.(*object.Error).Trace, tok)
 			return result
@@ -1218,7 +1217,7 @@ func isLiteral(node ast.Node) bool {
 	}
 }
 
-func autolog(log *ast.LogExpression, c *Conditions) string {
+func autolog(log *ast.LogExpression, c *Context) string {
 	// If the log expression is an autolog, it will carry some information about
 	// the circumstances under which it was generated.
 
@@ -1256,7 +1255,7 @@ func autolog(log *ast.LogExpression, c *Conditions) string {
 	}
 }
 
-func narrate(conditional ast.Node, c *Conditions) (bool, string) {
+func narrate(conditional ast.Node, c *Context) (bool, string) {
 	switch conditional := conditional.(type) {
 	case *ast.LazyInfixExpression:
 		if conditional.Operator == "and" {
@@ -1321,7 +1320,7 @@ func narrate(conditional ast.Node, c *Conditions) (bool, string) {
 	return val, resultString
 }
 
-func niceReturn(node ast.Node, c *Conditions) string {
+func niceReturn(node ast.Node, c *Context) string {
 	if isLiteral(node) {
 		return Eval(node, c).Inspect(object.ViewCharmLiteral) + "."
 	}
@@ -1329,8 +1328,8 @@ func niceReturn(node ast.Node, c *Conditions) string {
 		Eval(node, c).Inspect(object.ViewCharmLiteral) + "."
 }
 
-func emit(logStr string, tok token.Token, c *Conditions) {
-	logPath, _ := c.env.Get("$logPath")
+func emit(logStr string, tok token.Token, c *Context) {
+	logPath, _ := c.prsr.AllGlobals.Get("$logPath")
 	logPathStr := logPath.(*object.String).Value
 	if logPathStr == "stdout" {
 		fmt.Print(logStr)

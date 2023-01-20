@@ -137,7 +137,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		// if tok.Source != "rsc/builtins.ch" {
 		// 	fmt.Println("Relexer says ", tok)
 		// }
-		 
+
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
 				uP.Throw("init/import/first", tok)
@@ -410,7 +410,7 @@ func (uP *Initializer) ParseTypeDefs() {
 
 func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 	for _, v := range uP.parsedDeclarations[typeDeclaration] {
-		result := evaluator.Evaluate(*v, evaluator.NewConditions(&uP.Parser, env, evaluator.DEF, false))
+		result := evaluator.Evaluate(*v, evaluator.NewContext(&uP.Parser, env, evaluator.DEF, false))
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
 		}
@@ -446,22 +446,25 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
 		for k := range *assignmentOrder {
-			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], evaluator.NewConditions(&uP.Parser, env, evaluator.INIT, false))
+			result := evaluator.Evaluate(*uP.parsedDeclarations[declarations][k], evaluator.NewContext(&uP.Parser, env, evaluator.INIT, false))
 			if result.Type() == object.ERROR_OBJ {
 				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
 			}
 		}
 		if declarations == constantDeclaration {
-			// We copy the constants to the global constants map
+			// We copy the constants to the global constants map.
 			for k, v := range env.Store {
-				uP.Parser.Globals.Store[k] = v
-			}
-			// And we intialize the sysvars before doing the user variables. TODO: won't that stop you from declaring them constant?
-			for k, v := range sysvars.Sysvars {
-				env.InitializeVariable(k, v.Dflt, object.TrueType(v.Dflt))
+				uP.Parser.GlobalConstants.Store[k] = v
 			}
 		}
+
 	}
+	for k, v := range sysvars.Sysvars { // Service variables not in the script.
+		if !env.Exists(k) {
+			env.InitializeVariable(k, v.Dflt, object.TrueType(v.Dflt))
+		}
+	}
+	uP.Parser.AllGlobals = env // The logger needs to be able to see the global variables so it can see the service variables.
 }
 
 func (uP *Initializer) SetRelexer(rl relexer.Relexer) {
@@ -598,7 +601,7 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 				body.(*ast.GolangExpression).Sig = sig
 				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}
-			
+
 		}
 	}
 
@@ -633,7 +636,7 @@ func (uP *Initializer) makeFunctionTrees() {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
 		for i := range v {
 			tree = uP.addSigToTree(tree, &v[i], 0)
-		}	
+		}
 		uP.Parser.FunctionTreeMap[k] = tree
 	}
 }
@@ -643,33 +646,39 @@ func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.Function, pos 
 	sig := fn.Sig
 	if pos < len(sig) {
 		var currentType string
-		if sig[pos].VarType == "bling" {currentType = sig[pos].VarName} else {currentType = sig[pos].VarType}
+		if sig[pos].VarType == "bling" {
+			currentType = sig[pos].VarName
+		} else {
+			currentType = sig[pos].VarType
+		}
 		isPresent := false
 		for _, v := range tree.Branch {
-			if currentType == v.TypeName { isPresent = true; break }
+			if currentType == v.TypeName {
+				isPresent = true
+				break
+			}
 		}
 		if !isPresent {
-			tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}} }) 
+			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
 		}
-		for _, branch := range(tree.Branch) {
+		for _, branch := range tree.Branch {
 			if parser.IsSameTypeOrSubtype(uP.Parser.TypeSystem, branch.TypeName, currentType) {
-				branch.Node = uP.addSigToTree(branch.Node, fn, pos + 1)
-				if currentType == "tuple" && ! (branch.TypeName ==  "tuple") {
+				branch.Node = uP.addSigToTree(branch.Node, fn, pos+1)
+				if currentType == "tuple" && !(branch.TypeName == "tuple") {
 					uP.addSigToTree(branch.Node, fn, pos)
 				}
 			}
 		}
 		// if !isPresent && currentType == "tuple" {
-		// 	tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: "tuple", Node: tree }) 
+		// 	tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: "tuple", Node: tree })
 		// }
 	} else {
 		if tree.Fn == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
-		tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: "", Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}} }) 
+			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: "", Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}}})
 		}
 	}
 	return tree
 }
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 

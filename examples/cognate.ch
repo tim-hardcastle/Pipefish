@@ -5,6 +5,9 @@ import // All the imports we need ...
 
 def // All the types we need ...
 
+
+
+
 TokenType = enum STRING, INT, BOOL, BLOCK, LIST, BUILTIN, IDENT, SEMICOLON, LBRACK, RBRACK, LET, DEF, ANY
 Token = struct(tokenType TokenType, value single)
 Env = struct(inner map, ext Env)
@@ -36,14 +39,13 @@ def // And the rest is the functional core. Nothing but pure functions with loca
 execute(lineToExecute, state) :
     tokenize(lineToExecute) >> parseBindings >> parseBlocks >> desugarToRpn >> interpret(that, state)
 
-interpret(parsedCode list, state MachineState) : 
+interpret(parsedCode list, state MachineState) : \\ currentToken, state[stack][len(state[stack]) - 1]
     parsedCode == [] : state
     else :
         currentToken[tokenType] in [INT, STRING, BOOL] :
             interpret (codeTail, (state with stack :: state[stack] + [currentToken]))
         currentToken[tokenType] == BLOCK :
-            interpret (codeTail, (state with stack :: state[stack] + [currentToken ..
-               .. with [value, vars]::Env(map(), state[vars]) with [value, funcs]::Env(map(), state[funcs])])) 
+            interpret (codeTail, pushClosedBlock(currentToken, state))
         currentToken[tokenType] == BUILTIN :
             interpret (codeTail, applyBuiltin(currentToken[value], state)) 
         currentToken[tokenType] == LET :
@@ -53,11 +55,9 @@ interpret(parsedCode list, state MachineState) :
         currentToken[tokenType] == IDENT :
             type(getFromEnv(state[vars], currentToken[value])) != error :
                 interpret (codeTail, (state with stack::state[stack] + [getFromEnv(state[vars], currentToken[value])]))
-            type(getFromEnv(state[funcs], currentToken[value])) != error :
-                (interpret (codeTail, interpret((getFromEnv(state[funcs], currentToken[value]))[value][codeBlock] , 
-                                  .. (state with vars::(getFromEnv(state[funcs], currentToken[value]))[value][vars] ..
-                                        .. with funcs::(getFromEnv(state[funcs], currentToken[value]))[value][funcs])))) ..
-                                  .. with vars::state[vars] with funcs::state[funcs]
+            type(getFromEnv(state[funcs], currentToken[value])) != error : 
+                (interpret (codeTail, (applyFunction(getFromEnv(state[funcs], currentToken[value]), state)))) ..
+                                        .. with (vars::state[vars], funcs::state[funcs]) \\ "****", currentToken[value]
             else :
                 error "Cognate error: unknown identifier " + currentToken[value]
         else :
@@ -66,12 +66,18 @@ given :
     currentToken = parsedCode[0]
     codeTail = parsedCode behead 1
 
+pushClosedBlock(b, S) :
+    S with stack:: (S[stack] + [b with ([value,vars]::Env(map(), S[vars]), [value,funcs]::Env(map(), S[funcs]))])
+
 applyBuiltin(nameOfBuiltin, S) :   
     gatekeepStack(signatureOfBuiltin, S) 
     functionToApply(S)
 given :
     functionToApply = builtins[nameOfBuiltin][function]
     signatureOfBuiltin = builtins[nameOfBuiltin][signature]
+
+applyFunction(fn, S) : \\ "apply function"
+    interpret(fn[value][codeBlock], (S with funcs::Env(fn[value][funcs][inner], S[funcs]))) \\fn[value][codeBlock] 
 
 setVar(name, S) :
     gatekeepName(name, S)   
@@ -245,13 +251,16 @@ builtins = map( "+" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] c
     ..  "If" :: Builtin([ANY, ANY, BOOL], func(S) : (S[stack][len(S[stack]) - 1][value] : S with stack :: (S[stack] curtail 3) ..
             ..+ [S[stack][len(S[stack]) - 2]] ; else : S with stack :: (S[stack] curtail 3) + [S[stack][len(S[stack]) - 3]])),
     ..  "Do" :: Builtin([BLOCK], func(S) : interpret(S[stack][len(S[stack]) - 1][value][codeBlock], (S with stack :: (S[stack] curtail 1) ..
-            .. with vars::S[stack][len(S[stack]) - 1][value][vars] with funcs::S[stack][len(S[stack]) - 1][value][funcs]))) ,
-    ..  "When" :: Builtin([BLOCK, BOOL], func(S) : (S[stack][len(S[stack]) - 1][value] : interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
-            .. (S with stack :: (S[stack] curtail 2) with vars::S[stack][len(S[stack]) - 2][value][vars] .. 
-            .. with funcs::S[stack][len(S[stack]) - 2][value][funcs])); else : S  with stack :: (S[stack] curtail 2))) ,
-    ..  "Unless" :: Builtin([BLOCK, BOOL], func(S) : (not S[stack][len(S[stack]) - 1][value] : interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
-            .. (S with stack :: (S[stack] curtail 2) with vars::S[stack][len(S[stack]) - 2][value][vars] .. 
-            .. with funcs::S[stack][len(S[stack]) - 2][value][funcs])); else : S  with stack :: (S[stack] curtail 2))) ,
+            .. with vars::S[stack][len(S[stack]) - 1][value][vars] with funcs::S[stack][len(S[stack]) - 1][value][funcs])) ..
+                        .. with (vars::S[stack][vars], funcs::S[stack][funcs])) ,
+    ..  "When" :: Builtin([BLOCK, BOOL], func(S) : (S[stack][len(S[stack]) - 1][value] : (interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
+    .. (S with (stack :: (S[stack] curtail 2), vars::S[stack][len(S[stack]) - 2][value][vars], funcs::S[stack][len(S[stack]) - 2][value][funcs]))) ..
+                .. with (vars::S[stack][vars], funcs::S[stack][funcs]) ; .. 
+    .. else : S  with stack :: (S[stack] curtail 2)))) ,
+    ..  "Unless" :: Builtin([BLOCK, BOOL], func(S) : (not S[stack][len(S[stack]) - 1][value] : (interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
+            .. (S with (stack :: (S[stack] curtail 2), vars::S[stack][len(S[stack]) - 2][value][vars], funcs::S[stack][len(S[stack]) - 2][value][funcs]))) ..
+                        .. with (vars::S[stack][vars], funcs::S[stack][funcs]) ; .. 
+            .. else : S  with stack :: (S[stack] curtail 2)))) ,
     ..  "Drop" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1)),
     ..  "Twin" :: Builtin([ANY], func(S) : S with stack :: S[stack] + [S[stack][len(S[stack]) - 1]]),
     ..  "Triplet" :: Builtin([ANY], func(S) : S with stack :: S[stack] ..
@@ -283,7 +292,7 @@ doFor = func (S, conditionBlock, actionBlock) :
 given :
     action(i, S) : i + 1, interpret(block, (S with stack:: S[stack] + [L[i]]))
 
-doWhile = func(S, conditionBlock, actionBlock):
+doWhile = func(S, conditionBlock, actionBlock): 
     resultOfWhiler with stack::(resultOfWhiler[stack] curtail 1) // gets rid of last False from stack.
 given :
     resultOfWhiler = whiler(S, conditionBlock, actionBlock, true)
@@ -293,7 +302,7 @@ doUntil = func(S, conditionBlock, actionBlock):
 given :
     resultOfWhiler = whiler(S, conditionBlock, actionBlock, false)
 
-whiler(S, conditionBlock, actionBlock, flag) : 
+whiler(S, conditionBlock, actionBlock, flag) :
     (while condition do action to (S))[0] 
 given :                                                                    
     condition(S) :

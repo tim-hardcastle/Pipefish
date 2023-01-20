@@ -28,7 +28,7 @@ func NewService() *Service {
 func (service *Service) SuDo(line string) {
 	tree := *service.Parser.ParseLine("data file", line)
 	tree.(*ast.AssignmentExpression).Token.Type = token.CMD_ASSIGN
-	c := evaluator.NewConditions(service.Parser, service.Env, evaluator.CMD, false)
+	c := evaluator.NewContext(service.Parser, service.Env, evaluator.CMD, false)
 	evaluator.Evaluate(tree, c)
 }
 
@@ -68,7 +68,7 @@ func (service *Service) Do(line string) object.Object {
 	}
 	// Otherwise we just execute the line.
 	return evaluator.Evaluate(*service.Parser.ParseLine(
-		"REPL input", line), evaluator.NewConditions(service.Parser, service.Env, evaluator.REPL, true))
+		"REPL input", line), evaluator.NewContext(service.Parser, service.Env, evaluator.REPL, true))
 
 }
 

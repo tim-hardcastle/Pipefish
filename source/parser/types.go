@@ -99,9 +99,3 @@ func AddInOrder(T TypeSystem, S []ast.Function, f ast.Function) ([]ast.Function,
 	return S, true
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
