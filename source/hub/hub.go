@@ -84,8 +84,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	hubWords := strings.Fields(line)
 	if hubWords[0] == "hub" {
-		hubResult := hub.ParseHubCommand(username, password, hubWords[1:])
-		if len(hubWords) > 1 && hubWords[1] == "run" && hub.administered {
+		hubResult := hub.ParseHubCommands(username, password, hubWords[1:])
+		if len(hubWords) > 1 && hubWords[1] == "run" && hub.administered {   // TODO: find out what it does and where it should be now that we have ++ for hub commands.
 			serviceName, _ := database.ValidateUser(hub.db, username, password)
 			return serviceName, false
 		}
@@ -219,9 +219,27 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	return passedServiceName, false
 }
 
+// Just splits the commands up according to the ++ signs and passes them one at a time to ParseHubCommand.
+func (hub *Hub) ParseHubCommands(username, password string, hubWords []string) bool {
+	arguments := []string{}
+	for i, v := range(hubWords) {
+		if v != "++" {
+			arguments = append(arguments, v)
+		}
+		if i == len(hubWords) - 1 || v == "++" {
+			result := hub.ParseHubCommand(username, password, arguments)
+			arguments = []string{}
+			if result {
+				return true
+			}	
+		}
+	}
+	return false
+}
+
 func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bool { // Returns true if the command is 'quit', since it can't quit
-	fieldCount := len(hubWords) // from the REPL itself.
-	if fieldCount == 0 {
+	fieldCount := len(hubWords)                                                      // from the REPL itself.
+	if fieldCount == 0 {                                                             // TODO: put a flag in the REPL, quitting doesn't care about concurrency.
 		hub.help()
 		return false
 	}
@@ -229,7 +247,7 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 	switch verb {
 
 	// Verbs are in alphabetical order :
-	// add, config, create, edit, errors, help, let, log, listen, my, peek, quit, register, replay, run, services, snap, test, trace
+	// add, config, create, do, edit, errors, help, let, log, listen, my, peek, quit, register, replay, run, services, snap, test, trace
 	case "add":
 		if fieldCount != 4 || hubWords[2] != "to" {
 			hub.WriteError("the format of the 'hub add' command is 'hub add <username> to <GroupName>'.")
@@ -297,6 +315,10 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			hub.WriteError(err.Error())
 		}
 		hub.WriteString(text.OK + "\n")
+	case "do":
+		hub.Do(strings.Join(hubWords[1:], " "), username, password, hub.currentServiceName)
+		hub.WriteString("\n")
+		return false
 	case "edit":
 		switch {
 		case fieldCount == 1:

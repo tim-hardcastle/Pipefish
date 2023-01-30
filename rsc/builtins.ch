@@ -1,9 +1,9 @@
 def
 
-file = struct(filename string, contents list)
-
+len(t type) : builtin "len_of_type"
+(t type) with (T tuple) : builtin "constructor" // This is implemented in the evaluator and is here so that the function tree walker will match the pattern.
+file = struct(filename string, contents list) // TODO --- should be 'File' with a capital.
 range(p pair) : builtin "range"
-len(t type) : builtin "len_of_type" // Note that this is implemented in the evaluator
 file(s string) : builtin "init_file"
 codepoint(s string) : builtin "codepoint"
 (S struct) with (p pair) : builtin "add_pair_to_struct"
@@ -24,7 +24,7 @@ spread(S set) : builtin "spread_set"
 (s single) in (T tuple) : builtin "single_in_tuple"
 map (s set) : builtin "set_to_map"
 map (t tuple) : builtin "tuple_to_map"
-index (t type) by (i int) : builtin "index_int_of_type" // Note that this is implemented in the evaluator.
+index (t type) by (i int) : builtin "index_int_of_type" 
 index (S struct) by (l label) : builtin "index_label_of_struct"
 index (L list) by (i int) : builtin "index_int_of_list"
 index (S string) by (i int) : builtin "index_int_of_string"

@@ -1,3 +1,4 @@
 Def G (Print "Hi!");
 
-G
+G;
+

@@ -508,8 +508,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 			return lamdbaResult
 		}
 		// Otherwise we have a function or prefix, which work the same at this point.
-		var result object.Object
-		result = functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 		if result.Type() == object.ERROR_OBJ {
 			if operator == "type" {
 				return &object.Type{Value: "error"}
@@ -529,18 +528,6 @@ func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 
 func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 	if c.prsr.Infixes.Contains(node.Operator) {
-		if node.Operator == "with" {
-			params := listArgs(node.Args, node.Token, c)
-			if params[0].Type() == object.TYPE_OBJ {
-				constructor, ok := c.prsr.BuiltinFunctions[params[0].(*object.Type).Value+"_with"]
-				if !ok {
-					return newError("eval/with/type", node.Token, params[0].(*object.Type).Value)
-				}
-				params = params[2:]
-				return constructor(c.prsr, params...)
-			}
-		}
-		// Otherwise we have an infix function
 		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 	}
 
@@ -578,93 +565,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		return newError("eval/unsatisfied/l", tok)
 	}
 	if right.Type() == object.STRUCTDEF_OBJ {
-		if tok.Type != token.TYP_ASSIGN {
-			return newError("eval/struct/def", tok)
-		}
-		// So what we're going to do is add the constructors to the builtins,
-		// and add the function name, sig, and body to the parser's
-		// table of functions, and add the labels to the environment.
-
-		// Registration of the type as a type and a suffix has already happened so
-		// that the parser can parse the declarations properly.
-
-		// The first constructor function ...
-		constructor := func(p *parser.Parser, args ...object.Object) object.Object {
-			result := &object.Struct{Value: make(map[string]object.Object)}
-			for k, v := range args {
-				result.Labels = append(result.Labels, right.(*object.StructDef).Sig[k].VarName)
-				result.Value[right.(*object.StructDef).Sig[k].VarName] = v
-			}
-			result.Name = variable.VarName
-			return result
-		}
-
-		c.prsr.BuiltinFunctions[variable.VarName] = constructor
-
-		// And the first constructor function as it appears in the parser's function table.
-
-		c.prsr.FunctionTable.Add(c.prsr.TypeSystem,
-			variable.VarName, // The function name ...
-			ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
-				Body: &ast.BuiltInExpression{Name: variable.VarName}}) // ... and a reference to the built-in as the body
-
-		// The second constructor function ...
-
-		constructor_2 := func(p *parser.Parser, args ...object.Object) object.Object {
-			result := &object.Struct{Value: make(map[string]object.Object)}
-			for _, v := range args {
-				if v.Type() != object.PAIR_OBJ {
-					return newError("eval/pair", tok)
-				}
-				if v.(*object.Pair).Left.Type() != object.LABEL_OBJ {
-					return newError("eval/label", tok)
-				}
-				positionOfLabelInFields := -1
-				for i, w := range right.(*object.StructDef).Sig {
-					if string(v.(*object.Pair).Left.(*object.Label).Value) == w.VarName {
-						positionOfLabelInFields = i
-						break
-					}
-				}
-				if positionOfLabelInFields == -1 {
-					return newError("eval/field/struct", tok, v.(*object.Pair).Left.(*object.Label).Value, variable.VarName)
-				}
-				if !parser.IsSameTypeOrSubtype(p.TypeSystem, object.TrueType(v.(*object.Pair).Right), right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
-					return newError("eval/field/type", tok, v.(*object.Pair).Left.(*object.Label).Value,
-						variable.VarName, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType,
-						v.(*object.Pair).Right)
-				}
-
-				result.Value[v.(*object.Pair).Left.(*object.Label).Value] =
-					v.(*object.Pair).Right
-
-			}
-			for _, v := range right.(*object.StructDef).Sig {
-				result.Labels = append(result.Labels, v.VarName)
-			}
-			result.Name = variable.VarName
-			return result
-		}
-
-		c.prsr.BuiltinFunctions[variable.VarName+"_with"] = constructor_2
-		// And the second constructor function as it appears in the parser's function table.
-
-		c.prsr.FunctionTable.Add(c.prsr.TypeSystem, variable.VarName, // The function name ...
-			ast.Function{Sig: signature.Signature{
-				signature.NameTypePair{VarName: "t", VarType: "tuple"}}, // ... signature ...
-				Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"}}) // ... and a reference to the built-in as the body
-
-		// Now the labels ...
-
-		for _, v := range right.(*object.StructDef).Sig {
-			_, ok := c.prsr.Enums[v.VarName]
-			if ok {
-				c.prsr.Throw("eval/struct/enum", tok)
-			}
-			c.env.InitializeConstant(v.VarName, &object.Label{Value: v.VarName, Name: "field"})
-		}
-
-		return nil
+		return assignStructDef(variable, right, tok, c)
 	}
 	inferredType := variable.VarType
 	if inferredType == "*" {
@@ -729,13 +630,13 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if strings.HasPrefix(variable.VarName, "$") {
 			return assignSysVar(tok, variable.VarName, right, c.env)
 		}
-		if variable.VarType == "*" {
+		if variable.VarType == "*" { // The '*' token indicates that we aren't trying to dereference a <code> object containing a variable name and assign to that.
 			if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) && variable.VarType != "varname" {
 				return newError("eval/cmd/type", tok, right, c.env.Store[variable.VarName].VarType)
 			}
 			c.env.UpdateVar(variable.VarName, right) // Unlike Set, this will work through linked environments.
-			// I can't remember why that seemed necessary.
-		} else { // Otherwise we need to retrieve a variable name from it.
+			// This is so that a cmd's own parameters, which are its *inner* environment, don't stop cmds from being able to set the global variables unless they
+		} else { // Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
 			contents, _ := c.env.Get(variable.VarName)
 			if contents.Type() != object.CODE_OBJ {
 				return newError("eval/cmd/varname/code", tok, variable.VarName)
@@ -773,10 +674,99 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), c.env.Store[variable.VarName].VarType) {
 			return newError("eval/repl/type", tok, right, c.env.Store[variable.VarName].VarType)
 		}
-		c.env.Set(variable.VarName, right)
+		c.env.Set(variable.VarName, right) // The global variables are the inner environment of the REPL.
 		return nil
 	}
+}
 
+func assignStructDef(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
+	if tok.Type != token.TYP_ASSIGN {
+		return newError("eval/struct/def", tok)
+	}
+	// So what we're going to do is add the constructors to the builtins,
+	// and add the function name, sig, and body to the parser's
+	// table of functions, and add the labels to the environment.
+
+	// Registration of the type as a type and a suffix has already happened so
+	// that the parser can parse the declarations properly.
+
+	// The first constructor function ...
+	constructor := func(p *parser.Parser, args ...object.Object) object.Object {
+		result := &object.Struct{Value: make(map[string]object.Object)}
+		for k, v := range args {
+			result.Labels = append(result.Labels, right.(*object.StructDef).Sig[k].VarName)
+			result.Value[right.(*object.StructDef).Sig[k].VarName] = v
+		}
+		result.Name = variable.VarName
+		return result
+	}
+
+	c.prsr.BuiltinFunctions[variable.VarName] = constructor
+
+	// And the first constructor function as it appears in the parser's function table.
+
+	c.prsr.FunctionTable.Add(c.prsr.TypeSystem,
+		variable.VarName, // The function name ...
+		ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
+			Body: &ast.BuiltInExpression{Name: variable.VarName}}) // ... and a reference to the built-in as the body
+
+	// The second constructor function ...
+
+	constructor_2 := func(p *parser.Parser, args ...object.Object) object.Object {
+		result := &object.Struct{Value: make(map[string]object.Object)}
+		for _, v := range args {
+			if v.Type() != object.PAIR_OBJ {
+				return newError("eval/pair", tok)
+			}
+			if v.(*object.Pair).Left.Type() != object.LABEL_OBJ {
+				return newError("eval/label", tok)
+			}
+			positionOfLabelInFields := -1
+			for i, w := range right.(*object.StructDef).Sig {
+				if string(v.(*object.Pair).Left.(*object.Label).Value) == w.VarName {
+					positionOfLabelInFields = i
+					break
+				}
+			}
+			if positionOfLabelInFields == -1 {
+				return newError("eval/field/struct", tok, v.(*object.Pair).Left.(*object.Label).Value, variable.VarName)
+			}
+			if !parser.IsSameTypeOrSubtype(p.TypeSystem, object.TrueType(v.(*object.Pair).Right), right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
+				return newError("eval/field/type", tok, v.(*object.Pair).Left.(*object.Label).Value,
+					variable.VarName, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType,
+					v.(*object.Pair).Right)
+			}
+
+			result.Value[v.(*object.Pair).Left.(*object.Label).Value] =
+				v.(*object.Pair).Right
+
+		}
+		for _, v := range right.(*object.StructDef).Sig {
+			result.Labels = append(result.Labels, v.VarName)
+		}
+		result.Name = variable.VarName
+		return result
+	}
+
+	c.prsr.BuiltinFunctions[variable.VarName+"_with"] = constructor_2
+	// And the second constructor function as it appears in the parser's function table.
+
+	c.prsr.FunctionTable.Add(c.prsr.TypeSystem, variable.VarName, // The function name ...
+		ast.Function{Sig: signature.Signature{
+			signature.NameTypePair{VarName: "t", VarType: "tuple"}}, // ... signature ...
+			Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"}}) // ... and a reference to the built-in as the body
+
+	// Now the labels ...
+
+	for _, v := range right.(*object.StructDef).Sig {
+		_, ok := c.prsr.Enums[v.VarName]
+		if ok {
+			c.prsr.Throw("eval/struct/enum", tok)
+		}
+		c.env.InitializeConstant(v.VarName, &object.Label{Value: v.VarName, Name: "field"})
+	}
+
+	return nil
 }
 
 func assignSysVar(tok token.Token, keyword string, right object.Object, env *object.Environment) *object.Error {
@@ -1092,8 +1082,21 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 		return newError("eval/args/c", tok, values, (arg < len(args)-1) ||
 			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
+
+	// if tok.Literal == "interpret" || tok.Literal == "applyFunction" {
+	// 	fmt.Println("functionCall calling applyFunction on", tok.Literal)
+	// // 	fmt.Print("with values ")
+	// // 	for _, v := range(values) {
+	// // 		fmt.Print(v.Inspect(object.ViewCharmLiteral) + ", ")
+	// // 	}
+	// // 	fmt.Println()
+	// // 	fmt.Println("with vars", c.env.VarsOnly())
+	// }
+
 	return applyFunction(*treeWalker.position.Fn, values, tok, c)
 }
+
+// TODO: it would be easy for functionCall to read the values into a Signature as it goes along, wouldn't it?
 
 func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	if f.Private && c.access == REPL {
@@ -1102,77 +1105,35 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	if f.Cmd && c.access == DEF {
 		return newError("eval/cmd/function", tok)
 	}
+	env := object.NewEnvironment()
+		var newAccess Access
+		if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd { // In this case we are going from the REPL or a cmd to a
+			env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the global constants.
+			newAccess = DEF
+		} else {
+			env.Ext = c.env
+		    newAccess = c.access
+		}
 	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression:
-		funcToApply := c.prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
-		values := parser.GetValueList(f.Sig, params)
-		result := funcToApply(c.prsr, values...)
-		if result.Type() == object.ERROR_OBJ {
-			result.(*object.Error).Trace = append(result.(*object.Error).Trace, tok)
-			result.(*object.Error).Token = tok
-			if result.(*object.Error).Message == "" {
-
-				msgCreate, ok := object.ErrorCreatorMap[result.(*object.Error).ErrorId]
-
-				if !ok {
-					result.(*object.Error).Message = "Oopsie, can't find errorId " + result.(*object.Error).ErrorId
-				} else {
-					result.(*object.Error).Message = msgCreate.
-						Message(tok, result.(*object.Error).Info...)
-				}
+		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
+		if body.Name == "constructor" { // Then we actually need a different constructor for each type.
+			constructor, ok := c.prsr.BuiltinFunctions[params[0].(*object.Type).Value + "_with"]
+			if !ok {
+				return newError("eval/with/type", f.Body.GetToken(), params[0].(*object.Type).Value)
 			}
+			return constructor(c.prsr, (params[2:])...) // TODO --- we're not passing a context to a constructor? But what if we're making something in an inner function?
 		}
-		return result
+		return applyBuiltinFunction(f, params, tok, newContext) // Otherwise we can just call the builtin.
 	case *ast.GolangExpression:
-		gh := NewGoHandler(c.prsr)
-		goParams := []any{}
-		for i := 0; i < len(body.Sig); i++ {
-			switch {
-			case body.Raw[i]:
-				goParams = append(goParams, params[i])
-			case body.Sig[i].VarType == "tuple":
-				lastEl := []any{}
-				for j := i; j < len(params); j++ {
-					lastEl = append(lastEl, gh.CharmToGo(params[j]))
-				}
-				goParams = append(goParams, lastEl)
-			default:
-				goParams = append(goParams, gh.CharmToGo(params[i]))
-			}
-		}
-		var result object.Object
-		args := getArgs(body.ObjectCode(goParams...))
-		if len(args) == 1 {
-			result = gh.goToCharm(args[0])
-		} else {
-			result = &object.Tuple{Elements: []object.Object{}}
-			for _, v := range args {
-				el := gh.goToCharm(v)
-				if el.Type() == object.ERROR_OBJ {
-					result = el
-					break
-				}
-				result.(*object.Tuple).Elements = append(result.(*object.Tuple).Elements, el)
-			}
-		}
-		switch result := result.(type) {
-		case *object.Error:
-			c.prsr.Throw("eval/golang", f.Body.GetToken(), result.Message)
-		}
-		return result
-	default:
-		env := object.NewEnvironment()
-		env.Ext = c.env
-		newAccess := c.access
-		if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd { // In this case we are going from the REPL or a cmd to a
-			env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the globals.
-			newAccess = DEF
-		}
+		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
+		return applyGolangFunction(body, params, tok, newContext)
+	default: // We have a plain ol' function.
 		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
 		if !f.Cmd {
-			newEnvironment.Set("this", &object.Func{Function: f, Env: env})
+			newEnvironment.InitializeConstant("this", &object.Func{Function: f, Env: env}) // Commands aren't meant to be recursive.
 		}
-		newContext := &Context{prsr: c.prsr, logging: true, env: newEnvironment, access: newAccess}
+		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: newEnvironment, access: newAccess}
 		if f.Given != nil {
 			resultOfGiven := Eval(f.Given, newContext)
 			if resultOfGiven.Type() == object.ERROR_OBJ {
@@ -1183,7 +1144,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 				return newError("eval/given/return", tok, resultOfGiven)
 			}
 		}
-		result := Eval(f.Body, newContext)
+		result := Eval(body, newContext)
 		if result.Type() == object.ERROR_OBJ {
 			result.(*object.Error).Trace = append(result.(*object.Error).Trace, tok)
 			return result
@@ -1193,6 +1154,65 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		}
 		return result
 	}
+}
+
+func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
+	funcToApply := c.prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
+		values := parser.GetValueList(f.Sig, params)
+		result := funcToApply(c.prsr, values...)
+		if result.Type() == object.ERROR_OBJ {
+			result.(*object.Error).Trace = append(result.(*object.Error).Trace, tok)
+			result.(*object.Error).Token = tok
+			if result.(*object.Error).Message == "" {
+				msgCreate, ok := object.ErrorCreatorMap[result.(*object.Error).ErrorId]
+				if !ok {
+					result.(*object.Error).Message = "Oopsie, can't find errorId " + result.(*object.Error).ErrorId
+				} else {
+					result.(*object.Error).Message = msgCreate.
+						Message(tok, result.(*object.Error).Info...)
+				}
+			}
+		}
+		return result
+}
+
+func applyGolangFunction(body *ast.GolangExpression, params []object.Object, tok token.Token, c *Context) object.Object {
+	gh := NewGoHandler(c.prsr)
+	goParams := []any{}
+	for i := 0; i < len(body.Sig); i++ {
+		switch {
+		case body.Raw[i]:
+			goParams = append(goParams, params[i])
+		case body.Sig[i].VarType == "tuple":
+			lastEl := []any{}
+			for j := i; j < len(params); j++ {
+				lastEl = append(lastEl, gh.CharmToGo(params[j]))
+			}
+			goParams = append(goParams, lastEl)
+		default:
+			goParams = append(goParams, gh.CharmToGo(params[i]))
+		}
+	}
+	var result object.Object
+	args := getArgs(body.ObjectCode(goParams...))
+	if len(args) == 1 {
+		result = gh.goToCharm(args[0])
+	} else {
+		result = &object.Tuple{Elements: []object.Object{}}
+		for _, v := range args {
+			el := gh.goToCharm(v)
+			if el.Type() == object.ERROR_OBJ {
+				result = el
+				break
+			}
+			result.(*object.Tuple).Elements = append(result.(*object.Tuple).Elements, el)
+		}
+	}
+	switch result := result.(type) {
+	case *object.Error:
+		c.prsr.Throw("eval/golang", body.GetToken(), result.Message)
+	}
+	return result
 }
 
 func getArgs(args ...any) []any {

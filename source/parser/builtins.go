@@ -612,7 +612,7 @@ func addTupleToMap(args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
-	outMap := args[0]
+	outMap := args[0].DeepCopy()
 	for _, v := range(args[2].(*object.Tuple).Elements) {
 		outMap = addPairToMap(outMap, &object.Bling{}, v)
 	}

@@ -25,7 +25,7 @@ func main() {
 
 	hub := hub.New(os.Stdin, os.Stdout)
 	hub.Open()
-	if len(os.Args) == 1 || !hub.ParseHubCommand("", "", os.Args[1:]) { // Thus taking care of the case where some cheeky
-		repl.Start(hub, os.Stdin, os.Stdout) // goose starts it up with ./charm quit
+	if len(os.Args) == 1 || !hub.ParseHubCommands("", "", os.Args[1:]) { // Thus taking care of the case where some cheeky
+		repl.Start(hub, os.Stdin, os.Stdout)                             // goose starts it up with ./charm quit
 	}
 }

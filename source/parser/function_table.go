@@ -108,7 +108,7 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 	return env
 }
 
-// Yeah, this isn't very DRY, but it disentangles this from the GoLang bits which is helpful.
+// Yeah, this isn't very DRY, but it disentangles this from the Golang bits which is helpful.
 func GetValueList(sig signature.Signature, params []object.Object) []object.Object {
 	if len(sig) == 0 {
 		return []object.Object{}

@@ -76,13 +76,26 @@ func (e *Environment) StringDumpVariables() string { // For outputting them as a
 	return result
 }
 
-func (e *Environment) String() string { // For outputting them as a file of assignments
+func (e *Environment) String() string { 
 	result := ""
 	for k, v := range e.Store {
 			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
 	}
 	if e.Ext != nil {
 		result = result + "\n    + {" + e.Ext.String() + "}"
+	}
+	return result
+}
+
+func (e *Environment) VarsOnly() string { 
+	result := ""
+	for k, v := range e.Store {
+		if v.access != ACCESS_CONSTANT {
+			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
+		}
+	}
+	if e.Ext != nil {
+		result = result + "\n    + {" + e.Ext.VarsOnly() + "}"
 	}
 	return result
 }

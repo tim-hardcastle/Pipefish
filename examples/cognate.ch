@@ -36,8 +36,8 @@ def // And the rest is the functional core. Nothing but pure functions with loca
 execute(lineToExecute, state) :
     tokenize(lineToExecute) >> parseBindings >> parseBlocks >> desugarToRpn >> interpret(that, state)
 
-interpret(parsedCode list, state MachineState) :
-    parsedCode == [] : state \\
+interpret(parsedCode list, state MachineState) : \\ currentToken   //, "\n", prettyStack(state[stack])
+    parsedCode == [] : state
     else : 
         currentToken[tokenType] in [INT, STRING, BOOL] :
             interpret (codeTail, (state with stack :: state[stack] + [currentToken]))
@@ -54,7 +54,7 @@ interpret(parsedCode list, state MachineState) :
                 interpret (codeTail, (state with stack::state[stack] + [getFromEnv(state[vars], currentToken[value])]))
             type(getFromEnv(state[funcs], currentToken[value])) != error : 
                 (interpret (codeTail, (applyFunction(getFromEnv(state[funcs], currentToken[value]), state)))) ..
-                                        .. with (vars::state[vars], funcs::state[funcs]) 
+                        .. with (vars::state[vars], funcs::state[funcs])
             else :
                 error "Cognate error: unknown identifier " + currentToken[value]
         else :
@@ -73,7 +73,7 @@ given :
     functionToApply = builtins[nameOfBuiltin][function]
     signatureOfBuiltin = builtins[nameOfBuiltin][signature]
 
-applyFunction(fn, S) : 
+applyFunction(fn, S) :
     interpret(fn[value][codeBlock], (S with funcs::Env(fn[value][funcs][inner], S[funcs])))
 
 setVar(name, S) :
@@ -310,3 +310,12 @@ given :
     action(S) :
         interpret(actionBlock, ((interpret(conditionBlock, S)) with (stack::((interpret(conditionBlock, S))[stack] curtail 1)))),
             .. conditionBlock, actionBlock, flag
+
+prettyStack(L) :
+    L == [] : "\nStack is empty.\n"
+    (range(0::len L) ]> (string(that) + " : " + prettyPrint(L[that])) >> join) + "\n"
+
+join(L) :
+    (for (len L) do action to 0, "")[1]
+given :
+    action(i, acc): i + 1, acc + "\n" + L[i]

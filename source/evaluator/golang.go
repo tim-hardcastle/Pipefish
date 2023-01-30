@@ -113,7 +113,7 @@ func (gh *GoHandler) BuildGoMods() {
 				soFile := "rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.plugins[source], err = plugin.Open(soFile)
 				if err != nil {
-					gh.Prsr.Throw("golang/file", token.Token{}, soFile)
+					gh.Prsr.Throw("golang/file", token.Token{}, soFile, err.Error())
 				}
 				continue
 			}
@@ -153,10 +153,15 @@ func (gh *GoHandler) BuildGoMods() {
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix)
 		file.Close()
-		exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile).Output()
+		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
+		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
+		output, err := cmd.Output()
+		if err != nil {
+			gh.Prsr.Throw("golang/build", token.Token{}, err.Error() + ": " + string(output))
+		}
 		gh.plugins[source], err = plugin.Open(soFile)
 		if err != nil {
-			gh.Prsr.Throw("golang/build", token.Token{})
+			gh.Prsr.Throw("golang/open", token.Token{}, err.Error())
 		} else {
 			os.Remove("golang" + strconv.Itoa(counter) + ".go")
 		}
