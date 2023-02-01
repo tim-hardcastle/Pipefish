@@ -17,3 +17,8 @@ zort(x int, y string) :
 given
     troz(x, y) : string(x) + "  " + y
 
+(x) garp : x
+
+
+
+

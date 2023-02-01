@@ -655,13 +655,12 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 	expression := &ast.SuffixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
-		Left:     left,
+		Args:     p.recursivelyListify(left),
 	}
 
 	//if p.curToken.Source != "rsc/builtins.ch" {
 	//printNodeList(p.recursivelyListify(expression.Left))
 	//}
-	expression.Args = p.recursivelyListify(expression.Left)
 
 	return expression
 }
@@ -776,10 +775,8 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 		if p.Suffixes.Contains(expression.Right.GetToken().Literal) {
 			expression.Right = &ast.SuffixExpression{Token: right.GetToken(),
 				Operator: expression.Right.GetToken().Literal,
-				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
-				Left:     &ast.Identifier{Value: "that"}}
+				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
-
 	}
 	return expression
 }
@@ -1006,7 +1003,7 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 		}
 	case *ast.SuffixExpression:
 		if p.Endfixes.Contains(start.Operator) {
-			left := p.recursivelyListify(start.Left)
+			left := start.Args
 			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
 			return left
 		}
@@ -1141,7 +1138,7 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 		sig = append(append(LHS, middle), RHS...)
 	case *ast.SuffixExpression:
 		keyword = start.Operator
-		sig = prsr.RecursivelySlurpSignature(start.Left, "single")
+		sig = prsr.getSigFromArgs(start.Args, "single")
 	case *ast.UnfixExpression:
 		keyword = start.Operator
 		sig = signature.Signature{}
@@ -1186,19 +1183,19 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 		switch {
 		case TypeExists(typednode.Operator, p.TypeSystem) ||
 			typednode.Operator == "ast" || typednode.Operator == "varname":
-			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
+			LHS := p.getSigFromArgs(typednode.Args, dflt)
 			for k := range LHS {
 				LHS[k].VarType = typednode.Operator
 			}
 			return LHS
 		case typednode.Operator == "raw":
-			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
+			LHS := p.getSigFromArgs(typednode.Args, dflt)
 			for k := range LHS {
 				LHS[k].VarType = LHS[k].VarType + " raw"
 			}
 			return LHS
 		case p.Endfixes.Contains(typednode.Operator):
-			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
+			LHS := p.getSigFromArgs(typednode.Args, dflt)
 			end := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(LHS, end)
 		default:

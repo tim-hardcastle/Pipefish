@@ -365,9 +365,8 @@ func (st *StructExpression) GetToken() token.Token { return st.Token }
 func (st *StructExpression) String() string        { return "struct " + st.Sig.String() }
 
 type SuffixExpression struct {
-	Token    token.Token // The prefix token, e.g. !
+	Token    token.Token 
 	Operator string
-	Left     Node
 	Args     []Node
 }
 
@@ -376,10 +375,18 @@ func (se *SuffixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	out.WriteString(se.Left.String() + " ")
+	for i, v := range(se.Args) {
+		out.WriteString(v.String())
+		if i < (len(se.Args) - 1) && ! (reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) && 
+			! (reflect.TypeOf(se.Args[i + 1]) == reflect.TypeOf(&Bling{})) {
+				out.WriteString(",")
+		} 
+		if i < (len(se.Args) - 1) {
+			out.WriteString(" ")
+		}
+	}
+	out.WriteString(") ")
 	out.WriteString(se.Operator)
-	out.WriteString(")")
-
 	return out.String()
 }
 
