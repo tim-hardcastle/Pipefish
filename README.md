@@ -340,7 +340,7 @@ As with all languages that implement tuples, this type is the Cinderella of the 
 
 ### `map`
 
-A map is a collection of key-value pairs which can be indexed by the keys. Its literals are formed by ``map`` followed by a tuple of key-value pairs, e.g: ``map "foo" :: "bar", 42 :: "walrus"``.
+A map is a collection of key-value pairs which can be indexed by the keys. Its literals are formed by `map` followed by a tuple of key-value pairs, e.g: `map "foo" :: "bar", 42 :: "walrus"`.
 
 Indexing is done as usual with square brackets:
 
