@@ -153,13 +153,13 @@ func Eval(node ast.Node, c *Context) object.Object {
 	case *ast.InfixExpression:
 
 		if node.GetToken().Type == token.GIVEN { // Then either something has gone very wrong or we
-			leftBranch := node.Left // are looking at the given block of an inner function
+			leftBranch := node.Args[0] // are looking at the given block of an inner function
 			switch leftBranch := leftBranch.(type) {
 			case *ast.AssignmentExpression:
 				rightBranchOfLeftBranch := leftBranch.Right
 				switch rightBranchOfLeftBranch := rightBranchOfLeftBranch.(type) {
 				case *ast.FuncExpression:
-					rightBranchOfLeftBranch.Given = node.Right
+					rightBranchOfLeftBranch.Given = node.Args[2]
 				default:
 					return newError("eval/given/a", node.GetToken())
 				}
@@ -1306,26 +1306,26 @@ func narrate(conditional ast.Node, c *Context) (bool, string) {
 			conditional.Operator == "<=" || conditional.Operator == ">" || conditional.Operator == ">=" {
 			result := Eval(conditional, c)
 			val := result == object.TRUE
-			if isLiteral(conditional.Left) && isLiteral(conditional.Right) {
+			if isLiteral(conditional.Args[0]) && isLiteral(conditional.Args[2]) {
 				return val, conditional.String()
 			}
-			if isLiteral(conditional.Left) {
-				return val, conditional.Right.String() + " is " +
-					Eval(conditional.Right, c).Inspect(object.ViewCharmLiteral)
+			if isLiteral(conditional.Args[0]) {
+				return val, conditional.Args[2].String() + " is " +
+					Eval(conditional.Args[2], c).Inspect(object.ViewCharmLiteral)
 			}
-			if isLiteral(conditional.Right) {
-				return val, conditional.Left.String() + " is " +
-					Eval(conditional.Left, c).Inspect(object.ViewCharmLiteral)
+			if isLiteral(conditional.Args[2]) {
+				return val, conditional.Args[0].String() + " is " +
+					Eval(conditional.Args[0], c).Inspect(object.ViewCharmLiteral)
 			}
-			leftVal := Eval(conditional.Left, c)
-			rightVal := Eval(conditional.Right, c)
+			leftVal := Eval(conditional.Args[0], c)
+			rightVal := Eval(conditional.Args[2], c)
 			if object.Equals(leftVal, rightVal) {
-				return val, conditional.Left.String() + " and " + conditional.Right.String() + " are both " +
+				return val, conditional.Args[0].String() + " and " + conditional.Args[2].String() + " are both " +
 					leftVal.Inspect(object.ViewCharmLiteral)
 			}
 			if val {
-				return val, conditional.Left.String() + " is " + leftVal.Inspect(object.ViewCharmLiteral) +
-					" and " + conditional.Right.String() + " is " + rightVal.Inspect(object.ViewCharmLiteral)
+				return val, conditional.Args[0].String() + " is " + leftVal.Inspect(object.ViewCharmLiteral) +
+					" and " + conditional.Args[2].String() + " is " + rightVal.Inspect(object.ViewCharmLiteral)
 			}
 		}
 	}

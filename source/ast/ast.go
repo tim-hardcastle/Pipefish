@@ -188,9 +188,7 @@ func (ie *IndexExpression) String() string {
 
 type InfixExpression struct {
 	Token    token.Token
-	Left     Node
 	Operator string
-	Right    Node
 	Args     []Node
 }
 
@@ -199,9 +197,17 @@ func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	out.WriteString(ie.Left.String())
-	out.WriteString(" " + ie.Operator + " ")
-	out.WriteString(ie.Right.String())
+	out.WriteString(" ")
+	for i, v := range(ie.Args) {
+		out.WriteString(v.String())
+		if i < (len(ie.Args) - 1) && ! (reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) && 
+			! (reflect.TypeOf(ie.Args[i + 1]) == reflect.TypeOf(&Bling{})) {
+				out.WriteString(",")
+		} 
+		if i < (len(ie.Args) - 1) {
+			out.WriteString(" ")
+		}
+	}
 	out.WriteString(")")
 
 	return out.String()

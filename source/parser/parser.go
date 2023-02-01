@@ -666,7 +666,6 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
-
 	if p.curToken.Type == token.ASSIGN || p.curToken.Type == token.CMD_ASSIGN ||
 		p.curToken.Type == token.VAR_ASSIGN || p.curToken.Type == token.DEF_ASSIGN ||
 		p.curToken.Type == token.GVN_ASSIGN || p.curToken.Type == token.PVR_ASSIGN ||
@@ -701,12 +700,18 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	expression := &ast.InfixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
-		Left:     left,
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	expression.Args = p.listify(expression)
+	right := p.parseExpression(precedence)
+	if expression.Operator == "," {
+		expression.Args = []ast.Node{left, &ast.Bling{Value: expression.Operator, Token: expression.Token}, right}
+		return expression
+	}
+	expression.Args = p.recursivelyListify(left)
+	expression.Args = append(expression.Args, &ast.Bling{Value: expression.Operator, Token: expression.Token})
+	rightArgs := p.recursivelyListify(right)
+	expression.Args = append(expression.Args, rightArgs...) 
 	return expression
 
 }
@@ -915,8 +920,8 @@ func (p *Parser) parseFuncExpression() ast.Node {
 	switch RHS := RHS.(type) {
 	case *ast.InfixExpression:
 		if RHS.Token.Type == token.GIVEN {
-			root = RHS.Left
-			expression.Given = RHS.Right
+			root = RHS.Args[0]
+			expression.Given = RHS.Args[2]
 		}
 	}
 	switch root := root.(type) {
@@ -962,37 +967,21 @@ func (p *Parser) parseSetExpression() ast.Node {
 	return expression
 }
 
-// The next two functions take the arguments at the *call site* of a function and puts them
+// This takes the arguments at the *call site* of a function and puts them
 // into a list for us.
-
-// This first one allows us to treat infixes as a special case. (We can't treat infixes as bling
-// recursively, 'cos they aren't.)
-func (p *Parser) listify(start ast.Node) []ast.Node {
-	switch start := start.(type) {
-	case *ast.InfixExpression:
-		if start.Operator == "," {
-			break
-		}
-		left := p.recursivelyListify(start.Left)
-		left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
-		left = append(left, p.recursivelyListify(start.Right)...)
-		return left
-	}
-	return p.recursivelyListify(start)
-}
 
 func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 	switch start := start.(type) {
 	case *ast.InfixExpression:
 		if start.Operator == "," {
-			left := p.recursivelyListify(start.Left)
-			left = append(left, p.recursivelyListify(start.Right)...)
+			left := p.recursivelyListify(start.Args[0])
+			left = append(left, p.recursivelyListify(start.Args[2])...)
 			return left
 		}
 		if p.Midfixes.Contains(start.Operator) {
-			left := p.recursivelyListify(start.Left)
+			left := p.recursivelyListify(start.Args[0])
 			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
-			left = append(left, p.recursivelyListify(start.Right)...)
+			left = append(left, p.recursivelyListify(start.Args[2])...)
 			return left
 		}
 	case *ast.PrefixExpression:
@@ -1097,8 +1086,8 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 		start, content, given ast.Node
 	)
 	if fn.GetToken().Type == token.GIVEN {
-		given = fn.(*ast.InfixExpression).Right
-		fn = fn.(*ast.InfixExpression).Left
+		given = fn.(*ast.InfixExpression).Args[2]
+		fn = fn.(*ast.InfixExpression).Args[0]
 	}
 
 	switch fn := fn.(type) {
@@ -1114,16 +1103,16 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
 			return keyword, sig, rTypes, content, given
 		}
-		start = fn.Left
-		content = fn.Right
+		start = fn.Args[0]
+		content = fn.Args[2]
 	default:
 		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
 		return keyword, sig, rTypes, content, given
 	}
 
 	if start.GetToken().Type == token.RIGHTARROW {
-		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.InfixExpression).Right)
-		start = start.(*ast.InfixExpression).Left
+		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.InfixExpression).Args[2])
+		start = start.(*ast.InfixExpression).Args[0]
 	}
 
 	switch start := start.(type) {
@@ -1132,8 +1121,8 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 		sig = prsr.getSigFromArgs(start.Args, "single")
 	case *ast.InfixExpression:
 		keyword = start.Operator
-		LHS := prsr.RecursivelySlurpSignature(start.Left, "single")
-		RHS := prsr.RecursivelySlurpSignature(start.Right, "single")
+		LHS := prsr.RecursivelySlurpSignature(start.Args[0], "single")
+		RHS := prsr.RecursivelySlurpSignature(start.Args[2], "single")
 		middle := signature.NameTypePair{VarName: start.Operator, VarType: "bling"}
 		sig = append(append(LHS, middle), RHS...)
 	case *ast.SuffixExpression:
@@ -1168,13 +1157,13 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 	case *ast.InfixExpression:
 		switch {
 		case p.Midfixes.Contains(typednode.Operator):
-			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
-			RHS := p.RecursivelySlurpSignature(typednode.Right, dflt)
+			LHS := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
+			RHS := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			middle := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(append(LHS, middle), RHS...)
 		case typednode.Token.Type == token.COMMA || typednode.Token.Type == token.WEAK_COMMA:
-			LHS := p.RecursivelySlurpSignature(typednode.Left, dflt)
-			RHS := p.RecursivelySlurpSignature(typednode.Right, dflt)
+			LHS := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
+			RHS := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			return append(LHS, RHS...)
 		default:
 			p.Throw("parse/sig/b", typednode.Token)
@@ -1221,8 +1210,8 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature 
 	case *ast.InfixExpression:
 		switch {
 		case typednode.Token.Type == token.COMMA:
-			LHS := p.RecursivelySlurpReturnTypes(typednode.Left)
-			RHS := p.RecursivelySlurpReturnTypes(typednode.Right)
+			LHS := p.RecursivelySlurpReturnTypes(typednode.Args[0])
+			RHS := p.RecursivelySlurpReturnTypes(typednode.Args[2])
 			return append(LHS, RHS...)
 		default:
 			p.Throw("parse/ret/a", typednode.Token)
