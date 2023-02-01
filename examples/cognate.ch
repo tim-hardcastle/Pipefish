@@ -36,7 +36,7 @@ def // And the rest is the functional core. Nothing but pure functions with loca
 execute(lineToExecute, state) :
     tokenize(lineToExecute) >> parseBindings >> parseBlocks >> desugarToRpn >> interpret(that, state)
 
-interpret(parsedCode list, state MachineState) : \\ currentToken   //, "\n", prettyStack(state[stack])
+interpret(parsedCode list, state MachineState) : \\ currentToken, "\n", state[stack][len(state[stack]) - 1]
     parsedCode == [] : state
     else : 
         currentToken[tokenType] in [INT, STRING, BOOL] :
@@ -53,8 +53,7 @@ interpret(parsedCode list, state MachineState) : \\ currentToken   //, "\n", pre
             type(getFromEnv(state[vars], currentToken[value])) != error :
                 interpret (codeTail, (state with stack::state[stack] + [getFromEnv(state[vars], currentToken[value])]))
             type(getFromEnv(state[funcs], currentToken[value])) != error : 
-                (interpret (codeTail, (applyFunction(getFromEnv(state[funcs], currentToken[value]), state)))) ..
-                        .. with (vars::state[vars], funcs::state[funcs])
+                (interpret (codeTail, (applyFunction(getFromEnv(state[funcs], currentToken[value]), state))))
             else :
                 error "Cognate error: unknown identifier " + currentToken[value]
         else :
@@ -64,7 +63,7 @@ given :
     codeTail = parsedCode behead 1
 
 pushClosedBlock(b, S) :
-    S with stack:: (S[stack] + [b with ([value,vars]::Env(map(), S[vars]), [value,funcs]::Env(map(), S[funcs]))])
+    S with stack:: (S[stack] + [b with ([value, funcs]::S[funcs], [value, vars]::S[vars])])
 
 applyBuiltin(nameOfBuiltin, S) :   
     gatekeepStack(signatureOfBuiltin, S) 
@@ -74,7 +73,15 @@ given :
     signatureOfBuiltin = builtins[nameOfBuiltin][signature]
 
 applyFunction(fn, S) :
-    interpret(fn[value][codeBlock], (S with funcs::Env(fn[value][funcs][inner], S[funcs])))
+    (interpret(fn[value][codeBlock], (S with funcs::concatenateEnvironments(fn[value][funcs], S[funcs]),
+                                         .. vars::concatenateEnvironments(fn[value][vars], S[vars])))) ..
+    .. with (vars::S[vars], funcs::S[funcs])
+
+concatenateEnvironments(innerEnv, outerEnv) :
+    innerEnv[ext] == NIL :
+        innerEnv with ext::outerEnv
+    else :
+        innerEnv with ext::concatenateEnvironments(innerEnv[ext], outerEnv)
 
 setVar(name, S) :
     gatekeepName(name, S)   
@@ -127,13 +134,17 @@ given :
             i + 1, outList + [L[i]] 
  
 prettyPrint(t Token) :
-    t[tokenType] == INT : string(t[value]) + " "
+    t[tokenType] == INT : 
+        string(t[value]) + " "
     t[tokenType] == BOOL :
         t[value] : "True "
         else : "False "
-    t[tokenType] == LIST : "List(" + (t[value] ]> prettyPrint >> sum(that, "") >> strings.trimRight(that, " ")) + ")"
-    t[tokenType] == BLOCK : "Block-RPN(" + (t[value][codeBlock] ]> prettyPrint >> sum(that, "")  >> strings.trimRight(that, " ")) + ")"
-    else : t[value] + " "
+    t[tokenType] == LIST :
+        "List(" + (t[value] ]> prettyPrint >> sum(that, "") >> strings.trimRight(that, " ")) + ")"
+    t[tokenType] == BLOCK :
+        "Block-RPN(" + (t[value][codeBlock] ]> prettyPrint >> sum(that, "")  >> strings.trimRight(that, " ")) + ")"
+    else :
+        t[value] + " "
 
 parseBlocks(L) :
     (blockParser 0, L, [])[1]
@@ -255,9 +266,9 @@ builtins = map( "+" :: Builtin([INT, INT], func(S) : S with stack :: (S[stack] c
                 .. with (vars::S[stack][vars], funcs::S[stack][funcs]) ; .. 
     .. else : S  with stack :: (S[stack] curtail 2)))) ,
     ..  "Unless" :: Builtin([BLOCK, BOOL], func(S) : (not S[stack][len(S[stack]) - 1][value] : (interpret(S[stack][len(S[stack]) - 2][value][codeBlock],
-            .. (S with (stack :: (S[stack] curtail 2), vars::S[stack][len(S[stack]) - 2][value][vars], funcs::S[stack][len(S[stack]) - 2][value][funcs]))) ..
+            .. (S with (stack :: (S[stack] curtail 2), vars::S[stack][len(S[stack]) - 2][value][vars], funcs::S[stack][len(S[stack]) - 2][value][funcs])))) ..
                         .. with (vars::S[stack][vars], funcs::S[stack][funcs]) ; .. 
-            .. else : S  with stack :: (S[stack] curtail 2)))) ,
+            .. else : S  with stack :: (S[stack] curtail 2))) ,
     ..  "Drop" :: Builtin([ANY], func(S) : S with stack :: (S[stack] curtail 1)),
     ..  "Twin" :: Builtin([ANY], func(S) : S with stack :: S[stack] + [S[stack][len(S[stack]) - 1]]),
     ..  "Triplet" :: Builtin([ANY], func(S) : S with stack :: S[stack] ..

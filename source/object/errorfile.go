@@ -939,7 +939,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/unknown/prefix": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unknown function: " + text.DescribeTok(tok) + " " + EmphType(args[0].(Object)) +
-				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+				" (value supplied was " + DescribeObjects(args[0].([]Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using " + text.DescribeTok(tok) + " as though it was a prefix operator, but " +
@@ -1463,7 +1463,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/overload": {
 		Message: func(tok token.Token, args ...any) string {
-			return "too much overloading of keyword '" + args[0].(string) + "'"
+			return "too much overloading of function '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm allows for multiple dispatch, i.e. you could write two functions like this and the result " +
@@ -2163,4 +2163,15 @@ func DescribeObject(obj Object) string {
 	} else {
 		return "'" + obj.Inspect(ViewCharmLiteral) + "'"
 	}
+}
+
+func DescribeObjects(objs []Object) string {
+	total := ""
+	for i, v := range(objs) {
+		total = total + DescribeObject(v)
+		if i < len(objs) - 1 {
+			total = total + ", "
+		}
+	}
+	return total
 }

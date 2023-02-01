@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"reflect"
 
 	"charm/source/signature"
 	"charm/source/token"
@@ -286,7 +287,6 @@ func (ne *Nothing) String() string {return ""}
 type PrefixExpression struct {
 	Token    token.Token
 	Operator string
-	Right    Node
 	Args     []Node
 }
 
@@ -297,7 +297,16 @@ func (pe *PrefixExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(pe.Operator)
 	out.WriteString(" ")
-	out.WriteString(pe.Right.String())
+	for i, v := range(pe.Args) {
+		out.WriteString(v.String())
+		if i < (len(pe.Args) - 1) && ! (reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) && 
+			! (reflect.TypeOf(pe.Args[i + 1]) == reflect.TypeOf(&Bling{})) {
+				out.WriteString(",")
+		} 
+		if i < (len(pe.Args) - 1) {
+			out.WriteString(" ")
+		}
+	}
 	out.WriteString(")")
 
 	return out.String()

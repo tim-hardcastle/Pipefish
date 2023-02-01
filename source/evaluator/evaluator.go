@@ -480,25 +480,20 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 	operator := node.Token.Literal
 	switch {
 	case tok.Type == token.NOT:
-		return evalNotOperatorExpression(tok, Eval(node.Right, c))
-	case tok.Type == token.EVAL:
-		return evalEvalExpression(tok, Eval(node.Right, c), c)
+		return evalNotOperatorExpression(tok, Eval(node.Args[0], c)) // TODO: for consistency, we shouldn't be using Args[0] like this. Doesn't matter that much.
+	case tok.Type == token.EVAL:                                     // TODO, but for now if you are going to do this you should throw errors for too many args.
+		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
 	case tok.Type == token.RETURN:
-		return evalReturnExpression(tok, Eval(node.Right, c))
+		vals := listArgs(node.Args, node.Token, c)
+		return evalReturnExpression(tok, vals)
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator) ||
 		c.prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
 
 		// We may have ourselves a lambda
 		if ok && variable.Type() == object.FUNC_OBJ {
-			right := Eval(node.Right, c)
-			if right.Type() == object.ERROR_OBJ {
-				right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.Token)
-				return right
-			}
-			if right.Type() == object.TUPLE_OBJ {
-				params = right.(*object.Tuple).Elements
-			} else {
-				params = []object.Object{right}
+			params := listArgs(node.Args, node.Token, c)
+			if params[0].Type() == object.ERROR_OBJ {
+				return params[0]
 			}
 			if !c.prsr.ParamsFitSig(variable.(*object.Func).Sig, params) {
 				return newError("eval/sig/lambda", tok, params)
@@ -519,7 +514,8 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 	if tok.Source == "REPL input" {
 		return newError("eval/repl/a", tok, params)
 	}
-	return newError("eval/unknown/prefix", tok, Eval(node.Right, c))
+	newContext := NewContext(c.prsr, c.env, c.access, false)
+	return newError("eval/unknown/prefix", tok, listArgs(node.Args, tok, newContext))
 }
 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
@@ -810,14 +806,17 @@ func evalEvalExpression(token token.Token, right object.Object, c *Context) obje
 	return newError("eval/eval", token)
 }
 
-func evalReturnExpression(token token.Token, right object.Object) object.Object {
-	if right.Type() == object.RETURN_OBJ {
-		return newError("eval/return/return", token)
+func evalReturnExpression(token token.Token, values []object.Object) object.Object {
+	for _, v := range(values) {
+		if v.Type() == object.RETURN_OBJ {
+			return newError("eval/return/return", token)
+		}
+		if v.Type() == object.ERROR_OBJ {
+			v.(*object.Error).Trace = append(v.(*object.Error).Trace, token)
+			return v
+		}
 	}
-	if right.Type() == object.TUPLE_OBJ {
-		return &object.Return{Elements: right.(*object.Tuple).Elements}
-	}
-	return &object.Return{Elements: []object.Object{right}}
+	return &object.Return{Elements: values}
 }
 
 func evalTupleExpression(
@@ -942,7 +941,9 @@ func listArgs(args []ast.Node, tok token.Token, c *Context) []object.Object {
 			return []object.Object{newError("eval/unsatisfied/h", tok)}
 		}
 		if isError(newObject) {
-			return []object.Object{newObject}
+			newError := newObject.(*object.Error)
+			newError.Trace = append(newError.Trace, tok)
+			return []object.Object{newError}
 		}
 		if newObject.Type() == object.TUPLE_OBJ {
 			values = append(values, newObject.(*object.Tuple).Elements...)

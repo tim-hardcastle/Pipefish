@@ -436,6 +436,10 @@ func (uP *Initializer) ParseEverything() {
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Infixes)
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Suffixes)
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Unfixes)
+
+	uP.Parser.Bling.AddSet(uP.Parser.Forefixes)
+	uP.Parser.Bling.AddSet(uP.Parser.Midfixes)
+	uP.Parser.Bling.AddSet(uP.Parser.Endfixes)
 }
 
 func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName string) {

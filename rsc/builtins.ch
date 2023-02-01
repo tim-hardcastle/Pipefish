@@ -2,7 +2,7 @@ def
 
 len(t type) : builtin "len_of_type"
 (t type) with (T tuple) : builtin "constructor" // This is implemented in the evaluator and is here so that the function tree walker will match the pattern.
-file = struct(filename string, contents list) // TODO --- should be 'File' with a capital.
+file = struct(filename string, contents list) // TODO --- should be 'File' with a capital? Also don't structs have names?
 range(p pair) : builtin "range"
 file(s string) : builtin "init_file"
 codepoint(s string) : builtin "codepoint"

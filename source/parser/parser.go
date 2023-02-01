@@ -111,6 +111,7 @@ type Parser struct {
 	Infixes           set.Set[string]
 	Suffixes          set.Set[string]
 	Unfixes           set.Set[string]
+	Bling             set.Set[string]
 	AllFunctionIdents set.Set[string]
 
 	nativeInfixes set.Set[token.TokenType]
@@ -144,6 +145,7 @@ func New() *Parser {
 		Suffixes:          make(set.Set[string]),
 		Unfixes:           make(set.Set[string]),
 		AllFunctionIdents: make(set.Set[string]),
+		Bling :		       make(set.Set[string]),
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
 			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
@@ -574,14 +576,16 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 	}
 	prefix := p.curToken
 	p.NextToken()
+	var right ast.Node
 	if prefix.Type == token.NOT {
-		expression.Right = p.parseExpression(NOT)
+		right = p.parseExpression(NOT)
 	} else {
-		expression.Right = p.parseExpression(MINUS)
+		right = p.parseExpression(MINUS)
 	}
-	if expression.Right == nil {
+	if right == nil {
 		p.Throw("parse/follow", prefix)
 	}
+	expression.Args = []ast.Node{right}
 	return expression
 }
 
@@ -591,8 +595,8 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 		Operator: p.curToken.Literal,
 	}
 	p.NextToken()
-	expression.Right = p.parseExpression(FPREFIX)
-	expression.Args = p.recursivelyListify(expression.Right)
+	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
+	//expression.Right = p.parseExpression(FPREFIX)
 	return expression
 }
 
@@ -634,13 +638,15 @@ func (p *Parser) parseFunctionExpression() ast.Node {
 	}
 
 	p.NextToken()
+
+	var right ast.Node
 	if p.curToken.Type == token.LPAREN || expression.Operator == "-" {
-		expression.Right = p.parseExpression(MINUS)
+		right = p.parseExpression(MINUS)
 	} else {
-		expression.Right = p.parseExpression(FPREFIX)
+		right = p.parseExpression(FPREFIX)
 	}
 
-	expression.Args = p.recursivelyListify(expression.Right)
+	expression.Args = p.recursivelyListify(right)
 
 	return expression
 }
@@ -685,7 +691,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			}
 			fn := &ast.FuncExpression{Token: p.curToken}
 			fn.Body = right
-			fn.Sig = p.RecursivelySlurpSignature(left.Right, "single")
+			fn.Sig = p.getSigFromArgs(left.Args, "single")
 			expression.Right = fn
 			return expression
 		default:
@@ -765,8 +771,7 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 		if p.Functions.Contains(expression.Right.GetToken().Literal) {
 			expression.Right = &ast.PrefixExpression{Token: right.GetToken(),
 				Operator: expression.Right.GetToken().Literal,
-				Args:     []ast.Node{&ast.Identifier{Value: "that"}},
-				Right:    &ast.Identifier{Value: "that"}}
+				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
 		if p.Suffixes.Contains(expression.Right.GetToken().Literal) {
 			expression.Right = &ast.SuffixExpression{Token: right.GetToken(),
@@ -889,7 +894,7 @@ func (p *Parser) parseReturnExpression() ast.Node {
 		Operator: token.RETURN,
 	}
 	p.NextToken()
-	expression.Right = p.parseExpression(FUNC)
+	expression.Args = p.recursivelyListify(p.parseExpression(FUNC))
 	return expression
 }
 
@@ -996,7 +1001,7 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(start.Operator) {
 			left := []ast.Node{&ast.Bling{Value: start.Operator, Token: start.Token}}
-			left = append(left, p.recursivelyListify(start.Right)...)
+			left = append(left, start.Args...)
 			return left
 		}
 	case *ast.SuffixExpression:
@@ -1127,7 +1132,7 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
 		keyword = start.Operator
-		sig = prsr.RecursivelySlurpSignature(start.Right, "single")
+		sig = prsr.getSigFromArgs(start.Args, "single")
 	case *ast.InfixExpression:
 		keyword = start.Operator
 		LHS := prsr.RecursivelySlurpSignature(start.Left, "single")
@@ -1145,6 +1150,20 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 		return keyword, sig, rTypes, content, given
 	}
 	return keyword, sig, rTypes, content, given
+}
+
+// TODO --- this function is  refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
+func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) signature.Signature {
+	sig := signature.Signature{}
+	for _, arg := range(args) {
+		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
+			sig = append(sig, signature.NameTypePair{VarName: arg.GetToken().Literal, VarType: "bling"})
+		} else {
+			partialSig := p.RecursivelySlurpSignature(arg, dflt)
+			sig = append(sig, partialSig...)
+		}
+	}
+	return sig
 }
 
 func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature.Signature {
@@ -1190,7 +1209,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 		return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: dflt}}
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {
-			RHS := p.RecursivelySlurpSignature(typednode.Right, dflt)
+			RHS := p.getSigFromArgs(typednode.Args, dflt)
 			front := signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
 			return append(front, RHS...)
 		} else {
