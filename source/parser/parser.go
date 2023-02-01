@@ -1077,10 +1077,10 @@ func (p *Parser) ClearErrors() {
 
 // Slurps the signature of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
-// We extract the keyword first and then hand its branch or branches off to a recursive tree-slurper.
+// We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
 func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node) {
 	var (
-		keyword               string
+		functionName               string
 		sig                   signature.Signature
 		rTypes                signature.Signature
 		start, content, given ast.Node
@@ -1094,20 +1094,20 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 	case *ast.LazyInfixExpression:
 		if !(fn.Token.Type == token.COLON || fn.Token.Type == token.WEAK_COLON) {
 			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
-			return keyword, sig, rTypes, content, given
+			return functionName, sig, rTypes, content, given
 		}
 		start = fn.Left
 		content = fn.Right
 	case *ast.InfixExpression:
 		if fn.Token.Type != token.MAGIC_COLON {
 			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
-			return keyword, sig, rTypes, content, given
+			return functionName, sig, rTypes, content, given
 		}
 		start = fn.Args[0]
 		content = fn.Args[2]
 	default:
 		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
-		return keyword, sig, rTypes, content, given
+		return functionName, sig, rTypes, content, given
 	}
 
 	if start.GetToken().Type == token.RIGHTARROW {
@@ -1117,25 +1117,25 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
-		keyword = start.Operator
+		functionName = start.Operator
 		sig = prsr.getSigFromArgs(start.Args, "single")
 	case *ast.InfixExpression:
-		keyword = start.Operator
+		functionName = start.Operator
 		LHS := prsr.RecursivelySlurpSignature(start.Args[0], "single")
 		RHS := prsr.RecursivelySlurpSignature(start.Args[2], "single")
 		middle := signature.NameTypePair{VarName: start.Operator, VarType: "bling"}
 		sig = append(append(LHS, middle), RHS...)
 	case *ast.SuffixExpression:
-		keyword = start.Operator
+		functionName = start.Operator
 		sig = prsr.getSigFromArgs(start.Args, "single")
 	case *ast.UnfixExpression:
-		keyword = start.Operator
+		functionName = start.Operator
 		sig = signature.Signature{}
 	default:
 		prsr.Throw("parse/sig/malformed/d", fn.GetToken())
-		return keyword, sig, rTypes, content, given
+		return functionName, sig, rTypes, content, given
 	}
-	return keyword, sig, rTypes, content, given
+	return functionName, sig, rTypes, content, given
 }
 
 // TODO --- this function is  refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.

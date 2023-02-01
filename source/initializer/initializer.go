@@ -577,17 +577,17 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 	goHandler := evaluator.NewGoHandler(&uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.parsedDeclarations[j]); i++ {
-			keyword, sig, rTypes, body, given := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
+			functionName, sig, rTypes, body, given := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
 			if uP.Parser.ErrorsExist() {
 				return
 			}
-			keyword = uP.Parser.Namespaces[body.GetToken().Source] + keyword
-			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, keyword,
+			functionName = uP.Parser.Namespaces[body.GetToken().Source] + functionName
+			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
 					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
 					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
 			if !ok {
-				uP.Throw("init/overload", token.Token{}, keyword)
+				uP.Throw("init/overload", token.Token{}, functionName)
 			}
 			if body.GetToken().Type == token.GOLANG {
 				body.(*ast.GolangExpression).Raw = []bool{}
@@ -598,7 +598,7 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 						sig[i].VarType = v.VarType[:len(v.VarType)-4]
 					}
 				}
-				goHandler.MakeFunction(flatten(keyword), sig, rTypes, body.(*ast.GolangExpression))
+				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression))
 				if uP.Parser.ErrorsExist() {
 					return
 				}
@@ -614,10 +614,10 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 		uP.Parser.Errors[len(uP.Parser.Errors)-1].Token = token.Token{Source: sourceName}
 		return
 	}
-	for keyword, fns := range uP.Parser.FunctionTable {
+	for functionName, fns := range uP.Parser.FunctionTable {
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOLANG {
-				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(flatten(keyword), v.Body.GetToken())
+				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(flatten(functionName), v.Body.GetToken())
 			}
 		}
 	}
@@ -628,7 +628,7 @@ func flatten(s string) string {
 	return strings.ReplaceAll(s, ".", "_")
 }
 
-// After performing makeFunctionTable, each keyword is associated with an (partially) ordered list of
+// After performing makeFunctionTable, each function name is associated with an (partially) ordered list of
 // associated functions such that a more specific type signature comes before a less specific one.
 
 // In order to handle dispatch at runtime, we will re-represent this as a tree. This will apart

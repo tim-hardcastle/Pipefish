@@ -765,16 +765,16 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 	return nil
 }
 
-func assignSysVar(tok token.Token, keyword string, right object.Object, env *object.Environment) *object.Error {
-	if _, ok := sysvars.Sysvars[keyword]; ok {
-		err := sysvars.Sysvars[keyword].Validator(right)
+func assignSysVar(tok token.Token, varName string, right object.Object, env *object.Environment) *object.Error {
+	if _, ok := sysvars.Sysvars[varName]; ok {
+		err := sysvars.Sysvars[varName].Validator(right)
 		if err == "" {
-			env.Set(keyword, right)
+			env.Set(varName, right)
 			return nil
 		}
 		return newError(err, tok)
 	}
-	return newError("eval/sys/exists", tok, keyword)
+	return newError("eval/sys/exists", tok, varName)
 }
 
 func evalNotOperatorExpression(token token.Token, right object.Object) object.Object {

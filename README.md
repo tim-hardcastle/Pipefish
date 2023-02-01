@@ -340,7 +340,7 @@ As with all languages that implement tuples, this type is the Cinderella of the 
 
 ### `map`
 
-A map is a collection of key-value pairs which can be indexed by the keys. Its literals are formed by the map keyword followed by a tuple of key-value pairs, e.g: ``map "foo" :: "bar", 42 :: "walrus"``.
+A map is a collection of key-value pairs which can be indexed by the keys. Its literals are formed by ``map`` followed by a tuple of key-value pairs, e.g: ``map "foo" :: "bar", 42 :: "walrus"``.
 
 Indexing is done as usual with square brackets:
 
@@ -1294,7 +1294,7 @@ You can create your own errors by type conversion from string to error, and they
 
 But there are things you can do to stop errors from propagating.
 
-- You can use the `type` keyword to find its type. Instead of returning an error, this returns `error`.
+- You can use the `type` function to find its type. Instead of returning an error, this returns `error`.
 - You can assign it to a local constant. (Of course this means you’d be assigning the valid data to the same constant if there was any, so you still have to do something with it.)
 - (Not implemented yet.) You can index it by its fields, e.g. message and line number.
 

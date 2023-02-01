@@ -77,7 +77,7 @@ type Object interface {
 // Objects are alphabetized, as in the constants section above.
 
 // The "bling" type is internal: it is the type assigned to those parts of a Fancy Function
-// Definition that aren't keywords: midfixes, endfixes, etc.
+// Definition that are decorative: forefixes, midfixes, endfixes.
 
 // The DeepCopy method is a stopgap until I have persistent data structures. Its name is often a lie in terms of its
 // implementation, in that it's only necessary to actually do a deep copy, or indeed a copy of any sort, if we have operations

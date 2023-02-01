@@ -10,13 +10,13 @@ import (
 
 type FunctionTable map[string][]ast.Function
 
-func (ft FunctionTable) Add(T TypeSystem, keyword string, f ast.Function) (ok bool) {
-	if functions, ok := ft[keyword]; ok {
+func (ft FunctionTable) Add(T TypeSystem, functionName string, f ast.Function) (ok bool) {
+	if functions, ok := ft[functionName]; ok {
 		functions, ok = AddInOrder(T, functions, f)
-		ft[keyword] = functions
+		ft[functionName] = functions
 		return ok
 	}
-	ft[keyword] = []ast.Function{f}
+	ft[functionName] = []ast.Function{f}
 	return true
 }
 
