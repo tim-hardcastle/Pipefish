@@ -1152,7 +1152,7 @@ graph TD;
     single-->pair;
     single-->label;
     single-->set;
-    single-->map;
+    single-->M[map];
     single-->func;
     single-->type;
     single-->code;
