@@ -69,6 +69,6 @@ It achieves abstraction by multiple dispatch (with reflection and first-class ty
 
 The functional core/imperative shell style that Charm enforces for reasons given in section 1 gives us great locality of code. It also allows a more familiar style of language than many FPLs.
 
-In particular, where issues of syntax, semantics, style or nomenclature seemed minor, I have copied from Go. (The reasons for the choice of Go in particular are laid out in another document.) This makes it easier to use Charm as part of the Go ecosystem and vice-versa. It also allows me to reuse the work Google has put in on consistency, e.g. in the naming of library functions, the order of their parameters, etc. 
+In particular, where issues of syntax, semantics, style or nomenclature seemed minor, I have copied from Go. (The reasons for the choice of Go in particular are laid out in [another document](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-go).) This makes it easier to use Charm as part of the Go ecosystem and vice-versa. It also allows me to reuse the work Google has put in on consistency, e.g. in the naming of library functions, the order of their parameters, etc. 
 
 The fact that Charm is a REPL language gives us many ways to make things easy for the user. For example, it enables progressive disclosure of error messages, so that the user can be presented with a concise, readable summary of what went wrong and can then ask for further information at need.
