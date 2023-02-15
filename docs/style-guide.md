@@ -1,6 +1,6 @@
 # Style guide for Charm
 
-Despite Charm’s affinity with Go, the style is loosely based on Java, for reasons.
+Despite Charm’s affinity with Go, the style is loosely based on Java, for [reasons](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#ok-then-why-isnt-it-more-like-go).
 
 Names of functions, variables, *local* constants, and the fields of structs should be in camelCase. Exceptions are single-letter variables as parameters of inner functions, which can usefully be capitalized to suggest a collection type, e.g. `L` for a list, `M` for a map.
 
