@@ -5,7 +5,7 @@
 
 While Charm is a general-purpose language, it was particularly created to implement new ideas about how people could more ergonomically create, manage, and use CRUD apps. It is a work in progress, not yet ready for use in production, and is presented here for discussion, criticism, and the minor thrill of seeing stars accumulate on the repository.
 
-For a high-level view of the aims of the language, with particular emphasis on the features that make it novel and suited to its use-case, see this document, which explains such things in depth. This README file instead teaches how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them.
+For a high-level view of the aims of the language, with particular emphasis on the features that make it novel and suited to its use-case, see [https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md](this document), which explains such things in depth. This README file instead teaches how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them.
 
 ## Features
 
