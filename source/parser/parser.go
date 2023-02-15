@@ -122,7 +122,7 @@ type Parser struct {
 	GlobalConstants  *object.Environment
 	AllGlobals       *object.Environment
 	TypeSystem       TypeSystem
-	BuiltinFunctions map[string]func(p *Parser, args ...object.Object) object.Object
+	BuiltinFunctions map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object
 	Enums            map[string][]*object.Label
 	Structs          set.Set[string]
 	Parsers          map[string]*Parser
@@ -176,7 +176,7 @@ func New() *Parser {
 
 	// The parser adds constructors for structs to the builtins and so must keep its own
 	// collection of them.
-	p.BuiltinFunctions = make(map[string]func(p *Parser, args ...object.Object) object.Object)
+	p.BuiltinFunctions = make(map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object)
 
 	for k, v := range Builtins {
 		p.BuiltinFunctions[k] = v

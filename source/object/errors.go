@@ -13,12 +13,15 @@ import (
 // The logic to create a specific error given its error identifier and the relevant parameters
 // is in errorfile.go.
 
-type Errors = []*Error
+type Errors = []*Error // Error being Charm's error value type, defined in object.go
 
+// The structs to contain the data in errorfile.go
 type ErrorCreator struct {
 	Message     func(tok token.Token, args ...any) string
 	Explanation func(errors Errors, pos int, tok token.Token, args ...any) string
 }
+
+
 
 func Emph(s string) string {
 	return text.Emph(s)
@@ -62,8 +65,17 @@ func CreateErr(errorId string, tok token.Token, args ...any) *Error {
 	if !ok {
 		return CreateErr("err/misdirect", tok, errorId)
 	}
-	return &Error{ErrorId: errorId, Message: errorCreator.Message(tok, args...),
-		Token: tok, Info: args}
+	msg := errorCreator.Message(tok, args...)
+	return &Error{ErrorId: errorId, Message: msg, Token: tok}
+}
+
+func CreateErrWithVals(errorId string, tok token.Token, vals []Object, args ...any) *Error {
+	errorCreator, ok := ErrorCreatorMap[errorId]
+	if !ok {
+		return CreateErr("err/misdirect", tok, errorId)
+	}
+	msg := errorCreator.Message(tok, args...)
+	return &Error{ErrorId: errorId, Message: msg, Token: tok, Values:  vals}
 }
 
 // Merges two lists of errors in order of occurrence, on the assumption that they

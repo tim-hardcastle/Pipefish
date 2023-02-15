@@ -18,11 +18,13 @@ import (
 	"charm/source/token"
 )
 
+// Values for representing internal states.
 var (
 	UNSATISFIED = &object.UnsatisfiedConditional{}
 	SUCCESS     = &object.SuccessfulAssignment{}
 )
 
+// A type for saying where the code comes from --- was it typed into the REPL, is it a cmd, etc.
 type Access = int
 
 const (
@@ -33,6 +35,7 @@ const (
 	LAMBDA
 )
 
+// A type for saying under what conditions the code is being evaluated.
 type Context struct {
 	prsr    *parser.Parser
 	env     *object.Environment
@@ -44,6 +47,9 @@ func NewContext(p *parser.Parser, e *object.Environment, a Access, log bool) *Co
 	return &Context{prsr: p, env: e, access: a, logging: log}
 }
 
+// A tiny kludge. An Unsatisfied Conditional value gets turned into an error if it meets anything other than a ';'/newline operator.
+// But what if it doesn't meet anything at all, because you wrote false : 42 in the REPL? Then it still has to be converted into an
+// error. This does that.
 func Evaluate(node ast.Node, c *Context) object.Object {
 	result := Eval(node, c)
 	if result.Type() == object.UNSATISFIED_OBJ {
@@ -52,11 +58,10 @@ func Evaluate(node ast.Node, c *Context) object.Object {
 	return result
 }
 
+// And then the main evaluator
 func Eval(node ast.Node, c *Context) object.Object {
 
 	switch node := node.(type) {
-
-	// Statements
 
 	case *ast.Expression:
 		return Eval(node.Node, c)
@@ -152,8 +157,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 
 	case *ast.InfixExpression:
 
-		if node.GetToken().Type == token.GIVEN { // Then either something has gone very wrong or we
-			leftBranch := node.Args[0] // are looking at the given block of an inner function
+		if node.GetToken().Type == token.GIVEN { // Then we are looking at the 'given' block of an inner function.
+			leftBranch := node.Args[0]
 			switch leftBranch := leftBranch.(type) {
 			case *ast.AssignmentExpression:
 				rightBranchOfLeftBranch := leftBranch.Right
@@ -474,22 +479,29 @@ func evalLazyLeftExpression(tok token.Token, left object.Object, c *Context) obj
 }
 
 func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object {
-	variable, ok := c.env.Get(node.Token.Literal)
 	params := []object.Object{}
 	tok := node.Token
 	operator := node.Token.Literal
 	switch {
-	case tok.Type == token.NOT:
+	case tok.Type == token.NOT: 
 		return evalNotOperatorExpression(tok, Eval(node.Args[0], c)) // TODO: for consistency, we shouldn't be using Args[0] like this. Doesn't matter that much.
 	case tok.Type == token.EVAL:                                     // TODO, but for now if you are going to do this you should throw errors for too many args.
 		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
 	case tok.Type == token.RETURN:
 		vals := listArgs(node.Args, node.Token, c)
 		return evalReturnExpression(tok, vals)
-	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator) ||
-		c.prsr.Forefixes.Contains(operator) || ok && variable.Type() == object.FUNC_OBJ:
+	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator) :
+		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
+		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+		if result.Type() == object.ERROR_OBJ {
+			if operator == "type" {
+				return &object.Type{Value: "error"}
+			}
+		}
+		return result
 
-		// We may have ourselves a lambda
+	default : // The last non-error possibility is that the prefix is a constant/variable containing a lambda.
+		variable, ok := c.env.Get(node.Token.Literal)
 		if ok && variable.Type() == object.FUNC_OBJ {
 			params := listArgs(node.Args, node.Token, c)
 			if params[0].Type() == object.ERROR_OBJ {
@@ -502,15 +514,9 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 			lamdbaResult := applyFunction(variable.(*object.Func).Function, params, tok, newContext)
 			return lamdbaResult
 		}
-		// Otherwise we have a function or prefix, which work the same at this point.
-		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
-		if result.Type() == object.ERROR_OBJ {
-			if operator == "type" {
-				return &object.Type{Value: "error"}
-			}
-		}
-		return result
 	}
+	// TODO --- I think we have different error messages to hide from the end-user whether a private function or variable even
+	// exists but this may not work any more.
 	if tok.Source == "REPL input" {
 		return newError("eval/repl/a", tok, params)
 	}
@@ -556,6 +562,8 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 	}
 }
 
+// We implement the = operator. This goes on for a bit, because it has complicated semantics. TODO: the implementation
+// could probably be cleaned up by making use of the Context we're passing.
 func Assign(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
 	if right.Type() == object.UNSATISFIED_OBJ {
 		return newError("eval/unsatisfied/l", tok)
@@ -675,6 +683,8 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 	}
 }
 
+// We turn the definition of a struct into its constructors and add them to the "builtin" functions, thereby turning
+// their very name into a mockery.
 func assignStructDef(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
 	if tok.Type != token.TYP_ASSIGN {
 		return newError("eval/struct/def", tok)
@@ -687,7 +697,7 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 	// that the parser can parse the declarations properly.
 
 	// The first constructor function ...
-	constructor := func(p *parser.Parser, args ...object.Object) object.Object {
+	constructor := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object)}
 		for k, v := range args {
 			result.Labels = append(result.Labels, right.(*object.StructDef).Sig[k].VarName)
@@ -708,7 +718,7 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 
 	// The second constructor function ...
 
-	constructor_2 := func(p *parser.Parser, args ...object.Object) object.Object {
+	constructor_2 := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object)}
 		for _, v := range args {
 			if v.Type() != object.PAIR_OBJ {
@@ -867,6 +877,10 @@ func newError(ident string, token token.Token, args ...any) *object.Error {
 	return object.CreateErr(ident, token, args...)
 }
 
+func newErrorWithVals(ident string, token token.Token, vals []object.Object, args ...any) *object.Error {
+	return object.CreateErrWithVals(ident, token, vals, args...)
+}
+
 func isError(obj object.Object) bool {
 	if obj != nil {
 		return obj.Type() == object.ERROR_OBJ
@@ -885,6 +899,9 @@ func evalIndexExpression(tok token.Token, left, index ast.Node, c *Context) obje
 	return functionCall(c.prsr.FunctionTreeMap["index"], []ast.Node{left, &ast.Bling{Value: "by"}, index}, tok, c)
 }
 
+// This and its methods supply us with a little stateful machine to crawl along the "function tree" of each function
+// and see if the series of types/bling it's being fed leads to a function implementation, and if so to what,
+// allowing us to do the multiple dispatch.
 type functionTreeWalker struct {
 	functionTree *ast.FnTreeNode
 	position     *ast.FnTreeNode
@@ -912,6 +929,9 @@ func newFunctionTreeWalker(functionTree *ast.FnTreeNode) *functionTreeWalker {
 	return &functionTreeWalker{functionTree: functionTree, position: functionTree, lastWasTuple: false}
 }
 
+// Given a list of values, if it has length one, this returns that value as a singleton, otherwise it returns a tuple with the
+// values as elements, flattening the tuple elements as it goes.
+// TODO --- why doesn't this consider the possibility that one of the values is an error?
 func tuplify(args []object.Object) object.Object {
 	if len(args) == 1 {
 		return args[0]
@@ -980,6 +1000,8 @@ func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Context) (object.Obj
 	return tuplify(leftValues), tuplify(rightValues)
 }
 
+// We need to walk through the tree of functions according to the types of passed values to do the multiple disptach,
+// we can then pass the values and the body of the function on to applyFunction.
 func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token, c *Context) object.Object {
 
 	// We need to evaluate the arguments one by one. If they are tuples, we need to look at
@@ -1084,21 +1106,12 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
 
-	// if tok.Literal == "interpret" || tok.Literal == "applyFunction" {
-	// 	fmt.Println("functionCall calling applyFunction on", tok.Literal)
-	// // 	fmt.Print("with values ")
-	// // 	for _, v := range(values) {
-	// // 		fmt.Print(v.Inspect(object.ViewCharmLiteral) + ", ")
-	// // 	}
-	// // 	fmt.Println()
-	// // 	fmt.Println("with vars", c.env.VarsOnly())
-	// }
-
 	return applyFunction(*treeWalker.position.Fn, values, tok, c)
 }
 
 // TODO: it would be easy for functionCall to read the values into a Signature as it goes along, wouldn't it?
 
+// Having got a Function type out of a labda or the function tree, we can apply it to the values to get a return value.
 func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	if f.Private && c.access == REPL {
 		return newError("eval/repl/private", tok)
@@ -1115,6 +1128,8 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 			env.Ext = c.env
 		    newAccess = c.access
 		}
+
+	// We punt off the cases where the function body is a builtin or written in Go.
 	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression:
 		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
@@ -1123,13 +1138,15 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 			if !ok {
 				return newError("eval/with/type", f.Body.GetToken(), params[0].(*object.Type).Value)
 			}
-			return constructor(c.prsr, (params[2:])...) // TODO --- we're not passing a context to a constructor? But what if we're making something in an inner function?
+			return constructor(c.prsr, tok, (params[2:])...) // TODO --- we're not passing a context to a constructor? But what if we're making something in an inner function?
 		}
 		return applyBuiltinFunction(f, params, tok, newContext) // Otherwise we can just call the builtin.
 	case *ast.GolangExpression:
 		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
 		return applyGolangFunction(body, params, tok, newContext)
-	default: // We have a plain ol' function.
+	
+	//So if we've got this far we have a regular old function/command/lambda with its body written in Charm.
+	default: 
 		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
 		if !f.Cmd {
 			newEnvironment.InitializeConstant("this", &object.Func{Function: f, Env: env}) // Commands aren't meant to be recursive.
@@ -1160,20 +1177,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	funcToApply := c.prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
 		values := parser.GetValueList(f.Sig, params)
-		result := funcToApply(c.prsr, values...)
-		if result.Type() == object.ERROR_OBJ {
-			result.(*object.Error).Trace = append(result.(*object.Error).Trace, tok)
-			result.(*object.Error).Token = tok
-			if result.(*object.Error).Message == "" {
-				msgCreate, ok := object.ErrorCreatorMap[result.(*object.Error).ErrorId]
-				if !ok {
-					result.(*object.Error).Message = "Oopsie, can't find errorId " + result.(*object.Error).ErrorId
-				} else {
-					result.(*object.Error).Message = msgCreate.
-						Message(tok, result.(*object.Error).Info...)
-				}
-			}
-		}
+		result := funcToApply(c.prsr, tok, values...)
 		return result
 }
 
@@ -1238,6 +1242,9 @@ func isLiteral(node ast.Node) bool {
 	}
 }
 
+// If you use \\ to log without any parameters, this causes an "autolog" where it tries to guess what you would have 
+// said. TODO --- code doesn't know the names of the functions its in or what the parameters were and so it will take some
+// effort to autolog these things when a function is called.
 func autolog(log *ast.LogExpression, c *Context) string {
 	// If the log expression is an autolog, it will carry some information about
 	// the circumstances under which it was generated.
@@ -1276,6 +1283,7 @@ func autolog(log *ast.LogExpression, c *Context) string {
 	}
 }
 
+// Explains why a conditional passed or failed, as part of the autologger.
 func narrate(conditional ast.Node, c *Context) (bool, string) {
 	switch conditional := conditional.(type) {
 	case *ast.LazyInfixExpression:
@@ -1341,6 +1349,7 @@ func narrate(conditional ast.Node, c *Context) (bool, string) {
 	return val, resultString
 }
 
+// Just a bit of string-handling for the autologger.
 func niceReturn(node ast.Node, c *Context) string {
 	if isLiteral(node) {
 		return Eval(node, c).Inspect(object.ViewCharmLiteral) + "."
@@ -1349,6 +1358,7 @@ func niceReturn(node ast.Node, c *Context) string {
 		Eval(node, c).Inspect(object.ViewCharmLiteral) + "."
 }
 
+// Logs things to the appropriate place
 func emit(logStr string, tok token.Token, c *Context) {
 	logPath, _ := c.prsr.AllGlobals.Get("$logPath")
 	logPathStr := logPath.(*object.String).Value

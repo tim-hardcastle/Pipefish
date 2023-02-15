@@ -156,6 +156,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"built/index/range/string": {
+		Message: func(tok token.Token, args ...any) string {
+			return "string index out of range"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Strings can be indexed from 0 to 1 less than their length."
+		},
+	},
+
+	"built/index/range/tuple": {
+		Message: func(tok token.Token, args ...any) string {
+			return "tuple index out of range"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Tuples can be indexed from 0 to 1 less than their arity."
+		},
+	},
+
 	"built/index/type": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't index things of type " + EmphType(args[0].(Object)) +
@@ -256,8 +274,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"built/slice/int/list": {
 		Message: func(tok token.Token, args ...any) string {
 			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object)) +
-				" (pair supplied was " + DescribeObject(args[3].(Object)) + ")"
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
@@ -265,11 +282,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"built/slice/int/range": {
+		Message: func(tok token.Token, args ...any) string {
+			return "ranges are defined by pairs of type <int> :: <int>, not of type " +
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A range is a list of numbers given from one integer up to (but not including) another, " +
+				"and so the 'range' function takes pairs of the form  <int> :: <int> as input."
+		},
+	},
+
 	"built/slice/int/string": {
 		Message: func(tok token.Token, args ...any) string {
 			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object)) +
-				" (pair supplied was " + DescribeObject(args[3].(Object)) + ")"
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
@@ -280,8 +307,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"built/slice/int/tuple": {
 		Message: func(tok token.Token, args ...any) string {
 			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object)) +
-				" (pair supplied was " + DescribeObject(args[3].(Object)) + ")"
+				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +

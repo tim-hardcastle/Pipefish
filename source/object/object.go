@@ -111,6 +111,14 @@ func (b *Boolean) HashKey() HashKey {
 	return HashKey{Type: b.Type(), Value: value}
 }
 
+// Exists only to be passed out of builtin.go and then tranformed into a regular erro.
+// TODO --- find out why/if it was necessary to decorate the errors from the builtins like this instead
+// of them generating normal errors.
+type BuiltError struct {
+	Ident string
+	Info []any
+}
+
 // The 'code' type contains an AST. Charm's 'eval' function, when applied to it, evaluates the AST.
 type Code struct {
 	Value ast.Node
@@ -126,7 +134,7 @@ func (c *Code) Inspect(view View) string {
 type Error struct {
 	ErrorId string
 	Message string
-	Info    []any
+	Values  []Object
 	Trace   []token.Token
 	Token   token.Token
 }

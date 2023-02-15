@@ -806,11 +806,32 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			return false
 		}
 		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
-			".\n\n" + object.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Info...) + "\n")
+			".\n\n" + object.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token) + "\n")
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")
+	case "values":
+		switch fieldCount {
+		case 1:
+			if len(hub.ers) == 0 {
+				hub.WriteError("there are no recent errors.")
+				return false
+			}
+			if len(hub.ers[0].Trace) == 0 {
+				hub.WriteError("not a runtime error.")
+				return false
+			}
+			if hub.ers[0].Values == nil {
+				hub.WriteError("no values are available.")
+				return false
+			}
+			hub.WriteString("This is where we'd show you the values.\n")
+			return false
+		default:
+			hub.WriteError("the 'hub values' command takes no parameters.")
+			return false
+		}
 	default:
 		hub.WriteError("the hub doesn't recognize the command '" + verb + "'.")
 		return false
