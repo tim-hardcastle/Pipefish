@@ -46,7 +46,7 @@ However, in this case there *is* a reason to decide on one side. Charm is essent
 
 It would be too easy to hide an error value otherwise.
 
-Suppose, for example, that we allowed a function which normally returned (e.g.) a string and an integer to return a tuple containing an integer and an error. As it has type `tuple`, it has no way to force itself up through the stack. It is true that *eventually* if we do anything with the supposed integer the error will pop out at us and demand to be handled. But it isn't necessarily true that the first thing we do with a tuple will be to start talking about its individual elements. We might first wrap it up in a list, and then add that list to another list, and not until for example we enquire `5 in myList` and find that we're comparing `5` with an error value would we be obliged to handle it. This would be terrible.
+Suppose, for example, that we allowed a function which normally returned (e.g.) a string and an integer to return a tuple containing an integer and an error. As it has type `tuple`, it has no way to force itself up through the stack. It is true that *eventually* if we do anything with the supposed integer the error will pop out at us and demand to be handled. But it isn't necessarily true that the first thing we do with a tuple will be to start talking about its individual elements. We might first wrap it up in a list, and then add that list to another list, and not until for example we enquire `5 in myList` several functions up the call stack and find that we're comparing `5` with an error value would we be obliged to handle it. This would be terrible.
 
 ## Why the `given` section?
 
