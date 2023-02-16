@@ -1,4 +1,4 @@
-# The whys Of Charm
+# The whys of Charm
 
 ## Introduction
 
