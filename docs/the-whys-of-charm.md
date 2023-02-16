@@ -40,7 +40,7 @@ Again, it seems to suit the language and its aims, in that it’s an easy, grasp
 
 Now, I can see that there are arguments on both sides. On the one hand proponents of braces point out that it’s easy to lose your way in whitespaced code and braces avoid this problem. On the other hand proponents of whitespace point out that it’s easy to lose your way in code with braces and whitespace avoids this problem.
 
-However, in this case there *is* a reason to decide on one side. Charm is essentially a functional language. And they do tend to have syntactic whitespace, and the reason is that if you can by some perverse feat of ingenuity write a function in an FPL which is both long enough and deeply-nested enough to get lost in, that would be a code smell. A function in Charm is not supposed to have enough nested structure that the people who like braces would actually need braces to be explicit about it.
+However, in this case there *is* a reason to decide on one side. Charm is essentially a functional language. And they do tend to have syntactic whitespace, and the reason is that if you can by some perverse feat of ingenuity write a function in an FPL which is both long enough and deeply-nested enough to get lost in, that would be a code smell. A function in Charm is not supposed to have enough nested structure that the people who like braces would actually need braces to be explicit about it. At this point we may simply go with the option that takes less typing.
 
 ## Why do errors propagate through commas?
 
