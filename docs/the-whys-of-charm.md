@@ -52,7 +52,7 @@ Suppose, for example, that we allowed a function which normally returned (e.g.) 
 
 Because top-down-coding is good. If the inner functions in the `given` section are aptly named, there will hardly be any need to read them: for the human reader as for the interpreter they will serve as explanatory footnotes to a function body which will often be quite small.
 
-The interpreter is quite capable of deciding for itself whether it is necessary to perform the evaluation, without the user putting `let` statements in the main body of their functions. (N.B: for “is” read “will be”: I haven't implemented that yet and in some cases this deficit can turn an easy recursive computation into a non-terminating one.)
+The interpreter is quite capable of deciding for itself whether it is necessary to perform the evaluation, without the user putting `let` statements in the main body of their functions. (N.B: for “is” read “will be”: I haven't implemented that yet and in some cases this deficit can turn an `O(n)` computation into a non-terminating one.)
 
 ## Why Go?
 
