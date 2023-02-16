@@ -578,7 +578,9 @@ Fans of functional programming idioms will realize that what that last one needs
 
 ### Local constants and inner functions
 
-These are demonstrated in `examples/given.ch`:
+These are defined in the `given` section of a function[^3], as demonstrated in `examples/given.ch`:
+
+[^3]: See [The whys of Charm: why the `given` section](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-the-given-section)
 
 ```
 def
@@ -1175,7 +1177,7 @@ Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract
 
 ## Widening variable types
 
-As we have seen, a variable is by default assigned the type of the data object its initialized with in the `var` section. However, we can explicitly declare a variable to be of a more general type than would be inferred. An example is given in the file `examples/typing.ch`:
+A variable is by default[^4] assigned the type of the data object its initialized with in the `var` section. However, we can explicitly declare a variable to be of a more general type than would be inferred. An example is given in the file `examples/typing.ch`:
 
 ```
 var
@@ -1188,6 +1190,8 @@ troz any = "bananas"
 ```
 
 If you run the script you will find that `foo` can only be assigned string values, that `zort` can be assigned anything but a tuple, and that `troz` can be assigned anything at all.
+
+[^4]: See [The whys of Charm: Why are variables typed by default?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-variables-typed-by-default)
 
 ## Overloading
 
