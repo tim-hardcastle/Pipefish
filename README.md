@@ -5,7 +5,7 @@
 
 While Charm is a general-purpose language, it was particularly created to implement new ideas about how people could more ergonomically create, manage, and use CRUD apps. It is a work in progress, not yet ready for use in production, and is presented here for discussion, criticism, and the minor thrill of seeing stars accumulate on the repository.
 
-For a high-level view of the aims of the language, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. This README file instead teaches how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them.
+The principle purpose of this README file is to teach people how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them. For a high-level view of the aims of the language, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [The whys of Charm]() explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
 
 ## Features
 
@@ -312,15 +312,17 @@ true
 
 The `pair` type is formed using the `::` infix, e.g. `42 :: "foo"`, or `walrus :: true`.
 
-Unlike in some other languages, it is not intended that you use this to construct list-like structures out of it. You *could*, but you already have a `list` type which is better. Rather, the `pair` type is intended to represent things that naturally come in pairs, in particular key-value pairs in maps and field-value pairs in structs.
+Unlike in some other languages, it is not intended that you use this to construct list-like structures out of it[^1]. You *could*, but you already have a `list` type which is better. Rather, the `pair` type is intended to represent things that naturally come in pairs, in particular key-value pairs in maps and field-value pairs in structs.
 
 You will notice it is also used to supply a pair of integers as the parameter of the slice operator for lists and strings.
 
 Besides the `::` operator that creates it, the only operation defined on a pair is indexing, the left element having index `0` and the right element having index `1`.
 
+[^1]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist).
+
 ### `tuple`
 
-The `tuple` type is an ordered, indexable, unnestable collection of objects. It is represented by a comma-separated sequence of objects, e.g. `1, 2, 3`, which may optionally be enclosed in parentheses: `(1, 2, 3)`. The empty tuple is represented by `()`; for clarity you may with to write `tuple ()`.
+The `tuple` type is an ordered, indexable, unnestable[^1] collection of objects. It is represented by a comma-separated sequence of objects, e.g. `1, 2, 3`, which may optionally be enclosed in parentheses: `(1, 2, 3)`. The empty tuple is represented by `()`; for clarity you may with to write `tuple ()`.
 
 By "unnestable", we mean that for example `((1, (2, 3)), ((4)))` is the same as `1, 2, 3, 4`. 
 
@@ -341,6 +343,8 @@ The `tuple` type does not have a `len` function: it has an `arity` function. To 
 The index and slice operators work for tuples. However, there is only one case where this is idiomatic. The essential purpose of the `tuple` type is to pass multiple values to [functions](#functions) and to get multiple values back. Indexing and slicing tuples should be done when (as will often be the case in functional programming) you wish to keep only some of the return values of a function, and discard others.
 
 As with all languages that implement tuples, this type is the Cinderella of the type system. If you find yourself using it for reasons other than those given above, you should ask yourself why and then use a list instead.
+
+[^1]: See [The whys of Charm: Why are tuples flat?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-tuples-flat).
 
 ### `map`
 
@@ -380,11 +384,11 @@ In the example file `examples/constants.ch` we define two variables and a consta
 var
 
 radius = 10.0
-circumference = 2.0 * pi * radius
+circumference = 2.0 * PI * radius
 
 def
 
-pi = 3.141592
+PI = 3.141592
 ```
 
 If we try it out ...
@@ -392,18 +396,18 @@ If we try it out ...
 ```
 #0 → hub run examples/constants.ch
 Starting script 'examples/constants.ch' as service '#1'.
-#1 → pi     
+#1 → PI     
 3.141592
-#1 → pi = 4 
+#1 → PI = 4 
 
-[0] Error: attempt to update a constant 'pi' at line 1 of REPL input.
+[0] Error: attempt to update a constant 'PI' at line 1 of REPL input.
 
 #1 → circumference 
 62.831840
 #1 → 
 ```
 
-You will notice that the order of declaration is free: `examples/constants.ch` declares `pi` after `circumference`: the initializer copes.
+You will notice that the order of declaration is free: `examples/constants.ch` declares `PI` after `circumference`: the initializer copes.
 
 ## Functions
 
