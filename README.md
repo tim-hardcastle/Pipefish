@@ -5,7 +5,7 @@
 
 While Charm is a general-purpose language, it was particularly created to implement new ideas about how people could more ergonomically create, manage, and use CRUD apps. It is a work in progress, not yet ready for use in production, and is presented here for discussion, criticism, and the minor thrill of seeing stars accumulate on the repository.
 
-The principle purpose of this README file is to teach people how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them. For a high-level view of the aims of the language, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [The whys of Charm]() explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
+The principal purpose of this README file is to teach people how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them. For a high-level view of the aims of the language and the principles of its design, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [The whys of Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md) explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
 
 ## Features
 
@@ -312,17 +312,17 @@ true
 
 The `pair` type is formed using the `::` infix, e.g. `42 :: "foo"`, or `walrus :: true`.
 
-Unlike in some other languages, it is not intended that you use this to construct list-like structures out of it[^2]. You *could*, but you already have a `list` type which is better. Rather, the `pair` type is intended to represent things that naturally come in pairs, in particular key-value pairs in maps and field-value pairs in structs.
+Unlike in some other languages, it is not intended that you use this to construct list-like structures out of it[^pair]. You *could*, but you already have a `list` type which is better. Rather, the `pair` type is intended to represent things that naturally come in pairs, in particular key-value pairs in maps and field-value pairs in structs.
 
 You will notice it is also used to supply a pair of integers as the parameter of the slice operator for lists and strings.
 
 Besides the `::` operator that creates it, the only operation defined on a pair is indexing, the left element having index `0` and the right element having index `1`.
 
-[^2]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist).
+[^pair]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist).
 
 ### `tuple`
 
-The `tuple` type is an ordered, indexable, unnestable[^1] collection of objects. It is represented by a comma-separated sequence of objects, e.g. `1, 2, 3`, which may optionally be enclosed in parentheses: `(1, 2, 3)`. The empty tuple is represented by `()`; for clarity you may with to write `tuple ()`.
+The `tuple` type is an ordered, indexable, unnestable[^tuple] collection of objects. It is represented by a comma-separated sequence of objects, e.g. `1, 2, 3`, which may optionally be enclosed in parentheses: `(1, 2, 3)`. The empty tuple is represented by `()`; for clarity you may with to write `tuple ()`.
 
 By "unnestable", we mean that for example `((1, (2, 3)), ((4)))` is the same as `1, 2, 3, 4`. 
 
@@ -344,7 +344,7 @@ The index and slice operators work for tuples. However, there is only one case w
 
 As with all languages that implement tuples, this type is the Cinderella of the type system. If you find yourself using it for reasons other than those given above, you should ask yourself why and then use a list instead.
 
-[^1]: See [The whys of Charm: Why are tuples flat?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-tuples-flat).
+[^tuple]: See [The whys of Charm: Why are tuples flat?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-tuples-flat).
 
 ### `map`
 
@@ -475,7 +475,7 @@ positive
 #2 →  
 ```
 
-Note the functions with multiline bodies. As in many other syntactic whitespace languages, the newline is syntactic sugar for a semicolon (or vice versa). And indents and outdents are sugar for left and right parentheses. So:
+Charm uses syntactic whitespace[^whitespace], as you can see in the functions with multiline bodies. As in many other syntactic whitespace languages, the newline is syntactic sugar for a semicolon (or vice versa). And indents and outdents are sugar for left and right parentheses. So:
 
 ```
 sign(n) :
@@ -496,6 +496,7 @@ As you can see from the examples, it isn't necessary to give types to the parame
 
 Some minor points to note about the syntax: (1) The parentheses around the parameters are obligatory in the declaration but optional when calling (except as needed to indicate precedence). (2) You are allowed to write a one-line expression after the `:` if you want to, rather than indenting it and putting it on a separate line.
 
+[^whitespace]: See [The whys of Charm: Why the syntactic whitespace?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-the-syntactic-whitespace)
 
 ### Return types
 
@@ -578,9 +579,9 @@ Fans of functional programming idioms will realize that what that last one needs
 
 ### Local constants and inner functions
 
-These are defined in the `given` section of a function[^3], as demonstrated in `examples/given.ch`:
+These are defined in the `given` section of a function[^given], as demonstrated in `examples/given.ch`:
 
-[^3]: See [The whys of Charm: why the `given` section](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-the-given-section)
+[^given]: See [The whys of Charm: why the `given` section](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-the-given-section)
 
 ```
 def
@@ -1177,7 +1178,7 @@ Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract
 
 ## Widening variable types
 
-A variable is by default[^4] assigned the type of the data object its initialized with in the `var` section. However, we can explicitly declare a variable to be of a more general type than would be inferred. An example is given in the file `examples/typing.ch`:
+A variable is by default[^typing] assigned the type of the data object its initialized with in the `var` section. However, we can explicitly declare a variable to be of a more general type than would be inferred. An example is given in the file `examples/typing.ch`:
 
 ```
 var
@@ -1191,7 +1192,7 @@ troz any = "bananas"
 
 If you run the script you will find that `foo` can only be assigned string values, that `zort` can be assigned anything but a tuple, and that `troz` can be assigned anything at all.
 
-[^4]: See [The whys of Charm: Why are variables typed by default?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-variables-typed-by-default)
+[^typing]: See [The whys of Charm: Why are variables typed by default?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-variables-typed-by-default)
 
 ## Overloading
 
@@ -1353,15 +1354,17 @@ given :
 // ... etc, etc.
 ```
 
-The way errors work has one consequence you might not guess, which we should point out as a potential hazard. The rule that a function or operator applied to an error yields that same error applies also to the `,` operator, the comma.
+The way errors work has one consequence you might not guess, which we should point out as a potential hazard. The rule that a function or operator applied to an error yields that same error applies also to the `,` operator, the comma[^errors].
 
 This means that even in a function which normally returns multiple return values, you can’t return an error and another data object.
 
 If you try to do multiple assignment to local constants, and you assign an error to them, this is legal, and the same error will be assigned to all of them: `x, y = error "just the one"` is legal and meaningful in the `given` block of a function.
 
+[^errors]: See [The whys of Charm: Why do errors propagate through commas?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-do-errors-propagate-through-commas)
+
 ## Embedded Go
 
-A function may be given a body in Go by following the `:` introducing the function body by the keyword `golang`, and then enclosing the body of the function in braces.
+Charm is written in, and to interoperate with, Go[^go]. A function may be given a body in Go by following the `:` introducing the function body by the keyword `golang`, and then enclosing the body of the function in braces.
 
 ```
 multiply(a, b int) : golang {
@@ -1400,6 +1403,8 @@ golang "strings"
 ```
 
 The `strings`, `math`, and `fmt` libraries are implemented by wrapping Charm functions around the Go standard libraries.
+
+[^go]: See [The whys of Charm: Why Go?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-go)
 
 ## Imperative programming
 
