@@ -312,13 +312,13 @@ true
 
 The `pair` type is formed using the `::` infix, e.g. `42 :: "foo"`, or `walrus :: true`.
 
-Unlike in some other languages, it is not intended that you use this to construct list-like structures out of it[^1]. You *could*, but you already have a `list` type which is better. Rather, the `pair` type is intended to represent things that naturally come in pairs, in particular key-value pairs in maps and field-value pairs in structs.
+Unlike in some other languages, it is not intended that you use this to construct list-like structures out of it[^2]. You *could*, but you already have a `list` type which is better. Rather, the `pair` type is intended to represent things that naturally come in pairs, in particular key-value pairs in maps and field-value pairs in structs.
 
 You will notice it is also used to supply a pair of integers as the parameter of the slice operator for lists and strings.
 
 Besides the `::` operator that creates it, the only operation defined on a pair is indexing, the left element having index `0` and the right element having index `1`.
 
-[^1]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist).
+[^2]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist).
 
 ### `tuple`
 
