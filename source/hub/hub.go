@@ -744,7 +744,7 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 				hub.WriteError("not a runtime error.")
 				return false
 			}
-			hub.WritePretty("\n$Runtime error$" + hub.ers[0].Message + "\n\n") // If it is a runtime error, then there is only one of them.
+			hub.WritePretty(text.RT_ERROR + hub.ers[0].Message + "\n\n") // If it is a runtime error, then there is only one of them.
 			for i := len(hub.ers[0].Trace) - 1; i >= 0; i-- {
 				hub.WritePretty("  From: " + text.DescribeTok(hub.ers[0].Trace[i]) + text.DescribePos(hub.ers[0].Trace[i]) + ".")
 			}
@@ -818,15 +818,23 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 				hub.WriteError("there are no recent errors.")
 				return false
 			}
-			if len(hub.ers[0].Trace) == 0 {
-				hub.WriteError("not a runtime error.")
-				return false
-			}
 			if hub.ers[0].Values == nil {
 				hub.WriteError("no values are available.")
 				return false
 			}
-			hub.WriteString("This is where we'd show you the values.\n")
+			if len(hub.ers[0].Values) == 0 {
+				hub.WriteError("no values were passed.")
+				return false
+			}
+			if len(hub.ers[0].Values) == 1 {
+				fmt.Print("\nThe value passed was:\n\n")
+			} else {
+				fmt.Print("\nValues passed were:\n\n")
+			}
+			for _, v := range(hub.ers[0].Values) {
+				fmt.Println(text.BULLET + v.Inspect(object.ViewCharmLiteral))
+			}
+			fmt.Println()
 			return false
 		default:
 			hub.WriteError("the 'hub values' command takes no parameters.")
