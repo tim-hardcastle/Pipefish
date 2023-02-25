@@ -205,7 +205,7 @@ LITERALS = {INTEGER, STRING, BOOLEAN}
 
 NULL_NODE = Node(Token(NULL, "null"), [])
 
-PRECEDENCE = map(BUILTIN::6, MULTIPLY::5, DIVIDE::5, MOD::5, PLUS::4, MINUS::4, 
+PRECEDENCE = map(MULTIPLY::5, DIVIDE::5, MOD::5, PLUS::4, MINUS::4, 
               .. GOTO::4, LET::4, EQUALS::3, LT::3, LEQ::3, GT::3, GEQ::3, 
               .. NEQ::3, NOT::2, AND::2, OR::1, THEN::0, COMMA::0, EOL::-1)
 
