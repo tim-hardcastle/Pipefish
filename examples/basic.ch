@@ -250,9 +250,10 @@ given :
     remainingTokens, _, groupNode = parse(tail(tokens), 0, NULL_NODE)
 
 prefixExpression(tokens list) : 
-    remainingTokens, newPrecedence, Node(tokens[0], [argument]) 
+    remainingToks, newPrec, Node(tokens[0], [arg]) 
 given :
-    remainingTokens, newPrecedence, argument = parse(tail(tokens), 0, NULL_NODE)
+    precToUse = (tokens[0][tokenType] == BUILTIN: 6; else: 0)
+    remainingToks, newPrec, arg = parse(tail(tokens), precToUse, NULL_NODE)
 
 // The tokenizer.
 
