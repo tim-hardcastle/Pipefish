@@ -521,7 +521,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return newError("eval/repl/a", tok, params)
 	}
 	newContext := NewContext(c.prsr, c.env, c.access, false)
-	return newError("eval/unknown/prefix", tok, listArgs(node.Args, tok, newContext))
+	return newErrorWithVals("eval/unknown/prefix", tok, listArgs(node.Args, tok, newContext))
 }
 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {

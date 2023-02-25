@@ -132,9 +132,9 @@ jn(n int, x float64) : golang {
     return math.Jn(n, x)
 }
 
-ldexp(frac float64, ex int) : golang {
-    return math.Ldexp(frac, ex)
-}
+// ldexp(frac float64, ex int) : golang {
+//     return math.Ldexp(frac, ex)
+// }
 
 lgamma(x float64) : golang {
     return math.Lgamma(x)

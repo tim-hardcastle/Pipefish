@@ -371,7 +371,7 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 			uP.Parser.Enums[tok1.Literal] = append(uP.Parser.Enums[tok1.Literal], labelConst)
 
 			tok = uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken()
-			if tok.Type != token.COMMA && tok.Type != token.EOF {
+			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
 				uP.Throw("init/enum/comma", tok)
 			}
 			tok = uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken()

@@ -13,6 +13,14 @@ import (
 
 var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object{
 
+	"keys_of_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		returnList := &object.List{Elements: []object.Object{}}
+		for _, v := range(args[0].(*object.Hash).Pairs) {
+			returnList.Elements = append(returnList.Elements, v.Key)
+		}
+		return returnList
+	},
+
 	"range": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		index := args[0]
 		if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {

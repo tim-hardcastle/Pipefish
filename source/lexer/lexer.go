@@ -223,10 +223,6 @@ func (l *Lexer) NextToken() token.Token {
 			if tok.Type == token.GOLANG {
 				tok.Literal = l.readGolang()
 			}
-			if strings.HasSuffix(tok.Literal, "_") {
-				l.Throw("lex/ident/underscore", tok)
-				tok = l.NewToken(token.ILLEGAL, "lex/ident/underscore")
-			}
 			return tok
 		} else if isDigit(l.ch) {
 

@@ -75,9 +75,6 @@ func CreateErrWithVals(errorId string, tok token.Token, vals []Object, args ...a
 		return CreateErr("err/misdirect", tok, errorId)
 	}
 	msg := errorCreator.Message(tok, args...)
-	if vals != nil {
-		msg = msg + "\nValues are available with 'hub values'.\n"
-	}
 	return &Error{ErrorId: errorId, Message: msg, Token: tok, Values:  vals}
 }
 

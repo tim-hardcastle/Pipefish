@@ -964,8 +964,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/unknown/prefix": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unknown function: " + text.DescribeTok(tok) + " " + EmphType(args[0].(Object)) +
-				" (value supplied was " + DescribeObjects(args[0].([]Object)) + ")"
+			return "unknown function: " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using " + text.DescribeTok(tok) + " as though it was a prefix operator, but " +
@@ -1340,7 +1339,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/enum/free": {
 		Message: func(tok token.Token, args ...any) string {
-			return "element '" + tok.Literal + "' has already been declare"
+			return "element '" + tok.Literal + "' has already been declared"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The elements of two enums should always be distinct. So for example the following " +
@@ -1650,16 +1649,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm expects a token begining with '0x' to represent a number in binary notation, so " +
 				"that the remaining characters should all be digits or letters (of either case) between A and F inclusive. " +
 				"You are seeing this error because Charm was unable to parse the token in this way."
-		},
-	},
-
-	"lex/ident/underscore": {
-		Message: func(tok token.Token, args ...any) string {
-			return "invalid ident: ends with '_'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm places few restrictions on the forms of identifiers, but one is that they must " +
-				"not end in an underscore character '_', and you have broken this rule."
 		},
 	},
 

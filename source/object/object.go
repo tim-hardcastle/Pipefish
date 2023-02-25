@@ -146,6 +146,9 @@ func (e *Error) Inspect(view View) string {
 		if len(e.Trace) == 0 {
 			return text.ERROR + e.Message + text.DescribePos(e.Token) + "."
 		} else {
+			if e.Values != nil {
+				return text.RT_ERROR + e.Message + text.DescribePos(e.Token) + ".\n\nValues are available with 'hub values'."
+			}
 			return text.RT_ERROR + e.Message + text.DescribePos(e.Token) + "."
 		}
 	}
