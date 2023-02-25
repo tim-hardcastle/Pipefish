@@ -205,9 +205,9 @@ LITERALS = {INTEGER, STRING, BOOLEAN}
 
 NULL_NODE = Node(Token(NULL, "null"), [])
 
-PRECEDENCE = map(MULTIPLY::5, DIVIDE::5, MOD::5, PLUS::4, MINUS::4, GOTO::4, LET::4, 
-                .. BUILTIN::4, EQUALS::3, LT::3, LEQ::3, GT::3, GEQ::3, NEQ::3, NOT::2, 
-                .. AND::2, OR::1, THEN::0, COMMA::0, EOL::-1)
+PRECEDENCE = map(BUILTIN::6, MULTIPLY::5, DIVIDE::5, MOD::5, PLUS::4, MINUS::4, GOTO::4, LET::4, 
+              .. EQUALS::3, LT::3, LEQ::3, GT::3, GEQ::3, NEQ::3, NOT::2, 
+              .. AND::2, OR::1, THEN::0, COMMA::0, EOL::-1)
 
 parse(tokens list, precedence int, node Node) :
     tokens == [] or currentType in {EOL, R_PAREN} or (currentType in keys PRECEDENCE ..
@@ -232,27 +232,27 @@ infixExpression(tokens list, precedence int, leftNode Node) :
     remainingTokens, newPrecedence, Node(tokens[0], [leftNode, rightNode]) 
 given :
     remainingTokens, newPrecedence, rightNode ..
-        .. = parse(tokens behead 1, precedence, NULL_NODE)
+        .. = parse(tail(tokens), precedence, NULL_NODE)
 
 valueExpression(tokens list, precedence int) : 
     nextTokenType in INFIXES and nextPrecedence > precedence : 
-        infixExpression(tokens behead 1, nextPrecedence, Node(curTok, [])) 
+        infixExpression(tail(tokens), nextPrecedence, Node(curTok, [])) 
     else : 
-        tokens behead 1, precedence, Node(curTok, []) 
+        tail(tokens), precedence, Node(curTok, []) 
 given:
     curTok = tokens[0]
     nextTokenType = tokens[1][tokenType] 
     nextPrecedence = PRECEDENCE[nextTokenType] 
 
 groupedExpression(tokens list, precedence int) : 
-    remainingTokens behead 1, precedence, groupNode
+    tail(remainingTokens), precedence, groupNode
 given :
-    remainingTokens, _, groupNode = parse(tokens behead 1, 0, NULL_NODE)
+    remainingTokens, _, groupNode = parse(tail(tokens), 0, NULL_NODE)
 
 prefixExpression(tokens list) : 
     remainingTokens, newPrecedence, Node(tokens[0], [argument]) 
 given :
-    remainingTokens, newPrecedence, argument = parse(tokens behead 1, 0, NULL_NODE)
+    remainingTokens, newPrecedence, argument = parse(tail(tokens), 0, NULL_NODE)
 
 // The tokenizer.
 
