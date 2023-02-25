@@ -228,6 +228,12 @@ parse(tokens list, precedence int, node Node) :
 given :
     currentType = tokens[0][tokenType]
 
+infixExpression(tokens list, precedence int, leftNode Node) : 
+    remainingTokens, newPrecedence, Node(tokens[0], [leftNode, rightNode]) 
+given :
+    remainingTokens, newPrecedence, rightNode ..
+        .. = parse(tokens behead 1, precedence, NULL_NODE)
+
 valueExpression(tokens list, precedence int) : 
     nextTokenType in INFIXES and nextPrecedence > precedence : 
         infixExpression(tokens behead 1, nextPrecedence, Node(curTok, [])) 
@@ -237,12 +243,6 @@ given:
     curTok = tokens[0]
     nextTokenType = tokens[1][tokenType] 
     nextPrecedence = PRECEDENCE[nextTokenType] 
-
-infixExpression(tokens list, precedence int, leftNode Node) : 
-    remainingTokens, newPrecedence, Node(tokens[0], [leftNode, rightNode]) 
-given :
-    remainingTokens, newPrecedence, rightNode ..
-        .. = parse(tokens behead 1, precedence, NULL_NODE)
 
 groupedExpression(tokens list, precedence int) : 
     remainingTokens behead 1, precedence, groupNode
