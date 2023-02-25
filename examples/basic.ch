@@ -252,7 +252,7 @@ given :
 prefixExpression(tokens list) : 
     remainingToks, newPrec, Node(tokens[0], [arg]) 
 given :
-    precToUse = (tokens[0][tokenType] == BUILTIN: 6; else: 0)
+    precToUse = (tokens[0][tokenType] in [BUILTIN, NOT]: 6; else: 0)
     remainingToks, newPrec, arg = parse(tail(tokens), precToUse, NULL_NODE)
 
 // The tokenizer.
