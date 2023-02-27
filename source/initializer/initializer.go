@@ -330,9 +330,10 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				definingToken = tok
 			}
 		}
-
-		//if tok.Source != "rsc/builtins.ch" { fmt.Printf("Appending %v\n", tok) }
 		line.Append(tok)
+	}
+	if lastTokenWasColon {
+		uP.Throw("init/unfinished", tok)
 	}
 	uP.Parser.Errors = object.MergeErrors(uP.rl.GetErrors(), uP.Parser.Errors)
 }
@@ -574,10 +575,12 @@ func (uP *Initializer) returnOrderOfAssignments(declarations declarationType) *[
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
 func (uP *Initializer) makeFunctions(sourceName string) {
+	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := evaluator.NewGoHandler(&uP.Parser)
+
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.parsedDeclarations[j]); i++ {
-			functionName, sig, rTypes, body, given := uP.Parser.ExtractSignature(*uP.parsedDeclarations[j][i])
+			functionName, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(*uP.parsedDeclarations[j][i])
 			if uP.Parser.ErrorsExist() {
 				return
 			}

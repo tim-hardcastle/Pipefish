@@ -1074,7 +1074,7 @@ func (p *Parser) ClearErrors() {
 // Slurps the signature of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node) {
+func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node) {
 	var (
 		functionName          string
 		sig                   signature.Signature

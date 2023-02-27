@@ -1552,6 +1552,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/unfinished": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unfinished business at end of script"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "It looks like you started a function definition but didn't finish it."
+		},
+	},
+
 	"lex/bin": {
 		Message: func(tok token.Token, args ...any) string {
 			return "invalid binary token"

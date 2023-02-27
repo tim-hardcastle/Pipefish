@@ -1011,10 +1011,6 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 	// We need to evaluate the arguments one by one. If they are tuples, we need to look at
 	// the elements of those one by one as we navigate the function tree.
 
-	fmt.Println(functionTree)
-
-	fmt.Println(len(functionTree.Branch))
-
 	pos := 0
 	values := []object.Object{}
 	treeWalker := newFunctionTreeWalker(functionTree)
