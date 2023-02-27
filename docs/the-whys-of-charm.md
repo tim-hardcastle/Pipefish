@@ -66,4 +66,12 @@ Some of the reasons for specific decisions, e.g. the use of syntactic whitespace
 
 The use of `not`, `and`, and `or` was suggested by the utility of English-like DSLs for Charm’s end-users.
 
+The reasoning behind the style guide and its differences from Go will be found in the next section.
+
+## Why is the style guide like that?
+
 As far as the style guide goes, the development of Charm apps makes it convenient to be able to declare and undeclare things as private *en masse*. This makes Go’s use of semantic capitalization unsuitable, and so it has been possible to rethink the style guide in a radical, groundbreaking way and conclude that actually the Java people probably got it about right for once. It was a choice between that and copying Python and at least Go and Java share a preference for camelCase.
+
+## Why the SCREAMING_SNAKE_CASE, though?
+
+Given an identifier in a function, it could be the name of a function, a parameter, a local constant, a global constant, or an enum. Functions can be recognized by their syntactic role. Parameters can be found at the top of the function and local constants at the bottom. Whereas the constants and enums can be found ... anywhere at all The SCREAMING is apt because it's a warning: don't bother looking in the function for the definition of this, 'cos it ain't here.
