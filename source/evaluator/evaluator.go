@@ -857,6 +857,8 @@ func evalTupleExpression(
 func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	val, ok := c.env.Get(node.Value)
 
+	// We don't want someone from the REPL to be able to find out whether (a) a variable with
+	// a given name doesn't exist or (b) it does but it's private. So:
 	if (!ok || c.env.IsPrivate(node.Value)) && node.GetToken().Source == "REPL input" {
 		return newError("eval/repl/var", node.Token, node.Value)
 	}
@@ -870,6 +872,8 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	if c.prsr.AllFunctionIdents.Contains(node.Value) {
 		return newError("eval/ident/context", node.Token, node.Value)
 	}
+
+	// We can return a regular "not found".
 	return newError("eval/ident/found", node.Token, node.Value)
 }
 

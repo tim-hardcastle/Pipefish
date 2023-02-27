@@ -713,7 +713,6 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	rightArgs := p.recursivelyListify(right)
 	expression.Args = append(expression.Args, rightArgs...) 
 	return expression
-
 }
 
 // Parses a log expression.
@@ -979,10 +978,7 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 			return left
 		}
 		if p.Midfixes.Contains(start.Operator) {
-			left := p.recursivelyListify(start.Args[0])
-			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
-			left = append(left, p.recursivelyListify(start.Args[2])...)
-			return left
+			return start.Args
 		}
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(start.Operator) {
