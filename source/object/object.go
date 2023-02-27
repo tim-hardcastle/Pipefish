@@ -38,7 +38,7 @@ const (
 	LABEL_OBJ       = "label"
 	LIST_OBJ        = "list"
 	PAIR_OBJ        = "pair"
-	RETURN_OBJ      = "return"
+	RESPONSE_OBJ      = "response"
 	SET_OBJ         = "set"
 	STRING_OBJ      = "string"
 	STRUCT_OBJ      = "struct"
@@ -304,7 +304,7 @@ type Return struct {
 }
 
 func (r *Return) DeepCopy() Object {return r}
-func (r *Return) Type() ObjectType { return RETURN_OBJ }
+func (r *Return) Type() ObjectType { return RESPONSE_OBJ }
 func (r *Return) Inspect(view View) string {
 	var out bytes.Buffer
 

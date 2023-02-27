@@ -53,7 +53,7 @@ var precedences = map[token.TokenType]int{
 	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
-	token.RETURN:      FUNC,
+	token.RESPOND:     FUNC,
 	token.PIPE:        FUNC,
 	token.MAP:         FUNC,
 	token.FILTER:      FUNC,
@@ -145,7 +145,7 @@ func New() *Parser {
 		Suffixes:          make(set.Set[string]),
 		Unfixes:           make(set.Set[string]),
 		AllFunctionIdents: make(set.Set[string]),
-		Bling :		       make(set.Set[string]),
+		Bling:             make(set.Set[string]),
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
 			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
@@ -154,14 +154,14 @@ func New() *Parser {
 			token.IFLOG, token.PRELOG}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
-		FunctionTable:    make(FunctionTable),
-		FunctionTreeMap:  make(map[string]*ast.FnTreeNode),
-		GlobalConstants:  object.NewEnvironment(), // I need my functions to be able to see the global constants.
-		AllGlobals:       object.NewEnvironment(), // The logger needs to be able to see service variables and this is the simplest way.
-		TypeSystem:       NewTypeSystem(),
-		Structs:          make(set.Set[string]),
-		GoImports:        make(map[string][]string),
-		Namespaces:       make(map[string]string),
+		FunctionTable:   make(FunctionTable),
+		FunctionTreeMap: make(map[string]*ast.FnTreeNode),
+		GlobalConstants: object.NewEnvironment(), // I need my functions to be able to see the global constants.
+		AllGlobals:      object.NewEnvironment(), // The logger needs to be able to see service variables and this is the simplest way.
+		TypeSystem:      NewTypeSystem(),
+		Structs:         make(set.Set[string]),
+		GoImports:       make(map[string][]string),
+		Namespaces:      make(map[string]string),
 	}
 
 	for k := range *p.TypeSystem {
@@ -274,7 +274,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseListExpression()
 	case token.LBRACE:
 		leftExp = p.parseSetExpression()
-	case token.RETURN:
+	case token.RESPOND:
 		leftExp = p.parseReturnExpression()
 	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
@@ -711,7 +711,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	expression.Args = p.recursivelyListify(left)
 	expression.Args = append(expression.Args, &ast.Bling{Value: expression.Operator, Token: expression.Token})
 	rightArgs := p.recursivelyListify(right)
-	expression.Args = append(expression.Args, rightArgs...) 
+	expression.Args = append(expression.Args, rightArgs...)
 	return expression
 }
 
@@ -892,7 +892,7 @@ func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {
 func (p *Parser) parseReturnExpression() ast.Node {
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
-		Operator: token.RETURN,
+		Operator: token.RESPOND,
 	}
 	p.NextToken()
 	expression.Args = p.recursivelyListify(p.parseExpression(FUNC))
@@ -1076,7 +1076,7 @@ func (p *Parser) ClearErrors() {
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
 func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node) {
 	var (
-		functionName               string
+		functionName          string
 		sig                   signature.Signature
 		rTypes                signature.Signature
 		start, content, given ast.Node
@@ -1137,7 +1137,7 @@ func (prsr *Parser) ExtractSignature(fn ast.Node) (string, signature.Signature, 
 // TODO --- this function is  refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
 func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) signature.Signature {
 	sig := signature.Signature{}
-	for _, arg := range(args) {
+	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
 			sig = append(sig, signature.NameTypePair{VarName: arg.GetToken().Literal, VarType: "bling"})
 		} else {

@@ -72,11 +72,11 @@ const (
 	PRIVATE = "private"
 
 	// Keywords
-	RETURN = "return"
-	ELSE   = "else"
-	GIVEN  = "given"
-	EVAL   = "eval"
-	EXEC   = "exec"
+	RESPOND = "respond"
+	ELSE    = "else"
+	GIVEN   = "given"
+	EVAL    = "eval"
+	EXEC    = "exec"
 
 	MAGIC_COLON = "MAGIC_COLON"
 	WEAK_COLON = "WEAK_COLON"
@@ -103,7 +103,7 @@ var keywords = map[string]TokenType{
 	"true":   TRUE,
 	"false":  FALSE,
 	"else":   ELSE,
-	"return": RETURN,
+	"respond": RESPOND,
 
 	"eval":   EVAL,
 	"given":  GIVEN,
