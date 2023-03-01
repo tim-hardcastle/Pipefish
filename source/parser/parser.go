@@ -13,6 +13,16 @@ import (
 	"charm/source/token"
 )
 
+// The parser, obviously. However, it has come to take on a secondary role as a repository for things that 
+// are immutable after initialization and required by the evaluator, on the grounds that the parser itself is such 
+// a thing and we might as well. However, it would be a good idea (TODO) to reverse this relationship and 
+// make a portable Resource struct for such purposes of which the parser would be a component.
+
+// (This note is inspired by the fact that I'm now tucking the effect handlers for the evaluator in here despite
+// the fact that they parse jack. All they do is ... (a) not change during the course of evalution (b) be dependencies
+// of the evaluator. In no sane world would this get you into the "parser" club and I need to look at what else I've
+// shoved in here.)
+
 const (
 	_ int = iota
 	LOWEST
@@ -54,6 +64,7 @@ var precedences = map[token.TokenType]int{
 	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
 	token.RESPOND:     FUNC,
+	token.REQUEST:     FUNC,
 	token.PIPE:        FUNC,
 	token.MAP:         FUNC,
 	token.FILTER:      FUNC,
@@ -129,6 +140,8 @@ type Parser struct {
 	GoImports        map[string][]string
 	Namespace        string
 	Namespaces       map[string]string
+
+	EffHandle        EffectHandler
 }
 
 func New() *Parser {
@@ -275,7 +288,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	case token.LBRACE:
 		leftExp = p.parseSetExpression()
 	case token.RESPOND:
-		leftExp = p.parseReturnExpression()
+		leftExp = p.ParseRespondExpression()
+	case token.REQUEST:
+		leftExp = p.ParseRequestExpression()
 	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
 	default:
@@ -889,10 +904,20 @@ func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {
 	return expression
 }
 
-func (p *Parser) parseReturnExpression() ast.Node {
+func (p *Parser) ParseRespondExpression() ast.Node {
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
 		Operator: token.RESPOND,
+	}
+	p.NextToken()
+	expression.Args = p.recursivelyListify(p.parseExpression(FUNC))
+	return expression
+}
+// TODO -- these two are basically the same and if they remain so they should be DRY-d up.
+func (p *Parser) ParseRequestExpression() ast.Node {
+	expression := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: token.REQUEST,
 	}
 	p.NextToken()
 	expression.Args = p.recursivelyListify(p.parseExpression(FUNC))
@@ -1188,6 +1213,9 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 		}
 		p.Throw("parse/sig/d", node.GetToken())
 	case *ast.Identifier:
+		if p.Endfixes.Contains(typednode.Value) {
+			return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: "bling"}}
+		}
 		return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: dflt}}
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {

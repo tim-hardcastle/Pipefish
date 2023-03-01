@@ -498,7 +498,7 @@ Some minor points to note about the syntax: (1) The parentheses around the param
 
 [^whitespace]: See [The whys of Charm: Why the syntactic whitespace?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-the-syntactic-whitespace)
 
-### Return types
+### Effects types
 
 Function can optionally be given return types. A small example is given in `examples/returntypes.ch`:
 

@@ -447,6 +447,7 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	uP.makeFunctions(sourceName)
 	uP.makeFunctionTrees()
 	env.InitializeConstant("NIL", object.NIL)
+	env.InitializeConstant("stop", &object.Error{Message: "stop"})
 	// Initialize the user-declared constants and variables
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
@@ -701,9 +702,10 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 	lastTokenWasFix := false
 	lastTokenWasVar := false
 	prefix := ""
+	tok := token.Token{}
 	currentChunk.ToStart()
 	for j := 0; j < currentChunk.Length(); j++ {
-		tok := currentChunk.NextToken()
+		tok = currentChunk.NextToken()
 
 		if tok.Type == token.LPAREN {
 			hasParams = true
@@ -786,8 +788,11 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 				uP.Parser.Unfixes.Add(uP.Parser.Namespace + prefix)
 			}
 		}
+	} else {
+		if hasMidOrEndfix && ! inParenthesis && ! (tok.Literal == ")") { 
+			uP.Parser.Endfixes.Add(tok.Literal) 
+		}
 	}
-
 }
 
 ////////////////////////////////////////////////////////////////////////////

@@ -35,7 +35,15 @@ const (
 	LAMBDA
 )
 
-// A type for saying under what conditions the code is being evaluated.
+// The evaluator is stateless, which as usual means we're going to be wrapping the state in a struct and passing
+// it from function to function like a bong at a frat party. This is the struct.
+// Its bill of goods:
+// * The parser. Needed for evaluation because it contains the precedences, among other stuff.
+// * The environment. Same as with any other evaluator.
+// * Access. This exists mainly to enforce, at runtime, the rule that functions can't call commands and as such
+// is a kludge that I'm living with until I have a syntax checker. Or given that I have no users, I could have asked
+// all none of them politely not to do it.
+// * The logging flag records whether we are in fact logging things.
 type Context struct {
 	prsr    *parser.Parser
 	env     *object.Environment
@@ -200,7 +208,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return left
 			}
 			if right.Type() == object.RESPONSE_OBJ {
-				left.(*object.Return).Elements = append(left.(*object.Return).Elements, right.(*object.Return).Elements...)
+				left.(*object.Effects).Elements = append(left.(*object.Effects).Elements, right.(*object.Effects).Elements...)
 				return left
 			}
 			return newError("eval/malret", node.Token)
@@ -212,7 +220,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return Eval(node.Right, newContext)
 
 	case *ast.Identifier:
-		// We may have reached a bit of orphaned endbling.
+		// We may have reached a bit of orphaned endbling. TODO --- well we shouldn't. See also recursivelySlurpSignature for
+		// an instance of the same kludge.
 		if c.prsr.Endfixes.Contains(node.Value) {
 			return &object.Bling{Value: node.Value}
 		}
@@ -490,6 +499,11 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 	case tok.Type == token.RESPOND:
 		vals := listArgs(node.Args, node.Token, c)
 		return evalReturnExpression(tok, vals)
+	case tok.Type == token.REQUEST: // TODO --- just for tonight, let's use Scanln.
+		var str string
+		fmt.Println(node.Args[0].String())
+		fmt.Scanln(&str)
+		return &object.String{Value: str}
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
 		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
@@ -826,7 +840,7 @@ func evalReturnExpression(token token.Token, values []object.Object) object.Obje
 			return v
 		}
 	}
-	return &object.Return{Elements: values}
+	return &object.Effects{Elements: values}
 }
 
 func evalTupleExpression(

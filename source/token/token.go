@@ -73,6 +73,7 @@ const (
 
 	// Keywords
 	RESPOND = "respond"
+	REQUEST = "request"
 	ELSE    = "else"
 	GIVEN   = "given"
 	EVAL    = "eval"
@@ -104,6 +105,7 @@ var keywords = map[string]TokenType{
 	"false":  FALSE,
 	"else":   ELSE,
 	"respond": RESPOND,
+	"request": REQUEST,
 
 	"eval":   EVAL,
 	"given":  GIVEN,
