@@ -11,5 +11,6 @@
 | Allows recursion | Forbids recursion |
 | Turing-complete without the `cmd` section | Not Turing-complete without the `def` section |
 | Contains all the business logic | Dumb as a sack of rocks |
+| Tiny | 99% of your code |
 | Easy to test because it's pure | Easy to test because it's simple |
 | Isolates the demon of flow-of-control ... | ... from the demon of mutable state |
