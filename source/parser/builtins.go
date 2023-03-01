@@ -108,7 +108,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.Integer{Value: int(slice[0])}
 	},
 
-	"charm_any": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"charm_literal": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		return &object.String{Value: args[0].Inspect(object.ViewCharmLiteral)}
 	},
 
