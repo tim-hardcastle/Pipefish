@@ -498,11 +498,9 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
 	case tok.Type == token.RESPOND:
 		vals := listArgs(node.Args, node.Token, c)
-		return evalReturnExpression(tok, vals)
-	case tok.Type == token.REQUEST: // TODO --- just for tonight, let's use Scanln.
-		var str string
-		fmt.Println(node.Args[0].String())
-		fmt.Scanln(&str)
+		return evalReturnExpression(tok, vals, c)
+	case tok.Type == token.REQUEST: 
+		str := c.prsr.EffHandle.InHandle.Get((Eval(node.Args[0], c)).(*object.String).Value)
 		return &object.String{Value: str}
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
@@ -830,7 +828,7 @@ func evalEvalExpression(token token.Token, right object.Object, c *Context) obje
 	return newError("eval/eval", token)
 }
 
-func evalReturnExpression(token token.Token, values []object.Object) object.Object {
+func evalReturnExpression(token token.Token, values []object.Object, c *Context) object.Object {
 	for _, v := range values {
 		if v.Type() == object.RESPONSE_OBJ {
 			return newError("eval/return/return", token)
@@ -840,6 +838,7 @@ func evalReturnExpression(token token.Token, values []object.Object) object.Obje
 			return v
 		}
 	}
+	c.prsr.EffHandle.OutHandle.Out(values, c.env)
 	return &object.Effects{Elements: values}
 }
 

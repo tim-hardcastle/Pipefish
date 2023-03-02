@@ -13,15 +13,9 @@ import (
 	"charm/source/token"
 )
 
-// The parser, obviously. However, it has come to take on a secondary role as a repository for things that 
-// are immutable after initialization and required by the evaluator, on the grounds that the parser itself is such 
-// a thing and we might as well. However, it would be a good idea (TODO) to reverse this relationship and 
-// make a portable Resource struct for such purposes of which the parser would be a component.
-
-// (This note is inspired by the fact that I'm now tucking the effect handlers for the evaluator in here despite
-// the fact that they parse jack. All they do is ... (a) not change during the course of evalution (b) be dependencies
-// of the evaluator. In no sane world would this get you into the "parser" club and I need to look at what else I've
-// shoved in here.)
+// The parser, obviously. However, I'm temporarily tucking the effect handlers for the evaluator in here despite
+// the fact that they don't parse anything and are just here because like the parser they're a dependency of
+// the evaluator that doesn't change during evaluation.
 
 const (
 	_ int = iota

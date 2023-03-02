@@ -1069,6 +1069,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 		return
 	}
 
+	init.Parser.EffHandle = parser.MakeStandardEffectHandler(hub.out, *env)
 	newService := NewService()
 	(*newService).Parser = &init.Parser
 	(*newService).Env = env

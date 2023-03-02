@@ -3,8 +3,7 @@
 cmd
 
 main :
-    respond "Hello world!"
-    stop
+    respond "Hello " + (request `What's your name? ` ) + "!"
 
 (x) is even :
     x % 2 == 0

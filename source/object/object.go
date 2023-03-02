@@ -151,15 +151,7 @@ type Effects struct {
 func (ef *Effects) DeepCopy() Object { return ef }
 func (ef *Effects) Type() ObjectType { return RESPONSE_OBJ }
 func (ef *Effects) Inspect(view View) string {
-	var out bytes.Buffer
-
-	elements := []string{}
-	for _, e := range ef.Elements {
-		elements = append(elements, e.Inspect(view))
-	}
-	out.WriteString(strings.Join(elements, ", "))
-
-	return out.String()
+	return ""
 }
 
 // The 'error' type.
