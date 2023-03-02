@@ -420,6 +420,8 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 }
 
 func (uP *Initializer) ParseEverything() {
+	uP.Parser.Unfixes.Add("break")
+	uP.Parser.Unfixes.Add("stop")
 	for declarations := constantDeclaration; declarations <= privateCommandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.tokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.tokenizedDeclarations[declarations][chunk]
@@ -429,6 +431,7 @@ func (uP *Initializer) ParseEverything() {
 			// fmt.Println(uP.tokenizedDeclarations[declarations][chunk].String())
 		}
 	}
+
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Functions)
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Prefixes)
 	uP.Parser.AllFunctionIdents.AddSet(uP.Parser.Forefixes)
@@ -447,7 +450,6 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	uP.makeFunctions(sourceName)
 	uP.makeFunctionTrees()
 	env.InitializeConstant("NIL", object.NIL)
-	env.InitializeConstant("stop", &object.Error{Message: "stop"})
 	// Initialize the user-declared constants and variables
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)

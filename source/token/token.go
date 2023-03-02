@@ -72,12 +72,15 @@ const (
 	PRIVATE = "private"
 
 	// Keywords
-	RESPOND = "respond"
-	REQUEST = "request"
 	ELSE    = "else"
 	GIVEN   = "given"
 	EVAL    = "eval"
 	EXEC    = "exec"
+
+	// Imperative shell
+	
+	REQUEST = "request"
+	RESPOND = "respond"
 
 	MAGIC_COLON = "MAGIC_COLON"
 	WEAK_COLON = "WEAK_COLON"

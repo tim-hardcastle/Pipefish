@@ -142,10 +142,9 @@ func (c *Code) Inspect(view View) string {
 
 type Effects struct {
 	Elements      []Object
-	responseHappened bool
-	requestHappened bool
-	breakHappened bool 
-	stopHappened  bool
+	RequestHappened bool
+	BreakHappened bool 
+	StopHappened  bool
 }
 
 func (ef *Effects) DeepCopy() Object { return ef }

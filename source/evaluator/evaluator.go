@@ -208,8 +208,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return left
 			}
 			if right.Type() == object.RESPONSE_OBJ {
-				left.(*object.Effects).Elements = append(left.(*object.Effects).Elements, right.(*object.Effects).Elements...)
-				return left
+				return combineEffects(left.(*object.Effects), right.(*object.Effects))
 			}
 			return newError("eval/malret", node.Token)
 		}
@@ -487,6 +486,13 @@ func evalLazyLeftExpression(tok token.Token, left object.Object, c *Context) obj
 	return nil
 }
 
+func combineEffects(left, right *object.Effects) *object.Effects {
+	left.Elements = append(left.Elements, right.Elements...)
+	left.BreakHappened = left.BreakHappened || right.BreakHappened
+	left.StopHappened = left.StopHappened || right.StopHappened
+	return left
+}
+
 func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object {
 	params := []object.Object{}
 	tok := node.Token
@@ -537,6 +543,13 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 }
 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
+	if node.Operator == "break" {
+		return &object.Effects{BreakHappened: true}
+	}
+	if node.Operator == "stop" {
+		return &object.Effects{StopHappened: true}
+	}
+	
 	return applyFunction(*c.prsr.FunctionTreeMap[node.Operator].Branch[0].Node.Fn, []object.Object{}, node.Token, c)
 }
 

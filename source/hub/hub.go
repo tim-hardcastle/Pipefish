@@ -195,6 +195,11 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	obj := service.Do(line)
 
+	if obj.Type() == object.RESPONSE_OBJ && obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
+		delete(hub.services, hub.currentServiceName)
+		hub.currentServiceName = ""
+	}
+
 	if service.Parser.ErrorsExist() {
 		hub.GetAndReportErrors(service.Parser)
 		return passedServiceName, false
@@ -247,7 +252,8 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 	switch verb {
 
 	// Verbs are in alphabetical order :
-	// add, config, create, do, edit, errors, help, let, log, listen, my, peek, quit, register, replay, run, services, snap, test, trace
+	// add, config, create, do, edit, errors, help, let, log, listen, my, peek, quit, register, replay, run, services, snap, stop, 
+	// test, trace
 	case "add":
 		if fieldCount != 4 || hubWords[2] != "to" {
 			hub.WriteError("the format of the 'hub add' command is 'hub add <username> to <GroupName>'.")
@@ -342,31 +348,6 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			hub.WritePretty("There are no recent errors.")
 		}
 		hub.WritePretty(object.GetList(hub.ers))
-	case "halt":
-		name := hub.currentServiceName
-		if fieldCount > 2 {
-			hub.WriteError("the 'hub halt' command takes at most one parameter, the name of a service.")
-		}
-		ok := true
-		if fieldCount == 2 {
-			_, ok = hub.services[hubWords[1]]
-			if ok {
-				name = hubWords[1]
-			} else {
-				hub.WriteError("the hub can't find the service '" + hubWords[1] + "'.")
-				return false
-			}
-		}
-		if name == "" {
-			hub.WriteError("the hub doesn't know what you want to halt.")
-			return false
-		}
-		delete(hub.services, name)
-		hub.WriteString(text.OK + "\n")
-		if name == hub.currentServiceName {
-			hub.currentServiceName = ""
-		}
-		return false
 	case "help":
 		switch {
 		case fieldCount == 1:
@@ -723,6 +704,31 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			hub.WriteError("too many words after 'hub snap'.")
 			return false
 		}
+	case "stop":
+		name := hub.currentServiceName
+		if fieldCount > 2 {
+			hub.WriteError("the 'hub stop' command takes at most one parameter, the name of a service.")
+		}
+		ok := true
+		if fieldCount == 2 {
+			_, ok = hub.services[hubWords[1]]
+			if ok {
+				name = hubWords[1]
+			} else {
+				hub.WriteError("the hub can't find the service '" + hubWords[1] + "'.")
+				return false
+			}
+		}
+		if name == "" {
+			hub.WriteError("the hub doesn't know what you want to stop.")
+			return false
+		}
+		delete(hub.services, name)
+		hub.WriteString(text.OK + "\n")
+		if name == hub.currentServiceName {
+			hub.currentServiceName = ""
+		}
+		return false
 	case "test":
 		switch fieldCount {
 		case 1:
@@ -982,6 +988,16 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 	}
 	hub.currentServiceName = serviceName
 	hub.createService(serviceName, scriptFilepath, code)
+	
+	if hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
+		fmt.Print("\n")
+		result := hub.services[hub.currentServiceName].Do("main")
+		fmt.Print("\n\n")
+		if result.Type() == object.RESPONSE_OBJ && result.(*object.Effects).StopHappened && hub.currentServiceName != "" {
+			delete(hub.services, hub.currentServiceName)
+			hub.currentServiceName = ""
+		}
+	}
 }
 
 func (hub *Hub) createService(name, scriptFilepath, code string) {

@@ -1698,7 +1698,7 @@ If you start Charm up with `./charm <parameters>` then Charm will behave as desc
 
 `hub services` will list all the services the hub is running, whether named or numbered.
 
-`hub halt <service name>` will halt the named service.
+`hub stop <service name>` will stop the named service.
 
 `hub quit` closes all the services and Charm itself.
 

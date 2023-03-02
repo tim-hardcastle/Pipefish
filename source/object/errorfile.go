@@ -626,20 +626,20 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/ident/context": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm can't make any sense of '" + args[0].(string) + "' in that context"
+			return "Charm can't make any sense of '" + tok.Literal + "' in that context"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're tring to treat '" + args[0].(string) + "' as though it was the name " +
+			return "You're tring to treat '" + tok.Literal + "' as though it was the name " +
 				"of a variable, but it isn't."
 		},
 	},
 
 	"eval/ident/found": {
 		Message: func(tok token.Token, args ...any) string {
-			return "identifier not found '" + args[0].(string) + "'"
+			return "identifier not found '" + tok.Literal + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You haven't defined anything with the name '" + args[0].(string) + "'."
+			return "You haven't defined anything with the name '" + tok.Literal + "'."
 		},
 	},
 
