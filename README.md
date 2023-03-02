@@ -65,15 +65,21 @@ You're now using Charm's REPL, its Read-Evaluate-Print Loop. If you enter someth
 → 
 ```
 
-### "Hello world!" ... ?
+### "Hello world!"
 
-It is usual when introducing a programming language to give, as the first example, a piece of code which when executed prints the words `Hello world!` and then turns itself off.
+It is usual when introducing a programming language to give, as the first example, a piece of code which on start-up prints the words `Hello world!` and then turns itself off.
 
-Charm is not that sort of language, any more than, for example, SQL is. Charm is a REPL language, and when you run a Charm script, this defines what the end-user can and can't do in the REPL. (Without a script, they can just evaluate expressions using the standard set of built-in functions, as above.)
+It is possible to do this in Charm, but this is such an un-Charmlike thing to do that the full capability wasn't introduced until version 0.3.10. Here is the source code.
 
-As you progress through this manual, you will come to appreciate how this approach works to build applications.
+```
+cmd
 
-Before we get around to writing Charm scripts, let's use the REPL to explore some of the basic features of the language.
+main :
+    respond "Hello world!"
+    stop
+```
+
+Before we get around to writing some more normal-looking Charm scripts, let's use the REPL to explore some of the basic features of the language.
 
 ## Standard types
 
