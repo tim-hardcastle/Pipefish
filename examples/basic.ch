@@ -78,7 +78,8 @@ OPERATIONS = map(PLUS::(func(x, y): x + y),
               .. GEQ::(func(x, y): x >= y),
               .. LT::(func(x, y): x < y),
               .. LEQ::(func(x, y): x <= y),
-              .. NEQ::(func(x, y): x != y))
+              .. NEQ::(func(x, y): x != y),
+              .. EQUALS::(func(x, y): x == y))
 
 OK = Value(OK_VAL, "ok")
 
