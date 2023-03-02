@@ -65,11 +65,11 @@ func New(in io.Reader, out io.Writer) *Hub {
 // as an instruction to switch services if it consists only of the name of a service; as
 // an expression to be passed to a service if it begins with the name of a service; and as an
 // expression to be passed to the current service if none of the above hold.
-func (hub *Hub) Do(line, username, password, passedServiceName string) (string, bool) {
+func (hub *Hub) Do(line, username, password, passedServiceName string) (string, *object.Effects) {
 
 	if line == "" {
 		hub.WriteString("")
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
@@ -77,7 +77,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.WriteError("this is an administered hub and you aren't logged in. Please enter either " +
 			"'hub register' to register as a user, or 'hub log in' to log in if you're already registered " +
 			"with this hub.")
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	// We may be talking to the hub itself.
@@ -87,9 +87,13 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hubResult := hub.ParseHubCommands(username, password, hubWords[1:])
 		if len(hubWords) > 1 && hubWords[1] == "run" && hub.administered {   // TODO: find out what it does and where it should be now that we have ++ for hub commands.
 			serviceName, _ := database.ValidateUser(hub.db, username, password)
-			return serviceName, false
+			return serviceName, object.OK_RESPONSE
 		}
-		return passedServiceName, hubResult
+		if hubResult {
+			return passedServiceName, object.QUIT_RESPONSE
+		} else {
+			return passedServiceName, object.OK_RESPONSE
+		}
 	}
 
 	// We may be talking to the os
@@ -98,20 +102,20 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
 			os.Chdir(hubWords[2])    // process, if we did it with exec it would do it for
 			hub.WriteString(text.OK) // that process and not for Charm.
-			return passedServiceName, false
+			return passedServiceName, object.OK_RESPONSE
 		}
 		command := exec.Command(hubWords[1], hubWords[2:]...)
 		out, err := command.Output()
 		if err != nil {
 			hub.WriteError(err.Error())
-			return passedServiceName, false
+			return passedServiceName, object.OK_RESPONSE
 		}
 		if len(out) == 0 {
 			hub.WriteString(text.OK)
-			return passedServiceName, false
+			return passedServiceName, object.OK_RESPONSE
 		}
 		hub.WriteString(string(out))
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	// Otherwise, we need to find a service to talk to.
@@ -129,7 +133,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			if hub.administered {
 				database.UpdateService(hub.db, username, serviceName)
 			}
-			return serviceName, false
+			return serviceName, object.OK_RESPONSE
 		} else {
 			line = line[len(hubWords[0])+1:]
 		}
@@ -139,7 +143,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	}
 	if !ok {
 		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	// If we find a service and the hub is administered, we check that the user has access rights.
@@ -148,15 +152,15 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		access, err := database.DoesUserHaveAccess(hub.db, username, serviceName)
 		if err != nil {
 			hub.WriteError(err.Error())
-			return passedServiceName, false
+			return passedServiceName, object.OK_RESPONSE
 		}
 		if !access {
 			hub.WriteError("you don't have access to service '" + serviceName + "'.")
-			return passedServiceName, false
+			return passedServiceName, object.OK_RESPONSE
 		}
 	}
 	if len(hubWords) == 1 && serviceName == hubWords[0] {
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	} // In this case we've validated and switched services and that's
 	// all we're trying to do.
 
@@ -180,7 +184,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		} else {
 			hub.WriteString(objToString(service, obj))
 		}
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
@@ -190,19 +194,27 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	if service.Parser.ErrorsExist() {
 		hub.GetAndReportErrors(service.Parser)
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	obj := service.Do(line)
 
-	if obj.Type() == object.RESPONSE_OBJ && obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
-		delete(hub.services, hub.currentServiceName)
-		hub.currentServiceName = ""
+	if obj.Type() == object.RESPONSE_OBJ {
+		if obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
+			delete(hub.services, hub.currentServiceName)
+			hub.currentServiceName = ""
+			return passedServiceName, object.OK_RESPONSE
+		}
+		if obj.(*object.Effects).RequestHappened && !obj.(*object.Effects).BreakHappened {
+			return passedServiceName, object.OK_RESPONSE
+		}
 	}
+
+
 
 	if service.Parser.ErrorsExist() {
 		hub.GetAndReportErrors(service.Parser)
-		return passedServiceName, false
+		return passedServiceName, object.OK_RESPONSE
 	}
 
 	if obj.Type() == object.ERROR_OBJ {
@@ -221,7 +233,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.snap.AddInput(line)
 		hub.snap.AddOutput(objToString(service, obj))
 	}
-	return passedServiceName, false
+	return passedServiceName, object.OK_RESPONSE
 }
 
 // Just splits the commands up according to the ++ signs and passes them one at a time to ParseHubCommand.
@@ -992,7 +1004,7 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 	if hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
 		fmt.Print("\n")
 		result := hub.services[hub.currentServiceName].Do("main")
-		fmt.Print("\n\n")
+		fmt.Print("\n")
 		if result.Type() == object.RESPONSE_OBJ && result.(*object.Effects).StopHappened && hub.currentServiceName != "" {
 			delete(hub.services, hub.currentServiceName)
 			hub.currentServiceName = ""

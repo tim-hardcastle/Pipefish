@@ -56,8 +56,9 @@ func Start(hub *hub.Hub, in io.Reader, out io.Writer) {
 			continue
 		}
 
+		
 		_, quitCharm := hub.Do(line, hub.Username, hub.Password, hub.GetCurrentServiceName())
-		if quitCharm {
+		if quitCharm.QuitHappened {
 			break
 		}
 	}

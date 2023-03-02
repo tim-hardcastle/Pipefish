@@ -16,10 +16,14 @@ state = MachineState("", map(), Program(map(), [-1]), 0)
 
 cmd
 
-? (lineToExecute string) :
-    state = newState
-    return newState[outStr]
+main :
+    lineToExecute == "STOP" :
+        stop
+    else :
+        state = newState
+        respond newState[outStr]
 given :
+    lineToExecute = request "BASIC > "
     _, newState = execute(lineToExecute,
         ..  (state with pointer::len(state[program][lineNumbers]) - 1, outStr::""))
 

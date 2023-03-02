@@ -44,11 +44,14 @@ const (
 // is a kludge that I'm living with until I have a syntax checker. Or given that I have no users, I could have asked
 // all none of them politely not to do it.
 // * The logging flag records whether we are in fact logging things.
+// * questionHappened is triggered by a 'request'. As this is only information that needs to be passed up to the hub,
+// there's no need to copy this field when passing downwards.
 type Context struct {
 	prsr    *parser.Parser
 	env     *object.Environment
 	access  Access
 	logging bool
+	questionHappened bool // Note that 
 }
 
 func NewContext(p *parser.Parser, e *object.Environment, a Access, log bool) *Context {
@@ -195,15 +198,28 @@ func Eval(node ast.Node, c *Context) object.Object {
 			(leftEvaluation.Type() != object.RESPONSE_OBJ) {
 			return leftEvaluation
 		}
+
+		if leftEvaluation != nil && leftEvaluation.Type() == object.RESPONSE_OBJ {
+			if node.Operator != ";" {
+				return newError("eval/return", node.Token)
+			}
+			if leftEvaluation.(*object.Effects).ElseSeeking && node.Right.GetToken().Type == token.COLON {
+				if node.Left.(*ast.LazyInfixExpression).Token.Type == token.ELSE {
+					leftEvaluation.(*object.Effects).ElseSeeking = false
+				}
+				return leftEvaluation
+			} 
+		}
+
 		right := Eval(node.Right, c)
+		if node.Operator == ":" && right.Type() == object.RESPONSE_OBJ {
+			right.(*object.Effects).ElseSeeking = true
+		}
 		if isError(right) {
 			right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
 			return right
 		}
 		if leftEvaluation != nil && leftEvaluation.Type() == object.RESPONSE_OBJ {
-			if node.Operator != ";" {
-				return newError("eval/return", node.Token)
-			}
 			if right == SUCCESS {
 				return left
 			}
@@ -490,6 +506,8 @@ func combineEffects(left, right *object.Effects) *object.Effects {
 	left.Elements = append(left.Elements, right.Elements...)
 	left.BreakHappened = left.BreakHappened || right.BreakHappened
 	left.StopHappened = left.StopHappened || right.StopHappened
+	left.RequestHappened = left.RequestHappened || right.RequestHappened
+	left.ElseSeeking = left.ElseSeeking || right.ElseSeeking
 	return left
 }
 
@@ -507,6 +525,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalReturnExpression(tok, vals, c)
 	case tok.Type == token.REQUEST: 
 		str := c.prsr.EffHandle.InHandle.Get((Eval(node.Args[0], c)).(*object.String).Value)
+		c.questionHappened = true
 		return &object.String{Value: str}
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
@@ -852,7 +871,11 @@ func evalReturnExpression(token token.Token, values []object.Object, c *Context)
 		}
 	}
 	c.prsr.EffHandle.OutHandle.Out(values, c.env)
-	return &object.Effects{Elements: values}
+	result := &object.Effects{Elements: values}
+	if c.questionHappened {
+		result.RequestHappened = true
+	}
+	return result
 }
 
 func evalTupleExpression(

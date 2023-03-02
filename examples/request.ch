@@ -1,10 +1,11 @@
-
-
 cmd
 
 main :
-    respond "Hello " + (request "What's your name? ") + "!"
+    username == "stop" :
+        stop
+    else :
+        respond "Hello " + username + "!"
+given :
+    username = request "What's your name? "
 
-(x) is even :
-    x % 2 == 0
 

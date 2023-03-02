@@ -135,16 +135,19 @@ func (c *Code) Inspect(view View) string {
 // However, since Everything Is An Expression and we need to give back an object, we supply this one.
 // This allows the REPL to respond to the effectsin the following way:
 
-// * responseHappened: because if it didn't then there's been no output and we need a reassuring green ok.
-// * requestHappened: then we should .Do exactly the same line of code again, unless ...
-// * breakHappened: in which case don't.
-// * stopHappened: a `stop` token was encountered and we should close down the service.
+// * RequestHappened: then we should .Do exactly the same line of code again, unless ...
+// * BreakHappened: in which case don't.
+// * StopHappened: a `stop` token was encountered and we should close down the service.
+// * QuitHappened: used to convey the information that 'hub quit' was encountered.
+// * ElseSeeking : this was the effect of one branch of a conditional and we must skip the others.
 
 type Effects struct {
 	Elements      []Object
 	RequestHappened bool
 	BreakHappened bool 
 	StopHappened  bool
+	QuitHappened bool
+	ElseSeeking bool
 }
 
 func (ef *Effects) DeepCopy() Object { return ef }
@@ -152,6 +155,12 @@ func (ef *Effects) Type() ObjectType { return RESPONSE_OBJ }
 func (ef *Effects) Inspect(view View) string {
 	return ""
 }
+
+var (
+	OK_RESPONSE = &Effects{}
+	STOP_RESPONSE = &Effects{StopHappened: true}
+	QUIT_RESPONSE = &Effects{QuitHappened: true}
+	)
 
 // The 'error' type.
 type Error struct {

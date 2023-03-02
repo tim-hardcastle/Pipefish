@@ -498,7 +498,7 @@ Some minor points to note about the syntax: (1) The parentheses around the param
 
 [^whitespace]: See [The whys of Charm: Why the syntactic whitespace?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-the-syntactic-whitespace)
 
-### Effects types
+### Return types
 
 Function can optionally be given return types. A small example is given in `examples/returntypes.ch`:
 
@@ -1410,7 +1410,7 @@ The `strings`, `math`, and `fmt` libraries are implemented by wrapping Charm fun
 
 ### The `cmd` section
 
-The `cmd` section of a Charm script, if you declare one, allows you to string together the sort of actions you can perform only via the REPL, i.e. inspect and change the state of the variables.
+The `cmd` section of a Charm script, if you declare one, allows you to string together the sort of actions you can otherwise perform only via the REPL, i.e. inspect and change the state of the variables.
 
 The `cmd` section is demonstrated in `examples/cmd.ch`:
 
@@ -1426,13 +1426,13 @@ times (n) :
 
 add (n) :
     x = x + n
-    return x
+    respond x
 
 step2A :
     x = x + 1
-    return x
+    respond x
     x = x + 1
-    return x
+    respond x
 
 step2B :
     add (n)
@@ -1460,15 +1460,15 @@ ok
 #7 →                                                                     
 ```
 
-Things to note: commands don’t need to take parameters. Nor do functions in fact, but they’d be useless if they didn’t — commands have access to the data, whereas functions have to be passed the variables as parameters in order to see them.
+Things to note: commands don’t need to take parameters. Nor do functions in fact, but they’d be useless if they didn’t — commands have access to the data, whereas functions have to be passed values as parameters in order to see them.
 
-Commands don’t have to have a `return` statement. If they do, it doesn’t halt execution of the command: rather, all the return values accumulate to be returned in one tuple.
+Commands have no return values.
+
+`respond` is essentially a `print` statement, and so works only in the `cmd` section.
 
 Commands can have `given` blocks, and for purposes of modularity and code reuse they can call other commands, though the initializer will object to any circular dependencies.
 
 (*Note: when I say the intitalizer “will” do this, I mean I haven’t written that bit yet.*)
-
-Conditionals currently don’t work in the `cmd` section: when they do they will be frowned on except for simple gatekeeping purposes.
 
 ### Transactions
 
