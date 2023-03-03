@@ -1813,7 +1813,7 @@ In Charm, everything is an expression, and, perhaps as a result of taking this t
 | # | Keywords and operators |
 | ------------- | ------------- |
 | 1 | `;` or newline |
-| 2 | `func`, ‘exec’, `’code`, return’, `>>`, `]>`, `?>` |
+| 2 | `func`, ‘exec’, `code`, `return`, `>>`, `]>`, `?>` |
 | 3 | `given` |
 | 4 | `=` |
 | 5 | `:` |
