@@ -41,7 +41,7 @@ Features already implemented include:
 
 ### Setup
 
-You can either download the object code from the repo and build it in Go, or you can use the [Mac OS object code](https://github.com/tim-hardcastle/Charm-MacOS) supplied, in which case you will also need to have the folders that go along with it in the same directory.
+You will need a recent version of Go installed to build the interpreter.
 
 To use the VS Code syntax highlighter, move the `charm-highlighter` folder of the distribution to your `<user home>/.vscode/extensions` folder and, if VS Code is already running, restart it.
 
