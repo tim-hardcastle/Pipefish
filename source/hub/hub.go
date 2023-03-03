@@ -48,6 +48,7 @@ type Hub struct {
 	Username               string
 	Password               string
 	path, port             string
+	hot 				   bool
 }
 
 // Most initialization is done in the Open method.
@@ -57,7 +58,8 @@ func New(in io.Reader, out io.Writer) *Hub {
 		currentServiceName: "",
 		in:                 in,
 		out:                out,
-		lastRun:            []string{}}
+		lastRun:            []string{},
+		hot:				true}
 	return &hub
 }
 
@@ -121,6 +123,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	// Otherwise, we need to find a service to talk to.
 
 	// If the first word of the line is the name of a service, we use that as the name of the service.
+	// TODO --- remove this feature, add 'switch'.
 
 	var serviceName string
 
@@ -144,6 +147,12 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if !ok {
 		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
 		return passedServiceName, object.OK_RESPONSE
+	}
+
+	// The service may be broken, in which case we'll let the empty service handle the input.
+
+	if service.broken {
+		service = hub.services[""]
 	}
 
 	// If we find a service and the hub is administered, we check that the user has access rights.
@@ -188,6 +197,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	}
 
 	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
+	// They may be sitting around so the end-user can do 'hub why', but we can get rid of them now.
 	service.Parser.ClearErrors()
 
 	hub.Sources["REPL input"] = []string{line}
@@ -197,7 +207,17 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, object.OK_RESPONSE
 	}
 
+	// If hotcoding is on, we recreate the service. 'createService, which is called by Start, will test if the
+	// service actually needs updating.
+
+	if hub.hot {
+		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].scriptFilepath)
+		service = hub.services[hub.currentServiceName]
+	}
+
+	// *** THIS IS THE BIT WHERE WE DO THE THING!
 	obj := service.Do(line)
+	// *** FROM ALL THAT LOGIC, WE EXTRACT ONE CHARM VALUE !!!
 
 	if obj.Type() == object.RESPONSE_OBJ {
 		if obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
@@ -264,7 +284,7 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 	switch verb {
 
 	// Verbs are in alphabetical order :
-	// add, config, create, do, edit, errors, help, let, log, listen, my, peek, quit, register, replay, run, services, snap, stop, 
+	// add, config, create, do, edit, errors, help, hot, let, log, listen, my, peek, quit, register, replay, run, services, snap, stop, 
 	// test, trace
 	case "add":
 		if fieldCount != 4 || hubWords[2] != "to" {
@@ -373,6 +393,25 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 				hub.WriteError("the 'hub help' command doesn't accept " +
 					"'" + hubWords[1] + "' as a parameter.")
 			}
+		}
+	case "hot":
+		switch {
+		case fieldCount == 1:
+			hub.peek = !hub.peek
+		case fieldCount == 2:
+			switch hubWords[1] {
+			case "on":
+				hub.hot = true
+			case "off":
+				hub.hot = false
+			default:
+				hub.WriteError("the 'hub hot' command only accepts the parameters " +
+					"'on'  or 'off'.")
+			}
+		default:
+			hub.WriteError("the 'hub hot' command only accepts a single parameter, " +
+				"'on'  or 'off'.")
+
 		}
 	case "join":
 		if fieldCount > 1 {
@@ -1001,7 +1040,7 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 	hub.currentServiceName = serviceName
 	hub.createService(serviceName, scriptFilepath, code)
 	
-	if hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
+	if !hub.services[hub.currentServiceName].broken && hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
 		fmt.Print("\n")
 		result := hub.services[hub.currentServiceName].Do("main")
 		fmt.Print("\n")
@@ -1013,6 +1052,30 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 }
 
 func (hub *Hub) createService(name, scriptFilepath, code string) {
+
+	var modifiedTime int64
+
+	// TODO --- if you changed an imported dependency this wouldn't notice.
+	if name != "" {
+		file, err := os.Stat(scriptFilepath)
+			if err != nil {
+				panic("Something weird has happened!")
+			}
+			modifiedTime = file.ModTime().UnixMilli()
+
+		_, present := hub.services[name]
+		if present {
+			if modifiedTime == hub.services[name].timestamp {
+				return
+			}
+		}
+	}
+	newService := NewService()
+	hub.services[name] = newService
+	hub.services[name].timestamp = modifiedTime
+	hub.currentServiceName = name
+	hub.services[name].scriptFilepath = scriptFilepath
+
 	init := initializer.New(scriptFilepath, code)
 	init.GetSource(scriptFilepath)
 	init.Parser = *parser.New()
@@ -1024,7 +1087,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
-		hub.currentServiceName = ""
+		newService.broken = true
 		return
 	}
 
@@ -1042,7 +1105,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 		if init.ErrorsExist() {
 			hub.GetAndReportErrors(&init.Parser)
 			hub.Sources = init.Sources
-			hub.currentServiceName = ""
+			newService.broken = true
 			return
 		}
 
@@ -1050,10 +1113,9 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 		if init.ErrorsExist() {
 			hub.GetAndReportErrors(&init.Parser)
 			hub.Sources = init.Sources
-			hub.currentServiceName = ""
+			newService.broken = true
 			return
 		}
-
 	}
 
 	env := object.NewEnvironment()
@@ -1061,7 +1123,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
-		hub.currentServiceName = ""
+		newService.broken = true
 		return
 	}
 
@@ -1069,7 +1131,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
-		hub.currentServiceName = ""
+		newService.broken = true
 		return
 	}
 
@@ -1077,7 +1139,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
-		hub.currentServiceName = ""
+		newService.broken = true
 		return
 	}
 
@@ -1085,7 +1147,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
-		hub.currentServiceName = ""
+		newService.broken = true
 		return
 	}
 
@@ -1093,16 +1155,13 @@ func (hub *Hub) createService(name, scriptFilepath, code string) {
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
-		hub.currentServiceName = ""
+		newService.broken = true
 		return
 	}
 
 	init.Parser.EffHandle = parser.MakeStandardEffectHandler(hub.out, *env)
-	newService := NewService()
 	(*newService).Parser = &init.Parser
 	(*newService).Env = env
-	(*newService).scriptFilepath = scriptFilepath
-	hub.services[name] = newService
 	hub.Sources = init.Sources
 
 }
@@ -1114,6 +1173,10 @@ func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
 
 func (hub *Hub) GetCurrentServiceName() string {
 	return hub.currentServiceName
+}
+
+func (hub *Hub) CurrentServiceIsBroken() bool {
+	return hub.services[hub.currentServiceName].broken
 }
 
 func (hub *Hub) save() string {

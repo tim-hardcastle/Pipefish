@@ -17,6 +17,8 @@ type Service struct {
 	Env            *object.Environment
 	scriptFilepath string
 	dataFilepath   string
+	timestamp	   int64
+	broken		   bool
 }
 
 func NewService() *Service {

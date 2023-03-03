@@ -68,5 +68,9 @@ func makePrompt(hub *hub.Hub) string {
 	if hub.GetCurrentServiceName() == "" {
 		return text.PROMPT
 	}
-	return hub.GetCurrentServiceName() + " " + text.PROMPT
+	promptText := hub.GetCurrentServiceName() + " " + text.PROMPT
+	if hub.CurrentServiceIsBroken() {
+		promptText =  text.Red(promptText) 
+	}
+	return promptText
 }
