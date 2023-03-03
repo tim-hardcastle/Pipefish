@@ -9,13 +9,13 @@ times (n) :
 
 add (n) :
     x = x + n
-    return x
+    respond x
 
 step2A :
     x = x + 1
-    return x
+    respond x
     x = x + 1
-    return x
+    respond x
 
 step2B :
     add (n)

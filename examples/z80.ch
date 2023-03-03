@@ -59,7 +59,7 @@ reset :
     show
 
 show :
-    return prettyPrint S
+    respond prettyPrint S
 
 // And the main functions.
 

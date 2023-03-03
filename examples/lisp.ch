@@ -44,7 +44,7 @@ cmd
 
 ex(input string) :
     result, currentEnv = evaluate (parse(input), currentEnv)
-    return sanitize result
+    respond sanitize result
 
 def
 

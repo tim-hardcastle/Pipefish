@@ -1,7 +1,7 @@
 cmd
 
 foo(x) :
-    return 42, 42
+    respond 42, 42
 
 def
 

@@ -1,5 +1,6 @@
 cmd
 
 main :
-    respond "Hello world!"; stop
+    respond "Hello world!"
+    stop
 

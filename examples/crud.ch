@@ -6,7 +6,7 @@ add (n string, s int) :
     data = data + [Student(n, s)]
 
 show :
-    return prettyPrint(data, formula)
+    respond prettyPrint(data, formula)
 
 use(f) :
     formula = f

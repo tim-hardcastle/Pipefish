@@ -1,7 +1,7 @@
 cmd
 
 get :
-    return x
+    respond x
 
 set (y) :
     x = y

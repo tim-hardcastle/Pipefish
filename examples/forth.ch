@@ -10,13 +10,13 @@ cmd
 
 ex (s string):
     S = evaluate S with forthCode :: tokenize(s) with err :: "" with output :: ""
-    return forthOutput(S)
+    respond forthOutput(S)
 
 show (l label):
-    return S[l]
+    respond S[l]
 
 showall:
-    return S
+    respond S
 
 clear (l label):
     S = S with l :: (initialState[l])
