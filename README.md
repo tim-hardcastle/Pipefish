@@ -245,7 +245,7 @@ ok
 
 Let's talk about what's happening here. The "hub", the housekeeping part of Charm (see [here](#the-hub) for more information), has run the script and given the resulting service the name `#0`, since we didn't name it ourselves. Running the script has created the variables and intitialized them. We can then access them through the REPL, or, to be pedantic, through the REPL of service `#0`.
 
-This is how a Charm service generally works. Charm is a "REPL language", as explained above: a Charm program doesn't *do* anything. Rather, it permits the end-user to do things in the REPL: in this case allowing them to access and set the variables `x` and `h`. If this style of language is new to you, you will see how it works out to produce applications as we go along.
+This is how a Charm service generally works. Charm is a REPL-oriented language: a Charm script doesn't necessarily have to *do* anything. It *can*, as in the `Hello world!` example above, but it doesn't have to and it is anticipated that for many normal uses of the language it won't. Rather, the script permits the end-user to do things in the REPL: in this case allowing them to access and set the variables `x` and `h`.
 
 You will note from the example above that it is perfectly valid to initialize a variable with an expression, in this case `2 + 2`.
 
