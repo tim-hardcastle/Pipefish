@@ -1255,12 +1255,12 @@ type
 #6 → 
 ```
 
-Conversely, the `charm` function applied to a value will return a string which represents that value as a Charm literal:
+Conversely, the `literal` function applied to a value will return a string which represents that value as a Charm literal:
 
 ```
 #6 → [true, 3, "true", "3"]                                                                                             
 [true, 3, true, 3]
-#6 → charm [true, 3, "true", "3"]
+#6 → literal [true, 3, "true", "3"]
 [true, 3, "true", "3"]
 #6 → 
 ```
