@@ -38,6 +38,7 @@ const (
 	FMIDFIX // user-defined midfix or forefix
 	FENDFIX // user-defined endfix
 	COMMA   // ,
+	WITH    // with, but ONLY when peeking ahead, otherwise it's an FMIDFIX
 	FINFIX  // user-defined infix or ->
 	SUM     // + or -
 	PRODUCT // * or / or %
@@ -458,8 +459,8 @@ func (p *Parser) peekPrecedence() int {
 		if p.peekToken.Literal == "in" {
 			return EQUALS
 		}
-		if p.peekToken.Literal == "with" {
-			return FMIDFIX
+		if p.peekToken.Literal == "with" {   // Note, this is the one assymmetry in the system of precedence.
+			return WITH     // When not peeking ahead, `with` has precedence just *below* a comma.
 		}
 		return FINFIX
 	}

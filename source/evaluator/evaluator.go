@@ -167,7 +167,6 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return SUCCESS
 
 	case *ast.InfixExpression:
-
 		if node.GetToken().Type == token.GIVEN { // Then we are looking at the 'given' block of an inner function.
 			leftBranch := node.Args[0]
 			switch leftBranch := leftBranch.(type) {
@@ -1185,7 +1184,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression:
 		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
-		if body.Name == "constructor" { // Then we actually need a different constructor for each type.
+		if body.Name == "long_form_constructor" { // Then we actually need a different constructor for each type.
 			constructor, ok := c.prsr.BuiltinFunctions[params[0].(*object.Type).Value+"_with"]
 			if !ok {
 				return newError("eval/with/type", f.Body.GetToken(), params[0].(*object.Type).Value)

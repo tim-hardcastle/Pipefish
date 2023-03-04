@@ -3,13 +3,17 @@ def
 file = struct(filename string, contents list)
 
 range(p pair) : builtin "range"
-len(t type) : builtin "len_of_type" // Note that this is implemented in the evaluator
+len(t type) : builtin "len_of_type" // Note that this is implemented in the evaluator -- TODO: where?
 file(s string) : builtin "init_file"
 codepoint(s string) : builtin "codepoint"
 (S struct) with (p pair) : builtin "add_pair_to_struct"
 (L list) with (p pair) : builtin "add_pair_to_list"
 (m map) with (p pair) : builtin "add_pair_to_map" 
 (S struct) with (t tuple) : builtin "add_tuple_to_struct"
+
+// This is implemented in the evaluator, where we pass the values to the appropriate constructor.
+(t type) with (T tuple) : builtin "long_form_constructor" 
+
 (L list) with (t tuple) : builtin "add_tuple_to_list"
 (m map) with (t tuple) : builtin "add_tuple_to_map"
 rune(i int) : builtin "rune"
