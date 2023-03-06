@@ -34,7 +34,7 @@ func (service *Service) SuDo(line string) {
 	evaluator.Evaluate(tree, c)
 }
 
-func (service *Service) Do(line string) object.Object {
+func (service *Service) ServiceDo(line string) object.Object {
 	serviceWords := strings.Fields(line)
 	if len(serviceWords) == 0 {
 		panic("It shouldn't be possible to pass an empty string to a service. You goofed.")
