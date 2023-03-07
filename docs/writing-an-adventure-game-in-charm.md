@@ -694,7 +694,6 @@ ADV →
 That gives us a standard framework for moving about, and for interacting with objects. However, in a real adventure game the puzzles hinge on certain actions triggering non-standard responses.
 
 This gives me a chance to introduce one of the few (AFAIK) unique pieces of Charm syntax/semantics, the unsatisfied conditional. In the `doTheThing` method, after validating the parsed input and just before the line `verb == "go" :` we will instert the line `specialEffects(verb, noun, S)`
-```
 
 Here's the code for `specialEffects`.
 
