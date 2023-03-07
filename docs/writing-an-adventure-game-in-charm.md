@@ -84,11 +84,13 @@ In Charm, things that actually make stuff happen are special, and are written un
 
 So, we'll need something to assign it *to*: we need to declare a variable. This is done in the `var` section of the script.
 
+```
 var
 
 state = GameState(map(), map(), "", "")
+```
 
-And then in the `main` command, which is always executed on initialization, we can put this:
+And then in the `main` command, which is always executed on initialization if it exists, we can put this:
 
 ```
 main :
@@ -911,5 +913,5 @@ given :
 
 So, we've developed a little app in Charm. Hopefully you've learned some Charm. Hopefully you've also learned something about functional programming.
 
-When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things, but it does demonstrate the chief merit of functional programming, which is that it only has one design pattern: The Pipeline --- a pipeline which gradually tranforms your data though a series of small, easily-understood steps composed of functions which are small, shallow, and trivial to understand. Besides all the mere convenience, this I think is the essential value of functional programming.
+When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things, but it does demonstrate the chief merit of functional programming, which is that it only has one design pattern: The Pipeline --- a pipeline which gradually tranforms your data though a series of small, easily-understood steps composed of functions which are small, shallow, and trivial to understand. Besides all the mere conveniences of this or that particular language, this I think is the essential value of functional programming.
 
