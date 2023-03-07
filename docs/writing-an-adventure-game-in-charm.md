@@ -917,7 +917,6 @@ given :
         .. Object(L[counter + 1], L[counter + 2])
 ```
 
-So, we've developed a little app in Charm. Hopefully you've learned some Charm. Hopefully you've also learned something about functional programming.
+So, we've developed a little app in Charm. Hopefully you've learned some Charm. Hopefully you've also learned something about functional programming, if this is your first experience with it.
 
-When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things, but it does demonstrate the chief merit of functional programming, which is that it only has one design pattern: The Pipeline --- a pipeline which gradually tranforms your data though a series of small, easily-understood steps composed of functions which are small, shallow, trivial to understand, and easy to compose. Besides all the mere conveniences of this or that particular language, this, I think, is the essential value of functional programming.
-
+When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things, but it does demonstrate the chief merit of functional programming in general, which is that it only has one design pattern: The Pipeline — a pipeline which gradually tranforms your data though a series of small, easily-understood steps consisting of functions which are small, shallow, trivial to understand, and easy to compose. Besides all the mere conveniences of this or that particular language, this, I think, is the underlying value of functional programming.
