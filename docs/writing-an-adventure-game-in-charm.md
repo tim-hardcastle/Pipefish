@@ -4,7 +4,7 @@ This documents demonstrates the Charm language by showing how to use it to write
 
 So, let’s write an adventure game in Charm!
 
-A location in the game should have a short heading, a long description, and then details of the exits, if any, north, south, east, or west. We'll keep this in a flat data file to be read on initialization, so that subsequent lines will be the heading, description, north, south, east, and west exits respectively. The particular file we'll be using is here.
+A location in the game should have a short heading, a long description, and then details of the exits, if any, north, south, east, or west. We'll keep this in a flat data file to be read on initialization, so that subsequent lines will be the heading, description, north, south, east, and west exits respectively. The particular file we'll be using is [here](https://github.com/tim-hardcastle/Charm/blob/main/examples/locations.rsc).
 
 First, we will want some data structures. Because here we’re defining constant features of the code, we put them under the heading `def`, like so:
 
@@ -481,7 +481,7 @@ We have a tiny adventure! Great!
 
 Having established that that works, let's immediately comment out that line in `main` that calls `repl`. Why? Because it's far more convenient for us to go on developing by poking at our code through Charm's own native REPL. This Is The Way. We'll comment out the line that describes the initial location too, since it will be annoying otherwise.
 
-Let's add some objects. Our flat data file will list them as successive lines of name of object, description of object, and initial location of object.
+Let's add some objects. We'll use another [flat data file](https://github.com/tim-hardcastle/Charm/blob/main/examples/objects.rsc) which will list them as successive lines of name of object, description of object, and initial location of object.
 
 We add more slurping logic to the `def` section ...
 
