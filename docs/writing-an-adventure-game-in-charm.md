@@ -560,7 +560,7 @@ There is a ring here
 ADV →          
 ```
 
-We'll want a bunch of little functions analogous to doGo:
+We'll want a bunch of little functions analogous to `doMove`:
 
 ```
 doTake(obj string, S GameState) : 
@@ -599,7 +599,7 @@ doLook(S GameState) :
     S with output::describe(S[playerLocation], S)
 ```
 
-And we'll update doTheThing to call them under the appropriate circumstances.
+And we'll update `doTheThing` to call them under the appropriate circumstances.
 
 ```
 VERBS = {"go", "take", "drop", "examine", "inventory", "look"}
