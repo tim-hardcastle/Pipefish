@@ -900,7 +900,8 @@ given :
 doLook(S GameState) :
     S with output::describe(S[playerLocation], S)
 
-// Data slurpers.
+// Data slurpers. We could make this code more DRY by writing a single slurper
+// taking the type of the object to be slurped as a list.
 
 slurpLocations(L list): 
     (while unfinished do getLocation to 0, map())[1]
