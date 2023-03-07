@@ -11,7 +11,7 @@ First, we will want some data structures. Because here we’re defining constant
 ```
 def
 
-Location = struct(description, NORTH, SOUTH, EAST, WEST string)
+Location = struct(description, north, south, east, west string)
 GameState = struct(locations map, playerLocation, output string)
 ```
 
@@ -114,7 +114,7 @@ import
 
 def
 
-Location = struct(description, NORTH, SOUTH, EAST, WEST string)
+Location = struct(description, north, south, east, west string)
 GameState = struct(locations map, playerLocation, output string)
 
 var
@@ -151,7 +151,7 @@ describe(loc string, S GameState) : loc + "\n\n" + S[locations][loc][description
 Now, how about moving around the map? Let's make a function which returns the game state you'd get if the player moved in a particular direction. We'll use a map to relate the strings "north", "south", "east" and "west" to the keys of the Location struct.
 
 ```
-DIRECTIONS = map("north"::NORTH, "south"::SOUTH, "east"::EAST, "west"::WEST)
+DIRECTIONS = map("north"::north, "south"::south, "east"::east, "west"::west)
 
 doMove(dir string, S GameState) : 
     not noun in keys DIRECTIONS :
@@ -351,7 +351,7 @@ import
 
 def
 
-Location = struct(description, NORTH, SOUTH, EAST, WEST string)
+Location = struct(description, north, south, east, west string)
 GameState = struct(locations map, playerLocation, output string)
 
 var
@@ -721,7 +721,7 @@ import
 
 def
 
-Location = struct(description, NORTH, SOUTH, EAST, WEST string)
+Location = struct(description, north, south, east, west string)
 Object = struct(description, location string)
 GameState = struct(locations, objects map, playerLocation, output string)
 
@@ -852,7 +852,7 @@ addIndefiniteArticle(s string) :
 
 // Functions for executing the end-user's instructions.
 
-DIRECTIONS = map("north"::NORTH, "south"::SOUTH, "east"::EAST, "west"::WEST)
+DIRECTIONS = map("north"::north, "south"::south, "east"::east, "west"::west)
 
 doMove(dir string, S GameState) : 
     not dir in keys DIRECTIONS :
