@@ -144,9 +144,10 @@ describe(loc string, S GameState) : loc + "\n\n" + S[locations][loc][description
 
 ```
 
-Now, how about moving around the map? Let's make a function which returns the game state you'd get if the player moved in a particular direction. We'll use a map to relate the strings "NORTH", "SOUTH", "EAST" and "WEST" to the keys of the Location struct.
+Now, how about moving around the map? Let's make a function which returns the game state you'd get if the player moved in a particular direction. We'll use a map to relate the strings "north", "south", "east" and "west" to the keys of the Location struct.
 
-DIRECTIONS = map("north"::N, "south"::S, "east"::E, "west"::W)
+```
+DIRECTIONS = map("north"::NORTH, "south"::SOUTH, "east"::EAST, "west"::WEST)
 
 doMove(dir string, S GameState) : 
     not noun in keys DIRECTIONS :
@@ -158,27 +159,29 @@ doMove(dir string, S GameState) :
 given :
     directionFromString = DIRECTIONS[dir] 
     newLocation = S[locations][S[playerLocation]][directionFromString]
-
+```
 
 Try it out in the REPL:
 
-
+```
 ADV → describe((doMove("north", state))[playerLocation], state)                                                                                 
 The wizard's hall
 
 You are in the antechamber of the wizard's castle. To your south is the outdoors and the castle gardens. To your west, a door stands ajar through which you catch a glimpse of shelving and leather-bound books: presumably a library. To the north an archway gives a view of a banqueting hall. A low mean passage leads east.   
 ADV →
+```
 
-It works. However, that's an ugly mess of parentheses, and the sort of thing that used to get functional programming a bad name, so this might be a good time to introduce Charm's streaming operators. In particular, the piping operator lets us write expressions like the above from left to right instead.
+It works. However, `describe((doMove("north", state))[playerLocation], state)` is an ugly mess of parentheses, and the sort of thing that used to get functional programming a bad name, so this might be a good time to introduce Charm's streaming operators. In particular, the piping operator lets us write expressions like the above from left to right instead.
 
-
+```
 ADV → state >> doMove("north", that) >> that[playerLocation] >> describe(that, state)                                                                      
 The wizard's hall
 
 You are in the antechamber of the wizard's castle. To your south is the outdoors and the castle gardens. To your west, a door stands ajar through which you catch a glimpse of shelving and leather-bound books: presumably a library. To the north an archway gives a view of a banqueting hall. A low mean passage leads east.  
 ADV →
+```
 
-The expression means just the same thing as describe((doMove("north", state))[playerLocation], state) , but describes it in the form of a pipeline where `that` refers to whatever's to the left of the piping operator `>>`.
+The piped expression means just the same thing as describe((doMove("north", state))[playerLocation], state) , but describes it in the form of a pipeline where `that` refers to whatever's to the left of the piping operator `>>`.
 
 This becomes more and more useful the more complicated our expressions become. No-one wants to read or write `describe((doMove("east", doMove("north", state)))[playerLocation], state)`, but this becomes perfectly lucid when written with the piping operator as:
 
@@ -913,5 +916,5 @@ given :
 
 So, we've developed a little app in Charm. Hopefully you've learned some Charm. Hopefully you've also learned something about functional programming.
 
-When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things, but it does demonstrate the chief merit of functional programming, which is that it only has one design pattern: The Pipeline --- a pipeline which gradually tranforms your data though a series of small, easily-understood steps composed of functions which are small, shallow, and trivial to understand. Besides all the mere conveniences of this or that particular language, this I think is the essential value of functional programming.
+When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things, but it does demonstrate the chief merit of functional programming, which is that it only has one design pattern: The Pipeline --- a pipeline which gradually tranforms your data though a series of small, easily-understood steps composed of functions which are small, shallow, trivial to understand, and easy to compose. Besides all the mere conveniences of this or that particular language, this I think is the essential value of functional programming.
 
