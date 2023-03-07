@@ -17,7 +17,7 @@ The wizard's hall
 
 
 The wizard's library
-This is a large room lined with magical books which writhe and mutter uneasily on their shelves.
+This is a large room lined with magical books which writhe and mutter uneasily on their shelves. A doorway leads back east into the main hall.
 
 
 The wizard's hall
@@ -29,11 +29,11 @@ You are in an old-fashioned kitchen with turning-spits and whatnot. Eye of newt 
 The kitchen garden
 The wizard's hall
 The kitchen garden
-This is a relatively normal kitchen garden, because wizards like a potato the same as the rest of us. To your north a doorway in the garden wall leads to the brink of an active volcano.
+This is a relatively normal kitchen garden, because wizards like a potato the same as the rest of us. To your west is the door into the kitchen, and to your north a doorway in the garden wall leads to the brink of an active volcano.
 The brink of an active volcano
 
 
-
+The kitchen
 The brink of an active volcano
 Furious lava seethes and boils beneath you. All ways are too perilous to follow except back south to the safety of the kitchen gardens.
 

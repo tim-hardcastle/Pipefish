@@ -225,10 +225,10 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		if obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
 			delete(hub.services, hub.currentServiceName)
 			hub.currentServiceName = ""
-			return passedServiceName, object.OK_RESPONSE
+			return passedServiceName, obj.(*object.Effects)
 		}
 		if obj.(*object.Effects).RequestHappened && !obj.(*object.Effects).BreakHappened {
-			return passedServiceName, object.OK_RESPONSE
+			return passedServiceName, obj.(*object.Effects)
 		}
 	}
 
@@ -1057,16 +1057,13 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 	// TODO --- if you changed an imported dependency this wouldn't notice.
 	if name != "" {
 		file, err := os.Stat(scriptFilepath)
-			if err != nil {
-				panic("Something weird has happened!")
-			}
-			modifiedTime = file.ModTime().UnixMilli()
-
+		if err != nil {
+			panic("Something weird has happened!")
+		}
+		modifiedTime = file.ModTime().UnixMilli()
 		_, present := hub.services[name]
-		if present {
-			if modifiedTime == hub.services[name].timestamp {
-				return false
-			}
+		if present && modifiedTime == hub.services[name].timestamp {
+			return false
 		}
 	}
 	newService := NewService()

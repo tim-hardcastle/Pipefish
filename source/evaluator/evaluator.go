@@ -567,8 +567,16 @@ func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	if node.Operator == "stop" {
 		return &object.Effects{StopHappened: true}
 	}
-	
-	return applyFunction(*c.prsr.FunctionTreeMap[node.Operator].Branch[0].Node.Fn, []object.Object{}, node.Token, c)
+	// In the special case where this is a cmd with a request in it, we need to loop around.
+	var result object.Object
+	for {
+		result = applyFunction(*c.prsr.FunctionTreeMap[node.Operator].Branch[0].Node.Fn, []object.Object{}, node.Token, c)
+		if result.Type() != object.RESPONSE_OBJ || (! result.(*object.Effects).RequestHappened || 
+					result.(*object.Effects).BreakHappened || result.(*object.Effects).StopHappened) {
+				break
+			}
+		}
+	return result
 }
 
 func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
@@ -1157,7 +1165,18 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
 
-	return applyFunction(*treeWalker.position.Fn, values, tok, c)
+
+
+	// Now in the special case where this is a cmd with a request in it, we need to loop around.
+	var result object.Object
+	for {
+		result = applyFunction(*treeWalker.position.Fn, values, tok, c)
+		if result.Type() != object.RESPONSE_OBJ || (! result.(*object.Effects).RequestHappened || 
+					result.(*object.Effects).BreakHappened || result.(*object.Effects).StopHappened) {
+				break
+			}
+		}
+	return result		
 }
 
 // TODO: it would be easy for functionCall to read the values into a Signature as it goes along, wouldn't it?

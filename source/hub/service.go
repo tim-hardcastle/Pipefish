@@ -69,18 +69,8 @@ func (service *Service) ServiceDo(line string) object.Object {
 		}
 	}
 	// Otherwise we just execute the line.
-	
-	var result object.Object
-
-	for {
-		result = evaluator.Evaluate(*service.Parser.ParseLine(
-			"REPL input", line), evaluator.NewContext(service.Parser, service.Env, evaluator.REPL, true))
-		if result.Type() != object.RESPONSE_OBJ || (! result.(*object.Effects).RequestHappened || 
-					result.(*object.Effects).BreakHappened || result.(*object.Effects).StopHappened) {
-				break
-			}
-		}
-	return result
+	return evaluator.Evaluate(*service.Parser.ParseLine("REPL input", line),
+					 evaluator.NewContext(service.Parser, service.Env, evaluator.REPL, true))	
 }
 
 func (service *Service) saveFile(filepath string) object.Object {
