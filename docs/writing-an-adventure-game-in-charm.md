@@ -172,7 +172,7 @@ given :
     newLocation = S[locations][S[playerLocation]][directionFromString]
 ```
 
-We can try this out in the REPL as hot-coding is turned on there's no need to rerun the script:
+We can try this out in the REPL: as hot-coding is turned on there's no need to rerun the script:
 
 ```
 ADV → describe((doMove("north", state))[playerLocation], state)                                                                                 
