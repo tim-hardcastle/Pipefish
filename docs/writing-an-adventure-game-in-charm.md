@@ -78,11 +78,13 @@ given :
         .. Location(L[counter + 1], L[counter + 2], L[counter + 3], L[counter + 4], L[counter + 5])
 ```
 
+(Note that the `..` syntax is used to make line continuations explicit.)
+
 But we've only written the function. We haven't made anything happen!
 
 In Charm, things that actually make stuff happen are special, and are written under the headword `cmd`. In this case, we want to first of all get the data from the flat file, then shove it through our slurpLocations function, and then assign it to something.
 
-So, we'll need something to assign it *to*: we need to declare a variable. This is done in the `var` section of the script.
+So, we'll need something to assign it *to*: we need to declare a variable. This is done under the `var` headword.
 
 ```
 var
@@ -93,6 +95,8 @@ state = GameState(map(), map(), "", "")
 And then in the `main` command, which is always executed on initialization if it exists, we can put this:
 
 ```
+cmd 
+
 main :
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
 given :
