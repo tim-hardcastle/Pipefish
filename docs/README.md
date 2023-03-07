@@ -8,5 +8,7 @@ The `docs` folder contains supplementary information about the Charm programming
 
 * [Charm: a high-level view](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md). This explains the goals and design principles of the language.
 * [Style guide](https://github.com/tim-hardcastle/Charm/blob/main/docs/style-guide.md). This gives best practices for the style in which one should write Charm code.
+* [Writing an adventure game in Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/writing-an-adventure-game-in-charm.md). A tutorial.
+* [Functional core, imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md). A synopsis of the language paradigm.
 * [The whys of Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md). This explains the reasoning behind some lower-level design choices which are sufficiently unusual as to need explanation.
 * [Workflows](https://github.com/tim-hardcastle/Charm/blob/main/docs/workflows.md). This explains some of the internal workings of Charm as a reference to myself and anyone who would be kind enough to help me develop it.
