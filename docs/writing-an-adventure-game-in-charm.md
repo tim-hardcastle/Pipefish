@@ -140,8 +140,15 @@ given :
 
 Let's run it in the REPL and see if it works so far:
 
+```
+→ hub run examples/temp.ch as ADV 
+Starting script 'examples/temp.ch' as service 'ADV'.
+ADV → state[locations]                            
+map (The wizard's garden :: (description :: You are in a garden filled with magical flowers: Mandrake, Warlock's Henbane, Speaking Upas, and the like. To your north is the entryway to the wizard's castle: a great door stands open., north :: The wizard's hall, south :: , east :: , west :: ), The kitchen garden :: (description :: This is a relatively normal kitchen garden, because wizards like a potato the same as the rest of us. To your west is the door into the kitchen, and to your north a doorway in the garden wall leads to the brink of an active volcano., north :: The brink of an active volcano, south :: , east :: , west :: The kitchen), The wizard's hall :: (description :: You are in the antechamber of the wizard's castle. To your south is the outdoors and the castle gardens. To your west, a door stands ajar through which you catch a glimpse of shelving and leather-bound books: presumably a library. To the north an archway gives a view of a banqueting hall. A low mean passage leads east., north :: The banqueting hall, south :: The wizard's garden, east :: The kitchen, west :: The wizard's library), The brink of an active volcano :: (description :: Furious lava seethes and boils beneath you. All ways are too perilous to follow except back south to the safety of the kitchen gardens., north :: , south :: The kitchen garden, east :: , west :: ), The banqueting hall :: (description :: This is a perfectly ordinary banqueting hall such as one might banquet in. Long oak tables, trestles, you know the drill. What am I, Tolkien?, north :: , south :: The wizard's hall, east :: , west :: ), The wizard's library :: (description :: This is a large room lined with magical books which writhe and mutter uneasily on their shelves. A doorway leads back east into the main hall., north :: , south :: , east :: The wizard's hall, west :: ), The kitchen :: (description :: You are in an old-fashioned kitchen with turning-spits and whatnot. Eye of newt and toe of frog bubble cheerfully in the cauldron. To your east is the kitchen garden., north :: , south :: , east :: The kitchen garden, west :: The wizard's hall))
+ADV →
+```
 
-Let's add a little function to describe a location.
+Good, the service has successfully slurped the data from the file and put it in the data structure. Let's add a little function to describe a location.
 
 ```
 describe(loc string, S GameState) : loc + "\n\n" + S[locations][loc][description]
@@ -165,7 +172,7 @@ given :
     newLocation = S[locations][S[playerLocation]][directionFromString]
 ```
 
-Try it out in the REPL:
+We can try this out in the REPL as hot-coding is turned on there's no need to rerun the script:
 
 ```
 ADV → describe((doMove("north", state))[playerLocation], state)                                                                                 
@@ -178,7 +185,7 @@ ADV →
 It works. However, `describe((doMove("north", state))[playerLocation], state)` is an ugly mess of parentheses, and the sort of thing that used to get functional programming a bad name, so this might be a good time to introduce Charm's streaming operators. In particular, the piping operator lets us write expressions like the above from left to right instead.
 
 ```
-ADV → state >> doMove("north", that) >> that[playerLocation] >> describe(that, state)                                                                      
+ADV → state >> doMove("north", that) >> that[playerLocation] >> describe(that, state)
 The wizard's hall
 
 You are in the antechamber of the wizard's castle. To your south is the outdoors and the castle gardens. To your west, a door stands ajar through which you catch a glimpse of shelving and leather-bound books: presumably a library. To the north an archway gives a view of a banqueting hall. A low mean passage leads east.  
@@ -195,7 +202,7 @@ state >> doMove("north", that) >> doMove("east", that) >> that[playerLocation] >
 
 As a final piece of syntactic sugar, the word `that` is unnecessary when the function has only one parameter.
 
-Note that like every other function, doMove *doesn't change the data it's given*.
+Note that like every other function, doMove *doesn't change the data it's given*:
 
 ```
 ADV → describe state[playerLocation], state 
