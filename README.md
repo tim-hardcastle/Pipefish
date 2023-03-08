@@ -1374,7 +1374,7 @@ If you try to do multiple assignment to local constants, and you assign an error
 
 ## Embedded Go
 
-Charm is written in, and to interoperate with, Go[^go]. A function may be given a body in Go by following the `:` introducing the function body by the keyword `golang`, and then enclosing the body of the function in braces.
+Charm is written in, and to interoperate with, Go[^go]. A function may be given a body in Go by following the `:` introducing the function body by the keyword `gofunc`, and then enclosing the body of the function in braces.
 
 ```
 multiply(a, b int) : gofunc {
@@ -1402,9 +1402,9 @@ nthFromLast(L list raw, n int) : gofunc {
 
 In order to use this properly it is necessary to learn the public methods of Charm’s Object interface and the classes that implement it.
 
-When the initialization of Go code fails, a file called `golang<n>.go` will be left in Charm's root folder: it consists of Go code generated from your code. The wrapping around the code in your function(s) is simple and the resulting file no harder to debug than ordinary Go.
+When the initialization of Go code fails, a file called `gofunc<n>.go` will be left in Charm's root folder: it consists of Go code generated from your code. The wrapping around the code in your function(s) is simple and the resulting file no harder to debug than ordinary Go.
 
-You can import from Go by prefacing the name of the thing to import with golang, e.g:
+You can import from Go by prefacing the name of the thing to import with gofunc, e.g:
 
 ```
 import
