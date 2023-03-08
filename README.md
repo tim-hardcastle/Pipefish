@@ -37,7 +37,7 @@ Features already implemented include:
 - Role-based access management
 - Syntax highlighting
 
-[^fcis] : See [Functional core / imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md) for an explanation of the paradigm and how Charm implements it.
+[^fcis]: See [Functional core / imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md) for an explanation of the paradigm and how Charm implements it.
 
 ## Getting started
 
