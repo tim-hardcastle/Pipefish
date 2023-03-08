@@ -404,7 +404,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it takes parameters, you can't just " +
-			"say " + text.DescribeTok(tok) + " on its own and expect it to be meaningful."
+				"say " + text.DescribeTok(tok) + " on its own and expect it to be meaningful."
 		},
 	},
 
@@ -1323,7 +1323,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "golang type conversion failed for type <" + args[0].(string) + ">"
+			return "gofunctype conversion failed for type <" + args[0].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A Charm function written in Go has failed to compile at initialization time."
@@ -2231,9 +2231,9 @@ func DescribeObject(obj Object) string {
 
 func DescribeObjects(objs []Object) string {
 	total := ""
-	for i, v := range(objs) {
+	for i, v := range objs {
 		total = total + DescribeObject(v)
-		if i < len(objs) - 1 {
+		if i < len(objs)-1 {
 			total = total + ", "
 		}
 	}

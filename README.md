@@ -1377,7 +1377,7 @@ If you try to do multiple assignment to local constants, and you assign an error
 Charm is written in, and to interoperate with, Go[^go]. A function may be given a body in Go by following the `:` introducing the function body by the keyword `golang`, and then enclosing the body of the function in braces.
 
 ```
-multiply(a, b int) : golang {
+multiply(a, b int) : gofunc {
     return a * b
 }
 ```
@@ -1387,7 +1387,7 @@ It is not necessary to give return types. Multiple return values are allowed.
 While strictly speaking it isn't necessary to give types to the input of the function either, if you don't then they will be of type `interface{}` from the perspective of the Go code, and so in order to do anything interesting with them they would need to be downcast. This, for example, will fail during intitialization, since Go cannot multiply two things of type `interface{}`.
 
 ```
-multiply(a, b) : golang {
+multiply(a, b) : gofunc {
     return a * b
 }
 ```
@@ -1395,7 +1395,7 @@ multiply(a, b) : golang {
 The Charm interpreter automatically does type conversion between Charm types and Go types. If you wish the function to be passed a Charm object, use the suffix `raw`, e.g:
 
 ```
-nthFromLast(L list raw, n int) : golang {
+nthFromLast(L list raw, n int) : gofunc {
     return L.Elements[len(L.Elements) - 1 - n]
 }
 ```
@@ -1409,7 +1409,7 @@ You can import from Go by prefacing the name of the thing to import with golang,
 ```
 import
 
-golang "strings"
+gofunc "strings"
 ```
 
 The `strings`, `math`, and `fmt` libraries are implemented by wrapping Charm functions around the Go standard libraries.

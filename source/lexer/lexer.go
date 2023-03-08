@@ -437,7 +437,7 @@ func (l *Lexer) readGolang() string {
 	for l.peekChar() == ' ' || l.peekChar() == '\t' {
 		l.readChar()
 	}
-	// We expect a brace after the golang keyword.
+	// We expect a brace after the gofunckeyword.
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
 		l.Throw("lex/char", l.NewToken(token.ILLEGAL, "lex/char"))
 		return ""

@@ -1,21 +1,21 @@
 import
 
-golang "fmt"
+gofunc "fmt"
 
 def
 
-errorf(format string, a tuple) : golang {
+errorf(format string, a tuple) : gofunc {
     return fmt.Errorf(format, a...)
 }
 
-sprint(a tuple) : golang {
+sprint(a tuple) : gofunc {
     return fmt.Sprint(a...)
 }
 
-sprintf(format string, a tuple) : golang {
+sprintf(format string, a tuple) : gofunc {
     return fmt.Sprintf(format, a...)
 }
 
-sprintln(a tuple) : golang {
+sprintln(a tuple) : gofunc {
     return fmt.Sprintln(a...)
 }

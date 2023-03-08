@@ -149,7 +149,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if lastChange != 0 {
 			os.Remove("rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
 		}
-		goFile := "golang" + strconv.Itoa(counter) + ".go"
+		goFile := "gofunc " + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix)
 		file.Close()
@@ -157,13 +157,13 @@ func (gh *GoHandler) BuildGoMods() {
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 		output, err := cmd.Output()
 		if err != nil {
-			gh.Prsr.Throw("golang/build", token.Token{}, err.Error() + ": " + string(output))
+			gh.Prsr.Throw("golang/build", token.Token{}, err.Error()+": "+string(output))
 		}
 		gh.plugins[source], err = plugin.Open(soFile)
 		if err != nil {
 			gh.Prsr.Throw("golang/open", token.Token{}, err.Error())
 		} else {
-			os.Remove("golang" + strconv.Itoa(counter) + ".go")
+			os.Remove("gofunc " + strconv.Itoa(counter) + ".go")
 		}
 	}
 }
@@ -286,7 +286,7 @@ func (gh *GoHandler) CharmToGo(ch object.Object) any {
 	case *object.Float:
 		return ch.Value
 	case *object.Hash:
-		return errors.New("passing maps to golang functions is not yet supported")
+		return errors.New("passing maps to gofuncfunctions is not yet supported")
 	case *object.Integer:
 		return ch.Value
 	case *object.Label:

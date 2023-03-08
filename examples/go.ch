@@ -1,16 +1,16 @@
 import
 
-golang "errors"
-golang "strings"
-golang "charm/source/object"
+gofunc "errors"
+gofunc "strings"
+gofunc "charm/source/object"
 
 def
 
-fancy (s string) : golang {
+fancy (s string) : gofunc {
     return "**" + s + "**"
 }
 
-head (L list raw) : golang {
+head (L list raw) : gofunc {
     if len(L.Elements) == 0 {
         return errors.New("list has no members")
     } else {
@@ -18,6 +18,6 @@ head (L list raw) : golang {
     }
 }
 
-contains(haystack, needle string) : golang {
+contains(haystack, needle string) : gofunc {
     return strings.Contains(haystack, needle)
 }

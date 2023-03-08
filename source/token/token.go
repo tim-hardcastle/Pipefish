@@ -85,7 +85,7 @@ const (
 	MAGIC_COLON = "MAGIC_COLON"
 	WEAK_COLON = "WEAK_COLON"
 
-	GOLANG = "golang"
+	GOLANG = "gofunc"
 
 	// Streaming operators
 	PIPE = ">>"
@@ -113,7 +113,7 @@ var keywords = map[string]TokenType{
 	"eval":   EVAL,
 	"given":  GIVEN,
 	"exec":   EXEC,
-	"golang": GOLANG,
+	"gofunc": GOLANG,
 
 	"import":  IMPORT,
 	"var":     VAR,
