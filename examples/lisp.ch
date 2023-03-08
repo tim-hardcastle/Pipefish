@@ -38,7 +38,7 @@ INIT_VARS  =  map  "+"          :: (func(x) : x[0] + x[1]),
 var
 
 result single = ""
-currentEnv = Env(INIT_VARS, NIL)
+currentEnv = Env(INIT_VARS, empty)
 
 cmd 
 
@@ -87,12 +87,12 @@ makeFn(params, body, env) :
 
 (v string) isVariableIn (env Env):
     v isKeyOf env[vars] : true
-    env[outer] == NIL : false
+    env[outer] == empty : false
     else : v isVariableIn env[outer]
 
 getVariable (v string) from (env Env):
     v isKeyOf env[vars] : env[vars][v]
-    env[outer] == NIL : error "Lisp can't find variable '" + v + "'"
+    env[outer] == empty : error "Lisp can't find variable '" + v + "'"
     else : getVariable v from env[outer]
 
 (env Env) updatedWith (name string, value) :

@@ -15,7 +15,7 @@ func NewTypeSystem() TypeSystem {
 	for _, t := range BaseTypes {
 		T.AddTransitiveArrow(t, "single")
 	}
-	T.AddTransitiveArrow("nil", "struct")
+	T.AddTransitiveArrow("nothing", "struct")
 	T.AddTransitiveArrow("enum", "label")
 	T.AddTransitiveArrow("field", "label")
 	return &T
@@ -98,4 +98,3 @@ func AddInOrder(T TypeSystem, S []ast.Function, f ast.Function) ([]ast.Function,
 	S = append(S, f)
 	return S, true
 }
-

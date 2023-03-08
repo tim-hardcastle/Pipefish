@@ -36,7 +36,7 @@ forthOutput(S state) :
 
 standardDefs = map ( "?" :: ["@", "."], "+!" :: ["dup", "rot", "swap", "@", "+", "swap", "!"] )
 
-initialState = state([], [], [], standardDefs, map(), map(), "", "", NIL)
+initialState = state([], [], [], standardDefs, map(), map(), "", "", empty)
 
 evaluate(S state) :
     S[err] != "" : S
@@ -200,7 +200,7 @@ evalDoLoop(S) :
     else : evalLoopBody( ..
             .. (S with stack :: (S[stack] curtail 2)) , doCode, 
             .. S[stack][len(S[stack]) - 1], S[stack][len(S[stack]) - 2]) ..
-        .. with forthCode :: (S[forthCode] behead doLength + 1) with loopVar :: NIL
+        .. with forthCode :: (S[forthCode] behead doLength + 1) with loopVar :: empty
 given :
     doLength = findNext("loop", S[forthCode])
     doCode = S[forthCode][1::doLength]
@@ -217,7 +217,7 @@ given finder = func(needle, haystack, n) :
     this(needle, haystack, n + 1)
     
 evalPushIndex(S):
-    S[loopVar] == NIL : S with err :: "FORTH error: use of i outside of loop"
+    S[loopVar] == empty : S with err :: "FORTH error: use of i outside of loop"
     else : S with forthCode :: tail(S[forthCode]) with stack :: S[stack] + [S[loopVar]]
 
 evalVarDeclaration(S) :

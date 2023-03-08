@@ -142,12 +142,12 @@ func (c *Code) Inspect(view View) string {
 // * ElseSeeking : this was the effect of one branch of a conditional and we must skip the others.
 
 type Effects struct {
-	Elements      []Object
+	Elements        []Object
 	RequestHappened bool
-	BreakHappened bool 
-	StopHappened  bool
-	QuitHappened bool
-	ElseSeeking bool
+	BreakHappened   bool
+	StopHappened    bool
+	QuitHappened    bool
+	ElseSeeking     bool
 }
 
 func (ef *Effects) DeepCopy() Object { return ef }
@@ -157,10 +157,10 @@ func (ef *Effects) Inspect(view View) string {
 }
 
 var (
-	OK_RESPONSE = &Effects{}
+	OK_RESPONSE   = &Effects{}
 	STOP_RESPONSE = &Effects{StopHappened: true}
 	QUIT_RESPONSE = &Effects{QuitHappened: true}
-	)
+)
 
 // The 'error' type.
 type Error struct {
@@ -397,8 +397,8 @@ func (st *Struct) Type() ObjectType { return STRUCT_OBJ }
 func (st *Struct) Inspect(view View) string {
 	var out bytes.Buffer
 
-	if st.Name == "nil" {
-		return "NIL"
+	if st.Name == "nothing" {
+		return "empty"
 	}
 
 	elements := []string{}
@@ -636,9 +636,9 @@ func MakeInverseBool(input bool) *Boolean {
 var (
 	TRUE  = &Boolean{Value: true}
 	FALSE = &Boolean{Value: false}
-	NIL   = &Struct{Labels: []string{},
+	EMPTY = &Struct{Labels: []string{},
 		Value: make(map[string]Object),
-		Name:  "nil"}
+		Name:  "nothing"}
 )
 
 func DescribeSomeParams(params []Object, incomplete bool) string {

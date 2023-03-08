@@ -1546,7 +1546,7 @@ import
 var
 
 x = 42
-c = code NIL
+c = code empty
 
 def
 
@@ -1575,7 +1575,7 @@ Let's explore this a bit at a time via the REPL. First of all, there is a `code`
 #8 → hub run examples/macros.ch                                              
 Starting script 'examples/macros.ch' as service '#9'.
 #9 → c
-code NIL
+code empty
 #9 → type c
 code
 #9 → c = code x * 2 

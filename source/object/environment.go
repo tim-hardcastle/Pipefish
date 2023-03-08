@@ -3,15 +3,15 @@ package object
 type AccessType int
 
 const (
-	ACCESS_PUBLIC = 0
+	ACCESS_PUBLIC   = 0
 	ACCESS_CONSTANT = 1
-	ACCESS_PRIVATE = 2
+	ACCESS_PRIVATE  = 2
 )
 
 type Environment struct {
-	Store map[string]Storage
+	Store   map[string]Storage
 	Pending map[string]Object
-	Ext *Environment
+	Ext     *Environment
 }
 
 func ToString(env *Environment) string {
@@ -23,21 +23,21 @@ func ToStringRecursive(env *Environment, pad string) string {
 	if env == nil {
 		return pad + "nil"
 	} else {
-		
+
 		for k, v := range env.Store {
-				result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
+			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
 		}
 		if len(env.Store) == 0 {
 			result = result + "Env has no vars"
 		}
 	}
-	result = result + "\n" + pad + "Outer :" 
-	return result + ToStringRecursive(env.Ext, pad + "  ")
+	result = result + "\n" + pad + "Outer :"
+	return result + ToStringRecursive(env.Ext, pad+"  ")
 }
 
-type Storage struct{
-	obj Object
-	access AccessType
+type Storage struct {
+	obj     Object
+	access  AccessType
 	VarType string
 }
 
@@ -47,7 +47,6 @@ func NewEnvironment() *Environment {
 	return &Environment{Store: s, Pending: p}
 }
 
-
 func (e *Environment) Get(name string) (Object, bool) {
 	storage, ok := e.Store[name]
 	if storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE {
@@ -56,13 +55,17 @@ func (e *Environment) Get(name string) (Object, bool) {
 			return pendingObject, exists
 		}
 	}
-	if ok || e.Ext == nil { return storage.obj, ok }
+	if ok || e.Ext == nil {
+		return storage.obj, ok
+	}
 	return e.Ext.Get(name)
 }
 
 func (e *Environment) Type(name string) (string, bool) {
 	storage, ok := e.Store[name]
-	if ok || e.Ext == nil { return storage.VarType, ok }
+	if ok || e.Ext == nil {
+		return storage.VarType, ok
+	}
 	return e.Ext.Type(name)
 }
 
@@ -76,10 +79,10 @@ func (e *Environment) StringDumpVariables() string { // For outputting them as a
 	return result
 }
 
-func (e *Environment) String() string { 
+func (e *Environment) String() string {
 	result := ""
 	for k, v := range e.Store {
-			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
+		result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
 	}
 	if e.Ext != nil {
 		result = result + "\n    + {" + e.Ext.String() + "}"
@@ -87,7 +90,7 @@ func (e *Environment) String() string {
 	return result
 }
 
-func (e *Environment) VarsOnly() string { 
+func (e *Environment) VarsOnly() string {
 	result := ""
 	for k, v := range e.Store {
 		if v.access != ACCESS_CONSTANT {
@@ -102,7 +105,9 @@ func (e *Environment) VarsOnly() string {
 
 func (e *Environment) Exists(name string) bool {
 	_, ok := e.Store[name]
-	if ok || e.Ext == nil { return ok }
+	if ok || e.Ext == nil {
+		return ok
+	}
 	return e.Ext.Exists(name)
 }
 
@@ -110,30 +115,30 @@ func (e *Environment) Exists(name string) bool {
 func (e *Environment) UpdateVar(name string, val Object) {
 	storage, ok := e.Store[name]
 	if ok {
-		if (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
-			e.Pending[name] = val 
+		if storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE {
+			e.Pending[name] = val
 			return
-		} 
+		}
 		e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 		return
 	}
 	e.Ext.UpdateVar(name, val)
 }
 
-
-
 func (e *Environment) getAccess(name string) AccessType {
 	_, ok := e.Store[name]
-	if ok || e.Ext == nil { return e.Store[name].access }
+	if ok || e.Ext == nil {
+		return e.Store[name].access
+	}
 	return e.Ext.getAccess(name)
 }
 
 func (e *Environment) Set(name string, val Object) Object {
 	storage, ok := e.Store[name]
 	if ok && (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
-		e.Pending[name] = val 
+		e.Pending[name] = val
 		return val
-	} 
+	}
 	e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 	return val
 }
@@ -142,7 +147,6 @@ func (e *Environment) HardSet(name string, val Object) Object {
 	e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 	return val
 }
-
 
 func (e *Environment) InitializeVariable(name string, val Object, ty string) Object {
 	e.Store[name] = Storage{val, ACCESS_PUBLIC, ty}

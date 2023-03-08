@@ -393,7 +393,7 @@ func (uP *Initializer) ParseTypeDefs() {
 		} else {
 			uP.tokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
-			uP.Parser.TypeSystem.AddTransitiveArrow("nil", tok1.Literal)
+			uP.Parser.TypeSystem.AddTransitiveArrow("nothing", tok1.Literal)
 			uP.Parser.Suffixes.Add(tok1.Literal)
 			uP.Parser.AllFunctionIdents.Add(tok1.Literal)
 			uP.Parser.Functions.Add(tok1.Literal)
@@ -449,7 +449,7 @@ func (uP *Initializer) ParseEverything() {
 func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName string) {
 	uP.makeFunctions(sourceName)
 	uP.makeFunctionTrees()
-	env.InitializeConstant("NIL", object.NIL)
+	env.InitializeConstant("empty", object.EMPTY)
 	// Initialize the user-declared constants and variables
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
@@ -791,8 +791,8 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 			}
 		}
 	} else {
-		if hasMidOrEndfix && ! inParenthesis && ! (tok.Literal == ")") { 
-			uP.Parser.Endfixes.Add(tok.Literal) 
+		if hasMidOrEndfix && !inParenthesis && !(tok.Literal == ")") {
+			uP.Parser.Endfixes.Add(tok.Literal)
 		}
 	}
 }

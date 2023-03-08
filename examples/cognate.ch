@@ -14,7 +14,7 @@ Closure = struct(codeBlock list, vars, funcs Env)
 
 var // All the state we need ...
 
-state = MachineState([], "", Env(map(), NIL), Env(map(), NIL))
+state = MachineState([], "", Env(map(), empty), Env(map(), empty))
 
 cmd // All the imperative shell we need ...
 
@@ -78,7 +78,7 @@ applyFunction(fn, S) :
     .. with (vars::S[vars], funcs::S[funcs])
 
 concatenateEnvironments(innerEnv, outerEnv) :
-    innerEnv[ext] == NIL :
+    innerEnv[ext] == empty :
         innerEnv with ext::outerEnv
     else :
         innerEnv with ext::concatenateEnvironments(innerEnv[ext], outerEnv)
@@ -111,7 +111,7 @@ gatekeepName(name, S) :
 
 getFromEnv(env Env, name string) :
     type resultFromInner == error :
-        env[ext] == NIL :
+        env[ext] == empty :
             error "Cognate error: can't find identifier '" + name + "'"
         else :
             getFromEnv(env[ext], name)
@@ -158,7 +158,7 @@ blockParser(i int, L list, outList list):
         blockParser(i + 1, L, outList + [L[i]])
 given :
     slurpBlock(i) :                                                
-        endIndex + 1, L, outList + [Token(BLOCK, Closure(tokenList, NIL, NIL))]
+        endIndex + 1, L, outList + [Token(BLOCK, Closure(tokenList, empty, empty))]
     given :
         endIndex, tokenList = blockParser(i + 1, L, []) 
         

@@ -5,7 +5,7 @@ import
 var
 
 x = 42
-c = code NIL
+c = code empty
 
 def
 
