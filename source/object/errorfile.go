@@ -486,6 +486,51 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/cmd/var": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unknown variable or constant " + text.Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "This variable or constant hasn't been defined anywhere."
+		},
+	},
+
+	"eval/cmd/varname/code": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.Emph(args[0].(string)) + "as variable name: it does not contain a <code> object"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
+		},
+	},
+
+	"eval/cmd/varname/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.Emph(args[0].(string)) + "as variable name: it does not contain an identifier"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
+		},
+	},
+
+	"eval/cmd/varname/var": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.Emph(args[0].(string)) + "as variable " + text.Emph(args[1].(string)) + ", as the latter is not defined"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "In order for a variable to be dereferenced as a varname, the identifier contained in the variable must have been defined as a variable in the 'var' section"
+		},
+	},
+
+	"eval/cmd/varname/const": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.Emph(args[0].(string)) + "as variable " + text.Emph(args[1].(string)) + ", as the latter is defined as a constant"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "In order for a variable to be dereferenced as a varname, the identifier contained in the variable must have been defined as a variable in the 'var' section"
+		},
+	},
+
 	"eval/const/assign": {
 		Message: func(tok token.Token, args ...any) string {
 			return "reassigning to a constant in the 'def' section."

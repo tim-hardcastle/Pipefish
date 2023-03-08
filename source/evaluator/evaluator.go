@@ -690,7 +690,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 				return newError("eval/cmd/type", tok, right, c.env.Store[variable.VarName].VarType)
 			}
 			c.env.UpdateVar(variable.VarName, right) // Unlike Set, this will work through linked environments.
-			// This is so that a cmd's own parameters, which are its *inner* environment, don't stop cmds from being able to set the global variables unless they
+			// This is so that a cmd's own parameters, which are its *inner* environment, don't stop cmds from being able to set the global variables unless they shadow it.
 		} else { // Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
 			contents, _ := c.env.Get(variable.VarName)
 			if contents.Type() != object.CODE_OBJ {
@@ -701,7 +701,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 			}
 			refName := contents.(*object.Code).Value.GetToken().Literal
 			if !c.env.Exists(refName) {
-				return newError("eval/cmd/varname/var", tok, refName)
+				return newError("eval/cmd/varname/var", tok, variable.VarName, refName)
 			}
 			if c.env.IsConstant(refName) {
 				return newError("eval/cmd/varname/const", tok, refName)

@@ -1,4 +1,9 @@
 import
+cmd
+
+zort(x) :
+    h = 0
+
 
 def
 
