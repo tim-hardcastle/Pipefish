@@ -1176,13 +1176,15 @@ graph TD;
     single-->type;
     single-->code;
     struct-->X[user-defined structs];
-    X-->nil;
+    X-->nothing;
     label-->enum;
     label-->field;
     enum-->Y[user-defined enums];
 ```
 
 Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract*: no data object can be of that type. However, we can use these types to broaden the types accepted by a variable, as explained in the next section.
+
+The `nothing` type contains a single element, `empty`, which serves the same sort of role as `nil`, `null`, etc in other languages.
 
 ## Widening variable types
 
