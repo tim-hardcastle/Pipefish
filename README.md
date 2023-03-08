@@ -1480,6 +1480,33 @@ Commands can have `given` blocks, and for purposes of modularity and code reuse 
 
 (*Note: when I say the intitalizer “will” do this, I mean I haven’t written that bit yet.*)
 
+### `stop`
+
+The keyword `stop` will stop the service altogether.
+
+### `request`
+
+The `request` keyword can only be used in the `cmd` section. it has the syntax request "<prompt>" and asks the end-user for input.
+
+If a `cmd` contains a `request`, and its flow of execution is such that the request is called, then on completion it will execute again with the same parameters, and will continue to loop around until (a) it executes without reaching a `request` instruction (b) it encounters `break` or `stop`.
+
+An example is given in `examples/request.ch`:
+
+```
+cmd
+
+main :
+    username == "stop" :
+        stop
+    else :
+        respond "Hello " + username + "!"
+given :
+    username = request "What's your name? "
+```
+### `break`
+
+`break` will end the automatic loop triggered by a `request` statement (see previous subsection).
+
 ### Transactions
 
 Every command is a transaction: if it returns a runtime error, no matter at what point in its execution, none of the variables will be changed.
@@ -1656,7 +1683,17 @@ def
 
 ... and the script `examples/bar.ch`:
 
+```
+var
 
+a = 5
+b = 7
+
+def
+
+multiply (x) by (y) :
+    FOO exec x times y
+```
 
 ... then we can do this:
 
