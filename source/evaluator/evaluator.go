@@ -1141,7 +1141,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 		values = append(values, currentSingleObject)
 		ok := treeWalker.followBranch(c.prsr, object.TypeOrBling(currentSingleObject))
 		if !ok {
-			return newError("eval/args/a", tok, values, (arg < len(args)-1) ||
+			return newErrorWithVals("eval/args/a", tok, listArgs(args, tok, c), values, (arg < len(args)-1) ||
 				currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 		}
 
@@ -1161,7 +1161,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 
 	ok := treeWalker.followBranch(c.prsr, "")
 	if !ok {
-		return newError("eval/args/c", tok, values, (arg < len(args)-1) ||
+		return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, (arg < len(args)-1) ||
 			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
 
@@ -1238,7 +1238,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 			return result
 		}
 		if res := toObjectList(result); len(f.Rets) > 0 && !c.prsr.ParamsFitSig(f.Rets, res) {
-			return newError("eval/rets/match", tok, res)
+			return newErrorWithVals("eval/rets/match", tok, res, res)
 		}
 		return result
 	}

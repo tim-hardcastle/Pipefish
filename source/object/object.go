@@ -174,15 +174,17 @@ type Error struct {
 func (e *Error) DeepCopy() Object { return e }
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect(view View) string {
+	result := ""
 	if view == ViewStdOut {
 		if len(e.Trace) == 0 {
-			return text.ERROR + e.Message + text.DescribePos(e.Token) + "."
+			result = text.ERROR + e.Message + text.DescribePos(e.Token) + "."
 		} else {
-			if e.Values != nil {
-				return text.RT_ERROR + e.Message + text.DescribePos(e.Token) + ".\n\nValues are available with 'hub values'."
-			}
-			return text.RT_ERROR + e.Message + text.DescribePos(e.Token) + "."
+			result = text.RT_ERROR + e.Message + text.DescribePos(e.Token) + "."
 		}
+		if e.Values != nil {
+			return result + ".\n\nValues are available with 'hub values'."
+		}
+		return result
 	}
 	return "error " + text.ToEscapedText(e.Message)
 }

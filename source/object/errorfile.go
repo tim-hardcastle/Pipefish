@@ -390,8 +390,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/args/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
-				DescribeSomeParams(args[0].([]Object), args[1].(bool)) +
-				" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
+				DescribeSomeParams(args[0].([]Object), args[1].(bool))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -412,8 +411,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/args/c": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
-				DescribeSomeParams(args[0].([]Object), args[1].(bool)) +
-				" (function was passed " + DescribeSomeObjects(args[0].([]Object), args[1].(bool)) + ")"
+				DescribeSomeParams(args[0].([]Object), args[1].(bool))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -838,8 +836,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/rets/match": {
 		Message: func(tok token.Token, args ...any) string {
-			return "return value " + DescribeParams(args[0].([]Object)) + " doesn't match function definition " + 
-				"(value supplied: " + DescribeSomeObjects(args[0].([]Object), false) + ")"
+			return "return value " + DescribeParams(args[0].([]Object)) + " doesn't match function definition "
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The function in question has a return type, given after the '->' operator, and what you have " +
