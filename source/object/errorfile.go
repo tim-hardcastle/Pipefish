@@ -1323,7 +1323,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "gofunctype conversion failed for type <" + args[0].(string) + ">"
+			return "gocodetype conversion failed for type <" + args[0].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A Charm function written in Go has failed to compile at initialization time."

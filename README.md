@@ -1217,7 +1217,7 @@ When you overload a function, the interpreter’s choice of which version of the
 
 Type conversion has been supplied for some types and can be user-implemented for others. Built-in convertors include `string`, which can operate on int and float types, `float` and `int`, which will convert strings or one another to the respective type, and `bool`, which is defined for integers (`false` if `0`), and strings, maps, lists, and sets (`false` if length is `0`). 
 
-`tuple` will have no effect on a tuple, and will convert anything else to *a tuple of arity 1*. If instead you wish to spread the elements of a set or list into a tuple, use the spread operator.
+`tuple` will have no effect on a tuple, and will convert anything else to *a tuple of arity 1*. If instead you wish to convert the elements of a set or list into a tuple with the same elements, use the `tuplify` operator.
 
 ```
 #6 → "2" + string 2              
@@ -1228,7 +1228,7 @@ Type conversion has been supplied for some types and can be user-implemented for
 4
 #6 → 2 * int "2"                      
 4
-#6 → spread [1, 2, 3]
+#6 → tuplify [1, 2, 3]
 1, 2, 3
 #6 → 
 ```
@@ -1374,10 +1374,10 @@ If you try to do multiple assignment to local constants, and you assign an error
 
 ## Embedded Go
 
-Charm is written in, and to interoperate with, Go[^go]. A function may be given a body in Go by following the `:` introducing the function body by the keyword `gofunc`, and then enclosing the body of the function in braces.
+Charm is written in, and to interoperate with, Go[^go]. A function may be given a body in Go by following the `:` introducing the function body by the keyword `gocode`, and then enclosing the body of the function in braces.
 
 ```
-multiply(a, b int) : gofunc {
+multiply(a, b int) : gocode {
     return a * b
 }
 ```
@@ -1387,7 +1387,7 @@ It is not necessary to give return types. Multiple return values are allowed.
 While strictly speaking it isn't necessary to give types to the input of the function either, if you don't then they will be of type `interface{}` from the perspective of the Go code, and so in order to do anything interesting with them they would need to be downcast. This, for example, will fail during intitialization, since Go cannot multiply two things of type `interface{}`.
 
 ```
-multiply(a, b) : gofunc {
+multiply(a, b) : gocode {
     return a * b
 }
 ```
@@ -1395,21 +1395,21 @@ multiply(a, b) : gofunc {
 The Charm interpreter automatically does type conversion between Charm types and Go types. If you wish the function to be passed a Charm object, use the suffix `raw`, e.g:
 
 ```
-nthFromLast(L list raw, n int) : gofunc {
+nthFromLast(L list raw, n int) : gocode {
     return L.Elements[len(L.Elements) - 1 - n]
 }
 ```
 
 In order to use this properly it is necessary to learn the public methods of Charm’s Object interface and the classes that implement it.
 
-When the initialization of Go code fails, a file called `gofunc<n>.go` will be left in Charm's root folder: it consists of Go code generated from your code. The wrapping around the code in your function(s) is simple and the resulting file no harder to debug than ordinary Go.
+When the initialization of Go code fails, a file called `gocode<n>.go` will be left in Charm's root folder: it consists of Go code generated from your code. The wrapping around the code in your function(s) is simple and the resulting file no harder to debug than ordinary Go.
 
-You can import from Go by prefacing the name of the thing to import with gofunc, e.g:
+You can import from Go by prefacing the name of the thing to import with gocode, e.g:
 
 ```
 import
 
-gofunc "strings"
+gocode "strings"
 ```
 
 The `strings`, `math`, and `fmt` libraries are implemented by wrapping Charm functions around the Go standard libraries.

@@ -149,7 +149,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if lastChange != 0 {
 			os.Remove("rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
 		}
-		goFile := "gofunc " + strconv.Itoa(counter) + ".go"
+		goFile := "gocode " + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix)
 		file.Close()
@@ -163,7 +163,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if err != nil {
 			gh.Prsr.Throw("golang/open", token.Token{}, err.Error())
 		} else {
-			os.Remove("gofunc " + strconv.Itoa(counter) + ".go")
+			os.Remove("gocode " + strconv.Itoa(counter) + ".go")
 		}
 	}
 }
@@ -286,7 +286,7 @@ func (gh *GoHandler) CharmToGo(ch object.Object) any {
 	case *object.Float:
 		return ch.Value
 	case *object.Hash:
-		return errors.New("passing maps to gofuncfunctions is not yet supported")
+		return errors.New("passing maps to gocodefunctions is not yet supported")
 	case *object.Integer:
 		return ch.Value
 	case *object.Label:

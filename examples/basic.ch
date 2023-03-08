@@ -127,7 +127,7 @@ given :
     right = (evaluate(node[branches][1], state))[0][value]
 
 evalBuiltinExpression(node, state) : 
-    op(node[branches][0] >> (evaluate(that, state))[0] >> makeArgsList >> spread) >> makeVal
+    op(node[branches][0] >> (evaluate(that, state))[0] >> makeArgsList >> tuplify) >> makeVal
 given :
     op = BUILTINS[node[token][tokenLiteral]]
     makeArgsList(val Value) :
