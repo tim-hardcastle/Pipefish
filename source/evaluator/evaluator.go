@@ -111,10 +111,15 @@ func Eval(node ast.Node, c *Context) object.Object {
 		} else {
 			variables = c.prsr.RecursivelySlurpSignature(node.Left, "*")
 		}
+		var right object.Object
 		lLen := len(variables)
-		right := Eval(node.Right, c)
+		if node.Token.Type == token.GVN_ASSIGN {
+			right = &object.Lazy{Value: node.Right}
+		} else {
+			right = Eval(node.Right, c)
+		}
 		if isError(right) {
-			if node.Token.Type == token.GVN_ASSIGN {
+			if node.Token.Type == token.GVN_ASSIGN { // TODO --- this bit presumably obsolete now.
 				for i := 0; i < lLen; i++ {
 					err := Assign(variables[i], right, node.Token, c)
 					if err != nil {
@@ -920,6 +925,9 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	}
 
 	if ok {
+		if val.Type() == object.LAZY_OBJ {
+			return Eval(val.(*object.Lazy).Value, c)
+		}
 		return val
 	}
 

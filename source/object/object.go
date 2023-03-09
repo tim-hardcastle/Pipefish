@@ -36,6 +36,7 @@ const (
 	HASH_OBJ        = "map"
 	INTEGER_OBJ     = "int"
 	LABEL_OBJ       = "label"
+	LAZY_OBJ       = "lazy"
 	LIST_OBJ        = "list"
 	PAIR_OBJ        = "pair"
 	RESPONSE_OBJ    = "response"
@@ -283,6 +284,15 @@ func (la *Label) HashKey() HashKey {
 
 	return HashKey{Type: la.Type(), Value: h.Sum64()}
 }
+
+// The 'lazy' type contains the code for evaluating variables in the 'given' section.
+type Lazy struct {
+	Value ast.Node
+}
+
+func (la *Lazy) DeepCopy() Object         { return la }
+func (la *Lazy) Type() ObjectType         { return LAZY_OBJ }
+func (la *Lazy) Inspect(view View) string { return la.Value.String() }
 
 // Eventually to be refactored to use persistent data structures.
 type List struct {
