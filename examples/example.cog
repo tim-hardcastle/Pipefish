@@ -1,9 +1,0 @@
-Def Times (
-   Let N number of repetitions;
-   Def F function to repeat;
-   Unless Zero? N ( F ; Times - 1 N (F) );
-);
-
-Times 5 (
-   Print "wow!";
-);
