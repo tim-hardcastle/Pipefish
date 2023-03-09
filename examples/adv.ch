@@ -5,7 +5,7 @@ import
 
 def
 
-Location = struct(description, NORTH, SOUTH, EAST, WEST string)
+Location = struct(description, north, south, east, west string)
 Object = struct(description, location string)
 GameState = struct(locations, objects map, playerLocation, output string)
 
@@ -136,7 +136,7 @@ addIndefiniteArticle(s string) :
 
 // Functions for executing the end-user's instructions.
 
-DIRECTIONS = map("north"::NORTH, "south"::SOUTH, "east"::EAST, "west"::WEST)
+DIRECTIONS = map("north"::north, "south"::south, "east"::east, "west"::west)
 
 doMove(dir string, S GameState) : 
     not dir in keys DIRECTIONS :
