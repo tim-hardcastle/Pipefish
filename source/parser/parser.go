@@ -27,6 +27,7 @@ const (
 	LOGGING     // \\
 	ASSIGN      // =
 	COLON       // :
+	PIPING		// >>, ]>, ?>
 	OR          // or
 	AND         // and
 	NOT         // not
@@ -60,9 +61,6 @@ var precedences = map[token.TokenType]int{
 	token.EXEC:        FUNC,
 	token.RESPOND:     FUNC,
 	token.REQUEST:     FUNC,
-	token.PIPE:        FUNC,
-	token.MAP:         FUNC,
-	token.FILTER:      FUNC,
 	token.GIVEN:       GIVEN,
 	token.ASSIGN:      ASSIGN,
 	token.CMD_ASSIGN:  ASSIGN,
@@ -73,6 +71,9 @@ var precedences = map[token.TokenType]int{
 	token.PVR_ASSIGN:  ASSIGN,
 	token.COLON:       COLON,
 	token.MAGIC_COLON: COLON,
+	token.PIPE:        PIPING,
+	token.MAP:         PIPING,
+	token.FILTER:      PIPING,
 	token.OR:          OR,
 	token.AND:         AND,
 	token.NOT:         NOT,
