@@ -49,7 +49,7 @@ const (
 
 	DOTDOT = ".."
 
-	RIGHTARROW = "->"
+
 
 	NO_INDENT = "|||"
 
@@ -88,8 +88,8 @@ const (
 	GOLANG = "gocode"
 
 	// Streaming operators
-	PIPE = ">>"
-	MAP = "]>"
+	PIPE = "->"
+	MAP = ">>"
 	FILTER = "?>"
 
 )

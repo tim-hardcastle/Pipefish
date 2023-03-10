@@ -10,3 +10,7 @@ def
 foo(x int, y bool) :
     y : x
     else : - x
+
+troz(i) -> int :
+    i
+

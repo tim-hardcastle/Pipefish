@@ -322,7 +322,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 		lastTokenWasColon = (tok.Type == token.COLON || tok.Type == token.WEAK_COLON)
 
-		if (lastTokenWasColon && colonMeansFunctionOrCommand) || tok.Type == token.RIGHTARROW {
+		if (lastTokenWasColon && colonMeansFunctionOrCommand) || tok.Type == token.PIPE {
 			colonMeansFunctionOrCommand = false
 			uP.addWordsToParser(line)
 			if currentSection == DefSection {

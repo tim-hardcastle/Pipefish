@@ -112,7 +112,7 @@ func (l *Lexer) NextToken() token.Token {
 	case ']':
 		if l.peekChar() == '>' {
 			l.readChar()
-			tok = l.NewToken(token.MAP, "]>")
+			tok = l.NewToken(token.MAP, ">>")
 		} else {
 			tok = l.NewToken(token.RBRACK, "]")
 		}
@@ -163,7 +163,7 @@ func (l *Lexer) NextToken() token.Token {
 		}
 		if l.ch == '-' && l.peekChar() == '>' {
 			l.readChar()
-			tok = l.NewToken(token.RIGHTARROW, "->")
+			tok = l.NewToken(token.PIPE, "->")
 			l.readChar()
 			return tok
 		}
@@ -176,13 +176,7 @@ func (l *Lexer) NextToken() token.Token {
 		}
 		if l.ch == '>' && l.peekChar() == '>' {
 			l.readChar()
-			tok = l.NewToken(token.PIPE, ">>")
-			l.readChar()
-			return tok
-		}
-		if l.ch == ']' && l.peekChar() == '>' {
-			l.readChar()
-			tok = l.NewToken(token.MAP, "]>")
+			tok = l.NewToken(token.MAP, ">>")
 			l.readChar()
 			return tok
 		}

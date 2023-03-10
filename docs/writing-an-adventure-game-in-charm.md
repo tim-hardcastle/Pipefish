@@ -185,19 +185,19 @@ ADV →
 It works. However, `describe((doMove("north", state))[playerLocation], state)` is an ugly mess of parentheses, and the sort of thing that used to get functional programming a bad name, so this might be a good time to introduce Charm's streaming operators. In particular, the piping operator lets us write expressions like the above from left to right instead.
 
 ```
-ADV → state >> doMove("north", that) >> that[playerLocation] >> describe(that, state)
+ADV → state -> doMove("north", that) -> that[playerLocation] -> describe(that, state)
 The wizard's hall
 
 You are in the antechamber of the wizard's castle. To your south is the outdoors and the castle gardens. To your west, a door stands ajar through which you catch a glimpse of shelving and leather-bound books: presumably a library. To the north an archway gives a view of a banqueting hall. A low mean passage leads east.  
 ADV →
 ```
 
-The piped expression means just the same thing as describe((doMove("north", state))[playerLocation], state) , but describes it in the form of a pipeline where `that` refers to whatever's to the left of the piping operator `>>`.
+The piped expression means just the same thing as describe((doMove("north", state))[playerLocation], state) , but describes it in the form of a pipeline where `that` refers to whatever's to the left of the piping operator `->`.
 
 This becomes more and more useful the more complicated our expressions become. No-one wants to read or write `describe((doMove("east", doMove("north", state)))[playerLocation], state)`, but this becomes perfectly lucid when written with the piping operator as:
 
 ```
-state >> doMove("north", that) >> doMove("east", that) >> that[playerLocation] >> describe(that, state)   
+state -> doMove("north", that) -> doMove("east", that) -> that[playerLocation] -> describe(that, state)   
 ```
 
 As a final piece of syntactic sugar, the word `that` is unnecessary when the function has only one parameter.
@@ -220,7 +220,7 @@ At the very top of our script we need to add an `import` section to get the `str
 
 ```
 parseUserInput(input string) :
-    input >> strings.toLower >> strings.split(that, " ")
+    input -> strings.toLower -> strings.split(that, " ")
 ```
 
 In the REPL:
@@ -243,11 +243,11 @@ substituteSynonyms(s string) :
         s
 ```
 
-Now we can add that to our parsing pipeline using the mapping operator `]>`. This will apply the function to each member of our list of words one at a time:
+Now we can add that to our parsing pipeline using the mapping operator `>>`. This will apply the function to each member of our list of words one at a time:
 
 ```
 parseUserInput(input string) :
-    input >> strings.toLower >> strings.split(that, " ") ]> substituteSynonyms
+    input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms
 ```
 
 Let's check it out in the REPL:
@@ -272,7 +272,7 @@ addImplicitGo(L list) :
 
 ```
 parseUserInput(input string) :
-    input >> strings.toLower >> strings.split(that, " ") ]> substituteSynonyms >> addImplicitGo
+    input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms -> addImplicitGo
 ```
 
 In the REPL:
@@ -311,7 +311,7 @@ given :
 Check it out in the REPL:
 
 ```
-ADV → doTheThing("go north", state) >> that[output]    
+ADV → doTheThing("go north", state) -> that[output]    
                                                                                                      
 The wizard's hall
 
@@ -405,7 +405,7 @@ given :
     noun = parsedInput[1]
 
 parseUserInput(input string) :
-    input >> strings.toLower >> strings.split(that, " ") ]> substituteSynonyms >> addImplicitGo
+    input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms -> addImplicitGo
 
 SYNONYMS = map("get"::"take", "inv"::"inventory", "ex"::"examine", "n"::"north", 
             .. "s"::"south", "e"::"east", "w"::"west")
@@ -802,7 +802,7 @@ given :
 // Parsing input.
 
 parseUserInput(input string) :
-    input >> strings.toLower >> strings.split(that, " ") ]> substituteSynonyms >> addImplicitGo
+    input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms -> addImplicitGo
 
 SYNONYMS = map("get"::"take", "inv"::"inventory", "ex"::"examine", "n"::"north", 
             .. "s"::"south", "e"::"east", "w"::"west")

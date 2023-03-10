@@ -81,7 +81,7 @@ given :
 // Parsing input.
 
 parseUserInput(input string) :
-    input >> strings.toLower >> strings.split(that, " ") ]> substituteSynonyms >> addImplicitGo
+    input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms -> addImplicitGo
 
 SYNONYMS = map("get"::"take", "inv"::"inventory", "ex"::"examine", "n"::"north", 
             .. "s"::"south", "e"::"east", "w"::"west")

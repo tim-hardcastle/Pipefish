@@ -27,7 +27,7 @@ const (
 	LOGGING     // \\
 	ASSIGN      // =
 	COLON       // :
-	PIPING		// >>, ]>, ?>
+	PIPING		// ->, >>, ?>
 	OR          // or
 	AND         // and
 	NOT         // not
@@ -83,7 +83,6 @@ var precedences = map[token.TokenType]int{
 	token.COMMA:       COMMA,
 	token.LBRACK:      INDEX,
 	token.EVAL:        FPREFIX,
-	token.RIGHTARROW:  OR,
 }
 
 type TokenSupplier interface{ NextToken() token.Token }
@@ -156,7 +155,7 @@ func New() *Parser {
 		AllFunctionIdents: make(set.Set[string]),
 		Bling:             make(set.Set[string]),
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
-			token.RIGHTARROW, token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
+			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER, token.LOG,
@@ -768,7 +767,7 @@ func (p *Parser) parsePrelogExpression(left ast.Node) ast.Node {
 	return expression
 }
 
-// In a streaming expression we need to desugar e.g. 'x >> foo' to 'x >> foo that', etc.
+// In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
 func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 
 	expression := &ast.StreamingExpression{
@@ -1127,9 +1126,9 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 		return functionName, sig, rTypes, content, given
 	}
 
-	if start.GetToken().Type == token.RIGHTARROW {
-		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.InfixExpression).Args[2])
-		start = start.(*ast.InfixExpression).Args[0]
+	if start.GetToken().Type == token.PIPE {
+		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.StreamingExpression).Right)
+		start = start.(*ast.StreamingExpression).Left
 	}
 
 	switch start := start.(type) {
