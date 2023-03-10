@@ -516,7 +516,7 @@ given :
     moreLinesToProcess = (file "examples/objects.rsc")[contents] 
 ```
 
-Now let's update our `describe` function. We'll give it some helper functions to cope with the distinction between "a" and "an" in English, the Oxford comma, etc. Of these, `describeList` is our most deeply nested function — behold its fearsom complexity!
+Now let's update our `describe` function. We'll give it some helper functions to cope with the distinction between "a" and "an" in English, the Oxford comma, etc. Of these, `describeList` is our most deeply nested function — behold its fearsome complexity!
 
 ```
 describeObjects(loc, Gamestate) :
