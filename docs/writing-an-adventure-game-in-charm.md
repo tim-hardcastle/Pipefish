@@ -1,4 +1,4 @@
-# Writing an adventure game in Charm.
+# Writing an adventure game in Charm
 
 This documents demonstrates the Charm language by showing how to use it to write a simple text-based adventure game. It assumes that you have no familiarity with Charm, but that you would be able to easily follow a tutorial on this subject if it was presented in your own favorite language instead.
 
