@@ -308,8 +308,6 @@ given :
     noun = parsedInput[1]
 ```
 
-Note that it doesn't matter if we get errors in the `given` section when we assign `noun` and `verb` --- if `parsedInput` is an empty list, error values will indeed be assigned to these local constants, but as you can see from the logic of the function, they would then never be used, so the errors remain trapped in the local variables, unable to crash their way up the stack.
-
 Check it out in the REPL:
 
 ```
