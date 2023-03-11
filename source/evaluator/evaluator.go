@@ -543,7 +543,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 
 	default: // The last non-error possibility is that the prefix is a constant/variable containing a lambda.
 		variable, ok := c.env.Get(node.Token.Literal)
-		if variable.Type() == object.LAZY_OBJ {
+		if ok && variable.Type() == object.LAZY_OBJ {
 			variable = Eval(variable.(*object.Lazy).Value, c)
 			c.env.Set(node.Token.Literal, variable)
 		}
