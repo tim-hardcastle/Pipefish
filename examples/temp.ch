@@ -8,8 +8,11 @@ zort(x) :
 def
 
 foo(x int, y bool) :
-    y : x
+    y : moo x
     else : - x
+given :
+    moo (i) : i
+    z = 5
 
 troz(i) -> int :
     i
