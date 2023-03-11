@@ -8,7 +8,7 @@ z = "♥Charm♥"
 f = func (x) : a * b(x)
 given : 
     a = x + 1
-    b : x + c
+    b = func(x) : x + c
     given :
         c = 2
 
@@ -28,9 +28,9 @@ max (x, y int) :
 
 max (L list):
     len(L) == 0 : error "taking the max of an empty list"
-    else : maxer(1 , L[0])
+    else : maxer(1 , L[0], L)
 given :
-    maxer (i int, m int) :
+    maxer = func(i int, m int, L list) :
             i < len(L) : this i + 1, max(m, L[i]), L
             else : m
 
