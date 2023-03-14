@@ -465,13 +465,13 @@ func evalArraySliceExpression(array, index object.Object, tok token.Token) objec
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(arrayObject.Elements) - 1
+	max := len(arrayObject.Elements)
 	if idy < 0 {
-		idy = max + idy + 1
+		idy = max + idy
 	}
 
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) || (idy < idx) {
-		return newError("built/slice/range/list", tok, idx, idy, max+1)
+	if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
+		return newError("built/slice/range/list", tok, idx, idy, max)
 	}
 	return arrayObject.DeepSlice(idx, idy)
 }
@@ -483,13 +483,13 @@ func evalTupleSliceExpression(array, index object.Object, tok token.Token) objec
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(arrayObject.Elements) - 1
+	max := len(arrayObject.Elements)
 	if idy < 0 {
-		idy = max + idy + 1
+		idy = max + idy
 	}
 
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) {
-		return newError("built/slice/range/tuple", tok, idx, idy, max+1)
+	if (idx < 0 || idx > max) || (idy < 0 || idy > max) {
+		return newError("built/slice/range/tuple", tok, idx, idy, max)
 	}
 	return arrayObject.DeepSlice(idx, idy)
 }
@@ -501,13 +501,13 @@ func evalStringSliceExpression(string, index object.Object, tok token.Token) obj
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(stringObject.Value) - 1
+	max := len(stringObject.Value) 
 	if idy < 0 {
-		idy = max + idy + 1
+		idy = max + idy
 	}
 
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max+1) {
-		return newError("built/slice/range/string", tok, idx, idy, max+1)
+	if (idx < 0 || idx > max) || (idy < 0 || idy > max) {
+		return newError("built/slice/range/string", tok, idx, idy, max)
 	}
 	return &object.String{Value: stringObject.Value[idx:idy]}
 }
