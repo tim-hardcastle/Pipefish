@@ -36,11 +36,11 @@ execute(lineToExecute, state) :
     type newLineNumber != error : // It may be an addition to the BASIC program.
         OK, updateProgram(state, lineToExecute)
     else : // Otherwise we can evaluate it as normal.
-        lineToExecute -> tokenize -> (parse(that, 0, NULL_NODE))[2] -> evaluate(that, state)
+        lineToExecute >> tokenize >> (parse(that, 0, NULL_NODE))[2] >> evaluate(that, state)
 given :
-    newLineNumber = (lineToExecute -> strings.split(that, " ") -> int that[0])
-    remainderOfLine = (lineToExecute -> strings.index(that, " ") ..
-                    .. -> lineToExecute[that + 1::len lineToExecute])
+    newLineNumber = (lineToExecute >> strings.split(that, " ") >> int that[0])
+    remainderOfLine = (lineToExecute >> strings.index(that, " ") ..
+                    .. >> lineToExecute[that + 1::len lineToExecute])
     updateProgram(state, lineToExecute) :
         state with [program, lines, newLineNumber]::remainderOfLine ..
            .. with [program, lineNumbers]::insert(state[program][lineNumbers], newLineNumber)
@@ -87,8 +87,8 @@ evaluateProgram(state) :
     lineNumber == -1 :
         state
     else :
-        lexAndParseLine(lineNumber, state) -> evaluate(that, state) ..
-            .. -> evaluateProgram(that[1] with pointer::state[pointer] + 1)
+        lexAndParseLine(lineNumber, state) >> evaluate(that, state) ..
+            .. >> evaluateProgram(that[1] with pointer::state[pointer] + 1)
 given :
     lineNumber = state[program][lineNumbers][state[pointer]]
 
@@ -120,14 +120,14 @@ given :
     nodeType = node[token][tokenType]
 
 evalInfixExpression(node, state) :
-    op(left, right) -> makeVal(that), state
+    op(left, right) >> makeVal(that), state
 given :
     op = OPERATIONS[node[token][tokenType]]
     left = (evaluate(node[branches][0], state))[0][value]
     right = (evaluate(node[branches][1], state))[0][value]
 
 evalBuiltinExpression(node, state) : 
-    op(node[branches][0] -> (evaluate(that, state))[0] -> makeArgsList -> tuplify) -> makeVal
+    op(node[branches][0] >> (evaluate(that, state))[0] >> makeArgsList >> tuplify) >> makeVal
 given :
     op = BUILTINS[node[token][tokenLiteral]]
     makeArgsList(val Value) :
@@ -168,7 +168,7 @@ evalPrefixExpression(node, state) :
         makeVal(not val), state
     nodeType == LIST :
         OK, (state with outStr:: (state[program][lineNumbers] curtail 1 ..
-        .. >> string(that) + " " + state[program][lines][that] + "\n" -> sum(that, "")))  
+        .. ]> string(that) + " " + state[program][lines][that] + "\n" >> sum(that, "")))  
     nodeType == GOTO :
         OK, evaluateProgram(state with pointer::findIn(state[program][lineNumbers], val)) 
     nodeType == RUN :
@@ -192,7 +192,7 @@ makeVal(charmVal single) :
     else : error "who even knows?"
 
 lexAndParseLine(i int, state) :
-    i -> state[program][lines][i] -> tokenize -> (parse(that, 0, NULL_NODE))[2]
+    i >> state[program][lines][i] >> tokenize >> (parse(that, 0, NULL_NODE))[2]
 
 valToBASIC(val) :
     type val != bool : string val
@@ -275,7 +275,7 @@ KEYWORD_MAP = map("+"::PLUS, "-"::MINUS, "*"::MULTIPLY, "/"::DIVIDE, "="::EQUALS
                 .. "RUN"::RUN, "MOD"::MOD)
 
 tokenize(s) : 
-    wordify(s) >> tokenizer(that) -> that + [Token(EOL, "")]
+    wordify(s) ]> tokenizer(that) >> that + [Token(EOL, "")]
 given :
     tokenizer(s) :
         s in keys(KEYWORD_MAP) : 

@@ -114,12 +114,28 @@ func Eval(node ast.Node, c *Context) object.Object {
 		var right object.Object
 		lLen := len(variables)
 		if node.Token.Type == token.GVN_ASSIGN {
-			right = &object.Lazy{Value: node.Right}
+			if lLen == 1 {
+				right = &object.Lazy{Value: node.Right}
+				err := Assign(variables[0], right, node.Token, c)
+				if err != nil {
+					return err
+				}
+			} else {
+				node.Token.Type = token.LZY_ASSIGN
+				right = &object.Lazy{Value: node}
+				for i := 0; i < lLen; i++ {
+					err := Assign(variables[i], right, node.Token, c)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			return SUCCESS
 		} else {
 			right = Eval(node.Right, c)
 		}
 		if isError(right) {
-			if node.Token.Type == token.GVN_ASSIGN { // TODO --- this bit presumably obsolete now.
+			if node.Token.Type == token.LZY_ASSIGN { 
 				for i := 0; i < lLen; i++ {
 					err := Assign(variables[i], right, node.Token, c)
 					if err != nil {
@@ -132,7 +148,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return right
 			}
 		}
-		if right.Type() == object.UNSATISFIED_OBJ && node.Token.Type != token.GVN_ASSIGN {
+		if right.Type() == object.UNSATISFIED_OBJ && node.Token.Type != token.LZY_ASSIGN {
 			return newError("eval/unsatisfied/b", node.Token)
 		}
 
@@ -541,12 +557,12 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		}
 		return result
 
-	default: // The last non-error possibility is that the prefix is a constant/variable containing a lambda.
+	default: // We could be looking at a lazy object initialized in the `given` section.
 		variable, ok := c.env.Get(node.Token.Literal)
 		if ok && variable.Type() == object.LAZY_OBJ {
 			variable = Eval(variable.(*object.Lazy).Value, c)
 			c.env.Set(node.Token.Literal, variable)
-		}
+		} // The last non-error possibility is that the prefix is a constant/variable containing a lambda.
 		if ok && variable.Type() == object.FUNC_OBJ {
 			params := listArgs(node.Args, node.Token, c)
 			if params[0].Type() == object.ERROR_OBJ {
@@ -636,7 +652,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		inferredType = object.TrueType(right)
 	}
 	switch tok.Type {
-	case token.GVN_ASSIGN:
+	case token.GVN_ASSIGN, token.LZY_ASSIGN:
 		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) {
 			return newError("eval/var/type/a", tok, right, inferredType)
 		}
@@ -930,7 +946,14 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 
 	if ok {
 		if val.Type() == object.LAZY_OBJ {
-			return Eval(val.(*object.Lazy).Value, c)
+			if val.(*object.Lazy).Value.GetToken().Type == token.LZY_ASSIGN { // Then we have a multiple assignment in a 'given' statement.
+				Eval(val.(*object.Lazy).Value, c)
+				val, _ := c.env.Get(node.Value)
+				return val
+			}
+			lazyResult := Eval(val.(*object.Lazy).Value, c)
+			c.env.Set(node.Value, lazyResult)
+			return lazyResult
 		}
 		return val
 	}

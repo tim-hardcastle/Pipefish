@@ -64,9 +64,7 @@ func New(in io.Reader, out io.Writer) *Hub {
 }
 
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
-// as an instruction to switch services if it consists only of the name of a service; as
-// an expression to be passed to a service if it begins with the name of a service; and as an
-// expression to be passed to the current service if none of the above hold.
+// and as an expression to be passed to the current service if none of the above hold.
 func (hub *Hub) Do(line, username, password, passedServiceName string) (string, *object.Effects) {
 
 	if line == "" {
@@ -77,7 +75,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
 		!(line == "hub register" || line == "hub log in") {
 		hub.WriteError("this is an administered hub and you aren't logged in. Please enter either " +
-			"'hub register' to register as a user, or 'hub log in' to log in if you're already registered " +
+			"'hub register' to register as a user, or 'hub log IN' to log in if you're already registered " +
 			"with this hub.")
 		return passedServiceName, object.OK_RESPONSE
 	}
@@ -86,7 +84,15 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	hubWords := strings.Fields(line)
 	if hubWords[0] == "hub" {
-		hubResult := hub.ParseHubCommands(username, password, hubWords[1:])
+		if len(line) == 3 {
+			hub.WriteError("you need to say what you want the hub to do.")
+			return passedServiceName, object.OK_RESPONSE
+		}
+		verb, args := hub.ParseHubCommand(line[4:len(line)])
+		if verb == "error" {
+			return passedServiceName, object.OK_RESPONSE
+		}
+		hubResult := hub.DoHubCommand(username, password, verb, args)
 		if len(hubWords) > 1 && hubWords[1] == "run" && hub.administered {   // TODO: find out what it does and where it should be now that we have ++ for hub commands.
 			serviceName, _ := database.ValidateUser(hub.db, username, password)
 			return serviceName, object.OK_RESPONSE
@@ -96,6 +102,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		} else {
 			return passedServiceName, object.OK_RESPONSE
 		}
+		panic("You're only supposed to get an error or a HubResponse from the HUB service.")
 	}
 
 	// We may be talking to the os
@@ -120,30 +127,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, object.OK_RESPONSE
 	}
 
-	// Otherwise, we need to find a service to talk to.
+	// Otherwise, we're talking to the current service.
 
-	// If the first word of the line is the name of a service, we use that as the name of the service.
-	// TODO --- remove this feature, add 'switch'.
-
-	var serviceName string
-
-	service, ok := hub.services[hubWords[0]]
-	if ok {
-		serviceName := hubWords[0]
-		if len(hubWords) == 1 {
-			hub.currentServiceName = hubWords[0]
-			hub.WriteString(text.OK + "\n")
-			if hub.administered {
-				database.UpdateService(hub.db, username, serviceName)
-			}
-			return serviceName, object.OK_RESPONSE
-		} else {
-			line = line[len(hubWords[0])+1:]
-		}
-	} else {
-		service, ok = hub.services[passedServiceName]
-		serviceName = passedServiceName
-	}
+	service, ok := hub.services[passedServiceName]	
 	if !ok {
 		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
 		return passedServiceName, object.OK_RESPONSE
@@ -155,27 +141,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		service = hub.services[""]
 	}
 
-	// If we find a service and the hub is administered, we check that the user has access rights.
-
-	if hub.administered {
-		access, err := database.DoesUserHaveAccess(hub.db, username, serviceName)
-		if err != nil {
-			hub.WriteError(err.Error())
-			return passedServiceName, object.OK_RESPONSE
-		}
-		if !access {
-			hub.WriteError("you don't have access to service '" + serviceName + "'.")
-			return passedServiceName, object.OK_RESPONSE
-		}
-	}
-	if len(hubWords) == 1 && serviceName == hubWords[0] {
-		return passedServiceName, object.OK_RESPONSE
-	} // In this case we've validated and switched services and that's
-	// all we're trying to do.
-
-	// If they have access rights, we pass the line to the service and get back a string to output.
-
-	// But first, if hub peek is turned on, this will show us the wheels going round.
+	// If hub peek is turned on, this will show us the wheels going round.
 	if hub.peek {
 		lexer.LexDump(line)
 		relexer.RelexDump(line)
@@ -256,175 +222,74 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	return passedServiceName, object.OK_RESPONSE
 }
 
-// Just splits the commands up according to the ++ signs and passes them one at a time to ParseHubCommand.
-func (hub *Hub) ParseHubCommands(username, password string, hubWords []string) bool {
-	arguments := []string{}
-	for i, v := range(hubWords) {
-		if v != "++" {
-			arguments = append(arguments, v)
-		}
-		if i == len(hubWords) - 1 || v == "++" {
-			result := hub.ParseHubCommand(username, password, arguments)
-			arguments = []string{}
-			if result {
-				return true
-			}	
-		}
+// // Just splits the commands up according to the ++ signs and passes them one at a time to ParseHubCommand.
+// func (hub *Hub) ParseHubCommands(username, password string, hubWords []string) bool {
+// 	arguments := []string{}
+// 	for i, v := range(hubWords) {
+// 		if v != "++" {
+// 			arguments = append(arguments, v)
+// 		}
+// 		if i == len(hubWords) - 1 || v == "++" {
+// 			result := hub.ParseHubCommand(username, password, arguments)
+// 			arguments = []string{}
+// 			if result {
+// 				return true
+// 			}	
+// 		}
+// 	}
+// 	return false
+// }
+
+func (hub *Hub) ParseHubCommand(line string) (string, []string) {
+	hubReturn := (hub.services["HUB"]).ServiceDo(line)
+	if hubReturn.Type() == object.ERROR_OBJ {
+		hub.WriteError(hubReturn.(*object.Error).Message)
+		return "error", []string{hubReturn.(*object.Error).Message}
 	}
-	return false
+	if hubReturn.Type() == object.STRUCT_OBJ && hubReturn.(*object.Struct).Name == "HubResponse" {
+		verb := (hubReturn.(*object.Struct).Value["responseName"]).(*object.String).Value
+		args := []string{}
+		for _, v := range((hubReturn.(*object.Struct).Value["vals"]).(*object.List).Elements) {
+			args = append(args, v.(*object.String).Value)
+		}
+		return verb, args
+	}
+	panic("You're only supposed to get an error or a HubResponse from the HUB service.")
 }
 
-func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bool { // Returns true if the command is 'quit', since it can't quit
-	fieldCount := len(hubWords)                                                      // from the REPL itself.
-	if fieldCount == 0 {                                                             // TODO: put a flag in the REPL, quitting doesn't care about concurrency.
-		hub.help()
-		return false
-	}
-	verb := hubWords[0]
+func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
 	switch verb {
-
-	// Verbs are in alphabetical order :
-	// add, config, create, do, edit, errors, help, hot, let, log, listen, my, peek, quit, register, replay, run, services, snap, stop, 
-	// test, trace
 	case "add":
-		if fieldCount != 4 || hubWords[2] != "to" {
-			hub.WriteError("the format of the 'hub add' command is 'hub add <username> to <GroupName>'.")
-			return false
-		}
-		err := database.IsUserGroupOwner(hub.db, username, hubWords[3])
+		err := database.IsUserGroupOwner(hub.db, username, args[1])
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.db, hubWords[1], hubWords[3], false)
+		err = database.AddUserToGroup(hub.db, args[0], args[1], false)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
 		hub.WriteString(text.OK + "\n")
+		return false
 	case "config":
-		switch {
-		case fieldCount == 1:
-			hub.WriteError("the 'hub config' command needs you to say what you want to configure, " +
-				"either 'admin' or 'db'.")
-		case fieldCount > 2:
-			hub.WriteError("the 'hub config' command takes at most one parameter, either 'admin' or 'db'.")
-		default:
-			switch hubWords[1] {
-			case "admin":
-				_, err := os.Stat("rsc/admin.dat")
-				if errors.Is(err, os.ErrNotExist) {
-					hub.configAdmin()
-					return false
-				}
-				if err != nil {
-					hub.WriteError(err.Error())
-					return false
-				}
-				hub.WriteError("you've already set up administration for this hub.")
-			case "db":
-				hub.configDb()
+		switch args[0] {
+		case "ADMIN":
+			_, err := os.Stat("rsc/admin.dat")
+			if errors.Is(err, os.ErrNotExist) {
+				hub.configAdmin()
+				return false
 			}
+			if err != nil {
+				hub.WriteError(err.Error())
+				return false
+			}
+			hub.WriteError("you've already set up administration for this hub.")
+		case "DB":
+			hub.configDb()
 		}
 		return false
 	case "create":
-		switch {
-		case fieldCount == 1:
-			hub.WriteError("the 'hub create' command requires the name of a usergroup to create as a parameter.")
-		case fieldCount > 2:
-			hub.WriteError("the 'hub create' command takes at most one parameter.")
-		default:
-			isAdmin, err := database.IsUserAdmin(hub.db, username)
-			if err != nil {
-				hub.WriteError(err.Error())
-				return false
-			}
-			if !isAdmin {
-				hub.WriteError("you don't have the admin status necessary to do that.")
-				return false
-			}
-			err = database.AddGroup(hub.db, hubWords[1])
-			if err != nil {
-				hub.WriteError(err.Error())
-			}
-		}
-		err := database.AddUserToGroup(hub.db, username, hubWords[1], true)
-		if err != nil {
-			hub.WriteError(err.Error())
-		}
-		hub.WriteString(text.OK + "\n")
-	case "do":
-		hub.Do(strings.Join(hubWords[1:], " "), username, password, hub.currentServiceName)
-		hub.WriteString("\n")
-		return false
-	case "edit":
-		switch {
-		case fieldCount == 1:
-			hub.WriteError("the 'hub edit' command requires a filename as a parameter.")
-		case fieldCount > 2:
-			hub.WriteError("the 'hub edit' command takes at most one parameter.")
-		default:
-			command := exec.Command("vim", hubWords[1])
-			command.Stdin = os.Stdin
-			command.Stdout = os.Stdout
-			err := command.Run()
-			if err != nil {
-				hub.WriteError(err.Error())
-			}
-		}
-	case "errors":
-		if fieldCount > 1 {
-			hub.WriteError("the 'errors' keyword takes no parameters.")
-		}
-		if len(hub.ers) == 0 {
-			hub.WritePretty("There are no recent errors.")
-		}
-		hub.WritePretty(object.GetList(hub.ers))
-	case "help":
-		switch {
-		case fieldCount == 1:
-			hub.help()
-		case fieldCount > 2:
-			hub.WriteError("the 'hub help' command takes at most one parameter.")
-		default:
-			if helpMessage, ok := helpStrings[hubWords[1]]; ok {
-				hub.WritePretty(helpMessage + "\n")
-			} else {
-				hub.WriteError("the 'hub help' command doesn't accept " +
-					"'" + hubWords[1] + "' as a parameter.")
-			}
-		}
-	case "hot":
-		switch {
-		case fieldCount == 1:
-			hub.peek = !hub.peek
-		case fieldCount == 2:
-			switch hubWords[1] {
-			case "on":
-				hub.hot = true
-			case "off":
-				hub.hot = false
-			default:
-				hub.WriteError("the 'hub hot' command only accepts the parameters " +
-					"'on'  or 'off'.")
-			}
-		default:
-			hub.WriteError("the 'hub hot' command only accepts a single parameter, " +
-				"'on'  or 'off'.")
-
-		}
-	case "join":
-		if fieldCount > 1 {
-			hub.WriteError("the 'hub quit' command takes no parameters.")
-		} else {
-			hub.addUserAsGuest()
-			return false
-		}
-	case "let":
-		if fieldCount != 4 || hubWords[2] != "use" {
-			hub.WriteError("the format of the 'hub let' command is 'hub let <GroupName> use <SERVICE>'.")
-			return false
-		}
 		isAdmin, err := database.IsUserAdmin(hub.db, username)
 		if err != nil {
 			hub.WriteError(err.Error())
@@ -434,30 +299,101 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			hub.WriteError("you don't have the admin status necessary to do that.")
 			return false
 		}
-		err = database.LetGroupUseService(hub.db, hubWords[1], hubWords[3])
+		err = database.AddGroup(hub.db, args[0])
+		if err != nil {
+			hub.WriteError(err.Error())
+			return false
+		}
+		err = database.AddUserToGroup(hub.db, username, args[0], true)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
 		hub.WriteString(text.OK + "\n")
-	case "listen":
-		switch {
-		case fieldCount == 3:
-			hub.WriteString(text.OK)
-			hub.WriteString("\nHub is listening.\n\n")
-			hub.StartHttp(hubWords[1], hubWords[2])
-		default:
-			hub.WriteError("the 'hub listen' command takes two parameters, a path and a port.")
+		return false
+	case "do":
+		hub.Do(args[0], username, password, hub.currentServiceName)
+		hub.WriteString("\n")
+		return false
+	case "edit":
+		command := exec.Command("vim", args[0])
+		command.Stdin = os.Stdin
+		command.Stdout = os.Stdout
+		err := command.Run()
+		if err != nil {
+			hub.WriteError(err.Error())
 		}
+		return false
+	case "errors":
+		if len(hub.ers) == 0 {
+			hub.WritePretty("There are no recent errors.")
+			return false
+		}
+		hub.WritePretty(object.GetList(hub.ers))
+		return false	
+	case "halt":
+		var name string
+		_, ok := hub.services[args[0]]
+		if ok {
+			name = args[0]
+		} else {
+			hub.WriteError("the hub can't find the service '" + args[0] + "'.")
+			return false
+		}
+		if name == "" || name == "HUB" {
+			hub.WriteError("the hub doesn't know what you want to stop.")
+			return false
+		}
+		delete(hub.services, name)
+		hub.WriteString(text.OK + "\n")
+		if name == hub.currentServiceName {
+			hub.currentServiceName = ""
+		}
+		return false
+	case "help":
+		if helpMessage, ok := helpStrings[args[0]]; ok {
+			hub.WritePretty(helpMessage + "\n")
+		} else {
+			hub.WriteError("the 'hub help' command doesn't accept " +
+				"'" + args[0] + "' as a parameter.")
+		}
+	case "hot":
+		switch args[0] {
+			case "ON":
+				hub.hot = true
+			case "OFF":
+				hub.hot = false
+		}
+		return false
+	case "join":
+		hub.addUserAsGuest()
+		return false
+	case "let":
+		isAdmin, err := database.IsUserAdmin(hub.db, username)
+		if err != nil {
+			hub.WriteError(err.Error())
+			return false
+		}
+		if !isAdmin {
+			hub.WriteError("you don't have the admin status necessary to do that.")
+			return false
+		}
+		err = database.LetGroupUseService(hub.db, args[0], args[1])
+		if err != nil {
+			hub.WriteError(err.Error())
+			return false
+		}
+		hub.WriteString(text.OK + "\n")
+		return false
+	case "listen":
+		hub.WriteString(text.OK)
+		hub.WriteString("\nHub is listening.\n\n")
+		hub.StartHttp(args[0], args[1])
 	case "log":
 		switch {
-		case fieldCount == 1:
-			hub.WriteError("'hub log' takes a parameter, either 'in' or 'out'.")
-		case fieldCount > 2:
-			hub.WriteError("'hub log' takes only one parameter, either 'in' or 'out'.")
-		case hubWords[1] == "in":
+		case args[0] == "IN":
 			hub.getLogin()
-		case hubWords[1] == "out":
+		case args[0] == "OUT":
 			hub.Username = ""
 			hub.Password = ""
 			hub.currentServiceName = ""
@@ -465,103 +401,59 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			hub.WritePretty("\nThis is an administered hub and you aren't logged in. Please enter either " +
 				"'hub register' to register as a user, or 'hub log in' to log in if you're already registered " +
 				"with this hub.\n\n")
-		default:
-			hub.WriteError("'hub log' should be followed either by 'in' or 'out'.")
 		}
 	case "my":
-		switch {
-		case fieldCount == 1:
-			hub.WriteError("something should follow 'my': either 'groups' or 'services'")
-		case fieldCount > 2:
-			hub.WriteError("only one word should follow 'my': either 'groups' or 'services'")
-		default:
-			switch hubWords[1] {
-			case "groups":
-				result, err := database.GetGroupsForUser(hub.db, username)
-				if err != nil {
-					hub.WriteError(err.Error())
-				} else {
-					hub.WriteString(result)
-				}
-			case "services":
-				result, err := database.GetAccessForUser(hub.db, username)
-				if err != nil {
-					hub.WriteError(err.Error())
-				} else {
-					hub.WriteString(result)
-				}
-			default:
-				hub.WriteError("the only things that can follow 'my' are 'groups' or 'services'.")
-			}
-		}
-	case "peek":
-		switch {
-		case fieldCount == 1:
-			hub.peek = !hub.peek
-		case fieldCount == 2:
-			switch hubWords[1] {
-			case "on":
-				hub.peek = true
-			case "off":
-				hub.peek = false
-			default:
-				hub.WriteError("the 'hub peek' command only accepts the parameters " +
-					"'on'  or 'off'.")
-			}
-		default:
-			hub.WriteError("the 'hub peek' command only accepts a single parameter, " +
-				"'on'  or 'off'.")
-
-		}
-	case "quit":
-		if fieldCount > 1 {
-			hub.WriteError("the 'hub quit' command takes no parameters.")
-		} else {
-			hub.quit()
-			return true
-		}
-
-	case "register":
-		if fieldCount > 1 {
-			hub.WriteError("the 'hub register' command takes no parameters.")
-		} else {
-			hub.addUserAsGuest()
-		}
-
-	case "replay":
-
-		hub.oldServiceName = hub.currentServiceName
-
-		switch {
-		case fieldCount == 2:
-			hub.playTest(hubWords[1], false)
-		case fieldCount == 3:
-			if hubWords[2] != "diff" {
-				hub.WriteError("the word '" + hubWords[2] +
-					"' makes no sense there.")
+		switch args[0] {
+		case "GROUPS":
+			result, err := database.GetGroupsForUser(hub.db, username)
+			if err != nil {
+				hub.WriteError(err.Error())
 			} else {
-				hub.playTest(hubWords[1], true)
+				hub.WriteString(result)
 			}
-		default:
-			hub.WriteError("the 'hub replay'" +
-				" command takes the filepath of a test as a parameter, optionally" +
-				" followed by 'diff'.")
+		case "SERVICES":
+			result, err := database.GetAccessForUser(hub.db, username)
+			if err != nil {
+				hub.WriteError(err.Error())
+			} else {
+				hub.WriteString(result)
+			}
 		}
-
+		return false
+	case "peek":
+		switch args[0] {
+		case "ON":
+			hub.peek = true
+		case "OFF":
+			hub.peek = false
+		}
+		return false
+	case "quit":
+		hub.quit()
+		return true
+	case "register":
+		hub.addUserAsGuest()
+		return false
+	case "replay":
+		hub.oldServiceName = hub.currentServiceName
+		hub.playTest(args[0], false)
 		hub.currentServiceName = hub.oldServiceName
-
 		_, ok := hub.services["#test"]
 		if ok {
 			delete(hub.services, "#test")
 		}
+		return false
+	case "replay-diff":
+		hub.oldServiceName = hub.currentServiceName
+		hub.playTest(args[0], true)
+		hub.currentServiceName = hub.oldServiceName
+		_, ok := hub.services["#test"]
+		if ok {
+			delete(hub.services, "#test")
+		}
+		return false
 	case "reset":
-		if len(hubWords) > 2 {
-			hub.WriteError("the " + text.Emph("hub reset") + " command takes at most one parameter, the name of a service.")
-		}
 		service, ok := hub.services[hub.currentServiceName]
-		if len(hubWords) == 2 {
-			service, ok = hub.services[hubWords[1]]
-		}
 		if !ok {
 			hub.WriteError("the hub can't find the service '" + hub.currentServiceName + "'.")
 			return false
@@ -578,249 +470,106 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 		}
 		return false
 	case "rerun":
-		if len(hubWords) > 1 {
-			hub.WriteError("the 'hub rerun' command takes no parameters.")
-			return false
-		}
 		if len(hub.lastRun) == 0 {
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
-		hub.ParseHubCommand(username, password, hub.lastRun)
+		hub.DoHubCommand(username, password, verb, hub.lastRun)
 		return false
 	case "run":
-		hub.lastRun = hubWords
-		switch fieldCount {
-		case 1:
-			hub.currentServiceName = ""
-			return false
-		case 2:
-			hub.WritePretty("Starting script '" + hubWords[1] +
+		hub.lastRun = args
+		if args[1] == "" {
+			hub.WritePretty("Starting script '" + args[0] +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
-			hub.StartAnonymous(hubWords[1])
-			return false
-		case 3:
-			if hubWords[2] == "as" {
-				hub.WriteError("missing service name after 'as'.")
-				hub.lastRun = []string{}
-				return false
-			}
-			hub.WriteError("the word '" + hubWords[2] + "' doesn't make any sense there.")
-			hub.lastRun = []string{}
-			return false
-		case 4:
-			if hubWords[2] != "as" {
-				hub.WriteError("the word '" + hubWords[2] + "' doesn't make any sense there.")
-				hub.lastRun = []string{}
-				return false
-			}
-			hub.WritePretty("Starting script '" + hubWords[1] + "' as service '" + hubWords[3] + "'.\n")
-			hub.Start(username, hubWords[3], hubWords[1])
-		default:
-			hub.lastRun = []string{}
-			hub.WriteError("too many words after 'hub run'.")
+			hub.StartAnonymous(args[0])
 			return false
 		}
+		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
+		hub.Start(username, args[1], args[0])
+		return false
 	case "services":
-		switch {
-		case fieldCount == 1:
-			if len(hub.services) == 1 {
-				hub.WriteString("\nThe hub is not presently running any services.\n")
-			}
-			hub.WriteString("\n")
-			hub.list()
-		default:
-			hub.WriteError("the 'hub services' command takes no parameters.")
+		if len(hub.services) == 2 {
+		 	hub.WriteString("\nThe hub is not presently running any services.\n")
+		 	return false
+		}
+		hub.WriteString("\n")
+		hub.list()
+		return false
+	case "snap":
+		scriptFilepath := args[0]
+		testFilepath := args[1]
+		if testFilepath == "" {
+			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
+		}
+		hub.snap = NewSnap(scriptFilepath, testFilepath, "")
+		hub.oldServiceName = hub.currentServiceName
+		hub.Start(username, "#snap", scriptFilepath)
+		(*hub).services["#snap"].ServiceDo("$view = \"charm\"")
+		hub.WriteString("Serialization is ON.\n")
+
+	case "snap-option":
+		if hub.currentServiceName != "#snap" {
+			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-	case "snap":
-		switch fieldCount {
-		case 1:
-			hub.WriteError("the 'hub snap' command needs some parameters.")
-			return false
-		case 2:
-			fieldOne := hubWords[1]
-			if fieldOne == "good" || fieldOne == "bad" || fieldOne == "record" || fieldOne == "discard" {
-				if hub.currentServiceName != "#snap" {
-					hub.WriteError("you aren't taking a snap.")
+		switch args[0] {
+		case "GOOD":
+			result := hub.snap.Save(GOOD)
+			hub.WriteString(result + "\n")
+		case "BAD":
+			result := hub.snap.Save(BAD)
+			hub.WriteString(result + "\n")
+		case "RECORD":
+			result := hub.snap.Save(RECORD)
+			hub.WriteString(result + "\n")
+		case "DISCARD":
+			hub.WriteString(text.OK + "\n")
+		}
+		hub.currentServiceName = hub.oldServiceName
+		return false
+	case "switch" :
+		_, ok := hub.services[args[0]]
+		if ok {
+			hub.WriteString(text.OK + "\n")
+			if hub.administered {
+					access, err := database.DoesUserHaveAccess(hub.db, username, args[0])
+					if err != nil {
+						hub.WriteError(err.Error())
+						return false
+					}
+					if !access {
+						hub.WriteError("you don't have access to service '" + args[0] + "'.")
+						return false
+					}
+					database.UpdateService(hub.db, username, args[0])
+					return false
+				} else {
+					hub.currentServiceName = args[0]
 					return false
 				}
-			}
-			switch fieldOne {
-			case "good":
-				result := hub.snap.Save(GOOD)
-				hub.WriteString(result + "\n")
-			case "bad":
-				result := hub.snap.Save(BAD)
-				hub.WriteString(result + "\n")
-			case "record":
-				result := hub.snap.Save(RECORD)
-				hub.WriteString(result + "\n")
-			case "discard":
-				hub.WriteString(text.OK + "\n")
-			default:
-				scriptFilepath := fieldOne
-				testFilename := getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
-				hub.snap = NewSnap(scriptFilepath, testFilename, "")
-				hub.oldServiceName = hub.currentServiceName
-				hub.Start(username, "#snap", scriptFilepath)
-				(*hub).services["#snap"].ServiceDo("$view = \"charm\"")
-				hub.WriteString("Serialization is ON.\n")
-			}
-			if fieldOne == "good" || fieldOne == "bad" || fieldOne == "record" || fieldOne == "discard" {
-				hub.currentServiceName = hub.oldServiceName
-			}
-			return false
-		case 3:
-			if hubWords[2] == "as" {
-				hub.WriteError("missing test filename after 'as'.")
-				return false
-			}
-			hub.WriteError("the word '" + text.Emph(hubWords[2]) +
-				"' doesn't make any sense there")
-			return false
-		case 4:
-			switch hubWords[2] {
-			case "as":
-				scriptFilepath := hubWords[1]
-				testFilepath := hubWords[3]
-				hub.snap = NewSnap(scriptFilepath, testFilepath, "")
-				hub.oldServiceName = hub.currentServiceName
-				hub.Start(username, "#snap", scriptFilepath)
-				(*hub).services["#snap"].ServiceDo("$view = \"charm\"")
-				hub.WriteString("Serialization is ON.\n")
-			case "with":
-				scriptFilepath := hubWords[1]
-				dataFilepath := hubWords[3]
-				testFilename := getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
-				hub.snap = NewSnap(scriptFilepath, testFilename, dataFilepath)
-				hub.oldServiceName = hub.currentServiceName
-				hub.Start(username, "#snap", scriptFilepath)
-				hub.services["#snap"].OpenDataFile(dataFilepath)
-				(*hub).services["#snap"].ServiceDo("$view = \"charm\"")
-				hub.WriteString("Serialization is ON.\n")
-			default:
-				hub.WriteError("the word '" + hubWords[2] +
-					"' doesn't make any sense there.")
-				return false
-			}
-		case 5:
-			if hubWords[4] == "with" {
-				hub.WriteError("missing test filename after 'as'")
-				return false
-			}
-			if hubWords[4] == "as" {
-				hub.WriteError("missing data filename after 'with'.")
-				return false
-			}
-			hub.WriteError("the word '" + hubWords[4] +
-				"' doesn't make any sense there.")
-			return false
-		case 6:
-			if hubWords[2] != "with" && hubWords[2] != "as" {
-				hub.WriteError("the word '" + hubWords[2] +
-					"' doesn't make any sense there.")
-				return false
-			}
-			if hubWords[4] != "with" && hubWords[4] != "as" {
-				hub.WriteError("the word '" + hubWords[4] +
-					"' doesn't make any sense there.")
-				return false
-			}
-			if hubWords[2] == "with" && hubWords[4] == "with" {
-				hub.WriteError("it doesn't make sense to say 'with' twice")
-				return false
-			}
-			if hubWords[2] == "as" && hubWords[4] == "as" {
-				hub.WriteError("it doesn't make sense to say 'as' twice")
-				return false
-			}
-			testFilepath := ""
-			dataFilepath := ""
-			scriptFilepath := hubWords[1]
-			if hubWords[2] == "as" {
-				testFilepath = hubWords[3]
-				dataFilepath = hubWords[5]
 			} else {
-				testFilepath = hubWords[5]
-				dataFilepath = hubWords[3]
+				hub.WriteError("service '" + args[0] + "' doesn't exist")
 			}
-			hub.snap = NewSnap(scriptFilepath, testFilepath, dataFilepath)
-			hub.Start(username, "#snap", scriptFilepath)
-			(*hub).services["#snap"].ServiceDo("$view = \"charm\"")
-			hub.WriteString("Serialization is ON.\n")
-			hub.oldServiceName = hub.currentServiceName
-			return false
-		default:
-			hub.WriteError("too many words after 'hub snap'.")
-			return false
-		}
-	case "stop":
-		name := hub.currentServiceName
-		if fieldCount > 2 {
-			hub.WriteError("the 'hub stop' command takes at most one parameter, the name of a service.")
-		}
-		ok := true
-		if fieldCount == 2 {
-			_, ok = hub.services[hubWords[1]]
-			if ok {
-				name = hubWords[1]
-			} else {
-				hub.WriteError("the hub can't find the service '" + hubWords[1] + "'.")
-				return false
-			}
-		}
-		if name == "" {
-			hub.WriteError("the hub doesn't know what you want to stop.")
-			return false
-		}
-		delete(hub.services, name)
-		hub.WriteString(text.OK + "\n")
-		if name == hub.currentServiceName {
-			hub.currentServiceName = ""
-		}
-		return false
 	case "test":
-		switch fieldCount {
-		case 1:
-			hub.WriteError("the 'hub test' command needs some parameters.")
-			return false
-		case 2:
-			hub.TestScript(hubWords[1])
-		default:
-			hub.WriteError("too many words after 'hub test'.")
-		}
+		hub.TestScript(args[0])
+		return false
 	case "trace":
-		switch fieldCount {
-		case 1:
-			if len(hub.ers) == 0 {
-				hub.WriteError("there are no recent errors.")
-				return false
-			}
-			if len(hub.ers[0].Trace) == 0 {
-				hub.WriteError("not a runtime error.")
-				return false
-			}
-			hub.WritePretty(text.RT_ERROR + hub.ers[0].Message + "\n\n") // If it is a runtime error, then there is only one of them.
-			for i := len(hub.ers[0].Trace) - 1; i >= 0; i-- {
-				hub.WritePretty("  From: " + text.DescribeTok(hub.ers[0].Trace[i]) + text.DescribePos(hub.ers[0].Trace[i]) + ".")
-			}
-			hub.WriteString("\n")
-			return false
-		default:
-			hub.WriteError("the 'hub trace' command takes no parameters.")
+		if len(hub.ers) == 0 {
+			hub.WriteError("there are no recent errors.")
 			return false
 		}
+		if len(hub.ers[0].Trace) == 0 {
+			hub.WriteError("not a runtime error.")
+			return false
+		}
+		hub.WritePretty(text.RT_ERROR + hub.ers[0].Message + "\n\n") // If it is a runtime error, then there is only one of them.
+		for i := len(hub.ers[0].Trace) - 1; i >= 0; i-- {
+			hub.WritePretty("  From: " + text.DescribeTok(hub.ers[0].Trace[i]) + text.DescribePos(hub.ers[0].Trace[i]) + ".")
+		}
+		hub.WriteString("\n")
+		return false
 	case "where":
-		if fieldCount == 1 {
-			hub.WriteError("the 'where' keyword requires the number of an error as a parameter.")
-			return false
-		}
-		if fieldCount > 2 {
-			hub.WriteError("the 'where' keyword takes only one parameter, the number of an error.")
-			return false
-		}
-		num, err := strconv.Atoi(hubWords[1])
+		num, err := strconv.Atoi(args[0])
 		if err != nil {
 			hub.WriteError("the 'where' keyword takes the number of an error as a parameter.")
 			return false
@@ -833,7 +582,6 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 			hub.WriteError("there aren't that many errors.")
 			return false
 		}
-
 		hub.WritePretty("\nFound" + text.DescribePos(hub.ers[num].Token) + ":\n\n")
 		line := hub.Sources[hub.ers[num].Token.Source][hub.ers[num].Token.Line-1] + "\n"
 		startUnderline := hub.ers[num].Token.ChStart
@@ -849,15 +597,7 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 		hub.WriteString(text.Red(strings.Repeat("▔", lenUnderline)))
 		return false
 	case "why":
-		if fieldCount == 1 {
-			hub.WriteError("the 'why' keyword requires the number of an error as a parameter.")
-			return false
-		}
-		if fieldCount > 2 {
-			hub.WriteError("the 'why' keyword takes only one parameter, the number of an error.")
-			return false
-		}
-		num, err := strconv.Atoi(hubWords[1])
+		num, err := strconv.Atoi(args[0])
 		if err != nil {
 			hub.WriteError("the 'why' keyword takes the number of an error as a parameter.")
 			return false
@@ -868,40 +608,32 @@ func (hub *Hub) ParseHubCommand(username, password string, hubWords []string) bo
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")
+		return false
 	case "values":
-		switch fieldCount {
-		case 1:
-			if len(hub.ers) == 0 {
-				hub.WriteError("there are no recent errors.")
-				return false
-			}
-			if hub.ers[0].Values == nil {
-				hub.WriteError("no values are available.")
-				return false
-			}
-			if len(hub.ers[0].Values) == 0 {
-				hub.WriteError("no values were passed.")
-				return false
-			}
-			if len(hub.ers[0].Values) == 1 {
-				fmt.Print("\nThe value passed was:\n\n")
-			} else {
-				fmt.Print("\nValues passed were:\n\n")
-			}
-			for _, v := range(hub.ers[0].Values) {
-				fmt.Println(text.BULLET + v.Inspect(object.ViewCharmLiteral))
-			}
-			fmt.Println()
-			return false
-		default:
-			hub.WriteError("the 'hub values' command takes no parameters.")
+		if len(hub.ers) == 0 {
+			hub.WriteError("there are no recent errors.")
 			return false
 		}
-	default:
-		hub.WriteError("the hub doesn't recognize the command '" + verb + "'.")
+		if hub.ers[0].Values == nil {
+			hub.WriteError("no values are available.")
+			return false
+		}
+		if len(hub.ers[0].Values) == 0 {
+			hub.WriteError("no values were passed.")
+			return false
+		}
+		if len(hub.ers[0].Values) == 1 {
+			fmt.Print("\nThe value passed was:\n\n")
+		} else {
+			fmt.Print("\nValues passed were:\n\n")
+		}
+		for _, v := range(hub.ers[0].Values) {
+			fmt.Println(text.BULLET + v.Inspect(object.ViewCharmLiteral))
+		}
+		fmt.Println()
 		return false
 	}
-	return false
+	panic("Don't know what to do with verb " + verb)	
 }
 
 func getUnusedTestFilename(scriptFilepath string) string {
@@ -1087,7 +819,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 		return false
 	}
 
-	// Import the standard library
+	// Import the builtins
 
 	libDat, _ := os.ReadFile("rsc/builtins.ch")
 	stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
@@ -1281,12 +1013,12 @@ func (hub *Hub) Open() {
 }
 
 func (hub *Hub) list() {
-	if len(hub.services) == 1 {
+	if len(hub.services) == 2 {
 		return
 	}
 	hub.WriteString("The hub is running the following services:\n\n")
 	for k := range hub.services {
-		if k == "" {
+		if k == "" || k == "HUB" {
 			continue
 		}
 		hub.WritePretty(text.BULLET + "Service '" + k + "' running script '" + filepath.Base(hub.services[k].GetScriptFilepath()) + "'.")

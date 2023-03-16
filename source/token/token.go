@@ -25,6 +25,7 @@ const (
 	VAR_ASSIGN = "=var="
 	DEF_ASSIGN = "=def="
 	GVN_ASSIGN = "=gvn="
+	LZY_ASSIGN = "=lzy="
 	PVR_ASSIGN = "=pvr="
 	TYP_ASSIGN = "=typ="
 

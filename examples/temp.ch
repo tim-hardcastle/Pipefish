@@ -1,8 +1,11 @@
 cmd
 
-zort(x) :
-    h = 0
+glurp :
+    respond "hi"
 
+var
+
+v, w = 5, 6
 
 def
 
@@ -15,4 +18,20 @@ given :
 
 troz(i) -> int :
     i
+
+zort(b bool) :
+    b : x
+    else : y
+given :
+    x, y = (3, 4)
+
+
+gort(b bool) :
+    b : x
+    else : y
+given :
+    x = 3
+    y = 4
+    
+    
 

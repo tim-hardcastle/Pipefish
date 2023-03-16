@@ -67,6 +67,7 @@ var precedences = map[token.TokenType]int{
 	token.VAR_ASSIGN:  ASSIGN,
 	token.DEF_ASSIGN:  ASSIGN,
 	token.GVN_ASSIGN:  ASSIGN,
+	token.LZY_ASSIGN:  ASSIGN,
 	token.TYP_ASSIGN:  ASSIGN,
 	token.PVR_ASSIGN:  ASSIGN,
 	token.COLON:       COLON,
@@ -157,7 +158,7 @@ func New() *Parser {
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC,
+			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER, token.LOG,
 			token.IFLOG, token.PRELOG}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
@@ -247,7 +248,7 @@ var literals = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, toke
 var literalsAndLParen = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
 	token.LPAREN, token.LBRACE, token.EVAL})
 var assignmentTokens = *set.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN,
-	token.CMD_ASSIGN, token.GVN_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
+	token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
@@ -676,10 +677,7 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
-	if p.curToken.Type == token.ASSIGN || p.curToken.Type == token.CMD_ASSIGN ||
-		p.curToken.Type == token.VAR_ASSIGN || p.curToken.Type == token.DEF_ASSIGN ||
-		p.curToken.Type == token.GVN_ASSIGN || p.curToken.Type == token.PVR_ASSIGN ||
-		p.curToken.Type == token.TYP_ASSIGN {
+	if assignmentTokens.Contains(p.curToken.Type) {
 		return p.parseAssignmentExpression(left)
 	}
 

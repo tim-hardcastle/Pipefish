@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"strconv"
 	"unicode/utf8"
@@ -316,25 +315,8 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.Integer{Value: len(args[0].(*object.Tuple).Elements)}
 	},
 
-	"int_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.String{Value: fmt.Sprint(args[0].(*object.Integer).Value)}
-	},
-
-	"bool_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		if args[0] == object.TRUE { return  &object.String{Value: "true"} }
-		return  &object.String{Value: "false"}
-	},
-
-	"float_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.String{Value: fmt.Sprint(args[0].(*object.Float).Value)}
-	},
-
-	"string_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return args[0]
-	},
-
-	"type_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.String{Value: fmt.Sprint(args[0].(*object.Type).Value)}
+	"single_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		return &object.String{Value: args[0].Inspect(object.ViewStdOut)}
 	},
 
 	"string_to_int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {

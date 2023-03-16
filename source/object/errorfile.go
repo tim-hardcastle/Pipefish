@@ -628,6 +628,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/filter/bool/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "filter operator requires a boolean value"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "When you have something of the form 'aList ?> function(that)' then the function " +
+			"must return a boolean value on which the list elements can be filtered."
+		},
+	},
+
 	"eval/given/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "inexplicable use of 'given'"

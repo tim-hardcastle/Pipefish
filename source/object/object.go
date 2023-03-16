@@ -178,9 +178,9 @@ func (e *Error) Inspect(view View) string {
 	result := ""
 	if view == ViewStdOut {
 		if len(e.Trace) == 0 {
-			result = text.ERROR + e.Message + text.DescribePos(e.Token) + "."
+			result = text.ERROR + e.Message + text.DescribePos(e.Token) 
 		} else {
-			result = text.RT_ERROR + e.Message + text.DescribePos(e.Token) + "."
+			result = text.RT_ERROR + e.Message + text.DescribePos(e.Token)
 		}
 		if e.Values != nil {
 			return result + ".\n\nValues are available with 'hub values'."
@@ -415,10 +415,8 @@ func (st *Struct) Inspect(view View) string {
 	for _, e := range st.Labels {
 		elements = append(elements, e+" :: "+st.Value[e].Inspect(view))
 	}
-	if view == ViewCharmLiteral {
-		out.WriteString(st.Name)
-		out.WriteString(" with ")
-	}
+	out.WriteString(st.Name)
+	out.WriteString(" with ")
 	out.WriteString("(")
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteString(")")
