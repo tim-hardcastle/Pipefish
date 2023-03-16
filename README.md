@@ -226,7 +226,7 @@ x = 2 + 2
 This will be found in the example code of the distribution under `examples/variables.ch`, and can be run like this:
 
 ```
-→ hub run examples/variables.ch 
+→ hub run "examples/variables.ch"
 Starting script 'examples/variables.ch' as service '#0'.
 #0 →
 ```
@@ -402,7 +402,7 @@ PI = 3.141592
 If we try it out ...
 
 ```
-#0 → hub run examples/constants.ch
+#0 → hub run "examples/constants.ch"
 Starting script 'examples/constants.ch' as service '#1'.
 #1 → PI     
 3.141592
@@ -466,7 +466,7 @@ gcd (x, y) :
 And it all does what you’d think it would do:
 
 ```
-#1 → hub run examples/functions.ch                                                                                  
+#1 → hub run "examples/functions.ch"                                                                                
 Starting script 'examples/functions.ch' as service '#2'.
 #2 → twice 2                                                                                                         
 4
@@ -570,7 +570,7 @@ action = func (x, y) : x - 1, y * 2
 Let’s give it a spin in the REPL.
 
 ```
-#2 → hub run examples/lambdas.ch                                                                                             
+#2 → hub run "examples/lambdas.ch"                                                                                        
 Starting script 'examples/lambdas.ch' as service '#3'.
 #3 → add 7, 3                                                                                                           
 10
@@ -684,7 +684,7 @@ objectToZero(x) :
 The `classify` function does what you think it will.
 
 ```
-#3 → hub run examples/conditionals.ch
+#3 → hub run "examples/conditionals.ch"
 Starting script 'examples/conditionals.ch' as service '#4'.
 #4 → classify 100
 big number
@@ -747,7 +747,7 @@ zort(x, y) :                 \\
 Run it in the REPL ...
 
 ```
-→ hub run examples/logging.ch     
+→ hub run "examples/logging.ch"     
 Starting script 'examples/logging.ch' as service '#0'.
 #0 → foo 1, 2   
 Log at line 6:
@@ -989,7 +989,7 @@ max (x, y int) :
 A quick look at the REPL to see this working:
 
 ```
-#4 → hub run examples/recursion.ch                                                                                    
+#4 → hub run "examples/recursion.ch"                                                                                    
 Starting script 'examples/recursion.ch' as service '#5'.
 #5 → stars 5                                                            
 *****
@@ -1039,7 +1039,7 @@ myField = name
 Let’s give this a spin in the REPL:
 
 ```
-#5 → hub run examples/struct.ch                                                                                            
+#5 → hub run "examples/struct.ch"                                                                                            
 Starting script 'examples/struct.ch' as service '#6'.
 #6 → doug                                                                                                               
 (name :: Douglas, age :: 42)
@@ -1453,7 +1453,7 @@ given n = 1
 In the REPL :
 
 ```
-#6 → hub run examples/cmd.ch                                         
+#6 → hub run "examples/cmd.ch"                                         
 Starting script 'examples/cmd.ch' as service '#7'.
 #7 → x                                                                   
 42
@@ -1540,7 +1540,7 @@ x = "heffalump"
 In the REPL:
 
 ```
-#7 → hub run examples/private.ch                                               
+#7 → hub run "examples/private.ch"                                               
 Starting script 'examples/private.ch' as service '#8'.
 #8 → x = "piglet"  
 [0] Error: reference to private or non-existent variable 'x' in REPL input.
@@ -1601,7 +1601,7 @@ given:
 Let's explore this a bit at a time via the REPL. First of all, there is a `code` type. This is a perfectly normal Charm type which happens to contain a Charm expression:
 
 ```
-#8 → hub run examples/macros.ch                                              
+#8 → hub run "examples/macros.ch"                                              
 Starting script 'examples/macros.ch' as service '#9'.
 #9 → c
 code empty
@@ -1698,11 +1698,11 @@ multiply (x) by (y) :
 ... then we can do this:
 
 ```
-→ hub run examples/foo.ch as FOO
+→ hub run "examples/foo.ch" as "FOO"
 Starting script 'examples/foo.ch' as service 'FOO'.
 FOO → a times b
 6
-FOO → hub run examples/bar.ch as BAR
+FOO → hub run "examples/bar.ch" as "BAR"
 Starting script 'examples/bar.ch' as service 'BAR'.
 BAR → multiply a by b
 35
@@ -1733,9 +1733,9 @@ The hub has a number of present and intended purposes.
 
 ### Housekeeping
 
-As you’ve seen, the hub can start services for you with `hub run <script name>`. It lets you talk to any of the services, and to switch which one is the default to be talked to. `hub run` without any parameters will give you an “empty service”, a mere REPL.
+As you’ve seen, the hub can start services for you with `hub run "<script name>"`. It lets you talk to any of the services, and to switch which one is the default to be talked to.
 
-So far in this manual/demonstration we haven’t given our services names and so the hub has just assigned them serial numbers `#0`, `#1`, etc. You can start a named service using `hub run <script name> as <service name>`.
+So far in this manual/demonstration we haven’t usually given our services names and so the hub has just assigned them serial numbers `#0`, `#1`, etc. You can start a named service using `hub run "<script name>" as "<service name>"`.
 
 When you close down Charm, it will remember the named services you had running and which of those, if any, was your current service (the one named in the prompt, the one you’re talking to by default).
 
@@ -1745,7 +1745,7 @@ If you start Charm up with `./charm <parameters>` then Charm will behave as desc
 
 `hub services` will list all the services the hub is running, whether named or numbered.
 
-`hub stop <service name>` will stop the named service.
+`hub stop "<service name>"` will stop the named service.
 
 `hub quit` closes all the services and Charm itself.
 
@@ -1758,7 +1758,7 @@ If you start Charm up with `./charm <parameters>` then Charm will behave as desc
 When Charm produces syntax or runtime errors, you can ask it for an explanation. A demonstration is given in examples/errordemo.ch. If you try to start this up, you will find that it’s riddled with syntax errors, to each of which Charm gives a number in square brackets when it reports them. You can get further information on these errors with `hub why <error number>`. E.g:
 
 ```
-→ hub run examples/errordemo.ch as OOPSIE                                                                                                                       
+→ hub run "examples/errordemo.ch" as "OOPSIE"
 
 Starting script 'examples/errordemo.ch' as service 'OOPSIE'.
 
@@ -1775,7 +1775,7 @@ Starting script 'examples/errordemo.ch' as service 'OOPSIE'.
 [7] Error: if it occurs, 'import' must be the first headword at line 28:0-6 of 
 'examples/errordemo.ch'.
 
-→  hub why 2
+OOPSIE →  hub why 2
 
 Error: redeclaration of 'private'.
 
@@ -1795,7 +1795,7 @@ The `hub where <error number>` command has the same syntax as `hub why` but will
 
 ### As a server
 
-If you tell the hub `hub listen <path> <port>` then it will become a server: e.g. if you do `hub listen /foo 3333` and then open up a new terminal and do `curl -X POST -d '2 + 2' 'http://localhost:3333/foo'`, you should get the answer `4`.
+If you tell the hub `hub listen "<path>", <port>` then it will become a server: e.g. if you do `hub listen "/foo", 3333` and then open up a new terminal and do `curl -X POST -d '2 + 2' 'http://localhost:3333/foo'`, you should get the answer `4`.
 
 The hub also has capabilities for registering users and allowing admins to do role-based access management. This is not documented here: there are some rough edges I want to trim.
 
@@ -1803,24 +1803,24 @@ The hub also has capabilities for registering users and allowing admins to do ro
 
 `os <parameters>` will behave as though you had typed <parameters> into the command line, allowing you to create and delete files, change directory, etc.
 
-`hub edit <filename>` will open the file in vim.
+`hub edit "<filename>"` will open the file in vim.
   
 ### Testing
 
-In a REPL language it’s almost inevitable users will test their scripts via the REPL. The `hub snap` command allows you to do that better. The syntax is either `hub snap <filename>` or `hub snap <filename> with <data filename>` or `hub snap <filename> with <data filename> as <test filename>`. If no test file name is given Charm will supply a suitable one, and if no data file is supplied Charm will just initialize the service as usual.
+In a REPL language it’s almost inevitable users will test their scripts via the REPL. The `hub snap` command allows you to do that better. The syntax is either `hub snap "<filename>"` or `hub snap "<filename>" as "<test filename>"`. If no test file name is given Charm will supply a suitable one.
 
 Charm will then turn serialization on, so that you can tell the difference between "true" and true; and between four spaces and a tab, etc.
 
 And then what you type and the service’s responses will be recorded. (There will be a `#snap →` prompt to remind you that this is what you’re doing.)To finish recording, you tell it what to do with the snap:
 
-- `hub snap good`: this is the desired behavior and I want to make it into a test that will ensure it keeps happening
-- `hub snap bad` : this is undesirable behavior and I want to make it into a test that checks that it doesn’t happen
-- `hub snap record` : I want to be able to replay this and see how the output changes as I change the script and/or data
-- `hub snap discard` : I don’t need this
+- `hub snap GOOD`: this is the desired behavior and I want to make it into a test that will ensure it keeps happening
+- `hub snap BAD` : this is undesirable behavior and I want to make it into a test that checks that it doesn’t happen
+- `hub snap RECORD` : I want to be able to replay this and see how the output changes as I change the script and/or data
+- `hub snap DISCARD` : I don’t need this
 
-All the tests classed good or bad associated with a script will be run by `hub test <script filename>`. As an example, try running `hub test examples/testall.ch`: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual.
+All the tests classed good or bad associated with a script will be run by `hub test "<script filename>"`. As an example, try running `hub test examples/testall.ch`: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual.
 
-To run a test classed as record, use `hub replay <test filename>`.
+To run a test classed as record, use `hub replay "<test filename>"`.
 
 The testing system could be improved: I basically wrote as much of it as I needed to use it as a regression test on Charm itself.
 
