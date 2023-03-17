@@ -18,7 +18,7 @@ cmd
 
 main :
     lineToExecute == "QUIT" :
-        quit
+        break
     else :
         state = newState
         respond newState[outStr]
