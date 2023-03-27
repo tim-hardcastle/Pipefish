@@ -73,9 +73,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	}
 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
-		!(line == "hub register" || line == "hub log in") {
-		hub.WriteError("this is an administered hub and you aren't logged in. Please enter either " +
-			"'hub register' to register as a user, or 'hub log IN' to log in if you're already registered " +
+		!(line == "hub register" || line == "hub log ON" || line == "hub quit") {
+		hub.WriteError("this is an administered hub and you aren't logged on. Please enter either " +
+			"'hub register' to register as a user, or 'hub log ON' to log on if you're already registered " +
 			"with this hub.")
 		return passedServiceName, object.OK_RESPONSE
 	}
@@ -222,24 +222,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	return passedServiceName, object.OK_RESPONSE
 }
 
-// // Just splits the commands up according to the ++ signs and passes them one at a time to ParseHubCommand.
-// func (hub *Hub) ParseHubCommands(username, password string, hubWords []string) bool {
-// 	arguments := []string{}
-// 	for i, v := range(hubWords) {
-// 		if v != "++" {
-// 			arguments = append(arguments, v)
-// 		}
-// 		if i == len(hubWords) - 1 || v == "++" {
-// 			result := hub.ParseHubCommand(username, password, arguments)
-// 			arguments = []string{}
-// 			if result {
-// 				return true
-// 			}	
-// 		}
-// 	}
-// 	return false
-// }
-
 func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 	hubReturn := (hub.services["HUB"]).ServiceDo(line)
 	if hubReturn.Type() == object.ERROR_OBJ {
@@ -365,9 +347,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				hub.hot = false
 		}
 		return false
-	case "join":
-		hub.addUserAsGuest()
-		return false
 	case "let":
 		isAdmin, err := database.IsUserAdmin(hub.db, username)
 		if err != nil {
@@ -389,19 +368,22 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(text.OK)
 		hub.WriteString("\nHub is listening.\n\n")
 		hub.StartHttp(args[0], args[1])
+		return false
 	case "log":
 		switch {
-		case args[0] == "IN":
+		case args[0] == "ON":
 			hub.getLogin()
-		case args[0] == "OUT":
+			return false
+		case args[0] == "OFF":
 			hub.Username = ""
 			hub.Password = ""
 			hub.currentServiceName = ""
 			hub.WriteString("\n" + text.OK + "\n")
-			hub.WritePretty("\nThis is an administered hub and you aren't logged in. Please enter either " +
-				"'hub register' to register as a user, or 'hub log in' to log in if you're already registered " +
+			hub.WritePretty("\nThis is an administered hub and you aren't logged on. Please enter either " +
+				"'hub register' to register as a user, or 'hub log ON' to log on if you're already registered " +
 				"with this hub.\n\n")
 		}
+		return false
 	case "my":
 		switch args[0] {
 		case "GROUPS":
@@ -632,7 +614,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		fmt.Println()
 		return false
-	}
+	default :
+		panic("Didn't return from verb " + verb)
+	}	
 	panic("Don't know what to do with verb " + verb)	
 }
 
@@ -1005,8 +989,8 @@ func (hub *Hub) Open() {
 			return
 		}
 		if hub.administered && !hub.listeningToHttp {
-			hub.WritePretty("This is an administered hub and you aren't logged in. Please enter either " +
-				"'hub register' to register as a user, or 'hub log in' to log in if you're already registered " +
+			hub.WritePretty("This is an administered hub and you aren't logged on. Please enter either " +
+				"'hub register' to register as a user, or 'hub log ON' to log on if you're already registered " +
 				"with this hub.\n\n")
 		}
 	}
