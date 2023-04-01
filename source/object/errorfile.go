@@ -1562,7 +1562,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"|-\n\nNow, how does the interpreter decide which version of the function it should use " +
 				"when 'add' is passed two integers? It can't and doesn't: Charm throws this error instead.\n\nSo you're seeing " +
 				"this error because you've done something similar with your function/command/operator ''" +
-				args[0].(string) + "'.\n\nIf this is something you've done deliberately, we would suggest that " +
+				tok.Literal + "'.\n\nIf this is something you've done deliberately, we would suggest that " +
 				"this is probably a bad practise anyway, which will tend to produce unreadable and unmaintainable code, " +
 				"and that you should try to do whatever it is you're doing some other way.\n\n" +
 				"For more information about overloading, see 'hub help overloading'; for a more basic introduction to functions " +
@@ -1575,8 +1575,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "redeclaration of 'private'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In blocks of the script where things can be declared private (at present only 'var' " +
-				"blocks), the 'private' modifier can only be used once after each headword: things before the 'private' " +
+			return "In blocks of the script where things can be declared private, " +
+				"the 'private' modifier can only be used once after each headword: things before the 'private' " +
 				"modifier are private, things after it are public.\n\nYou're seeing this error because you used " +
 				"the 'private' modifier twice after the same headword." +
 				"\n\nFor more information about the 'private' modifier see 'hub help private'."
@@ -1966,7 +1966,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	// This is another error I'm having some difficulty triggering. Is it reachable code?
 	"parse/prefix": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't parse " + text.DescribeTok(tok) + " as a prefix"

@@ -1,37 +1,17 @@
-cmd
-
-glurp :
-    respond "hi"
-
-var
-
-v, w = 5, 6
-
 def
 
-foo(x int, y bool) :
-    y : moo x
-    else : - x
-given :
-    moo (i) : i
-    z = 5
+foo zort (x) :
+    x
 
-troz(i) -> int :
-    i
+foo troz (x) :
+    2 * x
 
-zort(b bool) :
-    b : x
-    else : y
-given :
-    x, y = (3, 4)
+foo (x) :
+    3 * x
 
+meep norp :
+    "hi"
 
-gort(b bool) :
-    b : x
-    else : y
-given :
-    x = 3
-    y = 4
-    
-    
+meep flurp :
+    "bye"
 

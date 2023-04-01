@@ -55,7 +55,7 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 			ok = false
 			return
 		}
-		if !(asubb || bsuba || sigA[i].VarType == sigB[i].VarType) {
+		if !(asubb || bsuba || sigA[i].TypeOrBling() == sigB[i].TypeOrBling()) {
 			result = false
 			ok = true
 			return
