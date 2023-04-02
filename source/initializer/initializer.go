@@ -634,7 +634,7 @@ func flatten(s string) string {
 	return strings.ReplaceAll(s, ".", "_")
 }
 
-// After performing makeFunctionTable, each function name is associated with an (partially) ordered list of
+// Having made the parsers FunctionTable, each function name is associated with an (partially) ordered list of
 // associated functions such that a more specific type signature comes before a less specific one.
 
 // In order to handle dispatch at runtime, we will re-represent this as a tree. This will apart

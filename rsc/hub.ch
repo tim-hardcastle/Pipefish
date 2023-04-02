@@ -6,19 +6,14 @@ HubResponse = struct(responseName string, vals list)
 // add, config, create, do, edit, errors, halt, help, hot let, listen, log, my, peek, quit, register, replay, run, services, snap,
 // test, trace, where, why, values
 
-configOptions = enum ADMIN, DB
+add(usr string) to (group string) :
+    HubResponse("add", [usr, group])
 
-onOffOptions = enum ON, OFF
+config admin :
+    HubResponse("config-admin")
 
-myOptions = enum GROUPS, SERVICES
-
-snapOptions = enum GOOD, BAD, RECORD, DISCARD
-
-add(username string) to (group string) :
-    HubResponse("add", [username, group])
-
-config(option configOptions) :
-    HubResponse("config", [string option])
+config db :
+    HubResponse("config-db")
 
 create(groupname string) :
     HubResponse("create" [groupname])
@@ -32,35 +27,44 @@ edit(filename string) :
 errors :
     HubResponse("errors", [])
 
-groupsOfService(service string) :
-    HubResponse("groups-of-service", service)
+groups :
+    HubResponse("my-groups", [])
 
-groupsOfUser(user string) :
-    HubResponse("groups-of-user", user)
+groups of service(srv string) :
+    HubResponse("groups-of-service", [srv])
 
-halt(service string) :
-    HubResponse("halt", [service])
+groups of user(usr string) :
+    HubResponse("groups-of-user", [usr])
+
+halt(srv string) :
+    HubResponse("halt", [srv])
 
 help(topic string) :
     HubResponse("help", [topic])
 
-hot(option onOffOptions) :
-    HubResponse("hot", [string option])
+hot on :
+    HubResponse("hot-on", [])
 
-let(username string) use (service string) :
-    HubResponse("let", [username, service])
+hot off :
+    HubResponse("hot-off", [])
+
+let(usr string) use (srv string) :
+    HubResponse("let", [usr, srv])
 
 listen(path string, port int) :
     HubResponse("listen", [path, string port])
 
-log(option onOffOptions) :
-    HubResponse("log", [string option])
+log on :
+    HubResponse("log-on", [])
 
-my(option myOptions) :
-    HubResponse("my", [string option])
+log off :
+    HubResponse("log-off", [])
 
-peek(option onOffOptions) :
-    HubResponse("peek", [string option])
+peek on :
+    HubResponse("peek-on", [string option])
+
+peek off :
+    HubResponse("peek-off", [string option])
 
 quit :
     HubResponse("quit", [])
@@ -71,7 +75,7 @@ register :
 replay (filename string) :
     HubResponse("replay", [filename])
 
-replay (filename string) diff :
+replay diff (filename string) :
     HubResponse("replay-with-diff", [filename])
 
 reset :
@@ -83,20 +87,29 @@ rerun :
 run(filename string) :
     HubResponse("run", [filename, ""])
 
-run(filename string) as (service string) :
-    HubResponse("run", [filename, service])
+run(filename string) as (srv string) :
+    HubResponse("run", [filename, srv])
+
+services of group(grp string) :
+    HubResponse("services-of-group", [grp])
 
 services :
-    HubResponse("services", [])
+    HubResponse("my-services", [])
 
-servicesOfUser(user string) :
-    HubResponse("services-of-user", user)
+services of user(usr string) :
+    HubResponse("services-of-user", [usr])
 
-servicesOfGroup(group string) :
-    HubResponse("services-of-group", group)
+snap good :
+    HubResponse("snap-good")
 
-snap(option snapOptions) :
-    HubResponse("snap-option", [string option])
+snap bad :
+    HubResponse("snap-bad")
+    
+snap record :
+    HubResponse("snap-record")
+
+snap discard :
+    HubResponse("snap-discard")    
 
 snap(filename string) :
     HubResponse("snap", [filename, ""])
@@ -104,11 +117,11 @@ snap(filename string) :
 snap(filename string) as (testName string) :
     HubResponse("snap", [filename, testName])
 
-switch(service label) :
-    HubResponse("switch", [string service])
+switch(srv label) :
+    HubResponse("switch", [string srv])
 
-switch(service string) :
-    HubResponse("switch", [service])
+switch(srv string) :
+    HubResponse("switch", [srv])
 
 test(filename string) :
     HubResponse("test", [filename])
@@ -116,23 +129,23 @@ test(filename string) :
 trace :
     HubResponse("trace", [])
 
-unadd(username string) to (group string) :
-    HubResponse("unadd", [username, group])
+unadd(usr string) to (grp string) :
+    HubResponse("unadd", [usr, grp])
 
-uncreate(groupname string) :
-    HubResponse("uncreate" [groupname])
+uncreate(grp string) :
+    HubResponse("uncreate" [grp])
 
-unlet(username string) use (service string) :
-    HubResponse("unlet", [username, service])
+unlet(usr string) use (srv string) :
+    HubResponse("unlet", [usr, srv])
 
 unregister :
     HubResponse("unregister", [])
 
-usersOfService(service string) :
-    HubResponse("users-of-service", service)
+users of service(srv string) :
+    HubResponse("users-of-service", [srv])
 
-usersOfGroup(group string) :
-    HubResponse("users-of-group", group)
+users of group(grp string) :
+    HubResponse("users-of-group", [grp])
 
 where(errorNo int) :
     HubResponse("where", [string errorNo])
@@ -143,5 +156,5 @@ why(errorNo int) :
 values :
     HubResponse("values", [])
     
-    
+
 

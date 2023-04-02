@@ -46,6 +46,11 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 	}
 	var aIsMoreSpecific, bIsMoreSpecific bool
 	for i := 0; i < len(sigA); i++ {
+		if sigA[i].VarType == "bling" && sigB[i].VarType == "bling" && sigA[i].VarName != sigB[i].VarName {
+			result = false
+			ok = true
+			return
+		}
 		asubb := typesystem.PointsTo(sigA[i].VarType, sigB[i].VarType)
 		bsuba := typesystem.PointsTo(sigB[i].VarType, sigA[i].VarType)
 		aIsMoreSpecific = aIsMoreSpecific || asubb
@@ -55,7 +60,18 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 			ok = false
 			return
 		}
-		if !(asubb || bsuba || sigA[i].TypeOrBling() == sigB[i].TypeOrBling()) {
+		if ((i == len(sigA) - 1) && (i == len(sigB) - 1) && sigA[i].TypeOrBling() == sigB[i].TypeOrBling()) {
+			if !(aIsMoreSpecific || bIsMoreSpecific) {
+				result = false
+				ok = false
+				return
+			} else {
+				result = aIsMoreSpecific
+				ok = true
+				return
+			}
+		}
+		if !(asubb || bsuba || sigA[i].VarType == sigB[i].VarType) {
 			result = false
 			ok = true
 			return

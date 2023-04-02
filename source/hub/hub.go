@@ -107,7 +107,11 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	// We may be talking to the os
 
-	if hubWords[0] == "os" {
+	if hubWords[0] == "os" { 
+		if hub.isAdminstered() {
+			hub.WriteError("for reasons of safety and sanity, the 'os' prefix doesn't work in administered hubs.")
+			return passedServiceName, object.OK_RESPONSE
+		}
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
 			os.Chdir(hubWords[2])    // process, if we did it with exec it would do it for
 			hub.WriteString(text.OK) // that process and not for Charm.
@@ -173,7 +177,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, object.OK_RESPONSE
 	}
 
-	// If hotcoding is on, we recreate the service. 'createService, which is called by Start, will test if the
+	// If hotcoding is on, we recreate the service. createService, which is called by Start, will test if the
 	// service actually needs updating.
 	if hub.hot {
 		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].scriptFilepath)
@@ -240,6 +244,27 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 }
 
 func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
+	if (! hub.isAdminstered()) && 
+		(verb == "add" || verb == "config-db" || verb == "create" || verb == "log-on" || verb == "log-off" ||
+			verb == "let" || verb == "register") {
+				hub.WriteError("this is not an administered hub. To initialized it is one, first do 'hub config db' " +
+					"(if you haven't already) and then 'hub config admin'.")
+				return false
+			}
+	if (hub.isAdminstered()) {
+		isAdmin, err := database.IsUserAdmin(hub.db, username)
+		if err != nil {
+			hub.WriteError(err.Error())
+			return false
+		}
+		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" || verb == "register" ||
+				verb == "hot-on" || verb == "hot-off" || verb == "listen" || verb == "peek-on" || 
+				verb == "peek-off" || verb == "run" || verb == "reset" || verb == "rerun" || 
+				verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test") {
+				hub.WriteError("you don't have the admin status necessary to do that.")
+				return false
+			}
+		}
 	switch verb {
 	case "add":
 		err := database.IsUserGroupOwner(hub.db, username, args[1])
@@ -254,34 +279,19 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString(text.OK + "\n")
 		return false
-	case "config":
-		switch args[0] {
-		case "ADMIN":
-			_, err := os.Stat("rsc/admin.dat")
-			if errors.Is(err, os.ErrNotExist) {
-				hub.configAdmin()
-				return false
-			}
-			if err != nil {
-				hub.WriteError(err.Error())
-				return false
-			}
-			hub.WriteError("you've already set up administration for this hub.")
-		case "DB":
-			hub.configDb()
+	case "config-admin":
+		if ! hub.isAdminstered() {
+			hub.configAdmin()
+			return false
+		} else {
+			hub.WriteError("this hub is already administered.")
+			return false
 		}
+	case "config-db":
+		hub.configDb()
 		return false
 	case "create":
-		isAdmin, err := database.IsUserAdmin(hub.db, username)
-		if err != nil {
-			hub.WriteError(err.Error())
-			return false
-		}
-		if !isAdmin {
-			hub.WriteError("you don't have the admin status necessary to do that.")
-			return false
-		}
-		err = database.AddGroup(hub.db, args[0])
+		err := database.AddGroup(hub.db, args[0])
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -335,17 +345,17 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "help":
 		if helpMessage, ok := helpStrings[args[0]]; ok {
 			hub.WritePretty(helpMessage + "\n")
+			return false
 		} else {
 			hub.WriteError("the 'hub help' command doesn't accept " +
 				"'" + args[0] + "' as a parameter.")
+				return false
 		}
-	case "hot":
-		switch args[0] {
-			case "ON":
-				hub.hot = true
-			case "OFF":
-				hub.hot = false
-		}
+	case "hot-on":
+		hub.hot = true
+		return false
+	case "hot-off":
+		hub.hot = false
 		return false
 	case "let":
 		isAdmin, err := database.IsUserAdmin(hub.db, username)
@@ -369,46 +379,49 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\nHub is listening.\n\n")
 		hub.StartHttp(args[0], args[1])
 		return false
-	case "log":
-		switch {
-		case args[0] == "ON":
-			hub.getLogin()
-			return false
-		case args[0] == "OFF":
-			hub.Username = ""
-			hub.Password = ""
-			hub.currentServiceName = ""
-			hub.WriteString("\n" + text.OK + "\n")
-			hub.WritePretty("\nThis is an administered hub and you aren't logged on. Please enter either " +
-				"'hub register' to register as a user, or 'hub log ON' to log on if you're already registered " +
-				"with this hub.\n\n")
-		}
+	case "log-on":
+		hub.getLogin()
 		return false
-	case "my":
-		switch args[0] {
-		case "GROUPS":
-			result, err := database.GetGroupsForUser(hub.db, username)
-			if err != nil {
-				hub.WriteError(err.Error())
-			} else {
-				hub.WriteString(result)
-			}
-		case "SERVICES":
+	case "log-off":
+		hub.Username = ""
+		hub.Password = ""
+		hub.currentServiceName = ""
+		hub.WriteString("\n" + text.OK + "\n")
+		hub.WritePretty("\nThis is an administered hub and you aren't logged on. Please enter either " +
+			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
+			"with this hub.\n\n")
+		return false
+	case "my-groups":
+		result, err := database.GetGroupsForUser(hub.db, username)
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
+	case "my-services":
+		if hub.isAdminstered() {
 			result, err := database.GetAccessForUser(hub.db, username)
 			if err != nil {
 				hub.WriteError(err.Error())
 			} else {
 				hub.WriteString(result)
+				return false
 			}
+		} else {
+			if len(hub.services) == 2 {
+				 hub.WriteString("The hub is not presently running any services.\n")
+				 return false
+			}
+			hub.WriteString("\n")
+			hub.list()
+			return false
 		}
+	case "peek-on":
+		hub.peek = true
 		return false
-	case "peek":
-		switch args[0] {
-		case "ON":
-			hub.peek = true
-		case "OFF":
-			hub.peek = false
-		}
+	case "peek-off":
+		hub.peek = false
 		return false
 	case "quit":
 		hub.quit()
@@ -469,14 +482,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
 		hub.Start(username, args[1], args[0])
 		return false
-	case "services":
-		if len(hub.services) == 2 {
-		 	hub.WriteString("\nThe hub is not presently running any services.\n")
-		 	return false
-		}
-		hub.WriteString("\n")
-		hub.list()
-		return false
 	case "snap":
 		scriptFilepath := args[0]
 		testFilepath := args[1]
@@ -488,25 +493,35 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.Start(username, "#snap", scriptFilepath)
 		(*hub).services["#snap"].ServiceDo("$view = \"charm\"")
 		hub.WriteString("Serialization is ON.\n")
-
-	case "snap-option":
+	case "snap-good":
 		if hub.currentServiceName != "#snap" {
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		switch args[0] {
-		case "GOOD":
-			result := hub.snap.Save(GOOD)
-			hub.WriteString(result + "\n")
-		case "BAD":
-			result := hub.snap.Save(BAD)
-			hub.WriteString(result + "\n")
-		case "RECORD":
-			result := hub.snap.Save(RECORD)
-			hub.WriteString(result + "\n")
-		case "DISCARD":
-			hub.WriteString(text.OK + "\n")
+		result := hub.snap.Save(GOOD)
+		hub.WriteString(result + "\n")
+		hub.currentServiceName = hub.oldServiceName
+		return false
+	case "snap-bad":
+		if hub.currentServiceName != "#snap" {
+			hub.WriteError("you aren't taking a snap.")
+			return false
 		}
+		result := hub.snap.Save(BAD)
+		hub.WriteString(result + "\n")
+		hub.currentServiceName = hub.oldServiceName
+		return false
+	case "snap-record":
+		if hub.currentServiceName != "#snap" {
+			hub.WriteError("you aren't taking a snap.")
+			return false
+		}
+		result := hub.snap.Save(RECORD)
+		hub.WriteString(result + "\n")
+		hub.currentServiceName = hub.oldServiceName
+		return false
+	case "snap-discard":
+		hub.WriteString(text.OK + "\n")
 		hub.currentServiceName = hub.oldServiceName
 		return false
 	case "switch" :
@@ -688,6 +703,11 @@ func (hub *Hub) WritePretty(s string) {
 		}
 		i = i + j + 1
 	}
+}
+
+func (hub *Hub) isAdminstered() bool {
+	_, err := os.Stat("rsc/admin.dat")
+	return ! errors.Is(err, os.ErrNotExist)
 }
 
 func (hub *Hub) WriteError(s string) {
