@@ -167,6 +167,7 @@ var (
 type Error struct {
 	ErrorId string
 	Message string
+	Args    []any
 	Values  []Object
 	Trace   []token.Token
 	Token   token.Token
@@ -389,7 +390,7 @@ func (s *String) HashKey() HashKey {
 	return HashKey{Type: s.Type(), Value: h.Sum64()}
 }
 
-// An object for containing structs. The 'Name' filed contains the type of the concrete struct.
+// An object for containing structs. The 'Name' field contains the type of the concrete struct.
 type Struct struct {
 	Labels []string
 	Value  map[string]Object

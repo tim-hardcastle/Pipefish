@@ -60,13 +60,16 @@ func Throw(errorId string, ers Errors, tok token.Token, args ...any) Errors {
 	return ers
 }
 
+// We create the error message now. But we store the args to create the explanation (i.e. what you get if
+// you do 'hub why <error number>' because the generation of the explanation may refer to other errors,
+// perhaps not thrown at this point.)
 func CreateErr(errorId string, tok token.Token, args ...any) *Error {
 	errorCreator, ok := ErrorCreatorMap[errorId]
 	if !ok {
 		return CreateErr("err/misdirect", tok, errorId)
 	}
 	msg := errorCreator.Message(tok, args...)
-	return &Error{ErrorId: errorId, Message: msg, Token: tok}
+	return &Error{ErrorId: errorId, Message: msg, Token: tok, Args: args}
 }
 
 func CreateErrWithVals(errorId string, tok token.Token, vals []Object, args ...any) *Error {
@@ -75,7 +78,7 @@ func CreateErrWithVals(errorId string, tok token.Token, vals []Object, args ...a
 		return CreateErr("err/misdirect", tok, errorId)
 	}
 	msg := errorCreator.Message(tok, args...)
-	return &Error{ErrorId: errorId, Message: msg, Token: tok, Values:  vals}
+	return &Error{ErrorId: errorId, Message: msg, Token: tok, Values:  vals, Args: args}
 }
 
 // Merges two lists of errors in order of occurrence, on the assumption that they

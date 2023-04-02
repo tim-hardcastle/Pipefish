@@ -264,6 +264,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				hub.WriteError("you don't have the admin status necessary to do that.")
 				return false
 			}
+		if username == "" && !(verb == "log-on" || verb == "register") {
+
+		}
 		}
 	switch verb {
 	case "add":
@@ -600,7 +603,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
-			".\n\n" + object.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token) + "\n")
+			".\n\n" + object.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Args...) + "\n")
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
@@ -1233,7 +1236,9 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 
 // So, the Form type. Yes, I basically am reinventing the object here because the fields of
 // a struct aren't first-class objects in Go, unlike other superior langages I could name.
-type Form struct { // For when the hub wants to initiate structured input
+// I can get rid of the whole thing when I do SQL integration and can just make the hub into
+// a regular Charm service.
+type Form struct { // For when the hub wants to initiate structured input.
 	Fields []string
 	Result map[string]string
 	Call   func(f *Form)
