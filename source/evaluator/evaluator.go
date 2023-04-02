@@ -595,7 +595,11 @@ func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	// In the special case where this is a cmd with a request in it, we need to loop around.
 	var result object.Object
 	for {
-		result = applyFunction(*c.prsr.FunctionTreeMap[node.Operator].Branch[0].Node.Fn, []object.Object{}, node.Token, c)
+		for _, branch := range(c.prsr.FunctionTreeMap[node.Operator].Branch) { // TODO --- this is a pretty vile hack to find which of them is the unfix.}
+			if branch.Node.Fn != nil {
+				result = applyFunction(*branch.Node.Fn, []object.Object{}, node.Token, c)
+			}
+		}
 		if result.Type() != object.RESPONSE_OBJ || (! result.(*object.Effects).RequestHappened || 
 					result.(*object.Effects).BreakHappened || result.(*object.Effects).StopHappened) {
 				break

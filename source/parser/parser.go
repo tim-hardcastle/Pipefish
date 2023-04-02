@@ -409,7 +409,9 @@ func (p *Parser) positionallyFunctional() bool {
 		return false
 	}
 	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
-		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER {
+		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER  ||
+		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON || 
+		p.peekToken.Type == token.MAGIC_IFLOG {
 		return false
 	}
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {

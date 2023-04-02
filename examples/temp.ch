@@ -15,3 +15,8 @@ meep norp :
 meep flurp :
     "bye"
 
+blarp :
+    "blarp"
+
+foo :
+    "foo"

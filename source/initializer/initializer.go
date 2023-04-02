@@ -679,9 +679,6 @@ func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.Function, pos 
 				}
 			}
 		}
-		// if !isPresent && currentType == "tuple" {
-		// 	tree.Branch = append(tree.Branch, &ast.TypeNodePair{ TypeName: "tuple", Node: tree })
-		// }
 	} else {
 		if tree.Fn == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
 			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: "", Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}}})
