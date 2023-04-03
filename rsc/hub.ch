@@ -6,8 +6,8 @@ HubResponse = struct(responseName string, vals list)
 // add, config, create, do, edit, errors, halt, help, hot let, listen, log, my, peek, quit, register, replay, run, services, snap,
 // test, trace, where, why, values
 
-add(usr string) to (group string) :
-    HubResponse("add", [usr, group])
+add(usr string) to (grp string) :
+    HubResponse("add", [usr, grp])
 
 config admin :
     HubResponse("config-admin")
@@ -15,8 +15,8 @@ config admin :
 config db :
     HubResponse("config-db")
 
-create(groupname string) :
-    HubResponse("create" [groupname])
+create(grp string) :
+    HubResponse("create" [grp])
 
 do(line string) :
     HubResponse("do" [line])
@@ -28,7 +28,7 @@ errors :
     HubResponse("errors", [])
 
 groups :
-    HubResponse("my-groups", [])
+    HubResponse("groups", [])
 
 groups of service(srv string) :
     HubResponse("groups-of-service", [srv])
@@ -39,6 +39,9 @@ groups of user(usr string) :
 halt(srv string) :
     HubResponse("halt", [srv])
 
+help :
+    HubResponse("help", ["topics"])
+
 help(topic string) :
     HubResponse("help", [topic])
 
@@ -48,8 +51,11 @@ hot on :
 hot off :
     HubResponse("hot-off", [])
 
-let(usr string) use (srv string) :
-    HubResponse("let", [usr, srv])
+let(usr string) own (grp string) :
+    HubResponse("let-own", [usr, grp])
+
+let(grp string) use (srv string) :
+    HubResponse("let", [grp, srv])
 
 listen(path string, port int) :
     HubResponse("listen", [path, string port])
@@ -90,32 +96,32 @@ run(filename string) :
 run(filename string) as (srv string) :
     HubResponse("run", [filename, srv])
 
+services :
+    HubResponse("services", [])
+
 services of group(grp string) :
     HubResponse("services-of-group", [grp])
 
-services :
-    HubResponse("my-services", [])
-
 services of user(usr string) :
     HubResponse("services-of-user", [usr])
-
-snap good :
-    HubResponse("snap-good")
-
-snap bad :
-    HubResponse("snap-bad")
-    
-snap record :
-    HubResponse("snap-record")
-
-snap discard :
-    HubResponse("snap-discard")    
 
 snap(filename string) :
     HubResponse("snap", [filename, ""])
 
 snap(filename string) as (testName string) :
     HubResponse("snap", [filename, testName])
+
+snap bad :
+    HubResponse("snap-bad")
+
+snap discard :
+    HubResponse("snap-discard") 
+
+snap good :
+    HubResponse("snap-good")
+    
+snap record :
+    HubResponse("snap-record")  
 
 switch(srv label) :
     HubResponse("switch", [string srv])
@@ -135,17 +141,20 @@ unadd(usr string) to (grp string) :
 uncreate(grp string) :
     HubResponse("uncreate" [grp])
 
-unlet(usr string) use (srv string) :
-    HubResponse("unlet", [usr, srv])
+unlet(grp string) use (srv string) :
+    HubResponse("unlet-use", [usr, srv])
+
+unlet(usr string) own (grp string) :
+    HubResponse("unlet-own", [usr, grp])
 
 unregister :
     HubResponse("unregister", [])
 
-users of service(srv string) :
-    HubResponse("users-of-service", [srv])
-
 users of group(grp string) :
     HubResponse("users-of-group", [grp])
+
+users of service(srv string) :
+    HubResponse("users-of-service", [srv])
 
 where(errorNo int) :
     HubResponse("where", [string errorNo])

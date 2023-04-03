@@ -246,8 +246,11 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
 	if (! hub.isAdminstered()) && 
 		(verb == "add" || verb == "config-db" || verb == "create" || verb == "log-on" || verb == "log-off" ||
-			verb == "let" || verb == "register") {
-				hub.WriteError("this is not an administered hub. To initialized it is one, first do 'hub config db' " +
+			verb == "let" || verb == "register" || verb == "groups" || 
+			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" || 
+			verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
+			verb == "let-use" || verb == "let-own") {
+				hub.WriteError("this is not an administered hub. To initialized it as one, first do 'hub config db' " +
 					"(if you haven't already) and then 'hub config admin'.")
 				return false
 			}
@@ -260,14 +263,20 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" || verb == "register" ||
 				verb == "hot-on" || verb == "hot-off" || verb == "listen" || verb == "peek-on" || 
 				verb == "peek-off" || verb == "run" || verb == "reset" || verb == "rerun" || 
-				verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test") {
+				verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test" || 
+				verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" || 
+				verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
+				verb == "let-use" || verb == "let-own") {
 				hub.WriteError("you don't have the admin status necessary to do that.")
 				return false
 			}
 		if username == "" && !(verb == "log-on" || verb == "register") {
-
+			hub.WriteError("\nThis is an administered hub and you aren't logged on. Please enter either " +
+			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
+			"with this hub.\n\n")
+			return false
 		}
-		}
+	}
 	switch verb {
 	case "add":
 		err := database.IsUserGroupOwner(hub.db, username, args[1])
@@ -326,6 +335,22 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WritePretty(object.GetList(hub.ers))
 		return false	
+	case "groups-of-user":
+		result, err := database.GetGroupsOfUser(hub.db, args[0], false)
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
+	case "groups-of-service":
+		result, err := database.GetGroupsOfService(hub.db, args[0])
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
 	case "halt":
 		var name string
 		_, ok := hub.services[args[0]]
@@ -394,17 +419,17 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 			"with this hub.\n\n")
 		return false
-	case "my-groups":
-		result, err := database.GetGroupsForUser(hub.db, username)
+	case "groups":
+		result, err := database.GetGroupsOfUser(hub.db, username, true)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
 		}
-	case "my-services":
+	case "services":
 		if hub.isAdminstered() {
-			result, err := database.GetAccessForUser(hub.db, username)
+			result, err := database.GetServicesOfUser(hub.db, username, true)
 			if err != nil {
 				hub.WriteError(err.Error())
 			} else {
@@ -485,6 +510,22 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
 		hub.Start(username, args[1], args[0])
 		return false
+	case "services-of-user":
+		result, err := database.GetServicesOfUser(hub.db, args[0], false)
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
+	case "services-of-group":
+		result, err := database.GetServicesOfGroup(hub.db, args[0])
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
 	case "snap":
 		scriptFilepath := args[0]
 		testFilepath := args[1]
@@ -568,6 +609,22 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString("\n")
 		return false
+	case "users-of-group":
+		result, err := database.GetUsersOfGroup(hub.db, args[0])
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
+	case "users-of-service":
+		result, err := database.GetUsersOfService(hub.db, args[0])
+		if err != nil {
+			hub.WriteError(err.Error())
+		} else {
+			hub.WriteString(result)
+			return false
+		}
 	case "where":
 		num, err := strconv.Atoi(args[0])
 		if err != nil {

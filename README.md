@@ -1811,12 +1811,12 @@ In a REPL language it’s almost inevitable users will test their scripts via th
 
 Charm will then turn serialization on, so that you can tell the difference between "true" and true; and between four spaces and a tab, etc.
 
-And then what you type and the service’s responses will be recorded. (There will be a `#snap →` prompt to remind you that this is what you’re doing.)To finish recording, you tell it what to do with the snap:
+And then what you type and the service’s responses will be recorded. (There will be a `#snap →` prompt to remind you that this is what you’re doing.) To finish recording, you tell it what to do with the snap:
 
-- `hub snap GOOD`: this is the desired behavior and I want to make it into a test that will ensure it keeps happening
-- `hub snap BAD` : this is undesirable behavior and I want to make it into a test that checks that it doesn’t happen
-- `hub snap RECORD` : I want to be able to replay this and see how the output changes as I change the script and/or data
-- `hub snap DISCARD` : I don’t need this
+- `hub snap good`: this is the desired behavior and I want to make it into a test that will ensure it keeps happening
+- `hub snap bod` : this is undesirable behavior and I want to make it into a test that checks that it doesn’t happen
+- `hub snap record` : I want to be able to replay this and see how the output changes as I change the script and/or data
+- `hub snap discard` : I don’t need this
 
 All the tests classed good or bad associated with a script will be run by `hub test "<script filename>"`. As an example, try running `hub test examples/testall.ch`: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual.
 

@@ -1,5 +1,9 @@
 package database
 
+// When I do the SQL integration I can just put this stuff in the hub, replacing it with more generic
+// methods for interacting with Charm code. Hence, no efforts to keep it DRY and minimal efforts at
+// error-handling.
+
 import (
 	"database/sql"
 	"errors"
@@ -132,12 +136,41 @@ func AddUserToGroup(db *sql.DB, username, groupName string, owner bool) error {
 	return err
 }
 
+func UnAddUserToGroup(db *sql.DB, username, groupName string) error {
+	query :=
+		`DELETE FROM _GroupMemberships WHERE username = $1 AND groupName = $2)`
+	_, err := db.Exec(query, username, groupName)
+	return err
+}
+
 func LetGroupUseService(db *sql.DB, groupName, serviceName string) error {
 	query :=
 		`INSERT INTO _GroupServices(groupName, serviceName)
 	VALUES ($1, $2)`
 	_, err := db.Exec(query, groupName, serviceName)
 	return err
+}
+
+func UnLetGroupUseService(db *sql.DB, groupName, serviceName string) error {
+	query :=
+		`DELETE FROM _GroupServices WHERE groupName = $1 AND serviceName = $2)`
+	_, err := db.Exec(query, groupName, serviceName)
+	return err
+}
+
+func LetUserOwnGroup(db *sql.DB, username, groupName string) error {
+	return AddUserToGroup(db, username, groupName, true)
+}
+
+func UnLetUserOwnGroup(db *sql.DB, username, groupName string) error {
+	result, err := IsUserInGroup(db, username, groupName)
+	if err != nil {
+		return err
+	}
+	if ! result {
+		return nil
+	} 
+	return AddUserToGroup(db, username, groupName, false)
 }
 
 func UpdateService(db *sql.DB, username, serviceName string) error {
@@ -155,7 +188,7 @@ type groupRow struct {
 	owner     bool
 }
 
-func GetGroupsForUser(db *sql.DB, username string) (string, error) {
+func GetGroupsOfUser(db *sql.DB, username string, ownGroups bool) (string, error) {
 	rows, err := db.Query("SELECT * FROM _GroupMemberships WHERE username = $1", username)
 	if err != nil {
 		return "", err
@@ -172,6 +205,14 @@ func GetGroupsForUser(db *sql.DB, username string) (string, error) {
 		groups = append(groups, group)
 	}
 
+	if len(groups) == 0 {
+		if ownGroups {
+			return "You are not a member of any groups.", nil
+		} else {
+			return text.Emph(username) + " is not a member of any groups.", nil
+		}
+	}
+
 	result := "\n"
 
 	ownerGroups := []string{}
@@ -185,7 +226,11 @@ func GetGroupsForUser(db *sql.DB, username string) (string, error) {
 	}
 	sort.Strings(ownerGroups)
 	if len(ownerGroups) > 0 {
-		result = result + "You are an owner of the following groups:\n\n"
+		if ownGroups {
+			result = result + "You are an owner of the following groups:\n\n"
+		} else {
+			result = result + text.Emph(username) + " is an owner of the following groups:\n\n"
+		}
 		for _, v := range ownerGroups {
 			result = result + text.BULLET + v + "\n"
 		}
@@ -194,7 +239,11 @@ func GetGroupsForUser(db *sql.DB, username string) (string, error) {
 
 	sort.Strings(userGroups)
 	if len(userGroups) > 0 {
-		result = result + "You are a member of the following groups:\n\n"
+		if ownGroups {
+			result = result + "You are an user of the following groups:\n\n"
+		} else {
+			result = result + text.Emph(username) + " is a user of the following groups:\n\n"
+		}
 		for _, v := range userGroups {
 			result = result + text.BULLET + v + "\n"
 		}
@@ -204,7 +253,61 @@ func GetGroupsForUser(db *sql.DB, username string) (string, error) {
 	return result, nil
 }
 
-func GetAccessForUser(db *sql.DB, username string) (string, error) {
+func GetUsersOfGroup(db *sql.DB, groupName string) (string, error) {
+	rows, err := db.Query("SELECT * FROM _GroupMemberships WHERE groupName = $1", groupName)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var users []groupRow
+
+	for rows.Next() {
+		var user groupRow
+		if err := rows.Scan(&user.username, &user.groupName, &user.owner); err != nil {
+			return "", err
+		}
+		users = append(users, user)
+	}
+
+	if len(users) == 0 {
+		return text.Emph(groupName) + " has no users.", nil
+	}
+
+	result := "\n"
+
+	owners := []string{}
+	usersOnly := []string{}
+	for _, v := range users {
+		if v.owner {
+			owners = append(owners, v.username)
+		} else {
+			usersOnly = append(usersOnly, v.username)
+		}
+	}
+
+	sort.Strings(owners)
+	if len(owners) > 0 {
+		result = result + text.Emph(groupName) + " has the following owners:\n\n"
+		for _, v := range owners {
+			result = result + text.BULLET + v + "\n"
+		}
+		result = result + "\n"
+	}
+
+	sort.Strings(usersOnly)
+	if len(usersOnly) > 0 {
+		result = result + text.Emph(groupName) + " has the following users:\n\n"
+		for _, v := range usersOnly {
+			result = result + text.BULLET + v + "\n"
+		}
+		result = result + "\n"
+	}
+
+	return result, nil
+}
+
+func GetServicesOfUser(db *sql.DB, username string, ownServices bool) (string, error) {
 	rows, err := db.Query(
 		`SELECT _GroupServices.serviceName FROM _GroupMemberships 
 INNER JOIN _GroupServices
@@ -225,21 +328,131 @@ WHERE username = $1`, username)
 		services = append(services, service)
 	}
 
+	if len(services) == 0 {
+		if ownServices {
+			return "\nYou do not have access to any services.\n\n", nil
+		} else {
+			return text.Emph(username) + " does not have access to any services.\n\n", nil
+		}
+	}
+
 	result := "\n"
 
 	sort.Strings(services)
-	result = result + "You have access to the following services:\n\n"
+	if ownServices {
+		result = result + "You have access to the following services:\n\n"
+	} else {
+		result = result + text.Emph(username) + " has access to the following services:\n\n"
+	}
 	for _, v := range services {
 		if v != "" {
 			result = result + text.BULLET + v + "\n"
 		}
 	}
 
-	if result == "\n" {
-		return "\nYou do not have access to any services.\n\n", nil
+	return result + "\n", nil
+}
+
+func GetUsersOfService(db *sql.DB, serviceName string) (string, error) {
+	rows, err := db.Query(
+		`SELECT _GroupMemberships.username FROM _GroupServices 
+INNER JOIN _GroupMemberships
+ON _GroupMemberships.groupName = _GroupServices.groupName
+WHERE serviceName = $1`, serviceName)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var users []string
+
+	for rows.Next() {
+		var user string
+		if err := rows.Scan(&user); err != nil {
+			return "", err
+		}
+		users = append(users, user)
+	}
+
+	if len(users) == 0 {
+		return text.Emph(serviceName) + " does not have any users.\n\n", nil
+	}
+
+	result := "\n"
+
+	sort.Strings(users)
+	result = result + text.Emph(serviceName) + " has the following users:\n\n"
+	for _, v := range users {
+		if v != "" {
+			result = result + text.BULLET + v + "\n"
+		}
 	}
 
 	return result + "\n", nil
+}
+
+func GetServicesOfGroup(db *sql.DB, groupName string) (string, error) {
+	rows, err := db.Query("SELECT serviceName FROM _GroupServices WHERE groupName = $1", groupName)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var services []string
+
+	for rows.Next() {
+		var srv string
+		if err := rows.Scan(&srv); err != nil {
+			return "", err
+		}
+		services = append(services, srv)
+	}
+
+	if len(services) == 0 {
+		return text.Emph(groupName) + " has access to no services.", nil
+	}
+
+	result := "\n"
+
+	sort.Strings(services)
+	result = result + text.Emph(groupName) + " has access to the following services:\n\n"
+	for _, v := range services {
+		result = result + text.BULLET + v + "\n"
+	}
+	result = result + "\n"
+	return result, nil
+}
+
+func GetGroupsOfService(db *sql.DB, serviceName string) (string, error) {
+	rows, err := db.Query("SELECT groupName FROM _GroupServices WHERE serviceName = $1", serviceName)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var groups []string
+
+	for rows.Next() {
+		var grp string
+		if err := rows.Scan(&grp); err != nil {
+			return "", err
+		}
+		groups = append(groups, grp)
+	}
+
+	if len(groups) == 0 {
+		return text.Emph(serviceName) + " has no groups that can access it.", nil
+	}
+
+	result := "\n"
+
+	sort.Strings(groups)
+	result = result + text.Emph(serviceName) + " can be accessed by the following groups:\n\n"
+	for _, v := range groups {
+		result = result + text.BULLET + v + "\n"
+	}
+	result = result + "\n"
+	return result, nil
 }
 
 func IsUserGroupOwner(db *sql.DB, username, groupName string) error {
