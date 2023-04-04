@@ -68,7 +68,7 @@ This gives a list of the help topics.
 
 This category includes ways to investigate errors, the system for making tests, and a number of miscellaneous features.
 
-### 2.1 Development: Investigating errors
+### 2.1. Development: investigating errors
 
 #### `hub why(errNo int)`
 
@@ -92,7 +92,7 @@ When such values are available, the initial error report will contain a note to 
 
 Repeats the list of the last set of errors thrown, to save you from having to scroll up looking for it.
 
-### 2.2 Development: Making tests
+### 2.2. Development: making tests
 
 #### `hub snap (scriptFilename string) as (testFilename string)`
 
@@ -134,7 +134,7 @@ This replays the inputs from a test ended with `snap record`, and shows the new 
 
 This does the same as `hub replay` but shows the difference between the results obtained and those produced when the test was made.
 
-### 2.3: Development: Miscelaneous
+### 2.3. Development: miscelaneous
 
 #### `hub hot on`
 
@@ -146,7 +146,7 @@ Turns hotcoding off.
 
 #### `hub peek on`
 
-Shows the intermediate representations of code typed into the REPL. More use to me than you
+Shows the intermediate representations of code typed into the REPL. More use to me than to you.
 
 #### `hub peek off`
 
@@ -160,3 +160,110 @@ Opens the file in vim.
 
 This tells the current service to execute the current line. It used to be useful for something, but is no longer, and will be deprecated unless I can think why I should keep it.
 
+## 3. Administered hubs
+
+We may want to make the hub accessible to many end-users. In this section we explain how to set this up and administer it.
+
+The administration of a hub is by role-based access management: uers are members of groups; groups have access to services. Members of the Admin group are administrators, and can start and stop services, control the access of groups to services, and add and remove users from groups. They can also make users into group owners, able to add and remove users from groups independently.
+
+### 3.1. Administered hubs: setup
+
+For a standard setup, use the following three commands in order.
+
+#### `hub init db`
+
+This will ask you about the SQL server the hub should use as a database. If you don't have one, you'll need to set one up before going further.
+
+#### `hub init admin`
+
+This will ask you for your details (username, password, email, etc) so that it can register you as the first admin of the hub and grand high ruler of the services.
+
+#### `hub listen(path string, port int)`
+
+Having completed the previous step you could leave it as it is and you'd have an administered server running on your desktop. It could certainly serve multiple users, but only if they take it in turns to log on, because they'd have to share the one keyboard.
+
+`hub listen` supplies the final step by telling the hub which path and port to get its information from. At this point anyone who wants to talk to it, including you, will have to use a client such as HubTalk. (Or, strictly speaking, you could use `curl` and roll your own JSON, but life is short and you have other things to do.)
+
+### 3.2. Administered hubs: end-users
+
+The end-users of an administered hub have only a few ways to interact with it. Obviously they aren't allowed to start and stop services, which is reserved for the admins. But they can register and log in and out of the hub.
+
+#### `hub register`
+
+This will make the hub ask them for their details (name, username, email etc) to set up an account. They are then put in the `Guest` group.
+
+#### `hub log on` and `hub log off`
+
+These are used by registered users to log on and off.
+
+#### `hub groups`
+
+Lists the groups of which the user is a member.
+
+#### `hub services`
+
+Lists the services to which the user has access.
+
+#### `hub unregister`
+
+Deletes the user's account.
+
+### 3.3. Administered hubs: administration
+
+Besides being able to start and stop services, the administrators need to be able to add and remove users from groups, allow services to use classes, etc.
+
+#### `create (grp string)`
+
+Creates a new user group.
+
+#### `uncreate (grp string)`
+
+Deletes it. (For consistency, all the hub verbs are negated with an `un` prefix.)
+
+#### `let(grp string) use (srv string)`
+
+Lets a group use a service. There is no need for the service to be running when you do this: if a user in the group lists the services available to them an uninitialized service will show up as inactive.
+
+#### `unlet(grp string) use (srv string)`
+
+Makes a group no longer able to use a given service.
+
+#### `add(usr string) to (grp string)`
+
+Adds the user to the group.
+
+#### `unadd(usr string) to (grp string)`
+
+Removes the user from the group
+
+#### `let(usr string) own (grp string)`
+
+Makes a user into a group owner.
+
+#### `unlet(usr string) own (grp string)`
+
+Makes the user no longer an owner of the given group.
+
+#### `groups of service(srv string)`
+
+Lists all the groups that belong to a given service.
+
+#### `groups of user(usr string)`
+
+Lists all the groups that a given member belongs to.
+
+#### `users of group(grp string)`
+
+Lists all the users that belong to a given group.
+
+#### `users of service(srv string)`
+
+Lists all the users that have access to a given service.
+
+#### `services of group(grp string)`
+
+Lists all the services available to a given group.
+
+#### `services of user(usr string)`
+
+Lists all the services available to a given user.
