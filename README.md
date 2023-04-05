@@ -7,7 +7,7 @@ While Charm is a general-purpose language, it was particularly created to implem
 
 The principal purpose of this README file is to teach people how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them.
 
-If you want to use the language rather than just learn about it, you should also read at least the first two parts of the document on (The Charm hub)[https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md], which explains how to use Charm's text-based shell to start and stop services, debug, write tests, and other things useful to developers.
+If you want to use the language rather than just learn about it, you should also read at least the first two parts of the document on [*The Charm hub*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md), which explains how to use Charm's text-based shell to start and stop services, debug, write tests, and other things useful to developers.
 
 For a high-level view of the aims of the language and the principles of its design, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [*The whys of Charm*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md), explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
 
@@ -249,7 +249,9 @@ ok
 #0 → 
 ```
 
-Let's talk about what's happening here. The "hub", the housekeeping part of Charm (see [here](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md) for more information), has run the script and given the resulting service the name `#0`, since we didn't name it ourselves. Running the script has created the variables and intitialized them. We can then access them through the REPL, or, to be pedantic, through the REPL of service `#0`.
+## Note on the hub
+
+Let's talk about what's happening here. The "hub", the development front-end of Charm (see the document [*The Charm hub*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md) for more information), has run the script and given the resulting service the name `#0`, since we didn't name it ourselves. Running the script has created the variables and intitialized them. We can then access them through the REPL, or, to be pedantic, through the REPL of service `#0`.
 
 This is how a Charm service generally works. Charm is a REPL-oriented language: a Charm script doesn't necessarily have to *do* anything. It *can*, as in the `Hello world!` example above, but it doesn't have to and it is anticipated that for many normal uses of the language it won't. Rather, the script permits the end-user to do things in the REPL: in this case allowing them to access and set the variables `x` and `h`.
 
