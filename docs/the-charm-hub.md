@@ -8,8 +8,6 @@ The hub is itself a Charm service, which apart from other benefits means that yo
 
 This file documents the uses of the Charm hub. It explains first of all the basic commands that allow you to start a script running, to stop it, to ask for help, and to quit Charm.
 
-We then mention the use of the `os` prefix in the command line.
-
 We then move on to the commands you can use to help develop your code: commands for tracing errors, asking for help with them, making tests, etc.
 
 If you're just using Charm for your own purposes, that's all you need to know, but if you want to make your hub public and administer access to it, then you'll need to know the commands for that, plus the set of commands any end-user can then use to register with the hub and log on and log off.
