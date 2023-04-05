@@ -5,7 +5,11 @@
 
 While Charm is a general-purpose language, it was particularly created to implement new ideas about how people could more ergonomically create, manage, and use CRUD apps. It is a work in progress, not yet ready for use in production, and is presented here for discussion, criticism, and the minor thrill of seeing stars accumulate on the repository.
 
-The principal purpose of this README file is to teach people how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them. For a high-level view of the aims of the language and the principles of its design, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [*The whys of Charm*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md), explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
+The principal purpose of this README file is to teach people how to use the language, assuming a certain amount of experience in using other programming languages, and in the terminology used to describe them.
+
+If you want to use the language rather than just learn about it, you should also read at least the first two parts of the document on (The Charm hub)[https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md], which explains how to use Charm's text-based shell to start and stop services, debug, write tests, and other things useful to developers.
+
+For a high-level view of the aims of the language and the principles of its design, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [*The whys of Charm*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md), explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
 
 ## Features
 
@@ -245,7 +249,7 @@ ok
 #0 → 
 ```
 
-Let's talk about what's happening here. The "hub", the housekeeping part of Charm (see [here](#the-hub) for more information), has run the script and given the resulting service the name `#0`, since we didn't name it ourselves. Running the script has created the variables and intitialized them. We can then access them through the REPL, or, to be pedantic, through the REPL of service `#0`.
+Let's talk about what's happening here. The "hub", the housekeeping part of Charm (see [here](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md) for more information), has run the script and given the resulting service the name `#0`, since we didn't name it ourselves. Running the script has created the variables and intitialized them. We can then access them through the REPL, or, to be pedantic, through the REPL of service `#0`.
 
 This is how a Charm service generally works. Charm is a REPL-oriented language: a Charm script doesn't necessarily have to *do* anything. It *can*, as in the `Hello world!` example above, but it doesn't have to and it is anticipated that for many normal uses of the language it won't. Rather, the script permits the end-user to do things in the REPL: in this case allowing them to access and set the variables `x` and `h`.
 
@@ -1715,7 +1719,7 @@ You can issue the instructions `save as <filename>`, `save`, and `open <filename
 
 The language itself has been given a little file-handling capacity with the `file` type. `file <filename>` creates a file object, which has a field `contents` which contains the file as a list of strings.
 
-This is pretty much a stopgap to let me write test programs, I haven’t put much thought into it.
+This is pretty much a stopgap to let me write test programs, I haven’t put much thought into it and it will be deprecated shortly in favor of a standard syntax for IO.
 
 ## Service variables
 
@@ -1726,103 +1730,6 @@ The other service variables implemented so far are `$logTime`, a boolean determi
 They are loaded and saved with the rest of the data of a service.
 
 They have default values, but if the script of the service initializes them in the `var` section, they will be initialized like that, and if they are initialized as private then the end-users won’t be able to change them.
-
-## The hub
-
-The hub has a number of present and intended purposes.
-
-### Housekeeping
-
-As you’ve seen, the hub can start services for you with `hub run "<script name>"`. It lets you talk to any of the services, and to switch which one is the default to be talked to.
-
-So far in this manual/demonstration we haven’t usually given our services names and so the hub has just assigned them serial numbers `#0`, `#1`, etc. You can start a named service using `hub run "<script name>" as "<service name>"`.
-
-When you close down Charm, it will remember the named services you had running and which of those, if any, was your current service (the one named in the prompt, the one you’re talking to by default).
-
-When you start up Charm again with `./charm`, it will start up all the named services, and if the current service was a named service when you shut it down, then Charm will make it the current service when you start it up again.
-
-If you start Charm up with `./charm <parameters>` then Charm will behave as described in the last paragraph and then behave as though you had typed `hub <parameters>` into the REPL.
-
-`hub services` will list all the services the hub is running, whether named or numbered.
-
-`hub stop "<service name>"` will stop the named service.
-
-`hub quit` closes all the services and Charm itself.
-
-`hub reset` will start the service up again with its variables re-initialized.
-
-`hub rerun` will re-execute the last `hub run` command, and so unlike `hub reset` it doesn’t need the last `hub run` command to have been successful: if it failed to start up a service because of a syntax error, then `hub reset` has no service to reset, but `hub rerun` has a script to rerun.
-
-### Errors: `why`, `where`, and `trace`
-
-When Charm produces syntax or runtime errors, you can ask it for an explanation. A demonstration is given in examples/errordemo.ch. If you try to start this up, you will find that it’s riddled with syntax errors, to each of which Charm gives a number in square brackets when it reports them. You can get further information on these errors with `hub why <error number>`. E.g:
-
-```
-→ hub run "examples/errordemo.ch" as "OOPSIE"
-
-Starting script 'examples/errordemo.ch' as service 'OOPSIE'.
-
-[0] Error: attempted assignment in 'import' section at line 3:2 of
-'examples/errordemo.ch'.
-[1] Error: declaration of function in 'var' section at line 7:2 of
-'examples/errordemo.ch'.
-[2] Error: redeclaration of 'private' at line 15:0-7 of 'examples/errordemo.ch'.
-[3] Error: '(' unclosed by outdent at line 24:0 of 'examples/errordemo.ch'.
-[4] Error: inexplicable occurrence of ':' at line 21:8 of 'examples/errordemo.ch'.
-[5] Error: a line ending in ',' must be followed by a line beginning with '..' at line 
-26:0-3 of 'examples/errordemo.ch'.
-[6] Error: inexplicable occurrence of 'else' at line 26:4-8 of 'examples/errordemo.ch'.
-[7] Error: if it occurs, 'import' must be the first headword at line 28:0-6 of 
-'examples/errordemo.ch'.
-
-OOPSIE →  hub why 2
-
-Error: redeclaration of 'private'.
-
-In blocks of the script where things can be declared private (at present only 'var'
-blocks), the private' modifier can only be used once after each headword: things before
-the 'private' modifier are private, things after it are public.
-
-You're seeing this error because you used the 'private' modifier twice after the same
-headword.
-
-                                                    Error has reference 'init/private'.
-```
-
-If Charm produces a runtime error, then you can see the trace of the error with `hub trace`. There is no need to give the number of the error, since you will only ever get one runtime error, which will therefore be number `0`. You can demonstrate the trace feature right now just by putting `1 / 0` into the REPL, but as that doesn’t produce a very interesting trace we have supplied a file `examples/rtedemo.ch`.
-
-The `hub where <error number>` command has the same syntax as `hub why` but will show you the line with the relevant token in red and underlined, for when it’s hard to find it in a long and complicated line.
-
-### As a server
-
-If you tell the hub `hub listen "<path>", <port>` then it will become a server: e.g. if you do `hub listen "/foo", 3333` and then open up a new terminal and do `curl -X POST -d '2 + 2' 'http://localhost:3333/foo'`, you should get the answer `4`.
-
-The hub also has capabilities for registering users and allowing admins to do role-based access management. This is not documented here: there are some rough edges I want to trim.
-
-### Talking to other programs
-
-`os <parameters>` will behave as though you had typed <parameters> into the command line, allowing you to create and delete files, change directory, etc.
-
-`hub edit "<filename>"` will open the file in vim.
-  
-### Testing
-
-In a REPL language it’s almost inevitable users will test their scripts via the REPL. The `hub snap` command allows you to do that better. The syntax is either `hub snap "<filename>"` or `hub snap "<filename>" as "<test filename>"`. If no test file name is given Charm will supply a suitable one.
-
-Charm will then turn serialization on, so that you can tell the difference between "true" and true; and between four spaces and a tab, etc.
-
-And then what you type and the service’s responses will be recorded. (There will be a `#snap →` prompt to remind you that this is what you’re doing.) To finish recording, you tell it what to do with the snap:
-
-- `hub snap good`: this is the desired behavior and I want to make it into a test that will ensure it keeps happening
-- `hub snap bod` : this is undesirable behavior and I want to make it into a test that checks that it doesn’t happen
-- `hub snap record` : I want to be able to replay this and see how the output changes as I change the script and/or data
-- `hub snap discard` : I don’t need this
-
-All the tests classed good or bad associated with a script will be run by `hub test "<script filename>"`. As an example, try running `hub test examples/testall.ch`: Charm will run the associated test in the tst folder and hopefully confirm that the interpreter hasn’t regressed since I wrote this bit of the manual.
-
-To run a test classed as record, use `hub replay "<test filename>"`.
-
-The testing system could be improved: I basically wrote as much of it as I needed to use it as a regression test on Charm itself.
 
 ## The future
   
