@@ -56,7 +56,7 @@ snap
 
 The 'hub snap' command allows you to record your interactions with the REPL for testing purposes
 
-The syntax is either 'hub snap <filename>' or 'hub snap <filename> with <data filename>' or 'hub snap <filename> with <data filename> as <test filename>'. If no test file name is given Charm will supply a suitable one, and if no data file is supplied Charm will just initialize the service as usual.
+The syntax is either 'hub snap "<filename>"' or 'hub snap "<filename>" as "<test filename>"'. If no test file name is given Charm will supply a suitable one, and if no data file is supplied Charm will just initialize the service as usual.
 
 Charm will then turn serialization on, so that you can tell the difference between "true" and 'true'; and between four spaces and a tab, etc.
 
@@ -67,19 +67,19 @@ And then what you type and the service's responses will be recorded. (There will
 * 'hub snap record' : I want to be able to replay this and see how the output changes as I change the script and/or data
 * 'hub snap discard' : I don't need this
 
-All the tests classed good or bad associated with a script will be run by 'hub test <script filename>'. As an example, try running 'hub test src/testall.ch': Charm will run the associated test in the 'tst' folder and hopefully confirm that the interpreter hasn't regressed since I wrote this bit of the manual.
+All the tests classed good or bad associated with a script will be run by 'hub test "<script filename>"'. As an example, try running 'hub test "examples/testall.ch"': Charm will run the associated test in the 'tst' folder and hopefully confirm that the interpreter hasn't regressed since I wrote this bit of the manual.
 
-To run a test classed as record, use 'hub replay <test filename>'.
+To run a test classed as record, use 'hub replay "<test filename>"'.
 
 ***
 replay
 
-'hub replay <test filename>' allows you to replay a previously recorded snapshot of your interactions with the REPL to see what it does. For more information on this feature, see 'hub help snap'.
+'hub replay "<test filename>"' allows you to replay a previously recorded snapshot of your interactions with the REPL to see what it does. For more information on this feature, see 'hub help snap'.
 
 ***
 test
 
-'hub test <filename>' will run all the regression tests associated with the file. For more information on this feature, see 'hub help snap'.
+'hub test "<filename>"' will run all the regression tests associated with the file. For more information on this feature, see 'hub help "snap"'.
 
 ***
 continuations

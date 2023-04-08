@@ -10,10 +10,10 @@ add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
 
 config admin :
-    HubResponse("config-admin")
+    HubResponse("config-admin", [])
 
 config db :
-    HubResponse("config-db")
+    HubResponse("config-db", [])
 
 create(grp string) :
     HubResponse("create" [grp])
@@ -142,7 +142,7 @@ uncreate(grp string) :
     HubResponse("uncreate" [grp])
 
 unlet(grp string) use (srv string) :
-    HubResponse("unlet-use", [usr, srv])
+    HubResponse("unlet-use", [grp, srv])
 
 unlet(usr string) own (grp string) :
     HubResponse("unlet-own", [usr, grp])

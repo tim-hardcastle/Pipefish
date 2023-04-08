@@ -73,9 +73,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	}
 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
-		!(line == "hub register" || line == "hub log ON" || line == "hub quit") {
+		!(line == "hub register" || line == "hub log on" || line == "hub quit") {
 		hub.WriteError("this is an administered hub and you aren't logged on. Please enter either " +
-			"'hub register' to register as a user, or 'hub log ON' to log on if you're already registered " +
+			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 			"with this hub.")
 		return passedServiceName, object.OK_RESPONSE
 	}
@@ -245,12 +245,12 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 
 func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
 	if (! hub.isAdminstered()) && 
-		(verb == "add" || verb == "config-db" || verb == "create" || verb == "log-on" || verb == "log-off" ||
+		(verb == "add" || verb == "create" || verb == "log-on" || verb == "log-off" ||
 			verb == "let" || verb == "register" || verb == "groups" || 
 			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" || 
 			verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
 			verb == "let-use" || verb == "let-own") {
-				hub.WriteError("this is not an administered hub. To initialized it as one, first do 'hub config db' " +
+				hub.WriteError("this is not an administered hub. To initialize it as one, first do 'hub config db' " +
 					"(if you haven't already) and then 'hub config admin'.")
 				return false
 			}
@@ -260,7 +260,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError(err.Error())
 			return false
 		}
-		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" || verb == "register" ||
+		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" ||
 				verb == "hot-on" || verb == "hot-off" || verb == "listen" || verb == "peek-on" || 
 				verb == "peek-off" || verb == "run" || verb == "reset" || verb == "rerun" || 
 				verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test" || 
@@ -270,7 +270,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				hub.WriteError("you don't have the admin status necessary to do that.")
 				return false
 			}
-		if username == "" && !(verb == "log-on" || verb == "register") {
+		if username == "" && !(verb == "log-on" || verb == "register" || verb == "quit") {
 			hub.WriteError("\nThis is an administered hub and you aren't logged on. Please enter either " +
 			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 			"with this hub.\n\n")
@@ -1070,7 +1070,7 @@ func (hub *Hub) Open() {
 		}
 		if hub.administered && !hub.listeningToHttp {
 			hub.WritePretty("This is an administered hub and you aren't logged on. Please enter either " +
-				"'hub register' to register as a user, or 'hub log ON' to log on if you're already registered " +
+				"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 				"with this hub.\n\n")
 		}
 	}

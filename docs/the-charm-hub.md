@@ -168,11 +168,11 @@ The administration of a hub is by role-based access management: uers are members
 
 For a standard setup, use the following three commands in order.
 
-#### `hub init db`
+#### `hub config db`
 
 This will ask you about the SQL server the hub should use as a database. If you don't have one, you'll need to set one up before going further.
 
-#### `hub init admin`
+#### `hub config admin`
 
 This will ask you for your details (username, password, email, etc) so that it can register you as the first admin of the hub and grand high ruler of the services.
 
