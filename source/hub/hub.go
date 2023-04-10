@@ -315,10 +315,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString(text.OK + "\n")
 		return false
-	case "do":
-		hub.Do(args[0], username, password, hub.currentServiceName)
-		hub.WriteString("\n")
-		return false
 	case "edit":
 		command := exec.Command("vim", args[0])
 		command.Stdin = os.Stdin

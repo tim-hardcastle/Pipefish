@@ -2,8 +2,11 @@ def
 
 file = struct(filename string, contents list)
 
+// This is implemented in the evaluator, so all this line does is enforce the syntax.
+for (i ast) over (R) do (f func) to (x tuple) : builtin "for_loop" 
+
 range(p pair) : builtin "range"
-len(t type) : builtin "len_of_type" // Note that this is implemented in the evaluator -- TODO: where?
+len(t type) : builtin "len_of_type" 
 file(s string) : builtin "init_file"
 codepoint(s string) : builtin "codepoint"
 (S struct) with (p pair) : builtin "add_pair_to_struct"
@@ -11,7 +14,7 @@ codepoint(s string) : builtin "codepoint"
 (m map) with (p pair) : builtin "add_pair_to_map" 
 (S struct) with (t tuple) : builtin "add_tuple_to_struct"
 
-// This is implemented in the evaluator, where we pass the values to the appropriate constructor.
+// The evaluator will change this at runtime to the appropriate long-term constructor.
 (t type) with (T tuple) : builtin "long_form_constructor" 
 
 (L list) with (t tuple) : builtin "add_tuple_to_list"
@@ -28,7 +31,7 @@ tuplify(S set) : builtin "spread_set"
 (s single) in (T tuple) : builtin "single_in_tuple"
 map (s set) : builtin "set_to_map"
 map (t tuple) : builtin "tuple_to_map"
-index (t type) by (i int): builtin "index_int_of_type" // Note that this is implemented in the evaluator.
+index (t type) by (i int): builtin "index_int_of_type" 
 index (S struct) by (l label) : builtin "index_label_of_struct"
 index (L list) by (i int): builtin "index_int_of_list"
 index (S string) by (i int): builtin "index_int_of_string"

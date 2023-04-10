@@ -18,9 +18,6 @@ config db :
 create(grp string) :
     HubResponse("create" [grp])
 
-do(line string) :
-    HubResponse("do" [line])
-
 edit(filename string) :
     HubResponse("edit", [filename])
 

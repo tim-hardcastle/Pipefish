@@ -1242,6 +1242,9 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression:
 		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
+		if body.Name == "for_loop" {
+			return evalForLoop(params, tok, c)
+		}
 		if body.Name == "long_form_constructor" { // Then we actually need a different constructor for each type.
 			constructor, ok := c.prsr.BuiltinFunctions[params[0].(*object.Type).Value+"_with"]
 			if !ok {
@@ -1281,6 +1284,10 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		}
 		return result
 	}
+}
+
+func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Object {
+	return &object.String{Value: "Found a for loop!"}
 }
 
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
