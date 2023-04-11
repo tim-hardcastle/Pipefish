@@ -406,7 +406,11 @@ func Eval(node ast.Node, c *Context) object.Object {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
 							}
-							resultList.Elements = append(resultList.Elements, result)
+							if result.Type() == object.TUPLE_OBJ {
+								resultList.Elements = append(resultList.Elements, result.(*object.Tuple).Elements...)
+							} else {
+								resultList.Elements = append(resultList.Elements, result)
+							}
 						}
 						return resultList
 					}
@@ -422,7 +426,11 @@ func Eval(node ast.Node, c *Context) object.Object {
 					result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 					return result
 				}
-				resultList.Elements = append(resultList.Elements, result)
+				if result.Type() == object.TUPLE_OBJ {
+					resultList.Elements = append(resultList.Elements, result.(*object.Tuple).Elements...)
+				} else {
+					resultList.Elements = append(resultList.Elements, result)
+				}
 			}
 			return resultList
 		case token.FILTER:
@@ -1287,7 +1295,51 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 }
 
 func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Object {
-	return &object.String{Value: "Found a for loop!"}
+	if params[0].(*object.Code).Value.GetToken().Type != token.IDENT {
+		return newError("eval/for/ident", tok)
+	}
+	refName := params[0].(*object.Code).Value.GetToken().Literal
+	functionToApply := params[4].(*object.Func).Function
+	val := params[6]
+	var values []object.Object
+	switch rng:= params[2].(type) {
+	case *object.Integer :
+		for i := 0; i < rng.Value; i++ {
+			c.env.HardSet(refName, &object.Integer{Value: i})
+			if val.Type() == object.ERROR_OBJ {
+				val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
+				return val
+			}
+			if val.Type() == object.TUPLE_OBJ {
+				values = val.(*object.Tuple).Elements
+			} else {
+				values = []object.Object{val}
+			}
+			c.access = LAMBDA
+			val = applyFunction(functionToApply, values, tok, c)
+		}
+		return val
+	case *object.Pair :
+		if rng.Left.Type() == object.INTEGER_OBJ && rng.Right.Type() == object.INTEGER_OBJ {
+			for i := rng.Left.(*object.Integer).Value; i < rng.Left.(*object.Integer).Value; i++ {
+				c.env.HardSet(refName, &object.Integer{Value: i})
+				if val.Type() == object.ERROR_OBJ {
+					val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
+					return val
+				}
+				if val.Type() == object.TUPLE_OBJ {
+					values = val.(*object.Tuple).Elements
+				} else {
+					values = []object.Object{val}
+				}
+				c.access = LAMBDA
+				val = applyFunction(functionToApply, values, tok, c)
+			}
+			return val
+		}
+		panic("Oops.")
+	}
+	panic ("Oops.")
 }
 
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {

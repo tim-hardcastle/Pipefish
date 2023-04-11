@@ -854,7 +854,7 @@ classify(n):
 
 ## Streaming operators
 
-There are three streaiming operators, pipe `->`, map `>>` and filter `?>`. 
+There are three streaming operators, pipe `->`, map `>>` and filter `?>`. 
 
 Each operator implicitly defines a very local constant called `that`. Let's demonstrate it in the REPL:
 

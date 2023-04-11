@@ -3,7 +3,7 @@ def
 file = struct(filename string, contents list)
 
 // This is implemented in the evaluator, so all this line does is enforce the syntax.
-for (i ast) over (R) do (f func) to (x tuple) : builtin "for_loop" 
+for (indexName ast) over (R) do (f func) to (x tuple) : builtin "for_loop" 
 
 range(p pair) : builtin "range"
 len(t type) : builtin "len_of_type" 
