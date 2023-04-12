@@ -1321,7 +1321,7 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 		return val
 	case *object.Pair :
 		if rng.Left.Type() == object.INTEGER_OBJ && rng.Right.Type() == object.INTEGER_OBJ {
-			for i := rng.Left.(*object.Integer).Value; i < rng.Left.(*object.Integer).Value; i++ {
+			for i := rng.Left.(*object.Integer).Value; i < rng.Right.(*object.Integer).Value; i++ {
 				c.env.HardSet(refName, &object.Integer{Value: i})
 				if val.Type() == object.ERROR_OBJ {
 					val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
@@ -1335,11 +1335,48 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 				c.access = LAMBDA
 				val = applyFunction(functionToApply, values, tok, c)
 			}
-			return val
+		return val
 		}
-		panic("Oops.")
+		return newErrorWithVals("eval/for/pair", tok, []object.Object{rng.Left, rng.Right}, rng)
+	case *object.Type :
+		enum, ok := c.prsr.Enums[rng.Value]
+		if !ok {
+			return newError("eval/for/type", tok, rng)
+		}
+		for _, v := range(enum) {
+			c.env.HardSet(refName, v)
+			if val.Type() == object.ERROR_OBJ {
+				val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
+				return val
+			}
+			if val.Type() == object.TUPLE_OBJ {
+				values = val.(*object.Tuple).Elements
+			} else {
+				values = []object.Object{val}
+			}
+			c.access = LAMBDA
+			val = applyFunction(functionToApply, values, tok, c)
+		}
+		return val
+	case *object.List :
+		for _, v := range(rng.Elements) {
+			c.env.HardSet(refName, v)
+			if val.Type() == object.ERROR_OBJ {
+				val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
+				return val
+			}
+			if val.Type() == object.TUPLE_OBJ {
+				values = val.(*object.Tuple).Elements
+			} else {
+				values = []object.Object{val}
+			}
+			c.access = LAMBDA
+			val = applyFunction(functionToApply, values, tok, c)
+		}
+		return val
+	default :
+		return newErrorWithVals("eval/for/arg", tok, []object.Object{rng}, rng)
 	}
-	panic ("Oops.")
 }
 
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
