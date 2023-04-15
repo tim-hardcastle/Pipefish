@@ -364,6 +364,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"built/struct/pair": {
+		Message: func(tok token.Token, args ...any) string {
+			return "Charm was expecting a pair, not something of type " + text.EmphType(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "It looks like you're trying to use `with` to return an updated copy of a struct, but you've " +
+				"gotten the syntax wrong."
+		},
+	},
+
 	"err/misdirect": {
 		Message: func(tok token.Token, args ...any) string {
 			return "Charm is trying and failing to raise an error with reference '" + args[0].(string) + "'"

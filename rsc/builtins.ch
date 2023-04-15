@@ -5,6 +5,15 @@ file = struct(filename string, contents list)
 // This is implemented in the evaluator, so all this line does is enforce the syntax.
 for (indexName ast) over (R) do (f func) to (x tuple) : builtin "for_loop" 
 
+// This is not a builtin but should be, for performance.
+while (p) do (f) to (z single) :
+    p z : while p do f to f z
+    else : z
+
+while (p) do (f) to (z tuple) :
+    p z : while p do f to f z
+    else : z
+
 range(p pair) : builtin "range"
 len(t type) : builtin "len_of_type" 
 file(s string) : builtin "init_file"

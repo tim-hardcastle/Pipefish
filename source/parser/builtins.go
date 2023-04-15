@@ -670,6 +670,9 @@ func addPairToStruct(tok token.Token, args ...object.Object) object.Object {
 }
 
 func unsafeAddPairToStruct(tok token.Token, args ...object.Object) object.Object {
+	if args[2].Type() != object.PAIR_OBJ {
+		return newError("built/struct/pair", tok, object.TrueType(args[2]))
+	}
 	index := args[2].(*object.Pair).Left
 	if object.TrueType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
