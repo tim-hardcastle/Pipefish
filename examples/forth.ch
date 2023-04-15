@@ -8,11 +8,11 @@ MachineState = struct(stack list, defs map, vars map, mem list, output string, e
 
 Builtin = struct(paramCount int, function func)
 
-STANDARD_DEFS = map("i"::["IX", "@"],
+STANDARD_DEFS = map("i"::["zero", "@"],
                  .. "?"::["@", "."],
                  .. "+!"::["swap", "over", "@", "+", "swap", "!"])
 
-CLEAN_STATE = MachineState([], STANDARD_DEFS, map("IX"::0), [0], "", "")
+CLEAN_STATE = MachineState([], STANDARD_DEFS, map("zero"::0), [0], "", "")
 
 CLEAN_OUTPUT = output::"", err::""
 
@@ -41,7 +41,7 @@ def
 // The lexer. Isn't Forth great?
 lex(s) :
     s -> strings.replaceAll(that, "\n", " ") -> strings.replaceAll(that, "\t", " ") ..
-  ..  -> strings.split(s, " ")
+  ..  -> strings.split(s, " ") ?> that != ""
 
 // The main body of the interpreter.
 interpret(L, S) : 
@@ -49,6 +49,8 @@ interpret(L, S) :
         S
     currentToken == "reset" :
         CLEAN_STATE with output::"OK"
+    currentToken in {".", "emit", "allot", "@"} :
+        gatekeepStack(currentToken, 1, S)
     type int currentToken == int :
         interpret(tail, S with stack::S[stack] + [int currentToken])
     currentToken in keys BUILTINS :
@@ -58,13 +60,14 @@ interpret(L, S) :
     currentToken in keys S[defs] :
         interpret(tail, interpret(S[defs][currentToken], S))  
     currentToken == "." :
-        gatekeepStack(".", 1, S)
         interpret(tail, S with (output::S[output] + string(topOfStack) + " ", 
                              .. stack::stackTail))
     currentToken == "allot" :
-        gatekeepStack("allot", 1, S)
         interpret(tail, S with (mem::S[mem] + zeroedList(topOfStack),
                              .. stack::stackTail))
+    currentToken == "emit" :
+        interpret(tail, S with (output::S[output] + rune(topOfStack),
+                             .. stack::stackTail))                         
     currentToken == ".\"" :
         interpret outputString(L, S)
     currentToken == "cr" :
@@ -77,7 +80,6 @@ interpret(L, S) :
     currentToken == "variable" :
         interpret makeVariable(tail, S)
     currentToken == "@" :
-        gatekeepStack("@", 1, S)
         gatekeepMemory(topOfStack, S)
         interpret(tail, S with stack::(stackTail + [S[mem][topOfStack]]))
     currentToken == "!" :
