@@ -773,10 +773,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/malret": {
 		Message: func(tok token.Token, args ...any) string {
-			return "malformed 'return' expression"
+			return "malformed 'respond' expression"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The 'return' statement you used makes no sense in the place where " +
+			return "The 'respond' statement you used makes no sense in the place where " +
 				"you used it."
 		},
 	},
@@ -931,11 +931,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/return/return": {
 		Message: func(tok token.Token, args ...any) string {
-			return "trying to return a 'return' statement"
+			return "trying to respond with a 'respond' statement"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error is almost self-explanatory: it's what you get if for some reason " +
-				"your code includes something of the form 'return return <expression>'."
+				"your code includes something of the form 'respond respond <expression>'."
 		},
 	},
 

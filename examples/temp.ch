@@ -1,5 +1,13 @@
 def
 
+MyStructType = struct (output string, b int)
+
+var
+
+S = MyStructType("foo", 3)
+
+def
+
 foo zort (x) :
     x
 
@@ -20,3 +28,4 @@ blarp :
 
 foo :
     "foo"
+

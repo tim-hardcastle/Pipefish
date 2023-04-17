@@ -20,10 +20,6 @@ given :
         else :
             finder(i + 1)
 
-while (p) do (f) to (z tuple) :
-    p z : while p do f to f z
-    else : z
-
 (L) apply (f func) :
     (for len(L) do action to 0, [])[1]
 given:
