@@ -21,6 +21,7 @@ The result of all this is expressed in the following table:
 | ... which return values | ... which return nothing |
 | ... and can only call functions | ... and can call both functions and commands |
 | Pure | All variables are global for all commands |
+| All local values are constant | All local values are mutable |
 | Effectless | Exists only to perform side-effects |
 | Allows recursion | Forbids recursion |
 | Contains all the business logic | Dumb as a sack of rocks |
