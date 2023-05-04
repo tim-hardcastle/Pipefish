@@ -19,7 +19,7 @@ The result of all this is expressed in the following table:
 | The `def` section of a Charm script | The `cmd` section of a Charm script |
 | Has functions ... | Has commands ... |
 | ... which return values | ... which return nothing |
-| Can only call functions | Can call both functions and commands |
+| ... and can only call functions | ... and can call both functions and commands |
 | Pure | All variables are global for all commands |
 | Effectless | Exists only to perform side-effects |
 | Allows recursion | Forbids recursion |
