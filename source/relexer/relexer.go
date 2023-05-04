@@ -9,6 +9,9 @@ package relexer
 // treat both of these as infix operators.
 //
 
+// It is stupidly written. I shouldn't have tried to do this all in one big loop,
+// but in lots of small passes.
+
 import (
 	"charm/source/lexer"
 	"charm/source/object"
@@ -130,7 +133,9 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 
 	if rl.nexTok.Type == token.BEGIN &&
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON || rl.curTok.Type == token.WEAK_COLON ||
-			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) || (rl.preTok.Type == token.GIVEN))) {
+			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || 
+			(rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) || 
+			(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP)){
 		rl.Throw("relex/indent", rl.curTok)
 	}
 
@@ -162,8 +167,9 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		}
 
 		if rl.preTok.Type == token.NEWLINE ||
-			rl.nexTok.Type == token.GIVEN ||
+			rl.nexTok.Type == token.GIVEN || // Because 'given' is really an infix.
 			rl.preTok.Type == token.GIVEN ||
+			rl.preTok.Type == token.LOOP ||
 			token.TokenTypeIsHeadword(rl.preTok.Type) ||
 			rl.preTok.Type == token.PRIVATE ||
 			rl.preTok.Type == token.COLON ||
@@ -195,7 +201,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			rl.ifLogHappened = true
 			return rl.burnToken()
 		}
-		if rl.preTok.Type == token.GIVEN {
+		if rl.preTok.Type == token.GIVEN || rl.preTok.Type == token.LOOP {
 			return rl.burnToken()
 		}
 	case token.BEGIN:

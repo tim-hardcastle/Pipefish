@@ -104,6 +104,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 	case *ast.SuffixExpression:
 		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 
+	case *ast.LoopExpression:
+		return(evalLoopExpression(node, c))
+
 	case *ast.AssignmentExpression:
 		variables := signature.Signature{}
 		if node.Token.Type == token.TYP_ASSIGN {
@@ -594,7 +597,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 }
 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
-	if node.Operator == "break" {
+	if node.Operator == "break" { // TODO --- why did you implement these as unfixes? They are innately keywords.
 		return &object.Effects{BreakHappened: true}
 	}
 	if node.Operator == "stop" {
@@ -902,6 +905,30 @@ func evalEvalExpression(token token.Token, right object.Object, c *Context) obje
 		return Evaluate(*parsedCode, c)
 	}
 	return newError("eval/eval", token)
+}
+
+func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object {
+	result := Eval(loopNode.Code, c)
+	fmt.Println(result.Inspect(object.ViewCharmLiteral))
+	switch result := result.(type) {
+	case *object.Error :
+		result.Trace = append(result.Trace, loopNode.Token)
+		return result
+	case *object.SuccessfulAssignment, *object.UnsatisfiedConditional :
+		return evalLoopExpression(loopNode, c)
+	case *object.Effects :
+		if result.QuitHappened {
+			return result
+		}
+		if result.BreakHappened {
+			result.BreakHappened = false
+			return result
+		}
+		if result.ElseSeeking {
+			return evalLoopExpression(loopNode, c)
+		}
+	}
+	return newError("eval/loop/value", loopNode.Token)
 }
 
 func evalReturnExpression(token token.Token, values []object.Object, c *Context) object.Object {

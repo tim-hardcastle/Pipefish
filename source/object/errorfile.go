@@ -834,6 +834,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/parse/inner": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed inner function"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You seem to be trying to define an inner function here but Charm can't make sense of the syntax."
+		},
+	},
+
 	"eval/repl/assign": {
 		Message: func(tok token.Token, args ...any) string {
 			return "attempt to assign the value of a private or non-existent variable or constant " + Emph(args[0].(string))

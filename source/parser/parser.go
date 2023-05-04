@@ -62,6 +62,7 @@ var precedences = map[token.TokenType]int{
 	token.RESPOND:     FUNC,
 	token.REQUEST:     FUNC,
 	token.GIVEN:       GIVEN,
+	token.LOOP:		   GIVEN,
 	token.ASSIGN:      ASSIGN,
 	token.CMD_ASSIGN:  ASSIGN,
 	token.VAR_ASSIGN:  ASSIGN,
@@ -271,6 +272,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseNativePrefixExpression()
 	case token.EVAL:
 		leftExp = p.parsePrefixExpression()
+	case token.LOOP:
+		leftExp = p.parseLoopExpression()
 	case token.TRUE:
 		leftExp = p.parseBoolean()
 	case token.FALSE:
@@ -610,6 +613,15 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 	p.NextToken()
 	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
 	//expression.Right = p.parseExpression(FPREFIX)
+	return expression
+}
+
+func (p *Parser) parseLoopExpression() ast.Node {
+	expression := &ast.LoopExpression{
+		Token:    p.curToken,
+	}
+	p.NextToken()
+	expression.Code = p.parseExpression(GIVEN)
 	return expression
 }
 

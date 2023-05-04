@@ -49,9 +49,6 @@ const (
 	AUTOLOG = "AUTOLOG"
 
 	DOTDOT = ".."
-
-
-
 	NO_INDENT = "|||"
 
 	COMMA      = ","
@@ -80,6 +77,7 @@ const (
 
 	// Imperative shell
 	
+	LOOP = "loop"
 	REQUEST = "request"
 	RESPOND = "respond"
 
@@ -108,6 +106,8 @@ var keywords = map[string]TokenType{
 	"true":   TRUE,
 	"false":  FALSE,
 	"else":   ELSE,
+
+	"loop": LOOP,
 	"respond": RESPOND,
 	"request": REQUEST,
 

@@ -29,3 +29,12 @@ blarp :
 foo :
     "foo"
 
+test (a, b) :
+    a + baz b
+given :
+    baz (x) :
+        x == 2 :
+            3
+        else :
+            4
+
