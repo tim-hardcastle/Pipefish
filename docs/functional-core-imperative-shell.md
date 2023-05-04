@@ -23,7 +23,6 @@ The result of all this is expressed in the following table:
 | Pure | All variables are global for all commands |
 | Effectless | Exists only to perform side-effects |
 | Allows recursion | Forbids recursion |
-| Turing-complete without the `cmd` section | Not Turing-complete without the `def` section |
 | Contains all the business logic | Dumb as a sack of rocks |
 | 99% of your code | 0.5% of your code (the remaining 0.5% is type definitions) |
 | Easy to test because it's pure | Easy to test because it's simple |
