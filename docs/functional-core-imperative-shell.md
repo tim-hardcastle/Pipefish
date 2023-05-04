@@ -6,7 +6,7 @@ Consequently, one way to manage impurity is simply to push it as far up the call
 
 This leaves us with an absolutely tiny impure region of our code consisting of variable reassignments along the lines of `data = pureFunctionOf(data, userInput)` The remainder of our code can then be composed of pure functions expressing our business logic.
 
-Such code is easier to write, easier to read, easier to debug, and easier to test. On the one hand, the small impure part of the program barely needs testing at all, since it has hardly any flow-of-control: whereas the big pure part of the program is easy to test because it has no state to mock.
+Such code is easier to write, easier to read, easier to debug, and easier to test. (On the one hand, the small impure part of the program barely needs testing at all, since it has hardly any flow-of-control: whereas the big pure part of the program is easy to test because it has no state to mock.)
 
 From the above description, you can see that it would be possible for people to write FC/IS programs in many languages, and [in](https://www.youtube.com/watch?v=eOYal8elnZk) [fact](https://www.destroyallsoftware.com/screencasts/catalog/functional-core-imperative-shell) [they](https://doordash.engineering/2022/07/26/functional-core-imperative-shell-using-structured-concurrency-to-write-maintainable-grpc-endpoints-in-kotlin/) [do](https://medium.com/@magnusjt/functional-core-imperative-shell-in-javascript-29bef2353ac2). However, a purpose-built language will (if I've got it right!) be better; besides which, so long as the language permits other paradigms, FC/IS is a matter of programmer discipline, which [does not scale](https://www.sicpers.info/2020/10/discipline-doesnt-scale/).
 
