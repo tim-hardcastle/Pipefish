@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"bufio"
-	"os"
 	"strconv"
 	"unicode/utf8"
 
@@ -50,25 +48,6 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		} else {
 			return newError("eval/enum/len", tok)
 		}
-	},
-
-	"init_file": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		fname := args[0].(*object.String).Value
-		file, err := os.Open(fname)
-		if err != nil {
-			return newError("built/file", tok, fname, err.Error())
-		}
-		defer file.Close()
-
-		result := &object.Struct{Name: "file",
-			Value: map[string]object.Object{"filename": &object.String{Value: fname},
-				"contents": &object.List{Elements: []object.Object{}}}}
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			result.Value["contents"].(*object.List).Elements =
-				append(result.Value["contents"].(*object.List).Elements, &object.String{Value: scanner.Text()})
-		}
-		return result
 	},
 
 	"add_pair_to_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {

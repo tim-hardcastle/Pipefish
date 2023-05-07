@@ -753,7 +753,9 @@ func (hub *Hub) WritePretty(s string) {
 				hub.WriteString(" ┌──" + strings.Repeat("─", codeWidth) + "┐\n")
 			}
 		} else if codeWidth > 0 {
-			hub.WriteString(" │  " + text.Cyan(plainLine) + strings.Repeat(" ", codeWidth-len(plainLine)) + "│\n")
+			repeatNo := codeWidth-len(plainLine)
+			if repeatNo < 0 { repeatNo = 0 }
+			hub.WriteString(" │  " + text.Cyan(plainLine) + strings.Repeat(" ", repeatNo) + "│\n")
 		} else {
 			hub.WriteString(text.HighlightLine(plainLine, highlighter) + "\n")
 		}

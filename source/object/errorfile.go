@@ -1573,15 +1573,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm allows for multiple dispatch, i.e. you could write two functions like this and the result " +
 				"would work as intended\n\n" +
 				"|-------------------------------------\n\n" +
-				"def\nadd(a, b string) : a + b\n\nadd(a, b bool) : \"adding booleans makes no sense\"\n\n\n" +
+				"def\n\nadd(a, b string) : a + b\n\nadd(a, b bool) : \n    \"adding booleans is silly\"\n\n\n" +
 				"|-\n\nCalled on two strings, add will do one thing, called on two booleans, it will do " +
 				"another. However, suppose you wrote two more functions like this: \n\n" +
 				"|-------------------------------------\n\n" +
-				"def\nadd(a any, b int) : a + b\n\nadd(a int, b any) : a + b\n\n\n" +
+				"def\n\nadd(a single, b int) : a + b\n\nadd(a int, b single) : a + b\n\n\n" +
 				"|-\n\nNow, how does the interpreter decide which version of the function it should use " +
 				"when 'add' is passed two integers? It can't and doesn't: Charm throws this error instead.\n\nSo you're seeing " +
-				"this error because you've done something similar with your function/command/operator ''" +
-				tok.Literal + "'.\n\nIf this is something you've done deliberately, we would suggest that " +
+				"this error because you've done something similar with your function/command/operator.\n\nIf this is something you've done deliberately, we would suggest that " +
 				"this is probably a bad practise anyway, which will tend to produce unreadable and unmaintainable code, " +
 				"and that you should try to do whatever it is you're doing some other way.\n\n" +
 				"For more information about overloading, see 'hub help overloading'; for a more basic introduction to functions " +

@@ -217,8 +217,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return left
 		}
 		leftEvaluation := evalLazyLeftExpression(node.Token, left, c)
-		if leftEvaluation != nil && leftEvaluation != SUCCESS &&
-			(leftEvaluation.Type() != object.RESPONSE_OBJ) {
+		if leftEvaluation != nil && (leftEvaluation.Type() != object.RESPONSE_OBJ) {
 			return leftEvaluation
 		}
 

@@ -409,7 +409,7 @@ Charm has the usual basic types, 'int', 'float64', 'string', and 'bool'.
 
 Container types are 'tuple', 'list', 'set', ''map', pair', and 'struct'.
 
-Besides this there are some special-purpose types such as 'func', 'error', 'nil', 'type', 'file', 'label' and a notional top type 'any' which at present and in practice will be indistinguishable from a tuple.
+Besides this there are some special-purpose types such as 'func', 'error', 'nil', 'type', 'label' and a notional top type 'any' which at present and in practice will be indistinguishable from a tuple.
 
 The type system is then as follows: 'any' contains 'tuple', which contains the abstract class 'single' consisting of anything that isn't a tuple (but can, when necessary, be considered a tuple of arity 1). This contains 'int', 'float64', 'string', and 'bool', 'list', 'set', 'map', 'pair', 'error', 'label', and the abstract type 'struct'.
 
