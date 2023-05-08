@@ -23,18 +23,18 @@ S = CLEAN_STATE
 cmd
 
 main :
-    lineToExecute == "quit" :
-        break
-    else :
-        S = lex(lineToExecute) -> interpret(that, S with CLEAN_OUTPUT)
-        S[output] == "" and S[err] == "":
-            respond "OK."
-        S[output] == "" or S[err] == "":
-            respond S[output] + S[err]
+    loop :
+        get lineToExecute from Input("Forth > ")
+        lineToExecute == "quit" :
+            break
         else :
-            respond S[output] + "\nForth error: " + S[err]
-given :
-    lineToExecute = request "Forth > "
+            S = lex(lineToExecute) -> interpret(that, S with CLEAN_OUTPUT)
+            S[output] == "" and S[err] == "":
+                post "OK." to Output()
+            S[output] == "" or S[err] == "":
+                post S[output] + S[err] to Output()
+            else :
+                post S[output] + "\nForth error: " + S[err] to Output
 
 def
 
@@ -52,40 +52,40 @@ interpret(L, S) :
     currentToken in {".", "emit", "allot", "@"} :
         gatekeepStack(currentToken, 1, S)
     type int currentToken == int :
-        interpret(tail, S with stack::S[stack] + [int currentToken])
+        interpret(codeTail, S with stack::S[stack] + [int currentToken])
     currentToken in keys BUILTINS :
-        interpret(tail, evalBuiltin(currentToken, S))
+        interpret(codeTail, evalBuiltin(currentToken, S))
     currentToken in keys S[vars] :
-        interpret(tail, S with stack::S[stack] + [S[vars][currentToken]])
+        interpret(codeTail, S with stack::S[stack] + [S[vars][currentToken]])
     currentToken in keys S[defs] :
-        interpret(tail, interpret(S[defs][currentToken], S))  
+        interpret(codeTail, interpret(S[defs][currentToken], S))  
     currentToken == "." :
-        interpret(tail, S with (output::S[output] + string(topOfStack) + " ", 
+        interpret(codeTail, S with (output::S[output] + string(topOfStack) + " ", 
                              .. stack::stackTail))
     currentToken == "allot" :
-        interpret(tail, S with (mem::S[mem] + zeroedList(topOfStack),
+        interpret(codeTail, S with (mem::S[mem] + zeroedList(topOfStack),
                              .. stack::stackTail))
     currentToken == "emit" :
-        interpret(tail, S with (output::S[output] + rune(topOfStack),
+        interpret(codeTail, S with (output::S[output] + rune(topOfStack),
                              .. stack::stackTail))                         
     currentToken == ".\"" :
         interpret outputString(L, S)
     currentToken == "cr" :
-        interpret(tail, S with output::S[output] + "\n")
+        interpret(codeTail, S with output::S[output] + "\n")
     currentToken == "if" :
-        interpret doIf(tail, S)
+        interpret doIf(codeTail, S)
     currentToken == "do" :
         gatekeepStack("do ... loop", 2, S)
-        interpret doLoop(tail, S)
+        interpret doLoop(codeTail, S)
     currentToken == "variable" :
-        interpret makeVariable(tail, S)
+        interpret makeVariable(codeTail, S)
     currentToken == "@" :
         gatekeepMemory(topOfStack, S)
-        interpret(tail, S with stack::(stackTail + [S[mem][topOfStack]]))
+        interpret(codeTail, S with stack::(stackTail + [S[mem][topOfStack]]))
     currentToken == "!" :
         gatekeepStack("!", 2, S)
         gatekeepMemory(topOfStack, S)
-        interpret(tail, S with stack::stackTail[0::-1],
+        interpret(codeTail, S with stack::stackTail[0::-1],
                             .. [mem, topOfStack]::secondInStack)   
     currentToken == ":" :
         interpret getDefinition L[1::len(L)], S
@@ -93,7 +93,7 @@ interpret(L, S) :
         S with err::"FORTH doesn't understand '" + currentToken + "'."
 given :
     currentToken = L[0]
-    tail = L[1::len L]
+    codeTail = L[1::len L]
     topOfStack = S[stack][len(S[stack]) - 1]
     secondInStack = S[stack][len(S[stack]) - 2]
     stackTail = S[stack][0::- 1]

@@ -36,7 +36,7 @@ const (
 	HASH_OBJ        = "map"
 	INTEGER_OBJ     = "int"
 	LABEL_OBJ       = "label"
-	LAZY_OBJ       = "lazy"
+	LAZY_OBJ        = "lazy"
 	LIST_OBJ        = "list"
 	PAIR_OBJ        = "pair"
 	RESPONSE_OBJ    = "response"
@@ -70,6 +70,8 @@ type Object interface {
 	Type() ObjectType
 	Inspect(view View) string
 }
+
+var SUCCESS     = &SuccessfulAssignment{}
 
 ///////////////////////////
 // Charm object types
@@ -122,8 +124,11 @@ type BuiltError struct {
 }
 
 // The 'code' type contains an AST. Charm's 'eval' function, when applied to it, evaluates the AST.
+// The Env is the environment in which it was created, allowing a macro to act on the local
+// variables of a command using 'varref'.
 type Code struct {
 	Value ast.Node
+	Env *Environment
 }
 
 func (c *Code) DeepCopy() Object { return c }
@@ -136,15 +141,13 @@ func (c *Code) Inspect(view View) string {
 // However, since Everything Is An Expression and we need to give back an object, we supply this one.
 // This allows the REPL to respond to the effectsin the following way:
 
-// * RequestHappened: then we should .Do exactly the same line of code again, unless ...
-// * BreakHappened: in which case don't.
+// * BreakHappened: we're breaking from a loop.
 // * StopHappened: a `stop` token was encountered and we should close down the service.
 // * QuitHappened: used to convey the information that 'hub quit' was encountered.
 // * ElseSeeking : this was the effect of one branch of a conditional and we must skip the others.
 
 type Effects struct {
 	Elements        []Object
-	RequestHappened bool
 	BreakHappened   bool
 	StopHappened    bool
 	QuitHappened    bool

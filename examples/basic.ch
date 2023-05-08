@@ -1,6 +1,5 @@
 import 
 
-"lib/prelude.ch" :: ""
 "lib/strings.ch"
 
 def
@@ -17,15 +16,15 @@ state = MachineState("", map(), Program(map(), [-1]), 0)
 cmd
 
 main :
-    lineToExecute == "QUIT" :
-        break
-    else :
-        state = newState
-        respond newState[outStr]
-given :
-    lineToExecute = request "BASIC > "
-    _, newState = execute(lineToExecute,
-        ..  (state with pointer::len(state[program][lineNumbers]) - 1, outStr::""))
+    loop :
+        get lineToExecute from Input "BASIC > "
+        lineToExecute == "QUIT" :
+            break
+        else :
+            _, state = execute(lineToExecute,
+                ..  (state with pointer::len(state[program][lineNumbers]) - 1, outStr::""))
+            post state[outStr] to Output()
+    
 
 def // And the rest is the functional core.
 
@@ -167,7 +166,7 @@ evalPrefixExpression(node, state) :
     nodeType == NOT :
         makeVal(not val), state
     nodeType == LIST :
-        OK, (state with outStr:: (state[program][lineNumbers] curtail 1 ..
+        OK, (state with outStr:: (state[program][lineNumbers][0::-1] ..
         .. >> string(that) + " " + state[program][lines][that] + "\n" -> sum(that, "")))  
     nodeType == GOTO :
         OK, evaluateProgram(state with pointer::findIn(state[program][lineNumbers], val)) 

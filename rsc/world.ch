@@ -11,6 +11,8 @@ def
 
 Random = struct(params single)
 
+RandomSeed = struct()
+
 TimeUnit = enum SECONDS, MILLISECONDS, NANOSECONDS
 
 UnixClock = struct(unit TimeUnit)
@@ -19,7 +21,7 @@ Terminal = struct()
 
 Output = struct()
 
-Prompt = struct(message string)
+Input = struct(prompt string)
 
 File = struct(filepath string, asType type)
 
@@ -31,25 +33,31 @@ FileExists = struct(filepath string)
 cmd
 
 get (x ast) from (rng Random) :
-     x varname = randomFunctionOf(rng)  
+     x varref = randomFunctionOf(rng)  
+
+put (seed int) into (randomizer RandomSeed) :
+    goRandomize(seed)
 
 get (x ast) from (clock UnixClock) :
-    x varname = goGetUnixClock(string (clock[unit]))
+    x varref = goGetUnixClock(string (clock[unit]))
 
-get (x ast) from (prompt Prompt) :
-     x varname = goGetFromPrompt(prompt[message])
 
-post (x string) to (output Output) :
-    goPostToOutput(x)
+// Note that these can't be implemented here nor indeed as builtins, since this has to be done
+// by the evaluator, which can see the context and knows where to input from and output to.
+// So we'll hijack the evalBuiltin method like we did to implement the 'for' loop.
+post (x string) to (output Output) : builtin "post_to_output"
+get (x ast) from (input Input) :
+    x varref = builtinGet input[prompt]
+builtinGet(s string) : builtin "get_from_input"
 
 post (x string) to (terminal Terminal) :
     goPrintln(x)
 
-get (contents ast) from (fileAccess File) :
+get (contents ast) from (fileAccess File) : 
     fileAccess[asType] == string :
-        contents varname = goGetFileAsString(fileAccess[filepath])
+        contents varref = goGetFileAsString(fileAccess[filepath])
     fileAccess[asType] == list :
-        contents varname = goGetFileAsList(fileAccess[filepath])
+        contents varref = goGetFileAsList(fileAccess[filepath])
     else :
         error "can't get file as type <" + string(fileAccess[asType]) + ">"
 
@@ -60,7 +68,7 @@ post (s string) to (fileAccess File) :
     goPostStringInFile(s, fileAccess[filepath])
 
 get (x ast) from (fileAccess FileExists) :
-    x varname = goFileExists(fileAccess[filepath])
+    x varref = goFileExists(fileAccess[filepath])
 
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
@@ -72,6 +80,11 @@ def
 
 goRandomInt(i int) : gocode {
     return rand.Intn(i)
+}
+
+goRandomize(i int) : gocode {
+    rand.Seed(int64(i))
+    return object.SUCCESS
 }
 
 goGetUnixClock(s string) : gocode {
@@ -89,7 +102,7 @@ goGetUnixClock(s string) : gocode {
 
 goPrintln(s string) : gocode {
     fmt.Println(s)
-    return &object.SuccessfulAssignment{}
+    return object.SUCCESS
 }
 
 goFileExists(fname string) : gocode {
@@ -105,7 +118,7 @@ goDeleteFile(fname string) : gocode {
     if err != nil {
         return &object.Error{Message: "can't delete file '" + fname + "'"}
     } else {
-        return &object.SuccessfulAssignment{}
+        return object.SUCCESS
     }
 }
 
@@ -144,7 +157,7 @@ goPutStringInFile(output string, fname string) : gocode {
     if err2 != nil {
         return &object.Error{Message: "can't write to file '" + fname + "'"}
     }
-    return &object.SuccessfulAssignment{}
+    return object.SUCCESS
 }
 
 goPostStringInFile(output string, fname string) : gocode {
@@ -161,7 +174,7 @@ goPostStringInFile(output string, fname string) : gocode {
     if err3 != nil {
         return &object.Error{Message: "can't write to file '" + fname + "'"}
     }
-    return &object.SuccessfulAssignment{}
+    return object.SUCCESS
 }
 
 // Handles different parameters for Random.

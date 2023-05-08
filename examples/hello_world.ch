@@ -1,6 +1,7 @@
 cmd
 
 main :
-    respond "Hello world!"
+    post "Hello world!" to Output()
     stop
+    
 

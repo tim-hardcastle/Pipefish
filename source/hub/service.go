@@ -86,7 +86,7 @@ func (service *Service) saveFile(filepath string) object.Object {
 		return CreateErr("serve/save/file/b", strings.TrimSpace(err.Error()))
 	}
 	service.dataFilepath = filepath
-	return evaluator.SUCCESS
+	return object.SUCCESS
 }
 
 func (service *Service) OpenDataFile(filepath string) object.Object {
@@ -101,7 +101,7 @@ func (service *Service) OpenDataFile(filepath string) object.Object {
 		service.SuDo(scanner.Text())
 	}
 	service.dataFilepath = filepath
-	return evaluator.SUCCESS
+	return object.SUCCESS
 }
 
 func (service *Service) GetScriptFilepath() string {

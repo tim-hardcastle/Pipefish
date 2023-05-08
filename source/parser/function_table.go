@@ -85,7 +85,7 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 			tupleAccumulator = append(tupleAccumulator, params[paramPos])
 			continue
 		}
-		if sig[sigPos].VarType == "varname" {
+		if sig[sigPos].VarType == "varname" || sig[sigPos].VarType == "varref" {
 			obj, ok := env.Get(sig[sigPos].VarName)
 			if !ok {
 				fmt.Println("Oops 1")   //TODO ... some actual error messages?

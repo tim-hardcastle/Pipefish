@@ -88,7 +88,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			hub.WriteError("you need to say what you want the hub to do.")
 			return passedServiceName, object.OK_RESPONSE
 		}
-		verb, args := hub.ParseHubCommand(line[4:len(line)])
+		verb, args := hub.ParseHubCommand(line[4:])
 		if verb == "error" {
 			return passedServiceName, object.OK_RESPONSE
 		}
@@ -102,7 +102,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		} else {
 			return passedServiceName, object.OK_RESPONSE
 		}
-		panic("You're only supposed to get an error or a HubResponse from the HUB service.")
 	}
 
 	// We may be talking to the os
@@ -195,9 +194,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		if obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
 			delete(hub.services, hub.currentServiceName)
 			hub.currentServiceName = ""
-			return passedServiceName, obj.(*object.Effects)
-		}
-		if obj.(*object.Effects).RequestHappened && !obj.(*object.Effects).BreakHappened {
 			return passedServiceName, obj.(*object.Effects)
 		}
 	}
@@ -881,13 +877,17 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 		return false
 	}
 
-	// Import the builtins
+	// Import the builtins and world library.
 
-	libDat, _ := os.ReadFile("rsc/builtins.ch")
-	stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
-	init.SetRelexer(*relexer.New("rsc/builtins.ch", stdImp))
-	init.MakeParserAndTokenizedProgram()
-	init.GetSource("rsc/builtins.ch")
+	thingsToImport := []string{"rsc/builtins.ch", "rsc/world.ch"}
+
+	for _, fname := range(thingsToImport) {
+		libDat, _ := os.ReadFile(fname)
+		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
+		init.SetRelexer(*relexer.New(fname, stdImp))
+		init.MakeParserAndTokenizedProgram()
+		init.GetSource(fname)
+	}
 
 	for init.ImportsExist() {
 

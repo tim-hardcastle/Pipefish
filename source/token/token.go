@@ -78,8 +78,6 @@ const (
 	// Imperative shell
 	
 	LOOP = "loop"
-	REQUEST = "request"
-	RESPOND = "respond"
 
 	MAGIC_COLON = "MAGIC_COLON"
 	WEAK_COLON = "WEAK_COLON"
@@ -108,8 +106,6 @@ var keywords = map[string]TokenType{
 	"else":   ELSE,
 
 	"loop": LOOP,
-	"respond": RESPOND,
-	"request": REQUEST,
 
 	"eval":   EVAL,
 	"given":  GIVEN,

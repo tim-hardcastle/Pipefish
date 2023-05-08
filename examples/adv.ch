@@ -1,6 +1,5 @@
 import
 
-"lib/prelude.ch" :: ""
 "lib/strings.ch"
 
 def
@@ -16,22 +15,18 @@ state = GameState(map(), map(), "", "")
 cmd
 
 main :
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
+    get moreLinesToProcess from File "examples/objects.rsc", list
     state = state with objects::slurpObjects(moreLinesToProcess)
-    respond  "\n" + describe(state[playerLocation], state) + "\n\n"
-    repl
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents] 
-    moreLinesToProcess = (file "examples/objects.rsc")[contents] 
-
-repl :
-    strings.toLower(userInput) == "quit" :
-        break
-    else :
-        state = doTheThing(userInput, state)
-        respond "\n" + state[output] + "\n\n"
-given :
-    userInput = request "What now? "
+    post "\n" + describe(state[playerLocation], state) + "\n\n" to Output()
+    loop :
+        get userInput from Input "What now? "
+        strings.toLower(userInput) == "quit" :
+            break
+        else :
+            state = doTheThing(userInput, state)
+            post "\n" + state[output] + "\n" to Output()
    
 def
 

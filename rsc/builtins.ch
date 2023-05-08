@@ -12,6 +12,12 @@ while (p) do (__f) to (z tuple) :
     p z : while p do __f to __f z
     else : z
 
+tail(L list) :
+    L == [] :
+        []
+    else :
+        L[1::len(L)]
+
 range(p pair) : builtin "range"
 len(t type) : builtin "len_of_type" 
 codepoint(s string) : builtin "codepoint"

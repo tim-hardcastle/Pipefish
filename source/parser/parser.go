@@ -34,7 +34,6 @@ const (
 	EQUALS      // == or !=
 	LESSGREATER // > or < or <= or >=
 	WEAK_COMMA  // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
-
 	FPREFIX // user-defined prefix or function
 	FMIDFIX // user-defined midfix or forefix
 	FENDFIX // user-defined endfix
@@ -59,8 +58,6 @@ var precedences = map[token.TokenType]int{
 	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
-	token.RESPOND:     FUNC,
-	token.REQUEST:     FUNC,
 	token.GIVEN:       GIVEN,
 	token.LOOP:		   GIVEN,
 	token.ASSIGN:      ASSIGN,
@@ -181,6 +178,7 @@ func New() *Parser {
 	p.Suffixes.Add("raw")
 	p.Suffixes.Add("ast")
 	p.Suffixes.Add("varname")
+	p.Suffixes.Add("varref")
 
 	p.Functions.AddSet(*set.MakeFromSlice([]string{"builtin"}))
 
@@ -286,10 +284,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseListExpression()
 	case token.LBRACE:
 		leftExp = p.parseSetExpression()
-	case token.RESPOND:
-		leftExp = p.ParseRespondExpression()
-	case token.REQUEST:
-		leftExp = p.ParseRequestExpression()
+
 	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
 	default:
@@ -911,26 +906,6 @@ func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {
 	return expression
 }
 
-func (p *Parser) ParseRespondExpression() ast.Node {
-	expression := &ast.PrefixExpression{
-		Token:    p.curToken,
-		Operator: token.RESPOND,
-	}
-	p.NextToken()
-	expression.Args = p.recursivelyListify(p.parseExpression(FUNC))
-	return expression
-}
-// TODO -- these two are basically the same and if they remain so they should be DRY-d up.
-func (p *Parser) ParseRequestExpression() ast.Node {
-	expression := &ast.PrefixExpression{
-		Token:    p.curToken,
-		Operator: token.REQUEST,
-	}
-	p.NextToken()
-	expression.Args = p.recursivelyListify(p.parseExpression(FUNC))
-	return expression
-}
-
 func (p *Parser) parseGolangExpression() ast.Node {
 	expression := &ast.GolangExpression{
 		Token: p.curToken,
@@ -1199,7 +1174,8 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 	case *ast.SuffixExpression:
 		switch {
 		case TypeExists(typednode.Operator, p.TypeSystem) ||
-			typednode.Operator == "ast" || typednode.Operator == "varname":
+			typednode.Operator == "ast" || typednode.Operator == "varname" || 
+			typednode.Operator == "varref":
 			LHS := p.getSigFromArgs(typednode.Args, dflt)
 			for k := range LHS {
 				LHS[k].VarType = typednode.Operator
