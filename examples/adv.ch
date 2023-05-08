@@ -17,8 +17,8 @@ cmd
 main :
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    get moreLinesToProcess from File "examples/objects.rsc", list
-    state = state with objects::slurpObjects(moreLinesToProcess)
+    get linesToProcess from File "examples/objects.rsc", list
+    state = state with objects::slurpObjects(linesToProcess)
     post "\n" + describe(state[playerLocation], state) + "\n\n" to Output()
     loop :
         get userInput from Input "What now? "
