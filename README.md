@@ -81,7 +81,7 @@ It is possible to do this in Charm, but this is such an un-Charmlike thing to do
 cmd
 
 main :
-    respond "Hello world!"
+    post "Hello world!" to Output()
     stop
 ```
 
