@@ -580,8 +580,6 @@ Starting script 'examples/lambdas.ch' as service '#3'.
 #3 →         
 ```
 
-Fans of functional programming idioms will realize that what that last one needs to make it work properly are local constants. Let’s have some.
-
 ### Local constants and inner functions
 
 These are defined in the `given` section of a function[^given], as demonstrated in `examples/given.ch`:
@@ -595,12 +593,6 @@ g (x) : a * b * x
 given :
     a = x + 1
     b = x + 2
-
-// Now let's use that 'while' function properly.
-
-while (p) do (f) to (x tuple) :
-    p x : while p do f to f x
-    else : x
 
 power (x) :
     (while condition do action to x, 1)[1]
