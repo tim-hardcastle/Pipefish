@@ -664,6 +664,7 @@ squaresOfOddNumbers(L):
 given:
     isOdd(x) : x % 2 == 1
     squared(x) : x * x
+```
 
 ### Loops: `while` and `for`
 
