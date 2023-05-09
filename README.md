@@ -564,13 +564,6 @@ apply (f) to (x tuple) :
 
 apply (f) twice to (x tuple) :
     f f x
-
-while (p) do (f) to (x tuple) :
-    p x : while p do f to f x
-    else : x
-
-condition = func (x, y) : x > 0
-action = func (x, y) : x - 1, y * 2
 ```
 
 Let’s give it a spin in the REPL.
@@ -584,8 +577,6 @@ Starting script 'examples/lambdas.ch' as service '#3'.
 8
 #3 → apply g twice to 3                                                                                                 
 13
-#3 → while condition do action to 7, 1                                                                                  
-0, 128
 #3 →         
 ```
 
@@ -633,9 +624,77 @@ given :
 
 Note that an inner function is syntactic sugar for a lambda. So it must have a vanilla `<function name> (<parameters>) syntax`, it cannot be overloaded, and it can be passed.
 
+## Piping operators
+
+There are three piping operators, pipe `->`, map `>>` and filter `?>`. 
+
+Each operator implicitly defines a very local constant called `that`. Let's demonstrate it in the REPL:
+
+```
+#3 → 2 -> that + 1 -> 5 * that                                        
+15
+#3 → [1, 2, 3, 4, 5, 6] >> 2 * that
+[2, 4, 6, 8, 10, 12]
+#3 → [1, 2, 3, 4, 5, 6] ?> that % 2 == 1                              
+[1, 3, 5]
+#3 → [1, 2, 3, 4, 5, 6] ?> that % 2 == 1 >> that * that 
+[1, 9, 25]
+#3 → 2 -> that + 1
+3
+#3 → 
+```
+
+As a piece of syntactic sugar, when the right-hand side of a piping operator consists only of the name of a function (or variable containing a lambda) then the left-hand side is fed to the function without the necessity of specifying `that` as its argument:
+
+```
+#3 → "Hello" -> len                                                   
+5
+#3 → ["The", "walrus", "and", "the", "carpenter"] >> len 
+[3, 6, 3, 3, 9]
+→  
+```
+
+The use of meaningfully-named inner functions can make for very readable code, as demonstrated in `exampes/streaming.ch`:
+
+```
+def
+
+squaresOfOddNumbers(L):
+    L ?> isOdd >> squared
+given:
+    isOdd(x) : x % 2 == 1
+    squared(x) : x * x
+
+### Loops: `while` and `for`
+
+The `while` loop has the signature `while (condition func) do (action) to (t tuple)`.
+
+Here's an example, a quick Collatz function.
+
+```
+collatz(n int):
+	while notOne do collatzify to n
+given :
+	notOne(i) : i != 1
+	collatzify(i) :
+		i % 2 == 0 :
+			i / 2
+		else :
+			3 * i + 1
+```
+
+The `for` loop allows you to iterate over a parameter:
+
+```
+#3 → for i over 0::10 do (func(n) : n + i * i) to 0
+285
+#3 → for i over ["red", "green", "blue" do (func(n) : n + i + " ") to ""
+red green blue
+```
+
 ### this
 
-Functions can refer to themselves as `this`. This isn’t just syntactic sugar: there isn’t any other way for a lambda to refer to itself, since they have no names. The file `examples/this.ch` has an example.
+Functions can refer to themselves as `this`. This isn’t just syntactic sugar: there isn’t any other way for a lambda to refer to itself, since they have no names. The file `examples/this.ch` has an example: not a very good one, since we wouldn't really want to do this using recursion anyway.
 
 ```
 def
@@ -852,48 +911,6 @@ classify(n):
         "n is negative"             \\ log : "Negative branch"
 ```
 
-## Streaming operators
-
-There are three streaming operators, pipe `->`, map `>>` and filter `?>`. 
-
-Each operator implicitly defines a very local constant called `that`. Let's demonstrate it in the REPL:
-
-```
-#3 → 2 -> that + 1 -> 5 * that                                        
-15
-#3 → [1, 2, 3, 4, 5, 6] >> 2 * that
-[2, 4, 6, 8, 10, 12]
-#3 → [1, 2, 3, 4, 5, 6] ?> that % 2 == 1                              
-[1, 3, 5]
-#3 → [1, 2, 3, 4, 5, 6] ?> that % 2 == 1 >> that * that 
-[1, 9, 25]
-#3 → 2 -> that + 1
-3
-#3 → 
-```
-
-As a piece of syntactic sugar, when the right-hand side of a streaming operator consists only of the name of a function (or variable containing a lambda) then the left-hand side is fed to the function without the necessity of specifying `that` as its argument:
-
-```
-#3 → "Hello" -> len                                                   
-5
-#3 → ["The", "walrus", "and", "the", "carpenter"] >> len 
-[3, 6, 3, 3, 9]
-→  
-```
-
-The use of meaningfully-named inner functions can make for very readable code, as demonstrated in `exampes/streaming.ch`:
-
-```
-def
-
-squaresOfOddNumbers(L):
-    L ?> isOdd >> squared
-given:
-    isOdd(x) : x % 2 == 1
-    squared(x) : x * x
-```
-
 ## `import`
 
 The `import` section has to come at the top of the script, if there is an import section at all. It consists of filepaths expressed as string constants and separated by newlines:
@@ -948,71 +965,6 @@ def
 ```
 
 Most of the other libraries supplied wrap around Go functions rather than native Charm: such functions will be discussed in a later section.
-
-
-## Recursion
-
-Functional programming has a reputation of requiring recursive functions (as in the previous example), which sometimes alarms people. In fact, except in cases where you’d reach for recursion in any other language, you really only need one recursive function, it’s very short, and I’ve already written it for you: it’s in `examples/recursion.ch`:
-
-```
-def
-
-// You only really need this one:       
-
-while (p) do (f) to (x tuple) :
-    p x : while p do f to f x
-    else : x
-
-// But we can make other general-purpose recursive functions ...
-
-for (n) do (f) to (x tuple) :
-    (while unfinished do loop to 0, x)[1::count(x) + 1]
-given :
-    unfinished(i int, x tuple) : i < n
-    loop(i int, x tuple) : i + 1, f x
-
-// And all the nasty recursion disappears ...
-
-power2 (n int) : for n do action to 1
-given : action = func(x) : 2 * x
-
-stars (n int) : for n do action to ""
-given :
-	action(x) : x + "*"
-
-// Let’s make that max function shorter
-
-max(L list) : (while condition do action to 1, L[0])[1]
-given :
-    condition(i, m) : i < len(L)
-    action (i, m) : i + 1, max(m, L[i])
-
-max (x, y int) :
-    x > y : x
-    else : y
-```
-
-A quick look at the REPL to see this working:
-
-```
-#4 → hub run "examples/recursion.ch"                                                                                    
-Starting script 'examples/recursion.ch' as service '#5'.
-#5 → stars 5                                                            
-*****
-#5 → power2 8                                                            
-256
-#5 → max [72, 35, 84, 16]                                                
-84
-#5 → 
-```
-
-And so on.
-
-Obviously such standard functions for doing generalized recursion should be contained in a standard library, the *prelude* as it’s called in Haskell.
-
-To demonstrate the principle, a small prelude has been supplied in `lib/prelude.ch`, including `while`, `for`, and `mergesort`.
-
-More functions like this will be provided when I’ve decided what they should be, and what they should look like.
 
 ## `struct`
 
