@@ -1642,14 +1642,6 @@ BAR → multiply a by b
 BAR →
 ```
 
-## File access
-
-You can issue the instructions `save as <filename>`, `save`, and `open <filename>` to the service, which will then save all its data to / load all its data from the given file.
-
-The language itself has been given a little file-handling capacity with the `file` type. `file <filename>` creates a file object, which has a field `contents` which contains the file as a list of strings.
-
-This is pretty much a stopgap to let me write test programs, I haven’t put much thought into it and it will be deprecated shortly in favor of a standard syntax for IO.
-
 ## Service variables
 
 As the name suggests, these are settable variables that change the state of the service. For example `$view`, which can be set to `"plain"` or `"charm"`, determines how things are output: if `"charm"` is selected output will be in the form of Charm literals.
