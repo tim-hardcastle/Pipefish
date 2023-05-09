@@ -1406,6 +1406,10 @@ step2B :
     add (n)
     add (n)
 given n = 1
+
+zort (x) :
+    n = 1
+    post x + n to Output()
 ```
 
 In the REPL :
@@ -1436,9 +1440,93 @@ Commands can have `given` blocks, and for purposes of modularity and code reuse 
 
 (*Note: when I say the intitalizer “will” do this, I mean I haven’t written that bit yet.*)
 
-### `stop`
+As the last example shows, local variables can be created just by assigning to them, like in Python.
 
-The keyword `stop` will stop the service altogether.
+We should now talk about the `post x to Output()` statements in the above examples, and about input and output generally.
+
+### Input and output
+
+At present Charm contains a small library called `world`, automatically imported at initialization, which allows communication with the outside world (the filing system, system clock, random number generator, etc). As the `world` library is written in Charm, you can easily copy its patterns to make ways to communicate with other services and devices not covered in `world`.
+
+In most languages, getting information from the outside world is modeled as calling a function. But that won't do for Charm, where all functions are pure. Instead such an activity has to look like what it is: an imperative instruction for yanking data from the outside world and inserting it into the local or global state.
+
+So for example if we run a program which looks like this:
+
+```
+var
+
+z single = 0
+```
+
+... so as to establish the existence of `z` as a piece of mutable state, then we can do this in the REPL:
+
+```
+#0 → get z from Random 6                                                            
+ok
+#0 → z 
+5
+#0 → get z from UnixClock SECONDS 
+ok
+#0 → z 
+1683493967
+#0 → get z from Input "What's your name? " 
+What's your name? Marmaduke                                                         
+ok
+#0 → z 
+Marmaduke
+#0 → get z from File "examples/poem.txt" 
+ok
+#0 → z 
+Love is like
+a pineapple,
+sweet and
+undefinable.
+#0 → 
+``` 
+
+Output works in a similar way:
+
+```
+#0 → post "Hello output!" to Output()                                               
+Hello output! 
+#0 → put 42 into RandomSeed()
+ok 
+#0 → post "Some text" to File "zort.txt"                                           
+ok
+#0 → post "Some different text" to File "zort.txt"                               
+
+[0] Error: file 'zort.txt' already exists at line 153:50-56 of 'lib/world.ch'
+
+#0 → put "Some different text" into File "zort.txt"                                 
+ok
+#0 → get z from File "zort.txt" 
+ok
+#0 → post z to Output() 
+Some different text
+#0 → delete File "zort.txt" 
+ok           
+#0 → 
+```
+
+Note that we have followed the semantics of HTTP: `get`, `put`, and `delete` are idempotent and `post` is not.
+
+###  Imperative loops: `loop`, `break`, and `stop`
+
+The `loop` keyword loops over its block until it hits a `break` or `stop` statement.
+
+```
+cmd
+
+sayHello :
+    loop :
+        get name from Input("What's your name? ")
+        name == "quit" :
+            break
+        else :
+            post "Hello " + name + "!" to Output()
+```
+
+Whereas `break` just breaks out of the loop it is in, the keyword `stop` will stop the service altogether.
 
 ### Transactions
 
@@ -1600,6 +1688,8 @@ The final example shows that it is possible to achieve some sophistication even 
 ```
 
 ## Communication between services: `exec`
+
+* Note: this way of doing things will soon be deprecated in favor of something which is less elegant but more consistent with Charm's standard methods for doing IO. You can't have everything.*
 
 The exec keyword allows one service to use the public functions and commands of another named service. The calling service is the inner scope. For example, if we have the script `examples/foo.ch`:
 
