@@ -1394,13 +1394,13 @@ times (n) :
 
 add (n) :
     x = x + n
-    respond x
+    post x to Output()
 
 step2A :
     x = x + 1
-    respond x
+    post x to Output()
     x = x + 1
-    respond x
+    post x to Output()
 
 step2B :
     add (n)
@@ -1432,8 +1432,6 @@ Things to note: commands don’t need to take parameters. Nor do functions in fa
 
 Commands have no return values.
 
-`respond` is essentially a `print` statement, and so works only in the `cmd` section.
-
 Commands can have `given` blocks, and for purposes of modularity and code reuse they can call other commands, though the initializer will object to any circular dependencies.
 
 (*Note: when I say the intitalizer “will” do this, I mean I haven’t written that bit yet.*)
@@ -1441,29 +1439,6 @@ Commands can have `given` blocks, and for purposes of modularity and code reuse 
 ### `stop`
 
 The keyword `stop` will stop the service altogether.
-
-### `request`
-
-The `request` keyword can only be used in the `cmd` section. it has the syntax request "<prompt>" and asks the end-user for input.
-
-If a `cmd` contains a `request`, and its flow of execution is such that the request is called, then on completion it will execute again with the same parameters, and will continue to loop around until (a) it executes without reaching a `request` instruction (b) it encounters `break` or `stop`.
-
-An example is given in `examples/request.ch`:
-
-```
-cmd
-
-main :
-    username == "stop" :
-        stop
-    else :
-        respond "Hello " + username + "!"
-given :
-    username = request "What's your name? "
-```
-### `break`
-
-`break` will end the automatic loop triggered by a `request` statement (see previous subsection).
 
 ### Transactions
 
