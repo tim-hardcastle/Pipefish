@@ -644,7 +644,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you have something of the form 'aList ?> function(that)' then the function " +
-			"must return a boolean value on which the list elements can be filtered."
+				"must return a boolean value on which the list elements can be filtered."
 		},
 	},
 
@@ -654,7 +654,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you have something of the form 'aList ?> function(that)' then the function " +
-			"must return a boolean value on which the list elements can be filtered."
+				"must return a boolean value on which the list elements can be filtered."
 		},
 	},
 
@@ -1455,7 +1455,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/head": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok) + " without a headword"
+			return "unexpected occurrrence of " + text.DescribeTok(tok) + " without a headword"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm expects every part of your script to go in a section headed by one of the headwords " +
@@ -1996,7 +1996,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/ret/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok) + " in return types"
+			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
@@ -2006,7 +2006,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/ret/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok) + " in return types"
+			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
@@ -2060,7 +2060,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok)
+			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm is trying to interpret this as a function or assignment signature, and " +
@@ -2073,7 +2073,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok)
+			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm is trying to interpret this as a function or assignment signature, and " +
@@ -2083,7 +2083,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/c": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok)
+			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm is trying to interpret this as a function or assignment signature, and " +
@@ -2093,7 +2093,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/d": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurence of " + text.DescribeTok(tok)
+			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm is trying to interpret this as a function or assignment signature, and " +
