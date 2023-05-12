@@ -1,19 +1,10 @@
-cmd 
+def
 
-repl :
-    loop :
-        get name from Input("What's your name? ")
-        name == "quit" :
-            break
-        else :
-            post "Hello " + name + "!" to Output()            
+foo(bar int) :
+    "FOO " + string bar
 
-foo(x) :
-    x == 0 :
-        z = 0
-    x == 1 :
-        z = 1
-    else :
-        error "oopsie"
+bar(foo int) :
+    "BAR " + string foo
+
 
         

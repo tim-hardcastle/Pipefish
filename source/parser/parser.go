@@ -1206,7 +1206,11 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 			front := signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
 			return append(front, RHS...)
 		} else {
-			p.Throw("parse/sig/a", typednode.Token)
+			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
+			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
+			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter 
+			// name under those circumstances.
+			return signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: dflt}}
 		}
 	}
 	return nil
