@@ -558,6 +558,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
+
 		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 		if result.Type() == object.ERROR_OBJ {
 			if operator == "type" {
@@ -1228,7 +1229,12 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 		}
 	}
 
-	if len(values) == 0 {
+	if len(values) == 0 { // If we have both foo() and foo(t tuple) defined, then foo() takes precedence.
+		for _, branch := range(treeWalker.position.Branch) { // TODO --- this is a pretty vile hack to find which of them takes no params. It would make sense for it to always be at the top.}
+			if branch.Node.Fn != nil {
+				return applyFunction(*branch.Node.Fn, []object.Object{}, tok, c)
+			}
+		}
 		ok := treeWalker.followBranch(c.prsr, "tuple")
 		if !ok {
 			return newError("eval/args/b", tok)

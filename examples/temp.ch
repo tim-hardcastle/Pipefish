@@ -1,10 +1,27 @@
 def
 
-foo(bar int) :
-    "FOO " + string bar
+Zort = struct(x int)
 
-bar(foo int) :
-    "BAR " + string foo
+Zort() :
+    Zort(42)
+
+Troz(x int) :
+    Zort(x)
+
+Troz() :
+    Zort(42)
+
+Fnurg(x int) :
+    Zort(x)
+
+Fnurg() :
+    Zort(42)
+
+Grunf(x) :
+     Zort(x)
+
+Grunf :
+    Zort(42)
 
 
-        
+

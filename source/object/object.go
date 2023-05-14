@@ -417,6 +417,7 @@ func (st *Struct) Inspect(view View) string {
 
 	elements := []string{}
 	for _, e := range st.Labels {
+		fmt.Println("Label is: " + e)
 		elements = append(elements, e+" :: "+st.Value[e].Inspect(view))
 	}
 	out.WriteString(st.Name)
