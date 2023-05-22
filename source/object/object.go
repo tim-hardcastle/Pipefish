@@ -39,6 +39,7 @@ const (
 	LAZY_OBJ        = "lazy"
 	LIST_OBJ        = "list"
 	PAIR_OBJ        = "pair"
+	NULL_OBJ		= "null"
 	RESPONSE_OBJ    = "response"
 	SET_OBJ         = "set"
 	STRING_OBJ      = "string"
@@ -72,6 +73,7 @@ type Object interface {
 }
 
 var SUCCESS     = &SuccessfulAssignment{}
+var NULL		= &Null{}
 
 ///////////////////////////
 // Charm object types
@@ -333,6 +335,13 @@ func (lo *List) Inspect(view View) string {
 	return out.String()
 }
 
+// The null type.
+type Null struct{}
+
+func (n *Null) DeepCopy() Object         { return n }
+func (n *Null) Type() ObjectType         { return NULL_OBJ }
+func (n *Null) Inspect(view View) string { return "NULL" }
+
 // The 'pair' type, formed with the :: operator.
 type Pair struct {
 	Left  Object
@@ -410,10 +419,6 @@ func (s *Struct) DeepCopy() Object {
 func (st *Struct) Type() ObjectType { return STRUCT_OBJ }
 func (st *Struct) Inspect(view View) string {
 	var out bytes.Buffer
-
-	if st.Name == "nothing" {
-		return "empty"
-	}
 
 	elements := []string{}
 	for _, e := range st.Labels {
@@ -649,9 +654,6 @@ func MakeInverseBool(input bool) *Boolean {
 var (
 	TRUE  = &Boolean{Value: true}
 	FALSE = &Boolean{Value: false}
-	EMPTY = &Struct{Labels: []string{},
-		Value: make(map[string]Object),
-		Name:  "nothing"}
 )
 
 func DescribeSomeParams(params []Object, incomplete bool) string {

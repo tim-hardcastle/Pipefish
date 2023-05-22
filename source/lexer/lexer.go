@@ -557,7 +557,7 @@ func (l *Lexer) readIdentifier() string {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '\'' || ch == '$' || ch == '.'
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '\'' || ch == '$' || ch == '.' || ch == '?'
 }
 
 func isPeriod(ch rune) bool {

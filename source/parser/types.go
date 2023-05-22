@@ -10,14 +10,21 @@ type TypeSystem = *digraph.Digraph[string]
 
 func NewTypeSystem() TypeSystem {
 	T := make(digraph.Digraph[string])
-	T.AddTransitiveArrow("tuple", "any")
 	T.AddTransitiveArrow("single", "tuple")
 	for _, t := range BaseTypes {
 		T.AddTransitiveArrow(t, "single")
+		T.AddTransitiveArrow(t, "single?")
+		if t != "null" {
+			T.AddTransitiveArrow(t, t + "?")
+			T.AddTransitiveArrow("null", t + "?")
+		}
 	}
-	T.AddTransitiveArrow("nothing", "struct")
+	T.AddTransitiveArrow("single", "single?")
+	T.AddTransitiveArrow("label", "label?")
 	T.AddTransitiveArrow("enum", "label")
 	T.AddTransitiveArrow("field", "label")
+	T.AddTransitiveArrow("enum", "enum?")
+	T.AddTransitiveArrow("field", "field?")
 	return &T
 }
 
@@ -27,7 +34,7 @@ func TypeExists(s string, t TypeSystem) bool {
 }
 
 var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "list",
-	"pair", "set", "map", "func", "struct", "label", "code"}
+	"pair", "set", "map", "func", "struct", "label", "code", "null"}
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (result bool, ok bool) {
 	if len(sigA) > len(sigB) {

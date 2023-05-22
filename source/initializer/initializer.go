@@ -357,6 +357,8 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 			uP.Throw("init/enum/lhs", tok1)
 		}
 		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
+		uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal + "?")
+		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal + "?")
 		uP.Parser.Enums[tok1.Literal] = []*object.Label{}
 		uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken() // This says "enum" or we wouldn't be here.
 		for tok := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken(); tok.Type != token.EOF; {
@@ -393,13 +395,15 @@ func (uP *Initializer) ParseTypeDefs() {
 		} else {
 			uP.tokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
-			uP.Parser.TypeSystem.AddTransitiveArrow("nothing", tok1.Literal)
+			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal + "?")
+			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal + "?")
 			uP.Parser.Suffixes.Add(tok1.Literal)
 			uP.Parser.AllFunctionIdents.Add(tok1.Literal)
 			uP.Parser.Functions.Add(tok1.Literal)
 			uP.Parser.Structs.Add(tok1.Literal)
 		}
 	}
+
 	// Now we can parse them.
 
 	for chunk := 0; chunk < len(uP.tokenizedDeclarations[typeDeclaration]); chunk++ {
@@ -449,7 +453,7 @@ func (uP *Initializer) ParseEverything() {
 func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName string) {
 	uP.makeFunctions(sourceName)
 	uP.makeFunctionTrees()
-	env.InitializeConstant("empty", object.EMPTY)
+	env.InitializeConstant("NULL", object.NULL)
 	// Initialize the user-declared constants and variables
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
