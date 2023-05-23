@@ -1110,7 +1110,6 @@ Although we have yet to meet all of the more specialized types, this would be a 
 
 ```mermaid
 graph TD;
-    any-->tuple;
     tuple-->single;
     single-->int;
     single-->float64;
@@ -1126,8 +1125,8 @@ graph TD;
     single-->func;
     single-->type;
     single-->code;
+    single-->null;
     struct-->X[user-defined structs];
-    X-->nothing;
     label-->enum;
     label-->field;
     enum-->Y[user-defined enums];
@@ -1135,7 +1134,7 @@ graph TD;
 
 Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract*: no data object can be of that type. However, we can use these types to broaden the types accepted by a variable, as explained in the next section.
 
-The `nothing` type contains a single element, `empty`, which serves the same sort of role as `nil`, `null`, etc in other languages.
+The `null` type contains a single element, `NULL`. It can be used in combination with the other types to make nullable abstract types, but first we should talk about why you'd want to do that.
 
 ## Widening variable types
 
@@ -1155,6 +1154,20 @@ If you run the script you will find that `foo` can only be assigned string value
 
 [^typing]: See [The whys of Charm: Why are variables typed by default?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-variables-typed-by-default)
 
+## `null`, `NULL`, and nullability.
+
+In addition to the types we have already discussed, there is a type `null` having a single member `NULL`.
+
+From this type combined with each other charm type (for example `string`) we produce a new abstract type (in this case) `string?` which includes both the `string` and `null` types.
+
+Some things to note about how this works within the rules of Charm's type system.
+
+(1) Recall what it means to be an abstract type. No *value* is of type `string?`: variables and arguments are given abstract types to constrain what concrete types they can contain. Or, to put it another way, `string?` is not even slightly like `Optional<String>` and its analogs, which (in languages that have it) is something a value can *be*.
+
+(2) Recall that a variable, when created by assignment, takes on the concrete type of the thing assigned unless you ask for it to be broadened by supplying an abstract type. This means that if you were to assign `x = NULL` in the `var` section of a Charm script, you could never assign anything else to it, since `x` would be given type `null`. Instead you would want to assign it with e.g. `x string? = NULL`, to establish what else it could be.
+
+(3) Charm doesn't allow you to compare two values of different types (except that a tuple can be compared with any single value by the usual tuple coercion). It follows that the only things you can compare with NULL are NULL itself and any tuple. Instead, the idiomatic way to test if `x` is `NULL` is to test `x in null`.
+
 ## Overloading
 
 As we have seen, there is support for overloading functions. This includes built-in functions and operators, except for the logical operators and the “protected punctuation”: `{` `}` `[` `]` `(` `)` `:` `;` `,` `"` and `` ` ``.
@@ -1162,7 +1175,6 @@ As we have seen, there is support for overloading functions. This includes built
 Also, by overloading the `index` function, you can make it indexable by whatever type you like (except tuple, because of the current restrictions on what you can do with variadics). So if you define `index(i int, t yourType)` then you can index it by integers, if you define `index(p pair, t yourType)`, you can index it by pairs, etc.
 
 When you overload a function, the interpreter’s choice of which version of the function to use depends of course on the types of the passed parameters. If there are two such choices, for example if you have a function foo defined for `foo(x int)` and `foo(x any)` and you pass it an integer, then it will always use the more specific type signature, in this case foo(x int). A file `examples/overloading.ch` has been supplied to demonstrate this behavior.
-
 
 ## Type conversion and reflection
 
