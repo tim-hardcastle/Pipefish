@@ -1110,7 +1110,7 @@ Although we have yet to meet all of the more specialized types, this would be a 
 
 ```mermaid
 graph TD;
-    tuple-->single;
+    tuple-. by tuple coercion .->single;
     single-->int;
     single-->float64;
     single-->bool;
@@ -1134,6 +1134,8 @@ graph TD;
 
 Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract*: no data object can be of that type. However, we can use these types to broaden the types accepted by a variable, as explained in the next section.
 
+The `tuple` type is not really a supertype of every type, but it is treated with one by *tuple coercion*: anything expecting a tuple, passed something as arity 1, will convert it into a tuple. This is the only form of type coercion in Charm: all other conversions are explicit.
+
 The `null` type contains a single element, `NULL`. It can be used in combination with the other types to make nullable abstract types, but first we should talk about why you'd want to do that.
 
 ## Widening variable types
@@ -1147,7 +1149,7 @@ foo = "bananas"
 
 zort single = "bananas"
 
-troz any = "bananas"
+troz tuple = "bananas"
 ```
 
 If you run the script you will find that `foo` can only be assigned string values, that `zort` can be assigned anything but a tuple, and that `troz` can be assigned anything at all.
