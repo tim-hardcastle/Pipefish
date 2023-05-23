@@ -1772,12 +1772,12 @@ And so on.
 	
 ## Appendix: precedence
 
-In Charm, everything is an expression, and, perhaps as a result of taking this too literally, it follows that everything must fit into the system of precedence, including things like `given` and `return`. And so the resulting system of precedence is rather large. Much of it can be ignored for most practical purposes, and much of the rest is exactly what you're familiar with from other languages. Note however that `not` has a lower order than the comparators.	
+In Charm, everything is an expression, and, perhaps as a result of taking this too literally, it follows that everything must fit into the system of precedence, including things like `given`. And so the resulting system of precedence is rather large. Much of it can be ignored for most practical purposes, and much of the rest is exactly what you're familiar with from other languages. Note however that `not` has a lower order than the comparators.	
 
 | # | Keywords and operators |
 | ------------- | ------------- |
 | 1 | `;` or newline |
-| 2 | `func`, ‘exec’, `code`, `return`, `->`, `>>`, `?>` |
+| 2 | `func`, `exec`, `code`, `->`, `>>`, `?>` |
 | 3 | `given` |
 | 4 | `=` |
 | 5 | `:` |
