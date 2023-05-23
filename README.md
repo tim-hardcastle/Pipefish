@@ -332,7 +332,7 @@ Besides the `::` operator that creates it, the only operation defined on a pair 
 
 ### `tuple`
 
-The `tuple` type is an ordered, indexable, unnestable[^tuple] collection of objects. It is represented by a comma-separated sequence of objects, e.g. `1, 2, 3`, which may optionally be enclosed in parentheses: `(1, 2, 3)`. The empty tuple is represented by `()`; for clarity you may with to write `tuple ()`.
+The `tuple` type is an ordered, indexable, unnestable[^tuple] collection of objects. It is represented by a comma-separated sequence of objects, e.g. `1, 2, 3`, which may optionally be enclosed in parentheses: `(1, 2, 3)`. The empty tuple is represented by `()`; for clarity you may wish to write `tuple ()`.
 
 By "unnestable", we mean that for example `((1, (2, 3)), ((4)))` is the same as `1, 2, 3, 4`. 
 
