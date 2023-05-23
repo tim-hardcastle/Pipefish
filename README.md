@@ -520,9 +520,11 @@ add(x, y) -> int : x + y
 swap(x, y) -> string, bool : y, x
 ```
 
+The first function will return an error unless it is passed integers, the second unless it is passed a boolean and a string in that order.
+
 ### Precedence
 
-Infix and suffix functions bind rather tightly to their parameters. E.g if you have an infix operator `moo` then `1, 2 moo 3, 4` parses as `1, (2 moo 3), 4`; if you have a suffix operator foo then `1, 2 foo` parses as `1, (2 foo)`.
+Infix and suffix functions bind rather tightly to their parameters. E.g if you have an infix operator `moo` then `1, 2 moo 3, 4` parses as `1, (2 moo 3), 4`; if you have a suffix operator `foo` then `1, 2 foo` parses as `1, (2 foo)`.
 
 You can give such functions more parameters than two and one respectively, but you would have to use parentheses to indicate this when calling, e.g. if you have a function `(x, y) foo : x + y` then you would call this on values `a, b` by saying `(a, b) foo`. If instead you wrote `a, b foo`, then the only thing this could mean that would be both syntactic and semantic would be “the tuple consisting of whatever `a` is, followed by whatever `foo` applied to `b` is, and if `b` isn’t a tuple of arity 2 there’s going to be a runtime error.”
 
