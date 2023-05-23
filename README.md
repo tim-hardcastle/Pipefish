@@ -9,33 +9,29 @@ The principal purpose of this README file is to teach people how to use the lang
 
 If you want to use the language rather than just learn about it, you should also read at least the first two parts of the document on [*The Charm hub*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-charm-hub.md), which explains how to use Charm's text-based shell to start and stop services, debug, write tests, and other things useful to developers.
 
-For a high-level view of the aims of the language and the principles of its design, with particular emphasis on the features that make it novel and suited to its use-case, see [this document](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [*The whys of Charm*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md), explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
+For a high-level view of the aims of the language and the principles of its design, with particular emphasis on the features that make it novel and suited to its use-case, see [*Charm: a high-level view*](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md), which explains such things in depth. Another supplementary document, [*The whys of Charm*](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md), explains specific decisions about syntax and semantics which may seem in need of explanation: this README will occasionally link to that document in footnotes.
 
 ## Features
 
-Features already implemented include:
-
-- Functions with optionally typed parameters and return values
-- Overloading of pretty much everything including arithmetic operators
-- Multiple dispatch.
+- A Functional Core / Imperative Shell architecture[^fcis]
+- Multiple dispatch
+- Gradual typing
 - First-class functions, lambdas, closures, inner functions.
+- Comparison by value
 - Streaming operators
-- First-class types including int, string, bool, float, list, tuple, pair, map, structs, enumerated types, error, type, func, and label.
-- Variables static by default, dynamic by request
+- First-class types
+- Nullability
 - Transactions
 - Encapsulation
 - Serialization and eval
 - Reflection
-- Comparison by value
-- Imports
-- A growing number of standard libraries including math, strings, and fmt
+- Imports, libraries
 - Throwing and handling errors
 - Embeddable Go
 - Macros
 - Interactive error messages and trace
 - Logging
 - A helpful way of writing tests from the REPL
-- A Functional Core / Imperative Shell architecture[^fcis]
 - Turns into a server on demand
 - Microservices
 - Role-based access management
