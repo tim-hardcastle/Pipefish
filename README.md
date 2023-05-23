@@ -1134,7 +1134,7 @@ graph TD;
 
 Of these, the `any`, `single`, `struct`, `label`, and `enum` types are *abstract*: no data object can be of that type. However, we can use these types to broaden the types accepted by a variable, as explained in the next section.
 
-The `tuple` type is not really a supertype of every type, but it is treated with one by *tuple coercion*: anything expecting a tuple, passed something as arity 1, will convert it into a tuple. This is the only form of type coercion in Charm: all other conversions are explicit.
+The `tuple` type is not really a supertype of every type, but it is treated with one by *tuple coercion*: anything expecting a tuple, passed something not a tuple, will convert it into a tuple of arity 1. This is the only form of type coercion in Charm.
 
 The `null` type contains a single element, `NULL`. It can be used in combination with the other types to make nullable abstract types, but first we should talk about why you'd want to do that.
 
@@ -1153,6 +1153,8 @@ troz tuple = "bananas"
 ```
 
 If you run the script you will find that `foo` can only be assigned string values, that `zort` can be assigned anything but a tuple, and that `troz` can be assigned anything at all.
+
+Similarly the parameters of functions can be given abstract types.
 
 [^typing]: See [The whys of Charm: Why are variables typed by default?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-variables-typed-by-default)
 
