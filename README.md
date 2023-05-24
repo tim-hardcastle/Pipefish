@@ -328,7 +328,7 @@ You will notice it is also used to supply a pair of integers as the parameter of
 
 Besides the `::` operator that creates it, the only operation defined on a pair is indexing, the left element having index `0` and the right element having index `1`.
 
-[^pair]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist).
+[^pair]: See [The whys of Charm: Why does the pair type exist?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-does-the-pair-type-exist)
 
 ### `tuple`
 
@@ -354,7 +354,7 @@ The index and slice operators work for tuples. However, there is only one case w
 
 As with all languages that implement tuples, this type is the Cinderella of the type system. If you find yourself using it for reasons other than those given above, you should ask yourself why and then use a list instead.
 
-[^tuple]: See [The whys of Charm: Why are tuples flat?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-tuples-flat).
+[^tuple]: See [The whys of Charm: Why are tuples flat?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-are-tuples-flat)
 
 ### `map`
 
