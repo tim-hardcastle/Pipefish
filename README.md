@@ -1168,7 +1168,7 @@ Some things to note about how this works within the rules of Charm's type system
 
 (2) Recall that a variable, when created by assignment, takes on the concrete type of the thing assigned unless you ask for it to be broadened by supplying an abstract type. This means that if you were to assign `x = NULL` in the `var` section of a Charm script, you could never assign anything else to it, since `x` would be given type `null`. Instead you would want to assign it with e.g. `x string? = NULL`, to establish what else it could be.
 
-(3) Charm doesn't allow you to compare two values of different types (except that a tuple can be compared with any single value by the usual tuple coercion). It follows that the only things you can compare with NULL are NULL itself and any tuple. Instead, the idiomatic way to test if `x` is `NULL` is to test `x in null`.
+(3) Charm doesn't allow you to compare two values of different types (except that a tuple can be compared with any single value by the usual tuple coercion). It follows that the only things you can compare with `NULL` are `NULL` itself and any tuple. Instead, the idiomatic way to test if `x` is `NULL` is to test `x in null`.
 
 ## Overloading
 
