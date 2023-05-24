@@ -1174,9 +1174,7 @@ Some things to note about how this works within the rules of Charm's type system
 
 As we have seen, there is support for overloading functions. This includes built-in functions and operators, except for the logical operators and the “protected punctuation”: `{` `}` `[` `]` `(` `)` `:` `;` `,` `"` and `` ` ``.
 
-Also, by overloading the `index` function, you can make it indexable by whatever type you like (except tuple, because of the current restrictions on what you can do with variadics). So if you define `index(i int, t yourType)` then you can index it by integers, if you define `index(p pair, t yourType)`, you can index it by pairs, etc.
-
-When you overload a function, the interpreter’s choice of which version of the function to use depends of course on the types of the passed parameters. If there are two such choices, for example if you have a function foo defined for `foo(x int)` and `foo(x any)` and you pass it an integer, then it will always use the more specific type signature, in this case foo(x int). A file `examples/overloading.ch` has been supplied to demonstrate this behavior.
+When you overload a function, the interpreter’s choice of which version of the function to use depends of course on the types of the passed parameters. If there are two such choices, for example if you have a function foo defined for `foo(x int)` and `foo(x single)` and you pass it an integer, then it will always use the more specific type signature, in this case foo(x int). A file `examples/overloading.ch` has been supplied to demonstrate this behavior.
 
 ## Type conversion and reflection
 
