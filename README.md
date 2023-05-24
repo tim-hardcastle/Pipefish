@@ -1160,7 +1160,7 @@ Similarly the parameters of functions can be given abstract types.
 
 In addition to the types we have already discussed, there is a type `null` having a single member `NULL`.
 
-From this type combined with each other charm type (for example `string`) we produce a new abstract type (in this case) `string?` which includes both the `string` and `null` types.
+From this type combined with each other Charm type (here, for example `string`, but also for each user-defined type) Charm supplies you with a new abstract type, in this case `string?`, which includes both the `string` and `null` types.
 
 Some things to note about how this works within the rules of Charm's type system.
 
