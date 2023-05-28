@@ -58,6 +58,7 @@ var precedences = map[token.TokenType]int{
 	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
+	token.GLOBAL:	   FUNC,
 	token.GIVEN:       GIVEN,
 	token.LOOP:		   GIVEN,
 	token.ASSIGN:      ASSIGN,
@@ -268,7 +269,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseAutoLog()
 	case token.NOT:
 		leftExp = p.parseNativePrefixExpression()
-	case token.EVAL:
+	case token.EVAL, token.GLOBAL:
 		leftExp = p.parsePrefixExpression()
 	case token.LOOP:
 		leftExp = p.parseLoopExpression()
