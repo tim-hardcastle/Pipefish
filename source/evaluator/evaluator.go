@@ -556,6 +556,8 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalNotOperatorExpression(tok, Eval(node.Args[0], c)) // TODO: for consistency, we shouldn't be using Args[0] like this. Doesn't matter that much.
 	case tok.Type == token.EVAL: // TODO, but for now if you are going to do this you should throw errors for too many args.
 		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
+	case tok.Type == token.GLOBAL: 
+        return evalGlobalExpression(node, c)
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
 
@@ -911,6 +913,23 @@ func evalEvalExpression(token token.Token, right object.Object, c *Context) obje
 		return Evaluate(*parsedCode, c)
 	}
 	return newError("eval/eval", token)
+}
+
+func evalGlobalExpression(node *ast.PrefixExpression, c *Context) object.Object {
+    for _, v := range(node.Args) {
+        varName := v.GetToken().Literal
+        if v.GetToken().Type != token.IDENT {
+            return newError("eval/global/ident", node.GetToken())
+        }
+        val, ok := c.prsr.AllGlobals.Get(varName)
+        if ok {
+            ty, _ := c.prsr.AllGlobals.Type(varName)
+            c.env.InitializePrivate(varName, val, ty)
+        } else {
+            return newError("eval/global/exists", node.GetToken())
+        }
+    }
+    return object.SUCCESS
 }
 
 func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object {
