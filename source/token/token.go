@@ -74,15 +74,13 @@ const (
 	GIVEN   = "given"
 	EVAL    = "eval"
 	EXEC    = "exec"
+	LOOP    = "loop"
+	GOLANG  = "gocode"
+	GLOBAL  = "global"
 
-	// Imperative shell
-	
-	LOOP = "loop"
-
+	// For internal use
 	MAGIC_COLON = "MAGIC_COLON"
 	WEAK_COLON = "WEAK_COLON"
-
-	GOLANG = "gocode"
 
 	// Streaming operators
 	PIPE = "->"
@@ -101,9 +99,19 @@ type Token struct {
 }
 
 var keywords = map[string]TokenType{
+	"import":  IMPORT,
+	"var":     VAR,
+	"cmd":     CMD,
+	"def":     DEF,
+	"private": PRIVATE,
+
 	"true":   TRUE,
 	"false":  FALSE,
 	"else":   ELSE,
+
+	"and": AND,
+	"or":  OR,
+	"not": NOT,
 
 	"loop": LOOP,
 
@@ -111,17 +119,7 @@ var keywords = map[string]TokenType{
 	"given":  GIVEN,
 	"exec":   EXEC,
 	"gocode": GOLANG,
-
-	"import":  IMPORT,
-	"var":     VAR,
-	"cmd":     CMD,
-	"def":     DEF,
-	"private": PRIVATE,
-
-	"and": AND,
-	"or":  OR,
-	"not": NOT,
-
+	"global": GLOBAL,
 }
 
 func LookupIdent(ident string) TokenType {
