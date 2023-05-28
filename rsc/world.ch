@@ -195,7 +195,3 @@ randomFunctionOf(randomizer) :
 given :
     parameter = randomizer[params]
 
-
-
-
-var z single = 0   // TODO: For testing --- remove.

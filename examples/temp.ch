@@ -1,6 +1,12 @@
 var
 
-x = NULL
+x = 42
+y = "foo"
 
-y string? = NULL
+cmd
+
+zort :
+    x = 43
+    z = 44
+    post (string z) to Output()
 
