@@ -921,10 +921,10 @@ func evalGlobalExpression(node *ast.PrefixExpression, c *Context) object.Object 
         if v.GetToken().Type != token.IDENT {
             return newError("eval/global/ident", node.GetToken())
         }
-        val, ok := c.prsr.AllGlobals.Get(varName)
+        val, ok := c.env.Get(varName)
         if ok {
-            ty, _ := c.prsr.AllGlobals.Type(varName)
-            c.env.InitializePrivate(varName, val, ty)
+			ty, _ := c.env.Type(varName)
+            c.env.ImportGlobal(varName, val, ty)
         } else {
             return newError("eval/global/exists", node.GetToken())
         }

@@ -6,6 +6,7 @@ const (
 	ACCESS_PUBLIC   = 0
 	ACCESS_CONSTANT = 1
 	ACCESS_PRIVATE  = 2
+	ACCESS_GLOBAL   = 4 // That is, somthing imported into a cmd by the 'global' keyword.
 )
 
 type Environment struct {
@@ -47,6 +48,10 @@ func NewEnvironment() *Environment {
 	return &Environment{Store: s, Pending: p}
 }
 
+func (e *Environment) ImportGlobal(name string, val Object, ty string) {
+	e.Store[name] = Storage{val, ACCESS_GLOBAL, ty}
+}
+
 func (e *Environment) Get(name string) (Object, bool) {
 	storage, ok := e.Store[name]
 	if storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE {
@@ -54,6 +59,9 @@ func (e *Environment) Get(name string) (Object, bool) {
 		if pendingObject, exists := e.Pending[name]; exists {
 			return pendingObject, exists
 		}
+	}
+	if storage.access == ACCESS_GLOBAL {
+		return e.Ext.Get(name)
 	}
 	if ok || e.Ext == nil {
 		return storage.obj, ok
@@ -119,6 +127,10 @@ func (e *Environment) UpdateVar(name string, val Object) {
 			e.Pending[name] = val
 			return
 		}
+		if storage.access == ACCESS_GLOBAL {
+			e.Ext.UpdateVar(name, val)
+			return
+		}
 		e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 		return
 	}
@@ -135,9 +147,14 @@ func (e *Environment) getAccess(name string) AccessType {
 
 func (e *Environment) Set(name string, val Object) Object {
 	storage, ok := e.Store[name]
-	if ok && (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
-		e.Pending[name] = val
-		return val
+	if ok {
+		if (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
+			e.Pending[name] = val
+			return val
+		}
+		if storage.access == ACCESS_GLOBAL {
+			e.Ext.Set(name, val)
+		}
 	}
 	e.Store[name] = Storage{val, e.Store[name].access, e.Store[name].VarType}
 	return val
