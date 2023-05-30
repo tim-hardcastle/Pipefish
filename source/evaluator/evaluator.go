@@ -653,8 +653,8 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 	}
 }
 
-// We implement the = operator. This goes on for a bit, because it has complicated semantics. TODO: the implementation
-// could probably be cleaned up by making use of the Context we're passing.
+// We implement the = operator. This goes on for a bit, because it has complicated semantics which
+// have been refactored a bunch of times, so here we are.
 func Assign(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
 	if right.Type() == object.UNSATISFIED_OBJ {
 		return newError("eval/unsatisfied/l", tok)
@@ -724,6 +724,11 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		}
 		if !c.env.Exists(variable.VarName) {
 			c.env.InitializeVariable(variable.VarName, right, inferredType)
+			return nil
+		}
+		acc := c.env.GetAccess(variable.VarName)
+		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC { // Then although it exists, it's global, so we shouldn't be able to see it.
+			c.env.InitializeVariable(variable.VarName, right, inferredType) // Yes, at this point my data model is two refactorings behind my semantics.
 			return nil
 		}
 		if variable.VarType == "*" { // The '*' token indicates that we aren't trying to dereference a <code> object containing a variable name and assign to that.
@@ -997,6 +1002,7 @@ func evalTupleExpression(
 }
 
 func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
+	
 	val, ok := c.env.Get(node.Value)
 
 	// We don't want someone from the REPL to be able to find out whether (a) a variable with

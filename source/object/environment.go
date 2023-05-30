@@ -137,12 +137,12 @@ func (e *Environment) UpdateVar(name string, val Object) {
 	e.Ext.UpdateVar(name, val)
 }
 
-func (e *Environment) getAccess(name string) AccessType {
+func (e *Environment) GetAccess(name string) AccessType {
 	_, ok := e.Store[name]
 	if ok || e.Ext == nil {
 		return e.Store[name].access
 	}
-	return e.Ext.getAccess(name)
+	return e.Ext.GetAccess(name)
 }
 
 func (e *Environment) Set(name string, val Object) Object {
