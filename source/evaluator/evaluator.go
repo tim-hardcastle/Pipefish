@@ -723,7 +723,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 			return assignSysVar(tok, variable.VarName, right, c.env)
 		}
 		if !c.env.Exists(variable.VarName) {
-			c.env.InitializeVariable(variable.VarName, right, inferredType)
+			c.env.InitializeLocal(variable.VarName, right, inferredType)
 			return nil
 		}
 		acc := c.env.GetAccess(variable.VarName)
@@ -1002,8 +1002,17 @@ func evalTupleExpression(
 }
 
 func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
-	
 	val, ok := c.env.Get(node.Value)
+
+	if c.access == CMD {
+		acc := c.env.GetAccess(node.Value)
+		if acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE {
+			return newError("eval/cmd/global", node.Token, node.Value)
+		}
+		if acc == object.ACCESS_GLOBAL {
+			val, ok = c.env.Ext.Get(node.Value)
+		}
+	}
 
 	// We don't want someone from the REPL to be able to find out whether (a) a variable with
 	// a given name doesn't exist or (b) it does but it's private. So:
@@ -1293,6 +1302,9 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	} else {
 		env.Ext = c.env
 		newAccess = c.access
+	}
+	if f.Cmd {
+		newAccess = CMD
 	}
 
 	// We punt off the cases where the function body is a builtin or written in Go.

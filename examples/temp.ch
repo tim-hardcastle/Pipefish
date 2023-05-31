@@ -6,14 +6,9 @@ cmd
 
 zort :
     global x
+    x = x + 1
     post (string x) to Output()
 
 troz :
     x = "foo"
     post (string x) to Output()
-
-spoit :
-    post (string x) to Output()
-
-duh :
-    x = x + 1

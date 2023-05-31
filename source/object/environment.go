@@ -3,10 +3,11 @@ package object
 type AccessType int
 
 const (
-	ACCESS_PUBLIC   = 0
-	ACCESS_CONSTANT = 1
-	ACCESS_PRIVATE  = 2
-	ACCESS_GLOBAL   = 4 // That is, somthing imported into a cmd by the 'global' keyword.
+	ACCESS_PUBLIC		AccessType = iota
+	ACCESS_CONSTANT
+	ACCESS_PRIVATE
+	ACCESS_LOCAL
+	ACCESS_GLOBAL // That is, somthing imported into a cmd by the 'global' keyword.
 )
 
 type Environment struct {
@@ -177,6 +178,11 @@ func (e *Environment) InitializePrivate(name string, val Object, ty string) Obje
 
 func (e *Environment) InitializeConstant(name string, val Object) Object {
 	e.Store[name] = Storage{val, ACCESS_CONSTANT, TrueType(val)}
+	return val
+}
+
+func (e *Environment) InitializeLocal(name string, val Object, ty string) Object {
+	e.Store[name] = Storage{val, ACCESS_LOCAL, ty}
 	return val
 }
 
