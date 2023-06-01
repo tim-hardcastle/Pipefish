@@ -74,4 +74,4 @@ As far as the style guide goes, the development of Charm apps makes it convenien
 
 ## Why the SCREAMING_SNAKE_CASE, though?
 
-Given an identifier in a function, it could be the name of a function, a parameter, a local constant, a global constant, or an enum. Functions can be recognized by their syntactic role. Parameters can be found at the top of the function and local constants at the bottom. Whereas the constants and enums can be found ... anywhere at all The SCREAMING is apt because it's a warning: don't bother looking in the function for the definition of this, 'cos it ain't here.
+Given an identifier in a function, it could be the name of a function, a parameter, a local constant, a global constant, or an enum. Functions can be recognized by their syntactic role. Parameters can be found at the top of the function and local constants at the bottom. Whereas the constants and enums can be found ... anywhere at all. The SCREAMING is apt because it's a warning: don't bother looking in the function for the definition of this, 'cos it ain't here.
