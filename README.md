@@ -1753,7 +1753,6 @@ Charm is meant to be small, and hopefully I can keep the core language small. Bu
   
 - It needs more libraries, both wrapping more of Go's standard libraries and some of its own.
 - It should have a native way of interacting with databases.
-- The bit where it turns into a server and does role-based access management still has a lot of unfinished business.
 - It needs optimization. It has had little.
 - Specifically, it needs persistent data structures: a functional language can't run efficiently off Go's containers.
 - And tail-call optimization.
@@ -1766,7 +1765,6 @@ Charm is meant to be small, and hopefully I can keep the core language small. Bu
 - The Go interoperability could still be improved.
 - It could use an FFI. (Specifically, it will use Go's FFI.)
 - Since Charm functions are pure, they could all be run concurrently. This was one of my reasons for choosing Go, but I haven't done it yet.
-- It needs a slightly better type system.
   
 And so on.
 	
