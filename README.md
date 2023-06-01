@@ -15,12 +15,11 @@ For a high-level view of the aims of the language and the principles of its desi
 
 - A Functional Core / Imperative Shell architecture[^fcis]
 - Multiple dispatch
-- Gradual typing
-- First-class functions, lambdas, closures, inner functions.
+- Strong yet gradual typing
+- First-class functions, lambdas, closures, types.
 - Comparison by value
-- Streaming operators
-- First-class types
-- Nullability
+- Piping operators
+- Nullability (so for all types, e.g. `int`, there is a type `int?`)
 - Transactions
 - Encapsulation
 - Serialization and eval
@@ -47,7 +46,7 @@ You will need a recent version of Go installed to build the interpreter.
 
 To use the VS Code syntax highlighter, move the `charm-highlighter` folder of the distribution to your `<user home>/.vscode/extensions` folder and, if VS Code is already running, restart it.
 
-Having one way or another obtained a working executable, run it with `./charm` in the root directory. You should see something like this:
+Then run it with `./charm` in the root directory. You should see something like this:
 
 ```
   ╔══════════♥══════════╗
