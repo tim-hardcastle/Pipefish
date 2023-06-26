@@ -16,6 +16,7 @@ state = MachineState("", map(), Program(map(), [-1]), 0)
 cmd
 
 main :
+    global state
     loop :
         get lineToExecute from Input "BASIC > "
         lineToExecute == "QUIT" :
@@ -35,7 +36,7 @@ execute(lineToExecute, state) :
     type newLineNumber != error : // It may be an addition to the BASIC program.
         OK, updateProgram(state, lineToExecute)
     else : // Otherwise we can evaluate it as normal.
-        lineToExecute -> tokenize -> (parse(that, 0, NULL_NODE))[2] -> evaluate(that, state)
+        lineToExecute -> tokenize -> (parse(that, 0, EMPTY_NODE))[2] -> evaluate(that, state)
 given :
     newLineNumber = (lineToExecute -> strings.split(that, " ") -> int that[0])
     remainderOfLine = (lineToExecute -> strings.index(that, " ") ..
@@ -191,7 +192,7 @@ makeVal(charmVal single) :
     else : error "who even knows?"
 
 lexAndParseLine(i int, state) :
-    i -> state[program][lines][i] -> tokenize -> (parse(that, 0, NULL_NODE))[2]
+    i -> state[program][lines][i] -> tokenize -> (parse(that, 0, EMPTY_NODE))[2]
 
 valToBASIC(val) :
     type val != bool : string val
@@ -207,7 +208,7 @@ INFIXES = {PLUS, MINUS, MULTIPLY, DIVIDE, EQUALS, THEN, COMMA, AND, OR,
         .. LT, LEQ, GT, GEQ, NEQ, MOD}
 LITERALS = {INTEGER, STRING, BOOLEAN}
 
-NULL_NODE = Node(Token(NULL, "null"), [])
+EMPTY_NODE = Node(Token(EMPTY, "empty"), [])
 
 PRECEDENCE = map(MULTIPLY::5, DIVIDE::5, MOD::5, PLUS::4, MINUS::4, 
               .. GOTO::4, LET::4, EQUALS::3, LT::3, LEQ::3, GT::3, GEQ::3, 
@@ -219,7 +220,7 @@ parse(tokens list, precedence int, node Node) :
         tokens, 0, node
     currentType in INFIXES :
         parse(infixExpression(tokens, precedence, node))
-    node != NULL_NODE :
+    node != EMPTY_NODE :
         error "BASIC error: unexpected " + tokens[0][tokenLiteral]
     currentType in LITERALS + {IDENTIFIER} : 
         parse(valueExpression(tokens, precedence))
@@ -236,7 +237,7 @@ infixExpression(tokens list, precedence int, leftNode Node) :
     remainingTokens, newPrecedence, Node(tokens[0], [leftNode, rightNode]) 
 given :
     remainingTokens, newPrecedence, rightNode ..
-        .. = parse(tail(tokens), precedence, NULL_NODE)
+        .. = parse(tail(tokens), precedence, EMPTY_NODE)
 
 valueExpression(tokens list, precedence int) : 
     nextTokenType in INFIXES and nextPrecedence > precedence : 
@@ -251,18 +252,18 @@ given:
 groupedExpression(tokens list, precedence int) : 
     tail(remainingTokens), precedence, groupNode
 given :
-    remainingTokens, _, groupNode = parse(tail(tokens), 0, NULL_NODE)
+    remainingTokens, _, groupNode = parse(tail(tokens), 0, EMPTY_NODE)
 
 prefixExpression(tokens list) : 
     remainingToks, newPrec, Node(tokens[0], [arg]) 
 given :
     precToUse = (tokens[0][tokenType] in [BUILTIN, NOT]: 6; else: 0)
-    remainingToks, newPrec, arg = parse(tail(tokens), precToUse, NULL_NODE)
+    remainingToks, newPrec, arg = parse(tail(tokens), precToUse, EMPTY_NODE)
 
 // The tokenizer.
 
 TokenType = enum STRING, INTEGER, BOOLEAN, PLUS, MINUS, MULTIPLY, DIVIDE, IF, THEN, COMMA, AND, OR, 
-                .. NOT, GOTO, PRINT, BUILTIN, IDENTIFIER, EQUALS, LET, L_PAREN, R_PAREN, EOL, NULL, LIST,
+                .. NOT, GOTO, PRINT, BUILTIN, IDENTIFIER, EQUALS, LET, L_PAREN, R_PAREN, EOL, EMPTY, LIST,
                 .. LT, GT, LEQ, GEQ, NEQ, RUN, MOD, NEWLINE
 
 Token = struct(tokenType TokenType, tokenLiteral single)

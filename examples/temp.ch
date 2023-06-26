@@ -1,14 +1,17 @@
 var
 
-x = 42
+foo = 42
+
+def
+
+fake (y int):
+    y
+
 
 cmd
 
-zort :
-    global x
-    x = x + 1
-    post (string x) to Output()
+make :
+    get y from Input "Number? "
+    post y to Output()
 
-troz :
-    x = "foo"
-    post (string x) to Output()
+

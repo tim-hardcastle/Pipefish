@@ -474,12 +474,22 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/cmd/const": {
 		Message: func(tok token.Token, args ...any) string {
-			return "reassigning constant '" + args[0].(string) + "' in the 'var' section."
+			return "reassigning constant '" + args[0].(string) + "' in the 'var' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Because you have defined '" + args[0].(string) + "' as a constant in the 'def' " +
 				"section of the script, you can't also declare it as a variable in the 'def' section." +
 				"\n\nFor more information about constants see 'hub help constants'."
+		},
+	},
+
+	"eval/cmd/global": {
+		Message: func(tok token.Token, args ...any) string {
+			return "referring to '" + args[0].(string) + "' without importing it using 'global'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Even in the 'cmd' section a global variable needs to be imported with 'global <variable name>' " +
+			"to make it visible to the command."
 		},
 	},
 

@@ -727,47 +727,44 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 			return nil
 		}
 		acc := c.env.GetAccess(variable.VarName)
-		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC { // Then although it exists, it's global, so we shouldn't be able to see it.
-			c.env.InitializeVariable(variable.VarName, right, inferredType) // Yes, at this point my data model is two refactorings behind my semantics.
+		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC {
+			return newError("eval/cmd/global/a", tok, variable.VarName)
+		}
+		if variable.VarType != "varname" && variable.VarType !="varref" { 
+			c.env.Set(variable.VarName, right) 
 			return nil
 		}
-		if variable.VarType == "*" { // The '*' token indicates that we aren't trying to dereference a <code> object containing a variable name and assign to that.
-			if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) && variable.VarType != "varname" && variable.VarType != "varref" {
-				return newError("eval/cmd/type", tok, right, c.env.Store[variable.VarName].VarType)
-			}
-			c.env.UpdateVar(variable.VarName, right) // Unlike Set, this will work through linked environments.
-			// This is so that a cmd's own parameters, which are its *inner* environment, don't stop cmds from being able to set the global variables unless they shadow it.
-		} else { // Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
-			contents, _ := c.env.Get(variable.VarName)
-			if contents.Type() != object.CODE_OBJ {
-				return newError("eval/cmd/varname/code", tok, variable.VarName)
-			}
-			if contents.(*object.Code).Value.GetToken().Type != token.IDENT {
-				return newError("eval/cmd/varname/ident", tok, variable.VarName)
-			}
-			refName := contents.(*object.Code).Value.GetToken().Literal
-			var envToUse *object.Environment
-			if variable.VarType == "varname" {
-				envToUse = c.env
-			} else {
-				envToUse = contents.(*object.Code).Env
-			}
-			if !envToUse.Exists(refName) {
-				envToUse.InitializeVariable(refName, right, object.TrueType(right))
-				return nil
-			}
-			if envToUse.IsConstant(refName) {
-				return newError("eval/cmd/varname/const", tok, refName)
-			}
-			if strings.HasPrefix(refName, "$") {
-				return assignSysVar(tok, refName, right, envToUse)
-			}
-			contType, _ := envToUse.Type(refName)
-			if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), contType) {
-				return newError("eval/cmd/varname/type", tok, object.TrueType(right), contType)
-			}
-			envToUse.UpdateVar(refName, right)
+		// Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
+		contents, _ := c.env.Get(variable.VarName)
+		if contents.Type() != object.CODE_OBJ {
+			return newError("eval/cmd/varname/code", tok, variable.VarName)
 		}
+		if contents.(*object.Code).Value.GetToken().Type != token.IDENT {
+			return newError("eval/cmd/varname/ident", tok, variable.VarName)
+		}
+		refName := contents.(*object.Code).Value.GetToken().Literal
+		var envToUse *object.Environment
+		if variable.VarType == "varname" {
+			envToUse = c.env
+		} else {
+			envToUse = contents.(*object.Code).Env
+		}
+		if !envToUse.Exists(refName) {
+			envToUse.InitializeLocal(refName, right, object.TrueType(right))
+			return nil
+		}
+		if envToUse.IsConstant(refName) {
+			return newError("eval/cmd/varname/const", tok, refName)
+		}
+		if strings.HasPrefix(refName, "$") {
+			return assignSysVar(tok, refName, right, envToUse)
+		}
+		contType, _ := envToUse.Type(refName)
+		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), contType) {
+			return newError("eval/cmd/varname/type", tok, object.TrueType(right), contType)
+		}
+		envToUse.UpdateVar(refName, right)
+		
 		return nil
 	default: // We must be assigning from the REPL.
 		if (!c.env.Exists(variable.VarName)) || c.env.IsPrivate(variable.VarName) {
@@ -939,7 +936,6 @@ func evalGlobalExpression(node *ast.PrefixExpression, c *Context) object.Object 
 
 func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object {
 	result := Eval(loopNode.Code, c)
-	fmt.Println(result.Inspect(object.ViewCharmLiteral))
 	switch result := result.(type) {
 	case *object.Error :
 		result.Trace = append(result.Trace, loopNode.Token)
@@ -1004,13 +1000,10 @@ func evalTupleExpression(
 func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	val, ok := c.env.Get(node.Value)
 
-	if c.access == CMD {
+	if ok && c.access == CMD {
 		acc := c.env.GetAccess(node.Value)
 		if acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE {
-			return newError("eval/cmd/global", node.Token, node.Value)
-		}
-		if acc == object.ACCESS_GLOBAL {
-			val, ok = c.env.Ext.Get(node.Value)
+			return newError("eval/cmd/global/b", node.Token, node.Value)
 		}
 	}
 

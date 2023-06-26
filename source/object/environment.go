@@ -3,10 +3,10 @@ package object
 type AccessType int
 
 const (
-	ACCESS_PUBLIC		AccessType = iota
+	ACCESS_LOCAL     AccessType = iota
+	ACCESS_PUBLIC		
 	ACCESS_CONSTANT
 	ACCESS_PRIVATE
-	ACCESS_LOCAL
 	ACCESS_GLOBAL // That is, somthing imported into a cmd by the 'global' keyword.
 )
 
