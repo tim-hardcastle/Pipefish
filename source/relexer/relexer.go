@@ -188,11 +188,6 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		if rl.curTok.Literal == "func" {
 			rl.funcDef = true
 		}
-		top, ok := rl.stack.HeadValue()
-		if rl.preTok.Type == token.IDENT && rl.nexTok.Type == token.COMMA &&
-			(rl.funcDef || rl.structDef || ok && top.state == FN_REWRITE) {
-			rl.nexTok.Type = token.WEAK_COMMA
-		}
 	case token.ILLEGAL:
 		return rl.burnToken()
 	case token.COLON:

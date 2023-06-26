@@ -7,6 +7,11 @@ def
 fake (y int):
     y
 
+fnurf(x, y bool, L list) : y
+
+fnurf(x bool, y string, L list) : y
+
+(x int) zort : x
 
 cmd
 

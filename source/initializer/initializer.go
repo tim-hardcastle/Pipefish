@@ -701,9 +701,7 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 	hasPrefix := false
 	hasParams := false
 	hasMidOrEndfix := false
-	lastTokenWasType := false
 	lastTokenWasFix := false
-	lastTokenWasVar := false
 	prefix := ""
 	tok := token.Token{}
 	currentChunk.ToStart()
@@ -714,31 +712,11 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 			hasParams = true
 			inParenthesis = true
 			lastTokenWasFix = false
-			lastTokenWasVar = false
 			continue
-		}
-
-		if inParenthesis { // We identify types in function definitions syntactically and give their commas
-			if tok.Type == token.COMMA { // lower precedence.
-				if lastTokenWasType {
-					currentChunk.Change(token.Token{Type: token.WEAK_COMMA, Literal: ",,", Line: tok.Line})
-				}
-				lastTokenWasType = false
-			}
-			if tok.Type == token.IDENT {
-				if lastTokenWasVar {
-					lastTokenWasType = true
-					lastTokenWasVar = false
-				} else {
-					lastTokenWasType = false
-					lastTokenWasVar = true
-				}
-			}
 		}
 
 		if tok.Type == token.RPAREN {
 			inParenthesis = false
-			lastTokenWasType = false
 			continue
 		}
 

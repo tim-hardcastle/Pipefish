@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"charm/source/ast"
@@ -448,6 +449,9 @@ func (p *Parser) peekPrecedence() int {
 	if p, ok := precedences[p.peekToken.Type]; ok {
 		return p
 	}
+	if p.Suffixes.Contains(p.peekToken.Literal) {
+		return FSUFFIX
+	}
 	if p.Infixes.Contains(p.peekToken.Literal) {
 		if p.peekToken.Literal == "+" || p.peekToken.Literal == "-" {
 			return SUM
@@ -477,9 +481,6 @@ func (p *Parser) peekPrecedence() int {
 	}
 	if p.Endfixes.Contains(p.peekToken.Literal) {
 		return FENDFIX
-	}
-	if p.Suffixes.Contains(p.peekToken.Literal) {
-		return FSUFFIX
 	}
 	return LOWEST
 }
@@ -1122,16 +1123,13 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
 		functionName = start.Operator
-		sig = prsr.getSigFromArgs(start.Args, "single")
+		sig = prsr.extractSig(start.Args)
 	case *ast.InfixExpression:
 		functionName = start.Operator
-		LHS := prsr.RecursivelySlurpSignature(start.Args[0], "single")
-		RHS := prsr.RecursivelySlurpSignature(start.Args[2], "single")
-		middle := signature.NameTypePair{VarName: start.Operator, VarType: "bling"}
-		sig = append(append(LHS, middle), RHS...)
+		sig = prsr.extractSig(start.Args)
 	case *ast.SuffixExpression:
 		functionName = start.Operator
-		sig = prsr.getSigFromArgs(start.Args, "single")
+		sig = prsr.extractSig(start.Args)
 	case *ast.UnfixExpression:
 		functionName = start.Operator
 		sig = signature.Signature{}
@@ -1140,6 +1138,118 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 		return functionName, sig, rTypes, content, given
 	}
 	return functionName, sig, rTypes, content, given
+}
+
+
+
+func (p *Parser) extractSig(args []ast.Node) signature.Signature {
+	sig := signature.Signature{}
+	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.EmptyTuple{})) {
+		return sig
+	}
+	backTrackTo := 0
+	for j, arg := range args {
+		varName := ""
+		varType := "*"
+		switch arg := arg.(type) {
+		case *ast.SuffixExpression:
+			if arg.Operator == "raw" {
+				switch inner := arg.Args[0].(type) {
+				case *ast.SuffixExpression:
+					if !TypeExists(inner.Operator, p.TypeSystem) {
+						p.Throw("parse/raw/type", inner.Token)
+						return nil
+					}
+					switch inmost := inner.Args[0].(type) {
+						case *ast.Identifier:
+							varName = inmost.Value
+							varType = inner.Operator + " raw"
+						default :
+							p.Throw("parse/raw/ident", inmost.GetToken())
+							return nil
+					}
+				case *ast.Identifier:
+					varName = inner.Value
+					varType = "raw"
+				default :
+					p.Throw("parse/raw/form", arg.GetToken())
+					return nil
+				}
+			} else { // The suffix is not 'raw'
+				if !(TypeExists(arg.Operator, p.TypeSystem) ||
+						arg.Operator == "ast" || arg.Operator == "varname" || 
+						arg.Operator == "varref") {
+					p.Throw("parse/sig/type", arg.Token)
+					return nil
+				}
+				switch inner := arg.Args[0].(type) {
+				case *ast.Identifier:
+					varName = inner.Value
+					varType = arg.Operator
+				default :
+					p.Throw("parse/sig/ident", inner.GetToken())
+					return nil
+				}
+			}
+		case *ast.Identifier :
+			if p.Endfixes.Contains(arg.Value) {
+				varName = arg.Value
+				varType = "bling"
+			} else {
+				varName = arg.Value
+				varType = "*"
+			}
+		case *ast.PrefixExpression:
+			if p.Forefixes.Contains(arg.Operator) {
+				varName = arg.Operator
+				varType = "bling"
+			} else {
+				// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
+				// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
+				// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter 
+				// name under those circumstances. This tends to make the whole thing stupid, we should have
+				// done all this before it got near the Pratt parser.
+				switch inner := arg.Args[0].(type) {
+				case *ast.Identifier:
+					varName = arg.Operator
+					varType = inner.Value
+					if !(TypeExists(inner.Value, p.TypeSystem) ||
+							arg.Operator == "ast" || arg.Operator == "varname" || 
+							arg.Operator == "varref") {
+						p.Throw("parse/sig/type/b", arg.Token)
+						return nil
+					}
+				default :
+					p.Throw("parse/sig/ident", inner.GetToken())
+					return nil
+				}
+			}
+		case *ast.InfixExpression :
+			if p.Midfixes.Contains(arg.Operator) {
+				varName = arg.Operator
+				varType = "bling"
+			} else {
+				p.Throw("parse/sig/infix", arg.GetToken())
+					return nil
+			}
+		case *ast.Bling :
+			varName = arg.Value
+			varType = "bling"
+		}	
+		if j == len(args) - 1 && varType == "*" {
+			varType = "single"
+		}
+		if !(varType == "bling" || varType == "*") {
+			for i := backTrackTo; i < len(sig); i++ {
+				sig[i].VarType = varType
+			}
+		}
+		sig = append(sig, signature.NameTypePair{VarName: varName, VarType: varType})
+		if !(varType == "*") {
+			backTrackTo = len(sig)
+		}
+	}
+	return sig
 }
 
 // TODO --- this function is  refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
