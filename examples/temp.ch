@@ -1,22 +1,20 @@
-var
-
-foo = 42
-
 def
 
-fake (y int):
-    y
+// A type definition.
+Person = struct(name string, age int)    
 
-fnurf(x, y bool, L list) : y
+// A list constant.
+PERSON_LIST = [Person("Joe", 22), Person("Doug", 42)]
 
-fnurf(x bool, y string, L list) : y
+// Constants are computed on initialization.
+// Order of declaration is free ...
+NAME_LIST = slice PERSON_LIST on name
 
-(x int) zort : x
+// ... so let's define the function we just called.
+slice (L list) on (key) :      // Dynamism FTW.
+    L >> that[key]             // A `map` operator.
 
-cmd
+// On initialization, NAME_LIST will be set to ["Joe", "Doug"]
 
-make :
-    get y from Input "Number? "
-    post y to Output()
-
-
+foo(x varchar 50) :
+    x

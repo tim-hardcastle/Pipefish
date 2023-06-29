@@ -182,6 +182,8 @@ func New() *Parser {
 	p.Suffixes.Add("varname")
 	p.Suffixes.Add("varref")
 
+	p.Infixes.Add("varchar")
+
 	p.Functions.AddSet(*set.MakeFromSlice([]string{"builtin"}))
 
 	// The parser adds constructors for structs to the builtins and so must keep its own
@@ -1225,13 +1227,30 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				}
 			}
 		case *ast.InfixExpression :
-			if p.Midfixes.Contains(arg.Operator) {
-				varName = arg.Operator
-				varType = "bling"
-			} else {
-				p.Throw("parse/sig/infix", arg.GetToken())
+			if arg.Operator == "varchar" {
+				switch potentialVariable := arg.Args[0].(type) {
+				case *ast.Identifier:
+					varName = potentialVariable.Value
+				default :
+					p.Throw("parse/sig/varchar/ident", potentialVariable.GetToken())
 					return nil
-			}
+				}
+				switch potentialInteger := arg.Args[2].(type) {
+				case *ast.IntegerLiteral:
+					varType = "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
+				default :
+					p.Throw("parse/sig/varchar/int", potentialInteger.GetToken())
+					return nil
+				}
+			} else {
+				if p.Midfixes.Contains(arg.Operator) {
+					varName = arg.Operator
+					varType = "bling"
+				} else {
+					p.Throw("parse/sig/infix", arg.GetToken())
+					return nil
+				}
+		}
 		case *ast.Bling :
 			varName = arg.Value
 			varType = "bling"
@@ -1248,6 +1267,9 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 		if !(varType == "*") {
 			backTrackTo = len(sig)
 		}
+	}
+	if args[0].GetToken().Source == "examples/temp.ch" {
+		println(sig.String())
 	}
 	return sig
 }
