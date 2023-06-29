@@ -1268,9 +1268,6 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 			backTrackTo = len(sig)
 		}
 	}
-	if args[0].GetToken().Source == "examples/temp.ch" {
-		println(sig.String())
-	}
 	return sig
 }
 
