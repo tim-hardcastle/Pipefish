@@ -817,9 +817,7 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 
 	constructor_2 := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object)}
-		println("Called constructor")
 		for _, v := range args {
-			println("Value is", v.Inspect(object.ViewCharmLiteral))
 			if v.Type() != object.PAIR_OBJ {
 				return newError("eval/pair", tok)
 			}
@@ -863,12 +861,15 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 
 	// Now the labels ...
 
+	c.prsr.StructLabels[variable.VarName] = []object.Object{}
 	for _, v := range right.(*object.StructDef).Sig {
 		_, ok := c.prsr.Enums[v.VarName]
 		if ok {
 			c.prsr.Throw("eval/struct/enum", tok)
 		}
-		c.env.InitializeConstant(v.VarName, &object.Label{Value: v.VarName, Name: "field"})
+		label := &object.Label{Value: v.VarName, Name: "field"}
+		c.env.InitializeConstant(v.VarName, label)
+		c.prsr.StructLabels[variable.VarName] = append(c.prsr.StructLabels[variable.VarName], label)
 	}
 
 	return nil

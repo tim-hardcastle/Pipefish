@@ -132,6 +132,7 @@ type Parser struct {
 	BuiltinFunctions map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object
 	Enums            map[string][]*object.Label
 	Structs          set.Set[string]
+	StructLabels     map[string][]object.Object
 	Parsers          map[string]*Parser
 	GoImports        map[string][]string
 	Namespace        string
@@ -195,6 +196,8 @@ func New() *Parser {
 	}
 
 	p.Enums = make(map[string][]*object.Label)
+
+	p.StructLabels = make(map[string][]object.Object)
 
 	p.Parsers = make(map[string]*Parser)
 

@@ -18,6 +18,32 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return returnList
 	},
 
+	"keys_of_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		returnList := &object.List{Elements: []object.Object{}}
+		for _, v := range args[0].(*object.Struct).Labels {
+			returnList.Elements = append(returnList.Elements, &object.Label{Value: v})
+		}
+		return returnList
+	},
+
+	"keys_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		labels, ok := p.StructLabels[args[0].(*object.Type).Value]
+		if ok {
+			return &object.List{Elements: labels}
+		} else {
+			return newError("builtins/keys/struct", tok)
+		}
+	},
+
+	"keys_of_table": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		labels := p.StructLabels[args[0].(*object.Table).Row]
+		return &object.List{Elements: labels}
+	},
+
+	"row_of_table": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		return &object.Type{Value: args[0].(*object.Table).Row}
+	},
+
 	"range": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		index := args[0]
 		if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {

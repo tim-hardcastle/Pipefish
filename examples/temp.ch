@@ -3,6 +3,15 @@ def
 // A type definition.
 Person = struct(name varchar(10), age int)    
 
+var
+
+PersonTable = table(Person)
+
+def
+
+troz (t table) :
+    t
+
 // A list constant.
 PERSON_LIST = [Person("Joe", 22), Person("Doug", 42)]
 

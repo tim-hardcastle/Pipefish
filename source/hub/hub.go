@@ -941,6 +941,14 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 		return false
 	}
 
+	init.EvaluateTableDefs(env)
+	if init.ErrorsExist() {
+		hub.GetAndReportErrors(&init.Parser)
+		hub.Sources = init.Sources
+		newService.broken = true
+		return false
+	}
+
 	init.InitializeEverything(env, scriptFilepath)
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)

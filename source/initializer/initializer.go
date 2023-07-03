@@ -53,7 +53,8 @@ type declarationType int
 const (
 	importDeclaration          declarationType = iota
 	enumDeclaration                            //
-	typeDeclaration                            // The fact that these things come
+	typeDeclaration                            //
+	tableDeclaration						   // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
 	functionDeclaration                        // a great deal of forethought.
@@ -73,8 +74,8 @@ var tokenTypeToSection = map[token.TokenType]Section{
 type Initializer struct {
 	rl                    relexer.Relexer
 	Parser                parser.Parser
-	tokenizedDeclarations [9]tokenizedCodeChunks
-	parsedDeclarations    [9]parsedCodeChunks
+	tokenizedDeclarations [10]tokenizedCodeChunks
+	parsedDeclarations    [10]parsedCodeChunks
 	Sources               map[string][]string
 }
 
@@ -112,6 +113,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	weakColonShouldBePrelog := false
 	expressionIsAssignment := false
 	expressionIsStruct := false
+	expressionIsTable := false
 	expressionIsFunction := false
 	expressionIsEnum := false
 	isPrivate := false
@@ -160,6 +162,12 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		if tok.Type == token.IDENT && tok.Literal == "struct" && expressionIsAssignment {
 			expressionIsAssignment = false
 			expressionIsStruct = true
+			definingToken = tok
+		}
+
+		if tok.Type == token.IDENT && tok.Literal == "table" && expressionIsAssignment {
+			expressionIsAssignment = false
+			expressionIsTable = true
 			definingToken = tok
 		}
 
@@ -215,6 +223,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				beginCount = 0 // Prevents error storm.
 				expressionIsAssignment = false
 				expressionIsStruct = false
+				expressionIsTable = false
 				expressionIsEnum = false
 				expressionIsFunction = false
 				colonMeansFunctionOrCommand = true
@@ -242,10 +251,13 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					}
 				}
 			case VarSection:
-				if !expressionIsAssignment {
+				switch {
+				case expressionIsTable :
+					uP.tokenizedDeclarations[tableDeclaration] =
+						append(uP.tokenizedDeclarations[tableDeclaration], line)
+				case !expressionIsAssignment :
 					uP.Throw("init/var/function", definingToken)
-				} else {
-
+				default :
 					// As a wretched kludge, we will now weaken some of the commas on the LHS of
 					// the assignment so that it parses properly. (TODO: at this point it would be much easier to
 					// do this in the relexer.)
@@ -267,6 +279,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 					uP.tokenizedDeclarations[variableDeclaration] =
 						append(uP.tokenizedDeclarations[variableDeclaration], line)
+				
 				}
 			case DefSection:
 				switch {
@@ -292,6 +305,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			line = tokenized_code_chunk.New()
 			expressionIsAssignment = false
 			expressionIsStruct = false
+			expressionIsTable = false
 			expressionIsEnum = false
 			expressionIsFunction = false
 			colonMeansFunctionOrCommand = true
@@ -419,20 +433,49 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
 		}
+	}
+}
 
+func (uP *Initializer) EvaluateTableDefs(env *object.Environment) {
+	for _, v := range uP.parsedDeclarations[tableDeclaration] {
+		LHS := (*v).(*ast.AssignmentExpression).Left
+		if LHS.GetToken().Type != token.IDENT {
+			uP.Throw("init/table/ident/a", LHS.GetToken())
+			return
+		}
+		tableName := LHS.(*ast.Identifier).Value
+		RHS := ((*v).(*ast.AssignmentExpression).Right).(*ast.PrefixExpression).Args
+		if len(RHS) > 1  {
+				uP.Throw("init/table/one", ((*v).(*ast.AssignmentExpression).Right).(*ast.PrefixExpression).GetToken())
+				return
+			}
+		structTypeIdent := RHS[0]
+		if structTypeIdent.GetToken().Type != token.IDENT {
+			uP.Throw("init/table/ident/b", LHS.GetToken())
+			return
+		}
+		switch structTypeIdent := structTypeIdent.(type) {
+		case *ast.TypeLiteral :
+			structType := structTypeIdent.Value
+			if !uP.Parser.TypeSystem.PointsTo(structType, "struct") {
+				uP.Throw("init/table/struct/a", structTypeIdent.GetToken())
+			}
+			env.InitializeVariable(tableName, &object.Table{Name: tableName, Row: structType}, "table")
+		default :
+			uP.Throw("init/table/struct/b", structTypeIdent.GetToken())
+		}	
 	}
 }
 
 func (uP *Initializer) ParseEverything() {
 	uP.Parser.Unfixes.Add("break")
 	uP.Parser.Unfixes.Add("stop")
-	for declarations := constantDeclaration; declarations <= privateCommandDeclaration; declarations++ {
+	for declarations := tableDeclaration; declarations <= privateCommandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.tokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.tokenizedDeclarations[declarations][chunk]
 			uP.tokenizedDeclarations[declarations][chunk].ToStart()
 			uP.parsedDeclarations[declarations] = append(uP.parsedDeclarations[declarations], uP.Parser.ParseTokenizedChunk())
-			// uP.tokenizedDeclarations[declarations][chunk].ToStart()
-			// fmt.Println(uP.tokenizedDeclarations[declarations][chunk].String())
+
 		}
 	}
 
