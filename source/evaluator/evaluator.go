@@ -100,7 +100,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 
 	case *ast.LoopExpression:
-		return(evalLoopExpression(node, c))
+		return (evalLoopExpression(node, c))
 
 	case *ast.AssignmentExpression:
 		variables := signature.Signature{}
@@ -133,7 +133,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			right = Eval(node.Right, c)
 		}
 		if isError(right) {
-			if node.Token.Type == token.LZY_ASSIGN { 
+			if node.Token.Type == token.LZY_ASSIGN {
 				for i := 0; i < lLen; i++ {
 					err := Assign(variables[i], right, node.Token, c)
 					if err != nil {
@@ -212,8 +212,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return left
 		}
 		leftEvaluation := evalLazyLeftExpression(node.Token, left, c)
-		if leftEvaluation != nil && (leftEvaluation.Type() != object.RESPONSE_OBJ) && 
-				(leftEvaluation.Type() != object.SUCCESSFUL_OBJ){
+		if leftEvaluation != nil && (leftEvaluation.Type() != object.RESPONSE_OBJ) &&
+			(leftEvaluation.Type() != object.SUCCESSFUL_OBJ) {
 			return leftEvaluation
 		}
 
@@ -226,7 +226,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 					leftEvaluation.(*object.Effects).ElseSeeking = false
 				}
 				return leftEvaluation
-			} 
+			}
 		}
 
 		right := Eval(node.Right, c)
@@ -247,7 +247,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		if node.Operator == ":" && right.Type() == object.RESPONSE_OBJ {
 			right.(*object.Effects).ElseSeeking = true
 		}
-		
+
 		if leftEvaluation != nil && leftEvaluation.Type() == object.RESPONSE_OBJ {
 			if right == object.SUCCESS {
 				return left
@@ -556,8 +556,8 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalNotOperatorExpression(tok, Eval(node.Args[0], c)) // TODO: for consistency, we shouldn't be using Args[0] like this. Doesn't matter that much.
 	case tok.Type == token.EVAL: // TODO, but for now if you are going to do this you should throw errors for too many args.
 		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
-	case tok.Type == token.GLOBAL: 
-        return evalGlobalExpression(node, c)
+	case tok.Type == token.GLOBAL:
+		return evalGlobalExpression(node, c)
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
 
@@ -597,10 +597,6 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 	return newErrorWithVals("eval/unknown/prefix", tok, listArgs(node.Args, tok, newContext))
 }
 
-
-
-
-
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	if node.Operator == "break" { // TODO --- why did you implement these as unfixes? They are innately keywords.
 		return &object.Effects{BreakHappened: true}
@@ -608,10 +604,10 @@ func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	if node.Operator == "stop" {
 		return &object.Effects{StopHappened: true}
 	}
-	
+
 	var result object.Object
 
-	for _, branch := range(c.prsr.FunctionTreeMap[node.Operator].Branch) { // TODO --- this is a pretty vile hack to find which of them is the unfix.}
+	for _, branch := range c.prsr.FunctionTreeMap[node.Operator].Branch { // TODO --- this is a pretty vile hack to find which of them is the unfix.}
 		if branch.Node.Fn != nil {
 			result = applyFunction(*branch.Node.Fn, []object.Object{}, node.Token, c)
 		}
@@ -664,11 +660,11 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 	}
 	inferredType := variable.VarType
 	if inferredType == "*" {
-		inferredType = object.TrueType(right)
+		inferredType = object.ConcreteType(right)
 	}
 	switch tok.Type {
 	case token.GVN_ASSIGN, token.LZY_ASSIGN:
-		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) {
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/var/type/a", tok, right, inferredType)
 		}
 		c.env.Set(variable.VarName, right)
@@ -683,7 +679,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if c.env.Exists(variable.VarName) {
 			return newError("eval/var/exists/a", tok, variable.VarName)
 		}
-		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) {
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/var/type/b", tok, right, inferredType)
 		}
 		c.env.InitializePrivate(variable.VarName, right, inferredType)
@@ -692,7 +688,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if c.env.Exists(variable.VarName) {
 			return newError("eval/const/assign", tok)
 		}
-		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) {
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/const/type", tok, right, inferredType)
 		}
 		c.env.InitializeConstant(variable.VarName, right)
@@ -707,7 +703,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if c.env.Exists(variable.VarName) {
 			return newError("eval/var/exists/b", tok, variable.VarName)
 		}
-		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), inferredType) {
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/var/type/c", tok, right, inferredType)
 		}
 		c.env.InitializeVariable(variable.VarName, right, inferredType)
@@ -730,8 +726,8 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC {
 			return newError("eval/cmd/global/a", tok, variable.VarName)
 		}
-		if variable.VarType != "varname" && variable.VarType !="varref" { 
-			c.env.Set(variable.VarName, right) 
+		if variable.VarType != "varname" && variable.VarType != "varref" {
+			c.env.Set(variable.VarName, right)
 			return nil
 		}
 		// Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
@@ -750,7 +746,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 			envToUse = contents.(*object.Code).Env
 		}
 		if !envToUse.Exists(refName) {
-			envToUse.InitializeLocal(refName, right, object.TrueType(right))
+			envToUse.InitializeLocal(refName, right, object.ConcreteType(right))
 			return nil
 		}
 		if envToUse.IsConstant(refName) {
@@ -760,11 +756,11 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 			return assignSysVar(tok, refName, right, envToUse)
 		}
 		contType, _ := envToUse.Type(refName)
-		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), contType) {
-			return newError("eval/cmd/varname/type", tok, object.TrueType(right), contType)
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, contType) {
+			return newError("eval/cmd/varname/type", tok, object.ConcreteType(right), contType)
 		}
 		envToUse.UpdateVar(refName, right)
-		
+
 		return nil
 	default: // We must be assigning from the REPL.
 		if (!c.env.Exists(variable.VarName)) || c.env.IsPrivate(variable.VarName) {
@@ -776,7 +772,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if strings.HasPrefix(variable.VarName, "$") {
 			return assignSysVar(tok, variable.VarName, right, c.env)
 		}
-		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, object.TrueType(right), c.env.Store[variable.VarName].VarType) {
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, c.env.Store[variable.VarName].VarType) {
 			return newError("eval/repl/type", tok, right, c.env.Store[variable.VarName].VarType)
 		}
 		c.env.Set(variable.VarName, right) // The global variables are the inner environment of the REPL.
@@ -821,7 +817,9 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 
 	constructor_2 := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object)}
+		println("Called constructor")
 		for _, v := range args {
+			println("Value is", v.Inspect(object.ViewCharmLiteral))
 			if v.Type() != object.PAIR_OBJ {
 				return newError("eval/pair", tok)
 			}
@@ -838,7 +836,7 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 			if positionOfLabelInFields == -1 {
 				return newError("eval/field/struct", tok, v.(*object.Pair).Left.(*object.Label).Value, variable.VarName)
 			}
-			if !parser.IsSameTypeOrSubtype(p.TypeSystem, object.TrueType(v.(*object.Pair).Right), right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
+			if !parser.IsObjectInType(p.TypeSystem, v.(*object.Pair).Right, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
 				return newError("eval/field/type", tok, v.(*object.Pair).Left.(*object.Label).Value,
 					variable.VarName, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType,
 					v.(*object.Pair).Right)
@@ -918,31 +916,31 @@ func evalEvalExpression(token token.Token, right object.Object, c *Context) obje
 }
 
 func evalGlobalExpression(node *ast.PrefixExpression, c *Context) object.Object {
-    for _, v := range(node.Args) {
-        varName := v.GetToken().Literal
-        if v.GetToken().Type != token.IDENT {
-            return newError("eval/global/ident", node.GetToken())
-        }
-        val, ok := c.env.Get(varName)
-        if ok {
+	for _, v := range node.Args {
+		varName := v.GetToken().Literal
+		if v.GetToken().Type != token.IDENT {
+			return newError("eval/global/ident", node.GetToken())
+		}
+		val, ok := c.env.Get(varName)
+		if ok {
 			ty, _ := c.env.Type(varName)
-            c.env.ImportGlobal(varName, val, ty)
-        } else {
-            return newError("eval/global/exists", node.GetToken())
-        }
-    }
-    return object.SUCCESS
+			c.env.ImportGlobal(varName, val, ty)
+		} else {
+			return newError("eval/global/exists", node.GetToken())
+		}
+	}
+	return object.SUCCESS
 }
 
 func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object {
 	result := Eval(loopNode.Code, c)
 	switch result := result.(type) {
-	case *object.Error :
+	case *object.Error:
 		result.Trace = append(result.Trace, loopNode.Token)
 		return result
-	case *object.SuccessfulAssignment, *object.UnsatisfiedConditional :
+	case *object.SuccessfulAssignment, *object.UnsatisfiedConditional:
 		return evalLoopExpression(loopNode, c)
-	case *object.Effects :
+	case *object.Effects:
 		if result.QuitHappened {
 			return result
 		}
@@ -1187,7 +1185,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 
 		if currentObject == nil {
 			if astHappening {
-				currentObject = &object.Code{Value: args[arg], Env: c.env }
+				currentObject = &object.Code{Value: args[arg], Env: c.env}
 			} else {
 				currentObject = Eval(args[arg], c)
 			}
@@ -1257,7 +1255,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 	}
 
 	if len(values) == 0 { // If we have both foo() and foo(t tuple) defined, then foo() takes precedence.
-		for _, branch := range(treeWalker.position.Branch) { // TODO --- this is a pretty vile hack to find which of them takes no params. It would make sense for it to always be at the top.}
+		for _, branch := range treeWalker.position.Branch { // TODO --- this is a pretty vile hack to find which of them takes no params. It would make sense for it to always be at the top.}
 			if branch.Node.Fn != nil {
 				return applyFunction(*branch.Node.Fn, []object.Object{}, tok, c)
 			}
@@ -1273,7 +1271,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 		return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, (arg < len(args)-1) ||
 			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
 	}
-		
+
 	return applyFunction(*treeWalker.position.Fn, values, tok, c)
 }
 
@@ -1360,7 +1358,7 @@ func evalInput(params []object.Object, tok token.Token, c *Context) object.Objec
 }
 
 func evalOutput(params []object.Object, tok token.Token, c *Context) object.Object {
-	return evalReturnExpression(tok, params[0:len(params) - 2], c)
+	return evalReturnExpression(tok, params[0:len(params)-2], c)
 }
 
 func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Object {
@@ -1371,8 +1369,8 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 	functionToApply := params[4].(*object.Func).Function
 	val := params[6]
 	var values []object.Object
-	switch rng:= params[2].(type) {
-	case *object.Integer :
+	switch rng := params[2].(type) {
+	case *object.Integer:
 		for i := 0; i < rng.Value; i++ {
 			c.env.HardSet(refName, &object.Integer{Value: i})
 			if val.Type() == object.ERROR_OBJ {
@@ -1388,7 +1386,7 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 			val = applyFunction(functionToApply, values, tok, c)
 		}
 		return val
-	case *object.Pair :
+	case *object.Pair:
 		if rng.Left.Type() == object.INTEGER_OBJ && rng.Right.Type() == object.INTEGER_OBJ {
 			for i := rng.Left.(*object.Integer).Value; i < rng.Right.(*object.Integer).Value; i++ {
 				c.env.HardSet(refName, &object.Integer{Value: i})
@@ -1404,15 +1402,15 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 				c.access = LAMBDA
 				val = applyFunction(functionToApply, values, tok, c)
 			}
-		return val
+			return val
 		}
 		return newErrorWithVals("eval/for/pair", tok, []object.Object{rng.Left, rng.Right}, rng)
-	case *object.Type :
+	case *object.Type:
 		enum, ok := c.prsr.Enums[rng.Value]
 		if !ok {
 			return newError("eval/for/type", tok, rng)
 		}
-		for _, v := range(enum) {
+		for _, v := range enum {
 			c.env.HardSet(refName, v)
 			if val.Type() == object.ERROR_OBJ {
 				val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
@@ -1427,8 +1425,8 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 			val = applyFunction(functionToApply, values, tok, c)
 		}
 		return val
-	case *object.List :
-		for _, v := range(rng.Elements) {
+	case *object.List:
+		for _, v := range rng.Elements {
 			c.env.HardSet(refName, v)
 			if val.Type() == object.ERROR_OBJ {
 				val.(*object.Error).Trace = append(val.(*object.Error).Trace, tok)
@@ -1443,12 +1441,10 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 			val = applyFunction(functionToApply, values, tok, c)
 		}
 		return val
-	default :
+	default:
 		return newErrorWithVals("eval/for/arg", tok, []object.Object{rng}, rng)
 	}
 }
-
-
 
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	funcToApply := c.prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
@@ -1651,3 +1647,5 @@ func emit(logStr string, tok token.Token, c *Context) {
 		c.prsr.Throw("eval/log/append", tok)
 	}
 }
+
+

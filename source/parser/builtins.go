@@ -12,7 +12,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 
 	"keys_of_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		returnList := &object.List{Elements: []object.Object{}}
-		for _, v := range(args[0].(*object.Hash).Pairs) {
+		for _, v := range args[0].(*object.Hash).Pairs {
 			returnList.Elements = append(returnList.Elements, v.Key)
 		}
 		return returnList
@@ -118,7 +118,9 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"tuple_to_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		if len(args) == 0 { return &object.Hash{}}
+		if len(args) == 0 {
+			return &object.Hash{}
+		}
 		return tupleToMap(args[0].(*object.Tuple).Elements, tok)
 	},
 
@@ -377,7 +379,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.Type{Value: object.TrueType(args[0])}
+		return &object.Type{Value: object.ConcreteType(args[0])}
 	},
 
 	"make_error": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
@@ -462,7 +464,7 @@ func evalStringSliceExpression(string, index object.Object, tok token.Token) obj
 	}
 	idx := index.(*object.Pair).Left.(*object.Integer).Value
 	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(stringObject.Value) 
+	max := len(stringObject.Value)
 	if idy < 0 {
 		idy = max + idy
 	}
@@ -475,14 +477,14 @@ func evalStringSliceExpression(string, index object.Object, tok token.Token) obj
 
 func evalTupleIndexExpression(tuple, index object.Object, tok token.Token) object.Object {
 	switch tupleObject := tuple.(type) {
-	case *object.Tuple :
+	case *object.Tuple:
 		idx := index.(*object.Integer).Value
 		max := len(tupleObject.Elements) - 1
 		if idx < 0 || idx > max {
 			return newError("built/index/range/tuple", tok)
 		}
 		return tupleObject.Elements[idx]
-	default :
+	default:
 		return newError("built/index/type", tok, tuple)
 	}
 }
@@ -504,7 +506,7 @@ func evalHashIndexExpression(hash, index object.Object, tok token.Token) object.
 
 	key, ok := index.(object.Hashable)
 	if !ok {
-		return newError("built/hash/b" + object.TrueType(index), tok)
+		return newError("built/hash/b"+object.ConcreteType(index), tok)
 	}
 
 	pair, ok := hashObject.Pairs[key.HashKey()]
@@ -552,13 +554,12 @@ func setToMap(setObject object.Object, tok token.Token) object.Object {
 	return &object.Hash{Pairs: pairs}
 }
 
-
 func addTupleToList(tok token.Token, args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
 	outList := args[0].DeepCopy()
-	for _, v := range(args[2].(*object.Tuple).Elements) {
+	for _, v := range args[2].(*object.Tuple).Elements {
 		outList = addPairToList(tok, outList, &object.Bling{}, v)
 	}
 	return outList
@@ -569,7 +570,7 @@ func addTupleToStruct(tok token.Token, args ...object.Object) object.Object {
 		return args[0]
 	}
 	outStruct := args[0].DeepCopy()
-	for _, v := range(args[2].(*object.Tuple).Elements) {
+	for _, v := range args[2].(*object.Tuple).Elements {
 		outStruct = addPairToStruct(tok, outStruct, &object.Bling{}, v)
 	}
 	return outStruct
@@ -580,7 +581,7 @@ func addTupleToMap(tok token.Token, args ...object.Object) object.Object {
 		return args[0]
 	}
 	outMap := args[0].DeepCopy()
-	for _, v := range(args[2].(*object.Tuple).Elements) {
+	for _, v := range args[2].(*object.Tuple).Elements {
 		outMap = addPairToMap(tok, outMap, &object.Bling{}, v)
 	}
 	return outMap
@@ -588,14 +589,14 @@ func addTupleToMap(tok token.Token, args ...object.Object) object.Object {
 
 func addPairToList(tok token.Token, args ...object.Object) object.Object {
 	args[0] = args[0].DeepCopy()
-	return unsafeAddPairToList(tok, args ...)
+	return unsafeAddPairToList(tok, args...)
 }
 
 func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
 	index := args[2].(*object.Pair).Left
-	if object.TrueType(index) == "list" {
+	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
-			return newError("built/list/empty", tok, object.TrueType(index))
+			return newError("built/list/empty", tok, object.ConcreteType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
 			return addPairToList(tok, args[0], args[1], &object.Pair{
@@ -628,7 +629,7 @@ func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
 					Right: args[2].(*object.Pair).Right})})
 		}
 	}
-	if object.TrueType(index) != "int" {
+	if object.ConcreteType(index) != "int" {
 		return newError("built/list/int", tok, index)
 	}
 	if index.(*object.Integer).Value < 0 {
@@ -638,24 +639,24 @@ func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
 		return newError("built/range/list/a", tok, index.(*object.Integer).Value, len(args[0].(*object.List).Elements))
 	}
 	newElements := []object.Object{}
-	newElements = append(newElements, args[0].(*object.List).Elements ...)
+	newElements = append(newElements, args[0].(*object.List).Elements...)
 	newElements[index.(*object.Integer).Value] = args[2].(*object.Pair).Right
 	return &object.List{Elements: newElements}
 }
 
 func addPairToStruct(tok token.Token, args ...object.Object) object.Object {
 	args[0] = args[0].DeepCopy()
-	return unsafeAddPairToStruct(tok, args ...)
+	return unsafeAddPairToStruct(tok, args...)
 }
 
 func unsafeAddPairToStruct(tok token.Token, args ...object.Object) object.Object {
 	if args[2].Type() != object.PAIR_OBJ {
-		return newError("built/struct/pair", tok, object.TrueType(args[2]))
+		return newError("built/struct/pair", tok, object.ConcreteType(args[2]))
 	}
 	index := args[2].(*object.Pair).Left
-	if object.TrueType(index) == "list" {
+	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
-			return newError("built/struct/empty", tok, object.TrueType(index))
+			return newError("built/struct/empty", tok, object.ConcreteType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
 			return unsafeAddPairToStruct(tok, args[0], args[1], &object.Pair{
@@ -703,15 +704,15 @@ func unsafeAddPairToStruct(tok token.Token, args ...object.Object) object.Object
 
 func addPairToMap(tok token.Token, args ...object.Object) object.Object {
 	args[0] = args[0].DeepCopy()
-	return unsafeAddPairToMap(tok, args ...)
+	return unsafeAddPairToMap(tok, args...)
 }
 
 func unsafeAddPairToMap(tok token.Token, args ...object.Object) object.Object {
 
 	index := args[2].(*object.Pair).Left
-	if object.TrueType(index) == "list" {
+	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
-			return newError("built/map/empty", tok, object.TrueType(index))
+			return newError("built/map/empty", tok, object.ConcreteType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
 			return unsafeAddPairToMap(tok, args[0], args[1], &object.Pair{

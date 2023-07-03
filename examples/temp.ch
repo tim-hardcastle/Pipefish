@@ -1,7 +1,7 @@
 def
 
 // A type definition.
-Person = struct(name string, age int)    
+Person = struct(name varchar(10), age int)    
 
 // A list constant.
 PERSON_LIST = [Person("Joe", 22), Person("Doug", 42)]
@@ -16,5 +16,8 @@ slice (L list) on (key) :      // Dynamism FTW.
 
 // On initialization, NAME_LIST will be set to ["Joe", "Doug"]
 
-foo(x varchar 50) :
+foo(x string) :
     x
+
+bar(y) :
+    y

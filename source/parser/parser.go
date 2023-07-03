@@ -631,7 +631,7 @@ func (p *Parser) parseStructExpression() ast.Node {
 
 	p.NextToken()
 	sigtree := p.parseExpression(FPREFIX)
-	expression.Sig = p.RecursivelySlurpSignature(sigtree, "any")
+	expression.Sig = p.extractSig(p.recursivelyListify(sigtree))
 	return expression
 }
 
@@ -1363,15 +1363,6 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature 
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}
 	return nil
-}
-
-// Variable assumed to exist.
-func (p *Parser) CanHold(e *object.Environment, name string, ty string) bool {
-	v, ok := e.Store[name]
-	if ok {
-		return IsSameTypeOrSubtype(p.TypeSystem, v.VarType, ty)
-	}
-	return p.CanHold(e, name, ty)
 }
 
 func (p *Parser) ExtractVariables(T TokenSupplier) (set.Set[string], set.Set[string]) {

@@ -3,8 +3,8 @@ package object
 type AccessType int
 
 const (
-	ACCESS_LOCAL     AccessType = iota
-	ACCESS_PUBLIC		
+	ACCESS_LOCAL AccessType = iota
+	ACCESS_PUBLIC
 	ACCESS_CONSTANT
 	ACCESS_PRIVATE
 	ACCESS_GLOBAL // That is, somthing imported into a cmd by the 'global' keyword.
@@ -149,7 +149,7 @@ func (e *Environment) GetAccess(name string) AccessType {
 func (e *Environment) Set(name string, val Object) Object {
 	storage, ok := e.Store[name]
 	if ok {
-		if (storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE) {
+		if storage.access == ACCESS_PUBLIC || storage.access == ACCESS_PRIVATE {
 			e.Pending[name] = val
 			return val
 		}
@@ -177,7 +177,7 @@ func (e *Environment) InitializePrivate(name string, val Object, ty string) Obje
 }
 
 func (e *Environment) InitializeConstant(name string, val Object) Object {
-	e.Store[name] = Storage{val, ACCESS_CONSTANT, TrueType(val)}
+	e.Store[name] = Storage{val, ACCESS_CONSTANT, ConcreteType(val)}
 	return val
 }
 

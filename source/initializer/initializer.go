@@ -322,7 +322,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 		lastTokenWasColon = (tok.Type == token.COLON || tok.Type == token.WEAK_COLON)
 
-		if ((lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand) {
+		if (lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand {
 			colonMeansFunctionOrCommand = false
 			uP.addWordsToParser(line)
 			if currentSection == DefSection {
@@ -357,8 +357,8 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 			uP.Throw("init/enum/lhs", tok1)
 		}
 		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
-		uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal + "?")
-		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal + "?")
+		uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
+		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal+"?")
 		uP.Parser.Enums[tok1.Literal] = []*object.Label{}
 		uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken() // This says "enum" or we wouldn't be here.
 		for tok := uP.tokenizedDeclarations[enumDeclaration][chunk].NextToken(); tok.Type != token.EOF; {
@@ -395,8 +395,8 @@ func (uP *Initializer) ParseTypeDefs() {
 		} else {
 			uP.tokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
-			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal + "?")
-			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal + "?")
+			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
+			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal+"?")
 			uP.Parser.Suffixes.Add(tok1.Literal)
 			uP.Parser.AllFunctionIdents.Add(tok1.Literal)
 			uP.Parser.Functions.Add(tok1.Literal)
@@ -473,7 +473,7 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	}
 	for k, v := range sysvars.Sysvars { // Service variables not in the script.
 		if !env.Exists(k) {
-			env.InitializeVariable(k, v.Dflt, object.TrueType(v.Dflt))
+			env.InitializeVariable(k, v.Dflt, object.ConcreteType(v.Dflt))
 		}
 	}
 	uP.Parser.AllGlobals = env // The logger needs to be able to see the global variables so it can see the service variables.

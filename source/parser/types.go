@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"strconv"
+
 	"charm/source/ast"
 	"charm/source/digraph"
+	"charm/source/object"
 	"charm/source/signature"
 )
 
@@ -38,14 +41,14 @@ var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "l
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (result bool, ok bool) {
 	if len(sigA) > len(sigB) {
-		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" && sigB[len(sigB)-1].VarType != "any" {
+		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" {
 			result = false
 			ok = true
 			return
 		}
 	}
 	if len(sigB) > len(sigA) {
-		if len(sigA) == 0 || sigA[len(sigA)-1].VarType != "tuple" && sigA[len(sigA)-1].VarType != "any" {
+		if len(sigA) == 0 || sigA[len(sigA)-1].VarType != "tuple" {
 			result = false
 			ok = true
 			return
@@ -94,8 +97,32 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 	return
 }
 
+func IsObjectInType(typesystem TypeSystem, obj object.Object, ty string) bool {
+	return IsSameTypeOrSubtype(typesystem, object.InnerType(obj), ty)
+}
+
 func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
+	subLen, ok := getLengthFromType(maybeSub)
+	if ok {
+		if maybeSuper == "string" || maybeSuper == "single" {
+			return true
+		}
+		superLen, ok := getLengthFromType(maybeSuper)
+		return ok && subLen <= superLen 
+	}
+
 	return maybeSub == maybeSuper || T.PointsTo(maybeSub, maybeSuper)
+}
+
+func getLengthFromType(maybeVarchar string) (int, bool) {
+	if len(maybeVarchar) < 9 {
+		return 0, false
+	}
+	if maybeVarchar[0:8] != "varchar(" {
+		return 0, false
+	}
+	varcharLen, _ := strconv.Atoi(maybeVarchar[8:len(maybeVarchar) - 1])
+	return varcharLen, true
 }
 
 func insert(a []ast.Function, value ast.Function, index int) []ast.Function {

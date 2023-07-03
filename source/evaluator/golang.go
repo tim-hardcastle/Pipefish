@@ -324,7 +324,7 @@ func (gh *GoHandler) CharmToGo(ch object.Object) any {
 	case *object.Type:
 		return ch.Value
 	}
-	return errors.New("unable to convert parameter of type <" + object.TrueType(ch) + ">")
+	return errors.New("unable to convert parameter of type <" + object.ConcreteType(ch) + ">")
 }
 
 func (gh *GoHandler) goToCharm(goval any) object.Object {

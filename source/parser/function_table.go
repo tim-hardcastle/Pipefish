@@ -20,8 +20,6 @@ func (ft FunctionTable) Add(T TypeSystem, functionName string, f ast.Function) (
 	return true
 }
 
-
-
 func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object) bool {
 
 	if len(parameters) == 0 && len(s) == 0 {
@@ -36,12 +34,12 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 		return false
 	}
 	for i, param := range parameters {
-		if i == len(s)-1 && (s[i].VarType == "tuple" || s[i].VarType == "any") {
+		if i == len(s)-1 && (s[i].VarType == "tuple") {
 			return true
 		}
-		if s[i].VarType != object.TrueType(param) &&
-			!p.TypeSystem.PointsTo(object.TrueType(param), s[i].VarType) &&
-			s[i].VarType != "varname" {
+
+
+		if !IsObjectInType(p.TypeSystem, param, s[i].VarType) && s[i].VarType != "varname" {
 			return false
 		}
 		if param.Type() == object.BLING_OBJ &&
@@ -88,7 +86,7 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 		if sig[sigPos].VarType == "varname" || sig[sigPos].VarType == "varref" {
 			obj, ok := env.Get(sig[sigPos].VarName)
 			if !ok {
-				fmt.Println("Oops 1")   //TODO ... some actual error messages?
+				fmt.Println("Oops 1") //TODO ... some actual error messages?
 				return env
 			}
 			if obj.Type() != object.CODE_OBJ {
@@ -134,11 +132,10 @@ func GetValueList(sig signature.Signature, params []object.Object) []object.Obje
 			tupleAccumulator = append(tupleAccumulator, params[paramPos])
 			continue
 		}
-		
+
 		result = append(result, params[paramPos])
-		
+
 		sigPos++
 	}
 	return result
 }
-

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 	"strings"
 
 	"charm/source/ast"
@@ -39,7 +40,7 @@ const (
 	LAZY_OBJ        = "lazy"
 	LIST_OBJ        = "list"
 	PAIR_OBJ        = "pair"
-	NULL_OBJ		= "null"
+	NULL_OBJ        = "null"
 	RESPONSE_OBJ    = "response"
 	SET_OBJ         = "set"
 	STRING_OBJ      = "string"
@@ -72,8 +73,8 @@ type Object interface {
 	Inspect(view View) string
 }
 
-var SUCCESS     = &SuccessfulAssignment{}
-var NULL		= &Null{}
+var SUCCESS = &SuccessfulAssignment{}
+var NULL = &Null{}
 
 ///////////////////////////
 // Charm object types
@@ -130,7 +131,7 @@ type BuiltError struct {
 // variables of a command using 'varref'.
 type Code struct {
 	Value ast.Node
-	Env *Environment
+	Env   *Environment
 }
 
 func (c *Code) DeepCopy() Object { return c }
@@ -149,11 +150,11 @@ func (c *Code) Inspect(view View) string {
 // * ElseSeeking : this was the effect of one branch of a conditional and we must skip the others.
 
 type Effects struct {
-	Elements        []Object
-	BreakHappened   bool
-	StopHappened    bool
-	QuitHappened    bool
-	ElseSeeking     bool
+	Elements      []Object
+	BreakHappened bool
+	StopHappened  bool
+	QuitHappened  bool
+	ElseSeeking   bool
 }
 
 func (ef *Effects) DeepCopy() Object { return ef }
@@ -184,7 +185,7 @@ func (e *Error) Inspect(view View) string {
 	result := ""
 	if view == ViewStdOut {
 		if len(e.Trace) == 0 {
-			result = text.ERROR + e.Message + text.DescribePos(e.Token) 
+			result = text.ERROR + e.Message + text.DescribePos(e.Token)
 		} else {
 			result = text.RT_ERROR + e.Message + text.DescribePos(e.Token)
 		}
@@ -564,7 +565,7 @@ func (t *Type) HashKey() HashKey {
 }
 
 func Equals(lhs, rhs Object) bool {
-	if TrueType(lhs) != TrueType(rhs) {
+	if ConcreteType(lhs) != ConcreteType(rhs) {
 		return false
 	}
 	if lhs == rhs {
@@ -670,12 +671,12 @@ func DescribeParams(params []Object) string {
 func DescribeSomeObjects(params []Object, incomplete bool) string {
 	s := ""
 	for k, v := range params {
-		if TrueType(v) == "bling" {
+		if ConcreteType(v) == "bling" {
 			s = s + v.(*Bling).Value
 		} else {
 			s = s + (v.Inspect(ViewCharmLiteral))
 		}
-		if k < len(params)-1 && !(TrueType(v) == "bling") && !(TrueType(params[k+1]) == "bling") {
+		if k < len(params)-1 && !(ConcreteType(v) == "bling") && !(ConcreteType(params[k+1]) == "bling") {
 			s = s + ","
 		}
 		if k < len(params)-1 {
@@ -694,12 +695,12 @@ func DescribeSomeObjects(params []Object, incomplete bool) string {
 func describeParamsWithoutQuotes(params []Object) string {
 	s := ""
 	for k, v := range params {
-		if TrueType(v) == "bling" {
+		if ConcreteType(v) == "bling" {
 			s = s + v.(*Bling).Value
 		} else {
-			s = s + "<" + TrueType(v) + ">"
+			s = s + "<" + ConcreteType(v) + ">"
 		}
-		if k < len(params)-1 && !(TrueType(v) == "bling") && !(TrueType(params[k+1]) == "bling") {
+		if k < len(params)-1 && !(ConcreteType(v) == "bling") && !(ConcreteType(params[k+1]) == "bling") {
 			s = s + ","
 		}
 		if k < len(params)-1 {
@@ -713,7 +714,14 @@ type GoReturn struct {
 	Elements []any
 }
 
-func TrueType(o Object) string {
+func InnerType(o Object) string {
+	if o.Type() == STRING_OBJ {
+		return "varchar(" + strconv.Itoa(len(o.(*String).Value)) + ")"
+	}
+	return ConcreteType(o)
+}
+
+func ConcreteType(o Object) string {
 	if o.Type() == STRUCT_OBJ {
 		return o.(*Struct).Name
 	}
@@ -727,11 +735,11 @@ func TypeOrBling(o Object) string {
 	if o.Type() == BLING_OBJ {
 		return o.(*Bling).Value
 	}
-	return TrueType(o)
+	return InnerType(o)
 }
 
 func EmphType(o Object) string {
-	return "<" + TrueType(o) + ">"
+	return "<" + ConcreteType(o) + ">"
 }
 
 func EmphValue(o Object) string {
