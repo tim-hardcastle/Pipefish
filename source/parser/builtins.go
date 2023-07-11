@@ -20,23 +20,33 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 
 	"keys_of_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		returnList := &object.List{Elements: []object.Object{}}
-		for _, v := range args[0].(*object.Struct).Labels {
+		for _, v := range args[0].(*object.Struct).Labels {  // TODO --- remove labels field, use StructSig.
 			returnList.Elements = append(returnList.Elements, &object.Label{Value: v})
 		}
 		return returnList
 	},
 
 	"keys_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		labels, ok := p.StructLabels[args[0].(*object.Type).Value]
-		if ok {
-			return &object.List{Elements: labels}
-		} else {
+		sig, ok := p.StructSig[args[0].(*object.Type).Value]
+		if !ok { 
 			return newError("builtins/keys/struct", tok)
 		}
+		labels := []object.Object{}
+		for _, v := range(sig) {
+			labels = append(labels, &object.Label{Value: v.VarName})
+		}
+		return &object.List{Elements: labels}
 	},
 
 	"keys_of_table": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		labels := p.StructLabels[args[0].(*object.Table).Row]
+		sig, ok := p.StructSig[args[0].(*object.Table).Row]
+		if !ok { 
+			return newError("builtins/keys/tabel", tok)
+		}
+		labels := []object.Object{}
+		for _, v := range(sig) {
+			labels = append(labels, &object.Label{Value: v.VarName})
+		}
 		return &object.List{Elements: labels}
 	},
 

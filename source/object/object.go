@@ -457,7 +457,6 @@ func (s *SuccessfulAssignment) Inspect(view View) string { return text.OK }
 type Table struct {
 	Name string
 	Row string
-	Labels []String
 }
 func (t *Table) DeepCopy() Object { return t }
 func (t *Table) Type() ObjectType { return TABLE_OBJ }

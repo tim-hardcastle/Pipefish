@@ -861,7 +861,6 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 
 	// Now the labels ...
 
-	c.prsr.StructLabels[variable.VarName] = []object.Object{}
 	for _, v := range right.(*object.StructDef).Sig {
 		_, ok := c.prsr.Enums[v.VarName]
 		if ok {
@@ -869,8 +868,8 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 		}
 		label := &object.Label{Value: v.VarName, Name: "field"}
 		c.env.InitializeConstant(v.VarName, label)
-		c.prsr.StructLabels[variable.VarName] = append(c.prsr.StructLabels[variable.VarName], label)
 	}
+	c.prsr.StructSig[variable.VarName] = right.(*object.StructDef).Sig
 
 	return nil
 }

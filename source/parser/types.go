@@ -102,28 +102,49 @@ func IsObjectInType(typesystem TypeSystem, obj object.Object, ty string) bool {
 }
 
 func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
-	subLen, ok := getLengthFromType(maybeSub)
+	subLen, ok := GetLengthFromType(maybeSub)
 	if ok {
 		if maybeSuper == "string" || maybeSuper == "single" {
 			return true
 		}
-		superLen, ok := getLengthFromType(maybeSuper)
+		superLen, ok := GetLengthFromType(maybeSuper)
 		return ok && subLen <= superLen 
 	}
 
 	return maybeSub == maybeSuper || T.PointsTo(maybeSub, maybeSuper)
 }
 
-func getLengthFromType(maybeVarchar string) (int, bool) {
-	if len(maybeVarchar) < 9 {
-		return 0, false
+func GetLengthFromType(maybeVarchar string) (int, bool) {
+	if len(maybeVarchar) >= 10 {
+		if maybeVarchar[0:8] == "varchar(" {
+			vcLen, _ := strconv.Atoi(maybeVarchar[8:len(maybeVarchar) - 1])
+			return vcLen, true
+		}
+		if maybeVarchar[0:9] == "varchar?(" {
+			vcLen, _ := strconv.Atoi(maybeVarchar[9:len(maybeVarchar) - 1])
+			return vcLen, true
+		}
 	}
-	if maybeVarchar[0:8] != "varchar(" {
-		return 0, false
-	}
-	varcharLen, _ := strconv.Atoi(maybeVarchar[8:len(maybeVarchar) - 1])
-	return varcharLen, true
+	return 0, false
 }
+
+func GetNullabilityFromType(maybeNullable string) bool {
+	return maybeNullable == "null" || (len(maybeNullable) - 1) == '?'  || len(maybeNullable) > 9 && maybeNullable[0:9] != "varchar?(" 
+}
+
+func TypeIsStringlike(maybeString string) bool {
+		return maybeString == "string" || maybeString == "string?" || (len(maybeString) >= 10 && 
+			(maybeString[0:8] == "varchar(" || maybeString[0:9] == "varchar?("))
+} 
+
+func UnnullType(maybeNulled string) string {
+	if maybeNulled[len(maybeNulled) - 1] == '?' {
+		return maybeNulled[0:len(maybeNulled) - 1]
+	} else {
+		return maybeNulled
+	}
+}
+
 
 func insert(a []ast.Function, value ast.Function, index int) []ast.Function {
 	if len(a) == index { // nil or empty slice or after last element

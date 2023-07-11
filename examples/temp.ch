@@ -5,7 +5,7 @@ Person = struct(name varchar(10), age int)
 
 var
 
-PersonTable = table(Person)
+People = table(Person)
 
 def
 

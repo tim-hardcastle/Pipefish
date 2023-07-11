@@ -42,7 +42,7 @@ type Hub struct {
 	Sources                map[string][]string
 	lastRun                []string
 	CurrentForm            *Form
-	db                     *sql.DB
+	Db                     *sql.DB
 	administered           bool
 	listeningToHttp        bool
 	Username               string
@@ -94,7 +94,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 		hubResult := hub.DoHubCommand(username, password, verb, args)
 		if len(hubWords) > 1 && hubWords[1] == "run" && hub.administered {   // TODO: find out what it does and where it should be now that we have ++ for hub commands.
-			serviceName, _ := database.ValidateUser(hub.db, username, password)
+			serviceName, _ := database.ValidateUser(hub.Db, username, password)
 			return serviceName, object.OK_RESPONSE
 		}
 		if hubResult {
@@ -251,7 +251,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				return false
 			}
 	if (hub.isAdminstered()) {
-		isAdmin, err := database.IsUserAdmin(hub.db, username)
+		isAdmin, err := database.IsUserAdmin(hub.Db, username)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -275,12 +275,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	}
 	switch verb {
 	case "add":
-		err := database.IsUserGroupOwner(hub.db, username, args[1])
+		err := database.IsUserGroupOwner(hub.Db, username, args[1])
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.db, args[0], args[1], false)
+		err = database.AddUserToGroup(hub.Db, args[0], args[1], false)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -299,12 +299,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.configDb()
 		return false
 	case "create":
-		err := database.AddGroup(hub.db, args[0])
+		err := database.AddGroup(hub.Db, args[0])
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.db, username, args[0], true)
+		err = database.AddUserToGroup(hub.Db, username, args[0], true)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -328,7 +328,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty(object.GetList(hub.ers))
 		return false	
 	case "groups-of-user":
-		result, err := database.GetGroupsOfUser(hub.db, args[0], false)
+		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -336,7 +336,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "groups-of-service":
-		result, err := database.GetGroupsOfService(hub.db, args[0])
+		result, err := database.GetGroupsOfService(hub.Db, args[0])
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -378,7 +378,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.hot = false
 		return false
 	case "let":
-		isAdmin, err := database.IsUserAdmin(hub.db, username)
+		isAdmin, err := database.IsUserAdmin(hub.Db, username)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -387,7 +387,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you don't have the admin status necessary to do that.")
 			return false
 		}
-		err = database.LetGroupUseService(hub.db, args[0], args[1])
+		err = database.LetGroupUseService(hub.Db, args[0], args[1])
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -412,7 +412,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			"with this hub.\n\n")
 		return false
 	case "groups":
-		result, err := database.GetGroupsOfUser(hub.db, username, true)
+		result, err := database.GetGroupsOfUser(hub.Db, username, true)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -421,7 +421,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 	case "services":
 		if hub.isAdminstered() {
-			result, err := database.GetServicesOfUser(hub.db, username, true)
+			result, err := database.GetServicesOfUser(hub.Db, username, true)
 			if err != nil {
 				hub.WriteError(err.Error())
 			} else {
@@ -503,7 +503,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.Start(username, args[1], args[0])
 		return false
 	case "services-of-user":
-		result, err := database.GetServicesOfUser(hub.db, args[0], false)
+		result, err := database.GetServicesOfUser(hub.Db, args[0], false)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -511,7 +511,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "services-of-group":
-		result, err := database.GetServicesOfGroup(hub.db, args[0])
+		result, err := database.GetServicesOfGroup(hub.Db, args[0])
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -565,7 +565,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if ok {
 			hub.WriteString(text.OK + "\n")
 			if hub.administered {
-					access, err := database.DoesUserHaveAccess(hub.db, username, args[0])
+					access, err := database.DoesUserHaveAccess(hub.Db, username, args[0])
 					if err != nil {
 						hub.WriteError(err.Error())
 						return false
@@ -574,7 +574,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 						hub.WriteError("you don't have access to service '" + args[0] + "'.")
 						return false
 					}
-					database.UpdateService(hub.db, username, args[0])
+					database.UpdateService(hub.Db, username, args[0])
 					return false
 				} else {
 					hub.currentServiceName = args[0]
@@ -602,7 +602,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\n")
 		return false
 	case "users-of-group":
-		result, err := database.GetUsersOfGroup(hub.db, args[0])
+		result, err := database.GetUsersOfGroup(hub.Db, args[0])
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -610,7 +610,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "users-of-service":
-		result, err := database.GetUsersOfService(hub.db, args[0])
+		result, err := database.GetUsersOfService(hub.Db, args[0])
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -821,7 +821,7 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 		}
 	}
 	if hub.administered {
-		err := database.UpdateService(hub.db, username, serviceName)
+		err := database.UpdateService(hub.Db, username, serviceName)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return
@@ -862,7 +862,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 	hub.currentServiceName = name
 	hub.services[name].scriptFilepath = scriptFilepath
 
-	init := initializer.New(scriptFilepath, code)
+	init := initializer.New(scriptFilepath, code, hub.Db)
 	init.GetSource(scriptFilepath)
 	init.Parser = *parser.New()
 	for k, v := range hub.services {
@@ -941,7 +941,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 		return false
 	}
 
-	init.EvaluateTableDefs(env)
+	init.EvaluateTableDefs(&init.Parser, env)
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources
@@ -1067,7 +1067,7 @@ func (hub *Hub) Open() {
 
 		params := strings.Split(string(fileBytes), "\n")
 
-		hub.db, err = database.GetdB(params[0], params[1], params[2],
+		hub.Db, err = database.GetdB(params[0], params[1], params[2],
 			params[3], params[4], params[5])
 
 		if err != nil {
@@ -1280,7 +1280,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	var serviceName string
 
 	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
-		serviceName, err = database.ValidateUser(h.db, request.Username, request.Password)
+		serviceName, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
 			h.WriteError(err.Error())
 			return
@@ -1330,13 +1330,13 @@ func (h *Hub) handleConfigUserForm(f *Form) {
 		return
 	}
 
-	err = database.AddUser(h.db, f.Result["Username"], f.Result["First name"],
+	err = database.AddUser(h.Db, f.Result["Username"], f.Result["First name"],
 		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], "")
 	if err != nil {
 		h.WriteError(err.Error())
 		return
 	}
-	err = database.AddUserToGroup(h.db, f.Result["Username"], "Guests", false)
+	err = database.AddUserToGroup(h.Db, f.Result["Username"], "Guests", false)
 	if err != nil {
 		h.WriteError(err.Error())
 		return
@@ -1354,7 +1354,7 @@ func (h *Hub) configAdmin() {
 
 func (h *Hub) handleConfigAdminForm(f *Form) {
 	h.CurrentForm = nil
-	if h.db == nil {
+	if h.Db == nil {
 		h.WriteError("database has not been configured: do 'hub config db' first.")
 		return
 	}
@@ -1362,7 +1362,7 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 		h.WriteError("passwords don't match.")
 		return
 	}
-	err := database.AddAdmin(h.db, f.Result["Username"], f.Result["First name"],
+	err := database.AddAdmin(h.Db, f.Result["Username"], f.Result["First name"],
 		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], h.currentServiceName)
 	if err != nil {
 		h.WriteError(err.Error())
@@ -1389,7 +1389,7 @@ func (h *Hub) getLogin() {
 
 func (h *Hub) handleLoginForm(f *Form) {
 	h.CurrentForm = nil
-	_, err := database.ValidateUser(h.db, f.Result["Username"], f.Result["*Password"])
+	_, err := database.ValidateUser(h.Db, f.Result["Username"], f.Result["*Password"])
 	if err != nil {
 		h.WriteError(err.Error())
 		h.WriteString("Please try again.\n\n")
@@ -1414,7 +1414,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 		return
 	}
 
-	h.db, err = database.GetdB(database.GetSortedDrivers()[number], f.Result["Host"], f.Result["Port"],
+	h.Db, err = database.GetdB(database.GetSortedDrivers()[number], f.Result["Host"], f.Result["Port"],
 		f.Result["Database"], f.Result["Username for database access"], f.Result["*Password for database access"])
 
 	if err != nil {

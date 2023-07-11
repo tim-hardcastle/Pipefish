@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -131,13 +132,13 @@ type Parser struct {
 	TypeSystem       TypeSystem
 	BuiltinFunctions map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object
 	Enums            map[string][]*object.Label
-	Structs          set.Set[string]
-	StructLabels     map[string][]object.Object
+	Structs          set.Set[string]  // TODO --- remove.
+	StructSig        map[string]signature.Signature
 	Parsers          map[string]*Parser
 	GoImports        map[string][]string
 	Namespace        string
 	Namespaces       map[string]string
-
+	Database		 *sql.DB
 	EffHandle        EffectHandler
 }
 
@@ -197,7 +198,7 @@ func New() *Parser {
 
 	p.Enums = make(map[string][]*object.Label)
 
-	p.StructLabels = make(map[string][]object.Object)
+	p.StructSig = make(map[string]signature.Signature)
 
 	p.Parsers = make(map[string]*Parser)
 

@@ -20,10 +20,12 @@ package initializer
 
 import (
 	"bufio"
+	"database/sql"
 	"os"
 	"strings"
 
 	"charm/source/ast"
+	"charm/source/database"
 	"charm/source/digraph"
 	"charm/source/evaluator"
 	"charm/source/object"
@@ -79,13 +81,14 @@ type Initializer struct {
 	Sources               map[string][]string
 }
 
-func New(source, input string) *Initializer {
+func New(source, input string, db *sql.DB) *Initializer {
 	uP := &Initializer{
 		rl:      *relexer.New(source, input),
 		Parser:  *parser.New(),
 		Sources: make(map[string][]string),
 	}
 	uP.GetSource(source)
+	uP.Parser.Database = db
 	return uP
 }
 
@@ -436,7 +439,9 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 	}
 }
 
-func (uP *Initializer) EvaluateTableDefs(env *object.Environment) {
+func (uP *Initializer) EvaluateTableDefs(p *parser.Parser, env *object.Environment) {
+	// So first we're going to extract the properties of the table and declare it as a
+	// global variable.
 	for _, v := range uP.parsedDeclarations[tableDeclaration] {
 		LHS := (*v).(*ast.AssignmentExpression).Left
 		if LHS.GetToken().Type != token.IDENT {
@@ -454,16 +459,38 @@ func (uP *Initializer) EvaluateTableDefs(env *object.Environment) {
 			uP.Throw("init/table/ident/b", LHS.GetToken())
 			return
 		}
+		table := &object.Table{}
 		switch structTypeIdent := structTypeIdent.(type) {
 		case *ast.TypeLiteral :
 			structType := structTypeIdent.Value
 			if !uP.Parser.TypeSystem.PointsTo(structType, "struct") {
 				uP.Throw("init/table/struct/a", structTypeIdent.GetToken())
 			}
-			env.InitializeVariable(tableName, &object.Table{Name: tableName, Row: structType}, "table")
+			table = &object.Table{Name: tableName, Row: structType}
+			env.InitializeVariable(tableName, table, "table")
 		default :
 			uP.Throw("init/table/struct/b", structTypeIdent.GetToken())
 		}	
+		// Now we check if the table already exists in the database. If it does, we type-check it;
+		// if not we create it.
+		tableExists, err := database.DoesTableExist(p.Database, LHS.GetToken(), tableName)
+		if err != nil {
+			uP.addError(err)
+			return
+		}
+		if tableExists {
+			err := database.ValidateTable(p, table, LHS.GetToken())
+			if err != nil {
+				uP.addError(err)
+				return
+			}
+		} else {
+			err := database.CreateTable(p, LHS.GetToken(), table)
+			if err != nil {
+				uP.addError(err)
+				return
+			}
+		}
 	}
 }
 
@@ -825,6 +852,10 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 
 func (uP *Initializer) Throw(errorID string, tok token.Token, args ...any) {
 	uP.Parser.Throw(errorID, tok, args...)
+}
+
+func (uP *Initializer) addError(err *object.Error) {
+	uP.Parser.Errors = append(uP.Parser.Errors, err)
 }
 
 func (uP *Initializer) ErrorsExist() bool {
