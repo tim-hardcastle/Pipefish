@@ -2,7 +2,7 @@
 
 Functional Core / Imperative Shell (FC/IS) is based on the observation that impurity is a [function color](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/): if a function can produce side-effects or is susceptible to side-causes, then this is true of the calling functions all the way up the stack.
 
-Consequently, one way to manage impurity is simply to push it as far up the calling stack as it will go, so that effects are bound very tightly to incoming requests. (As they should be. Clocks and RNGs aside, usually we don't want data to change by itself, but as a result of someone/something saying: "change this data".)
+So one way to manage impurity is simply to push it as far up the calling stack as it will go, so that effects are bound very tightly to incoming requests. (As they should be. Clocks and RNGs aside, usually we don't want data to change by itself, but as a result of someone/something saying: "change this data".)
 
 This leaves us with an absolutely tiny impure region of our code consisting of variable reassignments along the lines of `data = pureFunctionOf(data, userInput)` The remainder of our code can then be composed of pure functions expressing our business logic.
 
