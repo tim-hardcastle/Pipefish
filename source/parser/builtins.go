@@ -38,22 +38,6 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.List{Elements: labels}
 	},
 
-	"keys_of_table": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		sig, ok := p.StructSig[args[0].(*object.Table).Row]
-		if !ok { 
-			return newError("builtins/keys/tabel", tok)
-		}
-		labels := []object.Object{}
-		for _, v := range(sig) {
-			labels = append(labels, &object.Label{Value: v.VarName})
-		}
-		return &object.List{Elements: labels}
-	},
-
-	"row_of_table": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.Type{Value: args[0].(*object.Table).Row}
-	},
-
 	"range": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		index := args[0]
 		if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
