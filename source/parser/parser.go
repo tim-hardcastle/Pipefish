@@ -202,6 +202,8 @@ func New() *Parser {
 
 	p.Parsers = make(map[string]*Parser)
 
+	p.StructSig = make(map[string]signature.Signature)
+
 	return p
 }
 
