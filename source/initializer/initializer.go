@@ -55,7 +55,8 @@ const (
 	importDeclaration          declarationType = iota
 	enumDeclaration                            //
 	typeDeclaration                            //
-	tableDeclaration						   // The fact that these things come
+	languageDeclaration						   // 
+	serviceDeclaration						   // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
 	functionDeclaration                        // a great deal of forethought.
@@ -75,8 +76,8 @@ var tokenTypeToSection = map[token.TokenType]Section{
 type Initializer struct {
 	rl                    relexer.Relexer
 	Parser                parser.Parser
-	tokenizedDeclarations [10]tokenizedCodeChunks
-	parsedDeclarations    [10]parsedCodeChunks
+	tokenizedDeclarations [11]tokenizedCodeChunks
+	parsedDeclarations    [11]parsedCodeChunks
 	Sources               map[string][]string
 }
 
@@ -115,7 +116,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	weakColonShouldBePrelog := false
 	expressionIsAssignment := false
 	expressionIsStruct := false
-	expressionIsTable := false
+	expressionIsLanguage := false
+	expressionIsService := false
 	expressionIsFunction := false
 	expressionIsEnum := false
 	isPrivate := false
@@ -167,9 +169,15 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			definingToken = tok
 		}
 
-		if tok.Type == token.IDENT && tok.Literal == "table" && expressionIsAssignment {
+		if tok.Type == token.IDENT && tok.Literal == "language" && expressionIsAssignment {
 			expressionIsAssignment = false
-			expressionIsTable = true
+			expressionIsLanguage = true
+			definingToken = tok
+		}
+
+		if tok.Type == token.IDENT && tok.Literal == "service" && expressionIsAssignment {
+			expressionIsAssignment = false
+			expressionIsLanguage = true
 			definingToken = tok
 		}
 
@@ -225,9 +233,10 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				beginCount = 0 // Prevents error storm.
 				expressionIsAssignment = false
 				expressionIsStruct = false
-				expressionIsTable = false
 				expressionIsEnum = false
 				expressionIsFunction = false
+				expressionIsLanguage = false
+				expressionIsService = false
 				colonMeansFunctionOrCommand = true
 
 				continue
@@ -254,9 +263,12 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				}
 			case VarSection:
 				switch {
-				case expressionIsTable :
-					uP.tokenizedDeclarations[tableDeclaration] =
-						append(uP.tokenizedDeclarations[tableDeclaration], line)
+				case expressionIsLanguage :
+					uP.tokenizedDeclarations[languageDeclaration] =
+						append(uP.tokenizedDeclarations[languageDeclaration], line)
+				case expressionIsService :
+					uP.tokenizedDeclarations[languageDeclaration] =
+						append(uP.tokenizedDeclarations[languageDeclaration], line)
 				case !expressionIsAssignment :
 					uP.Throw("init/var/function", definingToken)
 				default :
@@ -307,7 +319,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			line = tokenized_code_chunk.New()
 			expressionIsAssignment = false
 			expressionIsStruct = false
-			expressionIsTable = false
+			expressionIsLanguage = false
+			expressionIsService = false
 			expressionIsEnum = false
 			expressionIsFunction = false
 			colonMeansFunctionOrCommand = true
@@ -441,7 +454,7 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 func (uP *Initializer) ParseEverything() {
 	uP.Parser.Unfixes.Add("break")
 	uP.Parser.Unfixes.Add("stop")
-	for declarations := tableDeclaration; declarations <= privateCommandDeclaration; declarations++ {
+	for declarations := languageDeclaration; declarations <= privateCommandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.tokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.tokenizedDeclarations[declarations][chunk]
 			uP.tokenizedDeclarations[declarations][chunk].ToStart()
