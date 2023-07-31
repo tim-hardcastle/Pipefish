@@ -132,8 +132,8 @@ type Parser struct {
 	TypeSystem       TypeSystem
 	BuiltinFunctions map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object
 	Enums            map[string][]*object.Label
-	Structs          set.Set[string]  // TODO --- remove.
-	StructSig        map[string]signature.Signature
+	Structs          set.Set[string]  // TODO --- remove: this has nothing to do that can't be done by the presence of a key
+	StructSig        map[string]signature.Signature // <--- in here.
 	Parsers          map[string]*Parser
 	GoImports        map[string][]string
 	Namespace        string

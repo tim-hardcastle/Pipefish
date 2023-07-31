@@ -30,6 +30,7 @@ import (
 	"charm/source/object"
 	"charm/source/parser"
 	"charm/source/relexer"
+	"charm/source/signature"
 	"charm/source/sysvars"
 	"charm/source/token"
 	"charm/source/tokenized_code_chunk"
@@ -442,6 +443,8 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 	}
 }
 
+var SNIPPET_SIG = signature.Signature{signature.NameTypePair{VarName: "text", VarType: "string"}, signature.NameTypePair{VarName: "env", VarType: "map"}}
+
 func (uP *Initializer) MakeLanguagesAndContacts() {
 	for kindOfDeclarationToParse := languageDeclaration; kindOfDeclarationToParse <= contactDeclaration; kindOfDeclarationToParse++ {
 		for _, v := range uP.tokenizedDeclarations[kindOfDeclarationToParse] {
@@ -481,7 +484,21 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				uP.Throw("init/languages/form", parsedCode.GetToken())
 			}
 			if name != "" {
-				println(name, path)
+				var ty string
+				if kindOfDeclarationToParse == languageDeclaration {
+					ty = "language"
+				} else {
+					ty = "contact"
+				}
+				uP.Parser.TypeSystem.AddTransitiveArrow(name, ty)
+				uP.Parser.TypeSystem.AddTransitiveArrow(name, name + "?")
+				uP.Parser.TypeSystem.AddTransitiveArrow("null", name + "?")
+				uP.Parser.Suffixes.Add(name)
+				uP.Parser.AllFunctionIdents.Add(name)
+				uP.Parser.Functions.Add(name)
+				uP.Parser.Structs.Add(name)
+				evaluator.AssignStructDef(name, SNIPPET_SIG, parsedCode.GetToken(), evaluator.NewContext(&uP.Parser, uP.Parser.GlobalConstants, evaluator.DEF, false))
+				if path != "" {println("Path is", path)}
 			}
 		}
 	}

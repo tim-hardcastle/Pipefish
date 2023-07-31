@@ -28,6 +28,16 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("field", "label")
 	T.AddTransitiveArrow("enum", "enum?")
 	T.AddTransitiveArrow("field", "field?")
+	T.AddTransitiveArrow("null", "single?")
+	T.AddTransitiveArrow("null", "label?")
+	T.AddTransitiveArrow("null", "enum?")
+	T.AddTransitiveArrow("null", "field?")
+	T.AddTransitiveArrow("language", "snippet")
+	T.AddTransitiveArrow("contact", "snippet")
+	T.AddTransitiveArrow("snippet", "snippet?")
+	T.AddTransitiveArrow("null", "snippet?")
+	T.AddTransitiveArrow("null", "language?")
+	T.AddTransitiveArrow("null", "contact?")
 	return &T
 }
 

@@ -656,7 +656,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		return newError("eval/unsatisfied/l", tok)
 	}
 	if right.Type() == object.STRUCTDEF_OBJ {
-		return assignStructDef(variable, right, tok, c)
+		return AssignStructDef(variable.VarName, right.(*object.StructDef).Sig, tok, c)
 	}
 	inferredType := variable.VarType
 	if inferredType == "*" {
@@ -782,10 +782,8 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 
 // We turn the definition of a struct into its constructors and add them to the "builtin" functions, thereby turning
 // their very name into a mockery.
-func assignStructDef(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
-	if tok.Type != token.TYP_ASSIGN {
-		return newError("eval/struct/def", tok)
-	}
+func AssignStructDef(structName string, sig signature.Signature, tok token.Token, c *Context) *object.Error {
+
 	// So what we're going to do is add the constructors to the builtins,
 	// and add the function name, sig, and body to the parser's
 	// table of functions, and add the labels to the environment.
@@ -797,21 +795,21 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 	constructor := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object)}
 		for k, v := range args {
-			result.Labels = append(result.Labels, right.(*object.StructDef).Sig[k].VarName)
-			result.Value[right.(*object.StructDef).Sig[k].VarName] = v
+			result.Labels = append(result.Labels, sig[k].VarName)
+			result.Value[sig[k].VarName] = v
 		}
-		result.Name = variable.VarName
+		result.Name = structName
 		return result
 	}
 
-	c.prsr.BuiltinFunctions[variable.VarName] = constructor
+	c.prsr.BuiltinFunctions[structName] = constructor
 
 	// And the first constructor function as it appears in the parser's function table.
 
 	c.prsr.FunctionTable.Add(c.prsr.TypeSystem,
-		variable.VarName, // The function name ...
-		ast.Function{Sig: right.(*object.StructDef).Sig, // ... signature ...
-			Body: &ast.BuiltInExpression{Name: variable.VarName}}) // ... and a reference to the built-in as the body
+		structName, // The function name ...
+		ast.Function{Sig: sig, // ... signature ...
+			Body: &ast.BuiltInExpression{Name: structName}}) // ... and a reference to the built-in as the body
 
 	// The second constructor function ...
 
@@ -825,18 +823,18 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 				return newError("eval/label", tok)
 			}
 			positionOfLabelInFields := -1
-			for i, w := range right.(*object.StructDef).Sig {
+			for i, w := range sig {
 				if string(v.(*object.Pair).Left.(*object.Label).Value) == w.VarName {
 					positionOfLabelInFields = i
 					break
 				}
 			}
 			if positionOfLabelInFields == -1 {
-				return newError("eval/field/struct", tok, v.(*object.Pair).Left.(*object.Label).Value, variable.VarName)
+				return newError("eval/field/struct", tok, v.(*object.Pair).Left.(*object.Label).Value, structName)
 			}
-			if !parser.IsObjectInType(p.TypeSystem, v.(*object.Pair).Right, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType) {
+			if !parser.IsObjectInType(p.TypeSystem, v.(*object.Pair).Right, sig[positionOfLabelInFields].VarType) {
 				return newError("eval/field/type", tok, v.(*object.Pair).Left.(*object.Label).Value,
-					variable.VarName, right.(*object.StructDef).Sig[positionOfLabelInFields].VarType,
+					structName, sig[positionOfLabelInFields].VarType,
 					v.(*object.Pair).Right)
 			}
 
@@ -844,24 +842,24 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 				v.(*object.Pair).Right
 
 		}
-		for _, v := range right.(*object.StructDef).Sig {
+		for _, v := range sig {
 			result.Labels = append(result.Labels, v.VarName)
 		}
-		result.Name = variable.VarName
+		result.Name = structName
 		return result
 	}
 
-	c.prsr.BuiltinFunctions[variable.VarName+"_with"] = constructor_2
+	c.prsr.BuiltinFunctions[structName+"_with"] = constructor_2
 	// And the second constructor function as it appears in the parser's function table.
 
-	c.prsr.FunctionTable.Add(c.prsr.TypeSystem, variable.VarName, // The function name ...
+	c.prsr.FunctionTable.Add(c.prsr.TypeSystem, structName, // The function name ...
 		ast.Function{Sig: signature.Signature{
 			signature.NameTypePair{VarName: "t", VarType: "tuple"}}, // ... signature ...
-			Body: &ast.BuiltInExpression{Name: variable.VarName + "_with"}}) // ... and a reference to the built-in as the body
+			Body: &ast.BuiltInExpression{Name: structName + "_with"}}) // ... and a reference to the built-in as the body
 
 	// Now the labels ...
 
-	for _, v := range right.(*object.StructDef).Sig {
+	for _, v := range sig {
 		_, ok := c.prsr.Enums[v.VarName]
 		if ok {
 			c.prsr.Throw("eval/struct/enum", tok)
@@ -869,7 +867,7 @@ func assignStructDef(variable signature.NameTypePair, right object.Object, tok t
 		label := &object.Label{Value: v.VarName, Name: "field"}
 		c.env.InitializeConstant(v.VarName, label)
 	}
-	c.prsr.StructSig[variable.VarName] = right.(*object.StructDef).Sig
+	c.prsr.StructSig[structName] = sig
 
 	return nil
 }
