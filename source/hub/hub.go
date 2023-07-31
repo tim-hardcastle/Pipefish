@@ -909,7 +909,16 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 	}
 
 	env := object.NewEnvironment()
+
 	init.ParseEnumDefs(env)
+	if init.ErrorsExist() {
+		hub.GetAndReportErrors(&init.Parser)
+		hub.Sources = init.Sources
+		newService.broken = true
+		return false
+	}
+
+	init.MakeLanguagesAndContacts()
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(&init.Parser)
 		hub.Sources = init.Sources

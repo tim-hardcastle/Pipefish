@@ -46,6 +46,8 @@ const (
 	VarSection
 	CmdSection
 	DefSection
+	LanguagesSection
+	ContactsSection
 	UndefinedSection
 )
 
@@ -56,7 +58,7 @@ const (
 	enumDeclaration                            //
 	typeDeclaration                            //
 	languageDeclaration						   // 
-	serviceDeclaration						   // The fact that these things come
+	contactDeclaration						   // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
 	functionDeclaration                        // a great deal of forethought.
@@ -71,6 +73,8 @@ var tokenTypeToSection = map[token.TokenType]Section{
 	token.VAR:    VarSection,
 	token.CMD:    CmdSection,
 	token.DEF:    DefSection,
+	token.LANGUAGES : LanguagesSection,
+	token.CONTACTS : ContactsSection,
 }
 
 type Initializer struct {
@@ -116,8 +120,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	weakColonShouldBePrelog := false
 	expressionIsAssignment := false
 	expressionIsStruct := false
-	expressionIsLanguage := false
-	expressionIsService := false
 	expressionIsFunction := false
 	expressionIsEnum := false
 	isPrivate := false
@@ -134,15 +136,12 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		uP.Throw("init/head", tok)
 		return
 	}
+
 	currentSection = tokenTypeToSection[tok.Type]
 
 	line := tokenized_code_chunk.New()
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
-
-		// if tok.Source != "rsc/builtins.ch" {
-		// 	fmt.Println("Relexer says ", tok)
-		// }
 
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
@@ -166,18 +165,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		if tok.Type == token.IDENT && tok.Literal == "struct" && expressionIsAssignment {
 			expressionIsAssignment = false
 			expressionIsStruct = true
-			definingToken = tok
-		}
-
-		if tok.Type == token.IDENT && tok.Literal == "language" && expressionIsAssignment {
-			expressionIsAssignment = false
-			expressionIsLanguage = true
-			definingToken = tok
-		}
-
-		if tok.Type == token.IDENT && tok.Literal == "service" && expressionIsAssignment {
-			expressionIsAssignment = false
-			expressionIsLanguage = true
 			definingToken = tok
 		}
 
@@ -235,8 +222,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				expressionIsStruct = false
 				expressionIsEnum = false
 				expressionIsFunction = false
-				expressionIsLanguage = false
-				expressionIsService = false
 				colonMeansFunctionOrCommand = true
 
 				continue
@@ -248,6 +233,20 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				} else {
 					uP.tokenizedDeclarations[importDeclaration] =
 						append(uP.tokenizedDeclarations[importDeclaration], line)
+				}
+			case LanguagesSection:
+				if expressionIsAssignment {
+					uP.Throw("init/lang/assign", definingToken)
+				} else {
+					uP.tokenizedDeclarations[languageDeclaration] =
+						append(uP.tokenizedDeclarations[languageDeclaration], line)
+				}
+			case ContactsSection:
+				if expressionIsAssignment {
+					uP.Throw("init/contact/assign", definingToken)
+				} else {
+					uP.tokenizedDeclarations[contactDeclaration] =
+						append(uP.tokenizedDeclarations[contactDeclaration], line)
 				}
 			case CmdSection:
 				if expressionIsAssignment {
@@ -263,12 +262,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				}
 			case VarSection:
 				switch {
-				case expressionIsLanguage :
-					uP.tokenizedDeclarations[languageDeclaration] =
-						append(uP.tokenizedDeclarations[languageDeclaration], line)
-				case expressionIsService :
-					uP.tokenizedDeclarations[languageDeclaration] =
-						append(uP.tokenizedDeclarations[languageDeclaration], line)
 				case !expressionIsAssignment :
 					uP.Throw("init/var/function", definingToken)
 				default :
@@ -319,8 +312,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			line = tokenized_code_chunk.New()
 			expressionIsAssignment = false
 			expressionIsStruct = false
-			expressionIsLanguage = false
-			expressionIsService = false
 			expressionIsEnum = false
 			expressionIsFunction = false
 			colonMeansFunctionOrCommand = true
@@ -447,6 +438,51 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 		result := evaluator.Evaluate(*v, evaluator.NewContext(&uP.Parser, env, evaluator.DEF, false))
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
+		}
+	}
+}
+
+func (uP *Initializer) MakeLanguagesAndContacts() {
+	for kindOfDeclarationToParse := languageDeclaration; kindOfDeclarationToParse <= contactDeclaration; kindOfDeclarationToParse++ {
+		for _, v := range uP.tokenizedDeclarations[kindOfDeclarationToParse] {
+			v.ToStart()
+			uP.Parser.TokenizedCode = v
+		    parsedCode := *uP.Parser.ParseTokenizedChunk()
+			name := ""
+			path := ""
+			switch parsedCode := parsedCode.(type) {
+			case *ast.Identifier:
+				name = parsedCode.Value
+			case *ast.InfixExpression:
+				if kindOfDeclarationToParse == languageDeclaration {
+					uP.Throw("init/lang/infix", parsedCode.Token)
+				}
+				if parsedCode.GetToken().Literal != "::" {
+					uP.Throw("init/contacts/infix", parsedCode.Token)
+				}
+				lhs := parsedCode.Args[0]
+				rhs := parsedCode.Args[2]
+				switch rhs := rhs.(type) {
+				case *ast.StringLiteral:
+					path = rhs.Value
+					switch lhs := lhs.(type) {
+					case *ast.Identifier:
+						name = lhs.Value
+					default:
+						uP.Throw("init/contacts/ident", lhs.GetToken())
+					}
+				default:
+					uP.Throw("init/contacts/string", lhs.GetToken())
+				}
+			default:
+				if kindOfDeclarationToParse == contactDeclaration {
+					uP.Throw("init/contacts/form", parsedCode.GetToken())
+				}
+				uP.Throw("init/languages/form", parsedCode.GetToken())
+			}
+			if name != "" {
+				println(name, path)
+			}
 		}
 	}
 }

@@ -63,11 +63,13 @@ const (
 
 	// Headwords
 
-	IMPORT  = "import"
-	VAR     = "var"
-	CMD     = "cmd"
-	DEF     = "def"
-	PRIVATE = "private"
+	IMPORT    = "import"
+	VAR       = "var"
+	CMD       = "cmd"
+	DEF       = "def"
+	PRIVATE   = "private"
+	LANGUAGES = "languages"
+	CONTACTS  = "contacts"
 
 	// Keywords
 	ELSE    = "else"
@@ -104,6 +106,8 @@ var keywords = map[string]TokenType{
 	"cmd":     CMD,
 	"def":     DEF,
 	"private": PRIVATE,
+	"languages": LANGUAGES,
+	"contacts":  CONTACTS,
 
 	"true":   TRUE,
 	"false":  FALSE,
@@ -130,5 +134,5 @@ func LookupIdent(ident string) TokenType {
 }
 
 func TokenTypeIsHeadword(t TokenType) bool {
-	return t == IMPORT || t == VAR || t == CMD || t == DEF
+	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANGUAGES || t == CONTACTS
 }
