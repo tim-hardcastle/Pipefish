@@ -89,6 +89,7 @@ const (
 	MAP = ">>"
 	FILTER = "?>"
 
+	EMDASH = "EMDASH"
 )
 
 type Token struct {
@@ -124,6 +125,10 @@ var keywords = map[string]TokenType{
 	"exec":   EXEC,
 	"gocode": GOLANG,
 	"global": GLOBAL,
+
+	"->": PIPE,
+	"---" : EMDASH,
+
 }
 
 func LookupIdent(ident string) TokenType {

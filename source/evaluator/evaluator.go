@@ -780,6 +780,9 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 	}
 }
 
+// TODO --- there is no actual reason why this and the thing that calls it has to be in the evaluator, since it only
+// happens on initialization.
+
 // We turn the definition of a struct into its constructors and add them to the "builtin" functions, thereby turning
 // their very name into a mockery.
 func AssignStructDef(structName string, sig signature.Signature, tok token.Token, c *Context) *object.Error {

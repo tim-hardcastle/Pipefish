@@ -161,12 +161,6 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			return tok
 		}
-		if l.ch == '-' && l.peekChar() == '>' {
-			l.readChar()
-			tok = l.NewToken(token.PIPE, "->")
-			l.readChar()
-			return tok
-		}
 		if l.ch == '!' && l.peekChar() == '=' {
 			l.readChar()
 			l.readChar()
@@ -216,6 +210,9 @@ func (l *Lexer) NextToken() token.Token {
 			tok = l.NewToken(token.LookupIdent(tok.Literal), tok.Literal)
 			if tok.Type == token.GOLANG {
 				tok.Literal = l.readGolang()
+			}
+			if tok.Type == token.EMDASH {
+				tok.Literal = l.readSnippet()
 			}
 			return tok
 		} else if isDigit(l.ch) {
@@ -426,12 +423,69 @@ func (l *Lexer) readComment() string {
 	return result
 }
 
+func (l *Lexer) readSnippet() string {
+	result := ""
+	for l.ch == ' ' || l.ch == '\t' {
+		l.readChar()
+	}
+	// There are two possibilities. Either the whole snippet is on the same line as the 
+	// `---` token, or it's an indent on the succeeding lines. Just like with a colon.
+	if l.ch == '\n' { // --- then we have to mess with whitespace.
+		langIndent := ""
+		stackTop, ok := l.whitespaceStack.HeadValue()
+		if !ok {
+			stackTop = ""
+		}
+		l.readChar()
+		for {
+			currentWhitespace := ""
+			for isWhitespace(l.ch) && !(langIndent != "" && currentWhitespace == langIndent) {
+				currentWhitespace = currentWhitespace + string(l.ch)
+				l.readChar()
+			}
+			if langIndent == "" { // Then this is the first time around. 
+				if currentWhitespace == "" {
+					l.Throw("lex/emdash/indent/a", l.NewToken(token.ILLEGAL, "lex/emdash/indent/a"))
+					return result
+				}
+				langIndent = currentWhitespace
+				if langIndent == stackTop {
+					l.Throw("lex/emdash/indent/b", l.NewToken(token.ILLEGAL, "lex/emdash/indent/b"))
+					return result
+				}
+			}
+			if currentWhitespace == stackTop { // Then we've unindented. Dobby is free!
+				return result
+			}
+			if !strings.HasPrefix(currentWhitespace, stackTop) {
+				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "lex/emdash/indent/c"))
+				return result
+			}
+			for l.ch != '\n' && l.peekChar() != 0 {
+				result = result + string(l.ch)
+				l.readChar()
+			}
+			if l.peekChar() == 0 {
+				return result
+			}
+			result = result + "\n"
+			l.readChar()
+		}
+	} else {
+		for l.ch != '\n' {
+			result = result + string(l.ch)
+			l.readChar()
+		}
+		return result
+	}
+}
+
 func (l *Lexer) readGolang() string {
 	result := ""
 	for l.peekChar() == ' ' || l.peekChar() == '\t' {
 		l.readChar()
 	}
-	// We expect a brace after the gocodekeyword.
+	// We expect a brace after the gocode keyword.
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
 		l.Throw("lex/char", l.NewToken(token.ILLEGAL, "lex/char"))
 		return ""
