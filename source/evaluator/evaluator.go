@@ -97,6 +97,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return evalUnfixExpression(node, c)
 
 	case *ast.SuffixExpression:
+		if node.Token.Type == token.EMDASH {
+			return makeSnippet(node, c)
+		}
 		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 
 	case *ast.LoopExpression:
@@ -545,6 +548,70 @@ func combineEffects(left, right *object.Effects) *object.Effects {
 	left.StopHappened = left.StopHappened || right.StopHappened
 	left.ElseSeeking = left.ElseSeeking || right.ElseSeeking
 	return left
+}
+
+func makeSnippet(node *ast.SuffixExpression, c *Context) object.Object {
+	if len(node.Args) != 1 {
+		return newError("eval/snippet/params", node.Token)
+	}
+	name := Eval(node.Args[0], c)
+	switch name := name.(type) {
+	case *object.Type :
+		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, name.Value, "snippet") {
+			return newError("eval/snippet/snippet", node.Args[0].GetToken())
+		}
+		flatEnv := object.Hash{Pairs: make(map[object.HashKey]object.HashPair)}
+		flattenEnviroment(c.env, c.access, &flatEnv)
+		labels := []string{"text", "env"}
+		values := make(map[string]object.Object)
+		values["text"] = &object.String{Value: node.Token.Literal}
+		values["env"] = &flatEnv
+		return &object.Struct{Name: name.Value, Value : values, Labels: labels}
+	default :
+		return newError("eval/snippet/type", node.Args[0].GetToken())
+	}
+}
+
+func flattenEnviroment(e *object.Environment, access Access, h *object.Hash) {
+	if e.Ext != nil { // We read from the outside in so that shadowing works right.
+		flattenEnviroment(e.Ext, access, h)
+	}
+	for k, v := range(e.Store) {
+		switch access {
+		case DEF, LAMBDA :
+			if v.GetAccessType() == object.ACCESS_LOCAL || v.GetAccessType() == object.ACCESS_CONSTANT {
+				h.AddStringValuePair(k, v.GetValue())
+			}
+		case CMD :
+			if v.GetAccessType() == object.ACCESS_LOCAL || v.GetAccessType() == object.ACCESS_CONSTANT {
+				h.AddStringValuePair(k, v.GetValue())
+			}
+			if v.GetAccessType() == object.ACCESS_GLOBAL {
+				h.AddStringValuePair(k, v.GetValue().DeepCopy())
+			}
+		case REPL :
+			if v.GetAccessType() == object.ACCESS_LOCAL || v.GetAccessType() == object.ACCESS_CONSTANT {
+				h.AddStringValuePair(k, v.GetValue())
+			}
+			if v.GetAccessType() == object.ACCESS_PUBLIC {
+				h.AddStringValuePair(k, v.GetValue().DeepCopy())
+			}
+		case INIT :
+			if v.GetAccessType() == object.ACCESS_CONSTANT {
+				h.AddStringValuePair(k, v.GetValue())
+			}
+			if v.GetAccessType() == object.ACCESS_PRIVATE || v.GetAccessType() == object.ACCESS_PUBLIC {
+				h.AddStringValuePair(k, v.GetValue().DeepCopy())
+			}
+		default :
+			panic("Tim, you goofed.")
+		}
+		if e.Pending != nil && (access == CMD || access == REPL) {
+			for k, v := range(e.Pending) {
+				h.AddStringValuePair(k, v.DeepCopy())
+			}
+		}
+	}
 }
 
 func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object {

@@ -38,6 +38,7 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("null", "snippet?")
 	T.AddTransitiveArrow("null", "language?")
 	T.AddTransitiveArrow("null", "contact?")
+	T.AddTransitiveArrow("snippet", "struct")
 	return &T
 }
 

@@ -1,21 +1,28 @@
-contacts
 
-Zort::"/examples/zort.ch"
-Troz
 
-languages
+cmd
 
-SQL
-Cpp
+create :
+    post SQL ---
+        CREATE TABLE IF NOT EXISTS People (
+            name VARCHAR(32),
+            age INT
+        )
 
-def
+add (name string, age int) :
+    post SQL ---
+        INSERT INTO People
+        VALUES ({name, age})
 
-Foo = struct(a int, b bool)
+show (name string) :
+    get person from SQL ---
+        SELECT * FROM People
+        WHERE name={name} 
+    post prettyPrint(peopleList) to Terminal()
 
-s = SQL --- blurp wubble spoo
+show all :
+    get peopleList from SQL ---
+        SELECT * FROM table_name
+    post prettyPrint(peopleList) to Terminal()
 
-t = SQL ---
-    flurp wubble
-        hubble bubble
-    blort
 

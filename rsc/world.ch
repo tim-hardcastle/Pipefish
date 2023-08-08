@@ -7,6 +7,10 @@ gocode "os"
 gocode "io/ioutil"
 gocode "time"
 
+languages
+
+SQL
+
 def
 
 Random = struct(params single)
@@ -73,6 +77,8 @@ get (x ast) from (fileAccess FileExists) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
+post (sql SQL) :
+    post "Hey there!" to Terminal()
 
 def
 

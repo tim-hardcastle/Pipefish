@@ -85,6 +85,7 @@ var precedences = map[token.TokenType]int{
 	token.COMMA:       COMMA,
 	token.LBRACK:      INDEX,
 	token.EVAL:        FPREFIX,
+	token.EMDASH:	   FSUFFIX,
 }
 
 type TokenSupplier interface{ NextToken() token.Token }
@@ -354,7 +355,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	}
 
 	for precedence < p.peekPrecedence() {
-		for p.Suffixes.Contains(p.peekToken.Literal) || p.Endfixes.Contains(p.peekToken.Literal) {
+		for p.Suffixes.Contains(p.peekToken.Literal) || p.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH {
 			if p.curToken.Type == token.NOT || p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
 				p.prefixSuffixError()
 				return nil

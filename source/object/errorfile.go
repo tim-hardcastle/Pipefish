@@ -1019,6 +1019,33 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/snippet/params": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed snippet constructor"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "a snippet constructor has a type on the left of the `---` symbol and the text of the snippet on the right"
+		},
+	},
+
+	"eval/snippet/snippet": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed snippet constructor"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "a snippet constructor has a type on the left of the `---` symbol, and the text of the snippet on the right"
+		},
+	},
+
+	"eval/snippet/type": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed snippet constructor"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "a snippet constructor has a type on the left of the `---` symbol and the text of the snippet on the right"
+		},
+	},
+
 	"eval/struct/def": {
 		Message: func(tok token.Token, args ...any) string {
 			return "Structs must be defined in the 'def' section."

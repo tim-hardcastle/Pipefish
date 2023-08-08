@@ -43,6 +43,14 @@ type Storage struct {
 	VarType string
 }
 
+func (storage *Storage) GetAccessType() AccessType {
+	return storage.access
+}
+
+func (storage *Storage) GetValue() Object {
+	return storage.obj
+}
+
 func NewEnvironment() *Environment {
 	s := make(map[string]Storage)
 	p := make(map[string]Object)

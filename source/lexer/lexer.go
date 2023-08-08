@@ -22,6 +22,8 @@ type Lexer struct {
 	whitespaceStack stack.Stack[string] // levels of whitespace to unindent to
 	Ers             object.Errors
 	source          string
+	snippetWhitespace string
+	afterSnippet bool
 }
 
 func New(source, input string) *Lexer {
@@ -62,6 +64,11 @@ func (l *Lexer) NextNonCommentToken() token.Token {
 
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
+
+	if l.afterSnippet {
+		l.afterSnippet = false
+		return l.NewToken(token.NEWLINE, ";")
+	}
 
 	if l.newline {
 		l.afterWhitespace = true
@@ -247,6 +254,10 @@ func (l *Lexer) interpretWhitespace() token.Token {
 		whitespace = whitespace + string(l.ch)
 		l.readChar()
 	}
+	if l.snippetWhitespace != "" {
+		whitespace = l.snippetWhitespace
+		l.snippetWhitespace = ""
+	}
 	if l.ch == '\n' {
 		return l.NewToken(token.NO_INDENT, "|||")
 	}
@@ -424,6 +435,7 @@ func (l *Lexer) readComment() string {
 }
 
 func (l *Lexer) readSnippet() string {
+	l.afterSnippet = true
 	result := ""
 	for l.ch == ' ' || l.ch == '\t' {
 		l.readChar()
@@ -440,7 +452,9 @@ func (l *Lexer) readSnippet() string {
 		for {
 			currentWhitespace := ""
 			for isWhitespace(l.ch) && !(langIndent != "" && currentWhitespace == langIndent) {
-				currentWhitespace = currentWhitespace + string(l.ch)
+				if l.ch != '\n' {
+					currentWhitespace = currentWhitespace + string(l.ch)
+				}
 				l.readChar()
 			}
 			if langIndent == "" { // Then this is the first time around. 
@@ -454,10 +468,15 @@ func (l *Lexer) readSnippet() string {
 					return result
 				}
 			}
-			if currentWhitespace == stackTop { // Then we've unindented. Dobby is free!
+			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" { // Then we've unindented. Dobby is free!
+				if currentWhitespace != "\n" {
+					l.snippetWhitespace = currentWhitespace
+				}
 				return result
 			}
-			if !strings.HasPrefix(currentWhitespace, stackTop) {
+			if !strings.HasPrefix(currentWhitespace, stackTop) && !(currentWhitespace == "\n") {
+				println("current '", currentWhitespace, "'")
+				println("stack top '", stackTop, "'")
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "lex/emdash/indent/c"))
 				return result
 			}
@@ -472,7 +491,7 @@ func (l *Lexer) readSnippet() string {
 			l.readChar()
 		}
 	} else {
-		for l.ch != '\n' {
+		for l.ch != '\n' && l.ch != 0 {
 			result = result + string(l.ch)
 			l.readChar()
 		}
