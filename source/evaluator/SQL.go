@@ -149,6 +149,7 @@ func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []an
 				case *object.Error:
 					return "", args, charmValue
 				case *object.Tuple:
+					outputText = outputText + "("
 					for i := 0; i < len(charmValue.Elements); i++ {
 						outputText = outputText + "$" + strconv.Itoa(dollarNumber)
 						if i < len(charmValue.Elements)-1 {
@@ -161,12 +162,13 @@ func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []an
 						args = append(args, goValue)
 						dollarNumber++
 					}
+					outputText = outputText + ")"
 				default:
 					goValue := getGoValue(charmValue)
 					if goValue == nil {
 						return "", args, newError("sql/type/b", tok)
 					}
-					outputText = outputText + "$" + strconv.Itoa(dollarNumber)
+					outputText = outputText + "($" + strconv.Itoa(dollarNumber) + ")"
 					args = append(args, goValue)
 					dollarNumber++
 				}
