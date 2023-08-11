@@ -2,16 +2,16 @@
 
 def
 
-Person = struct(name string, age int)
+Person = struct(name string, age int) // Our data type!
 
 cmd // We wrap some commands around SQL.
 
-create :
-    put SQL ---
-        CREATE TABLE IF NOT EXISTS People (
-            name VARCHAR(32),
-            age INT
-        )
+main :
+    put SQL --- CREATE TABLE IF NOT EXISTS People {Person}
+
+clear :
+    put SQL --- DROP TABLE People
+    main
 
 add (name string, age int) :
     put SQL ---
@@ -35,7 +35,7 @@ HEADING = "\n" + spaceOut("Name", "Age") + repeat(36, "-") + "\n"
 
 prettyFmt(people list) :
     people == [] :
-        "No records match.\n"
+        "\nNo records match.\n"
     else :
         HEADING + (people >> spaceOut(that[name], string that[age]) -> sum)
 

@@ -867,6 +867,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 	init := initializer.New(scriptFilepath, code, hub.Db)
 	init.GetSource(scriptFilepath)
 	init.Parser = *parser.New()
+	init.Parser.Database = hub.Db
 	for k, v := range hub.services {
 		init.Parser.Parsers[k] = v.Parser
 	}
