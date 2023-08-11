@@ -58,8 +58,8 @@ const (
 	importDeclaration          declarationType = iota
 	enumDeclaration                            //
 	typeDeclaration                            //
-	languageDeclaration						   // 
-	contactDeclaration						   // The fact that these things come
+	languageDeclaration                        //
+	contactDeclaration                         // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
 	functionDeclaration                        // a great deal of forethought.
@@ -70,12 +70,12 @@ const (
 )
 
 var tokenTypeToSection = map[token.TokenType]Section{
-	token.IMPORT: ImportSection,
-	token.VAR:    VarSection,
-	token.CMD:    CmdSection,
-	token.DEF:    DefSection,
-	token.LANGUAGES : LanguagesSection,
-	token.CONTACTS : ContactsSection,
+	token.IMPORT:    ImportSection,
+	token.VAR:       VarSection,
+	token.CMD:       CmdSection,
+	token.DEF:       DefSection,
+	token.LANGUAGES: LanguagesSection,
+	token.CONTACTS:  ContactsSection,
 }
 
 type Initializer struct {
@@ -263,9 +263,9 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				}
 			case VarSection:
 				switch {
-				case !expressionIsAssignment :
+				case !expressionIsAssignment:
 					uP.Throw("init/var/function", definingToken)
-				default :
+				default:
 					// As a wretched kludge, we will now weaken some of the commas on the LHS of
 					// the assignment so that it parses properly. (TODO: at this point it would be much easier to
 					// do this in the relexer.)
@@ -287,7 +287,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 					uP.tokenizedDeclarations[variableDeclaration] =
 						append(uP.tokenizedDeclarations[variableDeclaration], line)
-				
+
 				}
 			case DefSection:
 				switch {
@@ -450,7 +450,7 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 		for _, v := range uP.tokenizedDeclarations[kindOfDeclarationToParse] {
 			v.ToStart()
 			uP.Parser.TokenizedCode = v
-		    parsedCode := *uP.Parser.ParseTokenizedChunk()
+			parsedCode := *uP.Parser.ParseTokenizedChunk()
 			name := ""
 			path := ""
 			switch parsedCode := parsedCode.(type) {
@@ -491,14 +491,16 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					ty = "contact"
 				}
 				uP.Parser.TypeSystem.AddTransitiveArrow(name, ty)
-				uP.Parser.TypeSystem.AddTransitiveArrow(name, name + "?")
-				uP.Parser.TypeSystem.AddTransitiveArrow("null", name + "?")
+				uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
+				uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
 				uP.Parser.Suffixes.Add(name)
 				uP.Parser.AllFunctionIdents.Add(name)
 				uP.Parser.Functions.Add(name)
 				uP.Parser.Structs.Add(name)
 				evaluator.AssignStructDef(name, SNIPPET_SIG, parsedCode.GetToken(), evaluator.NewContext(&uP.Parser, uP.Parser.GlobalConstants, evaluator.DEF, false))
-				if path != "" {println("Path is", path)}
+				if path != "" {
+					println("Path is", path)
+				}
 			}
 		}
 	}

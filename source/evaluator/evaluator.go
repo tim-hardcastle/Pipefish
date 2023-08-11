@@ -556,7 +556,7 @@ func makeSnippet(node *ast.SuffixExpression, c *Context) object.Object {
 	}
 	name := Eval(node.Args[0], c)
 	switch name := name.(type) {
-	case *object.Type :
+	case *object.Type:
 		if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, name.Value, "snippet") {
 			return newError("eval/snippet/snippet", node.Args[0].GetToken())
 		}
@@ -566,8 +566,8 @@ func makeSnippet(node *ast.SuffixExpression, c *Context) object.Object {
 		values := make(map[string]object.Object)
 		values["text"] = &object.String{Value: node.Token.Literal}
 		values["env"] = &flatEnv
-		return &object.Struct{Name: name.Value, Value : values, Labels: labels}
-	default :
+		return &object.Struct{Name: name.Value, Value: values, Labels: labels}
+	default:
 		return newError("eval/snippet/type", node.Args[0].GetToken())
 	}
 }
@@ -576,38 +576,38 @@ func flattenEnviroment(e *object.Environment, access Access, h *object.Hash) {
 	if e.Ext != nil { // We read from the outside in so that shadowing works right.
 		flattenEnviroment(e.Ext, access, h)
 	}
-	for k, v := range(e.Store) {
+	for k, v := range e.Store {
 		switch access {
-		case DEF, LAMBDA :
+		case DEF, LAMBDA:
 			if v.GetAccessType() == object.ACCESS_LOCAL || v.GetAccessType() == object.ACCESS_CONSTANT {
 				h.AddStringValuePair(k, v.GetValue())
 			}
-		case CMD :
+		case CMD:
 			if v.GetAccessType() == object.ACCESS_LOCAL || v.GetAccessType() == object.ACCESS_CONSTANT {
 				h.AddStringValuePair(k, v.GetValue())
 			}
 			if v.GetAccessType() == object.ACCESS_GLOBAL {
 				h.AddStringValuePair(k, v.GetValue().DeepCopy())
 			}
-		case REPL :
+		case REPL:
 			if v.GetAccessType() == object.ACCESS_LOCAL || v.GetAccessType() == object.ACCESS_CONSTANT {
 				h.AddStringValuePair(k, v.GetValue())
 			}
 			if v.GetAccessType() == object.ACCESS_PUBLIC {
 				h.AddStringValuePair(k, v.GetValue().DeepCopy())
 			}
-		case INIT :
+		case INIT:
 			if v.GetAccessType() == object.ACCESS_CONSTANT {
 				h.AddStringValuePair(k, v.GetValue())
 			}
 			if v.GetAccessType() == object.ACCESS_PRIVATE || v.GetAccessType() == object.ACCESS_PUBLIC {
 				h.AddStringValuePair(k, v.GetValue().DeepCopy())
 			}
-		default :
+		default:
 			panic("Tim, you goofed.")
 		}
 		if e.Pending != nil && (access == CMD || access == REPL) {
-			for k, v := range(e.Pending) {
+			for k, v := range e.Pending {
 				h.AddStringValuePair(k, v.DeepCopy())
 			}
 		}
@@ -1370,6 +1370,9 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression:
 		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
+		// First we hijack a few things which can't actually be implemented as builtins but are convenient to
+		// treat as such. (Or to put it another way this is a kludge, a shameful kludge. I could at least represent
+		// it as a map somewhere. (TODO.))
 		if body.Name == "for_loop" {
 			return evalForLoop(params, tok, c)
 		}
@@ -1378,6 +1381,12 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		}
 		if body.Name == "post_to_output" {
 			return evalOutput(params, tok, c)
+		}
+		if body.Name == "post_to_SQL" {
+			return evalPostSQL(params, tok, c)
+		}
+		if body.Name == "get_from_SQL" {
+			return evalGetSQL(params, tok, c)
 		}
 		if body.Name == "long_form_constructor" { // Then we actually need a different constructor for each type.
 			constructor, ok := c.prsr.BuiltinFunctions[params[0].(*object.Type).Value+"_with"]
@@ -1715,5 +1724,3 @@ func emit(logStr string, tok token.Token, c *Context) {
 		c.prsr.Throw("eval/log/append", tok)
 	}
 }
-
-

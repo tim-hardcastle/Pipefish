@@ -54,6 +54,15 @@ get (x ast) from (input Input) :
     x varref = builtinGet input[prompt]
 builtinGet(s string) : builtin "get_from_input"
 
+// In the same way only the evaluator, which can see the context, knows which database the hub
+// is pointing at.
+post (x SQL) : builtin "post_to_SQL" // Which of these to use is up to the user.
+put (x SQL) : builtin "post_to_SQL"
+delete (x SQL) : builtin "post_to_SQL"
+get (x ast) as (t type) from (y SQL) :
+     x varref = builtinGetSQL t, y
+builtinGetSQL(t type, s SQL) : builtin "get_from_SQL"
+
 post (x string) to (terminal Terminal) :
     goPrintln(x)
 
@@ -77,8 +86,6 @@ get (x ast) from (fileAccess FileExists) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
-post (sql SQL) :
-    post "Hey there!" to Terminal()
 
 def
 

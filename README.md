@@ -678,7 +678,7 @@ The `for` loop allows you to iterate over a parameter:
 ```
 #3 → for i over 0::10 do (func(n) : n + i * i) to 0
 285
-#3 → for i over ["red", "green", "blue" do (func(n) : n + i + " ") to ""
+#3 → for i over ["red", "green", "blue"] do (func(n) : n + i + " ") to ""
 red green blue
 ```
 

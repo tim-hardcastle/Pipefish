@@ -1196,7 +1196,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 					varName = inner.Value
 					varType = arg.Operator
 				default :
-					p.Throw("parse/sig/ident", inner.GetToken())
+					p.Throw("parse/sig/ident/a", inner.GetToken())
 					return nil
 				}
 			}
@@ -1229,7 +1229,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 						return nil
 					}
 				default :
-					p.Throw("parse/sig/ident", inner.GetToken())
+					p.Throw("parse/sig/ident/b", inner.GetToken())
 					return nil
 				}
 			}

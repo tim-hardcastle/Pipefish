@@ -1,7 +1,7 @@
 def
 
 // This is implemented in the evaluator, so all this line does is enforce the syntax.
-for (indexName ast) over (R) do (__f func) to (x tuple) : builtin "for_loop" 
+for (indexName ast) over (R single) do (__f func) to (x tuple) : builtin "for_loop" 
 
 // This is not a builtin but should be, for performance.
 while (p) do (__f) to (z single) :
@@ -17,6 +17,12 @@ tail(L list) :
         []
     else :
         L[1::len(L)]
+
+sum(L list) :
+    len(L) == 0 :
+        error "can't sum an empty list"
+    else :
+        for i over 1::len(L) do (func(x) : x + L[i]) to L[0]
 
 range(p pair) : builtin "range"
 len(t type) : builtin "len_of_type" 

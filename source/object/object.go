@@ -269,14 +269,6 @@ func (h *Hash) AddStringValuePair(s string, v Object) {
 	h.Pairs[hashKey] = HashPair{Key: str, Value: v}
 }
 
-func (h *Hash) MakeGoMapFromCharmMap() map[string]Object {
-	result := make(map[string]Object)
-	for _, v := range(h.Pairs) {
-		result[v.Key.(*String).Value] = v.Value
-	}
-	return result
-}
-
 // Charm 'int' wraps around Go 'int' and so is machine-dependent.
 type Integer struct {
 	Value int

@@ -2,7 +2,7 @@ def
 
 HubResponse = struct(responseName string, vals list)
 
-// Vebrs are in alphabetical order:
+// Verb are in alphabetical order:
 // add, config, create, do, edit, errors, halt, help, hot let, listen, log, my, peek, quit, register, replay, run, services, snap,
 // test, trace, where, why, values
 
