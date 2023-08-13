@@ -18,8 +18,8 @@ func NewTypeSystem() TypeSystem {
 		T.AddTransitiveArrow(t, "single")
 		T.AddTransitiveArrow(t, "single?")
 		if t != "null" {
-			T.AddTransitiveArrow(t, t + "?")
-			T.AddTransitiveArrow("null", t + "?")
+			T.AddTransitiveArrow(t, t+"?")
+			T.AddTransitiveArrow("null", t+"?")
 		}
 	}
 	T.AddTransitiveArrow("single", "single?")
@@ -81,7 +81,7 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 			ok = false
 			return
 		}
-		if ((i == len(sigA) - 1) && (i == len(sigB) - 1) && sigA[i].TypeOrBling() == sigB[i].TypeOrBling()) {
+		if (i == len(sigA)-1) && (i == len(sigB)-1) && sigA[i].TypeOrBling() == sigB[i].TypeOrBling() {
 			if !(aIsMoreSpecific || bIsMoreSpecific) {
 				result = false
 				ok = false
@@ -119,7 +119,7 @@ func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
 			return true
 		}
 		superLen, ok := GetLengthFromType(maybeSuper)
-		return ok && subLen <= superLen 
+		return ok && subLen <= superLen
 	}
 
 	return maybeSub == maybeSuper || T.PointsTo(maybeSub, maybeSuper)
@@ -128,11 +128,11 @@ func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
 func GetLengthFromType(maybeVarchar string) (int, bool) {
 	if len(maybeVarchar) >= 10 {
 		if maybeVarchar[0:8] == "varchar(" {
-			vcLen, _ := strconv.Atoi(maybeVarchar[8:len(maybeVarchar) - 1])
+			vcLen, _ := strconv.Atoi(maybeVarchar[8 : len(maybeVarchar)-1])
 			return vcLen, true
 		}
 		if maybeVarchar[0:9] == "varchar?(" {
-			vcLen, _ := strconv.Atoi(maybeVarchar[9:len(maybeVarchar) - 1])
+			vcLen, _ := strconv.Atoi(maybeVarchar[9 : len(maybeVarchar)-1])
 			return vcLen, true
 		}
 	}
@@ -140,22 +140,21 @@ func GetLengthFromType(maybeVarchar string) (int, bool) {
 }
 
 func GetNullabilityFromType(maybeNullable string) bool {
-	return maybeNullable == "null" || (len(maybeNullable) - 1) == '?'  || len(maybeNullable) > 9 && maybeNullable[0:9] != "varchar?(" 
+	return maybeNullable == "null" || (len(maybeNullable)-1) == '?' || len(maybeNullable) > 9 && maybeNullable[0:9] == "varchar?("
 }
 
 func TypeIsStringlike(maybeString string) bool {
-		return maybeString == "string" || maybeString == "string?" || (len(maybeString) >= 10 && 
-			(maybeString[0:8] == "varchar(" || maybeString[0:9] == "varchar?("))
-} 
+	return maybeString == "string" || maybeString == "string?" || (len(maybeString) >= 10 &&
+		(maybeString[0:8] == "varchar(" || maybeString[0:9] == "varchar?("))
+}
 
 func UnnullType(maybeNulled string) string {
-	if maybeNulled[len(maybeNulled) - 1] == '?' {
-		return maybeNulled[0:len(maybeNulled) - 1]
+	if maybeNulled[len(maybeNulled)-1] == '?' {
+		return maybeNulled[0 : len(maybeNulled)-1]
 	} else {
 		return maybeNulled
 	}
 }
-
 
 func insert(a []ast.Function, value ast.Function, index int) []ast.Function {
 	if len(a) == index { // nil or empty slice or after last element

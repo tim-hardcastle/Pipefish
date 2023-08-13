@@ -29,23 +29,23 @@ const (
 	LOGGING     // \\
 	ASSIGN      // =
 	COLON       // :
-	PIPING		// ->, >>, ?>
+	PIPING      // ->, >>, ?>
 	OR          // or
 	AND         // and
 	NOT         // not
 	EQUALS      // == or !=
 	LESSGREATER // > or < or <= or >=
 	WEAK_COMMA  // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
-	FPREFIX // user-defined prefix or function
-	FMIDFIX // user-defined midfix or forefix
-	FENDFIX // user-defined endfix
-	COMMA   // ,
-	WITH    // with, but ONLY when peeking ahead, otherwise it's an FMIDFIX
-	FINFIX  // user-defined infix or ->
-	SUM     // + or -
-	PRODUCT // * or / or %
-	FSUFFIX // user-defined suffix, or type in type declaration
-	MINUS   //  - as a prefix
+	FPREFIX     // user-defined prefix or function
+	FMIDFIX     // user-defined midfix or forefix
+	FENDFIX     // user-defined endfix
+	COMMA       // ,
+	WITH        // with, but ONLY when peeking ahead, otherwise it's an FMIDFIX
+	FINFIX      // user-defined infix or ->
+	SUM         // + or -
+	PRODUCT     // * or / or %
+	FSUFFIX     // user-defined suffix, or type in type declaration
+	MINUS       //  - as a prefix
 
 	INDEX // after [
 
@@ -60,9 +60,9 @@ var precedences = map[token.TokenType]int{
 	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
 	token.EXEC:        FUNC,
-	token.GLOBAL:	   FUNC,
+	token.GLOBAL:      FUNC,
 	token.GIVEN:       GIVEN,
-	token.LOOP:		   GIVEN,
+	token.LOOP:        GIVEN,
 	token.ASSIGN:      ASSIGN,
 	token.CMD_ASSIGN:  ASSIGN,
 	token.VAR_ASSIGN:  ASSIGN,
@@ -85,7 +85,7 @@ var precedences = map[token.TokenType]int{
 	token.COMMA:       COMMA,
 	token.LBRACK:      INDEX,
 	token.EVAL:        FPREFIX,
-	token.EMDASH:	   FSUFFIX,
+	token.EMDASH:      FSUFFIX,
 }
 
 type TokenSupplier interface{ NextToken() token.Token }
@@ -100,6 +100,9 @@ func String(t TokenSupplier) string {
 
 type Parser struct {
 
+	// The parser should be either entirely stateless or nearly so (we might except curToken, peekToken, a
+	// pointer to the permanent state.
+
 	// Temporary state: things that are used to parse one line.
 
 	TokenizedCode TokenSupplier
@@ -108,6 +111,9 @@ type Parser struct {
 	curToken      token.Token
 	peekToken     token.Token
 	Logging       bool
+
+	// A vile kludge
+	InnerParser *Parser
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -133,13 +139,13 @@ type Parser struct {
 	TypeSystem       TypeSystem
 	BuiltinFunctions map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object
 	Enums            map[string][]*object.Label
-	Structs          set.Set[string]  // TODO --- remove: this has nothing to do that can't be done by the presence of a key
+	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]signature.Signature // <--- in here.
 	Parsers          map[string]*Parser
 	GoImports        map[string][]string
 	Namespace        string
 	Namespaces       map[string]string
-	Database		 *sql.DB
+	Database         *sql.DB
 	EffHandle        EffectHandler
 }
 
@@ -418,8 +424,8 @@ func (p *Parser) positionallyFunctional() bool {
 		return false
 	}
 	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
-		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER  ||
-		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON || 
+		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER ||
+		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON ||
 		p.peekToken.Type == token.MAGIC_IFLOG {
 		return false
 	}
@@ -474,8 +480,8 @@ func (p *Parser) peekPrecedence() int {
 		if p.peekToken.Literal == "in" {
 			return EQUALS
 		}
-		if p.peekToken.Literal == "with" {   // Note, this is the one assymmetry in the system of precedence.
-			return WITH     // When not peeking ahead, `with` has precedence just *below* a comma.
+		if p.peekToken.Literal == "with" { // Note, this is the one assymmetry in the system of precedence.
+			return WITH // When not peeking ahead, `with` has precedence just *below* a comma.
 		}
 		return FINFIX
 	}
@@ -624,7 +630,7 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 
 func (p *Parser) parseLoopExpression() ast.Node {
 	expression := &ast.LoopExpression{
-		Token:    p.curToken,
+		Token: p.curToken,
 	}
 	p.NextToken()
 	expression.Code = p.parseExpression(GIVEN)
@@ -1149,8 +1155,6 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 	return functionName, sig, rTypes, content, given
 }
 
-
-
 func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 	sig := signature.Signature{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.EmptyTuple{})) {
@@ -1170,24 +1174,24 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 						return nil
 					}
 					switch inmost := inner.Args[0].(type) {
-						case *ast.Identifier:
-							varName = inmost.Value
-							varType = inner.Operator + " raw"
-						default :
-							p.Throw("parse/raw/ident", inmost.GetToken())
-							return nil
+					case *ast.Identifier:
+						varName = inmost.Value
+						varType = inner.Operator + " raw"
+					default:
+						p.Throw("parse/raw/ident", inmost.GetToken())
+						return nil
 					}
 				case *ast.Identifier:
 					varName = inner.Value
 					varType = "raw"
-				default :
+				default:
 					p.Throw("parse/raw/form", arg.GetToken())
 					return nil
 				}
 			} else { // The suffix is not 'raw'
 				if !(TypeExists(arg.Operator, p.TypeSystem) ||
-						arg.Operator == "ast" || arg.Operator == "varname" || 
-						arg.Operator == "varref") {
+					arg.Operator == "ast" || arg.Operator == "varname" ||
+					arg.Operator == "varref") {
 					p.Throw("parse/sig/type", arg.Token)
 					return nil
 				}
@@ -1195,12 +1199,12 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				case *ast.Identifier:
 					varName = inner.Value
 					varType = arg.Operator
-				default :
+				default:
 					p.Throw("parse/sig/ident/a", inner.GetToken())
 					return nil
 				}
 			}
-		case *ast.Identifier :
+		case *ast.Identifier:
 			if p.Endfixes.Contains(arg.Value) {
 				varName = arg.Value
 				varType = "bling"
@@ -1215,7 +1219,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 			} else {
 				// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 				// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-				// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter 
+				// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 				// name under those circumstances. This tends to make the whole thing stupid, we should have
 				// done all this before it got near the Pratt parser.
 				switch inner := arg.Args[0].(type) {
@@ -1223,29 +1227,29 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 					varName = arg.Operator
 					varType = inner.Value
 					if !(TypeExists(inner.Value, p.TypeSystem) ||
-							arg.Operator == "ast" || arg.Operator == "varname" || 
-							arg.Operator == "varref") {
+						arg.Operator == "ast" || arg.Operator == "varname" ||
+						arg.Operator == "varref") {
 						p.Throw("parse/sig/type/b", arg.Token)
 						return nil
 					}
-				default :
+				default:
 					p.Throw("parse/sig/ident/b", inner.GetToken())
 					return nil
 				}
 			}
-		case *ast.InfixExpression :
+		case *ast.InfixExpression:
 			if arg.Operator == "varchar" {
 				switch potentialVariable := arg.Args[0].(type) {
 				case *ast.Identifier:
 					varName = potentialVariable.Value
-				default :
+				default:
 					p.Throw("parse/sig/varchar/ident", potentialVariable.GetToken())
 					return nil
 				}
 				switch potentialInteger := arg.Args[2].(type) {
 				case *ast.IntegerLiteral:
 					varType = "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
-				default :
+				default:
 					p.Throw("parse/sig/varchar/int", potentialInteger.GetToken())
 					return nil
 				}
@@ -1257,12 +1261,12 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 					p.Throw("parse/sig/infix", arg.GetToken())
 					return nil
 				}
-		}
-		case *ast.Bling :
+			}
+		case *ast.Bling:
 			varName = arg.Value
 			varType = "bling"
-		}	
-		if j == len(args) - 1 && varType == "*" {
+		}
+		if j == len(args)-1 && varType == "*" {
 			varType = "single"
 		}
 		if !(varType == "bling" || varType == "*") {
@@ -1311,7 +1315,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 	case *ast.SuffixExpression:
 		switch {
 		case TypeExists(typednode.Operator, p.TypeSystem) ||
-			typednode.Operator == "ast" || typednode.Operator == "varname" || 
+			typednode.Operator == "ast" || typednode.Operator == "varname" ||
 			typednode.Operator == "varref":
 			LHS := p.getSigFromArgs(typednode.Args, dflt)
 			for k := range LHS {
@@ -1345,7 +1349,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 		} else {
 			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter 
+			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 			// name under those circumstances.
 			return signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: dflt}}
 		}

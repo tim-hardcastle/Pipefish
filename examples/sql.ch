@@ -1,6 +1,6 @@
 def // We define our data type!
 
-Person = struct(name string, age int) 
+Person = struct(name varchar(32), age int) 
 
 cmd // We wrap some commands around SQL.
 

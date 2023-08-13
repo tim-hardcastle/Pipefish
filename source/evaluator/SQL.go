@@ -72,7 +72,6 @@ func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Obje
 
 	for rows.Next() {
 		if err := rows.Scan(pointerList...); err != nil {
-			println(err.Error())
 			return newError("sql/in/scan", tok, err.Error())
 		}
 		newStruct := makeStruct(charmType.Value, pointerList, tok, c)
@@ -210,11 +209,10 @@ func getSqlType(charmType string) string {
 	if parser.TypeIsStringlike(charmType) {
 		strLen, isVarchar := parser.GetLengthFromType(charmType)
 		if isVarchar {
-			result := "VARCHAR"
-			if nullable {
-				result = result + "?"
+			result := "VARCHAR" + "(" + strconv.Itoa(strLen) + ")"
+			if !nullable {
+				result = result + " NOT NULL"
 			}
-			result = result + "(" + strconv.Itoa(strLen) + ")"
 			return result
 		}
 	}

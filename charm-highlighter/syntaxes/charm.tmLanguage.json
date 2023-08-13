@@ -27,13 +27,13 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.charm",
-				"match": "\\b(else|given|respond|request|break|stop|given|eval|exec|gocode|true|false|and|or|not|raw|ast|varname)\\b"
+				"match": "\\b(else|given|loop|break|stop|given|eval|exec|gocode|global|true|false|and|or|not|raw|ast|varname)\\b"
 			}]
 		},
 		"headwords": {
                         "patterns": [{
                                 "name": "constant.other.charm",
-                                "match": "\\b(import|def|var|cmd|private)\\b"
+                                "match": "\\b(import|def|var|cmd|private|languages|contacts)\\b"
                         }]
                 },
 		"strings": {
@@ -70,7 +70,7 @@
 			"patterns": [
 				{
 				"name": "keyword.charm",
-				"match": "(==|!=|->|\\?>|\\>>|:|::|->|;)"
+				"match": "(==|!=|->|\\?>|\\>>|:|::|->|;|---)"
 				}
 			]
 		},
