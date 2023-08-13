@@ -139,8 +139,8 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"single_in_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		for i := 2; i < len(args); i++ {
-			if object.Equals(args[0], args[i]) {
+		for i := 0; i < len(args[2].(*object.Tuple).Elements); i++ {
+			if object.Equals(args[0], args[2].(*object.Tuple).Elements[i]) {
 				return object.TRUE
 			}
 		}
