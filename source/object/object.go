@@ -47,7 +47,7 @@ const (
 	STRUCT_OBJ      = "struct"
 	STRUCTDEF_OBJ   = "structdef"
 	SUCCESSFUL_OBJ  = "successful assignment"
-	TABLE_OBJ	    = "table"
+	TABLE_OBJ       = "table"
 	TUPLE_OBJ       = "tuple"
 	TYPE_OBJ        = "type"
 	UNSATISFIED_OBJ = "unsatisfied conditional"
@@ -462,8 +462,9 @@ func (s *SuccessfulAssignment) Inspect(view View) string { return text.OK }
 
 type Table struct {
 	Name string
-	Row string
+	Row  string
 }
+
 func (t *Table) DeepCopy() Object { return t }
 func (t *Table) Type() ObjectType { return TABLE_OBJ }
 func (t *Table) Inspect(view View) string {

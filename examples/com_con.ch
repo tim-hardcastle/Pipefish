@@ -1,4 +1,4 @@
-var
+def
 
 // This is a comment.
 

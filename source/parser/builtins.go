@@ -20,7 +20,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 
 	"keys_of_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		returnList := &object.List{Elements: []object.Object{}}
-		for _, v := range args[0].(*object.Struct).Labels {  // TODO --- remove labels field, use StructSig.
+		for _, v := range args[0].(*object.Struct).Labels { // TODO --- remove labels field, use StructSig.
 			returnList.Elements = append(returnList.Elements, &object.Label{Value: v})
 		}
 		return returnList
@@ -28,11 +28,11 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 
 	"keys_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		sig, ok := p.StructSig[args[0].(*object.Type).Value]
-		if !ok { 
+		if !ok {
 			return newError("builtins/keys/struct", tok)
 		}
 		labels := []object.Object{}
-		for _, v := range(sig) {
+		for _, v := range sig {
 			labels = append(labels, &object.Label{Value: v.VarName})
 		}
 		return &object.List{Elements: labels}
@@ -124,6 +124,16 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 			if object.Equals(args[0], v) {
 				return object.TRUE
 			}
+		}
+		return object.FALSE
+	},
+
+	"single_in_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		if IsSameTypeOrSubtype(p.TypeSystem, object.InnerType(args[0]), args[2].(*object.Type).Value) {
+			return object.TRUE
+		}
+		if args[0].Type() == object.ERROR_OBJ {
+			return args[0]
 		}
 		return object.FALSE
 	},

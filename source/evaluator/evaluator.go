@@ -705,8 +705,14 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		result := evalTupleExpression(left, right)
 		return result
 	case node.Operator == "==":
+		if object.ConcreteType(left) != object.ConcreteType(right) {
+			return newErrorWithVals("eval/equal", node.Token, []object.Object{left, right})
+		}
 		return object.MakeBool(object.Equals(left, right))
 	case node.Operator == "!=":
+		if object.ConcreteType(left) != object.ConcreteType(right) {
+			return newErrorWithVals("eval/equal", node.Token, []object.Object{left, right})
+		}
 		return object.MakeInverseBool(object.Equals(left, right))
 	default:
 		if node.Token.Source == "REPL input" {
