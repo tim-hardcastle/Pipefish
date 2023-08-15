@@ -10,7 +10,7 @@ Such code is easier to write, easier to read, easier to debug, and easier to tes
 
 From the above description, you can see that it would be possible for people to write FC/IS programs in many languages, and [in](https://www.youtube.com/watch?v=eOYal8elnZk) [fact](https://www.destroyallsoftware.com/screencasts/catalog/functional-core-imperative-shell) [they](https://doordash.engineering/2022/07/26/functional-core-imperative-shell-using-structured-concurrency-to-write-maintainable-grpc-endpoints-in-kotlin/) [do](https://medium.com/@magnusjt/functional-core-imperative-shell-in-javascript-29bef2353ac2). But Charm is built for this, and so does it better.
 
-Charm enforces FC/IS, by making a strict distinction between commands, which have effects and don't return values, and functions, which return values but have no effects. Since functions can't call commands, the commands have no choice but to occupy the top of the call stack.
+Charm enforces FC/IS by making a strict distinction between commands, which have effects and don't return values, and functions, which return values but have no effects. Since functions can't call commands, the commands have no choice but to occupy the top of the call stack.
 
 The result of all this is expressed in the following table:
 
