@@ -15,7 +15,7 @@ import (
 )
 
 type EffectHandler struct {
-	InHandle InHandler
+	InHandle  InHandler
 	OutHandle OutHandler
 }
 
@@ -23,7 +23,7 @@ type InHandler interface {
 	Get(query string) string
 }
 
-type OutHandler interface  {
+type OutHandler interface {
 	Out(outObjects []object.Object, env *object.Environment)
 }
 
@@ -33,7 +33,7 @@ func MakeStandardEffectHandler(out io.Writer, env object.Environment) EffectHand
 	return EffectHandler{InHandle: iH, OutHandle: oH}
 }
 
-type standardInHandler struct {}
+type standardInHandler struct{}
 
 func (iH standardInHandler) Get(prompt string) string {
 	rline := readline.NewInstance()
@@ -42,25 +42,34 @@ func (iH standardInHandler) Get(prompt string) string {
 	return line
 }
 
-type standardOutHandler struct {out io.Writer; env object.Environment}
+type standardOutHandler struct {
+	out io.Writer
+	env object.Environment
+}
 
 func (oH standardOutHandler) Out(vals []object.Object, env *object.Environment) {
 	view, _ := env.Get("$view")
 	viewStr := view.(*object.String).Value
-	
+
 	var out bytes.Buffer
 
 	elements := []string{}
 	for _, e := range vals {
-	if viewStr == "charm" {
-		elements = append(elements, e.Inspect(object.ViewCharmLiteral))
-	}
-	if viewStr == "plain" {
-		elements = append(elements, e.Inspect(object.ViewStdOut))
-	}
-		
+		if viewStr == "charm" {
+			elements = append(elements, e.Inspect(object.ViewCharmLiteral))
+		}
+		if viewStr == "plain" {
+			elements = append(elements, e.Inspect(object.ViewStdOut))
+		}
+
 	}
 	out.WriteString(strings.Join(elements, ", "))
-oH.out.Write(out.Bytes())
+	oH.out.Write(out.Bytes())
+
+}
+
+type consumingOutHandler struct{}
+
+func (oH consumingOutHandler) Out(vals []object.Object, env *object.Environment) {
 
 }

@@ -63,6 +63,16 @@ get (x ast) as (t type) from (y SQL) :
      x varref = builtinGetSQL t, y
 builtinGetSQL(t type, s SQL) : builtin "get_from_SQL"
 
+// And last but not least, the contacts also have to be built in.
+post (x contact) : builtin "post_to_contact" // Which of these to use is up to the user.
+put (x contact) : builtin "post_to_contact"
+delete (x contact) : builtin "post_to_contact"
+get (x ast) from (c contact) :
+    x varref = builtinGetContact c
+builtinGetContact(c contact) : builtin "get_from_contact"
+
+
+
 post (x string) to (terminal Terminal) :
     goPrintln(x)
 

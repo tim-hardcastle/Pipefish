@@ -4,9 +4,9 @@ def
 
 // And below, the two types of continuation.
 
-x = "hello " + ..
+X = "hello " + ..
  .. "world"
 
-y = 1, 2, 3, 
+Y = 1, 2, 3, 
  .. 4, 5, 6
  

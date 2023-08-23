@@ -31,6 +31,7 @@ const (
 	DEF
 	INIT
 	LAMBDA
+	HYBRID
 )
 
 // The evaluator is stateless, which as usual means we're going to be wrapping the state in a struct and passing
@@ -1361,8 +1362,12 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	}
 	env := object.NewEnvironment()
 	var newAccess Access
-	if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd { // In this case we are going from the REPL or a cmd to a
-		env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the global constants.
+	if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd {
+		if c.access == HYBRID {
+			c.prsr = c.prsr.InnerParser
+		} else { // In this case we are going from the REPL or a cmd to a
+			env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the global constants.
+		}
 		newAccess = DEF
 	} else {
 		env.Ext = c.env
@@ -1393,6 +1398,12 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		}
 		if body.Name == "get_from_SQL" {
 			return evalGetSQL(params, tok, c)
+		}
+		if body.Name == "post_to_contact" {
+			return evalPostContact(params, tok, c)
+		}
+		if body.Name == "get_from_contact" {
+			return evalGetContact(params, tok, c)
 		}
 		if body.Name == "long_form_constructor" { // Then we actually need a different constructor for each type.
 			constructor, ok := c.prsr.BuiltinFunctions[params[0].(*object.Type).Value+"_with"]
@@ -1527,6 +1538,45 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 	default:
 		return newErrorWithVals("eval/for/arg", tok, []object.Object{rng}, rng)
 	}
+}
+
+func evalPostContact(params []object.Object, tok token.Token, c *Context) object.Object {
+	result := evalContactExpression(params, tok, c)
+	if result.Type() == object.ERROR_OBJ {
+		return result
+	}
+	if result != object.SUCCESS {
+		return newError("eval/contact/return", tok)
+	}
+	return object.SUCCESS
+}
+
+func evalGetContact(params []object.Object, tok token.Token, c *Context) object.Object {
+	result := evalContactExpression(params, tok, c)
+	if result.Type() == object.ERROR_OBJ {
+		return result
+	}
+	if result.Type() != object.RESPONSE_OBJ {
+		return newError("eval/contact/response", tok)
+	}
+	if len(result.(*object.Effects).Elements) == 1 {
+		return result.(*object.Effects).Elements[0]
+	}
+	return &object.Tuple{Elements: result.(*object.Effects).Elements}
+}
+
+func evalContactExpression(params []object.Object, tok token.Token, c *Context) object.Object { // This is gross.
+	serviceName := params[0].(*object.Struct).Name
+	outerParser, ok := c.prsr.Parsers[serviceName]
+	if !ok {
+		return newError("eval/contact/service", tok, serviceName)
+	}
+	outerParser.InnerParser = c.prsr
+	contextToUse := NewContext(outerParser, c.env, HYBRID, c.logging)
+	ast := outerParser.ParseLine(tok.Source, params[0].(*object.Struct).Value["text"].(*object.String).Value)
+	result := Eval(*ast, contextToUse)
+	outerParser.InnerParser = nil // Which is why I say this is gross.
+	return result
 }
 
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
