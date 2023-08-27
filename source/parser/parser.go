@@ -112,9 +112,6 @@ type Parser struct {
 	peekToken     token.Token
 	Logging       bool
 
-	// A vile kludge
-	InnerParser *Parser
-
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
 
@@ -141,7 +138,7 @@ type Parser struct {
 	Enums            map[string][]*object.Label
 	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]signature.Signature // <--- in here.
-	Parsers          map[string]*Parser
+	Services         map[string]*Service
 	GoImports        map[string][]string
 	Namespace        string
 	Namespaces       map[string]string
@@ -204,11 +201,6 @@ func New() *Parser {
 	}
 
 	p.Enums = make(map[string][]*object.Label)
-
-	p.StructSig = make(map[string]signature.Signature)
-
-	p.Parsers = make(map[string]*Parser)
-
 	p.StructSig = make(map[string]signature.Signature)
 
 	return p
@@ -830,11 +822,12 @@ func (p *Parser) parseExecExpression(left ast.Node) ast.Node {
 
 	switch t := left.(type) {
 	case *ast.Identifier:
-		q, ok := p.Parsers[t.Value]
+		s, ok := p.Services[t.Value]
 		if !ok {
 			p.Throw("parse/exec/found", p.curToken, t.Value)
 			return nil
 		}
+		q := s.Parser
 		q.TokenizedCode = p.TokenizedCode
 		q.Errors = p.Errors
 		q.nesting = p.nesting

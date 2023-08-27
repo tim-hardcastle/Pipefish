@@ -1,9 +1,5 @@
-var
+cmd
 
-a = 5
-b = 7
+returnTheThing(s) :
+    post "Hello " + s + "!" to Output()
 
-def
-
-multiply (x) by (y) :
-    FOO exec x times y

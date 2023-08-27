@@ -264,7 +264,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return evalLazyRightExpression(node.Token, right, c)
 
 	case *ast.ExecExpression:
-		newContext := &Context{prsr: c.prsr.Parsers[node.Left.(*ast.Identifier).Value], env: c.env, access: c.access, logging: c.logging}
+		newContext := &Context{prsr: c.prsr.Services[node.Left.(*ast.Identifier).Value].Parser, env: c.env, access: c.access, logging: c.logging}
 		return Eval(node.Right, newContext)
 
 	case *ast.Identifier:
@@ -1363,11 +1363,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	env := object.NewEnvironment()
 	var newAccess Access
 	if (c.access != INIT) && (c.access != LAMBDA) && !f.Cmd {
-		if c.access == HYBRID {
-			c.prsr = c.prsr.InnerParser
-		} else { // In this case we are going from the REPL or a cmd to a
-			env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the global constants.
-		}
+		env.Ext = c.prsr.GlobalConstants // function and should drop all the environment except the global constants.
 		newAccess = DEF
 	} else {
 		env.Ext = c.env
@@ -1565,18 +1561,60 @@ func evalGetContact(params []object.Object, tok token.Token, c *Context) object.
 	return &object.Tuple{Elements: result.(*object.Effects).Elements}
 }
 
-func evalContactExpression(params []object.Object, tok token.Token, c *Context) object.Object { // This is gross.
+func evalContactExpression(params []object.Object, tok token.Token, c *Context) object.Object {
 	serviceName := params[0].(*object.Struct).Name
-	outerParser, ok := c.prsr.Parsers[serviceName]
+	service, ok := c.prsr.Services[serviceName]
 	if !ok {
 		return newError("eval/contact/service", tok, serviceName)
 	}
-	outerParser.InnerParser = c.prsr
-	contextToUse := NewContext(outerParser, c.env, HYBRID, c.logging)
-	ast := outerParser.ParseLine(tok.Source, params[0].(*object.Struct).Value["text"].(*object.String).Value)
+	otherParser := service.Parser
+	oldHandle := service.Parser.EffHandle.OutHandle
+	service.Parser.EffHandle.OutHandle = parser.ConsumingOutHandler{}
+	contextToUse := NewContext(otherParser, service.Env, REPL, c.logging)
+	preparsedExpression, err := preparseContactExpression(params[0].(*object.Struct).Value["text"].(*object.String).Value, tok, c)
+	if err != nil {
+		return err
+	}
+	ast := otherParser.ParseLine(tok.Source, preparsedExpression)
 	result := Eval(*ast, contextToUse)
-	outerParser.InnerParser = nil // Which is why I say this is gross.
+	service.Parser.EffHandle.OutHandle = oldHandle
 	return result
+}
+
+// So, we're going to embed Charm in Charm, and because this is a wroking prototype we're going to do it ... lexically.
+func preparseContactExpression(snippet string, tok token.Token, c *Context) (string, object.Object) {
+	outputText := ""
+	charmToEvaluate := ""
+	readState := ' '
+	for _, ch := range snippet {
+		if readState == ' ' {
+			if ch == '`' || ch == '"' || ch == '\'' || ch == '|' {
+				readState = ch
+			}
+			if ch != '|' {
+				outputText = outputText + string(ch)
+			}
+			continue
+		}
+		if readState == '|' && ch != '|' {
+			charmToEvaluate = charmToEvaluate + string(ch)
+			continue
+		}
+		// Or we have some Charm to parse.
+		parsedCharm := c.prsr.ParseLine(tok.Source, charmToEvaluate)
+		if c.prsr.ErrorsExist() {
+			c.prsr.ClearErrors()
+			return "", newError("contact/charm", tok, charmToEvaluate)
+		}
+		charmValue := Eval(*parsedCharm, c)
+		switch charmValue := charmValue.(type) {
+		case *object.Error:
+			return "", charmValue
+		default:
+			outputText = outputText + "(" + charmValue.Inspect(object.ViewCharmLiteral) + ")"
+		}
+	}
+	return outputText, nil
 }
 
 func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {

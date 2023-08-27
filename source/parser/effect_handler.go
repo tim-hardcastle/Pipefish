@@ -68,8 +68,8 @@ func (oH standardOutHandler) Out(vals []object.Object, env *object.Environment) 
 
 }
 
-type consumingOutHandler struct{}
+type ConsumingOutHandler struct{}
 
-func (oH consumingOutHandler) Out(vals []object.Object, env *object.Environment) {
+func (oH ConsumingOutHandler) Out(vals []object.Object, env *object.Environment) {
 
 }

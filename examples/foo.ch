@@ -1,8 +1,11 @@
-var
+contacts
 
-a = 2
-b = 3
+Bar
 
-def
+cmd
 
-(x) times (y) : x * y
+getTheThing(s) :
+    get x from Bar --- returnTheThing |s|
+    post "* " + x + " *" to Output()
+
+    
