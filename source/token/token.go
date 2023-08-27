@@ -42,13 +42,13 @@ const (
 
 	DOUBLESLASH = "//"
 
-	LOG = "LOG"
-	IFLOG = "IFLOG"
+	LOG         = "LOG"
+	IFLOG       = "IFLOG"
 	MAGIC_IFLOG = "MAGIC_IFLOG"
-	PRELOG = "PRELOG"
-	AUTOLOG = "AUTOLOG"
+	PRELOG      = "PRELOG"
+	AUTOLOG     = "AUTOLOG"
 
-	DOTDOT = ".."
+	DOTDOT    = ".."
 	NO_INDENT = "|||"
 
 	COMMA      = ","
@@ -72,21 +72,20 @@ const (
 	CONTACTS  = "contacts"
 
 	// Keywords
-	ELSE    = "else"
-	GIVEN   = "given"
-	EVAL    = "eval"
-	EXEC    = "exec"
-	LOOP    = "loop"
-	GOLANG  = "gocode"
-	GLOBAL  = "global"
+	ELSE   = "else"
+	GIVEN  = "given"
+	EVAL   = "eval"
+	LOOP   = "loop"
+	GOLANG = "gocode"
+	GLOBAL = "global"
 
 	// For internal use
 	MAGIC_COLON = "MAGIC_COLON"
-	WEAK_COLON = "WEAK_COLON"
+	WEAK_COLON  = "WEAK_COLON"
 
 	// Streaming operators
-	PIPE = "->"
-	MAP = ">>"
+	PIPE   = "->"
+	MAP    = ">>"
 	FILTER = "?>"
 
 	EMDASH = "EMDASH"
@@ -102,17 +101,17 @@ type Token struct {
 }
 
 var keywords = map[string]TokenType{
-	"import":  IMPORT,
-	"var":     VAR,
-	"cmd":     CMD,
-	"def":     DEF,
-	"private": PRIVATE,
+	"import":    IMPORT,
+	"var":       VAR,
+	"cmd":       CMD,
+	"def":       DEF,
+	"private":   PRIVATE,
 	"languages": LANGUAGES,
 	"contacts":  CONTACTS,
 
-	"true":   TRUE,
-	"false":  FALSE,
-	"else":   ELSE,
+	"true":  TRUE,
+	"false": FALSE,
+	"else":  ELSE,
 
 	"and": AND,
 	"or":  OR,
@@ -122,13 +121,11 @@ var keywords = map[string]TokenType{
 
 	"eval":   EVAL,
 	"given":  GIVEN,
-	"exec":   EXEC,
 	"gocode": GOLANG,
 	"global": GLOBAL,
 
-	"->": PIPE,
-	"---" : EMDASH,
-
+	"->":  PIPE,
+	"---": EMDASH,
 }
 
 func LookupIdent(ident string) TokenType {

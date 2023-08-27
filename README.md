@@ -1691,51 +1691,6 @@ The `strings`, `math`, and `fmt` libraries are implemented by wrapping Charm fun
 
 [^go]: See [The whys of Charm: Why Go?](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-go)
 
-## Communication between services: `exec`
-
-* Note: this way of doing things will soon be deprecated in favor of something which is less elegant but more consistent with Charm's standard methods for doing IO. You can't have everything.*
-
-The exec keyword allows one service to use the public functions and commands of another named service. The calling service is the inner scope. For example, if we have the script `examples/foo.ch`:
-
-```
-var
-
-a = 2
-b = 3
-
-def
-
-(x) times (y) : x * y
-```
-
-... and the script `examples/bar.ch`:
-
-```
-var
-
-a = 5
-b = 7
-
-def
-
-multiply (x) by (y) :
-    FOO exec x times y
-```
-
-... then we can do this:
-
-```
-→ hub run "examples/foo.ch" as "FOO"
-Starting script 'examples/foo.ch' as service 'FOO'.
-FOO → a times b
-6
-FOO → hub run "examples/bar.ch" as "BAR"
-Starting script 'examples/bar.ch' as service 'BAR'.
-BAR → multiply a by b
-35
-BAR →
-```
-
 ## Service variables
 
 As the name suggests, these are settable variables that change the state of the service. For example `$view`, which can be set to `"plain"` or `"charm"`, determines how things are output: if `"charm"` is selected output will be in the form of Charm literals.
@@ -1774,7 +1729,7 @@ In Charm, everything is an expression, and, perhaps as a result of taking this t
 | # | Keywords and operators |
 | ------------- | ------------- |
 | 1 | `;` or newline |
-| 2 | `func`, `exec`, `code`, `->`, `>>`, `?>` |
+| 2 | `func`, `code`, `->`, `>>`, `?>` |
 | 3 | `given` |
 | 4 | `=` |
 | 5 | `:` |

@@ -489,7 +489,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Even in the 'cmd' section a global variable needs to be imported with 'global <variable name>' " +
-			"to make it visible to the command."
+				"to make it visible to the command."
 		},
 	},
 
@@ -1887,29 +1887,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "You've reached the end of an expression and the " +
 				text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
 				"hasn't been supplied with a corresponding " + text.DescribeOpposite(args[0].(token.Token))
-		},
-	},
-
-	"parse/exec/found": {
-		Message: func(tok token.Token, args ...any) string {
-			return "couldn't find service '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The 'exec' keyword is supposed to be preceded by the name of a service running on " +
-				"the hub. Instead you supplied '" + args[0].(string) + "'"
-		},
-	},
-
-	"parse/exec/name": {
-		Message: func(tok token.Token, args ...any) string {
-			return "the keyword 'exec' should be preceded by the name of a service running on " +
-				"the hub"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The 'exec' keyword is supposed to be preceded by the name of a service running on " +
-				"the hub. Note that you cannot supply an expression: a command 'bar' of service 'FOO' must " +
-				"be invoked in the form 'FOO exec bar': there is no way to set 'x' equal to 'FOO' and 'y' equal to " +
-				"'bar', and then invoke 'x exec y'."
 		},
 	},
 

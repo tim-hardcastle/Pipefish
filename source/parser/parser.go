@@ -59,7 +59,6 @@ var precedences = map[token.TokenType]int{
 	token.IFLOG:       LOGGING,
 	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
-	token.EXEC:        FUNC,
 	token.GLOBAL:      FUNC,
 	token.GIVEN:       GIVEN,
 	token.LOOP:        GIVEN,
@@ -164,7 +163,7 @@ func New() *Parser {
 		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN, token.EXEC,
+			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER, token.LOG,
 			token.IFLOG, token.PRELOG}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
@@ -379,8 +378,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			switch {
 			case p.lazyInfixes.Contains(p.curToken.Type):
 				leftExp = p.parseLazyInfixExpression(leftExp)
-			case p.curToken.Type == token.EXEC:
-				leftExp = p.parseExecExpression(leftExp)
 			case p.curToken.Type == token.LBRACK:
 				leftExp = p.parseIndexExpression(leftExp)
 			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAP ||
@@ -809,40 +806,6 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 		}
 	}
 	return expression
-}
-
-func (p *Parser) parseExecExpression(left ast.Node) ast.Node {
-
-	expression := &ast.ExecExpression{
-		Token: p.curToken,
-		Left:  left,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-
-	switch t := left.(type) {
-	case *ast.Identifier:
-		s, ok := p.Services[t.Value]
-		if !ok {
-			p.Throw("parse/exec/found", p.curToken, t.Value)
-			return nil
-		}
-		q := s.Parser
-		q.TokenizedCode = p.TokenizedCode
-		q.Errors = p.Errors
-		q.nesting = p.nesting
-		q.curToken = p.curToken
-		q.peekToken = p.peekToken
-		expression.Right = q.parseExpression(precedence)
-		p.TokenizedCode = q.TokenizedCode
-		p.curToken = q.curToken
-		p.peekToken = q.peekToken
-		p.nesting = q.nesting
-		return expression
-	default:
-		p.Throw("parse/exec/name", p.curToken)
-		return nil
-	}
 }
 
 func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {

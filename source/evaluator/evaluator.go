@@ -263,10 +263,6 @@ func Eval(node ast.Node, c *Context) object.Object {
 		}
 		return evalLazyRightExpression(node.Token, right, c)
 
-	case *ast.ExecExpression:
-		newContext := &Context{prsr: c.prsr.Services[node.Left.(*ast.Identifier).Value].Parser, env: c.env, access: c.access, logging: c.logging}
-		return Eval(node.Right, newContext)
-
 	case *ast.Identifier:
 		// We may have reached a bit of orphaned endbling. TODO --- well we shouldn't. See also recursivelySlurpSignature for
 		// an instance of the same kludge.

@@ -77,7 +77,7 @@ type BuiltInExpression struct {
 func (bi *BuiltInExpression) GetToken() token.Token {
 	return token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1}
 }
-func (bi *BuiltInExpression) String() string       { return "builtin \"" + bi.Name + "\"" }
+func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
 
 type CodeLiteral struct {
 	Token token.Token
@@ -96,24 +96,6 @@ type EmptyTuple struct {
 
 func (et *EmptyTuple) GetToken() token.Token { return et.Token }
 func (et *EmptyTuple) String() string        { return "()" }
-
-type ExecExpression struct {
-	Token token.Token
-	Left  Node
-	Right Node
-}
-func (ee *ExecExpression) GetToken() token.Token { return ee.Token }
-func (ee *ExecExpression) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("(")
-	out.WriteString(ee.Left.String())
-	out.WriteString(" exec ")
-	out.WriteString(ee.Right.String())
-	out.WriteString(")")
-
-	return out.String()
-}
 
 type Expression struct {
 	Token token.Token // the first token of the expression
@@ -198,12 +180,12 @@ func (ie *InfixExpression) String() string {
 
 	out.WriteString("(")
 	out.WriteString(" ")
-	for i, v := range(ie.Args) {
+	for i, v := range ie.Args {
 		out.WriteString(v.String())
-		if i < (len(ie.Args) - 1) && ! (reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) && 
-			! (reflect.TypeOf(ie.Args[i + 1]) == reflect.TypeOf(&Bling{})) {
-				out.WriteString(",")
-		} 
+		if i < (len(ie.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
+			!(reflect.TypeOf(ie.Args[i+1]) == reflect.TypeOf(&Bling{})) {
+			out.WriteString(",")
+		}
 		if i < (len(ie.Args) - 1) {
 			out.WriteString(" ")
 		}
@@ -261,10 +243,10 @@ func (le *ListExpression) String() string {
 }
 
 type LogExpression struct {
-	Token    token.Token
-	Args     []Node
-	Code     Node
-	LogType  LogType
+	Token   token.Token
+	Args    []Node
+	Code    Node
+	LogType LogType
 }
 
 func (le *LogExpression) GetToken() token.Token { return le.Token }
@@ -274,9 +256,9 @@ func (le *LogExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(le.Code.String())
 	out.WriteString(") \\ ")
-	for i, arg := range(le.Args) {
+	for i, arg := range le.Args {
 		out.WriteString(arg.String())
-		if i + 1 < len(le.Args) {
+		if i+1 < len(le.Args) {
 			out.WriteString(", ")
 		}
 	}
@@ -284,8 +266,8 @@ func (le *LogExpression) String() string {
 }
 
 type LoopExpression struct {
-	Token    token.Token
-	Code     Node
+	Token token.Token
+	Code  Node
 }
 
 func (le *LoopExpression) GetToken() token.Token { return le.Token }
@@ -304,7 +286,7 @@ type Nothing struct {
 }
 
 func (ne *Nothing) GetToken() token.Token { return ne.Token }
-func (ne *Nothing) String() string {return ""}
+func (ne *Nothing) String() string        { return "" }
 
 type PrefixExpression struct {
 	Token    token.Token
@@ -319,12 +301,12 @@ func (pe *PrefixExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(pe.Operator)
 	out.WriteString(" ")
-	for i, v := range(pe.Args) {
+	for i, v := range pe.Args {
 		out.WriteString(v.String())
-		if i < (len(pe.Args) - 1) && ! (reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) && 
-			! (reflect.TypeOf(pe.Args[i + 1]) == reflect.TypeOf(&Bling{})) {
-				out.WriteString(",")
-		} 
+		if i < (len(pe.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
+			!(reflect.TypeOf(pe.Args[i+1]) == reflect.TypeOf(&Bling{})) {
+			out.WriteString(",")
+		}
 		if i < (len(pe.Args) - 1) {
 			out.WriteString(" ")
 		}
@@ -387,7 +369,7 @@ func (st *StructExpression) GetToken() token.Token { return st.Token }
 func (st *StructExpression) String() string        { return "struct " + st.Sig.String() }
 
 type SuffixExpression struct {
-	Token    token.Token 
+	Token    token.Token
 	Operator string
 	Args     []Node
 }
@@ -397,12 +379,12 @@ func (se *SuffixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	for i, v := range(se.Args) {
+	for i, v := range se.Args {
 		out.WriteString(v.String())
-		if i < (len(se.Args) - 1) && ! (reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) && 
-			! (reflect.TypeOf(se.Args[i + 1]) == reflect.TypeOf(&Bling{})) {
-				out.WriteString(",")
-		} 
+		if i < (len(se.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
+			!(reflect.TypeOf(se.Args[i+1]) == reflect.TypeOf(&Bling{})) {
+			out.WriteString(",")
+		}
 		if i < (len(se.Args) - 1) {
 			out.WriteString(" ")
 		}
@@ -450,10 +432,10 @@ type Function = struct {
 type LogType int
 
 const (
-	LogUser LogType = iota
-	LogReturn = 1
-	LogIf = 2
-	LogStart = 3
+	LogUser   LogType = iota
+	LogReturn         = 1
+	LogIf             = 2
+	LogStart          = 3
 )
 
 type FnTreeNode struct {
