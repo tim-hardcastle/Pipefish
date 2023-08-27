@@ -49,7 +49,7 @@ get (x ast) from (clock UnixClock) :
 // Note that these can't be implemented here nor indeed as builtins, since this has to be done
 // by the evaluator, which can see the context and knows where to input from and output to.
 // So we'll hijack the evalBuiltin method like we did to implement the 'for' loop.
-post (x string) to (output Output) : builtin "post_to_output"
+post (x tuple) to (output Output) : builtin "post_to_output"
 get (x ast) from (input Input) :
     x varref = builtinGet input[prompt]
 builtinGet(s string) : builtin "get_from_input"
@@ -71,10 +71,8 @@ get (x ast) from (c contact) :
     x varref = builtinGetContact c
 builtinGetContact(c contact) : builtin "get_from_contact"
 
-
-
-post (x string) to (terminal Terminal) :
-    goPrintln(x)
+post (x tuple) to (terminal Terminal) :
+    goPrintln(literal x)
 
 get (contents ast) from (fileAccess File) : 
     fileAccess[asType] == string :
