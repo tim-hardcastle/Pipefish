@@ -28,8 +28,6 @@ func evalPostSQL(params []object.Object, tok token.Token, c *Context) object.Obj
 	return object.SUCCESS
 }
 
-type row []any
-
 func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Object {
 	charmType := params[0].(*object.Type)
 	if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, charmType.Value, "struct") {
@@ -122,65 +120,64 @@ func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []an
 	outputText := ""
 	charmToEvaluate := ""
 	dollarNumber := 1
-	braceCount := 0
+	readState := ' '
 	for _, ch := range text.(*object.String).Value {
-		switch {
-		case ch == '{':
-			braceCount++
-		case ch == '}':
-			if braceCount == 1 {
-				parsedCharm := c.prsr.ParseLine(tok.Source, charmToEvaluate)
-				if c.prsr.ErrorsExist() {
-					c.prsr.ClearErrors()
-					return "", args, newError("sql/charm", tok, charmToEvaluate)
-				}
-				charmValue := Eval(*parsedCharm, context)
-				switch charmValue := charmValue.(type) {
-				case *object.Type: // Then if it's a struct type we convert the type definition into a SQL table signature.
-					if !parser.TypeSystem.PointsTo(c.prsr.TypeSystem, charmValue.Value, "struct") {
-						return "", args, newError("sql/struct", tok, charmToEvaluate)
-					}
-					sqlSig, ok := getSqlSig(c.prsr.StructSig[charmValue.Value])
-					if !ok {
-						return "", args, newError("sql/sig", tok, charmToEvaluate)
-					}
-					outputText = outputText + sqlSig
-				case *object.Error:
-					return "", args, charmValue
-				case *object.Tuple:
-					outputText = outputText + "("
-					for i := 0; i < len(charmValue.Elements); i++ {
-						outputText = outputText + "$" + strconv.Itoa(dollarNumber)
-						if i < len(charmValue.Elements)-1 {
-							outputText = outputText + ", "
-						}
-						goValue := getGoValue(charmValue.Elements[i])
-						if goValue == nil {
-							return "", args, newError("sql/type/b", tok)
-						}
-						args = append(args, goValue)
-						dollarNumber++
-					}
-					outputText = outputText + ")"
-				default:
-					goValue := getGoValue(charmValue)
-					if goValue == nil {
-						return "", args, newError("sql/type/b", tok)
-					}
-					outputText = outputText + "($" + strconv.Itoa(dollarNumber) + ")"
-					args = append(args, goValue)
-					dollarNumber++
-				}
+		if readState == ' ' {
+			if ch == '`' || ch == '"' || ch == '\'' || ch == '|' {
+				readState = ch
 			}
-			braceCount--
-		case braceCount < 0: // TODO, no I'm not dealing with cases where the Charm expression has a string or a comment with a } in it, TODO, but for now bite me. Working prototype.
-			return "", args, newError("sql/braces", tok)
-		case braceCount > 0:
-			charmToEvaluate = charmToEvaluate + string(ch)
-		case braceCount == 0:
-			outputText = outputText + string(ch)
+			if ch != '|' {
+				outputText = outputText + string(ch)
+			}
+			continue
 		}
-
+		if readState == '|' && ch != '|' {
+			charmToEvaluate = charmToEvaluate + string(ch)
+			continue
+		}
+		// Or we have some Charm to parse.
+		parsedCharm := c.prsr.ParseLine(tok.Source, charmToEvaluate)
+		if c.prsr.ErrorsExist() {
+			c.prsr.ClearErrors()
+			return "", args, newError("sql/charm", tok, charmToEvaluate)
+		}
+		charmValue := Eval(*parsedCharm, context)
+		switch charmValue := charmValue.(type) {
+		case *object.Type: // Then if it's a struct type we convert the type definition into a SQL table signature.
+			if !parser.TypeSystem.PointsTo(c.prsr.TypeSystem, charmValue.Value, "struct") {
+				return "", args, newError("sql/struct", tok, charmToEvaluate)
+			}
+			sqlSig, ok := getSqlSig(c.prsr.StructSig[charmValue.Value])
+			if !ok {
+				return "", args, newError("sql/sig", tok, charmToEvaluate)
+			}
+			outputText = outputText + sqlSig
+		case *object.Error:
+			return "", args, charmValue
+		case *object.Tuple:
+			outputText = outputText + "("
+			for i := 0; i < len(charmValue.Elements); i++ {
+				outputText = outputText + "$" + strconv.Itoa(dollarNumber)
+				if i < len(charmValue.Elements)-1 {
+					outputText = outputText + ", "
+				}
+				goValue := getGoValue(charmValue.Elements[i])
+				if goValue == nil {
+					return "", args, newError("sql/type/b", tok)
+				}
+				args = append(args, goValue)
+				dollarNumber++
+			}
+			outputText = outputText + ")"
+		default:
+			goValue := getGoValue(charmValue)
+			if goValue == nil {
+				return "", args, newError("sql/type/b", tok)
+			}
+			outputText = outputText + "($" + strconv.Itoa(dollarNumber) + ")"
+			args = append(args, goValue)
+			dollarNumber++
+		}
 	}
 	return outputText, args, nil
 }

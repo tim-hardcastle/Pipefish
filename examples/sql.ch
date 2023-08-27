@@ -5,7 +5,7 @@ Person = struct(name varchar(32), age int)
 cmd // We wrap some commands around SQL.
 
 main : // Create the table on initialization if it isn't there.
-    put SQL --- CREATE TABLE IF NOT EXISTS People {Person}
+    put SQL --- CREATE TABLE IF NOT EXISTS People |Person|
 
 clear :
     put SQL --- DROP TABLE People
@@ -14,12 +14,12 @@ clear :
 add (name string, age int) :
     put SQL ---
         INSERT INTO People
-        VALUES {name, age}
+        VALUES |name, age|
 
 show (name string) :
     get personList as Person from SQL ---
         SELECT * FROM People
-        WHERE name={name} 
+        WHERE name=|name| 
     post prettyFmt(personList) to Output()
 
 show all :
