@@ -1,25 +1,16 @@
 def
 
-cat = struct(name string, age int)
+twice(x string) : x + ", " + x
 
-dog = struct(name string, age int)
+twice(x int) : 2 * x
 
-foo(x string) : "foo of string"
+twice(b bool) :
+    b : "That's as true as things get!"
+    else : "That's as false as things get!"
 
-foo(x any) : "foo of any"
+twice(t single) :
+    error "I don't know how to double that!"
 
-foo(x int) : "foo of int"
+twice(t tuple) :
+	t, t
 
-foo(x tuple) : "foo of tuple"
-
-foo(s struct) : "foo of struct"
-
-foo(c cat) : "foo of cat"
-
-foo(n nil) : "foo of nil"
-
-var
-
-//myDog = dog with name :: "Bonzo", age :: 4
-
-//myCat = cat with name :: "Tibbles", age :: 10

@@ -26,18 +26,17 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 		return true
 	}
 	if len(parameters) > len(s) &&
-		((len(s) == 0) || !(s[len(s)-1].VarType == "tuple" || s[len(s)-1].VarType == "any")) {
+		((len(s) == 0) || !(s[len(s)-1].VarType == "tuple")) {
 		return false
 	}
 	if len(parameters) < len(s) &&
-		!(len(s) == len(parameters)+1 && (s[len(parameters)].VarType == "tuple") || s[len(parameters)].VarType == "any") {
+		!(len(s) == len(parameters)+1 && (s[len(parameters)].VarType == "tuple")) {
 		return false
 	}
 	for i, param := range parameters {
 		if i == len(s)-1 && (s[i].VarType == "tuple") {
 			return true
 		}
-
 
 		if !IsObjectInType(p.TypeSystem, param, s[i].VarType) && s[i].VarType != "varname" {
 			return false
@@ -53,7 +52,7 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 	}
 
 	if len(s) == len(parameters)+1 &&
-		(s[len(parameters)].VarType == "tuple") || s[len(parameters)].VarType == "any" {
+		(s[len(parameters)].VarType == "tuple") {
 		return true
 	}
 

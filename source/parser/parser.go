@@ -415,7 +415,7 @@ func (p *Parser) positionallyFunctional() bool {
 	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
 		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER ||
 		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON ||
-		p.peekToken.Type == token.MAGIC_IFLOG {
+		p.peekToken.Type == token.MAGIC_IFLOG || p.peekToken.Type == token.COMMA {
 		return false
 	}
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {
@@ -948,7 +948,6 @@ func (p *Parser) parseSetExpression() ast.Node {
 
 // This takes the arguments at the *call site* of a function and puts them
 // into a list for us.
-
 func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 	switch start := start.(type) {
 	case *ast.InfixExpression:
@@ -1223,22 +1222,36 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 			varType = "bling"
 		}
 		if j == len(args)-1 && varType == "*" {
+			for i := backTrackTo; i < len(sig); i++ {
+				sig[i].VarType = "single"
+			}
 			varType = "single"
 		}
 		if !(varType == "bling" || varType == "*") {
 			for i := backTrackTo; i < len(sig); i++ {
 				sig[i].VarType = varType
 			}
+
+		}
+		if varType == "bling" {
+			if len(sig) > 0 && sig[len(sig)-1].VarType == "*" {
+				for i := backTrackTo; i < len(sig); i++ {
+					sig[i].VarType = "single"
+				}
+			}
 		}
 		sig = append(sig, signature.NameTypePair{VarName: varName, VarType: varType})
 		if !(varType == "*") {
 			backTrackTo = len(sig)
 		}
+		if varType == "bling" {
+			varType = "*"
+		}
 	}
 	return sig
 }
 
-// TODO --- this function is  refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
+// TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
 func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) signature.Signature {
 	sig := signature.Signature{}
 	for _, arg := range args {

@@ -6,7 +6,8 @@ classify (i int) :
     i > 0 :
         i < 10 : "small number"
         else : "big number"
-    i == 0 : "zero"
+    i == 0 :
+        "zero"
     else :
         i > -10 : "small negative number"
         else: "big negative number"
