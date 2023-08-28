@@ -39,6 +39,7 @@ const (
 	LABEL_OBJ       = "label"
 	LAZY_OBJ        = "lazy"
 	LIST_OBJ        = "list"
+	OUTER_OBJ       = "outer function"
 	PAIR_OBJ        = "pair"
 	NULL_OBJ        = "null"
 	RESPONSE_OBJ    = "response"
@@ -360,6 +361,17 @@ func (p *Pair) DeepCopy() Object { return &Pair{Left: p.Left.DeepCopy(), Right: 
 func (p *Pair) Type() ObjectType { return PAIR_OBJ }
 func (p *Pair) Inspect(view View) string {
 	return fmt.Sprintf("%s :: %s", p.Left.Inspect(view), p.Right.Inspect(view))
+}
+
+// Used to reify top-level functions as first-class objects.
+type OuterFunc struct {
+	Name string
+}
+
+func (fn *OuterFunc) DeepCopy() Object { return fn }
+func (fn *OuterFunc) Type() ObjectType { return OUTER_OBJ }
+func (fn *OuterFunc) Inspect(view View) string {
+	return "unserializable outer function '" + fn.Name + "'"
 }
 
 // A 'set' type. Appalingly implemented, because it will be replaced by persistent data structures
@@ -742,6 +754,9 @@ func InnerType(o Object) string {
 }
 
 func ConcreteType(o Object) string {
+	if o.Type() == OUTER_OBJ {
+		return "func"
+	}
 	if o.Type() == STRUCT_OBJ {
 		return o.(*Struct).Name
 	}

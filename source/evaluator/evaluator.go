@@ -638,7 +638,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		if ok && variable.Type() == object.LAZY_OBJ {
 			variable = Eval(variable.(*object.Lazy).Value, c)
 			c.env.Set(node.Token.Literal, variable)
-		} // The last non-error possibility is that the prefix is a constant/variable containing a lambda.
+		} // The prefix could be a constant/variable containing a lambda.
 		if ok && variable.Type() == object.FUNC_OBJ {
 			params := listArgs(node.Args, node.Token, c)
 			if params[0].Type() == object.ERROR_OBJ {
@@ -650,6 +650,9 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 			newContext := NewContext(c.prsr, variable.(*object.Func).Env, LAMBDA, c.logging)
 			lamdbaResult := applyFunction(variable.(*object.Func).Function, params, tok, newContext)
 			return lamdbaResult
+		} // ... or it could contain an outer function.
+		if ok && variable.Type() == object.OUTER_OBJ {
+			return functionCall(c.prsr.FunctionTreeMap[variable.(*object.OuterFunc).Name], node.Args, node.Token, c)
 		}
 	}
 	// TODO --- I think we have different error messages to hide from the end-user whether a private function or variable even
@@ -1076,13 +1079,7 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 		}
 	}
 
-	// We don't want someone from the REPL to be able to find out whether (a) a variable with
-	// a given name doesn't exist or (b) it does but it's private. So:
-	if (!ok || c.env.IsPrivate(node.Value)) && node.GetToken().Source == "REPL input" {
-		return newError("eval/repl/var", node.Token, node.Value)
-	}
-
-	if ok {
+	if ok && !(c.env.IsPrivate(node.Value) && node.GetToken().Source == "REPL input") {
 		if val.Type() == object.LAZY_OBJ {
 			if val.(*object.Lazy).Value.GetToken().Type == token.LZY_ASSIGN { // Then we have a multiple assignment in a 'given' statement.
 				Eval(val.(*object.Lazy).Value, c)
@@ -1094,6 +1091,17 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 			return lazyResult
 		}
 		return val
+	}
+
+	// We may be trying to reify an outer function.
+	if c.prsr.Functions.Contains(node.Value) {
+		return &object.OuterFunc{Name: node.Value}
+	}
+
+	// We don't want someone from the REPL to be able to find out whether (a) a variable with
+	// a given name doesn't exist or (b) it does but it's private. So:
+	if !ok || c.env.IsPrivate(node.Value) && node.GetToken().Source == "REPL input" {
+		return newError("eval/repl/var", node.Token, node.Value)
 	}
 
 	// However, we may be dealing with it as an identifier because it's positionally non-functional.
