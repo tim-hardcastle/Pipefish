@@ -225,7 +225,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return newError("eval/return", node.Token)
 			}
 			if leftEvaluation.(*object.Effects).ElseSeeking && node.Right.GetToken().Type == token.COLON {
-				if node.Left.(*ast.LazyInfixExpression).Token.Type == token.ELSE {
+				if node.Right.(*ast.LazyInfixExpression).Left.GetToken().Type == token.ELSE {
 					leftEvaluation.(*object.Effects).ElseSeeking = false
 				}
 				return leftEvaluation
@@ -244,11 +244,11 @@ func Eval(node ast.Node, c *Context) object.Object {
 		}
 
 		if node.Operator == ":" && right == object.SUCCESS {
-			return &object.Effects{ElseSeeking: true}
+			return &object.Effects{ElseSeeking: !(node.Left.GetToken().Type == token.ELSE)}
 		}
 
 		if node.Operator == ":" && right.Type() == object.RESPONSE_OBJ {
-			right.(*object.Effects).ElseSeeking = true
+			right.(*object.Effects).ElseSeeking = !(node.Left.GetToken().Type == token.ELSE)
 		}
 
 		if leftEvaluation != nil && leftEvaluation.Type() == object.RESPONSE_OBJ {

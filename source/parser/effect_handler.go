@@ -64,6 +64,7 @@ func (oH standardOutHandler) Out(vals []object.Object, env *object.Environment) 
 
 	}
 	out.WriteString(strings.Join(elements, ", "))
+	out.WriteRune('\n')
 	oH.out.Write(out.Bytes())
 
 }
