@@ -1,10 +1,9 @@
 def
 
+applyTwice(f func, arg string) : 
+    f f arg
+
 makeFancy(s string) : "*!* " + s + " *!*"
 
-apply(f func, arg) : 
-    f arg
-
-doApply(s string) :
-    apply((func(x) : "*!* " + x + " *!*"), s)
-
+decorator(decoration string) :
+    func(x) : decoration + " " + x + " " + decoration

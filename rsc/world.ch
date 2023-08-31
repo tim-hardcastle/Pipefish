@@ -46,13 +46,7 @@ get (x ast) from (clock UnixClock) :
     x varref = goGetUnixClock(string (clock[unit]))
 
 
-// Note that these can't be implemented here nor indeed as builtins, since this has to be done
-// by the evaluator, which can see the context and knows where to input from and output to.
-// So we'll hijack the evalBuiltin method like we did to implement the 'for' loop.
-post (x tuple) to (output Output) : builtin "post_to_output"
-get (x ast) from (input Input) :
-    x varref = builtinGet input[prompt]
-builtinGet(s string) : builtin "get_from_input"
+
 
 // In the same way only the evaluator, which can see the context, knows which database the hub
 // is pointing at.
@@ -74,6 +68,14 @@ builtinGetContact(c contact) : builtin "get_from_contact"
 post (x tuple) to (terminal Terminal) :
     goPrintln(literal x)
 
+// Note that these can't be implemented here nor indeed as builtins, since this has to be done
+// by the evaluator, which can see the context and knows where to input from and output to.
+// So we'll hijack the evalBuiltin method like we did to implement the 'for' loop.
+post (x tuple) to (output Output) : builtin "post_to_output"
+get (x ast) from (input Input) :
+    x varref = builtinGet input[prompt]
+builtinGet(s string) : builtin "get_from_input"
+
 get (contents ast) from (fileAccess File) : 
     fileAccess[asType] == string :
         contents varref = goGetFileAsString(fileAccess[filepath])
@@ -84,9 +86,6 @@ get (contents ast) from (fileAccess File) :
 
 put (s string) into (fileAccess File) : 
     goPutStringInFile(s, fileAccess[filepath])
-
-post (s string) to (fileAccess File) : 
-    goPostStringInFile(s, fileAccess[filepath])
 
 get (x ast) from (fileAccess FileExists) :
     x varref = goFileExists(fileAccess[filepath])
@@ -176,23 +175,6 @@ goPutStringInFile(output string, fname string) : gocode {
     _, err2 := f.WriteString(output)
 
     if err2 != nil {
-        return &object.Error{Message: "can't write to file '" + fname + "'"}
-    }
-    return object.SUCCESS
-}
-
-goPostStringInFile(output string, fname string) : gocode {
-    if _, err := os.Stat(fname); err == nil {
-        return &object.Error{Message: "file '" + fname + "' already exists"}
-    }
-    f, err2 := os.Create(fname)
-    if err2 != nil {
-        return &object.Error{Message: "can't access file '" + fname + "'"}
-    }
-    defer f.Close()
-    _, err3 := f.WriteString(output)
-
-    if err3 != nil {
         return &object.Error{Message: "can't write to file '" + fname + "'"}
     }
     return object.SUCCESS

@@ -31,7 +31,6 @@ const (
 	DEF
 	INIT
 	LAMBDA
-	HYBRID
 )
 
 // The evaluator is stateless, which as usual means we're going to be wrapping the state in a struct and passing
@@ -624,7 +623,6 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalGlobalExpression(node, c)
 	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
 		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
-
 		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 		if result.Type() == object.ERROR_OBJ {
 			if operator == "type" {
