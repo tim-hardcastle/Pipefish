@@ -1020,9 +1020,8 @@ func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object 
 			result.BreakHappened = false
 			return result
 		}
-		if result.ElseSeeking {
-			return evalLoopExpression(loopNode, c)
-		}
+		return evalLoopExpression(loopNode, c)
+
 	}
 	return newError("eval/loop/value", loopNode.Token)
 }
