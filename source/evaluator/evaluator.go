@@ -342,7 +342,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return &object.Func{Function: ast.Function{Sig: node.Sig, Body: node.Body, Given: node.Given}, Env: c.env}
 	case *ast.TryExpression:
 		right := Eval(node.Right, c)
-		if !(right.Type() == object.ERROR_OBJ) {
+		if right.Type() == object.RESPONSE_OBJ {
+			right.(*object.Effects).ElseSeeking = true
 			return right
 		}
 		if node.VarName == "" {
