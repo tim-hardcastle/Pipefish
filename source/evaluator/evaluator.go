@@ -340,7 +340,19 @@ func Eval(node ast.Node, c *Context) object.Object {
 
 	case *ast.FuncExpression:
 		return &object.Func{Function: ast.Function{Sig: node.Sig, Body: node.Body, Given: node.Given}, Env: c.env}
-
+	case *ast.TryExpression:
+		right := Eval(node.Right, c)
+		if !(right.Type() == object.ERROR_OBJ) {
+			return right
+		}
+		if node.VarName == "" {
+			return &object.Effects{ElseSeeking: false}
+		}
+		if c.env.Exists(node.VarName) && c.env.GetAccess(node.VarName) == object.ACCESS_GLOBAL {
+			return newError("eval/try/global", node.Token)
+		}
+		c.env.Set(node.VarName, right)
+		return &object.Effects{ElseSeeking: false}
 	case *ast.StructExpression:
 		return &object.StructDef{Sig: node.Sig}
 	case *ast.Bling:

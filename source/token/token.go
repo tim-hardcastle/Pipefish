@@ -48,6 +48,8 @@ const (
 	PRELOG      = "PRELOG"
 	AUTOLOG     = "AUTOLOG"
 
+	TRY = "try"
+
 	DOTDOT    = ".."
 	NO_INDENT = "|||"
 
@@ -123,6 +125,8 @@ var keywords = map[string]TokenType{
 	"given":  GIVEN,
 	"gocode": GOLANG,
 	"global": GLOBAL,
+
+	"try": TRY,
 
 	"->":  PIPE,
 	"---": EMDASH,

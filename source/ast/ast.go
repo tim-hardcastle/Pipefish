@@ -394,6 +394,22 @@ func (se *SuffixExpression) String() string {
 	return out.String()
 }
 
+type TryExpression struct {
+	Token   token.Token
+	VarName string
+	Right   Node
+}
+
+func (t *TryExpression) GetToken() token.Token { return t.Token }
+func (t *TryExpression) String() string {
+	if t.VarName != "" {
+		return "try"
+	} else {
+		return "try " + t.VarName
+	}
+
+}
+
 type TypeLiteral struct {
 	Token token.Token
 	Value string

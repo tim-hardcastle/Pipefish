@@ -292,7 +292,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseListExpression()
 	case token.LBRACE:
 		leftExp = p.parseSetExpression()
-
+	case token.TRY:
+		leftExp = p.parseTryExpression()
 	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
 	default:
@@ -944,6 +945,28 @@ func (p *Parser) parseSetExpression() ast.Node {
 	}
 	expression := &ast.SetExpression{Set: exp, Token: p.curToken}
 	return expression
+}
+
+func (p *Parser) parseTryExpression() ast.Node {
+	p.NextToken()
+	if p.curToken.Type == token.COLON {
+		p.NextToken()
+		exp := p.parseExpression(COLON)
+		return &ast.TryExpression{Token: p.curToken, Right: exp, VarName: ""}
+	}
+	if p.curToken.Type == token.IDENT {
+		varName := p.curToken.Literal
+		p.NextToken()
+		if p.curToken.Type != token.COLON {
+			p.Throw("parser/try/colon", p.curToken)
+		}
+		p.NextToken()
+		exp := p.parseExpression(COLON)
+		return &ast.TryExpression{Token: p.curToken, Right: exp, VarName: varName}
+	} else {
+		p.Throw("parser/try/ident", p.curToken)
+		return nil
+	}
 }
 
 // This takes the arguments at the *call site* of a function and puts them
