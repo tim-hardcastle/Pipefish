@@ -1,5 +1,3 @@
-var 
-
 cmd
 
 seq :
@@ -17,12 +15,16 @@ check :
         post "6 is odd" to Output()
 
 demoLoop :
+    get number from Random range 1::11
     loop :
         get userInput from Input("Guess my number! > ")
-        int userInput == 7 :
+        int userInput == number :
             post "Correct!" to Output()
             break
         else :
             post "Wrong! Guess again!" to Output()
 
-    
+stopEverything :
+    post "Goodnight Las Vegas!" to Output()
+    stop
+   
