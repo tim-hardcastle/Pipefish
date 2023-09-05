@@ -470,7 +470,7 @@ func (p *Parser) peekPrecedence() int {
 		if p.peekToken.Literal == "in" {
 			return EQUALS
 		}
-		if p.peekToken.Literal == "with" { // Note, this is the one assymmetry in the system of precedence.
+		if p.peekToken.Literal == "with" || p.peekToken.Literal == "without" { // Note, this is the one assymmetry in the system of precedence.
 			return WITH // When not peeking ahead, `with` has precedence just *below* a comma.
 		}
 		return FINFIX
@@ -509,7 +509,7 @@ func (p *Parser) curPrecedence() int {
 			if p.curToken.Literal == "in" {
 				return EQUALS
 			}
-			if p.curToken.Literal == "with" {
+			if p.curToken.Literal == "with" || p.curToken.Literal == "without" {
 				return FMIDFIX
 			}
 			return FINFIX

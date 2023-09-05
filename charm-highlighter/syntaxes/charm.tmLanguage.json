@@ -27,7 +27,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.charm",
-				"match": "\\b(else|given|loop|break|stop|given|eval|gocode|global|true|false|and|or|not|raw|ast|varname)\\b"
+				"match": "\\b(else|given|loop|break|stop|given|eval|gocode|global|true|false|and|or|not|raw|ast|varname|varref)\\b"
 			}]
 		},
 		"headwords": {

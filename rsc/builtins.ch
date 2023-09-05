@@ -32,11 +32,14 @@ codepoint(s string) : builtin "codepoint"
 (m map) with (p pair) : builtin "add_pair_to_map" 
 (S struct) with (t tuple) : builtin "add_tuple_to_struct"
 
-// The evaluator will change this at runtime to the appropriate long-term constructor.
+// The evaluator will change this at runtime to the appropriate long-form constructor.
 (t type) with (T tuple) : builtin "long_form_constructor" 
 
 (L list) with (t tuple) : builtin "add_tuple_to_list"
 (m map) with (t tuple) : builtin "add_tuple_to_map"
+
+(m map) without (t tuple) : builtin "map_without_keys"
+
 rune(i int) : builtin "rune"
 literal(s single) : builtin "charm_literal"
 literal(s tuple) : builtin "charm_literal"

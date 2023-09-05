@@ -94,6 +94,10 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return addTupleToMap(tok, args...)
 	},
 
+	"map_without_keys": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		return removeTupleFromMap(tok, args...)
+	},
+
 	"rune": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		return &object.String{Value: string(rune(args[0].(*object.Integer).Value))}
 	},
@@ -536,7 +540,7 @@ func evalHashIndexExpression(hash, index object.Object, tok token.Token) object.
 
 	key, ok := index.(object.Hashable)
 	if !ok {
-		return newError("built/hash/b"+object.ConcreteType(index), tok)
+		return newError("built/hash/b", tok, object.ConcreteType(index))
 	}
 
 	pair, ok := hashObject.Pairs[key.HashKey()]
@@ -613,6 +617,17 @@ func addTupleToMap(tok token.Token, args ...object.Object) object.Object {
 	outMap := args[0].DeepCopy()
 	for _, v := range args[2].(*object.Tuple).Elements {
 		outMap = addPairToMap(tok, outMap, &object.Bling{}, v)
+	}
+	return outMap
+}
+
+func removeTupleFromMap(tok token.Token, args ...object.Object) object.Object {
+	if len(args) == 2 {
+		return args[0]
+	}
+	outMap := args[0].DeepCopy()
+	for _, v := range args[2].(*object.Tuple).Elements {
+		delete(outMap.(*object.Hash).Pairs, v.(object.Hashable).HashKey())
 	}
 	return outMap
 }
