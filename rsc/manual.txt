@@ -1,18 +1,18 @@
 edit
 
-'hub edit' followed by a filename will open the file in vim.
+'hub edit "<filename>"' will open the file in vim.
 
 ***
 halt
 
-'hub halt' followed by the name of a service will halt the service.
+'hub halt "service name"' will halt the service.
 
 If no service name is given, the hub will halt the current service.
 
 ***
 help
 
-'hub help' followed by the name of a topic will supply you with information on that topic."
+'hub help "<topic name>"' will supply you with information on that topic.
 
 'hub help' on its own will get you a list of help topics.
 

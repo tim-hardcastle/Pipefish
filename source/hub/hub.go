@@ -801,7 +801,14 @@ func init() {
 			helpMessage = append(helpMessage, v)
 		}
 	}
+	helpTopics = append(helpTopics, "topics")
 	sort.Strings(helpTopics)
+	helpStringForHelp := "\nYou can get help on a subject by typing 'hub help \"<topic name>\"' into the REPL.\n\n" +
+		"Help topics are: \n\n"
+	for _, v := range helpTopics {
+		helpStringForHelp = helpStringForHelp + text.BULLET + "\"" + v + "\"\n"
+	}
+	helpStrings["topics"] = helpStringForHelp
 }
 
 func (hub *Hub) StartAnonymous(scriptFilepath string) {
