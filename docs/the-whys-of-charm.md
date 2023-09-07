@@ -6,7 +6,7 @@ This document is supplementary material provided to explain some of the less com
 
 ## Why does the `pair` type exist?
 
-As a form of syntactic and (so to speak) semantic sugar. It was originally my intention to use a single colon as syntax in slices and in giving key-value-pairs in map and struct literals. Because of the other things I’m doing with colons this would be slightly fiddly and would in very rare cases require the user to use parentheses to disambiguate the colon, but I was still going to do it. What turned me around was the realization that if I used a colon it could never be *more than* syntax: `foo : bar` can never refer to a first-class object. But this is very un-Charm-like. Hence the pair type: `foo :: bar` *does* refer to a first-class object. This is Charm-like and convenient and gives us some nice idioms.
+As a form of syntactic and (so to speak) semantic sugar. `foo::bar` refers to a first-class object which always and only contains two things. This is Charm-like and convenient and gives us some nice idioms.
 
 ## Why are the tuples flat?
 
@@ -38,7 +38,7 @@ Again, it seems to suit the language and its aims, in that it’s an easy, grasp
 
 ## Why the syntactic whitespace?
 
-Now, I can see that there are arguments on both sides. On the one hand proponents of braces point out that it’s easy to lose your way in whitespaced code and braces avoid this problem. On the other hand proponents of whitespace point out that it’s easy to lose your way in code with braces and whitespace avoids this problem.
+I can see that there are arguments on both sides. On the one hand proponents of braces point out that it’s easy to lose your way in whitespaced code and braces avoid this problem. On the other hand proponents of whitespace point out that it’s easy to lose your way in code with braces and whitespace avoids this problem.
 
 However, in this case there *is* a reason to decide on one side. Charm is essentially a functional language. And they do tend to have syntactic whitespace, and the reason is that if you can by some perverse feat of ingenuity write a function in an FPL which is both long enough and deeply-nested enough to get lost in, that would be a code smell. A function in Charm is not supposed to have enough nested structure that the people who like braces would actually need braces to be explicit about it. At this point we may simply go with the option that takes less typing.
 
