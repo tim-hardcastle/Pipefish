@@ -70,7 +70,7 @@ The reasoning behind the style guide and its differences from Go will be found i
 
 ## Why is the style guide like that?
 
-As far as the style guide goes, the development of Charm apps makes it convenient to be able to declare and undeclare things as private *en masse*. This makes Go’s use of semantic capitalization unsuitable, and so it has been possible to rethink the style guide in a radical, groundbreaking way and conclude that actually the Java people probably got it about right for once. It was a choice between that and copying Python and at least Go and Java share a preference for camelCase.
+As far as the style guide goes, the development process of Charm apps makes it convenient to be able to declare and undeclare things as private *en masse*. This makes Go’s use of semantic capitalization unsuitable, and so it has been possible to rethink the style guide in a radical, groundbreaking way and conclude that actually the Java people probably got it about right for once. It was a choice between that and copying Python and at least Go and Java share a preference for camelCase.
 
 ## Why the SCREAMING_SNAKE_CASE, though?
 
