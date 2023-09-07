@@ -5,7 +5,7 @@ edit
 ***
 halt
 
-'hub halt "service name"' will halt the service.
+'hub halt "<service name>"' will halt the service.
 
 If no service name is given, the hub will halt the current service.
 
@@ -25,6 +25,8 @@ services
 peek
 
 'hub peek on' will allow you to see what the lexer, relexer, and parser are doing; 'hub peek off' turns this off, and 'hub peek' without a parameter toggles between on and off.
+
+This feature is basically for my convenience and not for yours, and it is not guaranteed to be stable, or to work properly, or not to crash Charm.
 
 ***
 reset
@@ -74,7 +76,7 @@ To run a test classed as record, use 'hub replay "<test filename>"'.
 ***
 replay
 
-'hub replay "<test filename>"' allows you to replay a previously recorded snapshot of your interactions with the REPL to see what it does. For more information on this feature, see 'hub help snap'.
+'hub replay "<test filename>"' allows you to replay a previously recorded snapshot of your interactions with the REPL to see what it does. For more information on this feature, see 'hub help "snap"'.
 
 ***
 test
@@ -126,9 +128,6 @@ twice(x int) : 2 * x
 twice(b bool) :
     b : "That's as true as things get!"
     else : "That's as false as things get!"
-
-twice(x any) :
-    "Can't double " + string (type x) + "."
 
 |-
 
@@ -216,7 +215,7 @@ foo(x int) :
 
 ... then 'foo' will be defined for integers but will now throw an error if you try to pass it a float64 or a string.
 
-Functions can be overloaded. For a full discussion of this topic, see 'hub help overloading'.
+Functions can be overloaded. For a full discussion of this topic, see 'hub help "overloading"'.
 
 Functions can have multiple return values:
 
@@ -249,21 +248,23 @@ say (x) nicely :
 
 |-
 
-Typing of a function's return values has not yet been implemented.
-
 ***
 constants
 
-Constants are defined the same way as variables, only in the 'def' section of the script, making them unchangeable. E.g:
+Global constants are defined the same way as variables, only in the 'def' section of the script, making them unchangeable. E.g:
 
 |-----------------------------------------------
 
 def
 
-pi = 3.141592
-monthsInAYear = 12
+PI = 3.141592
+MONTHS_IN_A_YEAR = 12
 
 |-
+
+Note that SCREAMING_SNAKE_CASE is preferred for global constants. 
+
+Local constants are defined in the 'given' block of a function. For more information, see 'hub help "given"'.
 
 ***
 comments
@@ -296,13 +297,13 @@ foo = "walrus"
 ***
 headwords
 
-Charm's headwords are 'import', 'var', 'def', and 'cmd'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
+Charm's headwords are 'def', 'cmd', 'var', 'import', 'contacts' and 'languages'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
 
 A headword my occur more than once in the script, with the exception of 'import', which, if it occurs, must do so only once, at the top.
 
 Your script must (with the exception of comments) begin with some headword, since without one Charm doesn't know what you want to do with the code.
 
-For further information, see the help files on the individual headwords, e.g. 'hub help import'.
+For further information, see the help files on the individual headwords, e.g. 'hub help "import"'.
 
 ***
 import
@@ -313,27 +314,30 @@ The import section consists of filepaths expressed as string constants and separ
 
 import
 
-"lib/owl_moistening_tools.ch"
-"lib/walrus_utils.ch"
+"lib/owlTools.ch"
+"lib/walrusUtils.ch"
 
 |-
 
-Namespaces have not yet been implemented.
+These will automatically be put into the namespaced 'owlTools' and 'walrusUtils' respectively. To choose your own namespace, use a pair operator:
+
+|-----------------------------------------------
+
+import
+
+"lib/owlTools.ch"::"owl"
+"lib/walrusUtils.ch"::""
+
+|-
+
+If we do this, then the owlTools will be put into the namespace 'owl' and the walrusUtils won't have a sperate namespace.
 
 ***
 cmd
 
-The 'cmd' section of the script consists of commands that can be issued by the end-user, and which can change and return the state of the variables, including those declared private. For example:
+The 'cmd' section of the script consists of commands that can be issued by the end-user, which can perform IO and which can change and return the state of the variables, including those declared private. For example:
 
 |-----------------------------------------------
-
-cmd
-
-get :
-    return x
-
-set (y) :
-    x = y
 
 var
 
@@ -341,12 +345,22 @@ private
 
 x = "heffalump"
 
+cmd
+
+get :
+    global x
+    post x to Output()
+
+set (y) :
+    global x
+    x = y
+
 |-
 
 ***
 var
 
-'var' is one of Charm's headwords, defining which section of the program you're in, and so what it is permissible to do.
+'var' is one of Charm's headwords (see 'hub help "headwords"' for an explanation).
 
 In the 'var' section of the script you can declare variables. Their type is inferred as narrowly as possible unless you explicitly declare them of wider type. E.g. given the following declarations ...
 
@@ -358,13 +372,13 @@ foo = "bananas"
 
 zort single = "bananas"
 
-troz any = "bananas"
+troz tuple = "bananas"
 
 |-
 
-... it will then be possible to reassign 'foo' only to other strings, 'zort' to anything that isn't a tuple, and 'troz' to anything at all.
+... it will then be possible to reassign only strings to 'foo', only non-tuples to 'zort', and anything at all (but coerced as a tuple) to 'troz'.
 
-After the occurrence of 'private' in a 'var' block, the variables will be private, i.e. they can be changed or accessed only by commands defined in the 'cmd' section, but not directly through the REPL. For more information see 'hub help private' and 'hub help cmd'.
+After the occurrence of 'private' in a 'var' block, the variables will be private, i.e. they can be changed or accessed only by commands defined in the 'cmd' section, but not directly through the REPL. For more information see 'hub help "private"' and 'hub help "cmd"'.
 
 ***
 variables
@@ -391,29 +405,29 @@ foo = "bananas"
 
 zort single = "bananas"
 
-troz any = "bananas"
+troz tuple = "bananas"
 
 |-
 
-... it will then be possible to reassign 'foo' only to other strings, 'zort' to anything that isn't a tuple, and 'troz' to anything at all.
+... it will then be possible to reassign only strings to 'foo', only non-tuples to 'zort', and anything at all (but type-coerced as a tuple) to 'troz'.
 
 Variables can be reassigned either directly from the REPL, or in the 'cmd' section of the code, and nowhere else.
 
 After the occurrence of 'private' in a 'var' block, the variables will be private, i.e. they can be changed or accessed only by commands defined in the 'cmd' section, but not directly through the REPL. 
 
-For more information see 'hub help private', 'hub help cmd', 'hub help var', and 'hub help types'.
+For more information see 'hub help "private"', 'hub help "cmd"', 'hub help "var"', and 'hub help "types"'.
 ***
 types
 
 Charm has the usual basic types, 'int', 'float64', 'string', and 'bool'.
 
+It has a 'null' type containing only the value 'NULL'.
+
 Container types are 'tuple', 'list', 'set', ''map', pair', and 'struct'.
 
-Besides this there are some special-purpose types such as 'func', 'error', 'nil', 'type', 'label' and a notional top type 'any' which at present and in practice will be indistinguishable from a tuple.
+Besides this there are some special-purpose types such as 'func', 'error', 'nil', 'type', 'label', 'code'.
 
-The type system is then as follows: 'any' contains 'tuple', which contains the abstract class 'single' consisting of anything that isn't a tuple (but can, when necessary, be considered a tuple of arity 1). This contains 'int', 'float64', 'string', and 'bool', 'list', 'set', 'map', 'pair', 'error', 'label', and the abstract type 'struct'.
-
-'struct' contains all the user-defined structs, and every struct type contains the 'nil' type.
+There are also abstract types, which constrain what can be stored in variables or struct fields, or passed as parameters, but whic aren't the type of any given value. for example 'struct' contains all the user-defined structs.
 
 ***
 tuples
@@ -424,16 +438,18 @@ They are therefore concatenated simply by commas.
 
 They may be written with or without surrounding parentheses as convenient. '()' represents an empty tuple.
 
-Tuples do not have length, but arity. To see why, consider that the length of "banana" is 6 but the arity of "banana" is 1.
+The length of a tuple is returned by the built-in 'arity' function, not by 'len'.
 
-'tuple x' will leave x unchanged if 'x' is a tuple, otherwise it will return a tuple of arity 1, the sole member of which is x. If instead you want to spread the members of a list or set into a tuple, use the 'spread' function.
+'tuple x' will leave x unchanged if 'x' is a tuple, otherwise it will return a tuple of arity 1, the sole element of which is 'x'. If instead you want to spread the members of a list or set into a tuple, use the 'tuplify' function.
+
+When a tuple is passed to a function, it "autosplats", demoposing into as many parameters of the function as there are elements of the tuple.
 
 When 'tuple' is given as the type of the last parameter in a function/command definition, then the parameter will be variadic.
 
 ***
 func
 
-The word func is used to make an object of type func — a function which can be treated as a value, assigned to a variable, passed as a parameter to another function, etc.
+The word 'func' is used to make an object of type 'func' — a function which can be treated as a value, assigned to a variable, passed as a parameter to another function, etc.
 
 The syntax for creating one is similar to the initialization of regular functions, except that you put 'func' where the name of the function would be. E.g:
 
@@ -454,7 +470,7 @@ this
 
 The 'this' keyword is used when using 'func' to define an anonymous function, allowing the function to refer to itself when required.
 
-For more information on anonymous functions, see 'hub help func'.
+For more information on anonymous functions, see 'hub help "func"'.
 
 ***
 errors
@@ -472,23 +488,25 @@ You can throw an error yourself by using 'error <string>'.
 ***
 def
 
-The 'def' section is where you define structs, constants, and functions. For more information, see the relevant help files for each topic, e.g. 'hub help structs'.
+The 'def' section is where you define structs, constants, and functions. For more information, see the relevant help files for each topic, e.g. 'hub help "struct"'.
 
 ***
 eval
 
 'eval <string>' evaluates a string as though it was a Charm expression, e.g. 'eval "2 + 2"' will return '4'.
 
-***
-structs
+'eval <code>' evaluates a Charm code object. For more information on this type, see 'hub help "code"'.
 
-Struct types are declared in the 'def' section of the script using the using the form 'nameOfStruct = struct(<type signature of constructor>)'.
+***
+struct
+
+Struct types are declared in the 'def' section of the script using the using the form 'NameOfStruct = struct(<type signature of constructor>)'.
 
 |-----------------------------------------------
 
-person = struct(name string, age int)
+Person = struct(name string, age int)
 
-cat = struct(name string, pink bool)
+Cat = struct(name string, pink bool)
 
 |-
 
@@ -496,9 +514,9 @@ Then instances of the structs can be created in the 'def' or 'var' sections of t
 
 |-----------------------------------------------
 
-joe = person("Joe", 42)
+joe = Person("Joe", 42)
 
-myCat = struct("Rose", true)
+myCat = Cat("Rose", true)
 
 |-
 
@@ -506,9 +524,9 @@ Or there are also long-form constructors for when clarity is needed:
 
 |-----------------------------------------------
 
-joe = person with name :: "Joe", age :: 42
+joe = Person with name :: "Joe", age :: 42
 
-myCat = cat with name :: "Rose", pink :: true
+myCat = Cat with name :: "Rose", pink :: true
 
 |-
 
@@ -521,8 +539,6 @@ private
 
 When a variable is private, it can only be accessed via getters and setters supplied in the 'cmd' section of the script.
 
-The 'private' modifier makes everything after it private until the next headword or the end of the script. There is no corresponding public modifier: things are public first by default, and private after you say so. Using 'private' twice without a change of headwords is a syntax error.
-
-At present, 'private' only affects variables, and cannot be used to hide functions, constants, commands, etc from direct access via the REPL.
+The 'private' modifier makes everything after it private until the next headword or the end of the script. There is no corresponding 'public' modifier: things are public first by default, and private after you say so. Using 'private' twice without a change of headwords is a syntax error.
 
 ***

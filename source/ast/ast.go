@@ -179,7 +179,6 @@ func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	out.WriteString(" ")
 	for i, v := range ie.Args {
 		out.WriteString(v.String())
 		if i < (len(ie.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
