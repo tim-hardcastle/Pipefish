@@ -3,12 +3,6 @@
 ## 0. Introduction
 While Charm is a general-purpose language, it was particularly created to implement ideas about how people could more ergonomically create, manage, and use CRUD apps.
 
-It is my hope that either Charm itself will eventually be used in production, or — given my amateur status and lack of time — that it will inspire another language that is. Given the low rate of adoption among languages, this is admittedly a long shot. However, I believe that Charm has a better chance than most new languages, because:
-
-(a) It has been written with very clear ideas about what it’s for, how it would be used, how developers and end-users would interact with it.
-
-(b) It is a new idea, at least in the sense that anything in this well-trampled field is new: it cannot reasonably be summarized as “X, but with Y”.
-
 Charm was, roughly speaking, inspired by the thought: “People like databases and they like spreadsheets. Let's make a language which at a *very very* high level captures the things people like about them.” In part 1 of this document I will first explain which features of these apps I wish to emulate, and then briefly point out how Charm seeks to embody them. In part 2 I will point out some principles that I think apply generally to language design, and add a few notes on how these relate to the more distinctive decisions of the language design and to the aims of Charm in particular as set out in part 1.
 
 ## 1. A CRUD language
