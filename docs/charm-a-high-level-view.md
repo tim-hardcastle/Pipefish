@@ -43,7 +43,7 @@ The following properties seem generally desirable in a language. It should be:
 
 **Local**. It should be easy to understand the meaning and purpose of a piece of code by reading as little as possible of the rest of the code. 
 
-**Consistent**. Knowing how some of how the language works, it should be easy to guess how a feature you haven't learned yet will work. 
+**Consistent**. Knowing how some of the language works, it should be easy to guess how a feature you haven't learned yet will work. 
 
 **Intolerant**. A language should not default to covering for your false assumptions. Failure should be immediate and noisy. 
 
