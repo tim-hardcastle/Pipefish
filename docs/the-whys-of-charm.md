@@ -22,7 +22,7 @@ I’m with them. If I have a function `swap(x, y) : y, x` then I want `swap swap
 
 ## Why are variables typed by default?
 
-Most dynamic languages don’t do that. Why did I? There are three things we can do if we want variables to be dynamic: have them all dynamic, have them dynamic by default, or have them dynamic by request. I’ve gone with the third option.
+Most dynamic languages don’t do that. Why does Charm? There are three things we can do if we want variables to be dynamic: have them all dynamic, have them dynamic by default, or have them dynamic by request. Charm has gone with the third option.
 
 My thinking is that we rarely use the dynamism of dynamic variables *as such*. To truly exploit this feature we would be changing the type of a variable *at runtime*. And we do this sometimes, but what we mostly enjoy about dynamic languages is how easy it is to change the types of things *between versions of our code*. And that is a result of type inference on the variables and of having untyped function parameters, not of the runtime dynamism.
 
