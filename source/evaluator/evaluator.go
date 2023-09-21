@@ -1471,7 +1471,13 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 	}
 	refName := params[0].(*object.Code).Value.GetToken().Literal
 	functionToApply := params[4].(*object.Func).Function
-	val := params[6]
+	// There has to be a less reduplicative way to do this but I'm about to replace the evaluator anyway.
+	var val object.Object
+	if len(params) > 7 {
+		val = &object.Tuple{Elements: params[6:]}
+	} else {
+		val = params[6]
+	}
 	var values []object.Object
 	switch rng := params[2].(type) {
 	case *object.Integer:
