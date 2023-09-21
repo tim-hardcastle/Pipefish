@@ -4,12 +4,13 @@ import
 
 def
 
-// The imperative shell.
+INTRO = "\nWelcome to Charm BASIC!\n\nKeywords are QUIT, PRINT, LET, LIST, GOTO, RUN, and IF ... THEN.\n\nOperators are + - * / MOD = < > <= >= <> AND OR and NOT.\n\n" + ..
+     .. "Builtins are SQR, LEN, LEFT, and RIGHT.\n\nConstants are TRUE, FALSE, and NEWLINE.\n"
 
 MachineState = struct(outStr string, vars map, program Program, pointer int)
 Program = struct(lines map, lineNumbers list)
 
-var 
+var // The imperative shell.
 
 state = MachineState("", map(), Program(map(), [-1]), 0)
 
@@ -17,6 +18,7 @@ cmd
 
 main :
     global state
+    post INTRO to Output()
     loop :
         get lineToExecute from Input "BASIC > "
         lineToExecute == "QUIT" :
@@ -197,7 +199,7 @@ lexAndParseLine(i int, state) :
 valToBASIC(val) :
     type val != bool : string val
     val : "TRUE"
-    else :false
+    else : "FALSE"
 
 // The parser.
 

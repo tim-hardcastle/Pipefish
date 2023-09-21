@@ -15,6 +15,7 @@ state = GameState(map(), map(), "", "")
 cmd
 
 main :
+    global state
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
     get linesToProcess from File "examples/objects.rsc", list
