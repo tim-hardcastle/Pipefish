@@ -2,7 +2,6 @@ package parser
 
 import (
 	"strconv"
-	"unicode/utf8"
 
 	"charm/source/object"
 	"charm/source/token"
@@ -48,18 +47,6 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 			returnList.Elements = append(returnList.Elements, &object.Integer{Value: i})
 		}
 		return returnList
-	},
-
-	"index_int_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		if p.TypeSystem.PointsTo(args[1].(*object.Type).Value, "enum") {
-			ix := args[0].(*object.Integer).Value
-			if ix < 0 || ix >= len(p.Enums[args[1].(*object.Type).Value]) {
-				return newError("eval/enum/range", tok)
-			}
-			return p.Enums[args[1].(*object.Type).Value][args[0].(*object.Integer).Value]
-		} else {
-			return newError("eval/enum/index", tok)
-		}
 	},
 
 	"len_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
@@ -162,34 +149,6 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return setToMap(args[0], tok)
 	},
 
-	"index_label_of_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalStructIndexExpression(args[0], args[2], tok)
-	},
-
-	"index_int_of_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalArrayIndexExpression(args[0], args[2], tok)
-	},
-	"index_pair_of_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalArraySliceExpression(args[0], args[2], tok)
-	},
-	"index_pair_of_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalStringSliceExpression(args[0], args[2], tok)
-	},
-	"index_pair_of_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalTupleSliceExpression(args[0], args[2], tok)
-	},
-	"index_int_of_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalTupleIndexExpression(args[0], args[2], tok)
-	},
-	"index_int_of_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalStringIndexExpression(args[0], args[2], tok)
-	},
-	"index_int_of_pair": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalPairIndexExpression(args[0], args[2], tok)
-	},
-	"index_any_of_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return evalHashIndexExpression(args[0], args[2], tok)
-	},
 	"make_pair": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		return &object.Pair{Left: args[0], Right: args[2]}
 	},
@@ -441,111 +400,17 @@ func evalStructIndexExpression(structure, index object.Object, tok token.Token) 
 	return result
 }
 
-func evalPairIndexExpression(pair, index object.Object, tok token.Token) object.Object {
-	pairObject := pair.(*object.Pair)
-	idx := index.(*object.Integer).Value
-
-	if idx < 0 || idx > 1 {
-		return newError("built/pair", tok, strconv.Itoa(idx))
-	}
-
-	if idx == 0 {
-		return pairObject.Left
-	}
-	return pairObject.Right
-}
-
-func evalArraySliceExpression(array, index object.Object, tok token.Token) object.Object {
-	arrayObject := array.(*object.List)
-	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return newErrorWithVals("built/slice/int/list", tok, []object.Object{index}, index.(*object.Pair).Left, index.(*object.Pair).Right, index)
-	}
-	idx := index.(*object.Pair).Left.(*object.Integer).Value
-	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(arrayObject.Elements)
-	if idy < 0 {
-		idy = max + idy
-	}
-
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
-		return newError("built/slice/range/list", tok, idx, idy, max)
-	}
-	return arrayObject.DeepSlice(idx, idy)
-}
-
-func evalTupleSliceExpression(array, index object.Object, tok token.Token) object.Object {
-	arrayObject := array.(*object.Tuple)
-	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return newErrorWithVals("built/slice/int/tuple", tok, []object.Object{index}, index.(*object.Pair).Left, index.(*object.Pair).Right, index)
-	}
-	idx := index.(*object.Pair).Left.(*object.Integer).Value
-	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(arrayObject.Elements)
-	if idy < 0 {
-		idy = max + idy
-	}
-
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max) {
-		return newError("built/slice/range/tuple", tok, idx, idy, max)
-	}
-	return arrayObject.DeepSlice(idx, idy)
-}
-
-func evalStringSliceExpression(string, index object.Object, tok token.Token) object.Object {
-	stringObject := string.(*object.String)
-	if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
-		return newErrorWithVals("built/slice/int/string", tok, []object.Object{index}, index.(*object.Pair).Left, index.(*object.Pair).Right)
-	}
-	idx := index.(*object.Pair).Left.(*object.Integer).Value
-	idy := index.(*object.Pair).Right.(*object.Integer).Value
-	max := len(stringObject.Value)
-	if idy < 0 {
-		idy = max + idy
-	}
-
-	if (idx < 0 || idx > max) || (idy < 0 || idy > max) {
-		return newError("built/slice/range/string", tok, idx, idy, max)
-	}
-	return &object.String{Value: stringObject.Value[idx:idy]}
-}
-
-func evalTupleIndexExpression(tuple, index object.Object, tok token.Token) object.Object {
-	switch tupleObject := tuple.(type) {
-	case *object.Tuple:
-		idx := index.(*object.Integer).Value
-		max := len(tupleObject.Elements) - 1
-		if idx < 0 || idx > max {
-			return newError("built/index/range/tuple", tok)
-		}
-		return tupleObject.Elements[idx]
-	default:
-		return newError("built/index/type", tok, tuple)
-	}
-}
-
-func evalStringIndexExpression(str, index object.Object, tok token.Token) object.Object {
-	stringObject := str.(*object.String)
-	idx := index.(*object.Integer).Value
-	max := utf8.RuneCountInString((*stringObject).Value) - 1
-
-	if idx < 0 || idx > max {
-		return newError("built/index/range/string", tok)
-	}
-	result := object.String{Value: string([]rune((*stringObject).Value)[idx])}
-	return &result
-}
-
 func evalHashIndexExpression(hash, index object.Object, tok token.Token) object.Object {
 	hashObject := hash.(*object.Hash)
 
 	key, ok := index.(object.Hashable)
 	if !ok {
-		return newError("built/hash/b", tok, object.ConcreteType(index))
+		return newError("built/map/hashable", tok, object.ConcreteType(index))
 	}
 
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return newError("built/hash/key", tok, index)
+		return newError("built/map/key", tok, index)
 	}
 
 	return pair.Value
