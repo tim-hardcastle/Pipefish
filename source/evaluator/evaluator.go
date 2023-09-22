@@ -397,6 +397,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 			if node.Right.GetToken().Type == token.IDENT {
 				val, ok := c.env.Get(node.Right.GetToken().Literal)
 				if ok {
+					if val.Type() == object.LAZY_OBJ {
+						val = Eval(val.(*object.Lazy).Value, c)
+					}
 					if val.Type() == object.FUNC_OBJ {
 						newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
 						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.Token, newContext)
@@ -420,6 +423,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 			if node.Right.GetToken().Type == token.IDENT {
 				val, ok := c.env.Get(node.Right.GetToken().Literal)
 				if ok {
+					if val.Type() == object.LAZY_OBJ {
+						val = Eval(val.(*object.Lazy).Value, c)
+					}
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
 							newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
@@ -467,6 +473,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 			if node.Right.GetToken().Type == token.IDENT {
 				val, ok := c.env.Get(node.Right.GetToken().Literal)
 				if ok {
+					if val.Type() == object.LAZY_OBJ {
+						val = Eval(val.(*object.Lazy).Value, c)
+					}
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
 							newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
