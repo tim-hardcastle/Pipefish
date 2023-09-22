@@ -537,6 +537,8 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	uP.makeFunctionTrees()
 	env.InitializeConstant("NULL", object.NULL)
 	env.InitializeConstant("ok", object.SUCCESS)
+	env.InitializeConstant("errorMessage", &object.Label{Value: "errorMessage"})
+	env.InitializeConstant("errorCode", &object.Label{Value: "errorCode"})
 	// Initialize the user-declared constants and variables
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)

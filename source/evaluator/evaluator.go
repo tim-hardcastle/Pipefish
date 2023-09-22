@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"charm/source/ast"
 	"charm/source/object"
@@ -1146,8 +1147,130 @@ func isUnsatisfiedConditional(obj object.Object) bool {
 	return false
 }
 
-func evalIndexExpression(tok token.Token, left, index ast.Node, c *Context) object.Object {
-	return functionCall(c.prsr.FunctionTreeMap["index"], []ast.Node{left, &ast.Bling{Value: "by"}, index}, tok, c)
+func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) object.Object {
+	index := Eval(indexNode, c)
+	if index.Type() == object.ERROR_OBJ {
+		return index
+	}
+
+	container := Eval(left, c)
+
+	if container.Type() == object.HASH_OBJ {
+		hashObject := container.(*object.Hash)
+		key, ok := index.(object.Hashable)
+		if !ok {
+			return newError("eval/map/hashable", tok, object.ConcreteType(index))
+		}
+		pair, ok := hashObject.Pairs[key.HashKey()]
+		if !ok {
+			return newError("eval/map/key", tok, index)
+		}
+		return pair.Value
+	}
+
+	switch index := index.(type) {
+	case *object.Integer:
+		idx := index.Value
+		switch container := container.(type) {
+		case *object.List:
+			if idx < 0 || idx > len(container.Elements)-1 {
+				return newError("eval/range/list", tok, idx, len(container.Elements))
+			}
+			return container.Elements[idx]
+		case *object.Tuple:
+			if idx < 0 || idx > len(container.Elements)-1 {
+				return newError("eval/range/tuple", tok, idx, len(container.Elements))
+			}
+			return container.Elements[idx]
+		case *object.Pair:
+			if idx < 0 || idx > 1 {
+				return newError("eval/range/pair", tok, idx, 2)
+			}
+			if idx == 0 {
+				return container.Left
+			}
+			return container.Right
+		case *object.String:
+			max := utf8.RuneCountInString(container.Value) - 1
+
+			if idx < 0 || idx > max {
+				return newError("eval/range/string", tok)
+			}
+			result := object.String{Value: string([]rune(container.Value)[idx])}
+			return &result
+		case *object.Type:
+			if c.prsr.TypeSystem.PointsTo(container.Value, "enum") {
+				if idx < 0 || idx >= len(c.prsr.Enums[container.Value]) {
+					return newError("eval/range/enum", tok)
+				}
+				return c.prsr.Enums[container.Value][idx]
+			} else {
+				return newError("eval/index/type", tok)
+			}
+		}
+	case *object.Pair:
+		if index.Left.Type() != object.INTEGER_OBJ {
+			return newError("eval/pair/int/left", tok)
+		}
+		if index.Right.Type() != object.INTEGER_OBJ {
+			return newError("evalp/pair/int/right", tok)
+		}
+		idx := index.Left.(*object.Integer).Value
+		idy := index.Right.(*object.Integer).Value
+		switch container := container.(type) {
+		case *object.List:
+			max := len(container.Elements)
+			if idy < 0 {
+				idy = max + idy
+			}
+			if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
+				return newError("built/slice/range/list", tok, idx, idy, max)
+			}
+			return container.DeepSlice(idx, idy)
+		case *object.Tuple:
+			max := len(container.Elements)
+			if idy < 0 {
+				idy = max + idy
+			}
+			if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
+				return newError("built/slice/range/list", tok, idx, idy, max)
+			}
+			return container.DeepSlice(idx, idy)
+		case *object.String:
+			max := len(container.Value)
+			if idy < 0 {
+				idy = max + idy
+			}
+			if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
+				return newError("built/slice/range/list", tok, idx, idy, max)
+			}
+			return &object.String{Value: container.Value[idx:idy]}
+		}
+	case *object.Label:
+		idx := index.Value
+		switch container := container.(type) {
+		case *object.Struct:
+			result, ok := container.Value[idx]
+			if !ok {
+				return newError("eval/struct/field", tok, index, container.Name)
+			}
+			return result
+		case *object.Error:
+			if idx == "errorCode" {
+				return &object.String{Value: container.ErrorId}
+			}
+			if idx == "errorMessage" {
+				return &object.String{Value: container.Message}
+			}
+			return container
+		}
+	}
+
+	if container.Type() == object.ERROR_OBJ {
+		return container
+	}
+
+	return newError("eval/index/types", tok, container.Type(), index.Type())
 }
 
 // This and its methods supply us with a little stateful machine to crawl along the "function tree" of each function
