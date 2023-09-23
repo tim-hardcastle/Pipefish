@@ -913,6 +913,10 @@ func AssignStructDef(structName string, sig signature.Signature, tok token.Token
 	constructor_2 := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object)}
 		for _, v := range args {
+			if v == object.EMPTY_TUPLE && len(sig) == 0 {
+				result.Name = structName
+				return result
+			}
 			if v.Type() != object.PAIR_OBJ {
 				return newError("eval/pair", tok)
 			}

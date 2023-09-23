@@ -94,6 +94,7 @@ delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
 
+
 def
 
 // Snippets of go

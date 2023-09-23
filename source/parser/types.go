@@ -53,7 +53,7 @@ var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "l
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (result bool, ok bool) {
 	if len(sigA) > len(sigB) {
-		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" {
+		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" { // TODO --- probably needs broadening now.
 			result = false
 			ok = true
 			return
@@ -68,7 +68,8 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 	}
 	var aIsMoreSpecific, bIsMoreSpecific bool
 	for i := 0; i < len(sigA); i++ {
-		if sigA[i].VarType == "bling" && sigB[i].VarType == "bling" && sigA[i].VarName != sigB[i].VarName {
+		if sigA[i].VarType == "bling" && i >= len(sigB) ||
+			sigA[i].VarType == "bling" && sigB[i].VarType == "bling" && sigA[i].VarName != sigB[i].VarName {
 			result = false
 			ok = true
 			return
