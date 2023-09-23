@@ -130,6 +130,7 @@ func GetValueList(sig signature.Signature, params []object.Object) []object.Obje
 				continue
 			}
 			if params[paramPos] == object.EMPTY_TUPLE {
+				result = append(result, object.EMPTY_TUPLE)
 				tupleAccumulator = []object.Object{}
 				sigPos = sigPos + 1
 				continue

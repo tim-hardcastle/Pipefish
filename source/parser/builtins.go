@@ -139,14 +139,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"tuple_to_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		if len(args) == 0 {
-			return &object.Hash{}
-		}
 		return tupleToMap(args[0].(*object.Tuple).Elements, tok)
-	},
-
-	"set_to_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return setToMap(args[0], tok)
 	},
 
 	"make_pair": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
@@ -286,13 +279,16 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"arity_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		if len(args) == 0 {
-			return &object.Integer{Value: 0}
-		}
 		return &object.Integer{Value: len(args[0].(*object.Tuple).Elements)}
 	},
 
-	"single_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"tuple_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		if len(args[0].(*object.Tuple).Elements) == 0 {
+			return &object.String{Value: ""}
+		}
+		if len(args[0].(*object.Tuple).Elements) == 1 {
+			return &object.String{Value: args[0].(*object.Tuple).Elements[0].Inspect(object.ViewStdOut)}
+		}
 		return &object.String{Value: args[0].Inspect(object.ViewStdOut)}
 	},
 

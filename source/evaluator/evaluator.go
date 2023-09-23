@@ -1423,9 +1423,16 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 					sourceObj = Eval(args[arg], c)
 				}
 				if sourceObj.Type() == object.TUPLE_OBJ { // If it's a tuple but it's empty ...
-					if len(sourceObj.(*object.Tuple).Elements) == 0 { // ... then we go round again and look at the next arg.
-						arg = arg + 1
-						continue
+					if len(sourceObj.(*object.Tuple).Elements) == 0 {
+						if treeWalker.hasNewTuple() && arg < len(args)-1 &&
+							args[arg+1].GetToken().Type == token.IDENT && c.prsr.Bling.Contains(args[arg+1].GetToken().Literal) {
+							singleObj = object.EMPTY_TUPLE
+							arg = arg + 1
+							break
+						} else { // ... then we go round again and look at the next arg.
+							arg = arg + 1
+							continue
+						}
 					} // Otherwise we've found a new populated tuple and can return its first element
 					singleObj = sourceObj.(*object.Tuple).Elements[0]
 					posInSourceTuple = 1
@@ -1470,20 +1477,25 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 					}
 				}
 			}
-			if treeWalker.hasNewTuple() { // Then we might be able to reach a function via the empty tuple.
-				ok := treeWalker.followBranch(c.prsr, "tuple")
-				if !ok {
-					return newError("eval/args/b", tok)
-				}
-				values = append(values, object.EMPTY_TUPLE)
-				// And we can then fall through to see if we've reached a function.
-			}
 
 			ok := treeWalker.followBranch(c.prsr, "")
-			if !ok {
-				return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, false) // TODO --- find out why like this and make it stop.
+			if ok {
+				return applyFunction(*treeWalker.position.Fn, values, tok, c)
 			}
-			return applyFunction(*treeWalker.position.Fn, values, tok, c)
+
+			if !treeWalker.lastWasTuple { // Then we might be able to reach a function via the empty tuple.
+				ok := treeWalker.followBranch(c.prsr, "tuple")
+				if !ok {
+					return newErrorWithVals("eval/args/b", tok, listArgs(args, tok, c), values, false)
+				}
+				ok = treeWalker.followBranch(c.prsr, "")
+				if !ok {
+					return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, false)
+				}
+				values = append(values, object.EMPTY_TUPLE)
+				return applyFunction(*treeWalker.position.Fn, values, tok, c)
+			}
+
 		}
 
 	}
