@@ -1308,6 +1308,14 @@ func (ft *functionTreeWalker) followBranch(prsr *parser.Parser, branch string) b
 	return false
 }
 
+func (ft *functionTreeWalker) hasAst() bool {
+	return (len(ft.position.Branch) > 0 && ft.position.Branch[0].TypeName == "ast")
+}
+
+func (ft *functionTreeWalker) hasNewTuple() bool {
+	return (len(ft.position.Branch) > 0 && ft.position.Branch[0].TypeName == "tuple" && !ft.lastWasTuple)
+}
+
 func newFunctionTreeWalker(functionTree *ast.FnTreeNode) *functionTreeWalker {
 	return &functionTreeWalker{functionTree: functionTree, position: functionTree, lastWasTuple: false}
 }
@@ -1387,116 +1395,99 @@ func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Context) (object.Obj
 // we can then pass the values and the body of the function on to applyFunction.
 func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token, c *Context) object.Object {
 
-	// We need to evaluate the arguments one by one. If they are tuples, we need to look at
-	// the elements of those one by one as we navigate the function tree.
-
-	pos := 0
-	values := []object.Object{}
 	treeWalker := newFunctionTreeWalker(functionTree)
 
-	var (
-		currentObject       object.Object
-		currentSingleObject object.Object
-	)
-
+	// We need to evaluate the arguments one by one. If the resulting objects are tuples, we need to look at
+	// the elements of those one by one as we navigate the function tree.
 	arg := 0
-	for arg < len(args) {
-
-		astHappening := (len(treeWalker.position.Branch) > 0 && treeWalker.position.Branch[0].TypeName == "ast")
-
-		if currentObject == nil {
-			if astHappening {
-				currentObject = &object.Code{Value: args[arg], Env: c.env}
-			} else {
-				currentObject = Eval(args[arg], c)
-			}
-		}
-
-		//We may be at the end of a tuple, or at the start of an empty tuple.
-		if currentObject.Type() == object.TUPLE_OBJ {
-			for currentObject.Type() == object.TUPLE_OBJ &&
-				len(currentObject.(*object.Tuple).Elements) == pos {
-				arg++
-				pos = 0
-				if arg == len(args) {
+	var sourceObj object.Object
+	var sourceTuple *object.Tuple
+	posInSourceTuple := 0
+	values := []object.Object{}
+	for {
+		//We try to get the next single object from the list of args, i.e. if an arg evaluates to a tuple we must take it a bit at a time.
+		var singleObj object.Object
+		for arg < len(args) { // Then we can try and populate it from the arguments. We use a for loop to skip over the args that evaluate to empty tuples.
+			if sourceTuple == nil || posInSourceTuple >= len(sourceTuple.Elements) {
+				if sourceTuple != nil { // Then we've gone off the edge of a tuple and must reset things.
+					sourceTuple = nil
+					posInSourceTuple = 0
+					arg = arg + 1
+					if arg >= len(args) {
+						break
+					}
+				}
+				if treeWalker.hasAst() {
+					sourceObj = &object.Code{Value: args[arg], Env: c.env}
+				} else {
+					sourceObj = Eval(args[arg], c)
+				}
+				if sourceObj.Type() == object.TUPLE_OBJ { // If it's a tuple but it's empty ...
+					if len(sourceObj.(*object.Tuple).Elements) == 0 { // ... then we go round again and look at the next arg.
+						arg = arg + 1
+						continue
+					} // Otherwise we've found a new populated tuple and can return its first element
+					singleObj = sourceObj.(*object.Tuple).Elements[0]
+					posInSourceTuple = 1
+					sourceTuple = sourceObj.(*object.Tuple)
 					break
 				}
-				if astHappening {
-					if pos > 0 {
-						return newError("eval/ast", tok)
-					} else {
-						currentObject = &object.Code{Value: args[arg], Env: c.env}
-					}
-				} else {
-					currentObject = Eval(args[arg], c)
-				}
-			}
-		} else {
-			if arg > 0 {
-				if astHappening {
-					currentObject = &object.Code{Value: args[arg], Env: c.env}
-				} else {
-					currentObject = Eval(args[arg], c)
-				}
+				singleObj = sourceObj // Or we found a plain old single object
+				arg = arg + 1
+				break //
+			} else { // We're working out way through a populated tuple and haven't reached the end yet
+				singleObj = sourceTuple.Elements[posInSourceTuple]
+				posInSourceTuple = posInSourceTuple + 1
+				break
 			}
 		}
+		// Now we have singleObj, which will be nil if and only if we've come to the end of what
+		// the arguments can yield us.
 
-		if arg == len(args) {
-			break
-		}
+		// We handle exceptional cases.
 
-		// And now if we are looking at a tuple then it is definitely inhabited at position
-		// pos.
-		if currentObject.Type() == object.TUPLE_OBJ {
-			currentSingleObject = currentObject.(*object.Tuple).Elements[pos]
-		} else {
-			currentSingleObject = currentObject
-		}
-
-		if isUnsatisfiedConditional(currentSingleObject) {
+		if isUnsatisfiedConditional(singleObj) {
 			return newError("eval/unsatisfied/h", tok)
 		}
-		if isError(currentSingleObject) {
-			currentSingleObject.(*object.Error).Trace = append(currentSingleObject.(*object.Error).Trace, tok)
-			return currentSingleObject
+		if isError(singleObj) {
+			singleObj.(*object.Error).Trace = append(singleObj.(*object.Error).Trace, tok)
+			return singleObj
 		}
 
-		values = append(values, currentSingleObject)
-		ok := treeWalker.followBranch(c.prsr, object.TypeOrBling(currentSingleObject))
-		if !ok {
-			return newErrorWithVals("eval/args/a", tok, listArgs(args, tok, c), values, (arg < len(args)-1) ||
-				currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
-		}
-
-		if currentObject.Type() == object.TUPLE_OBJ {
-			pos++
-		} else {
-			arg++
-		}
-	}
-
-	if len(values) == 0 { // If we have both foo() and foo(t tuple) defined, then foo() takes precedence.
-		for _, branch := range treeWalker.position.Branch { // TODO --- this is a pretty vile hack to find which of them takes no params. It would make sense for it to always be at the top.}
-			if branch.Node.Fn != nil {
-				return applyFunction(*branch.Node.Fn, []object.Object{}, tok, c)
+		// And now back to the happy path. We have a valid singleObject, and will use it to navigate the function tree.
+		if singleObj != nil {
+			// We (attempt to) scooch along the function tree.
+			ok := treeWalker.followBranch(c.prsr, object.TypeOrBling(singleObj))
+			values = append(values, singleObj)
+			if !ok {
+				return newErrorWithVals("eval/args/a", tok, listArgs(args, tok, c), values, (arg < len(args)-1) || sourceTuple != nil && posInSourceTuple < len(sourceTuple.Elements)) // The last, boolean value says whether we've seen all the values)
 			}
-		}
-		ok := treeWalker.followBranch(c.prsr, "tuple")
-		if !ok {
-			return newError("eval/args/b", tok)
-		}
-	}
+		} else { // singleObj is nil. We have reached the end of the values and must find a function or return an error.
+			if len(values) == 0 { // If we have both foo() and foo(t tuple) defined, then foo() takes precedence.
+				for _, branch := range treeWalker.position.Branch { // TODO --- this is a pretty vile hack to find which of them takes no params. It would make sense for it to always be at the top.}
+					if branch.Node.Fn != nil {
+						return applyFunction(*branch.Node.Fn, []object.Object{}, tok, c)
+					}
+				}
+			}
+			if treeWalker.hasNewTuple() { // Then we might be able to reach a function via the empty tuple.
+				ok := treeWalker.followBranch(c.prsr, "tuple")
+				if !ok {
+					return newError("eval/args/b", tok)
+				}
+				values = append(values, object.EMPTY_TUPLE)
+				// And we can then fall through to see if we've reached a function.
+			}
 
-	ok := treeWalker.followBranch(c.prsr, "")
-	if !ok {
-		return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, (arg < len(args)-1) ||
-			currentObject.Type() == object.TUPLE_OBJ && pos < len(currentObject.(*object.Tuple).Elements))
-	}
+			ok := treeWalker.followBranch(c.prsr, "")
+			if !ok {
+				return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, false) // TODO --- find out why like this and make it stop.
+			}
+			return applyFunction(*treeWalker.position.Fn, values, tok, c)
+		}
 
-	return applyFunction(*treeWalker.position.Fn, values, tok, c)
+	}
 }
-
-// TODO: it would be easy for functionCall to read the values into a Signature as it goes along, wouldn't it?
 
 // Having got a Function type out of a lambda or the function tree, we can apply it to the values to get a return value.
 func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {

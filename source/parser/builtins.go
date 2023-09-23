@@ -364,7 +364,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"tuple_to_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.Tuple{Elements: args}
+		return args[0]
 	},
 
 	"type_of_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {

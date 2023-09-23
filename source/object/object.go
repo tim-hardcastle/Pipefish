@@ -77,6 +77,7 @@ type Object interface {
 
 var SUCCESS = &SuccessfulAssignment{}
 var NULL = &Null{}
+var EMPTY_TUPLE = &Tuple{Elements: []Object{}}
 
 ///////////////////////////
 // Charm object types

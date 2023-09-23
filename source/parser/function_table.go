@@ -74,6 +74,12 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 				sigPos = sigPos + 2
 				continue
 			}
+			if params[paramPos] == object.EMPTY_TUPLE {
+				env.Set(sig[sigPos].VarName, object.EMPTY_TUPLE)
+				tupleAccumulator = []object.Object{}
+				sigPos = sigPos + 1
+				continue
+			}
 			if paramPos == len(params)-1 {
 				tupleAccumulator = append(tupleAccumulator, params[paramPos])
 				env.Set(sig[sigPos].VarName, &object.Tuple{Elements: tupleAccumulator})
@@ -121,6 +127,11 @@ func GetValueList(sig signature.Signature, params []object.Object) []object.Obje
 				result = append(result, &object.Bling{})
 				tupleAccumulator = []object.Object{}
 				sigPos = sigPos + 2
+				continue
+			}
+			if params[paramPos] == object.EMPTY_TUPLE {
+				tupleAccumulator = []object.Object{}
+				sigPos = sigPos + 1
 				continue
 			}
 			if paramPos == len(params)-1 {
