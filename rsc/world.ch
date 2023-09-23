@@ -46,9 +46,10 @@ get (x ast) from (clock UnixClock) :
     x varref = goGetUnixClock(string (clock[unit]))
 
 
+post (x tuple) :
+    post x to Output()
 
-
-// In the same way only the evaluator, which can see the context, knows which database the hub
+// Only the evaluator, which can see the context, knows which database the hub
 // is pointing at.
 post (x SQL) : builtin "post_to_SQL" // Which of these to use is up to the user.
 put (x SQL) : builtin "post_to_SQL"
@@ -92,8 +93,6 @@ get (x ast) from (fileAccess FileExists) :
 
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
-
-
 
 def
 
