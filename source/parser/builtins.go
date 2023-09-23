@@ -286,6 +286,9 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"arity_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		if len(args) == 0 {
+			return &object.Integer{Value: 0}
+		}
 		return &object.Integer{Value: len(args[0].(*object.Tuple).Elements)}
 	},
 
