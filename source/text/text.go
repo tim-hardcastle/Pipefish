@@ -13,9 +13,11 @@ import (
 )
 
 const (
-	VERSION = "0.3.10"
-	BULLET  = "  ▪ "
-	PROMPT  = "→ "
+	VERSION     = "0.3.10"
+	BULLET      = "  ▪ "
+	GOOD_BULLET = "\033[32m  ▪ \033[0m"
+	BROKEN      = "\033[31m  ✖ \033[0m"
+	PROMPT      = "→ "
 )
 
 func ToEscapedText(s string) string {
@@ -108,7 +110,6 @@ func DescribePos(token token.Token) string {
 }
 
 // Describes a token for the purposes of error messages etc.
-//
 func DescribeTok(tok token.Token) string {
 	switch tok.Type {
 	case token.LPAREN:

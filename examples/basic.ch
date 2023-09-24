@@ -44,8 +44,8 @@ given :
     remainderOfLine = (lineToExecute -> strings.index(that, " ") ..
                     .. -> lineToExecute[that + 1::len lineToExecute])
     updateProgram(state, lineToExecute) :
-        state with [program, lines, newLineNumber]::remainderOfLine ..
-           .. with [program, lineNumbers]::insert(state[program][lineNumbers], newLineNumber)
+        state with [program, lines, newLineNumber]::remainderOfLine,
+           .. [program, lineNumbers]::insert(state[program][lineNumbers], newLineNumber)
   
 insert(L, newItem) : // Puts a line number in the right place in the list. -1 goes at the end.
     inserter 0
@@ -312,3 +312,6 @@ given :
             wordifier(i + 1, "", outList + [runningTotal], false)
         else :
             wordifier(i + 1, runningTotal + s[i], outList, false)
+
+sum(L list, s single) : 
+    for i over L do (func(x): x + i) to s

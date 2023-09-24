@@ -65,6 +65,7 @@ func New(in io.Reader, out io.Writer) *Hub {
 }
 
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
+// as an instruction to the os if it begins with 'os,
 // and as an expression to be passed to the current service if none of the above hold.
 func (hub *Hub) Do(line, username, password, passedServiceName string) (string, *object.Effects) {
 
@@ -108,7 +109,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	// We may be talking to the os
 
 	if hubWords[0] == "os" {
-		if hub.isAdminstered() {
+		if hub.isAdministered() {
 			hub.WriteError("for reasons of safety and sanity, the 'os' prefix doesn't work in administered hubs.")
 			return passedServiceName, object.OK_RESPONSE
 		}
@@ -152,20 +153,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		service.Parser.ParseDump(hub.currentServiceName, line)
 	}
 
-	// Primitive built-in file-handling.
-
-	if line == "save" || line == "open" || len(line) > 4 && (line[0:5] == "save " || line[0:5] == "open ") {
-		obj := ServiceDo(service, line)
-		if obj.Type() == object.ERROR_OBJ {
-			hub.WritePretty("\n[0] " + objToString(service, obj))
-			hub.WriteString("\n")
-			hub.ers = []*object.Error{obj.(*object.Error)}
-		} else {
-			hub.WriteString(objToString(service, obj))
-		}
-		return passedServiceName, object.OK_RESPONSE
-	}
-
 	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
 	// They may be sitting around so the end-user can do 'hub why', but we can get rid of them now.
 	service.Parser.ClearErrors()
@@ -183,7 +170,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
 		service = hub.services[hub.currentServiceName]
 		if service.Broken {
-			service = hub.services[""]
+			return passedServiceName, object.OK_RESPONSE
 		}
 	}
 
@@ -197,11 +184,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			hub.currentServiceName = ""
 			return passedServiceName, obj.(*object.Effects)
 		}
-	}
-
-	if service.Parser.ErrorsExist() {
-		hub.GetAndReportErrors(service.Parser)
-		return passedServiceName, object.OK_RESPONSE
 	}
 
 	if obj.Type() == object.ERROR_OBJ {
@@ -241,7 +223,7 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 }
 
 func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
-	if (!hub.isAdminstered()) &&
+	if (!hub.isAdministered()) &&
 		(verb == "add" || verb == "create" || verb == "log-on" || verb == "log-off" ||
 			verb == "let" || verb == "register" || verb == "groups" ||
 			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" ||
@@ -251,7 +233,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			"(if you haven't already) and then 'hub config admin'.")
 		return false
 	}
-	if hub.isAdminstered() {
+	if hub.isAdministered() {
 		isAdmin, err := database.IsUserAdmin(hub.Db, username)
 		if err != nil {
 			hub.WriteError(err.Error())
@@ -289,7 +271,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(text.OK + "\n")
 		return false
 	case "config-admin":
-		if !hub.isAdminstered() {
+		if !hub.isAdministered() {
 			hub.configAdmin()
 			return false
 		} else {
@@ -421,7 +403,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "services":
-		if hub.isAdminstered() {
+		if hub.isAdministered() {
 			result, err := database.GetServicesOfUser(hub.Db, username, true)
 			if err != nil {
 				hub.WriteError(err.Error())
@@ -431,7 +413,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			}
 		} else {
 			if len(hub.services) == 2 {
-				hub.WriteString("The hub is not presently running any services.\n")
+				hub.WriteString("The hub isn't running any services.\n")
 				return false
 			}
 			hub.WriteString("\n")
@@ -481,13 +463,15 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty("Restarting script '" + service.ScriptFilepath +
 			"' as service '" + hub.currentServiceName + "'.\n")
 		hub.Start(username, hub.currentServiceName, service.ScriptFilepath)
+		hub.lastRun = []string{hub.currentServiceName}
 		return false
 	case "rerun":
 		if len(hub.lastRun) == 0 {
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
-		hub.DoHubCommand(username, password, verb, hub.lastRun)
+		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].ScriptFilepath)
+		hub.tryMain()
 		return false
 	case "run":
 		hub.lastRun = args
@@ -495,10 +479,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("Starting script '" + args[0] +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
 			hub.StartAnonymous(args[0])
+			hub.tryMain()
 			return false
 		}
 		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
 		hub.Start(username, args[1], args[0])
+		hub.tryMain()
 		return false
 	case "services-of-user":
 		result, err := database.GetServicesOfUser(hub.Db, args[0], false)
@@ -576,6 +562,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				return false
 			} else {
 				hub.currentServiceName = args[0]
+				if !hub.services[hub.currentServiceName].Visited {
+					hub.tryMain()
+				}
 				return false
 			}
 		} else {
@@ -759,7 +748,7 @@ func (hub *Hub) WritePretty(s string) {
 	}
 }
 
-func (hub *Hub) isAdminstered() bool {
+func (hub *Hub) isAdministered() bool {
 	_, err := os.Stat("rsc/admin.dat")
 	return !errors.Is(err, os.ErrNotExist)
 }
@@ -835,14 +824,25 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 		}
 	}
 	hub.currentServiceName = serviceName
-	serviceIsNewAndSuccessfullyCreated := hub.createService(serviceName, scriptFilepath, code)
+	hub.createService(serviceName, scriptFilepath, code)
+}
 
-	if serviceIsNewAndSuccessfullyCreated && !hub.services[hub.currentServiceName].Broken &&
-		hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
-		result := ServiceDo(hub.services[hub.currentServiceName], "main")
-		if result.Type() == object.RESPONSE_OBJ && result.(*object.Effects).StopHappened && hub.currentServiceName != "" {
+func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
+	if !hub.services[hub.currentServiceName].Broken && hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
+		obj := ServiceDo(hub.services[hub.currentServiceName], "main")
+		hub.lastRun = []string{hub.currentServiceName}
+		hub.services[hub.currentServiceName].Visited = true
+		if obj.Type() == object.RESPONSE_OBJ && obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
 			delete(hub.services, hub.currentServiceName)
 			hub.currentServiceName = ""
+		} else {
+			if obj.Type() == object.ERROR_OBJ {
+				hub.WritePretty("\n[0] " + objToString(hub.services[hub.currentServiceName], obj))
+				hub.WriteString("\n")
+				hub.ers = []*object.Error{obj.(*object.Error)}
+			} else {
+				hub.WriteString(objToString(hub.services[hub.currentServiceName], obj))
+			}
 		}
 	}
 }
@@ -1074,7 +1074,9 @@ func (hub *Hub) Open() {
 			params[3], params[4], params[5])
 
 		for _, v := range hub.services {
-			v.Parser.Database = hub.Db
+			if !v.Broken {
+				v.Parser.Database = hub.Db
+			}
 		}
 
 		if err != nil {
@@ -1085,7 +1087,9 @@ func (hub *Hub) Open() {
 			hub.WritePretty("This is an administered hub and you aren't logged on. Please enter either " +
 				"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 				"with this hub.\n\n")
+			return
 		}
+		hub.tryMain()
 	}
 }
 
@@ -1098,7 +1102,13 @@ func (hub *Hub) list() {
 		if k == "" || k == "HUB" {
 			continue
 		}
-		hub.WritePretty(text.BULLET + "Service '" + k + "' running script '" + filepath.Base(hub.services[k].ScriptFilepath) + "'.")
+		if hub.services[k].Broken {
+			hub.WriteString(text.BROKEN)
+			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].ScriptFilepath) + "'.")
+		} else {
+			hub.WriteString(text.GOOD_BULLET)
+			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].ScriptFilepath) + "'.")
+		}
 	}
 	hub.WriteString("\n")
 }

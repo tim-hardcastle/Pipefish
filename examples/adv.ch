@@ -20,14 +20,14 @@ main :
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
     get linesToProcess from File "examples/objects.rsc", list
     state = state with objects::slurpObjects(linesToProcess)
-    post "\n" + describe(state[playerLocation], state) + "\n\n" to Output()
+    post "\n" + describe(state[playerLocation], state) + "\n"
     loop :
         get userInput from Input "What now? "
         strings.toLower(userInput) == "quit" :
             break
         else :
             state = doTheThing(userInput, state)
-            post "\n" + state[output] + "\n" to Output()
+            post "\n" + state[output] + "\n"
    
 def
 

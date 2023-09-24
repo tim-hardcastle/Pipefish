@@ -10,6 +10,7 @@ type Service struct {
 	ScriptFilepath string
 	Timestamp      int64
 	Broken         bool
+	Visited        bool
 }
 
 func NewService() *Service {
