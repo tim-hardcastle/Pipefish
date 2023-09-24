@@ -244,7 +244,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				}
 			case ContactsSection:
 				if expressionIsAssignment {
-					uP.Throw("init/contact/assign", definingToken)
+					uP.Throw("init/contacts/assign", definingToken)
 				} else {
 					uP.tokenizedDeclarations[contactDeclaration] =
 						append(uP.tokenizedDeclarations[contactDeclaration], line)
@@ -481,7 +481,7 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				if kindOfDeclarationToParse == contactDeclaration {
 					uP.Throw("init/contacts/form", parsedCode.GetToken())
 				}
-				uP.Throw("init/languages/form", parsedCode.GetToken())
+				uP.Throw("init/lang/form", parsedCode.GetToken())
 			}
 			if name != "" {
 				var ty string

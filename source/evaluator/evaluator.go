@@ -1254,7 +1254,7 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 				idy2 = max + idy
 			}
 			if (idx < 0 || idx > max) || (idy2 < 0 || idy2 > max) || (idy2 < idx) {
-				return newError("eval/range/slice/list", tok, idx, idy, max)
+				return newError("eval/range/slice/tuple", tok, idx, idy, max)
 			}
 			return container.DeepSlice(idx, idy)
 		case *object.String:
@@ -1264,7 +1264,7 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 				idy2 = max + idy
 			}
 			if (idx < 0 || idx > max) || (idy2 < 0 || idy2 > max) || (idy2 < idx) {
-				return newError("eval/range/slice/list", tok, idx, idy, max)
+				return newError("eval/range/slice/string", tok, idx, idy, max)
 			}
 			return &object.String{Value: container.Value[idx:idy]}
 		}
@@ -1519,8 +1519,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 // Having got a Function type out of a lambda or the function tree, we can apply it to the values to get a return value.
 func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	if f.Private && c.access == REPL {
-		// THEN WE WILL LIE. We don't want someone using the REPL to know if a private function exists or not.
-		return newErrorWithVals("eval/args/a", tok, params, params, false)
+		return newErrorWithVals("eval/repl/private", tok, params, params, false)
 	}
 	if f.Cmd && c.access == DEF {
 		return newError("eval/cmd/function", tok)

@@ -975,6 +975,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/repl/private": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't access private function or command from the REPL"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Private *means* private from the REPL."
+		},
+	},
+
 	"eval/repl/type": {
 		Message: func(tok token.Token, args ...any) string {
 			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to a variable of type <" +
