@@ -1239,7 +1239,7 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 		switch container := container.(type) {
 		case *object.List:
 			max := len(container.Elements)
-			var idy2 int
+			idy2 := idy
 			if idy < 0 {
 				idy2 = max + idy
 			}
@@ -1249,7 +1249,7 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			return container.DeepSlice(idx, idy)
 		case *object.Tuple:
 			max := len(container.Elements)
-			var idy2 int
+			idy2 := idy
 			if idy < 0 {
 				idy2 = max + idy
 			}
@@ -1259,7 +1259,7 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			return container.DeepSlice(idx, idy)
 		case *object.String:
 			max := len(container.Value)
-			var idy2 int
+			idy2 := idy
 			if idy < 0 {
 				idy2 = max + idy
 			}

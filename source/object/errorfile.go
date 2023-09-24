@@ -909,7 +909,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/slice/list": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[0].(int))+"]") + " is out of bounds for a list of length " + emphNum(args[2])
+			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a list of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the list to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the list being sliced."
@@ -918,7 +918,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/slice/string": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[0].(int))+"]") + " is out of bounds for a string of length " + emphNum(args[2])
+			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a string of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the string to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the string being sliced."
@@ -927,7 +927,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/slice/tuple": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[0].(int))+"]") + " is out of bounds for a tuple of length " + emphNum(args[2])
+			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a tuple of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the tuple to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the tuple being sliced."
