@@ -687,9 +687,15 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	if node.Operator == "break" { // TODO --- why did you implement these as unfixes? They are innately keywords.
+		if c.access != CMD {
+			return newError("eval/halt", node.Token)
+		}
 		return &object.Effects{BreakHappened: true}
 	}
 	if node.Operator == "stop" {
+		if c.access != CMD {
+			return newError("eval/stop", node.Token)
+		}
 		return &object.Effects{StopHappened: true}
 	}
 
