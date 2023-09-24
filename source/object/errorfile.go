@@ -63,30 +63,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"built/file": {
-		Message: func(tok token.Token, args ...any) string {
-			return "os returned \"" + "\" when trying to open file '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "This is an error the os of your computer returned when you tried to access a file. If you " +
-				"aren't sure what it means, you should consult the documentation of your os."
-		},
-	},
-
 	"built/hash/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys" +
-				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
-		},
-	},
-
-	"built/hash/b": {
-		Message: func(tok token.Token, args ...any) string {
-			return "objects of type" + EmphType(args[0].(Object)) + " cannot be used as hashkeys" +
 				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
@@ -114,16 +93,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
 				"<int>, <string>, <float64>, <label> and <bool> — but not" + EmphType(args[0].(Object))
-		},
-	},
-
-	"built/hash/key": {
-		Message: func(tok token.Token, args ...any) string {
-			return "object " + DescribeObject(args[0].(Object)) + " is not in the keys of map"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "If you try to retrieve a value from a map by indexing the map with a key that isn't in the map " +
-				"then this is the error you will see."
 		},
 	},
 
@@ -156,32 +125,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"built/index/range/string": {
+	"built/keys/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "string index out of range"
+			return "can't take the keys of type <" + args[0].(string) + ">"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Strings can be indexed from 0 to 1 less than their length."
-		},
-	},
-
-	"built/index/range/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return "tuple index out of range"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Tuples can be indexed from 0 to 1 less than their arity."
-		},
-	},
-
-	"built/index/type": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't index things of type " + EmphType(args[0].(Object)) +
-				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Strings, lists, and tuples can be indexed by position, maps by their keys, and " +
-				"structs by their field labels. This fits none of these cases."
+			return "The only types that have keys are struct types, which have the same keys as the structs that inhabit them."
 		},
 	},
 
@@ -193,6 +142,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A list L can be indexed by an expression of the form L[n], where n is an integer from 0 up to " +
 				"but not including the length of the list."
+		},
+	},
+
+	"built/list/neg": {
+		Message: func(tok token.Token, args ...any) string {
+			return fmt.Sprintf("index %v is out of bounds", args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Recall that in Charm, lists are zero-indexed: a negative number cannot be the index of a list."
 		},
 	},
 
@@ -209,21 +167,49 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"built/pair": {
+	"built/map/hashable": {
 		Message: func(tok token.Token, args ...any) string {
-			return "objects of type <pair> can't be indexed by " + args[0].(string)
+			return "using a value of type '" + args[0].(string) + "' as a key"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The only things you can index a pair by are 0 for the left-hand element of the pair and 1 for the right-hand element."
+			return "Not all types can be used as the keys to a map. These include 'int', 'string', 'float', and 'bool', but not '" + args[0].(string) + "'."
 		},
 	},
 
-	"built/pos/list": {
+	"built/map/key": {
 		Message: func(tok token.Token, args ...any) string {
-			return "A list cannot be indexed by a negative value."
+			return "object " + DescribeObject(args[0].(Object)) + " is not in the keys of map"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In Charm the first index of a list is always 0."
+			return "If you try to retrieve a value from a map by indexing the map with a key that isn't in the map " +
+				"then this is the error you will see."
+		},
+	},
+
+	"built/pair/empty/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed pair in 'with' expression"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You have written something along the lines of 'x with []::y', and the empty list makes this expression meaningless."
+		},
+	},
+
+	"built/pair/empty/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed pair in 'with' expression"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You have written something along the lines of 'x with []::y', and the empty list makes this expression meaningless."
+		},
+	},
+
+	"built/pair/empty/c": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed pair in 'with' expression"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You have written something along the lines of 'x with []::y', and the empty list makes this expression meaningless."
 		},
 	},
 
@@ -249,39 +235,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"built/range/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return fmt.Sprintf("index %v is out of bounds: tuple has arity %v", args[0].(int), args[1].(int))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Recall that in Charm, tuples are zero-indexed, which means that the first element has index 0 and the " +
-				"last element has index 1 less than the length of the list.\n\nAnything outside of these bounds will cause this " +
-				"error if used as an index."
-		},
-	},
-
-	"built/range/string": {
-		Message: func(tok token.Token, args ...any) string {
-			return fmt.Sprintf("index %v is out of bounds: string has length %v", args[0].(int), args[1].(int))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Recall that in Charm, strings are zero-indexed, which means that the first element has index 0 and the " +
-				"last element has index 1 less than the length of the list.\n\nAnything outside of these bounds will cause this " +
-				"error if used as an index."
-		},
-	},
-
-	"built/slice/int/list": {
-		Message: func(tok token.Token, args ...any) string {
-			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
-		},
-	},
-
 	"built/slice/int/range": {
 		Message: func(tok token.Token, args ...any) string {
 			return "ranges are defined by pairs of type <int> :: <int>, not of type " +
@@ -290,55 +243,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A range is a list of numbers given from one integer up to (but not including) another, " +
 				"and so the 'range' function takes pairs of the form  <int> :: <int> as input."
-		},
-	},
-
-	"built/slice/int/string": {
-		Message: func(tok token.Token, args ...any) string {
-			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
-		},
-	},
-
-	"built/slice/int/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return "slices are indexed by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice needs an index of the form '<int> :: <int>' but you have supplied" +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
-		},
-	},
-
-	"built/slice/range/list": {
-		Message: func(tok token.Token, args ...any) string {
-			return fmt.Sprintf("slice index '[%v::%v]' out of bounds (list has length %v)", args[0].(int), args[1].(int), args[2].(int))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Unlike in Python, it is currently considered a runtime error in Charm to try and take a slice beyond the actual bounds of a list."
-		},
-	},
-
-	"built/slice/range/string": {
-		Message: func(tok token.Token, args ...any) string {
-			return fmt.Sprintf("slice index '[%v::%v]' out of bounds (string has length %v)", args[0].(int), args[1].(int), args[2].(int))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Unlike in Python, it is currently considered a runtime error in Charm to try and take a slice beyond the actual bounds of a string."
-		},
-	},
-
-	"built/slice/range/tuple": {
-		Message: func(tok token.Token, args ...any) string {
-			return fmt.Sprintf("slice index '[%v::%v]' out of bounds (tuple has arity %v)", args[0].(int), args[1].(int), args[2].(int))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Unlike in Python, it is currently considered a runtime error in Charm to try and take a slice beyond the actual bounds of a tuple."
 		},
 	},
 
@@ -462,6 +366,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/break": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't 'break' outside of a command"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The 'break' keyword breaks out of a loop started by 'loop'. As such loops are only permitted inside the 'cmd' section, 'break' is meaningless outside of it."
+		},
+	},
+
 	"eval/cmd/assign": {
 		Message: func(tok token.Token, args ...any) string {
 			return "Variables cannot be assigned types in the 'cmd' section"
@@ -483,71 +396,67 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/cmd/global": {
+	"eval/cmd/function": {
 		Message: func(tok token.Token, args ...any) string {
-			return "referring to '" + args[0].(string) + "' without importing it using 'global'"
+			return "calling a command from a function"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Even in the 'cmd' section a global variable needs to be imported with 'global <variable name>' " +
-				"to make it visible to the command."
+			return "It is one of the central tenets of Charm that a command can call functions but " +
+				"functions can't call commands. You've tried to break that rule."
 		},
 	},
 
-	"eval/cmd/type": {
+	"eval/cmd/global/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type <" +
-				args[1].(string) + ">" +
-				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+			return "global variable out of scope"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Once you've declared a variable as being of a given type, the only things you can assign " +
-				"to it are objects of that type or of one of its subtypes.\n\nFor more about variable declarations " +
-				"see 'hub help var'."
+			return "A global variable needs to be brought into the scope of a command with 'global <variable name>' before you can assign to it."
 		},
 	},
 
-	"eval/cmd/var": {
+	"eval/cmd/global/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unknown variable or constant " + text.Emph(args[0].(string))
+			return "global variable out of scope"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "This variable or constant hasn't been defined anywhere."
+			return "A global variable needs to be brought into the scope of a command with 'global <variable name>' before you can access its contents."
 		},
 	},
 
 	"eval/cmd/varname/code": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + "as variable name: it does not contain a <code> object"
+			return "can't dereference " + text.Emph(args[0].(string)) + " as variable name: it does not contain a <code> object"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
-		},
-	},
-
-	"eval/cmd/varname/ident": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + "as variable name: it does not contain an identifier"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
-		},
-	},
-
-	"eval/cmd/varname/var": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + "as variable " + text.Emph(args[1].(string)) + ", as the latter is not defined"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a varname, the identifier contained in the variable must have been defined as a variable in the 'var' section"
 		},
 	},
 
 	"eval/cmd/varname/const": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + "as variable " + text.Emph(args[1].(string)) + ", as the latter is defined as a constant"
+			return "can't dereference " + text.Emph(args[0].(string)) + " as variable " + text.Emph(args[1].(string)) + ", as the latter is defined as a constant"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In order for a variable to be dereferenced as a varname, the identifier contained in the variable must have been defined as a variable in the 'var' section"
+		},
+	},
+
+	"eval/cmd/varname/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.Emph(args[0].(string)) + " as variable name: it does not contain an identifier"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
+		},
+	},
+
+	"eval/cmd/varname/type": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't assign value of type " + text.Emph(args[0].(string)) + " to dereferenced variable of type" + text.Emph(args[1].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A value must be the same type or a subtype of the variable to which it is assigned."
 		},
 	},
 
@@ -574,12 +483,42 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/enum/index": {
+	"eval/contact/charm": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't index type '" + args[0].(string) + "'"
+			return "can't evaluate " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Only enum types can be indexed."
+			return "You have used '|...|' to embed a piece of Charm into a call to a contact service, " +
+				"this snippet being evaluated by the calling service. In this case, however, the calling service was unable " +
+				"even to parse the code: it is syntactically incorrect."
+		},
+	},
+
+	"eval/contact/response": {
+		Message: func(tok token.Token, args ...any) string {
+			return "called service didn't post to output"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "When you use 'get' to get a value from a contact service, the contact service must 'post' something to 'Output()' in response."
+		},
+	},
+
+	"eval/contact/return": {
+		Message: func(tok token.Token, args ...any) string {
+			return "called service didn't post to output"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "When you use 'post', 'put', or 'delete' to get a value from a contact service, the contact service mustn't 'post' anything to 'Output()' in response, " +
+				"but only emit a Successful Object (the little green 'ok')."
+		},
+	},
+
+	"eval/contact/service": {
+		Message: func(tok token.Token, args ...any) string {
+			return "service " + text.Emph(args[0].(string)) + "doesn't exist"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Either you forgot to start it up, or it shut itself down."
 		},
 	},
 
@@ -593,12 +532,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/enum/range": {
+	"eval/equal/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "index of " + fmt.Sprint(args[0].(int)) + " is out of range"
+			return "comparing values of type " + text.Emph(args[0].(string)) + " and " + text.Emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "An enum type is indexed by a number from and including 0, up to and not ncluding the length of the enum."
+			return "You're using the equality operator '==' to compare to values of different concrete types. But Charm considers this a type error."
+		},
+	},
+
+	"eval/equal/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "comparing values of type " + text.Emph(args[0].(string)) + " and " + text.Emph(args[1].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You're using the inequality operator '!=' to compare to values of different concrete types. But Charm considers this a type error."
 		},
 	},
 
@@ -668,6 +616,42 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/for/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unexpected type in range of 'for'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
+		},
+	},
+
+	"eval/for/arg": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed range of 'for' expression"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
+		},
+	},
+
+	"eval/for/pair": {
+		Message: func(tok token.Token, args ...any) string {
+			return "incorrectly typed pair in range of 'for'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "One way in which you can specify the range of a 'for' expression is using a pair 'a::b', which you have done; but it must be a pair of integers, and it isn't."
+		},
+	},
+
+	"eval/for/type": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unexpected type in range of 'for'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
+		},
+	},
+
 	"eval/given/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "inexplicable use of 'given'"
@@ -695,6 +679,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you're allowed to do in the 'given' block of a function is assign values " +
 				"to local variables."
+		},
+	},
+
+	"eval/global/exists": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't find global " + text.Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You have tried to use the 'global' keyword to import a global variable into the scope of a command, but no global variable of that name exists."
+		},
+	},
+
+	"eval/global/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "not an identifier"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The only thing the 'global' keyword can take as its argument is an identifier, the name of the global variable to be brought into scope."
 		},
 	},
 
@@ -726,12 +728,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/infix/a": {
+	"eval/index/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return args[0].(string)
+			return "can't index type " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're trying to treat " + text.DescribeTok(tok) + " as an infix operator but it isn't one."
+			return "Only enum types can be indexed. (Of course, *members* of other types can be indexed: lists, maps, etc. But the types themselves cannot be: 'list[4]' is meaningless.)"
+		},
+	},
+
+	"eval/index/types": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't index type " + text.Emph(args[0].(string)) + " by " + text.Emph(args[1].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You can index a list or a string or a tuple by an integer, or by a pair of integers to make a slice; or you can index a map by a key, or a struct by the label of one of its fields. But you have done none of these things and Charm is puzzled."
 		},
 	},
 
@@ -745,39 +756,30 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/name/a": {
+	"eval/log/append": {
 		Message: func(tok token.Token, args ...any) string {
-			return "undefined function " + text.DescribeTok(tok)
+			return "can't append to log file"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're tring to use " + text.DescribeTok(tok) + " as a function when it isn't one."
+			return "This is a file-handling error: the logging statement is trying to write to a file and failing."
 		},
 	},
 
-	"eval/name/b": {
+	"eval/log/file": {
 		Message: func(tok token.Token, args ...any) string {
-			return "undefined function " + text.DescribeTok(tok)
+			return "can't open log file"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're tring to use " + text.DescribeTok(tok) + " as a suffix when it isn't one."
+			return "This is a file-handling error: the logging statement is trying to write to a file and failing even to open it."
 		},
 	},
 
-	"eval/name/c": {
+	"eval/loop/value": {
 		Message: func(tok token.Token, args ...any) string {
-			return "undefined function " + text.DescribeTok(tok)
+			return "loop returning value"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're tring to use " + text.DescribeTok(tok) + " as a function when it isn't one."
-		},
-	},
-
-	"eval/name/d": {
-		Message: func(tok token.Token, args ...any) string {
-			return "undefined function " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're tring to use " + text.DescribeTok(tok) + " as an infix when it isn't one."
+			return "The 'loop' construct in Charm is pureply imperative: it iterates over instructions; it cannot return a value. If you want to do that sort of thing, write a function."
 		},
 	},
 
@@ -788,6 +790,34 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The 'respond' statement you used makes no sense in the place where " +
 				"you used it."
+		},
+	},
+
+	"eval/map/hashable": {
+		Message: func(tok token.Token, args ...any) string {
+			return "using a value of type '" + args[0].(string) + "' as a key"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Not all types can be used as the keys to a map. These include 'int', 'string', 'float', and 'bool', but not '" + args[0].(string) + "'."
+		},
+	},
+
+	"eval/map/key": {
+		Message: func(tok token.Token, args ...any) string {
+			return "object " + DescribeObject(args[0].(Object)) + " is not in the keys of map"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "If you try to retrieve a value from a map by indexing the map with a key that isn't in the map " +
+				"then this is the error you will see."
+		},
+	},
+
+	"eval/mapping/list": {
+		Message: func(tok token.Token, args ...any) string {
+			return "'>>' expects a list on the left-hand side"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The piping operator '>>' transforms a list, on the left, into another list, according to a rule specified on the right."
 		},
 	},
 
@@ -814,42 +844,93 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/params/infix": {
+	"eval/pair/int/left": {
 		Message: func(tok token.Token, args ...any) string {
-			return args[0].(string)
+			return "unexpected type in slice expression"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The parameters you've supplied for " + text.DescribeTok(tok) +
-				"don't match its type signature."
+			return "The pair 'a::b' in a slice expression should be two integers."
 		},
 	},
 
-	"eval/params/function": {
+	"eval/pair/int/right": {
 		Message: func(tok token.Token, args ...any) string {
-			return args[0].(string)
+			return "unexpected type in slice expression"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The parameters you've supplied for " + text.DescribeTok(tok) +
-				"don't match its type signature."
+			return "The pair 'a::b' in a slice expression should be two integers."
 		},
 	},
 
-	"eval/params/suffix": {
+	"eval/range/index/enum": {
 		Message: func(tok token.Token, args ...any) string {
-			return args[0].(string)
+			return "index " + emphNum(args[0]) + " is out of bounds for enum " + text.Emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The parameters you've supplied for " + text.DescribeTok(tok) +
-				"don't match its type signature."
+			return "An enum type can be indexed by an integer from 0 up to but not including the length of the type, but you have supplied an integer outside of this range."
 		},
 	},
 
-	"eval/parse/inner": {
+	"eval/range/index/list": {
 		Message: func(tok token.Token, args ...any) string {
-			return "malformed inner function"
+			return "index " + emphNum(args[0]) + " is out of bounds for a list of length " + emphNum(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You seem to be trying to define an inner function here but Charm can't make sense of the syntax."
+			return "A list is indexed from 0 up to but not including the length of the list."
+		},
+	},
+
+	"eval/range/index/pair": {
+		Message: func(tok token.Token, args ...any) string {
+			return "index " + emphNum(args[0]) + " is out of bounds for a string of length " + emphNum(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A pair is indexed by 0 or 1."
+		},
+	},
+
+	"eval/range/index/string": {
+		Message: func(tok token.Token, args ...any) string {
+			return "index " + emphNum(args[0]) + " is out of bounds for a string of length " + emphNum(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A string is indexed from 0 up to but not including the length of the string."
+		},
+	},
+
+	"eval/range/index/tuple": {
+		Message: func(tok token.Token, args ...any) string {
+			return "index " + emphNum(args[0]) + " is out of bounds for a tuple of length " + emphNum(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A tuple is indexed from 0 up to but not including the arity of the tuple."
+		},
+	},
+
+	"eval/range/slice/list": {
+		Message: func(tok token.Token, args ...any) string {
+			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[0].(int))+"]") + " is out of bounds for a list of length " + emphNum(args[2])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the list to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the list being sliced."
+		},
+	},
+
+	"eval/range/slice/string": {
+		Message: func(tok token.Token, args ...any) string {
+			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[0].(int))+"]") + " is out of bounds for a string of length " + emphNum(args[2])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the string to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the string being sliced."
+		},
+	},
+
+	"eval/range/slice/tuple": {
+		Message: func(tok token.Token, args ...any) string {
+			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[0].(int))+"]") + " is out of bounds for a tuple of length " + emphNum(args[2])
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the tuple to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the tuple being sliced."
 		},
 	},
 
@@ -891,16 +972,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The value of a constant can only be declared once."
-		},
-	},
-
-	"eval/repl/d": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't find infix " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Either there is no function/command matching the given parameters, or it has been declared " +
-				"private and cannot be accessed through the REPL."
 		},
 	},
 
@@ -958,57 +1029,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/sig/a": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a function " + text.DescribeTok(tok) + ", but its type signature doesn't " +
-				"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/b": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a function " + text.DescribeTok(tok) + ", but its type signature doesn't " +
-				"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/c": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is a function " + text.DescribeTok(tok) + ", but its type signature doesn't " +
-				"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/d": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " in context " + DescribeParams(args[0].([]Object))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "There is an infix operator " + text.DescribeTok(tok) + ", but its type signature doesn't " +
-				"match the supplied parameters."
-		},
-	},
-
-	"eval/sig/index": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't index " + EmphType(args[0].([]Object)[1]) + " by " + EmphType(args[0].([]Object)[0]) +
-				" (index supplied was " + DescribeObject(args[0].([]Object)[0]) + ")"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A string, list, tuple or enum may be indexed by a number, a map by a hashable " +
-				"label, and a struct by its keys. This fits none of these cases."
-		},
-	},
-
 	"eval/sig/lambda": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))
@@ -1046,13 +1066,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/struct/def": {
+	"eval/stop": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Structs must be defined in the 'def' section."
+			return "can't 'stop' outside of a command"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "This error very much means what it says. You can only define new struct types in the 'def' " +
-				"section of the code, along with functions, constants, and enums."
+			return "The 'stop' keyword shuts down the service and so is confined to the 'cmd' section of the script."
 		},
 	},
 
@@ -1067,14 +1086,30 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/unknown/suffix": {
+	"eval/struct/field": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find operator: " + EmphType(args[0].(Object)) + " " + text.DescribeTok(tok) +
-				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
+			return "can't index " + text.Emph(args[1].(string)) + " by field " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using " + text.DescribeTok(tok) + " as though it was a suffix operator on " +
-				EmphType(args[0].(Object)) + ", but it isn't."
+			return "That's just not a label of a struc of that type"
+		},
+	},
+
+	"eval/sv/exists": {
+		Message: func(tok token.Token, args ...any) string {
+			return "service variable " + text.Emph(args[0].(string)) + " doesn't exist"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Variables beigining with '$' are resered for service variables, and Charm has no service variable called " + text.Emph(args[0].(string)) + "."
+		},
+	},
+
+	"eval/try/global": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't use a global variable as the argument for 'try'"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "This is because you're never allowed to store an error in a global variable."
 		},
 	},
 
@@ -1099,16 +1134,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/unknown/unfix": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unknown command or function"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using " + text.DescribeTok(tok) + " as though it was a function or command taking no parameters, but " +
-				"it isn't."
-		},
-	},
-
 	"eval/unsatisfied/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unsatisfied conditional"
@@ -1123,32 +1148,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"eval/unsatisfied/b": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unsatisfied conditional"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A conditional expression in which no condition is met, for example " +
-				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
-				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
-				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
-		},
-	},
-
-	"eval/unsatisfied/c": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unsatisfied conditional"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A conditional expression in which no condition is met, for example " +
-				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
-				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
-				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
-		},
-	},
-
-	"eval/unsatisfied/d": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unsatisfied conditional"
 		},
@@ -1213,19 +1212,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/unsatisfied/i": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unsatisfied conditional"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A conditional expression in which no condition is met, for example " +
-				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
-				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
-				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
-		},
-	},
-
 	"eval/unsatisfied/j": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unsatisfied conditional"
@@ -1252,6 +1238,20 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/unsatisfied/l": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unsatisfied conditional"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A conditional expression in which no condition is met, for example " +
+				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
+				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
+				"every condional with an 'else :' clause.\n\nFor more information " +
+				"about conditionals, see 'hub help conditionals'."
+		},
+	},
+
+	// Protected kludge, DNE
 	"eval/user": {
 		Message: func(tok token.Token, args ...any) string {
 			return "if you see this message, something has gone wrong with the error-handling.\n\nPlease contact the " +
@@ -1273,16 +1273,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"eval/var/const/a": {
-		Message: func(tok token.Token, args ...any) string {
-			return "reassigning constant '" + args[0].(string) + "' in the 'var' section."
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Because you have defined '" + args[0].(string) + "' as a constant in the 'def' " +
-				"section of the script, you can't also declare it as a variable in the 'def' section."
-		},
-	},
-
-	"eval/var/const/b": {
 		Message: func(tok token.Token, args ...any) string {
 			return "reassigning constant '" + args[0].(string) + "' in the 'var' section."
 		},
@@ -1394,15 +1384,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm's system for handling functions written in Go has broken down.\n\n" +
 				"There are no circumstances under which you should actually see this error: if you ever " +
 				"do, please report it to the author of Charm as an issue."
-		},
-	},
-
-	"golang/type": {
-		Message: func(tok token.Token, args ...any) string {
-			return "gocodetype conversion failed for type <" + args[0].(string) + ">"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A Charm function written in Go has failed to compile at initialization time."
 		},
 	},
 
@@ -1635,17 +1616,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"modifier are private, things after it are public.\n\nYou're seeing this error because you used " +
 				"the 'private' modifier twice after the same headword." +
 				"\n\nFor more information about the 'private' modifier see 'hub help private'."
-		},
-	},
-
-	"init/sig": {
-		Message: func(tok token.Token, args ...any) string {
-			return args[0].(string)
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Basically, the problem is that the signature of the function you're trying to " +
-				"declare is too weird for Charm to understand it. For general information about how to " +
-				"declare functions, see 'hub help functions'."
 		},
 	},
 
@@ -1890,21 +1860,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/expect": {
-		Message: func(tok token.Token, args ...any) string {
-			return "expected token " + text.DescribeTok(tok) + ", got token " +
-				text.DescribeTok(args[0].(token.Token)) + " instead."
-		},
-
-		// I can improve this when I see which tokens are actually affected. We already have a lot of
-		// bracket-checking, by now it may literally never come up.
-
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expected to find " + text.DescribeTok(tok) +
-				"completing an expression or subexpression, and didn't."
-		},
-	},
-
 	"parse/expected": {
 		Message: func(tok token.Token, args ...any) string {
 			return "Charm wasn't expecting " + text.DescribeTok(tok)
@@ -2072,19 +2027,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/sig/a": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or assignment signature, and " +
-				"the " + text.DescribeTok(tok) + " doesn't belong in such a context.\n\n" +
-				"Sometimes when this error occurs, the parser complains about the parameter name you've used " +
-				"when from your point of view the problem is that the type you've tried to assign to it doesn't exist. If you're " +
-				"finding this issue difficult to debug, you should check if you've done that."
-		},
-	},
-
 	"parse/sig/b": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrrence of " + text.DescribeTok(tok)
@@ -2133,126 +2075,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"use are slightly more strict: it cannot follow a continuaton as indicated by a comma or '..'."
 		},
 	},
-
-	"repl/var": {
-		Message: func(tok token.Token, args ...any) string {
-			return "attempt to access the value of a private or non-existent variable or constant " + Emph(args[0].(string))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're referring in the REPL to an identifier " + Emph(args[0].(string)) + " as though it " +
-				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
-				"declare it as a variable or constant in the script, or perhaps you declared it private." +
-				"\n\nFor more information about the 'private' modifier see 'hub help private'."
-		},
-	},
-
-	"serve/open/filename": {
-		Message: func(tok token.Token, args ...any) string {
-			return "no filename supplied"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "To open a data file you need to put 'open <filename>' or Charm doesn't know what to open."
-		},
-	},
-
-	"serve/open/only": {
-		Message: func(tok token.Token, args ...any) string {
-			return "'open' has too many parameters"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Only one thing should follow 'open', the filename of the data file you want to open."
-		},
-	},
-
-	"serve/save/current": {
-		Message: func(tok token.Token, args ...any) string {
-			return "no current file"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for 'save' to work without any parameters, you need to first have done 'save <filename>' " +
-				"to establish what your file is called, and you don't seem to have done that."
-		},
-	},
-
-	"serve/save/only": {
-		Message: func(tok token.Token, args ...any) string {
-			return "'open' has too many parameters"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Only one thing should follow 'open', the filename of the data file you want to open."
-		},
-	},
-
-	"serve/save/file/a": {
-		Message: func(tok token.Token, args ...any) string {
-			return "os returns '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The main body of the error message was generated by the os of your computer when you tried to " +
-				"save the file. If you don't know what it means, you should consult the documentation of your os."
-		},
-	},
-
-	"serve/save/file/b": {
-		Message: func(tok token.Token, args ...any) string {
-			return "os returns '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The main body of the error message was generated by the os of your computer when you tried to " +
-				"save the file. If you don't know what it means, you should consult the documentation of your os."
-		},
-	},
-
-	"serve/open/file": {
-		Message: func(tok token.Token, args ...any) string {
-			return "os returns '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The main body of the error message was generated by the os of your computer when you tried to " +
-				"save the file. If you don't know what it means, you should consult the documentation of your os."
-		},
-	},
-	"sys/view/string": {
-		Message: func(tok token.Token, args ...any) string {
-			return "service variable '$view' must be of type <string>"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The service variable '$view' can only have the values \"charm\" or \"plain\"."
-		},
-	},
-	"sys/view/vals": {
-		Message: func(tok token.Token, args ...any) string {
-			return "the service variable '$view' can only have the values \"charm\" or \"plain\""
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The service variable '$view' can only have the values \"charm\" or \"plain\"."
-		},
-	},
-	"sys/timelog/bool": {
-		Message: func(tok token.Token, args ...any) string {
-			return "service variable '$timeLog' must be of type <bool>"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The '$timeLog' service variable exists to choose whether logstrings should indicate " +
-				"the time. So 'true' and 'false' are really your only options."
-		},
-	},
-	"sys/logpath/string": {
-		Message: func(tok token.Token, args ...any) string {
-			return "service variable '$logPath' must be of type <string>"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The service variable '$logPath' must either contain \"stdout\" or a valid filepath."
-		},
-	},
-	"sys/logpath/path": {
-		Message: func(tok token.Token, args ...any) string {
-			return "invalid path"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The service variable '$logPath' must either contain \"stdout\" or a valid filepath."
-		},
-	},
 }
 
 func blame(errors Errors, pos int, args ...string) string {
@@ -2289,4 +2111,8 @@ func DescribeObjects(objs []Object) string {
 		}
 	}
 	return total
+}
+
+func emphNum(i any) string {
+	return (text.Emph(strconv.Itoa(i.(int))))
 }

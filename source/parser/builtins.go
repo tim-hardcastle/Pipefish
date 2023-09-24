@@ -28,7 +28,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	"keys_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		sig, ok := p.StructSig[args[0].(*object.Type).Value]
 		if !ok {
-			return newError("builtins/keys/struct", tok)
+			return newError("built/keys/type", tok, args[0].(*object.Type).Value)
 		}
 		labels := []object.Object{}
 		for _, v := range sig {
@@ -505,7 +505,7 @@ func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
 	index := args[2].(*object.Pair).Left
 	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
-			return newError("built/list/empty", tok, object.ConcreteType(index))
+			return newError("built/pair/empty/a", tok, object.ConcreteType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
 			return addPairToList(tok, args[0], args[1], &object.Pair{
@@ -542,7 +542,7 @@ func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
 		return newError("built/list/int", tok, index)
 	}
 	if index.(*object.Integer).Value < 0 {
-		return newError("built/list/pos", tok)
+		return newError("built/list/neg", tok, index.(*object.Integer).Value < 0)
 	}
 	if index.(*object.Integer).Value >= len(args[0].(*object.List).Elements) {
 		return newError("built/range/list/a", tok, index.(*object.Integer).Value, len(args[0].(*object.List).Elements))
@@ -565,7 +565,7 @@ func unsafeAddPairToStruct(tok token.Token, args ...object.Object) object.Object
 	index := args[2].(*object.Pair).Left
 	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
-			return newError("built/struct/empty", tok, object.ConcreteType(index))
+			return newError("built/pair/empty/b", tok, object.ConcreteType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
 			return unsafeAddPairToStruct(tok, args[0], args[1], &object.Pair{
@@ -621,7 +621,7 @@ func unsafeAddPairToMap(tok token.Token, args ...object.Object) object.Object {
 	index := args[2].(*object.Pair).Left
 	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
-			return newError("built/map/empty", tok, object.ConcreteType(index))
+			return newError("built/pair/empty/c", tok, object.ConcreteType(index))
 		}
 		if len(index.(*object.List).Elements) == 1 {
 			return unsafeAddPairToMap(tok, args[0], args[1], &object.Pair{

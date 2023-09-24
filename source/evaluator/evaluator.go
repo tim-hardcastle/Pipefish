@@ -417,7 +417,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return left
 			}
 			if left.Type() != object.LIST_OBJ {
-				return newError("eval/map/list", node.Token, left)
+				return newError("eval/mapping/list", node.Token, left)
 			}
 			resultList := &object.List{Elements: []object.Object{}}
 			if node.Right.GetToken().Type == token.IDENT {
@@ -688,7 +688,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	if node.Operator == "break" { // TODO --- why did you implement these as unfixes? They are innately keywords.
 		if c.access != CMD {
-			return newError("eval/halt", node.Token)
+			return newError("eval/break", node.Token)
 		}
 		return &object.Effects{BreakHappened: true}
 	}
@@ -733,12 +733,12 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		return result
 	case node.Operator == "==":
 		if object.ConcreteType(left) != object.ConcreteType(right) {
-			return newErrorWithVals("eval/equal", node.Token, []object.Object{left, right})
+			return newErrorWithVals("eval/equal/a", node.Token, []object.Object{left, right}, object.ConcreteType(left), object.ConcreteType(right))
 		}
 		return object.MakeBool(object.Equals(left, right))
 	case node.Operator == "!=":
 		if object.ConcreteType(left) != object.ConcreteType(right) {
-			return newErrorWithVals("eval/equal", node.Token, []object.Object{left, right})
+			return newErrorWithVals("eval/equal/b", node.Token, []object.Object{left, right}, object.ConcreteType(left), object.ConcreteType(right))
 		}
 		return object.MakeInverseBool(object.Equals(left, right))
 	default:
@@ -988,7 +988,7 @@ func assignSysVar(tok token.Token, varName string, right object.Object, env *obj
 		}
 		return newError(err, tok)
 	}
-	return newError("eval/sys/exists", tok, varName)
+	return newError("eval/sv/exists", tok, varName)
 }
 
 func evalNotOperatorExpression(token token.Token, right object.Object) object.Object {
@@ -1031,7 +1031,7 @@ func evalGlobalExpression(node *ast.PrefixExpression, c *Context) object.Object 
 			ty, _ := c.env.Type(varName)
 			c.env.ImportGlobal(varName, val, ty)
 		} else {
-			return newError("eval/global/exists", node.GetToken())
+			return newError("eval/global/exists", node.GetToken(), varName)
 		}
 	}
 	return object.SUCCESS
@@ -1193,17 +1193,17 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 		switch container := container.(type) {
 		case *object.List:
 			if idx < 0 || idx > len(container.Elements)-1 {
-				return newError("eval/range/list", tok, idx, len(container.Elements))
+				return newError("eval/range/index/list", tok, idx, len(container.Elements))
 			}
 			return container.Elements[idx]
 		case *object.Tuple:
 			if idx < 0 || idx > len(container.Elements)-1 {
-				return newError("eval/range/tuple", tok, idx, len(container.Elements))
+				return newError("eval/range/index/tuple", tok, idx, len(container.Elements))
 			}
 			return container.Elements[idx]
 		case *object.Pair:
 			if idx < 0 || idx > 1 {
-				return newError("eval/range/pair", tok, idx, 2)
+				return newError("eval/range/index/pair", tok, idx, 2)
 			}
 			if idx == 0 {
 				return container.Left
@@ -1213,18 +1213,18 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			max := utf8.RuneCountInString(container.Value) - 1
 
 			if idx < 0 || idx > max {
-				return newError("eval/range/string", tok)
+				return newError("eval/range/index/string", tok)
 			}
 			result := object.String{Value: string([]rune(container.Value)[idx])}
 			return &result
 		case *object.Type:
 			if c.prsr.TypeSystem.PointsTo(container.Value, "enum") {
 				if idx < 0 || idx >= len(c.prsr.Enums[container.Value]) {
-					return newError("eval/range/enum", tok)
+					return newError("eval/range/index/enum", tok, idx, container.Value)
 				}
 				return c.prsr.Enums[container.Value][idx]
 			} else {
-				return newError("eval/index/type", tok)
+				return newError("eval/index/type", tok, container.Value)
 			}
 		}
 	case *object.Pair:
@@ -1232,36 +1232,39 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			return newError("eval/pair/int/left", tok)
 		}
 		if index.Right.Type() != object.INTEGER_OBJ {
-			return newError("evalp/pair/int/right", tok)
+			return newError("eval/pair/int/right", tok)
 		}
 		idx := index.Left.(*object.Integer).Value
 		idy := index.Right.(*object.Integer).Value
 		switch container := container.(type) {
 		case *object.List:
 			max := len(container.Elements)
+			var idy2 int
 			if idy < 0 {
-				idy = max + idy
+				idy2 = max + idy
 			}
-			if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
-				return newError("built/slice/range/list", tok, idx, idy, max)
+			if (idx < 0 || idx > max) || (idy2 < 0 || idy2 > max) || (idy2 < idx) {
+				return newError("eval/range/slice/list", tok, idx, idy, max)
 			}
 			return container.DeepSlice(idx, idy)
 		case *object.Tuple:
 			max := len(container.Elements)
+			var idy2 int
 			if idy < 0 {
-				idy = max + idy
+				idy2 = max + idy
 			}
-			if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
-				return newError("built/slice/range/list", tok, idx, idy, max)
+			if (idx < 0 || idx > max) || (idy2 < 0 || idy2 > max) || (idy2 < idx) {
+				return newError("eval/range/slice/list", tok, idx, idy, max)
 			}
 			return container.DeepSlice(idx, idy)
 		case *object.String:
 			max := len(container.Value)
+			var idy2 int
 			if idy < 0 {
-				idy = max + idy
+				idy2 = max + idy
 			}
-			if (idx < 0 || idx > max) || (idy < 0 || idy > max) || (idy < idx) {
-				return newError("built/slice/range/list", tok, idx, idy, max)
+			if (idx < 0 || idx > max) || (idy2 < 0 || idy2 > max) || (idy2 < idx) {
+				return newError("eval/range/slice/list", tok, idx, idy, max)
 			}
 			return &object.String{Value: container.Value[idx:idy]}
 		}
@@ -1516,7 +1519,8 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 // Having got a Function type out of a lambda or the function tree, we can apply it to the values to get a return value.
 func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
 	if f.Private && c.access == REPL {
-		return newError("eval/repl/private", tok)
+		// THEN WE WILL LIE. We don't want someone using the REPL to know if a private function exists or not.
+		return newErrorWithVals("eval/args/a", tok, params, params, false)
 	}
 	if f.Cmd && c.access == DEF {
 		return newError("eval/cmd/function", tok)
@@ -1748,7 +1752,7 @@ func evalContactExpression(params []object.Object, tok token.Token, c *Context) 
 	return result
 }
 
-// So, we're going to embed Charm in Charm, and because this is a wroking prototype we're going to do it ... lexically.
+// So, we're going to embed Charm in Charm, and because this is a working prototype we're going to do it ... lexically.
 func preparseContactExpression(snippet string, tok token.Token, c *Context) (string, object.Object) {
 	outputText := ""
 	charmToEvaluate := ""
@@ -1771,7 +1775,7 @@ func preparseContactExpression(snippet string, tok token.Token, c *Context) (str
 		parsedCharm := c.prsr.ParseLine(tok.Source, charmToEvaluate)
 		if c.prsr.ErrorsExist() {
 			c.prsr.ClearErrors()
-			return "", newError("contact/charm", tok, charmToEvaluate)
+			return "", newError("eval/contact/charm", tok, charmToEvaluate)
 		}
 		charmValue := Eval(*parsedCharm, c)
 		switch charmValue := charmValue.(type) {
