@@ -990,6 +990,7 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 		}
 	case *ast.SuffixExpression:
 		if p.Endfixes.Contains(start.Operator) {
+			println("Still here!")
 			left := start.Args
 			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
 			return left

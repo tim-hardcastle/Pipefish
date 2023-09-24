@@ -855,7 +855,7 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 			}
 		}
 	} else {
-		if hasMidOrEndfix && !inParenthesis && !(tok.Literal == ")") {
+		if hasMidOrEndfix && !inParenthesis && !(tok.Literal == ")") && !uP.Parser.Suffixes.Contains(tok.Literal) {
 			uP.Parser.Endfixes.Add(tok.Literal)
 		}
 	}

@@ -64,10 +64,10 @@ log off :
     HubResponse("log-off", [])
 
 peek on :
-    HubResponse("peek-on", [string option])
+    HubResponse("peek-on", [])
 
 peek off :
-    HubResponse("peek-off", [string option])
+    HubResponse("peek-off", [])
 
 quit :
     HubResponse("quit", [])
