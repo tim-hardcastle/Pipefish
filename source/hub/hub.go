@@ -659,14 +659,14 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		if len(hub.ers[0].Values) == 1 {
-			fmt.Print("\nThe value passed was:\n\n")
+			hub.WriteString("\nThe value passed was:\n")
 		} else {
-			fmt.Print("\nValues passed were:\n\n")
+			hub.WriteString("\nValues passed were:\n")
 		}
 		for _, v := range hub.ers[0].Values {
-			fmt.Println(text.BULLET + v.Inspect(object.ViewCharmLiteral))
+			hub.WritePretty(text.BULLET + v.Inspect(object.ViewCharmLiteral))
 		}
-		fmt.Println()
+		hub.WriteString("\n")
 		return false
 	default:
 		panic("Didn't return from verb " + verb)

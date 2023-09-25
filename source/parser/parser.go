@@ -208,10 +208,6 @@ func New() *Parser {
 func (p *Parser) NextToken() {
 	p.checkNesting()
 	p.SafeNextToken()
-	// if p.curToken.Source != "builtin library" {
-	//	fmt.Println(p.curToken)
-
-	//}
 }
 
 func (p *Parser) SafeNextToken() {
@@ -958,13 +954,13 @@ func (p *Parser) parseTryExpression() ast.Node {
 		varName := p.curToken.Literal
 		p.NextToken()
 		if p.curToken.Type != token.COLON {
-			p.Throw("parser/try/colon", p.curToken)
+			p.Throw("parse/try/colon", p.curToken)
 		}
 		p.NextToken()
 		exp := p.parseExpression(COLON)
 		return &ast.TryExpression{Token: p.curToken, Right: exp, VarName: varName}
 	} else {
-		p.Throw("parser/try/ident", p.curToken)
+		p.Throw("parse/try/ident", p.curToken)
 		return nil
 	}
 }
@@ -990,7 +986,6 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 		}
 	case *ast.SuffixExpression:
 		if p.Endfixes.Contains(start.Operator) {
-			println("Still here!")
 			left := start.Args
 			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
 			return left
@@ -1171,7 +1166,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				if !(TypeExists(arg.Operator, p.TypeSystem) ||
 					arg.Operator == "ast" || arg.Operator == "varname" ||
 					arg.Operator == "varref") {
-					p.Throw("parse/sig/type", arg.Token)
+					p.Throw("parse/sig/type/a", arg.Token)
 					return nil
 				}
 				switch inner := arg.Args[0].(type) {
@@ -1222,7 +1217,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				case *ast.Identifier:
 					varName = potentialVariable.Value
 				default:
-					p.Throw("parse/sig/varchar/ident", potentialVariable.GetToken())
+					p.Throw("parse/sig/ident/c", potentialVariable.GetToken())
 					return nil
 				}
 				switch potentialInteger := arg.Args[2].(type) {

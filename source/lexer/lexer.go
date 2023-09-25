@@ -11,19 +11,19 @@ import (
 )
 
 type Lexer struct {
-	reader          strings.Reader
-	input           string
-	ch              rune                // current rune under examination
-	line            int                 // the line number
-	char            int                 // the character number
-	tstart          int                 // the value of char at the start of a token
-	newline         bool                // whether we are at the start of a line and so should be treating whitespace syntactically
-	afterWhitespace bool                // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
-	whitespaceStack stack.Stack[string] // levels of whitespace to unindent to
-	Ers             object.Errors
-	source          string
+	reader            strings.Reader
+	input             string
+	ch                rune                // current rune under examination
+	line              int                 // the line number
+	char              int                 // the character number
+	tstart            int                 // the value of char at the start of a token
+	newline           bool                // whether we are at the start of a line and so should be treating whitespace syntactically
+	afterWhitespace   bool                // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
+	whitespaceStack   stack.Stack[string] // levels of whitespace to unindent to
+	Ers               object.Errors
+	source            string
 	snippetWhitespace string
-	afterSnippet bool
+	afterSnippet      bool
 }
 
 func New(source, input string) *Lexer {
@@ -440,7 +440,7 @@ func (l *Lexer) readSnippet() string {
 	for l.ch == ' ' || l.ch == '\t' {
 		l.readChar()
 	}
-	// There are two possibilities. Either the whole snippet is on the same line as the 
+	// There are two possibilities. Either the whole snippet is on the same line as the
 	// `---` token, or it's an indent on the succeeding lines. Just like with a colon.
 	if l.ch == '\n' { // --- then we have to mess with whitespace.
 		langIndent := ""
@@ -457,7 +457,7 @@ func (l *Lexer) readSnippet() string {
 				}
 				l.readChar()
 			}
-			if langIndent == "" { // Then this is the first time around. 
+			if langIndent == "" { // Then this is the first time around.
 				if currentWhitespace == "" {
 					l.Throw("lex/emdash/indent/a", l.NewToken(token.ILLEGAL, "lex/emdash/indent/a"))
 					return result
@@ -475,8 +475,7 @@ func (l *Lexer) readSnippet() string {
 				return result
 			}
 			if !strings.HasPrefix(currentWhitespace, stackTop) && !(currentWhitespace == "\n") {
-				println("current '", currentWhitespace, "'")
-				println("stack top '", stackTop, "'")
+
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "lex/emdash/indent/c"))
 				return result
 			}
@@ -501,12 +500,12 @@ func (l *Lexer) readSnippet() string {
 
 func (l *Lexer) readGolang() string {
 	result := ""
-	for l.peekChar() == ' ' || l.peekChar() == '\t' {
+	for (l.peekChar() == ' ' || l.peekChar() == '\t') && l.peekChar() != '{' {
 		l.readChar()
 	}
 	// We expect a brace after the gocode keyword.
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
-		l.Throw("lex/char", l.NewToken(token.ILLEGAL, "lex/char"))
+		l.Throw("lex/gocode", l.NewToken(token.ILLEGAL, "lex/gocode"))
 		return ""
 	}
 	if l.peekChar() == '"' {

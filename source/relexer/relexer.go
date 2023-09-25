@@ -40,7 +40,7 @@ type Relexer struct {
 	lexer                    lexer.Lexer
 	preTok, curTok, nexTok   token.Token
 	givenHappened            bool
-	ifLogHappened			 bool
+	ifLogHappened            bool
 	lparenMeansInnerFunction bool
 	innerFunctionIsHappening bool
 	nestingLevel             int
@@ -133,9 +133,9 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 
 	if rl.nexTok.Type == token.BEGIN &&
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON || rl.curTok.Type == token.WEAK_COLON ||
-			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || 
-			(rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) || 
-			(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP)){
+			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) ||
+				(rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) ||
+				(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP)) {
 		rl.Throw("relex/indent", rl.curTok)
 	}
 
@@ -178,8 +178,6 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			rl.nexTok.Type == token.RPAREN {
 			return rl.burnToken()
 		}
-
-		
 
 	case token.IDENT:
 		if rl.curTok.Literal == "struct" {
@@ -233,13 +231,13 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			rl.getToken()
 		}
 	case token.LOG:
-		if rl.preTok.Type == token.COMMA ||  rl.preTok.Type ==token.DOTDOT {
+		if rl.preTok.Type == token.COMMA || rl.preTok.Type == token.DOTDOT {
 			rl.Throw("relex/log", rl.curTok)
 		}
 	}
 
 	rl.getToken() // We shuffle them all along before returning 'cos we sure can't do it afterwards.
-	//fmt.Println(rl.preTok, rl.nestingLevel, rl.givenHappened)
+
 	return rl.preTok // Which up until now has been the curTok
 }
 

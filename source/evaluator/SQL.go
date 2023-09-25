@@ -31,7 +31,7 @@ func evalPostSQL(params []object.Object, tok token.Token, c *Context) object.Obj
 func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Object {
 	charmType := params[0].(*object.Type)
 	if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, charmType.Value, "struct") {
-		return newError("sql/in/type", tok, charmType.Value)
+		return newError("sql/in/type/a", tok, charmType.Value)
 	}
 	query, args, charmError := parseSQL(params[1].(*object.Struct), tok, c)
 	if charmError != nil {
@@ -63,7 +63,7 @@ func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Obje
 				targetBools = append(targetBools, false)
 				pointerList = append(pointerList, &targetBools[len(targetBools)-1])
 			default:
-				return newError("sql/type", tok, v.VarType)
+				return newError("sql/in/type/b", tok, v.VarType)
 			}
 		}
 	}
@@ -163,7 +163,7 @@ func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []an
 				}
 				goValue := getGoValue(charmValue.Elements[i])
 				if goValue == nil {
-					return "", args, newError("sql/type/b", tok)
+					return "", args, newError("sql/parse/type/a", tok)
 				}
 				args = append(args, goValue)
 				dollarNumber++
@@ -172,7 +172,7 @@ func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []an
 		default:
 			goValue := getGoValue(charmValue)
 			if goValue == nil {
-				return "", args, newError("sql/type/b", tok)
+				return "", args, newError("sql/parse/type/b", tok)
 			}
 			outputText = outputText + "($" + strconv.Itoa(dollarNumber) + ")"
 			args = append(args, goValue)

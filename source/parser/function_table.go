@@ -5,7 +5,6 @@ import (
 	"charm/source/object"
 	"charm/source/signature"
 	"charm/source/token"
-	"fmt"
 )
 
 type FunctionTable map[string][]ast.Function
@@ -59,9 +58,9 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 	return false
 }
 
-func UpdateEnvironment(sig signature.Signature, params []object.Object, env *object.Environment) *object.Environment {
+func UpdateEnvironment(sig signature.Signature, params []object.Object, env *object.Environment, tok token.Token) (*object.Environment, object.Object) {
 	if len(sig) == 0 {
-		return env
+		return env, nil
 	}
 	sigPos := 0
 	tupleAccumulator := []object.Object{}
@@ -91,16 +90,13 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 		if sig[sigPos].VarType == "varname" || sig[sigPos].VarType == "varref" {
 			obj, ok := env.Get(sig[sigPos].VarName)
 			if !ok {
-				fmt.Println("Oops 1") //TODO ... some actual error messages?
-				return env
+				return nil, newError("parse/deref/unknown", tok, sig[sigPos].VarName)
 			}
 			if obj.Type() != object.CODE_OBJ {
-				fmt.Println("Oops 2")
-				return env
+				return nil, newError("parse/deref/code", tok, sig[sigPos].VarName)
 			}
 			if obj.(*object.Code).Value.GetToken().Type != token.IDENT {
-				fmt.Println("Oops 3")
-				return env
+				return nil, newError("parse/deref/ident", tok, sig[sigPos].VarName)
 			}
 			env.Set(obj.(*object.Code).Value.GetToken().Literal, params[paramPos])
 		} else {
@@ -108,7 +104,7 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 		}
 		sigPos++
 	}
-	return env
+	return env, nil
 }
 
 // Yeah, this isn't very DRY, but it disentangles this from the Golang bits which is helpful.

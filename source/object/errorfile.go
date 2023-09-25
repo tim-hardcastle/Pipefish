@@ -1396,6 +1396,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"golang/type/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't pass value of type " + text.Emph(args[0].(string)) + " to Go as raw value"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "This is because the author of Charm hasn't gotten around to it yet."
+		},
+	},
+
+	"golang/type/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't pass value of type " + text.Emph(args[0].(string)) + " to Go"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "This is because the author of Charm hasn't gotten around to it yet."
+		},
+	},
+
 	"init/close": {
 		Message: func(tok token.Token, args ...any) string {
 			return "'(' unclosed by outdent"
@@ -1417,6 +1435,51 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you should be doing in the 'cmd' section is defining commands."
+		},
+	},
+
+	"init/contacts/assign": {
+		Message: func(tok token.Token, args ...any) string {
+			return "attempt to declare a variable or constant in the 'contacts' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of a pair of the form <service name>::"<file path>".`
+		},
+	},
+
+	"init/contacts/form": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed entry in 'contacts' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of a pair of the form <service name>::"<file path>".`
+		},
+	},
+
+	"init/contacts/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed entry in 'contacts' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of a pair of the form <service name>::"<file path>".`
+		},
+	},
+
+	"init/contacts/infix": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed entry in 'contacts' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of a pair of the form <service name>::"<file path>".`
+		},
+	},
+
+	"init/contacts/string": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed entry in 'contacts' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of a pair of the form <service name>::"<file path>".`
 		},
 	},
 
@@ -1592,6 +1655,33 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/lang/assign": {
+		Message: func(tok token.Token, args ...any) string {
+			return "attempt to declare a variable or constant in the 'languages' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'languages' section should consist only of the name of a language.`
+		},
+	},
+
+	"init/lang/form": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed entry in 'languages' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'languages' section should consist only of the name of a language.`
+		},
+	},
+
+	"init/lang/infix": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed entry in 'languages' section"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'languages' section should consist only of the name of a language.`
+		},
+	},
+
 	"init/overload": {
 		Message: func(tok token.Token, args ...any) string {
 			return "too much overloading of function '" + args[0].(string) + "'"
@@ -1733,6 +1823,42 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"lex/emdash/indent/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "bad indentation in snippet"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The '---' operator, followed by a snippet, obeys the same sort of whitespace rules as a ':' followed by a block of code. Either the snippet is all one line, in which case it may go on the same line as the '---'; or it is a block defined by indentation."
+		},
+	},
+
+	"lex/emdash/indent/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "bad indentation in snippet"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The '---' operator, followed by a snippet, obeys the same sort of whitespace rules as a ':' followed by a block of code. Either the snippet is all one line, in which case it may go on the same line as the '---'; or it is a block defined by indentation."
+		},
+	},
+
+	"lex/emdash/indent/c": {
+		Message: func(tok token.Token, args ...any) string {
+			return "bad indentation in snippet"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The '---' operator, followed by a snippet, obeys the same sort of whitespace rules as a ':' followed by a block of code. Either the snippet is all one line, in which case it may go on the same line as the '---'; or it is a block defined by indentation."
+		},
+	},
+
+	"lex/gocode": {
+		Message: func(tok token.Token, args ...any) string {
+			return "no '{' after 'gocode"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm expects the 'gocode' token to be followed by '{' to introduce the Go code, to be terminated by a matching '}'."
+		},
+	},
+
 	"lex/oct": {
 		Message: func(tok token.Token, args ...any) string {
 			return "invalid octal token"
@@ -1785,6 +1911,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"lex/quote/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "string unterminated by end of line"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Having begun a string literal with an opening quote, you haven't concluded it with a matching " +
+				"closing quote before the end of your line of code."
+		},
+	},
+
+	"lex/quote/c": {
+		Message: func(tok token.Token, args ...any) string {
+			return "string unterminated by end of line"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Having begun a string literal with an opening quote, you haven't concluded it with a matching " +
+				"closing quote before the end of your line of code."
+		},
+	},
+
+	"lex/quote/d": {
 		Message: func(tok token.Token, args ...any) string {
 			return "string unterminated by end of line"
 		},
@@ -1857,6 +2003,33 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/deref/code": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.DescribeTok(tok) + " with 'varname' as it is not a 'code' value."
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You're using 'varname' to dereference a variable that doesn't atually exist."
+		},
+	},
+
+	"parse/deref/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference " + text.DescribeTok(tok) + " as variable."
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You're using 'varname' to dereference a 'code' value that doesn't contain an identifier."
+		},
+	},
+
+	"parse/deref/unknown": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't dereference variable " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You're using 'varname' to dereference a variable that doesn't atually exist."
+		},
+	},
+
 	"parse/eol": {
 		Message: func(tok token.Token, args ...any) string {
 			return text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
@@ -1896,6 +2069,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error occurs when something which only makes sense as a prefix, such as 'not', is " +
 				"then not followed by anything."
+		},
+	},
+
+	"parse/inner": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed inner function declaration"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm thinks you're trying to declare an inner function here but is unable to parse it as such."
 		},
 	},
 
@@ -1972,6 +2154,33 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/raw/form": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed signature"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Something's gone wrong with your syntax around the word 'raw', so that Charm isn't sure what you want to do."
+		},
+	},
+
+	"parse/raw/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected identifier, not " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm was expecting the name of a parameter at that point in the function declaration."
+		},
+	},
+
+	"parse/raw/type": {
+		Message: func(tok token.Token, args ...any) string {
+			return "no such type as " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The 'raw' suffix must be attached either directly to the name of a parameter, or to a Charm type."
+		},
+	},
+
 	"parse/ret/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
@@ -1989,6 +2198,43 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
 				"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
+		},
+	},
+
+	"parse/sig/ident/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected identifier, found " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At this point in the function declaration Charm was expecting the name of a parameter."
+		},
+	},
+
+	"parse/sig/ident/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected identifier, found " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At this point in the function declaration Charm was expecting the name of a parameter."
+		},
+	},
+
+	"parse/sig/ident/c": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected identifier, found " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At this point in the function declaration Charm was expecting the name of a parameter."
+		},
+	},
+
+	"parse/sig/infix": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unexpected occurrrence of " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm is trying to interpret this as a function or assignment signature, and " +
+				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
 		},
 	},
 
@@ -2066,6 +2312,51 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/sig/type/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "no such type as " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm thinks that you're trying to specify a type in a function or assignment signature, but it doesn't know the name of the type."
+		},
+	},
+
+	"parse/sig/type/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "no such type as " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm thinks that you're trying to specify a type in a function or assignment signature, but it doesn't know the name of the type."
+		},
+	},
+
+	"parse/sig/varchar/int": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected integer literal, found " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At this point in the function declaration Charm was expecting an integer literal specifying the size of the 'varchar' type."
+		},
+	},
+
+	"parse/try/colon": {
+		Message: func(tok token.Token, args ...any) string {
+			return "found " + text.DescribeTok(tok) + " in 'try' expression"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "'try' should be followed either by a colon, or by the name of a variable to capture the error, followed by a colon."
+		},
+	},
+
+	"parse/try/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "found " + text.DescribeTok(tok) + " in 'try' expression"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "'try' should be followed either by a colon, or by the name of a variable to capture the error, followed by a colon."
+		},
+	},
+
 	"relex/indent": {
 		Message: func(tok token.Token, args ...any) string {
 			return "detatched indent"
@@ -2082,6 +2373,114 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the logging syntax looks a lot like a comment, the rules governing its " +
 				"use are slightly more strict: it cannot follow a continuaton as indicated by a comma or '..'."
+		},
+	},
+
+	"sql/charm": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unable to parse Charm in SQL snippet"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Your SQL contains an expression of the form '|...|', which Charm is attempting to interpret as being in the Charm language. However, the parser isn't able to parse it."
+		},
+	},
+
+	"sql/conv": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unable to perform type conversion"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+		},
+	},
+
+	"sql/exists": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't find SQL database"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "It seems like you haven't done 'hub config db', and so Charm doesn't know which database you want to talk to."
+		},
+	},
+
+	"sql/in/read": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't read from SQL database; error was \"" + args[0].(string) + "\""
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Hopefully the error returned from SQL makes it clear why this has happened."
+		},
+	},
+
+	"sql/in/scan": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't scan data from SQL database; error was \"" + args[0].(string) + "\""
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Hopefully the error returned from SQL makes it clear why this has happened."
+		},
+	},
+
+	"sql/in/type/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't read from database into type" + text.Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm expects a subtype of 'struct' here that matches the data you're trying to fetch from the database."
+		},
+	},
+
+	"sql/in/type/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "failed type conversion"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+		},
+	},
+
+	"sql/out": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't write to SQL database; error was \"" + args[0].(string) + "\""
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Hopefully the error returned from SQL makes it clear why this has happened."
+		},
+	},
+
+	"sql/sig": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't convert Charm struct to SQL table"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Recall that only a limited number of types have been implemented for demonstration purposes."
+		},
+	},
+
+	"sql/parse/type/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "failed type conversion"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+		},
+	},
+
+	"sql/parse/type/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "failed type conversion"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+		},
+	},
+
+	"sql/struct": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't convert type " + text.DescribeTok(tok) + " to SQL table"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Only concrete subtypes of 'struct' can be converted to the signature of a SQL table."
 		},
 	},
 }

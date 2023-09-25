@@ -1213,7 +1213,7 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			max := utf8.RuneCountInString(container.Value) - 1
 
 			if idx < 0 || idx > max {
-				return newError("eval/range/index/string", tok)
+				return newError("eval/range/index/string", tok, idx, max)
 			}
 			result := object.String{Value: string([]rune(container.Value)[idx])}
 			return &result
@@ -1579,7 +1579,10 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 
 	//So if we've got this far we have a regular old function/command/lambda with its body written in Charm.
 	default:
-		newEnvironment := parser.UpdateEnvironment(f.Sig, params, env)
+		newEnvironment, err := parser.UpdateEnvironment(f.Sig, params, env, tok)
+		if err != nil {
+			return err
+		}
 		if !f.Cmd {
 			newEnvironment.InitializeConstant("this", &object.Func{Function: f, Env: env}) // Commands aren't meant to be recursive.
 		}
