@@ -73,10 +73,12 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 				sigPos = sigPos + 2
 				continue
 			}
-			if params[paramPos] == object.EMPTY_TUPLE {
-				env.Set(sig[sigPos].VarName, object.EMPTY_TUPLE)
-				tupleAccumulator = []object.Object{}
-				sigPos = sigPos + 1
+			if params[paramPos].Type() == object.TUPLE_OBJ && len(params[paramPos].(*object.Tuple).Elements) == 0 {
+				if len(tupleAccumulator) == 0 && (paramPos == len(params)-1 || params[paramPos+1].Type() == object.BLING_OBJ) {
+					env.Set(sig[sigPos].VarName, object.EMPTY_TUPLE)
+					tupleAccumulator = []object.Object{}
+					sigPos = sigPos + 1
+				}
 				continue
 			}
 			if paramPos == len(params)-1 {
@@ -87,6 +89,11 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 			tupleAccumulator = append(tupleAccumulator, params[paramPos])
 			continue
 		}
+
+		if params[paramPos].Type() == object.TUPLE_OBJ && len(params[paramPos].(*object.Tuple).Elements) == 0 {
+			continue
+		}
+
 		if sig[sigPos].VarType == "varname" || sig[sigPos].VarType == "varref" {
 			obj, ok := env.Get(sig[sigPos].VarName)
 			if !ok {
@@ -125,10 +132,12 @@ func GetValueList(sig signature.Signature, params []object.Object) []object.Obje
 				sigPos = sigPos + 2
 				continue
 			}
-			if params[paramPos] == object.EMPTY_TUPLE {
-				result = append(result, object.EMPTY_TUPLE)
-				tupleAccumulator = []object.Object{}
-				sigPos = sigPos + 1
+			if params[paramPos].Type() == object.TUPLE_OBJ && len(params[paramPos].(*object.Tuple).Elements) == 0 {
+				if len(tupleAccumulator) == 0 && (paramPos == len(params)-1 || params[paramPos+1].Type() == object.BLING_OBJ) {
+					result = append(result, object.EMPTY_TUPLE)
+					tupleAccumulator = []object.Object{}
+					sigPos = sigPos + 1
+				}
 				continue
 			}
 			if paramPos == len(params)-1 {
@@ -137,6 +146,10 @@ func GetValueList(sig signature.Signature, params []object.Object) []object.Obje
 				break
 			}
 			tupleAccumulator = append(tupleAccumulator, params[paramPos])
+			continue
+		}
+
+		if params[paramPos].Type() == object.TUPLE_OBJ && len(params[paramPos].(*object.Tuple).Elements) == 0 {
 			continue
 		}
 

@@ -1326,7 +1326,15 @@ func (ft *functionTreeWalker) hasAst() bool {
 }
 
 func (ft *functionTreeWalker) hasNewTuple() bool {
-	return (len(ft.position.Branch) > 0 && ft.position.Branch[0].TypeName == "tuple" && !ft.lastWasTuple)
+	if ft.lastWasTuple {
+		return false
+	}
+	for _, v := range ft.position.Branch {
+		if v.TypeName == "tuple" {
+			return true
+		}
+	}
+	return false
 }
 
 func newFunctionTreeWalker(functionTree *ast.FnTreeNode) *functionTreeWalker {
@@ -1438,9 +1446,9 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 				if sourceObj.Type() == object.TUPLE_OBJ { // If it's a tuple but it's empty ...
 					if len(sourceObj.(*object.Tuple).Elements) == 0 {
 						if treeWalker.hasNewTuple() &&
-							(arg < len(args)-1 && args[arg+1].GetToken().Type == token.IDENT &&
+							((arg < len(args)-1 && args[arg+1].GetToken().Type == token.IDENT &&
 								c.prsr.Bling.Contains(args[arg+1].GetToken().Literal)) ||
-							arg == len(args)-1 {
+								arg == len(args)-1) {
 							singleObj = object.EMPTY_TUPLE
 							arg = arg + 1
 							break

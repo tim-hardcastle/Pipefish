@@ -356,7 +356,7 @@ func (gh *GoHandler) goToCharm(goval any) object.Object {
 	case string:
 		return &object.String{Value: goval}
 	case *object.GoReturn:
-		result := &object.Tuple{Elements: []object.Object{}}
+		result := object.EMPTY_TUPLE
 		for _, v := range goval.Elements {
 			newObj := gh.goToCharm(v)
 			if newObj.Type() == object.ERROR_OBJ {

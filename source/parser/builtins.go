@@ -355,6 +355,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"spread_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+
 		return &object.Tuple{Elements: args[0].(*object.Set).Elements}
 	},
 
