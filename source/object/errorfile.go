@@ -424,34 +424,34 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/cmd/varname/code": {
+	"eval/cmd/ident/code": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't dereference " + emph(args[0].(string)) + " as variable name: it does not contain a <code> object"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
+			return "In order for a variable to be dereferenced as a ident, it must contain a code object consisting of a single identifier"
 		},
 	},
 
-	"eval/cmd/varname/const": {
+	"eval/cmd/ident/const": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't dereference " + emph(args[0].(string)) + " as variable " + emph(args[1].(string)) + ", as the latter is defined as a constant"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a varname, the identifier contained in the variable must have been defined as a variable in the 'var' section"
+			return "In order for a variable to be dereferenced as a ident, the identifier contained in the variable must have been defined as a variable in the 'var' section"
 		},
 	},
 
-	"eval/cmd/varname/ident": {
+	"eval/cmd/ident/ident": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't dereference " + emph(args[0].(string)) + " as variable name: it does not contain an identifier"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
+			return "In order for a variable to be dereferenced as a ident, it must contain a code object consisting of a single identifier"
 		},
 	},
 
-	"eval/cmd/varname/type": {
+	"eval/cmd/ident/type": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't assign value of type " + emph(args[0].(string)) + " to dereferenced variable of type" + emph(args[1].(string))
 		},
@@ -2014,10 +2014,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/deref/code": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.DescribeTok(tok) + " with 'varname' as it is not a 'code' value."
+			return "can't dereference " + text.DescribeTok(tok) + " with 'ident' as it is not a 'code' value."
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using 'varname' to dereference a variable that doesn't atually exist."
+			return "You're using 'ident' to dereference a variable that doesn't atually exist."
 		},
 	},
 
@@ -2026,7 +2026,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't dereference " + text.DescribeTok(tok) + " as variable."
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using 'varname' to dereference a 'code' value that doesn't contain an identifier."
+			return "You're using 'ident' to dereference a 'code' value that doesn't contain an identifier."
 		},
 	},
 
@@ -2035,7 +2035,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't dereference variable " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using 'varname' to dereference a variable that doesn't atually exist."
+			return "You're using 'ident' to dereference a variable that doesn't atually exist."
 		},
 	},
 

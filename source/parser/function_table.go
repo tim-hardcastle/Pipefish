@@ -37,7 +37,7 @@ func (p *Parser) ParamsFitSig(s signature.Signature, parameters []object.Object)
 			return true
 		}
 
-		if !IsObjectInType(p.TypeSystem, param, s[i].VarType) && s[i].VarType != "varname" {
+		if !IsObjectInType(p.TypeSystem, param, s[i].VarType) && s[i].VarType != "ident" {
 			return false
 		}
 		if param.Type() == object.BLING_OBJ &&
@@ -94,7 +94,7 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 			continue
 		}
 
-		if sig[sigPos].VarType == "varname" || sig[sigPos].VarType == "varref" {
+		if sig[sigPos].VarType == "ident" {
 			obj, ok := env.Get(sig[sigPos].VarName)
 			if !ok {
 				return nil, newError("parse/deref/unknown", tok, sig[sigPos].VarName)

@@ -1565,10 +1565,10 @@ capture (exp ast) : exp
 cmd
 
 zero (v ast) :
-    v varname = 0
+    v ident = 0
 
 (v ast) ++ :
-	v varname = (eval v) + 1
+	v ident = (eval v) + 1
 
 def
 
@@ -1576,7 +1576,7 @@ sum (exp ast) over (ix ast) range (p pair):
     (while condition do action to p[0], 0)[1]
 given:
     condition(j, s): j < p[1]
-    action(ix varname, s) : (eval ix) + 1, s + (eval exp)
+    action(ix ident, s) : (eval ix) + 1, s + (eval exp)
 ```
 
 Let's explore this a bit at a time via the REPL. First of all, there is a `code` type. This is a perfectly normal Charm type which happens to contain a Charm expression:
@@ -1615,7 +1615,7 @@ code (x + 3)
 #9 → 
 ```
 
-Within the body of the function, we can of course use `eval` to turn the code object so produced into a value. But we also need a way to turn it into a name. This is achieved by the `varname` keyword. Consider the REPL output:
+Within the body of the function, we can of course use `eval` to turn the code object so produced into a value. But we also need a way to turn it into a name. This is achieved by the `ident` keyword. Consider the REPL output:
 
 ```
 #9 → zero x        
@@ -1625,9 +1625,9 @@ ok
 #9 →
 ```
 
-By using `varname` and not `eval`, we have recovered the name and not the value of `x` from `v`.
+By using `ident` and not `eval`, we have recovered the name and not the value of `x` from `v`.
 
-In the example of the `++` operator we want the variable to act as a name on the left of the `=`(for which we use `varname`) and as a value on the right (for which we use `eval`).
+In the example of the `++` operator we want the variable to act as a name on the left of the `=`(for which we use `ident`) and as a value on the right (for which we use `eval`).
 
 ```
 #9 → x++ 

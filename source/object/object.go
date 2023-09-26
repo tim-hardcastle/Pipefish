@@ -130,11 +130,8 @@ type BuiltError struct {
 }
 
 // The 'code' type contains an AST. Charm's 'eval' function, when applied to it, evaluates the AST.
-// The Env is the environment in which it was created, allowing a macro to act on the local
-// variables of a command using 'varref'.
 type Code struct {
 	Value ast.Node
-	Env   *Environment
 }
 
 func (c *Code) DeepCopy() Object { return c }

@@ -383,7 +383,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		newContext := NewContext(c.prsr, left.(*object.Func).Env, c.access, c.logging)
 		return applyFunction(left.(*object.Func).Function, params, node.Token, newContext)
 	case *ast.CodeLiteral:
-		return &object.Code{Value: node.Right, Env: c.env}
+		return &object.Code{Value: node.Right}
 	case *ast.Nothing:
 		return &object.Tuple{Elements: []object.Object{}}
 	case *ast.StreamingExpression:
@@ -819,7 +819,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 			}
 			return nil
 		}
-		if variable.VarType != "*" && variable.VarType != "varname" && variable.VarType != "varref" {
+		if variable.VarType != "*" && variable.VarType != "ident" {
 			return newError("eval/cmd/assign", tok)
 		}
 		if c.env.IsConstant(variable.VarName) {
@@ -836,40 +836,35 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC {
 			return newError("eval/cmd/global/a", tok, variable.VarName)
 		}
-		if variable.VarType != "varname" && variable.VarType != "varref" {
+		if variable.VarType != "ident" {
 			c.env.Set(variable.VarName, right)
 			return nil
 		}
 		// Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
 		contents, _ := c.env.Get(variable.VarName)
 		if contents.Type() != object.CODE_OBJ {
-			return newError("eval/cmd/varname/code", tok, variable.VarName)
+			return newError("eval/cmd/ident/code", tok, variable.VarName)
 		}
 		if contents.(*object.Code).Value.GetToken().Type != token.IDENT {
-			return newError("eval/cmd/varname/ident", tok, variable.VarName)
+			return newError("eval/cmd/ident/ident", tok, variable.VarName)
 		}
 		refName := contents.(*object.Code).Value.GetToken().Literal
-		var envToUse *object.Environment
-		if variable.VarType == "varname" {
-			envToUse = c.env
-		} else {
-			envToUse = contents.(*object.Code).Env
-		}
-		if !envToUse.Exists(refName) {
-			envToUse.InitializeLocal(refName, right, object.ConcreteType(right))
+
+		if !c.env.Exists(refName) {
+			c.env.InitializeLocal(refName, right, object.ConcreteType(right))
 			return nil
 		}
-		if envToUse.IsConstant(refName) {
-			return newError("eval/cmd/varname/const", tok, refName)
+		if c.env.IsConstant(refName) {
+			return newError("eval/cmd/ident/const", tok, refName)
 		}
 		if strings.HasPrefix(refName, "$") {
-			return assignSysVar(tok, refName, right, envToUse)
+			return assignSysVar(tok, refName, right, c.env)
 		}
-		contType, _ := envToUse.Type(refName)
+		contType, _ := c.env.Type(refName)
 		if !parser.IsObjectInType(c.prsr.TypeSystem, right, contType) {
-			return newError("eval/cmd/varname/type", tok, object.ConcreteType(right), contType)
+			return newError("eval/cmd/ident/type", tok, object.ConcreteType(right), contType)
 		}
-		envToUse.UpdateVar(refName, right)
+		c.env.UpdateVar(refName, right)
 
 		return nil
 	default: // We must be assigning from the REPL.
@@ -1462,7 +1457,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 				}
 				switch {
 				case treeWalker.hasAst():
-					sourceObj = &object.Code{Value: args[arg], Env: c.env}
+					sourceObj = &object.Code{Value: args[arg]}
 				case treeWalker.hasRef():
 					if args[arg].GetToken().Type != token.IDENT {
 						sourceObj = newError("eval/ref/ident", tok)

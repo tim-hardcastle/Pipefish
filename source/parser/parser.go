@@ -185,8 +185,7 @@ func New() *Parser {
 	p.Suffixes.Add("raw")
 	p.Suffixes.Add("ast")
 	p.Suffixes.Add("ref")
-	p.Suffixes.Add("varname")
-	p.Suffixes.Add("varref")
+	p.Suffixes.Add("ident")
 
 	p.Infixes.Add("varchar")
 
@@ -1165,8 +1164,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				}
 			} else { // The suffix is not 'raw'
 				if !(TypeExists(arg.Operator, p.TypeSystem) ||
-					arg.Operator == "ast" || arg.Operator == "varname" ||
-					arg.Operator == "varref") {
+					arg.Operator == "ast" || arg.Operator == "ident") {
 					p.Throw("parse/sig/type/a", arg.Token)
 					return nil
 				}
@@ -1202,8 +1200,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 					varName = arg.Operator
 					varType = inner.Value
 					if !(TypeExists(inner.Value, p.TypeSystem) ||
-						arg.Operator == "ast" || arg.Operator == "varname" ||
-						arg.Operator == "varref") {
+						arg.Operator == "ast" || arg.Operator == "ident") {
 						p.Throw("parse/sig/type/b", arg.Token)
 						return nil
 					}
@@ -1304,8 +1301,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 	case *ast.SuffixExpression:
 		switch {
 		case TypeExists(typednode.Operator, p.TypeSystem) ||
-			typednode.Operator == "ast" || typednode.Operator == "varname" ||
-			typednode.Operator == "varref":
+			typednode.Operator == "ast" || typednode.Operator == "ident":
 			LHS := p.getSigFromArgs(typednode.Args, dflt)
 			for k := range LHS {
 				LHS[k].VarType = typednode.Operator
