@@ -39,9 +39,9 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	gh.modules = make(map[string]string)
 	gh.plugins = make(map[string]*plugin.Plugin)
 
-	file, err := os.Open("rsc/gotimes.dat")
+	file, err := os.Open("rsc/go/gotimes.dat")
 	if err != nil {
-		panic("Can't file 'rsc/gotimes.dat'.")
+		panic("Can't file 'rsc/go/gotimes.dat'.")
 	}
 	defer file.Close()
 
@@ -75,9 +75,9 @@ func (gh *GoHandler) CleanUp() {
 	}
 
 	// And then write out the list of times to the .dat file.
-	f, err := os.Create("rsc/gotimes.dat")
+	f, err := os.Create("rsc/go/gotimes.dat")
 	if err != nil {
-		panic("Can't create file rsc/gotimes.dat")
+		panic("Can't create file rsc/go/gotimes.dat")
 	}
 	defer f.Close()
 	for k, v := range gh.timeMap {
@@ -110,12 +110,11 @@ func (gh *GoHandler) BuildGoMods() {
 		lastChange, ok := gh.timeMap[source]
 		if ok {
 			if modifiedTime == int64(lastChange) {
-				soFile := "rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
+				soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.plugins[source], err = plugin.Open(soFile)
-				if err != nil {
-					gh.Prsr.Throw("golang/file", token.Token{}, soFile, err.Error())
+				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
+					continue
 				}
-				continue
 			}
 		}
 
@@ -145,9 +144,9 @@ func (gh *GoHandler) BuildGoMods() {
 
 		// You can't reuse the names of shared object files.
 		counter++
-		soFile := "rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
+		soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
 		if lastChange != 0 {
-			os.Remove("rsc/gobin/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
+			os.Remove("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
 		}
 		goFile := "gocode " + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)
@@ -174,20 +173,10 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 
 	// We check to see whether the source code has been modified.
 
-	if lastChange, ok := gh.timeMap[source]; ok {
-		file, err := os.Stat(source)
+	_, err := os.Stat(source)
 
-		if err != nil {
-			panic("Something weird has happened!")
-		}
-
-		modifiedTime := file.ModTime().UnixMilli()
-
-		if modifiedTime == int64(lastChange) {
-			gh.modules[golang.Token.Source] = ""
-			return
-		}
-
+	if err != nil {
+		panic("Something weird has happened!")
 	}
 
 	// If the source has been modified, we proceed ...

@@ -751,7 +751,7 @@ func (hub *Hub) WritePretty(s string) {
 }
 
 func (hub *Hub) isAdministered() bool {
-	_, err := os.Stat("rsc/admin.dat")
+	_, err := os.Stat("user/admin.dat")
 	return !errors.Is(err, os.ErrNotExist)
 }
 
@@ -769,9 +769,9 @@ var helpStrings = map[string]string{}
 var helpTopics = []string{}
 
 func init() {
-	file, err := os.Open("rsc/manual.txt")
+	file, err := os.Open("rsc/text/helpfile.txt")
 	if err != nil {
-		panic("Can't find manual in file 'rsc/manual.txt'.")
+		panic("Can't find helpfile 'rsc/text/helpfile.txt'.")
 	}
 	defer file.Close()
 
@@ -889,7 +889,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 
 	// Import the builtins and world library.
 
-	thingsToImport := []string{"rsc/builtins.ch", "rsc/world.ch"}
+	thingsToImport := []string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"}
 
 	for _, fname := range thingsToImport {
 		libDat, _ := os.ReadFile(fname)
@@ -989,7 +989,7 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 }
 
 func (hub *Hub) save() string {
-	f, err := os.Create("rsc/hub.dat")
+	f, err := os.Create("user/hub.dat")
 	if err != nil {
 		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
@@ -1002,7 +1002,7 @@ func (hub *Hub) save() string {
 			}
 		}
 	}
-	f, err = os.Create("rsc/current.dat")
+	f, err = os.Create("user/current.dat")
 	if err != nil {
 		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
@@ -1030,7 +1030,7 @@ func isAnonymous(serviceName string) bool {
 
 func (hub *Hub) Open() {
 
-	f, err := os.Open("rsc/hub.dat")
+	f, err := os.Open("user/hub.dat")
 	if err != nil {
 		hub.WriteError(strings.TrimSpace(err.Error()))
 	}
@@ -1046,7 +1046,7 @@ func (hub *Hub) Open() {
 
 	hub.list()
 
-	f, err = os.Open("rsc/current.dat")
+	f, err = os.Open("user/current.dat")
 	if err != nil {
 		hub.WriteError(strings.TrimSpace(err.Error()))
 	}
@@ -1059,7 +1059,7 @@ func (hub *Hub) Open() {
 		hub.currentServiceName = ""
 	}
 
-	_, err = os.Stat("rsc/admin.dat")
+	_, err = os.Stat("user/admin.dat")
 	hub.administered = (err == nil)
 	if hub.administered {
 		hub.currentServiceName = ""
@@ -1067,9 +1067,9 @@ func (hub *Hub) Open() {
 
 	// If the database configuration doesn't exist this is because the user
 	// hasn't created it yet, so we just skip the setup.
-	if _, err := os.Stat("rsc/database.dat"); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat("user/database.dat"); !errors.Is(err, os.ErrNotExist) {
 
-		fileBytes, err := os.ReadFile("rsc/database.dat")
+		fileBytes, err := os.ReadFile("user/database.dat")
 
 		if err != nil {
 			hub.WriteError(err.Error())
@@ -1332,7 +1332,7 @@ func (h *Hub) addUserAsGuest() {
 
 func (h *Hub) handleConfigUserForm(f *Form) {
 	h.CurrentForm = nil
-	_, err := os.Stat("rsc/admin.dat")
+	_, err := os.Stat("user/admin.dat")
 	if errors.Is(err, os.ErrNotExist) {
 		h.WriteError("this Charm hub doesn't have administered " +
 			"access: there is nothing to join.")
@@ -1443,7 +1443,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 		v.Parser.Database = h.Db
 	}
 
-	fi, err := os.Create("rsc/database.dat")
+	fi, err := os.Create("user/database.dat")
 	if err != nil {
 		h.WriteError(err.Error())
 	}

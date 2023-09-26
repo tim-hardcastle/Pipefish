@@ -122,9 +122,9 @@ ON CONFLICT DO NOTHING;`
 		}
 	}
 
-	// This should only ever happen to a hub once. We create the file "rsc/admin.dat"
+	// This should only ever happen to a hub once. We create the file "user/admin.dat"
 	// to prove that it has.
-	_, err = os.Create("rsc/admin.dat")
+	_, err = os.Create("user/admin.dat")
 	return err
 }
 
@@ -167,9 +167,9 @@ func UnLetUserOwnGroup(db *sql.DB, username, groupName string) error {
 	if err != nil {
 		return err
 	}
-	if ! result {
+	if !result {
 		return nil
-	} 
+	}
 	return AddUserToGroup(db, username, groupName, false)
 }
 
