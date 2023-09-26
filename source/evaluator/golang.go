@@ -115,6 +115,7 @@ func (gh *GoHandler) BuildGoMods() {
 				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
 					continue
 				}
+				os.Remove(soFile)
 			}
 		}
 
