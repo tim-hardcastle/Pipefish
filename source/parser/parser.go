@@ -184,6 +184,7 @@ func New() *Parser {
 
 	p.Suffixes.Add("raw")
 	p.Suffixes.Add("ast")
+	p.Suffixes.Add("ref")
 	p.Suffixes.Add("varname")
 	p.Suffixes.Add("varref")
 

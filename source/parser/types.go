@@ -40,6 +40,8 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("null", "contact?")
 	T.AddTransitiveArrow("snippet", "struct")
 	T.AddTransitiveArrow("outer function", "func")
+
+	T.AddTransitiveArrow("ref", "ref")
 	return &T
 }
 

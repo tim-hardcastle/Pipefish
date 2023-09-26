@@ -809,6 +809,16 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		c.env.InitializeVariable(variable.VarName, right, inferredType)
 		return nil
 	case token.CMD_ASSIGN:
+		val, ok := c.env.IsRef(variable.VarName)
+		if ok {
+			ref := val.(*object.Ref)
+			if ref.Env.Exists(ref.VariableName) {
+				val.(*object.Ref).Env.Set(ref.VariableName, right)
+			} else {
+				val.(*object.Ref).Env.InitializeLocal(ref.VariableName, right, "single")
+			}
+			return nil
+		}
 		if variable.VarType != "*" && variable.VarType != "varname" && variable.VarType != "varref" {
 			return newError("eval/cmd/assign", tok)
 		}
@@ -1103,13 +1113,21 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	val, ok := c.env.Get(node.Value)
 
 	if ok && c.access == CMD {
-		acc := c.env.GetAccess(node.Value)
-		if acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE {
-			return newError("eval/cmd/global/b", node.Token, node.Value)
+		if val.Type() == object.REF_OBJ {
+			val, ok = val.(*object.Ref).Env.Get(val.(*object.Ref).VariableName)
+			if ok {
+				return val
+			}
+			return newError("eval/ref/exists", node.Token)
+		} else {
+			acc := c.env.GetAccess(node.Value)
+			if acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE {
+				return newError("eval/cmd/global/b", node.Token, node.Value)
+			}
 		}
 	}
 
-	if ok && !(c.env.IsPrivate(node.Value) && node.GetToken().Source == "REPL input") {
+	if ok && !(c.env.IsPrivate(node.Value) && c.access == REPL) {
 		if val.Type() == object.LAZY_OBJ {
 			if val.(*object.Lazy).Value.GetToken().Type == token.LZY_ASSIGN { // Then we have a multiple assignment in a 'given' statement.
 				Eval(val.(*object.Lazy).Value, c)
@@ -1325,6 +1343,10 @@ func (ft *functionTreeWalker) hasAst() bool {
 	return (len(ft.position.Branch) > 0 && ft.position.Branch[0].TypeName == "ast")
 }
 
+func (ft *functionTreeWalker) hasRef() bool {
+	return (len(ft.position.Branch) > 0 && ft.position.Branch[0].TypeName == "ref")
+}
+
 func (ft *functionTreeWalker) hasNewTuple() bool {
 	if ft.lastWasTuple {
 		return false
@@ -1438,9 +1460,32 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 						break
 					}
 				}
-				if treeWalker.hasAst() {
+				switch {
+				case treeWalker.hasAst():
 					sourceObj = &object.Code{Value: args[arg], Env: c.env}
-				} else {
+				case treeWalker.hasRef():
+					if args[arg].GetToken().Type != token.IDENT {
+						sourceObj = newError("eval/ref/ident", tok)
+					}
+					identName := args[arg].(*ast.Identifier).Value
+					if c.env.Exists(identName) {
+						acc := c.env.GetAccess(identName)
+						if acc == object.ACCESS_PRIVATE && args[arg].GetToken().Source == "REPL input" { // Yes this is filthy.
+							sourceObj = newError("eval/ref/private", tok)
+							break
+						}
+						if (acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE) && c.access == CMD {
+							sourceObj = newError("eval/ref/global", tok)
+							break
+						}
+					}
+					val, ok := c.env.IsRef(identName) // We don't want to put a ref inside a ref.
+					if ok {
+						sourceObj = val
+					} else {
+						sourceObj = &object.Ref{VariableName: identName, Env: *c.env}
+					}
+				default:
 					sourceObj = Eval(args[arg], c)
 				}
 				if sourceObj.Type() == object.TUPLE_OBJ { // If it's a tuple but it's empty ...

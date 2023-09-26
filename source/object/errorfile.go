@@ -1018,6 +1018,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/ref/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected an identifier, not " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "When a command has 'ref' as the type of its parameter, it expects to be given the name of a variable as an argument."
+		},
+	},
+
 	"eval/return": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected return"

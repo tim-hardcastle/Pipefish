@@ -42,6 +42,7 @@ const (
 	OUTER_OBJ       = "outer function"
 	PAIR_OBJ        = "pair"
 	NULL_OBJ        = "null"
+	REF_OBJ         = "ref"
 	RESPONSE_OBJ    = "response"
 	SET_OBJ         = "set"
 	STRING_OBJ      = "string"
@@ -372,6 +373,18 @@ func (fn *OuterFunc) DeepCopy() Object { return fn }
 func (fn *OuterFunc) Type() ObjectType { return OUTER_OBJ }
 func (fn *OuterFunc) Inspect(view View) string {
 	return "unserializable outer function '" + fn.Name + "'"
+}
+
+// Reference to a variable
+type Ref struct {
+	VariableName string
+	Env          Environment
+}
+
+func (re *Ref) DeepCopy() Object { return re }
+func (fn *Ref) Type() ObjectType { return REF_OBJ }
+func (fn *Ref) Inspect(view View) string {
+	return "unserializable reference object"
 }
 
 // A 'set' type. Appalingly implemented, because it will be replaced by persistent data structures

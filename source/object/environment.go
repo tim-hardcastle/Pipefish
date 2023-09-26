@@ -128,6 +128,17 @@ func (e *Environment) Exists(name string) bool {
 	return e.Ext.Exists(name)
 }
 
+func (e *Environment) IsRef(name string) (Object, bool) {
+	val, ok := e.Store[name]
+	if !ok && e.Ext != nil {
+		return e.Ext.IsRef(name)
+	}
+	if !ok {
+		return nil, false
+	}
+	return val.GetValue(), val.GetValue().Type() == REF_OBJ
+}
+
 // Variable assumed to exist, and type check to have been done.
 func (e *Environment) UpdateVar(name string, val Object) {
 	storage, ok := e.Store[name]
