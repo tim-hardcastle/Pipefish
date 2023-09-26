@@ -426,7 +426,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/cmd/varname/code": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + " as variable name: it does not contain a <code> object"
+			return "can't dereference " + emph(args[0].(string)) + " as variable name: it does not contain a <code> object"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
@@ -435,7 +435,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/cmd/varname/const": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + " as variable " + text.Emph(args[1].(string)) + ", as the latter is defined as a constant"
+			return "can't dereference " + emph(args[0].(string)) + " as variable " + emph(args[1].(string)) + ", as the latter is defined as a constant"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In order for a variable to be dereferenced as a varname, the identifier contained in the variable must have been defined as a variable in the 'var' section"
@@ -444,7 +444,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/cmd/varname/ident": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.Emph(args[0].(string)) + " as variable name: it does not contain an identifier"
+			return "can't dereference " + emph(args[0].(string)) + " as variable name: it does not contain an identifier"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In order for a variable to be dereferenced as a varname, it must contain a code object consisting of a single identifier"
@@ -453,7 +453,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/cmd/varname/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't assign value of type " + text.Emph(args[0].(string)) + " to dereferenced variable of type" + text.Emph(args[1].(string))
+			return "can't assign value of type " + emph(args[0].(string)) + " to dereferenced variable of type" + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A value must be the same type or a subtype of the variable to which it is assigned."
@@ -485,7 +485,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/contact/charm": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't evaluate " + text.Emph(args[0].(string))
+			return "can't evaluate " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You have used '|...|' to embed a piece of Charm into a call to a contact service, " +
@@ -515,7 +515,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/contact/service": {
 		Message: func(tok token.Token, args ...any) string {
-			return "service " + text.Emph(args[0].(string)) + "doesn't exist"
+			return "service " + emph(args[0].(string)) + "doesn't exist"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Either you forgot to start it up, or it shut itself down."
@@ -534,7 +534,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/equal/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "comparing values of type " + text.Emph(args[0].(string)) + " and " + text.Emph(args[1].(string))
+			return "comparing values of type " + emph(args[0].(string)) + " and " + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using the equality operator '==' to compare to values of different concrete types. But Charm considers this a type error."
@@ -543,7 +543,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/equal/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "comparing values of type " + text.Emph(args[0].(string)) + " and " + text.Emph(args[1].(string))
+			return "comparing values of type " + emph(args[0].(string)) + " and " + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using the inequality operator '!=' to compare to values of different concrete types. But Charm considers this a type error."
@@ -684,7 +684,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/global/exists": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find global " + text.Emph(args[0].(string))
+			return "can't find global " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You have tried to use the 'global' keyword to import a global variable into the scope of a command, but no global variable of that name exists."
@@ -730,7 +730,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/index/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't index type " + text.Emph(args[0].(string))
+			return "can't index type " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Only enum types can be indexed. (Of course, *members* of other types can be indexed: lists, maps, etc. But the types themselves cannot be: 'list[4]' is meaningless.)"
@@ -739,7 +739,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/index/types": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't index type " + text.Emph(args[0].(string)) + " by " + text.Emph(args[1].(string))
+			return "can't index type " + emph(args[0].(string)) + " by " + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You can index a list or a string or a tuple by an integer, or by a pair of integers to make a slice; or you can index a map by a key, or a struct by the label of one of its fields. But you have done none of these things and Charm is puzzled."
@@ -864,7 +864,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/index/enum": {
 		Message: func(tok token.Token, args ...any) string {
-			return "index " + emphNum(args[0]) + " is out of bounds for enum " + text.Emph(args[1].(string))
+			return "index " + emphNum(args[0]) + " is out of bounds for enum " + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "An enum type can be indexed by an integer from 0 up to but not including the length of the type, but you have supplied an integer outside of this range."
@@ -909,7 +909,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/slice/list": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a list of length " + emphNum(args[2])
+			return "slice " + emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a list of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the list to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the list being sliced."
@@ -918,7 +918,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/slice/string": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a string of length " + emphNum(args[2])
+			return "slice " + emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a string of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the string to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the string being sliced."
@@ -927,7 +927,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/slice/tuple": {
 		Message: func(tok token.Token, args ...any) string {
-			return "slice " + text.Emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a tuple of length " + emphNum(args[2])
+			return "slice " + emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a tuple of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the tuple to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the tuple being sliced."
@@ -936,10 +936,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/assign": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempt to assign the value of a private or non-existent variable or constant " + Emph(args[0].(string))
+			return "attempt to assign the value of a private or non-existent variable or constant " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're referring in the REPL to an identifier " + Emph(args[0].(string)) + " as though it " +
+			return "You're referring in the REPL to an identifier " + emph(args[0].(string)) + " as though it " +
 				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
 				"declare it as a variable or constant in the script, or perhaps you declared it private." +
 				"\n\nFor more information about the 'private' modifier see 'hub help private'."
@@ -998,10 +998,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/var": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempt to access the value of a private or non-existent variable or constant " + Emph(args[0].(string))
+			return "attempt to access the value of a private or non-existent variable or constant " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're referring in the REPL to an identifier " + Emph(args[0].(string)) + " as though it " +
+			return "You're referring in the REPL to an identifier " + emph(args[0].(string)) + " as though it " +
 				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
 				"declare it as a variable or constant in the script, or perhaps you declared it private." +
 				"\n\nFor more information about the 'private' modifier see 'hub help private'."
@@ -1097,7 +1097,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/struct/field": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't index " + text.Emph(args[1].(string)) + " by field " + text.Emph(args[0].(string))
+			return "can't index " + emph(args[1].(string)) + " by field " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "That's just not a label of a struc of that type"
@@ -1106,10 +1106,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/sv/exists": {
 		Message: func(tok token.Token, args ...any) string {
-			return "service variable " + text.Emph(args[0].(string)) + " doesn't exist"
+			return "service variable " + emph(args[0].(string)) + " doesn't exist"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Variables beigining with '$' are resered for service variables, and Charm has no service variable called " + text.Emph(args[0].(string)) + "."
+			return "Variables beigining with '$' are resered for service variables, and Charm has no service variable called " + emph(args[0].(string)) + "."
 		},
 	},
 
@@ -1398,7 +1398,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/type/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't pass value of type " + text.Emph(args[0].(string)) + " to Go as raw value"
+			return "can't pass value of type " + emph(args[0].(string)) + " to Go as raw value"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This is because the author of Charm hasn't gotten around to it yet."
@@ -1407,7 +1407,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/type/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't pass value of type " + text.Emph(args[0].(string)) + " to Go"
+			return "can't pass value of type " + emph(args[0].(string)) + " to Go"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This is because the author of Charm hasn't gotten around to it yet."
@@ -2423,7 +2423,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"sql/in/type/a": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't read from database into type" + text.Emph(args[0].(string))
+			return "can't read from database into type" + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Charm expects a subtype of 'struct' here that matches the data you're trying to fetch from the database."
@@ -2521,6 +2521,14 @@ func DescribeObjects(objs []Object) string {
 	return total
 }
 
+func emph(s string) string {
+	return "'" + s + "'"
+}
+
 func emphNum(i any) string {
-	return (text.Emph(strconv.Itoa(i.(int))))
+	return "'" + (strconv.Itoa(i.(int))) + "'"
+}
+
+func emphText(s any) string {
+	return "'" + s.(string) + "'"
 }

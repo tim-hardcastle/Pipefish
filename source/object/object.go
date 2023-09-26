@@ -761,12 +761,12 @@ func TypeOrBling(o Object) string {
 }
 
 func EmphType(o Object) string {
-	return "<" + ConcreteType(o) + ">"
+	return "'" + ConcreteType(o) + "'"
 }
 
 func EmphValue(o Object) string {
 	if o.Type() == STRING_OBJ {
-		return text.Cyan(o.Inspect(ViewCharmLiteral))
+		return o.Inspect(ViewCharmLiteral)
 	}
-	return text.Emph(o.Inspect(ViewCharmLiteral))
+	return "'" + o.Inspect(ViewCharmLiteral) + "'"
 }

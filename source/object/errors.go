@@ -3,7 +3,6 @@ package object
 import (
 	"strconv"
 
-	"charm/source/text"
 	"charm/source/token"
 )
 
@@ -19,12 +18,6 @@ type Errors = []*Error // Error being Charm's error value type, defined in objec
 type ErrorCreator struct {
 	Message     func(tok token.Token, args ...any) string
 	Explanation func(errors Errors, pos int, tok token.Token, args ...any) string
-}
-
-
-
-func Emph(s string) string {
-	return text.Emph(s)
 }
 
 func Put(message string, tok token.Token, ers Errors) []*Error {
@@ -78,7 +71,7 @@ func CreateErrWithVals(errorId string, tok token.Token, vals []Object, args ...a
 		return CreateErr("err/misdirect", tok, errorId)
 	}
 	msg := errorCreator.Message(tok, args...)
-	return &Error{ErrorId: errorId, Message: msg, Token: tok, Values:  vals, Args: args}
+	return &Error{ErrorId: errorId, Message: msg, Token: tok, Values: vals, Args: args}
 }
 
 // Merges two lists of errors in order of occurrence, on the assumption that they
