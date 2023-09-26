@@ -206,7 +206,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 }
 
 func (hub *Hub) ParseHubCommand(line string) (string, []string) {
-	hubReturn := ServiceDo(hub.services["HUB"], line)
+	hubReturn := ServiceDo(hub.services["hub"], line)
 	if hubReturn.Type() == object.ERROR_OBJ {
 		hub.WriteError(hubReturn.(*object.Error).Message)
 		return "error", []string{hubReturn.(*object.Error).Message}
@@ -335,7 +335,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("the hub can't find the service '" + args[0] + "'.")
 			return false
 		}
-		if name == "" || name == "HUB" {
+		if name == "" || name == "hub" {
 			hub.WriteError("the hub doesn't know what you want to stop.")
 			return false
 		}
@@ -508,11 +508,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
 		}
-		hub.snap = NewSnap(scriptFilepath, testFilepath, "")
+		hub.snap = NewSnap(scriptFilepath, testFilepath)
 		hub.oldServiceName = hub.currentServiceName
-		hub.Start(username, "#snap", scriptFilepath)
-		ServiceDo((*hub).services["#snap"], "$view = \"charm\"")
-		hub.WriteString("Serialization is ON.\n")
+		if hub.Start(username, "#snap", scriptFilepath) {
+			ServiceDo((*hub).services["#snap"], "$view = \"charm\"")
+			hub.WriteString("Serialization is ON.\n")
+		}
+		return false
 	case "snap-good":
 		if hub.currentServiceName != "#snap" {
 			hub.WriteError("you aren't taking a snap.")
@@ -805,13 +807,13 @@ func (hub *Hub) StartAnonymous(scriptFilepath string) {
 	hub.anonymousServiceNumber = hub.anonymousServiceNumber + 1
 }
 
-func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
+func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
 	code := ""
 	if scriptFilepath != "" {
 		dat, err := os.ReadFile(scriptFilepath)
 		if err != nil {
 			hub.WriteError("os returns \"" + err.Error() + "\".")
-			return
+			return false
 		} else {
 			code = strings.TrimRight(string(dat), "\n") + "\n"
 		}
@@ -820,14 +822,16 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) {
 		err := database.UpdateService(hub.Db, username, serviceName)
 		if err != nil {
 			hub.WriteError(err.Error())
-			return
+			return false
 		}
 	}
 	hub.currentServiceName = serviceName
 	hub.createService(serviceName, scriptFilepath, code)
+	return true
 }
 
 func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
+
 	if !hub.services[hub.currentServiceName].Broken && hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
 		obj := ServiceDo(hub.services[hub.currentServiceName], "main")
 		hub.lastRun = []string{hub.currentServiceName}
@@ -1050,6 +1054,10 @@ func (hub *Hub) Open() {
 	scanner = bufio.NewScanner(f)
 	scanner.Scan()
 	hub.currentServiceName = scanner.Text()
+	_, ok := hub.services[hub.currentServiceName]
+	if !ok {
+		hub.currentServiceName = ""
+	}
 
 	_, err = os.Stat("rsc/admin.dat")
 	hub.administered = (err == nil)
@@ -1099,7 +1107,7 @@ func (hub *Hub) list() {
 	}
 	hub.WriteString("The hub is running the following services:\n\n")
 	for k := range hub.services {
-		if k == "" || k == "HUB" {
+		if k == "" || k == "hub" {
 			continue
 		}
 		if hub.services[k].Broken {
@@ -1115,7 +1123,10 @@ func (hub *Hub) list() {
 
 func (hub *Hub) TestScript(scriptFilepath string) {
 
-	directoryName := "tst/" + text.FlattenedFilename(scriptFilepath)
+	fname := filepath.Base(scriptFilepath)
+	fname = fname[:len(fname)-len(filepath.Ext(fname))]
+	dname := filepath.Dir(scriptFilepath)
+	directoryName := dname + "/charm-tests/" + fname
 
 	if _, err := os.Stat(directoryName); os.IsNotExist(err) {
 		hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
@@ -1138,7 +1149,7 @@ func (hub *Hub) TestScript(scriptFilepath string) {
 			f.Close()
 			continue
 		}
-		scanner.Scan()
+		//scanner.Scan()
 		scanner.Scan()
 		hub.Start("", "#test", scriptFilepath)
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")

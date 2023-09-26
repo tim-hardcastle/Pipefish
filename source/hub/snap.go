@@ -4,6 +4,7 @@ import (
 	"charm/source/text"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -15,7 +16,6 @@ type ioPair struct {
 type Snap struct {
 	testFilename   string
 	scriptFilepath string
-	dataFilepath   string
 	ioList         []ioPair
 }
 
@@ -25,9 +25,8 @@ const (
 	RECORD = "record"
 )
 
-func NewSnap(scriptFilepath, testFilename, dataFilepath string) *Snap {
-	sn := Snap{scriptFilepath: scriptFilepath, testFilename: testFilename, dataFilepath: dataFilepath,
-		ioList: []ioPair{}}
+func NewSnap(scriptFilepath, testFilename string) *Snap {
+	sn := Snap{scriptFilepath: scriptFilepath, testFilename: testFilename, ioList: []ioPair{}}
 	return &sn
 }
 
@@ -41,12 +40,14 @@ func (sn *Snap) AddOutput(s string) {
 }
 
 func (sn *Snap) Save(st string) string {
-	snapOutput := fmt.Sprintf("snap: %v\nscript: %v\ndata: %v\n", st, sn.scriptFilepath, sn.dataFilepath)
+	snapOutput := fmt.Sprintf("snap: %v\nscript: %v\n", st, filepath.Base(sn.scriptFilepath))
 	for _, v := range (*sn).ioList {
 		snapOutput = snapOutput + "\n" + "-> " + v.input + "\n" + v.output
 	}
-
-	directoryName := "tst/" + text.FlattenedFilename((*sn).scriptFilepath)
+	fname := filepath.Base((*sn).scriptFilepath)
+	fname = fname[:len(fname)-len(filepath.Ext(fname))]
+	dname := filepath.Dir((*sn).scriptFilepath)
+	directoryName := dname + "/charm-tests/" + fname
 	err := os.MkdirAll(directoryName, 0777)
 	if err != nil {
 		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"

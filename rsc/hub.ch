@@ -109,16 +109,16 @@ snap(filename string) as (testName string) :
     HubResponse("snap", [filename, testName])
 
 snap bad :
-    HubResponse("snap-bad")
+    HubResponse("snap-bad", [])
 
 snap discard :
-    HubResponse("snap-discard") 
+    HubResponse("snap-discard", []) 
 
 snap good :
-    HubResponse("snap-good")
+    HubResponse("snap-good", [])
     
 snap record :
-    HubResponse("snap-record")  
+    HubResponse("snap-record", [])  
 
 switch(srv label) :
     HubResponse("switch", [string srv])

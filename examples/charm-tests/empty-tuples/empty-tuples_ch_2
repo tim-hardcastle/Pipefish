@@ -1,0 +1,7 @@
+snap: good
+script: empty-tuples.ch
+
+-> etDemo
+"No parameters"
+-> etDemo()
+"Tuple ()"

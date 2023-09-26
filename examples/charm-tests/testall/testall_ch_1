@@ -1,6 +1,5 @@
 snap: good
-script: examples/testall.ch
-data: 
+script: testall.ch
 
 -> w
 "umbrella", 3
