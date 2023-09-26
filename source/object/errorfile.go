@@ -392,7 +392,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Because you have defined '" + args[0].(string) + "' as a constant in the 'def' " +
 				"section of the script, you can't also declare it as a variable in the 'def' section." +
-				"\n\nFor more information about constants see 'hub help constants'."
+				"\n\nFor more information about constants see 'hub help \"constants\"'."
 		},
 	},
 
@@ -466,7 +466,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The value of a constant can only be declared once." +
-				"\n\nFor more information about constants see 'hub help constants'."
+				"\n\nFor more information about constants see 'hub help \"constants\"'."
 		},
 	},
 
@@ -479,7 +479,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Once you've declared a constant as being of a given type, the only things you can assign " +
 				"to it are objects of that type or of one of its subtypes." +
-				"\n\nFor more information about constants see 'hub help constants'."
+				"\n\nFor more information about constants see 'hub help \"constants\"'."
 		},
 	},
 
@@ -579,7 +579,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You will see this error when you try to index a struct by a label which exists " +
 				"but doesn't label a field of that particular type of struct." +
-				"\n\nFor more information about structs see 'hub help structs'."
+				"\n\nFor more information about structs see 'hub help \"structs\"'."
 		},
 	},
 
@@ -592,7 +592,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You will see this error when you try to assign a value to a field of a struct " +
 				"and the value is not compatible with the type of the field in the struct declaration." +
-				"\n\nFor more information about structs see 'hub help structs'."
+				"\n\nFor more information about structs see 'hub help \"structs\"'."
 		},
 	},
 
@@ -942,7 +942,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "You're referring in the REPL to an identifier " + emph(args[0].(string)) + " as though it " +
 				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
 				"declare it as a variable or constant in the script, or perhaps you declared it private." +
-				"\n\nFor more information about the 'private' modifier see 'hub help private'."
+				"\n\nFor more information about the 'private' modifier see 'hub help \"private\"'."
 		},
 	},
 
@@ -1004,7 +1004,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "You're referring in the REPL to an identifier " + emph(args[0].(string)) + " as though it " +
 				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
 				"declare it as a variable or constant in the script, or perhaps you declared it private." +
-				"\n\nFor more information about the 'private' modifier see 'hub help private'."
+				"\n\nFor more information about the 'private' modifier see 'hub help \"private\"'."
 		},
 	},
 
@@ -1152,7 +1152,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1165,7 +1165,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1178,7 +1178,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1191,7 +1191,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1204,7 +1204,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1217,7 +1217,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1230,7 +1230,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1243,7 +1243,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1256,7 +1256,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'x == 1 : \"one\"; x == 2 : \"two\"' would return this error if called when 'x' " +
 				"is in fact 47.\n\nIt's considered good practice to avoid this error by terminating " +
 				"every condional with an 'else :' clause.\n\nFor more information " +
-				"about conditionals, see 'hub help conditionals'."
+				"about conditionals, see 'hub help \"conditionals\"'."
 		},
 	},
 
@@ -1551,7 +1551,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm expects every part of your script to go in a section headed by one of the headwords " +
 				"'var', 'def', 'cmd', etc. Instead, you've started your script with something other than " +
 				"a headword, and so Charm doesn't know which section that thing should belong to." +
-				"\n\nFor more information about headwords see 'hub help headwords'."
+				"\n\nFor more information about headwords see 'hub help \"headwords\"'."
 		},
 	},
 
@@ -1562,7 +1562,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you should be doing in the 'import' section is specifying " +
 				"files to import and, optionally, the namespaces to put them in." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1576,7 +1576,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"it must be the first headword of the first section, and so it must be the first thing in your " +
 				"script apart from comments and whitespace.\n\nYou're seeing this error because you used 'import' " +
 				"further down in the script." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1588,7 +1588,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only thing you should be doing in the 'import' section is specifying " +
 				"files to import and, optionally, the namespaces to put them in." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1600,7 +1600,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm expects imports to be specified by a filename relative to the Charm executable. You told " +
 				"Charm to import a file '" + args[0].(string) + "' and the file couldn't be found. Check that you've " +
 				"provided the right filename and spelled everything correctly." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1612,7 +1612,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only function or operator that Charm expects to find in the 'import' section is " +
 				"the pair operator '::' associating files with their namespaces." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1625,7 +1625,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "The only thing you should be doing in the 'import' section is specifying " +
 				"files to import and, optionally, the namespaces to put them in. Both should be in " +
 				"the form of string literals." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1638,7 +1638,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "The only thing you should be doing in the 'import' section is specifying " +
 				"files to import and, optionally, the namespaces to put them in. Both should be in " +
 				"the form of string literals." +
-				"\n\nFor more information about the 'import' section see 'hub help import'."
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -1651,7 +1651,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				" in a context where Charm can't make sense of it. This error is returned when parsing a " +
 				"malformed function declaration, though it may also be returned when the surrounding code is so weird " +
 				"that Charm thinks you're trying to declare a function even though you're not." + blame(errors, pos, "lex/comma") +
-				"\n\nFor more information about function declarations, see 'hub help functions'."
+				"\n\nFor more information about function declarations, see 'hub help \"functions\"'."
 		},
 	},
 
@@ -1700,8 +1700,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"this error because you've done something similar with your function/command/operator.\n\nIf this is something you've done deliberately, we would suggest that " +
 				"this is probably a bad practise anyway, which will tend to produce unreadable and unmaintainable code, " +
 				"and that you should try to do whatever it is you're doing some other way.\n\n" +
-				"For more information about overloading, see 'hub help overloading'; for a more basic introduction to functions " +
-				"see 'hub help functions'."
+				"For more information about overloading, see 'hub help \"overloading\"'; for a more basic introduction to functions " +
+				"see 'hub help \"functions\"'."
 		},
 	},
 
@@ -1714,7 +1714,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"the 'private' modifier can only be used once after each headword: things before the 'private' " +
 				"modifier are private, things after it are public.\n\nYou're seeing this error because you used " +
 				"the 'private' modifier twice after the same headword." +
-				"\n\nFor more information about the 'private' modifier see 'hub help private'."
+				"\n\nFor more information about the 'private' modifier see 'hub help \"private\"'."
 		},
 	},
 
@@ -1771,7 +1771,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"|-\n\nNote that such continuations are not bound by the whitespace rules and can be positioned as you like " +
 				"for readability.\n\nThe error you're seeing is because you have ended a line with a ',' indicating " +
 				"that you want a continuation, but then haven't followed it up with a '..' at the start of the next line." +
-				"\n\nFor more information about continuations, see 'hub help continuations'."
+				"\n\nFor more information about continuations, see 'hub help \"continuations\"'."
 		},
 	},
 
