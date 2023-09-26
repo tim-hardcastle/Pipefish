@@ -41,7 +41,7 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("snippet", "struct")
 	T.AddTransitiveArrow("outer function", "func")
 
-	T.AddTransitiveArrow("ref", "ref")
+	T.AddTransitiveArrow("ref", "***")
 	return &T
 }
 
