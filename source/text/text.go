@@ -197,7 +197,7 @@ var (
 	OK        = Green("ok")
 )
 
-func HighlightLine(plainLine string, highlighter rune) string {
+func HighlightLine(plainLine string, highlighter rune) (string, rune) {
 	// Now we highlight the line. The rules are: anything enclosed in '   ' is code and is
 	// therefore highlighted, i.e. 'foo' serves the same function as writing foo in a monotype
 	// font would in a textbook or manual.
@@ -250,5 +250,5 @@ func HighlightLine(plainLine string, highlighter rune) string {
 		prevCh = ch
 		highlitLine = highlitLine + string(ch)
 	}
-	return highlitLine
+	return highlitLine, highlighter
 }

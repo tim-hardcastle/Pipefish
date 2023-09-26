@@ -1358,7 +1358,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/build": {
 		Message: func(tok token.Token, args ...any) string {
-			return "failed to compile Go\n\nError was '" + args[0].(string) + "'."
+			return "failed to compile Go\n\nError was '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A Charm function written in Go has failed to compile at initialization time."
@@ -1367,7 +1367,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/open": {
 		Message: func(tok token.Token, args ...any) string {
-			return "failed to open Go\n\nError was '" + args[0].(string) + "'."
+			return "failed to open Go\n\nError was '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A Charm function written in Go has failed to open at initialization time."

@@ -744,7 +744,9 @@ func (hub *Hub) WritePretty(s string) {
 			}
 			hub.WriteString(" │  " + text.Cyan(plainLine) + strings.Repeat(" ", repeatNo) + "│\n")
 		} else {
-			hub.WriteString(text.HighlightLine(plainLine, highlighter) + "\n")
+			var str string
+			str, highlighter = text.HighlightLine(plainLine, highlighter)
+			hub.WriteString(str + "\n")
 		}
 		i = i + j + 1
 	}
