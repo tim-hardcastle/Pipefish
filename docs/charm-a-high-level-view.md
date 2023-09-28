@@ -23,7 +23,7 @@ So, what *do* people like about databases and spreadsheets?
 
 * I/O is initiated by the end-user. They run queries, write formulas, etc.
 
-* In particular, changes in the variables are initiated by the user. Now, this is not *strictly* true of the apps I'm taking as models: if you want to you can simulate Conway's Game of Life in Excel. But except to show off, people don't use it like that, they put (e.g.) their sales projections in one place, and their consequent projections of profit and loss in another, and the sales projections don't change or vanish unless the user makes that happen: such behavior would usually be considered extremely undesirable.
+* In particular, changes in the data are initiated by the user. Now, this is not *strictly* true of the apps I'm taking as models: if you want to you can simulate Conway's Game of Life in Excel. But except to show off, people don't use it like that, they put (e.g.) their sales projections in one place, and their consequent projections of profit and loss in another, and the sales projections don't change or vanish unless the user makes that happen: such behavior would usually be considered extremely undesirable.
 
 * This put together means that the rest of what people want to do, writing queries and formulas to evaluate the data, can be done in a functional style, since there's nothing else left to do.
 
