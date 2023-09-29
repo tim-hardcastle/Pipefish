@@ -1,3 +1,5 @@
+# Version 0.4: a "working prototype"
+
 I'm calling version 0.4 of Charm a "working prototype". What do I mean by that? In what sense is it a prototype, and in what sense is it working?
 
 It is a *prototype* because:
