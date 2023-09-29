@@ -17,15 +17,7 @@ GameState = struct(locations map, playerLocation, output string)
 
 We will add to the GameState structure later so that we can talk about game objects: this is just a beginning.
 
-So now we want to slurp those undifferentiated lines from our flat file into our data structure, for which we'll want a `while` loop. First we need to import the `while` loop at the top of the script, with:
-
-```
-import
-
-"lib/prelude.ch" :: ""
-```
-
-This imports `while` and other useful functions into an empty namespace. Now let's see what it does! If this is your first functional programming language, this is where you're going to see something new. In an imperative language, we go round and round a loop changing the variables we're interested in until some condition is met. It is literally impossible to do this in Charm. Let's look at what we do instead.
+So now we want to slurp those undifferentiated lines from our flat file into our data structure, for which we'll want a `while` loop. If this is your first functional programming language, this is where you're going to see something new. In an imperative language, we go round and round a loop changing the variables we're interested in until some condition is met. It is literally impossible to do this in Charm. Let's look at what we do instead.
 
 The `while` construct in Charm is a function with the signature `while (condition func) do (action func) to (data tuple)`, where `condition` must return a boolean. The `while` function returns the thing we get if we keep applying `action` to `data` until `condition(data)` is `false`.
 
@@ -98,9 +90,9 @@ And then in the `main` command, which is always executed on initialization if it
 cmd 
 
 main :
+    global state
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents]
 ```
 
 (For convenience, we can always start the player off in the first location on our list, hence `playerLocation::linesToProcess[0]`)
@@ -109,8 +101,6 @@ Our script now looks like this:
 
 ```
 import
-
-"lib/prelude.ch" :: ""
 
 def
 
@@ -124,9 +114,9 @@ state = GameState(map(), "", "")
 cmd
 
 main :
+    global state
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents]
 
 def
 
@@ -320,30 +310,21 @@ You are in the antechamber of the wizard's castle. To your south is the outdoors
 ADV → 
 ```
 
-At this point we can make a little "inner REPL" for the game itself, and take a stroll around our map. Here's what it looks like: it must go in the `cmd` section because it is aggressively imperative: the keywords `request` and `respond` can be used nowhere except the `cmd` section.
-
-```
-repl :
-    strings.toLower(userInput) == "quit" :
-        break
-    else :
-        state = doTheThing(userInput, state)
-        respond state[output]
-given :
-    userInput = request "What now? "
-```
-
-You may be wondering where the loop is in this `repl` command. It's implicit --- if a command has a `request` for user input in it, and if when called its path of execution leads to that `request`, then Charm will automatically loop over the command until (a) it executes without reaching the `request`, (b) it reaches `break`, which stops the loop, or `stop`, which stops the whole Charm service.
-
-And we also need to add a line in the `main` cmd calling the `repl` cmd. We'll throw in a line describing the initial location when you start the game, since that shouldn't be in a loop.
+At this point we can make a little "inner REPL" for the game itself, and take a stroll around our map. We'll just add a little loop to the `main` command ...
 
 ```
 main :
+    global state
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    respond describe(state[playerLocation], state)
-    repl
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents] 
+    post "\n" + describe(state[playerLocation], state) + "\n"
+    loop :
+        get userInput from Input "What now? "
+        strings.toLower(userInput) == "quit" :
+            break
+        else :
+            state = doTheThing(userInput, state)
+            post "\n" + state[output] + "\n"
 ```
 
 At this point, our script looks like this:
@@ -351,7 +332,6 @@ At this point, our script looks like this:
 ```
 import
 
-"lib/prelude.ch" :: ""
 "lib/strings.ch"
 
 def
@@ -366,20 +346,17 @@ state = GameState(map(), "", "")
 cmd
 
 main :
+    global state
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    respond  "\n" + describe(state[playerLocation], state) + "\n\n"
-    repl
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents] 
-
-repl :
-    strings.toLower(userInput) == "quit" :
-        break
-    else :
-        state = doTheThing(userInput, state)
-        respond "\n" + state[output] + "\n\n"
-given :
-    userInput = request "What now? "
+    post "\n" + describe(state[playerLocation], state) + "\n"
+    loop :
+        get userInput from Input "What now? "
+        strings.toLower(userInput) == "quit" :
+            break
+        else :
+            state = doTheThing(userInput, state)
+            post "\n" + state[output] + "\n"
    
 def
 
@@ -488,7 +465,7 @@ ADV →
 
 We have a tiny adventure! Great!
 
-Having established that that works, let's immediately comment out that line in `main` that calls `repl`. Why? Because it's far more convenient for us to go on developing by poking at our code through Charm's own native REPL. This Is The Way. We'll comment out the line that describes the initial location too, since it will be annoying otherwise.
+Having established that that works, let's immediately comment out the loop. Why? Because it's far more convenient for us to go on developing by poking at our code through Charm's own native REPL. This Is The Way. We'll comment out the line that describes the initial location too, since it will be annoying otherwise.
 
 Let's add some objects. We'll use another [flat data file](https://github.com/tim-hardcastle/Charm/blob/main/examples/objects.rsc) which will list them as successive lines of name of object, description of object, and initial location of object.
 
@@ -507,13 +484,11 @@ given :
 
 ```
 main :
+    global state
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    state = state with objects::slurpObjects(moreLinesToProcess)
-    // respond  "\n" + describe(state[playerLocation], state) + "\n\n"
-    // repl
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents] 
-    moreLinesToProcess = (file "examples/objects.rsc")[contents] 
+    get linesToProcess from File "examples/objects.rsc", list
+    state = state with objects::slurpObjects(linesToProcess)
 ```
 
 Now let's update our `describe` function. We'll give it some helper functions to cope with the distinction between "a" and "an" in English, the Oxford comma, etc. Of these, `describeList` is our most deeply nested function — behold its fearsome complexity!
@@ -641,7 +616,7 @@ given :
     noun = parsedInput[1]
 ```
 
-Let's uncomment the call to `repl` and play our game!
+Let's uncomment the loop in `main` and play our game!
 
 ```
 ADV → main                
@@ -721,7 +696,6 @@ This is all we need for a simple adventure game (except a plot and a point). Let
 ```
 import
 
-"lib/prelude.ch" :: ""
 "lib/strings.ch"
 
 def
@@ -737,22 +711,19 @@ state = GameState(map(), map(), "", "")
 cmd
 
 main :
+    global state
+    get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    state = state with objects::slurpObjects(moreLinesToProcess)
-    respond  "\n" + describe(state[playerLocation], state) + "\n\n"
-    repl
-given :
-    linesToProcess = (file "examples/locations.rsc")[contents] 
-    moreLinesToProcess = (file "examples/objects.rsc")[contents] 
-
-repl :
-    strings.toLower(userInput) == "quit" :
-        break
-    else :
-        state = doTheThing(userInput, state)
-        respond "\n" + state[output] + "\n\n"
-given :
-    userInput = request "What now? "
+    get linesToProcess from File "examples/objects.rsc", list
+    state = state with objects::slurpObjects(linesToProcess)
+    post "\n" + describe(state[playerLocation], state) + "\n"
+    loop :
+        get userInput from Input "What now? "
+        strings.toLower(userInput) == "quit" :
+            break
+        else :
+            state = doTheThing(userInput, state)
+            post "\n" + state[output] + "\n"
    
 def
 
@@ -923,4 +894,4 @@ given :
         .. Object(L[counter + 1], L[counter + 2])
 ```
 
-So, we've developed a little app in Charm. Hopefully you've learned some Charm. Hopefully you've also learned something about functional programming, if this is your first experience with it. When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things (bar a little dash of homoiconicity) but it does demonstrate the chief merit of functional programming in general, which is that it has one principal design pattern: The Pipeline — a pipeline which gradually tranforms your data though a series of small, easily-understood steps consisting of functions which are small, shallow, trivial to understand, and easy to compose.
+So, we've developed a little app in Charm. Hopefully you've learned some Charm. Hopefully you've also learned something about functional programming, if this is your first experience with it. When people talk about the merits of functional programming, they often in fact cry up the particular features of their favorite languages, features such as pattern-matching (if they use ML) or a highly-expressive type system (Haskell) or homoiconicity (Lisp). Charm has none of these things but it does demonstrate the chief merit of functional programming in general, which is that it has one principal design pattern: The Pipeline — a pipeline which gradually tranforms your data though a series of small, easily-understood steps consisting of functions which are small, shallow, trivial to understand, and easy to compose.
