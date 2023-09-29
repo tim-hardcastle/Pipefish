@@ -8,7 +8,7 @@ But what *is* Charm? From a theoretical point of view, Charm is a lightweight da
 
 It is my hope either that Charm itself will one day be used in production, or (given my amateur status and lack of time) that this project will get enough attention that my ideas will be copied by people with more money and personnel and expertise. To this end, please add a star to the repo! Thank you!
 
-Instructions for installing Charm can be found [here](https://github.com/tim-hardcastle/Charm/wiki/Installing-and-using-Charm), as part of [a general manual/tutorial wiki](https://github.com/tim-hardcastle/Charm/wiki) that tells you everything you need to know to code in Charm. There are [lots of other supporting documents](https://github.com/tim-hardcastle/Charm/tree/main/docs), and people who want to just dive in headfirst might want to look at the tutorial document *Writing an adventure game in Charm*.
+Instructions for installing Charm can be found [here](https://github.com/tim-hardcastle/Charm/wiki/Installing-and-using-Charm), as part of [a general manual/tutorial wiki](https://github.com/tim-hardcastle/Charm/wiki) that tells you everything you need to know to code in Charm. There are [lots of other supporting documents](https://github.com/tim-hardcastle/Charm/tree/main/docs), and people who want to just dive in headfirst might want to look at the tutorial document [Writing an adventure game in Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/writing-an-adventure-game-in-charm.md).
 
 ## Features
 
