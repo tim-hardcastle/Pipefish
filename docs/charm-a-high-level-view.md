@@ -31,7 +31,7 @@ So, what *do* people like about databases and spreadsheets?
 
 These considerations lead us to Charm, a REPL-oriented, data-oriented, [functional core / imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md) language which thinks that everything is a CRUD app, and which comes with extensive facilities to let you build DSLs to form the front-ends of Charm services. For your convenience the language comes wrapped in an invisible framework that lets you reconfigure a desktop app you interact with via its REPL as a backend service which you interact with via a client app. (While there are ways to put other front-ends on Charm, it is supposed that it will often, like SQL, be used as its own front-end.)
 
-# 2. Principles of design
+## 2. Principles of design
 
 The following properties seem generally desirable in a language. It should be:
 
