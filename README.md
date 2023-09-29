@@ -24,3 +24,13 @@ Here are some of Charm's more distinctive features:
 * (Also the system for embedding other languages is extensible if this does not in fact met all your needs.)
 * Charm allows and encourages you to write your applications as microservices, giving you a natural way to encapsulate data and manage access to it.
 * Charm’s syntax is based (to the extent a functional language can or should be) on imperative productivity languages, principally Go and Python, and will be more familiar to the average programmer than most functional languages.
+
+## Documents
+
+* [The Charm manual/wiki](https://github.com/tim-hardcastle/Charm/wiki)
+* [Charm: a high-level view](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md). This explains the goals and design principles of the language.
+* [Style guide](https://github.com/tim-hardcastle/Charm/blob/main/docs/style-guide.md). This gives best practices for the style in which one should write Charm code.
+* [Writing an adventure game in Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/writing-an-adventure-game-in-charm.md). A tutorial.
+* [Functional core, imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md). A synopsis of the language paradigm.
+* [The whys of Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md). This explains the reasoning behind some lower-level design choices which are sufficiently unusual as to need explanation.
+* [Version 0.4: a working prototype](https://github.com/tim-hardcastle/Charm/blob/main/docs/working-prototype.md). This explains what I mean by calling this version a "working prototype".
