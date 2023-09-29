@@ -1,6 +1,6 @@
 # 🧿 Charm
 
-## Hello!
+## Welcoe to Charm
 
 Welcome to Charm, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Charm/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Charm/wiki/Installing-and-using-Charm) and play around with it.
 
