@@ -10,6 +10,8 @@ It is my hope that either Charm itself will one day be used in production, or (g
 
 Instructions for installing Charm can be found [here](https://github.com/tim-hardcastle/Charm/wiki/Installing-and-using-Charm), as part of [a general manual/tutorial wiki](https://github.com/tim-hardcastle/Charm/wiki) that tells you everything you need to know to code in Charm. There are [lots of other supporting documents](https://github.com/tim-hardcastle/Charm/tree/main/docs), and people who want to just dive in headfirst might want to look at the tutorial document *Writing an adventure game in Charm*.
 
+## Features
+
 Here are some of Charm's more distinctive features:
 
 * Charm services have a functional-core/imperative-shell architecture, in which a thin layer of IO sits on top of pure functional business logic.
