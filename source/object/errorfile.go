@@ -1018,6 +1018,18 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/ref/exist": {
+		Message: func(tok token.Token, args ...any) string {
+			return "attempt to assign the value of a private or non-existent variable or constant " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You're referring in the REPL to an identifier " + text.DescribeTok(tok) + " as though it " +
+				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
+				"declare it as a variable or constant in the script, or perhaps you declared it private." +
+				"\n\nFor more information about the 'private' modifier see 'hub help \"private\"'."
+		},
+	},
+
 	"eval/ref/ident": {
 		Message: func(tok token.Token, args ...any) string {
 			return "expected an identifier, not " + text.DescribeTok(tok)

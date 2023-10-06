@@ -96,7 +96,7 @@ toUpper(s string) : gocode {
     return strings.ToUpper(s)
 }
 
-ToValidUTF8(s, replacementString string) : gocode {
+toValidUTF8(s, replacementString string) : gocode {
     return strings.ToValidUTF8(s, replacementString)
 }
 
@@ -116,6 +116,6 @@ trimRight(s, cutset string) : gocode {
     return strings.TrimRight(s, cutset)
 }
 
-TrimSuffix(s, prefix string) : gocode {
+trimSuffix(s, prefix string) : gocode {
     return strings.TrimPrefix(s, prefix)
 }

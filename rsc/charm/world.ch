@@ -1,9 +1,9 @@
 import
 
+gocode "os"
 gocode "math/rand"
 gocode "fmt"
 gocode "bufio"
-gocode "os"
 gocode "io/ioutil"
 gocode "time"
 
@@ -126,11 +126,8 @@ goPrintln(s string) : gocode {
 }
 
 goFileExists(fname string) : gocode {
-    if _, err := os.Stat(fname); err == nil {
-      return object.TRUE
-    } else {
-      return object.FALSE
-    }
+    _, err := os.Stat(fname)
+    return err == nil
 }
 
 goDeleteFile(fname string) : gocode {

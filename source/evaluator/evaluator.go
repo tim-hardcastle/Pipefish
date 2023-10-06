@@ -1466,11 +1466,16 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 					if c.env.Exists(identName) {
 						acc := c.env.GetAccess(identName)
 						if acc == object.ACCESS_PRIVATE && args[arg].GetToken().Source == "REPL input" { // Yes this is filthy.
-							sourceObj = newError("eval/ref/private", tok)
+							sourceObj = newError("eval/ref/exist", tok)
 							break
 						}
 						if (acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE) && c.access == CMD {
 							sourceObj = newError("eval/ref/global", tok)
+							break
+						}
+					} else {
+						if args[arg].GetToken().Source == "REPL input" {
+							sourceObj = newError("eval/ref/exist", tok) // Note the rare twin error --- we don't want the end-user to know.
 							break
 						}
 					}
