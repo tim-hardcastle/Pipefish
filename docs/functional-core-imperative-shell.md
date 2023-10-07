@@ -19,8 +19,9 @@ The result of all this is expressed in the following table:
 | The `def` section of a Charm script | The `cmd` section of a Charm script |
 | Has functions : | Has commands : |
 | (a) where the body is a single expression | (a) where the body is one or more instructions |
-| (b) which return values | (b) which return nothing |
-| (c) which can only call functions | (c) which can call both functions and commands |
+| (b) which is evaluated | (b) which are executed |
+| (c) returning a value | (c) returning only success or an error |
+| (d) which can only call functions | (d) which can call both functions and commands |
 | Is pure | All variables are global for all commands |
 | All local values are constant | All local values are mutable |
 | Effectless | Exists only to perform side-effects |
