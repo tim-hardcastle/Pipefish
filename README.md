@@ -25,7 +25,7 @@ Here are some of Charm's more distinctive features:
 * The REPL is also a development environment and framework. It lets you test your code, write permanent tests, ask for help, interact with error messages, configure your services, deploy them to the web and manage access to them.
 * It is intended that often a Charm service will act as its own front end (like e.g. a SQL database does) with the end-user talking to it via the Charm REPL. For this reason Charm has an unusually flexible syntax for creating DSLs.
 * Charm comes with Go and SQL interop for all your backend needs.
-* (Also the system for embedding other languages is extensible if this does not in fact met all your needs.)
+* (Also the system for embedding other languages is extensible if this does not in fact meet all your needs.)
 * Charm allows and encourages you to write your applications as microservices, giving you a natural way to encapsulate data and manage access to it.
 * Charm’s syntax is based (to the extent a functional language can or should be) on imperative productivity languages, principally Python and Go, and will be more familiar to the average programmer than most functional languages.
 
