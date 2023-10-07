@@ -27,7 +27,7 @@ type OutHandler interface {
 	Out(outObjects []object.Object, env *object.Environment)
 }
 
-func MakeStandardEffectHandler(out io.Writer, env object.Environment) EffectHandler {
+func MakeStandardEffectHandler(out io.Writer) EffectHandler {
 	iH := standardInHandler{}
 	oH := standardOutHandler{out: out}
 	return EffectHandler{InHandle: iH, OutHandle: oH}
@@ -44,7 +44,6 @@ func (iH standardInHandler) Get(prompt string) string {
 
 type standardOutHandler struct {
 	out io.Writer
-	env object.Environment
 }
 
 func (oH standardOutHandler) Out(vals []object.Object, env *object.Environment) {
@@ -73,4 +72,41 @@ type ConsumingOutHandler struct{}
 
 func (oH ConsumingOutHandler) Out(vals []object.Object, env *object.Environment) {
 
+}
+
+func MakeSnapEffectHandler(out io.Writer, env object.Environment, sn *Snap) EffectHandler {
+	iH := snapInHandler{stdIn: standardInHandler{}, snap: sn}
+	oH := snapOutHandler{stdOut: standardOutHandler{out: out}, snap: sn}
+	return EffectHandler{InHandle: iH, OutHandle: oH}
+}
+
+type snapInHandler struct {
+	stdIn standardInHandler
+	snap  *Snap
+}
+
+type snapOutHandler struct {
+	stdOut standardOutHandler
+	snap   *Snap
+}
+
+func (iH snapInHandler) Get(prompt string) string {
+	iH.snap.AddOutput("\"" + prompt + "\"")
+	input := iH.stdIn.Get(prompt)
+	iH.snap.AddInput(input)
+	return input
+}
+
+func (oH snapOutHandler) Out(vals []object.Object, env *object.Environment) {
+
+	var out bytes.Buffer
+
+	elements := []string{}
+	for _, e := range vals {
+		elements = append(elements, e.Inspect(object.ViewCharmLiteral))
+	}
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteRune('\n')
+	oH.snap.AddOutput(out.String())
+	oH.stdOut.Out(vals, env)
 }

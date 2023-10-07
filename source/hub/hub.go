@@ -38,7 +38,7 @@ type Hub struct {
 	in                     io.Reader
 	out                    io.Writer
 	anonymousServiceNumber int
-	snap                   *Snap
+	snap                   *parser.Snap
 	oldServiceName         string // Somewhere to keep the old service name while taking a snap
 	Sources                map[string][]string
 	lastRun                []string
@@ -174,6 +174,10 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 	}
 
+	if hub.currentServiceName == "#snap" {
+		hub.snap.AddInput(line)
+	}
+
 	// *** THIS IS THE BIT WHERE WE DO THE THING!
 	obj := ServiceDo(service, line)
 	// *** FROM ALL THAT LOGIC, WE EXTRACT ONE CHARM VALUE !!!
@@ -198,8 +202,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	}
 	service.Env.Pending = make(map[string]object.Object)
 
-	if hub.currentServiceName == "#snap" {
-		hub.snap.AddInput(line)
+	if hub.currentServiceName == "#snap" && obj.Type() != object.RESPONSE_OBJ {
 		hub.snap.AddOutput(objToString(service, obj))
 	}
 	return passedServiceName, object.OK_RESPONSE
@@ -508,11 +511,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
 		}
-		hub.snap = NewSnap(scriptFilepath, testFilepath)
+		hub.snap = parser.NewSnap(scriptFilepath, testFilepath)
 		hub.oldServiceName = hub.currentServiceName
 		if hub.Start(username, "#snap", scriptFilepath) {
 			ServiceDo((*hub).services["#snap"], "$view = \"charm\"")
 			hub.WriteString("Serialization is ON.\n")
+			hub.services[hub.currentServiceName].Parser.EffHandle =
+				parser.MakeSnapEffectHandler(hub.out, *hub.services[hub.currentServiceName].Env, hub.snap)
 		}
 		return false
 	case "snap-good":
@@ -520,7 +525,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		result := hub.snap.Save(GOOD)
+		result := hub.snap.Save(parser.GOOD)
 		hub.WriteString(result + "\n")
 		hub.currentServiceName = hub.oldServiceName
 		return false
@@ -529,7 +534,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		result := hub.snap.Save(BAD)
+		result := hub.snap.Save(parser.BAD)
 		hub.WriteString(result + "\n")
 		hub.currentServiceName = hub.oldServiceName
 		return false
@@ -538,7 +543,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		result := hub.snap.Save(RECORD)
+		result := hub.snap.Save(parser.RECORD)
 		hub.WriteString(result + "\n")
 		hub.currentServiceName = hub.oldServiceName
 		return false
@@ -970,7 +975,7 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 		return false
 	}
 
-	init.Parser.EffHandle = parser.MakeStandardEffectHandler(hub.out, *env)
+	init.Parser.EffHandle = parser.MakeStandardEffectHandler(hub.out)
 	(*newService).Parser = &init.Parser
 	(*newService).Env = env
 	hub.Sources = init.Sources
@@ -1130,10 +1135,11 @@ func (hub *Hub) TestScript(scriptFilepath string) {
 	dname := filepath.Dir(scriptFilepath)
 	directoryName := dname + "/charm-tests/" + fname
 
-	if _, err := os.Stat(directoryName); os.IsNotExist(err) {
+	if _, err := os.Stat(dname); os.IsNotExist(err) {
 		hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
 		return
 	}
+
 	hub.oldServiceName = hub.currentServiceName
 	files, _ := os.ReadDir(directoryName)
 	for _, testFileInfo := range files {
@@ -1147,7 +1153,7 @@ func (hub *Hub) TestScript(scriptFilepath string) {
 		scanner := bufio.NewScanner(f)
 		scanner.Scan()
 		testType := strings.Split(scanner.Text(), ": ")[1]
-		if testType == RECORD {
+		if testType == parser.RECORD {
 			f.Close()
 			continue
 		}
@@ -1171,13 +1177,13 @@ func (hub *Hub) TestScript(scriptFilepath string) {
 			}
 			executionMatchesTest = executionMatchesTest && (objToString(service, result) == lineOut)
 		}
-		if executionMatchesTest && testType == BAD {
+		if executionMatchesTest && testType == parser.BAD {
 			hub.WriteError("bad behavior reproduced by test" + "\n")
 			f.Close()
 			hub.playTest(testFilepath, false) // not that it matters if it's true or false ...
 			continue
 		}
-		if !executionMatchesTest && testType == GOOD {
+		if !executionMatchesTest && testType == parser.GOOD {
 			hub.WriteError("good behavior not reproduced by test" + "\n")
 			f.Close()
 			hub.playTest(testFilepath, true)

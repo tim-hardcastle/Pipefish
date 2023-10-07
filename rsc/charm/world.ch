@@ -58,7 +58,7 @@ get (x ref) as (t type) from (y SQL) :
      x = builtinGetSQL t, y
 builtinGetSQL(t type, s SQL) : builtin "get_from_SQL"
 
-// And last but not least, the contacts also have to be built in.
+// And the contacts also have to be built in.
 post (x contact) : builtin "post_to_contact" // Which of these to use is up to the user.
 put (x contact) : builtin "post_to_contact"
 delete (x contact) : builtin "post_to_contact"

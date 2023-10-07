@@ -27,18 +27,18 @@ func main() {
 	hub.Open()
 	argString := ""
 	if len(os.Args) > 1 {
-		for _,v := range(os.Args[1:]) {
+		for _, v := range os.Args[1:] {
 			argString = argString + v + " "
 		}
 	}
 	quit := false
 	if argString != "" {
 		verb, args := hub.ParseHubCommand(argString)
-		if verb != "error"  {
+		if verb != "error" {
 			quit = hub.DoHubCommand("", "", verb, args)
 		}
 	}
-	if len(os.Args) == 1 || !quit { // Thus taking care of the case where some cheeky
-		repl.Start(hub, os.Stdin, os.Stdout)  // goose starts it up with ./charm quit
+	if len(os.Args) == 1 || !quit {
+		repl.Start(hub, os.Stdin, os.Stdout)
 	}
 }

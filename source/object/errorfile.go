@@ -968,7 +968,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/const": {
 		Message: func(tok token.Token, args ...any) string {
-			return "reassigning to a constant '" + args[0].(string) + "'in the REPL."
+			return "reassigning to a constant '" + args[0].(string) + "' in the REPL"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The value of a constant can only be declared once."
