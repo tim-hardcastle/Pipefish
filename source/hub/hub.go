@@ -686,7 +686,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 }
 
 func getUnusedTestFilename(scriptFilepath string) string {
-	directoryName := text.FlattenedFilename(scriptFilepath)
+
+	fname := filepath.Base(scriptFilepath)
+	fname = fname[:len(fname)-len(filepath.Ext(fname))]
+	dname := filepath.Dir(scriptFilepath)
+	directoryName := dname + "/charm-tests/" + fname
 	name := text.FlattenedFilename(scriptFilepath) + "_"
 
 	tryNumber := 1
@@ -694,7 +698,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 
 	for ; ; tryNumber++ {
 		tryName = name + strconv.Itoa(tryNumber)
-		_, error := os.Stat("tst/" + directoryName + "/" + tryName)
+		_, error := os.Stat(directoryName + "/" + tryName)
 		if os.IsNotExist(error) {
 			break
 		}
@@ -1232,7 +1236,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType pars
 			hub.RunTest(scriptFilepath, testFilepath, parser.SHOW_ALL)
 			return
 		}
-		hub.WriteString("Test passed!" + "\n")
+		hub.WriteString(text.TEST_PASSED)
 	}
 	f.Close()
 }
