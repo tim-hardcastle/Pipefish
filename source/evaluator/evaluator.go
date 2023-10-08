@@ -1795,7 +1795,7 @@ func evalContactExpression(params []object.Object, tok token.Token, c *Context) 
 	}
 	otherParser := service.Parser
 	oldHandle := service.Parser.EffHandle.OutHandle
-	service.Parser.EffHandle.OutHandle = parser.ConsumingOutHandler{}
+	service.Parser.EffHandle.OutHandle = &parser.ConsumingOutHandler{}
 	contextToUse := NewContext(otherParser, service.Env, REPL, c.logging)
 	preparsedExpression, err := preparseContactExpression(params[0].(*object.Struct).Value["text"].(*object.String).Value, tok, c)
 	if err != nil {

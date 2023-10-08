@@ -252,3 +252,8 @@ func HighlightLine(plainLine string, highlighter rune) (string, rune) {
 	}
 	return highlitLine, highlighter
 }
+
+var (
+	WAS = Green("was") + ": "
+	GOT = Red("got") + ": "
+)

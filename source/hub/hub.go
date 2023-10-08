@@ -548,6 +548,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.currentServiceName = hub.oldServiceName
 		return false
 	case "snap-discard":
+		if hub.currentServiceName != "#snap" {
+			hub.WriteError("you aren't taking a snap.")
+			return false
+		}
 		hub.WriteString(text.OK + "\n")
 		hub.currentServiceName = hub.oldServiceName
 		return false
@@ -578,7 +582,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("service '" + args[0] + "' doesn't exist")
 		}
 	case "test":
-		hub.TestScript(args[0])
+		hub.TestScript(args[0], parser.ERROR_CHECK)
 		return false
 	case "trace":
 		if len(hub.ers) == 0 {
@@ -1128,7 +1132,7 @@ func (hub *Hub) list() {
 	hub.WriteString("\n")
 }
 
-func (hub *Hub) TestScript(scriptFilepath string) {
+func (hub *Hub) TestScript(scriptFilepath string, testOutputType parser.TestOutputType) {
 
 	fname := filepath.Base(scriptFilepath)
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
@@ -1144,53 +1148,7 @@ func (hub *Hub) TestScript(scriptFilepath string) {
 	files, _ := os.ReadDir(directoryName)
 	for _, testFileInfo := range files {
 		testFilepath := directoryName + "/" + testFileInfo.Name()
-		f, err := os.Open(testFilepath)
-		if err != nil {
-			hub.WriteError(strings.TrimSpace(err.Error()) + "/n")
-			return
-		}
-
-		scanner := bufio.NewScanner(f)
-		scanner.Scan()
-		testType := strings.Split(scanner.Text(), ": ")[1]
-		if testType == parser.RECORD {
-			f.Close()
-			continue
-		}
-		//scanner.Scan()
-		scanner.Scan()
-		hub.Start("", "#test", scriptFilepath)
-		hub.WritePretty("Running test '" + testFilepath + "'.\n")
-		ServiceDo((*hub).services["#test"], "$view = \"charm\"")
-		service := (*hub).services["#test"]
-		_ = scanner.Scan() // eats the newline
-		executionMatchesTest := true
-		for scanner.Scan() {
-			lineIn := scanner.Text()[3:]
-			scanner.Scan()
-			lineOut := scanner.Text()
-			result := ServiceDo(service, lineIn)
-			if service.Parser.ErrorsExist() {
-				hub.WritePretty(service.Parser.ReturnErrors())
-				f.Close()
-				continue
-			}
-			executionMatchesTest = executionMatchesTest && (objToString(service, result) == lineOut)
-		}
-		if executionMatchesTest && testType == parser.BAD {
-			hub.WriteError("bad behavior reproduced by test" + "\n")
-			f.Close()
-			hub.playTest(testFilepath, false) // not that it matters if it's true or false ...
-			continue
-		}
-		if !executionMatchesTest && testType == parser.GOOD {
-			hub.WriteError("good behavior not reproduced by test" + "\n")
-			f.Close()
-			hub.playTest(testFilepath, true)
-			continue
-		}
-		hub.WriteString("Test passed!" + "\n")
-		f.Close()
+		hub.RunTest(scriptFilepath, testFilepath, testOutputType)
 	}
 	_, ok := hub.services["#test"]
 	if ok {
@@ -1200,7 +1158,8 @@ func (hub *Hub) TestScript(scriptFilepath string) {
 
 }
 
-func (hub *Hub) playTest(testFilepath string, diffOn bool) {
+func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType parser.TestOutputType) {
+
 	f, err := os.Open(testFilepath)
 	if err != nil {
 		hub.WriteError(strings.TrimSpace(err.Error()) + "/n")
@@ -1208,13 +1167,95 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	}
 
 	scanner := bufio.NewScanner(f)
-	scanner.Scan() // test type doesn't matter
 	scanner.Scan()
-	scriptFilepath := strings.Split(scanner.Text(), ": ")[1]
+	testType := strings.Split(scanner.Text(), ": ")[1]
+	if testType == parser.RECORD {
+		f.Close() // TODO --- shouldn't this do something?
+		return
+	}
 	scanner.Scan()
+	if !hub.Start("", "#test", scriptFilepath) {
+		hub.WriteError("Can't initialize script " + text.Emph(scriptFilepath))
+		return
+	}
+	hub.services["#test"].Parser.EffHandle =
+		parser.MakeTestEffectHandler(hub.out, *hub.services["#test"].Env, scanner, testOutputType)
+	if testOutputType == parser.ERROR_CHECK {
+		hub.WritePretty("Running test '" + testFilepath + "'.\n")
+	}
+	ServiceDo((*hub).services["#test"], "$view = \"charm\"")
+	service := (*hub).services["#test"]
+	_ = scanner.Scan() // eats the newline
+	executionMatchesTest := true
+	for scanner.Scan() {
+		lineIn := scanner.Text()[3:]
+		if testOutputType == parser.SHOW_ALL {
+			hub.WriteString("-> " + lineIn + "\n")
+		}
+		result := ServiceDo(service, lineIn)
+		if service.Parser.ErrorsExist() {
+			hub.WritePretty(service.Parser.ReturnErrors())
+			f.Close()
+			continue
+		}
+		scanner.Scan()
+		lineOut := scanner.Text()
+		nonIoError := objToString(service, result) != lineOut
+		newError := nonIoError ||
+			service.Parser.EffHandle.InHandle.(*parser.TestInHandler).Fail ||
+			service.Parser.EffHandle.OutHandle.(*parser.TestOutHandler).Fail
+		if newError {
+			service.Parser.EffHandle.InHandle.(*parser.TestInHandler).Fail = false
+			service.Parser.EffHandle.OutHandle.(*parser.TestOutHandler).Fail = false
+			executionMatchesTest = false
+			if testOutputType == parser.SHOW_DIFF && nonIoError {
+				hub.WriteString("-> " + lineIn + "\n" + text.WAS + lineOut + "\n" + text.GOT + objToString(service, result) + "\n")
+			}
+			if testOutputType == parser.SHOW_ALL && nonIoError {
+				hub.WriteString(text.WAS + lineOut + "\n" + text.GOT + objToString(service, result) + "\n")
+			}
+		}
+		if !newError && testOutputType == parser.SHOW_ALL {
+			hub.WriteString(lineOut + "\n")
+		}
+	}
+	if testOutputType == parser.ERROR_CHECK {
+		if executionMatchesTest && testType == parser.BAD {
+			hub.WriteError("bad behavior reproduced by test" + "\n")
+			f.Close()
+			hub.RunTest(scriptFilepath, testFilepath, parser.SHOW_ALL)
+			return
+		}
+		if !executionMatchesTest && testType == parser.GOOD {
+			hub.WriteError("good behavior not reproduced by test" + "\n")
+			f.Close()
+			hub.RunTest(scriptFilepath, testFilepath, parser.SHOW_ALL)
+			return
+		}
+		hub.WriteString("Test passed!" + "\n")
+	}
+	f.Close()
+}
+
+func (hub *Hub) playTest(testFilepath string, diffOn bool) {
+	f, err := os.Open(testFilepath)
+	if err != nil {
+		hub.WriteError(strings.TrimSpace(err.Error()) + "/n")
+		return
+	}
+	scanner := bufio.NewScanner(f)
+	println("scanning from", testFilepath)
+	scanner.Scan()
+	foo := scanner.Text() // test type doesn't matter
+	println("foo = '", foo, "'")
+	scanner.Scan()
+	scriptFilepath := (scanner.Text())[8:]
+	scanner.Scan()
+	println("scriptFilepath", scriptFilepath)
 	hub.Start("", "#test", scriptFilepath)
 	ServiceDo((*hub).services["#test"], "$view = \"charm\"")
 	service := (*hub).services["#test"]
+	service.Parser.EffHandle = parser.MakeTestEffectHandler(hub.out, *service.Env, scanner, parser.SHOW_ALL)
 	_ = scanner.Scan() // eats the newline
 	for scanner.Scan() {
 		lineIn := scanner.Text()[3:]
@@ -1227,10 +1268,11 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 			return
 		}
 		hub.WriteString("#test → " + lineIn + "\n")
+
 		if objToString(service, result) == lineOut || !diffOn {
 			hub.WriteString(objToString(service, result) + "\n")
 		} else {
-			hub.WriteString("was: " + lineOut + "\ngot: " + objToString(service, result) + "\n")
+			hub.WriteString(text.WAS + lineOut + "\n" + text.GOT + objToString(service, result) + "\n")
 		}
 	}
 }
