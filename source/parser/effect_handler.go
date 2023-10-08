@@ -109,7 +109,7 @@ func (oH *snapOutHandler) Out(vals []object.Object, env *object.Environment) {
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteRune('\n')
-	oH.snap.AddOutput(out.String())
+	oH.snap.AppendOutput(out.String())
 	oH.stdOut.Out(vals, env)
 }
 
@@ -181,14 +181,14 @@ func (oH *TestOutHandler) Out(vals []object.Object, env *object.Environment) {
 	case SHOW_ALL:
 		if getExpected != getGot {
 			oH.stdOut.out.Write([]byte(text.WAS + getExpected))
-			oH.stdOut.out.Write([]byte("\n" + text.GOT + getGot))
+			oH.stdOut.out.Write([]byte("\n" + text.GOT + getGot + "\n"))
 		} else {
 			oH.stdOut.out.Write([]byte(getGot))
 		}
 	case SHOW_DIFF:
 		if getExpected != getGot {
 			oH.stdOut.out.Write([]byte(text.WAS + getExpected))
-			oH.stdOut.out.Write([]byte("\n" + text.GOT + getGot))
+			oH.stdOut.out.Write([]byte("\n" + text.GOT + getGot + "\n"))
 		}
 	}
 }
