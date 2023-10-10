@@ -1049,7 +1049,10 @@ func (p *Parser) ParseLine(source, input string) *ast.Node {
 }
 
 func (p *Parser) ParseDump(source, input string) {
-	parsedLine := p.ParseLine(source, input)
+	parsedLine := p.ParseLine(source, input) // TODO --- why do you have a pointer to an interface?
+	if *parsedLine == nil {
+		fmt.Printf("Parser returns: nil")
+	}
 	fmt.Printf("Parser returns: %v\n\n", (*parsedLine).String())
 }
 

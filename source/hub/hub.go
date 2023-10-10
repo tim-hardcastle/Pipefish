@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,7 +70,7 @@ func New(in io.Reader, out io.Writer) *Hub {
 // and as an expression to be passed to the current service if none of the above hold.
 func (hub *Hub) Do(line, username, password, passedServiceName string) (string, *object.Effects) {
 
-	if line == "" {
+	if match, _ := regexp.MatchString(`^\s*(|\/\/.*)$`, line); match {
 		hub.WriteString("")
 		return passedServiceName, object.OK_RESPONSE
 	}
