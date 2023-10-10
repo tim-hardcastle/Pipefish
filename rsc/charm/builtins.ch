@@ -1,15 +1,15 @@
 def
 
 // This is implemented in the evaluator, so all this line does is enforce the syntax.
-for (indexName ast) over (R single) do (__f func) to (x tuple) : builtin "for_loop" 
+for (indexName ast) over (R single) do (f func) to (x tuple) : builtin "for_loop" 
 
 // This is not a builtin but should be, for performance.
-while (p) do (__f) to (z single) :
-    p z : while p do __f to __f z     // TODO --- fix stupid namespace conflicts.
+while (p) do (f) to (z single) :
+    p z : while p do f to f z     // TODO --- fix stupid namespace conflicts.
     else : z
 
-while (p) do (__f) to (z tuple) :
-    p z : while p do __f to __f z
+while (p) do (f) to (z tuple) :
+    p z : while p do f to f z
     else : z
 
 tail(L list) :
@@ -40,8 +40,12 @@ codepoint(s string) : builtin "codepoint"
 
 (m map) without (t tuple) : builtin "map_without_keys"
 
+set(t tuple) : builtin "tuple_to_set"
+set(L list) : builtin "list_to_set"
+
 rune(i int) : builtin "rune"
-literal(s tuple) : builtin "charm_literal"
+literal(t tuple) : builtin "charm_literal"
+literal(s single) : builtin "charm_literal"
 tuple(t tuple) : builtin "tuple_to_tuple"
 tuplify(L list) : builtin "spread_list"
 tuplify(S set) : builtin "spread_set"
@@ -78,6 +82,8 @@ keys (t type) : builtin "keys_of_type"
 (x float64) / (y float64) : builtin "divide_floats"
 len(x string) : builtin "len_string"
 len(x list)	: builtin "len_list"
+len(x set)	: builtin "len_set"
+len(x map)	: builtin "len_map"
 arity(x tuple) : builtin "arity_tuple"
 string(x tuple) : builtin "tuple_to_string"
 int(x string) : builtin "string_to_int"

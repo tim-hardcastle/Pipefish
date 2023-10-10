@@ -1222,7 +1222,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				case *ast.IntegerLiteral:
 					varType = "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
 				default:
-					p.Throw("parse/sig/varchar/int", potentialInteger.GetToken())
+					p.Throw("parse/sig/varchar/int/a", potentialInteger.GetToken())
 					return nil
 				}
 			} else {
@@ -1295,6 +1295,15 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature
 			LHS := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
 			RHS := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			return append(LHS, RHS...)
+		case typednode.Operator == "varchar":
+			switch potentialInteger := typednode.Args[2].(type) {
+			case *ast.IntegerLiteral:
+				varType := "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
+				return p.RecursivelySlurpSignature(typednode.Args[0], varType)
+			default:
+				p.Throw("parse/sig/varchar/int/b", potentialInteger.GetToken())
+				return nil
+			}
 		default:
 			p.Throw("parse/sig/b", typednode.Token)
 		}

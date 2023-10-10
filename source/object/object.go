@@ -405,9 +405,9 @@ func (so *Set) Inspect(view View) string {
 		elements = append(elements, element.Inspect(view))
 	}
 
-	out.WriteString("{")
+	out.WriteString("set (")
 	out.WriteString(strings.Join(elements, ", "))
-	out.WriteString("}")
+	out.WriteString(")")
 
 	return out.String()
 }
@@ -476,9 +476,14 @@ func (st *StructDef) Inspect(view View) string { return st.Sig.String() }
 // returns.
 type SuccessfulAssignment struct{}
 
-func (s *SuccessfulAssignment) DeepCopy() Object         { return s }
-func (s *SuccessfulAssignment) Type() ObjectType         { return SUCCESSFUL_OBJ }
-func (s *SuccessfulAssignment) Inspect(view View) string { return text.OK }
+func (s *SuccessfulAssignment) DeepCopy() Object { return s }
+func (s *SuccessfulAssignment) Type() ObjectType { return SUCCESSFUL_OBJ }
+func (s *SuccessfulAssignment) Inspect(view View) string {
+	if view == ViewCharmLiteral {
+		return "ok"
+	}
+	return text.OK
+}
 
 // The 'tuple' type.
 type Tuple struct {

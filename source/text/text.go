@@ -54,11 +54,11 @@ func Cyan(s string) string {
 }
 
 func Emph(s string) string {
-	return Cyan("'" + s + "'")
+	return "'" + s + "'"
 }
 
 func EmphType(s string) string {
-	return Cyan("<" + s + ">")
+	return "'" + s + "'"
 }
 
 func Red(s string) string {

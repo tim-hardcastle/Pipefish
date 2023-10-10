@@ -49,6 +49,22 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return returnList
 	},
 
+	"tuple_to_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		result := &object.Set{}
+		for _, v := range args[0].(*object.Tuple).Elements {
+			result.AddElement(v)
+		}
+		return result
+	},
+
+	"list_to_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		result := &object.Set{}
+		for _, v := range args[0].(*object.List).Elements {
+			result.AddElement(v)
+		}
+		return result
+	},
+
 	"len_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		if p.TypeSystem.PointsTo(args[0].(*object.Type).Value, "enum") {
 			return &object.Integer{Value: len(p.Enums[args[0].(*object.Type).Value])}
@@ -161,12 +177,6 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return result
 	},
 
-	"add_element_to_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		result := args[0].(*object.Set).Copy()
-		result.AddElement(args[2])
-		return result
-	},
-
 	"< int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Integer).Value < args[2].(*object.Integer).Value {
 			return object.TRUE
@@ -272,6 +282,14 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 
 	"len_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: len(args[0].(*object.List).Elements)}
+	},
+
+	"len_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		return &object.Integer{Value: len(args[0].(*object.Set).Elements)}
+	},
+
+	"len_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+		return &object.Integer{Value: len(args[0].(*object.Hash).Pairs)}
 	},
 
 	"len_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {

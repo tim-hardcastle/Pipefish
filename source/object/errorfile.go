@@ -739,7 +739,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/index/types": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't index type " + emph(args[0].(string)) + " by " + emph(args[1].(string))
+			return "can't index " + string(args[0].(ObjectType)) + " by " + string(args[1].(ObjectType))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You can index a list or a string or a tuple by an integer, or by a pair of integers to make a slice; or you can index a map by a key, or a struct by the label of one of its fields. But you have done none of these things and Charm is puzzled."
@@ -986,8 +986,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/type": {
 		Message: func(tok token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to a variable of type <" +
-				args[1].(string) + ">" +
+			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to a variable of type " +
+				text.Emph(args[1].(string)) +
 				" (value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
