@@ -1804,8 +1804,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm allows two forms of continuation, and one is to end a line in a continuation sign " +
 				"'..', and to begin the next line with another '..'\n\n" +
 				"For example: \n\n" +
-				"var\n\nsum = 1 + 2 + 3 ..    .. + 4 + 5 + 6\n\n" +
-				"Note that such continuations are not bound by the whitespace rules and can be positioned as you like " +
+				"|-----------------------------------------------\n\n" +
+				"someString = \"Hello\" + .. \n          .. \"world!\"\n\n" +
+				"|-\n\nNote that such continuations are not bound by the whitespace rules and can be positioned as you like " +
 				"for readability.\n\nThe error you are seeing is because you have put an isolated '..' at a line " +
 				"boundary, rather than one at the end of one line and another at the start of the next.."
 		},
@@ -1819,8 +1820,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm allows two forms of continuation, and one is to end a line in a continuation sign " +
 				"'..', and to begin the next line with another '..'\n\n" +
 				"For example: \n\n" +
-				"var\n\nsum = 1 + 2 + 3 ..    .. + 4 + 5 + 6\n\n" +
-				"Note that such continuations are not bound by the whitespace rules and can be positioned as you like " +
+				"|-----------------------------------------------\n\n" +
+				"someList = [1, 2, 4,\n         .. 8, 16, 32]\n\n" +
+				"|-\n\nNote that such continuations are not bound by the whitespace rules and can be positioned as you like " +
 				"for readability.\n\nThe error you are seeing is because you have put an isolated '..' at a line " +
 				"boundary, rather than one at the end of one line and another at the start of the next.."
 		},
@@ -1834,11 +1836,13 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Charm allows two forms of continuation, One is to end a line in a continuation sign " +
 				"'..', and to begin the next line with another '..'\n\n" +
 				"For example: \n\n" +
-				"var\n\nsum = 1 + 2 + 3 ..     .. + 4 + 5 + 6\n\n" + "The other is to end a line in a comma " +
+				"|-----------------------------------------------\n\n" +
+				"someString = \"Hello\" + .. \n          .. \"world!\"\n\n" + "|-\n\nThe other is to end a line in a comma " +
 				"in positions where a comma would be correct anyway, and to begin the next line with '..'\n\n" +
 				"For example: \n\n" +
-				"var\n\nsomeList = [1, 2, 4,\n         .. 8, 16, 32]\n\n" +
-				"Note that such continuations are not bound by the whitespace rules and can be positioned as you like " +
+				"|-----------------------------------------------\n\n" +
+				"someList = [1, 2, 4,\n         .. 8, 16, 32]\n\n" +
+				"|-\n\nNote that such continuations are not bound by the whitespace rules and can be positioned as you like " +
 				"for readability.\n\n The error you are seeing is because you have put an isolated '..' at " +
 				"the start of a line, rather than one at the end of one line and another at the start of the next."
 		},
