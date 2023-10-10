@@ -222,7 +222,8 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		}
 		return verb, args
 	}
-	panic("You're only supposed to get an error or a HubResponse from the HUB service.")
+	hub.WriteError("couldn't parse hub instruction.")
+	return "error", []string{"couldn't parse hub instruction"}
 }
 
 func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
