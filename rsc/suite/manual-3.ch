@@ -61,9 +61,10 @@ nullToZero(i int?) :
 
 var
 
+shortString varchar(10) = "walrus"
 couldBeInt int? = 42
 couldBeBool bool? = NULL
-shortString varchar(10) = "walrus"
+
 
 // Page 3.6 is the type system diagram and has no associated examples.
 

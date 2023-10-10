@@ -67,7 +67,9 @@ func (l *Lexer) NextToken() token.Token {
 
 	if l.afterSnippet {
 		l.afterSnippet = false
-		return l.NewToken(token.NEWLINE, ";")
+		if l.source != "REPL input" {
+			return l.NewToken(token.NEWLINE, ";")
+		}
 	}
 
 	if l.newline {
