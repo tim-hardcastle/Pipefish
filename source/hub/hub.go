@@ -584,7 +584,35 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("service '" + args[0] + "' doesn't exist")
 		}
 	case "test":
-		hub.TestScript(args[0], parser.ERROR_CHECK)
+		file, err := os.Open(args[0])
+		if err != nil {
+			hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
+			return false
+		}
+
+		defer file.Close()
+		fileInfo, err := file.Stat()
+		if err != nil {
+			hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
+			return false
+		}
+
+		if fileInfo.IsDir() {
+			files, err := file.Readdir(0)
+			if err != nil {
+				hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
+				return false
+			}
+
+			for _, potentialCharmFile := range files {
+				if filepath.Ext(potentialCharmFile.Name()) == ".ch" {
+					hub.TestScript(args[0]+"/"+potentialCharmFile.Name(), parser.ERROR_CHECK)
+				}
+			}
+		} else {
+			hub.TestScript(args[0], parser.ERROR_CHECK)
+		}
+
 		return false
 	case "trace":
 		if len(hub.ers) == 0 {
@@ -1144,11 +1172,6 @@ func (hub *Hub) TestScript(scriptFilepath string, testOutputType parser.TestOutp
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
 	dname := filepath.Dir(scriptFilepath)
 	directoryName := dname + "/charm-tests/" + fname
-
-	if _, err := os.Stat(dname); os.IsNotExist(err) {
-		hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
-		return
-	}
 
 	hub.oldServiceName = hub.currentServiceName
 	files, _ := os.ReadDir(directoryName)

@@ -506,6 +506,7 @@ func (to *Tuple) DeepSlice(start, end int) Object {
 }
 func (to *Tuple) Type() ObjectType { return TUPLE_OBJ }
 func (to *Tuple) Inspect(view View) string {
+
 	var out bytes.Buffer
 	elements := []string{}
 	if len(to.Elements) == 1 {

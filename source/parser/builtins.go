@@ -302,7 +302,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 
 	"tuple_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
 		if len(args[0].(*object.Tuple).Elements) == 0 {
-			return &object.String{Value: ""}
+			return &object.String{Value: "()"}
 		}
 		if len(args[0].(*object.Tuple).Elements) == 1 {
 			return &object.String{Value: args[0].(*object.Tuple).Elements[0].Inspect(object.ViewStdOut)}
