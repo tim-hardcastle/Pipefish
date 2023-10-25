@@ -18,3 +18,15 @@ rotate(d Direction, t tuple) :
     else : 
        rotateLeft t
 
+zort :
+    "No parameters"
+
+zort(s single) :
+    "Single"
+
+zort(x single, y tuple) :
+    "Single, then tuple"
+
+zort(t tuple) :
+    "Tuple"
+

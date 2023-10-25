@@ -475,6 +475,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
+
 		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].ScriptFilepath)
 		hub.tryMain()
 		return false
@@ -727,7 +728,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 	tryName := ""
 
 	for ; ; tryNumber++ {
-		tryName = name + strconv.Itoa(tryNumber)
+		tryName = name + strconv.Itoa(tryNumber) + ".tst"
 		_, error := os.Stat(directoryName + "/" + tryName)
 		if os.IsNotExist(error) {
 			break
@@ -848,7 +849,9 @@ func init() {
 }
 
 func (hub *Hub) StartAnonymous(scriptFilepath string) {
-	hub.Start("", "#"+fmt.Sprint(hub.anonymousServiceNumber), scriptFilepath)
+	serviceName := "#" + fmt.Sprint(hub.anonymousServiceNumber)
+	hub.Start("", serviceName, scriptFilepath)
+	hub.lastRun = []string{serviceName}
 	hub.anonymousServiceNumber = hub.anonymousServiceNumber + 1
 }
 

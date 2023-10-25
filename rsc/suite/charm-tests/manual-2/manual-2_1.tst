@@ -1,5 +1,5 @@
 snap: good
-script: rsc/suite/manual-1&2.ch
+script: rsc/suite/manual-2.ch
 
 -> h
 "Hello world!"

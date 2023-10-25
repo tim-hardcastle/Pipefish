@@ -38,9 +38,10 @@ func ToEscapedText(s string) string {
 }
 
 func FlattenedFilename(s string) string {
-	s = filepath.Base(s)
-	s = strings.Replace(s, ".", "_", -1)
-	return s
+	base := filepath.Base(s)
+	withoutSuffix := strings.TrimSuffix(base, filepath.Ext(base))
+	flattened := strings.Replace(withoutSuffix, ".", "_", -1)
+	return flattened
 }
 
 func Flatten(s string) string {

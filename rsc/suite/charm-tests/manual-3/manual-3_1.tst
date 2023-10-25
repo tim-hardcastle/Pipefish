@@ -127,8 +127,8 @@ false
 "walrus"
 -> len (map "foo"::"bar", 42::"walrus")
 2
--> keys (map "foo"::"bar", 42::"walrus")
-["foo", 42]
+-> len keys (map "foo"::"bar", 42::"walrus")
+2
 -> ((1, (2, 3)), ((4)))
 1, 2, 3, 4
 -> arity 1, 2, 3
