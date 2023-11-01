@@ -28,7 +28,7 @@ Here are some of Charm's more distinctive features:
 * Charm comes with Go and SQL interop for all your backend needs.
 * (Also the system for embedding other languages is extensible if this does not in fact meet all your needs.)
 * Charm allows and encourages you to write your applications as microservices, giving you a natural way to encapsulate data and manage access to it.
-* Charm’s syntax is based (to the extent a functional language can or should be) on imperative productivity languages, principally Python and Go, and will be more familiar to the average programmer than most functional languages.
+* Charm’s syntax is based on mainstream productivity languages, principally Python and Go. It has a shallow or indeed invisible learning curve: you can learn the simple bits of the language without knowing that the other parts exist.
 
 ## Documents
 
