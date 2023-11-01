@@ -21,7 +21,7 @@ Here are some of Charm's more distinctive features:
 * Free order of intitialization also helps you to write your scripts top-down.
 * Abstraction is achieved by overloading and duck-typing. There is multiple dispatch.
 * Field names of structs are first-class objects. Indexing structs and maps overloads the same operator.
-* While Charm is dynamic (as explained for example in the previous two points) it is also very strongly typed, more so than any mainstream dynamic language. There is no truthiness; there is exactly one type coercion.
+* While Charm is very dynamic (as illustrated in the previous two points) it is also very strongly typed, much more so than any mainstream dynamic language. There is no truthiness; there is exactly one form of type coercion.
 * Charm is REPL-oriented, with hotcoding to make it easy to code and test incrementally.
 * The REPL is also a development environment and framework. It lets you test your code, write permanent tests, ask for help, interact with error messages, configure your services, deploy them to the web and manage access to them.
 * It is intended that often a Charm service will act as its own front end (like e.g. a SQL database does) with the end-user talking to it via the Charm REPL. For this reason Charm has an unusually flexible syntax for creating DSLs.
