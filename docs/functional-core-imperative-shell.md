@@ -24,7 +24,7 @@ The result of all this is expressed in the following table:
 | (d) which can only call functions | (d) which can call both functions and commands |
 | All local values are constant | All local values are mutable |
 | Effectless | Exists only to perform side-effects |
-| Is pure | Can access global variables |
+| Is pure | Can access global variables, the file system, the database ... |
 | Contains all the business logic | Dumb as a sack of rocks |
 | 99% of your code | 0.5% of your code (the remaining 0.5% is type definitions) |
 | Easy to test because it's pure | Easy to test because it's simple |
