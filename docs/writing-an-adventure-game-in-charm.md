@@ -526,7 +526,7 @@ addIndefiniteArticle(s string) :
         " a " + s
 ```
 
-Note the use of the filter operator `?>` in `descibeObjects`.
+Note the use of the filter operator `?>` in `describeObjects`.
 
 Check it out in the REPL :
 
