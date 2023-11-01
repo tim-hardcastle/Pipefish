@@ -172,7 +172,7 @@ You are in the antechamber of the wizard's castle. To your south is the outdoors
 ADV →
 ```
 
-It works. However, `describe((doMove("north", state))[playerLocation], state)` is an ugly mess of parentheses, and the sort of thing that used to get functional programming a bad name, so this might be a good time to introduce Charm's streaming operators. In particular, the piping operator lets us write expressions like the above from left to right instead.
+It works. However, `describe((doMove("north", state))[playerLocation], state)` is an ugly mess of parentheses, and the sort of thing that used to get functional programming a bad name, so this might be a good time to introduce Charm's piping operators. In particular, the `->` operator lets us write expressions like the above from left to right instead.
 
 ```
 ADV → state -> doMove("north", that) -> that[playerLocation] -> describe(that, state)
