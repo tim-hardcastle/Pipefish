@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The `docs` folder contains supplementary information about the Charm programming language besides the introduction contained in [the main README file](https://github.com/tim-hardcastle/Charm/blob/main/README.md).
+The `docs` folder contains supplementary information about the Charm programming language besides the introduction contained in [the main README file](https://github.com/tim-hardcastle/Charm/blob/main/README.md) and [the wiki/manual](https://github.com/tim-hardcastle/Charm/wiki).
 
 ## Contents of the `docs` folder
 
