@@ -477,7 +477,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 
 		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].ScriptFilepath)
-		hub.tryMain()
+		hub.tryStart("main")
 		return false
 	case "run":
 		hub.lastRun = args
@@ -485,12 +485,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("Starting script '" + args[0] +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
 			hub.StartAnonymous(args[0])
-			hub.tryMain()
+			hub.tryStart("main")
 			return false
 		}
 		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
 		hub.Start(username, args[1], args[0])
-		hub.tryMain()
+		hub.tryStart("main")
 		return false
 	case "services-of-user":
 		result, err := database.GetServicesOfUser(hub.Db, args[0], false)
@@ -577,7 +577,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			} else {
 				hub.currentServiceName = args[0]
 				if !hub.services[hub.currentServiceName].Visited {
-					hub.tryMain()
+					hub.tryStart("main")
 				}
 				return false
 			}
@@ -878,10 +878,12 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
 	return true
 }
 
-func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
-
+func (hub *Hub) tryStart(cname string) { // Guardedly tries to run the `init` or `main` command, depending on the parameter.
+	if len(hub.ers) > 0 {
+		return
+	}
 	if !hub.services[hub.currentServiceName].Broken && hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
-		obj := ServiceDo(hub.services[hub.currentServiceName], "main")
+		obj := ServiceDo(hub.services[hub.currentServiceName], cname)
 		hub.lastRun = []string{hub.currentServiceName}
 		hub.services[hub.currentServiceName].Visited = true
 		if obj.Type() == object.RESPONSE_OBJ && obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
@@ -1145,7 +1147,7 @@ func (hub *Hub) Open() {
 				"with this hub.\n\n")
 			return
 		}
-		hub.tryMain()
+		hub.tryStart("main")
 	}
 }
 

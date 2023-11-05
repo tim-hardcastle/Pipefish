@@ -21,3 +21,14 @@ head (L list raw) : gocode {
 contains(haystack, needle string) : gocode {
     return strings.Contains(haystack, needle)
 }
+
+fib(n int) : gocode {
+	var a, b int
+	b = 1
+	for i := 0; i < n; i++ {
+		a += b
+		a, b = b, a
+	}
+	return a
+}
+
