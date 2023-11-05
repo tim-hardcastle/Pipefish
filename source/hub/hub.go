@@ -165,14 +165,14 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, object.OK_RESPONSE
 	}
 
-	// If hotcoding is on, we recreate the service. createService, which is called by Start, will test if the
-	// service actually needs updating.
-	if hub.hot {
+	needsUpdate, _ := hub.serviceNeedsUpdate(hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
+	if hub.hot && needsUpdate {
 		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
 		service = hub.services[hub.currentServiceName]
 		if service.Broken {
 			return passedServiceName, object.OK_RESPONSE
 		}
+		hub.tryStart("init")
 	}
 
 	if hub.currentServiceName == "#snap" {
@@ -469,14 +469,17 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			"' as service '" + hub.currentServiceName + "'.\n")
 		hub.Start(username, hub.currentServiceName, service.ScriptFilepath)
 		hub.lastRun = []string{hub.currentServiceName}
+		hub.tryStart("init")
 		return false
 	case "rerun":
 		if len(hub.lastRun) == 0 {
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
-
+		hub.WritePretty("Rerunning script '" + hub.services[hub.lastRun[0]].ScriptFilepath +
+			"' as service '" + hub.lastRun[0] + "'.\n")
 		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].ScriptFilepath)
+		hub.tryStart("init")
 		hub.tryStart("main")
 		return false
 	case "run":
@@ -485,11 +488,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("Starting script '" + args[0] +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
 			hub.StartAnonymous(args[0])
+			hub.tryStart("init")
 			hub.tryStart("main")
 			return false
 		}
 		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
 		hub.Start(username, args[1], args[0])
+		hub.tryStart("init")
 		hub.tryStart("main")
 		return false
 	case "services-of-user":
@@ -522,6 +527,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.services[hub.currentServiceName].Parser.EffHandle =
 				parser.MakeSnapEffectHandler(hub.out, *hub.services[hub.currentServiceName].Env, hub.snap)
 		}
+		hub.tryStart("init")
 		return false
 	case "snap-good":
 		if hub.currentServiceName != "#snap" {
@@ -577,6 +583,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			} else {
 				hub.currentServiceName = args[0]
 				if !hub.services[hub.currentServiceName].Visited {
+					hub.tryStart("init")
 					hub.tryStart("main")
 				}
 				return false
@@ -901,8 +908,7 @@ func (hub *Hub) tryStart(cname string) { // Guardedly tries to run the `init` or
 	}
 }
 
-func (hub *Hub) createService(name, scriptFilepath, code string) bool {
-
+func (hub *Hub) serviceNeedsUpdate(name, scriptFilepath string) (bool, int64) {
 	var modifiedTime int64
 
 	// TODO --- if you changed an imported dependency this wouldn't notice.
@@ -914,9 +920,19 @@ func (hub *Hub) createService(name, scriptFilepath, code string) bool {
 		modifiedTime = file.ModTime().UnixMilli()
 		_, present := hub.services[name]
 		if present && modifiedTime == hub.services[name].Timestamp {
-			return false
+			return false, modifiedTime
 		}
 	}
+	return true, modifiedTime
+}
+
+func (hub *Hub) createService(name, scriptFilepath, code string) bool {
+
+	needsRebuild, modifiedTime := hub.serviceNeedsUpdate(name, scriptFilepath)
+	if !needsRebuild {
+		return false
+	}
+
 	newService := parser.NewService()
 	hub.services[name] = newService
 	hub.services[name].Timestamp = modifiedTime
@@ -1147,6 +1163,7 @@ func (hub *Hub) Open() {
 				"with this hub.\n\n")
 			return
 		}
+		hub.tryStart("init")
 		hub.tryStart("main")
 	}
 }
