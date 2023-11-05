@@ -1426,6 +1426,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"golang/return": {
+		Message: func(tok token.Token, args ...any) string {
+			return "bad return value from golang"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "This is because the author of Charm hasn't gotten around to it yet."
+		},
+	},
+
 	"golang/type/a": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't pass value of type " + emph(args[0].(string)) + " to Go as raw value"
