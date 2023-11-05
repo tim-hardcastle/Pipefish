@@ -2,7 +2,7 @@ snap: good
 script: rsc/suite/manual-3.ch
 
 -> Penguin "Gunther", NULL, NULL
-Penguin with (name :: "Gunther", numberOfChicks :: NULL, favoriteFood :: NULL)
+Penguin with (name::"Gunther", numberOfChicks::NULL, favoriteFood::NULL)
 -> couldBeBool = true
 ok
 -> couldBeInt = NULL

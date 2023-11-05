@@ -102,7 +102,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				" (non-pair value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A map in Charm consists of '<key> :: <value>' pairs, and if you try to make a map out of anything else this will fail."
+			return "A map in Charm consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
 		},
 	},
 
@@ -112,7 +112,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				" (non-pair value supplied was " + DescribeObject(args[0].(Object)) + ")"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A map in Charm consists of '<key> :: <value>' pairs, and if you try to make a map out of anything else this will fail."
+			return "A map in Charm consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
 		},
 	},
 
@@ -237,12 +237,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/slice/int/range": {
 		Message: func(tok token.Token, args ...any) string {
-			return "ranges are defined by pairs of type <int> :: <int>, not of type " +
-				EmphType(args[0].(Object)) + " :: " + EmphType(args[1].(Object))
+			return "ranges are defined by pairs of type <int>::<int>, not of type " +
+				EmphType(args[0].(Object)) + "::" + EmphType(args[1].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A range is a list of numbers given from one integer up to (but not including) another, " +
-				"and so the 'range' function takes pairs of the form  <int> :: <int> as input."
+				"and so the 'range' function takes pairs of the form  <int>::<int> as input."
 		},
 	},
 
@@ -752,7 +752,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're using a long-form constructor to create a new instance of a struct, " +
-				"and have given it a parameter which is not of the form '<field name> :: <value>'."
+				"and have given it a parameter which is not of the form '<field name>::<value>'."
 		},
 	},
 

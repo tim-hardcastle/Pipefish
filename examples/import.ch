@@ -1,11 +1,11 @@
 import
 
-"lib/complex.ch" :: ""
+"lib/complex.ch"::""
 
 def
 
 mandelbrot(c pair) :
-    mandeler(0, (0.0 :: 0.0))
+    mandeler(0, (0.0::0.0))
 given :
     mandeler = func(i int, z) :
         i > 50 : true

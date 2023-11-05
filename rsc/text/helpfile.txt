@@ -522,9 +522,9 @@ Or there are also long-form constructors for when clarity is needed:
 
 |-----------------------------------------------
 
-joe = Person with name :: "Joe", age :: 42
+joe = Person with name::"Joe", age::42
 
-myCat = Cat with name :: "Rose", pink :: true
+myCat = Cat with name::"Rose", pink::true
 
 |-
 

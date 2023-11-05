@@ -234,7 +234,7 @@ func (h *Hash) Inspect(view View) string {
 	out.WriteString("map ")
 	out.WriteString("(")
 	for _, pair := range h.Pairs {
-		pairs = append(pairs, fmt.Sprintf("%s :: %s",
+		pairs = append(pairs, fmt.Sprintf("%s::%s",
 			pair.Key.Inspect(view), pair.Value.Inspect(view)))
 	}
 
@@ -337,7 +337,7 @@ func (n *Null) DeepCopy() Object         { return n }
 func (n *Null) Type() ObjectType         { return NULL_OBJ }
 func (n *Null) Inspect(view View) string { return "NULL" }
 
-// The 'pair' type, formed with the :: operator.
+// The 'pair' type, formed with the::operator.
 type Pair struct {
 	Left  Object
 	Right Object
@@ -346,7 +346,7 @@ type Pair struct {
 func (p *Pair) DeepCopy() Object { return &Pair{Left: p.Left.DeepCopy(), Right: p.Right.DeepCopy()} }
 func (p *Pair) Type() ObjectType { return PAIR_OBJ }
 func (p *Pair) Inspect(view View) string {
-	return fmt.Sprintf("%s :: %s", p.Left.Inspect(view), p.Right.Inspect(view))
+	return fmt.Sprintf("%s::%s", p.Left.Inspect(view), p.Right.Inspect(view))
 }
 
 // Used to reify top-level functions as first-class objects.
@@ -440,7 +440,7 @@ func (st *Struct) Inspect(view View) string {
 
 	elements := []string{}
 	for _, e := range st.Labels {
-		elements = append(elements, e+" :: "+st.Value[e].Inspect(view))
+		elements = append(elements, e+"::"+st.Value[e].Inspect(view))
 	}
 	out.WriteString(st.Name)
 	out.WriteString(" with ")

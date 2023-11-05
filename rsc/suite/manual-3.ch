@@ -21,14 +21,14 @@ Person = struct(name string, age int)
 Cat = struct(name string, nobelPrizes int, pink bool)
 CatOwner = struct(name string, pet Cat)
 
-CAT_DEFAULTS = nobelPrizes :: 0, pink :: false
+CAT_DEFAULTS = nobelPrizes::0, pink::false
 
 var
 
 doug = Person "Douglas", 42
-joe = Person with name :: "Joseph", age :: 22
-tom = Person with age :: 49, name :: "Thomas"
-myCat = Cat with name :: "Felix", CAT_DEFAULTS
+joe = Person with name::"Joseph", age::22
+tom = Person with age::49, name::"Thomas"
+myCat = Cat with name::"Felix", CAT_DEFAULTS
 me = CatOwner("Tim", myCat)
 myField = name
 

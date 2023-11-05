@@ -1,4 +1,4 @@
-import "lib/prelude.ch" :: ""
+import "lib/prelude.ch"::""
 
 def
 
@@ -42,15 +42,15 @@ unit(x float64) : DVal(x, 0, 0, 0)
 
 (f float64) kg : (unit f) kg
 
-(v DVal) kg : v with KG :: v[KG] + 1
+(v DVal) kg : v with KG::v[KG] + 1
 
 (f float64) m : (unit f) m
 
-(v DVal) m : v with M :: v[M] + 1
+(v DVal) m : v with M::v[M] + 1
 
 (f float64) s : (unit f) s
 
-(v DVal) s : v with S :: v[S] + 1
+(v DVal) s : v with S::v[S] + 1
 
 print (v DVal) :
        string(v[val]) + " " + (repeat "kg ", v[KG] times) ..

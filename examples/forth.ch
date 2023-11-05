@@ -124,7 +124,7 @@ doLoop(L, S) :
         L[loopLocation + 1::len L], iterate(topOfStack, secondInStack, L[0::loopLocation], S with newStack)
 given :
     loopLocation = findFirstOrEnd(L, func(x) : x == "loop")
-    newStack = stack :: S[stack][0::-2]
+    newStack = stack::S[stack][0::-2]
     topOfStack = S[stack][len(S[stack]) - 1]
     secondInStack = S[stack][len(S[stack]) - 2]
 
