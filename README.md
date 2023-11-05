@@ -14,7 +14,7 @@ Instructions for installing Charm can be found [here](https://github.com/tim-har
 
 Here are some of Charm's more distinctive features:
 
-* Charm services have a [functional core, imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md), in which a thin layer of IO sits on top of pure functional business logic.
+* Charm services have a [functional core, imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md) architecture, in which a thin layer of IO sits on top of pure functional business logic.
 * All values are immutable; all comparison is by value.
 * Functions are pure and referentially transparent.
 * [Local constants](https://github.com/tim-hardcastle/Charm/wiki/Local-constants-and-inner-functions#local-constants) of functions are defined in a block at the end of the function and evaluated only if/when required. (You don't know how nice this is until you've tried it.)
