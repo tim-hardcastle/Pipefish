@@ -94,21 +94,8 @@ func UpdateEnvironment(sig signature.Signature, params []object.Object, env *obj
 			continue
 		}
 
-		if sig[sigPos].VarType == "ident" {
-			obj, ok := env.Get(sig[sigPos].VarName)
-			if !ok {
-				return nil, newError("parse/deref/unknown", tok, sig[sigPos].VarName)
-			}
-			if obj.Type() != object.CODE_OBJ {
-				return nil, newError("parse/deref/code", tok, sig[sigPos].VarName)
-			}
-			if obj.(*object.Code).Value.GetToken().Type != token.IDENT {
-				return nil, newError("parse/deref/ident", tok, sig[sigPos].VarName)
-			}
-			env.Set(obj.(*object.Code).Value.GetToken().Literal, params[paramPos])
-		} else {
-			env.Set(sig[sigPos].VarName, params[paramPos])
-		}
+		env.Set(sig[sigPos].VarName, params[paramPos])
+
 		sigPos++
 	}
 	return env, nil

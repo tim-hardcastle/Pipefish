@@ -495,8 +495,6 @@ eval
 
 'eval <string>' evaluates a string as though it was a Charm expression, e.g. 'eval "2 + 2"' will return '4'.
 
-'eval <code>' evaluates a Charm code object. For more information on this type, see 'hub help "code"'.
-
 ***
 struct
 

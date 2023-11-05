@@ -382,8 +382,6 @@ func Eval(node ast.Node, c *Context) object.Object {
 		left.(*object.Func).Env.Ext = c.env
 		newContext := NewContext(c.prsr, left.(*object.Func).Env, c.access, c.logging)
 		return applyFunction(left.(*object.Func).Function, params, node.Token, newContext)
-	case *ast.CodeLiteral:
-		return &object.Code{Value: node.Right}
 	case *ast.Nothing:
 		return &object.Tuple{Elements: []object.Object{}}
 	case *ast.StreamingExpression:
@@ -843,37 +841,10 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC {
 			return newError("eval/cmd/global/a", tok, variable.VarName)
 		}
-		if variable.VarType != "ident" {
-			c.env.Set(variable.VarName, right)
-			return nil
-		}
-		// Otherwise we are dereferencing a <code> object on the LHS of the assignment and we need to retrieve a variable name from it.
-		contents, _ := c.env.Get(variable.VarName)
-		if contents.Type() != object.CODE_OBJ {
-			return newError("eval/cmd/ident/code", tok, variable.VarName)
-		}
-		if contents.(*object.Code).Value.GetToken().Type != token.IDENT {
-			return newError("eval/cmd/ident/ident", tok, variable.VarName)
-		}
-		refName := contents.(*object.Code).Value.GetToken().Literal
 
-		if !c.env.Exists(refName) {
-			c.env.InitializeLocal(refName, right, object.ConcreteType(right))
-			return nil
-		}
-		if c.env.IsConstant(refName) {
-			return newError("eval/cmd/ident/const", tok, refName)
-		}
-		if strings.HasPrefix(refName, "$") {
-			return assignSysVar(tok, refName, right, c.env)
-		}
-		contType, _ := c.env.Type(refName)
-		if !parser.IsObjectInType(c.prsr.TypeSystem, right, contType) {
-			return newError("eval/cmd/ident/type", tok, object.ConcreteType(right), contType)
-		}
-		c.env.UpdateVar(refName, right)
-
+		c.env.Set(variable.VarName, right)
 		return nil
+
 	default: // We must be assigning from the REPL.
 		if (!c.env.Exists(variable.VarName)) || c.env.IsPrivate(variable.VarName) {
 			return newError("eval/repl/assign", tok, variable.VarName)
@@ -1020,9 +991,6 @@ func evalNotOperatorExpression(token token.Token, right object.Object) object.Ob
 func evalEvalExpression(token token.Token, right object.Object, c *Context) object.Object {
 	if right.Type() == object.ERROR_OBJ {
 		return right
-	}
-	if right.Type() == object.CODE_OBJ {
-		return Evaluate(right.(*object.Code).Value, c)
 	}
 	if right.Type() == object.STRING_OBJ {
 		source := "string evaluated at line " + strconv.Itoa(token.Line) + " of " + token.Source
@@ -1331,18 +1299,13 @@ func (ft *functionTreeWalker) followBranch(prsr *parser.Parser, branch string) b
 	}
 
 	for _, v := range ft.position.Branch {
-		if parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, v.TypeName) ||
-			branch == "code" && v.TypeName == "ast" {
+		if parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, v.TypeName) {
 			ft.position = v.Node
 			ft.lastWasTuple = (v.TypeName == "tuple")
 			return true
 		}
 	}
 	return false
-}
-
-func (ft *functionTreeWalker) hasAst() bool {
-	return (len(ft.position.Branch) > 0 && ft.position.Branch[0].TypeName == "ast")
 }
 
 func (ft *functionTreeWalker) hasRef() bool {
@@ -1463,8 +1426,6 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 					}
 				}
 				switch {
-				case treeWalker.hasAst():
-					sourceObj = &object.Code{Value: args[arg]}
 				case treeWalker.hasRef():
 					if args[arg].GetToken().Type != token.IDENT {
 						sourceObj = newError("eval/ref/ident", tok)
@@ -1679,10 +1640,7 @@ func evalOutput(params []object.Object, tok token.Token, c *Context) object.Obje
 }
 
 func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Object {
-	if params[0].(*object.Code).Value.GetToken().Type != token.IDENT {
-		return newError("eval/for/ident", tok)
-	}
-	refName := params[0].(*object.Code).Value.GetToken().Literal
+	refName := params[0].(*object.Ref).VariableName
 	functionToApply := params[4].(*object.Func).Function
 	// There has to be a less reduplicative way to do this but I'm about to replace the evaluator anyway.
 	var val object.Object

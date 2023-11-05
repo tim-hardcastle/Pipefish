@@ -30,7 +30,6 @@ const (
 	BLING_OBJ       = "bling"
 	BOOLEAN_OBJ     = "bool"
 	BUILTIN_OBJ     = "BUILTIN"
-	CODE_OBJ        = "code"
 	ERROR_OBJ       = "error"
 	FLOAT_OBJ       = "float64"
 	FUNC_OBJ        = "func"
@@ -127,17 +126,6 @@ func (b *Boolean) HashKey() HashKey {
 type BuiltError struct {
 	Ident string
 	Info  []any
-}
-
-// The 'code' type contains an AST. Charm's 'eval' function, when applied to it, evaluates the AST.
-type Code struct {
-	Value ast.Node
-}
-
-func (c *Code) DeepCopy() Object { return c }
-func (c *Code) Type() ObjectType { return CODE_OBJ }
-func (c *Code) Inspect(view View) string {
-	return fmt.Sprintf("code %s", c.Value.String())
 }
 
 // Commands don't return results, they perform side-effects.

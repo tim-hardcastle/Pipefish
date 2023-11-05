@@ -313,11 +313,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				return leftExp
 			}
 
-			if p.curToken.Literal == "code" {
-				leftExp = p.parseCodeLiteral()
-				return leftExp
-			}
-
 			if p.curToken.Literal == "struct" {
 				leftExp = p.parseStructExpression()
 				return leftExp
@@ -644,13 +639,6 @@ func (p *Parser) parseBuiltInExpression() ast.Node {
 		p.Throw("parse/builtin", p.curToken)
 	}
 	p.NextToken()
-	return expression
-}
-
-func (p *Parser) parseCodeLiteral() ast.Node {
-	expression := &ast.CodeLiteral{}
-	p.NextToken()
-	expression.Right = p.parseExpression(FUNC)
 	return expression
 }
 

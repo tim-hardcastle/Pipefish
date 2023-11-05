@@ -1,7 +1,7 @@
 def
 
 // This is implemented in the evaluator, so all this line does is enforce the syntax.
-for (indexName ast) over (R single) do (f) to (x tuple) : builtin "for_loop" 
+for (indexName ref) over (R single) do (f) to (x tuple) : builtin "for_loop" 
 
 // This is not a builtin but should be, for performance.
 while (p) do (f func) to (z single) :

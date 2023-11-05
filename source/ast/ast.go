@@ -79,16 +79,6 @@ func (bi *BuiltInExpression) GetToken() token.Token {
 }
 func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
 
-type CodeLiteral struct {
-	Token token.Token
-	Right Node
-}
-
-func (cl *CodeLiteral) GetToken() token.Token { return cl.Token }
-func (cl *CodeLiteral) String() string {
-	return "code (" + cl.Right.String() + ")"
-}
-
 type EmptyTuple struct {
 	Token token.Token
 	Value string
