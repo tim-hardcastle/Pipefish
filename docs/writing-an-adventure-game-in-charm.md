@@ -84,12 +84,12 @@ var
 state = GameState(map(), map(), "", "")
 ```
 
-And then in the `main` command, which is always executed on initialization if it exists, we can put this:
+And then in the `init` command, which is always executed on initialization if it exists, we can put this:
 
 ```
 cmd 
 
-main :
+init :
     global state
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
@@ -113,7 +113,7 @@ state = GameState(map(), "", "")
 
 cmd
 
-main :
+init :
     global state
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
@@ -310,13 +310,11 @@ You are in the antechamber of the wizard's castle. To your south is the outdoors
 ADV → 
 ```
 
-At this point we can make a little "inner REPL" for the game itself, and take a stroll around our map. We'll just add a little loop to the `main` command ...
+At this point we can make a little "inner REPL" for the game itself, and take a stroll around our map. We will add a `main` command to our script, which will be run after `init` when we run the script.
 
 ```
 main :
     global state
-    get linesToProcess from File "examples/locations.rsc", list
-    state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
     post "\n" + describe(state[playerLocation], state) + "\n"
     loop :
         get userInput from Input "What now? "
@@ -327,7 +325,9 @@ main :
             post "\n" + state[output] + "\n"
 ```
 
-At this point, our script looks like this:
+You may wonder why we have two magic commands, `init` and `main`, rather than just having `main` like Python or C does. The point is that when we're hotcoding and our script is automatically rebuilt, `init` will then be run but `main` won't. This means that we can get all the data to test our functions in the REPL, without being automatically catapulted into the "inner REPL" in `main`, where we could only test the behavior made available to the end-user.
+
+So at this point, our script looks like this:
 
 ```
 import
@@ -345,11 +345,14 @@ state = GameState(map(), "", "")
 
 cmd
 
-main :
+init :
     global state
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
     post "\n" + describe(state[playerLocation], state) + "\n"
+
+main :
+    global state
     loop :
         get userInput from Input "What now? "
         strings.toLower(userInput) == "quit" :
@@ -465,8 +468,6 @@ ADV →
 
 We have a tiny adventure! Great!
 
-Having established that that works, let's immediately comment out the loop. Why? Because it's far more convenient for us to go on developing by poking at our code through Charm's own native REPL. This Is The Way. We'll comment out the line that describes the initial location too, since it will be annoying otherwise.
-
 Let's add some objects. We'll use another [flat data file](https://github.com/tim-hardcastle/Charm/blob/main/examples/objects.rsc) which will list them as successive lines of name of object, description of object, and initial location of object.
 
 We add more slurping logic to the `def` section ...
@@ -480,10 +481,10 @@ given :
         .. Object(L[counter + 1], L[counter + 2])
 ```
 
-... and the actual slurping to the `main` cmd.
+... and the actual slurping to the `init` cmd.
 
 ```
-main :
+init :
     global state
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
@@ -616,7 +617,7 @@ given :
     noun = parsedInput[1]
 ```
 
-Let's uncomment the loop in `main` and play our game!
+Let's play our game!
 
 ```
 ADV → main                
@@ -710,12 +711,15 @@ state = GameState(map(), map(), "", "")
 
 cmd
 
-main :
+init :
     global state
     get linesToProcess from File "examples/locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
     get linesToProcess from File "examples/objects.rsc", list
     state = state with objects::slurpObjects(linesToProcess)
+
+main :
+    global state
     post "\n" + describe(state[playerLocation], state) + "\n"
     loop :
         get userInput from Input "What now? "
