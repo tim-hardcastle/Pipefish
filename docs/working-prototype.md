@@ -12,5 +12,6 @@ It is a *prototype* because:
 It is a *working* prototype in that:
 
 * The core language is pretty much finished and feature-stable.
-* There is a large test suite which I will continue to add to to keep it functionally stable.
+* Some batteries are included. There are `string`, `math`, `fmt` and `regexp` libraries which do what you would expect, and a `world` library for performing IO.
+* There is a large test suite which I will continue to add to to keep Charm functionally stable.
 * I will continue to maintain version 0.4.x and fix bugs while working in a separate branch on the compiled version.
