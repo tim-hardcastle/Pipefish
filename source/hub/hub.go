@@ -886,9 +886,6 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
 }
 
 func (hub *Hub) tryStart(cname string) { // Guardedly tries to run the `init` or `main` command, depending on the parameter.
-	if len(hub.ers) > 0 {
-		return
-	}
 	if !hub.services[hub.currentServiceName].Broken && hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
 		obj := ServiceDo(hub.services[hub.currentServiceName], cname)
 		hub.lastRun = []string{hub.currentServiceName}
