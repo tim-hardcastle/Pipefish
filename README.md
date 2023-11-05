@@ -39,7 +39,7 @@ Here are some of Charm's more distinctive features:
 * [Writing an adventure game in Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/writing-an-adventure-game-in-charm.md). A tutorial.
 * [Functional core, imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md). A synopsis of the language paradigm.
 * [The whys of Charm](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md). This explains the reasoning behind some lower-level design choices which are sufficiently unusual as to need explanation.
-* [Version 0.4: a working prototype](https://github.com/tim-hardcastle/Charm/blob/main/docs/working-prototype.md). This explains what I mean by calling this version a "working prototype".
+* [Version 0.4: a working prototype](https://github.com/tim-hardcastle/Charm/blob/main/docs/working-prototype.md). This explains what is meant by calling this version a "working prototype".
 
 ## Licensing
 
