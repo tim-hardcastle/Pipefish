@@ -4,11 +4,11 @@ def
 for (indexName ast) over (R single) do (f) to (x tuple) : builtin "for_loop" 
 
 // This is not a builtin but should be, for performance.
-while (p) do (f) to (z single) :
+while (p) do (f func) to (z single) :
     p z : while p do f to f z   
     else : z
 
-while (p) do (f) to (z tuple) :
+while (p) do (f func) to (z tuple) :
     p z : while p do f to f z
     else : z
 

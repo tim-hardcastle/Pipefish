@@ -644,15 +644,6 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalEvalExpression(tok, Eval(node.Args[0], c), c)
 	case tok.Type == token.GLOBAL:
 		return evalGlobalExpression(node, c)
-	case c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator):
-		// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
-		result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
-		if result.Type() == object.ERROR_OBJ {
-			if operator == "type" {
-				return &object.Type{Value: "error"}
-			}
-		}
-		return result
 
 	default: // We could be looking at a lazy object initialized in the `given` section.
 		variable, ok := c.env.Get(node.Token.Literal)
@@ -675,6 +666,22 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		if ok && variable.Type() == object.OUTER_OBJ {
 			return functionCall(c.prsr.FunctionTreeMap[variable.(*object.OuterFunc).Name], node.Args, node.Token, c)
 		}
+		if ok { // Then it is a variable, but does not contain a function.
+			return newError("eval/prefix/var", tok, variable)
+		}
+		// Note that variable must take precedence over functions in this way or adding a function in one place
+		// would interfere with the local variables of another function.
+		if c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator) {
+			// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
+			result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+			if result.Type() == object.ERROR_OBJ {
+				if operator == "type" {
+					return &object.Type{Value: "error"}
+				}
+			}
+			return result
+		}
+
 	}
 	// TODO --- I think we have different error messages to hide from the end-user whether a private function or variable even
 	// exists but this may not work any more.

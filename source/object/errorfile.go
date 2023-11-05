@@ -862,6 +862,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/prefix/var": {
+		Message: func(tok token.Token, args ...any) string {
+			return "variable " + emphText(tok.Literal) + " doesn't contain a function"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "You are trying to apply the variable " + emphText(tok.Literal) + " as though it was a function, which is only valid if it does in fact contain a variable at runtime"
+		},
+	},
+
 	"eval/range/index/enum": {
 		Message: func(tok token.Token, args ...any) string {
 			return "index " + emphNum(args[0]) + " is out of bounds for enum " + emph(args[1].(string))
