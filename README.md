@@ -2,7 +2,7 @@
 
 ## Welcome to Charm!
 
-Welcome to Charm, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Charm/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Charm/wiki/Installing-and-using-Charm) and play around with it.
+Welcome to Charm, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Charm/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Charm/wiki/Installing-and-using-Charm) and play around with it. There are batteries included, there is tooling.
 
 Charm aims to be a delightful general-purpose language particularly suitable for rapid development of CRUD apps. With the semantics of a functional language, syntax borrowed from other productivity languages (specifically Python and Go), and with [inspiration mainly from SQL and Excel](https://github.com/tim-hardcastle/Charm/blob/main/docs/charm-a-high-level-view.md) — Charm is not *quite* like anything you've ever seen. But it is also a very practical language that exists to solve some very ordinary "white-collar" problems.
 
