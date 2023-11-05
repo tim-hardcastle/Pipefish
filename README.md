@@ -14,22 +14,22 @@ Instructions for installing Charm can be found [here](https://github.com/tim-har
 
 Here are some of Charm's more distinctive features:
 
-* Charm services have a functional-core/imperative-shell architecture, in which a thin layer of IO sits on top of pure functional business logic.
+* Charm services have a [functional core, imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md), in which a thin layer of IO sits on top of pure functional business logic.
 * All values are immutable; all comparison is by value.
 * Functions are pure and referentially transparent.
-* Local constants of functions are defined in a block at the end of the function and evaluated only if/when required. (You don't know how nice this is until you've tried it.)
+* [Local constants](https://github.com/tim-hardcastle/Charm/wiki/Local-constants-and-inner-functions#local-constants) of functions are defined in a block at the end of the function and evaluated only if/when required. (You don't know how nice this is until you've tried it.)
 * Free order of intitialization also helps you to write your scripts top-down.
-* Abstraction is achieved by overloading and duck-typing. There is multiple dispatch.
-* Field names of structs are first-class objects. Indexing structs and maps overloads the same operator.
+* Abstraction is achieved by [overloading](https://github.com/tim-hardcastle/Charm/wiki/Function-signatures-and-overloading#overloading) and duck-typing. There is multiple dispatch.
+* Field names of [structs](https://github.com/tim-hardcastle/Charm/wiki/Structs) are first-class objects. Indexing structs and maps overloads the same operator.
 * While Charm is very dynamic (as illustrated in the previous two points) it is also very strongly typed, much more so than any mainstream dynamic language. There is no truthiness; there is exactly one form of type coercion.
-* Charm is REPL-oriented, with hotcoding to make it easy to code and test incrementally.
-* The REPL is also a development environment and framework. It lets you test your code, write permanent tests, ask for help, interact with error messages, configure your services, deploy them to the web and manage access to them.
-* It is intended that often a Charm service will act as its own front end (like e.g. a SQL database does) with the end-user talking to it via the Charm REPL. For this reason Charm has an unusually flexible syntax for creating DSLs.
-* Charm comes with Go and SQL interop for all your backend needs.
-* (Also the system for embedding other languages is extensible if this does not in fact meet all your needs.)
-* Charm allows and encourages you to write your applications as microservices, giving you a natural way to encapsulate data and manage access to it.
+* Charm is REPL-oriented, with [hotcoding](https://github.com/tim-hardcastle/Charm/wiki/Hotcoding) to make it easy to code and test incrementally.
+* The REPL is also a [development environment](https://github.com/tim-hardcastle/Charm/wiki/Developing-in-Charm) and [framework](https://github.com/tim-hardcastle/Charm/wiki/Client-and-server). It lets you test your code, write permanent tests, ask for help, interact with error messages, configure your services, deploy them to the web and manage access to them.
+* It is intended that often a Charm service will act as its own front end (like e.g. a SQL database does) with the end-user talking to it via the Charm REPL. For this reason Charm has an unusually [flexible syntax](https://github.com/tim-hardcastle/Charm/wiki/Infixes,-postfixes,-etc) for creating DSLs.
+* Charm comes with [Go](https://github.com/tim-hardcastle/Charm/wiki/Golang-interop) and [SQL](https://github.com/tim-hardcastle/Charm/wiki/SQL-interop) interop for all your backend needs.
+* (Also the [system for embedding other languages](https://github.com/tim-hardcastle/Charm/wiki/Snippets) is extensible if this does not in fact meet all your needs.)
+* Charm allows and encourages you to write your applications as [microservices](https://github.com/tim-hardcastle/Charm/wiki/Microservices), giving you a natural way to encapsulate data and manage access to it.
 * Charm’s syntax is based on mainstream productivity languages, principally Python and Go. It has a shallow or indeed invisible learning curve: you can learn the simple parts of the language without knowing that the other parts exist.
-* Charm's roadmap includes a point where (like e.g. Golang) we freeze the core language around a small set of sufficiently powerful features and try to remain permanently in version 1.x.
+* Charm's roadmap includes a point where we freeze the core language around a small set of sufficiently powerful features and try to remain permanently in version 1.x.
 
 ## Documents
 
