@@ -13,6 +13,7 @@ import (
 	"charm/source/signature"
 	"charm/source/stack"
 	"charm/source/token"
+	"charm/source/tokenized_code_chunk"
 )
 
 // The parser, obviously. However, I'm temporarily tucking the effect handlers for the evaluator in here despite
@@ -46,9 +47,8 @@ const (
 	PRODUCT     // * or / or %
 	FSUFFIX     // user-defined suffix, or type in type declaration
 	MINUS       //  - as a prefix
-
-	INDEX // after [
-
+	INDEX       // after [
+	NAMESPACE   // 'foo.bar'
 )
 
 var precedences = map[token.TokenType]int{
@@ -85,6 +85,7 @@ var precedences = map[token.TokenType]int{
 	token.LBRACK:      INDEX,
 	token.EVAL:        FPREFIX,
 	token.EMDASH:      FSUFFIX,
+	token.NAMESPACE:   NAMESPACE,
 }
 
 type TokenSupplier interface{ NextToken() token.Token }
@@ -97,6 +98,10 @@ func String(t TokenSupplier) string {
 	return result
 }
 
+type tokenizedCodeChunks []*tokenized_code_chunk.TokenizedCodeChunk
+
+type ParsedCodeChunks []*ast.Node
+
 type Parser struct {
 
 	// The parser should be either entirely stateless or nearly so (we might except curToken, peekToken, a
@@ -104,12 +109,14 @@ type Parser struct {
 
 	// Temporary state: things that are used to parse one line.
 
-	TokenizedCode TokenSupplier
-	Errors        object.Errors
-	nesting       stack.Stack[token.Token]
-	curToken      token.Token
-	peekToken     token.Token
-	Logging       bool
+	TokenizedCode         TokenSupplier
+	Errors                object.Errors
+	nesting               stack.Stack[token.Token]
+	curToken              token.Token
+	peekToken             token.Token
+	Logging               bool
+	TokenizedDeclarations [11]tokenizedCodeChunks
+	ParsedDeclarations    [11]ParsedCodeChunks
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -139,10 +146,10 @@ type Parser struct {
 	StructSig        map[string]signature.Signature // <--- in here.
 	Services         map[string]*Service
 	GoImports        map[string][]string
-	Namespace        string
-	Namespaces       map[string]string
 	Database         *sql.DB
 	EffHandle        EffectHandler
+	NamespaceBranch  map[string]*Service
+	RootService      *Service
 }
 
 func New() *Parser {
@@ -165,7 +172,7 @@ func New() *Parser {
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER, token.LOG,
-			token.IFLOG, token.PRELOG}),
+			token.IFLOG, token.PRELOG, token.NAMESPACE}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:   make(FunctionTable),
@@ -175,7 +182,7 @@ func New() *Parser {
 		TypeSystem:      NewTypeSystem(),
 		Structs:         make(set.Set[string]),
 		GoImports:       make(map[string][]string),
-		Namespaces:      make(map[string]string),
+		NamespaceBranch: make(map[string]*Service),
 	}
 
 	for k := range *p.TypeSystem {

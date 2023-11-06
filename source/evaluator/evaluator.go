@@ -32,6 +32,7 @@ const (
 	DEF
 	INIT
 	LAMBDA
+	NAMESPACE
 )
 
 // The evaluator is stateless, which as usual means we're going to be wrapping the state in a struct and passing
@@ -717,6 +718,22 @@ func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 	if c.prsr.Infixes.Contains(node.Operator) {
 		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+	}
+
+	if node.Operator == "." { // Then were're off the the namespaces.
+		if len(node.Args) != 3 {
+			return newError("eval/namespace/args", node.Token)
+		}
+		if node.Args[0].GetToken().Type != token.IDENT {
+			return newError("eval/namespace/ident", node.Token)
+		}
+		name := node.Args[0].GetToken().Literal
+		library, ok := c.prsr.NamespaceBranch[name]
+		if !ok {
+			return newError("eval/namespace/name", node.Token)
+		}
+		newContext := NewContext(library.Parser, library.Env, NAMESPACE, c.logging)
+		return Eval(node.Args[2], newContext)
 	}
 
 	left, right := evalLeftRightArgs(node.Args, node.Token, c)
@@ -1412,6 +1429,10 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 	var sourceTuple *object.Tuple
 	posInSourceTuple := 0
 	values := []object.Object{}
+	newContext := c
+	if c.access == NAMESPACE {
+		newContext = &Context{access: REPL, prsr: c.prsr.RootService.Parser, env: c.prsr.RootService.Env, logging: c.prsr.Logging}
+	}
 	for {
 		//We try to get the next single object from the list of args, i.e. if an arg evaluates to a tuple we must take it a bit at a time.
 		var singleObj object.Object
@@ -1454,7 +1475,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 						sourceObj = &object.Ref{VariableName: identName, Env: *c.env}
 					}
 				default:
-					sourceObj = Eval(args[arg], c)
+					sourceObj = Eval(args[arg], newContext)
 				}
 				if sourceObj.Type() == object.TUPLE_OBJ { // If it's a tuple but it's empty ...
 					if len(sourceObj.(*object.Tuple).Elements) == 0 {

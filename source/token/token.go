@@ -63,6 +63,8 @@ const (
 	LBRACK = "["
 	RBRACK = "]"
 
+	NAMESPACE = "."
+
 	// Headwords
 
 	IMPORT    = "import"

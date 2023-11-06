@@ -157,11 +157,9 @@ func (l *Lexer) NextToken() token.Token {
 					tok = l.NewToken(token.ILLEGAL, "lex/cont/b")
 					l.Throw("lex/cont/b", tok)
 				}
-				tok.Line = l.line
-				tok.ChStart = l.tstart
-				tok.ChEnd = l.tstart + 2
-				return tok
 			}
+		} else {
+			tok = l.NewToken(token.NAMESPACE, ".")
 		}
 	default:
 		if l.ch == '/' && l.peekChar() == '/' {
@@ -620,8 +618,11 @@ func (l *Lexer) readPlaintextString() (string, bool) {
 func (l *Lexer) readIdentifier() string {
 	result := ""
 	for isLegalNonStart(l.ch) {
+		if isPeriod(l.ch) {
+			break
+		}
 		result = result + string(l.ch)
-		if (isSymbol(l.ch) != isSymbol(l.peekChar())) && !(isPeriod(l.ch) || isPeriod(l.peekChar())) {
+		if isSymbol(l.ch) != isSymbol(l.peekChar()) {
 			l.readChar()
 			break
 		}

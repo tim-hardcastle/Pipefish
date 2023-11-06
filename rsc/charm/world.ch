@@ -19,7 +19,7 @@ RandomSeed = struct()
 
 Clock = struct()
 
-Time = struct(year, month, day, hour, min, sec, nsec int?, loc string?)
+Time = struct(year, month, day, hour, min, sec, nsec int, loc string)
 
 Terminal = struct()
 

@@ -863,16 +863,6 @@ func (hub *Hub) StartAnonymous(scriptFilepath string) {
 }
 
 func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
-	code := ""
-	if scriptFilepath != "" {
-		dat, err := os.ReadFile(scriptFilepath)
-		if err != nil {
-			hub.WriteError("os returns \"" + err.Error() + "\".")
-			return false
-		} else {
-			code = strings.TrimRight(string(dat), "\n") + "\n"
-		}
-	}
 	if hub.administered {
 		err := database.UpdateService(hub.Db, username, serviceName)
 		if err != nil {
@@ -881,7 +871,7 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
 		}
 	}
 	hub.currentServiceName = serviceName
-	hub.createService(serviceName, scriptFilepath, code)
+	hub.createService(serviceName, scriptFilepath)
 	return true
 }
 
@@ -923,119 +913,29 @@ func (hub *Hub) serviceNeedsUpdate(name, scriptFilepath string) (bool, int64) {
 	return true, modifiedTime
 }
 
-func (hub *Hub) createService(name, scriptFilepath, code string) bool {
-
+func (hub *Hub) createService(name, scriptFilepath string) bool {
 	needsRebuild, modifiedTime := hub.serviceNeedsUpdate(name, scriptFilepath)
 	if !needsRebuild {
 		return false
 	}
+	newService, init := initializer.CreateService(scriptFilepath, hub.Db, hub.services, parser.MakeStandardEffectHandler(hub.out), &parser.Service{})
+	if init.ErrorsExist() {
+		hub.GetAndReportErrors(init.Parser)
+		return false
+	}
+	recursivelySetRootService(newService, newService)
 
-	newService := parser.NewService()
+	newService.Timestamp = modifiedTime
 	hub.services[name] = newService
-	hub.services[name].Timestamp = modifiedTime
-	hub.currentServiceName = name
-	hub.services[name].ScriptFilepath = scriptFilepath
-
-	init := initializer.New(scriptFilepath, code, hub.Db)
-	init.GetSource(scriptFilepath)
-	init.Parser = *parser.New()
-	init.Parser.Database = hub.Db
-	init.Parser.Services = hub.services
-	init.Parser.Namespaces[scriptFilepath] = ""
-	init.MakeParserAndTokenizedProgram()
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	// Import the builtins and world library.
-
-	thingsToImport := []string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"}
-
-	for _, fname := range thingsToImport {
-		libDat, _ := os.ReadFile(fname)
-		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
-		init.SetRelexer(*relexer.New(fname, stdImp))
-		init.MakeParserAndTokenizedProgram()
-		init.GetSource(fname)
-	}
-
-	for init.ImportsExist() {
-
-		init.ParseImports()
-		if init.ErrorsExist() {
-			hub.GetAndReportErrors(&init.Parser)
-			hub.Sources = init.Sources
-			newService.Broken = true
-			return false
-		}
-
-		init.ImportEverything()
-		if init.ErrorsExist() {
-			hub.GetAndReportErrors(&init.Parser)
-			hub.Sources = init.Sources
-			newService.Broken = true
-			return false
-		}
-	}
-
-	env := object.NewEnvironment()
-
-	init.ParseEnumDefs(env)
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	init.MakeLanguagesAndContacts()
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	init.ParseTypeDefs()
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	init.EvaluateTypeDefs(env)
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	init.ParseEverything()
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	init.InitializeEverything(env, scriptFilepath)
-	if init.ErrorsExist() {
-		hub.GetAndReportErrors(&init.Parser)
-		hub.Sources = init.Sources
-		newService.Broken = true
-		return false
-	}
-
-	init.Parser.EffHandle = parser.MakeStandardEffectHandler(hub.out)
-	(*newService).Parser = &init.Parser
-	(*newService).Env = env
 	hub.Sources = init.Sources
 	return true
+}
+
+func recursivelySetRootService(service, rootService *parser.Service) {
+	service.Parser.RootService = rootService
+	for _, v := range service.Parser.NamespaceBranch {
+		recursivelySetRootService(v, rootService)
+	}
 }
 
 func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
@@ -1105,7 +1005,7 @@ func (hub *Hub) Open() {
 		hub.Start("", params[0], params[1])
 	}
 
-	hub.createService("", "", "")
+	hub.createService("", "")
 
 	hub.list()
 
@@ -1292,14 +1192,11 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 		return
 	}
 	scanner := bufio.NewScanner(f)
-	println("scanning from", testFilepath)
 	scanner.Scan()
-	foo := scanner.Text() // test type doesn't matter
-	println("foo = '", foo, "'")
+	_ = scanner.Text() // test type doesn't matter
 	scanner.Scan()
 	scriptFilepath := (scanner.Text())[8:]
 	scanner.Scan()
-	println("scriptFilepath", scriptFilepath)
 	hub.Start("", "#test", scriptFilepath)
 	ServiceDo((*hub).services["#test"], "$view = \"charm\"")
 	service := (*hub).services["#test"]
