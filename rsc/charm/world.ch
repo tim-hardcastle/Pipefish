@@ -17,9 +17,9 @@ Random = struct(params single)
 
 RandomSeed = struct()
 
-TimeUnit = enum SECONDS, MILLISECONDS, NANOSECONDS
+Clock = struct()
 
-UnixClock = struct(unit TimeUnit)
+Time = struct(year, month, day, hour, min, sec, nsec int?, loc string?)
 
 Terminal = struct()
 
@@ -42,8 +42,8 @@ get (x ref) from (rng Random) :
 put (seed int) into (randomizer RandomSeed) :
     goRandomize(seed)
 
-get (x ref) from (clock UnixClock) :
-    x = goGetUnixClock(string (clock[unit]))
+get (x ref) from (c Clock) :
+    x = goGetClock()
 
 
 post (x tuple) :
@@ -107,17 +107,18 @@ goRandomize(i int) : gocode {
     return object.SUCCESS
 }
 
-goGetUnixClock(s string) : gocode {
-    switch s {
-        case "SECONDS" :
-            return int(time.Now().Unix())
-        case "MILLISECONDS" :
-            return int(time.Now().UnixMilli())
-        case "NANOSECONDS" : 
-            return int(time.Now().UnixNano())
-        default :
-            return &object.Error{Message: "this error should never be thrown and should be reported as a bug if seen"}  
-    }
+goGetClock() : gocode {
+    goNow := time.Now()
+    charmNow := &object.Struct{Name: "Time", Labels: []string{"year", "month", "day", "hour", "min", "sec", "nsec", "loc"}, Value: make(map[string]object.Object)}
+    charmNow.Value["year"] = &object.Integer{Value: goNow.Year()}
+    charmNow.Value["month"] = &object.Integer{Value: int(goNow.Month())}
+    charmNow.Value["day"] = &object.Integer{Value: goNow.Day()}
+    charmNow.Value["hour"] = &object.Integer{Value: goNow.Hour()}
+    charmNow.Value["min"] = &object.Integer{Value: goNow.Minute()}
+    charmNow.Value["sec"] = &object.Integer{Value: goNow.Second()}
+    charmNow.Value["nsec"] = &object.Integer{Value: goNow.Nanosecond()}
+    charmNow.Value["loc"] = &object.String{Value: goNow.Location().String()}
+    return charmNow
 }
 
 goPrintln(s string) : gocode {

@@ -421,6 +421,7 @@ func (s *String) HashKey() HashKey {
 }
 
 // An object for containing structs. The 'Name' field contains the type of the concrete struct.
+// TODO --- if there ever was, there is no longer, a reason for keeping the labels in each struct.
 type Struct struct {
 	Labels []string
 	Value  map[string]Object
