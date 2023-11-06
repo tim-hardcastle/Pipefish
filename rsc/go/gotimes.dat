@@ -1,3 +1,7 @@
+lib/time.ch
+1699214971818
+lib/strings.ch
+1696579716224
 lib/math.ch
 1696579716224
 rsc/charm/world.ch
@@ -6,7 +10,3 @@ lib/fmt.ch
 1684738113871
 lib/regexp.ch
 1699193968417
-lib/time.ch
-1699214971818
-lib/strings.ch
-1696579716224

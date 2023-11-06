@@ -732,7 +732,7 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		if !ok {
 			return newError("eval/namespace/name", node.Token)
 		}
-		newContext := NewContext(library.Parser, library.Env, NAMESPACE, c.logging)
+		newContext := NewContext(library.Parser, c.env, NAMESPACE, c.logging)
 		return Eval(node.Args[2], newContext)
 	}
 
@@ -1309,14 +1309,16 @@ type functionTreeWalker struct {
 	lastWasTuple bool
 }
 
-func (ft *functionTreeWalker) followBranch(prsr *parser.Parser, branch string) bool {
+func (ft *functionTreeWalker) followBranch(prsr *parser.Parser, branch, innerType string) bool {
 
-	if ft.lastWasTuple && parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, "tuple") {
+	if ft.lastWasTuple && (parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, "tuple") ||
+		parser.IsSameTypeOrSubtype(prsr.TypeSystem, innerType, "tuple")) {
 		return true
 	}
 
 	for _, v := range ft.position.Branch {
-		if parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, v.TypeName) {
+		if parser.IsSameTypeOrSubtype(prsr.TypeSystem, branch, v.TypeName) ||
+			parser.IsSameTypeOrSubtype(prsr.TypeSystem, innerType, v.TypeName) {
 			ft.position = v.Node
 			ft.lastWasTuple = (v.TypeName == "tuple")
 			return true
@@ -1431,7 +1433,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 	values := []object.Object{}
 	newContext := c
 	if c.access == NAMESPACE {
-		newContext = &Context{access: REPL, prsr: c.prsr.RootService.Parser, env: c.prsr.RootService.Env, logging: c.prsr.Logging}
+		newContext = &Context{access: REPL, prsr: c.prsr.RootService.Parser, env: c.env, logging: c.prsr.Logging}
 	}
 	for {
 		//We try to get the next single object from the list of args, i.e. if an arg evaluates to a tuple we must take it a bit at a time.
@@ -1521,7 +1523,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 		// And now back to the happy path. We have a valid singleObject, and will use it to navigate the function tree.
 		if singleObj != nil {
 			// We (attempt to) scooch along the function tree.
-			ok := treeWalker.followBranch(c.prsr, object.TypeOrBling(singleObj))
+			ok := treeWalker.followBranch(c.prsr, object.TypeOrBling(singleObj), string(singleObj.Type()))
 			values = append(values, singleObj)
 			if !ok {
 				return newErrorWithVals("eval/args/a", tok, listArgs(args, tok, c), values, (arg < len(args)-1) || sourceTuple != nil && posInSourceTuple < len(sourceTuple.Elements)) // The last, boolean value says whether we've seen all the values)
@@ -1535,17 +1537,17 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 				}
 			}
 
-			ok := treeWalker.followBranch(c.prsr, "")
+			ok := treeWalker.followBranch(c.prsr, "", "")
 			if ok {
 				return applyFunction(*treeWalker.position.Fn, values, tok, c)
 			}
 
 			if !treeWalker.lastWasTuple { // Then we might be able to reach a function via the empty tuple.
-				ok := treeWalker.followBranch(c.prsr, "tuple")
+				ok := treeWalker.followBranch(c.prsr, "tuple", "tuple")
 				if !ok {
 					return newErrorWithVals("eval/args/b", tok, listArgs(args, tok, c), values, false)
 				}
-				ok = treeWalker.followBranch(c.prsr, "")
+				ok = treeWalker.followBranch(c.prsr, "", "")
 				if !ok {
 					return newErrorWithVals("eval/args/c", tok, listArgs(args, tok, c), values, false)
 				}
