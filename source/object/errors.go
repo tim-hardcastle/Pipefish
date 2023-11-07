@@ -3,6 +3,7 @@ package object
 import (
 	"strconv"
 
+	"charm/source/text"
 	"charm/source/token"
 )
 
@@ -33,7 +34,7 @@ func Put(message string, tok token.Token, ers Errors) []*Error {
 func GetList(ers Errors) string {
 	result := "\n"
 	for i, v := range ers {
-		result = result + "[" + strconv.Itoa(i) + "] " + v.Inspect(ViewStdOut) + "\n"
+		result = result + "[" + strconv.Itoa(i) + "] " + "error " + text.ToEscapedText(v.Message) + "\n"
 	}
 	return result + "\n"
 }

@@ -18,8 +18,10 @@ const (
 
 func (p *Parser) Serialize(ob object.Object, style Style) string {
 	switch ob := ob.(type) {
+	case *object.Boolean:
+		return fmt.Sprintf("%t", ob.Value)
 	case *object.Effects:
-		return "<Unseriaizable effects object>"
+		return ""
 	case *object.Error:
 		if style == PLAIN {
 			if len(ob.Trace) == 0 {
@@ -66,6 +68,7 @@ func (p *Parser) Serialize(ob object.Object, style Style) string {
 		out.WriteString("[")
 		out.WriteString(strings.Join(elements, ", "))
 		out.WriteString("]")
+		return out.String()
 	case *object.Null:
 		return "NULL"
 	case *object.Pair:

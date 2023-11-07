@@ -24,7 +24,7 @@ var (
 )
 
 // A type for saying where the code comes from --- was it typed into the REPL, is it a cmd, etc.
-type Access = int
+type Access int
 
 const (
 	REPL Access = iota
@@ -313,10 +313,10 @@ func Eval(node ast.Node, c *Context) object.Object {
 					return Eval(node.Code, c)
 				}
 				if isLiteral(arg) {
-					logStr = logStr + (Eval(arg, c).Inspect(object.ViewStdOut) + " ")
+					logStr = logStr + c.prsr.Serialize(Eval(arg, c), parser.PLAIN)
 				} else {
 					newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-					logStr = logStr + arg.String() + " = " + (Eval(arg, newContext)).Inspect(object.ViewCharmLiteral)
+					logStr = logStr + arg.String() + " = " + (c.prsr.Serialize(Eval(arg, newContext), parser.LITERAL))
 					if i+1 < len(node.Args) && !isLiteral(node.Args[i+1]) {
 						logStr = logStr + "; "
 					}
@@ -1093,7 +1093,7 @@ func evalReturnExpression(token token.Token, values []object.Object, c *Context)
 			return v
 		}
 	}
-	c.prsr.EffHandle.OutHandle.Out(values, c.env)
+	c.prsr.EffHandle.OutHandle.Out(values, c.prsr, c.env)
 	result := &object.Effects{Elements: values}
 	return result
 }
@@ -1852,7 +1852,7 @@ func preparseContactExpression(snippet string, tok token.Token, c *Context) (str
 		case *object.Error:
 			return "", charmValue
 		default:
-			outputText = outputText + "(" + charmValue.Inspect(object.ViewCharmLiteral) + ")"
+			outputText = outputText + "(" + c.prsr.Serialize(charmValue, parser.LITERAL) + ")"
 		}
 	}
 	return outputText, nil
@@ -2003,21 +2003,21 @@ func narrate(conditional ast.Node, c *Context) (bool, string) {
 			}
 			if isLiteral(conditional.Args[0]) {
 				return val, conditional.Args[2].String() + " is " +
-					Eval(conditional.Args[2], c).Inspect(object.ViewCharmLiteral)
+					c.prsr.Serialize(Eval(conditional.Args[2], c), parser.LITERAL)
 			}
 			if isLiteral(conditional.Args[2]) {
 				return val, conditional.Args[0].String() + " is " +
-					Eval(conditional.Args[0], c).Inspect(object.ViewCharmLiteral)
+					c.prsr.Serialize(Eval(conditional.Args[0], c), parser.LITERAL)
 			}
 			leftVal := Eval(conditional.Args[0], c)
 			rightVal := Eval(conditional.Args[2], c)
 			if object.Equals(leftVal, rightVal) {
 				return val, conditional.Args[0].String() + " and " + conditional.Args[2].String() + " are both " +
-					leftVal.Inspect(object.ViewCharmLiteral)
+					c.prsr.Serialize(leftVal, parser.LITERAL)
 			}
 			if val {
-				return val, conditional.Args[0].String() + " is " + leftVal.Inspect(object.ViewCharmLiteral) +
-					" and " + conditional.Args[2].String() + " is " + rightVal.Inspect(object.ViewCharmLiteral)
+				return val, conditional.Args[0].String() + " is " + c.prsr.Serialize(leftVal, parser.LITERAL) +
+					" and " + conditional.Args[2].String() + " is " + c.prsr.Serialize(rightVal, parser.LITERAL)
 			}
 		}
 	}
@@ -2036,10 +2036,9 @@ func narrate(conditional ast.Node, c *Context) (bool, string) {
 // Just a bit of string-handling for the autologger.
 func niceReturn(node ast.Node, c *Context) string {
 	if isLiteral(node) {
-		return Eval(node, c).Inspect(object.ViewCharmLiteral) + "."
+		return c.prsr.Serialize(Eval(node, c), parser.LITERAL) + "."
 	}
-	return node.String() + " = " +
-		Eval(node, c).Inspect(object.ViewCharmLiteral) + "."
+	return node.String() + " = " + c.prsr.Serialize(Eval(node, c), parser.LITERAL) + "."
 }
 
 // Logs things to the appropriate place

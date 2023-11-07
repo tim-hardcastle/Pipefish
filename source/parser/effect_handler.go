@@ -26,7 +26,7 @@ type InHandler interface {
 }
 
 type OutHandler interface {
-	Out(outObjects []object.Object, env *object.Environment)
+	Out(outObjects []object.Object, p *Parser, env *object.Environment)
 }
 
 func MakeStandardEffectHandler(out io.Writer) EffectHandler {
@@ -48,7 +48,7 @@ type standardOutHandler struct {
 	out io.Writer
 }
 
-func (oH *standardOutHandler) Out(vals []object.Object, env *object.Environment) {
+func (oH *standardOutHandler) Out(vals []object.Object, p *Parser, env *object.Environment) {
 	view, _ := env.Get("$view")
 	viewStr := view.(*object.String).Value
 
@@ -57,10 +57,10 @@ func (oH *standardOutHandler) Out(vals []object.Object, env *object.Environment)
 	elements := []string{}
 	for _, e := range vals {
 		if viewStr == "charm" {
-			elements = append(elements, e.Inspect(object.ViewCharmLiteral))
+			elements = append(elements, p.Serialize(e, LITERAL))
 		}
 		if viewStr == "plain" {
-			elements = append(elements, e.Inspect(object.ViewStdOut))
+			elements = append(elements, p.Serialize(e, PLAIN))
 		}
 
 	}
@@ -72,7 +72,7 @@ func (oH *standardOutHandler) Out(vals []object.Object, env *object.Environment)
 
 type ConsumingOutHandler struct{}
 
-func (oH *ConsumingOutHandler) Out(vals []object.Object, env *object.Environment) {
+func (oH *ConsumingOutHandler) Out(vals []object.Object, p *Parser, env *object.Environment) {
 
 }
 
@@ -99,18 +99,18 @@ func (iH *snapInHandler) Get(prompt string) string {
 	return input
 }
 
-func (oH *snapOutHandler) Out(vals []object.Object, env *object.Environment) {
+func (oH *snapOutHandler) Out(vals []object.Object, p *Parser, env *object.Environment) {
 
 	var out bytes.Buffer
 
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, e.Inspect(object.ViewCharmLiteral))
+		elements = append(elements, p.Serialize(e, LITERAL))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteRune('\n')
 	oH.snap.AppendOutput(out.String())
-	oH.stdOut.Out(vals, env)
+	oH.stdOut.Out(vals, p, env)
 }
 
 func MakeTestEffectHandler(out io.Writer, env object.Environment, scanner *bufio.Scanner, testOutputType TestOutputType) EffectHandler {
@@ -163,13 +163,13 @@ func (iH *TestInHandler) Get(prompt string) string {
 	return input[3:]
 }
 
-func (oH *TestOutHandler) Out(vals []object.Object, env *object.Environment) {
+func (oH *TestOutHandler) Out(vals []object.Object, p *Parser, env *object.Environment) {
 
 	var out bytes.Buffer
 
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, e.Inspect(object.ViewCharmLiteral))
+		elements = append(elements, p.Serialize(e, LITERAL))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	oH.scanner.Scan()

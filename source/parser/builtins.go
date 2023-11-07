@@ -114,7 +114,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"charm_literal": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.String{Value: args[0].Inspect(object.ViewCharmLiteral)}
+		return &object.String{Value: p.Serialize(args[0], LITERAL)}
 	},
 
 	"single_in_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
@@ -305,9 +305,9 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 			return &object.String{Value: "()"}
 		}
 		if len(args[0].(*object.Tuple).Elements) == 1 {
-			return &object.String{Value: args[0].(*object.Tuple).Elements[0].Inspect(object.ViewStdOut)}
+			return &object.String{Value: p.Serialize(args[0].(*object.Tuple).Elements[0], PLAIN)}
 		}
-		return &object.String{Value: args[0].Inspect(object.ViewStdOut)}
+		return &object.String{Value: p.Serialize(args[0], PLAIN)}
 	},
 
 	"string_to_int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {

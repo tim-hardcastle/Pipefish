@@ -10,7 +10,7 @@ script: rsc/suite/manual-2.ch
 -> MONTHS_IN_A_YEAR = 13
 error "reassigning to a constant 'MONTHS_IN_A_YEAR' in the REPL"
 -> h = 42
-error "attempting to assign object of type 'int' to a variable of type 'string' (value supplied was '42')"
+error "attempting to assign object of type 'int' to a variable of type 'string'"
 -> h = "foo"
 ok
 -> addToXandShow 38

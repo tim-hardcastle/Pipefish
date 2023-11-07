@@ -713,7 +713,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteString("\nValues passed were:\n")
 		}
 		for _, v := range hub.ers[0].Values {
-			hub.WritePretty(text.BULLET + v.Inspect(object.ViewCharmLiteral))
+			hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName].Parser.Serialize(v, parser.LITERAL))
 		}
 		hub.WriteString("\n")
 		return false
@@ -1229,9 +1229,9 @@ func objToString(service *parser.Service, obj object.Object) string {
 	value, _ := service.Parser.AllGlobals.Get("$view")
 	switch value.(*object.String).Value {
 	case "charm":
-		return obj.Inspect(object.ViewCharmLiteral)
+		return service.Parser.Serialize(obj, parser.LITERAL)
 	case "plain":
-		return obj.Inspect(object.ViewStdOut)
+		return service.Parser.Serialize(obj, parser.PLAIN)
 	default:
 		panic("I don't know what's going on any more.")
 	}

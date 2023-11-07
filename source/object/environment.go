@@ -16,27 +16,6 @@ type Environment struct {
 	Ext     *Environment
 }
 
-func ToString(env *Environment) string {
-	return "Environment : " + ToStringRecursive(env, "")
-}
-
-func ToStringRecursive(env *Environment, pad string) string {
-	result := pad
-	if env == nil {
-		return pad + "nil"
-	} else {
-
-		for k, v := range env.Store {
-			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
-		}
-		if len(env.Store) == 0 {
-			result = result + "Env has no vars"
-		}
-	}
-	result = result + "\n" + pad + "Outer :"
-	return result + ToStringRecursive(env.Ext, pad+"  ")
-}
-
 type Storage struct {
 	obj     Object
 	access  AccessType
@@ -84,40 +63,6 @@ func (e *Environment) Type(name string) (string, bool) {
 		return storage.VarType, ok
 	}
 	return e.Ext.Type(name)
-}
-
-func (e *Environment) StringDumpVariables() string { // For outputting them as a file of assignments
-	result := ""
-	for k, v := range e.Store {
-		if v.access != ACCESS_CONSTANT {
-			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + "\n"
-		}
-	}
-	return result
-}
-
-func (e *Environment) String() string {
-	result := ""
-	for k, v := range e.Store {
-		result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
-	}
-	if e.Ext != nil {
-		result = result + "\n    + {" + e.Ext.String() + "}"
-	}
-	return result
-}
-
-func (e *Environment) VarsOnly() string {
-	result := ""
-	for k, v := range e.Store {
-		if v.access != ACCESS_CONSTANT {
-			result = result + k + " = " + (v.obj).Inspect(ViewCharmLiteral) + ", "
-		}
-	}
-	if e.Ext != nil {
-		result = result + "\n    + {" + e.Ext.VarsOnly() + "}"
-	}
-	return result
 }
 
 func (e *Environment) Exists(name string) bool {

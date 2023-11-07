@@ -10,7 +10,7 @@ ok
 -> shortString = "Marmaduke"
 ok
 -> shortString = "Marmaduke Emmanuel Polkinghorne III"
-error "attempting to assign object of type 'string' to a variable of type 'varchar(10)' (value supplied was "Marmaduke Emmanuel Polkinghorne III")"
+error "attempting to assign object of type 'string' to a variable of type 'varchar(10)'"
 -> nullToZero 42
 42
 -> nullToZero NULL
