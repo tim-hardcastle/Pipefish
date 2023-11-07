@@ -588,7 +588,7 @@ func makeSnippet(node *ast.SuffixExpression, c *Context) object.Object {
 		values := make(map[string]object.Object)
 		values["text"] = &object.String{Value: node.Token.Literal}
 		values["env"] = &flatEnv
-		return &object.Struct{Name: name.Value, Value: values, Labels: labels}
+		return &object.Struct{Name: name.Value, Value: values, Labels: labels, Namespace: c.prsr.NamespacePath}
 	default:
 		return newError("eval/snippet/type", node.Args[0].GetToken())
 	}
@@ -923,7 +923,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok token.Token
 
 	// The first constructor function ...
 	constructor := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
-		result := &object.Struct{Value: make(map[string]object.Object)}
+		result := &object.Struct{Value: make(map[string]object.Object), Namespace: p.NamespacePath}
 		for k, v := range args {
 			result.Labels = append(result.Labels, sig[k].VarName)
 			result.Value[sig[k].VarName] = v
@@ -944,7 +944,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok token.Token
 	// The second constructor function ...
 
 	constructor_2 := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
-		result := &object.Struct{Value: make(map[string]object.Object)}
+		result := &object.Struct{Value: make(map[string]object.Object), Namespace: p.NamespacePath}
 		for _, v := range args {
 			if v == object.EMPTY_TUPLE && len(sig) == 0 {
 				result.Name = structName

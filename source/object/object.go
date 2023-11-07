@@ -220,8 +220,9 @@ func (i *Integer) HashKey() HashKey {
 // The 'Name' field will contain either 'field' if it's a field, or the name of the enum
 // otherwise.
 type Label struct {
-	Value string
-	Name  string
+	Value     string
+	Name      string
+	Namespace string
 }
 
 func (la *Label) DeepCopy() Object { return la }
@@ -326,13 +327,14 @@ func (s *String) HashKey() HashKey {
 // An object for containing structs. The 'Name' field contains the type of the concrete struct.
 // TODO --- if there ever was, there is no longer, a reason for keeping the labels in each struct.
 type Struct struct {
-	Labels []string
-	Value  map[string]Object
-	Name   string
+	Labels    []string
+	Value     map[string]Object
+	Name      string
+	Namespace string
 }
 
 func (s *Struct) DeepCopy() Object {
-	newStruct := &Struct{Labels: s.Labels, Value: make(map[string]Object), Name: s.Name}
+	newStruct := &Struct{Labels: s.Labels, Value: make(map[string]Object), Name: s.Name, Namespace: s.Namespace}
 	for k, v := range s.Value {
 		newStruct.Value[k] = v.DeepCopy()
 	}

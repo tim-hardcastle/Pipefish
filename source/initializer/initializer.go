@@ -92,7 +92,7 @@ func New(source, input string, db *sql.DB) *Initializer {
 	return uP
 }
 
-func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service) (*parser.Service, *Initializer) {
+func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service, namePath string) (*parser.Service, *Initializer) {
 
 	newService := parser.NewService()
 	newService.Broken = true
@@ -113,6 +113,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	init.Parser = parser.New()
 	init.Parser.Database = db
 	init.Parser.Services = services
+	init.Parser.NamespacePath = namePath
 	init.MakeParserAndTokenizedProgram()
 	if init.ErrorsExist() {
 		return newService, init
@@ -122,7 +123,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
-	unnamespacedImports := init.InitializeNamespacedImportsAndReturnUnnamespacedImports(root)
+	unnamespacedImports := init.InitializeNamespacedImportsAndReturnUnnamespacedImports(root, namePath)
 	if init.ErrorsExist() {
 		return newService, init
 	}
@@ -448,7 +449,7 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
 			uP.Throw("init/enum/lhs", tok1)
 		}
-		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
+		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "enum")
 		uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
 		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal+"?")
 		uP.Parser.Enums[tok1.Literal] = []*object.Label{}
@@ -460,7 +461,7 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 			if env.Exists(tok.Literal) {
 				uP.Throw("init/enum/free", tok)
 			}
-			labelConst := &object.Label{Value: tok.Literal, Name: tok1.Literal}
+			labelConst := &object.Label{Value: tok.Literal, Name: tok1.Literal, Namespace: uP.Parser.NamespacePath}
 			env.InitializeConstant(tok.Literal, labelConst)
 
 			uP.Parser.Enums[tok1.Literal] = append(uP.Parser.Enums[tok1.Literal], labelConst)
@@ -647,7 +648,7 @@ func (uP *Initializer) ImportsExist() bool {
 	return len(uP.Parser.TokenizedDeclarations[importDeclaration]) > 0
 }
 
-func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(root *parser.Service) []string {
+func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(root *parser.Service, namePath string) []string {
 	unnamespacedImports := []string{}
 	for _, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
 		scriptFilepath := ""
@@ -690,7 +691,7 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
 		var init *Initializer
-		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root)
+		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root, namePath+namespace+".")
 		uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)
 		uP.GetSource(scriptFilepath)
 	}

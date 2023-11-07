@@ -918,7 +918,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	if !needsRebuild {
 		return false
 	}
-	newService, init := initializer.CreateService(scriptFilepath, hub.Db, hub.services, parser.MakeStandardEffectHandler(hub.out), &parser.Service{})
+	newService, init := initializer.CreateService(scriptFilepath, hub.Db, hub.services, parser.MakeStandardEffectHandler(hub.out), &parser.Service{}, "")
 	if init.ErrorsExist() {
 		hub.GetAndReportErrors(init.Parser)
 		return false

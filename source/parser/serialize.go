@@ -56,7 +56,11 @@ func (p *Parser) Serialize(ob object.Object, style Style) string {
 	case *object.Integer:
 		return fmt.Sprintf("%d", ob.Value)
 	case *object.Label:
-		return ob.Value
+		if style == PLAIN {
+			return ob.Value
+		} else {
+			return ob.Namespace + ob.Value
+		}
 	case *object.Lazy:
 		return ob.Value.String() // TODO : find out what this does and make it do something else, probably? It doesn't look right.
 	case *object.List:
@@ -98,7 +102,11 @@ func (p *Parser) Serialize(ob object.Object, style Style) string {
 		for _, element := range ob.Labels {
 			elements = append(elements, element+"::"+p.Serialize(ob.Value[element], style))
 		}
-		out.WriteString(ob.Name)
+		if style == PLAIN {
+			out.WriteString(ob.Name)
+		} else {
+			out.WriteString(ob.Namespace + ob.Name)
+		}
 		out.WriteString(" with ")
 		out.WriteString("(")
 		out.WriteString(strings.Join(elements, ", "))

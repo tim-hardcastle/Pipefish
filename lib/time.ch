@@ -11,6 +11,8 @@ num = 42
 
 Duration = struct(hours, minutes, seconds, nanoseconds int)
 
+Blah = struct(x int)
+
 Weekday = enum SUN, MON, TUE, WED, THUR, FRI, SAT
 
 weekday(t Time) :

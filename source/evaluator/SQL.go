@@ -82,7 +82,7 @@ func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Obje
 }
 
 func makeStruct(structName string, args []any, tok token.Token, c *Context) object.Object {
-	newStruct := &object.Struct{Name: structName, Labels: []string{}, Value: make(map[string]object.Object)}
+	newStruct := &object.Struct{Name: structName, Labels: []string{}, Value: make(map[string]object.Object), Namespace: c.prsr.NamespacePath}
 	for i, v := range c.prsr.StructSig[structName] {
 		var charmValue object.Object
 		if args[i] == nil {
