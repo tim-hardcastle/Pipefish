@@ -6,6 +6,12 @@ var
 
 num = 42
 
+cmd
+
+init : 
+    global num
+    num = 99
+
 def
 
 compare(a, b string) : gocode {

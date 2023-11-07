@@ -155,8 +155,14 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	newService.Env = env
 	newService.Broken = false
 	init.Parser.EffHandle = eff
+	if init.Parser.Unfixes.Contains("init") {
+		obj := evaluator.Evaluate(*newService.Parser.ParseLine("Initializer", "init"),
+			evaluator.NewContext(newService.Parser, newService.Env, evaluator.REPL, true))
+		if obj.Type() == object.ERROR_OBJ {
+			init.addError(obj.(*object.Error))
+		}
+	}
 	return newService, init
-
 }
 
 func (init *Initializer) addToNameSpace(thingsToImport []string) {

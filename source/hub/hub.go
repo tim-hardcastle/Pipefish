@@ -172,7 +172,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		if service.Broken {
 			return passedServiceName, object.OK_RESPONSE
 		}
-		hub.tryStart("init")
 	}
 
 	if hub.currentServiceName == "#snap" {
@@ -469,7 +468,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			"' as service '" + hub.currentServiceName + "'.\n")
 		hub.Start(username, hub.currentServiceName, service.ScriptFilepath)
 		hub.lastRun = []string{hub.currentServiceName}
-		hub.tryStart("init")
 		return false
 	case "rerun":
 		if len(hub.lastRun) == 0 {
@@ -479,8 +477,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty("Rerunning script '" + hub.services[hub.lastRun[0]].ScriptFilepath +
 			"' as service '" + hub.lastRun[0] + "'.\n")
 		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].ScriptFilepath)
-		hub.tryStart("init")
-		hub.tryStart("main")
+		hub.tryMain()
 		return false
 	case "run":
 		hub.lastRun = args
@@ -488,14 +485,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("Starting script '" + args[0] +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
 			hub.StartAnonymous(args[0])
-			hub.tryStart("init")
-			hub.tryStart("main")
+			hub.tryMain()
 			return false
 		}
 		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
 		hub.Start(username, args[1], args[0])
-		hub.tryStart("init")
-		hub.tryStart("main")
+		hub.tryMain()
 		return false
 	case "services-of-user":
 		result, err := database.GetServicesOfUser(hub.Db, args[0], false)
@@ -527,7 +522,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.services[hub.currentServiceName].Parser.EffHandle =
 				parser.MakeSnapEffectHandler(hub.out, *hub.services[hub.currentServiceName].Env, hub.snap)
 		}
-		hub.tryStart("init")
+
 		return false
 	case "snap-good":
 		if hub.currentServiceName != "#snap" {
@@ -583,8 +578,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			} else {
 				hub.currentServiceName = args[0]
 				if !hub.services[hub.currentServiceName].Visited {
-					hub.tryStart("init")
-					hub.tryStart("main")
+					hub.tryMain()
 				}
 				return false
 			}
@@ -875,9 +869,9 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
 	return true
 }
 
-func (hub *Hub) tryStart(cname string) { // Guardedly tries to run the `init` or `main` command, depending on the parameter.
+func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 	if !hub.services[hub.currentServiceName].Broken && hub.services[hub.currentServiceName].Parser.Unfixes.Contains("main") {
-		obj := ServiceDo(hub.services[hub.currentServiceName], cname)
+		obj := ServiceDo(hub.services[hub.currentServiceName], "main")
 		hub.lastRun = []string{hub.currentServiceName}
 		hub.services[hub.currentServiceName].Visited = true
 		if obj.Type() == object.RESPONSE_OBJ && obj.(*object.Effects).StopHappened && hub.currentServiceName != "" {
@@ -1062,8 +1056,7 @@ func (hub *Hub) Open() {
 				"with this hub.\n\n")
 			return
 		}
-		hub.tryStart("init")
-		hub.tryStart("main")
+		hub.tryMain()
 	}
 }
 
