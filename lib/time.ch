@@ -3,7 +3,12 @@ import
 gocode "time"
 gocode "errors"
 
+
+
+
 def
+
+num = 42
 
 Duration = struct(hours, minutes, seconds, nanoseconds int)
 

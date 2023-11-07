@@ -720,7 +720,7 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
 	}
 
-	if node.Operator == "." { // Then were're off the the namespaces.
+	if node.Operator == "." { // Then were're off to the namespaces.
 		if len(node.Args) != 3 {
 			return newError("eval/namespace/args", node.Token)
 		}
@@ -732,8 +732,14 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		if !ok {
 			return newError("eval/namespace/name", node.Token)
 		}
-		newContext := NewContext(library.Parser, c.env, NAMESPACE, c.logging)
-		return Eval(node.Args[2], newContext)
+		switch typedNode := node.Args[2].(type) {
+		case *ast.Identifier:
+			newContext := NewContext(library.Parser, library.Env, NAMESPACE, c.logging)
+			return Eval(typedNode, newContext)
+		default:
+			newContext := NewContext(library.Parser, c.env, NAMESPACE, c.logging)
+			return Eval(typedNode, newContext)
+		}
 	}
 
 	left, right := evalLeftRightArgs(node.Args, node.Token, c)
