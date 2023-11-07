@@ -48,7 +48,8 @@ const (
 	FSUFFIX     // user-defined suffix, or type in type declaration
 	MINUS       //  - as a prefix
 	INDEX       // after [
-	NAMESPACE   // 'foo.bar'
+	BELOW_NAMESPACE
+	NAMESPACE // 'foo.bar'
 )
 
 var precedences = map[token.TokenType]int{
@@ -491,7 +492,7 @@ func (p *Parser) peekPrecedence() int {
 
 func (p *Parser) curPrecedence() int {
 	if p.curToken.Type == token.NAMESPACE {
-		return FPREFIX
+		return BELOW_NAMESPACE
 	}
 	if p, ok := precedences[p.curToken.Type]; ok {
 		return p
