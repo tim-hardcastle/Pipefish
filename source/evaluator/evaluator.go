@@ -109,10 +109,14 @@ func Eval(node ast.Node, c *Context) object.Object {
 
 	case *ast.AssignmentExpression:
 		variables := signature.Signature{}
+		var err *object.Error
 		if node.Token.Type == token.TYP_ASSIGN {
 			variables = append(variables, signature.NameTypePair{VarName: node.Left.(*ast.TypeLiteral).Token.Literal, VarType: "type"})
 		} else {
-			variables = c.prsr.RecursivelySlurpSignature(node.Left, "*")
+			variables, err = c.prsr.RecursivelySlurpSignature(node.Left, "*")
+			if err != nil {
+				return err
+			}
 		}
 		var right object.Object
 		lLen := len(variables)
@@ -184,7 +188,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			}
 			return object.SUCCESS
 		}
-		err := Assign(variables[lLen-1], &object.Tuple{Elements: right.(*object.Tuple).Elements[lLen-1:]}, node.Token, c)
+		err = Assign(variables[lLen-1], &object.Tuple{Elements: right.(*object.Tuple).Elements[lLen-1:]}, node.Token, c)
 		if err != nil {
 			return err
 		}
@@ -780,6 +784,23 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 // We implement the = operator. This goes on for a bit, because it has complicated semantics which
 // have been refactored a bunch of times, so here we are.
 func Assign(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
+	envToChange := c.env
+
+	if strings.Contains(variable.VarName, ".") {
+		pieces := strings.Split(variable.VarName, ".")
+		p := c.prsr
+		var service *parser.Service
+		ok := false
+		for i := 0; i < len(pieces)-1; i++ {
+			service, ok = p.NamespaceBranch[pieces[i]]
+			if !ok {
+				return newError("eval/namespace/known", tok)
+			}
+			p = service.Parser
+		}
+		envToChange = service.Env
+		variable.VarName = pieces[len(pieces)-1]
+	}
 	if right.Type() == object.UNSATISFIED_OBJ {
 		return newError("eval/unsatisfied/l", tok)
 	}
@@ -795,49 +816,49 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/var/type/a", tok, right, inferredType)
 		}
-		c.env.Set(variable.VarName, right)
+		envToChange.Set(variable.VarName, right)
 		return nil
 	case token.PVR_ASSIGN:
-		if c.env.IsConstant(variable.VarName) {
+		if envToChange.IsConstant(variable.VarName) {
 			return newError("eval/var/const/a", tok, variable.VarName)
 		}
 		if strings.HasPrefix(variable.VarName, "$") {
-			return assignSysVar(tok, variable.VarName, right, c.env)
+			return assignSysVar(tok, variable.VarName, right, envToChange)
 		}
-		if c.env.Exists(variable.VarName) {
+		if envToChange.Exists(variable.VarName) {
 			return newError("eval/var/exists/a", tok, variable.VarName)
 		}
 		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/var/type/b", tok, right, inferredType)
 		}
-		c.env.InitializePrivate(variable.VarName, right, inferredType)
+		envToChange.InitializePrivate(variable.VarName, right, inferredType)
 		return nil
 	case token.DEF_ASSIGN:
-		if c.env.Exists(variable.VarName) {
+		if envToChange.Exists(variable.VarName) {
 			return newError("eval/const/assign", tok)
 		}
 		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/const/type", tok, right, inferredType)
 		}
-		c.env.InitializeConstant(variable.VarName, right)
+		envToChange.InitializeConstant(variable.VarName, right)
 		return nil
 	case token.VAR_ASSIGN:
-		if c.env.IsConstant(variable.VarName) {
+		if envToChange.IsConstant(variable.VarName) {
 			return newError("eval/var/const/a", tok, variable.VarName)
 		}
 		if strings.HasPrefix(variable.VarName, "$") {
-			return assignSysVar(tok, variable.VarName, right, c.env)
+			return assignSysVar(tok, variable.VarName, right, envToChange)
 		}
-		if c.env.Exists(variable.VarName) {
+		if envToChange.Exists(variable.VarName) {
 			return newError("eval/var/exists/b", tok, variable.VarName)
 		}
 		if !parser.IsObjectInType(c.prsr.TypeSystem, right, inferredType) {
 			return newError("eval/var/type/c", tok, right, inferredType)
 		}
-		c.env.InitializeVariable(variable.VarName, right, inferredType)
+		envToChange.InitializeVariable(variable.VarName, right, inferredType)
 		return nil
 	case token.CMD_ASSIGN:
-		val, ok := c.env.IsRef(variable.VarName)
+		val, ok := envToChange.IsRef(variable.VarName)
 		if ok {
 			ref := val.(*object.Ref)
 			if ref.Env.Exists(ref.VariableName) {
@@ -850,38 +871,38 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		if variable.VarType != "*" && variable.VarType != "ident" {
 			return newError("eval/cmd/assign", tok)
 		}
-		if c.env.IsConstant(variable.VarName) {
+		if envToChange.IsConstant(variable.VarName) {
 			return newError("eval/cmd/const", tok, variable.VarName)
 		}
 		if strings.HasPrefix(variable.VarName, "$") {
-			return assignSysVar(tok, variable.VarName, right, c.env)
+			return assignSysVar(tok, variable.VarName, right, envToChange)
 		}
-		if !c.env.Exists(variable.VarName) {
-			c.env.InitializeLocal(variable.VarName, right, inferredType)
+		if !envToChange.Exists(variable.VarName) {
+			envToChange.InitializeLocal(variable.VarName, right, inferredType)
 			return nil
 		}
-		acc := c.env.GetAccess(variable.VarName)
+		acc := envToChange.GetAccess(variable.VarName)
 		if acc == object.ACCESS_PRIVATE || acc == object.ACCESS_PUBLIC {
 			return newError("eval/cmd/global/a", tok, variable.VarName)
 		}
 
-		c.env.Set(variable.VarName, right)
+		envToChange.Set(variable.VarName, right)
 		return nil
 
 	default: // We must be assigning from the REPL.
-		if (!c.env.Exists(variable.VarName)) || c.env.IsPrivate(variable.VarName) {
+		if (!envToChange.Exists(variable.VarName)) || envToChange.IsPrivate(variable.VarName) {
 			return newError("eval/repl/assign", tok, variable.VarName)
 		}
-		if c.env.IsConstant(variable.VarName) {
+		if envToChange.IsConstant(variable.VarName) {
 			return newError("eval/repl/const", tok, variable.VarName)
 		}
 		if strings.HasPrefix(variable.VarName, "$") {
-			return assignSysVar(tok, variable.VarName, right, c.env)
+			return assignSysVar(tok, variable.VarName, right, envToChange)
 		}
-		if !parser.IsObjectInType(c.prsr.TypeSystem, right, c.env.Store[variable.VarName].VarType) {
-			return newError("eval/repl/type", tok, right, c.env.Store[variable.VarName].VarType)
+		if !parser.IsObjectInType(c.prsr.TypeSystem, right, envToChange.Store[variable.VarName].VarType) {
+			return newError("eval/repl/type", tok, right, envToChange.Store[variable.VarName].VarType)
 		}
-		c.env.Set(variable.VarName, right) // The global variables are the inner environment of the REPL.
+		envToChange.Set(variable.VarName, right) // The global variables are the inner environment of the REPL.
 		return nil
 	}
 }

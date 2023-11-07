@@ -1,10 +1,9 @@
 import
 
+"lib/strings.ch"::"strs"
+
 gocode "time"
 gocode "errors"
-
-
-
 
 def
 

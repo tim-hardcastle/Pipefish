@@ -923,7 +923,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		hub.GetAndReportErrors(init.Parser)
 		return false
 	}
-	recursivelySetRootService(newService, newService)
+	recursivelySetRootService(newService, newService, "")
 
 	newService.Timestamp = modifiedTime
 	hub.services[name] = newService
@@ -931,10 +931,12 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	return true
 }
 
-func recursivelySetRootService(service, rootService *parser.Service) {
+func recursivelySetRootService(service, rootService *parser.Service, path string) {
 	service.Parser.RootService = rootService
-	for _, v := range service.Parser.NamespaceBranch {
-		recursivelySetRootService(v, rootService)
+	service.Parser.NamespacePath = path
+	for k, v := range service.Parser.NamespaceBranch {
+		newPath := path + k + "."
+		recursivelySetRootService(v, rootService, newPath)
 	}
 }
 

@@ -149,6 +149,7 @@ type Parser struct {
 	Database         *sql.DB
 	EffHandle        EffectHandler
 	NamespaceBranch  map[string]*Service
+	NamespacePath    string
 	RootService      *Service
 }
 
@@ -489,10 +490,12 @@ func (p *Parser) peekPrecedence() int {
 }
 
 func (p *Parser) curPrecedence() int {
+	if p.curToken.Type == token.NAMESPACE {
+		return FPREFIX
+	}
 	if p, ok := precedences[p.curToken.Type]; ok {
 		return p
 	}
-
 	if p.curToken.Type == token.IDENT {
 		if p.Infixes.Contains(p.curToken.Literal) {
 			if p.curToken.Literal == "+" || p.curToken.Literal == "-" {
@@ -704,7 +707,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			}
 			fn := &ast.FuncExpression{Token: p.curToken}
 			fn.Body = right
-			fn.Sig = p.getSigFromArgs(left.Args, "single")
+			fn.Sig, _ = p.getSigFromArgs(left.Args, "single")
 			expression.Right = fn
 			return expression
 		default:
@@ -901,7 +904,10 @@ func (p *Parser) parseFuncExpression() ast.Node {
 			p.Throw("parse/colon", p.curToken)
 			return nil
 		}
-		expression.Sig = p.RecursivelySlurpSignature(root.Left, "single")
+		expression.Sig, _ = p.RecursivelySlurpSignature(root.Left, "single")
+		if p.ErrorsExist() {
+			return nil
+		}
 		expression.Body = root.Right
 		return expression
 	default:
@@ -1267,86 +1273,152 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 }
 
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
-func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) signature.Signature {
+func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (signature.Signature, *object.Error) {
 	sig := signature.Signature{}
 	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
 			sig = append(sig, signature.NameTypePair{VarName: arg.GetToken().Literal, VarType: "bling"})
 		} else {
-			partialSig := p.RecursivelySlurpSignature(arg, dflt)
+			partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
+			if err != nil {
+				return nil, err
+			}
 			sig = append(sig, partialSig...)
 		}
 	}
-	return sig
+	return sig, nil
 }
 
-func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) signature.Signature {
+func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signature.Signature, *object.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
 		case p.Midfixes.Contains(typednode.Operator):
-			LHS := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			RHS := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
+			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
+			if err != nil {
+				return nil, err
+			}
+			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
+			if err != nil {
+				return nil, err
+			}
 			middle := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
-			return append(append(LHS, middle), RHS...)
+			return append(append(LHS, middle), RHS...), nil
 		case typednode.Token.Type == token.COMMA || typednode.Token.Type == token.WEAK_COMMA:
-			LHS := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			RHS := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			return append(LHS, RHS...)
+			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
+			if err != nil {
+				return nil, err
+			}
+			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
+			if err != nil {
+				return nil, err
+			}
+			return append(LHS, RHS...), nil
 		case typednode.Operator == "varchar":
 			switch potentialInteger := typednode.Args[2].(type) {
 			case *ast.IntegerLiteral:
 				varType := "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
 				return p.RecursivelySlurpSignature(typednode.Args[0], varType)
 			default:
-				p.Throw("parse/sig/varchar/int/b", potentialInteger.GetToken())
-				return nil
+				return nil, newError("parse/sig/varchar/int/b", potentialInteger.GetToken())
 			}
+		case typednode.Operator == ".":
+			namespacedIdent, err := recursivelySlurpNamespace(typednode)
+			if err != nil {
+				return nil, err
+			}
+			return signature.Signature{signature.NameTypePair{VarName: namespacedIdent, VarType: dflt}}, nil
 		default:
-			p.Throw("parse/sig/b", typednode.Token)
+			return nil, newError("parse/sig/b", typednode.Token)
 		}
 	case *ast.SuffixExpression:
 		switch {
 		case TypeExists(typednode.Operator, p.TypeSystem) ||
 			typednode.Operator == "ast" || typednode.Operator == "ident":
-			LHS := p.getSigFromArgs(typednode.Args, dflt)
+			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
+			if err != nil {
+				return nil, err
+			}
 			for k := range LHS {
 				LHS[k].VarType = typednode.Operator
 			}
-			return LHS
+			return LHS, nil
 		case typednode.Operator == "raw":
-			LHS := p.getSigFromArgs(typednode.Args, dflt)
+			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
+			if err != nil {
+				return nil, err
+			}
 			for k := range LHS {
 				LHS[k].VarType = LHS[k].VarType + " raw"
 			}
-			return LHS
+			return LHS, nil
 		case p.Endfixes.Contains(typednode.Operator):
-			LHS := p.getSigFromArgs(typednode.Args, dflt)
+			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
+			if err != nil {
+				return nil, err
+			}
 			end := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
-			return append(LHS, end)
+			return append(LHS, end), nil
 		default:
-			p.Throw("parse/sig/c", typednode.Token)
+			return nil, newError("parse/sig/c", typednode.Token)
 		}
-		p.Throw("parse/sig/d", node.GetToken())
 	case *ast.Identifier:
 		if p.Endfixes.Contains(typednode.Value) {
-			return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: "bling"}}
+			return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: "bling"}}, nil
 		}
-		return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: dflt}}
+		return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {
-			RHS := p.getSigFromArgs(typednode.Args, dflt)
+			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
+			if err != nil {
+				return nil, err
+			}
 			front := signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
-			return append(front, RHS...)
+			return append(front, RHS...), nil
 		} else {
 			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 			// name under those circumstances.
-			return signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: dflt}}
+			return signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: dflt}}, nil
 		}
 	}
-	return nil
+	return nil, newError("parse/sig/d", node.GetToken())
+}
+
+func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *object.Error) {
+	if len(root.Args) != 3 {
+		return "", newError("parse/sig.namespace/a", root.Args[1].GetToken())
+	}
+	if root.Operator != "." {
+		return "", newError("parse/sig.namespace/b", root.Args[1].GetToken())
+	}
+	LHS := ""
+	RHS := ""
+	var err *object.Error
+	switch leftNode := root.Args[0].(type) {
+	case *ast.Identifier:
+		LHS = leftNode.Value
+	case *ast.InfixExpression:
+		LHS, err = recursivelySlurpNamespace(leftNode)
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", newError("parse/sig.namespace/c", root.Args[1].GetToken())
+	}
+	switch rightNode := root.Args[2].(type) {
+	case *ast.Identifier:
+		RHS = rightNode.Value
+	case *ast.InfixExpression:
+		RHS, err = recursivelySlurpNamespace(rightNode)
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", newError("parse/sig.namespace/d", root.Args[1].GetToken())
+	}
+	return LHS + "." + RHS, nil
 }
 
 func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature {
