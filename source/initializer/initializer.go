@@ -93,24 +93,30 @@ func New(source, input string, db *sql.DB) *Initializer {
 }
 
 func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service, namePath string) (*parser.Service, *Initializer) {
-
 	newService := parser.NewService()
 	newService.Broken = true
 	newService.ScriptFilepath = scriptFilepath
 	code := ""
 	if scriptFilepath != "" {
+		file, err := os.Stat(newService.ScriptFilepath)
+		if err != nil {
+			init := New(scriptFilepath, "", db)
+			init.Throw("init/code", token.Token{Source: scriptFilepath}, err.Error())
+			return newService, init
+		}
+		newService.Timestamp = file.ModTime().UnixMilli()
 		dat, err := os.ReadFile(scriptFilepath)
 		if err != nil {
 			init := New(scriptFilepath, "", db)
 			init.Throw("init/code", token.Token{Source: scriptFilepath}, err.Error())
-			return nil, init
-		} else {
-			code = strings.TrimRight(string(dat), "\n") + "\n"
+			return newService, init
 		}
+		code = strings.TrimRight(string(dat), "\n") + "\n"
 	}
+
 	init := New(scriptFilepath, code, db)
+	newService.Parser = init.Parser
 	init.GetSource(scriptFilepath)
-	init.Parser = parser.New()
 	init.Parser.Database = db
 	init.Parser.Services = services
 	init.Parser.NamespacePath = namePath
@@ -124,6 +130,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 		return newService, init
 	}
 	unnamespacedImports := init.InitializeNamespacedImportsAndReturnUnnamespacedImports(root, namePath)
+
 	if init.ErrorsExist() {
 		return newService, init
 	}
@@ -150,7 +157,6 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
-	newService.Parser = init.Parser
 	newService.Parser.RootService = root
 	newService.Env = env
 	newService.Broken = false
@@ -176,6 +182,9 @@ func (init *Initializer) addToNameSpace(thingsToImport []string) {
 }
 
 func (uP *Initializer) GetSource(source string) {
+	if source == "" {
+		return
+	}
 	file, err := os.Open(source)
 	if err != nil {
 		uP.Throw("init/source/open", token.Token{}, source)
@@ -698,8 +707,14 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 		}
 		var init *Initializer
 		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root, namePath+namespace+".")
-		uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)
-		uP.GetSource(scriptFilepath)
+		init.GetSource(scriptFilepath)
+		if len(init.Parser.Errors) > 0 {
+			uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)
+			uP.Parser.NamespaceBranch[namespace].Broken = true
+		}
+		for k, v := range init.Sources {
+			uP.Sources[k] = v
+		}
 	}
 	return unnamespacedImports
 }

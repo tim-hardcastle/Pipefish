@@ -165,7 +165,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, object.OK_RESPONSE
 	}
 
-	needsUpdate, _ := hub.serviceNeedsUpdate(hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
+	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
 	if hub.hot && needsUpdate {
 		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
 		service = hub.services[hub.currentServiceName]
@@ -661,7 +661,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("there aren't that many errors.")
 			return false
 		}
-		hub.WritePretty("\nFound" + text.DescribePos(hub.ers[num].Token) + ":\n\n")
+		hub.WritePretty("\nFound" + text.DescribePos(hub.ers[num].Token) + ":\n")
+		println()
 		line := hub.Sources[hub.ers[num].Token.Source][hub.ers[num].Token.Line-1] + "\n"
 		startUnderline := hub.ers[num].Token.ChStart
 		lenUnderline := hub.ers[num].Token.ChEnd - startUnderline
@@ -889,44 +890,45 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 	}
 }
 
-func (hub *Hub) serviceNeedsUpdate(name, scriptFilepath string) (bool, int64) {
-	var modifiedTime int64
-
-	// TODO --- if you changed an imported dependency this wouldn't notice.
-	if name != "" {
-		file, err := os.Stat(scriptFilepath)
-		if err != nil {
-			panic("Something weird has happened!")
-		}
-		modifiedTime = file.ModTime().UnixMilli()
-		_, present := hub.services[name]
-		if present && modifiedTime == hub.services[name].Timestamp {
-			return false, modifiedTime
-		}
+func (hub *Hub) serviceNeedsUpdate(name, scriptFilepath string) bool {
+	service, present := hub.services[name]
+	if !present {
+		return true
 	}
-	return true, modifiedTime
+	if name == "" {
+		return true
+	}
+	needsUpdate, err := service.NeedsUpdate()
+	if err != nil {
+		hub.WriteError(err.Error())
+		return false
+	}
+	return needsUpdate
 }
 
 func (hub *Hub) createService(name, scriptFilepath string) bool {
-	needsRebuild, modifiedTime := hub.serviceNeedsUpdate(name, scriptFilepath)
+	needsRebuild := hub.serviceNeedsUpdate(name, scriptFilepath)
 	if !needsRebuild {
 		return false
 	}
 	newService, init := initializer.CreateService(scriptFilepath, hub.Db, hub.services, parser.MakeStandardEffectHandler(hub.out), &parser.Service{}, "")
+
+	hub.services[name] = newService
+	hub.Sources = init.Sources
+
 	if init.ErrorsExist() {
+		newService.Broken = true
 		hub.GetAndReportErrors(init.Parser)
 		return false
 	}
 	recursivelySetRootService(newService, newService, "")
 
-	newService.Timestamp = modifiedTime
-	hub.services[name] = newService
-	hub.Sources = init.Sources
 	return true
 }
 
 func recursivelySetRootService(service, rootService *parser.Service, path string) {
 	service.Parser.RootService = rootService
+	service.Parser.EffHandle = rootService.Parser.EffHandle
 	service.Parser.NamespacePath = path
 	for k, v := range service.Parser.NamespaceBranch {
 		newPath := path + k + "."

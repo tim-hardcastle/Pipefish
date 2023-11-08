@@ -1,2 +1,3 @@
-hub, rsc/charm/hub.ch
 TEMP, examples/temp.ch
+CONS, examples/consumer.ch
+hub, rsc/charm/hub.ch

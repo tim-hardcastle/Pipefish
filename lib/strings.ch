@@ -10,7 +10,7 @@ cmd
 
 init : 
     global num
-    num = 99
+    num = 100
 
 def
 

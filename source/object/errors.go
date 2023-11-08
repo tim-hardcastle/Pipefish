@@ -34,7 +34,7 @@ func Put(message string, tok token.Token, ers Errors) []*Error {
 func GetList(ers Errors) string {
 	result := "\n"
 	for i, v := range ers {
-		result = result + "[" + strconv.Itoa(i) + "] " + "error " + text.ToEscapedText(v.Message) + "\n"
+		result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"
 	}
 	return result + "\n"
 }
