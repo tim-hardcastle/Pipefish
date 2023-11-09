@@ -145,7 +145,7 @@ type Parser struct {
 	Enums            map[string][]*object.Label
 	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]signature.Signature // <--- in here.
-	Services         map[string]*Service
+	Services         map[string]*Service            // This has injected into it the hub's own map of services.
 	GoImports        map[string][]string
 	Database         *sql.DB
 	EffHandle        EffectHandler

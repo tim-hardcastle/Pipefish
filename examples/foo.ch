@@ -4,7 +4,7 @@ NULL::"lib/strings.ch"
 
 contacts
 
-Bar::"something/Bar.ch"
+Bar::"examples/bar.ch"
 
 cmd
 
@@ -15,4 +15,3 @@ getTheThing(s) :
 makeBarDoTheThing(s) : 
     post Bar --- doTheThing |s|
 
-//

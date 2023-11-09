@@ -599,6 +599,20 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					println("Path is", path)
 				}
 			}
+			if kindOfDeclarationToParse == contactDeclaration {
+				// This is like the code that does imports, for obvious reasons.
+				service, init := CreateService(path, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, &parser.Service{}, "")
+				service.Parser.RootService = service
+				uP.Parser.Services[name] = service
+				init.GetSource(path)
+				if len(init.Parser.Errors) > 0 {
+					uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)
+					uP.Parser.Services[name].Broken = true
+				}
+				for k, v := range init.Sources {
+					uP.Sources[k] = v
+				}
+			}
 		}
 	}
 }
