@@ -3,7 +3,6 @@ import
 strs::"lib/strings.ch"
 
 gocode "time"
-gocode "errors"
 
 def
 
@@ -19,12 +18,14 @@ weekday(t Time) :
     Weekday[goGetWeekday(t[year], t[month], t[day], t[hour], t[min], t[loc])]
 
 goGetWeekday(year, month, day, hour, min int, loc string) : gocode {
-    locObj, err := time.LoadLocation(loc)
-    if err != nil {
-        return err
-    }
-    var goMonth time.Month
-    switch month {
+    return int(getGoTime(year, month, day, hour, min, 0, 0, loc).Weekday())
+}
+
+gocode {
+    func getGoTime(year, month, day, hour, min, sec, nsec int, loc string) time.Time {
+        locObj, _ := time.LoadLocation(loc)
+        var goMonth time.Month
+        switch month {
         case 1 :
             goMonth = time.January
         case 2 :
@@ -49,10 +50,9 @@ goGetWeekday(year, month, day, hour, min int, loc string) : gocode {
             goMonth = time.November
         case 12 :
             goMonth = time.December
-        default :
-            return errors.New("can't convert month")   
+        }
+        return time.Date(year, goMonth, day, hour, min, sec, nsec, locObj)
     }
-    return int((time.Date(year, goMonth, day, hour, min, 0, 0, locObj)).Weekday())
 }
 
 // func (t Time) Add(d Duration) Time
