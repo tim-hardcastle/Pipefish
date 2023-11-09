@@ -35,5 +35,11 @@ func (service *Service) NeedsUpdate() (bool, error) {
 			return needsUpdate, err
 		}
 	}
+	for _, contactName := range service.Parser.Contacts {
+		needsUpdate, err := service.Parser.Services[contactName].NeedsUpdate()
+		if needsUpdate || (err != nil) {
+			return needsUpdate, err
+		}
+	}
 	return false, nil
 }

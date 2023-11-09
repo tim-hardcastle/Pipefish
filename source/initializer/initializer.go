@@ -600,10 +600,10 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				}
 			}
 			if kindOfDeclarationToParse == contactDeclaration {
-				// This is like the code that does imports, for obvious reasons.
 				service, init := CreateService(path, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, &parser.Service{}, "")
 				service.Parser.RootService = service
 				uP.Parser.Services[name] = service
+				uP.Parser.Contacts = append(uP.Parser.Contacts, name)
 				init.GetSource(path)
 				if len(init.Parser.Errors) > 0 {
 					uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)

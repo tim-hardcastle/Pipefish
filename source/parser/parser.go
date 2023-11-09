@@ -146,6 +146,7 @@ type Parser struct {
 	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]signature.Signature // <--- in here.
 	Services         map[string]*Service            // This has injected into it the hub's own map of services.
+	Contacts         []string
 	GoImports        map[string][]string
 	Database         *sql.DB
 	EffHandle        EffectHandler
@@ -185,6 +186,7 @@ func New() *Parser {
 		Structs:         make(set.Set[string]),
 		GoImports:       make(map[string][]string),
 		NamespaceBranch: make(map[string]*Service),
+		Contacts:        []string{},
 	}
 
 	for k := range *p.TypeSystem {
