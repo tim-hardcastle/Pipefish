@@ -135,7 +135,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON || rl.curTok.Type == token.WEAK_COLON ||
 			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) ||
 				(rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) ||
-				(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP)) {
+				(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP) || rl.curTok.Type == token.GOLANG) {
 		rl.Throw("relex/indent", rl.curTok)
 	}
 

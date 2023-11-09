@@ -116,8 +116,8 @@ type Parser struct {
 	curToken              token.Token
 	peekToken             token.Token
 	Logging               bool
-	TokenizedDeclarations [11]tokenizedCodeChunks
-	ParsedDeclarations    [11]ParsedCodeChunks
+	TokenizedDeclarations [12]tokenizedCodeChunks
+	ParsedDeclarations    [12]ParsedCodeChunks
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.

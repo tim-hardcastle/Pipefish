@@ -213,6 +213,10 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 	gh.modules[golang.Token.Source] = gh.modules[golang.Token.Source] + fnString
 }
 
+func (gh *GoHandler) AddPureGoBlock(source, code string) {
+	gh.modules[source] = gh.modules[source] + "\n" + code[:len(code)-2] + "\n\n"
+}
+
 func (gh *GoHandler) GetFn(fnName string, tok token.Token) func(args ...any) any {
 	name := capitalize(fnName)
 	fn, err := gh.plugins[tok.Source].Lookup(name)

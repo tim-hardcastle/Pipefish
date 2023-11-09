@@ -63,6 +63,7 @@ const (
 	privateFunctionDeclaration                 //
 	commandDeclaration                         //
 	privateCommandDeclaration                  //
+	golangDeclaration                          // Pure golang in a block; the Charm functions with golang bodies don't go here.
 
 )
 
@@ -338,15 +339,21 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 						append(uP.Parser.TokenizedDeclarations[contactDeclaration], line)
 				}
 			case CmdSection:
-				if expressionIsAssignment {
-					uP.Throw("init/cmd/assign", definingToken)
+				line.ToStart()
+				if line.Length() == 1 && line.NextToken().Type == token.GOLANG {
+					uP.Parser.TokenizedDeclarations[golangDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[golangDeclaration], line)
 				} else {
-					if isPrivate {
-						uP.Parser.TokenizedDeclarations[privateCommandDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[privateCommandDeclaration], line)
+					if expressionIsAssignment {
+						uP.Throw("init/cmd/assign", definingToken)
 					} else {
-						uP.Parser.TokenizedDeclarations[commandDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[commandDeclaration], line)
+						if isPrivate {
+							uP.Parser.TokenizedDeclarations[privateCommandDeclaration] =
+								append(uP.Parser.TokenizedDeclarations[privateCommandDeclaration], line)
+						} else {
+							uP.Parser.TokenizedDeclarations[commandDeclaration] =
+								append(uP.Parser.TokenizedDeclarations[commandDeclaration], line)
+						}
 					}
 				}
 			case VarSection:
@@ -378,23 +385,29 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 				}
 			case DefSection:
-				switch {
-				case expressionIsAssignment:
-					uP.Parser.TokenizedDeclarations[constantDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[constantDeclaration], line)
-				case expressionIsStruct:
-					uP.Parser.TokenizedDeclarations[typeDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[typeDeclaration], line)
-				case expressionIsEnum:
-					uP.Parser.TokenizedDeclarations[enumDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[enumDeclaration], line)
-				default:
-					if isPrivate {
-						uP.Parser.TokenizedDeclarations[privateFunctionDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[privateFunctionDeclaration], line)
-					} else {
-						uP.Parser.TokenizedDeclarations[functionDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[functionDeclaration], line)
+				line.ToStart()
+				if line.Length() == 1 && line.NextToken().Type == token.GOLANG {
+					uP.Parser.TokenizedDeclarations[golangDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[golangDeclaration], line)
+				} else {
+					switch {
+					case expressionIsAssignment:
+						uP.Parser.TokenizedDeclarations[constantDeclaration] =
+							append(uP.Parser.TokenizedDeclarations[constantDeclaration], line)
+					case expressionIsStruct:
+						uP.Parser.TokenizedDeclarations[typeDeclaration] =
+							append(uP.Parser.TokenizedDeclarations[typeDeclaration], line)
+					case expressionIsEnum:
+						uP.Parser.TokenizedDeclarations[enumDeclaration] =
+							append(uP.Parser.TokenizedDeclarations[enumDeclaration], line)
+					default:
+						if isPrivate {
+							uP.Parser.TokenizedDeclarations[privateFunctionDeclaration] =
+								append(uP.Parser.TokenizedDeclarations[privateFunctionDeclaration], line)
+						} else {
+							uP.Parser.TokenizedDeclarations[functionDeclaration] =
+								append(uP.Parser.TokenizedDeclarations[functionDeclaration], line)
+						}
 					}
 				}
 			}
@@ -810,6 +823,16 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 			}
 
 		}
+	}
+
+	// We may also have pure Go declarations:
+
+	for _, gocode := range uP.Parser.TokenizedDeclarations[golangDeclaration] {
+		gocode.ToStart()
+		token := gocode.NextToken()
+		source := token.Source
+		code := token.Literal[:len(token.Literal)]
+		goHandler.AddPureGoBlock(source, code)
 	}
 
 	goHandler.BuildGoMods()

@@ -1,7 +1,3 @@
-import
-
-NULL::"lib/strings.ch"
-
 contacts
 
 Bar::"examples/bar.ch"
