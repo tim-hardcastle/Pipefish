@@ -1309,7 +1309,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 // So, the Form type. Yes, I basically am reinventing the object here because the fields of
 // a struct aren't first-class objects in Go, unlike other superior langages I could name.
 // I can get rid of the whole thing when I do SQL integration and can just make the hub into
-// a regular Charm service.
+// a regular Charm service. TODO --- you can do this now!
 type Form struct { // For when the hub wants to initiate structured input.
 	Fields []string
 	Result map[string]string

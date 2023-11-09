@@ -527,7 +527,7 @@ func (l *Lexer) readGolang() string {
 		return s
 	}
 	// So now we look for the closing brace, ignoring those inside strings
-	l.readChar()
+	l.readChar() // TODO --- this is unecessarily complex, we could just do it lexically looking for a '}' on the far left.
 	braces := 1
 	escaped := false
 	quote := ' '

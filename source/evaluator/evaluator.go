@@ -518,7 +518,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return resultList
 		}
 	}
-	return newError("eval/oops", token.Token{Line: 0})
+	return newError("eval/oops", node.GetToken())
 }
 
 func evalLazyRightExpression(tok token.Token, right object.Object, c *Context) object.Object {

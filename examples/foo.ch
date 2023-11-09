@@ -1,6 +1,10 @@
+import
+
+"lib/strings.ch"::""
+
 contacts
 
-Bar
+Bar::"path"
 
 cmd
 

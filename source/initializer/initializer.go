@@ -157,6 +157,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
+	newService.Parser = init.Parser
 	newService.Parser.RootService = root
 	newService.Env = env
 	newService.Broken = false
@@ -182,9 +183,6 @@ func (init *Initializer) addToNameSpace(thingsToImport []string) {
 }
 
 func (uP *Initializer) GetSource(source string) {
-	if source == "" {
-		return
-	}
 	file, err := os.Open(source)
 	if err != nil {
 		uP.Throw("init/source/open", token.Token{}, source)

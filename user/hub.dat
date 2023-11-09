@@ -1,3 +1,5 @@
-TEMP, examples/temp.ch
 CONS, examples/consumer.ch
 hub, rsc/charm/hub.ch
+Bar, examples/bar.ch
+Foo, examples/foo.ch
+TEMP, examples/temp.ch

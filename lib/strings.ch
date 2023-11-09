@@ -2,16 +2,6 @@ import
 
 gocode "strings"
 
-var 
-
-num = 42
-
-cmd
-
-init : 
-    global num
-    num = 100
-
 def
 
 compare(a, b string) : gocode {
