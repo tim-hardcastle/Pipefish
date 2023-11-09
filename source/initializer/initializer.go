@@ -183,6 +183,9 @@ func (init *Initializer) addToNameSpace(thingsToImport []string) {
 }
 
 func (uP *Initializer) GetSource(source string) {
+	if source == "" {
+		return
+	}
 	file, err := os.Open(source)
 	if err != nil {
 		uP.Throw("init/source/open", token.Token{}, source)
@@ -562,6 +565,15 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				default:
 					uP.Throw("init/contacts/string", lhs.GetToken())
 				}
+			case *ast.StringLiteral:
+				path = parsedCode.Value
+				name = path
+				if strings.LastIndex(name, ".") >= 0 {
+					name = name[:strings.LastIndex(name, ".")]
+				}
+				if strings.LastIndex(name, "/") >= 0 {
+					name = name[strings.LastIndex(name, "/")+1:]
+				}
 			default:
 				if kindOfDeclarationToParse == contactDeclaration {
 					uP.Throw("init/contacts/form", parsedCode.GetToken())
@@ -684,15 +696,19 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 			rhs := imp.Args[2]
 			switch rhs := rhs.(type) {
 			case *ast.StringLiteral:
-				namespace = rhs.Value
+				scriptFilepath = rhs.Value
 				switch lhs := lhs.(type) {
-				case *ast.StringLiteral:
-					scriptFilepath = lhs.Value
+				case *ast.Identifier:
+					if lhs.Value != "NULL" {
+						namespace = lhs.Value
+					} else {
+						namespace = ""
+					}
 				default:
-					uP.Throw("init/import/string/a", lhs.GetToken())
+					uP.Throw("init/import/ident", lhs.GetToken())
 				}
 			default:
-				uP.Throw("init/import/string/b", lhs.GetToken())
+				uP.Throw("init/import/string/", lhs.GetToken())
 			}
 		case *ast.GolangExpression:
 			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)

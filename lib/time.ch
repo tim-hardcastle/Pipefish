@@ -1,6 +1,6 @@
 import
 
-"lib/strings.ch"::"strs"
+strs::"lib/strings.ch"
 
 gocode "time"
 gocode "errors"

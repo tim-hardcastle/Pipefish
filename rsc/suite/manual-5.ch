@@ -1,7 +1,7 @@
 import
 
 "lib/strings.ch"
-"lib/math.ch"::""
+NULL::"lib/math.ch"
 
 // tests in REPL.
 

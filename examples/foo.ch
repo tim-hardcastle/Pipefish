@@ -1,10 +1,10 @@
 import
 
-"lib/strings.ch"::""
+NULL::"lib/strings.ch"
 
 contacts
 
-Bar::"path"
+Bar::"something/Bar.ch"
 
 cmd
 
@@ -14,3 +14,5 @@ getTheThing(s) :
 
 makeBarDoTheThing(s) : 
     post Bar --- doTheThing |s|
+
+//

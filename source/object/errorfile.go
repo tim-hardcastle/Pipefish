@@ -1464,7 +1464,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "attempt to declare a variable or constant in the 'contacts' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form "<file path>"::<service name>.`
+			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
@@ -1473,7 +1473,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed entry in 'contacts' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  "<file path>" -> <service name>".`
+			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
 		},
 	},
 
@@ -1482,7 +1482,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed entry in 'contacts' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form "<file path>" -> <service name>.`
+			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
@@ -1491,7 +1491,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed entry in 'contacts' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form "<file path>" -> <service name>.`
+			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
