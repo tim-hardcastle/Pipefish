@@ -5,7 +5,7 @@ I'm calling version 0.4 of Charm a "working prototype". What do I mean by that? 
 It is a *working* prototype in that:
 
 * The core language is pretty much finished and feature-stable.
-* Some batteries are included. There are `string`, `math`, `fmt` and `regexp` libraries which do what you would expect, and a `world` library for performing IO.
+* Some batteries are included. There are `fmt`, `math`, `string`, `regexp`, and `time` libraries which do what you would expect, and a `world` library for performing IO.
 * There is some nice tooling for a pleasant DX.
 * There is a large test suite which I will continue to add to to keep Charm functionally stable.
 * I will continue to maintain version 0.4.x and fix bugs while working in a separate branch on the compiled version.
