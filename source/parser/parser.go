@@ -779,8 +779,8 @@ func (p *Parser) parsePrelogExpression(left ast.Node) ast.Node {
 }
 
 // In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
+// In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
 func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
-
 	expression := &ast.StreamingExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
@@ -789,21 +789,34 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	precedence := p.curPrecedence()
 	p.NextToken()
 	expression.Right = p.parseExpression(precedence)
-	// Now the desugaring, if necessary
-	switch right := expression.Right.(type) {
+	expression.Right = p.recursivelyDesugarAst(expression.Right)
+	return expression
+}
+
+func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { // Adds "that" after piping, works through namespaces
+	switch typedExp := exp.(type) {
 	case *ast.Identifier:
-		if p.Functions.Contains(expression.Right.GetToken().Literal) {
-			expression.Right = &ast.PrefixExpression{Token: right.GetToken(),
-				Operator: expression.Right.GetToken().Literal,
+		if p.Functions.Contains(exp.GetToken().Literal) {
+			exp = &ast.PrefixExpression{Token: typedExp.GetToken(),
+				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
-		if p.Suffixes.Contains(expression.Right.GetToken().Literal) {
-			expression.Right = &ast.SuffixExpression{Token: right.GetToken(),
-				Operator: expression.Right.GetToken().Literal,
+		if p.Suffixes.Contains(exp.GetToken().Literal) {
+			exp = &ast.SuffixExpression{Token: typedExp.GetToken(),
+				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
+		}
+	case *ast.InfixExpression:
+		if typedExp.GetToken().Type == token.NAMESPACE {
+			if typedExp.Args[0].GetToken().Type == token.IDENT {
+				service, ok := p.NamespaceBranch[typedExp.Args[0].(*ast.Identifier).Value]
+				if ok {
+					exp.(*ast.InfixExpression).Args[2] = service.Parser.recursivelyDesugarAst(typedExp.Args[2])
+				}
+			}
 		}
 	}
-	return expression
+	return exp
 }
 
 func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {

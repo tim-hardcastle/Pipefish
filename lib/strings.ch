@@ -4,6 +4,8 @@ gocode "strings"
 
 def
 
+ZORT = "zort"
+
 compare(a, b string) : gocode {
    return strings.Compare(a, b)
 }
