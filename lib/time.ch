@@ -1,28 +1,38 @@
 import
 
-strs::"lib/strings.ch"
-
 gocode "time"
+gocode "fmt"
 
 def
 
-num = 42
+Time = struct(year, month, day, hour, min, sec, nsec int, loc string)
 
-Duration = struct(hours, minutes, seconds, nanoseconds int)
-
-Blah = struct(x int)
+Duration = struct(hours, mins, secs, nsecs int)
 
 Weekday = enum SUN, MON, TUE, WED, THUR, FRI, SAT
 
-weekday(t Time) :
-    Weekday[goGetWeekday(t[year], t[month], t[day], t[hour], t[min], t[loc])]
+add (t Time, d Duration) :
+    Time(goAdd(t[year], t[month], t[day], t[hour], t[min], t[sec], t[nsec], t[loc], d[hours], d[mins], d[secs], d[nsecs]))
 
-goGetWeekday(year, month, day, hour, min int, loc string) : gocode {
-    return int(getGoTime(year, month, day, hour, min, 0, 0, loc).Weekday())
+goAdd(year, month, day, hour, min, sec, nsec int, loc string, hours, mins, secs, nsecs int) : gocode {
+    newTime := (goTime(year, month, day, hour, min, sec, nsec, loc)).Add(charmDurationToGoDuration(hours, mins, secs, nsecs))
+    return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
+}
+
+weekday(t Time) :
+    Weekday[goWeekday(t[year], t[month], t[day], t[hour], t[min], t[loc])]
+
+goWeekday(year, month, day, hour, min int, loc string) : gocode {
+    return int(goTime(year, month, day, hour, min, 0, 0, loc).Weekday())
 }
 
 gocode {
-    func getGoTime(year, month, day, hour, min, sec, nsec int, loc string) time.Time {
+
+    func charmMonth(m time.Month) int {
+        return int(m)
+    }
+
+    func goTime(year, month, day, hour, min, sec, nsec int, loc string) time.Time {
         locObj, _ := time.LoadLocation(loc)
         var goMonth time.Month
         switch month {
@@ -53,7 +63,13 @@ gocode {
         }
         return time.Date(year, goMonth, day, hour, min, sec, nsec, locObj)
     }
+
+    func charmDurationToGoDuration(hours, mins, secs, nsecs int) time.Duration {
+        dur, _ := time.ParseDuration(fmt.Sprintf("%vh%vm%vs%vns", hours, mins, secs, nsecs))
+        return dur
+    }
 }
+
 
 // func (t Time) Add(d Duration) Time
 // func (t Time) AddDate(years int, months int, days int) Time

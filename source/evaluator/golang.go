@@ -323,6 +323,16 @@ func (gh *GoHandler) CharmToGo(ch object.Object) any {
 
 func (gh *GoHandler) goToCharm(goval any) object.Object {
 	switch goval := goval.(type) {
+	case *object.GoReturn:
+		result := &object.Tuple{Elements: []object.Object{}}
+		for _, v := range goval.Elements {
+			newObj := gh.goToCharm(v)
+			if newObj.Type() == object.ERROR_OBJ {
+				return newObj
+			}
+			result.Elements = append(result.Elements, newObj)
+		}
+		return result
 	case object.Object:
 		return goval
 	case []string:
@@ -349,18 +359,9 @@ func (gh *GoHandler) goToCharm(goval any) object.Object {
 		return &object.Integer{Value: goval}
 	case string:
 		return &object.String{Value: goval}
-	case *object.GoReturn:
-		result := object.EMPTY_TUPLE
-		for _, v := range goval.Elements {
-			newObj := gh.goToCharm(v)
-			if newObj.Type() == object.ERROR_OBJ {
-				return newObj
-			}
-			result.Elements = append(result.Elements, newObj)
-		}
-		return result
+	default:
+		return &object.Error{Message: "bad return type from golang", ErrorId: "golang/return"}
 	}
-	return &object.Error{Message: "bad return type from golang", ErrorId: "golang/return"}
 }
 
 func capitalize(s string) string {

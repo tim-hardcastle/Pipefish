@@ -19,8 +19,6 @@ RandomSeed = struct()
 
 Clock = struct()
 
-Time = struct(year, month, day, hour, min, sec, nsec int, loc string)
-
 Terminal = struct()
 
 Output = struct()
@@ -109,7 +107,7 @@ goRandomize(i int) : gocode {
 
 goGetClock() : gocode {
     goNow := time.Now()
-    charmNow := &object.Struct{Name: "Time", Labels: []string{"year", "month", "day", "hour", "min", "sec", "nsec", "loc"}, Value: make(map[string]object.Object)}
+    charmNow := &object.Struct{Name: "Time", Namespace: "time.", Labels: []string{"year", "month", "day", "hour", "min", "sec", "nsec", "loc"}, Value: make(map[string]object.Object)}
     charmNow.Value["year"] = &object.Integer{Value: goNow.Year()}
     charmNow.Value["month"] = &object.Integer{Value: int(goNow.Month())}
     charmNow.Value["day"] = &object.Integer{Value: goNow.Day()}
