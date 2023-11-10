@@ -357,6 +357,8 @@ func (gh *GoHandler) goToCharm(goval any) object.Object {
 		return &object.Float{Value: goval}
 	case int:
 		return &object.Integer{Value: goval}
+	case int64:
+		return &object.Integer{Value: int(goval)}
 	case string:
 		return &object.String{Value: goval}
 	default:
