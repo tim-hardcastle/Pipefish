@@ -26,8 +26,9 @@ const (
 	SEMICOLON   // semantic newline or ;
 	FUNC        // Lambda declaration
 	GIVEN       // given
-	WEAK_COLON  // kludge to make logging work
-	LOGGING     // \\
+	WEAK_COLON  // kludge to make logging work. TODO --- find out how.
+	GVN_ASSIGN  //
+	LOGGING     //
 	ASSIGN      // =
 	COLON       // :
 	PIPING      // ->, >>, ?>
@@ -58,7 +59,6 @@ var precedences = map[token.TokenType]int{
 	token.WEAK_COLON:  WEAK_COLON,
 	token.LOG:         LOGGING,
 	token.IFLOG:       LOGGING,
-	token.MAGIC_IFLOG: LOGGING,
 	token.PRELOG:      LOGGING,
 	token.GLOBAL:      FUNC,
 	token.GIVEN:       GIVEN,
@@ -67,7 +67,7 @@ var precedences = map[token.TokenType]int{
 	token.CMD_ASSIGN:  ASSIGN,
 	token.VAR_ASSIGN:  ASSIGN,
 	token.DEF_ASSIGN:  ASSIGN,
-	token.GVN_ASSIGN:  ASSIGN,
+	token.GVN_ASSIGN:  GVN_ASSIGN,
 	token.LZY_ASSIGN:  ASSIGN,
 	token.TYP_ASSIGN:  ASSIGN,
 	token.PVR_ASSIGN:  ASSIGN,
@@ -174,8 +174,8 @@ func New() *Parser {
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
-			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER, token.LOG,
-			token.IFLOG, token.PRELOG, token.NAMESPACE}),
+			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER,
+			token.NAMESPACE, token.IFLOG}),
 		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:   make(FunctionTable),
@@ -279,8 +279,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseFloatLiteral()
 	case token.STRING:
 		leftExp = p.parseStringLiteral()
-	case token.AUTOLOG:
-		leftExp = p.parseAutoLog()
 	case token.NOT:
 		leftExp = p.parseNativePrefixExpression()
 	case token.EVAL, token.GLOBAL:
@@ -303,6 +301,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseTryExpression()
 	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
+	case token.PRELOG:
+		leftExp = p.parsePrelogExpression()
 	default:
 		noNativePrefix = true
 	}
@@ -364,6 +364,11 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			leftExp = p.parseSuffixExpression(leftExp)
 		}
 
+		if p.peekToken.Type == token.LOG {
+			p.NextToken()
+			leftExp = p.parseLogExpression(leftExp)
+		}
+
 		if precedence >= p.peekPrecedence() {
 			break
 		}
@@ -386,10 +391,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAP ||
 				p.curToken.Type == token.FILTER:
 				leftExp = p.parseStreamingExpression(leftExp)
-			case p.curToken.Type == token.LOG || p.curToken.Type == token.IFLOG:
-				leftExp = p.parseLogExpression(leftExp)
-			case p.curToken.Type == token.PRELOG:
-				leftExp = p.parsePrelogExpression(leftExp)
+			case p.curToken.Type == token.IFLOG:
+				leftExp = p.parseIfLogExpression(leftExp)
 			default:
 				leftExp = p.parseInfixExpression(leftExp)
 			}
@@ -418,7 +421,7 @@ func (p *Parser) positionallyFunctional() bool {
 	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
 		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER ||
 		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON ||
-		p.peekToken.Type == token.MAGIC_IFLOG || p.peekToken.Type == token.COMMA {
+		p.peekToken.Type == token.COMMA {
 		return false
 	}
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {
@@ -681,11 +684,17 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 		Operator: p.curToken.Literal,
 		Args:     p.recursivelyListify(left),
 	}
+	return expression
+}
 
-	//if p.curToken.Source != "rsc/builtins.ch" {
-	//printNodeList(p.recursivelyListify(expression.Left))
-	//}
+func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
 
+	expression := &ast.LogExpression{
+		Token:   p.curToken,
+		Left:    left,
+		LogType: ast.LogUser,
+		Value:   p.curToken.Literal,
+	}
 	return expression
 }
 
@@ -736,49 +745,6 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	return expression
 }
 
-// Parses a log expression.
-func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
-
-	expression := &ast.LogExpression{
-		Token:   p.curToken,
-		Code:    left,
-		LogType: ast.LogUser,
-	}
-	precedence := p.curPrecedence()
-	tok := p.curToken
-	p.NextToken()
-	right := p.parseExpression(precedence)
-	expression.Args = p.recursivelyListify(right)
-	if right.GetToken().Type == token.AUTOLOG {
-		if tok.Type == token.IFLOG {
-			expression.LogType = ast.LogIf
-		} else {
-			expression.LogType = ast.LogReturn
-		}
-	}
-	return expression
-}
-
-// Also parses a log expression, but expects the token indicating this to be
-// the the right of the logging string and to the left of the remaining code.
-// 'Cos of kludges and stuff, I have no shame at this point.
-func (p *Parser) parsePrelogExpression(left ast.Node) ast.Node {
-
-	expression := &ast.LogExpression{
-		Token:   p.curToken,
-		Args:    p.recursivelyListify(left),
-		LogType: ast.LogUser,
-	}
-	if left.GetToken().Type == token.AUTOLOG {
-		expression.LogType = ast.LogStart
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Code = p.parseExpression(precedence)
-	return expression
-}
-
-// In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
 // In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
 func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	expression := &ast.StreamingExpression{
@@ -790,6 +756,33 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	p.NextToken()
 	expression.Right = p.parseExpression(precedence)
 	expression.Right = p.recursivelyDesugarAst(expression.Right)
+	return expression
+}
+
+func (p *Parser) parseIfLogExpression(left ast.Node) ast.Node {
+
+	expression := &ast.LogExpression{
+		Token:   p.curToken,
+		Left:    left,
+		LogType: ast.LogUser,
+		Value:   p.curToken.Literal,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
+	return expression
+}
+
+func (p *Parser) parsePrelogExpression() ast.Node {
+
+	expression := &ast.LogExpression{
+		Token:   p.curToken,
+		LogType: ast.LogUser,
+		Value:   p.curToken.Literal,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
 	return expression
 }
 

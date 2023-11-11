@@ -86,12 +86,8 @@ func (rl *Relexer) NextToken() token.Token {
 			rl.stack.Push(keepTrack{state: FN_REWRITTEN, depth: rl.nestingLevel})
 			tok.Type = token.MAGIC_COLON
 		}
-	case token.IFLOG:
-		top, ok := rl.stack.HeadValue()
-		if ok && top.state == FN_REWRITE {
-			rl.stack.Pop()
-			rl.stack.Push(keepTrack{state: FN_REWRITTEN, depth: rl.nestingLevel})
-			tok.Type = token.MAGIC_IFLOG
+		if rl.nexTok.Type == token.LOG {
+			rl.nexTok.Type = token.PRELOG
 		}
 	case token.LPAREN:
 		if tok.Literal == token.LPAREN {
@@ -132,7 +128,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	// We use this last facility to expand out the END statements.
 
 	if rl.nexTok.Type == token.BEGIN &&
-		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.COLON || rl.curTok.Type == token.WEAK_COLON ||
+		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.PRELOG || rl.curTok.Type == token.COLON || rl.curTok.Type == token.WEAK_COLON ||
 			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) ||
 				(rl.preTok.Type == token.MAGIC_COLON) || (rl.preTok.Type == token.WEAK_COLON)) ||
 				(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP) || rl.curTok.Type == token.GOLANG) {
@@ -140,24 +136,23 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	}
 
 	switch rl.curTok.Type {
+	case token.PRELOG:
+		if rl.nexTok.Type == token.NO_INDENT ||
+			rl.nexTok.Type == token.NEWLINE {
+			return rl.burnNextToken()
+		}
+		// if rl.nexTok.Type == token.BEGIN { // Puts the logging inside the function.
+		// 	rl.curTok, rl.nexTok = rl.nexTok, rl.curTok
+		// }
+
 	case token.NO_INDENT:
 		return rl.burnToken()
 	case token.DOTDOT:
 		return rl.burnToken()
 	case token.COMMENT:
 		return rl.burnToken()
+
 	case token.NEWLINE:
-
-		if rl.preTok.Type == token.LOG || rl.preTok.Type == token.IFLOG {
-			newToken := rl.curTok
-			newToken.Type = token.AUTOLOG
-			return rl.insertTokenBeforeCurrentToken(newToken)
-		}
-
-		if rl.ifLogHappened {
-			rl.curTok.Type = token.WEAK_COLON
-			rl.curTok.Literal = ":"
-		}
 
 		rl.ifLogHappened = false
 
@@ -167,6 +162,8 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		}
 
 		if rl.preTok.Type == token.NEWLINE ||
+			rl.preTok.Type == token.IFLOG ||
+			rl.preTok.Type == token.PRELOG ||
 			rl.nexTok.Type == token.GIVEN || // Because 'given' is really an infix.
 			rl.preTok.Type == token.GIVEN ||
 			rl.preTok.Type == token.LOOP ||
@@ -190,9 +187,18 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		return rl.burnToken()
 	case token.COLON:
 		if rl.nexTok.Type == token.LOG {
-			rl.nexTok.Type = token.IFLOG
-			rl.ifLogHappened = true
-			return rl.burnToken()
+			if rl.nestingLevel == 0 {
+				rl.nexTok.Type = token.PRELOG
+			} else {
+				top, ok := rl.stack.HeadValue()
+				if ok && top.state == FN_REWRITE {
+					rl.nexTok.Type = token.PRELOG
+				} else {
+					rl.nexTok.Type = token.IFLOG
+					rl.ifLogHappened = true
+					return rl.burnToken()
+				}
+			}
 		}
 		if rl.preTok.Type == token.GIVEN || rl.preTok.Type == token.LOOP {
 			return rl.burnToken()

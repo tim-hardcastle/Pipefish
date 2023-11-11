@@ -233,8 +233,9 @@ func (le *ListExpression) String() string {
 
 type LogExpression struct {
 	Token   token.Token
-	Args    []Node
-	Code    Node
+	Value   string
+	Left    Node
+	Right   Node
 	LogType LogType
 }
 
@@ -243,14 +244,10 @@ func (le *LogExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	out.WriteString(le.Code.String())
+	out.WriteString(le.Left.String())
 	out.WriteString(") \\ ")
-	for i, arg := range le.Args {
-		out.WriteString(arg.String())
-		if i+1 < len(le.Args) {
-			out.WriteString(", ")
-		}
-	}
+	out.WriteString(le.Value)
+	out.WriteString(le.Right.String())
 	return out.String()
 }
 

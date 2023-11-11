@@ -94,7 +94,9 @@ func (l *Lexer) NextToken() token.Token {
 	case '\\':
 		if l.peekChar() == '\\' {
 			l.readChar()
-			tok = l.NewToken(token.LOG, "\\\\")
+			tok = l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))
+			l.readChar()
+			return tok
 		}
 	case ';':
 		tok = l.NewToken(token.SEMICOLON, ";")

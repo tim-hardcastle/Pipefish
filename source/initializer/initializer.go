@@ -207,7 +207,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	indentCount := 0
 	lastTokenWasColon := false
 	colonMeansFunctionOrCommand := true
-	weakColonShouldBePrelog := false
 	expressionIsAssignment := false
 	expressionIsStruct := false
 	expressionIsFunction := false
@@ -232,6 +231,10 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	line := tokenized_code_chunk.New()
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
+
+		// if tok.Source != "rsc/charm/world.ch" && tok.Source != "rsc/charm/builtins.ch" && tok.Source != "rsc/charm/hub.ch" {
+		// 	println("token is", tok.Type, tok.Literal)
+		// }
 
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
@@ -424,24 +427,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			continue
 		}
 
-		if (tok.Type == token.WEAK_COLON) && weakColonShouldBePrelog {
-			weakColonShouldBePrelog = false
-			tok.Type = token.PRELOG
-			tok.Literal = "\\\\"
-		}
-
-		if tok.Type == token.IFLOG && colonMeansFunctionOrCommand {
-			tok.Type = token.WEAK_COLON
-			tok.Literal = ":"
-			weakColonShouldBePrelog = true
-		}
-
-		if tok.Type == token.MAGIC_IFLOG {
-			tok.Type = token.MAGIC_COLON
-			tok.Literal = ":"
-			weakColonShouldBePrelog = true
-		}
-
 		lastTokenWasColon = (tok.Type == token.COLON || tok.Type == token.WEAK_COLON)
 
 		if (lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand {
@@ -608,9 +593,6 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				uP.Parser.Functions.Add(name)
 				uP.Parser.Structs.Add(name)
 				evaluator.AssignStructDef(name, SNIPPET_SIG, parsedCode.GetToken(), evaluator.NewContext(uP.Parser, uP.Parser.GlobalConstants, evaluator.DEF, false))
-				if path != "" {
-					println("Path is", path)
-				}
 			}
 			if kindOfDeclarationToParse == contactDeclaration {
 				service, init := CreateService(path, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, &parser.Service{}, "")

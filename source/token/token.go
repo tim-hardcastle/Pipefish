@@ -42,11 +42,9 @@ const (
 
 	DOUBLESLASH = "//"
 
-	LOG         = "LOG"
-	IFLOG       = "IFLOG"
-	MAGIC_IFLOG = "MAGIC_IFLOG"
-	PRELOG      = "PRELOG"
-	AUTOLOG     = "AUTOLOG"
+	LOG    = "LOG"
+	IFLOG  = "IFLOG"
+	PRELOG = "PRELOG"
 
 	TRY = "try"
 

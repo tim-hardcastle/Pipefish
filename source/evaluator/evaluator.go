@@ -304,28 +304,47 @@ func Eval(node ast.Node, c *Context) object.Object {
 				logStr = logStr + " @ " + text.BLUE + time.Now().Local().String() + text.RESET
 			}
 			logStr = logStr + ":\n    "
-			for i, arg := range node.Args {
-				if arg.GetToken().Type == token.AUTOLOG {
-					newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-					logStr = logStr + autolog(node, newContext) + "\n\n"
-					emit(logStr, node.GetToken(), c)
+			logStr = logStr + node.Value
+			logStr = logStr + "\n"
+			parsedLogStr := parseLogString(logStr, node.GetToken(), c)
+			emit(parsedLogStr, node.GetToken(), c)
+			// for i, arg := range node.Args {
+			// 	if arg.GetToken().Literal == "" {
+			// 		newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
+			// 		logStr = logStr + autolog(node, newContext) + "\n\n"
+			// 		emit(logStr, node.GetToken(), c)
 
-					return Eval(node.Code, c)
-				}
-				if isLiteral(arg) {
-					logStr = logStr + c.prsr.Serialize(Eval(arg, c), parser.PLAIN)
-				} else {
-					newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-					logStr = logStr + arg.String() + " = " + (c.prsr.Serialize(Eval(arg, newContext), parser.LITERAL))
-					if i+1 < len(node.Args) && !isLiteral(node.Args[i+1]) {
-						logStr = logStr + "; "
-					}
-				}
-			}
-			logStr = logStr + "\n\n"
-			emit(logStr, node.GetToken(), c)
+			// 		return Eval(node.Code, c)
+			// 	}
+			// 	if isLiteral(arg) {
+			// 		logStr = logStr + c.prsr.Serialize(Eval(arg, c), parser.PLAIN)
+			// 	} else {
+			// 		newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
+			// 		logStr = logStr + arg.String() + " = " + (c.prsr.Serialize(Eval(arg, newContext), parser.LITERAL))
+			// 		if i+1 < len(node.Args) && !isLiteral(node.Args[i+1]) {
+			// 			logStr = logStr + "; "
+			// 		}
+			// 	}
+			// }
 		}
-		return Eval(node.Code, c)
+		switch node.Token.Type {
+		case token.IFLOG:
+			condition := Eval(node.Left, c)
+			if condition.Type() == object.ERROR_OBJ {
+				return condition
+			}
+			if condition.Type() != object.BOOLEAN_OBJ {
+				return newError("eval/bool/iflog", node.Token, condition)
+			}
+			if condition == object.TRUE {
+				return Eval(node.Right, c)
+			}
+			return UNSATISFIED
+		case token.PRELOG:
+			return Eval(node.Right, c)
+		default:
+			return Eval(node.Left, c)
+		}
 
 	case *ast.SetExpression:
 		if node.Set == nil {
@@ -519,6 +538,54 @@ func Eval(node ast.Node, c *Context) object.Object {
 		}
 	}
 	return newError("eval/oops", node.GetToken())
+}
+
+func parseLogString(logStr string, tok token.Token, c *Context) string {
+	result := ""
+	accumulator := ""
+	state := 0
+	for i, r := range logStr {
+		if r == '|' {
+			if state == 0 {
+				state = 1
+				result = result + accumulator
+				accumulator = ""
+				continue
+			}
+			if state == 1 {
+				if accumulator == "" {
+					state = 2
+					continue
+				}
+				state = 0
+				result = result + doSingleThing(accumulator)
+				accumulator = ""
+				continue
+			}
+			if state == 2 {
+				if logStr[i-1] == '|' {
+					state = 0
+					result = result + doDoubleThing(accumulator)
+					accumulator = ""
+
+				}
+				continue
+			}
+		}
+		accumulator = accumulator + string(r)
+	}
+	if state == 0 && accumulator != "" {
+		result = result + accumulator
+	}
+	return result
+}
+
+func doSingleThing(s string) string {
+	return "<" + s + ">"
+}
+
+func doDoubleThing(s string) string {
+	return "<(" + s + ")>"
 }
 
 func evalLazyRightExpression(tok token.Token, right object.Object, c *Context) object.Object {
@@ -1937,30 +2004,30 @@ func autolog(log *ast.LogExpression, c *Context) string {
 	case ast.LogStart:
 		return ("Function called.")
 	case ast.LogIf:
-		if log.Code.GetToken().Type == token.ELSE {
+		if log.Left.GetToken().Type == token.ELSE {
 			return "The 'else' branch is taken."
 		}
-		result, story := narrate(log.Code, c)
+		result, story := narrate(log.Left, c)
 		if result {
 			return story + ", so the condition is met."
 		} else {
 			return story + ", so the condition fails."
 		}
 	case ast.LogReturn:
-		if log.Code.GetToken().Type == token.COLON {
-			if log.Code.(*ast.LazyInfixExpression).Left.GetToken().Type == token.ELSE {
-				return "The 'else' branch is taken. Returning " + niceReturn(log.Code.(*ast.LazyInfixExpression).Right, c)
+		if log.Left.GetToken().Type == token.COLON {
+			if log.Left.(*ast.LazyInfixExpression).Left.GetToken().Type == token.ELSE {
+				return "The 'else' branch is taken. Returning " + niceReturn(log.Left.(*ast.LazyInfixExpression).Right, c)
 
 			}
-			result, story := narrate(log.Code.(*ast.LazyInfixExpression).Left, c)
+			result, story := narrate(log.Left.(*ast.LazyInfixExpression).Left, c)
 			if result {
 				return story + ", so the condition is met. Returning " +
-					niceReturn(log.Code.(*ast.LazyInfixExpression).Right, c)
+					niceReturn(log.Left.(*ast.LazyInfixExpression).Right, c)
 			} else {
 				return story + ", so the condition fails."
 			}
 		} else {
-			return "Returning " + niceReturn(log.Code, c)
+			return "Returning " + niceReturn(log.Left, c)
 		}
 	default:
 		panic("Tim, you goofed. That was not supposed to happen.")

@@ -1,3 +1,2 @@
-Bar, examples/bar.ch
-temp, examples/temp.ch
 hub, rsc/charm/hub.ch
+LOG, examples/log.ch
