@@ -786,7 +786,7 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		name := node.Args[0].GetToken().Literal
 		library, ok := c.prsr.NamespaceBranch[name]
 		if !ok {
-			return newError("eval/namespace/name", node.Token)
+			return newError("eval/namespace/known/b", node.Token)
 		}
 		switch typedNode := node.Args[2].(type) {
 		case *ast.Identifier:
@@ -846,7 +846,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 		for i := 0; i < len(pieces)-1; i++ {
 			service, ok = p.NamespaceBranch[pieces[i]]
 			if !ok {
-				return newError("eval/namespace/known", tok)
+				return newError("eval/namespace/known/a", tok, pieces[i])
 			}
 			p = service.Parser
 		}
@@ -1184,7 +1184,7 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 			if ok {
 				return val
 			}
-			return newError("eval/ref/exists", node.Token)
+			return newError("eval/repl/ref", node.Token, val.(*object.Ref).VariableName)
 		} else {
 			acc := c.env.GetAccess(node.Value)
 			if acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE {
@@ -1536,16 +1536,16 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 					if c.env.Exists(identName) {
 						acc := c.env.GetAccess(identName)
 						if acc == object.ACCESS_PRIVATE && args[arg].GetToken().Source == "REPL input" { // Yes this is filthy.
-							sourceObj = newError("eval/ref/exist", tok)
+							sourceObj = newError("eval/repl/exists", tok)
 							break
 						}
 						if (acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE) && c.access == CMD {
-							sourceObj = newError("eval/ref/global", tok)
+							sourceObj = newError("eval/cmd/global/c", tok)
 							break
 						}
 					} else {
 						if args[arg].GetToken().Source == "REPL input" {
-							sourceObj = newError("eval/ref/exist", tok) // Note the rare twin error --- we don't want the end-user to know.
+							sourceObj = newError("eval/repl/exists", tok) // Note the rare twin error --- we don't want the end-user to know.
 							break
 						}
 					}

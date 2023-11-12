@@ -102,14 +102,14 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 		file, err := os.Stat(newService.ScriptFilepath)
 		if err != nil {
 			init := New(scriptFilepath, "", db)
-			init.Throw("init/code", token.Token{Source: scriptFilepath}, err.Error())
+			init.Throw("init/code/a", token.Token{Source: scriptFilepath}, err.Error())
 			return newService, init
 		}
 		newService.Timestamp = file.ModTime().UnixMilli()
 		dat, err := os.ReadFile(scriptFilepath)
 		if err != nil {
 			init := New(scriptFilepath, "", db)
-			init.Throw("init/code", token.Token{Source: scriptFilepath}, err.Error())
+			init.Throw("init/code/b", token.Token{Source: scriptFilepath}, err.Error())
 			return newService, init
 		}
 		code = strings.TrimRight(string(dat), "\n") + "\n"
@@ -717,7 +717,7 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 					uP.Throw("init/import/ident", lhs.GetToken())
 				}
 			default:
-				uP.Throw("init/import/string/", lhs.GetToken())
+				uP.Throw("init/import/string", lhs.GetToken())
 			}
 		case *ast.GolangExpression:
 			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)

@@ -326,6 +326,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"eval/bool/iflog": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply " + emph(":") + " to things of type " + EmphType(args[0].(Object))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm has no concept of \"truthiness\": the only valid left-hand side of the " +
+				emph(":") + " operator is a boolean value."
+		},
+	},
+
 	"eval/bool/left": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
@@ -414,39 +424,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/cmd/ident/code": {
+	"eval/cmd/global/c": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + emph(args[0].(string)) + " as variable name: it does not contain a <code> object"
+			return "global variable out of scope"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a ident, it must contain a code object consisting of a single identifier"
-		},
-	},
-
-	"eval/cmd/ident/const": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + emph(args[0].(string)) + " as variable " + emph(args[1].(string)) + ", as the latter is defined as a constant"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a ident, the identifier contained in the variable must have been defined as a variable in the 'var' section"
-		},
-	},
-
-	"eval/cmd/ident/ident": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + emph(args[0].(string)) + " as variable name: it does not contain an identifier"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In order for a variable to be dereferenced as a ident, it must contain a code object consisting of a single identifier"
-		},
-	},
-
-	"eval/cmd/ident/type": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't assign value of type " + emph(args[0].(string)) + " to dereferenced variable of type" + emph(args[1].(string))
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A value must be the same type or a subtype of the variable to which it is assigned."
+			return "A global variable needs to be brought into the scope of a command with 'global <variable name>' before you can access its contents."
 		},
 	},
 
@@ -600,15 +583,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you have something of the form 'aList ?> function(that)' then the function " +
 				"must return a boolean value on which the list elements can be filtered."
-		},
-	},
-
-	"eval/for/ident": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unexpected type in range of 'for'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
 		},
 	},
 
@@ -805,6 +779,42 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The piping operator '>>' transforms a list, on the left, into another list, according to a rule specified on the right."
+		},
+	},
+
+	"eval/namespace/args": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed namespace"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "The namespace operator '.' shouldn't take multiple values on either side."
+		},
+	},
+
+	"eval/namespace/known/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unknown namespace " + emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm is unable to identify a namespace with the given name."
+		},
+	},
+
+	"eval/namespace/known/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unknown namespace " + emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm is unable to identify a namespace with the given name."
+		},
+	},
+
+	"eval/namespace/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "malformed namespace"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "A namespace should be an identifier."
 		},
 	},
 
@@ -1013,7 +1023,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/ref/exist": {
+	"eval/ref/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected an identifier, not " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "When a command has 'ref' as the type of its parameter, it expects to be given the name of a variable as an argument."
+		},
+	},
+
+	"eval/repl/exists": {
 		Message: func(tok token.Token, args ...any) string {
 			return "attempt to assign the value of a private or non-existent variable or constant " + text.DescribeTok(tok)
 		},
@@ -1025,12 +1044,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/ref/ident": {
+	"eval/repl/ref": {
 		Message: func(tok token.Token, args ...any) string {
-			return "expected an identifier, not " + text.DescribeTok(tok)
+			return "attempt to assign the value of a private or non-existent variable or constant " + emph(args[0].(string)) + " dereferecend from " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "When a command has 'ref' as the type of its parameter, it expects to be given the name of a variable as an argument."
+			return "You're referring in the REPL to an identifier " + emph(args[0].(string)) + " as though it " +
+				"was a variable or constant. Either you didn't mean to refer to it that way, or you forgot to " +
+				"declare it as a variable or constant in the script, or perhaps you declared it private." +
+				"\n\nFor more information about the 'private' modifier see 'hub help \"private\"'."
 		},
 	},
 
@@ -1386,17 +1408,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"golang/file": {
-		Message: func(tok token.Token, args ...any) string {
-			return "couldn't use Go file '" + args[0].(string) + "'\n\nOS error was " + args[1].(string)
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm's system for handling functions written in Go has broken down.\n\n" +
-				"There are no circumstances under which you should actually see this error: if you ever " +
-				"do, please report it to the author of Charm as an issue."
-		},
-	},
-
 	"golang/found": {
 		Message: func(tok token.Token, args ...any) string {
 			return "couldn't find Go function '" + args[0].(string) + "'"
@@ -1465,6 +1476,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
+		},
+	},
+
+	"init/code/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
+		},
+	},
+
+	"init/code/b": {
+		Message: func(tok token.Token, args ...any) string {
+			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
 		},
 	},
 
@@ -1601,6 +1630,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/import/ident": {
+		Message: func(tok token.Token, args ...any) string {
+			return "identifier expected"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Entries in the import section should consist either of filenames or of things of the form <namespace>::<\"filename.\">."
+		},
+	},
+
 	"init/import/infix": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok) +
@@ -1613,18 +1651,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/import/file": {
-		Message: func(tok token.Token, args ...any) string {
-			return "couldn't find file '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects imports to be specified by a filename relative to the Charm executable. You told " +
-				"Charm to import a file '" + args[0].(string) + "' and the file couldn't be found. Check that you've " +
-				"provided the right filename and spelled everything correctly." +
-				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
-		},
-	},
-
 	"init/import/pair": {
 		Message: func(tok token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok) +
@@ -1632,34 +1658,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "The only function or operator that Charm expects to find in the 'import' section is " +
-				"the pair operator '::' associating files with their namespaces." +
+				"the pair operator '::' associating namespaces with files." +
 				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
-	"init/import/string/a": {
+	"init/import/string": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurrence of " + text.DescribeTok(tok) +
-				" in the 'import' section"
+			return "identifier expected"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The only thing you should be doing in the 'import' section is specifying " +
-				"files to import and, optionally, the namespaces to put them in. Both should be in " +
-				"the form of string literals." +
-				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
-		},
-	},
-
-	"init/import/string/b": {
-		Message: func(tok token.Token, args ...any) string {
-			return "unexpected occurrence of " + text.DescribeTok(tok) +
-				" in the 'import' section"
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The only thing you should be doing in the 'import' section is specifying " +
-				"files to import and, optionally, the namespaces to put them in. Both should be in " +
-				"the form of string literals." +
-				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
+			return "Entries in the import section should consist either of filenames or of things of the form <namespace>::<\"filename.\">."
 		},
 	},
 
@@ -2028,33 +2037,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/deref/code": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.DescribeTok(tok) + " with 'ident' as it is not a 'code' value."
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using 'ident' to dereference a variable that doesn't atually exist."
-		},
-	},
-
-	"parse/deref/ident": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference " + text.DescribeTok(tok) + " as variable."
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using 'ident' to dereference a 'code' value that doesn't contain an identifier."
-		},
-	},
-
-	"parse/deref/unknown": {
-		Message: func(tok token.Token, args ...any) string {
-			return "can't dereference variable " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using 'ident' to dereference a variable that doesn't atually exist."
-		},
-	},
-
 	"parse/eol": {
 		Message: func(tok token.Token, args ...any) string {
 			return text.DescribeTok(args[0].(token.Token)) + text.DescribePos(args[0].(token.Token)) +
@@ -2355,7 +2337,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/sig/varchar/int": {
+	"parse/sig/varchar/int/a": {
+		Message: func(tok token.Token, args ...any) string {
+			return "expected integer literal, found " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "At this point in the function declaration Charm was expecting an integer literal specifying the size of the 'varchar' type."
+		},
+	},
+
+	"parse/sig/varchar/int/b": {
 		Message: func(tok token.Token, args ...any) string {
 			return "expected integer literal, found " + text.DescribeTok(tok)
 		},
