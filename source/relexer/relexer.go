@@ -135,6 +135,10 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		rl.Throw("relex/indent", rl.curTok)
 	}
 
+	if rl.preTok.Type == token.GIVEN && rl.curTok.Type == token.LOG {
+		return rl.burnToken() // Since a log after given is syntactically absurb and semantically meaningless.
+	}
+
 	switch rl.curTok.Type {
 	case token.PRELOG:
 		if rl.nexTok.Type == token.NO_INDENT ||

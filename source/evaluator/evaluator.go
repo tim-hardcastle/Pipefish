@@ -68,7 +68,6 @@ func Evaluate(node ast.Node, c *Context) object.Object {
 
 // And then the main evaluator
 func Eval(node ast.Node, c *Context) object.Object {
-
 	switch node := node.(type) {
 
 	case *ast.Expression:
@@ -297,6 +296,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return &object.List{Elements: []object.Object{list}}
 
 	case *ast.LogExpression:
+		newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
 		if c.logging {
 			logStr := "Log at line " + text.YELLOW + strconv.Itoa(node.Token.Line) + text.RESET
 			logTime, _ := c.prsr.AllGlobals.Get("$logTime")
@@ -304,32 +304,13 @@ func Eval(node ast.Node, c *Context) object.Object {
 				logStr = logStr + " @ " + text.BLUE + time.Now().Local().String() + text.RESET
 			}
 			logStr = logStr + ":\n    "
-			logStr = logStr + node.Value
+			logStr = logStr + parseLogString(node, newContext)
 			logStr = logStr + "\n"
-			parsedLogStr := parseLogString(logStr, node.GetToken(), c)
-			emit(parsedLogStr, node.GetToken(), c)
-			// for i, arg := range node.Args {
-			// 	if arg.GetToken().Literal == "" {
-			// 		newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-			// 		logStr = logStr + autolog(node, newContext) + "\n\n"
-			// 		emit(logStr, node.GetToken(), c)
-
-			// 		return Eval(node.Code, c)
-			// 	}
-			// 	if isLiteral(arg) {
-			// 		logStr = logStr + c.prsr.Serialize(Eval(arg, c), parser.PLAIN)
-			// 	} else {
-			// 		newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
-			// 		logStr = logStr + arg.String() + " = " + (c.prsr.Serialize(Eval(arg, newContext), parser.LITERAL))
-			// 		if i+1 < len(node.Args) && !isLiteral(node.Args[i+1]) {
-			// 			logStr = logStr + "; "
-			// 		}
-			// 	}
-			// }
+			emit(logStr, node.GetToken(), newContext)
 		}
 		switch node.Token.Type {
 		case token.IFLOG:
-			condition := Eval(node.Left, c)
+			condition := Eval(node.Left, newContext)
 			if condition.Type() == object.ERROR_OBJ {
 				return condition
 			}
@@ -540,7 +521,12 @@ func Eval(node ast.Node, c *Context) object.Object {
 	return newError("eval/oops", node.GetToken())
 }
 
-func parseLogString(logStr string, tok token.Token, c *Context) string {
+func parseLogString(node *ast.LogExpression, c *Context) string {
+	logStr := node.Value
+	// If the string is empty, we autolog.
+	if logStr == "" {
+		return autolog(node, c) + "\n\n"
+	}
 	result := ""
 	accumulator := ""
 	state := 0
@@ -558,14 +544,14 @@ func parseLogString(logStr string, tok token.Token, c *Context) string {
 					continue
 				}
 				state = 0
-				result = result + doSingleThing(accumulator)
+				result = result + evalText(accumulator, c)
 				accumulator = ""
 				continue
 			}
 			if state == 2 {
 				if logStr[i-1] == '|' {
 					state = 0
-					result = result + doDoubleThing(accumulator)
+					result = result + evalAndDescribeText(accumulator, c)
 					accumulator = ""
 
 				}
@@ -580,12 +566,13 @@ func parseLogString(logStr string, tok token.Token, c *Context) string {
 	return result
 }
 
-func doSingleThing(s string) string {
-	return "<" + s + ">"
+func evalText(s string, c *Context) string {
+	ast := c.prsr.ParseLine("logger", s)
+	return (c.prsr.Serialize(Eval(*ast, c), parser.LITERAL))
 }
 
-func doDoubleThing(s string) string {
-	return "<(" + s + ")>"
+func evalAndDescribeText(s string, c *Context) string {
+	return "'" + s + "' = " + evalText(s, c)
 }
 
 func evalLazyRightExpression(tok token.Token, right object.Object, c *Context) object.Object {
@@ -1527,7 +1514,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 	values := []object.Object{}
 	newContext := c
 	if c.access == NAMESPACE {
-		newContext = &Context{access: REPL, prsr: c.prsr.RootService.Parser, env: c.env, logging: c.prsr.Logging}
+		newContext = &Context{access: REPL, prsr: c.prsr.RootService.Parser, env: c.env, logging: c.logging}
 	}
 	for {
 		//We try to get the next single object from the list of args, i.e. if an arg evaluates to a tuple we must take it a bit at a time.
@@ -1678,7 +1665,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	// We punt off the cases where the function body is a builtin or written in Go.
 	switch body := f.Body.(type) {
 	case *ast.BuiltInExpression:
-		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
+		newContext := &Context{prsr: c.prsr, logging: c.logging, env: env, access: newAccess}
 		// First we hijack a few things which can't actually be implemented as builtins but are convenient to
 		// treat as such. (Or to put it another way this is a kludge, a shameful kludge. I could at least represent
 		// it as a map somewhere. (TODO.))
@@ -1712,7 +1699,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		}
 		return applyBuiltinFunction(f, params, tok, newContext) // Otherwise we can just call the builtin.
 	case *ast.GolangExpression:
-		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: env, access: newAccess}
+		newContext := &Context{prsr: c.prsr, logging: c.logging, env: env, access: newAccess}
 		return applyGolangFunction(body, params, tok, newContext)
 
 	//So if we've got this far we have a regular old function/command/lambda with its body written in Charm.
@@ -1724,7 +1711,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 		if !f.Cmd {
 			newEnvironment.InitializeConstant("this", &object.Func{Function: f, Env: env}) // Commands aren't meant to be recursive.
 		}
-		newContext := &Context{prsr: c.prsr, logging: c.prsr.Logging, env: newEnvironment, access: newAccess}
+		newContext := &Context{prsr: c.prsr, logging: c.logging, env: newEnvironment, access: newAccess}
 		if f.Given != nil {
 			resultOfGiven := Eval(f.Given, newContext)
 			if resultOfGiven.Type() == object.ERROR_OBJ {

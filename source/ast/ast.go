@@ -244,10 +244,14 @@ func (le *LogExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	out.WriteString(le.Left.String())
+	if le.Left != nil {
+		out.WriteString(le.Left.String())
+	}
 	out.WriteString(") \\ ")
 	out.WriteString(le.Value)
-	out.WriteString(le.Right.String())
+	if le.Right != nil {
+		out.WriteString(le.Right.String())
+	}
 	return out.String()
 }
 
