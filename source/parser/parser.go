@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"charm/source/ast"
 	"charm/source/object"
@@ -690,10 +691,9 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
 
 	expression := &ast.LogExpression{
-		Token:   p.curToken,
-		Left:    left,
-		LogType: ast.LogUser,
-		Value:   p.curToken.Literal,
+		Token: p.curToken,
+		Left:  left,
+		Value: p.curToken.Literal,
 	}
 	return expression
 }
@@ -721,6 +721,9 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			fn.Body = right
 			fn.Sig, _ = p.getSigFromArgs(left.Args, "single")
 			expression.Right = fn
+			if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
+				fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.Token.Literal, &fn.Sig)
+			}
 			return expression
 		default:
 			p.Throw("parse/inner", p.curToken)
@@ -762,10 +765,9 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 func (p *Parser) parseIfLogExpression(left ast.Node) ast.Node {
 
 	expression := &ast.LogExpression{
-		Token:   p.curToken,
-		Left:    left,
-		LogType: ast.LogUser,
-		Value:   p.curToken.Literal,
+		Token: p.curToken,
+		Left:  left,
+		Value: p.curToken.Literal,
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
@@ -776,14 +778,27 @@ func (p *Parser) parseIfLogExpression(left ast.Node) ast.Node {
 func (p *Parser) parsePrelogExpression() ast.Node {
 
 	expression := &ast.LogExpression{
-		Token:   p.curToken,
-		LogType: ast.LogUser,
-		Value:   p.curToken.Literal,
+		Token: p.curToken,
+		Value: p.curToken.Literal,
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
 	expression.Right = p.parseExpression(precedence)
 	return expression
+}
+
+func DescribeFunctionCall(name string, sig *signature.Signature) string {
+	result := "Called '" + name + "'"
+	vars := []string{}
+	for _, pair := range *sig {
+		if pair.VarType != "bling" {
+			vars = append(vars, "||"+pair.VarName+"||")
+		}
+	}
+	if len(vars) > 0 {
+		result = result + " with " + strings.Join(vars, ", ")
+	}
+	return result + "."
 }
 
 func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { // Adds "that" after piping, works through namespaces

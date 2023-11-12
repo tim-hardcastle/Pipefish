@@ -259,3 +259,51 @@ var (
 	GOT         = Red("got") + ": "
 	TEST_PASSED = Green("Test passed!") + "\n"
 )
+
+func Pretty(s string, lMargin, rMargin int) string {
+	LENGTH := rMargin - lMargin
+	result := ""
+	codeWidth := -1
+	highlighter := ' '
+	for i := 0; i < len(s); {
+		result = result + strings.Repeat(" ", lMargin)
+		e := i + LENGTH
+		j := 0
+		if e > len(s) {
+			j = len(s) - i
+		} else if strings.Contains(s[i:e], "\n") {
+			j = strings.Index(s[i:e], "\n")
+		} else {
+			j = strings.LastIndex(s[i:e], " ")
+		}
+		if j == -1 {
+			j = LENGTH
+		}
+		if strings.Contains(s[i:i+j], "\n") {
+			j = strings.Index(s[i:i+j], "\n")
+		}
+
+		plainLine := s[i : i+j]
+		if len(plainLine) >= 2 && plainLine[0:2] == "|-" {
+			if codeWidth > 0 {
+				result = result + (" └──" + strings.Repeat("─", codeWidth) + "┘\n")
+				codeWidth = -1
+			} else {
+				codeWidth = len(plainLine)
+				result = result + (" ┌──" + strings.Repeat("─", codeWidth) + "┐\n")
+			}
+		} else if codeWidth > 0 {
+			repeatNo := codeWidth - len(plainLine)
+			if repeatNo < 0 {
+				repeatNo = 0
+			}
+			result = result + (" │  " + Cyan(plainLine) + strings.Repeat(" ", repeatNo) + "│\n")
+		} else {
+			var str string
+			str, highlighter = HighlightLine(plainLine, highlighter)
+			result = result + (str + "\n")
+		}
+		i = i + j + 1
+	}
+	return result
+}

@@ -232,11 +232,10 @@ func (le *ListExpression) String() string {
 }
 
 type LogExpression struct {
-	Token   token.Token
-	Value   string
-	Left    Node
-	Right   Node
-	LogType LogType
+	Token token.Token
+	Value string
+	Left  Node
+	Right Node
 }
 
 func (le *LogExpression) GetToken() token.Token { return le.Token }
@@ -434,15 +433,6 @@ type Function = struct {
 	Cmd     bool
 	Private bool
 }
-
-type LogType int
-
-const (
-	LogUser   LogType = iota
-	LogReturn         = 1
-	LogIf             = 2
-	LogStart          = 3
-)
 
 type FnTreeNode struct {
 	Fn     *Function

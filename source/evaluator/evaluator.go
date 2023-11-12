@@ -303,9 +303,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 			if logTime == object.TRUE {
 				logStr = logStr + " @ " + text.BLUE + time.Now().Local().String() + text.RESET
 			}
-			logStr = logStr + ":\n    "
-			logStr = logStr + parseLogString(node, newContext)
-			logStr = logStr + "\n"
+			logStr = logStr + ":\n"
+			logStr = logStr + text.Pretty(parseLogString(node, newContext), 4, 84) // Note do something about 84, it should be a service variable.
 			emit(logStr, node.GetToken(), newContext)
 		}
 		switch node.Token.Type {
@@ -523,9 +522,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 
 func parseLogString(node *ast.LogExpression, c *Context) string {
 	logStr := node.Value
-	// If the string is empty, we autolog.
 	if logStr == "" {
-		return autolog(node, c) + "\n\n"
+		return autolog(node, c)
 	}
 	result := ""
 	accumulator := ""
@@ -1980,17 +1978,23 @@ func isLiteral(node ast.Node) bool {
 	}
 }
 
+func pretty(s string) string { // Turns the stringification of an ast into an emphasized string. MUST be deprecated when I have a better pretty-printer.
+	if s[0] == '(' && s[len(s)-1] == ')' {
+		return "'" + s[1:len(s)-1] + "'"
+	}
+	return "'" + s + "'"
+}
+
 // If you use \\ to log without any parameters, this causes an "autolog" where it tries to guess what you would have
 // said. TODO --- code doesn't know the names of the functions its in or what the parameters were and so it will take some
 // effort to autolog these things when a function is called.
 func autolog(log *ast.LogExpression, c *Context) string {
 	// If the log expression is an autolog, it will carry some information about
 	// the circumstances under which it was generated.
-
-	switch log.LogType {
-	case ast.LogStart:
+	switch log.GetToken().Type {
+	case token.PRELOG:
 		return ("Function called.")
-	case ast.LogIf:
+	case token.IFLOG:
 		if log.Left.GetToken().Type == token.ELSE {
 			return "The 'else' branch is taken."
 		}
@@ -2000,7 +2004,7 @@ func autolog(log *ast.LogExpression, c *Context) string {
 		} else {
 			return story + ", so the condition fails."
 		}
-	case ast.LogReturn:
+	case token.LOG:
 		if log.Left.GetToken().Type == token.COLON {
 			if log.Left.(*ast.LazyInfixExpression).Left.GetToken().Type == token.ELSE {
 				return "The 'else' branch is taken. Returning " + niceReturn(log.Left.(*ast.LazyInfixExpression).Right, c)
@@ -2092,7 +2096,7 @@ func niceReturn(node ast.Node, c *Context) string {
 	if isLiteral(node) {
 		return c.prsr.Serialize(Eval(node, c), parser.LITERAL) + "."
 	}
-	return node.String() + " = " + c.prsr.Serialize(Eval(node, c), parser.LITERAL) + "."
+	return pretty(node.String()) + " = " + c.prsr.Serialize(Eval(node, c), parser.LITERAL) + "."
 }
 
 // Logs things to the appropriate place

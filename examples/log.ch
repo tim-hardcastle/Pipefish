@@ -7,5 +7,16 @@ foo(x) :            \\ 'foo' called.
         twice x     \\ Returns ||twice x||.
 given :             \\
     twice(n) :      \\ 'twice' called.
-        TWO * n     \\ Calculates ||2 * n||.
-    TWO = 2         \\ Lazy assignment to TWO.
+        two * n     \\ Calculates ||2 * n||.
+    two = 2         \\ Lazy assignment to TWO.
+
+bar(x) :            \\ 
+    x % 2 == 0  :   \\ 
+        x           \\ 
+    else :          \\ 
+        twice x     \\ 
+given :             \\
+    twice(n) :      \\ 
+        two * n     \\ 
+    two = 2         \\ 
+
