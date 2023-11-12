@@ -2,13 +2,13 @@ def
 
 foo(x) :            \\ 'foo' called.
     x % 2 == 0  :   \\ Checks if x is even. 
-        x           \\ Returns |x|     
+        x           \\ Returns |x|.
     else :          \\ Else branch taken.
         twice x     \\ Returns ||twice x||.
 given :             \\
     twice(n) :      \\ 'twice' called.
         two * n     \\ Calculates ||2 * n||.
-    two = 2         \\ Lazy assignment to TWO.
+    two = 2         \\ Lazy assignment to two.
 
 bar(x) :            \\ 
     x % 2 == 0  :   \\ 
