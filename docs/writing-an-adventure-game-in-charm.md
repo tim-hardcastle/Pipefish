@@ -95,7 +95,7 @@ init :
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
 ```
 
-(For convenience, we can always start the player off in the first location on our list, hence `playerLocation::linesToProcess[0]`)
+(For convenience, we will always start the player off in the first location on our list, hence `playerLocation::linesToProcess[0]`.)
 
 Our script now looks like this:
 
