@@ -25,9 +25,9 @@ func (p *Parser) Serialize(ob object.Object, style Style) string {
 	case *object.Error:
 		if style == PLAIN {
 			if len(ob.Trace) == 0 {
-				return text.ERROR + ob.Message + text.DescribePos(ob.Token)
+				return text.ERROR + ob.Message + text.DescribePos(ob.Token) + "."
 			} else {
-				return text.RT_ERROR + ob.Message + text.DescribePos(ob.Token)
+				return text.RT_ERROR + ob.Message + text.DescribePos(ob.Token) + "."
 			}
 		}
 		return "error " + text.ToEscapedText(ob.Message)

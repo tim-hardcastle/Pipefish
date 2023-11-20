@@ -307,7 +307,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/b": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't find implementation of function " + text.DescribeTok(tok) + " that takes no parameters"
+			if len(args[0].([]Object)) == 0 {
+				return "can't find implementation of function " + text.DescribeTok(tok) + " requiring no parameters"
+			}
+			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
+				DescribeSomeParams(args[0].([]Object), args[1].(bool))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it takes parameters, you can't just " +

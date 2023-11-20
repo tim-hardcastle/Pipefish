@@ -45,4 +45,5 @@ classifyWord(s string) :
     else :
         IDENT
 
-        
+foo(s string, i int) :
+    s, i

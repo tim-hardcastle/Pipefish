@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	VERSION     = "0.4.0"
+	VERSION     = "0.4.1"
 	BULLET      = "  ▪ "
 	GOOD_BULLET = "\033[32m  ▪ \033[0m"
 	BROKEN      = "\033[31m  ✖ \033[0m"
