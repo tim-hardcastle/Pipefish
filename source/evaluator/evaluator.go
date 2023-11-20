@@ -1294,9 +1294,8 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			}
 			return container.Right
 		case *object.String:
-			max := utf8.RuneCountInString(container.Value) - 1
-
-			if idx < 0 || idx > max {
+			max := utf8.RuneCountInString(container.Value)
+			if idx < 0 || idx >= max {
 				return newError("eval/range/index/string", tok, idx, max)
 			}
 			result := object.String{Value: string([]rune(container.Value)[idx])}

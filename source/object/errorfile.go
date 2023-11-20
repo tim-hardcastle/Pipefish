@@ -888,7 +888,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/range/index/pair": {
 		Message: func(tok token.Token, args ...any) string {
-			return "index " + emphNum(args[0]) + " is out of bounds for a string of length " + emphNum(args[1])
+			return "index " + emphNum(args[0]) + " is out of bounds for a pair"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A pair is indexed by 0 or 1."
