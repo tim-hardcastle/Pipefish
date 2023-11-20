@@ -170,7 +170,7 @@ evalPrefixExpression(node, state) :
         makeVal(not val), state
     nodeType == LIST :
         OK, (state with outStr:: (state[program][lineNumbers][0::-1] ..
-        .. >> string(that) + " " + state[program][lines][that] + "\n" -> sum(that, "")))  
+        .. >> string(that) + " " + state[program][lines][that] + "\n" -> sum(that + [""])))  
     nodeType == GOTO :
         OK, evaluateProgram(state with pointer::findIn(state[program][lineNumbers], val)) 
     nodeType == RUN :
@@ -312,6 +312,3 @@ given :
             wordifier(i + 1, "", outList + [runningTotal], false)
         else :
             wordifier(i + 1, runningTotal + s[i], outList, false)
-
-sum(L list, s single) : 
-    for i over L do (func(x): x + i) to s

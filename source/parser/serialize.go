@@ -45,7 +45,7 @@ func (p *Parser) Serialize(ob object.Object, style Style) string {
 		out.WriteString("map(")
 		for _, pair := range ob.Pairs {
 			pairs = append(pairs, fmt.Sprintf("%s::%s",
-				p.Serialize(pair.Key, style), p.Serialize(pair.Key, style)))
+				p.Serialize(pair.Key, style), p.Serialize(pair.Value, style)))
 		}
 
 		out.WriteString(strings.Join(pairs, ", "))
