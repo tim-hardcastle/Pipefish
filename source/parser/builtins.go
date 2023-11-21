@@ -394,7 +394,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 	},
 
 	"make_error": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
-		return &object.Error{ErrorId: "eval/user", Message: args[0].(*object.String).Value}
+		return &object.Error{ErrorId: "eval/user", Message: args[0].(*object.String).Value, Token: tok}
 	},
 }
 

@@ -1326,7 +1326,13 @@ func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) 
 			if idy < 0 {
 				idy2 = max + idy
 			}
-			if (idx < 0 || idx > max) || (idy2 < 0 || idy2 > max) || (idy2 < idx) {
+			if idx > max {
+				idx = max
+			}
+			if idy2 > max {
+				idy2 = max
+			}
+			if (idx < 0) || (idy2 < idx) {
 				return newError("eval/range/slice/list", tok, idx, idy, max)
 			}
 			return container.DeepSlice(idx, idy)

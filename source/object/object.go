@@ -255,7 +255,11 @@ func (lo *List) DeepCopy() Object {
 	return &List{Elements: newList}
 }
 func (lo *List) DeepSlice(start, end int) Object {
-	newList := make([]Object, end-start)
+	newLen := end - start
+	if newLen < 0 {
+		newLen = 0
+	}
+	newList := make([]Object, newLen)
 	for i := start; i < end; i++ {
 		newList[i-start] = lo.Elements[i].DeepCopy()
 	}
