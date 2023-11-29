@@ -11,17 +11,35 @@ ex(text string) :
 
 Error = struct(errorMessage string, token Token)
 
-ForthMachine = struct(stack list, err Error?)
+ForthMachine = struct(stack list, err Error?, vars map, mem list)
 
-CLEAN_STATE = ForthMachine with stack::[], err::NULL
+CLEAN_STATE = ForthMachine with stack::[], err::NULL, vars::map(), mem::[]
+
+KEYWORDS = "variable"::0, "!"::2, "?"::1, "allot"::1, "if"::1, "do"::2
 
 evaluate(L list, S ForthMachine) : 
-    L == [] or S[err] in null:
+    L == [] or S[err] in Error:
         S
     currentType == NUMBER :
-            evaluate(codeTail, S with stack::S[stack] + [int currentLiteral])
+        evaluate(codeTail, S with stack::S[stack] + [int currentLiteral])
+    currentType == KEYWORD and len S[stack] < KEYWORDS[currentLiteral] :
+        S with err::Error("stack underflow", currentToken)
+    currentLiteral == "variable" :
+        makeVariable(codeTail, S, token) -> evaluate
+    currentLiteral == "!" :
+        setVariable(S, currentToken) -> evaluate(codeTail, that)
+    currentLiteral == "@" :
+        getVariable(S, currentToken) -> evaluate(codeTail, that)
+    currentLiteral == "allot" :
+        allotMemory(S) -> evaluate(codeTail, that)
+    currentLiteral == "if" :
+        doIf(codeTail, S) -> evaluate
+    currentLiteral == "do" :
+        doLoop(codeTail, S) -> evaluate
     currentLiteral in keys BUILTINS :
-        evaluate(codeTail, evalBuiltin(currentToken, S))
+        evalBuiltin(S, currentToken) -> evaluate(codeTail, that)   
+    currentLiteral in keys S[vars] :
+        evaluate(codeTail, S with stack::S[stack] + [S[vars][currentLiteral]])
     else :
         S with err::Error("unknown identifier error", currentToken)
 given :
@@ -29,6 +47,41 @@ given :
     currentLiteral = currentToken[lit]
     currentType = currentToken[tokenType]
     codeTail = L[1::len L]
+
+// Variables
+
+makeVariable(L, S, token) :
+    len L == 0 :
+        [], S with err::Error("missing variable name", token)
+    ((L[0])[tokenType]) != IDENT :
+        [], S with err::Error("variable name should be identifier", token)
+    else :
+        L[1::len L], S with [vars, L[0][lit]]::len(S[mem]), mem::S[mem] + [0]
+
+setVariable(S, token) :
+    len S[mem] <= stackTop :
+        S with err::Error("memory location " + (string stackTop) + " unreserved", token)
+    else :
+        S with stack::S[stack][0::len(S[stack]) - 2],
+            .. [mem, stackTop]::S[stack][len(S[stack]) - 2] 
+given :
+    stackTop = S[stack][len(S[stack]) - 1]
+
+getVariable(S, token) :
+    len S[mem] <= stackTop :
+        S with err::Error("memory location " + (string stackTop) + " unreserved", token)
+    else :
+        S with stack::stackTail + [S[mem][stackTop]]
+given :
+    stackTop = S[stack][len(S[stack]) - 1]
+    stackTail = S[stack][0::len(S[stack]) - 1]
+
+allotMemory(S) : 
+    S with mem::S[mem] + (range(0::stackTop) >> [0] -> sum),
+        .. stack::stackTail
+given :
+    stackTop = S[stack][len(S[stack]) - 1]
+    stackTail = S[stack][0::len(S[stack]) - 1]
 
 // Builtins
 
@@ -55,11 +108,11 @@ BUILTINS = map("+"::Builtin(2, func(x): x[0] + x[1]),
             .. "rot"::Builtin(3, func(x): x[1], x[2], x[0]),
             .. "drop"::Builtin(1, func(x): ()))
 
-evalBuiltin(builtinToken, S) :
+evalBuiltin(S, builtinToken) :
     len S[stack] < parameters :
         S with err::Error("stack underflow", builtinToken)
     builtinName == "/" and S[stack][len(S[stack]) - 1] == 0 :
-        S with err::Error("stack underflow", builtinToken)
+        S with err::Error("division by zero", builtinToken)
     else :
         S with stack::S[stack][0::len(S[stack]) - parameters] + [resultOfFunction]
 given :
@@ -115,5 +168,7 @@ given :
 classifyWord(s string) :
     type(int s) != error :
         NUMBER
+    s in keys KEYWORDS :
+        KEYWORD
     else :
         IDENT
