@@ -102,7 +102,7 @@ func String(t TokenSupplier) string {
 
 type tokenizedCodeChunks []*tokenized_code_chunk.TokenizedCodeChunk
 
-type ParsedCodeChunks []*ast.Node
+type ParsedCodeChunks []ast.Node
 
 type Parser struct {
 
@@ -247,7 +247,7 @@ func (p *Parser) prefixSuffixError() {
 	p.Throw("parse/before", p.curToken, p.peekToken)
 }
 
-func (p *Parser) ParseTokenizedChunk() *ast.Node {
+func (p *Parser) ParseTokenizedChunk() ast.Node {
 	p.nesting = *stack.NewStack[token.Token]()
 	p.SafeNextToken()
 	p.SafeNextToken()
@@ -256,7 +256,7 @@ func (p *Parser) ParseTokenizedChunk() *ast.Node {
 	if p.curToken.Type != token.EOF {
 		p.Throw("parse/expected", p.curToken)
 	}
-	return &expn
+	return expn
 }
 
 var literals = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
@@ -1064,7 +1064,7 @@ func checkConsistency(left, right token.Token) bool {
 	return false
 }
 
-func (p *Parser) ParseLine(source, input string) *ast.Node {
+func (p *Parser) ParseLine(source, input string) ast.Node {
 	p.ClearErrors()
 	rl := relexer.New(source, input)
 	p.TokenizedCode = rl
@@ -1075,10 +1075,10 @@ func (p *Parser) ParseLine(source, input string) *ast.Node {
 
 func (p *Parser) ParseDump(source, input string) {
 	parsedLine := p.ParseLine(source, input) // TODO --- why do you have a pointer to an interface?
-	if *parsedLine == nil {
+	if parsedLine == nil {
 		fmt.Printf("Parser returns: nil")
 	}
-	fmt.Printf("Parser returns: %v\n\n", (*parsedLine).String())
+	fmt.Printf("Parser returns: %v\n\n", (parsedLine).String())
 }
 
 func (p *Parser) Throw(errorID string, tok token.Token, args ...any) {

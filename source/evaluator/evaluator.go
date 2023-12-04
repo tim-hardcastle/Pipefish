@@ -566,7 +566,7 @@ func parseLogString(node *ast.LogExpression, c *Context) string {
 
 func evalText(s string, c *Context) string {
 	ast := c.prsr.ParseLine("logger", s)
-	return (c.prsr.Serialize(Eval(*ast, c), parser.LITERAL))
+	return (c.prsr.Serialize(Eval(ast, c), parser.LITERAL))
 }
 
 func evalAndDescribeText(s string, c *Context) string {
@@ -1091,7 +1091,7 @@ func evalEvalExpression(token token.Token, right object.Object, c *Context) obje
 	if right.Type() == object.STRING_OBJ {
 		source := "string evaluated at line " + strconv.Itoa(token.Line) + " of " + token.Source
 		parsedCode := c.prsr.ParseLine(source, right.(*object.String).Value)
-		return Evaluate(*parsedCode, c)
+		return Evaluate(parsedCode, c)
 	}
 	return newError("eval/eval", token)
 }
@@ -1874,7 +1874,7 @@ func evalContactExpression(params []object.Object, tok token.Token, c *Context) 
 		return err
 	}
 	ast := otherParser.ParseLine(tok.Source, preparsedExpression)
-	result := Eval(*ast, contextToUse)
+	result := Eval(ast, contextToUse)
 	service.Parser.EffHandle.OutHandle = oldHandle
 	return result
 }
@@ -1904,7 +1904,7 @@ func preparseContactExpression(snippet string, tok token.Token, c *Context) (str
 			c.prsr.ClearErrors()
 			return "", newError("eval/contact/charm", tok, charmToEvaluate)
 		}
-		charmValue := Eval(*parsedCharm, c)
+		charmValue := Eval(parsedCharm, c)
 		switch charmValue := charmValue.(type) {
 		case *object.Error:
 			return "", charmValue

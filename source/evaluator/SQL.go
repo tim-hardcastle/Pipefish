@@ -141,7 +141,7 @@ func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []an
 			c.prsr.ClearErrors()
 			return "", args, newError("sql/charm", tok, charmToEvaluate)
 		}
-		charmValue := Eval(*parsedCharm, context)
+		charmValue := Eval(parsedCharm, context)
 		switch charmValue := charmValue.(type) {
 		case *object.Type: // Then if it's a struct type we convert the type definition into a SQL table signature.
 			if !parser.TypeSystem.PointsTo(c.prsr.TypeSystem, charmValue.Value, "struct") {

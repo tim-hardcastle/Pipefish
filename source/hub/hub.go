@@ -1411,6 +1411,6 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 }
 
 func ServiceDo(service *parser.Service, line string) object.Object {
-	return evaluator.Evaluate(*service.Parser.ParseLine("REPL input", line),
+	return evaluator.Evaluate(service.Parser.ParseLine("REPL input", line),
 		evaluator.NewContext(service.Parser, service.Env, evaluator.REPL, true))
 }

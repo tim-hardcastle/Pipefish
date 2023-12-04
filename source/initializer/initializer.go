@@ -164,7 +164,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	newService.Broken = false
 	init.Parser.EffHandle = eff
 	if init.Parser.Unfixes.Contains("init") {
-		obj := evaluator.Evaluate(*newService.Parser.ParseLine("Initializer", "init"),
+		obj := evaluator.Evaluate(newService.Parser.ParseLine("Initializer", "init"),
 			evaluator.NewContext(newService.Parser, newService.Env, evaluator.REPL, true))
 		if obj.Type() == object.ERROR_OBJ {
 			init.addError(obj.(*object.Error))
@@ -523,7 +523,7 @@ func (uP *Initializer) ParseTypeDefs() {
 
 func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 	for _, v := range uP.Parser.ParsedDeclarations[typeDeclaration] {
-		result := evaluator.Evaluate(*v, evaluator.NewContext(uP.Parser, env, evaluator.DEF, false))
+		result := evaluator.Evaluate(v, evaluator.NewContext(uP.Parser, env, evaluator.DEF, false))
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
 		}
@@ -537,7 +537,7 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 		for _, v := range uP.Parser.TokenizedDeclarations[kindOfDeclarationToParse] {
 			v.ToStart()
 			uP.Parser.TokenizedCode = v
-			parsedCode := *uP.Parser.ParseTokenizedChunk()
+			parsedCode := uP.Parser.ParseTokenizedChunk()
 			name := ""
 			path := ""
 			switch parsedCode := parsedCode.(type) {
@@ -654,7 +654,7 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
 		assignmentOrder := uP.returnOrderOfAssignments(declarations)
 		for k := range *assignmentOrder {
-			result := evaluator.Evaluate(*uP.Parser.ParsedDeclarations[declarations][k], evaluator.NewContext(uP.Parser, env, evaluator.INIT, false))
+			result := evaluator.Evaluate(uP.Parser.ParsedDeclarations[declarations][k], evaluator.NewContext(uP.Parser, env, evaluator.INIT, false))
 			if result.Type() == object.ERROR_OBJ {
 				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
 			}
@@ -688,7 +688,7 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 	for _, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
 		scriptFilepath := ""
 		namespace := ""
-		switch imp := (*imp).(type) {
+		switch imp := (imp).(type) {
 		case *ast.StringLiteral:
 			scriptFilepath = imp.Value
 			namespace = scriptFilepath
@@ -777,7 +777,7 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 	goHandler := evaluator.NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
-			functionName, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(*uP.Parser.ParsedDeclarations[j][i])
+			functionName, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 			}
