@@ -25,6 +25,7 @@ import (
 	"charm/source/parser"
 	"charm/source/relexer"
 	"charm/source/text"
+	"charm/source/vm"
 )
 
 var (
@@ -647,6 +648,39 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteString(result)
 			return false
 		}
+	case "values":
+		if len(hub.ers) == 0 {
+			hub.WriteError("there are no recent errors.")
+			return false
+		}
+		if hub.ers[0].Values == nil {
+			hub.WriteError("no values are available.")
+			return false
+		}
+		if len(hub.ers[0].Values) == 0 {
+			hub.WriteError("no values were passed.")
+			return false
+		}
+		if len(hub.ers[0].Values) == 1 {
+			hub.WriteString("\nThe value passed was:\n")
+		} else {
+			hub.WriteString("\nValues passed were:\n")
+		}
+		for _, v := range hub.ers[0].Values {
+			hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName].Parser.Serialize(v, parser.LITERAL))
+		}
+		hub.WriteString("\n")
+		return false
+	case "vm":
+		compiler := vm.NewCompiler(hub.services[hub.currentServiceName].Parser)
+		compiler.Compile("VM test", args[0])
+		if hub.services[hub.currentServiceName].Parser.ErrorsExist() {
+			hub.GetAndReportErrors(hub.services[hub.currentServiceName].Parser)
+			hub.services[hub.currentServiceName].Parser.ClearErrors()
+			return false
+		}
+		compiler.Run()
+		return false
 	case "where":
 		num, err := strconv.Atoi(args[0])
 		if err != nil {
@@ -687,29 +721,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
-		hub.WriteString("\n")
-		return false
-	case "values":
-		if len(hub.ers) == 0 {
-			hub.WriteError("there are no recent errors.")
-			return false
-		}
-		if hub.ers[0].Values == nil {
-			hub.WriteError("no values are available.")
-			return false
-		}
-		if len(hub.ers[0].Values) == 0 {
-			hub.WriteError("no values were passed.")
-			return false
-		}
-		if len(hub.ers[0].Values) == 1 {
-			hub.WriteString("\nThe value passed was:\n")
-		} else {
-			hub.WriteString("\nValues passed were:\n")
-		}
-		for _, v := range hub.ers[0].Values {
-			hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName].Parser.Serialize(v, parser.LITERAL))
-		}
 		hub.WriteString("\n")
 		return false
 	default:

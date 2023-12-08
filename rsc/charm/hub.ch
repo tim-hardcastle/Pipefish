@@ -153,14 +153,18 @@ users of group(grp string) :
 users of service(srv string) :
     HubResponse("users-of-service", [srv])
 
+values :
+    HubResponse("values", [])
+
+vm(sourcecode string) :
+    HubResponse("vm", [sourcecode])
+
 where(errorNo int) :
     HubResponse("where", [string errorNo])
     
 why(errorNo int) :
     HubResponse("why", [string errorNo])
     
-values :
-    HubResponse("values", [])
     
 
 

@@ -35,26 +35,36 @@ func (op *operation) ppType(i int) string {
 
 const LA = " <-"
 const EQ = " =="
+const CM = ","
 
 func describe(op *operation) string {
 	switch op.opcode {
+	case asgc:
+		return "asgc" + op.ppMem(0) + LA + op.ppConst(1)
+	case asgm:
+		return "asgm" + op.ppMem(0) + LA + op.ppMem(1)
+	case equb:
+		return "equb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case equf:
+		return "equf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case equi:
+		return "equi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case equs:
+		return "equs" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case halt:
+		return "halt"
 	case jmp:
 		return "jmp" + op.ppLoc(0)
 	case jsr:
 		return "jsr" + op.ppLoc(0)
-	case ret:
-		return "ret"
-	case asgnc:
-		return "asgn" + op.ppMem(0) + LA + op.ppConst(1)
-	case asgnm:
-		return "asgn" + op.ppMem(0) + LA + op.ppMem(1)
-	case halt:
-		return "halt"
+	case notb:
+		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
 	case qtype:
 		return "type" + op.ppMem(0) + EQ + op.ppType(1)
+	case ret:
+		return "ret"
 	}
-
-	return "indescibable thing"
+	return "indescribable thing"
 }
 
 const (
@@ -65,31 +75,35 @@ const (
 	qenum
 	qstruct // etc
 
-	asgnc // mem, const
-	asgnm // mem, mem
+	asgc // mem, const
+	asgm // mem, mem
+
+	cmp // mem, mem
 
 	andb
 	orb
 	notb
+	equb
 
 	addi
 	subi
 	muli
 	divi
 	modi
-	cmpi
+	equi
 	leqi
 
 	addf
 	subf
 	mulf
 	divf
-	cmpf
+	equf
 	leqf
 
+	equs
 	lens
 	adds
-	ixs
+	idxs
 	slis
 
 	lenl

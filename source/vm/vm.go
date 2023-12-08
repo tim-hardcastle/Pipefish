@@ -21,10 +21,20 @@ loop:
 		case jmp:
 			loc = args[0]
 			continue
-		case asgnc:
+		case asgc:
 			vm.mem[args[0]] = vm.con[args[1]]
-		case asgnm:
+		case asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
+		case equi:
+			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
+		case equs:
+			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
+		case equb:
+			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
+		case equf:
+			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
+		case notb:
+			vm.mem[args[0]] = Value{T: BOOL, V: !vm.mem[args[1]].V.(bool)}
 		case qtype:
 			if vm.mem[args[0]].T != args[1] {
 				loc = loc + 2

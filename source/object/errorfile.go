@@ -272,6 +272,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/eq/types": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't compare values of different types"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm doesn't let you compare values of different types, on the grounds that " +
+				"this is more often a mistake than intentional."
+		},
+	},
+
+	"comp/not/bool": {
+		Message: func(tok token.Token, args ...any) string {
+			return "can't apply 'not' to non-boolean type"
+		},
+		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
+			return "Charm has no concept of \"truthiness\", so the 'not' operaotr can only be applied " +
+				"to one of the two values 'true' and 'false' in the type 'boo'."
+		},
+	},
+
 	"err/misdirect": {
 		Message: func(tok token.Token, args ...any) string {
 			return "Charm is trying and failing to raise an error with reference '" + args[0].(string) + "'"
