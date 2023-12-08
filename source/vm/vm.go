@@ -8,7 +8,7 @@ type Vm struct {
 }
 
 func blankVm() *Vm {
-	return &Vm{mem: []Value{{}}}
+	return &Vm{mem: []Value{{}}, con: []Value{FALSE, TRUE}}
 }
 
 func (vm *Vm) Run(loc uint32) {
@@ -35,8 +35,15 @@ loop:
 			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
 		case notb:
 			vm.mem[args[0]] = Value{T: BOOL, V: !vm.mem[args[1]].V.(bool)}
+		case orb:
+			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
 		case qtype:
 			if vm.mem[args[0]].T != args[1] {
+				loc = loc + 2
+				continue
+			}
+		case qtrue:
+			if vm.mem[args[0]].V.(bool) {
 				loc = loc + 2
 				continue
 			}

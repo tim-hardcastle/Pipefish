@@ -59,8 +59,12 @@ func describe(op *operation) string {
 		return "jsr" + op.ppLoc(0)
 	case notb:
 		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
+	case orb:
+		return "orb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case qtrue:
+		return "qtrue" + op.ppMem(0)
 	case qtype:
-		return "type" + op.ppMem(0) + EQ + op.ppType(1)
+		return "qtype" + op.ppMem(0) + EQ + op.ppType(1)
 	case ret:
 		return "ret"
 	}
@@ -72,6 +76,7 @@ const (
 	jsr
 	ret
 	qtype
+	qtrue
 	qenum
 	qstruct // etc
 

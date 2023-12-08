@@ -17,9 +17,10 @@ const MAX_32 = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
-		p:      p,
-		vm:     blankVm(),
-		memTop: 1,
+		p:           p,
+		vm:          blankVm(),
+		memTop:      1,
+		constantTop: 2,
 	}
 }
 
@@ -55,7 +56,7 @@ func (cp *Compiler) Compile(source, sourcecode string) {
 //
 
 func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
-	// var offset int
+	// var offset uint32
 	// if dest {
 	// 	offset = 1
 	// }
@@ -122,18 +123,24 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
 			lTypes := cp.compileNode(node.Left, false)
-			if lTypes.only(ERROR) {
-				cp.p.Throw("comp/eq/err/a", node.Token)
+			if !lTypes.contains(BOOL) {
+				cp.p.Throw("comp/or/bool/left", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			//leftRg := cp.memTop - 1
-
+			leftRg := cp.memTop - 1
+			cp.emit(qtrue, leftRg)
+			cp.emit(jmp, cp.codeTop+2)
+			backtrack := cp.codeTop
+			cp.emit(jmp, MAX_32)
 			rTypes := cp.compileNode(node.Right, false)
-			if rTypes.only(ERROR) {
-				cp.p.Throw("comp/eq/err/b", node.Token)
+			if !rTypes.contains(BOOL) {
+				cp.p.Throw("comp/or/bool/right", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			//rightRg := cp.memTop - 1
+			rightRg := cp.memTop - 1
+			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.put(orb, dest, leftRg, rightRg)
+			return []valType{&simpleType{t: BOOL}}
 		}
 		panic("Unimplemented lazy infix.")
 	case *ast.PrefixExpression:
