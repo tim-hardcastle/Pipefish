@@ -39,6 +39,8 @@ const CM = ","
 
 func describe(op *operation) string {
 	switch op.opcode {
+	case andb:
+		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case asgc:
 		return "asgc" + op.ppMem(0) + LA + op.ppConst(1)
 	case asgm:

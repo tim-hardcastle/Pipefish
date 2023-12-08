@@ -142,6 +142,26 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 			cp.put(orb, dest, leftRg, rightRg)
 			return []valType{&simpleType{t: BOOL}}
 		}
+		if node.Operator == "and" {
+			lTypes := cp.compileNode(node.Left, false)
+			if !lTypes.contains(BOOL) {
+				cp.p.Throw("comp/and/bool/left", node.Token)
+				return []valType{&simpleType{t: TYPE_ERROR}}
+			}
+			leftRg := cp.memTop - 1
+			cp.emit(qtrue, leftRg)
+			backtrack := cp.codeTop
+			cp.emit(jmp, MAX_32)
+			rTypes := cp.compileNode(node.Right, false)
+			if !rTypes.contains(BOOL) {
+				cp.p.Throw("comp/and/bool/right", node.Token)
+				return []valType{&simpleType{t: TYPE_ERROR}}
+			}
+			rightRg := cp.memTop - 1
+			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.put(andb, dest, leftRg, rightRg)
+			return []valType{&simpleType{t: BOOL}}
+		}
 		panic("Unimplemented lazy infix.")
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {

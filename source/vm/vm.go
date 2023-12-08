@@ -37,6 +37,8 @@ loop:
 			vm.mem[args[0]] = Value{T: BOOL, V: !vm.mem[args[1]].V.(bool)}
 		case orb:
 			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
+		case andb:
+			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool))}
 		case qtype:
 			if vm.mem[args[0]].T != args[1] {
 				loc = loc + 2
