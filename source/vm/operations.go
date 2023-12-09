@@ -26,10 +26,6 @@ func (op *operation) ppConst(i int) string {
 }
 
 func (op *operation) ppType(i int) string {
-	name, ok := VALUE_MAP[op.args[i]]
-	if ok {
-		return " t #" + name
-	}
 	return " t" + strconv.Itoa(int(op.args[i]))
 }
 

@@ -2,31 +2,61 @@ package vm
 
 import "strconv"
 
-const (
-	ERROR uint32 = iota // Some code depends on ERROR being first and this should not be changed.
+const ( // Cross-reference with typeNames in
+	ERROR uint32 = iota // Some code may depend on the order of early elements.
+	NULL
 	INT
 	BOOL
 	STRING
 	FLOAT
+	UNSAT
 	TYPE_ERROR
-	USER // I.e the first of the enums.
+	LB_ENUMS // I.e the first of the enums.
 )
-
-var VALUE_MAP = map[uint32]string{
-	ERROR:  "ERROR",
-	INT:    "INT",
-	BOOL:   "BOOL",
-	STRING: "STRING",
-	FLOAT:  "FLOAT",
-}
 
 type Value struct {
 	T uint32 // Which is clearly too many, but it's nice to have all operands be uint32
 	V any
 }
 
-var TRUE = Value{T: BOOL, V: true}
-var FALSE = Value{T: BOOL, V: false}
+var (
+	FALSE = Value{T: BOOL, V: false}
+	TRUE  = Value{T: BOOL, V: true}
+	U_OBJ = Value{T: UNSAT}
+)
+
+const (
+	C_FALSE = iota
+	C_TRUE
+	C_U_OBJ
+	UB_OF_PREDEFINED_CONSTS
+)
+
+type varAccess int
+
+const (
+	V_PUBLIC varAccess = iota
+)
+
+type variable struct {
+	mLoc   uint32
+	access varAccess
+	types  typeList
+}
+
+type environment struct {
+	data map[string]variable
+	ext  *environment
+}
+
+func newEnvironment() *environment {
+	return &environment{data: make(map[string]variable), ext: nil}
+}
+
+func (env *environment) exists(name string) bool {
+	_, ok := env.data[name]
+	return ok
+}
 
 // For taliking about inferred types. Lists of valTypes are to be kept in numerical order.
 type valType interface {
@@ -43,11 +73,57 @@ func (vL typeList) intersect(wL typeList) typeList {
 		comp := vL[vix].compare(wL[wix])
 		if comp == 0 {
 			x = append(x, vL[vix])
+			vix++
+			wix++
+			continue
 		}
 		if comp < 0 {
 			vix++
+			continue
 		}
 		wix++
+	}
+	return x
+}
+
+func (vL typeList) union(wL typeList) typeList {
+	x := typeList{}
+	var vix, wix int
+	for vix < len(vL) || wix < len(wL) {
+		if vix == len(vL) {
+			x = append(x, wL[wix])
+			wix++
+			continue
+		}
+		if wix == len(wL) {
+			x = append(x, vL[vix])
+			vix++
+			continue
+		}
+		comp := vL[vix].compare(wL[wix])
+		if comp == 0 {
+			x = append(x, vL[vix])
+			vix++
+			wix++
+			continue
+		}
+		if comp < 0 {
+			x = append(x, vL[vix])
+			vix++
+			continue
+		}
+		x = append(x, wL[wix])
+		wix++
+	}
+	return x
+}
+
+func (vL typeList) without(t valType) typeList {
+	x := typeList{}
+	for _, v := range vL {
+		if v.compare(t) != 0 {
+			x = append(x, v)
+		}
 	}
 	return x
 }
@@ -96,6 +172,10 @@ func (v *Value) describe() string {
 		}
 	case FLOAT:
 		return strconv.FormatFloat(v.V.(float64), 'g', 8, 64)
+	case UNSAT:
+		return "unsatisfied conditional"
+	case NULL:
+		return "null"
 	}
 
 	panic("can't describe value")

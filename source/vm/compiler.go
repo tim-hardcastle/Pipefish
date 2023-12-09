@@ -3,7 +3,13 @@ package vm
 import (
 	"charm/source/ast"
 	"charm/source/parser"
+	"charm/source/token"
 )
+
+type enumOrdinates struct {
+	enum    uint32
+	element int
+}
 
 type Compiler struct {
 	p           *parser.Parser
@@ -11,6 +17,7 @@ type Compiler struct {
 	memTop      uint32
 	constantTop uint32
 	codeTop     uint32
+	enums       map[string]enumOrdinates
 }
 
 const MAX_32 = 4294967295
@@ -20,7 +27,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		p:           p,
 		vm:          blankVm(),
 		memTop:      1,
-		constantTop: 2,
+		constantTop: UB_OF_PREDEFINED_CONSTS,
+		enums:       make(map[string]enumOrdinates),
 	}
 }
 
@@ -162,6 +170,47 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 			cp.put(andb, dest, leftRg, rightRg)
 			return []valType{&simpleType{t: BOOL}}
 		}
+		if node.Operator == ":" {
+			if node.Left.GetToken().Type == token.ELSE {
+				return cp.compileNode(node.Right, false)
+			}
+			lTypes := cp.compileNode(node.Left, false)
+			if !lTypes.contains(BOOL) {
+				cp.p.Throw("comp/cond/bool", node.Token)
+				return []valType{&simpleType{t: TYPE_ERROR}}
+			}
+			leftRg := cp.memTop - 1
+			cp.emit(qtrue, leftRg)
+			backtrack := cp.codeTop
+			cp.emit(jmp, MAX_32)
+			rTypes := cp.compileNode(node.Right, false)
+			cp.put(asgm, dest, cp.memTop-1)
+			if !dest {
+				cp.emit(jmp, cp.codeTop+2)
+			}
+			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.reput(asgc, dest, C_U_OBJ)
+			return rTypes.union([]valType{&simpleType{t: UNSAT}})
+		}
+		if node.Operator == ";" {
+			lTypes := cp.compileNode(node.Left, false)
+			leftRg := cp.memTop - 1
+			cp.emit(qtype, leftRg, UNSAT)
+			backtrack := cp.codeTop
+			cp.emit(jmp, MAX_32)
+			rTypes := cp.compileNode(node.Right, false)
+			rightRg := cp.memTop - 1
+			cp.put(asgm, dest, rightRg)
+			if !dest {
+				cp.emit(jmp, cp.codeTop+2)
+			}
+			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.reput(asgm, dest, leftRg)
+			if !(lTypes.contains(UNSAT) && rTypes.contains(UNSAT)) {
+				return lTypes.union(rTypes).without(&simpleType{UNSAT})
+			}
+			return lTypes.union(rTypes)
+		}
 		panic("Unimplemented lazy infix.")
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
@@ -183,9 +232,15 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 	}
 }
 
+// Despite their names, addConstant and addVariable do very different things.
 func (cp *Compiler) addConstant(t uint32, v any) {
 	cp.vm.con = append(cp.vm.con, Value{T: t, V: v})
 	cp.constantTop++
+}
+
+func (cp *Compiler) addVariable(env *environment, name string, val Value, acc varAccess, types typeList) {
+	env.data[name] = variable{mLoc: cp.memTop, access: acc, types: types}
+	cp.memTop++
 }
 
 func (cp *Compiler) put(opcode opcode, dest bool, args ...uint32) {
@@ -198,6 +253,13 @@ func (cp *Compiler) put(opcode opcode, dest bool, args ...uint32) {
 		cp.emit(opcode, args...)
 		cp.memTop++
 	}
+}
+
+func (cp *Compiler) reput(opcode opcode, dest bool, args ...uint32) {
+	if !dest {
+		cp.memTop--
+	}
+	cp.put(opcode, dest, args...)
 }
 
 func (cp *Compiler) emit(opcode opcode, args ...uint32) {

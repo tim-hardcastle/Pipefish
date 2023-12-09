@@ -1,14 +1,25 @@
 package vm
 
 type Vm struct {
+	// Temporary state
 	mem       []Value
-	con       []Value
-	code      []*operation
 	callstack []uint32
+
+	// Permanent state
+	code []*operation
+
+	con       []Value
+	ub_enums  uint32
+	typeNames []string
+	enums     [][]string
 }
 
 func blankVm() *Vm {
-	return &Vm{mem: []Value{{}}, con: []Value{FALSE, TRUE}}
+	newVm := &Vm{mem: []Value{{}}, con: []Value{FALSE, TRUE, U_OBJ}}
+	// Cross-reference with consts in values.go.
+	newVm.typeNames = []string{"error", "null", "int", "bool", "string", "float64",
+		"unsatisfied conditional", "type error"}
+	return newVm
 }
 
 func (vm *Vm) Run(loc uint32) {
@@ -40,7 +51,7 @@ loop:
 		case andb:
 			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool))}
 		case qtype:
-			if vm.mem[args[0]].T != args[1] {
+			if vm.mem[args[0]].T == args[1] {
 				loc = loc + 2
 				continue
 			}
