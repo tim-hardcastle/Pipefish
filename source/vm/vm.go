@@ -81,5 +81,5 @@ loop:
 		}
 		loc++
 	}
-	print("\nOutput : " + vm.mem[0].describe() + "\n\n")
+	print("\nOutput : " + vm.mem[len(vm.mem)-1].describe() + "\n\n")
 }

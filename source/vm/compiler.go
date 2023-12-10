@@ -41,6 +41,7 @@ func (cp *Compiler) Compile(source, sourcecode string) {
 	cp.vm = blankVm()
 	node := cp.p.ParseLine(source, sourcecode)
 	cp.compileNode(node, true)
+	cp.emit(ret)
 	cp.vm.mem = make([]Value, cp.memTop)
 }
 
@@ -182,9 +183,7 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 			cp.emit(qtru, leftRg, MAX_32)
 			rTypes := cp.compileNode(node.Right, false)
 			cp.put(asgm, dest, cp.memTop-1)
-			if !dest {
-				cp.emit(jmp, cp.codeTop+2)
-			}
+			cp.emit(jmp, cp.memTop+2)
 			cp.vm.code[backtrack].args[1] = cp.codeTop
 			cp.reput(asgc, dest, C_U_OBJ)
 			return rTypes.union([]valType{&simpleType{t: UNSAT}})
@@ -197,9 +196,7 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 			rTypes := cp.compileNode(node.Right, false)
 			rightRg := cp.memTop - 1
 			cp.put(asgm, dest, rightRg)
-			if !dest {
-				cp.emit(jmp, cp.codeTop+2)
-			}
+			cp.emit(jmp, cp.codeTop+2)
 			cp.vm.code[backtrack].args[2] = cp.codeTop
 			cp.reput(asgm, dest, leftRg)
 			if !(lTypes.contains(UNSAT) && rTypes.contains(UNSAT)) {
@@ -240,21 +237,13 @@ func (cp *Compiler) addVariable(env *environment, name string, val Value, acc va
 }
 
 func (cp *Compiler) put(opcode opcode, dest bool, args ...uint32) {
-	if dest {
-		args = append([]uint32{0}, args...)
-		cp.emit(opcode, args...)
-		cp.emit(ret)
-	} else {
-		args = append([]uint32{cp.memTop}, args...)
-		cp.emit(opcode, args...)
-		cp.memTop++
-	}
+	args = append([]uint32{cp.memTop}, args...)
+	cp.emit(opcode, args...)
+	cp.memTop++
 }
 
 func (cp *Compiler) reput(opcode opcode, dest bool, args ...uint32) {
-	if !dest {
-		cp.memTop--
-	}
+	cp.memTop--
 	cp.put(opcode, dest, args...)
 }
 
