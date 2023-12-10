@@ -30,8 +30,9 @@ func (op *operation) ppType(i int) string {
 }
 
 const LA = " <-"
-const EQ = " =="
+const TP = " is"
 const CM = ","
+const LS = " else"
 
 func describe(op *operation) string {
 	switch op.opcode {
@@ -52,19 +53,19 @@ func describe(op *operation) string {
 	case halt:
 		return "halt"
 	case jmp:
-		return "jmp" + op.ppLoc(0)
+		return "jmp " + op.ppLoc(0)
 	case jsr:
-		return "jsr" + op.ppLoc(0)
+		return "jsr " + op.ppLoc(0)
 	case notb:
 		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
 	case orb:
-		return "orb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case qtrue:
-		return "qtrue" + op.ppMem(0)
-	case qtype:
-		return "qtype" + op.ppMem(0) + EQ + op.ppType(1)
+		return "orb " + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case qtru:
+		return "qtru" + op.ppMem(0) + LS + op.ppLoc(1)
+	case qtyp:
+		return "qtyp" + op.ppMem(0) + TP + op.ppType(1) + LS + op.ppLoc(2)
 	case ret:
-		return "ret"
+		return "ret "
 	}
 	return "indescribable thing"
 }
@@ -73,10 +74,8 @@ const (
 	jmp opcode = iota
 	jsr
 	ret
-	qtype
-	qtrue
-	qenum
-	qstruct // etc
+	qtru
+	qtyp
 
 	asgc // mem, const
 	asgm // mem, mem

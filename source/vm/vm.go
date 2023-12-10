@@ -50,16 +50,20 @@ loop:
 			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
 		case andb:
 			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool))}
-		case qtype:
+		case qtyp:
 			if vm.mem[args[0]].T == args[1] {
-				loc = loc + 2
-				continue
+				loc = loc + 1
+			} else {
+				loc = args[2]
 			}
-		case qtrue:
+			continue
+		case qtru:
 			if vm.mem[args[0]].V.(bool) {
-				loc = loc + 2
-				continue
+				loc = loc + 1
+			} else {
+				loc = args[1]
 			}
+			continue
 		case jsr:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]

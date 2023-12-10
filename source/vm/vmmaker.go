@@ -30,11 +30,38 @@ func (vmm *VmMaker) Make() {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	// vmm.uP.addToNameSpace([]string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"})
+	// vmm.uP.ParseImports()
+	// if vmm.uP.ErrorsExist() {
+	// 	return newService, init
+	// }
+	// unnamespacedImports := vmm.uP.InitializeNamespacedImportsAndReturnUnnamespacedImports(root, namePath)
+
+	// if vmm.uP.ErrorsExist() {
+	// 	return newService, init
+	// }
+	// vmm.uP.addToNameSpace(unnamespacedImports)
+
 	env := newEnvironment()
 	vmm.createEnums(env)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	vmm.uP.MakeLanguagesAndContacts()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+	vmm.uP.ParseTypeDefs()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+	vmm.uP.ParseEverything()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
 }
 
 // TODO This duplicates the type in the initializer and is therefore terrible.

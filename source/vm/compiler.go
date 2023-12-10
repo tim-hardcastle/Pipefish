@@ -136,8 +136,7 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
 			leftRg := cp.memTop - 1
-			cp.emit(qtrue, leftRg)
-			cp.emit(jmp, cp.codeTop+2)
+			cp.emit(qtru, leftRg, cp.codeTop+2)
 			backtrack := cp.codeTop
 			cp.emit(jmp, MAX_32)
 			rTypes := cp.compileNode(node.Right, false)
@@ -157,16 +156,15 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
 			leftRg := cp.memTop - 1
-			cp.emit(qtrue, leftRg)
 			backtrack := cp.codeTop
-			cp.emit(jmp, MAX_32)
+			cp.emit(qtru, leftRg, MAX_32)
 			rTypes := cp.compileNode(node.Right, false)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
 			rightRg := cp.memTop - 1
-			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.vm.code[backtrack].args[1] = cp.codeTop
 			cp.put(andb, dest, leftRg, rightRg)
 			return []valType{&simpleType{t: BOOL}}
 		}
@@ -180,31 +178,29 @@ func (cp *Compiler) compileNode(node ast.Node, dest bool) typeList {
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
 			leftRg := cp.memTop - 1
-			cp.emit(qtrue, leftRg)
 			backtrack := cp.codeTop
-			cp.emit(jmp, MAX_32)
+			cp.emit(qtru, leftRg, MAX_32)
 			rTypes := cp.compileNode(node.Right, false)
 			cp.put(asgm, dest, cp.memTop-1)
 			if !dest {
 				cp.emit(jmp, cp.codeTop+2)
 			}
-			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.vm.code[backtrack].args[1] = cp.codeTop
 			cp.reput(asgc, dest, C_U_OBJ)
 			return rTypes.union([]valType{&simpleType{t: UNSAT}})
 		}
 		if node.Operator == ";" {
 			lTypes := cp.compileNode(node.Left, false)
 			leftRg := cp.memTop - 1
-			cp.emit(qtype, leftRg, UNSAT)
 			backtrack := cp.codeTop
-			cp.emit(jmp, MAX_32)
+			cp.emit(qtyp, leftRg, UNSAT, MAX_32)
 			rTypes := cp.compileNode(node.Right, false)
 			rightRg := cp.memTop - 1
 			cp.put(asgm, dest, rightRg)
 			if !dest {
 				cp.emit(jmp, cp.codeTop+2)
 			}
-			cp.vm.code[backtrack].args[0] = cp.codeTop
+			cp.vm.code[backtrack].args[2] = cp.codeTop
 			cp.reput(asgm, dest, leftRg)
 			if !(lTypes.contains(UNSAT) && rTypes.contains(UNSAT)) {
 				return lTypes.union(rTypes).without(&simpleType{UNSAT})
