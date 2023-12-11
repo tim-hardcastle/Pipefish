@@ -42,21 +42,21 @@ func (D *Digraph[E]) String() string {
 	return result
 }
 
-func Ordering[E comparable](D Digraph[E]) (*[]E, *[]E) {
+func Ordering[E comparable](D Digraph[E]) ([]E, []E) {
 	result := []E{}
 	for leafnodes := D.StripLeafnodes(); len(leafnodes) > 0; leafnodes = D.StripLeafnodes() {
 		result = append(result, leafnodes.ToSlice()...)
 	}
-	return &result, extractCycle(&D)
+	return result, extractCycle(&D)
 }
 
 // This is just for the Ordering function to use: *IF* the digraph at the end of the
 // Ordering function is non-empty, then it consists of a bunch of cycles, and we can
 // choose one of them to return as proof of this fact.
-func extractCycle[E comparable](D *Digraph[E]) *[]E {
+func extractCycle[E comparable](D *Digraph[E]) []E {
 	start, ok := D.GetArbitraryNode()
 	if !ok {
-		return &[]E{}
+		return []E{}
 	}
 	result := []E{start}
 	for next, ok := ((*D)[start]).GetArbitraryElement(); true; next, ok = ((*D)[next]).GetArbitraryElement() {
@@ -70,7 +70,7 @@ func extractCycle[E comparable](D *Digraph[E]) *[]E {
 		result = append(result, next)
 	}
 
-	return &result
+	return result
 }
 
 // In a digraph D, if we have x in D[y] for some y but x itself is undefined, something has gone

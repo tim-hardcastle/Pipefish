@@ -156,8 +156,8 @@ users of service(srv string) :
 values :
     HubResponse("values", [])
 
-vm(sourcecode string) :
-    HubResponse("vm", [sourcecode])
+vm :
+    HubResponse("vm", [])
 
 where(errorNo int) :
     HubResponse("where", [string errorNo])

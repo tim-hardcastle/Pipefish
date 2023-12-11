@@ -29,13 +29,13 @@ const (
 	C_FALSE = iota
 	C_TRUE
 	C_U_OBJ
-	UB_OF_PREDEFINED_CONSTS
 )
 
 type varAccess int
 
 const (
-	V_PUBLIC varAccess = iota
+	GLOBAL_CONSTANT_PUBLIC varAccess = iota
+	GLOBAL_VARIABLE_PUBLIC
 )
 
 type variable struct {

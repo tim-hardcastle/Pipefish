@@ -12,28 +12,56 @@ type enumOrdinates struct {
 }
 
 type Compiler struct {
-	p           *parser.Parser
-	vm          *Vm
-	memTop      uint32
-	constantTop uint32
-	codeTop     uint32
-	enums       map[string]enumOrdinates
+	p       *parser.Parser
+	vm      *Vm
+	enums   map[string]enumOrdinates
+	gconsts *environment
+	gvars   *environment
+}
+
+func (cp *Compiler) memTop() uint32 {
+	return uint32(len(cp.vm.mem))
+}
+
+func (cp *Compiler) codeTop() uint32 {
+	return uint32(len(cp.vm.code))
 }
 
 const MAX_32 = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
-		p:           p,
-		vm:          blankVm(),
-		memTop:      1,
-		constantTop: UB_OF_PREDEFINED_CONSTS,
-		enums:       make(map[string]enumOrdinates),
+		p:     p,
+		vm:    blankVm(),
+		enums: make(map[string]enumOrdinates),
 	}
 }
 
 func (cp *Compiler) Run() {
 	cp.vm.Run(0)
+}
+
+func (cp *Compiler) GetParser() *parser.Parser {
+	return cp.p
+}
+
+func (cp *Compiler) Do(line string) string {
+	mT := cp.memTop()
+	cT := cp.codeTop()
+	node := cp.p.ParseLine("REPL input", line)
+	if cp.p.ErrorsExist() {
+		return ""
+	}
+	cp.compileNode(node)
+	if cp.p.ErrorsExist() {
+		return ""
+	}
+	cp.emit(ret)
+	cp.vm.Run(cT)
+	result := cp.vm.mem[cp.memTop()-1]
+	cp.vm.mem = cp.vm.mem[:mT]
+	cp.vm.code = cp.vm.code[:cT]
+	return result.describe()
 }
 
 func (cp *Compiler) Compile(source, sourcecode string) {
@@ -42,28 +70,23 @@ func (cp *Compiler) Compile(source, sourcecode string) {
 	node := cp.p.ParseLine(source, sourcecode)
 	cp.compileNode(node)
 	cp.emit(ret)
-	cp.vm.mem = make([]Value, cp.memTop)
 }
 
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
-// the destination is the most recent memory address.
+// the destination is the next free memory address.
 
 func (cp *Compiler) compileNode(node ast.Node) typeList {
 	switch node := node.(type) {
 	case *ast.IntegerLiteral:
-		cp.put(asgc, cp.constantTop)
 		cp.addConstant(INT, node.Value)
 		return []valType{&simpleType{t: INT}}
 	case *ast.StringLiteral:
-		cp.put(asgc, cp.constantTop)
 		cp.addConstant(STRING, node.Value)
 		return []valType{&simpleType{t: STRING}}
 	case *ast.BooleanLiteral:
-		cp.put(asgc, cp.constantTop)
 		cp.addConstant(BOOL, node.Value)
 		return []valType{&simpleType{t: BOOL}}
 	case *ast.FloatLiteral:
-		cp.put(asgc, cp.constantTop)
 		cp.addConstant(FLOAT, node.Value)
 		return []valType{&simpleType{t: FLOAT}}
 	case *ast.InfixExpression:
@@ -73,13 +96,13 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 				cp.p.Throw("comp/eq/err/a", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			leftRg := cp.memTop - 1
+			leftRg := cp.memTop() - 1
 			rTypes := cp.compileNode(node.Args[2])
 			if rTypes.only(ERROR) {
 				cp.p.Throw("comp/eq/err/b", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			rightRg := cp.memTop - 1
+			rightRg := cp.memTop() - 1
 			oL := lTypes.intersect(rTypes)
 			if oL.only(ERROR) {
 				cp.p.Throw("comp/eq/err/c", node.Token)
@@ -116,17 +139,17 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 				cp.p.Throw("comp/or/bool/left", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			leftRg := cp.memTop - 1
-			cp.emit(qtru, leftRg, cp.codeTop+2)
-			backtrack := cp.codeTop
+			leftRg := cp.memTop() - 1
+			cp.emit(qtru, leftRg, cp.codeTop()+2)
+			backtrack := cp.codeTop()
 			cp.emit(jmp, MAX_32)
 			rTypes := cp.compileNode(node.Right)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/right", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			rightRg := cp.memTop - 1
-			cp.vm.code[backtrack].args[0] = cp.codeTop
+			rightRg := cp.memTop() - 1
+			cp.vm.code[backtrack].args[0] = cp.codeTop()
 			cp.put(orb, leftRg, rightRg)
 			return []valType{&simpleType{t: BOOL}}
 		}
@@ -136,16 +159,16 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 				cp.p.Throw("comp/and/bool/left", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			leftRg := cp.memTop - 1
-			backtrack := cp.codeTop
+			leftRg := cp.memTop() - 1
+			backtrack := cp.codeTop()
 			cp.emit(qtru, leftRg, MAX_32)
 			rTypes := cp.compileNode(node.Right)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			rightRg := cp.memTop - 1
-			cp.vm.code[backtrack].args[1] = cp.codeTop
+			rightRg := cp.memTop() - 1
+			cp.vm.code[backtrack].args[1] = cp.codeTop()
 			cp.put(andb, leftRg, rightRg)
 			return []valType{&simpleType{t: BOOL}}
 		}
@@ -158,26 +181,26 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 				cp.p.Throw("comp/cond/bool", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
-			leftRg := cp.memTop - 1
-			backtrack := cp.codeTop
+			leftRg := cp.memTop() - 1
+			backtrack := cp.codeTop()
 			cp.emit(qtru, leftRg, MAX_32)
 			rTypes := cp.compileNode(node.Right)
-			cp.put(asgm, cp.memTop-1)
-			cp.emit(jmp, cp.memTop+2)
-			cp.vm.code[backtrack].args[1] = cp.codeTop
-			cp.reput(asgc, C_U_OBJ)
+			cp.put(asgm, cp.memTop()-1)
+			cp.emit(jmp, cp.memTop()+2)
+			cp.vm.code[backtrack].args[1] = cp.codeTop()
+			cp.reput(asgm, C_U_OBJ)
 			return rTypes.union([]valType{&simpleType{t: UNSAT}})
 		}
 		if node.Operator == ";" {
 			lTypes := cp.compileNode(node.Left)
-			leftRg := cp.memTop - 1
-			backtrack := cp.codeTop
+			leftRg := cp.memTop() - 1
+			backtrack := cp.codeTop()
 			cp.emit(qtyp, leftRg, UNSAT, MAX_32)
 			rTypes := cp.compileNode(node.Right)
-			rightRg := cp.memTop - 1
+			rightRg := cp.memTop() - 1
 			cp.put(asgm, rightRg)
-			cp.emit(jmp, cp.codeTop+2)
-			cp.vm.code[backtrack].args[2] = cp.codeTop
+			cp.emit(jmp, cp.codeTop()+2)
+			cp.vm.code[backtrack].args[2] = cp.codeTop()
 			cp.reput(asgm, leftRg)
 			if !(lTypes.contains(UNSAT) && rTypes.contains(UNSAT)) {
 				return lTypes.union(rTypes).without(&simpleType{UNSAT})
@@ -189,7 +212,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 		if node.Operator == "not" {
 			allTypes := cp.compileNode(node.Args[0])
 			if allTypes.only(BOOL) {
-				cp.put(notb, cp.memTop-1)
+				cp.put(notb, cp.memTop()-1)
 				return []valType{&simpleType{t: BOOL}}
 			}
 			if !allTypes.contains(BOOL) {
@@ -207,28 +230,25 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 
 // Despite their names, addConstant and addVariable do very different things.
 func (cp *Compiler) addConstant(t uint32, v any) {
-	cp.vm.con = append(cp.vm.con, Value{T: t, V: v})
-	cp.constantTop++
+	cp.vm.mem = append(cp.vm.mem, Value{T: t, V: v})
 }
 
 func (cp *Compiler) addVariable(env *environment, name string, val Value, acc varAccess, types typeList) {
-	env.data[name] = variable{mLoc: cp.memTop, access: acc, types: types}
-	cp.memTop++
+	env.data[name] = variable{mLoc: cp.memTop(), access: acc, types: types}
 }
 
 func (cp *Compiler) put(opcode opcode, args ...uint32) {
-	args = append([]uint32{cp.memTop}, args...)
+	args = append([]uint32{cp.memTop()}, args...)
 	cp.emit(opcode, args...)
-	cp.memTop++
+	cp.vm.mem = append(cp.vm.mem, Value{})
 }
 
 func (cp *Compiler) reput(opcode opcode, args ...uint32) {
-	cp.memTop--
-	cp.put(opcode, args...)
+	args = append([]uint32{cp.memTop() - 1}, args...)
+	cp.emit(opcode, args...)
 }
 
 func (cp *Compiler) emit(opcode opcode, args ...uint32) {
 	cp.vm.code = append(cp.vm.code, makeOp(opcode, args...))
-	cp.codeTop++
 	println(describe(cp.vm.code[len(cp.vm.code)-1]))
 }

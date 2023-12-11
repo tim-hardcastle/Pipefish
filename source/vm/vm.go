@@ -4,18 +4,19 @@ type Vm struct {
 	// Temporary state
 	mem       []Value
 	callstack []uint32
+	code      []*operation
 
 	// Permanent state
-	code []*operation
 
-	con       []Value
 	ub_enums  uint32
 	typeNames []string
 	enums     [][]string
 }
 
+var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
+
 func blankVm() *Vm {
-	newVm := &Vm{mem: []Value{{}}, con: []Value{FALSE, TRUE, U_OBJ}}
+	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go.
 	newVm.typeNames = []string{"error", "null", "int", "bool", "string", "float64",
 		"unsatisfied conditional", "type error"}
@@ -32,8 +33,6 @@ loop:
 		case jmp:
 			loc = args[0]
 			continue
-		case asgc:
-			vm.mem[args[0]] = vm.con[args[1]]
 		case asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
 		case equi:

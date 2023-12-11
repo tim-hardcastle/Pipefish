@@ -26,6 +26,10 @@ import (
 	"charm/source/relexer"
 	"charm/source/text"
 	"charm/source/vm"
+
+	//"charm/source/vm"
+
+	"github.com/lmorg/readline"
 )
 
 var (
@@ -672,14 +676,27 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\n")
 		return false
 	case "vm":
-		compiler := vm.NewCompiler(hub.services[hub.currentServiceName].Parser)
-		compiler.Compile("VM test", args[0])
-		if hub.services[hub.currentServiceName].Parser.ErrorsExist() {
-			hub.GetAndReportErrors(hub.services[hub.currentServiceName].Parser)
-			hub.services[hub.currentServiceName].Parser.ClearErrors()
-			return false
+		vmm := vm.NewVmMaker("", "", hub.Db)
+		vmm.Make()
+		compiler := vmm.GetCompiler()
+		rline := readline.NewInstance()
+		rline.SetPrompt("vm >> ")
+		for {
+			line, _ := rline.Readline()
+			if line == "quit" {
+				break
+			}
+			if len(line) >= 4 && line[0:4] == "run " {
+				continue
+			}
+			output := compiler.Do(line)
+			if compiler.GetParser().ErrorsExist() {
+				hub.GetAndReportErrors(compiler.GetParser())
+				compiler.GetParser().ClearErrors()
+				continue
+			}
+			hub.WriteString(output)
 		}
-		compiler.Run()
 		return false
 	case "where":
 		num, err := strconv.Atoi(args[0])

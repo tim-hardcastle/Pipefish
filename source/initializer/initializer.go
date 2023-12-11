@@ -651,15 +651,15 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	env.InitializeConstant("errorMessage", &object.Label{Value: "errorMessage"})
 	env.InitializeConstant("errorCode", &object.Label{Value: "errorCode"})
 	// Initialize the user-declared constants and variables
-	for declarations := constantDeclaration; declarations <= variableDeclaration; declarations++ {
-		assignmentOrder := uP.returnOrderOfAssignments(declarations)
-		for k := range *assignmentOrder {
+	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
+		assignmentOrder := uP.ReturnOrderOfAssignments(declarations)
+		for k := range assignmentOrder {
 			result := evaluator.Evaluate(uP.Parser.ParsedDeclarations[declarations][k], evaluator.NewContext(uP.Parser, env, evaluator.INIT, false))
 			if result.Type() == object.ERROR_OBJ {
 				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
 			}
 		}
-		if declarations == constantDeclaration {
+		if declarations == int(constantDeclaration) {
 			// We copy the constants to the global constants map.
 			for k, v := range env.Store {
 				uP.Parser.GlobalConstants.Store[k] = v
@@ -743,7 +743,7 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 	return unnamespacedImports
 }
 
-func (uP *Initializer) returnOrderOfAssignments(declarations declarationType) *[]int {
+func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 
 	D := digraph.Digraph[int]{}
 	// I build the map and the digraph.

@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"charm/source/ast"
 	"charm/source/initializer"
 	"charm/source/token"
 
@@ -25,6 +26,10 @@ func NewVmMaker(scriptFilepath, sourcecode string, db *sql.DB) *VmMaker {
 	return vmm
 }
 
+func (vmm *VmMaker) GetCompiler() *Compiler {
+	return vmm.cp
+}
+
 func (vmm *VmMaker) Make() {
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
@@ -43,8 +48,7 @@ func (vmm *VmMaker) Make() {
 	// }
 	// vmm.uP.addToNameSpace(unnamespacedImports)
 
-	env := newEnvironment()
-	vmm.createEnums(env)
+	vmm.createEnums()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -61,6 +65,8 @@ func (vmm *VmMaker) Make() {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	vmm.evaluateConstantsAndVariables()
 
 }
 
@@ -85,7 +91,7 @@ const (
 
 // On the one hand, the vm must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
-func (vmm *VmMaker) createEnums(env *environment) {
+func (vmm *VmMaker) createEnums() {
 	for chunk := 0; chunk < len(vmm.uP.Parser.TokenizedDeclarations[enumDeclaration]); chunk++ {
 		vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].ToStart()
 		tok1 := vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
@@ -103,10 +109,6 @@ func (vmm *VmMaker) createEnums(env *environment) {
 			if tok.Type != token.IDENT {
 				vmm.uP.Throw("init/enum/ident", tok)
 			}
-			// TODO --- needs different check now.
-			// if env.exists(tok.Literal) {
-			// 	vmm.uP.Throw("init/enum/free", tok)
-			// }
 			vmm.cp.enums[tok.Literal] = enumOrdinates{uint32(chunk) + LB_ENUMS, len(vmm.cp.vm.enums[chunk])}
 			vmm.cp.vm.enums[chunk] = append(vmm.cp.vm.enums[chunk], tok.Literal)
 
@@ -116,6 +118,35 @@ func (vmm *VmMaker) createEnums(env *environment) {
 			}
 			tok = vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
 			vmm.uP.Parser.Suffixes.Add(tok1.Literal)
+		}
+	}
+}
+
+func (vmm *VmMaker) evaluateConstantsAndVariables() {
+	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
+		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
+		for _, v := range assignmentOrder {
+			dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
+			print(dec.String())
+			lhs := dec.(*ast.AssignmentExpression).Left
+			rhs := dec.(*ast.AssignmentExpression).Right
+			if lhs.GetToken().Type != token.IDENT { // TODO --- use assignment signature once tuples are working.
+				vmm.uP.Throw("vmm/assign/ident", dec.GetToken())
+			}
+			vname := lhs.(*ast.Identifier).Value
+			runFrom := vmm.cp.codeTop()
+			inferedType := vmm.cp.compileNode(rhs)
+			if vmm.uP.ErrorsExist() {
+				return
+			}
+			vmm.cp.emit(ret)
+			vmm.cp.vm.Run(runFrom)
+			result := vmm.cp.vm.mem[vmm.cp.memTop()-1]
+			if declarations == int(constantDeclaration) {
+				vmm.cp.addVariable(vmm.cp.gconsts, vname, result, GLOBAL_CONSTANT_PUBLIC, inferedType)
+			} else {
+				vmm.cp.addVariable(vmm.cp.gvars, vname, result, GLOBAL_VARIABLE_PUBLIC, inferedType)
+			}
 		}
 	}
 }

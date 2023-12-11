@@ -38,8 +38,6 @@ func describe(op *operation) string {
 	switch op.opcode {
 	case andb:
 		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case asgc:
-		return "asgc" + op.ppMem(0) + LA + op.ppConst(1)
 	case asgm:
 		return "asgm" + op.ppMem(0) + LA + op.ppMem(1)
 	case equb:
@@ -77,10 +75,9 @@ const (
 	qtru
 	qtyp
 
-	asgc // mem, const
-	asgm // mem, mem
+	asgm
 
-	cmp // mem, mem
+	cmp
 
 	andb
 	orb
