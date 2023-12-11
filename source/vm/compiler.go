@@ -103,47 +103,15 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) typeList {
 		return []valType{&simpleType{t: FLOAT}}
 	case *ast.InfixExpression:
 		if node.Operator == "==" {
-			lTypes := cp.compileNode(node.Args[0], env)
-			if lTypes.only(ERROR) {
-				cp.p.Throw("comp/eq/err/a", node.Token)
-				return []valType{&simpleType{t: TYPE_ERROR}}
-			}
-			leftRg := cp.memTop() - 1
-			rTypes := cp.compileNode(node.Args[2], env)
-			if rTypes.only(ERROR) {
-				cp.p.Throw("comp/eq/err/b", node.Token)
-				return []valType{&simpleType{t: TYPE_ERROR}}
-			}
-			rightRg := cp.memTop() - 1
-			oL := lTypes.intersect(rTypes)
-			if oL.only(ERROR) {
-				cp.p.Throw("comp/eq/err/c", node.Token)
-				return []valType{&simpleType{t: TYPE_ERROR}}
-			}
-			if len(oL) == 0 {
-				cp.p.Throw("comp/eq/types", node.Token)
-				return []valType{&simpleType{t: TYPE_ERROR}}
-			}
-			if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
-				switch oL[0].concreteType() {
-				case INT:
-					cp.put(equi, leftRg, rightRg)
-				case STRING:
-					cp.put(equs, leftRg, rightRg)
-				case BOOL:
-					cp.put(equb, leftRg, rightRg)
-				case FLOAT:
-					cp.put(equf, leftRg, rightRg)
-				default:
-					panic("Unimplemented comparison type.")
-				}
-				return []valType{&simpleType{t: BOOL}}
-			} else {
-				panic("Haven't implemented this bit because of having no way to test it at this point.")
-			}
-		} else {
-			panic("Unimplemented infix.")
+			return cp.emitEquals(node, env)
 		}
+		if node.Operator == "!=" {
+			types := cp.emitEquals(node, env)
+			cp.put(notb, cp.memTop()-1)
+			return types
+		}
+		cp.p.Throw("comp/infix", node.Token)
+		return []valType{&simpleType{t: TYPE_ERROR}}
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
 			lTypes := cp.compileNode(node.Left, env)
@@ -274,5 +242,46 @@ func (cp *Compiler) emit(opcode opcode, args ...uint32) {
 	cp.vm.code = append(cp.vm.code, makeOp(opcode, args...))
 	if SHOW_COMPILE {
 		println(describe(cp.vm.code[len(cp.vm.code)-1]))
+	}
+}
+
+func (cp *Compiler) emitEquals(node *ast.InfixExpression, env *environment) typeList {
+	lTypes := cp.compileNode(node.Args[0], env)
+	if lTypes.only(ERROR) {
+		cp.p.Throw("comp/eq/err/a", node.Token)
+		return []valType{&simpleType{t: TYPE_ERROR}}
+	}
+	leftRg := cp.memTop() - 1
+	rTypes := cp.compileNode(node.Args[2], env)
+	if rTypes.only(ERROR) {
+		cp.p.Throw("comp/eq/err/b", node.Token)
+		return []valType{&simpleType{t: TYPE_ERROR}}
+	}
+	rightRg := cp.memTop() - 1
+	oL := lTypes.intersect(rTypes)
+	if oL.only(ERROR) {
+		cp.p.Throw("comp/eq/err/c", node.Token)
+		return []valType{&simpleType{t: TYPE_ERROR}}
+	}
+	if len(oL) == 0 {
+		cp.p.Throw("comp/eq/types", node.Token)
+		return []valType{&simpleType{t: TYPE_ERROR}}
+	}
+	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
+		switch oL[0].concreteType() {
+		case INT:
+			cp.put(equi, leftRg, rightRg)
+		case STRING:
+			cp.put(equs, leftRg, rightRg)
+		case BOOL:
+			cp.put(equb, leftRg, rightRg)
+		case FLOAT:
+			cp.put(equf, leftRg, rightRg)
+		default:
+			panic("Unimplemented comparison type.")
+		}
+		return []valType{&simpleType{t: BOOL}}
+	} else {
+		panic("Haven't implemented this bit because of having no way to test it at this point.")
 	}
 }
