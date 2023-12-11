@@ -1,5 +1,10 @@
 package vm
 
+import (
+	"strconv"
+	"strings"
+)
+
 type Vm struct {
 	// Temporary state
 	mem       []Value
@@ -23,11 +28,23 @@ func blankVm() *Vm {
 	return newVm
 }
 
+func (vm *Vm) describe(loc uint32) string {
+	prefix := "@" + strconv.Itoa(int(loc)) + " : "
+	spaces := strings.Repeat(" ", 6-len(prefix))
+	return spaces + prefix + describe(vm.code[loc])
+}
+
+const SHOW_RUN = true
+
 func (vm *Vm) Run(loc uint32) {
-	print("\nRunning:\n\n")
+	if SHOW_RUN {
+		print("\nRunning:\n\n")
+	}
 loop:
 	for {
-		println(describe(vm.code[loc]))
+		if SHOW_RUN {
+			println(vm.describe(loc))
+		}
 		args := vm.code[loc].args
 		switch vm.code[loc].opcode {
 		case jmp:
@@ -80,5 +97,7 @@ loop:
 		}
 		loc++
 	}
-	print("\nOutput : " + vm.mem[len(vm.mem)-1].describe() + "\n\n")
+	if SHOW_RUN {
+		println()
+	}
 }

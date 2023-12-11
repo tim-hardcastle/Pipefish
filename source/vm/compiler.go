@@ -45,6 +45,8 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
 
+const SHOW_BYTECODE = true
+
 func (cp *Compiler) Do(line string) string {
 	mT := cp.memTop()
 	cT := cp.codeTop()
@@ -57,6 +59,12 @@ func (cp *Compiler) Do(line string) string {
 		return ""
 	}
 	cp.emit(ret)
+	if SHOW_BYTECODE {
+		print("\nBytecode:\n\n")
+		for i := cT; i < cp.codeTop(); i++ {
+			println(cp.vm.describe(i))
+		}
+	}
 	cp.vm.Run(cT)
 	result := cp.vm.mem[cp.memTop()-1]
 	cp.vm.mem = cp.vm.mem[:mT]
@@ -65,7 +73,9 @@ func (cp *Compiler) Do(line string) string {
 }
 
 func (cp *Compiler) Compile(source, sourcecode string) {
-	print("\nCompiling :\n\n")
+	if SHOW_COMPILE {
+		print("\nCompiling\n\n")
+	}
 	cp.vm = blankVm()
 	node := cp.p.ParseLine(source, sourcecode)
 	cp.compileNode(node)
@@ -186,7 +196,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 			cp.emit(qtru, leftRg, MAX_32)
 			rTypes := cp.compileNode(node.Right)
 			cp.put(asgm, cp.memTop()-1)
-			cp.emit(jmp, cp.memTop()+2)
+			cp.emit(jmp, cp.codeTop()+2)
 			cp.vm.code[backtrack].args[1] = cp.codeTop()
 			cp.reput(asgm, C_U_OBJ)
 			return rTypes.union([]valType{&simpleType{t: UNSAT}})
@@ -248,7 +258,11 @@ func (cp *Compiler) reput(opcode opcode, args ...uint32) {
 	cp.emit(opcode, args...)
 }
 
+const SHOW_COMPILE = false
+
 func (cp *Compiler) emit(opcode opcode, args ...uint32) {
 	cp.vm.code = append(cp.vm.code, makeOp(opcode, args...))
-	println(describe(cp.vm.code[len(cp.vm.code)-1]))
+	if SHOW_COMPILE {
+		println(describe(cp.vm.code[len(cp.vm.code)-1]))
+	}
 }
