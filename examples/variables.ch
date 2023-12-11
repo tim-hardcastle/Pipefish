@@ -1,7 +1,7 @@
 var
 
 h = "Hello world!"
-x = 2 + 2
+x = 4hu
 
 def
 

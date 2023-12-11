@@ -123,11 +123,11 @@ func (vmm *VmMaker) createEnums() {
 }
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
+	vmm.cp.gvars.ext = vmm.cp.gconsts
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {
 			dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
-			print(dec.String())
 			lhs := dec.(*ast.AssignmentExpression).Left
 			rhs := dec.(*ast.AssignmentExpression).Right
 			if lhs.GetToken().Type != token.IDENT { // TODO --- use assignment signature once tuples are working.
@@ -135,7 +135,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := vmm.cp.codeTop()
-			inferedType := vmm.cp.compileNode(rhs)
+			inferedType := vmm.cp.compileNode(rhs, vmm.cp.gvars)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
@@ -147,6 +147,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			} else {
 				vmm.cp.addVariable(vmm.cp.gvars, vname, result, GLOBAL_VARIABLE_PUBLIC, inferedType)
 			}
+			vmm.cp.vm.code = vmm.cp.vm.code[:runFrom]
 		}
 	}
 }

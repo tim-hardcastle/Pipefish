@@ -53,9 +53,15 @@ func newEnvironment() *environment {
 	return &environment{data: make(map[string]variable), ext: nil}
 }
 
-func (env *environment) exists(name string) bool {
-	_, ok := env.data[name]
-	return ok
+func (env *environment) getVar(name string) (*variable, bool) {
+	if env == nil {
+		return nil, false
+	}
+	v, ok := env.data[name]
+	if ok {
+		return &v, true
+	}
+	return env.ext.getVar(name)
 }
 
 // For taliking about inferred types. Lists of valTypes are to be kept in numerical order.

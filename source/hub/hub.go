@@ -686,7 +686,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			if line == "quit" {
 				break
 			}
-			if len(line) >= 4 && line[0:4] == "run " {
+			if len(line) >= 4 && line[:4] == "run " {
+				filename := line[4:]
+				sourcecode, _ := os.ReadFile(filename)
+				vmm := vm.NewVmMaker(filename, string(sourcecode), hub.Db)
+				vmm.Make()
+				compiler = vmm.GetCompiler()
 				continue
 			}
 			output := compiler.Do(line)

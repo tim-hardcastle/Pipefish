@@ -31,9 +31,11 @@ const MAX_32 = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
-		p:     p,
-		vm:    blankVm(),
-		enums: make(map[string]enumOrdinates),
+		p:       p,
+		vm:      blankVm(),
+		enums:   make(map[string]enumOrdinates),
+		gconsts: newEnvironment(),
+		gvars:   newEnvironment(),
 	}
 }
 
@@ -54,7 +56,7 @@ func (cp *Compiler) Do(line string) string {
 	if cp.p.ErrorsExist() {
 		return ""
 	}
-	cp.compileNode(node)
+	cp.compileNode(node, cp.gvars)
 	if cp.p.ErrorsExist() {
 		return ""
 	}
@@ -78,14 +80,14 @@ func (cp *Compiler) Compile(source, sourcecode string) {
 	}
 	cp.vm = blankVm()
 	node := cp.p.ParseLine(source, sourcecode)
-	cp.compileNode(node)
+	cp.compileNode(node, cp.gvars)
 	cp.emit(ret)
 }
 
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
 // the destination is the next free memory address.
 
-func (cp *Compiler) compileNode(node ast.Node) typeList {
+func (cp *Compiler) compileNode(node ast.Node, env *environment) typeList {
 	switch node := node.(type) {
 	case *ast.IntegerLiteral:
 		cp.addConstant(INT, node.Value)
@@ -101,13 +103,13 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 		return []valType{&simpleType{t: FLOAT}}
 	case *ast.InfixExpression:
 		if node.Operator == "==" {
-			lTypes := cp.compileNode(node.Args[0])
+			lTypes := cp.compileNode(node.Args[0], env)
 			if lTypes.only(ERROR) {
 				cp.p.Throw("comp/eq/err/a", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
 			}
 			leftRg := cp.memTop() - 1
-			rTypes := cp.compileNode(node.Args[2])
+			rTypes := cp.compileNode(node.Args[2], env)
 			if rTypes.only(ERROR) {
 				cp.p.Throw("comp/eq/err/b", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
@@ -144,7 +146,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 		}
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
-			lTypes := cp.compileNode(node.Left)
+			lTypes := cp.compileNode(node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/left", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
@@ -153,7 +155,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 			cp.emit(qtru, leftRg, cp.codeTop()+2)
 			backtrack := cp.codeTop()
 			cp.emit(jmp, MAX_32)
-			rTypes := cp.compileNode(node.Right)
+			rTypes := cp.compileNode(node.Right, env)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/right", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
@@ -164,7 +166,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 			return []valType{&simpleType{t: BOOL}}
 		}
 		if node.Operator == "and" {
-			lTypes := cp.compileNode(node.Left)
+			lTypes := cp.compileNode(node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/left", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
@@ -172,7 +174,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 			leftRg := cp.memTop() - 1
 			backtrack := cp.codeTop()
 			cp.emit(qtru, leftRg, MAX_32)
-			rTypes := cp.compileNode(node.Right)
+			rTypes := cp.compileNode(node.Right, env)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
@@ -184,9 +186,9 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 		}
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
-				return cp.compileNode(node.Right)
+				return cp.compileNode(node.Right, env)
 			}
-			lTypes := cp.compileNode(node.Left)
+			lTypes := cp.compileNode(node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/cond/bool", node.Token)
 				return []valType{&simpleType{t: TYPE_ERROR}}
@@ -194,7 +196,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 			leftRg := cp.memTop() - 1
 			backtrack := cp.codeTop()
 			cp.emit(qtru, leftRg, MAX_32)
-			rTypes := cp.compileNode(node.Right)
+			rTypes := cp.compileNode(node.Right, env)
 			cp.put(asgm, cp.memTop()-1)
 			cp.emit(jmp, cp.codeTop()+2)
 			cp.vm.code[backtrack].args[1] = cp.codeTop()
@@ -202,11 +204,11 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 			return rTypes.union([]valType{&simpleType{t: UNSAT}})
 		}
 		if node.Operator == ";" {
-			lTypes := cp.compileNode(node.Left)
+			lTypes := cp.compileNode(node.Left, env)
 			leftRg := cp.memTop() - 1
 			backtrack := cp.codeTop()
 			cp.emit(qtyp, leftRg, UNSAT, MAX_32)
-			rTypes := cp.compileNode(node.Right)
+			rTypes := cp.compileNode(node.Right, env)
 			rightRg := cp.memTop() - 1
 			cp.put(asgm, rightRg)
 			cp.emit(jmp, cp.codeTop()+2)
@@ -220,7 +222,7 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 		panic("Unimplemented lazy infix.")
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
-			allTypes := cp.compileNode(node.Args[0])
+			allTypes := cp.compileNode(node.Args[0], env)
 			if allTypes.only(BOOL) {
 				cp.put(notb, cp.memTop()-1)
 				return []valType{&simpleType{t: BOOL}}
@@ -233,6 +235,14 @@ func (cp *Compiler) compileNode(node ast.Node) typeList {
 		} else {
 			panic("Unimplemented prefix.")
 		}
+	case *ast.Identifier:
+		v, ok := env.getVar(node.Value)
+		if ok {
+			cp.put(asgm, v.mLoc)
+			return v.types
+		}
+		cp.p.Throw("comp/ident/known", node.Token)
+		return []valType{&simpleType{t: TYPE_ERROR}}
 	default:
 		panic("Unimplemented node type.")
 	}
@@ -244,7 +254,7 @@ func (cp *Compiler) addConstant(t uint32, v any) {
 }
 
 func (cp *Compiler) addVariable(env *environment, name string, val Value, acc varAccess, types typeList) {
-	env.data[name] = variable{mLoc: cp.memTop(), access: acc, types: types}
+	env.data[name] = variable{mLoc: cp.memTop() - 1, access: acc, types: types}
 }
 
 func (cp *Compiler) put(opcode opcode, args ...uint32) {
