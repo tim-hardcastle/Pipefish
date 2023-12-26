@@ -432,6 +432,7 @@ type Function = struct {
 	Given   Node
 	Cmd     bool
 	Private bool
+	Number  uint32
 }
 
 type FnTreeNode struct {

@@ -3,6 +3,7 @@ package vm
 import (
 	"charm/source/ast"
 	"charm/source/initializer"
+	"charm/source/parser"
 	"charm/source/token"
 
 	"database/sql"
@@ -11,9 +12,13 @@ import (
 // Just as the initializer directs the tokenizer and the parser in the construction of the parsed code
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vm.
 
+// Hence the initalizer contains all the state which is not needed by the compiler (e.g. the function table),
+// and the compiler contains the state needed at compile time but not at runtime.
+
 type VmMaker struct {
-	cp *Compiler
-	uP *initializer.Initializer
+	cp             *Compiler
+	uP             *initializer.Initializer
+	scriptFilepath string
 }
 
 func NewVmMaker(scriptFilepath, sourcecode string, db *sql.DB) *VmMaker {
@@ -22,6 +27,7 @@ func NewVmMaker(scriptFilepath, sourcecode string, db *sql.DB) *VmMaker {
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
 	}
+	vmm.scriptFilepath = scriptFilepath
 	vmm.uP.GetSource(scriptFilepath)
 	return vmm
 }
@@ -66,8 +72,41 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 
+	// An intermediate step that groups the functions by name and orders them by specificity.
+	vmm.uP.MakeFunctions(vmm.scriptFilepath)
+	// Now we turn this into a different data structure, a decision tree with its branches labeled
+	// with types. Following it tells us which version of an overloaded function to use.
+	vmm.uP.MakeFunctionTrees()
+	// And we compile them in what is mainly a couple of loops wrapping around the aptly-named
+	// .compileFunction method.
+	vmm.compileFunctions()
+	// NOTE: There's some unDRYness here --- e.g. we use .ExtractPartsOfFunction twice --- but that can
+	// be desposed of when we strip out the evaluator.
+
+	// Finally we can evaluate the constants and variables, which needs the full resources of the language
+	// first because the RHS of the assignment can be any expression.
+	// NOTE: is this even going to work any more? You also need to use the types of the variables/consts.
+	// So it all needs to be thrown into a dependency digraph and sorted.
 	vmm.evaluateConstantsAndVariables()
 
+}
+
+func (vmm *VmMaker) compileFunctions() {
+	total := 0
+	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
+		total = total + len(vmm.cp.p.ParsedDeclarations[j])
+	}
+	vmm.cp.fns = make([]*cpFunc, total)
+
+	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
+		c := 0
+		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
+			if vmm.cp.fns[c] == nil { // This is so that if some functions are built recursively we won't waste our time.
+				vmm.compileFunction(vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
+			}
+			c++
+		}
+	}
 }
 
 // TODO This duplicates the type in the initializer and is therefore terrible.
@@ -109,7 +148,7 @@ func (vmm *VmMaker) createEnums() {
 			if tok.Type != token.IDENT {
 				vmm.uP.Throw("init/enum/ident", tok)
 			}
-			vmm.cp.enums[tok.Literal] = enumOrdinates{uint32(chunk) + LB_ENUMS, len(vmm.cp.vm.enums[chunk])}
+			vmm.cp.enums[tok.Literal] = enumOrdinates{simpleType(chunk) + LB_ENUMS, len(vmm.cp.vm.enums[chunk])}
 			vmm.cp.vm.enums[chunk] = append(vmm.cp.vm.enums[chunk], tok.Literal)
 
 			tok = vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
@@ -120,6 +159,49 @@ func (vmm *VmMaker) createEnums() {
 			vmm.uP.Parser.Suffixes.Add(tok1.Literal)
 		}
 	}
+}
+
+func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int) *cpFunc {
+	cpF := cpFunc{}
+	functionName, sig, _, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
+	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
+		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
+	}
+	if vmm.uP.Parser.ErrorsExist() {
+		return nil
+	}
+	fnenv := newEnvironment()
+	fnenv.ext = outerEnv
+	// First the thunks in the given block.
+	if given != nil {
+		vmm.cp.thunkList = []thunk{}
+		vmm.cp.compileNode(given, fnenv)
+		for _, pair := range vmm.cp.thunkList {
+			vmm.cp.emit(thnk, pair.mLoc, pair.cLoc)
+		}
+	}
+	cpF.loReg = vmm.cp.memTop()
+	for _, pair := range sig {
+		if pair.VarType == "bling" {
+			continue
+		}
+		vmm.cp.addVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, TYPE_TO_TYPELIST[pair.VarType])
+	}
+	cpF.hiReg = vmm.cp.memTop()
+	cpF.callTo = vmm.cp.codeTop()
+	cpF.types = vmm.cp.compileNode(body, fnenv)
+	vmm.cp.emit(ret)
+	cpF.outReg = vmm.cp.memTop() - 1
+	vmm.cp.fns = append(vmm.cp.fns, &cpF)
+	return &cpF
+}
+
+var TYPE_TO_TYPELIST map[string]alternateType = map[string]alternateType{
+	"int":     simpleList(INT),
+	"string":  simpleList(STRING),
+	"bool":    simpleList(BOOL),
+	"float64": simpleList(FLOAT),
+	"error":   simpleList(ERROR),
 }
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
@@ -141,11 +223,10 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			}
 			vmm.cp.emit(ret)
 			vmm.cp.vm.Run(runFrom)
-			result := vmm.cp.vm.mem[vmm.cp.memTop()-1]
 			if declarations == int(constantDeclaration) {
-				vmm.cp.addVariable(vmm.cp.gconsts, vname, result, GLOBAL_CONSTANT_PUBLIC, inferedType)
+				vmm.cp.addVariable(vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
 			} else {
-				vmm.cp.addVariable(vmm.cp.gvars, vname, result, GLOBAL_VARIABLE_PUBLIC, inferedType)
+				vmm.cp.addVariable(vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
 			}
 			vmm.cp.vm.code = vmm.cp.vm.code[:runFrom]
 		}

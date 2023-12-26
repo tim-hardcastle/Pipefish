@@ -2,20 +2,25 @@ package vm
 
 import "strconv"
 
-const ( // Cross-reference with typeNames in
-	ERROR uint32 = iota // Some code may depend on the order of early elements.
+const ( // Cross-reference with typeNames in blankVm()
+	ERROR simpleType = iota // Some code may depend on the order of early elements.
 	NULL
 	INT
 	BOOL
 	STRING
 	FLOAT
 	UNSAT
+	THUNK
+	TUPLE
+	ARGUMENTS
+	CREATED_LOCAL_CONSTANT
 	TYPE_ERROR
+	COMPILATION_ERROR
 	LB_ENUMS // I.e the first of the enums.
 )
 
 type Value struct {
-	T uint32 // Which is clearly too many, but it's nice to have all operands be uint32
+	T simpleType
 	V any
 }
 
@@ -36,12 +41,14 @@ type varAccess int
 const (
 	GLOBAL_CONSTANT_PUBLIC varAccess = iota
 	GLOBAL_VARIABLE_PUBLIC
+	FUNCTION_ARGUMENT
+	LOCAL_CONSTANT_THUNK
 )
 
 type variable struct {
 	mLoc   uint32
 	access varAccess
-	types  typeList
+	types  alternateType
 }
 
 type environment struct {
@@ -64,16 +71,25 @@ func (env *environment) getVar(name string) (*variable, bool) {
 	return env.ext.getVar(name)
 }
 
-// For taliking about inferred types. Lists of valTypes are to be kept in numerical order.
 type valType interface {
-	concreteType() uint32
 	compare(u valType) int
 }
 
-type typeList []valType
+type simpleType uint32
 
-func (vL typeList) intersect(wL typeList) typeList {
-	x := typeList{}
+func (t simpleType) compare(u valType) int {
+	switch u := u.(type) {
+	case *simpleType:
+		return int(t - *u)
+	default:
+		return -1
+	}
+}
+
+type alternateType []valType
+
+func (vL alternateType) intersect(wL alternateType) alternateType {
+	x := alternateType{}
 	var vix, wix int
 	for vix < len(vL) && wix < len(wL) {
 		comp := vL[vix].compare(wL[wix])
@@ -92,8 +108,8 @@ func (vL typeList) intersect(wL typeList) typeList {
 	return x
 }
 
-func (vL typeList) union(wL typeList) typeList {
-	x := typeList{}
+func (vL alternateType) union(wL alternateType) alternateType {
+	x := alternateType{}
 	var vix, wix int
 	for vix < len(vL) || wix < len(wL) {
 		if vix == len(vL) {
@@ -124,8 +140,8 @@ func (vL typeList) union(wL typeList) typeList {
 	return x
 }
 
-func (vL typeList) without(t valType) typeList {
-	x := typeList{}
+func (vL alternateType) without(t valType) alternateType {
+	x := alternateType{}
 	for _, v := range vL {
 		if v.compare(t) != 0 {
 			x = append(x, v)
@@ -134,34 +150,89 @@ func (vL typeList) without(t valType) typeList {
 	return x
 }
 
-func (typeList typeList) only(t uint32) bool {
-	return len(typeList) == 1 && typeList[0].concreteType() == t
-}
-
-func (typeList typeList) contains(t uint32) bool {
-	for _, ty := range typeList {
-		if ty.concreteType() == t {
-			return true
+func (alternateType alternateType) only(t simpleType) bool {
+	if len(alternateType) == 1 {
+		switch el := alternateType[0].(type) {
+		case *simpleType:
+			return *el == t
+		default:
+			return false
 		}
 	}
 	return false
 }
 
-type simpleType struct {
-	t uint32
+func (alternateType alternateType) contains(t simpleType) bool {
+	for _, ty := range alternateType {
+		switch el := ty.(type) {
+		case *simpleType:
+			return (*el) == t
+		}
+	}
+	return false
 }
 
-func (t *simpleType) concreteType() uint32 {
-	return t.t
-}
-
-func (t *simpleType) compare(u valType) int {
+func (t alternateType) compare(u valType) int {
 	switch u := u.(type) {
 	case *simpleType:
-		return int(t.t - u.t)
+		return 1
+	case *alternateType:
+		diff := len(t) - len(*u)
+		if diff != 0 {
+			return diff
+		}
+		for i := 0; i < len(t); i++ {
+			diff := (t)[i].compare((*u)[i])
+			if diff != 0 {
+				return diff
+			}
+		}
+		return 0
 	default:
 		return -1
 	}
+}
+
+type finiteTupleType []valType // "Finite" meaning that we know its size at compile time.
+
+func (t finiteTupleType) compare(u valType) int {
+	switch u := u.(type) {
+	case *simpleType, *alternateType:
+		return 1
+	case *finiteTupleType:
+		diff := len(t) - len(*u)
+		if diff != 0 {
+			return diff
+		}
+		for i := 0; i < len(t); i++ {
+			diff := (t)[i].compare((*u)[i])
+			if diff != 0 {
+				return diff
+			}
+		}
+		return 0
+	default:
+		return -1
+	}
+}
+
+type typedTupleType struct { // We don't know how long it is but we know what its elements are. (or we can say 'single' if we don't.)
+	t valType
+}
+
+func (t typedTupleType) compare(u valType) int {
+	switch u := u.(type) {
+	case *simpleType, *finiteTupleType:
+		return 1
+	case *typedTupleType:
+		return t.t.compare(u.t)
+	default:
+		return -1
+	}
+}
+
+func simpleList(t simpleType) alternateType {
+	return alternateType{&t}
 }
 
 func (v *Value) describe() string {
@@ -182,6 +253,8 @@ func (v *Value) describe() string {
 		return "unsatisfied conditional"
 	case NULL:
 		return "null"
+	case THUNK:
+		return "thunk"
 	}
 
 	panic("can't describe value")

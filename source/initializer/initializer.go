@@ -644,8 +644,8 @@ func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName 
 	if uP.ErrorsExist() {
 		return
 	}
-	uP.makeFunctions(sourceName)
-	uP.makeFunctionTrees()
+	uP.MakeFunctions(sourceName)
+	uP.MakeFunctionTrees()
 	env.InitializeConstant("NULL", object.NULL)
 	env.InitializeConstant("ok", object.SUCCESS)
 	env.InitializeConstant("errorMessage", &object.Label{Value: "errorMessage"})
@@ -772,9 +772,10 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
-func (uP *Initializer) makeFunctions(sourceName string) {
+func (uP *Initializer) MakeFunctions(sourceName string) {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := evaluator.NewGoHandler(uP.Parser)
+	c := 0
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
@@ -787,7 +788,9 @@ func (uP *Initializer) makeFunctions(sourceName string) {
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
 					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
-					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
+					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration,
+					Number:  uint32(c)})
+			c++
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)
 			}
@@ -846,7 +849,7 @@ func flatten(s string) string {
 // In order to handle dispatch at runtime, we will re-represent this as a tree. This will apart
 // from anything else be rather faster. It also allows us to perform dispatch by evaluating one
 // argument of the function at a time.
-func (uP *Initializer) makeFunctionTrees() {
+func (uP *Initializer) MakeFunctionTrees() {
 	uP.Parser.FunctionTreeMap = map[string]*ast.FnTreeNode{}
 	for k, v := range uP.Parser.FunctionTable {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}

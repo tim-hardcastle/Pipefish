@@ -24,14 +24,41 @@ func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go.
 	newVm.typeNames = []string{"error", "null", "int", "bool", "string", "float64",
-		"unsatisfied conditional", "type error"}
+		"unsatisfied conditional", "thunk", "tuple", "arguments", "type error"}
 	return newVm
 }
 
-func (vm *Vm) describe(loc uint32) string {
+func (vm *Vm) describeCode(loc uint32) string {
 	prefix := "@" + strconv.Itoa(int(loc)) + " : "
 	spaces := strings.Repeat(" ", 6-len(prefix))
 	return spaces + prefix + describe(vm.code[loc])
+}
+
+func (vm *Vm) describeType(t valType) string {
+	switch t := t.(type) {
+	case *simpleType:
+		return vm.typeNames[*t]
+	case *alternateType:
+		if len(*t) == 0 {
+			return "∅"
+		}
+		tList := []string{}
+		for _, v := range *t {
+			tList = append(tList, vm.describeType(v))
+		}
+		return strings.Join(tList, "/")
+	case *finiteTupleType:
+		tList := []string{}
+		for _, v := range *t {
+			tList = append(tList, vm.describeType(v))
+		}
+		return "tuple with ()" + strings.Join(tList, ", ") + ")"
+	case *typedTupleType:
+		return "tuple of (" + vm.describeType(t.t) + ")"
+	case nil:
+		return "nil"
+	}
+	panic("unimplemented type")
 }
 
 const SHOW_RUN = true
@@ -43,7 +70,7 @@ func (vm *Vm) Run(loc uint32) {
 loop:
 	for {
 		if SHOW_RUN {
-			println(vm.describe(loc))
+			println(vm.describeCode(loc))
 		}
 		args := vm.code[loc].args
 		switch vm.code[loc].opcode {
@@ -52,6 +79,21 @@ loop:
 			continue
 		case asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
+		case call:
+			offset := args[1] - 3
+			for i := args[1]; i < args[2]; i++ {
+				vm.mem[i] = vm.mem[args[i-offset]]
+			}
+			vm.callstack = append(vm.callstack, loc)
+			loc = args[0]
+			continue
+		case apnT:
+			sliceIs := vm.mem[args[0]].V.([]Value)
+			if vm.mem[args[1]].T == TUPLE {
+				sliceIs = append(sliceIs, vm.mem[args[1]].V.([]Value)...)
+			} else {
+				sliceIs = append(sliceIs, vm.mem[args[1]])
+			}
 		case equi:
 			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
 		case equs:
@@ -67,7 +109,7 @@ loop:
 		case andb:
 			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool))}
 		case qtyp:
-			if vm.mem[args[0]].T == args[1] {
+			if vm.mem[args[0]].T == simpleType(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]
@@ -80,6 +122,15 @@ loop:
 				loc = args[1]
 			}
 			continue
+		case thnk:
+			vm.mem[args[0]].T = THUNK
+			vm.mem[args[0]].V = args[1]
+		case untk:
+			if (vm.mem[args[0]].T) == THUNK {
+				vm.callstack = append(vm.callstack, loc)
+				loc = vm.mem[args[0]].V.(uint32)
+				continue
+			}
 		case jsr:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]

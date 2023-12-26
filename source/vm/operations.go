@@ -13,6 +13,10 @@ type operation struct {
 
 type opcode uint8
 
+func (op *operation) ppFunc(i int) string {
+	return " f" + strconv.Itoa(int(op.args[i]))
+}
+
 func (op *operation) ppLoc(i int) string {
 	return " @" + strconv.Itoa(int(op.args[i]))
 }
@@ -21,15 +25,12 @@ func (op *operation) ppMem(i int) string {
 	return " m" + strconv.Itoa(int(op.args[i]))
 }
 
-func (op *operation) ppConst(i int) string {
-	return " c" + strconv.Itoa(int(op.args[i]))
-}
-
 func (op *operation) ppType(i int) string {
 	return " t" + strconv.Itoa(int(op.args[i]))
 }
 
 const LA = " <-"
+const FN = " <- func"
 const TP = " is"
 const CM = ","
 const LS = " else"
@@ -38,6 +39,8 @@ func describe(op *operation) string {
 	switch op.opcode {
 	case andb:
 		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case apnT:
+		return "apnT" + op.ppMem(0) + LA + op.ppMem(1)
 	case asgm:
 		return "asgm" + op.ppMem(0) + LA + op.ppMem(1)
 	case equb:
@@ -48,6 +51,13 @@ func describe(op *operation) string {
 		return "equi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case equs:
 		return "equs" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case call:
+		result := "call " + op.ppLoc(1) + op.ppMem(2) + " ::" + op.ppMem(3) + " ("
+		for i := 4; i < len(op.args); i++ {
+			result = result + op.ppMem(i)
+		}
+		result = result + " )"
+		return result
 	case halt:
 		return "halt"
 	case jmp:
@@ -64,25 +74,34 @@ func describe(op *operation) string {
 		return "qtyp" + op.ppMem(0) + TP + op.ppType(1) + LS + op.ppLoc(2)
 	case ret:
 		return "ret "
+	case thnk:
+		return "thnk" + op.ppMem(0) + LA + op.ppLoc(1)
+	case untk:
+		return "untk" + op.ppMem(0)
 	}
 	return "indescribable thing"
 }
 
 const (
 	jmp opcode = iota
-	jsr
 	ret
 	qtru
 	qtyp
-
 	asgm
+	thnk
+	untk
+	call
+	apnT
 
-	cmp
+	halt // do we use these?
+	jsr
 
 	andb
 	orb
 	notb
 	equb
+
+	cmp
 
 	addi
 	subi
@@ -122,6 +141,4 @@ const (
 	keysS
 	resolveS // S, field
 	getS     // S, key number
-
-	halt
 )
