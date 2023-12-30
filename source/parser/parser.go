@@ -171,13 +171,13 @@ func New() *Parser {
 		Unfixes:           make(set.Set[string]),
 		AllFunctionIdents: make(set.Set[string]),
 		Bling:             make(set.Set[string]),
-		nativeInfixes: *set.MakeFromSlice([]token.TokenType{
+		nativeInfixes: set.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER,
 			token.NAMESPACE, token.IFLOG}),
-		lazyInfixes: *set.MakeFromSlice([]token.TokenType{token.AND,
+		lazyInfixes: set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:   make(FunctionTable),
 		FunctionTreeMap: make(map[string]*ast.FnTreeNode),
@@ -201,7 +201,7 @@ func New() *Parser {
 
 	p.Infixes.Add("varchar")
 
-	p.Functions.AddSet(*set.MakeFromSlice([]string{"builtin"}))
+	p.Functions.AddSet(set.MakeFromSlice([]string{"builtin"}))
 
 	// The parser adds constructors for structs to the builtins and so must keep its own
 	// collection of them.
@@ -259,10 +259,10 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 	return expn
 }
 
-var literals = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
-var literalsAndLParen = *set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
+var literals = set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
+var literalsAndLParen = set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
 	token.LPAREN, token.LBRACE, token.EVAL})
-var assignmentTokens = *set.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN,
+var assignmentTokens = set.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN,
 	token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
 
 func (p *Parser) parseExpression(precedence int) ast.Node {

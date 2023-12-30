@@ -146,7 +146,7 @@ func (D *Digraph[E]) ArrowsTo(e E) *set.Set[E] {
 }
 
 func (D *Digraph[E]) Add(node E, neighbors []E) {
-	s := *set.MakeFromSlice(neighbors)
+	s := set.MakeFromSlice(neighbors)
 	(*D)[node] = s
 }
 

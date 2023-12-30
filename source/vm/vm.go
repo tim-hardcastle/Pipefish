@@ -34,26 +34,26 @@ func (vm *Vm) describeCode(loc uint32) string {
 	return spaces + prefix + describe(vm.code[loc])
 }
 
-func (vm *Vm) describeType(t valType) string {
+func (vm *Vm) describeType(t typeScheme) string {
 	switch t := t.(type) {
-	case *simpleType:
-		return vm.typeNames[*t]
-	case *alternateType:
-		if len(*t) == 0 {
+	case simpleType:
+		return vm.typeNames[t]
+	case alternateType:
+		if len(t) == 0 {
 			return "∅"
 		}
 		tList := []string{}
-		for _, v := range *t {
+		for _, v := range t {
 			tList = append(tList, vm.describeType(v))
 		}
 		return strings.Join(tList, "/")
-	case *finiteTupleType:
+	case finiteTupleType:
 		tList := []string{}
-		for _, v := range *t {
+		for _, v := range t {
 			tList = append(tList, vm.describeType(v))
 		}
 		return "tuple with ()" + strings.Join(tList, ", ") + ")"
-	case *typedTupleType:
+	case typedTupleType:
 		return "tuple of (" + vm.describeType(t.t) + ")"
 	case nil:
 		return "nil"

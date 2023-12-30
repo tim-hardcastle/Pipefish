@@ -355,7 +355,7 @@ func (cp *Compiler) handleSimpleType(t simpleType, b *bindle) alternateType {
 			if branch.TypeName == "tuple" {
 				newBindle.tupleTime = true
 			}
-			return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
+			return cp.handleNewArgument(&newBindle) // The argNo was increased when we compiled the argument.
 		}
 	}
 	cp.reserve(ERROR, nil)
@@ -380,8 +380,8 @@ func (cp *Compiler) handleAlternateType(t alternateType, b *bindle) alternateTyp
 			if branch.TypeName == "tuple" {
 				newBindle.tupleTime = true
 			}
-			return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
-		} else { // Then this branch covers some but not all of the aleternatives. We will emit an if statement.
+			return cp.handleNewArgument(&newBindle) // The argNo was increased when we compiled the argument.
+		} else { // Then this branch covers some but not all of the alternatives. We will emit an if statement.
 
 		}
 
@@ -396,7 +396,16 @@ func (cp *Compiler) handleFiniteTupleType(t finiteTupleType, b *bindle, ix int) 
 		// This can't be bling anywhere: an "argument" which evaluates to a bling "value" is necessarily a singleType.
 		return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
 	}
-
+	if len(t) == 0 { // Passing an empty tuple should dispatch on the tuple type, if there is a tuple branch.
+		if b.treePosition.Branch[len(b.treePosition.Branch)-1].TypeName == "tuple" { // This should always be at the bottom of the branches as the least specific option.
+			newBindle := *b
+			newBindle.treePosition = b.treePosition.Branch[len(b.treePosition.Branch)-1].Node
+			newBindle.tupleTime = true
+			return cp.handleNewArgument(&newBindle)
+		} // If there isn't a tuple branch then there's nothing to do: we carry on.
+		return cp.handleNewArgument(b)
+	}
+	return nil
 }
 
 func (cp *Compiler) handleTypedTupleType(t typedTupleType, b *bindle, ix int) alternateType {
@@ -404,6 +413,7 @@ func (cp *Compiler) handleTypedTupleType(t typedTupleType, b *bindle, ix int) al
 		// This can't be bling, which can only appear in type signatures but not truly be concatenated into a tuple.
 		return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
 	}
+	return nil
 }
 
 const SHOW_COMPILE = false
