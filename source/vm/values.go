@@ -117,9 +117,15 @@ func lengths(t typeScheme) set.Set[int] {
 }
 
 // This very similar function finds all the possible ix-th elements in a typeScheme.
+
+func typesAtIndex(t typeScheme, ix int) alternateType {
+	result, _ := recursiveTypesAtIndex(t, ix)
+	return result
+}
+
 // TODO: This is somewhat wasteful because there ought to be some sensible way to fix it so the algorithm uses data from computing this for
 // i - 1. But let's get the VM working first and optimise the compiler later.
-func typesAtIndex(t typeScheme, ix int) (alternateType, set.Set[int]) {
+func recursiveTypesAtIndex(t typeScheme, ix int) (alternateType, set.Set[int]) {
 	resultTypes := alternateType{}
 	resultSet := make(set.Set[int])
 	switch t := t.(type) {
@@ -135,7 +141,7 @@ func typesAtIndex(t typeScheme, ix int) (alternateType, set.Set[int]) {
 		return resultTypes, resultSet
 	case alternateType:
 		for _, v := range t {
-			newTypes, newSet := typesAtIndex(v, ix)
+			newTypes, newSet := recursiveTypesAtIndex(v, ix)
 			resultTypes = resultTypes.union(newTypes)
 			resultSet.AddSet(newSet)
 		}
@@ -144,9 +150,9 @@ func typesAtIndex(t typeScheme, ix int) (alternateType, set.Set[int]) {
 		if len(t) == 0 {
 			return resultTypes, resultSet
 		}
-		resultTypes, resultSet = typesAtIndex(t[0], ix)
+		resultTypes, resultSet = recursiveTypesAtIndex(t[0], ix)
 		for jx := range resultSet {
-			newTypes, newSet := typesAtIndex(t[1:], ix-jx)
+			newTypes, newSet := recursiveTypesAtIndex(t[1:], ix-jx)
 			resultTypes = resultTypes.union(newTypes)
 			resultSet.AddSet(newSet)
 		}

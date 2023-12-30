@@ -19,14 +19,14 @@ import (
 	"charm/source/hub"
 	"charm/source/repl"
 	"charm/source/text"
-	"charm/source/vm"
+	// "charm/source/vm"
 )
 
 func main() {
 
 	fmt.Print(text.Logo())
 
-	vm.DoIt()
+	// vm.DoIt()
 
 	hub := hub.New(os.Stdin, os.Stdout)
 	hub.Open()

@@ -81,7 +81,7 @@ loop:
 		case asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
 		case call:
-			offset := args[1] - 3
+			offset := args[1]
 			for i := args[1]; i < args[2]; i++ {
 				vm.mem[i] = vm.mem[args[i-offset]]
 			}

@@ -120,8 +120,9 @@ func (cp *Compiler) Compile(source, sourcecode string) {
 	cp.emit(ret)
 }
 
-func (cp *Compiler) reserve(t simpleType, v any) {
+func (cp *Compiler) reserve(t simpleType, v any) uint32 {
 	cp.vm.mem = append(cp.vm.mem, Value{T: t, V: v})
+	return uint32(len(cp.vm.mem) - 1)
 }
 
 func (cp *Compiler) addVariable(env *environment, name string, acc varAccess, types alternateType) {
@@ -285,135 +286,77 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 }
 
 func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environment) alternateType {
-	cp.reserve(ARGUMENTS, make([]Value, 0, 8))
-	cp.reserve(ERROR, DUMMY)
 	b := &bindle{tok: node.Token,
 		treePosition: cp.p.FunctionTreeMap[node.Operator],
-		argNo:        0,
-		valuesToPass: cp.that() - 1,
-		args:         node.Args,
-		outVal:       cp.that(),
+		outLoc:       cp.reserve(ERROR, DUMMY),
 		env:          env,
+		valLocs:      make([]uint32, len(node.Args)),
+		types:        make(finiteTupleType, len(node.Args)),
 	}
-	types := cp.handleNewArgument(b)
-	return types
+	for i, arg := range node.Args {
+		b.types[i] = cp.compileNode(arg, env)
+		b.valLocs[i] = cp.that()
+	}
+	returnTypes := cp.handleNewArgument(b)
+	return returnTypes
 }
 
 type bindle struct {
-	tok          token.Token
-	treePosition *ast.FnTreeNode
-	argNo        int
-	valuesToPass uint32
-	args         []ast.Node
-	outVal       uint32
-	env          *environment
-	tupleTime    bool // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
+	treePosition *ast.FnTreeNode // Our position on the function tree.
+	branchNo     int             // The number of the branch in the function tree.
+	argNo        int             // The number of the argument we're looking at.
+	index        int             // The index we're looking at in the argument we're looking at.
+	targetList   alternateType   // The possible types associated with this tree position.
+	doneList     alternateType   // The types we've looked at up to and including those of the current branchNo.
+	valLocs      []uint32        // The locations of the values evaluated from the arguments.
+	types        finiteTupleType // The types of the values.
+	outLoc       uint32          // Where we're going to put the output.
+	env          *environment    // Associates variable names with memory locations
+	tupleTime    bool            // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
+	tok          token.Token     // For generating errors.
 }
 
 func (cp *Compiler) handleNewArgument(b *bindle) alternateType {
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
-	if b.argNo >= len(b.args) {
+	if b.argNo >= len(b.types) {
 		cp.seekFunctionCall(b)
 	}
-	// Case (2) : We aren't yet at the end of the list of arguments. We can evaluate the argument ...
-	currentArg := b.args[b.argNo]
-	types := cp.compileNode(currentArg, b.env)
-	if types.only(ERROR) {
-		cp.p.Throw("comp/arg.error", b.tok)
-		return simpleList(TYPE_ERROR)
-	}
-	// ... and add the result to the list of arguments.
-	cp.emit(apnT, b.valuesToPass, cp.that())
+	// Case (2) : We aren't yet at the end of the list of arguments.
 	newBindle := *b
-	newBindle.argNo++
-	return cp.handleAlternateType(types, &newBindle) // compileNode always returns an alternateType
+	newBindle.index = 0
+	return cp.generateFromTopBranchDown(b)
+}
+
+func (cp *Compiler) generateFromTopBranchDown(b *bindle) alternateType {
+	newBindle := *b
+	newBindle.branchNo = 0
+	newBindle.targetList = typesAtIndex(b.types[b.argNo], b.index)
+	newBindle.doneList = make(alternateType, 0, len(b.targetList))
+	return cp.generateConditionalOnBranchNumber(&newBindle)
+}
+
+// We look at the current branch and see if its type can account for some, all, or none of the possibilities in the targetList.
+// If the answer is "all", we can recurse on the next argument.
+// If "none", then we can recurse on the next branch down.
+// If "some", then we must generate a conditional where it recurses on the next argument for the types accepted by the branch
+// and on the next branch for the unaccepted types.
+// It may also be the run-off-the-end branch number, in which case we can generate an error.
+func (cp *Compiler) generateConditionalOnBranchNumber(b *bindle) alternateType {
+
 }
 
 func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
 	for _, branch := range b.treePosition.Branch { // TODO --- this is a pretty vile hack; it would make sense for it to always be at the top.}
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
-			cp.putFunctionCall(fNo, b.valuesToPass)
-			cp.emit(asgm, b.outVal, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
+			cp.putFunctionCall(fNo, b.valLocs)
+			cp.emit(asgm, b.outLoc, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
 			return cp.fns[fNo].types
 		}
 	}
 	cp.reserve(ERROR, DUMMY)
-	cp.emit(asgm, b.outVal, cp.that())
+	cp.emit(asgm, b.outLoc, cp.that())
 	return simpleList(TYPE_ERROR)
-}
-
-func (cp *Compiler) handleSimpleType(t simpleType, b *bindle) alternateType {
-	if b.tupleTime {
-		// Handling bling goes here when we handle bling.
-		return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
-	}
-	for _, branch := range b.treePosition.Branch {
-		if TYPE_TO_TYPELIST[branch.TypeName].contains(t) {
-			newBindle := *b
-			newBindle.treePosition = branch.Node
-			if branch.TypeName == "tuple" {
-				newBindle.tupleTime = true
-			}
-			return cp.handleNewArgument(&newBindle) // The argNo was increased when we compiled the argument.
-		}
-	}
-	cp.reserve(ERROR, nil)
-	cp.emit(asgm, b.outVal, cp.that())
-	return simpleList(TYPE_ERROR)
-}
-
-func (cp *Compiler) handleAlternateType(t alternateType, b *bindle) alternateType {
-	if b.tupleTime {
-		// Handling bling goes here when we handle bling. (At this point we could be looking at a bling "value" wrapped in a singleton alternativeType.)
-		return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
-	}
-	for _, branch := range b.treePosition.Branch {
-		overlap := TYPE_TO_TYPELIST[branch.TypeName].intersect(t)
-		if len(overlap) == 0 { // Then this branch has no possibility of success.
-			continue
-		}
-		remainder := t.without(overlap)
-		if len(remainder) == 0 { // Then this branch of the tree covers all the alternatives.
-			newBindle := *b
-			newBindle.treePosition = branch.Node
-			if branch.TypeName == "tuple" {
-				newBindle.tupleTime = true
-			}
-			return cp.handleNewArgument(&newBindle) // The argNo was increased when we compiled the argument.
-		} else { // Then this branch covers some but not all of the alternatives. We will emit an if statement.
-
-		}
-
-	}
-	cp.reserve(ERROR, nil)
-	cp.emit(asgm, b.outVal, cp.that())
-	return simpleList(TYPE_ERROR)
-}
-
-func (cp *Compiler) handleFiniteTupleType(t finiteTupleType, b *bindle, ix int) alternateType {
-	if b.tupleTime {
-		// This can't be bling anywhere: an "argument" which evaluates to a bling "value" is necessarily a singleType.
-		return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
-	}
-	if len(t) == 0 { // Passing an empty tuple should dispatch on the tuple type, if there is a tuple branch.
-		if b.treePosition.Branch[len(b.treePosition.Branch)-1].TypeName == "tuple" { // This should always be at the bottom of the branches as the least specific option.
-			newBindle := *b
-			newBindle.treePosition = b.treePosition.Branch[len(b.treePosition.Branch)-1].Node
-			newBindle.tupleTime = true
-			return cp.handleNewArgument(&newBindle)
-		} // If there isn't a tuple branch then there's nothing to do: we carry on.
-		return cp.handleNewArgument(b)
-	}
-	return nil
-}
-
-func (cp *Compiler) handleTypedTupleType(t typedTupleType, b *bindle, ix int) alternateType {
-	if b.tupleTime {
-		// This can't be bling, which can only appear in type signatures but not truly be concatenated into a tuple.
-		return cp.handleNewArgument(b) // The argNo was increased when we compiled the argument.
-	}
-	return nil
 }
 
 const SHOW_COMPILE = false
@@ -439,13 +382,15 @@ func (cp *Compiler) reput(opcode opcode, args ...uint32) {
 	cp.emit(opcode, args...)
 }
 
-func (cp *Compiler) putFunctionCall(funcNumber uint32, vals uint32) {
-	cp.emit(call, cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, vals)
+func (cp *Compiler) putFunctionCall(funcNumber uint32, valLocs []uint32) {
+	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
+	cp.emit(call, args...)
 	cp.put(asgm, cp.fns[funcNumber].outReg)
 }
 
-func (cp *Compiler) emitFunctionCall(dest, funcNumber uint32, vals uint32) {
-	cp.emit(call, cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, vals)
+func (cp *Compiler) emitFunctionCall(dest, funcNumber uint32, valLocs []uint32) {
+	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
+	cp.emit(call, args...)
 	cp.emit(asgm, dest, cp.fns[funcNumber].outReg)
 }
 
