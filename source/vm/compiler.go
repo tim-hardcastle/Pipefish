@@ -472,10 +472,9 @@ func (cp *Compiler) emitEquals(node *ast.InfixExpression, env *environment) alte
 		return simpleList(TYPE_ERROR)
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
-		println("type is", cp.vm.describeType(oL[0]))
 		switch el := oL[0].(type) {
-		case *simpleType:
-			switch *el {
+		case simpleType:
+			switch el {
 			case INT:
 				cp.put(equi, leftRg, rightRg)
 			case STRING:

@@ -35,6 +35,9 @@ func (vm *Vm) describeCode(loc uint32) string {
 }
 
 func (vm *Vm) describeType(t typeScheme) string {
+	if t == nil {
+		return "nil"
+	}
 	switch t := t.(type) {
 	case simpleType:
 		return vm.typeNames[t]
@@ -55,8 +58,6 @@ func (vm *Vm) describeType(t typeScheme) string {
 		return "tuple with ()" + strings.Join(tList, ", ") + ")"
 	case typedTupleType:
 		return "tuple of (" + vm.describeType(t.t) + ")"
-	case nil:
-		return "nil"
 	}
 	panic("unimplemented type")
 }

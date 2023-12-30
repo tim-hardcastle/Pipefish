@@ -312,7 +312,7 @@ func (t typedTupleType) compare(u typeScheme) int {
 }
 
 func simpleList(t simpleType) alternateType {
-	return alternateType{&t}
+	return alternateType{t}
 }
 
 func (v *Value) describe() string {
