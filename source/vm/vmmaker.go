@@ -185,7 +185,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 		if pair.VarType == "bling" {
 			continue
 		}
-		vmm.cp.addVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, TYPE_TO_TYPELIST[pair.VarType])
+		vmm.cp.addVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
 	}
 	cpF.hiReg = vmm.cp.memTop()
 	cpF.callTo = vmm.cp.codeTop()
@@ -194,14 +194,6 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 	cpF.outReg = vmm.cp.memTop() - 1
 	vmm.cp.fns = append(vmm.cp.fns, &cpF)
 	return &cpF
-}
-
-var TYPE_TO_TYPELIST map[string]alternateType = map[string]alternateType{
-	"int":     simpleList(INT),
-	"string":  simpleList(STRING),
-	"bool":    simpleList(BOOL),
-	"float64": simpleList(FLOAT),
-	"error":   simpleList(ERROR),
 }
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {

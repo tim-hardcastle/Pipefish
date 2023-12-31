@@ -27,14 +27,15 @@ type typeNodePair struct {
 }
 
 type Compiler struct {
-	p              *parser.Parser
-	vm             *Vm
-	enums          map[string]enumOrdinates
-	gconsts        *environment
-	gvars          *environment
-	fns            []*cpFunc
-	thunkList      []thunk
-	functionForest map[string]*fnTreeNode
+	p                  *parser.Parser
+	vm                 *Vm
+	enums              map[string]enumOrdinates
+	gconsts            *environment
+	gvars              *environment
+	fns                []*cpFunc
+	thunkList          []thunk
+	functionForest     map[string]*fnTreeNode
+	typeNameToTypeList map[string]alternateType
 }
 
 type cpFunc struct {
@@ -72,6 +73,14 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		gvars:     newEnvironment(),
 		thunkList: []thunk{},
 		fns:       []*cpFunc{},
+		typeNameToTypeList: map[string]alternateType{
+			"int":     simpleList(INT),
+			"string":  simpleList(STRING),
+			"bool":    simpleList(BOOL),
+			"float64": simpleList(FLOAT),
+			"error":   simpleList(ERROR),
+			"single":  alternateType{INT, BOOL, STRING, FLOAT},
+		},
 	}
 }
 
@@ -341,8 +350,107 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) alternateType {
 // If "some", then we must generate a conditional where it recurses on the next argument for the types accepted by the branch
 // and on the next branch for the unaccepted types.
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
-func (cp *Compiler) generateConditionalOnBranchNumber(b *bindle) alternateType {
+func (cp *Compiler) generateBranch(b *bindle) alternateType {
+	typeError := cp.reserve(ERROR, DUMMY)
+	if b.tupleTime { // We can move on to the next argument.
+		newBindle := *b
+		newBindle.argNo++
+		return cp.handleNewArgument(&newBindle)
+	}
+	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
+		cp.emit(asgm, b.outLoc, typeError)
+		return simpleList(ERROR)
+	}
+	branch := b.treePosition.Branch[b.branchNo]
+	acceptedTypes := cp.typeNameToTypeList[branch.TypeName]
+	overlap := acceptedTypes.intersect(b.targetList)
+	if len(overlap) == 0 { // We drew a blank.
+		return cp.generateNextBranchDown(b)
+	}
+	// If we've got this far, the current branch accepts at least some of our types. Now we need to do conditionals based on
+	// whether this is some or all. But to generate the conditional we also need to know whether we might be looking at a mix of
+	// single values and of 0th elements of tuples.
+	newBindle := *b
+	newBindle.doneList = newBindle.doneList.union(overlap)
+	acceptedSingleTypes := make(alternateType, 0, len(overlap))
+	if newBindle.index == 0 {
+		for _, t := range overlap {
+			switch t := t.(type) {
+			case simpleType:
+				acceptedSingleTypes = append(acceptedSingleTypes, t)
+			}
+		}
+	}
+	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve single values,
+	// whereas the length of doneList tells us whether we need to recurse on the next branch or not.
 
+	needsOtherBranch := len(newBindle.doneList) != len(newBindle.targetList)
+	branchBacktrack := cp.codeTop()
+	if needsOtherBranch {
+		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
+		switch len(acceptedSingleTypes) {
+		case 0:
+			cp.put(idxT, b.valLocs[b.argNo], uint32(b.index))
+			cp.emitTypeComparison(branch.TypeName, cp.that(), DUMMY)
+		case len(overlap):
+			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
+		default:
+			cp.emit(qsng, b.valLocs[b.argNo], cp.codeTop()+3)
+			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
+			cp.emit(jmp, cp.codeTop()+3)
+			cp.put(idxT, b.valLocs[b.argNo], uint32(b.index))
+			cp.emitTypeComparison(branch.TypeName, cp.that(), DUMMY)
+		}
+	}
+	// Now we're in the 'if' part of the 'if-else'. We can recurse along the branch.
+	// If we know whether we're looking at a single or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
+	typesFromGoingAcross := alternateType{}
+	typesFromGoingDown := alternateType{}
+	switch len(acceptedSingleTypes) {
+	case 0:
+		typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+	case len(overlap):
+		typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+	default:
+		backtrack := cp.codeTop()
+		cp.emit(qsng, b.valLocs[b.argNo], DUMMY)
+		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+		cp.emit(jmp, DUMMY)
+		cp.vm.code[backtrack].args[2] = cp.codeTop()
+		backtrack = cp.codeTop()
+		typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+		cp.vm.code[backtrack].args[1] = cp.codeTop()
+		typesFromGoingAcross = typesFromSingles.union(typesFromTuples)
+	}
+	// And now we need to do the 'else' branch if there is one.
+	if needsOtherBranch {
+		elseBacktrack := cp.codeTop()
+		cp.emit(jmp, DUMMY) // The last part of the 'if' branch: jumps over the 'else'.
+		// We need to backtrack on whatever conditional we generated.
+		switch len(acceptedSingleTypes) {
+		case 0:
+			cp.vm.code[branchBacktrack+1].args[1] = cp.codeTop()
+		case len(overlap):
+			cp.vm.code[branchBacktrack].args[1] = cp.codeTop()
+		default:
+			cp.vm.code[branchBacktrack+1].args[1] = cp.codeTop()
+			cp.vm.code[branchBacktrack+4].args[1] = cp.codeTop()
+		}
+		// We recurse on the next branch down.
+		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
+		cp.vm.code[elseBacktrack].args[1] = cp.codeTop()
+	}
+
+	return typesFromGoingAcross.union(typesFromGoingDown)
+}
+
+func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) alternateType {
+}
+
+func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) alternateType {
+}
+
+func (cp *Compiler) generateNextBranchDown(b *bindle) alternateType {
 }
 
 func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
