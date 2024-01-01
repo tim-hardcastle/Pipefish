@@ -309,6 +309,7 @@ func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environm
 	}
 
 	returnTypes := cp.handleNewArgument(b)
+	cp.put(asgm, b.outLoc)
 	return returnTypes
 }
 
@@ -332,7 +333,7 @@ type bindle struct {
 func (cp *Compiler) handleNewArgument(b *bindle) alternateType {
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
 	if b.argNo >= len(b.types) {
-		cp.seekFunctionCall(b)
+		return cp.seekFunctionCall(b)
 	}
 	// Case (2) : We aren't yet at the end of the list of arguments.
 	newBindle := *b
@@ -516,7 +517,7 @@ func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) alternateTy
 func (cp *Compiler) generateNextBranchDown(b *bindle) alternateType {
 	newBindle := *b
 	newBindle.branchNo++
-	return cp.handleNewArgument(&newBindle)
+	return cp.generateBranch(&newBindle)
 }
 
 func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
@@ -528,8 +529,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
 			return cp.fns[fNo].types
 		}
 	}
-	cp.reserve(ERROR, DUMMY)
-	cp.emit(asgm, b.outLoc, cp.that())
+	cp.emit(asgm, b.outLoc, cp.reserve(ERROR, DUMMY))
 	return simpleList(TYPE_ERROR)
 }
 
@@ -559,7 +559,6 @@ func (cp *Compiler) reput(opcode opcode, args ...uint32) {
 func (cp *Compiler) putFunctionCall(funcNumber uint32, valLocs []uint32) {
 	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
 	cp.emit(call, args...)
-	cp.put(asgm, cp.fns[funcNumber].outReg)
 }
 
 func (cp *Compiler) emitFunctionCall(dest, funcNumber uint32, valLocs []uint32) {

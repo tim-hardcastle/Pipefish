@@ -12,7 +12,7 @@ import (
 // Just as the initializer directs the tokenizer and the parser in the construction of the parsed code
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vm.
 
-// Hence the initalizer contains all the state which is not needed by the compiler (e.g. the function table),
+// Hence the vmMaker contains all the state which is not needed by the compiler (e.g. the function table),
 // and the compiler contains the state needed at compile time but not at runtime.
 
 type VmMaker struct {
@@ -37,6 +37,7 @@ func (vmm *VmMaker) GetCompiler() *Compiler {
 }
 
 func (vmm *VmMaker) Make() {
+
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -63,10 +64,12 @@ func (vmm *VmMaker) Make() {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
 	vmm.uP.ParseTypeDefs()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
 	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -74,12 +77,21 @@ func (vmm *VmMaker) Make() {
 
 	// An intermediate step that groups the functions by name and orders them by specificity.
 	vmm.uP.MakeFunctions(vmm.scriptFilepath)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 	// Now we turn this into a different data structure, a decision tree with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
 	vmm.uP.MakeFunctionTrees()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 	// And we compile them in what is mainly a couple of loops wrapping around the aptly-named
 	// .compileFunction method.
 	vmm.compileFunctions()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 	// NOTE: There's some unDRYness here --- e.g. we use .ExtractPartsOfFunction twice --- but that can
 	// be desposed of when we strip out the evaluator.
 
@@ -88,7 +100,9 @@ func (vmm *VmMaker) Make() {
 	// NOTE: is this even going to work any more? You also need to use the types of the variables/consts.
 	// So it all needs to be thrown into a dependency digraph and sorted.
 	vmm.evaluateConstantsAndVariables()
-
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 }
 
 func (vmm *VmMaker) compileFunctions() {
@@ -98,8 +112,8 @@ func (vmm *VmMaker) compileFunctions() {
 	}
 	vmm.cp.fns = make([]*cpFunc, total)
 
+	c := 0
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
-		c := 0
 		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
 			if vmm.cp.fns[c] == nil { // This is so that if some functions are built recursively we won't waste our time.
 				vmm.compileFunction(vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
@@ -185,14 +199,15 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 		if pair.VarType == "bling" {
 			continue
 		}
+		vmm.cp.reserve(ERROR, DUMMY)
 		vmm.cp.addVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
 	}
 	cpF.hiReg = vmm.cp.memTop()
 	cpF.callTo = vmm.cp.codeTop()
 	cpF.types = vmm.cp.compileNode(body, fnenv)
 	vmm.cp.emit(ret)
-	cpF.outReg = vmm.cp.memTop() - 1
-	vmm.cp.fns = append(vmm.cp.fns, &cpF)
+	cpF.outReg = vmm.cp.that()
+	vmm.cp.fns[ix] = &cpF
 	return &cpF
 }
 

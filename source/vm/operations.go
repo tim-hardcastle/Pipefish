@@ -13,10 +13,6 @@ type operation struct {
 
 type opcode uint8
 
-func (op *operation) ppFunc(i int) string {
-	return " f" + strconv.Itoa(int(op.args[i]))
-}
-
 func (op *operation) ppLoc(i int) string {
 	return " @" + strconv.Itoa(int(op.args[i]))
 }
@@ -56,8 +52,8 @@ func describe(op *operation) string {
 	case equs:
 		return "equs" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case call:
-		result := "call " + op.ppLoc(1) + op.ppMem(2) + " ::" + op.ppMem(3) + " ("
-		for i := 4; i < len(op.args); i++ {
+		result := "call" + op.ppLoc(0) + op.ppMem(1) + " ::" + op.ppMem(2) + " ("
+		for i := 3; i < len(op.args); i++ {
 			result = result + op.ppMem(i)
 		}
 		result = result + " )"

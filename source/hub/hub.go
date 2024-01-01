@@ -679,12 +679,17 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		vmm := vm.NewVmMaker("", "", hub.Db)
 		vmm.Make()
 		compiler := vmm.GetCompiler()
+		if compiler.GetParser().ErrorsExist() {
+			hub.GetAndReportErrors(compiler.GetParser())
+			compiler.GetParser().ClearErrors()
+			return false
+		}
 		rline := readline.NewInstance()
 		rline.SetPrompt("vm >> ")
 		for {
 			line, _ := rline.Readline()
 			if line == "quit" {
-				break
+				return true
 			}
 			if len(line) >= 4 && line[:4] == "run " {
 				filename := line[4:]
@@ -692,6 +697,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				vmm := vm.NewVmMaker(filename, string(sourcecode)+"\n", hub.Db)
 				vmm.Make()
 				compiler = vmm.GetCompiler()
+				if compiler.GetParser().ErrorsExist() {
+					hub.GetAndReportErrors(compiler.GetParser())
+					compiler.GetParser().ClearErrors()
+				}
 				continue
 			}
 			output := compiler.Do(line)
