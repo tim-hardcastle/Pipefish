@@ -250,8 +250,8 @@ func (vL alternateType) without(t typeScheme) alternateType {
 func (alternateType alternateType) only(t simpleType) bool {
 	if len(alternateType) == 1 {
 		switch el := alternateType[0].(type) {
-		case *simpleType:
-			return *el == t
+		case simpleType:
+			return el == t
 		default:
 			return false
 		}
@@ -262,8 +262,8 @@ func (alternateType alternateType) only(t simpleType) bool {
 func (alternateType alternateType) contains(t simpleType) bool {
 	for _, ty := range alternateType {
 		switch el := ty.(type) {
-		case *simpleType:
-			return (*el) == t
+		case simpleType:
+			return (el) == t
 		}
 	}
 	return false
