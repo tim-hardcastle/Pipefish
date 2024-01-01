@@ -23,8 +23,8 @@ var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
 func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go.
-	newVm.typeNames = []string{"error", "null", "int", "bool", "string", "float64",
-		"unsatisfied conditional", "thunk", "tuple", "arguments", "type error"}
+	newVm.typeNames = []string{"thunk", "created local constant", "type error", "compilation error", "tuple", "error", "unsat", "null",
+		"int", "bool", "string", "float64"}
 	return newVm
 }
 
@@ -95,6 +95,8 @@ loop:
 			} else {
 				sliceIs = append(sliceIs, vm.mem[args[1]])
 			}
+		case idxT:
+			vm.mem[args[0]] = vm.mem[args[1]].V.([]Value)[args[2]]
 		case equi:
 			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
 		case equs:
@@ -116,6 +118,20 @@ loop:
 				loc = args[2]
 			}
 			continue
+		case qsnQ:
+			if vm.mem[args[0]].T >= NULL {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case qsng:
+			if vm.mem[args[0]].T >= INT {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
 		case qtru:
 			if vm.mem[args[0]].V.(bool) {
 				loc = loc + 1
@@ -123,6 +139,12 @@ loop:
 				loc = args[1]
 			}
 			continue
+		case qlnT:
+			if len(vm.mem[args[0]].V.([]Value)) == int(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
 		case thnk:
 			vm.mem[args[0]].T = THUNK
 			vm.mem[args[0]].V = args[1]

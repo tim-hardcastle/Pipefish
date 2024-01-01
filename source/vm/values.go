@@ -6,19 +6,18 @@ import (
 )
 
 const ( // Cross-reference with typeNames in blankVm()
-	ERROR simpleType = iota // Some code may depend on the order of early elements.
+	THUNK simpleType = iota
+	CREATED_LOCAL_CONSTANT
+	TYPE_ERROR
+	COMPILATION_ERROR
+	TUPLE
+	ERROR
+	UNSAT
 	NULL
 	INT
 	BOOL
 	STRING
 	FLOAT
-	UNSAT
-	THUNK
-	TUPLE
-	ARGUMENTS
-	CREATED_LOCAL_CONSTANT
-	TYPE_ERROR
-	COMPILATION_ERROR
 	LB_ENUMS // I.e the first of the enums.
 )
 
@@ -116,8 +115,20 @@ func lengths(t typeScheme) set.Set[int] {
 	panic("We shouldn't be here!")
 }
 
-// This very similar function finds all the possible ix-th elements in a typeScheme.
+func maxLengthsOrMinusOne(s set.Set[int]) int {
+	max := 0
+	for k, _ := range s {
+		if k == -1 {
+			return -1
+		}
+		if k > max {
+			max = k
+		}
+	}
+	return max
+}
 
+// This finds all the possible ix-th elements in a typeScheme.
 func typesAtIndex(t typeScheme, ix int) alternateType {
 	result, _ := recursiveTypesAtIndex(t, ix)
 	return result

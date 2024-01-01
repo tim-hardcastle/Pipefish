@@ -3,6 +3,7 @@ package vm
 import (
 	"charm/source/ast"
 	"charm/source/parser"
+	"charm/source/set"
 	"charm/source/token"
 )
 
@@ -306,6 +307,7 @@ func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environm
 		b.types[i] = cp.compileNode(arg, env)
 		b.valLocs[i] = cp.that()
 	}
+
 	returnTypes := cp.handleNewArgument(b)
 	return returnTypes
 }
@@ -315,6 +317,8 @@ type bindle struct {
 	branchNo     int             // The number of the branch in the function tree.
 	argNo        int             // The number of the argument we're looking at.
 	index        int             // The index we're looking at in the argument we're looking at.
+	lengths      set.Set[int]    // The possible arities of the values of the argument we're looking at.
+	maxLength    int             // The maximum of the 'lengths' set, or -1 if the set contains this.
 	targetList   alternateType   // The possible types associated with this tree position.
 	doneList     alternateType   // The types we've looked at up to and including those of the current branchNo.
 	valLocs      []uint32        // The locations of the values evaluated from the arguments.
@@ -341,7 +345,11 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) alternateType {
 	newBindle.branchNo = 0
 	newBindle.targetList = typesAtIndex(b.types[b.argNo], b.index)
 	newBindle.doneList = make(alternateType, 0, len(b.targetList))
-	return cp.generateConditionalOnBranchNumber(&newBindle)
+	if newBindle.index == 0 {
+		newBindle.lengths = lengths(newBindle.targetList)
+		newBindle.maxLength = maxLengthsOrMinusOne(newBindle.lengths)
+	}
+	return cp.generateBranch(&newBindle)
 }
 
 // We look at the current branch and see if its type can account for some, all, or none of the possibilities in the targetList.
@@ -395,7 +403,7 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		case len(overlap):
 			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
 		default:
-			cp.emit(qsng, b.valLocs[b.argNo], cp.codeTop()+3)
+			cp.emit(qsnQ, b.valLocs[b.argNo], cp.codeTop()+3)
 			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
 			cp.emit(jmp, cp.codeTop()+3)
 			cp.put(idxT, b.valLocs[b.argNo], uint32(b.index))
@@ -404,8 +412,7 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	}
 	// Now we're in the 'if' part of the 'if-else'. We can recurse along the branch.
 	// If we know whether we're looking at a single or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
-	typesFromGoingAcross := alternateType{}
-	typesFromGoingDown := alternateType{}
+	var typesFromGoingAcross, typesFromGoingDown alternateType
 	switch len(acceptedSingleTypes) {
 	case 0:
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
@@ -413,7 +420,7 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 	default:
 		backtrack := cp.codeTop()
-		cp.emit(qsng, b.valLocs[b.argNo], DUMMY)
+		cp.emit(qsnQ, b.valLocs[b.argNo], DUMMY)
 		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 		cp.emit(jmp, DUMMY)
 		cp.vm.code[backtrack].args[2] = cp.codeTop()
@@ -429,28 +436,87 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		// We need to backtrack on whatever conditional we generated.
 		switch len(acceptedSingleTypes) {
 		case 0:
-			cp.vm.code[branchBacktrack+1].args[1] = cp.codeTop()
+			cp.vm.code[branchBacktrack+1].makeLastArg(cp.codeTop())
 		case len(overlap):
-			cp.vm.code[branchBacktrack].args[1] = cp.codeTop()
+			cp.vm.code[branchBacktrack].makeLastArg(cp.codeTop())
 		default:
-			cp.vm.code[branchBacktrack+1].args[1] = cp.codeTop()
-			cp.vm.code[branchBacktrack+4].args[1] = cp.codeTop()
+			cp.vm.code[branchBacktrack+1].makeLastArg(cp.codeTop())
+			cp.vm.code[branchBacktrack+4].makeLastArg(cp.codeTop())
 		}
 		// We recurse on the next branch down.
 		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
-		cp.vm.code[elseBacktrack].args[1] = cp.codeTop()
+		cp.vm.code[elseBacktrack].makeLastArg(cp.codeTop())
 	}
 
 	return typesFromGoingAcross.union(typesFromGoingDown)
 }
 
+var TYPE_COMPARISONS = map[string]operation{
+	"int":     {qtyp, []uint32{DUMMY, uint32(INT), DUMMY}},
+	"string":  {qtyp, []uint32{DUMMY, uint32(STRING), DUMMY}},
+	"bool":    {qtyp, []uint32{DUMMY, uint32(BOOL), DUMMY}},
+	"float64": {qtyp, []uint32{DUMMY, uint32(FLOAT), DUMMY}},
+	"null":    {qtyp, []uint32{DUMMY, uint32(NULL), DUMMY}},
+	"single":  {qsng, []uint32{DUMMY, DUMMY}},
+	"single?": {qsnQ, []uint32{DUMMY, DUMMY}},
+}
+
+func (cp *Compiler) emitTypeComparison(typeAsString string, mem, loc uint32) operation {
+	op, ok := TYPE_COMPARISONS[typeAsString]
+	if ok {
+		op.args[0] = mem
+		op.makeLastArg(loc)
+		return op
+	}
+	panic("Unknown type.")
+}
+
 func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) alternateType {
+	// We may definitely have run off the end of all the potential tuples.
+	if b.index+1 == b.maxLength {
+		newBindle := *b
+		newBindle.argNo++
+		return cp.handleNewArgument(&newBindle)
+	}
+	newBindle := *b
+	newBindle.index++
+	newBindle.treePosition = newBindle.treePosition.Branch[newBindle.branchNo].Node
+	// We may have to generate an if-then-else to do a length check on the tuple.
+	var typesFromNextArgument alternateType
+	needsConditional := b.maxLength == -1 || // Then there's a non-finite tuple
+		b.lengths.Contains(newBindle.index) // Then we may have run off the end of a finite tuple.
+	backtrack1 := cp.codeTop()
+	var backtrack2 uint32
+	if needsConditional {
+		cp.emit(qlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index), DUMMY)
+		newArgumentBindle := newBindle
+		newArgumentBindle.argNo++
+		typesFromNextArgument = cp.handleNewArgument(&newArgumentBindle)
+		backtrack2 = cp.codeTop()
+		cp.emit(jmp, DUMMY)
+		cp.vm.code[backtrack1].args[2] = cp.codeTop()
+	}
+
+	typesFromContinuingInTuple := cp.generateFromTopBranchDown(&newBindle)
+
+	if needsConditional {
+		cp.vm.code[backtrack2].args[0] = backtrack2
+	}
+
+	return typesFromContinuingInTuple.union(typesFromNextArgument)
 }
 
 func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) alternateType {
+	newBindle := *b
+	newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
+	newBindle.argNo++
+	return cp.handleNewArgument(&newBindle)
 }
 
 func (cp *Compiler) generateNextBranchDown(b *bindle) alternateType {
+	newBindle := *b
+	newBindle.branchNo++
+	return cp.handleNewArgument(&newBindle)
 }
 
 func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {

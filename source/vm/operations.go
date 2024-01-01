@@ -29,6 +29,10 @@ func (op *operation) ppType(i int) string {
 	return " t" + strconv.Itoa(int(op.args[i]))
 }
 
+func (op *operation) ppInt(i int) string {
+	return " %" + strconv.Itoa(int(op.args[i]))
+}
+
 const LA = " <-"
 const FN = " <- func"
 const TP = " is"
@@ -60,6 +64,8 @@ func describe(op *operation) string {
 		return result
 	case halt:
 		return "halt"
+	case idxT:
+		return "idxT" + op.ppMem(0) + LA + op.ppMem(1) + op.ppInt(2)
 	case jmp:
 		return "jmp " + op.ppLoc(0)
 	case jsr:
@@ -70,8 +76,14 @@ func describe(op *operation) string {
 		return "orb " + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case qtru:
 		return "qtru" + op.ppMem(0) + LS + op.ppLoc(1)
+	case qlnT:
+		return "qlnT" + op.ppMem(0) + TP + op.ppInt(1) + LS + op.ppLoc(2)
 	case qtyp:
 		return "qtyp" + op.ppMem(0) + TP + op.ppType(1) + LS + op.ppLoc(2)
+	case qsng:
+		return "qsng" + op.ppMem(0) + LS + op.ppLoc(1)
+	case qsnQ:
+		return "qsnQ" + op.ppMem(0) + LS + op.ppLoc(1)
 	case ret:
 		return "ret "
 	case thnk:
@@ -82,19 +94,27 @@ func describe(op *operation) string {
 	return "indescribable thing"
 }
 
+func (op *operation) makeLastArg(loc uint32) {
+	op.args[len(op.args)-1] = loc
+}
+
 const (
 	jmp opcode = iota
 	ret
 	qtru
 	qtyp
+	qsng
+	qsnQ
+	qlnT
 	asgm
 	thnk
 	untk
 	call
 	apnT
-
-	halt // do we use these?
+	idxT
 	jsr
+
+	halt // do we use this?
 
 	andb
 	orb
