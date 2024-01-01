@@ -199,7 +199,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 		if pair.VarType == "bling" {
 			continue
 		}
-		vmm.cp.reserve(ERROR, DUMMY)
+		vmm.cp.reserve(INT, DUMMY)
 		vmm.cp.addVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
 	}
 	cpF.hiReg = vmm.cp.memTop()

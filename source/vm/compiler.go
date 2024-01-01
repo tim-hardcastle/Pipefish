@@ -163,13 +163,13 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			return types
 		}
 		cp.p.Throw("comp/infix", node.Token)
-		return simpleList(TYPE_ERROR)
+		return simpleList(ERROR)
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
 			lTypes := cp.compileNode(node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/left", node.Token)
-				return simpleList(TYPE_ERROR)
+				return simpleList(ERROR)
 			}
 			leftRg := cp.that()
 			cp.emit(qtru, leftRg, cp.next()+2)
@@ -178,7 +178,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			rTypes := cp.compileNode(node.Right, env)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/right", node.Token)
-				return simpleList(TYPE_ERROR)
+				return simpleList(ERROR)
 			}
 			rightRg := cp.that()
 			cp.vm.code[backtrack].args[0] = cp.next()
@@ -189,7 +189,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			lTypes := cp.compileNode(node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/left", node.Token)
-				return simpleList(TYPE_ERROR)
+				return simpleList(ERROR)
 			}
 			leftRg := cp.that()
 			backtrack := cp.next()
@@ -197,7 +197,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			rTypes := cp.compileNode(node.Right, env)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.Token)
-				return simpleList(TYPE_ERROR)
+				return simpleList(ERROR)
 			}
 			rightRg := cp.that()
 			cp.vm.code[backtrack].args[1] = cp.next()
@@ -211,7 +211,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			lTypes := cp.compileNode(node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/cond/bool", node.Token)
-				return simpleList(TYPE_ERROR)
+				return simpleList(ERROR)
 			}
 			leftRg := cp.that()
 			backtrack := cp.next()
@@ -256,13 +256,13 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			return v.types
 		}
 		cp.p.Throw("comp/ident/known", node.Token)
-		return simpleList(COMPILATION_ERROR)
+		return simpleList(ERROR)
 	case *ast.AssignmentExpression:
 		if node.Token.Type == token.GVN_ASSIGN {
 			// TODO --- need to do this better after we implement tuples
 			if node.Left.GetToken().Type != token.IDENT {
 				cp.p.Throw("comp/assign/ident", node.Left.GetToken())
-				return simpleList(COMPILATION_ERROR)
+				return simpleList(ERROR)
 			}
 			thunkStart := cp.next()
 			types := cp.compileNode(node.Right, env)
@@ -271,7 +271,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			cp.thunkList = append(cp.thunkList, thunk{cp.that(), thunkStart})
 		}
 		cp.p.Throw("comp/assign", node.Token)
-		return simpleList(COMPILATION_ERROR)
+		return simpleList(ERROR)
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
 			allTypes := cp.compileNode(node.Args[0], env)
@@ -281,7 +281,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			}
 			if !allTypes.contains(BOOL) {
 				cp.p.Throw("comp/not/bool", node.Token)
-				return simpleList(TYPE_ERROR)
+				return simpleList(ERROR)
 			}
 			panic("Haven't implemented this bit because of having no way to test it at this point.")
 		}
@@ -289,7 +289,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			return cp.createFunctionCall(node, env)
 		}
 		cp.p.Throw("comp/prefix/known", node.Token)
-		return simpleList(COMPILATION_ERROR)
+		return simpleList(ERROR)
 	default:
 		panic("Unimplemented node type.")
 	}
@@ -310,6 +310,9 @@ func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environm
 
 	returnTypes := cp.handleNewArgument(b)
 	cp.put(asgm, b.outLoc)
+	if returnTypes.only(ERROR) {
+		cp.p.Throw("comp/call", b.tok)
+	}
 	return returnTypes
 }
 
@@ -524,13 +527,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
 	for _, branch := range b.treePosition.Branch { // TODO --- this is a pretty vile hack; it would make sense for it to always be at the top.}
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
-			cp.putFunctionCall(fNo, b.valLocs)
+			cp.emitFunctionCall(fNo, b.valLocs)
 			cp.emit(asgm, b.outLoc, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
 			return cp.fns[fNo].types
 		}
 	}
 	cp.emit(asgm, b.outLoc, cp.reserve(ERROR, DUMMY))
-	return simpleList(TYPE_ERROR)
+	return simpleList(ERROR)
 }
 
 const SHOW_COMPILE = false
@@ -556,38 +559,32 @@ func (cp *Compiler) reput(opcode opcode, args ...uint32) {
 	cp.emit(opcode, args...)
 }
 
-func (cp *Compiler) putFunctionCall(funcNumber uint32, valLocs []uint32) {
+func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
 	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
 	cp.emit(call, args...)
-}
-
-func (cp *Compiler) emitFunctionCall(dest, funcNumber uint32, valLocs []uint32) {
-	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
-	cp.emit(call, args...)
-	cp.emit(asgm, dest, cp.fns[funcNumber].outReg)
 }
 
 func (cp *Compiler) emitEquals(node *ast.InfixExpression, env *environment) alternateType {
 	lTypes := cp.compileNode(node.Args[0], env)
 	if lTypes.only(ERROR) {
 		cp.p.Throw("comp/eq/err/a", node.Token)
-		return simpleList(TYPE_ERROR)
+		return simpleList(ERROR)
 	}
 	leftRg := cp.that()
 	rTypes := cp.compileNode(node.Args[2], env)
 	if rTypes.only(ERROR) {
 		cp.p.Throw("comp/eq/err/b", node.Token)
-		return simpleList(TYPE_ERROR)
+		return simpleList(ERROR)
 	}
 	rightRg := cp.that()
 	oL := lTypes.intersect(rTypes)
 	if oL.only(ERROR) {
 		cp.p.Throw("comp/eq/err/c", node.Token)
-		return simpleList(TYPE_ERROR)
+		return simpleList(ERROR)
 	}
 	if len(oL) == 0 {
 		cp.p.Throw("comp/eq/types", node.Token)
-		return simpleList(TYPE_ERROR)
+		return simpleList(ERROR)
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
 		switch el := oL[0].(type) {

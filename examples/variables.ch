@@ -25,4 +25,7 @@ TRUTH = not LIE
 FOO = "foo"
 
 zort(x int) :
-    5 == 6
+    x == 8
+
+troz(x, y int) :
+    x == y

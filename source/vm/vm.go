@@ -23,7 +23,7 @@ var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
 func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go.
-	newVm.typeNames = []string{"thunk", "created local constant", "type error", "compilation error", "tuple", "error", "unsat", "null",
+	newVm.typeNames = []string{"thunk", "created local constant", "tuple", "error", "unsat", "null",
 		"int", "bool", "string", "float64"}
 	return newVm
 }
@@ -83,7 +83,7 @@ loop:
 		case call:
 			offset := args[1]
 			for i := args[1]; i < args[2]; i++ {
-				vm.mem[i] = vm.mem[args[i-offset]]
+				vm.mem[i] = vm.mem[args[3+i-offset]]
 			}
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]

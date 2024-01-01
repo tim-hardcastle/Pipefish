@@ -8,8 +8,6 @@ import (
 const ( // Cross-reference with typeNames in blankVm()
 	THUNK simpleType = iota
 	CREATED_LOCAL_CONSTANT
-	TYPE_ERROR
-	COMPILATION_ERROR
 	TUPLE
 	ERROR
 	UNSAT
