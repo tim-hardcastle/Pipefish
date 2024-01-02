@@ -125,7 +125,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
-	init.addToNameSpace([]string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"})
+	init.AddToNameSpace([]string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"})
 	init.ParseImports()
 	if init.ErrorsExist() {
 		return newService, init
@@ -135,7 +135,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
-	init.addToNameSpace(unnamespacedImports)
+	init.AddToNameSpace(unnamespacedImports)
 
 	env := object.NewEnvironment()
 	init.ParseEnumDefs(env)
@@ -173,7 +173,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	return newService, init
 }
 
-func (init *Initializer) addToNameSpace(thingsToImport []string) {
+func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
 		libDat, _ := os.ReadFile(fname)
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"

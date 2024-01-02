@@ -29,3 +29,11 @@ zort(x int) :
 
 troz(x, y int) :
     x == y
+
+implies(x, y bool) :
+    not (x and not y)
+
+oof(x int) :
+    x == y 
+given :
+    y = 5

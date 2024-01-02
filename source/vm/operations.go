@@ -37,6 +37,8 @@ const LS = " else"
 
 func describe(op *operation) string {
 	switch op.opcode {
+	case addi:
+		return "addi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case andb:
 		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case apnT:
@@ -66,6 +68,8 @@ func describe(op *operation) string {
 		return "jmp " + op.ppLoc(0)
 	case jsr:
 		return "jsr " + op.ppLoc(0)
+	case lens:
+		return "lens" + op.ppMem(0) + LA + op.ppMem(1)
 	case notb:
 		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
 	case orb:

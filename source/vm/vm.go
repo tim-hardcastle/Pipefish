@@ -18,6 +18,8 @@ type Vm struct {
 	enums     [][]string
 }
 
+var OPCODE_LIST []func(vm *Vm, args []uint32)
+
 var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
 
 func blankVm() *Vm {
@@ -166,6 +168,10 @@ loop:
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 		case halt:
 			break loop
+		case lens:
+			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
+		case addi:
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
 		default:
 			panic("Unhandled opcode!")
 		}

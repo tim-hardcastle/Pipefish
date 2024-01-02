@@ -350,6 +350,8 @@ func (v *Value) describe() string {
 		return "null"
 	case THUNK:
 		return "thunk"
+	case ERROR:
+		return "error"
 	}
 
 	panic("can't describe value")

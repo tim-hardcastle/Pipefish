@@ -40,11 +40,12 @@ type Compiler struct {
 }
 
 type cpFunc struct {
-	callTo uint32
-	loReg  uint32
-	hiReg  uint32
-	outReg uint32
-	types  alternateType
+	callTo  uint32
+	loReg   uint32
+	hiReg   uint32
+	outReg  uint32
+	types   alternateType
+	builtin string // A non-empty string in case it is a builtin.
 }
 
 func (cp *Compiler) memTop() uint32 {
@@ -154,6 +155,9 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 		cp.reserve(FLOAT, node.Value)
 		return simpleList(FLOAT)
 	case *ast.InfixExpression:
+		if cp.p.Infixes.Contains(node.Operator) {
+			return cp.createInfixCall(node, env)
+		}
 		if node.Operator == "==" {
 			return cp.emitEquals(node, env)
 		}
@@ -295,6 +299,33 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 	}
 }
 
+func (cp *Compiler) createInfixCall(node *ast.InfixExpression, env *environment) alternateType {
+	b := &bindle{tok: node.Token,
+		treePosition: cp.p.FunctionTreeMap[node.Operator],
+		outLoc:       cp.reserve(ERROR, DUMMY),
+		env:          env,
+		valLocs:      make([]uint32, len(node.Args)),
+		types:        make(finiteTupleType, len(node.Args)),
+	}
+	for i, arg := range node.Args {
+
+		switch arg := arg.(type) {
+		// case *ast.Bling:
+		// 	b.types[i] = blingType(arg.Value)
+		default:
+			b.types[i] = cp.compileNode(arg, env)
+			b.valLocs[i] = cp.that()
+		}
+	}
+
+	returnTypes := cp.generateNewArgument(b)
+	cp.put(asgm, b.outLoc)
+	if returnTypes.only(ERROR) {
+		cp.p.Throw("comp/call", b.tok)
+	}
+	return returnTypes
+}
+
 func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environment) alternateType {
 	b := &bindle{tok: node.Token,
 		treePosition: cp.p.FunctionTreeMap[node.Operator],
@@ -308,7 +339,7 @@ func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environm
 		b.valLocs[i] = cp.that()
 	}
 
-	returnTypes := cp.handleNewArgument(b)
+	returnTypes := cp.generateNewArgument(b)
 	cp.put(asgm, b.outLoc)
 	if returnTypes.only(ERROR) {
 		cp.p.Throw("comp/call", b.tok)
@@ -333,7 +364,7 @@ type bindle struct {
 	tok          token.Token     // For generating errors.
 }
 
-func (cp *Compiler) handleNewArgument(b *bindle) alternateType {
+func (cp *Compiler) generateNewArgument(b *bindle) alternateType {
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
 	if b.argNo >= len(b.types) {
 		return cp.seekFunctionCall(b)
@@ -367,7 +398,7 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	if b.tupleTime { // We can move on to the next argument.
 		newBindle := *b
 		newBindle.argNo++
-		return cp.handleNewArgument(&newBindle)
+		return cp.generateNewArgument(&newBindle)
 	}
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
 		cp.emit(asgm, b.outLoc, typeError)
@@ -480,7 +511,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) alternateT
 	if b.index+1 == b.maxLength {
 		newBindle := *b
 		newBindle.argNo++
-		return cp.handleNewArgument(&newBindle)
+		return cp.generateNewArgument(&newBindle)
 	}
 	newBindle := *b
 	newBindle.index++
@@ -495,7 +526,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) alternateT
 		cp.emit(qlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index), DUMMY)
 		newArgumentBindle := newBindle
 		newArgumentBindle.argNo++
-		typesFromNextArgument = cp.handleNewArgument(&newArgumentBindle)
+		typesFromNextArgument = cp.generateNewArgument(&newArgumentBindle)
 		backtrack2 = cp.codeTop()
 		cp.emit(jmp, DUMMY)
 		cp.vm.code[backtrack1].args[2] = cp.codeTop()
@@ -514,7 +545,7 @@ func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) alternateTy
 	newBindle := *b
 	newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 	newBindle.argNo++
-	return cp.handleNewArgument(&newBindle)
+	return cp.generateNewArgument(&newBindle)
 }
 
 func (cp *Compiler) generateNextBranchDown(b *bindle) alternateType {
@@ -527,9 +558,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
 	for _, branch := range b.treePosition.Branch { // TODO --- this is a pretty vile hack; it would make sense for it to always be at the top.}
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
+			functionAndType, ok := BUILTINS[cp.fns[fNo].builtin]
+			if ok {
+				functionAndType.f(cp, b.outLoc, b.valLocs)
+				return functionAndType.t
+			}
 			cp.emitFunctionCall(fNo, b.valLocs)
 			cp.emit(asgm, b.outLoc, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
-			return cp.fns[fNo].types
+			return cp.fns[fNo].types                    // TODO : There is no reason why this should be so.
 		}
 	}
 	cp.emit(asgm, b.outLoc, cp.reserve(ERROR, DUMMY))

@@ -43,17 +43,17 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 
-	// vmm.uP.addToNameSpace([]string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"})
-	// vmm.uP.ParseImports()
-	// if vmm.uP.ErrorsExist() {
-	// 	return newService, init
-	// }
+	vmm.uP.AddToNameSpace([]string{"rsc/charm/builtins_for_vm.ch"}) // , "rsc/charm/world.ch"
+	vmm.uP.ParseImports()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 	// unnamespacedImports := vmm.uP.InitializeNamespacedImportsAndReturnUnnamespacedImports(root, namePath)
 
 	// if vmm.uP.ErrorsExist() {
 	// 	return newService, init
 	// }
-	// vmm.uP.addToNameSpace(unnamespacedImports)
+	// vmm.uP.AddToNameSpace(unnamespacedImports)
 
 	vmm.createEnums()
 	if vmm.uP.ErrorsExist() {
@@ -184,6 +184,9 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 	if vmm.uP.Parser.ErrorsExist() {
 		return nil
 	}
+	if body.GetToken().Type == token.BUILTIN {
+		cpF.builtin = body.(*ast.BuiltInExpression).Name
+	}
 	fnenv := newEnvironment()
 	fnenv.ext = outerEnv
 	// First the thunks in the given block.
@@ -194,6 +197,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 			vmm.cp.emit(thnk, pair.mLoc, pair.cLoc)
 		}
 	}
+
 	cpF.loReg = vmm.cp.memTop()
 	for _, pair := range sig {
 		if pair.VarType == "bling" {
@@ -204,9 +208,16 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 	}
 	cpF.hiReg = vmm.cp.memTop()
 	cpF.callTo = vmm.cp.codeTop()
-	cpF.types = vmm.cp.compileNode(body, fnenv)
-	vmm.cp.emit(ret)
-	cpF.outReg = vmm.cp.that()
+	if body.GetToken().Type == token.BUILTIN {
+		types, ok := BUILTINS[body.(*ast.BuiltInExpression).Name]
+		if ok {
+			cpF.types = types.t
+		}
+	} else {
+		cpF.types = vmm.cp.compileNode(body, fnenv)
+		vmm.cp.emit(ret)
+		cpF.outReg = vmm.cp.that()
+	}
 	vmm.cp.fns[ix] = &cpF
 	return &cpF
 }
