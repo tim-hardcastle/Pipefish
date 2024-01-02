@@ -64,6 +64,8 @@ func describe(op *operation) string {
 		return "halt"
 	case idxT:
 		return "idxT" + op.ppMem(0) + LA + op.ppMem(1) + op.ppInt(2)
+	case ints:
+		return "ints" + op.ppMem(0) + LA + op.ppMem(1)
 	case jmp:
 		return "jmp " + op.ppLoc(0)
 	case jsr:
@@ -113,6 +115,7 @@ const (
 	apnT
 	idxT
 	jsr
+	ints
 
 	halt // do we use this?
 

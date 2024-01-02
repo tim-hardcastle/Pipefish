@@ -172,6 +172,13 @@ loop:
 			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
 		case addi:
 			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
+		case ints:
+			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
+			if err != nil {
+				vm.mem[args[0]] = Value{ERROR, DUMMY}
+			} else {
+				vm.mem[args[0]] = Value{INT, i}
+			}
 		default:
 			panic("Unhandled opcode!")
 		}
