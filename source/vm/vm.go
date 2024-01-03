@@ -108,9 +108,14 @@ loop:
 		}
 		args := vm.code[loc].args
 		switch vm.code[loc].opcode {
-		case jmp:
-			loc = args[0]
-			continue
+		case addf:
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) + vm.mem[args[2]].V.(float64)}
+		case addi:
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
+		case adds:
+			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
+		case andb:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool)}
 		case asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
 		case call:
@@ -121,99 +126,6 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
-		case apnT:
-			sliceIs := vm.mem[args[0]].V.([]Value)
-			if vm.mem[args[1]].T == TUPLE {
-				sliceIs = append(sliceIs, vm.mem[args[1]].V.([]Value)...)
-			} else {
-				sliceIs = append(sliceIs, vm.mem[args[1]])
-			}
-			vm.mem[args[0]].V = sliceIs
-		case idxT:
-			vm.mem[args[0]] = vm.mem[args[1]].V.([]Value)[args[2]]
-		case equi:
-			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
-		case equs:
-			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
-		case equb:
-			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
-		case equf:
-			vm.mem[args[0]] = Value{T: BOOL, V: vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
-		case notb:
-			vm.mem[args[0]] = Value{T: BOOL, V: !vm.mem[args[1]].V.(bool)}
-		case orb:
-			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
-		case andb:
-			vm.mem[args[0]] = Value{T: BOOL, V: (vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool))}
-		case qtyp:
-			if vm.mem[args[0]].T == simpleType(args[1]) {
-				loc = loc + 1
-			} else {
-				loc = args[2]
-			}
-			continue
-		case qsnQ:
-			if vm.mem[args[0]].T >= NULL {
-				loc = loc + 1
-			} else {
-				loc = args[1]
-			}
-			continue
-		case qsng:
-			if vm.mem[args[0]].T >= INT {
-				loc = loc + 1
-			} else {
-				loc = args[1]
-			}
-			continue
-		case qtru:
-			if vm.mem[args[0]].V.(bool) {
-				loc = loc + 1
-			} else {
-				loc = args[1]
-			}
-			continue
-		case qlnT:
-			if len(vm.mem[args[0]].V.([]Value)) == int(args[1]) {
-				loc = loc + 1
-			} else {
-				loc = args[2]
-			}
-		case thnk:
-			vm.mem[args[0]].T = THUNK
-			vm.mem[args[0]].V = args[1]
-		case untk:
-			if (vm.mem[args[0]].T) == THUNK {
-				vm.callstack = append(vm.callstack, loc)
-				loc = vm.mem[args[0]].V.(uint32)
-				continue
-			}
-		case jsr:
-			vm.callstack = append(vm.callstack, loc)
-			loc = args[0]
-			continue
-		case ret:
-			if len(vm.callstack) == 0 {
-				break loop
-			}
-			loc = vm.callstack[len(vm.callstack)-1]
-			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
-		case halt:
-			break loop
-		case lens:
-			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
-		case addf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) + vm.mem[args[2]].V.(float64)}
-		case addi:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
-		case mulf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
-		case muli:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
-		case subf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
-		case subi:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) - vm.mem[args[2]].V.(int)}
 		case divf:
 			if vm.mem[args[2]].V.(float64) == 0 {
 				vm.mem[args[0]] = Value{ERROR, DUMMY}
@@ -226,22 +138,110 @@ loop:
 			} else {
 				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
 			}
-		case modi:
-			if vm.mem[args[2]].V.(int) == 0 {
-				vm.mem[args[0]] = Value{ERROR, DUMMY}
-			} else {
-				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
-			}
-		case adds:
-			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
-		case typx:
-			vm.mem[args[0]] = Value{TYPE, vm.mem[args[1]].T}
+		case equb:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
+		case equf:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
+		case equi:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
+		case equs:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
+		case gtef:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) >= vm.mem[args[2]].V.(float64)}
+		case gtei:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) >= vm.mem[args[2]].V.(int)}
+		case gthf:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) > vm.mem[args[2]].V.(float64)}
+		case gthi:
+			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) > vm.mem[args[2]].V.(int)}
+		case halt:
+			break loop
 		case ints:
 			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
 			if err != nil {
 				vm.mem[args[0]] = Value{ERROR, DUMMY}
 			} else {
 				vm.mem[args[0]] = Value{INT, i}
+			}
+		case idxT:
+			vm.mem[args[0]] = vm.mem[args[1]].V.([]Value)[args[2]]
+		case jmp:
+			loc = args[0]
+			continue
+		case jsr:
+			vm.callstack = append(vm.callstack, loc)
+			loc = args[0]
+			continue
+		case lens:
+			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
+		case modi:
+			if vm.mem[args[2]].V.(int) == 0 {
+				vm.mem[args[0]] = Value{ERROR, DUMMY}
+			} else {
+				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
+			}
+		case mulf:
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
+		case muli:
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
+		case notb:
+			vm.mem[args[0]] = Value{BOOL, !vm.mem[args[1]].V.(bool)}
+		case orb:
+			vm.mem[args[0]] = Value{BOOL, (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
+		case qlnT:
+			if len(vm.mem[args[0]].V.([]Value)) == int(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
+		case qsng:
+			if vm.mem[args[0]].T >= INT {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case qsnQ:
+			if vm.mem[args[0]].T >= NULL {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case qtru:
+			if vm.mem[args[0]].V.(bool) {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case qtyp:
+			if vm.mem[args[0]].T == simpleType(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
+			continue
+		case ret:
+			if len(vm.callstack) == 0 {
+				break loop
+			}
+			loc = vm.callstack[len(vm.callstack)-1]
+			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
+		case subf:
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
+		case subi:
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) - vm.mem[args[2]].V.(int)}
+		case thnk:
+			vm.mem[args[0]].T = THUNK
+			vm.mem[args[0]].V = args[1]
+		case typx:
+			vm.mem[args[0]] = Value{TYPE, vm.mem[args[1]].T}
+		case untk:
+			if (vm.mem[args[0]].T) == THUNK {
+				vm.callstack = append(vm.callstack, loc)
+				loc = vm.mem[args[0]].V.(uint32)
+				continue
 			}
 		default:
 			panic("Unhandled opcode!")

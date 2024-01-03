@@ -68,6 +68,14 @@ func describe(op *operation) string {
 		}
 		result = result + " )"
 		return result
+	case gtef:
+		return "gtef" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case gtei:
+		return "gtei" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case gthf:
+		return "gthf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case gthi:
+		return "gthi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case halt:
 		return "halt"
 	case idxT:
@@ -137,6 +145,10 @@ const (
 	equi
 	equs
 	getS // S, key number
+	gtef
+	gtei
+	gthf
+	gthi
 	halt // do we use this?
 	idxl
 	idxm
