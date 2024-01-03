@@ -60,6 +60,8 @@ func (vm *Vm) describeType(t typeScheme) string {
 		return "tuple with ()" + strings.Join(tList, ", ") + ")"
 	case typedTupleType:
 		return "tuple of (" + vm.describeType(t.t) + ")"
+	case blingType:
+		return t.tag
 	}
 	panic("unimplemented type")
 }
@@ -97,6 +99,7 @@ loop:
 			} else {
 				sliceIs = append(sliceIs, vm.mem[args[1]])
 			}
+			vm.mem[args[0]].V = sliceIs
 		case idxT:
 			vm.mem[args[0]] = vm.mem[args[1]].V.([]Value)[args[2]]
 		case equi:
@@ -170,8 +173,38 @@ loop:
 			break loop
 		case lens:
 			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
+		case addf:
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) + vm.mem[args[2]].V.(float64)}
 		case addi:
 			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
+		case mulf:
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
+		case muli:
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
+		case subf:
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
+		case subi:
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) - vm.mem[args[2]].V.(int)}
+		case divf:
+			if vm.mem[args[2]].V.(float64) == 0 {
+				vm.mem[args[0]] = Value{ERROR, DUMMY}
+			} else {
+				vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) / vm.mem[args[2]].V.(float64)}
+			}
+		case divi:
+			if vm.mem[args[2]].V.(int) == 0 {
+				vm.mem[args[0]] = Value{ERROR, "Division by zero"}
+			} else {
+				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
+			}
+		case modi:
+			if vm.mem[args[2]].V.(int) == 0 {
+				vm.mem[args[0]] = Value{ERROR, DUMMY}
+			} else {
+				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
+			}
+		case adds:
+			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
 		case ints:
 			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
 			if err != nil {

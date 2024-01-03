@@ -326,6 +326,27 @@ func (t typedTupleType) compare(u typeScheme) int {
 	}
 }
 
+type blingType struct {
+	tag string
+}
+
+func (t blingType) compare(u typeScheme) int {
+	switch u := u.(type) {
+	case simpleType, finiteTupleType, typedTupleType:
+		return 1
+	case blingType:
+		if t.tag < u.tag {
+			return -1
+		}
+		if t.tag == u.tag {
+			return 0
+		}
+		return 1
+	default:
+		return -1
+	}
+}
+
 func simpleList(t simpleType) alternateType {
 	return alternateType{t}
 }
@@ -343,7 +364,7 @@ func (v *Value) describe() string {
 			return "false"
 		}
 	case FLOAT:
-		return strconv.FormatFloat(v.V.(float64), 'g', 8, 64)
+		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
 	case UNSAT:
 		return "unsatisfied conditional"
 	case NULL:

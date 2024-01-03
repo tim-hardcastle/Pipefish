@@ -76,12 +76,12 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		thunkList: []thunk{},
 		fns:       []*cpFunc{},
 		typeNameToTypeList: map[string]alternateType{
-			"int":     simpleList(INT),
-			"string":  simpleList(STRING),
-			"bool":    simpleList(BOOL),
-			"float64": simpleList(FLOAT),
-			"error":   simpleList(ERROR),
-			"single":  alternateType{INT, BOOL, STRING, FLOAT},
+			"int":     {INT},
+			"string":  {STRING},
+			"bool":    {BOOL},
+			"float64": {FLOAT},
+			"error":   {ERROR},
+			"single":  {INT, BOOL, STRING, FLOAT},
 		},
 	}
 }
@@ -94,7 +94,7 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
 
-const SHOW_BYTECODE = true
+const SHOW_BYTECODE = false
 
 func (cp *Compiler) Do(line string) string {
 	mT := cp.memTop()
@@ -308,16 +308,14 @@ func (cp *Compiler) createInfixCall(node *ast.InfixExpression, env *environment)
 		types:        make(finiteTupleType, len(node.Args)),
 	}
 	for i, arg := range node.Args {
-
 		switch arg := arg.(type) {
-		// case *ast.Bling:
-		// 	b.types[i] = blingType(arg.Value)
+		case *ast.Bling:
+			b.types[i] = alternateType{blingType{arg.Value}}
 		default:
 			b.types[i] = cp.compileNode(arg, env)
 			b.valLocs[i] = cp.that()
 		}
 	}
-
 	returnTypes := cp.generateNewArgument(b)
 	cp.put(asgm, b.outLoc)
 	if returnTypes.only(ERROR) {
@@ -335,10 +333,14 @@ func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environm
 		types:        make(finiteTupleType, len(node.Args)),
 	}
 	for i, arg := range node.Args {
-		b.types[i] = cp.compileNode(arg, env)
-		b.valLocs[i] = cp.that()
+		switch arg := arg.(type) {
+		case *ast.Bling:
+			b.types[i] = alternateType{blingType{arg.Value}}
+		default:
+			b.types[i] = cp.compileNode(arg, env)
+			b.valLocs[i] = cp.that()
+		}
 	}
-
 	returnTypes := cp.generateNewArgument(b)
 	cp.put(asgm, b.outLoc)
 	if returnTypes.only(ERROR) {
@@ -369,7 +371,14 @@ func (cp *Compiler) generateNewArgument(b *bindle) alternateType {
 	if b.argNo >= len(b.types) {
 		return cp.seekFunctionCall(b)
 	}
-	// Case (2) : We aren't yet at the end of the list of arguments.
+	// Case (2) : the argument is bling.
+	if len(b.types[b.argNo].(alternateType)) == 1 {
+		switch bl := (b.types[b.argNo].(alternateType)[0]).(type) {
+		case blingType:
+			return cp.seekBling(b, bl.tag)
+		}
+	}
+	// Case (3) : We aren't yet at the end of the list of arguments.
 	newBindle := *b
 	newBindle.index = 0
 	return cp.generateFromTopBranchDown(b)
@@ -496,14 +505,15 @@ var TYPE_COMPARISONS = map[string]operation{
 	"single?": {qsnQ, []uint32{DUMMY, DUMMY}},
 }
 
-func (cp *Compiler) emitTypeComparison(typeAsString string, mem, loc uint32) operation {
+func (cp *Compiler) emitTypeComparison(typeAsString string, mem, loc uint32) {
 	op, ok := TYPE_COMPARISONS[typeAsString]
 	if ok {
 		op.args[0] = mem
 		op.makeLastArg(loc)
-		return op
+		cp.emit(op.opcode, op.args...)
+		return
 	}
-	panic("Unknown type.")
+	panic("Unknown type: " + typeAsString)
 }
 
 func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) alternateType {
@@ -572,7 +582,19 @@ func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
 	return simpleList(ERROR)
 }
 
-const SHOW_COMPILE = false
+func (cp *Compiler) seekBling(b *bindle, bling string) alternateType {
+	for i, branch := range b.treePosition.Branch {
+		if branch.TypeName == bling {
+			newBindle := *b
+			newBindle.branchNo = i
+			return cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+		}
+	}
+	cp.p.Throw("comp/eq/err/a", b.tok) // TODO -- the bindle should pass all the original args or at least their tokens for better error messages.
+	return simpleList(ERROR)
+}
+
+const SHOW_COMPILE = true
 
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
 // the destination is the next free memory address.

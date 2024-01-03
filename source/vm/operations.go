@@ -37,14 +37,22 @@ const LS = " else"
 
 func describe(op *operation) string {
 	switch op.opcode {
+	case addf:
+		return "addf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case addi:
 		return "addi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case adds:
+		return "adds" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case andb:
 		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case apnT:
 		return "apnT" + op.ppMem(0) + LA + op.ppMem(1)
 	case asgm:
 		return "asgm" + op.ppMem(0) + LA + op.ppMem(1)
+	case divf:
+		return "divf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case divi:
+		return "divi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case equb:
 		return "equb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case equf:
@@ -72,6 +80,12 @@ func describe(op *operation) string {
 		return "jsr " + op.ppLoc(0)
 	case lens:
 		return "lens" + op.ppMem(0) + LA + op.ppMem(1)
+	case modi:
+		return "modi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case mulf:
+		return "mulf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case muli:
+		return "muli" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case notb:
 		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
 	case orb:
@@ -88,6 +102,10 @@ func describe(op *operation) string {
 		return "qsnQ" + op.ppMem(0) + LS + op.ppLoc(1)
 	case ret:
 		return "ret "
+	case subf:
+		return "subf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case subi:
+		return "subi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case thnk:
 		return "thnk" + op.ppMem(0) + LA + op.ppLoc(1)
 	case untk:
