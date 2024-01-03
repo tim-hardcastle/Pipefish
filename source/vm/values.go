@@ -2,7 +2,6 @@ package vm
 
 import (
 	"charm/source/set"
-	"strconv"
 )
 
 const ( // Cross-reference with typeNames in blankVm()
@@ -16,6 +15,7 @@ const ( // Cross-reference with typeNames in blankVm()
 	BOOL
 	STRING
 	FLOAT
+	TYPE
 	LB_ENUMS // I.e the first of the enums.
 )
 
@@ -349,31 +349,4 @@ func (t blingType) compare(u typeScheme) int {
 
 func simpleList(t simpleType) alternateType {
 	return alternateType{t}
-}
-
-func (v *Value) describe() string {
-	switch v.T {
-	case INT:
-		return strconv.Itoa(v.V.(int))
-	case STRING:
-		return "\"" + v.V.(string) + "\""
-	case BOOL:
-		if v.V.(bool) {
-			return "true"
-		} else {
-			return "false"
-		}
-	case FLOAT:
-		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
-	case UNSAT:
-		return "unsatisfied conditional"
-	case NULL:
-		return "null"
-	case THUNK:
-		return "thunk"
-	case ERROR:
-		return "error"
-	}
-
-	panic("can't describe value")
 }

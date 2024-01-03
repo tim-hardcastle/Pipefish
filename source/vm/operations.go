@@ -108,6 +108,8 @@ func describe(op *operation) string {
 		return "subi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case thnk:
 		return "thnk" + op.ppMem(0) + LA + op.ppLoc(1)
+	case typx:
+		return "typx" + op.ppMem(0) + LA + op.ppMem(1)
 	case untk:
 		return "untk" + op.ppMem(0)
 	}
@@ -119,67 +121,56 @@ func (op *operation) makeLastArg(loc uint32) {
 }
 
 const (
-	jmp opcode = iota
-	ret
+	addf opcode = iota
+	addi
+	addl
+	adds
+	andb
+	apnT
+	asgm
+	call
+	cmp
+	divf
+	divi
+	equb
+	equf
+	equi
+	equs
+	getS // S, key number
+	halt // do we use this?
+	idxl
+	idxm
+	idxs
+	idxT
+	ints
+	jmp
+	jsr
+	keym
+	keyS
+	lenl
+	lens
+	lenT
+	leqf
+	leqi
+	makS
+	modi
+	mulf
+	muli
+	notb
+	orb
+	resS // S, field
 	qtru
 	qtyp
 	qsng
 	qsnQ
 	qlnT
-	asgm
-	thnk
-	untk
-	call
-	apnT
-	idxT
-	jsr
-	ints
-
-	halt // do we use this?
-
-	andb
-	orb
-	notb
-	equb
-
-	cmp
-
-	addi
-	subi
-	muli
-	divi
-	modi
-	equi
-	leqi
-
-	addf
-	subf
-	mulf
-	divf
-	equf
-	leqf
-
-	equs
-	lens
-	adds
-	idxs
-	slis
-
-	lenl
-	addl
-	ixl
+	ret
 	slil
-
-	lent
-	addt
-	ixt
-	slit
-
-	keysm
-	ixm
-
-	makeS
-	keysS
-	resolveS // S, field
-	getS     // S, key number
+	slis
+	sliT
+	subf
+	subi
+	thnk
+	typx
+	untk
 )

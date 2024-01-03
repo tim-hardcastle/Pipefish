@@ -66,6 +66,35 @@ func (vm *Vm) describeType(t typeScheme) string {
 	panic("unimplemented type")
 }
 
+func (vm *Vm) describe(v Value) string {
+	switch v.T {
+	case INT:
+		return strconv.Itoa(v.V.(int))
+	case STRING:
+		return "\"" + v.V.(string) + "\""
+	case TYPE:
+		return vm.describeType(v.V.(simpleType))
+	case BOOL:
+		if v.V.(bool) {
+			return "true"
+		} else {
+			return "false"
+		}
+	case FLOAT:
+		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
+	case UNSAT:
+		return "unsatisfied conditional"
+	case NULL:
+		return "null"
+	case THUNK:
+		return "thunk"
+	case ERROR:
+		return "error"
+	}
+
+	panic("can't describe value")
+}
+
 const SHOW_RUN = true
 
 func (vm *Vm) Run(loc uint32) {
@@ -205,6 +234,8 @@ loop:
 			}
 		case adds:
 			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
+		case typx:
+			vm.mem[args[0]] = Value{TYPE, vm.mem[args[1]].T}
 		case ints:
 			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
 			if err != nil {
