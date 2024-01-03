@@ -71,7 +71,7 @@ func (vm *Vm) describe(v Value) string {
 	case INT:
 		return strconv.Itoa(v.V.(int))
 	case STRING:
-		return "\"" + v.V.(string) + "\""
+		return v.V.(string)
 	case TYPE:
 		return vm.describeType(v.V.(simpleType))
 	case BOOL:
@@ -93,6 +93,15 @@ func (vm *Vm) describe(v Value) string {
 	}
 
 	panic("can't describe value")
+}
+
+func (vm *Vm) literal(v Value) string {
+	switch v.T {
+	case STRING:
+		return "\"" + v.V.(string) + "\""
+	default:
+		return vm.describe(v)
+	}
 }
 
 const SHOW_RUN = true
@@ -146,6 +155,15 @@ loop:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
 		case equs:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
+		case flti:
+			vm.mem[args[0]] = Value{FLOAT, float64(vm.mem[args[1]].V.(int))}
+		case flts:
+			i, err := strconv.ParseFloat(vm.mem[args[1]].V.(string), 64)
+			if err != nil {
+				vm.mem[args[0]] = Value{ERROR, DUMMY}
+			} else {
+				vm.mem[args[0]] = Value{FLOAT, i}
+			}
 		case gtef:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) >= vm.mem[args[2]].V.(float64)}
 		case gtei:
@@ -156,6 +174,8 @@ loop:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) > vm.mem[args[2]].V.(int)}
 		case halt:
 			break loop
+		case intf:
+			vm.mem[args[0]] = Value{INT, int(vm.mem[args[1]].V.(float64))}
 		case ints:
 			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
 			if err != nil {
@@ -174,6 +194,8 @@ loop:
 			continue
 		case lens:
 			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
+		case litx:
+			vm.mem[args[0]] = Value{STRING, vm.literal(vm.mem[args[1]])}
 		case modi:
 			if vm.mem[args[2]].V.(int) == 0 {
 				vm.mem[args[0]] = Value{ERROR, DUMMY}
@@ -184,6 +206,10 @@ loop:
 			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
 		case muli:
 			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
+		case negf:
+			vm.mem[args[0]] = Value{FLOAT, -vm.mem[args[1]].V.(float64)}
+		case negi:
+			vm.mem[args[0]] = Value{INT, -vm.mem[args[1]].V.(int)}
 		case notb:
 			vm.mem[args[0]] = Value{BOOL, !vm.mem[args[1]].V.(bool)}
 		case orb:
@@ -228,6 +254,8 @@ loop:
 			}
 			loc = vm.callstack[len(vm.callstack)-1]
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
+		case strx:
+			vm.mem[args[0]] = Value{STRING, vm.describe(vm.mem[args[1]])}
 		case subf:
 			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
 		case subi:

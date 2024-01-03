@@ -118,7 +118,7 @@ func (cp *Compiler) Do(line string) string {
 	result := cp.vm.mem[cp.that()]
 	cp.vm.mem = cp.vm.mem[:mT]
 	cp.vm.code = cp.vm.code[:cT]
-	return cp.vm.describe(result)
+	return cp.vm.literal(result)
 }
 
 func (cp *Compiler) Compile(source, sourcecode string) {

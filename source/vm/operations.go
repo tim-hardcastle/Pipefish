@@ -68,6 +68,10 @@ func describe(op *operation) string {
 		}
 		result = result + " )"
 		return result
+	case flti:
+		return "flti" + op.ppMem(0) + LA + op.ppMem(1)
+	case flts:
+		return "flts" + op.ppMem(0) + LA + op.ppMem(1)
 	case gtef:
 		return "gtef" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case gtei:
@@ -80,6 +84,8 @@ func describe(op *operation) string {
 		return "halt"
 	case idxT:
 		return "idxT" + op.ppMem(0) + LA + op.ppMem(1) + op.ppInt(2)
+	case intf:
+		return "intf" + op.ppMem(0) + LA + op.ppMem(1)
 	case ints:
 		return "ints" + op.ppMem(0) + LA + op.ppMem(1)
 	case jmp:
@@ -88,12 +94,18 @@ func describe(op *operation) string {
 		return "jsr " + op.ppLoc(0)
 	case lens:
 		return "lens" + op.ppMem(0) + LA + op.ppMem(1)
+	case litx:
+		return "litx" + op.ppMem(0) + LA + op.ppMem(1)
 	case modi:
 		return "modi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case mulf:
 		return "mulf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case muli:
 		return "muli" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case negf:
+		return "negf" + op.ppMem(0) + LA + op.ppMem(1)
+	case negi:
+		return "negi" + op.ppMem(0) + LA + op.ppMem(1)
 	case notb:
 		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
 	case orb:
@@ -110,6 +122,8 @@ func describe(op *operation) string {
 		return "qsnQ" + op.ppMem(0) + LS + op.ppLoc(1)
 	case ret:
 		return "ret "
+	case strx:
+		return "strx" + op.ppMem(0) + LA + op.ppMem(1)
 	case subf:
 		return "subf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case subi:
@@ -144,6 +158,8 @@ const (
 	equf
 	equi
 	equs
+	flti
+	flts
 	getS // S, key number
 	gtef
 	gtei
@@ -155,6 +171,7 @@ const (
 	idxs
 	idxT
 	ints
+	intf
 	jmp
 	jsr
 	keym
@@ -164,10 +181,13 @@ const (
 	lenT
 	leqf
 	leqi
+	litx
 	makS
 	modi
 	mulf
 	muli
+	negf
+	negi
 	notb
 	orb
 	resS // S, field
@@ -180,6 +200,7 @@ const (
 	slil
 	slis
 	sliT
+	strx
 	subf
 	subi
 	thnk
