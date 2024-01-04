@@ -94,7 +94,7 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
 
-const SHOW_BYTECODE = false
+const SHOW_BYTECODE = true
 
 func (cp *Compiler) Do(line string) string {
 	mT := cp.memTop()
@@ -442,11 +442,14 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
+			println("A start")
 			cp.put(idxT, b.valLocs[b.argNo], uint32(b.index))
 			cp.emitTypeComparison(branch.TypeName, cp.that(), DUMMY)
 		case len(overlap):
+			println("B start")
 			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
 		default:
+			println("C start")
 			cp.emit(qsnQ, b.valLocs[b.argNo], cp.codeTop()+3)
 			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
 			cp.emit(jmp, cp.codeTop()+3)
@@ -459,18 +462,21 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	var typesFromGoingAcross, typesFromGoingDown alternateType
 	switch len(acceptedSingleTypes) {
 	case 0:
+		println("A middle")
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 	case len(overlap):
+		println("B middle")
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 	default:
+		println("C middle")
 		backtrack := cp.codeTop()
 		cp.emit(qsnQ, b.valLocs[b.argNo], DUMMY)
 		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 		cp.emit(jmp, DUMMY)
-		cp.vm.code[backtrack].args[2] = cp.codeTop()
+		cp.vm.code[backtrack].makeLastArg(cp.codeTop())
 		backtrack = cp.codeTop()
 		typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(&newBindle)
-		cp.vm.code[backtrack].args[1] = cp.codeTop()
+		cp.vm.code[backtrack].makeLastArg(cp.codeTop())
 		typesFromGoingAcross = typesFromSingles.union(typesFromTuples)
 	}
 	// And now we need to do the 'else' branch if there is one.
@@ -480,10 +486,13 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		// We need to backtrack on whatever conditional we generated.
 		switch len(acceptedSingleTypes) {
 		case 0:
+			println("A end")
 			cp.vm.code[branchBacktrack+1].makeLastArg(cp.codeTop())
 		case len(overlap):
+			println("B end")
 			cp.vm.code[branchBacktrack].makeLastArg(cp.codeTop())
 		default:
+			println("C end")
 			cp.vm.code[branchBacktrack+1].makeLastArg(cp.codeTop())
 			cp.vm.code[branchBacktrack+4].makeLastArg(cp.codeTop())
 		}
@@ -495,7 +504,7 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	return typesFromGoingAcross.union(typesFromGoingDown)
 }
 
-var TYPE_COMPARISONS = map[string]operation{
+var TYPE_COMPARISONS = map[string]*operation{
 	"int":     {qtyp, []uint32{DUMMY, uint32(INT), DUMMY}},
 	"string":  {qtyp, []uint32{DUMMY, uint32(STRING), DUMMY}},
 	"bool":    {qtyp, []uint32{DUMMY, uint32(BOOL), DUMMY}},
@@ -508,9 +517,12 @@ var TYPE_COMPARISONS = map[string]operation{
 func (cp *Compiler) emitTypeComparison(typeAsString string, mem, loc uint32) {
 	op, ok := TYPE_COMPARISONS[typeAsString]
 	if ok {
-		op.args[0] = mem
-		op.makeLastArg(loc)
-		cp.emit(op.opcode, op.args...)
+		newArgs := make([]uint32, len(op.args))
+		copy(newArgs, op.args)
+		newOp := &operation{op.opcode, newArgs}
+		newOp.args[0] = mem
+		newOp.makeLastArg(loc)
+		cp.emit(newOp.opcode, newArgs...)
 		return
 	}
 	panic("Unknown type: " + typeAsString)
