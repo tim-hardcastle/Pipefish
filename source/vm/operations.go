@@ -45,10 +45,18 @@ func describe(op *operation) string {
 		return "adds" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case andb:
 		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case apnT:
-		return "apnT" + op.ppMem(0) + LA + op.ppMem(1)
 	case asgm:
 		return "asgm" + op.ppMem(0) + LA + op.ppMem(1)
+	case cc11:
+		return "cc11" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case cc1T:
+		return "cc1T" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case ccT1:
+		return "ccT1" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case ccTT:
+		return "ccTT" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case ccxx:
+		return "ccxx" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case divf:
 		return "divf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case divi:
@@ -148,7 +156,11 @@ const (
 	addl
 	adds
 	andb
-	apnT
+	cc11
+	cc1T
+	ccT1
+	ccTT
+	ccxx
 	asgm
 	call
 	cmp

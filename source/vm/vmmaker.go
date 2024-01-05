@@ -224,6 +224,9 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.gvars.ext = vmm.cp.gconsts
+	vmm.cp.reserve(NULL, nil)
+	vmm.cp.addVariable(vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, simpleList(NULL))
+	vmm.cp.tupleType = vmm.cp.reserve(TYPE, TUPLE)
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {

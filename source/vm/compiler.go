@@ -7,6 +7,10 @@ import (
 	"charm/source/token"
 )
 
+const SHOW_BYTECODE = false
+const SHOW_COMPILE = false
+const SHOW_RUN = true
+
 type enumOrdinates struct {
 	enum    simpleType
 	element int
@@ -37,6 +41,8 @@ type Compiler struct {
 	thunkList          []thunk
 	functionForest     map[string]*fnTreeNode
 	typeNameToTypeList map[string]alternateType
+
+	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}
 }
 
 type cpFunc struct {
@@ -93,8 +99,6 @@ func (cp *Compiler) Run() {
 func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
-
-const SHOW_BYTECODE = true
 
 func (cp *Compiler) Do(line string) string {
 	mT := cp.memTop()
@@ -157,6 +161,9 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
 			return cp.createInfixCall(node, env)
+		}
+		if node.Operator == "," {
+			return cp.emitComma(node, env)
 		}
 		if node.Operator == "==" {
 			return cp.emitEquals(node, env)
@@ -299,6 +306,156 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 	}
 }
 
+// This needs its own very special logic because the type it returns has to be composed in a different way from all the other operators.
+func (cp *Compiler) emitComma(node *ast.InfixExpression, env *environment) alternateType {
+	lTypes := cp.compileNode(node.Args[0], env)
+	if lTypes.only(ERROR) {
+		cp.p.Throw("comp/tuple/err/a", node.Token)
+	}
+	left := cp.that()
+	rTypes := cp.compileNode(node.Args[2], env)
+	if rTypes.only(ERROR) {
+		cp.p.Throw("comp/tuple/err/b", node.Token)
+	}
+	right := cp.that()
+	var leftBacktrack, rightBacktrack uint32
+	if lTypes.contains(ERROR) {
+		cp.emit(qtyp, left, uint32(ERROR), cp.codeTop()+2)
+		leftBacktrack = cp.codeTop()
+		cp.put(asgm, DUMMY, left)
+		if rTypes.contains(ERROR) {
+			cp.emit(jmp, cp.codeTop()+5)
+		} else {
+			cp.emit(jmp, cp.codeTop()+2)
+		}
+	}
+	if rTypes.contains(ERROR) {
+		cp.emit(qtyp, right, uint32(ERROR), cp.codeTop()+2)
+		rightBacktrack = cp.codeTop()
+		cp.put(asgm, right)
+		cp.emit(jmp, cp.codeTop()+2)
+	}
+	leftMustBeSingle, leftMustBeTuple := lTypes.mustBeSingleOrTuple()
+	rightMustBeSingle, rightMustBeTuple := rTypes.mustBeSingleOrTuple()
+	switch {
+	case leftMustBeSingle && rightMustBeSingle:
+		cp.put(cc11, left, right)
+	case leftMustBeSingle && rightMustBeTuple:
+		cp.put(cc1T, left, right)
+	case leftMustBeTuple && rightMustBeSingle:
+		cp.put(ccT1, left, right)
+	case leftMustBeTuple && rightMustBeTuple:
+		cp.put(ccTT, left, right)
+	default:
+		cp.put(ccxx, left, right) // We can after all let the operation dispatch for us.
+	}
+	if lTypes.contains(ERROR) {
+		cp.vm.code[leftBacktrack].args[0] = cp.that()
+	}
+	if rTypes.contains(ERROR) {
+		cp.vm.code[rightBacktrack].args[0] = cp.that()
+	}
+	lT := lTypes.reduce()
+	rT := rTypes.reduce()
+	switch lT := lT.(type) {
+	case finiteTupleType:
+		switch rT := rT.(type) {
+		case finiteTupleType:
+			return alternateType{append(lT, rT...)}
+		case typedTupleType:
+			return alternateType{typedTupleType{rT.t.union(getAllTypes(lT))}}
+		case simpleType:
+			return alternateType{finiteTupleType{append(lT, rT)}}
+		case alternateType:
+			return alternateType{finiteTupleType{append(lT, rT)}} // TODO --- check if this works.
+		default:
+			panic("We shouldn't be here!")
+		}
+	case typedTupleType:
+		switch rT := rT.(type) {
+		case finiteTupleType:
+			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}
+		case typedTupleType:
+			return alternateType{typedTupleType{lT.t.union(rT.t)}}
+		case simpleType:
+			return alternateType{typedTupleType{lT.t.union(simpleList(rT))}}
+		case alternateType:
+			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}
+		default:
+			panic("We shouldn't be here!")
+		}
+	case simpleType:
+		switch rT := rT.(type) {
+		case finiteTupleType:
+			return alternateType{append(finiteTupleType{lT}, rT...)}
+		case typedTupleType:
+			return alternateType{typedTupleType{rT.t.union(simpleList(lT))}}
+		case simpleType:
+			return alternateType{finiteTupleType{lT, rT}}
+		case alternateType:
+			return alternateType{finiteTupleType{lT, rT}}
+		default:
+			panic("We shouldn't be here!")
+		}
+	case alternateType:
+		switch rT := rT.(type) {
+		case finiteTupleType:
+			return alternateType{append(finiteTupleType{lT}, rT...)}
+		case typedTupleType:
+			return alternateType{typedTupleType{rT.t.union(lT)}}
+		case simpleType:
+			return alternateType{finiteTupleType{lT, rT}}
+		case alternateType:
+			return append(lT, rT...)
+		default:
+			panic("We shouldn't be here!")
+		}
+	default:
+		panic("We shouldn't be here!")
+	}
+}
+
+func getAllTypes(ts typeScheme) alternateType {
+	result := alternateType{}
+	switch ts := ts.(type) {
+	case alternateType:
+		for _, v := range ts {
+			result = result.union(getAllTypes(v))
+		}
+	case typedTupleType:
+		result = ts.t
+	case finiteTupleType:
+		for _, v := range ts {
+			result = result.union(getAllTypes(v))
+		}
+	case simpleType:
+		result = simpleList(ts)
+	default:
+		panic("We shouldn't be here!")
+	}
+	return result
+}
+
+func (ts alternateType) reduce() typeScheme { // Turns alternative types with only on option into their contents.
+	if len(ts) == 1 {
+		return ts[0]
+	}
+	return ts
+}
+
+func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
+	s, T := true, true
+	for _, v := range t {
+		switch v.(type) {
+		case simpleType:
+			T = false
+		default:
+			s = false
+		}
+	}
+	return s, T
+}
+
 func (cp *Compiler) createInfixCall(node *ast.InfixExpression, env *environment) alternateType {
 	b := &bindle{tok: node.Token,
 		treePosition: cp.p.FunctionTreeMap[node.Operator],
@@ -378,7 +535,14 @@ func (cp *Compiler) generateNewArgument(b *bindle) alternateType {
 			return cp.seekBling(b, bl.tag)
 		}
 	}
-	// Case (3) : We aren't yet at the end of the list of arguments.
+	// Case (3) : we're in tuple time.
+	if b.tupleTime {
+		println("Heyoo")
+		newBindle := *b
+		newBindle.argNo++
+		return cp.generateNewArgument(&newBindle)
+	}
+	// Case (4) : We aren't yet at the end of the list of arguments.
 	newBindle := *b
 	newBindle.index = 0
 	return cp.generateFromTopBranchDown(b)
@@ -404,8 +568,9 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) alternateType {
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	typeError := cp.reserve(ERROR, DUMMY)
-	if b.tupleTime { // We can move on to the next argument.
+	if b.tupleTime || b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
 		newBindle := *b
+		newBindle.tupleTime = true
 		newBindle.argNo++
 		return cp.generateNewArgument(&newBindle)
 	}
@@ -442,14 +607,11 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
-			println("A start")
 			cp.put(idxT, b.valLocs[b.argNo], uint32(b.index))
 			cp.emitTypeComparison(branch.TypeName, cp.that(), DUMMY)
 		case len(overlap):
-			println("B start")
 			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
 		default:
-			println("C start")
 			cp.emit(qsnQ, b.valLocs[b.argNo], cp.codeTop()+3)
 			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
 			cp.emit(jmp, cp.codeTop()+3)
@@ -462,13 +624,10 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	var typesFromGoingAcross, typesFromGoingDown alternateType
 	switch len(acceptedSingleTypes) {
 	case 0:
-		println("A middle")
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 	case len(overlap):
-		println("B middle")
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 	default:
-		println("C middle")
 		backtrack := cp.codeTop()
 		cp.emit(qsnQ, b.valLocs[b.argNo], DUMMY)
 		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
@@ -486,13 +645,10 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		// We need to backtrack on whatever conditional we generated.
 		switch len(acceptedSingleTypes) {
 		case 0:
-			println("A end")
 			cp.vm.code[branchBacktrack+1].makeLastArg(cp.codeTop())
 		case len(overlap):
-			println("B end")
 			cp.vm.code[branchBacktrack].makeLastArg(cp.codeTop())
 		default:
-			println("C end")
 			cp.vm.code[branchBacktrack+1].makeLastArg(cp.codeTop())
 			cp.vm.code[branchBacktrack+4].makeLastArg(cp.codeTop())
 		}
@@ -500,7 +656,6 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
 		cp.vm.code[elseBacktrack].makeLastArg(cp.codeTop())
 	}
-
 	return typesFromGoingAcross.union(typesFromGoingDown)
 }
 
@@ -599,14 +754,13 @@ func (cp *Compiler) seekBling(b *bindle, bling string) alternateType {
 		if branch.TypeName == bling {
 			newBindle := *b
 			newBindle.branchNo = i
+			newBindle.tupleTime = false
 			return cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 		}
 	}
 	cp.p.Throw("comp/eq/err/a", b.tok) // TODO -- the bindle should pass all the original args or at least their tokens for better error messages.
 	return simpleList(ERROR)
 }
-
-const SHOW_COMPILE = true
 
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
 // the destination is the next free memory address.

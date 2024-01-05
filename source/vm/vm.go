@@ -24,87 +24,11 @@ var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
 
 func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
-	// Cross-reference with consts in values.go.
+	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	newVm.typeNames = []string{"thunk", "created local constant", "tuple", "error", "unsat", "null",
 		"int", "bool", "string", "float64"}
 	return newVm
 }
-
-func (vm *Vm) describeCode(loc uint32) string {
-	prefix := "@" + strconv.Itoa(int(loc)) + " : "
-	spaces := strings.Repeat(" ", 6-len(prefix))
-	return spaces + prefix + describe(vm.code[loc])
-}
-
-func (vm *Vm) describeType(t typeScheme) string {
-	if t == nil {
-		return "nil"
-	}
-	switch t := t.(type) {
-	case simpleType:
-		return vm.typeNames[t]
-	case alternateType:
-		if len(t) == 0 {
-			return "∅"
-		}
-		tList := []string{}
-		for _, v := range t {
-			tList = append(tList, vm.describeType(v))
-		}
-		return strings.Join(tList, "/")
-	case finiteTupleType:
-		tList := []string{}
-		for _, v := range t {
-			tList = append(tList, vm.describeType(v))
-		}
-		return "tuple with ()" + strings.Join(tList, ", ") + ")"
-	case typedTupleType:
-		return "tuple of (" + vm.describeType(t.t) + ")"
-	case blingType:
-		return t.tag
-	}
-	panic("unimplemented type")
-}
-
-func (vm *Vm) describe(v Value) string {
-	switch v.T {
-	case INT:
-		return strconv.Itoa(v.V.(int))
-	case STRING:
-		return v.V.(string)
-	case TYPE:
-		return vm.describeType(v.V.(simpleType))
-	case BOOL:
-		if v.V.(bool) {
-			return "true"
-		} else {
-			return "false"
-		}
-	case FLOAT:
-		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
-	case UNSAT:
-		return "unsatisfied conditional"
-	case NULL:
-		return "null"
-	case THUNK:
-		return "thunk"
-	case ERROR:
-		return "error"
-	}
-
-	panic("can't describe value")
-}
-
-func (vm *Vm) literal(v Value) string {
-	switch v.T {
-	case STRING:
-		return "\"" + v.V.(string) + "\""
-	default:
-		return vm.describe(v)
-	}
-}
-
-const SHOW_RUN = true
 
 func (vm *Vm) Run(loc uint32) {
 	if SHOW_RUN {
@@ -135,6 +59,28 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
+		case cc11:
+			vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]], vm.mem[args[2]]}}
+		case cc1T:
+			vm.mem[args[0]] = Value{TUPLE, append([]Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]Value)...)}
+		case ccT1:
+			vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+		case ccTT:
+			vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+		case ccxx:
+			if vm.mem[args[1]].T == TUPLE {
+				if vm.mem[args[2]].T == TUPLE {
+					vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+				} else {
+					vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+				}
+			} else {
+				if vm.mem[args[2]].T == TUPLE {
+					vm.mem[args[0]] = Value{TUPLE, append([]Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]Value)...)}
+				} else {
+					vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]], vm.mem[args[2]]}}
+				}
+			}
 		case divf:
 			if vm.mem[args[2]].V.(float64) == 0 {
 				vm.mem[args[0]] = Value{ERROR, DUMMY}
@@ -278,5 +224,89 @@ loop:
 	}
 	if SHOW_RUN {
 		println()
+	}
+}
+
+func (vm *Vm) describeCode(loc uint32) string {
+	prefix := "@" + strconv.Itoa(int(loc)) + " : "
+	spaces := strings.Repeat(" ", 6-len(prefix))
+	return spaces + prefix + describe(vm.code[loc])
+}
+
+func (vm *Vm) describeType(t typeScheme) string {
+	if t == nil {
+		return "nil"
+	}
+	switch t := t.(type) {
+	case simpleType:
+		return vm.typeNames[t]
+	case alternateType:
+		if len(t) == 0 {
+			return "∅"
+		}
+		tList := []string{}
+		for _, v := range t {
+			tList = append(tList, vm.describeType(v))
+		}
+		return strings.Join(tList, "/")
+	case finiteTupleType:
+		tList := []string{}
+		for _, v := range t {
+			tList = append(tList, vm.describeType(v))
+		}
+		return "tuple with (" + strings.Join(tList, ", ") + ")"
+	case typedTupleType:
+		return "tuple of (" + vm.describeType(t.t) + ")"
+	case blingType:
+		return t.tag
+	}
+	panic("unimplemented type")
+}
+
+func (vm *Vm) describe(v Value) string {
+	switch v.T {
+	case INT:
+		return strconv.Itoa(v.V.(int))
+	case STRING:
+		return v.V.(string)
+	case TYPE:
+		return vm.describeType(v.V.(simpleType))
+	case BOOL:
+		if v.V.(bool) {
+			return "true"
+		} else {
+			return "false"
+		}
+	case FLOAT:
+		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
+	case UNSAT:
+		return "unsatisfied conditional"
+	case NULL:
+		return "null"
+	case THUNK:
+		return "thunk"
+	case TUPLE:
+		result := make([]string, len(v.V.([]Value)))
+		for i, v := range v.V.([]Value) {
+			result[i] = vm.describe(v)
+		}
+		prefix := "("
+		if len(result) == 1 {
+			prefix = "tuple"
+		}
+		return prefix + strings.Join(result, ", ") + ")"
+	case ERROR:
+		return "error"
+	}
+
+	panic("can't describe value")
+}
+
+func (vm *Vm) literal(v Value) string {
+	switch v.T {
+	case STRING:
+		return "\"" + v.V.(string) + "\""
+	default:
+		return vm.describe(v)
 	}
 }
