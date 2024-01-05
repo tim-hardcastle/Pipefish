@@ -572,7 +572,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) alternateType {
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	typeError := cp.reserve(ERROR, DUMMY)
-	if b.tupleTime || b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
+	if b.tupleTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
 		newBindle := *b
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.tupleTime = true

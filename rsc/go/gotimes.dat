@@ -1,5 +1,3 @@
-lib/path.ch
-1699621426395
 lib/strings.ch
 1699636172987
 lib/regexp.ch
@@ -10,3 +8,5 @@ lib/math.ch
 1696579716224
 lib/time.ch
 1699617200609
+lib/path.ch
+1699621426395
