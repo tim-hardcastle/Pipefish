@@ -87,7 +87,9 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"bool":    {BOOL},
 			"float64": {FLOAT},
 			"error":   {ERROR},
-			"single":  {INT, BOOL, STRING, FLOAT},
+			"type":    {TYPE},
+			"null":    {NULL},
+			"single":  {NULL, INT, BOOL, STRING, FLOAT, TYPE},
 		},
 	}
 }
@@ -158,6 +160,9 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 	case *ast.FloatLiteral:
 		cp.reserve(FLOAT, node.Value)
 		return simpleList(FLOAT)
+	case *ast.TypeLiteral:
+		cp.reserve(TYPE, cp.typeNameToTypeList[node.Value][0])
+		return simpleList(TYPE)
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
 			return cp.createInfixCall(node, env)
@@ -537,7 +542,6 @@ func (cp *Compiler) generateNewArgument(b *bindle) alternateType {
 	}
 	// Case (3) : we're in tuple time.
 	if b.tupleTime {
-		println("Heyoo")
 		newBindle := *b
 		newBindle.argNo++
 		return cp.generateNewArgument(&newBindle)
@@ -570,6 +574,7 @@ func (cp *Compiler) generateBranch(b *bindle) alternateType {
 	typeError := cp.reserve(ERROR, DUMMY)
 	if b.tupleTime || b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
 		newBindle := *b
+		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.tupleTime = true
 		newBindle.argNo++
 		return cp.generateNewArgument(&newBindle)

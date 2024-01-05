@@ -26,7 +26,7 @@ func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	newVm.typeNames = []string{"thunk", "created local constant", "tuple", "error", "unsat", "null",
-		"int", "bool", "string", "float64"}
+		"int", "bool", "string", "float64", "type"}
 	return newVm
 }
 
@@ -282,7 +282,7 @@ func (vm *Vm) describe(v Value) string {
 	case UNSAT:
 		return "unsatisfied conditional"
 	case NULL:
-		return "null"
+		return "NULL"
 	case THUNK:
 		return "thunk"
 	case TUPLE:
