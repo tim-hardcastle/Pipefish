@@ -8,7 +8,7 @@ import (
 )
 
 const SHOW_BYTECODE = false
-const SHOW_COMPILE = false
+const SHOW_COMPILE = true
 const SHOW_RUN = true
 
 type enumOrdinates struct {

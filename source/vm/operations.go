@@ -11,7 +11,24 @@ type operation struct {
 	args   []uint32
 }
 
+type operandType uint8
+
+const (
+	dst operandType = iota
+	mem
+	loc
+	typ
+	num
+	tup
+)
+
+type operands []operandType
+
 type opcode uint8
+
+func (op *operation) ppDst(i int) string {
+	return " m" + strconv.Itoa(int(op.args[i])) + " <-"
+}
 
 func (op *operation) ppLoc(i int) string {
 	return " @" + strconv.Itoa(int(op.args[i]))
@@ -21,7 +38,7 @@ func (op *operation) ppMem(i int) string {
 	return " m" + strconv.Itoa(int(op.args[i]))
 }
 
-func (op *operation) ppType(i int) string {
+func (op *operation) ppTyp(i int) string {
 	return " t" + strconv.Itoa(int(op.args[i]))
 }
 
@@ -29,123 +46,94 @@ func (op *operation) ppInt(i int) string {
 	return " %" + strconv.Itoa(int(op.args[i]))
 }
 
-const LA = " <-"
-const FN = " <- func"
-const TP = " is"
-const CM = ","
-const LS = " else"
+func (op *operation) ppTup(i int) string {
+	args := op.args[i:]
+	result := "("
+	for _, v := range args {
+		result = result + " m" + strconv.Itoa(int(v))
+	}
+	return result + ")"
+}
+
+type opDescriptor struct {
+	oc string
+	or []operandType
+}
+
+var OPERANDS = map[opcode]opDescriptor{
+	addf: {"addf", operands{dst, mem, mem}},
+	addi: {"addi", operands{dst, mem, mem}},
+	adds: {"adds", operands{dst, mem, mem}},
+	andb: {"andb", operands{dst, mem, mem}},
+	asgm: {"asgm", operands{dst, mem}},
+	call: {"call", operands{dst, mem, mem, tup}},
+	cc11: {"cc11", operands{dst, mem, mem}},
+	cc1T: {"cc1T", operands{dst, mem, mem}},
+	ccT1: {"ccT1", operands{dst, mem, mem}},
+	ccTT: {"ccTT", operands{dst, mem, mem}},
+	ccxx: {"ccxx", operands{dst, mem, mem}},
+	cv1T: {"cv1T", operands{dst, mem, mem}},
+	divf: {"divf", operands{dst, mem, mem}},
+	divi: {"divi", operands{dst, mem, mem}},
+	equb: {"equb", operands{dst, mem, mem}},
+	equf: {"equf", operands{dst, mem, mem}},
+	equi: {"equi", operands{dst, mem, mem}},
+	equs: {"equs", operands{dst, mem, mem}},
+	flti: {"flti", operands{dst, mem}},
+	flts: {"flts", operands{dst, mem}},
+	gtef: {"gtef", operands{dst, mem, mem}},
+	gtei: {"gtei", operands{dst, mem, mem}},
+	gthf: {"gthf", operands{dst, mem, mem}},
+	gthi: {"gthi", operands{dst, mem, mem}},
+	halt: {"halt", operands{}},
+	idxT: {"idxT", operands{dst, mem, mem}},
+	intf: {"intf", operands{dst, mem}},
+	ints: {"ints", operands{dst, mem}},
+	jmp:  {"jmp", operands{loc}},
+	jsr:  {"jsr", operands{loc}},
+	lens: {"lens", operands{dst, mem}},
+	litx: {"lits", operands{dst, mem}},
+	modi: {"modi", operands{dst, mem, mem}},
+	mulf: {"mulf", operands{dst, mem, mem}},
+	muli: {"muli", operands{dst, mem, mem}},
+	negf: {"negf", operands{dst, mem}},
+	negi: {"negi", operands{dst, mem}},
+	notb: {"noyb", operands{dst, mem}},
+	orb:  {"orb", operands{dst, mem, mem}},
+	qlnT: {"qlnT", operands{mem, num, loc}},
+	qsnQ: {"qsnQ", operands{mem, loc}},
+	qsng: {"qsng", operands{mem, loc}},
+	qtru: {"qtru", operands{mem, loc}},
+	qtyp: {"qtyp", operands{mem, typ, loc}},
+	ret:  {"ret", operands{}},
+	strx: {"strx", operands{dst, mem}},
+	subf: {"subf", operands{dst, mem, mem}},
+	subi: {"subi", operands{dst, mem, mem}},
+	thnk: {"thnk", operands{dst, loc}},
+	typx: {"typx", operands{dst, mem}},
+	untk: {"untk", operands{dst}},
+}
 
 func describe(op *operation) string {
-	switch op.opcode {
-	case addf:
-		return "addf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case addi:
-		return "addi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case adds:
-		return "adds" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case andb:
-		return "andb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case asgm:
-		return "asgm" + op.ppMem(0) + LA + op.ppMem(1)
-	case cc11:
-		return "cc11" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case cc1T:
-		return "cc1T" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case ccT1:
-		return "ccT1" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case ccTT:
-		return "ccTT" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case ccxx:
-		return "ccxx" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case cv1T:
-		return "cv1T" + op.ppMem(0) + LA + op.ppMem(1)
-	case divf:
-		return "divf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case divi:
-		return "divi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case equb:
-		return "equb" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case equf:
-		return "equf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case equi:
-		return "equi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case equs:
-		return "equs" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case call:
-		result := "call" + op.ppLoc(0) + op.ppMem(1) + " ::" + op.ppMem(2) + " ("
-		for i := 3; i < len(op.args); i++ {
+	operands := OPERANDS[op.opcode].or
+	result := OPERANDS[op.opcode].oc
+	for i, opType := range operands {
+		switch opType {
+		case dst:
+			result = result + op.ppDst(i)
+		case mem:
 			result = result + op.ppMem(i)
+		case loc:
+			result = result + op.ppLoc(i)
+		case typ:
+			result = result + op.ppTyp(i)
+		case num:
+			result = result + op.ppInt(i)
+		case tup:
+			result = result + op.ppTup(i)
 		}
-		result = result + " )"
-		return result
-	case flti:
-		return "flti" + op.ppMem(0) + LA + op.ppMem(1)
-	case flts:
-		return "flts" + op.ppMem(0) + LA + op.ppMem(1)
-	case gtef:
-		return "gtef" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case gtei:
-		return "gtei" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case gthf:
-		return "gthf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case gthi:
-		return "gthi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case halt:
-		return "halt"
-	case idxT:
-		return "idxT" + op.ppMem(0) + LA + op.ppMem(1) + op.ppInt(2)
-	case intf:
-		return "intf" + op.ppMem(0) + LA + op.ppMem(1)
-	case ints:
-		return "ints" + op.ppMem(0) + LA + op.ppMem(1)
-	case jmp:
-		return "jmp " + op.ppLoc(0)
-	case jsr:
-		return "jsr " + op.ppLoc(0)
-	case lens:
-		return "lens" + op.ppMem(0) + LA + op.ppMem(1)
-	case litx:
-		return "litx" + op.ppMem(0) + LA + op.ppMem(1)
-	case modi:
-		return "modi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case mulf:
-		return "mulf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case muli:
-		return "muli" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case negf:
-		return "negf" + op.ppMem(0) + LA + op.ppMem(1)
-	case negi:
-		return "negi" + op.ppMem(0) + LA + op.ppMem(1)
-	case notb:
-		return "notb" + op.ppMem(0) + LA + op.ppMem(1)
-	case orb:
-		return "orb " + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case qtru:
-		return "qtru" + op.ppMem(0) + LS + op.ppLoc(1)
-	case qlnT:
-		return "qlnT" + op.ppMem(0) + TP + op.ppInt(1) + LS + op.ppLoc(2)
-	case qtyp:
-		return "qtyp" + op.ppMem(0) + TP + op.ppType(1) + LS + op.ppLoc(2)
-	case qsng:
-		return "qsng" + op.ppMem(0) + LS + op.ppLoc(1)
-	case qsnQ:
-		return "qsnQ" + op.ppMem(0) + LS + op.ppLoc(1)
-	case ret:
-		return "ret "
-	case strx:
-		return "strx" + op.ppMem(0) + LA + op.ppMem(1)
-	case subf:
-		return "subf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case subi:
-		return "subi" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
-	case thnk:
-		return "thnk" + op.ppMem(0) + LA + op.ppLoc(1)
-	case typx:
-		return "typx" + op.ppMem(0) + LA + op.ppMem(1)
-	case untk:
-		return "untk" + op.ppMem(0)
 	}
-	return "indescribable thing"
+	return result
 }
 
 func (op *operation) makeLastArg(loc uint32) {

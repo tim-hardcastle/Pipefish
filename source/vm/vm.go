@@ -250,7 +250,7 @@ func (vm *Vm) describeType(t typeScheme) string {
 		for _, v := range t {
 			tList = append(tList, vm.describeType(v))
 		}
-		return strings.Join(tList, "/")
+		return "[" + strings.Join(tList, "/") + "]"
 	case finiteTupleType:
 		tList := []string{}
 		for _, v := range t {
