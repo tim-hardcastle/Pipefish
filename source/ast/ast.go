@@ -14,6 +14,11 @@ type Node interface {
 	String() string
 }
 
+type Callable interface {
+	Node
+	GetArgs() []Node
+}
+
 // Nodes in alphabetical order. Other structures and functions are in a separate section at the bottom.
 
 type ApplicationExpression struct {
@@ -164,6 +169,7 @@ type InfixExpression struct {
 	Args     []Node
 }
 
+func (ie *InfixExpression) GetArgs() []Node       { return ie.Args }
 func (ie *InfixExpression) GetToken() token.Token { return ie.Token }
 func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
@@ -283,6 +289,7 @@ type PrefixExpression struct {
 	Args     []Node
 }
 
+func (pe *PrefixExpression) GetArgs() []Node       { return pe.Args }
 func (pe *PrefixExpression) GetToken() token.Token { return pe.Token }
 func (pe *PrefixExpression) String() string {
 	var out bytes.Buffer
@@ -363,6 +370,7 @@ type SuffixExpression struct {
 	Args     []Node
 }
 
+func (se *SuffixExpression) GetArgs() []Node       { return se.Args }
 func (se *SuffixExpression) GetToken() token.Token { return se.Token }
 func (se *SuffixExpression) String() string {
 	var out bytes.Buffer

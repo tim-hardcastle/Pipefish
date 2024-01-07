@@ -57,6 +57,8 @@ func describe(op *operation) string {
 		return "ccTT" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case ccxx:
 		return "ccxx" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
+	case cv1T:
+		return "cv1T" + op.ppMem(0) + LA + op.ppMem(1)
 	case divf:
 		return "divf" + op.ppMem(0) + LA + op.ppMem(1) + CM + op.ppMem(2)
 	case divi:
@@ -161,6 +163,7 @@ const (
 	ccT1
 	ccTT
 	ccxx
+	cv1T
 	asgm
 	call
 	cmp

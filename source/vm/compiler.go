@@ -82,14 +82,20 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		thunkList: []thunk{},
 		fns:       []*cpFunc{},
 		typeNameToTypeList: map[string]alternateType{
-			"int":     {INT},
-			"string":  {STRING},
-			"bool":    {BOOL},
-			"float64": {FLOAT},
-			"error":   {ERROR},
-			"type":    {TYPE},
-			"null":    {NULL},
-			"single":  {NULL, INT, BOOL, STRING, FLOAT, TYPE},
+			"int":      {INT},
+			"string":   {STRING},
+			"bool":     {BOOL},
+			"float64":  {FLOAT},
+			"error":    {ERROR},
+			"type":     {TYPE},
+			"int?":     {NULL, INT},
+			"string?":  {NULL, STRING},
+			"bool?":    {NULL, BOOL},
+			"float64?": {NULL, FLOAT},
+			"type?":    {NULL, TYPE},
+			"null":     {NULL},
+			"single":   {INT, BOOL, STRING, FLOAT, TYPE},
+			"single?":  {NULL, INT, BOOL, STRING, FLOAT, TYPE},
 		},
 	}
 }
@@ -165,7 +171,7 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 		return simpleList(TYPE)
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
-			return cp.createInfixCall(node, env)
+			return cp.createFunctionCall(node, env)
 		}
 		if node.Operator == "," {
 			return cp.emitComma(node, env)
@@ -305,6 +311,12 @@ func (cp *Compiler) compileNode(node ast.Node, env *environment) alternateType {
 			return cp.createFunctionCall(node, env)
 		}
 		cp.p.Throw("comp/prefix/known", node.Token)
+		return simpleList(ERROR)
+	case *ast.SuffixExpression:
+		if cp.p.Suffixes.Contains(node.Operator) {
+			return cp.createFunctionCall(node, env)
+		}
+		cp.p.Throw("comp/suffix", node.Token)
 		return simpleList(ERROR)
 	default:
 		panic("Unimplemented node type.")
@@ -461,40 +473,16 @@ func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
 	return s, T
 }
 
-func (cp *Compiler) createInfixCall(node *ast.InfixExpression, env *environment) alternateType {
-	b := &bindle{tok: node.Token,
-		treePosition: cp.p.FunctionTreeMap[node.Operator],
+func (cp *Compiler) createFunctionCall(node ast.Callable, env *environment) alternateType {
+	args := node.GetArgs()
+	b := &bindle{tok: node.GetToken(),
+		treePosition: cp.p.FunctionTreeMap[node.GetToken().Literal],
 		outLoc:       cp.reserve(ERROR, DUMMY),
 		env:          env,
-		valLocs:      make([]uint32, len(node.Args)),
-		types:        make(finiteTupleType, len(node.Args)),
+		valLocs:      make([]uint32, len(args)),
+		types:        make(finiteTupleType, len(args)),
 	}
-	for i, arg := range node.Args {
-		switch arg := arg.(type) {
-		case *ast.Bling:
-			b.types[i] = alternateType{blingType{arg.Value}}
-		default:
-			b.types[i] = cp.compileNode(arg, env)
-			b.valLocs[i] = cp.that()
-		}
-	}
-	returnTypes := cp.generateNewArgument(b)
-	cp.put(asgm, b.outLoc)
-	if returnTypes.only(ERROR) {
-		cp.p.Throw("comp/call", b.tok)
-	}
-	return returnTypes
-}
-
-func (cp *Compiler) createFunctionCall(node *ast.PrefixExpression, env *environment) alternateType {
-	b := &bindle{tok: node.Token,
-		treePosition: cp.p.FunctionTreeMap[node.Operator],
-		outLoc:       cp.reserve(ERROR, DUMMY),
-		env:          env,
-		valLocs:      make([]uint32, len(node.Args)),
-		types:        make(finiteTupleType, len(node.Args)),
-	}
-	for i, arg := range node.Args {
+	for i, arg := range args {
 		switch arg := arg.(type) {
 		case *ast.Bling:
 			b.types[i] = alternateType{blingType{arg.Value}}
@@ -742,6 +730,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) alternateType {
 			fNo := branch.Node.Fn.Number
 			functionAndType, ok := BUILTINS[cp.fns[fNo].builtin]
 			if ok {
+				if cp.fns[fNo].builtin == "tuple_of_single?" {
+					functionAndType.t = alternateType{finiteTupleType{b.types[0]}}
+				}
+				if cp.fns[fNo].builtin == "tuple_of_tuple" {
+					// TODO --- hack this.
+				}
 				functionAndType.f(cp, b.outLoc, b.valLocs)
 				return functionAndType.t
 			}

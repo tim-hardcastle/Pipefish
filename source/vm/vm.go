@@ -81,6 +81,8 @@ loop:
 					vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]], vm.mem[args[2]]}}
 				}
 			}
+		case cv1T:
+			vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]]}}
 		case divf:
 			if vm.mem[args[2]].V.(float64) == 0 {
 				vm.mem[args[0]] = Value{ERROR, DUMMY}
@@ -292,7 +294,7 @@ func (vm *Vm) describe(v Value) string {
 		}
 		prefix := "("
 		if len(result) == 1 {
-			prefix = "tuple"
+			prefix = "tuple("
 		}
 		return prefix + strings.Join(result, ", ") + ")"
 	case ERROR:
