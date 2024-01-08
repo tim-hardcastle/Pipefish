@@ -745,6 +745,18 @@ func (cp *Compiler) seekBling(vm *Vm, b *bindle, bling string) alternateType {
 	return simpleList(ERROR)
 }
 
+// This supplies us with a Vm which shares its memory with the target vm in the compiler, but which has its own code store. The
+// contents of the store after compiling to the temporary target can be added to the main vm using the .add method below.
+func (cp *Compiler) tempVm() *Vm {
+	vm := *cp.vm
+	vm.code = []*operation{}
+	return &vm
+}
+
+func (cp *Compiler) addCode(vm *Vm) {
+	cp.vm.add(vm)
+}
+
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
 // the destination is the next free memory address.
 func (cp *Compiler) emit(vm *Vm, opcode opcode, args ...uint32) {
