@@ -18,6 +18,22 @@ type Vm struct {
 	enums     [][]string
 }
 
+func (vm *Vm) memTop() uint32 {
+	return uint32(len(vm.mem))
+}
+
+func (vm *Vm) that() uint32 {
+	return uint32(len(vm.mem) - 1)
+}
+
+func (vm *Vm) codeTop() uint32 {
+	return uint32(len(vm.code))
+}
+
+func (vm *Vm) next() uint32 {
+	return uint32(len(vm.code))
+}
+
 var OPCODE_LIST []func(vm *Vm, args []uint32)
 
 var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}

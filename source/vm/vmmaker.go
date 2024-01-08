@@ -116,7 +116,7 @@ func (vmm *VmMaker) compileFunctions() {
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
 			if vmm.cp.fns[c] == nil { // This is so that if some functions are built recursively we won't waste our time.
-				vmm.compileFunction(vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
+				vmm.compileFunction(vmm.cp.vm, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
 			}
 			c++
 		}
@@ -175,7 +175,7 @@ func (vmm *VmMaker) createEnums() {
 	}
 }
 
-func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int) *cpFunc {
+func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment, ix int) *cpFunc {
 	cpF := cpFunc{}
 	functionName, sig, _, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
@@ -192,31 +192,31 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 	// First the thunks in the given block.
 	if given != nil {
 		vmm.cp.thunkList = []thunk{}
-		vmm.cp.compileNode(given, fnenv)
+		vmm.cp.compileNode(vm, given, fnenv)
 		for _, pair := range vmm.cp.thunkList {
-			vmm.cp.emit(thnk, pair.mLoc, pair.cLoc)
+			vmm.cp.emit(vm, thnk, pair.mLoc, pair.cLoc)
 		}
 	}
 
-	cpF.loReg = vmm.cp.memTop()
+	cpF.loReg = vm.memTop()
 	for _, pair := range sig {
 		if pair.VarType == "bling" {
 			continue
 		}
-		vmm.cp.reserve(INT, DUMMY)
-		vmm.cp.addVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
+		vmm.cp.reserve(vm, INT, DUMMY)
+		vmm.cp.addVariable(vm, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
 	}
-	cpF.hiReg = vmm.cp.memTop()
-	cpF.callTo = vmm.cp.codeTop()
+	cpF.hiReg = vm.memTop()
+	cpF.callTo = vm.codeTop()
 	if body.GetToken().Type == token.BUILTIN {
 		types, ok := BUILTINS[body.(*ast.BuiltInExpression).Name]
 		if ok {
 			cpF.types = types.t
 		}
 	} else {
-		cpF.types = vmm.cp.compileNode(body, fnenv)
-		vmm.cp.emit(ret)
-		cpF.outReg = vmm.cp.that()
+		cpF.types = vmm.cp.compileNode(vm, body, fnenv)
+		vmm.cp.emit(vm, ret)
+		cpF.outReg = vm.that()
 	}
 	vmm.cp.fns[ix] = &cpF
 	return &cpF
@@ -224,9 +224,9 @@ func (vmm *VmMaker) compileFunction(node ast.Node, outerEnv *environment, ix int
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.gvars.ext = vmm.cp.gconsts
-	vmm.cp.reserve(NULL, nil)
-	vmm.cp.addVariable(vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, simpleList(NULL))
-	vmm.cp.tupleType = vmm.cp.reserve(TYPE, TUPLE)
+	vmm.cp.reserve(vmm.cp.vm, NULL, nil)
+	vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, simpleList(NULL))
+	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.vm, TYPE, TUPLE)
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {
@@ -237,17 +237,17 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 				vmm.uP.Throw("vmm/assign/ident", dec.GetToken())
 			}
 			vname := lhs.(*ast.Identifier).Value
-			runFrom := vmm.cp.codeTop()
-			inferedType := vmm.cp.compileNode(rhs, vmm.cp.gvars)
+			runFrom := vmm.cp.vm.codeTop()
+			inferedType := vmm.cp.compileNode(vmm.cp.vm, rhs, vmm.cp.gvars)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
-			vmm.cp.emit(ret)
+			vmm.cp.emit(vmm.cp.vm, ret)
 			vmm.cp.vm.Run(runFrom)
 			if declarations == int(constantDeclaration) {
-				vmm.cp.addVariable(vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
+				vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
 			} else {
-				vmm.cp.addVariable(vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
+				vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
 			}
 			vmm.cp.vm.code = vmm.cp.vm.code[:runFrom]
 		}
