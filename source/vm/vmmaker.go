@@ -214,7 +214,7 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 			cpF.types = types.t
 		}
 	} else {
-		cpF.types = vmm.cp.compileNode(vm, body, fnenv)
+		cpF.types, _ = vmm.cp.compileNode(vm, body, fnenv) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		vmm.cp.emit(vm, ret)
 		cpF.outReg = vm.that()
 	}
@@ -238,7 +238,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := vmm.cp.vm.codeTop()
-			inferedType := vmm.cp.compileNode(vmm.cp.vm, rhs, vmm.cp.gvars)
+			inferedType, _ := vmm.cp.compileNode(vmm.cp.vm, rhs, vmm.cp.gvars)
 			if vmm.uP.ErrorsExist() {
 				return
 			}

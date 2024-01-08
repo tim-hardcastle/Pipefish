@@ -45,6 +45,9 @@ const (
 	LOCAL_CONSTANT_THUNK
 )
 
+// Update with:
+var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, LOCAL_CONSTANT_THUNK})
+
 type variable struct {
 	mLoc   uint32
 	access varAccess

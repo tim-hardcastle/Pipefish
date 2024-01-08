@@ -39,7 +39,6 @@ type Compiler struct {
 	gvars              *environment
 	fns                []*cpFunc
 	thunkList          []thunk
-	functionForest     map[string]*fnTreeNode
 	typeNameToTypeList map[string]alternateType
 
 	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}
@@ -136,122 +135,144 @@ func (cp *Compiler) addVariable(vm *Vm, env *environment, name string, acc varAc
 	env.data[name] = variable{mLoc: vm.that(), access: acc, types: types}
 }
 
-func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) alternateType {
+func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (alternateType, bool) {
+	rtnTypes, rtnConst := alternateType{}, true
+	mT := vm.memTop()
+	cT := vm.codeTop()
 	switch node := node.(type) {
 	case *ast.IntegerLiteral:
 		cp.reserve(vm, INT, node.Value)
-		return simpleList(INT)
+		rtnTypes, rtnConst = simpleList(INT), true
+		break
 	case *ast.StringLiteral:
 		cp.reserve(vm, STRING, node.Value)
-		return simpleList(STRING)
+		rtnTypes, rtnConst = simpleList(STRING), true
+		break
 	case *ast.BooleanLiteral:
 		cp.reserve(vm, BOOL, node.Value)
-		return simpleList(BOOL)
+		rtnTypes, rtnConst = simpleList(BOOL), true
+		break
 	case *ast.FloatLiteral:
 		cp.reserve(vm, FLOAT, node.Value)
-		return simpleList(FLOAT)
+		rtnTypes, rtnConst = simpleList(FLOAT), true
+		break
 	case *ast.TypeLiteral:
 		cp.reserve(vm, TYPE, cp.typeNameToTypeList[node.Value][0])
-		return simpleList(TYPE)
+		rtnTypes, rtnConst = simpleList(TYPE), true
+		break
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
-			return cp.createFunctionCall(vm, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
+			break
 		}
 		if node.Operator == "," {
-			return cp.emitComma(vm, node, env)
+			rtnTypes, rtnConst = cp.emitComma(vm, node, env)
+			break
 		}
 		if node.Operator == "==" {
-			return cp.emitEquals(vm, node, env)
+			rtnTypes, rtnConst = cp.emitEquals(vm, node, env)
+			break
 		}
 		if node.Operator == "!=" {
-			types := cp.emitEquals(vm, node, env)
+			rtnTypes, rtnConst = cp.emitEquals(vm, node, env)
 			cp.put(vm, notb, vm.that())
-			return types
+			break
 		}
 		cp.p.Throw("comp/infix", node.Token)
-		return simpleList(ERROR)
+		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
-			lTypes := cp.compileNode(vm, node.Left, env)
+			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/left", node.Token)
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
 			leftRg := vm.that()
 			cp.emit(vm, qtru, leftRg, vm.next()+2)
 			backtrack := vm.next()
 			cp.emit(vm, jmp, DUMMY)
-			rTypes := cp.compileNode(vm, node.Right, env)
+			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/or/bool/right", node.Token)
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
 			rightRg := vm.that()
 			vm.code[backtrack].args[0] = vm.next()
 			cp.put(vm, orb, leftRg, rightRg)
-			return simpleList(BOOL)
+			rtnTypes, rtnConst = simpleList(BOOL), lcst && rcst
+			break
 		}
 		if node.Operator == "and" {
-			lTypes := cp.compileNode(vm, node.Left, env)
+			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/left", node.Token)
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
 			leftRg := vm.that()
 			backtrack := vm.next()
 			cp.emit(vm, qtru, leftRg, DUMMY)
-			rTypes := cp.compileNode(vm, node.Right, env)
+			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			if !rTypes.contains(BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.Token)
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
 			rightRg := vm.that()
 			vm.code[backtrack].args[1] = vm.next()
 			cp.put(vm, andb, leftRg, rightRg)
-			return simpleList(BOOL)
+			rtnTypes, rtnConst = simpleList(BOOL), lcst && rcst
+			break
 		}
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
-				return cp.compileNode(vm, node.Right, env)
+				rtnTypes, rtnConst = cp.compileNode(vm, node.Right, env)
 			}
-			lTypes := cp.compileNode(vm, node.Left, env)
+			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
 				cp.p.Throw("comp/cond/bool", node.Token)
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
 			leftRg := vm.that()
 			backtrack := vm.next()
 			cp.emit(vm, qtru, leftRg, DUMMY)
-			rTypes := cp.compileNode(vm, node.Right, env)
+			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			cp.put(vm, asgm, vm.that())
 			cp.emit(vm, jmp, vm.next()+2)
 			vm.code[backtrack].args[1] = vm.next()
 			cp.reput(vm, asgm, C_U_OBJ)
-			return rTypes.union(simpleList(UNSAT))
+			rtnTypes, rtnConst = rTypes.union(simpleList(UNSAT)), lcst && rcst
+			break
 		}
 		if node.Operator == ";" {
-			lTypes := cp.compileNode(vm, node.Left, env)
+			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
 			if lTypes.only(CREATED_LOCAL_CONSTANT) {
 				cp.compileNode(vm, node.Right, env)
-				return simpleList(CREATED_LOCAL_CONSTANT)
+				rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
+				break
 			}
 			leftRg := vm.that()
 			backtrack := vm.next()
 			cp.emit(vm, qtyp, leftRg, uint32(UNSAT), DUMMY)
-			rTypes := cp.compileNode(vm, node.Right, env)
+			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			rightRg := vm.that()
 			cp.put(vm, asgm, rightRg)
 			cp.emit(vm, jmp, vm.next()+2)
 			vm.code[backtrack].args[2] = vm.next()
 			cp.reput(vm, asgm, leftRg)
 			if !(lTypes.contains(UNSAT) && rTypes.contains(UNSAT)) {
-				return lTypes.union(rTypes).without(UNSAT)
+				rtnTypes, rtnConst = lTypes.union(rTypes).without(UNSAT), lcst && rcst
+				break
 			}
-			return lTypes.union(rTypes)
+			rtnTypes, rtnConst = lTypes.union(rTypes), lcst && rcst
+			break
 		}
-		panic("Unimplemented lazy infix.")
 	case *ast.Identifier:
 		v, ok := env.getVar(node.Value)
 		if ok {
@@ -259,62 +280,85 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) alterna
 				cp.emit(vm, untk, v.mLoc)
 			}
 			cp.put(vm, asgm, v.mLoc)
-			return v.types
+			rtnTypes = v.types
+			rtnConst = ALL_CONST_ACCESS.Contains(v.access)
+			break
 		}
 		cp.p.Throw("comp/ident/known", node.Token)
-		return simpleList(ERROR)
+		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
 	case *ast.AssignmentExpression:
 		if node.Token.Type == token.GVN_ASSIGN {
 			// TODO --- need to do this better after we implement tuples
 			if node.Left.GetToken().Type != token.IDENT {
 				cp.p.Throw("comp/assign/ident", node.Left.GetToken())
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
 			thunkStart := vm.next()
-			types := cp.compileNode(vm, node.Right, env)
+			types, _ := cp.compileNode(vm, node.Right, env)
 			cp.emit(vm, ret)
 			cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_CONSTANT_THUNK, types)
 			cp.thunkList = append(cp.thunkList, thunk{vm.that(), thunkStart})
+			rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
 		}
 		cp.p.Throw("comp/assign", node.Token)
-		return simpleList(ERROR)
+		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
-			allTypes := cp.compileNode(vm, node.Args[0], env)
+			allTypes, cst := cp.compileNode(vm, node.Args[0], env)
 			if allTypes.only(BOOL) {
 				cp.put(vm, notb, vm.that())
-				return simpleList(BOOL)
+				rtnTypes, rtnConst = simpleList(BOOL), cst
+				break
 			}
 			if !allTypes.contains(BOOL) {
 				cp.p.Throw("comp/not/bool", node.Token)
-				return simpleList(ERROR)
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
 			}
-			panic("Haven't implemented this bit because of having no way to test it at this point.")
 		}
 		if cp.p.Prefixes.Contains(node.Operator) || cp.p.Functions.Contains(node.Operator) {
-			return cp.createFunctionCall(vm, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
+			break
 		}
 		cp.p.Throw("comp/prefix/known", node.Token)
-		return simpleList(ERROR)
+		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
 	case *ast.SuffixExpression:
 		if cp.p.Suffixes.Contains(node.Operator) {
-			return cp.createFunctionCall(vm, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
+			break
 		}
 		cp.p.Throw("comp/suffix", node.Token)
-		return simpleList(ERROR)
+		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
 	default:
 		panic("Unimplemented node type.")
 	}
+	if rtnConst && vm.codeTop() > cT {
+		if SHOW_COMPILE {
+			println("Expression is constant. Folding.")
+		}
+		cp.emit(vm, ret)
+		vm.Run(cT)
+		result := vm.mem[vm.that()]
+		vm.mem = vm.mem[:mT]
+		vm.code = vm.code[:cT]
+		cp.reserve(vm, result.T, result.V)
+	}
+	return rtnTypes, rtnConst
 }
 
 // This needs its own very special logic because the type it returns has to be composed in a different way from all the other operators.
-func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environment) alternateType {
-	lTypes := cp.compileNode(vm, node.Args[0], env)
+func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
+	lTypes, lcst := cp.compileNode(vm, node.Args[0], env)
 	if lTypes.only(ERROR) {
 		cp.p.Throw("comp/tuple/err/a", node.Token)
 	}
 	left := vm.that()
-	rTypes := cp.compileNode(vm, node.Args[2], env)
+	rTypes, rcst := cp.compileNode(vm, node.Args[2], env)
 	if rTypes.only(ERROR) {
 		cp.p.Throw("comp/tuple/err/b", node.Token)
 	}
@@ -358,56 +402,57 @@ func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environmen
 	}
 	lT := lTypes.reduce()
 	rT := rTypes.reduce()
+	cst := lcst && rcst
 	switch lT := lT.(type) {
 	case finiteTupleType:
 		switch rT := rT.(type) {
 		case finiteTupleType:
-			return alternateType{append(lT, rT...)}
+			return alternateType{append(lT, rT...)}, cst
 		case typedTupleType:
-			return alternateType{typedTupleType{rT.t.union(getAllTypes(lT))}}
+			return alternateType{typedTupleType{rT.t.union(getAllTypes(lT))}}, cst
 		case simpleType:
-			return alternateType{finiteTupleType{append(lT, rT)}}
+			return alternateType{finiteTupleType{append(lT, rT)}}, cst
 		case alternateType:
-			return alternateType{finiteTupleType{append(lT, rT)}} // TODO --- check if this works.
+			return alternateType{finiteTupleType{append(lT, rT)}}, cst // TODO --- check if this works.
 		default:
 			panic("We shouldn't be here!")
 		}
 	case typedTupleType:
 		switch rT := rT.(type) {
 		case finiteTupleType:
-			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}
+			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}, cst
 		case typedTupleType:
-			return alternateType{typedTupleType{lT.t.union(rT.t)}}
+			return alternateType{typedTupleType{lT.t.union(rT.t)}}, cst
 		case simpleType:
-			return alternateType{typedTupleType{lT.t.union(simpleList(rT))}}
+			return alternateType{typedTupleType{lT.t.union(simpleList(rT))}}, cst
 		case alternateType:
-			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}
+			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}, cst
 		default:
 			panic("We shouldn't be here!")
 		}
 	case simpleType:
 		switch rT := rT.(type) {
 		case finiteTupleType:
-			return alternateType{append(finiteTupleType{lT}, rT...)}
+			return alternateType{append(finiteTupleType{lT}, rT...)}, cst
 		case typedTupleType:
-			return alternateType{typedTupleType{rT.t.union(simpleList(lT))}}
+			return alternateType{typedTupleType{rT.t.union(simpleList(lT))}}, cst
 		case simpleType:
-			return alternateType{finiteTupleType{lT, rT}}
+			return alternateType{finiteTupleType{lT, rT}}, cst
 		case alternateType:
-			return alternateType{finiteTupleType{lT, rT}}
+			return alternateType{finiteTupleType{lT, rT}}, cst
 		default:
 			panic("We shouldn't be here!")
 		}
 	case alternateType:
 		switch rT := rT.(type) {
 		case finiteTupleType:
-			return alternateType{append(finiteTupleType{lT}, rT...)}
+			return alternateType{append(finiteTupleType{lT}, rT...)}, cst
 		case typedTupleType:
-			return alternateType{typedTupleType{rT.t.union(lT)}}
+			return alternateType{typedTupleType{rT.t.union(lT)}}, cst
 		case simpleType:
-			return alternateType{finiteTupleType{lT, rT}}
+			return alternateType{finiteTupleType{lT, rT}}, cst
 		case alternateType:
-			return append(lT, rT...)
+			return append(lT, rT...), cst
 		default:
 			panic("We shouldn't be here!")
 		}
@@ -457,7 +502,7 @@ func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
 	return s, T
 }
 
-func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environment) alternateType {
+func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environment) (alternateType, bool) {
 	args := node.GetArgs()
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.p.FunctionTreeMap[node.GetToken().Literal],
@@ -466,12 +511,15 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
 	}
+	var cstI bool
+	cst := true
 	for i, arg := range args {
 		switch arg := arg.(type) {
 		case *ast.Bling:
 			b.types[i] = alternateType{blingType{arg.Value}}
 		default:
-			b.types[i] = cp.compileNode(vm, arg, env)
+			b.types[i], cstI = cp.compileNode(vm, arg, env)
+			cst = cst && cstI
 			b.valLocs[i] = vm.that()
 		}
 	}
@@ -480,7 +528,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 	if returnTypes.only(ERROR) {
 		cp.p.Throw("comp/call", b.tok)
 	}
-	return returnTypes
+	return returnTypes, cst
 }
 
 type bindle struct {
@@ -783,27 +831,27 @@ func (cp *Compiler) emitFunctionCall(vm *Vm, funcNumber uint32, valLocs []uint32
 	cp.emit(vm, call, args...)
 }
 
-func (cp *Compiler) emitEquals(vm *Vm, node *ast.InfixExpression, env *environment) alternateType {
-	lTypes := cp.compileNode(vm, node.Args[0], env)
+func (cp *Compiler) emitEquals(vm *Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
+	lTypes, lcst := cp.compileNode(vm, node.Args[0], env)
 	if lTypes.only(ERROR) {
 		cp.p.Throw("comp/eq/err/a", node.Token)
-		return simpleList(ERROR)
+		return simpleList(ERROR), true
 	}
 	leftRg := vm.that()
-	rTypes := cp.compileNode(vm, node.Args[2], env)
+	rTypes, rcst := cp.compileNode(vm, node.Args[2], env)
 	if rTypes.only(ERROR) {
 		cp.p.Throw("comp/eq/err/b", node.Token)
-		return simpleList(ERROR)
+		return simpleList(ERROR), true
 	}
 	rightRg := vm.that()
 	oL := lTypes.intersect(rTypes)
 	if oL.only(ERROR) {
 		cp.p.Throw("comp/eq/err/c", node.Token)
-		return simpleList(ERROR)
+		return simpleList(ERROR), true
 	}
 	if len(oL) == 0 {
 		cp.p.Throw("comp/eq/types", node.Token)
-		return simpleList(ERROR)
+		return simpleList(ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
 		switch el := oL[0].(type) {
@@ -820,7 +868,7 @@ func (cp *Compiler) emitEquals(vm *Vm, node *ast.InfixExpression, env *environme
 			default:
 				panic("Unimplemented comparison type.")
 			}
-			return simpleList(BOOL)
+			return simpleList(BOOL), lcst && rcst
 		default:
 			panic("Unimplemented comparison type.")
 		}
