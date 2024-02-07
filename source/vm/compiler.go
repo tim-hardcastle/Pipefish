@@ -7,7 +7,6 @@ import (
 	"charm/source/token"
 )
 
-const SHOW_BYTECODE = false
 const SHOW_COMPILE = true
 const SHOW_RUN = true
 
@@ -19,16 +18,6 @@ type enumOrdinates struct {
 type thunk struct {
 	mLoc uint32
 	cLoc uint32
-}
-
-type fnTreeNode struct {
-	fn     *cpFunc
-	branch []*typeNodePair
-}
-
-type typeNodePair struct {
-	typeName string
-	fnNode   *fnTreeNode
 }
 
 type Compiler struct {
@@ -98,17 +87,14 @@ func (cp *Compiler) Do(line string) string {
 	if cp.p.ErrorsExist() {
 		return ""
 	}
+	if SHOW_COMPILE {
+		print("Compiling:\n\n")
+	}
 	cp.compileNode(cp.vm, node, cp.gvars)
 	if cp.p.ErrorsExist() {
 		return ""
 	}
 	cp.emit(cp.vm, ret)
-	if SHOW_BYTECODE {
-		print("\nBytecode:\n\n")
-		for i := cT; i < cp.vm.codeTop(); i++ {
-			println(cp.vm.describeCode(i))
-		}
-	}
 	cp.vm.Run(cT)
 	result := cp.vm.mem[cp.vm.that()]
 	cp.vm.mem = cp.vm.mem[:mT]
@@ -253,8 +239,8 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
 			if lTypes.only(CREATED_LOCAL_CONSTANT) {
-				cp.compileNode(vm, node.Right, env)
-				rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
+				_, cst := cp.compileNode(vm, node.Right, env)
+				rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
 			leftRg := vm.that()
@@ -296,11 +282,17 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 				break
 			}
 			thunkStart := vm.next()
-			types, _ := cp.compileNode(vm, node.Right, env)
+			types, cst := cp.compileNode(vm, node.Right, env)
 			cp.emit(vm, ret)
+			if cst {
+				cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_TRUE_CONSTANT, types)
+				rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
+				break
+			}
 			cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_CONSTANT_THUNK, types)
 			cp.thunkList = append(cp.thunkList, thunk{vm.that(), thunkStart})
-			rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
+			rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), false
+			break
 		}
 		cp.p.Throw("comp/assign", node.Token)
 		rtnTypes, rtnConst = simpleList(ERROR), true
@@ -338,10 +330,10 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		panic("Unimplemented node type.")
 	}
 	if rtnConst && vm.codeTop() > cT {
+		cp.emit(vm, ret)
 		if SHOW_COMPILE {
 			println("Expression is constant. Folding.")
 		}
-		cp.emit(vm, ret)
 		vm.Run(cT)
 		result := vm.mem[vm.that()]
 		vm.mem = vm.mem[:mT]
@@ -560,13 +552,20 @@ func (cp *Compiler) generateNewArgument(vm *Vm, b *bindle) alternateType {
 			return cp.seekBling(vm, b, bl.tag)
 		}
 	}
-	// Case (3) : we're in tuple time.
+	// Case (3) : we have a reference.
+	if b.treePosition.Branch[b.branchNo].TypeName == "ref" {
+		newBindle := *b
+		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
+		newBindle.argNo++
+		return cp.generateNewArgument(vm, &newBindle)
+	}
+	// Case (4) : we're in tuple time.
 	if b.tupleTime {
 		newBindle := *b
 		newBindle.argNo++
 		return cp.generateNewArgument(vm, &newBindle)
 	}
-	// Case (4) : We aren't yet at the end of the list of arguments.
+	// Case (5) : We aren't yet at the end of the list of arguments.
 	newBindle := *b
 	newBindle.index = 0
 	return cp.generateFromTopBranchDown(vm, b)
@@ -793,24 +792,12 @@ func (cp *Compiler) seekBling(vm *Vm, b *bindle, bling string) alternateType {
 	return simpleList(ERROR)
 }
 
-// This supplies us with a Vm which shares its memory with the target vm in the compiler, but which has its own code store. The
-// contents of the store after compiling to the temporary target can be added to the main vm using the .add method below.
-func (cp *Compiler) tempVm() *Vm {
-	vm := *cp.vm
-	vm.code = []*operation{}
-	return &vm
-}
-
-func (cp *Compiler) addCode(vm *Vm) {
-	cp.vm.add(vm)
-}
-
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
 // the destination is the next free memory address.
 func (cp *Compiler) emit(vm *Vm, opcode opcode, args ...uint32) {
 	vm.code = append(vm.code, makeOp(opcode, args...))
 	if SHOW_COMPILE {
-		println(describe(vm.code[len(vm.code)-1]))
+		println(cp.vm.describeCode(vm.codeTop() - 1))
 	}
 }
 

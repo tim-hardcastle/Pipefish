@@ -785,11 +785,15 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 			if uP.Parser.ErrorsExist() {
 				return
 			}
+			refs := 0
+			for ; refs < len(sig) && sig[i].VarType == "ref"; refs++ {
+			}
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
-					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
-					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration,
-					Number:  uint32(c)})
+					Cmd:      j == commandDeclaration || j == privateCommandDeclaration,
+					Private:  j == privateCommandDeclaration || j == privateFunctionDeclaration,
+					Number:   uint32(c),
+					RefCount: refs})
 			c++
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)

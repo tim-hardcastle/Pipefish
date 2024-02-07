@@ -10,6 +10,7 @@ const ( // Cross-reference with typeNames in blankVm()
 	TUPLE
 	ERROR
 	UNSAT
+	REF
 	NULL
 	INT
 	BOOL
@@ -43,10 +44,11 @@ const (
 	GLOBAL_VARIABLE_PUBLIC
 	FUNCTION_ARGUMENT
 	LOCAL_CONSTANT_THUNK
+	LOCAL_TRUE_CONSTANT
 )
 
 // Update with:
-var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, LOCAL_CONSTANT_THUNK})
+var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, LOCAL_TRUE_CONSTANT})
 
 type variable struct {
 	mLoc   uint32

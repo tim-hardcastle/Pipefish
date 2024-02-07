@@ -434,13 +434,14 @@ func (uf *UnfixExpression) String() string {
 // And other useful stuff.
 
 type Function = struct {
-	Sig     signature.Signature
-	Rets    signature.Signature
-	Body    Node
-	Given   Node
-	Cmd     bool
-	Private bool
-	Number  uint32
+	Sig      signature.Signature
+	Rets     signature.Signature
+	Body     Node
+	Given    Node
+	Cmd      bool
+	Private  bool
+	Number   uint32
+	RefCount int
 }
 
 type FnTreeNode struct {

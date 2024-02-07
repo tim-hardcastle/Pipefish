@@ -66,7 +66,7 @@ var OPERANDS = map[opcode]opDescriptor{
 	adds: {"adds", operands{dst, mem, mem}},
 	andb: {"andb", operands{dst, mem, mem}},
 	asgm: {"asgm", operands{dst, mem}},
-	call: {"call", operands{dst, mem, mem, tup}},
+	call: {"call", operands{loc, mem, mem, tup}}, // THe location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
 	cc11: {"cc11", operands{dst, mem, mem}},
 	cc1T: {"cc1T", operands{dst, mem, mem}},
 	ccT1: {"ccT1", operands{dst, mem, mem}},

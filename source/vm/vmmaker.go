@@ -93,7 +93,7 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 	// NOTE: There's some unDRYness here --- e.g. we use .ExtractPartsOfFunction twice --- but that can
-	// be desposed of when we strip out the evaluator.
+	// be disposed of when we strip out the evaluator.
 
 	// Finally we can evaluate the constants and variables, which needs the full resources of the language
 	// first because the RHS of the assignment can be any expression.
@@ -189,15 +189,6 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 	}
 	fnenv := newEnvironment()
 	fnenv.ext = outerEnv
-	// First the thunks in the given block.
-	if given != nil {
-		vmm.cp.thunkList = []thunk{}
-		vmm.cp.compileNode(vm, given, fnenv)
-		for _, pair := range vmm.cp.thunkList {
-			vmm.cp.emit(vm, thnk, pair.mLoc, pair.cLoc)
-		}
-	}
-
 	cpF.loReg = vm.memTop()
 	for _, pair := range sig {
 		if pair.VarType == "bling" {
@@ -214,6 +205,14 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 			cpF.types = types.t
 		}
 	} else {
+		if given != nil {
+			vmm.cp.thunkList = []thunk{}
+			vmm.cp.compileNode(vm, given, fnenv)
+			cpF.callTo = vm.codeTop()
+			for _, pair := range vmm.cp.thunkList {
+				vmm.cp.emit(vm, thnk, pair.mLoc, pair.cLoc)
+			}
+		}
 		cpF.types, _ = vmm.cp.compileNode(vm, body, fnenv) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		vmm.cp.emit(vm, ret)
 		cpF.outReg = vm.that()
@@ -238,6 +237,9 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := vmm.cp.vm.codeTop()
+			if SHOW_COMPILE {
+				print("\nCompiling\n\n")
+			}
 			inferedType, _ := vmm.cp.compileNode(vmm.cp.vm, rhs, vmm.cp.gvars)
 			if vmm.uP.ErrorsExist() {
 				return

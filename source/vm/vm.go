@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"charm/source/text"
+
 	"strconv"
 	"strings"
 )
@@ -54,7 +56,7 @@ var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
 func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	newVm.typeNames = []string{"thunk", "created local constant", "tuple", "error", "unsat", "null",
+	newVm.typeNames = []string{"thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
 		"int", "bool", "string", "float64", "type"}
 	return newVm
 }
@@ -66,7 +68,7 @@ func (vm *Vm) Run(loc uint32) {
 loop:
 	for {
 		if SHOW_RUN {
-			println(vm.describeCode(loc))
+			println(text.RED + vm.describeCode(loc) + text.RESET)
 		}
 		args := vm.code[loc].args
 		switch vm.code[loc].opcode {
