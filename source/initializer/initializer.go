@@ -525,7 +525,7 @@ func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
 	for _, v := range uP.Parser.ParsedDeclarations[typeDeclaration] {
 		result := evaluator.Evaluate(v, evaluator.NewContext(uP.Parser, env, evaluator.DEF, false))
 		if result.Type() == object.ERROR_OBJ {
-			uP.Throw(result.(*object.Error).ErrorId, result.(*object.Error).Token)
+			uP.Throw(result.(*object.Error).ErrorId, *result.(*object.Error).Token)
 		}
 	}
 }
@@ -559,10 +559,10 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					case *ast.Identifier:
 						name = lhs.Value
 					default:
-						uP.Throw("init/contacts/ident", lhs.GetToken())
+						uP.Throw("init/contacts/ident", *lhs.GetToken())
 					}
 				default:
-					uP.Throw("init/contacts/string", lhs.GetToken())
+					uP.Throw("init/contacts/string", *lhs.GetToken())
 				}
 			case *ast.StringLiteral:
 				path = parsedCode.Value
@@ -575,9 +575,9 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				}
 			default:
 				if kindOfDeclarationToParse == contactDeclaration {
-					uP.Throw("init/contacts/form", parsedCode.GetToken())
+					uP.Throw("init/contacts/form", *parsedCode.GetToken())
 				}
-				uP.Throw("init/lang/form", parsedCode.GetToken())
+				uP.Throw("init/lang/form", *parsedCode.GetToken())
 			}
 			if name != "" {
 				var ty string
@@ -715,16 +715,16 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 						namespace = ""
 					}
 				default:
-					uP.Throw("init/import/ident", lhs.GetToken())
+					uP.Throw("init/import/ident", *lhs.GetToken())
 				}
 			default:
-				uP.Throw("init/import/string", lhs.GetToken())
+				uP.Throw("init/import/string", *lhs.GetToken())
 			}
 		case *ast.GolangExpression:
 			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
-			uP.Throw("init/import/pair", imp.GetToken())
+			uP.Throw("init/import/pair", *imp.GetToken())
 		}
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
@@ -785,15 +785,11 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 			if uP.Parser.ErrorsExist() {
 				return
 			}
-			refs := 0
-			for ; refs < len(sig) && sig[i].VarType == "ref"; refs++ {
-			}
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
-					Cmd:      j == commandDeclaration || j == privateCommandDeclaration,
-					Private:  j == privateCommandDeclaration || j == privateFunctionDeclaration,
-					Number:   uint32(c),
-					RefCount: refs})
+					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
+					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration,
+					Number:  uint32(c)})
 			c++
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)
@@ -830,7 +826,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 
 	goHandler.BuildGoMods()
 	if uP.Parser.ErrorsExist() {
-		uP.Parser.Errors[len(uP.Parser.Errors)-1].Token = token.Token{Source: sourceName}
+		uP.Parser.Errors[len(uP.Parser.Errors)-1].Token = &token.Token{Source: sourceName}
 		return
 	}
 	for functionName, fns := range uP.Parser.FunctionTable {
@@ -854,13 +850,26 @@ func flatten(s string) string {
 // from anything else be rather faster. It also allows us to perform dispatch by evaluating one
 // argument of the function at a time.
 func (uP *Initializer) MakeFunctionTrees() {
-	uP.Parser.FunctionTreeMap = map[string]*ast.FnTreeNode{}
+	uP.Parser.FunctionGroupMap = map[string]*ast.FunctionGroup{}
+	rc := 0
 	for k, v := range uP.Parser.FunctionTable {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
 		for i := range v {
 			tree = uP.addSigToTree(tree, &v[i], 0)
+
+			refs := 0
+			for ; refs < len(v[i].Sig) && v[i].Sig[refs].VarType == "ref"; refs++ {
+			}
+			if i == 0 {
+				rc = refs
+			} else {
+				if refs != rc {
+					uP.Throw("init/overload/ref", *v[i].Body.GetToken())
+					break
+				}
+			}
 		}
-		uP.Parser.FunctionTreeMap[k] = tree
+		uP.Parser.FunctionGroupMap[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
 	}
 }
 
@@ -990,7 +999,7 @@ func (uP *Initializer) addWordsToParser(currentChunk *tokenized_code_chunk.Token
 // The initializer keeps its errors inside the parser it's initializing.
 
 func (uP *Initializer) Throw(errorID string, tok token.Token, args ...any) {
-	uP.Parser.Throw(errorID, tok, args...)
+	uP.Parser.Throw(errorID, &tok, args...)
 }
 
 func (uP *Initializer) addError(err *object.Error) {

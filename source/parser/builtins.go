@@ -7,9 +7,9 @@ import (
 	"charm/source/token"
 )
 
-var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object{
+var Builtins = map[string]func(p *Parser, tok *token.Token, args ...object.Object) object.Object{
 
-	"keys_of_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"keys_of_map": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		returnList := &object.List{Elements: []object.Object{}}
 		for _, v := range args[0].(*object.Hash).Pairs {
 			returnList.Elements = append(returnList.Elements, v.Key)
@@ -17,7 +17,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return returnList
 	},
 
-	"keys_of_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"keys_of_struct": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		returnList := &object.List{Elements: []object.Object{}}
 		for _, v := range args[0].(*object.Struct).Labels { // TODO --- remove labels field, use StructSig.
 			returnList.Elements = append(returnList.Elements, &object.Label{Value: v})
@@ -25,7 +25,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return returnList
 	},
 
-	"keys_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"keys_of_type": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		sig, ok := p.StructSig[args[0].(*object.Type).Value]
 		if !ok {
 			return newError("built/keys/type", tok, args[0].(*object.Type).Value)
@@ -37,7 +37,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.List{Elements: labels}
 	},
 
-	"range": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"range": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		index := args[0]
 		if !((index.(*object.Pair).Left.Type() == object.INTEGER_OBJ) && (index.(*object.Pair).Right.Type() == object.INTEGER_OBJ)) {
 			return newErrorWithVals("built/slice/int/range", tok, []object.Object{index}, index.(*object.Pair).Left, index.(*object.Pair).Right)
@@ -49,7 +49,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return returnList
 	},
 
-	"tuple_to_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"tuple_to_set": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := &object.Set{}
 		for _, v := range args[0].(*object.Tuple).Elements {
 			result.AddElement(v)
@@ -57,7 +57,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return result
 	},
 
-	"list_to_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"list_to_set": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := &object.Set{}
 		for _, v := range args[0].(*object.List).Elements {
 			result.AddElement(v)
@@ -65,7 +65,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return result
 	},
 
-	"len_of_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"len_of_type": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if p.TypeSystem.PointsTo(args[0].(*object.Type).Value, "enum") {
 			return &object.Integer{Value: len(p.Enums[args[0].(*object.Type).Value])}
 		} else {
@@ -73,39 +73,39 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		}
 	},
 
-	"add_pair_to_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_pair_to_list": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return addPairToList(tok, args...)
 	},
 
-	"add_pair_to_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_pair_to_struct": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return addPairToStruct(tok, args...)
 	},
 
-	"add_pair_to_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_pair_to_map": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return addPairToMap(tok, args...)
 	},
 
-	"add_tuple_to_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_tuple_to_list": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return addTupleToList(tok, args...)
 	},
 
-	"add_tuple_to_struct": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_tuple_to_struct": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return addTupleToStruct(tok, args...)
 	},
 
-	"add_tuple_to_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_tuple_to_map": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return addTupleToMap(tok, args...)
 	},
 
-	"map_without_keys": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"map_without_keys": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return removeTupleFromMap(tok, args...)
 	},
 
-	"rune": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"rune": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.String{Value: string(rune(args[0].(*object.Integer).Value))}
 	},
 
-	"codepoint": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"codepoint": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		slice := []rune(args[0].(*object.String).Value)
 		if len(slice) != 1 {
 			return newError("built/codepoint", tok, len(slice))
@@ -113,11 +113,11 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.Integer{Value: int(slice[0])}
 	},
 
-	"charm_literal": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"charm_literal": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.String{Value: p.Serialize(args[0], LITERAL)}
 	},
 
-	"single_in_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"single_in_list": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		for _, v := range args[2].(*object.List).Elements {
 			if object.Equals(args[0], v) {
 				return object.TRUE
@@ -126,7 +126,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return object.FALSE
 	},
 
-	"single_in_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"single_in_set": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		for _, v := range args[2].(*object.Set).Elements {
 			if object.Equals(args[0], v) {
 				return object.TRUE
@@ -135,7 +135,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return object.FALSE
 	},
 
-	"single_in_type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"single_in_type": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if IsSameTypeOrSubtype(p.TypeSystem, object.InnerType(args[0]), args[2].(*object.Type).Value) {
 			return object.TRUE
 		}
@@ -145,7 +145,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return object.FALSE
 	},
 
-	"single_in_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"single_in_tuple": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		for i := 0; i < len(args[2].(*object.Tuple).Elements); i++ {
 			if object.Equals(args[0], args[2].(*object.Tuple).Elements[i]) {
 				return object.TRUE
@@ -154,153 +154,153 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return object.FALSE
 	},
 
-	"tuple_to_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"tuple_to_map": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return tupleToMap(args[0].(*object.Tuple).Elements, tok)
 	},
 
-	"make_pair": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"make_pair": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Pair{Left: args[0], Right: args[2]}
 	},
 
-	"add_strings": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_strings": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.String{Value: args[0].(*object.String).Value + args[2].(*object.String).Value}
 	},
 
-	"add_lists": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_lists": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.List{Elements: append(args[0].(*object.List).Elements, args[2].(*object.List).Elements...)}
 	},
 
-	"add_sets": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_sets": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := args[0].(*object.Set).Copy()
 		result.Elements = append(result.Elements, args[2].(*object.Set).Elements...)
 
 		return result
 	},
 
-	"< int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"< int": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Integer).Value < args[2].(*object.Integer).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
-	"<= int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"<= int": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Integer).Value <= args[2].(*object.Integer).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
-	"> int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"> int": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Integer).Value > args[2].(*object.Integer).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
-	">= int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	">= int": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Integer).Value >= args[2].(*object.Integer).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
 
-	"add_integers": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_integers": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: args[0].(*object.Integer).Value + args[2].(*object.Integer).Value}
 	},
 
-	"negate_integer": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"negate_integer": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: -args[0].(*object.Integer).Value}
 	},
 
-	"subtract_integers": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"subtract_integers": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: args[0].(*object.Integer).Value - args[2].(*object.Integer).Value}
 	},
 
-	"multiply_integers": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"multiply_integers": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: args[0].(*object.Integer).Value * args[2].(*object.Integer).Value}
 	},
 
-	"modulo_integers": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"modulo_integers": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[2].(*object.Integer).Value == 0 {
 			return newError("built/mod", tok)
 		}
 		return &object.Integer{Value: args[0].(*object.Integer).Value % args[2].(*object.Integer).Value}
 	},
 
-	"divide_integers": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"divide_integers": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[2].(*object.Integer).Value == 0 {
 			return newError("built/div/int", tok)
 		}
 		return &object.Integer{Value: args[0].(*object.Integer).Value / args[2].(*object.Integer).Value}
 	},
 
-	"< float64": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"< float64": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Float).Value < args[2].(*object.Float).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
-	"<= float64": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"<= float64": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Float).Value <= args[2].(*object.Float).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
-	"> float64": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"> float64": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Float).Value > args[2].(*object.Float).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
-	">= float64": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	">= float64": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Float).Value >= args[2].(*object.Float).Value {
 			return object.TRUE
 		}
 		return object.FALSE
 	},
 
-	"add_floats": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"add_floats": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Float{Value: args[0].(*object.Float).Value + args[2].(*object.Float).Value}
 	},
 
-	"negate_float": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"negate_float": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Float{Value: -args[0].(*object.Float).Value}
 	},
 
-	"subtract_floats": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"subtract_floats": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Float{Value: args[0].(*object.Float).Value - args[2].(*object.Float).Value}
 	},
 
-	"multiply_floats": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"multiply_floats": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Float{Value: args[0].(*object.Float).Value * args[2].(*object.Float).Value}
 	},
 
-	"divide_floats": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"divide_floats": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[2].(*object.Float).Value == 0 {
 			return newError("built/div/float64", tok)
 		}
 		return &object.Float{Value: args[0].(*object.Float).Value / args[2].(*object.Float).Value}
 	},
 
-	"len_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"len_list": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: len(args[0].(*object.List).Elements)}
 	},
 
-	"len_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"len_set": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: len(args[0].(*object.Set).Elements)}
 	},
 
-	"len_map": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"len_map": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: len(args[0].(*object.Hash).Pairs)}
 	},
 
-	"len_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"len_string": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: (len([]rune(args[0].(*object.String).Value)))}
 	},
 
-	"arity_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"arity_tuple": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: len(args[0].(*object.Tuple).Elements)}
 	},
 
-	"tuple_to_string": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"tuple_to_string": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if len(args[0].(*object.Tuple).Elements) == 0 {
 			return &object.String{Value: "()"}
 		}
@@ -310,7 +310,7 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.String{Value: p.Serialize(args[0], PLAIN)}
 	},
 
-	"string_to_int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"string_to_int": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result, ok := strconv.Atoi(args[0].(*object.String).Value)
 		if ok != nil {
 			return newError("built/int", tok, args[0].(*object.String).Value)
@@ -318,87 +318,87 @@ var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object
 		return &object.Integer{Value: result}
 	},
 
-	"string_to_float": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"string_to_float": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result, _ := strconv.ParseFloat(args[0].(*object.String).Value, 64)
 		return &object.Float{Value: result}
 	},
 
-	"int_to_float": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"int_to_float": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := float64(args[0].(*object.Integer).Value)
 		return &object.Float{Value: result}
 	},
 
-	"float_to_int": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"float_to_int": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := int(args[0].(*object.Float).Value)
 		return &object.Integer{Value: result}
 	},
 
-	"int_to_bool": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"int_to_bool": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.Integer).Value == 0 {
 			return object.FALSE
 		}
 		return object.TRUE
 	},
 
-	"string_to_bool": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"string_to_bool": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if args[0].(*object.String).Value == "" {
 			return object.FALSE
 		}
 		return object.TRUE
 	},
 
-	"list_to_bool": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"list_to_bool": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if len(args[0].(*object.List).Elements) == 0 {
 			return object.FALSE
 		}
 		return object.TRUE
 	},
 
-	"set_to_bool": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"set_to_bool": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if len(args[0].(*object.Set).Elements) == 0 {
 			return object.FALSE
 		}
 		return object.TRUE
 	},
 
-	"map_to_bool": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"map_to_bool": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		if len(args[0].(*object.Hash).Pairs) == 0 {
 			return object.FALSE
 		}
 		return object.TRUE
 	},
 
-	"spread_list": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"spread_list": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Tuple{Elements: args[0].(*object.List).Elements}
 	},
 
-	"spread_set": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"spread_set": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 
 		return &object.Tuple{Elements: args[0].(*object.Set).Elements}
 	},
 
-	"single_to_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"single_to_tuple": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Tuple{Elements: []object.Object{args[0]}}
 	},
 
-	"tuple_to_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"tuple_to_tuple": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return args[0]
 	},
 
-	"type_of_tuple": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"type_of_tuple": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Type{Value: object.TUPLE_OBJ}
 	},
 
-	"type": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"type": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Type{Value: object.ConcreteType(args[0])}
 	},
 
-	"make_error": func(p *Parser, tok token.Token, args ...object.Object) object.Object {
+	"make_error": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Error{ErrorId: "eval/user", Message: args[0].(*object.String).Value, Token: tok}
 	},
 }
 
-func evalArrayIndexExpression(array, index object.Object, tok token.Token) object.Object {
+func evalArrayIndexExpression(array, index object.Object, tok *token.Token) object.Object {
 	arrayObject := array.(*object.List)
 	idx := index.(*object.Integer).Value
 	max := len(arrayObject.Elements) - 1
@@ -410,7 +410,7 @@ func evalArrayIndexExpression(array, index object.Object, tok token.Token) objec
 	return arrayObject.Elements[idx]
 }
 
-func evalStructIndexExpression(structure, index object.Object, tok token.Token) object.Object {
+func evalStructIndexExpression(structure, index object.Object, tok *token.Token) object.Object {
 	result, ok := structure.(*object.Struct).Value[index.(*object.Label).Value]
 	if !ok {
 		return newError("built/struct/field/b", tok, index.(*object.Label), structure.(*object.Struct).Name)
@@ -418,7 +418,7 @@ func evalStructIndexExpression(structure, index object.Object, tok token.Token) 
 	return result
 }
 
-func evalHashIndexExpression(hash, index object.Object, tok token.Token) object.Object {
+func evalHashIndexExpression(hash, index object.Object, tok *token.Token) object.Object {
 	hashObject := hash.(*object.Hash)
 
 	key, ok := index.(object.Hashable)
@@ -434,7 +434,7 @@ func evalHashIndexExpression(hash, index object.Object, tok token.Token) object.
 	return pair.Value
 }
 
-func tupleToMap(elements []object.Object, tok token.Token) object.Object {
+func tupleToMap(elements []object.Object, tok *token.Token) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
 	for _, v := range elements {
 		if v.Type() != object.PAIR_OBJ {
@@ -452,7 +452,7 @@ func tupleToMap(elements []object.Object, tok token.Token) object.Object {
 	return &object.Hash{Pairs: pairs}
 }
 
-func setToMap(setObject object.Object, tok token.Token) object.Object {
+func setToMap(setObject object.Object, tok *token.Token) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
 	elements := setObject.(*object.Set).Elements
 	for _, v := range elements {
@@ -471,7 +471,7 @@ func setToMap(setObject object.Object, tok token.Token) object.Object {
 	return &object.Hash{Pairs: pairs}
 }
 
-func addTupleToList(tok token.Token, args ...object.Object) object.Object {
+func addTupleToList(tok *token.Token, args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
@@ -482,7 +482,7 @@ func addTupleToList(tok token.Token, args ...object.Object) object.Object {
 	return outList
 }
 
-func addTupleToStruct(tok token.Token, args ...object.Object) object.Object {
+func addTupleToStruct(tok *token.Token, args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
@@ -493,7 +493,7 @@ func addTupleToStruct(tok token.Token, args ...object.Object) object.Object {
 	return outStruct
 }
 
-func addTupleToMap(tok token.Token, args ...object.Object) object.Object {
+func addTupleToMap(tok *token.Token, args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
@@ -504,7 +504,7 @@ func addTupleToMap(tok token.Token, args ...object.Object) object.Object {
 	return outMap
 }
 
-func removeTupleFromMap(tok token.Token, args ...object.Object) object.Object {
+func removeTupleFromMap(tok *token.Token, args ...object.Object) object.Object {
 	if len(args) == 2 {
 		return args[0]
 	}
@@ -515,12 +515,12 @@ func removeTupleFromMap(tok token.Token, args ...object.Object) object.Object {
 	return outMap
 }
 
-func addPairToList(tok token.Token, args ...object.Object) object.Object {
+func addPairToList(tok *token.Token, args ...object.Object) object.Object {
 	args[0] = args[0].DeepCopy()
 	return unsafeAddPairToList(tok, args...)
 }
 
-func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
+func unsafeAddPairToList(tok *token.Token, args ...object.Object) object.Object {
 	index := args[2].(*object.Pair).Left
 	if object.ConcreteType(index) == "list" {
 		if len(index.(*object.List).Elements) == 0 {
@@ -572,12 +572,12 @@ func unsafeAddPairToList(tok token.Token, args ...object.Object) object.Object {
 	return &object.List{Elements: newElements}
 }
 
-func addPairToStruct(tok token.Token, args ...object.Object) object.Object {
+func addPairToStruct(tok *token.Token, args ...object.Object) object.Object {
 	args[0] = args[0].DeepCopy()
 	return unsafeAddPairToStruct(tok, args...)
 }
 
-func unsafeAddPairToStruct(tok token.Token, args ...object.Object) object.Object {
+func unsafeAddPairToStruct(tok *token.Token, args ...object.Object) object.Object {
 	if args[2].Type() != object.PAIR_OBJ {
 		return newError("built/struct/pair", tok, object.ConcreteType(args[2]))
 	}
@@ -630,12 +630,12 @@ func unsafeAddPairToStruct(tok token.Token, args ...object.Object) object.Object
 	return &object.Struct{Name: args[0].(*object.Struct).Name, Labels: args[0].(*object.Struct).Labels, Value: newValue}
 }
 
-func addPairToMap(tok token.Token, args ...object.Object) object.Object {
+func addPairToMap(tok *token.Token, args ...object.Object) object.Object {
 	args[0] = args[0].DeepCopy()
 	return unsafeAddPairToMap(tok, args...)
 }
 
-func unsafeAddPairToMap(tok token.Token, args ...object.Object) object.Object {
+func unsafeAddPairToMap(tok *token.Token, args ...object.Object) object.Object {
 
 	index := args[2].(*object.Pair).Left
 	if object.ConcreteType(index) == "list" {
@@ -692,14 +692,14 @@ func unsafeAddPairToMap(tok token.Token, args ...object.Object) object.Object {
 	return &object.Hash{Pairs: newMap}
 }
 
-func newError(ident string, tok token.Token, args ...any) *object.Error {
+func newError(ident string, tok *token.Token, args ...any) *object.Error {
 	errorToReturn := object.CreateErr(ident, tok, args...)
-	errorToReturn.Trace = []token.Token{tok}
+	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
 }
 
-func newErrorWithVals(ident string, tok token.Token, vals []object.Object, args ...any) *object.Error {
+func newErrorWithVals(ident string, tok *token.Token, vals []object.Object, args ...any) *object.Error {
 	errorToReturn := object.CreateErrWithVals(ident, tok, vals, args...)
-	errorToReturn.Trace = []token.Token{tok}
+	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
 }

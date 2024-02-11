@@ -75,6 +75,7 @@ var OPERANDS = map[opcode]opDescriptor{
 	cv1T: {"cv1T", operands{dst, mem, mem}},
 	divf: {"divf", operands{dst, mem, mem}},
 	divi: {"divi", operands{dst, mem, mem}},
+	dref: {"dref", operands{dst, mem}},
 	equb: {"equb", operands{dst, mem, mem}},
 	equf: {"equf", operands{dst, mem, mem}},
 	equi: {"equi", operands{dst, mem, mem}},
@@ -157,6 +158,7 @@ const (
 	cmp
 	divf
 	divi
+	dref
 	equb
 	equf
 	equi

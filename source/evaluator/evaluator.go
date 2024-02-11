@@ -98,10 +98,10 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return evalUnfixExpression(node, c)
 
 	case *ast.SuffixExpression:
-		if node.Token.Type == token.EMDASH {
+		if node.GetToken().Type == token.EMDASH {
 			return makeSnippet(node, c)
 		}
-		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+		return functionCall(c.prsr.FunctionGroupMap[node.Operator].Tree, node.Args, node.GetToken(), c)
 
 	case *ast.LoopExpression:
 		return (evalLoopExpression(node, c))
@@ -109,8 +109,8 @@ func Eval(node ast.Node, c *Context) object.Object {
 	case *ast.AssignmentExpression:
 		variables := signature.Signature{}
 		var err *object.Error
-		if node.Token.Type == token.TYP_ASSIGN {
-			variables = append(variables, signature.NameTypePair{VarName: node.Left.(*ast.TypeLiteral).Token.Literal, VarType: "type"})
+		if node.GetToken().Type == token.TYP_ASSIGN {
+			variables = append(variables, signature.NameTypePair{VarName: node.Left.(*ast.TypeLiteral).GetToken().Literal, VarType: "type"})
 		} else {
 			variables, err = c.prsr.RecursivelySlurpSignature(node.Left, "*")
 			if err != nil {
@@ -119,18 +119,18 @@ func Eval(node ast.Node, c *Context) object.Object {
 		}
 		var right object.Object
 		lLen := len(variables)
-		if node.Token.Type == token.GVN_ASSIGN {
+		if node.GetToken().Type == token.GVN_ASSIGN {
 			if lLen == 1 {
 				right = &object.Lazy{Value: node.Right}
-				err := Assign(variables[0], right, node.Token, c)
+				err := Assign(variables[0], right, node.GetToken(), c)
 				if err != nil {
 					return err
 				}
 			} else {
-				node.Token.Type = token.LZY_ASSIGN
+				node.GetToken().Type = token.LZY_ASSIGN
 				right = &object.Lazy{Value: node}
 				for i := 0; i < lLen; i++ {
-					err := Assign(variables[i], right, node.Token, c)
+					err := Assign(variables[i], right, node.GetToken(), c)
 					if err != nil {
 						return err
 					}
@@ -141,9 +141,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 			right = Eval(node.Right, c)
 		}
 		if isError(right) {
-			if node.Token.Type == token.LZY_ASSIGN {
+			if node.GetToken().Type == token.LZY_ASSIGN {
 				for i := 0; i < lLen; i++ {
-					err := Assign(variables[i], right, node.Token, c)
+					err := Assign(variables[i], right, node.GetToken(), c)
 					if err != nil {
 						return err
 					}
@@ -154,12 +154,12 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return right
 			}
 		}
-		if right.Type() == object.UNSATISFIED_OBJ && node.Token.Type != token.LZY_ASSIGN {
-			return newError("eval/unsatisfied/b", node.Token)
+		if right.Type() == object.UNSATISFIED_OBJ && node.GetToken().Type != token.LZY_ASSIGN {
+			return newError("eval/unsatisfied/b", node.GetToken())
 		}
 
 		if lLen == 1 {
-			err := Assign(variables[0], right, node.Token, c)
+			err := Assign(variables[0], right, node.GetToken(), c)
 			if err == nil {
 				return object.SUCCESS
 			} else {
@@ -169,25 +169,25 @@ func Eval(node ast.Node, c *Context) object.Object {
 
 		if right.Type() != object.TUPLE_OBJ ||
 			right.(*object.Tuple).Len() < len(variables) {
-			return newError("eval/values", node.Token)
+			return newError("eval/values", node.GetToken())
 		}
 
 		rLen := right.(*object.Tuple).Len()
 
 		for i := 0; i < lLen-1; i++ {
-			err := Assign(variables[i], right.(*object.Tuple).Elements[i], node.Token, c)
+			err := Assign(variables[i], right.(*object.Tuple).Elements[i], node.GetToken(), c)
 			if err != nil {
 				return err
 			}
 		}
 		if lLen == rLen {
-			err := Assign(variables[lLen-1], right.(*object.Tuple).Elements[lLen-1], node.Token, c)
+			err := Assign(variables[lLen-1], right.(*object.Tuple).Elements[lLen-1], node.GetToken(), c)
 			if err != nil {
 				return err
 			}
 			return object.SUCCESS
 		}
-		err = Assign(variables[lLen-1], &object.Tuple{Elements: right.(*object.Tuple).Elements[lLen-1:]}, node.Token, c)
+		err = Assign(variables[lLen-1], &object.Tuple{Elements: right.(*object.Tuple).Elements[lLen-1:]}, node.GetToken(), c)
 		if err != nil {
 			return err
 		}
@@ -219,7 +219,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
 			return left
 		}
-		leftEvaluation := evalLazyLeftExpression(node.Token, left, c)
+		leftEvaluation := evalLazyLeftExpression(node.GetToken(), left, c)
 		if leftEvaluation != nil && (leftEvaluation.Type() != object.RESPONSE_OBJ) &&
 			(leftEvaluation.Type() != object.SUCCESSFUL_OBJ) {
 			return leftEvaluation
@@ -227,7 +227,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 
 		if leftEvaluation != nil && leftEvaluation.Type() == object.RESPONSE_OBJ {
 			if node.Operator != ";" {
-				return newError("eval/return", node.Token)
+				return newError("eval/return", node.GetToken())
 			}
 			if leftEvaluation.(*object.Effects).ElseSeeking && node.Right.GetToken().Type == token.COLON {
 				if node.Right.(*ast.LazyInfixExpression).Left.GetToken().Type == token.ELSE {
@@ -263,9 +263,9 @@ func Eval(node ast.Node, c *Context) object.Object {
 			if right.Type() == object.RESPONSE_OBJ {
 				return combineEffects(left.(*object.Effects), right.(*object.Effects))
 			}
-			return newError("eval/malret", node.Token)
+			return newError("eval/malret", node.GetToken())
 		}
-		return evalLazyRightExpression(node.Token, right, c)
+		return evalLazyRightExpression(node.GetToken(), right, c)
 
 	case *ast.Identifier:
 		// We may have reached a bit of orphaned endbling. TODO --- well we shouldn't. See also recursivelySlurpSignature for
@@ -277,7 +277,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return evalIdentifier(node, c)
 
 	case *ast.IndexExpression:
-		return evalIndexExpression(node.Token, node.Left, node.Index, c)
+		return evalIndexExpression(node.GetToken(), node.Left, node.Index, c)
 	case *ast.ListExpression:
 		if node.List == nil {
 			return &object.List{Elements: []object.Object{}}
@@ -291,14 +291,14 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return list
 		}
 		if list.Type() == object.UNSATISFIED_OBJ {
-			return newError("eval/unsatisfied/e", node.Token)
+			return newError("eval/unsatisfied/e", node.GetToken())
 		}
 		return &object.List{Elements: []object.Object{list}}
 
 	case *ast.LogExpression:
 		newContext := &Context{prsr: c.prsr, env: c.env, access: c.access, logging: false}
 		if c.logging {
-			logStr := "Log at line " + text.YELLOW + strconv.Itoa(node.Token.Line) + text.RESET
+			logStr := "Log at line " + text.YELLOW + strconv.Itoa(node.GetToken().Line) + text.RESET
 			logTime, _ := c.prsr.AllGlobals.Get("$logTime")
 			if logTime == object.TRUE {
 				logStr = logStr + " @ " + text.BLUE + time.Now().Local().String() + text.RESET
@@ -307,14 +307,14 @@ func Eval(node ast.Node, c *Context) object.Object {
 			logStr = logStr + text.Pretty(parseLogString(node, newContext), 4, 84) // Note do something about 84, it should be a service variable.
 			emit(logStr, node.GetToken(), newContext)
 		}
-		switch node.Token.Type {
+		switch node.GetToken().Type {
 		case token.IFLOG:
 			condition := Eval(node.Left, newContext)
 			if condition.Type() == object.ERROR_OBJ {
 				return condition
 			}
 			if condition.Type() != object.BOOLEAN_OBJ {
-				return newError("eval/bool/iflog", node.Token, condition)
+				return newError("eval/bool/iflog", node.GetToken(), condition)
 			}
 			if condition == object.TRUE {
 				return Eval(node.Right, c)
@@ -339,7 +339,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return list
 		}
 		if list.Type() == object.UNSATISFIED_OBJ {
-			return newError("eval/unsatisfied/f", node.Token)
+			return newError("eval/unsatisfied/f", node.GetToken())
 		}
 		return object.SetFromSlice([]object.Object{list})
 
@@ -355,7 +355,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return &object.Effects{ElseSeeking: false}
 		}
 		if c.env.Exists(node.VarName) && c.env.GetAccess(node.VarName) == object.ACCESS_GLOBAL {
-			return newError("eval/try/global", node.Token)
+			return newError("eval/try/global", node.GetToken())
 		}
 		c.env.Set(node.VarName, right)
 		return &object.Effects{ElseSeeking: false}
@@ -375,7 +375,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			return right
 		}
 		if !(left.Type() == object.FUNC_OBJ) {
-			return newError("eval/apply", node.Token, left)
+			return newError("eval/apply", node.GetToken(), left)
 		}
 		var params []object.Object
 		if right.Type() == object.TUPLE_OBJ {
@@ -385,7 +385,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		}
 		left.(*object.Func).Env.Ext = c.env
 		newContext := NewContext(c.prsr, left.(*object.Func).Env, c.access, c.logging)
-		return applyFunction(left.(*object.Func).Function, params, node.Token, newContext)
+		return applyFunction(left.(*object.Func).Function, params, node.GetToken(), newContext)
 	case *ast.Nothing:
 		return &object.Tuple{Elements: []object.Object{}}
 	case *ast.StreamingExpression:
@@ -394,7 +394,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
 			return left
 		}
-		switch node.Token.Type {
+		switch node.GetToken().Type {
 		case token.PIPE:
 			if node.Right.GetToken().Type == token.IDENT {
 				val, ok := c.env.Get(node.Right.GetToken().Literal)
@@ -404,7 +404,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 					}
 					if val.Type() == object.FUNC_OBJ {
 						newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
-						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.Token, newContext)
+						return applyFunction(val.(*object.Func).Function, []object.Object{left}, node.GetToken(), newContext)
 					}
 				}
 			}
@@ -419,7 +419,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return left
 			}
 			if left.Type() != object.LIST_OBJ {
-				return newError("eval/mapping/list", node.Token, left)
+				return newError("eval/mapping/list", node.GetToken(), left)
 			}
 			resultList := &object.List{Elements: []object.Object{}}
 			if node.Right.GetToken().Type == token.IDENT {
@@ -431,7 +431,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
 							newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
-							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newContext)
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.GetToken(), newContext)
 							if result.Type() == object.ERROR_OBJ {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
@@ -469,7 +469,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 				return left
 			}
 			if left.Type() != object.LIST_OBJ {
-				return newError("eval/filter/list", node.Token, left)
+				return newError("eval/filter/list", node.GetToken(), left)
 			}
 			resultList := &object.List{Elements: []object.Object{}}
 			if node.Right.GetToken().Type == token.IDENT {
@@ -481,13 +481,13 @@ func Eval(node ast.Node, c *Context) object.Object {
 					if val.Type() == object.FUNC_OBJ {
 						for _, v := range left.(*object.List).Elements {
 							newContext := NewContext(c.prsr, val.(*object.Func).Env, c.access, c.logging)
-							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.Token, newContext)
+							result := applyFunction(val.(*object.Func).Function, []object.Object{v}, node.GetToken(), newContext)
 							if result.Type() == object.ERROR_OBJ {
 								result.(*object.Error).Trace = append(result.(*object.Error).Trace, node.GetToken())
 								return result
 							}
 							if result.Type() != object.BOOLEAN_OBJ {
-								return newError("eval/filter/bool/a", node.Token, result)
+								return newError("eval/filter/bool/a", node.GetToken(), result)
 							}
 							if result.(*object.Boolean) == object.TRUE {
 								resultList.Elements = append(resultList.Elements, v)
@@ -508,7 +508,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 					return result
 				}
 				if result.Type() != object.BOOLEAN_OBJ {
-					return newError("eval/filter/bool/b", node.Token, result)
+					return newError("eval/filter/bool/b", node.GetToken(), result)
 				}
 				if result.(*object.Boolean) == object.TRUE {
 					resultList.Elements = append(resultList.Elements, v)
@@ -573,7 +573,7 @@ func evalAndDescribeText(s string, c *Context) string {
 	return "'" + s + "' = " + evalText(s, c)
 }
 
-func evalLazyRightExpression(tok token.Token, right object.Object, c *Context) object.Object {
+func evalLazyRightExpression(tok *token.Token, right object.Object, c *Context) object.Object {
 	if isUnsatisfiedConditional(right) {
 		return UNSATISFIED
 	}
@@ -586,7 +586,7 @@ func evalLazyRightExpression(tok token.Token, right object.Object, c *Context) o
 	return right
 }
 
-func evalLazyLeftExpression(tok token.Token, left object.Object, c *Context) object.Object {
+func evalLazyLeftExpression(tok *token.Token, left object.Object, c *Context) object.Object {
 	if tok.Literal == ";" {
 		if isUnsatisfiedConditional(left) {
 			return nil
@@ -626,7 +626,7 @@ func combineEffects(left, right *object.Effects) *object.Effects {
 
 func makeSnippet(node *ast.SuffixExpression, c *Context) object.Object {
 	if len(node.Args) != 1 {
-		return newError("eval/snippet/params", node.Token)
+		return newError("eval/snippet/params", node.GetToken())
 	}
 	name := Eval(node.Args[0], c)
 	switch name := name.(type) {
@@ -638,7 +638,7 @@ func makeSnippet(node *ast.SuffixExpression, c *Context) object.Object {
 		flattenEnviroment(c.env, c.access, &flatEnv)
 		labels := []string{"text", "env"}
 		values := make(map[string]object.Object)
-		values["text"] = &object.String{Value: node.Token.Literal}
+		values["text"] = &object.String{Value: node.GetToken().Literal}
 		values["env"] = &flatEnv
 		return &object.Struct{Name: name.Value, Value: values, Labels: labels, Namespace: c.prsr.NamespacePath}
 	default:
@@ -690,8 +690,8 @@ func flattenEnviroment(e *object.Environment, access Access, h *object.Hash) {
 
 func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object {
 	params := []object.Object{}
-	tok := node.Token
-	operator := node.Token.Literal
+	tok := node.GetToken()
+	operator := node.GetToken().Literal
 	switch {
 	case tok.Type == token.NOT:
 		return evalNotOperatorExpression(tok, Eval(node.Args[0], c)) // TODO: for consistency, we shouldn't be using Args[0] like this. Doesn't matter that much.
@@ -701,13 +701,13 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		return evalGlobalExpression(node, c)
 
 	default: // We could be looking at a lazy object initialized in the `given` section.
-		variable, ok := c.env.Get(node.Token.Literal)
+		variable, ok := c.env.Get(node.GetToken().Literal)
 		if ok && variable.Type() == object.LAZY_OBJ {
 			variable = Eval(variable.(*object.Lazy).Value, c)
-			c.env.Set(node.Token.Literal, variable)
+			c.env.Set(node.GetToken().Literal, variable)
 		} // The prefix could be a constant/variable containing a lambda.
 		if ok && variable.Type() == object.FUNC_OBJ {
-			params := listArgs(node.Args, node.Token, c)
+			params := listArgs(node.Args, node.GetToken(), c)
 			if params[0].Type() == object.ERROR_OBJ {
 				return params[0]
 			}
@@ -719,7 +719,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 			return lamdbaResult
 		} // ... or it could contain an outer function.
 		if ok && variable.Type() == object.OUTER_OBJ {
-			return functionCall(c.prsr.FunctionTreeMap[variable.(*object.OuterFunc).Name], node.Args, node.Token, c)
+			return functionCall(c.prsr.FunctionGroupMap[variable.(*object.OuterFunc).Name].Tree, node.Args, node.GetToken(), c)
 		}
 		if ok { // Then it is a variable, but does not contain a function.
 			return newError("eval/prefix/var", tok, variable)
@@ -728,7 +728,7 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 		// would interfere with the local variables of another function.
 		if c.prsr.Prefixes.Contains(operator) || c.prsr.Functions.Contains(operator) {
 			// We may have a function or prefix, which work the same at this point. TODO --- make one set for both?
-			result := functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+			result := functionCall(c.prsr.FunctionGroupMap[node.Operator].Tree, node.Args, node.GetToken(), c)
 			if result.Type() == object.ERROR_OBJ {
 				if operator == "type" {
 					return &object.Type{Value: "error"}
@@ -750,22 +750,22 @@ func evalPrefixExpression(node *ast.PrefixExpression, c *Context) object.Object 
 func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 	if node.Operator == "break" { // TODO --- why did you implement these as unfixes? They are innately keywords.
 		if c.access != CMD {
-			return newError("eval/break", node.Token)
+			return newError("eval/break", node.GetToken())
 		}
 		return &object.Effects{BreakHappened: true}
 	}
 	if node.Operator == "stop" {
 		if c.access != CMD {
-			return newError("eval/stop", node.Token)
+			return newError("eval/stop", node.GetToken())
 		}
 		return &object.Effects{StopHappened: true}
 	}
 
 	var result object.Object
 
-	for _, branch := range c.prsr.FunctionTreeMap[node.Operator].Branch { // TODO --- this is a pretty vile hack to find which of them is the unfix.}
+	for _, branch := range c.prsr.FunctionGroupMap[node.Operator].Tree.Branch { // TODO --- this is a pretty vile hack to find which of them is the unfix.}
 		if branch.Node.Fn != nil {
-			result = applyFunction(*branch.Node.Fn, []object.Object{}, node.Token, c)
+			result = applyFunction(*branch.Node.Fn, []object.Object{}, node.GetToken(), c)
 		}
 	}
 	return result
@@ -773,20 +773,20 @@ func evalUnfixExpression(node *ast.UnfixExpression, c *Context) object.Object {
 
 func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 	if c.prsr.Infixes.Contains(node.Operator) {
-		return functionCall(c.prsr.FunctionTreeMap[node.Operator], node.Args, node.Token, c)
+		return functionCall(c.prsr.FunctionGroupMap[node.Operator].Tree, node.Args, node.GetToken(), c)
 	}
 
 	if node.Operator == "." { // Then were're off to the namespaces.
 		if len(node.Args) != 3 {
-			return newError("eval/namespace/args", node.Token)
+			return newError("eval/namespace/args", node.GetToken())
 		}
 		if node.Args[0].GetToken().Type != token.IDENT {
-			return newError("eval/namespace/ident", node.Token)
+			return newError("eval/namespace/ident", node.GetToken())
 		}
 		name := node.Args[0].GetToken().Literal
 		library, ok := c.prsr.NamespaceBranch[name]
 		if !ok {
-			return newError("eval/namespace/known/b", node.Token)
+			return newError("eval/namespace/known/b", node.GetToken())
 		}
 		switch typedNode := node.Args[2].(type) {
 		case *ast.Identifier:
@@ -798,44 +798,44 @@ func evalInfixExpression(node *ast.InfixExpression, c *Context) object.Object {
 		}
 	}
 
-	left, right := evalLeftRightArgs(node.Args, node.Token, c)
+	left, right := evalLeftRightArgs(node.Args, node.GetToken(), c)
 
 	switch {
 
 	case left.Type() == object.ERROR_OBJ:
-		left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.Token)
+		left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())
 		return left
 	case right.Type() == object.ERROR_OBJ:
-		right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.Token)
+		right.(*object.Error).Trace = append(right.(*object.Error).Trace, node.GetToken())
 		return right
 	case left.Type() == object.UNSATISFIED_OBJ:
-		return newError("eval/unsatisfied/j", node.Token)
+		return newError("eval/unsatisfied/j", node.GetToken())
 	case right.Type() == object.UNSATISFIED_OBJ:
-		return newError("eval/unsatisfied/k", node.Token)
+		return newError("eval/unsatisfied/k", node.GetToken())
 	case node.Operator == ",":
 		result := evalTupleExpression(left, right)
 		return result
 	case node.Operator == "==":
 		if object.ConcreteType(left) != object.ConcreteType(right) {
-			return newErrorWithVals("eval/equal/a", node.Token, []object.Object{left, right}, object.ConcreteType(left), object.ConcreteType(right))
+			return newErrorWithVals("eval/equal/a", node.GetToken(), []object.Object{left, right}, object.ConcreteType(left), object.ConcreteType(right))
 		}
 		return object.MakeBool(object.Equals(left, right))
 	case node.Operator == "!=":
 		if object.ConcreteType(left) != object.ConcreteType(right) {
-			return newErrorWithVals("eval/equal/b", node.Token, []object.Object{left, right}, object.ConcreteType(left), object.ConcreteType(right))
+			return newErrorWithVals("eval/equal/b", node.GetToken(), []object.Object{left, right}, object.ConcreteType(left), object.ConcreteType(right))
 		}
 		return object.MakeInverseBool(object.Equals(left, right))
 	default:
-		if node.Token.Source == "REPL input" {
-			return newError("eval/repl/b", node.Token, listArgs(node.Args, node.Token, c))
+		if node.GetToken().Source == "REPL input" {
+			return newError("eval/repl/b", node.GetToken(), listArgs(node.Args, node.GetToken(), c))
 		}
-		return newError("eval/unknown/operator", node.Token, left, right)
+		return newError("eval/unknown/operator", node.GetToken(), left, right)
 	}
 }
 
 // We implement the = operator. This goes on for a bit, because it has complicated semantics which
 // have been refactored a bunch of times, so here we are.
-func Assign(variable signature.NameTypePair, right object.Object, tok token.Token, c *Context) *object.Error {
+func Assign(variable signature.NameTypePair, right object.Object, tok *token.Token, c *Context) *object.Error {
 	envToChange := c.env
 
 	if strings.Contains(variable.VarName, ".") {
@@ -964,7 +964,7 @@ func Assign(variable signature.NameTypePair, right object.Object, tok token.Toke
 
 // We turn the definition of a struct into its constructors and add them to the "builtin" functions, thereby turning
 // their very name into a mockery.
-func AssignStructDef(structName string, sig signature.Signature, tok token.Token, c *Context) *object.Error {
+func AssignStructDef(structName string, sig signature.Signature, tok *token.Token, c *Context) *object.Error {
 
 	// So what we're going to do is add the constructors to the builtins,
 	// and add the function name, sig, and body to the parser's
@@ -974,7 +974,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok token.Token
 	// that the parser can parse the declarations properly.
 
 	// The first constructor function ...
-	constructor := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
+	constructor := func(p *parser.Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object), Namespace: p.NamespacePath}
 		for k, v := range args {
 			result.Labels = append(result.Labels, sig[k].VarName)
@@ -995,7 +995,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok token.Token
 
 	// The second constructor function ...
 
-	constructor_2 := func(p *parser.Parser, tok token.Token, args ...object.Object) object.Object {
+	constructor_2 := func(p *parser.Parser, tok *token.Token, args ...object.Object) object.Object {
 		result := &object.Struct{Value: make(map[string]object.Object), Namespace: p.NamespacePath}
 		for _, v := range args {
 			if v == object.EMPTY_TUPLE && len(sig) == 0 {
@@ -1058,7 +1058,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok token.Token
 	return nil
 }
 
-func assignSysVar(tok token.Token, varName string, right object.Object, env *object.Environment) *object.Error {
+func assignSysVar(tok *token.Token, varName string, right object.Object, env *object.Environment) *object.Error {
 	if _, ok := sysvars.Sysvars[varName]; ok {
 		err := sysvars.Sysvars[varName].Validator(right)
 		if err == "" {
@@ -1070,7 +1070,7 @@ func assignSysVar(tok token.Token, varName string, right object.Object, env *obj
 	return newError("eval/sv/exists", tok, varName)
 }
 
-func evalNotOperatorExpression(token token.Token, right object.Object) object.Object {
+func evalNotOperatorExpression(token *token.Token, right object.Object) object.Object {
 	if right.Type() == object.ERROR_OBJ {
 		right.(*object.Error).Trace = append(right.(*object.Error).Trace, token)
 		return right
@@ -1084,7 +1084,7 @@ func evalNotOperatorExpression(token token.Token, right object.Object) object.Ob
 	return object.TRUE
 }
 
-func evalEvalExpression(token token.Token, right object.Object, c *Context) object.Object {
+func evalEvalExpression(token *token.Token, right object.Object, c *Context) object.Object {
 	if right.Type() == object.ERROR_OBJ {
 		return right
 	}
@@ -1117,7 +1117,7 @@ func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object 
 	result := Eval(loopNode.Code, c)
 	switch result := result.(type) {
 	case *object.Error:
-		result.Trace = append(result.Trace, loopNode.Token)
+		result.Trace = append(result.Trace, loopNode.GetToken())
 		return result
 	case *object.SuccessfulAssignment, *object.UnsatisfiedConditional:
 		return evalLoopExpression(loopNode, c)
@@ -1132,10 +1132,10 @@ func evalLoopExpression(loopNode *ast.LoopExpression, c *Context) object.Object 
 		return evalLoopExpression(loopNode, c)
 
 	}
-	return newError("eval/loop/value", loopNode.Token)
+	return newError("eval/loop/value", loopNode.GetToken())
 }
 
-func evalReturnExpression(token token.Token, values []object.Object, c *Context) object.Object {
+func evalReturnExpression(token *token.Token, values []object.Object, c *Context) object.Object {
 	for _, v := range values {
 		if v.Type() == object.RESPONSE_OBJ {
 			return newError("eval/return/return", token)
@@ -1184,11 +1184,11 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 			if ok {
 				return val
 			}
-			return newError("eval/repl/ref", node.Token, val.(*object.Ref).VariableName)
+			return newError("eval/repl/ref", node.GetToken(), val.(*object.Ref).VariableName)
 		} else {
 			acc := c.env.GetAccess(node.Value)
 			if acc == object.ACCESS_PUBLIC || acc == object.ACCESS_PRIVATE {
-				return newError("eval/cmd/global/b", node.Token, node.Value)
+				return newError("eval/cmd/global/b", node.GetToken(), node.Value)
 			}
 		}
 	}
@@ -1215,24 +1215,24 @@ func evalIdentifier(node *ast.Identifier, c *Context) object.Object {
 	// We don't want someone from the REPL to be able to find out whether (a) a variable with
 	// a given name doesn't exist or (b) it does but it's private. So:
 	if !ok || c.env.IsPrivate(node.Value) && node.GetToken().Source == "REPL input" {
-		return newError("eval/repl/var", node.Token, node.Value)
+		return newError("eval/repl/var", node.GetToken(), node.Value)
 	}
 
 	// However, we may be dealing with it as an identifier because it's positionally non-functional.
 	// If so, just saying "identifier not found" would be weird.
 	if c.prsr.AllFunctionIdents.Contains(node.Value) {
-		return newError("eval/ident/context", node.Token, node.Value)
+		return newError("eval/ident/context", node.GetToken(), node.Value)
 	}
 
 	// We can return a regular "not found".
-	return newError("eval/ident/found", node.Token, node.Value)
+	return newError("eval/ident/found", node.GetToken(), node.Value)
 }
 
-func newError(ident string, token token.Token, args ...any) *object.Error {
+func newError(ident string, token *token.Token, args ...any) *object.Error {
 	return object.CreateErr(ident, token, args...)
 }
 
-func newErrorWithVals(ident string, token token.Token, vals []object.Object, args ...any) *object.Error {
+func newErrorWithVals(ident string, token *token.Token, vals []object.Object, args ...any) *object.Error {
 	return object.CreateErrWithVals(ident, token, vals, args...)
 }
 
@@ -1250,7 +1250,7 @@ func isUnsatisfiedConditional(obj object.Object) bool {
 	return false
 }
 
-func evalIndexExpression(tok token.Token, left, indexNode ast.Node, c *Context) object.Object {
+func evalIndexExpression(tok *token.Token, left, indexNode ast.Node, c *Context) object.Object {
 	index := Eval(indexNode, c)
 	if index.Type() == object.ERROR_OBJ {
 		return index
@@ -1455,7 +1455,7 @@ func tuplify(args []object.Object) object.Object {
 
 // For special cases like the 'not' operator, we need (for now) to evaluate the arguments
 // without the treewalker.
-func listArgs(args []ast.Node, tok token.Token, c *Context) []object.Object {
+func listArgs(args []ast.Node, tok *token.Token, c *Context) []object.Object {
 	values := []object.Object{}
 	for _, arg := range args {
 		newObject := Eval(arg, c)
@@ -1476,7 +1476,7 @@ func listArgs(args []ast.Node, tok token.Token, c *Context) []object.Object {
 	return values
 }
 
-func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Context) (object.Object, object.Object) {
+func evalLeftRightArgs(args []ast.Node, tok *token.Token, c *Context) (object.Object, object.Object) {
 	leftValues := []object.Object{}
 	rightValues := []object.Object{}
 	blingHappened := false
@@ -1504,7 +1504,7 @@ func evalLeftRightArgs(args []ast.Node, tok token.Token, c *Context) (object.Obj
 
 // We need to walk through the tree of functions according to the types of passed values to do the multiple dispatch,
 // we can then pass the values and the body of the function on to applyFunction.
-func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token, c *Context) object.Object {
+func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok *token.Token, c *Context) object.Object {
 
 	treeWalker := newFunctionTreeWalker(functionTree)
 
@@ -1645,7 +1645,7 @@ func functionCall(functionTree *ast.FnTreeNode, args []ast.Node, tok token.Token
 }
 
 // Having got a Function type out of a lambda or the function tree, we can apply it to the values to get a return value.
-func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
+func applyFunction(f ast.Function, params []object.Object, tok *token.Token, c *Context) object.Object {
 	if f.Private && c.access == REPL {
 		return newErrorWithVals("eval/repl/private", tok, params, params, false)
 	}
@@ -1707,7 +1707,7 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 
 	//So if we've got this far we have a regular old function/command/lambda with its body written in Charm.
 	default:
-		newEnvironment, err := parser.UpdateEnvironment(f.Sig, params, env, tok)
+		newEnvironment, err := parser.UpdateEnvironment(f.Sig, params, env, *tok)
 		if err != nil {
 			return err
 		}
@@ -1737,16 +1737,16 @@ func applyFunction(f ast.Function, params []object.Object, tok token.Token, c *C
 	}
 }
 
-func evalInput(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalInput(params []object.Object, tok *token.Token, c *Context) object.Object {
 	str := c.prsr.EffHandle.InHandle.Get(params[0].(*object.String).Value)
 	return &object.String{Value: str}
 }
 
-func evalOutput(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalOutput(params []object.Object, tok *token.Token, c *Context) object.Object {
 	return evalReturnExpression(tok, params[0:len(params)-2], c)
 }
 
-func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalForLoop(params []object.Object, tok *token.Token, c *Context) object.Object {
 	refName := params[0].(*object.Ref).VariableName
 	functionToApply := params[4].(*object.Func).Function
 	// There has to be a less reduplicative way to do this but I'm about to replace the evaluator anyway.
@@ -1834,7 +1834,7 @@ func evalForLoop(params []object.Object, tok token.Token, c *Context) object.Obj
 	}
 }
 
-func evalPostContact(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalPostContact(params []object.Object, tok *token.Token, c *Context) object.Object {
 	result := evalContactExpression(params, tok, c)
 	if result.Type() == object.ERROR_OBJ {
 		return result
@@ -1845,7 +1845,7 @@ func evalPostContact(params []object.Object, tok token.Token, c *Context) object
 	return object.SUCCESS
 }
 
-func evalGetContact(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalGetContact(params []object.Object, tok *token.Token, c *Context) object.Object {
 	result := evalContactExpression(params, tok, c)
 	if result.Type() == object.ERROR_OBJ {
 		return result
@@ -1859,7 +1859,7 @@ func evalGetContact(params []object.Object, tok token.Token, c *Context) object.
 	return &object.Tuple{Elements: result.(*object.Effects).Elements}
 }
 
-func evalContactExpression(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalContactExpression(params []object.Object, tok *token.Token, c *Context) object.Object {
 	serviceName := params[0].(*object.Struct).Name
 	service, ok := c.prsr.Services[serviceName]
 	if !ok {
@@ -1880,7 +1880,7 @@ func evalContactExpression(params []object.Object, tok token.Token, c *Context) 
 }
 
 // So, we're going to embed Charm in Charm, and because this is a working prototype we're going to do it ... lexically.
-func preparseContactExpression(snippet string, tok token.Token, c *Context) (string, object.Object) {
+func preparseContactExpression(snippet string, tok *token.Token, c *Context) (string, object.Object) {
 	outputText := ""
 	charmToEvaluate := ""
 	readState := ' '
@@ -1915,14 +1915,14 @@ func preparseContactExpression(snippet string, tok token.Token, c *Context) (str
 	return outputText, nil
 }
 
-func applyBuiltinFunction(f ast.Function, params []object.Object, tok token.Token, c *Context) object.Object {
+func applyBuiltinFunction(f ast.Function, params []object.Object, tok *token.Token, c *Context) object.Object {
 	funcToApply := c.prsr.BuiltinFunctions[f.Body.(*ast.BuiltInExpression).Name]
 	values := parser.GetValueList(f.Sig, params)
 	result := funcToApply(c.prsr, tok, values...)
 	return result
 }
 
-func applyGolangFunction(body *ast.GolangExpression, params []object.Object, tok token.Token, c *Context) object.Object {
+func applyGolangFunction(body *ast.GolangExpression, params []object.Object, tok *token.Token, c *Context) object.Object {
 	gh := NewGoHandler(c.prsr)
 	goParams := []any{}
 	for i := 0; i < len(body.Sig); i++ {
@@ -2105,7 +2105,7 @@ func niceReturn(node ast.Node, c *Context) string {
 }
 
 // Logs things to the appropriate place
-func emit(logStr string, tok token.Token, c *Context) {
+func emit(logStr string, tok *token.Token, c *Context) {
 	logPath, _ := c.prsr.AllGlobals.Get("$logPath")
 	logPathStr := logPath.(*object.String).Value
 	if logPathStr == "stdout" {

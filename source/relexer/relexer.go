@@ -288,7 +288,7 @@ func RelexDump(input string) {
 }
 
 func (rl *Relexer) Throw(errorID string, tok token.Token, args ...any) {
-	rl.Errors = object.Throw(errorID, rl.Errors, tok, args...)
+	rl.Errors = object.Throw(errorID, rl.Errors, &tok, args...)
 }
 
 func (rl *Relexer) GetErrors() object.Errors {

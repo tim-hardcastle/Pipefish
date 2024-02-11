@@ -10,7 +10,7 @@ import (
 
 // The base Node interface
 type Node interface {
-	GetToken() token.Token
+	GetToken() *token.Token
 	String() string
 }
 
@@ -27,7 +27,7 @@ type ApplicationExpression struct {
 	Token token.Token
 }
 
-func (ae *ApplicationExpression) GetToken() token.Token { return ae.Token }
+func (ae *ApplicationExpression) GetToken() *token.Token { return &ae.Token }
 func (ae *ApplicationExpression) String() string {
 	var out bytes.Buffer
 
@@ -46,7 +46,7 @@ type AssignmentExpression struct {
 	Token token.Token
 }
 
-func (ae *AssignmentExpression) GetToken() token.Token { return ae.Token }
+func (ae *AssignmentExpression) GetToken() *token.Token { return &ae.Token }
 func (ae *AssignmentExpression) String() string {
 	var out bytes.Buffer
 
@@ -64,23 +64,23 @@ type Bling struct {
 	Value string
 }
 
-func (bl *Bling) GetToken() token.Token { return bl.Token }
-func (bl *Bling) String() string        { return bl.Value }
+func (bl *Bling) GetToken() *token.Token { return &bl.Token }
+func (bl *Bling) String() string         { return bl.Value }
 
 type BooleanLiteral struct {
 	Token token.Token
 	Value bool
 }
 
-func (b *BooleanLiteral) GetToken() token.Token { return b.Token }
-func (b *BooleanLiteral) String() string        { return b.Token.Literal }
+func (b *BooleanLiteral) GetToken() *token.Token { return &b.Token }
+func (b *BooleanLiteral) String() string         { return b.Token.Literal }
 
 type BuiltInExpression struct {
 	Name string
 }
 
-func (bi *BuiltInExpression) GetToken() token.Token {
-	return token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1}
+func (bi *BuiltInExpression) GetToken() *token.Token {
+	return &token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1}
 }
 func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
 
@@ -89,15 +89,15 @@ type EmptyTuple struct {
 	Value string
 }
 
-func (et *EmptyTuple) GetToken() token.Token { return et.Token }
-func (et *EmptyTuple) String() string        { return "()" }
+func (et *EmptyTuple) GetToken() *token.Token { return &et.Token }
+func (et *EmptyTuple) String() string         { return "()" }
 
 type Expression struct {
 	Token token.Token // the first token of the expression
 	Node  Node
 }
 
-func (es *Expression) GetToken() token.Token { return es.Token }
+func (es *Expression) GetToken() *token.Token { return &es.Token }
 func (es *Expression) String() string {
 	return es.Node.String()
 }
@@ -107,15 +107,15 @@ type FloatLiteral struct {
 	Value float64
 }
 
-func (fl *FloatLiteral) GetToken() token.Token { return fl.Token }
-func (fl *FloatLiteral) String() string        { return fl.Token.Literal }
+func (fl *FloatLiteral) GetToken() *token.Token { return &fl.Token }
+func (fl *FloatLiteral) String() string         { return fl.Token.Literal }
 
 type FuncExpression struct {
 	Token token.Token
 	Function
 }
 
-func (fe *FuncExpression) GetToken() token.Token { return fe.Token }
+func (fe *FuncExpression) GetToken() *token.Token { return &fe.Token }
 func (fe *FuncExpression) String() string {
 	result := "func " + fe.Sig.String() + " : " + fe.Body.String()
 	if fe.Given != nil {
@@ -133,16 +133,16 @@ type GolangExpression struct {
 	ReturnTypes signature.Signature
 }
 
-func (ge *GolangExpression) GetToken() token.Token { return ge.Token }
-func (ge *GolangExpression) String() string        { return ge.Token.Literal }
+func (ge *GolangExpression) GetToken() *token.Token { return &ge.Token }
+func (ge *GolangExpression) String() string         { return ge.Token.Literal }
 
 type Identifier struct {
 	Token token.Token
 	Value string
 }
 
-func (i *Identifier) GetToken() token.Token { return i.Token }
-func (i *Identifier) String() string        { return i.Value }
+func (i *Identifier) GetToken() *token.Token { return &i.Token }
+func (i *Identifier) String() string         { return i.Value }
 
 type IndexExpression struct {
 	Token token.Token // The [ token
@@ -150,7 +150,7 @@ type IndexExpression struct {
 	Index Node
 }
 
-func (ie *IndexExpression) GetToken() token.Token { return ie.Token }
+func (ie *IndexExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *IndexExpression) String() string {
 	var out bytes.Buffer
 
@@ -169,8 +169,8 @@ type InfixExpression struct {
 	Args     []Node
 }
 
-func (ie *InfixExpression) GetArgs() []Node       { return ie.Args }
-func (ie *InfixExpression) GetToken() token.Token { return ie.Token }
+func (ie *InfixExpression) GetArgs() []Node        { return ie.Args }
+func (ie *InfixExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
 
@@ -195,8 +195,8 @@ type IntegerLiteral struct {
 	Value int
 }
 
-func (il *IntegerLiteral) GetToken() token.Token { return il.Token }
-func (il *IntegerLiteral) String() string        { return il.Token.Literal }
+func (il *IntegerLiteral) GetToken() *token.Token { return &il.Token }
+func (il *IntegerLiteral) String() string         { return il.Token.Literal }
 
 type LazyInfixExpression struct {
 	Token    token.Token
@@ -205,7 +205,7 @@ type LazyInfixExpression struct {
 	Right    Node
 }
 
-func (ie *LazyInfixExpression) GetToken() token.Token { return ie.Token }
+func (ie *LazyInfixExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *LazyInfixExpression) String() string {
 	var out bytes.Buffer
 
@@ -223,7 +223,7 @@ type ListExpression struct {
 	List  Node
 }
 
-func (le *ListExpression) GetToken() token.Token { return le.Token }
+func (le *ListExpression) GetToken() *token.Token { return &le.Token }
 func (le *ListExpression) String() string {
 	var out bytes.Buffer
 
@@ -244,7 +244,7 @@ type LogExpression struct {
 	Right Node
 }
 
-func (le *LogExpression) GetToken() token.Token { return le.Token }
+func (le *LogExpression) GetToken() *token.Token { return &le.Token }
 func (le *LogExpression) String() string {
 	var out bytes.Buffer
 
@@ -265,7 +265,7 @@ type LoopExpression struct {
 	Code  Node
 }
 
-func (le *LoopExpression) GetToken() token.Token { return le.Token }
+func (le *LoopExpression) GetToken() *token.Token { return &le.Token }
 func (le *LoopExpression) String() string {
 	var out bytes.Buffer
 
@@ -280,8 +280,8 @@ type Nothing struct {
 	Token token.Token
 }
 
-func (ne *Nothing) GetToken() token.Token { return ne.Token }
-func (ne *Nothing) String() string        { return "" }
+func (ne *Nothing) GetToken() *token.Token { return &ne.Token }
+func (ne *Nothing) String() string         { return "" }
 
 type PrefixExpression struct {
 	Token    token.Token
@@ -289,8 +289,8 @@ type PrefixExpression struct {
 	Args     []Node
 }
 
-func (pe *PrefixExpression) GetArgs() []Node       { return pe.Args }
-func (pe *PrefixExpression) GetToken() token.Token { return pe.Token }
+func (pe *PrefixExpression) GetArgs() []Node        { return pe.Args }
+func (pe *PrefixExpression) GetToken() *token.Token { return &pe.Token }
 func (pe *PrefixExpression) String() string {
 	var out bytes.Buffer
 
@@ -317,7 +317,7 @@ type SetExpression struct {
 	Set   Node
 }
 
-func (se *SetExpression) GetToken() token.Token { return se.Token }
+func (se *SetExpression) GetToken() *token.Token { return &se.Token }
 func (se *SetExpression) String() string {
 	var out bytes.Buffer
 
@@ -335,7 +335,7 @@ type StreamingExpression struct {
 	Right    Node
 }
 
-func (se *StreamingExpression) GetToken() token.Token { return se.Token }
+func (se *StreamingExpression) GetToken() *token.Token { return &se.Token }
 func (se *StreamingExpression) String() string {
 	var out bytes.Buffer
 
@@ -353,16 +353,16 @@ type StringLiteral struct {
 	Value string
 }
 
-func (sl *StringLiteral) GetToken() token.Token { return sl.Token }
-func (sl *StringLiteral) String() string        { return "\"" + sl.Token.Literal + "\"" }
+func (sl *StringLiteral) GetToken() *token.Token { return &sl.Token }
+func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Literal + "\"" }
 
 type StructExpression struct {
 	Token token.Token
 	Sig   signature.Signature
 }
 
-func (st *StructExpression) GetToken() token.Token { return st.Token }
-func (st *StructExpression) String() string        { return "struct " + st.Sig.String() }
+func (st *StructExpression) GetToken() *token.Token { return &st.Token }
+func (st *StructExpression) String() string         { return "struct " + st.Sig.String() }
 
 type SuffixExpression struct {
 	Token    token.Token
@@ -370,8 +370,8 @@ type SuffixExpression struct {
 	Args     []Node
 }
 
-func (se *SuffixExpression) GetArgs() []Node       { return se.Args }
-func (se *SuffixExpression) GetToken() token.Token { return se.Token }
+func (se *SuffixExpression) GetArgs() []Node        { return se.Args }
+func (se *SuffixExpression) GetToken() *token.Token { return &se.Token }
 func (se *SuffixExpression) String() string {
 	var out bytes.Buffer
 
@@ -397,7 +397,7 @@ type TryExpression struct {
 	Right   Node
 }
 
-func (t *TryExpression) GetToken() token.Token { return t.Token }
+func (t *TryExpression) GetToken() *token.Token { return &t.Token }
 func (t *TryExpression) String() string {
 	if t.VarName != "" {
 		return "try"
@@ -412,15 +412,15 @@ type TypeLiteral struct {
 	Value string
 }
 
-func (t *TypeLiteral) GetToken() token.Token { return t.Token }
-func (t *TypeLiteral) String() string        { return t.Value }
+func (t *TypeLiteral) GetToken() *token.Token { return &t.Token }
+func (t *TypeLiteral) String() string         { return t.Value }
 
 type UnfixExpression struct {
 	Token    token.Token
 	Operator string
 }
 
-func (uf *UnfixExpression) GetToken() token.Token { return uf.Token }
+func (uf *UnfixExpression) GetToken() *token.Token { return &uf.Token }
 func (uf *UnfixExpression) String() string {
 	var out bytes.Buffer
 
@@ -434,13 +434,17 @@ func (uf *UnfixExpression) String() string {
 // And other useful stuff.
 
 type Function = struct {
-	Sig      signature.Signature
-	Rets     signature.Signature
-	Body     Node
-	Given    Node
-	Cmd      bool
-	Private  bool
-	Number   uint32
+	Sig     signature.Signature
+	Rets    signature.Signature
+	Body    Node
+	Given   Node
+	Cmd     bool
+	Private bool
+	Number  uint32
+}
+
+type FunctionGroup = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.
+	Tree     *FnTreeNode
 	RefCount int
 }
 

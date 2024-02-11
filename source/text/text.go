@@ -90,7 +90,7 @@ func Logo() string {
 	return logoString
 }
 
-func DescribePos(token token.Token) string {
+func DescribePos(token *token.Token) string {
 	prettySource := token.Source
 	if prettySource == "" {
 		return ""
@@ -111,7 +111,7 @@ func DescribePos(token token.Token) string {
 }
 
 // Describes a token for the purposes of error messages etc.
-func DescribeTok(tok token.Token) string {
+func DescribeTok(tok *token.Token) string {
 	switch tok.Type {
 	case token.LPAREN:
 		if tok.Literal == "|->" {
@@ -143,7 +143,7 @@ func DescribeTok(tok token.Token) string {
 	return "'" + tok.Literal + "'"
 }
 
-func DescribeOpposite(tok token.Token) string {
+func DescribeOpposite(tok *token.Token) string {
 	switch tok.Literal {
 	case "<-|":
 		{

@@ -195,6 +195,10 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 			continue
 		}
 		vmm.cp.reserve(vm, INT, DUMMY)
+		if pair.VarType == "ref" {
+			vmm.cp.addVariable(vm, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.typeNameToTypeList[pair.VarType])
+			continue
+		}
 		vmm.cp.addVariable(vm, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
 	}
 	cpF.hiReg = vm.memTop()
@@ -233,7 +237,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			lhs := dec.(*ast.AssignmentExpression).Left
 			rhs := dec.(*ast.AssignmentExpression).Right
 			if lhs.GetToken().Type != token.IDENT { // TODO --- use assignment signature once tuples are working.
-				vmm.uP.Throw("vmm/assign/ident", dec.GetToken())
+				vmm.uP.Throw("vmm/assign/ident", *dec.GetToken())
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := vmm.cp.vm.codeTop()

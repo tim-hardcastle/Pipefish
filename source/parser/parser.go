@@ -138,11 +138,11 @@ type Parser struct {
 	lazyInfixes   set.Set[token.TokenType]
 
 	FunctionTable    FunctionTable
-	FunctionTreeMap  map[string]*ast.FnTreeNode
+	FunctionGroupMap map[string]*ast.FunctionGroup
 	GlobalConstants  *object.Environment
 	AllGlobals       *object.Environment
 	TypeSystem       TypeSystem
-	BuiltinFunctions map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object
+	BuiltinFunctions map[string]func(p *Parser, tok *token.Token, args ...object.Object) object.Object
 	Enums            map[string][]*object.Label
 	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]signature.Signature // <--- in here.
@@ -179,15 +179,15 @@ func New() *Parser {
 			token.NAMESPACE, token.IFLOG}),
 		lazyInfixes: set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
-		FunctionTable:   make(FunctionTable),
-		FunctionTreeMap: make(map[string]*ast.FnTreeNode),
-		GlobalConstants: object.NewEnvironment(), // I need my functions to be able to see the global constants.
-		AllGlobals:      object.NewEnvironment(), // The logger needs to be able to see service variables and this is the simplest way.
-		TypeSystem:      NewTypeSystem(),
-		Structs:         make(set.Set[string]),
-		GoImports:       make(map[string][]string),
-		NamespaceBranch: make(map[string]*Service),
-		Contacts:        []string{},
+		FunctionTable:    make(FunctionTable),
+		FunctionGroupMap: make(map[string]*ast.FunctionGroup),
+		GlobalConstants:  object.NewEnvironment(), // I need my functions to be able to see the global constants.
+		AllGlobals:       object.NewEnvironment(), // The logger needs to be able to see service variables and this is the simplest way.
+		TypeSystem:       NewTypeSystem(),
+		Structs:          make(set.Set[string]),
+		GoImports:        make(map[string][]string),
+		NamespaceBranch:  make(map[string]*Service),
+		Contacts:         []string{},
 	}
 
 	for k := range *p.TypeSystem {
@@ -205,7 +205,7 @@ func New() *Parser {
 
 	// The parser adds constructors for structs to the builtins and so must keep its own
 	// collection of them.
-	p.BuiltinFunctions = make(map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object)
+	p.BuiltinFunctions = make(map[string]func(p *Parser, tok *token.Token, args ...object.Object) object.Object)
 
 	for k, v := range Builtins {
 		p.BuiltinFunctions[k] = v
@@ -244,7 +244,7 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 }
 
 func (p *Parser) prefixSuffixError() {
-	p.Throw("parse/before", p.curToken, p.peekToken)
+	p.Throw("parse/before", &p.curToken, p.peekToken)
 }
 
 func (p *Parser) ParseTokenizedChunk() ast.Node {
@@ -254,7 +254,7 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 	expn := p.parseExpression(LOWEST)
 	p.NextToken()
 	if p.curToken.Type != token.EOF {
-		p.Throw("parse/expected", p.curToken)
+		p.Throw("parse/expected", &p.curToken)
 	}
 	return expn
 }
@@ -351,7 +351,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				}
 			}
 		} else {
-			p.Throw("parse/prefix", p.curToken)
+			p.Throw("parse/prefix", &p.curToken)
 		}
 	}
 
@@ -401,15 +401,15 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	}
 	if leftExp == nil {
 		if p.curToken.Type == token.EOF {
-			p.Throw("parse/line", p.curToken)
+			p.Throw("parse/line", &p.curToken)
 			return nil
 		}
 		if p.curToken.Literal == "<-|" || p.curToken.Literal == ")" ||
 			p.curToken.Literal == "]" || p.curToken.Literal == "}" {
-			p.Throw("parse/close", p.curToken)
+			p.Throw("parse/close", &p.curToken)
 			return nil
 		}
-		p.Throw("parse/missing", p.curToken)
+		p.Throw("parse/missing", &p.curToken)
 		return nil
 	}
 	return leftExp
@@ -567,7 +567,7 @@ func (p *Parser) parseIntegerLiteral() ast.Node {
 	lit := &ast.IntegerLiteral{Token: p.curToken}
 	value, e := strconv.Atoi(p.curToken.Literal)
 	if e != nil {
-		p.Throw("parse/int", p.curToken)
+		p.Throw("parse/int", &p.curToken)
 		return nil
 	}
 
@@ -579,7 +579,7 @@ func (p *Parser) parseFloatLiteral() ast.Node {
 	lit := &ast.FloatLiteral{Token: p.curToken}
 	value, e := strconv.ParseFloat(p.curToken.Literal, 64)
 	if e != nil {
-		p.Throw("parse/float64", p.curToken)
+		p.Throw("parse/float64", &p.curToken)
 		return nil
 	}
 
@@ -609,7 +609,7 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 		right = p.parseExpression(MINUS)
 	}
 	if right == nil {
-		p.Throw("parse/follow", prefix)
+		p.Throw("parse/follow", &prefix)
 	}
 	expression.Args = []ast.Node{right}
 	return expression
@@ -653,7 +653,7 @@ func (p *Parser) parseBuiltInExpression() ast.Node {
 	if p.curToken.Type == token.STRING {
 		expression.Name = p.curToken.Literal
 	} else {
-		p.Throw("parse/builtin", p.curToken)
+		p.Throw("parse/builtin", &p.curToken)
 	}
 	p.NextToken()
 	return expression
@@ -726,7 +726,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			}
 			return expression
 		default:
-			p.Throw("parse/inner", p.curToken)
+			p.Throw("parse/inner", &p.curToken)
 		}
 	}
 
@@ -805,12 +805,12 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { // Adds "that" a
 	switch typedExp := exp.(type) {
 	case *ast.Identifier:
 		if p.Functions.Contains(exp.GetToken().Literal) {
-			exp = &ast.PrefixExpression{Token: typedExp.GetToken(),
+			exp = &ast.PrefixExpression{Token: *typedExp.GetToken(),
 				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
 		if p.Suffixes.Contains(exp.GetToken().Literal) {
-			exp = &ast.SuffixExpression{Token: typedExp.GetToken(),
+			exp = &ast.SuffixExpression{Token: *typedExp.GetToken(),
 				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
@@ -925,7 +925,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 	switch root := root.(type) {
 	case *ast.LazyInfixExpression:
 		if root.Token.Type != token.COLON {
-			p.Throw("parse/colon", p.curToken)
+			p.Throw("parse/colon", &p.curToken)
 			return nil
 		}
 		expression.Sig, _ = p.RecursivelySlurpSignature(root.Left, "single")
@@ -935,7 +935,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 		expression.Body = root.Right
 		return expression
 	default:
-		p.Throw("parse/malfunc", p.curToken)
+		p.Throw("parse/malfunc", &p.curToken)
 		return nil
 	}
 }
@@ -979,13 +979,13 @@ func (p *Parser) parseTryExpression() ast.Node {
 		varName := p.curToken.Literal
 		p.NextToken()
 		if p.curToken.Type != token.COLON {
-			p.Throw("parse/try/colon", p.curToken)
+			p.Throw("parse/try/colon", &p.curToken)
 		}
 		p.NextToken()
 		exp := p.parseExpression(COLON)
 		return &ast.TryExpression{Token: p.curToken, Right: exp, VarName: varName}
 	} else {
-		p.Throw("parse/try/ident", p.curToken)
+		p.Throw("parse/try/ident", &p.curToken)
 		return nil
 	}
 }
@@ -1020,7 +1020,7 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 }
 
 func (p *Parser) checkNesting() {
-	// if p.curToken.Source != "builtin library" {fmt.Printf("Checking nesting %v\n", p.curToken)}
+	// if p.curToken.Source != "builtin library" {fmt.Printf("Checking nesting %v\n", &p.curToken)}
 	if p.curToken.Type == token.LPAREN || p.curToken.Type == token.LBRACE ||
 		p.curToken.Type == token.LBRACK {
 		p.nesting.Push(p.curToken)
@@ -1029,16 +1029,16 @@ func (p *Parser) checkNesting() {
 		p.curToken.Type == token.RBRACK {
 		popped, poppable := p.nesting.Pop()
 		if !poppable {
-			p.Throw("parse/match", p.curToken)
+			p.Throw("parse/match", &p.curToken)
 			return
 		}
 		if !checkConsistency(popped, p.curToken) {
-			p.Throw("parse/nesting", p.curToken, popped)
+			p.Throw("parse/nesting", &p.curToken, popped)
 		}
 	}
 	if p.curToken.Type == token.EOF {
 		for popped, poppable := p.nesting.Pop(); poppable; popped, poppable = p.nesting.Pop() {
-			p.Throw("parse/eol", p.curToken, popped)
+			p.Throw("parse/eol", &p.curToken, popped)
 		}
 	}
 }
@@ -1081,7 +1081,7 @@ func (p *Parser) ParseDump(source, input string) {
 	fmt.Printf("Parser returns: %v\n\n", (parsedLine).String())
 }
 
-func (p *Parser) Throw(errorID string, tok token.Token, args ...any) {
+func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 	p.Errors = object.Throw(errorID, p.Errors, tok, args...)
 }
 
@@ -1172,7 +1172,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				switch inner := arg.Args[0].(type) {
 				case *ast.SuffixExpression:
 					if !TypeExists(inner.Operator, p.TypeSystem) {
-						p.Throw("parse/raw/type", inner.Token)
+						p.Throw("parse/raw/type", inner.GetToken())
 						return nil
 					}
 					switch inmost := inner.Args[0].(type) {
@@ -1193,7 +1193,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 			} else { // The suffix is not 'raw'
 				if !(TypeExists(arg.Operator, p.TypeSystem) ||
 					arg.Operator == "ast" || arg.Operator == "ident") {
-					p.Throw("parse/sig/type/a", arg.Token)
+					p.Throw("parse/sig/type/a", &arg.Token)
 					return nil
 				}
 				switch inner := arg.Args[0].(type) {
@@ -1229,7 +1229,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 					varType = inner.Value
 					if !(TypeExists(inner.Value, p.TypeSystem) ||
 						arg.Operator == "ast" || arg.Operator == "ident") {
-						p.Throw("parse/sig/type/b", arg.Token)
+						p.Throw("parse/sig/type/b", arg.GetToken())
 						return nil
 					}
 				default:
@@ -1353,7 +1353,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signatur
 			}
 			return signature.Signature{signature.NameTypePair{VarName: namespacedIdent, VarType: dflt}}, nil
 		default:
-			return nil, newError("parse/sig/b", typednode.Token)
+			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
 	case *ast.SuffixExpression:
 		switch {
@@ -1384,7 +1384,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signatur
 			end := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(LHS, end), nil
 		default:
-			return nil, newError("parse/sig/c", typednode.Token)
+			return nil, newError("parse/sig/c", typednode.GetToken())
 		}
 	case *ast.Identifier:
 		if p.Endfixes.Contains(typednode.Value) {
@@ -1454,7 +1454,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature 
 			RHS := p.RecursivelySlurpReturnTypes(typednode.Args[2])
 			return append(LHS, RHS...)
 		default:
-			p.Throw("parse/ret/a", typednode.Token)
+			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
 		return signature.Signature{signature.NameTypePair{VarName: "x", VarType: typednode.Value}}

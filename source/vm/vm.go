@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"charm/source/object"
 	"charm/source/text"
 
 	"strconv"
@@ -18,6 +19,7 @@ type Vm struct {
 	ub_enums  uint32
 	typeNames []string
 	enums     [][]string
+	tokens    []*object.Error
 }
 
 func (vm *Vm) memTop() uint32 {
@@ -26,6 +28,10 @@ func (vm *Vm) memTop() uint32 {
 
 func (vm *Vm) that() uint32 {
 	return uint32(len(vm.mem) - 1)
+}
+
+func (vm *Vm) thatToken() uint32 {
+	return uint32(len(vm.tokens) - 1)
 }
 
 func (vm *Vm) codeTop() uint32 {
@@ -126,6 +132,8 @@ loop:
 			} else {
 				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
 			}
+		case dref:
+			vm.mem[args[0]] = vm.mem[vm.mem[args[1]].V.(uint32)]
 		case equb:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
 		case equf:

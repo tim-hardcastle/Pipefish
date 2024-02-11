@@ -17,11 +17,11 @@ type Errors = []*Error // Error being Charm's error value type, defined in objec
 
 // The structs to contain the data in errorfile.go
 type ErrorCreator struct {
-	Message     func(tok token.Token, args ...any) string
-	Explanation func(errors Errors, pos int, tok token.Token, args ...any) string
+	Message     func(tok *token.Token, args ...any) string
+	Explanation func(errors Errors, pos int, tok *token.Token, args ...any) string
 }
 
-func Put(message string, tok token.Token, ers Errors) []*Error {
+func Put(message string, tok *token.Token, ers Errors) []*Error {
 	for _, v := range ers {
 		if v.Token.Line == tok.Line && v.Token.ChStart == tok.ChStart {
 			return ers
@@ -39,7 +39,7 @@ func GetList(ers Errors) string {
 	return result + "\n"
 }
 
-func AddErr(err *Error, ers Errors, tok token.Token) Errors {
+func AddErr(err *Error, ers Errors, tok *token.Token) Errors {
 	for _, v := range ers {
 		if v.Token.Line == tok.Line && v.Token.ChStart == tok.ChStart {
 			return ers
@@ -49,7 +49,7 @@ func AddErr(err *Error, ers Errors, tok token.Token) Errors {
 	return ers
 }
 
-func Throw(errorId string, ers Errors, tok token.Token, args ...any) Errors {
+func Throw(errorId string, ers Errors, tok *token.Token, args ...any) Errors {
 	ers = AddErr(CreateErr(errorId, tok, args...), ers, tok)
 	return ers
 }
@@ -57,7 +57,7 @@ func Throw(errorId string, ers Errors, tok token.Token, args ...any) Errors {
 // We create the error message now. But we store the args to create the explanation (i.e. what you get if
 // you do 'hub why <error number>' because the generation of the explanation may refer to other errors,
 // perhaps not thrown at this point.)
-func CreateErr(errorId string, tok token.Token, args ...any) *Error {
+func CreateErr(errorId string, tok *token.Token, args ...any) *Error {
 	errorCreator, ok := ErrorCreatorMap[errorId]
 	if !ok {
 		return CreateErr("err/misdirect", tok, errorId)
@@ -66,7 +66,7 @@ func CreateErr(errorId string, tok token.Token, args ...any) *Error {
 	return &Error{ErrorId: errorId, Message: msg, Token: tok, Args: args}
 }
 
-func CreateErrWithVals(errorId string, tok token.Token, vals []Object, args ...any) *Error {
+func CreateErrWithVals(errorId string, tok *token.Token, vals []Object, args ...any) *Error {
 	errorCreator, ok := ErrorCreatorMap[errorId]
 	if !ok {
 		return CreateErr("err/misdirect", tok, errorId)

@@ -152,8 +152,8 @@ type Error struct {
 	Message string
 	Args    []any
 	Values  []Object
-	Trace   []token.Token
-	Token   token.Token
+	Trace   []*token.Token
+	Token   *token.Token
 }
 
 func (e *Error) DeepCopy() Object { return e }

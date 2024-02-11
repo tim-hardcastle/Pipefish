@@ -15,7 +15,7 @@ import (
 // So when this works properly we can write that bit of the hub entirely in Charm and dispense with the
 // 'database.go' file.
 
-func evalPostSQL(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalPostSQL(params []object.Object, tok *token.Token, c *Context) object.Object {
 
 	query, args, charmError := parseSQL(params[0].(*object.Struct), tok, c)
 	if charmError != nil {
@@ -28,7 +28,7 @@ func evalPostSQL(params []object.Object, tok token.Token, c *Context) object.Obj
 	return object.SUCCESS
 }
 
-func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Object {
+func evalGetSQL(params []object.Object, tok *token.Token, c *Context) object.Object {
 	charmType := params[0].(*object.Type)
 	if !parser.IsSameTypeOrSubtype(c.prsr.TypeSystem, charmType.Value, "struct") {
 		return newError("sql/in/type/a", tok, charmType.Value)
@@ -81,7 +81,7 @@ func evalGetSQL(params []object.Object, tok token.Token, c *Context) object.Obje
 	return &object.List{Elements: results}
 }
 
-func makeStruct(structName string, args []any, tok token.Token, c *Context) object.Object {
+func makeStruct(structName string, args []any, tok *token.Token, c *Context) object.Object {
 	newStruct := &object.Struct{Name: structName, Labels: []string{}, Value: make(map[string]object.Object), Namespace: c.prsr.NamespacePath}
 	for i, v := range c.prsr.StructSig[structName] {
 		var charmValue object.Object
@@ -109,7 +109,7 @@ func makeStruct(structName string, args []any, tok token.Token, c *Context) obje
 	return newStruct
 }
 
-func parseSQL(snippet *object.Struct, tok token.Token, c *Context) (string, []any, *object.Error) {
+func parseSQL(snippet *object.Struct, tok *token.Token, c *Context) (string, []any, *object.Error) {
 	args := []any{}
 	if c.prsr.Database == nil {
 		return "", args, newError("sql/exists", tok)

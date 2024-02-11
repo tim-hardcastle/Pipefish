@@ -683,5 +683,5 @@ func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
 }
 
 func (l *Lexer) Throw(errorID string, tok token.Token, args ...any) {
-	l.Ers = object.Throw(errorID, l.Ers, tok, args...)
+	l.Ers = object.Throw(errorID, l.Ers, &tok, args...)
 }

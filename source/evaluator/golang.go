@@ -157,11 +157,11 @@ func (gh *GoHandler) BuildGoMods() {
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 		output, err := cmd.Output()
 		if err != nil {
-			gh.Prsr.Throw("golang/build", token.Token{}, err.Error()+": "+string(output))
+			gh.Prsr.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
 		}
 		gh.plugins[source], err = plugin.Open(soFile)
 		if err != nil {
-			gh.Prsr.Throw("golang/open", token.Token{}, err.Error())
+			gh.Prsr.Throw("golang/open", &token.Token{}, err.Error())
 		} else {
 			os.Remove("gocode " + strconv.Itoa(counter) + ".go")
 		}
@@ -190,13 +190,13 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 			gh.rawHappened = true
 			ty, ok = rawConv[v.VarType]
 			if !ok {
-				gh.Prsr.Throw("golang/type/a", golang.Token, v.VarType)
+				gh.Prsr.Throw("golang/type/a", golang.GetToken(), v.VarType)
 				return
 			}
 		} else {
 			ty, ok = typeConv[v.VarType]
 			if !ok {
-				gh.Prsr.Throw("golang/type/b", golang.Token, v.VarType)
+				gh.Prsr.Throw("golang/type/b", golang.GetToken(), v.VarType)
 				return
 			}
 		}
@@ -217,7 +217,7 @@ func (gh *GoHandler) AddPureGoBlock(source, code string) {
 	gh.modules[source] = gh.modules[source] + "\n" + code[:len(code)-2] + "\n\n"
 }
 
-func (gh *GoHandler) GetFn(fnName string, tok token.Token) func(args ...any) any {
+func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) any {
 	name := capitalize(fnName)
 	fn, err := gh.plugins[tok.Source].Lookup(name)
 	if err != nil {
@@ -274,7 +274,7 @@ func (gh *GoHandler) CharmToGo(ch object.Object) any {
 			for _, v := range args {
 				params = append(params, gh.goToCharm(v))
 			}
-			charmResult := applyFunction(ch.Function, params, token.Token{}, &Context{env: &object.Environment{}, prsr: gh.Prsr, access: DEF, logging: false})
+			charmResult := applyFunction(ch.Function, params, &token.Token{}, &Context{env: &object.Environment{}, prsr: gh.Prsr, access: DEF, logging: false})
 			return gh.goToCharm(charmResult)
 		}
 	case *object.Float:

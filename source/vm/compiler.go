@@ -2,6 +2,7 @@ package vm
 
 import (
 	"charm/source/ast"
+	"charm/source/object"
 	"charm/source/parser"
 	"charm/source/set"
 	"charm/source/token"
@@ -117,6 +118,11 @@ func (cp *Compiler) reserve(vm *Vm, t simpleType, v any) uint32 {
 	return uint32(len(vm.mem) - 1)
 }
 
+func (cp *Compiler) reserveError(vm *Vm, ec string, tok *token.Token, args []any) uint32 {
+	vm.mem = append(vm.mem, Value{T: ERROR, V: object.Error{ErrorId: ec, Token: tok, Args: append([]any{vm}, args...), Trace: make([]*token.Token, 0, 10)}})
+	return uint32(len(vm.mem) - 1)
+}
+
 func (cp *Compiler) addVariable(vm *Vm, env *environment, name string, acc varAccess, types alternateType) {
 	env.data[name] = variable{mLoc: vm.that(), access: acc, types: types}
 }
@@ -164,14 +170,14 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			cp.put(vm, notb, vm.that())
 			break
 		}
-		cp.p.Throw("comp/infix", node.Token)
+		cp.p.Throw("comp/infix", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
-				cp.p.Throw("comp/or/bool/left", node.Token)
+				cp.p.Throw("comp/or/bool/left", node.GetToken())
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
@@ -181,7 +187,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			cp.emit(vm, jmp, DUMMY)
 			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			if !rTypes.contains(BOOL) {
-				cp.p.Throw("comp/or/bool/right", node.Token)
+				cp.p.Throw("comp/or/bool/right", node.GetToken())
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
@@ -194,7 +200,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		if node.Operator == "and" {
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
-				cp.p.Throw("comp/and/bool/left", node.Token)
+				cp.p.Throw("comp/and/bool/left", node.GetToken())
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
@@ -203,7 +209,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			cp.emit(vm, qtru, leftRg, DUMMY)
 			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			if !rTypes.contains(BOOL) {
-				cp.p.Throw("comp/and/bool/right", node.Token)
+				cp.p.Throw("comp/and/bool/right", node.GetToken())
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
@@ -219,7 +225,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			}
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
-				cp.p.Throw("comp/cond/bool", node.Token)
+				cp.p.Throw("comp/cond/bool", node.GetToken())
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
@@ -261,17 +267,21 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		}
 	case *ast.Identifier:
 		v, ok := env.getVar(node.Value)
-		if ok {
-			if v.access == LOCAL_CONSTANT_THUNK {
-				cp.emit(vm, untk, v.mLoc)
-			}
+		if !ok {
+			cp.p.Throw("comp/ident/known", node.GetToken())
+			return simpleList(ERROR), true
+		}
+		if v.access == LOCAL_CONSTANT_THUNK {
+			cp.emit(vm, untk, v.mLoc)
+		}
+		if v.access == REFERENCE_VARIABLE {
+			cp.put(vm, dref, v.mLoc)
+			rtnTypes = cp.typeNameToTypeList["single?"]
+		} else {
 			cp.put(vm, asgm, v.mLoc)
 			rtnTypes = v.types
-			rtnConst = ALL_CONST_ACCESS.Contains(v.access)
-			break
 		}
-		cp.p.Throw("comp/ident/known", node.Token)
-		rtnTypes, rtnConst = simpleList(ERROR), true
+		rtnConst = ALL_CONST_ACCESS.Contains(v.access)
 		break
 	case *ast.AssignmentExpression:
 		if node.Token.Type == token.GVN_ASSIGN {
@@ -294,7 +304,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), false
 			break
 		}
-		cp.p.Throw("comp/assign", node.Token)
+		cp.p.Throw("comp/assign", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
 	case *ast.PrefixExpression:
@@ -306,7 +316,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 				break
 			}
 			if !allTypes.contains(BOOL) {
-				cp.p.Throw("comp/not/bool", node.Token)
+				cp.p.Throw("comp/not/bool", node.GetToken())
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
@@ -315,7 +325,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
 			break
 		}
-		cp.p.Throw("comp/prefix/known", node.Token)
+		cp.p.Throw("comp/prefix/known", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
 	case *ast.SuffixExpression:
@@ -323,7 +333,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
 			break
 		}
-		cp.p.Throw("comp/suffix", node.Token)
+		cp.p.Throw("comp/suffix", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
 	default:
@@ -347,12 +357,12 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
 	lTypes, lcst := cp.compileNode(vm, node.Args[0], env)
 	if lTypes.only(ERROR) {
-		cp.p.Throw("comp/tuple/err/a", node.Token)
+		cp.p.Throw("comp/tuple/err/a", node.GetToken())
 	}
 	left := vm.that()
 	rTypes, rcst := cp.compileNode(vm, node.Args[2], env)
 	if rTypes.only(ERROR) {
-		cp.p.Throw("comp/tuple/err/b", node.Token)
+		cp.p.Throw("comp/tuple/err/b", node.GetToken())
 	}
 	right := vm.that()
 	var leftBacktrack, rightBacktrack uint32
@@ -497,7 +507,7 @@ func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
 func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environment) (alternateType, bool) {
 	args := node.GetArgs()
 	b := &bindle{tok: node.GetToken(),
-		treePosition: cp.p.FunctionTreeMap[node.GetToken().Literal],
+		treePosition: cp.p.FunctionGroupMap[node.GetToken().Literal].Tree,
 		outLoc:       cp.reserve(vm, ERROR, DUMMY),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
@@ -506,6 +516,27 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 	var cstI bool
 	cst := true
 	for i, arg := range args {
+		if i < cp.p.FunctionGroupMap[node.GetToken().Literal].RefCount {
+			if arg.GetToken().Type != token.IDENT {
+				cp.p.Throw("comp/ref/ident", node.GetToken())
+				return simpleList(ERROR), true
+			}
+			v, ok := env.getVar(arg.GetToken().Literal)
+			if !ok {
+				cp.p.Throw("comp/ref/var", node.GetToken())
+				return simpleList(ERROR), true
+			}
+			b.types[i] = cp.typeNameToTypeList["single?"]
+			cst = false
+			if v.access == REFERENCE_VARIABLE {
+				cp.put(vm, asgm, v.mLoc)
+				b.valLocs[i] = vm.that()
+			} else {
+				cp.reserve(vm, REF, v.mLoc)
+				b.valLocs[i] = vm.that()
+			}
+			continue
+		}
 		switch arg := arg.(type) {
 		case *ast.Bling:
 			b.types[i] = alternateType{blingType{arg.Value}}
@@ -515,7 +546,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 			b.valLocs[i] = vm.that()
 		}
 	}
-	returnTypes := cp.generateNewArgument(vm, b)
+	returnTypes := cp.generateNewArgument(vm, b) // This is our path into the recursion that will in fact generate the whole function call.
 	cp.put(vm, asgm, b.outLoc)
 	if returnTypes.only(ERROR) {
 		cp.p.Throw("comp/call", b.tok)
@@ -537,7 +568,7 @@ type bindle struct {
 	outLoc       uint32          // Where we're going to put the output.
 	env          *environment    // Associates variable names with memory locations
 	tupleTime    bool            // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
-	tok          token.Token     // For generating errors.
+	tok          *token.Token    // For generating errors.
 }
 
 func (cp *Compiler) generateNewArgument(vm *Vm, b *bindle) alternateType {
@@ -821,23 +852,23 @@ func (cp *Compiler) emitFunctionCall(vm *Vm, funcNumber uint32, valLocs []uint32
 func (cp *Compiler) emitEquals(vm *Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
 	lTypes, lcst := cp.compileNode(vm, node.Args[0], env)
 	if lTypes.only(ERROR) {
-		cp.p.Throw("comp/eq/err/a", node.Token)
+		cp.p.Throw("comp/eq/err/a", node.GetToken())
 		return simpleList(ERROR), true
 	}
 	leftRg := vm.that()
 	rTypes, rcst := cp.compileNode(vm, node.Args[2], env)
 	if rTypes.only(ERROR) {
-		cp.p.Throw("comp/eq/err/b", node.Token)
+		cp.p.Throw("comp/eq/err/b", node.GetToken())
 		return simpleList(ERROR), true
 	}
 	rightRg := vm.that()
 	oL := lTypes.intersect(rTypes)
 	if oL.only(ERROR) {
-		cp.p.Throw("comp/eq/err/c", node.Token)
+		cp.p.Throw("comp/eq/err/c", node.GetToken())
 		return simpleList(ERROR), true
 	}
 	if len(oL) == 0 {
-		cp.p.Throw("comp/eq/types", node.Token)
+		cp.p.Throw("comp/eq/types", node.GetToken())
 		return simpleList(ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
