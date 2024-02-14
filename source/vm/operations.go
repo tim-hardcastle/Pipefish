@@ -69,7 +69,7 @@ var OPERANDS = map[opcode]opDescriptor{
 	addf: {"addf", operands{dst, mem, mem}},
 	addi: {"addi", operands{dst, mem, mem}},
 	adds: {"adds", operands{dst, mem, mem}},
-	adtk: {"adtk", operands{dst, mem, tok}},
+	adtk: {"adtk", operands{dst, tok}},
 	andb: {"andb", operands{dst, mem, mem}},
 	asgm: {"asgm", operands{dst, mem}},
 	call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
@@ -100,6 +100,7 @@ var OPERANDS = map[opcode]opDescriptor{
 	jsr:  {"jsr", operands{loc}},
 	lens: {"lens", operands{dst, mem}},
 	litx: {"lits", operands{dst, mem}},
+	mker: {"mker", operands{dst, mem, tok}},
 	modi: {"modi", operands{dst, mem, mem}},
 	mulf: {"mulf", operands{dst, mem, mem}},
 	muli: {"muli", operands{dst, mem, mem}},
@@ -196,6 +197,7 @@ const (
 	leqf
 	leqi
 	litx
+	mker
 	makS
 	modi
 	mulf

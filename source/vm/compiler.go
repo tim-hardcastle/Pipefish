@@ -517,7 +517,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 	args := node.GetArgs()
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.p.FunctionGroupMap[node.GetToken().Literal].Tree,
-		outLoc:       cp.reserve(vm, ERROR, DUMMY),
+		outLoc:       cp.reserveError(vm, "vm/oopsie", node.GetToken(), []any{}),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
@@ -572,7 +572,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 	returnTypes := cp.generateNewArgument(vm, b) // This is our path into the recursion that will in fact generate the whole function call.
 
 	cp.put(vm, asgm, b.outLoc)
-	if returnTypes.only(ERROR) {
+	if returnTypes.only(ERROR) && node.GetToken().Literal != "error" {
 		cp.p.Throw("comp/call", b.tok)
 	}
 	for _, v := range backtrackList {
@@ -586,7 +586,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 			traceTokenReserved = true
 		}
 		cp.emit(vm, qtyp, vm.that(), uint32(ERROR), vm.codeTop()+3)
-		cp.emit(vm, adtk, vm.that(), vm.that(), vm.thatToken())
+		cp.emit(vm, adtk, vm.that(), vm.thatToken())
 		cp.emit(vm, ret)
 	}
 	return returnTypes, cst
@@ -659,7 +659,6 @@ func (cp *Compiler) generateFromTopBranchDown(vm *Vm, b *bindle) alternateType {
 // and on the next branch for the unaccepted types.
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(vm *Vm, b *bindle) alternateType {
-	typeError := cp.reserve(vm, ERROR, DUMMY)
 	if b.tupleTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
 		newBindle := *b
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
@@ -668,7 +667,8 @@ func (cp *Compiler) generateBranch(vm *Vm, b *bindle) alternateType {
 		return cp.generateNewArgument(vm, &newBindle)
 	}
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
-		cp.emit(vm, asgm, b.outLoc, typeError)
+		cp.reserveError(vm, "vm/types/a", b.tok, []any{})
+		cp.emit(vm, asgm, b.outLoc, vm.that())
 		return simpleList(ERROR)
 	}
 	branch := b.treePosition.Branch[b.branchNo]
@@ -841,10 +841,11 @@ func (cp *Compiler) seekFunctionCall(vm *Vm, b *bindle) alternateType {
 			}
 			cp.emitFunctionCall(vm, fNo, b.valLocs)
 			cp.emit(vm, asgm, b.outLoc, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
-			return cp.fns[fNo].types                        // TODO : There is no reason why this should be so.
+			return cp.fns[fNo].types                        // TODO : Is there a reason why this should be so?
 		}
 	}
-	cp.emit(vm, asgm, b.outLoc, cp.reserve(vm, ERROR, DUMMY))
+	cp.reserveError(vm, "vm/types/b", b.tok, []any{}) // TODO : the bindle can accumulate the types to allow us to generates this error properly.
+	cp.emit(vm, asgm, b.outLoc, vm.that())
 	return simpleList(ERROR)
 }
 

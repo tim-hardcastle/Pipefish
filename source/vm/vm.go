@@ -94,9 +94,7 @@ loop:
 		case adds:
 			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
 		case adtk:
-			(vm.mem[args[1]].V.(*object.Error)).AddToTrace(vm.tokens[args[2]])
-			vm.mem[args[0]] = vm.mem[args[1]]
-			vm.mem[args[0]].T = ERROR
+			(vm.mem[args[0]].V.(*object.Error)).AddToTrace(vm.tokens[args[1]])
 		case andb:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool)}
 		case asgm:
@@ -188,6 +186,8 @@ loop:
 			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
 		case litx:
 			vm.mem[args[0]] = Value{STRING, vm.literal(vm.mem[args[1]])}
+		case mker:
+			vm.mem[args[0]] = Value{ERROR, &object.Error{ErrorId: "eval/user", Message: vm.mem[args[1]].V.(string), Token: vm.tokens[args[2]]}}
 		case modi:
 			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
 		case mulf:
@@ -339,7 +339,9 @@ func (vm *Vm) describe(v Value) string {
 		return prefix + strings.Join(result, ", ") + ")"
 	case ERROR:
 		ob := v.V.(*object.Error)
-		ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
+		if ob.ErrorId != "eval/user" {
+			ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
+		}
 		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
 	}
 

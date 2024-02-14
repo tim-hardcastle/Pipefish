@@ -43,7 +43,7 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 
-	vmm.uP.AddToNameSpace([]string{"rsc/charm/builtins_for_vm.ch"}) // , "rsc/charm/world.ch"
+	vmm.uP.AddToNameSpace([]string{"rsc/charm/test.ch"}) // , "rsc/charm/world.ch"
 	vmm.uP.ParseImports()
 	if vmm.uP.ErrorsExist() {
 		return
