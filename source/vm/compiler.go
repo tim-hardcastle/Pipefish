@@ -161,6 +161,10 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		cp.reserve(vm, TYPE, cp.typeNameToTypeList[node.Value][0])
 		rtnTypes, rtnConst = simpleList(TYPE), true
 		break
+	case *ast.EmptyTuple:
+		cp.reserve(vm, TUPLE, []Value{})
+		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
+		break
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
