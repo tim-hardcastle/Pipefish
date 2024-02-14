@@ -3,6 +3,7 @@ package vm
 import (
 	"charm/source/object"
 	"charm/source/text"
+	"charm/source/token"
 
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ type Vm struct {
 	ub_enums  uint32
 	typeNames []string
 	enums     [][]string
-	tokens    []*object.Error
+	tokens    []*token.Token
 }
 
 func (vm *Vm) memTop() uint32 {
@@ -38,6 +39,10 @@ func (vm *Vm) codeTop() uint32 {
 	return uint32(len(vm.code))
 }
 
+func (vm *Vm) tokenTop() uint32 {
+	return uint32(len(vm.tokens))
+}
+
 func (vm *Vm) next() uint32 {
 	return uint32(len(vm.code))
 }
@@ -47,9 +52,13 @@ func (vm *Vm) next() uint32 {
 // changing all the locations to match.
 func (vm *Vm) add(vmToAdd *Vm) {
 	start := vm.codeTop()
+	tokStart := vm.tokenTop()
 	for _, v := range vmToAdd.code {
 		if len(v.args) > 1 && OPERANDS[v.opcode].or[len(v.args)-1] == loc {
 			v.args[len(v.args)-1] += start
+		}
+		if len(v.args) > 1 && OPERANDS[v.opcode].or[len(v.args)-1] == tok {
+			v.args[len(v.args)-1] += tokStart
 		}
 		vm.code = append(vm.code, v)
 	}
@@ -84,6 +93,10 @@ loop:
 			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
 		case adds:
 			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
+		case adtk:
+			(vm.mem[args[1]].V.(*object.Error)).AddToTrace(vm.tokens[args[2]])
+			vm.mem[args[0]] = vm.mem[args[1]]
+			vm.mem[args[0]].T = ERROR
 		case andb:
 			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool)}
 		case asgm:
@@ -121,17 +134,9 @@ loop:
 		case cv1T:
 			vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]]}}
 		case divf:
-			if vm.mem[args[2]].V.(float64) == 0 {
-				vm.mem[args[0]] = Value{ERROR, DUMMY}
-			} else {
-				vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) / vm.mem[args[2]].V.(float64)}
-			}
+			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) / vm.mem[args[2]].V.(float64)}
 		case divi:
-			if vm.mem[args[2]].V.(int) == 0 {
-				vm.mem[args[0]] = Value{ERROR, "Division by zero"}
-			} else {
-				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
-			}
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
 		case dref:
 			vm.mem[args[0]] = vm.mem[vm.mem[args[1]].V.(uint32)]
 		case equb:
@@ -184,11 +189,7 @@ loop:
 		case litx:
 			vm.mem[args[0]] = Value{STRING, vm.literal(vm.mem[args[1]])}
 		case modi:
-			if vm.mem[args[2]].V.(int) == 0 {
-				vm.mem[args[0]] = Value{ERROR, DUMMY}
-			} else {
-				vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
-			}
+			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
 		case mulf:
 			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
 		case muli:
@@ -337,7 +338,9 @@ func (vm *Vm) describe(v Value) string {
 		}
 		return prefix + strings.Join(result, ", ") + ")"
 	case ERROR:
-		return "error"
+		ob := v.V.(*object.Error)
+		ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
+		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
 	}
 
 	panic("can't describe value")

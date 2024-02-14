@@ -156,6 +156,9 @@ type Error struct {
 	Token   *token.Token
 }
 
+func (e *Error) AddToTrace(tok *token.Token) {
+	e.Trace = append(e.Trace, tok)
+}
 func (e *Error) DeepCopy() Object { return e }
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 

@@ -686,10 +686,23 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		rline := readline.NewInstance()
 		rline.SetPrompt("vm >> ")
+		var lastError *object.Error
 		for {
 			line, _ := rline.Readline()
 			if line == "quit" {
 				return true
+			}
+			if line == "trace" {
+				if lastError == nil {
+					hub.WriteError("no error to trace.")
+					continue
+				}
+				hub.WritePretty(text.RT_ERROR + lastError.Message + "\n\n")
+				for i := len(lastError.Trace) - 1; i >= 0; i-- {
+					hub.WritePretty("  From: " + text.DescribeTok(lastError.Trace[i]) + text.DescribePos(lastError.Trace[i]) + ".")
+				}
+				hub.WriteString("\n")
+				continue
 			}
 			if len(line) >= 4 && line[:4] == "run " {
 				filename := line[4:]
@@ -709,7 +722,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				compiler.GetParser().ClearErrors()
 				continue
 			}
-			hub.WriteString(output)
+			if output.T == vm.ERROR {
+				lastError = output.V.(*object.Error)
+			}
+			hub.WriteString(compiler.Describe(output))
 		}
 		return false
 	case "where":

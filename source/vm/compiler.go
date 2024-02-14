@@ -81,26 +81,30 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
 
-func (cp *Compiler) Do(line string) string {
+func (cp *Compiler) Do(line string) Value {
 	mT := cp.vm.memTop()
 	cT := cp.vm.codeTop()
 	node := cp.p.ParseLine("REPL input", line)
 	if cp.p.ErrorsExist() {
-		return ""
+		return Value{T: ERROR}
 	}
 	if SHOW_COMPILE {
 		print("Compiling:\n\n")
 	}
 	cp.compileNode(cp.vm, node, cp.gvars)
 	if cp.p.ErrorsExist() {
-		return ""
+		return Value{T: ERROR}
 	}
 	cp.emit(cp.vm, ret)
 	cp.vm.Run(cT)
 	result := cp.vm.mem[cp.vm.that()]
 	cp.vm.mem = cp.vm.mem[:mT]
 	cp.vm.code = cp.vm.code[:cT]
-	return cp.vm.literal(result)
+	return result
+}
+
+func (cp *Compiler) Describe(v Value) string {
+	return cp.vm.literal(v)
 }
 
 func (cp *Compiler) Compile(source, sourcecode string) {
@@ -119,8 +123,13 @@ func (cp *Compiler) reserve(vm *Vm, t simpleType, v any) uint32 {
 }
 
 func (cp *Compiler) reserveError(vm *Vm, ec string, tok *token.Token, args []any) uint32 {
-	vm.mem = append(vm.mem, Value{T: ERROR, V: object.Error{ErrorId: ec, Token: tok, Args: append([]any{vm}, args...), Trace: make([]*token.Token, 0, 10)}})
+	vm.mem = append(vm.mem, Value{T: ERROR, V: &object.Error{ErrorId: ec, Token: tok, Args: append([]any{vm}, args...), Trace: make([]*token.Token, 0, 10)}})
 	return uint32(len(vm.mem) - 1)
+}
+
+func (cp *Compiler) reserveToken(vm *Vm, tok *token.Token) uint32 {
+	vm.tokens = append(vm.tokens, tok)
+	return uint32(len(vm.tokens) - 1)
 }
 
 func (cp *Compiler) addVariable(vm *Vm, env *environment, name string, acc varAccess, types alternateType) {
@@ -513,10 +522,13 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
 	}
+	backtrackList := make([]uint32, len(args))
+	var traceTokenReserved bool
 	var cstI bool
 	cst := true
 	for i, arg := range args {
-		if i < cp.p.FunctionGroupMap[node.GetToken().Literal].RefCount {
+		backtrackList[i] = DUMMY
+		if i < cp.p.FunctionGroupMap[node.GetToken().Literal].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
 				cp.p.Throw("comp/ref/ident", node.GetToken())
 				return simpleList(ERROR), true
@@ -537,19 +549,45 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 			}
 			continue
 		}
-		switch arg := arg.(type) {
+		switch arg := arg.(type) { // It might be bling.
 		case *ast.Bling:
 			b.types[i] = alternateType{blingType{arg.Value}}
-		default:
+		default: // Otherwise we emit code to evaluate it.
 			b.types[i], cstI = cp.compileNode(vm, arg, env)
 			cst = cst && cstI
 			b.valLocs[i] = vm.that()
+			if b.types[i].(alternateType).only(ERROR) {
+				cp.p.Throw("comp/arg/error", node.GetToken())
+				return simpleList(ERROR), true
+			}
+			if b.types[i].(alternateType).contains(ERROR) {
+				cp.emit(vm, qtyp, vm.that(), uint32(ERROR), vm.codeTop()+2)
+				backtrackList[i] = cp.vm.codeTop()
+				cp.emit(vm, asgm, DUMMY, vm.that(), vm.thatToken())
+				cp.emit(vm, ret)
+			}
 		}
 	}
+	// Having gotten the arguments, we create the function call itself.
 	returnTypes := cp.generateNewArgument(vm, b) // This is our path into the recursion that will in fact generate the whole function call.
+
 	cp.put(vm, asgm, b.outLoc)
 	if returnTypes.only(ERROR) {
 		cp.p.Throw("comp/call", b.tok)
+	}
+	for _, v := range backtrackList {
+		if v != DUMMY {
+			cp.vm.code[v].args[0] = vm.that()
+		}
+	}
+	if returnTypes.contains(ERROR) {
+		if !traceTokenReserved {
+			cp.reserveToken(vm, b.tok)
+			traceTokenReserved = true
+		}
+		cp.emit(vm, qtyp, vm.that(), uint32(ERROR), vm.codeTop()+3)
+		cp.emit(vm, adtk, vm.that(), vm.that(), vm.thatToken())
+		cp.emit(vm, ret)
 	}
 	return returnTypes, cst
 }
@@ -798,7 +836,7 @@ func (cp *Compiler) seekFunctionCall(vm *Vm, b *bindle) alternateType {
 				if cp.fns[fNo].builtin == "tuple_of_tuple" {
 					// TODO --- hack this.
 				}
-				functionAndType.f(cp, vm, b.outLoc, b.valLocs)
+				functionAndType.f(cp, vm, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.t
 			}
 			cp.emitFunctionCall(vm, fNo, b.valLocs)

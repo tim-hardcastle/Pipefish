@@ -19,6 +19,7 @@ const (
 	loc
 	typ
 	num
+	tok
 	tup
 )
 
@@ -36,6 +37,10 @@ func (op *operation) ppLoc(i int) string {
 
 func (op *operation) ppMem(i int) string {
 	return " m" + strconv.Itoa(int(op.args[i]))
+}
+
+func (op *operation) ppTok(i int) string {
+	return " TK" + strconv.Itoa(int(op.args[i]))
 }
 
 func (op *operation) ppTyp(i int) string {
@@ -64,9 +69,10 @@ var OPERANDS = map[opcode]opDescriptor{
 	addf: {"addf", operands{dst, mem, mem}},
 	addi: {"addi", operands{dst, mem, mem}},
 	adds: {"adds", operands{dst, mem, mem}},
+	adtk: {"adtk", operands{dst, mem, tok}},
 	andb: {"andb", operands{dst, mem, mem}},
 	asgm: {"asgm", operands{dst, mem}},
-	call: {"call", operands{loc, mem, mem, tup}}, // THe location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
+	call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
 	cc11: {"cc11", operands{dst, mem, mem}},
 	cc1T: {"cc1T", operands{dst, mem, mem}},
 	ccT1: {"ccT1", operands{dst, mem, mem}},
@@ -130,6 +136,8 @@ func describe(op *operation) string {
 			result = result + op.ppTyp(i)
 		case num:
 			result = result + op.ppInt(i)
+		case tok:
+			result = result + op.ppTok(i)
 		case tup:
 			result = result + op.ppTup(i)
 		}
@@ -146,6 +154,7 @@ const (
 	addi
 	addl
 	adds
+	adtk
 	andb
 	cc11
 	cc1T
