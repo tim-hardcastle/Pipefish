@@ -10,6 +10,7 @@ import (
 
 // The base Node interface
 type Node interface {
+	Children() []Node
 	GetToken() *token.Token
 	String() string
 }
@@ -27,6 +28,7 @@ type ApplicationExpression struct {
 	Token token.Token
 }
 
+func (ae *ApplicationExpression) Children() []Node       { return []Node{ae.Left, ae.Right} }
 func (ae *ApplicationExpression) GetToken() *token.Token { return &ae.Token }
 func (ae *ApplicationExpression) String() string {
 	var out bytes.Buffer
@@ -39,6 +41,8 @@ func (ae *ApplicationExpression) String() string {
 
 	return out.String()
 }
+
+func (ae *AssignmentExpression) Children() []Node { return []Node{ae.Left, ae.Right} }
 
 type AssignmentExpression struct {
 	Left  Node
@@ -64,6 +68,7 @@ type Bling struct {
 	Value string
 }
 
+func (bl *Bling) Children() []Node       { return []Node{} }
 func (bl *Bling) GetToken() *token.Token { return &bl.Token }
 func (bl *Bling) String() string         { return bl.Value }
 
@@ -72,6 +77,7 @@ type BooleanLiteral struct {
 	Value bool
 }
 
+func (b *BooleanLiteral) Children() []Node       { return []Node{} }
 func (b *BooleanLiteral) GetToken() *token.Token { return &b.Token }
 func (b *BooleanLiteral) String() string         { return b.Token.Literal }
 
@@ -79,6 +85,7 @@ type BuiltInExpression struct {
 	Name string
 }
 
+func (bi *BuiltInExpression) Children() []Node { return []Node{} }
 func (bi *BuiltInExpression) GetToken() *token.Token {
 	return &token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1}
 }
@@ -89,6 +96,7 @@ type EmptyTuple struct {
 	Value string
 }
 
+func (et *EmptyTuple) Children() []Node       { return []Node{} }
 func (et *EmptyTuple) GetToken() *token.Token { return &et.Token }
 func (et *EmptyTuple) String() string         { return "()" }
 
@@ -97,6 +105,7 @@ type FloatLiteral struct {
 	Value float64
 }
 
+func (fl *FloatLiteral) Children() []Node       { return []Node{} }
 func (fl *FloatLiteral) GetToken() *token.Token { return &fl.Token }
 func (fl *FloatLiteral) String() string         { return fl.Token.Literal }
 
@@ -105,6 +114,7 @@ type FuncExpression struct {
 	Function
 }
 
+func (fe *FuncExpression) Children() []Node       { return []Node{fe.Body, fe.Given} }
 func (fe *FuncExpression) GetToken() *token.Token { return &fe.Token }
 func (fe *FuncExpression) String() string {
 	result := "func " + fe.Sig.String() + " : " + fe.Body.String()
@@ -123,6 +133,7 @@ type GolangExpression struct {
 	ReturnTypes signature.Signature
 }
 
+func (ge *GolangExpression) Children() []Node       { return []Node{} }
 func (ge *GolangExpression) GetToken() *token.Token { return &ge.Token }
 func (ge *GolangExpression) String() string         { return ge.Token.Literal }
 
@@ -131,6 +142,7 @@ type Identifier struct {
 	Value string
 }
 
+func (i *Identifier) Children() []Node       { return []Node{} }
 func (i *Identifier) GetToken() *token.Token { return &i.Token }
 func (i *Identifier) String() string         { return i.Value }
 
@@ -140,6 +152,7 @@ type IndexExpression struct {
 	Index Node
 }
 
+func (ie *IndexExpression) Children() []Node       { return []Node{ie.Left, ie.Index} }
 func (ie *IndexExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *IndexExpression) String() string {
 	var out bytes.Buffer
@@ -159,6 +172,7 @@ type InfixExpression struct {
 	Args     []Node
 }
 
+func (ie *InfixExpression) Children() []Node       { return ie.Args }
 func (ie *InfixExpression) GetArgs() []Node        { return ie.Args }
 func (ie *InfixExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *InfixExpression) String() string {
@@ -185,6 +199,7 @@ type IntegerLiteral struct {
 	Value int
 }
 
+func (il *IntegerLiteral) Children() []Node       { return []Node{} }
 func (il *IntegerLiteral) GetToken() *token.Token { return &il.Token }
 func (il *IntegerLiteral) String() string         { return il.Token.Literal }
 
@@ -195,6 +210,7 @@ type LazyInfixExpression struct {
 	Right    Node
 }
 
+func (ie *LazyInfixExpression) Children() []Node       { return []Node{ie.Left, ie.Right} }
 func (ie *LazyInfixExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *LazyInfixExpression) String() string {
 	var out bytes.Buffer
@@ -213,6 +229,7 @@ type ListExpression struct {
 	List  Node
 }
 
+func (le *ListExpression) Children() []Node       { return []Node{le.List} }
 func (le *ListExpression) GetToken() *token.Token { return &le.Token }
 func (le *ListExpression) String() string {
 	var out bytes.Buffer
@@ -234,6 +251,7 @@ type LogExpression struct {
 	Right Node
 }
 
+func (le *LogExpression) Children() []Node       { return []Node{le.Left, le.Right} }
 func (le *LogExpression) GetToken() *token.Token { return &le.Token }
 func (le *LogExpression) String() string {
 	var out bytes.Buffer
@@ -255,6 +273,7 @@ type LoopExpression struct {
 	Code  Node
 }
 
+func (le *LoopExpression) Children() []Node       { return []Node{le.Code} }
 func (le *LoopExpression) GetToken() *token.Token { return &le.Token }
 func (le *LoopExpression) String() string {
 	var out bytes.Buffer
@@ -270,6 +289,7 @@ type Nothing struct {
 	Token token.Token
 }
 
+func (ne *Nothing) Children() []Node       { return []Node{} }
 func (ne *Nothing) GetToken() *token.Token { return &ne.Token }
 func (ne *Nothing) String() string         { return "" }
 
@@ -279,6 +299,7 @@ type PrefixExpression struct {
 	Args     []Node
 }
 
+func (pe *PrefixExpression) Children() []Node       { return pe.Args }
 func (pe *PrefixExpression) GetArgs() []Node        { return pe.Args }
 func (pe *PrefixExpression) GetToken() *token.Token { return &pe.Token }
 func (pe *PrefixExpression) String() string {
@@ -303,10 +324,11 @@ func (pe *PrefixExpression) String() string {
 }
 
 type SetExpression struct {
-	Token token.Token // The [ token
+	Token token.Token // The { token
 	Set   Node
 }
 
+func (se *SetExpression) Children() []Node       { return []Node{se.Set} }
 func (se *SetExpression) GetToken() *token.Token { return &se.Token }
 func (se *SetExpression) String() string {
 	var out bytes.Buffer
@@ -325,6 +347,7 @@ type StreamingExpression struct {
 	Right    Node
 }
 
+func (se *StreamingExpression) Children() []Node       { return []Node{se.Left, se.Right} }
 func (se *StreamingExpression) GetToken() *token.Token { return &se.Token }
 func (se *StreamingExpression) String() string {
 	var out bytes.Buffer
@@ -343,6 +366,7 @@ type StringLiteral struct {
 	Value string
 }
 
+func (sl *StringLiteral) Children() []Node       { return []Node{} }
 func (sl *StringLiteral) GetToken() *token.Token { return &sl.Token }
 func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Literal + "\"" }
 
@@ -351,6 +375,7 @@ type StructExpression struct {
 	Sig   signature.Signature
 }
 
+func (st *StructExpression) Children() []Node       { return []Node{} }
 func (st *StructExpression) GetToken() *token.Token { return &st.Token }
 func (st *StructExpression) String() string         { return "struct " + st.Sig.String() }
 
@@ -360,6 +385,7 @@ type SuffixExpression struct {
 	Args     []Node
 }
 
+func (se *SuffixExpression) Children() []Node       { return se.Args }
 func (se *SuffixExpression) GetArgs() []Node        { return se.Args }
 func (se *SuffixExpression) GetToken() *token.Token { return &se.Token }
 func (se *SuffixExpression) String() string {
@@ -387,6 +413,7 @@ type TryExpression struct {
 	Right   Node
 }
 
+func (t *TryExpression) Children() []Node       { return []Node{t.Right} }
 func (t *TryExpression) GetToken() *token.Token { return &t.Token }
 func (t *TryExpression) String() string {
 	if t.VarName != "" {
@@ -402,6 +429,7 @@ type TypeLiteral struct {
 	Value string
 }
 
+func (t *TypeLiteral) Children() []Node       { return []Node{} }
 func (t *TypeLiteral) GetToken() *token.Token { return &t.Token }
 func (t *TypeLiteral) String() string         { return t.Value }
 
@@ -410,6 +438,7 @@ type UnfixExpression struct {
 	Operator string
 }
 
+func (uf *UnfixExpression) Children() []Node       { return []Node{} }
 func (uf *UnfixExpression) GetToken() *token.Token { return &uf.Token }
 func (uf *UnfixExpression) String() string {
 	var out bytes.Buffer
@@ -424,6 +453,14 @@ func (uf *UnfixExpression) String() string {
 func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
 
 // And other useful stuff.
+
+func recursiveChildren(n Node) []Node {
+	result := []Node{}
+	for _, v := range n.Children() {
+		result = append(result, recursiveChildren(v)...)
+	}
+	return result
+}
 
 type Function = struct {
 	Sig     signature.Signature
