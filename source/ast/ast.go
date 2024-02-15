@@ -92,16 +92,6 @@ type EmptyTuple struct {
 func (et *EmptyTuple) GetToken() *token.Token { return &et.Token }
 func (et *EmptyTuple) String() string         { return "()" }
 
-type Expression struct {
-	Token token.Token // the first token of the expression
-	Node  Node
-}
-
-func (es *Expression) GetToken() *token.Token { return &es.Token }
-func (es *Expression) String() string {
-	return es.Node.String()
-}
-
 type FloatLiteral struct {
 	Token token.Token
 	Value float64

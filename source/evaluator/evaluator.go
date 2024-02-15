@@ -70,9 +70,6 @@ func Evaluate(node ast.Node, c *Context) object.Object {
 func Eval(node ast.Node, c *Context) object.Object {
 	switch node := node.(type) {
 
-	case *ast.Expression:
-		return Eval(node.Node, c)
-
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
 
