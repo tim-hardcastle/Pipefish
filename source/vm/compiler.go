@@ -529,6 +529,12 @@ func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
 
 func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environment) (alternateType, bool) {
 	args := node.GetArgs()
+	if len(args) == 1 {
+		switch args[0].(type) {
+		case *ast.EmptyTuple:
+			args = []ast.Node{}
+		}
+	}
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.p.FunctionGroupMap[node.GetToken().Literal].Tree,
 		outLoc:       cp.reserveError(vm, "vm/oopsie", node.GetToken(), []any{}),
