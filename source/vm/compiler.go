@@ -349,6 +349,16 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		cp.reserve(vm, TYPE, cp.typeNameToTypeList[node.Value][0])
 		rtnTypes, rtnConst = simpleList(TYPE), true
 		break
+	case *ast.UnfixExpression:
+		if cp.p.Unfixes.Contains(node.Operator) {
+			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
+			break
+		}
+		cp.p.Throw("comp/unfix", node.GetToken())
+		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
+
+		break
 	default:
 		panic("Unimplemented node type.")
 	}

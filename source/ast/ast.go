@@ -421,6 +421,8 @@ func (uf *UnfixExpression) String() string {
 	return out.String()
 }
 
+func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
+
 // And other useful stuff.
 
 type Function = struct {
