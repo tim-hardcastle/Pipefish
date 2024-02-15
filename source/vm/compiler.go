@@ -141,29 +141,59 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 	mT := vm.memTop()
 	cT := vm.codeTop()
 	switch node := node.(type) {
-	case *ast.IntegerLiteral:
-		cp.reserve(vm, INT, node.Value)
-		rtnTypes, rtnConst = simpleList(INT), true
-		break
-	case *ast.StringLiteral:
-		cp.reserve(vm, STRING, node.Value)
-		rtnTypes, rtnConst = simpleList(STRING), true
+	case *ast.AssignmentExpression:
+		if node.Token.Type == token.GVN_ASSIGN {
+			// TODO --- need to do this better after we implement tuples
+			if node.Left.GetToken().Type != token.IDENT {
+				cp.p.Throw("comp/assign/ident", node.Left.GetToken())
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
+			}
+			thunkStart := vm.next()
+			types, cst := cp.compileNode(vm, node.Right, env)
+			cp.emit(vm, ret)
+			if cst {
+				cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_TRUE_CONSTANT, types)
+				rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
+				break
+			}
+			cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_CONSTANT_THUNK, types)
+			cp.thunkList = append(cp.thunkList, thunk{vm.that(), thunkStart})
+			rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), false
+			break
+		}
+		cp.p.Throw("comp/assign", node.GetToken())
+		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
 	case *ast.BooleanLiteral:
 		cp.reserve(vm, BOOL, node.Value)
 		rtnTypes, rtnConst = simpleList(BOOL), true
 		break
+	case *ast.EmptyTuple:
+		cp.reserve(vm, TUPLE, []Value{})
+		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
+		break
 	case *ast.FloatLiteral:
 		cp.reserve(vm, FLOAT, node.Value)
 		rtnTypes, rtnConst = simpleList(FLOAT), true
 		break
-	case *ast.TypeLiteral:
-		cp.reserve(vm, TYPE, cp.typeNameToTypeList[node.Value][0])
-		rtnTypes, rtnConst = simpleList(TYPE), true
-		break
-	case *ast.EmptyTuple:
-		cp.reserve(vm, TUPLE, []Value{})
-		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
+	case *ast.Identifier:
+		v, ok := env.getVar(node.Value)
+		if !ok {
+			cp.p.Throw("comp/ident/known", node.GetToken())
+			return simpleList(ERROR), true
+		}
+		if v.access == LOCAL_CONSTANT_THUNK {
+			cp.emit(vm, untk, v.mLoc)
+		}
+		if v.access == REFERENCE_VARIABLE {
+			cp.put(vm, dref, v.mLoc)
+			rtnTypes = cp.typeNameToTypeList["single?"]
+		} else {
+			cp.put(vm, asgm, v.mLoc)
+			rtnTypes = v.types
+		}
+		rtnConst = ALL_CONST_ACCESS.Contains(v.access)
 		break
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
@@ -185,6 +215,10 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		}
 		cp.p.Throw("comp/infix", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
+	case *ast.IntegerLiteral:
+		cp.reserve(vm, INT, node.Value)
+		rtnTypes, rtnConst = simpleList(INT), true
 		break
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
@@ -278,48 +312,6 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			rtnTypes, rtnConst = lTypes.union(rTypes), lcst && rcst
 			break
 		}
-	case *ast.Identifier:
-		v, ok := env.getVar(node.Value)
-		if !ok {
-			cp.p.Throw("comp/ident/known", node.GetToken())
-			return simpleList(ERROR), true
-		}
-		if v.access == LOCAL_CONSTANT_THUNK {
-			cp.emit(vm, untk, v.mLoc)
-		}
-		if v.access == REFERENCE_VARIABLE {
-			cp.put(vm, dref, v.mLoc)
-			rtnTypes = cp.typeNameToTypeList["single?"]
-		} else {
-			cp.put(vm, asgm, v.mLoc)
-			rtnTypes = v.types
-		}
-		rtnConst = ALL_CONST_ACCESS.Contains(v.access)
-		break
-	case *ast.AssignmentExpression:
-		if node.Token.Type == token.GVN_ASSIGN {
-			// TODO --- need to do this better after we implement tuples
-			if node.Left.GetToken().Type != token.IDENT {
-				cp.p.Throw("comp/assign/ident", node.Left.GetToken())
-				rtnTypes, rtnConst = simpleList(ERROR), true
-				break
-			}
-			thunkStart := vm.next()
-			types, cst := cp.compileNode(vm, node.Right, env)
-			cp.emit(vm, ret)
-			if cst {
-				cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_TRUE_CONSTANT, types)
-				rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), true
-				break
-			}
-			cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_CONSTANT_THUNK, types)
-			cp.thunkList = append(cp.thunkList, thunk{vm.that(), thunkStart})
-			rtnTypes, rtnConst = simpleList(CREATED_LOCAL_CONSTANT), false
-			break
-		}
-		cp.p.Throw("comp/assign", node.GetToken())
-		rtnTypes, rtnConst = simpleList(ERROR), true
-		break
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
 			allTypes, cst := cp.compileNode(vm, node.Args[0], env)
@@ -341,6 +333,10 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		cp.p.Throw("comp/prefix/known", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
+	case *ast.StringLiteral:
+		cp.reserve(vm, STRING, node.Value)
+		rtnTypes, rtnConst = simpleList(STRING), true
+		break
 	case *ast.SuffixExpression:
 		if cp.p.Suffixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
@@ -348,6 +344,10 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
+	case *ast.TypeLiteral:
+		cp.reserve(vm, TYPE, cp.typeNameToTypeList[node.Value][0])
+		rtnTypes, rtnConst = simpleList(TYPE), true
 		break
 	default:
 		panic("Unimplemented node type.")

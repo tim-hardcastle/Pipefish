@@ -31,6 +31,10 @@ func (op *operation) ppDst(i int) string {
 	return " m" + strconv.Itoa(int(op.args[i])) + " <-"
 }
 
+func (op *operation) ppInt(i int) string {
+	return " %" + strconv.Itoa(int(op.args[i]))
+}
+
 func (op *operation) ppLoc(i int) string {
 	return " @" + strconv.Itoa(int(op.args[i]))
 }
@@ -43,21 +47,20 @@ func (op *operation) ppTok(i int) string {
 	return " TK" + strconv.Itoa(int(op.args[i]))
 }
 
-func (op *operation) ppTyp(i int) string {
-	return " t" + strconv.Itoa(int(op.args[i]))
-}
-
-func (op *operation) ppInt(i int) string {
-	return " %" + strconv.Itoa(int(op.args[i]))
-}
-
 func (op *operation) ppTup(i int) string {
 	args := op.args[i:]
-	result := "("
-	for _, v := range args {
-		result = result + " m" + strconv.Itoa(int(v))
+	result := " ("
+	for i, v := range args {
+		result = result + "m" + strconv.Itoa(int(v))
+		if i < len(args)-1 {
+			result = result + " "
+		}
 	}
 	return result + ")"
+}
+
+func (op *operation) ppTyp(i int) string {
+	return " t" + strconv.Itoa(int(op.args[i]))
 }
 
 type opDescriptor struct {
