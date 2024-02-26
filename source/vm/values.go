@@ -48,10 +48,12 @@ const (
 	LOCAL_CONSTANT_THUNK
 	LOCAL_TRUE_CONSTANT
 	REFERENCE_VARIABLE
+	VERY_LOCAL_CONSTANT // i.e. 'that' when constant
+	VERY_LOCAL_VARIABLE // i.e. 'that' when variable
 )
 
 // Update with:
-var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, LOCAL_TRUE_CONSTANT})
+var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, LOCAL_TRUE_CONSTANT, VERY_LOCAL_CONSTANT})
 
 type variable struct {
 	mLoc   uint32
@@ -123,7 +125,7 @@ func lengths(t typeScheme) set.Set[int] {
 
 func maxLengthsOrMinusOne(s set.Set[int]) int {
 	max := 0
-	for k, _ := range s {
+	for k := range s {
 		if k == -1 {
 			return -1
 		}

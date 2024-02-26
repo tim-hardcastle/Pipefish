@@ -150,7 +150,7 @@ func (cp *Compiler) reserveLambdaFactory(vm *Vm, env *environment, fnNode *ast.F
 	externals := bodyNames.SubtractSet(params).SubtractSet(locals) // I.e. the "externals" things, if any, that we're closing over.
 
 	// Copy the externals to the environment.
-	for k, _ := range externals {
+	for k := range externals {
 		v, ok := env.getVar(k)
 		if !ok {
 			cp.p.Throw("comp/body/known", tok)
@@ -347,6 +347,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
 				rtnTypes, rtnConst = cp.compileNode(vm, node.Right, env)
+				break
 			}
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			if !lTypes.contains(BOOL) {
@@ -427,6 +428,31 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
+		break
+	case *ast.StreamingExpression: // I.e. -> >> and -> and ?> .
+		lhsTypes, lhsConst := cp.compileNode(vm, node.Left, env)
+		if cp.p.ErrorsExist() {
+			rtnTypes, rtnConst = simpleList(ERROR), true
+			break
+		}
+		var whatAccess varAccess
+		if lhsConst {
+			whatAccess = VERY_LOCAL_CONSTANT
+		} else {
+			whatAccess = VERY_LOCAL_VARIABLE
+		}
+		envWithThat := &environment{data: map[string]variable{"that": {mLoc: vm.that(), access: whatAccess, types: lhsTypes}}, ext: env}
+		// And that's about all the streaming operators really do have in common under the hood, so let's do a switch on the operators.
+		var rhsConst bool
+		switch node.Operator {
+		case "->":
+			rtnTypes, rhsConst = cp.compilePipe(vm, lhsTypes, node.Right, envWithThat)
+		case ">>":
+			rtnTypes, rhsConst = cp.compileMapping(vm, lhsTypes, node.Right, envWithThat)
+		default:
+			rtnTypes, rhsConst = cp.compileFilter(vm, lhsTypes, node.Right, envWithThat)
+		}
+		rtnConst = lhsConst && rhsConst
 		break
 	case *ast.StringLiteral:
 		cp.reserve(vm, STRING, node.Value)
@@ -1047,4 +1073,21 @@ func (cp *Compiler) emitEquals(vm *Vm, node *ast.InfixExpression, env *environme
 	} else {
 		panic("Haven't implemented this bit because of having no way to test it at this point.")
 	}
+}
+
+// The various 'streaming operators'. TODO, find different name.
+
+func (cp *Compiler) compilePipe(vm *Vm, lhsTypes alternateType, rhs ast.Node, env *environment) (alternateType, bool) {
+	// If we have a single identifier, we wish it to contain a function ...
+
+	// Otherwise we are in the presence of a 'that' expression. We can simply compile and return.
+	return cp.compileNode(vm, rhs, env)
+}
+
+func (cp *Compiler) compileMapping(vm *Vm, lhsTypes alternateType, rhs ast.Node, env *environment) (alternateType, bool) {
+	return alternateType{}, false
+}
+
+func (cp *Compiler) compileFilter(vm *Vm, lhsTypes alternateType, rhs ast.Node, env *environment) (alternateType, bool) {
+	return alternateType{}, false
 }
