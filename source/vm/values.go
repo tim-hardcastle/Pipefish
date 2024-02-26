@@ -5,7 +5,8 @@ import (
 )
 
 const ( // Cross-reference with typeNames in blankVm()
-	THUNK simpleType = iota
+	UNDEFINED_VALUE simpleType = iota // For debugging purposes, it is useful to have the null value something it should never actually be.
+	THUNK
 	CREATED_LOCAL_CONSTANT
 	TUPLE
 	ERROR
@@ -17,6 +18,7 @@ const ( // Cross-reference with typeNames in blankVm()
 	STRING
 	FLOAT
 	TYPE
+	FUNC
 	LB_ENUMS // I.e the first of the enums.
 )
 

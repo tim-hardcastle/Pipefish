@@ -16,6 +16,7 @@ type operandType uint8
 const (
 	dst operandType = iota
 	mem
+	lfc
 	loc
 	typ
 	num
@@ -27,40 +28,36 @@ type operands []operandType
 
 type opcode uint8
 
-func (op *operation) ppDst(i int) string {
-	return " m" + strconv.Itoa(int(op.args[i])) + " <-"
-}
-
-func (op *operation) ppInt(i int) string {
-	return " %" + strconv.Itoa(int(op.args[i]))
-}
-
-func (op *operation) ppLoc(i int) string {
-	return " @" + strconv.Itoa(int(op.args[i]))
-}
-
-func (op *operation) ppMem(i int) string {
-	return " m" + strconv.Itoa(int(op.args[i]))
-}
-
-func (op *operation) ppTok(i int) string {
-	return " TK" + strconv.Itoa(int(op.args[i]))
-}
-
-func (op *operation) ppTup(i int) string {
-	args := op.args[i:]
-	result := " ("
-	for i, v := range args {
-		result = result + "m" + strconv.Itoa(int(v))
-		if i < len(args)-1 {
-			result = result + " "
+func (op *operation) ppOperand(i int) string {
+	opType := OPERANDS[op.opcode].or[i]
+	opVal := strconv.Itoa(int(op.args[i]))
+	switch opType {
+	case dst:
+		return " m" + opVal + " <-"
+	case lfc:
+		return " Λ" + opVal
+	case loc:
+		return " @" + opVal
+	case mem:
+		return " m" + opVal
+	case num:
+		return " %" + opVal
+	case tok:
+		return " TK" + opVal
+	case tup:
+		args := op.args[i:]
+		result := " ("
+		for i, v := range args {
+			result = result + "m" + strconv.Itoa(int(v))
+			if i < len(args)-1 {
+				result = result + " "
+			}
 		}
+		return result + ")"
+	case typ:
+		return " t" + opVal
 	}
-	return result + ")"
-}
-
-func (op *operation) ppTyp(i int) string {
-	return " t" + strconv.Itoa(int(op.args[i]))
+	panic("Unknown operand type")
 }
 
 type opDescriptor struct {
@@ -84,6 +81,7 @@ var OPERANDS = map[opcode]opDescriptor{
 	cv1T: {"cv1T", operands{dst, mem, mem}},
 	divf: {"divf", operands{dst, mem, mem}},
 	divi: {"divi", operands{dst, mem, mem}},
+	dofn: {"dofn", operands{dst, mem, tup}},
 	dref: {"dref", operands{dst, mem}},
 	equb: {"equb", operands{dst, mem, mem}},
 	equf: {"equf", operands{dst, mem, mem}},
@@ -104,12 +102,13 @@ var OPERANDS = map[opcode]opDescriptor{
 	lens: {"lens", operands{dst, mem}},
 	litx: {"lits", operands{dst, mem}},
 	mker: {"mker", operands{dst, mem, tok}},
+	mkfn: {"mkfn", operands{dst, lfc}},
 	modi: {"modi", operands{dst, mem, mem}},
 	mulf: {"mulf", operands{dst, mem, mem}},
 	muli: {"muli", operands{dst, mem, mem}},
 	negf: {"negf", operands{dst, mem}},
 	negi: {"negi", operands{dst, mem}},
-	notb: {"noyb", operands{dst, mem}},
+	notb: {"notb", operands{dst, mem}},
 	orb:  {"orb", operands{dst, mem, mem}},
 	qlnT: {"qlnT", operands{mem, num, loc}},
 	qsnQ: {"qsnQ", operands{mem, loc}},
@@ -128,23 +127,8 @@ var OPERANDS = map[opcode]opDescriptor{
 func describe(op *operation) string {
 	operands := OPERANDS[op.opcode].or
 	result := OPERANDS[op.opcode].oc
-	for i, opType := range operands {
-		switch opType {
-		case dst:
-			result = result + op.ppDst(i)
-		case mem:
-			result = result + op.ppMem(i)
-		case loc:
-			result = result + op.ppLoc(i)
-		case typ:
-			result = result + op.ppTyp(i)
-		case num:
-			result = result + op.ppInt(i)
-		case tok:
-			result = result + op.ppTok(i)
-		case tup:
-			result = result + op.ppTup(i)
-		}
+	for i := range operands {
+		result = result + op.ppOperand(i)
 	}
 	return result
 }
@@ -171,6 +155,7 @@ const (
 	cmp
 	divf
 	divi
+	dofn // For lambdas, as opposed to call for outer functions.
 	dref
 	equb
 	equf
@@ -201,6 +186,7 @@ const (
 	leqi
 	litx
 	mker
+	mkfn
 	makS
 	modi
 	mulf

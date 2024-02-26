@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"reflect"
 
+	"charm/source/set"
 	"charm/source/signature"
 	"charm/source/token"
 )
@@ -454,8 +455,33 @@ func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
 
 // And other useful stuff.
 
+func GetLhsOfAssignments(n Node) set.Set[string] {
+	switch n := n.(type) {
+	case *AssignmentExpression:
+		return GetVariableNames(n.Left)
+	case *LazyInfixExpression:
+		result := GetLhsOfAssignments(n.Left)
+		result.AddSet(GetLhsOfAssignments(n.Right))
+		return result
+	default:
+		return set.Set[string]{}
+	}
+}
+
+func GetVariableNames(n Node) set.Set[string] {
+	result := set.Set[string]{}
+	children := recursiveChildren(n)
+	for _, v := range children {
+		switch ident := v.(type) {
+		case *Identifier:
+			result.Add(ident.Value)
+		}
+	}
+	return result
+}
+
 func recursiveChildren(n Node) []Node {
-	result := []Node{}
+	result := n.Children()
 	for _, v := range n.Children() {
 		result = append(result, recursiveChildren(v)...)
 	}

@@ -45,6 +45,16 @@ func (S Set[E]) AddSet(T Set[E]) {
 	}
 }
 
+func (S Set[E]) SubtractSet(T Set[E]) Set[E] {
+	U := make(Set[E], 0)
+	for e := range S {
+		if !T.Contains(e) {
+			U.Add(e)
+		}
+	}
+	return U
+}
+
 func (S Set[E]) OverlapsWith(T Set[E]) bool {
 	for e := range T {
 		if S.Contains(e) {

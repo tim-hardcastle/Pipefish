@@ -592,6 +592,8 @@ func (l *Lexer) readFormattedString() (string, bool) {
 				charToAdd = '"'
 			case '\\':
 				charToAdd = '\\'
+			case 'e':
+				charToAdd = '\033'
 			}
 		}
 		result = result + string(charToAdd)

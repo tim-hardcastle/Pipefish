@@ -241,9 +241,6 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := vmm.cp.vm.codeTop()
-			if SHOW_COMPILE {
-				print("\nCompiling\n\n")
-			}
 			inferedType, _ := vmm.cp.compileNode(vmm.cp.vm, rhs, vmm.cp.gvars)
 			if vmm.uP.ErrorsExist() {
 				return

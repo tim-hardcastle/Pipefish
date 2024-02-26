@@ -24,6 +24,7 @@ sum(L list) :
     else :
         for i over 1::len(L) do (func(x) : x + L[i]) to L[0]
 
+abs(i int) : builtin "abs_of_integer"
 range(p pair) : builtin "range"
 len(t type) : builtin "len_of_type" 
 codepoint(s string) : builtin "codepoint"

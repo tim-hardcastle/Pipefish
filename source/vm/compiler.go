@@ -28,10 +28,12 @@ type Compiler struct {
 	gconsts            *environment
 	gvars              *environment
 	fns                []*cpFunc
-	thunkList          []thunk
 	typeNameToTypeList map[string]alternateType
 
 	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}
+
+	// Very temporary state. Arguably shouldn't be here.
+	thunkList []thunk
 }
 
 type cpFunc struct {
@@ -88,9 +90,6 @@ func (cp *Compiler) Do(line string) Value {
 	if cp.p.ErrorsExist() {
 		return Value{T: ERROR}
 	}
-	if SHOW_COMPILE {
-		print("Compiling:\n\n")
-	}
 	cp.compileNode(cp.vm, node, cp.gvars)
 	if cp.p.ErrorsExist() {
 		return Value{T: ERROR}
@@ -108,9 +107,6 @@ func (cp *Compiler) Describe(v Value) string {
 }
 
 func (cp *Compiler) Compile(source, sourcecode string) {
-	if SHOW_COMPILE {
-		print("\nCompiling\n\n")
-	}
 	cp.vm = blankVm()
 	node := cp.p.ParseLine(source, sourcecode)
 	cp.compileNode(cp.vm, node, cp.gvars)
@@ -130,6 +126,80 @@ func (cp *Compiler) reserveError(vm *Vm, ec string, tok *token.Token, args []any
 func (cp *Compiler) reserveToken(vm *Vm, tok *token.Token) uint32 {
 	vm.tokens = append(vm.tokens, tok)
 	return uint32(len(vm.tokens) - 1)
+}
+
+func (cp *Compiler) reserveLambdaFactory(vm *Vm, env *environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
+	LF := &lambdaFactory{model: &lambda{}}
+	LF.model.vm = blankVm()
+	LF.model.vm.code = []*operation{}
+	newEnv := newEnvironment()
+	sig := fnNode.Sig
+	// First, we're going to find all (if any) variables/constants declared outside of the function: anything we're closing over.
+	// We do this by a process of elimination: find the variables declared in the function parameters and the given block,
+	// then subtract them from the identifiers in the main body of the function.
+
+	// We get the function parameters.
+	params := set.Set[string]{}
+	for _, pair := range sig {
+		params.Add(pair.VarName)
+	}
+	// We find all the identifiers that we declare in the 'given' block.
+	locals := ast.GetLhsOfAssignments(fnNode.Given)
+	// Find all the variable names in the body.
+	bodyNames := ast.GetVariableNames(fnNode.Body)
+	externals := bodyNames.SubtractSet(params).SubtractSet(locals) // I.e. the "externals" things, if any, that we're closing over.
+
+	// Copy the externals to the environment.
+	for k, _ := range externals {
+		v, ok := env.getVar(k)
+		if !ok {
+			cp.p.Throw("comp/body/known", tok)
+		}
+		cp.reserve(LF.model.vm, INT, DUMMY) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
+		cp.addVariable(LF.model.vm, newEnv, k, v.access, v.types)
+		// At the same time, the lambda factory need to know where they are in the calling Vm.
+		LF.extMem = append(LF.extMem, v.mLoc)
+	}
+
+	LF.model.extTop = LF.model.vm.memTop()
+
+	// Add the function parameters.
+	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
+		cp.reserve(LF.model.vm, INT, DUMMY)
+		cp.addVariable(LF.model.vm, newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.typeNameToTypeList[pair.VarType])
+	}
+
+	LF.model.prmTop = LF.model.vm.memTop()
+
+	// Compile the locals.
+
+	if fnNode.Given != nil {
+		cp.thunkList = []thunk{}
+		cp.compileNode(LF.model.vm, fnNode.Given, newEnv)
+		for _, pair := range cp.thunkList {
+			cp.emit(LF.model.vm, thnk, pair.mLoc, pair.cLoc)
+		}
+	}
+
+	// Function starts here.
+
+	LF.model.locToCall = LF.model.vm.codeTop()
+
+	// We have to typecheck inside the lambda, because the calling site doesn't know which function it's calling.
+
+	// TODO !!!
+
+	// Now we can emit the main body of the function.
+
+	cp.compileNode(LF.model.vm, fnNode.Body, newEnv)
+	LF.model.dest = LF.model.vm.that()
+	LF.size = LF.model.vm.codeTop()
+	cp.emit(LF.model.vm, ret)
+
+	// We have made our lambda factory!
+
+	vm.lambdaFactories = append(vm.lambdaFactories, LF)
+	return uint32(len(vm.lambdaFactories) - 1), externals.IsEmpty() // A lambda which doesn't close over anything is a constant.
 }
 
 func (cp *Compiler) addVariable(vm *Vm, env *environment, name string, acc varAccess, types alternateType) {
@@ -165,6 +235,9 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		cp.p.Throw("comp/assign", node.GetToken())
 		rtnTypes, rtnConst = simpleList(ERROR), true
 		break
+	case *ast.ApplicationExpression:
+		// I doubt that this and related forms such as GroupedExpression are still serving a function in the parser.
+		panic("Tim, you were wrong")
 	case *ast.BooleanLiteral:
 		cp.reserve(vm, BOOL, node.Value)
 		rtnTypes, rtnConst = simpleList(BOOL), true
@@ -176,6 +249,11 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 	case *ast.FloatLiteral:
 		cp.reserve(vm, FLOAT, node.Value)
 		rtnTypes, rtnConst = simpleList(FLOAT), true
+		break
+	case *ast.FuncExpression:
+		facNo, isConst := cp.reserveLambdaFactory(vm, env, node, node.GetToken())
+		cp.put(vm, mkfn, facNo)
+		rtnTypes, rtnConst = simpleList(FUNC), isConst
 		break
 	case *ast.Identifier:
 		v, ok := env.getVar(node.Value)
@@ -325,6 +403,23 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 				rtnTypes, rtnConst = simpleList(ERROR), true
 				break
 			}
+		}
+		v, ok := env.getVar(node.Operator)
+		if ok && v.types.contains(FUNC) {
+			operands := []uint32{v.mLoc}
+			for _, arg := range node.Args {
+				cp.compileNode(vm, arg, env)
+				operands = append(operands, vm.that())
+			}
+			if cp.p.ErrorsExist() {
+				rtnTypes, rtnConst = simpleList(ERROR), true
+				break
+			}
+			if v.types.only(FUNC) { // Then no type checking for v.
+				cp.put(vm, dofn, operands...)
+			}
+			rtnTypes = alternateType{NULL, INT, BOOL, STRING, FLOAT, TYPE, typedTupleType{alternateType{NULL, INT, BOOL, STRING, FLOAT, TYPE}}}
+			break
 		}
 		if cp.p.Prefixes.Contains(node.Operator) || cp.p.Functions.Contains(node.Operator) {
 			rtnTypes, rtnConst = cp.createFunctionCall(vm, node, env)
@@ -582,7 +677,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 			}
 			if b.types[i].(alternateType).contains(ERROR) {
 				cp.emit(vm, qtyp, vm.that(), uint32(ERROR), vm.codeTop()+2)
-				backtrackList[i] = cp.vm.codeTop()
+				backtrackList[i] = vm.codeTop()
 				cp.emit(vm, asgm, DUMMY, vm.that(), vm.thatToken())
 				cp.emit(vm, ret)
 			}
@@ -597,7 +692,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
-			cp.vm.code[v].args[0] = vm.that()
+			vm.code[v].args[0] = vm.that()
 		}
 	}
 	if returnTypes.contains(ERROR) {
@@ -887,7 +982,7 @@ func (cp *Compiler) seekBling(vm *Vm, b *bindle, bling string) alternateType {
 func (cp *Compiler) emit(vm *Vm, opcode opcode, args ...uint32) {
 	vm.code = append(vm.code, makeOp(opcode, args...))
 	if SHOW_COMPILE {
-		println(cp.vm.describeCode(vm.codeTop() - 1))
+		println(vm, vm.describeCode(vm.codeTop()-1))
 	}
 }
 

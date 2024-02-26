@@ -210,6 +210,14 @@ var Builtins = map[string]func(p *Parser, tok *token.Token, args ...object.Objec
 		return &object.Integer{Value: -args[0].(*object.Integer).Value}
 	},
 
+	"abs_of_integer": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
+		if args[0].(*object.Integer).Value > 0 {
+			return &object.Integer{Value: args[0].(*object.Integer).Value}
+		} else {
+			return &object.Integer{Value: -args[0].(*object.Integer).Value}
+		}
+	},
+
 	"subtract_integers": func(p *Parser, tok *token.Token, args ...object.Object) object.Object {
 		return &object.Integer{Value: args[0].(*object.Integer).Value - args[2].(*object.Integer).Value}
 	},
