@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lmorg/readline"
+
 	"pipefish/source/database"
 	"pipefish/source/evaluator"
 	"pipefish/source/initializer"

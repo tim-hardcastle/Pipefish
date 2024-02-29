@@ -43,7 +43,7 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 
-	vmm.uP.AddToNameSpace([]string{"rsc/pipefishtest.ch"}) // , "rsc/pipefishworld.ch"
+	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/test.pf"}) // , "rsc/pipefish/world.pf"
 	vmm.uP.ParseImports()
 	if vmm.uP.ErrorsExist() {
 		return
