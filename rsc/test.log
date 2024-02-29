@@ -1,6 +1,0 @@
-Log at line [33m3[0m @ [34m2023-11-11 21:31:55.685226 -0800 PST[0m:
-    [36m'foo'[0m [0mcalled.
-Log at line [33m4[0m @ [34m2023-11-11 21:31:55.687571 -0800 PST[0m:
-    Checks [0mif [0mx [0mis [0meven.
-Log at line [33m5[0m @ [34m2023-11-11 21:31:55.687868 -0800 PST[0m:
-    Returns [0m4.
