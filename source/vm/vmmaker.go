@@ -5,6 +5,7 @@ import (
 	"pipefish/source/initializer"
 	"pipefish/source/parser"
 	"pipefish/source/token"
+	"pipefish/source/values"
 
 	"database/sql"
 )
@@ -162,7 +163,7 @@ func (vmm *VmMaker) createEnums() {
 			if tok.Type != token.IDENT {
 				vmm.uP.Throw("init/enum/ident", tok)
 			}
-			vmm.cp.enums[tok.Literal] = enumOrdinates{simpleType(chunk) + LB_ENUMS, len(vmm.cp.vm.enums[chunk])}
+			vmm.cp.enums[tok.Literal] = enumOrdinates{values.ValueType(chunk) + values.LB_ENUMS, len(vmm.cp.vm.enums[chunk])}
 			vmm.cp.vm.enums[chunk] = append(vmm.cp.vm.enums[chunk], tok.Literal)
 
 			tok = vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
@@ -194,7 +195,7 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 		if pair.VarType == "bling" {
 			continue
 		}
-		vmm.cp.reserve(vm, INT, DUMMY)
+		vmm.cp.reserve(vm, values.INT, DUMMY)
 		if pair.VarType == "ref" {
 			vmm.cp.addVariable(vm, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.typeNameToTypeList[pair.VarType])
 			continue
@@ -227,9 +228,9 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.gvars.ext = vmm.cp.gconsts
-	vmm.cp.reserve(vmm.cp.vm, NULL, nil)
-	vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, singleType(NULL))
-	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.vm, TYPE, TUPLE)
+	vmm.cp.reserve(vmm.cp.vm, values.NULL, nil)
+	vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
+	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.vm, values.TYPE, values.TUPLE)
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {

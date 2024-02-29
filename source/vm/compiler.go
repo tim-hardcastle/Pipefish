@@ -6,13 +6,14 @@ import (
 	"pipefish/source/parser"
 	"pipefish/source/set"
 	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 const SHOW_COMPILE = true
 const SHOW_RUN = true
 
 type enumOrdinates struct {
-	enum    simpleType
+	enum    values.ValueType
 	element int
 }
 
@@ -57,20 +58,20 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		thunkList: []thunk{},
 		fns:       []*cpFunc{},
 		typeNameToTypeList: map[string]alternateType{
-			"int":      {INT},
-			"string":   {STRING},
-			"bool":     {BOOL},
-			"float64":  {FLOAT},
-			"error":    {ERROR},
-			"type":     {TYPE},
-			"int?":     {NULL, INT},
-			"string?":  {NULL, STRING},
-			"bool?":    {NULL, BOOL},
-			"float64?": {NULL, FLOAT},
-			"type?":    {NULL, TYPE},
-			"null":     {NULL},
-			"single":   {INT, BOOL, STRING, FLOAT, TYPE},
-			"single?":  {NULL, INT, BOOL, STRING, FLOAT, TYPE},
+			"int":      altType(values.INT),
+			"string":   altType(values.STRING),
+			"bool":     altType(values.BOOL),
+			"float64":  altType(values.FLOAT),
+			"error":    altType(values.ERROR),
+			"type":     altType(values.TYPE),
+			"int?":     altType(values.NULL, values.INT),
+			"string?":  altType(values.NULL, values.STRING),
+			"bool?":    altType(values.NULL, values.BOOL),
+			"float64?": altType(values.NULL, values.FLOAT),
+			"type?":    altType(values.NULL, values.TYPE),
+			"null":     altType(values.NULL),
+			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.LIST),
+			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.LIST),
 		},
 	}
 }
@@ -83,16 +84,16 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
 
-func (cp *Compiler) Do(line string) Value {
+func (cp *Compiler) Do(line string) values.Value {
 	mT := cp.vm.memTop()
 	cT := cp.vm.codeTop()
 	node := cp.p.ParseLine("REPL input", line)
 	if cp.p.ErrorsExist() {
-		return Value{T: ERROR}
+		return values.Value{T: values.ERROR}
 	}
 	cp.compileNode(cp.vm, node, cp.gvars)
 	if cp.p.ErrorsExist() {
-		return Value{T: ERROR}
+		return values.Value{T: values.ERROR}
 	}
 	cp.emit(cp.vm, ret)
 	cp.vm.Run(cT)
@@ -102,7 +103,7 @@ func (cp *Compiler) Do(line string) Value {
 	return result
 }
 
-func (cp *Compiler) Describe(v Value) string {
+func (cp *Compiler) Describe(v values.Value) string {
 	return cp.vm.literal(v)
 }
 
@@ -113,13 +114,13 @@ func (cp *Compiler) Compile(source, sourcecode string) {
 	cp.emit(cp.vm, ret)
 }
 
-func (cp *Compiler) reserve(vm *Vm, t simpleType, v any) uint32 {
-	vm.mem = append(vm.mem, Value{T: t, V: v})
+func (cp *Compiler) reserve(vm *Vm, t values.ValueType, v any) uint32 {
+	vm.mem = append(vm.mem, values.Value{T: t, V: v})
 	return uint32(len(vm.mem) - 1)
 }
 
 func (cp *Compiler) reserveError(vm *Vm, ec string, tok *token.Token, args []any) uint32 {
-	vm.mem = append(vm.mem, Value{T: ERROR, V: &object.Error{ErrorId: ec, Token: tok, Args: append([]any{vm}, args...), Trace: make([]*token.Token, 0, 10)}})
+	vm.mem = append(vm.mem, values.Value{T: values.ERROR, V: &object.Error{ErrorId: ec, Token: tok, Args: append([]any{vm}, args...), Trace: make([]*token.Token, 0, 10)}})
 	return uint32(len(vm.mem) - 1)
 }
 
@@ -155,7 +156,7 @@ func (cp *Compiler) reserveLambdaFactory(vm *Vm, env *environment, fnNode *ast.F
 		if !ok {
 			cp.p.Throw("comp/body/known", tok)
 		}
-		cp.reserve(LF.model.vm, INT, DUMMY) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
+		cp.reserve(LF.model.vm, 0, DUMMY) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
 		cp.addVariable(LF.model.vm, newEnv, k, v.access, v.types)
 		// At the same time, the lambda factory need to know where they are in the calling Vm.
 		LF.extMem = append(LF.extMem, v.mLoc)
@@ -165,7 +166,7 @@ func (cp *Compiler) reserveLambdaFactory(vm *Vm, env *environment, fnNode *ast.F
 
 	// Add the function parameters.
 	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
-		cp.reserve(LF.model.vm, INT, DUMMY)
+		cp.reserve(LF.model.vm, 0, DUMMY)
 		cp.addVariable(LF.model.vm, newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.typeNameToTypeList[pair.VarType])
 	}
 
@@ -216,7 +217,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			// TODO --- need to do this better after we implement tuples
 			if node.Left.GetToken().Type != token.IDENT {
 				cp.p.Throw("comp/assign/ident", node.Left.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 			thunkStart := vm.next()
@@ -224,42 +225,42 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			cp.emit(vm, ret)
 			if cst {
 				cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_TRUE_CONSTANT, types)
-				rtnTypes, rtnConst = singleType(CREATED_LOCAL_CONSTANT), true
+				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), true
 				break
 			}
 			cp.addVariable(vm, env, node.Left.(*ast.Identifier).Value, LOCAL_CONSTANT_THUNK, types)
 			cp.thunkList = append(cp.thunkList, thunk{vm.that(), thunkStart})
-			rtnTypes, rtnConst = singleType(CREATED_LOCAL_CONSTANT), false
+			rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), false
 			break
 		}
 		cp.p.Throw("comp/assign", node.GetToken())
-		rtnTypes, rtnConst = singleType(ERROR), true
+		rtnTypes, rtnConst = altType(values.ERROR), true
 		break
 	case *ast.ApplicationExpression:
 		// I doubt that this and related forms such as GroupedExpression are still serving a function in the parser.
 		panic("Tim, you were wrong")
 	case *ast.BooleanLiteral:
-		cp.reserve(vm, BOOL, node.Value)
-		rtnTypes, rtnConst = singleType(BOOL), true
+		cp.reserve(vm, values.BOOL, node.Value)
+		rtnTypes, rtnConst = altType(values.BOOL), true
 		break
 	case *ast.EmptyTuple:
-		cp.reserve(vm, TUPLE, []Value{})
+		cp.reserve(vm, values.TUPLE, []values.Value{})
 		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
 		break
 	case *ast.FloatLiteral:
-		cp.reserve(vm, FLOAT, node.Value)
-		rtnTypes, rtnConst = singleType(FLOAT), true
+		cp.reserve(vm, values.FLOAT, node.Value)
+		rtnTypes, rtnConst = altType(values.FLOAT), true
 		break
 	case *ast.FuncExpression:
 		facNo, isConst := cp.reserveLambdaFactory(vm, env, node, node.GetToken())
 		cp.put(vm, mkfn, facNo)
-		rtnTypes, rtnConst = singleType(FUNC), isConst
+		rtnTypes, rtnConst = altType(values.FUNC), isConst
 		break
 	case *ast.Identifier:
 		v, ok := env.getVar(node.Value)
 		if !ok {
 			cp.p.Throw("comp/ident/known", node.GetToken())
-			return singleType(ERROR), true
+			return altType(values.ERROR), true
 		}
 		if v.access == LOCAL_CONSTANT_THUNK {
 			cp.emit(vm, untk, v.mLoc)
@@ -292,18 +293,18 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			break
 		}
 		cp.p.Throw("comp/infix", node.GetToken())
-		rtnTypes, rtnConst = singleType(ERROR), true
+		rtnTypes, rtnConst = altType(values.ERROR), true
 		break
 	case *ast.IntegerLiteral:
-		cp.reserve(vm, INT, node.Value)
-		rtnTypes, rtnConst = singleType(INT), true
+		cp.reserve(vm, values.INT, node.Value)
+		rtnTypes, rtnConst = altType(values.INT), true
 		break
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
-			if !lTypes.contains(BOOL) {
+			if !lTypes.contains(tp(values.BOOL)) {
 				cp.p.Throw("comp/or/bool/left", node.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 			leftRg := vm.that()
@@ -311,37 +312,37 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			backtrack := vm.next()
 			cp.emit(vm, jmp, DUMMY)
 			rTypes, rcst := cp.compileNode(vm, node.Right, env)
-			if !rTypes.contains(BOOL) {
+			if !rTypes.contains(tp(values.BOOL)) {
 				cp.p.Throw("comp/or/bool/right", node.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 			rightRg := vm.that()
 			vm.code[backtrack].args[0] = vm.next()
 			cp.put(vm, orb, leftRg, rightRg)
-			rtnTypes, rtnConst = singleType(BOOL), lcst && rcst
+			rtnTypes, rtnConst = altType(values.BOOL), lcst && rcst
 			break
 		}
 		if node.Operator == "and" {
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
-			if !lTypes.contains(BOOL) {
+			if !lTypes.contains(tp(values.BOOL)) {
 				cp.p.Throw("comp/and/bool/left", node.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 			leftRg := vm.that()
 			backtrack := vm.next()
 			cp.emit(vm, qtru, leftRg, DUMMY)
 			rTypes, rcst := cp.compileNode(vm, node.Right, env)
-			if !rTypes.contains(BOOL) {
+			if !rTypes.contains(tp(values.BOOL)) {
 				cp.p.Throw("comp/and/bool/right", node.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 			rightRg := vm.that()
 			vm.code[backtrack].args[1] = vm.next()
 			cp.put(vm, andb, leftRg, rightRg)
-			rtnTypes, rtnConst = singleType(BOOL), lcst && rcst
+			rtnTypes, rtnConst = altType(values.BOOL), lcst && rcst
 			break
 		}
 		if node.Operator == ":" {
@@ -350,9 +351,9 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 				break
 			}
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
-			if !lTypes.contains(BOOL) {
+			if !lTypes.contains(tp(values.BOOL)) {
 				cp.p.Throw("comp/cond/bool", node.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 			leftRg := vm.that()
@@ -362,30 +363,30 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			cp.put(vm, asgm, vm.that())
 			cp.emit(vm, jmp, vm.next()+2)
 			vm.code[backtrack].args[1] = vm.next()
-			cp.reput(vm, asgm, C_U_OBJ)
-			rtnTypes, rtnConst = rTypes.union(singleType(UNSAT)), lcst && rcst
+			cp.reput(vm, asgm, values.C_U_OBJ)
+			rtnTypes, rtnConst = rTypes.union(altType(values.UNSAT)), lcst && rcst
 			break
 		}
 		if node.Operator == ";" {
 			lTypes, lcst := cp.compileNode(vm, node.Left, env)
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
-			if lTypes.only(CREATED_LOCAL_CONSTANT) {
+			if lTypes.only(tp(values.CREATED_LOCAL_CONSTANT)) {
 				_, cst := cp.compileNode(vm, node.Right, env)
-				rtnTypes, rtnConst = singleType(CREATED_LOCAL_CONSTANT), lcst && cst
+				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
 			leftRg := vm.that()
 			backtrack := vm.next()
-			cp.emit(vm, qtyp, leftRg, uint32(UNSAT), DUMMY)
+			cp.emit(vm, qtyp, leftRg, uint32(values.UNSAT), DUMMY)
 			rTypes, rcst := cp.compileNode(vm, node.Right, env)
 			rightRg := vm.that()
 			cp.put(vm, asgm, rightRg)
 			cp.emit(vm, jmp, vm.next()+2)
 			vm.code[backtrack].args[2] = vm.next()
 			cp.reput(vm, asgm, leftRg)
-			if !(lTypes.contains(UNSAT) && rTypes.contains(UNSAT)) {
-				rtnTypes, rtnConst = lTypes.union(rTypes).without(UNSAT), lcst && rcst
+			if !(lTypes.contains(tp(values.UNSAT)) && rTypes.contains(tp(values.UNSAT))) {
+				rtnTypes, rtnConst = lTypes.union(rTypes).without(tp(values.UNSAT)), lcst && rcst
 				break
 			}
 			rtnTypes, rtnConst = lTypes.union(rTypes), lcst && rcst
@@ -406,29 +407,29 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
 			allTypes, cst := cp.compileNode(vm, node.Args[0], env)
-			if allTypes.only(BOOL) {
+			if allTypes.only(tp(values.BOOL)) {
 				cp.put(vm, notb, vm.that())
-				rtnTypes, rtnConst = singleType(BOOL), cst
+				rtnTypes, rtnConst = altType(values.BOOL), cst
 				break
 			}
-			if !allTypes.contains(BOOL) {
+			if !allTypes.contains(tp(values.BOOL)) {
 				cp.p.Throw("comp/not/bool", node.GetToken())
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
 		}
 		v, ok := env.getVar(node.Operator)
-		if ok && v.types.contains(FUNC) {
+		if ok && v.types.contains(tp(values.FUNC)) {
 			operands := []uint32{v.mLoc}
 			for _, arg := range node.Args {
 				cp.compileNode(vm, arg, env)
 				operands = append(operands, vm.that())
 			}
 			if cp.p.ErrorsExist() {
-				rtnTypes, rtnConst = singleType(ERROR), true
+				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
-			if v.types.only(FUNC) { // Then no type checking for v.
+			if v.types.only(tp(values.FUNC)) { // Then no type checking for v.
 				cp.put(vm, dofn, operands...)
 			}
 			rtnTypes = ANY_TYPE
@@ -439,12 +440,12 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			break
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
-		rtnTypes, rtnConst = singleType(ERROR), true
+		rtnTypes, rtnConst = altType(values.ERROR), true
 		break
 	case *ast.StreamingExpression: // I.e. -> >> and -> and ?> .
 		lhsTypes, lhsConst := cp.compileNode(vm, node.Left, env)
 		if cp.p.ErrorsExist() {
-			rtnTypes, rtnConst = singleType(ERROR), true
+			rtnTypes, rtnConst = altType(values.ERROR), true
 			break
 		}
 		var whatAccess varAccess
@@ -467,8 +468,8 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 		rtnConst = lhsConst && rhsConst
 		break
 	case *ast.StringLiteral:
-		cp.reserve(vm, STRING, node.Value)
-		rtnTypes, rtnConst = singleType(STRING), true
+		cp.reserve(vm, values.STRING, node.Value)
+		rtnTypes, rtnConst = altType(values.STRING), true
 		break
 	case *ast.SuffixExpression:
 		if cp.p.Suffixes.Contains(node.Operator) {
@@ -476,11 +477,11 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			break
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
-		rtnTypes, rtnConst = singleType(ERROR), true
+		rtnTypes, rtnConst = altType(values.ERROR), true
 		break
 	case *ast.TypeLiteral:
-		cp.reserve(vm, TYPE, cp.typeNameToTypeList[node.Value][0])
-		rtnTypes, rtnConst = singleType(TYPE), true
+		cp.reserve(vm, values.TYPE, cp.typeNameToTypeList[node.Value][0])
+		rtnTypes, rtnConst = altType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
 		if cp.p.Unfixes.Contains(node.Operator) {
@@ -488,7 +489,7 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 			break
 		}
 		cp.p.Throw("comp/unfix", node.GetToken())
-		rtnTypes, rtnConst = singleType(ERROR), true
+		rtnTypes, rtnConst = altType(values.ERROR), true
 		break
 
 		break
@@ -512,28 +513,28 @@ func (cp *Compiler) compileNode(vm *Vm, node ast.Node, env *environment) (altern
 // This needs its own very special logic because the type it returns has to be composed in a different way from all the other operators.
 func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
 	lTypes, lcst := cp.compileNode(vm, node.Args[0], env)
-	if lTypes.only(ERROR) {
+	if lTypes.only(tp(values.ERROR)) {
 		cp.p.Throw("comp/tuple/err/a", node.GetToken())
 	}
 	left := vm.that()
 	rTypes, rcst := cp.compileNode(vm, node.Args[2], env)
-	if rTypes.only(ERROR) {
+	if rTypes.only(tp(values.ERROR)) {
 		cp.p.Throw("comp/tuple/err/b", node.GetToken())
 	}
 	right := vm.that()
 	var leftBacktrack, rightBacktrack uint32
-	if lTypes.contains(ERROR) {
-		cp.emit(vm, qtyp, left, uint32(ERROR), vm.codeTop()+2)
+	if lTypes.contains(tp(values.ERROR)) {
+		cp.emit(vm, qtyp, left, uint32(tp(values.ERROR)), vm.codeTop()+2)
 		leftBacktrack = vm.codeTop()
 		cp.put(vm, asgm, DUMMY, left)
-		if rTypes.contains(ERROR) {
+		if rTypes.contains(tp(values.ERROR)) {
 			cp.emit(vm, jmp, vm.codeTop()+5)
 		} else {
 			cp.emit(vm, jmp, vm.codeTop()+2)
 		}
 	}
-	if rTypes.contains(ERROR) {
-		cp.emit(vm, qtyp, right, uint32(ERROR), vm.codeTop()+2)
+	if rTypes.contains(tp(values.ERROR)) {
+		cp.emit(vm, qtyp, right, uint32(tp(values.ERROR)), vm.codeTop()+2)
 		rightBacktrack = vm.codeTop()
 		cp.put(vm, asgm, right)
 		cp.emit(vm, jmp, vm.codeTop()+2)
@@ -552,10 +553,10 @@ func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environmen
 	default:
 		cp.put(vm, ccxx, left, right) // We can after all let the operation dispatch for us.
 	}
-	if lTypes.contains(ERROR) {
+	if lTypes.contains(tp(values.ERROR)) {
 		vm.code[leftBacktrack].args[0] = vm.that()
 	}
-	if rTypes.contains(ERROR) {
+	if rTypes.contains(tp(values.ERROR)) {
 		vm.code[rightBacktrack].args[0] = vm.that()
 	}
 	lT := lTypes.reduce()
@@ -582,7 +583,7 @@ func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environmen
 		case typedTupleType:
 			return alternateType{typedTupleType{lT.t.union(rT.t)}}, cst
 		case simpleType:
-			return alternateType{typedTupleType{lT.t.union(singleType(rT))}}, cst
+			return alternateType{typedTupleType{lT.t.union(alternateType{rT})}}, cst
 		case alternateType:
 			return alternateType{typedTupleType{lT.t.union(getAllTypes(rT))}}, cst
 		default:
@@ -593,7 +594,7 @@ func (cp *Compiler) emitComma(vm *Vm, node *ast.InfixExpression, env *environmen
 		case finiteTupleType:
 			return alternateType{append(finiteTupleType{lT}, rT...)}, cst
 		case typedTupleType:
-			return alternateType{typedTupleType{rT.t.union(singleType(lT))}}, cst
+			return alternateType{typedTupleType{rT.t.union(alternateType{lT})}}, cst
 		case simpleType:
 			return alternateType{finiteTupleType{lT, rT}}, cst
 		case alternateType:
@@ -633,7 +634,7 @@ func getAllTypes(ts typeScheme) alternateType {
 			result = result.union(getAllTypes(v))
 		}
 	case simpleType:
-		result = singleType(ts)
+		result = alternateType{ts}
 	default:
 		panic("We shouldn't be here!")
 	}
@@ -684,12 +685,12 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 		if i < cp.p.FunctionGroupMap[node.GetToken().Literal].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
 				cp.p.Throw("comp/ref/ident", node.GetToken())
-				return singleType(ERROR), true
+				return altType(values.ERROR), true
 			}
 			v, ok := env.getVar(arg.GetToken().Literal)
 			if !ok {
 				cp.p.Throw("comp/ref/var", node.GetToken())
-				return singleType(ERROR), true
+				return altType(values.ERROR), true
 			}
 			b.types[i] = cp.typeNameToTypeList["single?"]
 			cst = false
@@ -697,7 +698,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 				cp.put(vm, asgm, v.mLoc)
 				b.valLocs[i] = vm.that()
 			} else {
-				cp.reserve(vm, REF, v.mLoc)
+				cp.reserve(vm, values.REF, v.mLoc)
 				b.valLocs[i] = vm.that()
 			}
 			continue
@@ -709,12 +710,12 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 			b.types[i], cstI = cp.compileNode(vm, arg, env)
 			cst = cst && cstI
 			b.valLocs[i] = vm.that()
-			if b.types[i].(alternateType).only(ERROR) {
+			if b.types[i].(alternateType).only(tp(values.ERROR)) {
 				cp.p.Throw("comp/arg/error", node.GetToken())
-				return singleType(ERROR), true
+				return altType(values.ERROR), true
 			}
-			if b.types[i].(alternateType).contains(ERROR) {
-				cp.emit(vm, qtyp, vm.that(), uint32(ERROR), vm.codeTop()+2)
+			if b.types[i].(alternateType).contains(tp(values.ERROR)) {
+				cp.emit(vm, qtyp, vm.that(), uint32(tp(values.ERROR)), vm.codeTop()+2)
 				backtrackList[i] = vm.codeTop()
 				cp.emit(vm, asgm, DUMMY, vm.that(), vm.thatToken())
 				cp.emit(vm, ret)
@@ -725,7 +726,7 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 	returnTypes := cp.generateNewArgument(vm, b) // This is our path into the recursion that will in fact generate the whole function call.
 
 	cp.put(vm, asgm, b.outLoc)
-	if returnTypes.only(ERROR) && node.GetToken().Literal != "error" {
+	if returnTypes.only(tp(values.ERROR)) && node.GetToken().Literal != "error" {
 		cp.p.Throw("comp/call", b.tok)
 	}
 	for _, v := range backtrackList {
@@ -733,12 +734,12 @@ func (cp *Compiler) createFunctionCall(vm *Vm, node ast.Callable, env *environme
 			vm.code[v].args[0] = vm.that()
 		}
 	}
-	if returnTypes.contains(ERROR) {
+	if returnTypes.contains(tp(values.ERROR)) {
 		if !traceTokenReserved {
 			cp.reserveToken(vm, b.tok)
 			traceTokenReserved = true
 		}
-		cp.emit(vm, qtyp, vm.that(), uint32(ERROR), vm.codeTop()+3)
+		cp.emit(vm, qtyp, vm.that(), uint32(values.ERROR), vm.codeTop()+3)
 		cp.emit(vm, adtk, vm.that(), vm.thatToken())
 		cp.emit(vm, ret)
 	}
@@ -822,7 +823,7 @@ func (cp *Compiler) generateBranch(vm *Vm, b *bindle) alternateType {
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
 		cp.reserveError(vm, "vm/types/a", b.tok, []any{})
 		cp.emit(vm, asgm, b.outLoc, vm.that())
-		return singleType(ERROR)
+		return altType(values.ERROR)
 	}
 	branch := b.treePosition.Branch[b.branchNo]
 	acceptedTypes := cp.typeNameToTypeList[branch.TypeName]
@@ -906,11 +907,13 @@ func (cp *Compiler) generateBranch(vm *Vm, b *bindle) alternateType {
 }
 
 var TYPE_COMPARISONS = map[string]*operation{
-	"int":     {qtyp, []uint32{DUMMY, uint32(INT), DUMMY}},
-	"string":  {qtyp, []uint32{DUMMY, uint32(STRING), DUMMY}},
-	"bool":    {qtyp, []uint32{DUMMY, uint32(BOOL), DUMMY}},
-	"float64": {qtyp, []uint32{DUMMY, uint32(FLOAT), DUMMY}},
-	"null":    {qtyp, []uint32{DUMMY, uint32(NULL), DUMMY}},
+	"int":     {qtyp, []uint32{DUMMY, uint32(values.INT), DUMMY}},
+	"string":  {qtyp, []uint32{DUMMY, uint32(values.STRING), DUMMY}},
+	"bool":    {qtyp, []uint32{DUMMY, uint32(values.BOOL), DUMMY}},
+	"float64": {qtyp, []uint32{DUMMY, uint32(values.FLOAT), DUMMY}},
+	"null":    {qtyp, []uint32{DUMMY, uint32(values.NULL), DUMMY}},
+	"list":    {qtyp, []uint32{DUMMY, uint32(values.LIST), DUMMY}},
+	"func":    {qtyp, []uint32{DUMMY, uint32(values.FUNC), DUMMY}},
 	"single":  {qsng, []uint32{DUMMY, DUMMY}},
 	"single?": {qsnQ, []uint32{DUMMY, DUMMY}},
 }
@@ -999,7 +1002,7 @@ func (cp *Compiler) seekFunctionCall(vm *Vm, b *bindle) alternateType {
 	}
 	cp.reserveError(vm, "vm/types/b", b.tok, []any{}) // TODO : the bindle can accumulate the types to allow us to generates this error properly.
 	cp.emit(vm, asgm, b.outLoc, vm.that())
-	return singleType(ERROR)
+	return altType(values.ERROR)
 }
 
 func (cp *Compiler) seekBling(vm *Vm, b *bindle, bling string) alternateType {
@@ -1012,7 +1015,7 @@ func (cp *Compiler) seekBling(vm *Vm, b *bindle, bling string) alternateType {
 		}
 	}
 	cp.p.Throw("comp/eq/err/a", b.tok) // TODO -- the bindle should pass all the original args or at least their tokens for better error messages.
-	return singleType(ERROR)
+	return altType(values.ERROR)
 }
 
 // We have two different ways of emiting an opcode: 'emit' does it the regular way, 'put' ensures that
@@ -1027,7 +1030,7 @@ func (cp *Compiler) emit(vm *Vm, opcode opcode, args ...uint32) {
 func (cp *Compiler) put(vm *Vm, opcode opcode, args ...uint32) {
 	args = append([]uint32{vm.memTop()}, args...)
 	cp.emit(vm, opcode, args...)
-	vm.mem = append(vm.mem, Value{})
+	vm.mem = append(vm.mem, values.Value{})
 }
 
 // Reput puts the value in the last memory address to be used.
@@ -1043,42 +1046,42 @@ func (cp *Compiler) emitFunctionCall(vm *Vm, funcNumber uint32, valLocs []uint32
 
 func (cp *Compiler) emitEquals(vm *Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
 	lTypes, lcst := cp.compileNode(vm, node.Args[0], env)
-	if lTypes.only(ERROR) {
+	if lTypes.only(tp(values.ERROR)) {
 		cp.p.Throw("comp/eq/err/a", node.GetToken())
-		return singleType(ERROR), true
+		return altType(values.ERROR), true
 	}
 	leftRg := vm.that()
 	rTypes, rcst := cp.compileNode(vm, node.Args[2], env)
-	if rTypes.only(ERROR) {
+	if rTypes.only(tp(values.ERROR)) {
 		cp.p.Throw("comp/eq/err/b", node.GetToken())
-		return singleType(ERROR), true
+		return altType(values.ERROR), true
 	}
 	rightRg := vm.that()
 	oL := lTypes.intersect(rTypes)
-	if oL.only(ERROR) {
+	if oL.only(tp(values.ERROR)) {
 		cp.p.Throw("comp/eq/err/c", node.GetToken())
-		return singleType(ERROR), true
+		return altType(values.ERROR), true
 	}
 	if len(oL) == 0 {
 		cp.p.Throw("comp/eq/types", node.GetToken())
-		return singleType(ERROR), true
+		return altType(values.ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
 		switch el := oL[0].(type) {
 		case simpleType:
 			switch el {
-			case INT:
+			case tp(values.INT):
 				cp.put(vm, equi, leftRg, rightRg)
-			case STRING:
+			case tp(values.STRING):
 				cp.put(vm, equs, leftRg, rightRg)
-			case BOOL:
+			case tp(values.BOOL):
 				cp.put(vm, equb, leftRg, rightRg)
-			case FLOAT:
+			case tp(values.FLOAT):
 				cp.put(vm, equf, leftRg, rightRg)
 			default:
 				panic("Unimplemented comparison type.")
 			}
-			return singleType(BOOL), lcst && rcst
+			return altType(values.BOOL), lcst && rcst
 		default:
 			panic("Unimplemented comparison type.")
 		}
@@ -1093,8 +1096,8 @@ func (cp *Compiler) compilePipe(vm *Vm, lhsTypes alternateType, rhs ast.Node, en
 	// If we have a single identifier, we wish it to contain a function ...
 	if rhs.GetToken().Type == token.IDENT {
 		v, ok := env.getVar(rhs.GetToken().Literal)
-		if ok && v.types.contains(FUNC) {
-			if v.types.only(FUNC) {
+		if ok && v.types.contains(tp(values.FUNC)) {
+			if v.types.only(tp(values.FUNC)) {
 				cp.put(vm, dofn, v.mLoc, vm.that())
 				return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
 			} else {

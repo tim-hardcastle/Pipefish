@@ -27,6 +27,7 @@ import (
 	"pipefish/source/parser"
 	"pipefish/source/relexer"
 	"pipefish/source/text"
+	"pipefish/source/values"
 	"pipefish/source/vm"
 )
 
@@ -720,7 +721,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				compiler.GetParser().ClearErrors()
 				continue
 			}
-			if output.T == vm.ERROR {
+			if output.T == values.ERROR {
 				lastError = output.V.(*object.Error)
 			}
 			hub.WriteString(compiler.Describe(output))

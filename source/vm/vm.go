@@ -4,6 +4,7 @@ import (
 	"pipefish/source/object"
 	"pipefish/source/text"
 	"pipefish/source/token"
+	"pipefish/source/values"
 
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 
 type Vm struct {
 	// Temporary state: things we change at runtime.
-	mem       []Value
+	mem       []values.Value
 	callstack []uint32
 	code      []*operation
 
@@ -37,7 +38,7 @@ type lambda struct {
 	prmTop    uint32
 	dest      uint32
 	locToCall uint32
-	captures  []Value
+	captures  []values.Value
 }
 
 func (vm *Vm) memTop() uint32 {
@@ -93,12 +94,12 @@ func (vm *Vm) add(vmToAdd *Vm) {
 
 var OPCODE_LIST []func(vm *Vm, args []uint32)
 
-var CONSTANTS = []Value{FALSE, TRUE, U_OBJ}
+var CONSTANTS = []values.Value{values.FALSE, values.TRUE, values.U_OBJ}
 
 func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	newVm.typeNames = []string{"UNDEFINED VALUE!!! ERROR!", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
+	newVm.typeNames = []string{"UNDEFINED VALUE!!! values.ERROR!", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
 		"int", "bool", "string", "float64", "type", "func", "list"}
 	return newVm
 }
@@ -115,15 +116,15 @@ loop:
 		args := vm.code[loc].args
 		switch vm.code[loc].opcode {
 		case addf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) + vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) + vm.mem[args[2]].V.(float64)}
 		case addi:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
 		case adds:
-			vm.mem[args[0]] = Value{STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
+			vm.mem[args[0]] = values.Value{values.STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
 		case adtk:
 			(vm.mem[args[0]].V.(*object.Error)).AddToTrace(vm.tokens[args[1]])
 		case andb:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool)}
 		case asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
 		case call:
@@ -135,33 +136,33 @@ loop:
 			loc = args[0]
 			continue
 		case cc11:
-			vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]], vm.mem[args[2]]}}
+			vm.mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.mem[args[1]], vm.mem[args[2]]}}
 		case cc1T:
-			vm.mem[args[0]] = Value{TUPLE, append([]Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]Value)...)}
+			vm.mem[args[0]] = values.Value{values.TUPLE, append([]values.Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]values.Value)...)}
 		case ccT1:
-			vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+			vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
 		case ccTT:
-			vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+			vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
 		case ccxx:
-			if vm.mem[args[1]].T == TUPLE {
-				if vm.mem[args[2]].T == TUPLE {
-					vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+			if vm.mem[args[1]].T == values.TUPLE {
+				if vm.mem[args[2]].T == values.TUPLE {
+					vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
 				} else {
-					vm.mem[args[0]] = Value{TUPLE, append(vm.mem[args[1]].V.([]Value), vm.mem[args[2]])}
+					vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
 				}
 			} else {
-				if vm.mem[args[2]].T == TUPLE {
-					vm.mem[args[0]] = Value{TUPLE, append([]Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]Value)...)}
+				if vm.mem[args[2]].T == values.TUPLE {
+					vm.mem[args[0]] = values.Value{values.TUPLE, append([]values.Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]values.Value)...)}
 				} else {
-					vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]], vm.mem[args[2]]}}
+					vm.mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.mem[args[1]], vm.mem[args[2]]}}
 				}
 			}
 		case cv1T:
-			vm.mem[args[0]] = Value{TUPLE, []Value{vm.mem[args[1]]}}
+			vm.mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.mem[args[1]]}}
 		case divf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) / vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) / vm.mem[args[2]].V.(float64)}
 		case divi:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
 		case dofn:
 			lhs := vm.mem[args[1]].V.(lambda)
 			for i := 0; i < int(lhs.prmTop-lhs.extTop); i++ {
@@ -173,43 +174,43 @@ loop:
 		case dref:
 			vm.mem[args[0]] = vm.mem[vm.mem[args[1]].V.(uint32)]
 		case equb:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
 		case equf:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
 		case equi:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
 		case equs:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
 		case flti:
-			vm.mem[args[0]] = Value{FLOAT, float64(vm.mem[args[1]].V.(int))}
+			vm.mem[args[0]] = values.Value{values.FLOAT, float64(vm.mem[args[1]].V.(int))}
 		case flts:
 			i, err := strconv.ParseFloat(vm.mem[args[1]].V.(string), 64)
 			if err != nil {
-				vm.mem[args[0]] = Value{ERROR, DUMMY}
+				vm.mem[args[0]] = values.Value{values.ERROR, DUMMY}
 			} else {
-				vm.mem[args[0]] = Value{FLOAT, i}
+				vm.mem[args[0]] = values.Value{values.FLOAT, i}
 			}
 		case gtef:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) >= vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(float64) >= vm.mem[args[2]].V.(float64)}
 		case gtei:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) >= vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(int) >= vm.mem[args[2]].V.(int)}
 		case gthf:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(float64) > vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(float64) > vm.mem[args[2]].V.(float64)}
 		case gthi:
-			vm.mem[args[0]] = Value{BOOL, vm.mem[args[1]].V.(int) > vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(int) > vm.mem[args[2]].V.(int)}
 		case halt:
 			break loop
 		case intf:
-			vm.mem[args[0]] = Value{INT, int(vm.mem[args[1]].V.(float64))}
+			vm.mem[args[0]] = values.Value{values.INT, int(vm.mem[args[1]].V.(float64))}
 		case ints:
 			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
 			if err != nil {
-				vm.mem[args[0]] = Value{ERROR, DUMMY}
+				vm.mem[args[0]] = values.Value{values.ERROR, DUMMY}
 			} else {
-				vm.mem[args[0]] = Value{INT, i}
+				vm.mem[args[0]] = values.Value{values.INT, i}
 			}
 		case idxT:
-			vm.mem[args[0]] = vm.mem[args[1]].V.([]Value)[args[2]]
+			vm.mem[args[0]] = vm.mem[args[1]].V.([]values.Value)[args[2]]
 		case jmp:
 			loc = args[0]
 			continue
@@ -218,48 +219,48 @@ loop:
 			loc = args[0]
 			continue
 		case lens:
-			vm.mem[args[0]] = Value{INT, len(vm.mem[args[1]].V.(string))}
+			vm.mem[args[0]] = values.Value{values.INT, len(vm.mem[args[1]].V.(string))}
 		case litx:
-			vm.mem[args[0]] = Value{STRING, vm.literal(vm.mem[args[1]])}
+			vm.mem[args[0]] = values.Value{values.STRING, vm.literal(vm.mem[args[1]])}
 		case mker:
-			vm.mem[args[0]] = Value{ERROR, &object.Error{ErrorId: "eval/user", Message: vm.mem[args[1]].V.(string), Token: vm.tokens[args[2]]}}
+			vm.mem[args[0]] = values.Value{values.ERROR, &object.Error{ErrorId: "eval/user", Message: vm.mem[args[1]].V.(string), Token: vm.tokens[args[2]]}}
 		case mkfn:
 			lf := vm.lambdaFactories[args[1]]
 			newLambda := *lf.model
-			newLambda.captures = make([]Value, len(lf.extMem))
+			newLambda.captures = make([]values.Value, len(lf.extMem))
 			for i, v := range lf.extMem {
 				newLambda.captures[i] = vm.mem[v]
 			}
-			vm.mem[args[0]] = Value{FUNC, newLambda}
+			vm.mem[args[0]] = values.Value{values.FUNC, newLambda}
 		case modi:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
 		case mulf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
 		case muli:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
 		case negf:
-			vm.mem[args[0]] = Value{FLOAT, -vm.mem[args[1]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.FLOAT, -vm.mem[args[1]].V.(float64)}
 		case negi:
-			vm.mem[args[0]] = Value{INT, -vm.mem[args[1]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.INT, -vm.mem[args[1]].V.(int)}
 		case notb:
-			vm.mem[args[0]] = Value{BOOL, !vm.mem[args[1]].V.(bool)}
+			vm.mem[args[0]] = values.Value{values.BOOL, !vm.mem[args[1]].V.(bool)}
 		case orb:
-			vm.mem[args[0]] = Value{BOOL, (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
+			vm.mem[args[0]] = values.Value{values.BOOL, (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
 		case qlnT:
-			if len(vm.mem[args[0]].V.([]Value)) == int(args[1]) {
+			if len(vm.mem[args[0]].V.([]values.Value)) == int(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]
 			}
 		case qsng:
-			if vm.mem[args[0]].T >= INT {
+			if vm.mem[args[0]].T >= values.INT {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
 		case qsnQ:
-			if vm.mem[args[0]].T >= NULL {
+			if vm.mem[args[0]].T >= values.NULL {
 				loc = loc + 1
 			} else {
 				loc = args[1]
@@ -273,7 +274,7 @@ loop:
 			}
 			continue
 		case qtyp:
-			if vm.mem[args[0]].T == simpleType(args[1]) {
+			if vm.mem[args[0]].T == values.ValueType(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]
@@ -286,18 +287,18 @@ loop:
 			loc = vm.callstack[len(vm.callstack)-1]
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 		case strx:
-			vm.mem[args[0]] = Value{STRING, vm.describe(vm.mem[args[1]])}
+			vm.mem[args[0]] = values.Value{values.STRING, vm.describe(vm.mem[args[1]])}
 		case subf:
-			vm.mem[args[0]] = Value{FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
+			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
 		case subi:
-			vm.mem[args[0]] = Value{INT, vm.mem[args[1]].V.(int) - vm.mem[args[2]].V.(int)}
+			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) - vm.mem[args[2]].V.(int)}
 		case thnk:
-			vm.mem[args[0]].T = THUNK
+			vm.mem[args[0]].T = values.THUNK
 			vm.mem[args[0]].V = args[1]
 		case typx:
-			vm.mem[args[0]] = Value{TYPE, vm.mem[args[1]].T}
+			vm.mem[args[0]] = values.Value{values.TYPE, vm.mem[args[1]].T}
 		case untk:
-			if (vm.mem[args[0]].T) == THUNK {
+			if (vm.mem[args[0]].T) == values.THUNK {
 				vm.callstack = append(vm.callstack, loc)
 				loc = vm.mem[args[0]].V.(uint32)
 				continue
@@ -348,37 +349,37 @@ func (vm *Vm) describeType(t typeScheme) string {
 	panic("unimplemented type")
 }
 
-func (vm *Vm) describe(v Value) string {
+func (vm *Vm) describe(v values.Value) string {
 	switch v.T {
-	case INT:
+	case values.INT:
 		return strconv.Itoa(v.V.(int))
-	case LIST:
-		result := make([]string, len(v.V.([]Value)))
-		for i, v := range v.V.([]Value) {
+	case values.LIST:
+		result := make([]string, len(v.V.([]values.Value)))
+		for i, v := range v.V.([]values.Value) {
 			result[i] = vm.describe(v)
 		}
 		return "[" + strings.Join(result, ", ") + ")"
-	case STRING:
+	case values.STRING:
 		return v.V.(string)
-	case TYPE:
+	case values.TYPE:
 		return vm.describeType(v.V.(simpleType))
-	case BOOL:
+	case values.BOOL:
 		if v.V.(bool) {
 			return "true"
 		} else {
 			return "false"
 		}
-	case FLOAT:
+	case values.FLOAT:
 		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
-	case UNSAT:
+	case values.UNSAT:
 		return "unsatisfied conditional"
-	case NULL:
-		return "NULL"
-	case THUNK:
+	case values.NULL:
+		return "values.NULL"
+	case values.THUNK:
 		return "thunk"
-	case TUPLE:
-		result := make([]string, len(v.V.([]Value)))
-		for i, v := range v.V.([]Value) {
+	case values.TUPLE:
+		result := make([]string, len(v.V.([]values.Value)))
+		for i, v := range v.V.([]values.Value) {
 			result[i] = vm.describe(v)
 		}
 		prefix := "("
@@ -386,24 +387,24 @@ func (vm *Vm) describe(v Value) string {
 			prefix = "tuple("
 		}
 		return prefix + strings.Join(result, ", ") + ")"
-	case ERROR:
+	case values.ERROR:
 		ob := v.V.(*object.Error)
 		if ob.ErrorId != "eval/user" {
 			ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
 		}
 		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
-	case FUNC:
+	case values.FUNC:
 		return "lambda function"
-	case UNDEFINED_VALUE:
-		return "UNDEFINED VALUE! ERROR!"
+	case values.UNDEFINED_VALUE:
+		return "UNDEFINED VALUE! values.ERROR!"
 	}
 
 	panic("can't describe value")
 }
 
-func (vm *Vm) literal(v Value) string {
+func (vm *Vm) literal(v values.Value) string {
 	switch v.T {
-	case STRING:
+	case values.STRING:
 		return "\"" + v.V.(string) + "\""
 	default:
 		return vm.describe(v)

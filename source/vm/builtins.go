@@ -1,6 +1,9 @@
 package vm
 
-import "pipefish/source/token"
+import (
+	"pipefish/source/token"
+	"pipefish/source/values"
+)
 
 type functionAndReturnType struct {
 	f func(cp *Compiler, vm *Vm, tok *token.Token, dest uint32, args []uint32)
@@ -8,38 +11,38 @@ type functionAndReturnType struct {
 }
 
 var BUILTINS = map[string]functionAndReturnType{
-	"add_floats":        {(*Compiler).btAddFloats, singleType(FLOAT)},
-	"add_integers":      {(*Compiler).btAddIntegers, singleType(INT)},
-	"add_strings":       {(*Compiler).btAddStrings, singleType(STRING)},
-	"divide_floats":     {(*Compiler).btDivideFloats, alternateType{ERROR, FLOAT}},
-	"divide_integers":   {(*Compiler).btDivideIntegers, alternateType{ERROR, INT}},
-	"float_of_int":      {(*Compiler).btFloatOfInt, singleType(FLOAT)},
-	"float_of_string":   {(*Compiler).btFloatOfString, alternateType{ERROR, FLOAT}},
-	"gt_floats":         {(*Compiler).btGtFloats, singleType(BOOL)},
-	"gte_floats":        {(*Compiler).btGteFloats, singleType(BOOL)},
-	"gt_ints":           {(*Compiler).btGtInts, singleType(BOOL)},
-	"gte_ints":          {(*Compiler).btGteInts, singleType(BOOL)},
-	"int_of_float":      {(*Compiler).btIntOfFloat, alternateType{INT}},
-	"int_of_string":     {(*Compiler).btIntOfString, alternateType{ERROR, INT}},
-	"len_string":        {(*Compiler).btLenString, singleType(INT)},
-	"literal":           {(*Compiler).btLiteral, singleType(STRING)},
-	"lt_floats":         {(*Compiler).btLtFloats, singleType(BOOL)},
-	"lte_floats":        {(*Compiler).btLteFloats, singleType(BOOL)},
-	"lt_ints":           {(*Compiler).btLtInts, singleType(BOOL)},
-	"lte_ints":          {(*Compiler).btLteInts, singleType(BOOL)},
-	"make_error":        {(*Compiler).btMakeError, singleType(ERROR)},
-	"modulo_integers":   {(*Compiler).btModuloIntegers, alternateType{ERROR, INT}},
-	"multiply_floats":   {(*Compiler).btMultiplyFloats, singleType(FLOAT)},
-	"multiply_integers": {(*Compiler).btMultiplyIntegers, singleType(INT)},
-	"negate_float":      {(*Compiler).btNegateFloat, singleType(FLOAT)},
-	"negate_integer":    {(*Compiler).btNegateInteger, singleType(INT)},
-	"string":            {(*Compiler).btString, singleType(STRING)},
-	"subtract_floats":   {(*Compiler).btSubtractFloats, singleType(FLOAT)},
-	"subtract_integers": {(*Compiler).btSubtractIntegers, singleType(INT)},
+	"add_floats":        {(*Compiler).btAddFloats, altType(values.FLOAT)},
+	"add_integers":      {(*Compiler).btAddIntegers, altType(values.INT)},
+	"add_strings":       {(*Compiler).btAddStrings, altType(values.STRING)},
+	"divide_floats":     {(*Compiler).btDivideFloats, altType(values.ERROR, values.FLOAT)},
+	"divide_integers":   {(*Compiler).btDivideIntegers, altType(values.ERROR, values.INT)},
+	"float_of_int":      {(*Compiler).btFloatOfInt, altType(values.FLOAT)},
+	"float_of_string":   {(*Compiler).btFloatOfString, altType(values.ERROR, values.FLOAT)},
+	"gt_floats":         {(*Compiler).btGtFloats, altType(values.BOOL)},
+	"gte_floats":        {(*Compiler).btGteFloats, altType(values.BOOL)},
+	"gt_ints":           {(*Compiler).btGtInts, altType(values.BOOL)},
+	"gte_ints":          {(*Compiler).btGteInts, altType(values.BOOL)},
+	"int_of_float":      {(*Compiler).btIntOfFloat, altType(values.INT)},
+	"int_of_string":     {(*Compiler).btIntOfString, altType(values.ERROR, values.INT)},
+	"len_string":        {(*Compiler).btLenString, altType(values.INT)},
+	"literal":           {(*Compiler).btLiteral, altType(values.STRING)},
+	"lt_floats":         {(*Compiler).btLtFloats, altType(values.BOOL)},
+	"lte_floats":        {(*Compiler).btLteFloats, altType(values.BOOL)},
+	"lt_ints":           {(*Compiler).btLtInts, altType(values.BOOL)},
+	"lte_ints":          {(*Compiler).btLteInts, altType(values.BOOL)},
+	"make_error":        {(*Compiler).btMakeError, altType(values.ERROR)},
+	"modulo_integers":   {(*Compiler).btModuloIntegers, altType(values.ERROR, values.INT)},
+	"multiply_floats":   {(*Compiler).btMultiplyFloats, altType(values.FLOAT)},
+	"multiply_integers": {(*Compiler).btMultiplyIntegers, altType(values.INT)},
+	"negate_float":      {(*Compiler).btNegateFloat, altType(values.FLOAT)},
+	"negate_integer":    {(*Compiler).btNegateInteger, altType(values.INT)},
+	"string":            {(*Compiler).btString, altType(values.STRING)},
+	"subtract_floats":   {(*Compiler).btSubtractFloats, altType(values.FLOAT)},
+	"subtract_integers": {(*Compiler).btSubtractIntegers, altType(values.INT)},
 	"tuple_of_single?":  {(*Compiler).btTupleOfSingle, alternateType{finiteTupleType{}}},
 	"tuple_of_tuple":    {(*Compiler).btTupleOfTuple, alternateType{finiteTupleType{}}},
-	"type":              {(*Compiler).btType, singleType(TYPE)},
-	"type_of_tuple":     {(*Compiler).btTypeOfTuple, singleType(TYPE)},
+	"type":              {(*Compiler).btType, altType(values.TYPE)},
+	"type_of_tuple":     {(*Compiler).btTypeOfTuple, altType(values.TYPE)},
 }
 
 func (cp *Compiler) btAddFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -55,7 +58,7 @@ func (cp *Compiler) btAddStrings(vm *Vm, tok *token.Token, dest uint32, args []u
 }
 
 func (cp *Compiler) btDivideFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserve(vm, FLOAT, 0.0)
+	cp.reserve(vm, values.FLOAT, 0.0)
 	cp.put(vm, equf, args[2], vm.that())
 	cp.emit(vm, qtru, vm.that(), vm.codeTop()+3)
 	cp.reserveError(vm, "built/div/float", tok, []any{})
@@ -65,7 +68,7 @@ func (cp *Compiler) btDivideFloats(vm *Vm, tok *token.Token, dest uint32, args [
 }
 
 func (cp *Compiler) btDivideIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserve(vm, INT, 0)
+	cp.reserve(vm, values.INT, 0)
 	cp.put(vm, equi, args[2], vm.that())
 	cp.emit(vm, qtru, vm.that(), vm.codeTop()+3)
 	cp.reserveError(vm, "built/div/int", tok, []any{})
@@ -135,7 +138,7 @@ func (cp *Compiler) btMakeError(vm *Vm, tok *token.Token, dest uint32, args []ui
 }
 
 func (cp *Compiler) btModuloIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserve(vm, INT, 0)
+	cp.reserve(vm, values.INT, 0)
 	cp.put(vm, equi, args[2], vm.that())
 	cp.emit(vm, qtru, vm.that(), vm.codeTop()+3)
 	cp.reserveError(vm, "built/mod", tok, []any{})

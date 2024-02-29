@@ -2,92 +2,16 @@ package vm
 
 import (
 	"pipefish/source/set"
+	"pipefish/source/values"
 )
-
-const ( // Cross-reference with typeNames in blankVm()
-	UNDEFINED_VALUE simpleType = iota // For debugging purposes, it is useful to have the null value something it should never actually be.
-	THUNK
-	CREATED_LOCAL_CONSTANT
-	TUPLE
-	ERROR
-	UNSAT
-	REF
-	NULL
-	INT
-	BOOL
-	STRING
-	FLOAT
-	TYPE
-	FUNC
-	LIST
-	LB_ENUMS // I.e the first of the enums.
-)
-
-// TODO, think about this one.
-var ANY_TYPE = alternateType{NULL, INT, BOOL, STRING, FLOAT, TYPE, FUNC, typedTupleType{alternateType{NULL, INT, BOOL, STRING, FLOAT, TYPE, FUNC}}}
-
-type Value struct {
-	T simpleType
-	V any
-}
-
-var (
-	FALSE = Value{T: BOOL, V: false}
-	TRUE  = Value{T: BOOL, V: true}
-	U_OBJ = Value{T: UNSAT}
-)
-
-const (
-	C_FALSE = iota
-	C_TRUE
-	C_U_OBJ
-)
-
-type varAccess int
-
-const (
-	GLOBAL_CONSTANT_PUBLIC varAccess = iota
-	GLOBAL_VARIABLE_PUBLIC
-	FUNCTION_ARGUMENT
-	LOCAL_CONSTANT_THUNK
-	LOCAL_TRUE_CONSTANT
-	REFERENCE_VARIABLE
-	VERY_LOCAL_CONSTANT // i.e. 'that' when constant
-	VERY_LOCAL_VARIABLE // i.e. 'that' when variable
-)
-
-// Update with:
-var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, LOCAL_TRUE_CONSTANT, VERY_LOCAL_CONSTANT})
-
-type variable struct {
-	mLoc   uint32
-	access varAccess
-	types  alternateType
-}
-
-type environment struct {
-	data map[string]variable
-	ext  *environment
-}
-
-func newEnvironment() *environment {
-	return &environment{data: make(map[string]variable), ext: nil}
-}
-
-func (env *environment) getVar(name string) (*variable, bool) {
-	if env == nil {
-		return nil, false
-	}
-	v, ok := env.data[name]
-	if ok {
-		return &v, true
-	}
-	return env.ext.getVar(name)
-}
 
 type typeScheme interface {
 	compare(u typeScheme) int
 }
+
+// TODO, think about this one.
+var ANY_TYPE = alternateType{tp(values.NULL), tp(values.INT), tp(values.BOOL), tp(values.STRING), tp(values.FLOAT), tp(values.TYPE),
+	tp(values.FUNC), typedTupleType{alternateType{tp(values.NULL), tp(values.INT), tp(values.BOOL), tp(values.STRING), tp(values.FLOAT), tp(values.TYPE), tp(values.FUNC)}}}
 
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
 // This allows us to figure out if we need to generate a check on the length of a tuple or whether we can take it for granted
@@ -384,6 +308,14 @@ func (t listType) compare(u typeScheme) int {
 	}
 }
 
-func singleType(t simpleType) alternateType {
-	return alternateType{t}
+func altType(t ...values.ValueType) alternateType {
+	result := make(alternateType, len(t))
+	for i, v := range t {
+		result[i] = simpleType(v)
+	}
+	return result
+}
+
+func tp(t values.ValueType) simpleType {
+	return simpleType(t)
 }
