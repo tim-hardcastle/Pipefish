@@ -1,8 +1,4 @@
-# 🧿 Pipefish
-
-## Welcome to Pipefish!
-
-<img align="right" width="200"  src="[https://picsum.photos/100/100](https://github.com/tim-hardcastle/Pipefish/blob/main/rsc/images/Rene.png)">
+# 🧿 Pipefish <img align="right" width="180"  src="https://github.com/tim-hardcastle/Pipefish/blob/main/rsc/images/Rene.png">
 
 Welcome to Pipefish, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. There are [batteries included](https://github.com/tim-hardcastle/Pipefish/wiki/Imports-and-libraries#libraries); there is [tooling](https://github.com/tim-hardcastle/Pipefish/wiki/Developing-in-Pipefish); there are plenty of features including some you've never heard or thought of.
 
