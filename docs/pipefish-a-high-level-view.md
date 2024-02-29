@@ -1,9 +1,9 @@
-# Charm: a high level view
+# Pipefish: a high level view
 
 ## 0. Introduction
-While Charm is a general-purpose language, it was particularly created to implement ideas about how people could more ergonomically create, manage, and use CRUD apps.
+While Pipefish is a general-purpose language, it was particularly created to implement ideas about how people could more ergonomically create, manage, and use CRUD apps.
 
-Charm was, roughly speaking, inspired by the thought: “People like databases and they like spreadsheets. Let's make a language which at a *very very* high level captures the things people like about them.” In part 1 of this document I will first explain which features of these apps I wish to emulate, and then briefly point out how Charm seeks to embody them. In part 2 I will point out some principles that I think apply generally to language design, and add a few notes on how these relate to the more distinctive decisions of the language design and to the aims of Charm in particular as set out in part 1.
+Pipefish was, roughly speaking, inspired by the thought: “People like databases and they like spreadsheets. Let's make a language which at a *very very* high level captures the things people like about them.” In part 1 of this document I will first explain which features of these apps I wish to emulate, and then briefly point out how Pipefish seeks to embody them. In part 2 I will point out some principles that I think apply generally to language design, and add a few notes on how these relate to the more distinctive decisions of the language design and to the aims of Pipefish in particular as set out in part 1.
 
 ## 1. A CRUD language
 
@@ -29,7 +29,7 @@ So, what *do* people like about databases and spreadsheets?
 
 * They don't crash (or at least, by design they don't crash). This last point follows from the previous ones. If we try to *perform a computation* where the *values* become nonsense, then it makes sense to return an error value saying "This is nonsense"; whereas in a more procedural language, if we try to *execute a process* where the *state* becomes nonsense, then we have to abort the process.
 
-These considerations lead us to Charm, a REPL-oriented, data-oriented, [functional core / imperative shell](https://github.com/tim-hardcastle/Charm/blob/main/docs/functional-core-imperative-shell.md) language which thinks that everything is a CRUD app, and which comes with extensive facilities to let you build DSLs to form the front-ends of Charm services. For your convenience the language comes wrapped in an invisible framework that lets you reconfigure a desktop app you interact with via its REPL as a backend service which you interact with via a client app. (While there are ways to put other front-ends on Charm, it is supposed that it will often, like SQL, be used as its own front-end.)
+These considerations lead us to Pipefish, a REPL-oriented, data-oriented, [functional core / imperative shell](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/functional-core-imperative-shell.md) language which thinks that everything is a CRUD app, and which comes with extensive facilities to let you build DSLs to form the front-ends of Pipefish services. For your convenience the language comes wrapped in an invisible framework that lets you reconfigure a desktop app you interact with via its REPL as a backend service which you interact with via a client app. (While there are ways to put other front-ends on Pipefish, it is supposed that it will often, like SQL, be used as its own front-end.)
 
 ## 2. Principles of design
 
@@ -55,14 +55,14 @@ The following properties seem generally desirable in a language. It should be:
 
 **Purposeful**. Again, it is 2023, some idea of what niche a language should fill is necessary.
 
-A functional language must particularly be composable, of course, and Charm is very much so. A functional language can (other things being equal) also be smaller than an imperative one, and more simply structured on a small scale.
+A functional language must particularly be composable, of course, and Pipefish is very much so. A functional language can (other things being equal) also be smaller than an imperative one, and more simply structured on a small scale.
 
-Charm is exceptionally hardcore about types considering that it’s technically a dynamic language. (I have learned from the mistakes of others.) This supplies a useful degree of intolerance.
+Pipefish is exceptionally hardcore about types considering that it’s technically a dynamic language. (I have learned from the mistakes of others.) This supplies a useful degree of intolerance.
 
 It achieves abstraction by multiple dispatch (with reflection and first-class types as backup). This allows a small consistent syntax that progresses from functions with untyped arguments to functions with typed arguments to functions with more than one version depending on the arguments.
 
-The functional core/imperative shell style that Charm enforces for reasons given in section 1 gives us great locality of code. It also allows a more familiar style of language than many FPLs.
+The functional core/imperative shell style that Pipefish enforces for reasons given in section 1 gives us great locality of code. It also allows a more familiar style of language than many FPLs.
 
-In particular, where issues of syntax, semantics, style or nomenclature seemed minor, I have copied from Go. (The reasons for the choice of Go in particular are laid out in [another document](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#why-go).) This makes it easier to use Charm as part of the Go ecosystem and vice-versa. It also allows me to reuse the work Google has put in on consistency, e.g. in the naming of library functions, the order of their parameters, etc. 
+In particular, where issues of syntax, semantics, style or nomenclature seemed minor, I have copied from Go. (The reasons for the choice of Go in particular are laid out in [another document](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/the-whys-of-Pipefish.md#why-go).) This makes it easier to use Pipefish as part of the Go ecosystem and vice-versa. It also allows me to reuse the work Google has put in on consistency, e.g. in the naming of library functions, the order of their parameters, etc. 
 
-The fact that Charm is a REPL language gives us many ways to make things easy for the user. For example, it enables progressive disclosure of error messages, so that the user can be presented with a concise, readable summary of what went wrong and can then ask for further information at need.
+The fact that Pipefish is a REPL language gives us many ways to make things easy for the user. For example, it enables progressive disclosure of error messages, so that the user can be presented with a concise, readable summary of what went wrong and can then ask for further information at need.
