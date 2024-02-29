@@ -37,6 +37,7 @@ type lambda struct {
 	prmTop    uint32
 	dest      uint32
 	locToCall uint32
+	captures  []Value
 }
 
 func (vm *Vm) memTop() uint32 {
@@ -98,7 +99,7 @@ func blankVm() *Vm {
 	newVm := &Vm{mem: CONSTANTS}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	newVm.typeNames = []string{"UNDEFINED VALUE!!! ERROR!", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
-		"int", "bool", "string", "float64", "type", "func"}
+		"int", "bool", "string", "float64", "type", "func", "list"}
 	return newVm
 }
 
@@ -166,6 +167,7 @@ loop:
 			for i := 0; i < int(lhs.prmTop-lhs.extTop); i++ {
 				lhs.vm.mem[int(lhs.extTop)+i] = vm.mem[args[2+i]]
 			}
+			copy(lhs.captures, vm.mem)
 			lhs.vm.Run(lhs.locToCall)
 			vm.mem[args[0]] = lhs.vm.mem[lhs.dest]
 		case dref:
@@ -224,8 +226,9 @@ loop:
 		case mkfn:
 			lf := vm.lambdaFactories[args[1]]
 			newLambda := *lf.model
+			newLambda.captures = make([]Value, len(lf.extMem))
 			for i, v := range lf.extMem {
-				newLambda.vm.code[i] = vm.code[v]
+				newLambda.captures[i] = vm.mem[v]
 			}
 			vm.mem[args[0]] = Value{FUNC, newLambda}
 		case modi:
@@ -349,6 +352,12 @@ func (vm *Vm) describe(v Value) string {
 	switch v.T {
 	case INT:
 		return strconv.Itoa(v.V.(int))
+	case LIST:
+		result := make([]string, len(v.V.([]Value)))
+		for i, v := range v.V.([]Value) {
+			result[i] = vm.describe(v)
+		}
+		return "[" + strings.Join(result, ", ") + ")"
 	case STRING:
 		return v.V.(string)
 	case TYPE:

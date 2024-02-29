@@ -19,8 +19,12 @@ const ( // Cross-reference with typeNames in blankVm()
 	FLOAT
 	TYPE
 	FUNC
+	LIST
 	LB_ENUMS // I.e the first of the enums.
 )
+
+// TODO, think about this one.
+var ANY_TYPE = alternateType{NULL, INT, BOOL, STRING, FLOAT, TYPE, FUNC, typedTupleType{alternateType{NULL, INT, BOOL, STRING, FLOAT, TYPE, FUNC}}}
 
 type Value struct {
 	T simpleType
@@ -321,7 +325,7 @@ func (t finiteTupleType) compare(u typeScheme) int {
 	}
 }
 
-type typedTupleType struct { // We don't know how long it is but we know what its elements are. (or we can say 'single' if we don't.)
+type typedTupleType struct { // We don't know how long it is but we know what its elements are. (or we can say 'single?' if we don't.)
 	t alternateType
 }
 
@@ -357,6 +361,29 @@ func (t blingType) compare(u typeScheme) int {
 	}
 }
 
-func simpleList(t simpleType) alternateType {
+type listType []typeScheme
+
+func (t listType) compare(u typeScheme) int {
+	switch u := u.(type) {
+	case simpleType, finiteTupleType, typedTupleType, blingType:
+		return 1
+	case listType:
+		diff := len(t) - len(u)
+		if diff != 0 {
+			return diff
+		}
+		for i := 0; i < len(t); i++ {
+			diff := (t)[i].compare((u)[i])
+			if diff != 0 {
+				return diff
+			}
+		}
+		return 0
+	default:
+		return -1
+	}
+}
+
+func singleType(t simpleType) alternateType {
 	return alternateType{t}
 }
