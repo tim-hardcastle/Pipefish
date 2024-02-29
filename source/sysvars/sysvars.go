@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"charm/source/object"
+	"pipefish/source/object"
 )
 
 // This was written before variables had types even, and should be rewritten.
@@ -20,7 +20,7 @@ var Sysvars = map[string]sysvar{
 		Validator: func(obj object.Object) string {
 			switch obj := obj.(type) {
 			case *object.String:
-				if obj.Value != "charm" && obj.Value != "plain" {
+				if obj.Value != "" && obj.Value != "plain" {
 					return "sys/view/vals"
 				}
 				return ""
@@ -47,9 +47,9 @@ var Sysvars = map[string]sysvar{
 			case *object.String:
 				if obj.Value == "stdout" {
 					return ""
-				} 
+				}
 				_, err := os.Stat(filepath.Dir(obj.Value))
-						if err != nil {
+				if err != nil {
 					return "sys/logpath/path"
 				}
 				return ""

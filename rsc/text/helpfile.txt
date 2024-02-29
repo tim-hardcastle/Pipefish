@@ -26,7 +26,7 @@ peek
 
 'hub peek on' will allow you to see what the lexer, relexer, and parser are doing; 'hub peek off' turns this off, and 'hub peek' without a parameter toggles between on and off.
 
-This feature is basically for my convenience and not for yours, and it is not guaranteed to be stable, or to work properly, or not to crash Charm.
+This feature is basically for my convenience and not for yours, and it is not guaranteed to be stable, or to work properly, or not to crash Pipefish.
 
 ***
 reset
@@ -58,9 +58,9 @@ snap
 
 The 'hub snap' command allows you to record your interactions with the REPL for testing purposes
 
-The syntax is either 'hub snap "<filename>"' or 'hub snap "<filename>" as "<test filename>"'. If no test file name is given Charm will supply a suitable one, and if no data file is supplied Charm will just initialize the service as usual.
+The syntax is either 'hub snap "<filename>"' or 'hub snap "<filename>" as "<test filename>"'. If no test file name is given Pipefish will supply a suitable one, and if no data file is supplied Pipefish will just initialize the service as usual.
 
-Charm will then turn serialization on, so that you can tell the difference between "true" and 'true'; and between four spaces and a tab, etc.
+Pipefish will then turn serialization on, so that you can tell the difference between "true" and 'true'; and between four spaces and a tab, etc.
 
 And then what you type and the service's responses will be recorded. (There will be a '#snap →' prompt to remind you that this is what you're doing.) To finish recording, you tell it what to do with the snap:
 
@@ -69,7 +69,7 @@ And then what you type and the service's responses will be recorded. (There will
 * 'hub snap record' : I want to be able to replay this and see how the output changes as I change the script and/or data
 * 'hub snap discard' : I don't need this
 
-All the tests classed good or bad associated with a script will be run by 'hub test "<script filename>"'. As an example, try running 'hub test "examples/testall.ch"': Charm will run the associated test in the 'tst' folder and hopefully confirm that the interpreter hasn't regressed since I wrote this bit of the manual.
+All the tests classed good or bad associated with a script will be run by 'hub test "<script filename>"'. As an example, try running 'hub test "examples/testall.pf"': Pipefish will run the associated test in the 'tst' folder and hopefully confirm that the interpreter hasn't regressed since I wrote this bit of the manual.
 
 To run a test classed as record, use 'hub replay "<test filename>"'.
 
@@ -86,7 +86,7 @@ test
 ***
 continuations
 
-Charm expects the end of a line to coincide with the end of an expression, i.e. you can't write something like this:
+Pipefish expects the end of a line to coincide with the end of an expression, i.e. you can't write something like this:
 
 |-----------------------------------------------
 
@@ -115,7 +115,7 @@ bar = 1, 2, 3,
 ***
 overloading
 
-It is possible to overload functions in Charm: the following code works as you'd expect it to:
+It is possible to overload functions in Pipefish: the following code works as you'd expect it to:
 
 |-----------------------------------------------
 
@@ -131,7 +131,7 @@ twice(b bool) :
 
 |-
 
-In deciding which version of a function to use, Charm will look at the types of the parameters it's passed. When a value could be accepted by more than one version of a function, Charm will use the version with the most specific type signature. So in the example above, both the second version of the function and the fourth could equally well accept an integer, but Charm will always use the second version because 'int' is a subtype of 'any'.
+In deciding which version of a function to use, Pipefish will look at the types of the parameters it's passed. When a value could be accepted by more than one version of a function, Pipefish will use the version with the most specific type signature. So in the example above, both the second version of the function and the fourth could equally well accept an integer, but Pipefish will always use the second version because 'int' is a subtype of 'any'.
 
 In the unlikely event that you defined functions in such a way that this can't always be resolved, for example like this:
 
@@ -145,9 +145,9 @@ integersFirst(a any, i int) : i, a
 
 |-
 
-... then Charm will throw an error when it tries to initialize the script. (The problem being, if you passed two integers to 'integersFirst' then Charm wouldn't be able to resolve which version of the function to use.
+... then Pipefish will throw an error when it tries to initialize the script. (The problem being, if you passed two integers to 'integersFirst' then Pipefish wouldn't be able to resolve which version of the function to use.
 
-Most things in Charm can be overloaded, including the arithmetic operators, This, for example, works:
+Most things in Pipefish can be overloaded, including the arithmetic operators, This, for example, works:
 
 |-----------------------------------------------
 
@@ -166,7 +166,7 @@ This sort of ad-hoc polymorphism can lead to bad code and should be used with ca
 ***
 functions
 
-Functions in Charm are defined in the 'def' section. Here is an example of a simple function:
+Functions in Pipefish are defined in the 'def' section. Here is an example of a simple function:
 
 |-----------------------------------------------
 
@@ -269,7 +269,7 @@ Local constants are defined in the 'given' block of a function. For more informa
 ***
 comments
 
-Comments begin with '//' and are simply ignored by Charm when it tries to make sense of your program, e.g. if you write
+Comments begin with '//' and are simply ignored by Pipefish when it tries to make sense of your program, e.g. if you write
 
 |-----------------------------------------------
 
@@ -283,7 +283,7 @@ foo = "walrus"
 
 |-
 
-then to Charm this will read the same as if you'd just written
+then to Pipefish this will read the same as if you'd just written
 
 
 |-----------------------------------------------
@@ -297,11 +297,11 @@ foo = "walrus"
 ***
 headwords
 
-Charm's headwords are 'def', 'cmd', 'var', 'import', 'contacts' and 'languages'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
+Pipefish's headwords are 'def', 'cmd', 'var', 'import', 'contacts' and 'languages'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
 
 A headword my occur more than once in the script, with the exception of 'import', which, if it occurs, must do so only once, at the top.
 
-Your script must (with the exception of comments) begin with some headword, since without one Charm doesn't know what you want to do with the code.
+Your script must (with the exception of comments) begin with some headword, since without one Pipefish doesn't know what you want to do with the code.
 
 For further information, see the help files on the individual headwords, e.g. 'hub help "import"'.
 
@@ -314,8 +314,8 @@ The import section consists of filepaths expressed as string constants and separ
 
 import
 
-"lib/owlTools.ch"
-"lib/walrusUtils.ch"
+"lib/owlTools.pf"
+"lib/walrusUtils.pf"
 
 |-
 
@@ -325,8 +325,8 @@ These will automatically be put into the namespaced 'owlTools' and 'walrusUtils'
 
 import
 
-"lib/owlTools.ch"::"owl"
-"lib/walrusUtils.ch"::""
+"lib/owlTools.pf"::"owl"
+"lib/walrusUtils.pf"::""
 
 |-
 
@@ -360,7 +360,7 @@ set (y) :
 ***
 var
 
-'var' is one of Charm's headwords (see 'hub help "headwords"' for an explanation).
+'var' is one of Pipefish's headwords (see 'hub help "headwords"' for an explanation).
 
 In the 'var' section of the script you can declare variables. Their type is inferred as narrowly as possible unless you explicitly declare them of wider type. E.g. given the following declarations ...
 
@@ -419,7 +419,7 @@ For more information see 'hub help "private"', 'hub help "cmd"', 'hub help "var"
 ***
 types
 
-Charm has the usual basic types, 'int', 'float64', 'string', and 'bool'.
+Pipefish has the usual basic types, 'int', 'float64', 'string', and 'bool'.
 
 It has a 'null' type containing only the value 'NULL'.
 
@@ -475,9 +475,9 @@ For more information on anonymous functions, see 'hub help "func"'.
 ***
 errors
 
-The 'error' type in Charm has the following properties:
+The 'error' type in Pipefish has the following properties:
 
-(1) With almost all functions/operations, the result of taking an error as a parameter is to return that same error as a result. This includes the ',' operator: concatenating an error with anything else returns the error. It also includes assignment to a variable: Charm will never actually assign an error to the variable, but will pass the error up the stack as usual.
+(1) With almost all functions/operations, the result of taking an error as a parameter is to return that same error as a result. This includes the ',' operator: concatenating an error with anything else returns the error. It also includes assignment to a variable: Pipefish will never actually assign an error to the variable, but will pass the error up the stack as usual.
 
 (2) If an error is assigned to a local constant, this is not passed up the stack unless the value of the constant is actually used.
 
@@ -493,7 +493,7 @@ The 'def' section is where you define structs, constants, and functions. For mor
 ***
 eval
 
-'eval <string>' evaluates a string as though it was a Charm expression, e.g. 'eval "2 + 2"' will return '4'.
+'eval <string>' evaluates a string as though it was a Pipefish expression, e.g. 'eval "2 + 2"' will return '4'.
 
 ***
 struct

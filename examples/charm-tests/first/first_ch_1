@@ -1,9 +1,0 @@
-snap: good
-script: examples/first.ch
-
--> factorial 6
-720
--> greet
-"What's your name? "
--> Tim
-"Hello Tim!"

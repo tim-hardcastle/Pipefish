@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"charm/source/object"
-	"charm/source/text"
+	"pipefish/source/object"
+	"pipefish/source/text"
 
 	"bytes"
 	"fmt"

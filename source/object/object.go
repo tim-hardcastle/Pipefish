@@ -4,9 +4,9 @@ import (
 	"hash/fnv"
 	"strconv"
 
-	"charm/source/ast"
-	"charm/source/signature"
-	"charm/source/token"
+	"pipefish/source/ast"
+	"pipefish/source/signature"
+	"pipefish/source/token"
 )
 
 ////////////////////////////

@@ -24,17 +24,17 @@ import (
 	"os"
 	"strings"
 
-	"charm/source/ast"
-	"charm/source/digraph"
-	"charm/source/evaluator"
-	"charm/source/object"
-	"charm/source/parser"
-	"charm/source/relexer"
+	"pipefish/source/ast"
+	"pipefish/source/digraph"
+	"pipefish/source/evaluator"
+	"pipefish/source/object"
+	"pipefish/source/parser"
+	"pipefish/source/relexer"
 
-	"charm/source/signature"
-	"charm/source/sysvars"
-	"charm/source/token"
-	"charm/source/tokenized_code_chunk"
+	"pipefish/source/signature"
+	"pipefish/source/sysvars"
+	"pipefish/source/token"
+	"pipefish/source/tokenized_code_chunk"
 )
 
 type Section int
@@ -125,7 +125,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
-	init.addToNameSpace([]string{"rsc/charm/builtins.ch", "rsc/charm/world.ch"})
+	init.addToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf"})
 	init.ParseImports()
 	if init.ErrorsExist() {
 		return newService, init
@@ -232,7 +232,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
 
-		// if tok.Source != "rsc/charm/world.ch" && tok.Source != "rsc/charm/builtins.ch" && tok.Source != "rsc/charm/hub.ch" {
+		// if tok.Source != "rsc/pipefish/world.pf" && tok.Source != "rsc/pipefish/builtins.pf" && tok.Source != "rsc/pipefish/hub.pf" {
 		// 	println("token is", tok.Type, tok.Literal)
 		// }
 

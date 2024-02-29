@@ -1,10 +1,10 @@
 package parser
 
 import (
-	"charm/source/text"
 	"fmt"
 	"os"
 	"path/filepath"
+	"pipefish/source/text"
 	"strings"
 )
 
@@ -51,7 +51,7 @@ func (sn *Snap) Save(st string) string {
 	fname := filepath.Base((*sn).scriptFilepath)
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
 	dname := filepath.Dir((*sn).scriptFilepath)
-	directoryName := dname + "/charm-tests/" + fname
+	directoryName := dname + "/-tests/" + fname
 	err := os.MkdirAll(directoryName, 0777)
 	if err != nil {
 		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"

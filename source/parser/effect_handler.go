@@ -10,8 +10,8 @@ import (
 	"io"
 	"strings"
 
-	"charm/source/object"
-	"charm/source/text"
+	"pipefish/source/object"
+	"pipefish/source/text"
 
 	"github.com/lmorg/readline"
 )
@@ -56,7 +56,7 @@ func (oH *standardOutHandler) Out(vals []object.Object, p *Parser, env *object.E
 
 	elements := []string{}
 	for _, e := range vals {
-		if viewStr == "charm" {
+		if viewStr == "pipefish" {
 			elements = append(elements, p.Serialize(e, LITERAL))
 		}
 		if viewStr == "plain" {

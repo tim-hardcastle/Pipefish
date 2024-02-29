@@ -27,8 +27,8 @@ package digraph
 // the digraph: if the cycle is of length zero then the list is valid.
 
 import (
-	"charm/source/set"
 	"fmt"
+	"pipefish/source/set"
 )
 
 type Digraph[E comparable] map[E]set.Set[E]
