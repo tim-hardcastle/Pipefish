@@ -1,7 +1,7 @@
 package relexer
 
 import (
-	"charm/source/token"
+	"pipefish/source/token"
 	"testing"
 )
 

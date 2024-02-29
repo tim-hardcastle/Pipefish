@@ -1,6 +1,6 @@
 package vm
 
-import "charm/source/token"
+import "pipefish/source/token"
 
 type functionAndReturnType struct {
 	f func(cp *Compiler, vm *Vm, tok *token.Token, dest uint32, args []uint32)

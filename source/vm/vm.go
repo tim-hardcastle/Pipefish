@@ -1,9 +1,9 @@
 package vm
 
 import (
-	"charm/source/object"
-	"charm/source/text"
-	"charm/source/token"
+	"pipefish/source/object"
+	"pipefish/source/text"
+	"pipefish/source/token"
 
 	"strconv"
 	"strings"

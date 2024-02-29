@@ -3,10 +3,10 @@ package evaluator
 import (
 	"strconv"
 
-	"charm/source/object"
-	"charm/source/parser"
-	"charm/source/signature"
-	"charm/source/token"
+	"pipefish/source/object"
+	"pipefish/source/parser"
+	"pipefish/source/signature"
+	"pipefish/source/token"
 )
 
 // While 'database.go' contains the means for the hub to use the database for RBAM purposes,
@@ -139,7 +139,7 @@ func parseSQL(snippet *object.Struct, tok *token.Token, c *Context) (string, []a
 		parsedCharm := c.prsr.ParseLine(tok.Source, charmToEvaluate)
 		if c.prsr.ErrorsExist() {
 			c.prsr.ClearErrors()
-			return "", args, newError("sql/charm", tok, charmToEvaluate)
+			return "", args, newError("sql/", tok, charmToEvaluate)
 		}
 		charmValue := Eval(parsedCharm, context)
 		switch charmValue := charmValue.(type) {

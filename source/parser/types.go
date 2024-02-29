@@ -3,10 +3,10 @@ package parser
 import (
 	"strconv"
 
-	"charm/source/ast"
-	"charm/source/digraph"
-	"charm/source/object"
-	"charm/source/signature"
+	"pipefish/source/ast"
+	"pipefish/source/digraph"
+	"pipefish/source/object"
+	"pipefish/source/signature"
 )
 
 type TypeSystem = *digraph.Digraph[string]

@@ -13,10 +13,10 @@ package relexer
 // but in lots of small passes.
 
 import (
-	"charm/source/lexer"
-	"charm/source/object"
-	"charm/source/stack"
-	"charm/source/token"
+	"pipefish/source/lexer"
+	"pipefish/source/object"
+	"pipefish/source/stack"
+	"pipefish/source/token"
 
 	"fmt"
 	"strconv"

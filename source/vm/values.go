@@ -1,7 +1,7 @@
 package vm
 
 import (
-	"charm/source/set"
+	"pipefish/source/set"
 )
 
 const ( // Cross-reference with typeNames in blankVm()

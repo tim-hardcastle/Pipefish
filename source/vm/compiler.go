@@ -1,11 +1,11 @@
 package vm
 
 import (
-	"charm/source/ast"
-	"charm/source/object"
-	"charm/source/parser"
-	"charm/source/set"
-	"charm/source/token"
+	"pipefish/source/ast"
+	"pipefish/source/object"
+	"pipefish/source/parser"
+	"pipefish/source/set"
+	"pipefish/source/token"
 )
 
 const SHOW_COMPILE = true

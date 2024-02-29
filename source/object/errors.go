@@ -3,8 +3,8 @@ package object
 import (
 	"strconv"
 
-	"charm/source/text"
-	"charm/source/token"
+	"pipefish/source/text"
+	"pipefish/source/token"
 )
 
 // This handles the creation of errors, their messages, and their explanations, and the maintainance

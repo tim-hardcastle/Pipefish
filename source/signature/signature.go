@@ -1,7 +1,7 @@
 package signature
 
 import (
-	"charm/source/set"
+	"pipefish/source/set"
 )
 
 type NameTypePair struct {

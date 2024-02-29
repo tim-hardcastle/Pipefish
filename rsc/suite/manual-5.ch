@@ -1,7 +1,7 @@
 import
 
-"lib/strings.ch"
-NULL::"lib/math.ch"
+"lib/strings.pf"
+NULL::"lib/math.pf"
 
 // tests in REPL.
 

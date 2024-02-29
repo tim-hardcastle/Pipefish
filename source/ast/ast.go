@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"reflect"
 
-	"charm/source/set"
-	"charm/source/signature"
-	"charm/source/token"
+	"pipefish/source/set"
+	"pipefish/source/signature"
+	"pipefish/source/token"
 )
 
 // The base Node interface

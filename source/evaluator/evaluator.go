@@ -10,13 +10,13 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"charm/source/ast"
-	"charm/source/object"
-	"charm/source/parser"
-	"charm/source/signature"
-	"charm/source/sysvars"
-	"charm/source/text"
-	"charm/source/token"
+	"pipefish/source/ast"
+	"pipefish/source/object"
+	"pipefish/source/parser"
+	"pipefish/source/signature"
+	"pipefish/source/sysvars"
+	"pipefish/source/text"
+	"pipefish/source/token"
 )
 
 var (
@@ -1899,7 +1899,7 @@ func preparseContactExpression(snippet string, tok *token.Token, c *Context) (st
 		parsedCharm := c.prsr.ParseLine(tok.Source, charmToEvaluate)
 		if c.prsr.ErrorsExist() {
 			c.prsr.ClearErrors()
-			return "", newError("eval/contact/charm", tok, charmToEvaluate)
+			return "", newError("eval/contact/", tok, charmToEvaluate)
 		}
 		charmValue := Eval(parsedCharm, c)
 		switch charmValue := charmValue.(type) {

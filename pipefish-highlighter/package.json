@@ -1,0 +1,25 @@
+{
+    "name": "pipefish-highlighter",
+    "displayName": "Pipefish highlighter",
+    "description": "A basic highlighter and autoindenter for Pipefish.",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.65.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "pipefish",
+            "aliases": ["Pipefish", "pipefish"],
+            "extensions": [".pf",".pfish"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "pipefish",
+            "scopeName": "source.pipefish",
+            "path": "./syntaxes/pipefish.tmLanguage.json"
+        }]
+    }
+}

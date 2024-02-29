@@ -1,10 +1,10 @@
 package vm
 
 import (
-	"charm/source/ast"
-	"charm/source/initializer"
-	"charm/source/parser"
-	"charm/source/token"
+	"pipefish/source/ast"
+	"pipefish/source/initializer"
+	"pipefish/source/parser"
+	"pipefish/source/token"
 
 	"database/sql"
 )
@@ -43,7 +43,7 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 
-	vmm.uP.AddToNameSpace([]string{"rsc/charm/test.ch"}) // , "rsc/charm/world.ch"
+	vmm.uP.AddToNameSpace([]string{"rsc/pipefishtest.ch"}) // , "rsc/pipefishworld.ch"
 	vmm.uP.ParseImports()
 	if vmm.uP.ErrorsExist() {
 		return

@@ -1,8 +1,8 @@
 package tokenized_code_chunk
 
 import (
-	"charm/source/token"
 	"fmt"
+	"pipefish/source/token"
 )
 
 type TokenizedCodeChunk struct {

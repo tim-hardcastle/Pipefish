@@ -1,0 +1,87 @@
+{	"name": "pipefish",
+	
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{	
+			"include": "#headwords"
+		},
+		{
+			"include": "#strings"
+		},
+		{	
+			"include": "#comments"
+		},
+		{
+			"include": "#punctuation"
+		},
+		{
+			"include": "#continuations"
+		},
+		{	
+			"include": "#logging"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.pipefish",
+				"match": "\\b(else|given|loop|break|stop|given|eval|gocode|global|true|false|and|or|not|raw|ast|ident|ref)\\b"
+			}]
+		},
+		"headwords": {
+                        "patterns": [{
+                                "name": "constant.other.pipefish",
+                                "match": "\\b(import|def|var|cmd|private|languages|contacts)\\b"
+                        }]
+                },
+		"strings": {
+			"patterns": [
+				{
+				"name":"string.quoted.single.pipefish",
+				"begin": "`",
+				"end": "`"
+				},
+				{
+				"name":"string.quoted.double.pipefish",
+				"match": "\"[^\"\\\\]*(\\\\.[^\"\\\\]*)*\""
+				}
+			]
+		},
+		"comments": {
+			"patterns": [				
+				{
+				"name": "comment.pipefish",
+				"begin": "//",
+				"end": "\n"
+				}
+			]
+		},
+		"logging": {
+                        "patterns": [
+                                {
+                                "name": "variable.other.pipefish",
+                                "match": "\\\\\\\\([^\\/]|\/[^\\/])*"
+                                }
+                        ]
+                },
+		"punctuation": {
+			"patterns": [
+				{
+				"name": "keyword.pipefish",
+				"match": "(==|!=|->|\\?>|\\>>|:|::|->|;|---)"
+				}
+			]
+		},
+		"continuations": {
+                        "patterns": [
+                                {
+                                "name": "constant.other.pipefish",
+                                "match": "(,)\\s*$|(\\.\\.)\\s*$|^\\s*(\\.\\.)"
+                                }
+                        ]
+                } 
+	},
+	"scopeName": "source.pipefish"
+}

@@ -9,7 +9,7 @@ import (
 
 	"path/filepath"
 
-	"charm/source/token"
+	"pipefish/source/token"
 )
 
 const (
@@ -76,10 +76,10 @@ func Yellow(s string) string {
 
 func Logo() string {
 	var padding string
-	if len(VERSION)%2 == 0 {
+	if len(VERSION)%2 == 1 {
 		padding = ","
 	}
-	titleText := " Charm" + padding + " version " + VERSION + " "
+	titleText := " Pipefish" + padding + " version " + VERSION + " "
 	loveHeart := Red("♥")
 	leftMargin := "  "
 	bar := strings.Repeat("═", len(titleText)/2)

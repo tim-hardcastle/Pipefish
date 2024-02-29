@@ -17,19 +17,15 @@ import (
 	"strconv"
 	"strings"
 
-	"charm/source/database"
-	"charm/source/evaluator"
-	"charm/source/initializer"
-	"charm/source/lexer"
-	"charm/source/object"
-	"charm/source/parser"
-	"charm/source/relexer"
-	"charm/source/text"
-	"charm/source/vm"
-
-	//"charm/source/vm"
-
-	"github.com/lmorg/readline"
+	"pipefish/source/database"
+	"pipefish/source/evaluator"
+	"pipefish/source/initializer"
+	"pipefish/source/lexer"
+	"pipefish/source/object"
+	"pipefish/source/parser"
+	"pipefish/source/relexer"
+	"pipefish/source/text"
+	"pipefish/source/vm"
 )
 
 var (
@@ -522,7 +518,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.snap = parser.NewSnap(scriptFilepath, testFilepath)
 		hub.oldServiceName = hub.currentServiceName
 		if hub.Start(username, "#snap", scriptFilepath) {
-			ServiceDo((*hub).services["#snap"], "$view = \"charm\"")
+			ServiceDo((*hub).services["#snap"], "$view = \"\"")
 			hub.WriteString("Serialization is ON.\n")
 			hub.services[hub.currentServiceName].Parser.EffHandle =
 				parser.MakeSnapEffectHandler(hub.out, *hub.services[hub.currentServiceName].Env, hub.snap)
@@ -612,7 +608,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			}
 
 			for _, potentialCharmFile := range files {
-				if filepath.Ext(potentialCharmFile.Name()) == ".ch" {
+				if filepath.Ext(potentialCharmFile.Name()) == ".pf" {
 					hub.TestScript(args[0]+"/"+potentialCharmFile.Name(), parser.ERROR_CHECK)
 				}
 			}
@@ -781,7 +777,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 	fname := filepath.Base(scriptFilepath)
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
 	dname := filepath.Dir(scriptFilepath)
-	directoryName := dname + "/charm-tests/" + fname
+	directoryName := dname + "/-tests/" + fname
 	name := text.FlattenedFilename(scriptFilepath) + "_"
 
 	tryNumber := 1
@@ -799,7 +795,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 
 func (hub *Hub) quit() {
 	hub.save()
-	hub.WriteString(text.OK + "\n" + text.Logo() + "Thank you for using Charm. Have a nice day!\n\n")
+	hub.WriteString(text.OK + "\n" + text.Logo() + "Thank you for using Pipefish. Have a nice day!\n\n")
 }
 
 func (hub *Hub) help() {
@@ -1105,7 +1101,7 @@ func (hub *Hub) TestScript(scriptFilepath string, testOutputType parser.TestOutp
 	fname := filepath.Base(scriptFilepath)
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
 	dname := filepath.Dir(scriptFilepath)
-	directoryName := dname + "/charm-tests/" + fname
+	directoryName := dname + "/-tests/" + fname
 
 	hub.oldServiceName = hub.currentServiceName
 	files, _ := os.ReadDir(directoryName)
@@ -1146,7 +1142,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType pars
 	if testOutputType == parser.ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
-	ServiceDo((*hub).services["#test"], "$view = \"charm\"")
+	ServiceDo((*hub).services["#test"], "$view = \"\"")
 	service := (*hub).services["#test"]
 	_ = scanner.Scan() // eats the newline
 	executionMatchesTest := true
@@ -1213,7 +1209,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	scriptFilepath := (scanner.Text())[8:]
 	scanner.Scan()
 	hub.Start("", "#test", scriptFilepath)
-	ServiceDo((*hub).services["#test"], "$view = \"charm\"")
+	ServiceDo((*hub).services["#test"], "$view = \"\"")
 	service := (*hub).services["#test"]
 	service.Parser.EffHandle = parser.MakeTestEffectHandler(hub.out, *service.Env, scanner, parser.SHOW_ALL)
 	_ = scanner.Scan() // eats the newline
@@ -1241,7 +1237,7 @@ func objToString(service *parser.Service, obj object.Object) string {
 
 	value, _ := service.Parser.AllGlobals.Get("$view")
 	switch value.(*object.String).Value {
-	case "charm":
+	case "":
 		return service.Parser.Serialize(obj, parser.LITERAL)
 	case "plain":
 		return service.Parser.Serialize(obj, parser.PLAIN)
