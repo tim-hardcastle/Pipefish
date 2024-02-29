@@ -1,10 +1,10 @@
 package parser
 
 import (
-	"charm/source/ast"
-	"charm/source/object"
-	"charm/source/signature"
-	"charm/source/token"
+	"pipefish/source/ast"
+	"pipefish/source/object"
+	"pipefish/source/signature"
+	"pipefish/source/token"
 )
 
 type FunctionTable map[string][]ast.Function

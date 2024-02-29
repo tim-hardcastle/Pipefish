@@ -1,6 +1,6 @@
-# Style guide for Charm
+# Style guide for Pipefish
 
-Despite Charm’s affinity with Go, the style is a little more like Java, for [reasons](https://github.com/tim-hardcastle/Charm/blob/main/docs/the-whys-of-charm.md#ok-then-why-isnt-it-more-like-go).
+Despite Pipefish’s affinity with Go, the style is a little more like Java, for [reasons](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/the-whys-of-pipefish.md#ok-then-why-isnt-it-more-like-go).
 
 Names of functions, variables, *local* constants, and the fields of structs should be in camelCase. Exceptions are single-letter variables as parameters of inner functions, which can usefully be capitalized to suggest a container type, e.g. `L` for a list, `M` for a map.
 
@@ -16,4 +16,4 @@ Infix operators should be separated by spaces from their operands on either side
 * `,` and `;` should be followed but not preceeded a space.
 * The `::` operator should be neither preceded nor followed by a space.
 
-The perhaps excessive flexibility of Charm’s syntax is there to clarify and not to befuddle. The fancier forms of functions can certainly be used (a) to provide a DSL for the end-user of a service (b) to emulate mathematical notation where this is suitable. Otherwise, this feature should be used with caution. Further guidance will be provided when I have decided what it should be.
+The perhaps excessive flexibility of Pipefish’s syntax is there to clarify and not to befuddle. The fancier forms of functions can certainly be used (a) to provide a DSL for the end-user of a service (b) to emulate mathematical notation where this is suitable. Otherwise, this feature should be used with caution. Further guidance will be provided when I have decided what it should be.

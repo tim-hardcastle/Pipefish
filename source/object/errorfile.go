@@ -1,8 +1,8 @@
 package object
 
 import (
-	"charm/source/text"
-	"charm/source/token"
+	"pipefish/source/text"
+	"pipefish/source/token"
 
 	"fmt"
 	"strconv"
@@ -47,7 +47,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Because 'x * 0.0 == y * 0.0' for any floating-point numbers 'x' and 'y', mathematicians consider the result of " +
-				"dividing by 0.0 to be undefined: there is no right answer — rather, it's the wrong question. So Charm throws " +
+				"dividing by 0.0 to be undefined: there is no right answer — rather, it's the wrong question. So Pipefish throws " +
 				"this error when you ask it."
 		},
 	},
@@ -58,7 +58,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Because 'x * 0 == y * 0' for any integers 'x' and 'y', mathematicians consider the result of " +
-				"dividing by zero to be undefined: there is no right answer — rather, it's the wrong question. So Charm throws " +
+				"dividing by zero to be undefined: there is no right answer — rather, it's the wrong question. So Pipefish throws " +
 				"this error when you ask it."
 		},
 	},
@@ -68,7 +68,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
+			return "In Pipefish as presently implemented, only some types can be used as hashkeys, including " +
 				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
 		},
 	},
@@ -78,7 +78,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
+			return "In Pipefish as presently implemented, only some types can be used as hashkeys, including " +
 				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
 		},
 	},
@@ -88,7 +88,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "In Charm as presently implemented, only some types can be used as hashkeys, including " +
+			return "In Pipefish as presently implemented, only some types can be used as hashkeys, including " +
 				"<int>, <string>, <float64>, <label> and <bool> — but not" + EmphType(args[0].(Object))
 		},
 	},
@@ -98,7 +98,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "a map must be constructed from things of type 'pair', not of type " + EmphType(args[0].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A map in Charm consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
+			return "A map in Pipefish consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
 		},
 	},
 
@@ -107,7 +107,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "a map must be constructed from things of type <pair>, not of type " + EmphType(args[0].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A map in Charm consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
+			return "A map in Pipefish consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
 		},
 	},
 
@@ -144,7 +144,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("index %v is out of bounds", args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Recall that in Charm, lists are zero-indexed: a negative number cannot be the index of a list."
+			return "Recall that in Pipefish, lists are zero-indexed: a negative number cannot be the index of a list."
 		},
 	},
 
@@ -154,9 +154,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Because 'x * 0 == y * 0' for any integers 'x' and 'y', mathematicians consider the result of " +
-				"dividing by zero to be undefined: there is no right answer — rather, it's the wrong question. So Charm throws " +
+				"dividing by zero to be undefined: there is no right answer — rather, it's the wrong question. So Pipefish throws " +
 				"an error when you ask it./n/nIn this particular case you were using the '%%' operator, which returns the remainder " +
-				"on division by zero, but in order to figure that out, Charm would have to know how to divide by zero, and, as " +
+				"on division by zero, but in order to figure that out, Pipefish would have to know how to divide by zero, and, as " +
 				"just explained, no-one can do that."
 		},
 	},
@@ -212,7 +212,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("index %v is out of bounds: list has length %v", args[0].(int), args[1].(int))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Recall that in Charm, lists are zero-indexed, which means that the first element has index 0 and the " +
+			return "Recall that in Pipefish, lists are zero-indexed, which means that the first element has index 0 and the " +
 				"last element has index 1 less than the length of the list.\n\nAnything outside of these bounds will cause this " +
 				"error if used as an index."
 		},
@@ -223,7 +223,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("index %v is out of bounds: list has length %v", args[0].(int), args[1].(int))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Recall that in Charm, lists are zero-indexed, which means that the first element has index 0 and the " +
+			return "Recall that in Pipefish, lists are zero-indexed, which means that the first element has index 0 and the " +
 				"last element has index 1 less than the length of the list.\n\nAnything outside of these bounds will cause this " +
 				"error if used as an index."
 		},
@@ -264,7 +264,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/struct/pair": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm was expecting a pair, not something of type " + text.EmphType(args[0].(string))
+			return "Pipefish was expecting a pair, not something of type " + text.EmphType(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "It looks like you're trying to use `with` to return an updated copy of a struct, but you've " +
@@ -274,10 +274,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"err/misdirect": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm is trying and failing to raise an error with reference '" + args[0].(string) + "'"
+			return "Pipefish is trying and failing to raise an error with reference '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The author of Charm, being a silly goose, has managed to throw an error with a code " +
+			return "The author of Pipefish, being a silly goose, has managed to throw an error with a code " +
 				"that doesn't actually correspond to an error. This should be reported to him as an issue."
 		},
 	},
@@ -288,7 +288,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In this line you have written something of the form '(<expression 1>) (<expression 2>)'. " +
-				"The only way Charm can evaluate something like that is if expression 1 evaluates to something of " +
+				"The only way Pipefish can evaluate something like that is if expression 1 evaluates to something of " +
 				" type <func>, in which case this will be applied to expression 2. However, in this case the " +
 				"first expression evaluated to something of type " + EmphType(args[0].(Object)) + "."
 		},
@@ -335,7 +335,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't apply " + emph(":") + " to things of type " + EmphType(args[0].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm has no concept of \"truthiness\": the only valid left-hand side of the " +
+			return "Pipefish has no concept of \"truthiness\": the only valid left-hand side of the " +
 				emph(":") + " operator is a boolean value."
 		},
 	},
@@ -345,7 +345,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm has no concept of \"truthiness\": the only valid left-hand side of the " +
+			return "Pipefish has no concept of \"truthiness\": the only valid left-hand side of the " +
 				text.DescribeTok(tok) + " operator is a boolean value."
 		},
 	},
@@ -355,7 +355,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm has no concept of \"truthiness\": the only valid argument of the " +
+			return "Pipefish has no concept of \"truthiness\": the only valid argument of the " +
 				text.DescribeTok(tok) + " operator is a boolean value."
 		},
 	},
@@ -365,7 +365,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm has no concept of \"truthiness\": the only valid right-hand side of the " +
+			return "Pipefish has no concept of \"truthiness\": the only valid right-hand side of the " +
 				text.DescribeTok(tok) + " operator is a boolean value."
 		},
 	},
@@ -405,7 +405,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "calling a command from a function"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "It is one of the central tenets of Charm that a command can call functions but " +
+			return "It is one of the central tenets of Pipefish that a command can call functions but " +
 				"functions can't call commands. You've tried to break that rule."
 		},
 	},
@@ -459,12 +459,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/contact/charm": {
+	"eval/contact/": {
 		Message: func(tok token.Token, args ...any) string {
 			return "can't evaluate " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You have used '|...|' to embed a piece of Charm into a call to a contact service, " +
+			return "You have used '|...|' to embed a piece of Pipefish into a call to a contact service, " +
 				"this snippet being evaluated by the calling service. In this case, however, the calling service was unable " +
 				"even to parse the code: it is syntactically incorrect."
 		},
@@ -504,7 +504,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "An enum type has a length, i.e. the number of elements in the type. But you're trying to " +
-				"apply the 'len' function to the type '" + args[0].(string) + "', and Charm doesn't know what you mean by this."
+				"apply the 'len' function to the type '" + args[0].(string) + "', and Pipefish doesn't know what you mean by this."
 		},
 	},
 
@@ -513,7 +513,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "comparing values of type " + emph(args[0].(string)) + " and " + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using the equality operator '==' to compare to values of different concrete types. But Charm considers this a type error."
+			return "You're using the equality operator '==' to compare to values of different concrete types. But Pipefish considers this a type error."
 		},
 	},
 
@@ -522,7 +522,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "comparing values of type " + emph(args[0].(string)) + " and " + emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're using the inequality operator '!=' to compare to values of different concrete types. But Charm considers this a type error."
+			return "You're using the inequality operator '!=' to compare to values of different concrete types. But Pipefish considers this a type error."
 		},
 	},
 
@@ -533,7 +533,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "'eval' takes a string or code object as a parameter and returns the result of " +
 				"evaluating that string or code object as an " +
-				"expression in Charm: e.g. 'eval \"2 + 2\"' would return '4'."
+				"expression in Pipefish: e.g. 'eval \"2 + 2\"' would return '4'."
 		},
 	},
 
@@ -595,7 +595,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed range of 'for' expression"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
+			return "Pipefish was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
 		},
 	},
 
@@ -613,7 +613,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected type in range of 'for'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
+			return "Pipefish was expecting the range of the 'for' expression to be something one can iterate over: a list, an enum, a pair of integers 'a::b' representing a range, or a single integer representing the upper bound of a range bounded below by zero."
 		},
 	},
 
@@ -623,7 +623,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A 'given' block should follow a command, function, or inner function. Either " +
-				"this doesn't follow one at all, or it's so malformed that Charm doesn't recognize it as one."
+				"this doesn't follow one at all, or it's so malformed that Pipefish doesn't recognize it as one."
 		},
 	},
 
@@ -633,7 +633,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "A 'given' block should follow a command, function, or inner function. Either " +
-				"this doesn't follow one at all, or it's so malformed that Charm doesn't recognize it as one."
+				"this doesn't follow one at all, or it's so malformed that Pipefish doesn't recognize it as one."
 		},
 	},
 
@@ -676,7 +676,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/ident/context": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm can't make any sense of '" + tok.Literal + "' in that context"
+			return "Pipefish can't make any sense of '" + tok.Literal + "' in that context"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You're tring to treat '" + tok.Literal + "' as though it was the name " +
@@ -707,7 +707,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't index " + string(args[0].(ObjectType)) + " by " + string(args[1].(ObjectType))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You can index a list or a string or a tuple by an integer, or by a pair of integers to make a slice; or you can index a map by a key, or a struct by the label of one of its fields. But you have done none of these things and Charm is puzzled."
+			return "You can index a list or a string or a tuple by an integer, or by a pair of integers to make a slice; or you can index a map by a key, or a struct by the label of one of its fields. But you have done none of these things and Pipefish is puzzled."
 		},
 	},
 
@@ -744,7 +744,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "loop returning value"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The 'loop' construct in Charm is pureply imperative: it iterates over instructions; it cannot return a value. If you want to do that sort of thing, write a function."
+			return "The 'loop' construct in Pipefish is pureply imperative: it iterates over instructions; it cannot return a value. If you want to do that sort of thing, write a function."
 		},
 	},
 
@@ -800,7 +800,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unknown namespace " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is unable to identify a namespace with the given name."
+			return "Pipefish is unable to identify a namespace with the given name."
 		},
 	},
 
@@ -809,7 +809,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unknown namespace " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is unable to identify a namespace with the given name."
+			return "Pipefish is unable to identify a namespace with the given name."
 		},
 	},
 
@@ -824,14 +824,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/oops": {
 		Message: func(tok token.Token, args ...any) string {
-			return "something too weird has happened for Charm to supply a meaningful error"
+			return "something too weird has happened for Pipefish to supply a meaningful error"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You shouldn't be seeing this error, nor should Charm be emitting it. If " +
+			return "You shouldn't be seeing this error, nor should Pipefish be emitting it. If " +
 				"you are seeing it, it means that some erroneous nil value has snuck through all " +
-				"the other checks for nil values, and returning this error is Charm's last line of " +
+				"the other checks for nil values, and returning this error is Pipefish's last line of " +
 				"defense against actually crashing.\n\nHence if you see this error, it should be considered " +
-				"an issue, and you should notify the author of Charm, who will try to fix it."
+				"an issue, and you should notify the author of Pipefish, who will try to fix it."
 		},
 	},
 
@@ -840,7 +840,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed constructor"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "You're trying to construct an instance of a struct, but your syntax has gotten Charm so " +
+			return "You're trying to construct an instance of a struct, but your syntax has gotten Pipefish so " +
 				"confused that it's not sure what you mean to do."
 		},
 	},
@@ -922,7 +922,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "slice " + emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a list of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the list to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the list being sliced."
+			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the list to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Pipefish. The slice must lie entirely inside the list being sliced."
 		},
 	},
 
@@ -931,7 +931,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "slice " + emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a string of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the string to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the string being sliced."
+			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the string to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Pipefish. The slice must lie entirely inside the string being sliced."
 		},
 	},
 
@@ -940,7 +940,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "slice " + emph("["+strconv.Itoa(args[0].(int))+"::"+strconv.Itoa(args[1].(int))+"]") + " is out of bounds for a tuple of length " + emphNum(args[2])
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the tuple to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Charm. The slice must lie entirely inside the tuple being sliced."
+			return "A slice has the form 'x[a::b]', where 'a' and 'b' are integers and a negative value of 'b' counts backwards from the end of the tuple to be sliced. The bounds of the slice are from-including-to-excluding, like everything else in Pipefish. The slice must lie entirely inside the tuple being sliced."
 		},
 	},
 
@@ -1151,7 +1151,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "service variable " + emph(args[0].(string)) + " doesn't exist"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Variables beigining with '$' are resered for service variables, and Charm has no service variable called " + emph(args[0].(string)) + "."
+			return "Variables beigining with '$' are resered for service variables, and Pipefish has no service variable called " + emph(args[0].(string)) + "."
 		},
 	},
 
@@ -1305,7 +1305,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/user": {
 		Message: func(tok token.Token, args ...any) string {
 			return "if you see this message, something has gone wrong with the error-handling.\n\nPlease contact the " +
-				"author of Charm and notify them of the circumstances under which you saw it"
+				"author of Pipefish and notify them of the circumstances under which you saw it"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This is a user-defined error."
@@ -1399,7 +1399,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed to compile Go\n\nError was '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A Charm function written in Go has failed to compile at initialization time."
+			return "A Pipefish function written in Go has failed to compile at initialization time."
 		},
 	},
 
@@ -1408,7 +1408,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed to open Go\n\nError was '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "A Charm function written in Go has failed to open at initialization time."
+			return "A Pipefish function written in Go has failed to open at initialization time."
 		},
 	},
 
@@ -1417,9 +1417,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "couldn't find Go function '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm's system for handling functions written in Go has broken down.\n\n" +
+			return "Pipefish's system for handling functions written in Go has broken down.\n\n" +
 				"There are no circumstances under which you should actually see this error: if you ever " +
-				"do, please report it to the author of Charm as an issue."
+				"do, please report it to the author of Pipefish as an issue."
 		},
 	},
 
@@ -1428,7 +1428,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "bad return value from golang"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "This is because the author of Charm hasn't gotten around to it yet."
+			return "This is because the author of Pipefish hasn't gotten around to it yet."
 		},
 	},
 
@@ -1437,7 +1437,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't pass value of type " + emph(args[0].(string)) + " to Go as raw value"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "This is because the author of Charm hasn't gotten around to it yet."
+			return "This is because the author of Pipefish hasn't gotten around to it yet."
 		},
 	},
 
@@ -1446,7 +1446,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't pass value of type " + emph(args[0].(string)) + " to Go"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "This is because the author of Charm hasn't gotten around to it yet."
+			return "This is because the author of Pipefish hasn't gotten around to it yet."
 		},
 	},
 
@@ -1552,11 +1552,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected comma, got " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects an enum declaration to take the form:" +
+			return "Pipefish expects an enum declaration to take the form:" +
 				"\n\n|-----------------------------------------------\n\n" +
 				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
 				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
-				"Charm was expecting to find a comma between elements of the enum."
+				"Pipefish was expecting to find a comma between elements of the enum."
 		},
 	},
 
@@ -1580,11 +1580,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected identifier, got " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects an enum declaration to take the form:" +
+			return "Pipefish expects an enum declaration to take the form:" +
 				"\n\n|-----------------------------------------------\n\n" +
 				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
 				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
-				"Charm was expecting one of the elements of the enum."
+				"Pipefish was expecting one of the elements of the enum."
 		},
 	},
 
@@ -1602,9 +1602,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok) + " without a headword"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects every part of your script to go in a section headed by one of the headwords " +
+			return "Pipefish expects every part of your script to go in a section headed by one of the headwords " +
 				"'var', 'def', 'cmd', etc. Instead, you've started your script with something other than " +
-				"a headword, and so Charm doesn't know which section that thing should belong to." +
+				"a headword, and so Pipefish doesn't know which section that thing should belong to." +
 				"\n\nFor more information about headwords see 'hub help \"headwords\"'."
 		},
 	},
@@ -1625,7 +1625,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "if it occurs, 'import' must be the first headword"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects every part of your script to go in a section headed by one of the headwords " +
+			return "Pipefish expects every part of your script to go in a section headed by one of the headwords " +
 				"'import', 'var', 'def', 'cmd', etc. If your script is going to have an 'import' headword, " +
 				"it must be the first headword of the first section, and so it must be the first thing in your " +
 				"script apart from comments and whitespace.\n\nYou're seeing this error because you used 'import' " +
@@ -1661,7 +1661,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				" in the 'import' section"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The only function or operator that Charm expects to find in the 'import' section is " +
+			return "The only function or operator that Pipefish expects to find in the 'import' section is " +
 				"the pair operator '::' associating namespaces with files." +
 				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
@@ -1682,9 +1682,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "You've used " + text.DescribeTok(tok) +
-				" in a context where Charm can't make sense of it. This error is returned when parsing a " +
+				" in a context where Pipefish can't make sense of it. This error is returned when parsing a " +
 				"malformed function declaration, though it may also be returned when the surrounding code is so weird " +
-				"that Charm thinks you're trying to declare a function even though you're not." + blame(errors, pos, "lex/comma") +
+				"that Pipefish thinks you're trying to declare a function even though you're not." + blame(errors, pos, "lex/comma") +
 				"\n\nFor more information about function declarations, see 'hub help \"functions\"'."
 		},
 	},
@@ -1721,7 +1721,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "too much overloading of function '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm allows for multiple dispatch, i.e. you could write two functions like this and the result " +
+			return "Pipefish allows for multiple dispatch, i.e. you could write two functions like this and the result " +
 				"would work as intended\n\n" +
 				"|-------------------------------------\n\n" +
 				"def\n\nadd(a, b string) : a + b\n\nadd(a, b bool) : \n    \"adding booleans is silly\"\n\n\n" +
@@ -1730,7 +1730,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"|-------------------------------------\n\n" +
 				"def\n\nadd(a single, b int) : a + b\n\nadd(a int, b single) : a + b\n\n\n" +
 				"|-\n\nNow, how does the interpreter decide which version of the function it should use " +
-				"when 'add' is passed two integers? It can't and doesn't: Charm throws this error instead.\n\nSo you're seeing " +
+				"when 'add' is passed two integers? It can't and doesn't: Pipefish throws this error instead.\n\nSo you're seeing " +
 				"this error because you've done something similar with your function/command/operator.\n\nIf this is something you've done deliberately, we would suggest that " +
 				"this is probably a bad practise anyway, which will tend to produce unreadable and unmaintainable code, " +
 				"and that you should try to do whatever it is you're doing some other way.\n\n" +
@@ -1786,9 +1786,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "invalid binary token"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects a token begining with '0b' to represent a number in binary notation, so " +
+			return "Pipefish expects a token begining with '0b' to represent a number in binary notation, so " +
 				"that the remaining characters should all be 0s and 1s. You are seeing this error " +
-				"because Charm was unable to parse the token in this way."
+				"because Pipefish was unable to parse the token in this way."
 		},
 	},
 
@@ -1797,7 +1797,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "a line ending in ',' must be followed by a line beginning with '..'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm allows two forms of continuation, and one is to end a line in a comma " +
+			return "Pipefish allows two forms of continuation, and one is to end a line in a comma " +
 				"in positions where a comma would be correct anyway, and to begin the next line with '..'\n\n" +
 				"For example: \n\n" +
 				"|-----------------------------------------------\n\n" +
@@ -1814,7 +1814,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "a line ending in '..' must be followed by a line beginning with '..'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm allows two forms of continuation, and one is to end a line in a continuation sign " +
+			return "Pipefish allows two forms of continuation, and one is to end a line in a continuation sign " +
 				"'..', and to begin the next line with another '..'\n\n" +
 				"For example: \n\n" +
 				"|-----------------------------------------------\n\n" +
@@ -1830,7 +1830,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unmatched or misplaced continuation sign '..'"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm allows two forms of continuation, and one is to end a line in a continuation sign " +
+			return "Pipefish allows two forms of continuation, and one is to end a line in a continuation sign " +
 				"'..', and to begin the next line with another '..'\n\n" +
 				"For example: \n\n" +
 				"|-----------------------------------------------\n\n" +
@@ -1846,7 +1846,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "a line can't begin with a continuation unless it follows a line ending with either a continuation or a comma"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm allows two forms of continuation, One is to end a line in a continuation sign " +
+			return "Pipefish allows two forms of continuation, One is to end a line in a continuation sign " +
 				"'..', and to begin the next line with another '..'\n\n" +
 				"For example: \n\n" +
 				"|-----------------------------------------------\n\n" +
@@ -1893,7 +1893,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "no '{' after 'gocode"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects the 'gocode' token to be followed by '{' to introduce the Go code, to be terminated by a matching '}'."
+			return "Pipefish expects the 'gocode' token to be followed by '{' to introduce the Go code, to be terminated by a matching '}'."
 		},
 	},
 
@@ -1902,9 +1902,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "invalid octal token"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects a token begining with '0o' to represent a number in octal notation, so " +
+			return "Pipefish expects a token begining with '0o' to represent a number in octal notation, so " +
 				"that the remaining characters should all be digits between 0 and 7. You are seeing this error " +
-				"because Charm was unable to parse the token in this way."
+				"because Pipefish was unable to parse the token in this way."
 		},
 	},
 
@@ -1913,9 +1913,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "invalid hexadecimal token"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects a token begining with '0x' to represent a number in binary notation, so " +
+			return "Pipefish expects a token begining with '0x' to represent a number in binary notation, so " +
 				"that the remaining characters should all be digits or letters (of either case) between A and F inclusive. " +
-				"You are seeing this error because Charm was unable to parse the token in this way."
+				"You are seeing this error because Pipefish was unable to parse the token in this way."
 		},
 	},
 
@@ -1933,8 +1933,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "invalid number"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects a token begining with a digit to represent a number. " +
-				"You are seeing this error because Charm was unable to parse the token in this way."
+			return "Pipefish expects a token begining with a digit to represent a number. " +
+				"You are seeing this error because Pipefish was unable to parse the token in this way."
 		},
 	},
 
@@ -1984,7 +1984,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "When you outdent your code, it should end up with the same indentation " +
-				"as some previous line of code, otherwise Charm can't infer what nesting level you're trying to indicate."
+				"as some previous line of code, otherwise Pipefish can't infer what nesting level you're trying to indicate."
 		},
 	},
 
@@ -1994,7 +1994,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "In the 'var' section, as the name suggests, you are only supposed to declare the inttial " +
-				"values of variables. You've convinced Charm that you're trying to declare a function or operator or " +
+				"values of variables. You've convinced Pipefish that you're trying to declare a function or operator or " +
 				"command in the 'var' section instead, probably because the line of code it's complaining about either " +
 				"contains a ':' or doesn't contain a '='."
 		},
@@ -2033,7 +2033,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/close": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm was expecting an expression before closure by " + text.DescribeTok(tok)
+			return "Pipefish was expecting an expression before closure by " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error is produced when an outdent, ')', ']', or '}' occurs when " +
@@ -2055,7 +2055,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/expected": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm wasn't expecting " + text.DescribeTok(tok)
+			return "Pipefish wasn't expecting " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error occurs when an otherwise well-formed expression " +
@@ -2068,14 +2068,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Couldn't parse '" + tok.Literal + "' as float64"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Something about the form of '" + tok.Literal + "' has persuaded Charm to try and parse it " +
-				"as a floating-point number, and yet it is not a floating-point number so Charm has failed."
+			return "Something about the form of '" + tok.Literal + "' has persuaded Pipefish to try and parse it " +
+				"as a floating-point number, and yet it is not a floating-point number so Pipefish has failed."
 		},
 	},
 
 	"parse/follow": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm expected something to follow " + text.DescribeTok(tok)
+			return "Pipefish expected something to follow " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error occurs when something which only makes sense as a prefix, such as 'not', is " +
@@ -2088,7 +2088,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed inner function declaration"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm thinks you're trying to declare an inner function here but is unable to parse it as such."
+			return "Pipefish thinks you're trying to declare an inner function here but is unable to parse it as such."
 		},
 	},
 
@@ -2097,14 +2097,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Couldn't parse '" + tok.Literal + "' as integer"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Something about the form of '" + tok.Literal + "' has persuaded Charm to try and parse it " +
-				"as an integer, and yet it is not an integer so Charm has failed."
+			return "Something about the form of '" + tok.Literal + "' has persuaded Pipefish to try and parse it " +
+				"as an integer, and yet it is not an integer so Pipefish has failed."
 		},
 	},
 
 	"parse/line": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm expected an expression before the end of the line"
+			return "Pipefish expected an expression before the end of the line"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error is produced when a line stops with something clearly missing, e.g. if you put '2 + '" +
@@ -2118,7 +2118,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error pretty much speaks for itself: whatever you put after 'func' was in fact just " +
-				"too plain weird for Charm to interpret as a function definition."
+				"too plain weird for Pipefish to interpret as a function definition."
 		},
 	},
 
@@ -2134,7 +2134,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/missing": {
 		Message: func(tok token.Token, args ...any) string {
-			return "Charm expected an expression on either side of " + text.DescribeTok(tok)
+			return "Pipefish expected an expression on either side of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "This error is typically returned when a binary operator is missing its left-hand side, e.g. if " +
@@ -2170,7 +2170,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed signature"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Something's gone wrong with your syntax around the word 'raw', so that Charm isn't sure what you want to do."
+			return "Something's gone wrong with your syntax around the word 'raw', so that Pipefish isn't sure what you want to do."
 		},
 	},
 
@@ -2179,7 +2179,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected identifier, not " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm was expecting the name of a parameter at that point in the function declaration."
+			return "Pipefish was expecting the name of a parameter at that point in the function declaration."
 		},
 	},
 
@@ -2188,7 +2188,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "no such type as " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "The 'raw' suffix must be attached either directly to the name of a parameter, or to a Charm type."
+			return "The 'raw' suffix must be attached either directly to the name of a parameter, or to a Pipefish type."
 		},
 	},
 
@@ -2197,7 +2197,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
+			return "Pipefish expected your return typesto the left of the '->' to be one or more types separated by " +
 				"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
 		},
 	},
@@ -2207,7 +2207,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expected your return typesto the left of the '->' to be one or more types separated by " +
+			return "Pipefish expected your return typesto the left of the '->' to be one or more types separated by " +
 				"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
 		},
 	},
@@ -2217,7 +2217,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected identifier, found " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At this point in the function declaration Charm was expecting the name of a parameter."
+			return "At this point in the function declaration Pipefish was expecting the name of a parameter."
 		},
 	},
 
@@ -2226,7 +2226,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected identifier, found " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At this point in the function declaration Charm was expecting the name of a parameter."
+			return "At this point in the function declaration Pipefish was expecting the name of a parameter."
 		},
 	},
 
@@ -2235,7 +2235,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected identifier, found " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At this point in the function declaration Charm was expecting the name of a parameter."
+			return "At this point in the function declaration Pipefish was expecting the name of a parameter."
 		},
 	},
 
@@ -2244,7 +2244,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or assignment signature, and " +
+			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
 				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
 		},
 	},
@@ -2254,7 +2254,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed function declaration"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or command declaration, " +
+			return "Pipefish is trying to interpret this as a function or command declaration, " +
 				"but is having trouble working out which bits are the signature and which bits " +
 				"are the body."
 		},
@@ -2265,7 +2265,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed function declaration"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or command declaration, " +
+			return "Pipefish is trying to interpret this as a function or command declaration, " +
 				"but is having trouble working out which bits are the signature and which bits " +
 				"are the body."
 		},
@@ -2276,7 +2276,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed function declaration"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or command declaration, " +
+			return "Pipefish is trying to interpret this as a function or command declaration, " +
 				"but is having trouble working out which bits are the signature and which bits " +
 				"are the body."
 		},
@@ -2287,7 +2287,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed function declaration"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or command declaration, " +
+			return "Pipefish is trying to interpret this as a function or command declaration, " +
 				"but is having trouble working out which bits are the signature and which bits " +
 				"are the body."
 		},
@@ -2298,7 +2298,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or assignment signature, and " +
+			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
 				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
 		},
 	},
@@ -2308,7 +2308,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or assignment signature, and " +
+			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
 				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
 		},
 	},
@@ -2318,7 +2318,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or assignment signature, and " +
+			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
 				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
 		},
 	},
@@ -2328,7 +2328,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "no such type as " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm thinks that you're trying to specify a type in a function or assignment signature, but it doesn't know the name of the type."
+			return "Pipefish thinks that you're trying to specify a type in a function or assignment signature, but it doesn't know the name of the type."
 		},
 	},
 
@@ -2337,7 +2337,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "no such type as " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm thinks that you're trying to specify a type in a function or assignment signature, but it doesn't know the name of the type."
+			return "Pipefish thinks that you're trying to specify a type in a function or assignment signature, but it doesn't know the name of the type."
 		},
 	},
 
@@ -2346,7 +2346,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected integer literal, found " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At this point in the function declaration Charm was expecting an integer literal specifying the size of the 'varchar' type."
+			return "At this point in the function declaration Pipefish was expecting an integer literal specifying the size of the 'varchar' type."
 		},
 	},
 
@@ -2355,7 +2355,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "expected integer literal, found " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At this point in the function declaration Charm was expecting an integer literal specifying the size of the 'varchar' type."
+			return "At this point in the function declaration Pipefish was expecting an integer literal specifying the size of the 'varchar' type."
 		},
 	},
 
@@ -2396,12 +2396,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"sql/charm": {
+	"sql/": {
 		Message: func(tok token.Token, args ...any) string {
-			return "unable to parse Charm in SQL snippet"
+			return "unable to parse Pipefish in SQL snippet"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Your SQL contains an expression of the form '|...|', which Charm is attempting to interpret as being in the Charm language. However, the parser isn't able to parse it."
+			return "Your SQL contains an expression of the form '|...|', which Pipefish is attempting to interpret as being in the Pipefish language. However, the parser isn't able to parse it."
 		},
 	},
 
@@ -2410,7 +2410,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unable to perform type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
 		},
 	},
 
@@ -2419,7 +2419,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't find SQL database"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "It seems like you haven't done 'hub config db', and so Charm doesn't know which database you want to talk to."
+			return "It seems like you haven't done 'hub config db', and so Pipefish doesn't know which database you want to talk to."
 		},
 	},
 
@@ -2446,7 +2446,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't read from database into type" + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "Charm expects a subtype of 'struct' here that matches the data you're trying to fetch from the database."
+			return "Pipefish expects a subtype of 'struct' here that matches the data you're trying to fetch from the database."
 		},
 	},
 
@@ -2455,7 +2455,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
 		},
 	},
 
@@ -2470,7 +2470,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"sql/sig": {
 		Message: func(tok token.Token, args ...any) string {
-			return "can't convert Charm struct to SQL table"
+			return "can't convert Pipefish struct to SQL table"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
 			return "Recall that only a limited number of types have been implemented for demonstration purposes."
@@ -2482,7 +2482,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
 		},
 	},
 
@@ -2491,7 +2491,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok token.Token, args ...any) string {
-			return "At present Charm only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
 		},
 	},
 

@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"charm/source/object"
-	"charm/source/stack"
-	"charm/source/token"
+	"pipefish/source/object"
+	"pipefish/source/stack"
+	"pipefish/source/token"
 )
 
 type Lexer struct {

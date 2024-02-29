@@ -1,8 +1,8 @@
 package repl
 
 import (
-	"charm/source/hub"
-	"charm/source/text"
+	"pipefish/source/hub"
+	"pipefish/source/text"
 
 	"io"
 	"strings"
@@ -56,7 +56,6 @@ func Start(hub *hub.Hub, in io.Reader, out io.Writer) {
 			continue
 		}
 
-		
 		_, quitCharm := hub.Do(line, hub.Username, hub.Password, hub.GetCurrentServiceName())
 		if quitCharm.QuitHappened {
 			break
@@ -70,7 +69,7 @@ func makePrompt(hub *hub.Hub) string {
 	}
 	promptText := hub.GetCurrentServiceName() + " " + text.PROMPT
 	if hub.CurrentServiceIsBroken() {
-		promptText =  text.Red(promptText) 
+		promptText = text.Red(promptText)
 	}
 	return promptText
 }

@@ -16,9 +16,9 @@ import (
 	"fmt"
 	"os"
 
-	"charm/source/hub"
-	"charm/source/repl"
-	"charm/source/text"
+	"pipefish/source/hub"
+	"pipefish/source/repl"
+	"pipefish/source/text"
 )
 
 func main() {

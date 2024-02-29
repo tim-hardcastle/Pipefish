@@ -1,4 +1,4 @@
-module charm
+module pipefish
 
 go 1.18
 

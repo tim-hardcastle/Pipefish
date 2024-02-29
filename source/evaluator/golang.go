@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"charm/source/ast"
-	"charm/source/object"
-	"charm/source/parser"
-	"charm/source/signature"
-	"charm/source/text"
-	"charm/source/token"
+	"pipefish/source/ast"
+	"pipefish/source/object"
+	"pipefish/source/parser"
+	"pipefish/source/signature"
+	"pipefish/source/text"
+	"pipefish/source/token"
 )
 
 var counter int
@@ -123,16 +123,16 @@ func (gh *GoHandler) BuildGoMods() {
 
 		objectHappened := false
 
-		// We make sure it imports charm/object exactly once.
+		// We make sure it imports pipefish/object exactly once.
 
 		for _, v := range gh.Prsr.GoImports[source] {
-			if v == "charm/source/object" {
+			if v == "pipefish/source/object" {
 				objectHappened = true
 				break
 			}
 		}
 		if !objectHappened {
-			gh.Prsr.GoImports[source] = append(gh.Prsr.GoImports[source], "charm/source/object")
+			gh.Prsr.GoImports[source] = append(gh.Prsr.GoImports[source], "pipefish/source/object")
 		}
 
 		if len(gh.Prsr.GoImports[source]) > 0 {

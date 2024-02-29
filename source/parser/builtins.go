@@ -3,8 +3,8 @@ package parser
 import (
 	"strconv"
 
-	"charm/source/object"
-	"charm/source/token"
+	"pipefish/source/object"
+	"pipefish/source/token"
 )
 
 var Builtins = map[string]func(p *Parser, tok token.Token, args ...object.Object) object.Object{

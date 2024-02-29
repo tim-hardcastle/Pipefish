@@ -3,7 +3,7 @@ package parser
 import (
 	"os"
 
-	"charm/source/object"
+	"pipefish/source/object"
 )
 
 type Service struct {

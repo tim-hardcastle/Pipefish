@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"charm/source/text"
+	"pipefish/source/text"
 
 	// SQL drivers
 
