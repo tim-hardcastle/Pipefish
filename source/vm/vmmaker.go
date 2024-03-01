@@ -215,11 +215,11 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 			vmm.cp.compileNode(vm, given, fnenv)
 			cpF.callTo = vm.codeTop()
 			for _, pair := range vmm.cp.thunkList {
-				vmm.cp.emit(vm, thnk, pair.mLoc, pair.cLoc)
+				vmm.cp.emit(vm, Thnk, pair.mLoc, pair.cLoc)
 			}
 		}
 		cpF.types, _ = vmm.cp.compileNode(vm, body, fnenv) // TODO --- could we in fact do anything useful if we knew it was a constant?
-		vmm.cp.emit(vm, ret)
+		vmm.cp.emit(vm, Ret)
 		cpF.outReg = vm.that()
 	}
 	vmm.cp.fns[ix] = &cpF
@@ -246,7 +246,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			if vmm.uP.ErrorsExist() {
 				return
 			}
-			vmm.cp.emit(vmm.cp.vm, ret)
+			vmm.cp.emit(vmm.cp.vm, Ret)
 			vmm.cp.vm.Run(runFrom)
 			if declarations == int(constantDeclaration) {
 				vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)

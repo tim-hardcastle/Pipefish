@@ -115,19 +115,19 @@ loop:
 		}
 		args := vm.code[loc].args
 		switch vm.code[loc].opcode {
-		case addf:
+		case Addf:
 			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) + vm.mem[args[2]].V.(float64)}
-		case addi:
+		case Addi:
 			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) + vm.mem[args[2]].V.(int)}
-		case adds:
+		case Adds:
 			vm.mem[args[0]] = values.Value{values.STRING, vm.mem[args[1]].V.(string) + vm.mem[args[2]].V.(string)}
-		case adtk:
+		case Adtk:
 			(vm.mem[args[0]].V.(*object.Error)).AddToTrace(vm.tokens[args[1]])
-		case andb:
+		case Andb:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(bool) && vm.mem[args[2]].V.(bool)}
-		case asgm:
+		case Asgm:
 			vm.mem[args[0]] = vm.mem[args[1]]
-		case call:
+		case Call:
 			offset := args[1]
 			for i := args[1]; i < args[2]; i++ {
 				vm.mem[i] = vm.mem[args[3+i-offset]]
@@ -135,15 +135,15 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
-		case cc11:
+		case Cc11:
 			vm.mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.mem[args[1]], vm.mem[args[2]]}}
-		case cc1T:
+		case Cc1T:
 			vm.mem[args[0]] = values.Value{values.TUPLE, append([]values.Value{vm.mem[args[1]]}, vm.mem[args[2]].V.([]values.Value)...)}
-		case ccT1:
+		case CcT1:
 			vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
-		case ccTT:
+		case CcTT:
 			vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
-		case ccxx:
+		case Ccxx:
 			if vm.mem[args[1]].T == values.TUPLE {
 				if vm.mem[args[2]].T == values.TUPLE {
 					vm.mem[args[0]] = values.Value{values.TUPLE, append(vm.mem[args[1]].V.([]values.Value), vm.mem[args[2]])}
@@ -157,13 +157,13 @@ loop:
 					vm.mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.mem[args[1]], vm.mem[args[2]]}}
 				}
 			}
-		case cv1T:
+		case Cv1T:
 			vm.mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.mem[args[1]]}}
-		case divf:
+		case Divf:
 			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) / vm.mem[args[2]].V.(float64)}
-		case divi:
+		case Divi:
 			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) / vm.mem[args[2]].V.(int)}
-		case dofn:
+		case Dofn:
 			lhs := vm.mem[args[1]].V.(lambda)
 			for i := 0; i < int(lhs.prmTop-lhs.extTop); i++ {
 				lhs.vm.mem[int(lhs.extTop)+i] = vm.mem[args[2+i]]
@@ -171,60 +171,60 @@ loop:
 			copy(lhs.captures, vm.mem)
 			lhs.vm.Run(lhs.locToCall)
 			vm.mem[args[0]] = lhs.vm.mem[lhs.dest]
-		case dref:
+		case Dref:
 			vm.mem[args[0]] = vm.mem[vm.mem[args[1]].V.(uint32)]
-		case equb:
+		case Equb:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(bool) == vm.mem[args[2]].V.(bool)}
-		case equf:
+		case Equf:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(float64) == vm.mem[args[2]].V.(float64)}
-		case equi:
+		case Equi:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(int) == vm.mem[args[2]].V.(int)}
-		case equs:
+		case Equs:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(string) == vm.mem[args[2]].V.(string)}
-		case flti:
+		case Flti:
 			vm.mem[args[0]] = values.Value{values.FLOAT, float64(vm.mem[args[1]].V.(int))}
-		case flts:
+		case Flts:
 			i, err := strconv.ParseFloat(vm.mem[args[1]].V.(string), 64)
 			if err != nil {
 				vm.mem[args[0]] = values.Value{values.ERROR, DUMMY}
 			} else {
 				vm.mem[args[0]] = values.Value{values.FLOAT, i}
 			}
-		case gtef:
+		case Gtef:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(float64) >= vm.mem[args[2]].V.(float64)}
-		case gtei:
+		case Gtei:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(int) >= vm.mem[args[2]].V.(int)}
-		case gthf:
+		case Gthf:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(float64) > vm.mem[args[2]].V.(float64)}
-		case gthi:
+		case Gthi:
 			vm.mem[args[0]] = values.Value{values.BOOL, vm.mem[args[1]].V.(int) > vm.mem[args[2]].V.(int)}
-		case halt:
+		case Halt:
 			break loop
-		case intf:
+		case Intf:
 			vm.mem[args[0]] = values.Value{values.INT, int(vm.mem[args[1]].V.(float64))}
-		case ints:
+		case Ints:
 			i, err := strconv.Atoi(vm.mem[args[1]].V.(string))
 			if err != nil {
 				vm.mem[args[0]] = values.Value{values.ERROR, DUMMY}
 			} else {
 				vm.mem[args[0]] = values.Value{values.INT, i}
 			}
-		case idxT:
+		case IdxT:
 			vm.mem[args[0]] = vm.mem[args[1]].V.([]values.Value)[args[2]]
-		case jmp:
+		case Jmp:
 			loc = args[0]
 			continue
-		case jsr:
+		case Jsr:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
-		case lens:
+		case Lens:
 			vm.mem[args[0]] = values.Value{values.INT, len(vm.mem[args[1]].V.(string))}
-		case litx:
+		case Litx:
 			vm.mem[args[0]] = values.Value{values.STRING, vm.literal(vm.mem[args[1]])}
-		case mker:
+		case Mker:
 			vm.mem[args[0]] = values.Value{values.ERROR, &object.Error{ErrorId: "eval/user", Message: vm.mem[args[1]].V.(string), Token: vm.tokens[args[2]]}}
-		case mkfn:
+		case Mkfn:
 			lf := vm.lambdaFactories[args[1]]
 			newLambda := *lf.model
 			newLambda.captures = make([]values.Value, len(lf.extMem))
@@ -232,72 +232,72 @@ loop:
 				newLambda.captures[i] = vm.mem[v]
 			}
 			vm.mem[args[0]] = values.Value{values.FUNC, newLambda}
-		case modi:
+		case Modi:
 			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) % vm.mem[args[2]].V.(int)}
-		case mulf:
+		case Mulf:
 			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) * vm.mem[args[2]].V.(float64)}
-		case muli:
+		case Muli:
 			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) * vm.mem[args[2]].V.(int)}
-		case negf:
+		case Negf:
 			vm.mem[args[0]] = values.Value{values.FLOAT, -vm.mem[args[1]].V.(float64)}
-		case negi:
+		case Negi:
 			vm.mem[args[0]] = values.Value{values.INT, -vm.mem[args[1]].V.(int)}
-		case notb:
+		case Notb:
 			vm.mem[args[0]] = values.Value{values.BOOL, !vm.mem[args[1]].V.(bool)}
-		case orb:
+		case Orb:
 			vm.mem[args[0]] = values.Value{values.BOOL, (vm.mem[args[1]].V.(bool) || vm.mem[args[2]].V.(bool))}
-		case qlnT:
+		case QlnT:
 			if len(vm.mem[args[0]].V.([]values.Value)) == int(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]
 			}
-		case qsng:
+		case Qsng:
 			if vm.mem[args[0]].T >= values.INT {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
-		case qsnQ:
+		case QsnQ:
 			if vm.mem[args[0]].T >= values.NULL {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
-		case qtru:
+		case Qtru:
 			if vm.mem[args[0]].V.(bool) {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
-		case qtyp:
+		case Qtyp:
 			if vm.mem[args[0]].T == values.ValueType(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]
 			}
 			continue
-		case ret:
+		case Ret:
 			if len(vm.callstack) == 0 {
 				break loop
 			}
 			loc = vm.callstack[len(vm.callstack)-1]
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
-		case strx:
+		case Strx:
 			vm.mem[args[0]] = values.Value{values.STRING, vm.describe(vm.mem[args[1]])}
-		case subf:
+		case Subf:
 			vm.mem[args[0]] = values.Value{values.FLOAT, vm.mem[args[1]].V.(float64) - vm.mem[args[2]].V.(float64)}
-		case subi:
+		case Subi:
 			vm.mem[args[0]] = values.Value{values.INT, vm.mem[args[1]].V.(int) - vm.mem[args[2]].V.(int)}
-		case thnk:
+		case Thnk:
 			vm.mem[args[0]].T = values.THUNK
 			vm.mem[args[0]].V = args[1]
-		case typx:
+		case Typx:
 			vm.mem[args[0]] = values.Value{values.TYPE, vm.mem[args[1]].T}
-		case untk:
+		case Untk:
 			if (vm.mem[args[0]].T) == values.THUNK {
 				vm.callstack = append(vm.callstack, loc)
 				loc = vm.mem[args[0]].V.(uint32)

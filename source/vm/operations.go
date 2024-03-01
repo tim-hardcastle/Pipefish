@@ -66,62 +66,62 @@ type opDescriptor struct {
 }
 
 var OPERANDS = map[opcode]opDescriptor{
-	addf: {"addf", operands{dst, mem, mem}},
-	addi: {"addi", operands{dst, mem, mem}},
-	adds: {"adds", operands{dst, mem, mem}},
-	adtk: {"adtk", operands{dst, tok}},
-	andb: {"andb", operands{dst, mem, mem}},
-	asgm: {"asgm", operands{dst, mem}},
-	call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
-	cc11: {"cc11", operands{dst, mem, mem}},
-	cc1T: {"cc1T", operands{dst, mem, mem}},
-	ccT1: {"ccT1", operands{dst, mem, mem}},
-	ccTT: {"ccTT", operands{dst, mem, mem}},
-	ccxx: {"ccxx", operands{dst, mem, mem}},
-	cv1T: {"cv1T", operands{dst, mem, mem}},
-	divf: {"divf", operands{dst, mem, mem}},
-	divi: {"divi", operands{dst, mem, mem}},
-	dofn: {"dofn", operands{dst, mem, tup}},
-	dref: {"dref", operands{dst, mem}},
-	equb: {"equb", operands{dst, mem, mem}},
-	equf: {"equf", operands{dst, mem, mem}},
-	equi: {"equi", operands{dst, mem, mem}},
-	equs: {"equs", operands{dst, mem, mem}},
-	flti: {"flti", operands{dst, mem}},
-	flts: {"flts", operands{dst, mem}},
-	gtef: {"gtef", operands{dst, mem, mem}},
-	gtei: {"gtei", operands{dst, mem, mem}},
-	gthf: {"gthf", operands{dst, mem, mem}},
-	gthi: {"gthi", operands{dst, mem, mem}},
-	halt: {"halt", operands{}},
-	idxT: {"idxT", operands{dst, mem, mem}},
-	intf: {"intf", operands{dst, mem}},
-	ints: {"ints", operands{dst, mem}},
-	jmp:  {"jmp", operands{loc}},
-	jsr:  {"jsr", operands{loc}},
-	lens: {"lens", operands{dst, mem}},
-	litx: {"lits", operands{dst, mem}},
-	mker: {"mker", operands{dst, mem, tok}},
-	mkfn: {"mkfn", operands{dst, lfc}},
-	modi: {"modi", operands{dst, mem, mem}},
-	mulf: {"mulf", operands{dst, mem, mem}},
-	muli: {"muli", operands{dst, mem, mem}},
-	negf: {"negf", operands{dst, mem}},
-	negi: {"negi", operands{dst, mem}},
-	notb: {"notb", operands{dst, mem}},
-	orb:  {"orb", operands{dst, mem, mem}},
-	qlnT: {"qlnT", operands{mem, num, loc}},
-	qsnQ: {"qsnQ", operands{mem, loc}},
-	qsng: {"qsng", operands{mem, loc}},
-	qtru: {"qtru", operands{mem, loc}},
-	qtyp: {"qtyp", operands{mem, typ, loc}},
-	ret:  {"ret", operands{}},
-	strx: {"strx", operands{dst, mem}},
-	subf: {"subf", operands{dst, mem, mem}},
-	subi: {"subi", operands{dst, mem, mem}},
-	thnk: {"thnk", operands{dst, loc}},
-	typx: {"typx", operands{dst, mem}},
-	untk: {"untk", operands{dst}},
+	Addf: {"addf", operands{dst, mem, mem}},
+	Addi: {"addi", operands{dst, mem, mem}},
+	Adds: {"adds", operands{dst, mem, mem}},
+	Adtk: {"adtk", operands{dst, tok}},
+	Andb: {"andb", operands{dst, mem, mem}},
+	Asgm: {"asgm", operands{dst, mem}},
+	Call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
+	Cc11: {"cc11", operands{dst, mem, mem}},
+	Cc1T: {"cc1T", operands{dst, mem, mem}},
+	CcT1: {"ccT1", operands{dst, mem, mem}},
+	CcTT: {"ccTT", operands{dst, mem, mem}},
+	Ccxx: {"ccxx", operands{dst, mem, mem}},
+	Cv1T: {"cv1T", operands{dst, mem, mem}},
+	Divf: {"divf", operands{dst, mem, mem}},
+	Divi: {"divi", operands{dst, mem, mem}},
+	Dofn: {"dofn", operands{dst, mem, tup}},
+	Dref: {"dref", operands{dst, mem}},
+	Equb: {"equb", operands{dst, mem, mem}},
+	Equf: {"equf", operands{dst, mem, mem}},
+	Equi: {"equi", operands{dst, mem, mem}},
+	Equs: {"equs", operands{dst, mem, mem}},
+	Flti: {"flti", operands{dst, mem}},
+	Flts: {"flts", operands{dst, mem}},
+	Gtef: {"gtef", operands{dst, mem, mem}},
+	Gtei: {"gtei", operands{dst, mem, mem}},
+	Gthf: {"gthf", operands{dst, mem, mem}},
+	Gthi: {"gthi", operands{dst, mem, mem}},
+	Halt: {"halt", operands{}},
+	IdxT: {"idxT", operands{dst, mem, mem}},
+	Intf: {"intf", operands{dst, mem}},
+	Ints: {"ints", operands{dst, mem}},
+	Jmp:  {"jmp", operands{loc}},
+	Jsr:  {"jsr", operands{loc}},
+	Lens: {"lens", operands{dst, mem}},
+	Litx: {"lits", operands{dst, mem}},
+	Mker: {"mker", operands{dst, mem, tok}},
+	Mkfn: {"mkfn", operands{dst, lfc}},
+	Modi: {"modi", operands{dst, mem, mem}},
+	Mulf: {"mulf", operands{dst, mem, mem}},
+	Muli: {"muli", operands{dst, mem, mem}},
+	Negf: {"negf", operands{dst, mem}},
+	Negi: {"negi", operands{dst, mem}},
+	Notb: {"notb", operands{dst, mem}},
+	Orb:  {"orb", operands{dst, mem, mem}},
+	QlnT: {"qlnT", operands{mem, num, loc}},
+	QsnQ: {"qsnQ", operands{mem, loc}},
+	Qsng: {"qsng", operands{mem, loc}},
+	Qtru: {"qtru", operands{mem, loc}},
+	Qtyp: {"qtyp", operands{mem, typ, loc}},
+	Ret:  {"ret", operands{}},
+	Strx: {"strx", operands{dst, mem}},
+	Subf: {"subf", operands{dst, mem, mem}},
+	Subi: {"subi", operands{dst, mem, mem}},
+	Thnk: {"thnk", operands{dst, loc}},
+	Typx: {"typx", operands{dst, mem}},
+	Untk: {"untk", operands{dst}},
 }
 
 func describe(op *operation) string {
@@ -138,77 +138,77 @@ func (op *operation) makeLastArg(loc uint32) {
 }
 
 const (
-	addf opcode = iota
-	addi
+	Addf opcode = iota
+	Addi
 	addl
-	adds
-	adtk
-	andb
-	cc11
-	cc1T
-	ccT1
-	ccTT
-	ccxx
-	cv1T
-	asgm
-	call
+	Adds
+	Adtk
+	Andb
+	Cc11
+	Cc1T
+	CcT1
+	CcTT
+	Ccxx
+	Cv1T
+	Asgm
+	Call
 	cmp
-	divf
-	divi
-	dofn // For lambdas, as opposed to call for outer functions.
-	dref
-	equb
-	equf
-	equi
-	equs
-	flti
-	flts
+	Divf
+	Divi
+	Dofn // For lambdas, as opposed to call for outer functions.
+	Dref
+	Equb
+	Equf
+	Equi
+	Equs
+	Flti
+	Flts
 	getS // S, key number
-	gtef
-	gtei
-	gthf
-	gthi
-	halt // do we use this?
+	Gtef
+	Gtei
+	Gthf
+	Gthi
+	Halt // do we use this?
 	idxl
 	idxm
 	idxs
-	idxT
-	ints
-	intf
-	jmp
-	jsr
+	IdxT
+	Ints
+	Intf
+	Jmp
+	Jsr
 	keym
 	keyS
 	lenl
-	lens
+	Lens
 	lenT
 	leqf
 	leqi
-	litx
-	mker
-	mkfn
+	Litx
+	Mker
+	Mkfn
 	makS
-	modi
-	mulf
-	muli
-	negf
-	negi
-	notb
-	orb
+	Modi
+	Mulf
+	Muli
+	Negf
+	Negi
+	Notb
+	Orb
 	resS // S, field
-	qtru
-	qtyp
-	qsng
-	qsnQ
-	qlnT
-	ret
+	Qtru
+	Qtyp
+	Qsng
+	QsnQ
+	QlnT
+	Ret
 	slil
 	slis
 	sliT
-	strx
-	subf
-	subi
-	thnk
-	typx
-	untk
+	Strx
+	Subf
+	Subi
+	Thnk
+	Typx
+	Untk
 )
