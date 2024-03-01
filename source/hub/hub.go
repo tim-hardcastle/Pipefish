@@ -19,6 +19,7 @@ import (
 
 	"github.com/lmorg/readline"
 
+	"pipefish/source/compiler"
 	"pipefish/source/database"
 	"pipefish/source/evaluator"
 	"pipefish/source/initializer"
@@ -28,7 +29,6 @@ import (
 	"pipefish/source/relexer"
 	"pipefish/source/text"
 	"pipefish/source/values"
-	"pipefish/source/vm"
 )
 
 var (
@@ -675,7 +675,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\n")
 		return false
 	case "vm":
-		vmm := vm.NewVmMaker("", "", hub.Db)
+		vmm := compiler.NewVmMaker("", "", hub.Db)
 		vmm.Make()
 		cp := vmm.GetCompiler()
 		if cp.GetParser().ErrorsExist() {
@@ -706,7 +706,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			if len(line) >= 4 && line[:4] == "run " {
 				filename := line[4:]
 				sourcecode, _ := os.ReadFile(filename)
-				vmm := vm.NewVmMaker(filename, string(sourcecode)+"\n", hub.Db)
+				vmm := compiler.NewVmMaker(filename, string(sourcecode)+"\n", hub.Db)
 				vmm.Make()
 				cp = vmm.GetCompiler()
 				if cp.GetParser().ErrorsExist() {

@@ -2,13 +2,13 @@ package vm
 
 import "strconv"
 
-func makeOp(oc opcode, args ...uint32) *operation {
-	return &operation{opcode: oc, args: args}
+func MakeOp(oc Opcode, args ...uint32) *Operation {
+	return &Operation{Opcode: oc, Args: args}
 }
 
-type operation struct {
-	opcode opcode
-	args   []uint32
+type Operation struct {
+	Opcode Opcode
+	Args   []uint32
 }
 
 type operandType uint8
@@ -26,11 +26,11 @@ const (
 
 type operands []operandType
 
-type opcode uint8
+type Opcode uint8
 
-func (op *operation) ppOperand(i int) string {
-	opType := OPERANDS[op.opcode].or[i]
-	opVal := strconv.Itoa(int(op.args[i]))
+func (op *Operation) ppOperand(i int) string {
+	opType := OPERANDS[op.Opcode].or[i]
+	opVal := strconv.Itoa(int(op.Args[i]))
 	switch opType {
 	case dst:
 		return " m" + opVal + " <-"
@@ -45,7 +45,7 @@ func (op *operation) ppOperand(i int) string {
 	case tok:
 		return " TK" + opVal
 	case tup:
-		args := op.args[i:]
+		args := op.Args[i:]
 		result := " ("
 		for i, v := range args {
 			result = result + "m" + strconv.Itoa(int(v))
@@ -65,7 +65,7 @@ type opDescriptor struct {
 	or []operandType
 }
 
-var OPERANDS = map[opcode]opDescriptor{
+var OPERANDS = map[Opcode]opDescriptor{
 	Addf: {"addf", operands{dst, mem, mem}},
 	Addi: {"addi", operands{dst, mem, mem}},
 	Adds: {"adds", operands{dst, mem, mem}},
@@ -124,21 +124,21 @@ var OPERANDS = map[opcode]opDescriptor{
 	Untk: {"untk", operands{dst}},
 }
 
-func describe(op *operation) string {
-	operands := OPERANDS[op.opcode].or
-	result := OPERANDS[op.opcode].oc
+func describe(op *Operation) string {
+	operands := OPERANDS[op.Opcode].or
+	result := OPERANDS[op.Opcode].oc
 	for i := range operands {
 		result = result + op.ppOperand(i)
 	}
 	return result
 }
 
-func (op *operation) makeLastArg(loc uint32) {
-	op.args[len(op.args)-1] = loc
+func (op *Operation) MakeLastArg(loc uint32) {
+	op.Args[len(op.Args)-1] = loc
 }
 
 const (
-	Addf opcode = iota
+	Addf Opcode = iota
 	Addi
 	addl
 	Adds
