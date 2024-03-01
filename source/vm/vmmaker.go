@@ -11,7 +11,7 @@ import (
 )
 
 // Just as the initializer directs the tokenizer and the parser in the construction of the parsed code
-// chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vm.
+// chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the mc.
 
 // Hence the vmMaker contains all the state which is not needed by the compiler (e.g. the function table),
 // and the compiler contains the state needed at compile time but not at runtime.
@@ -117,7 +117,7 @@ func (vmm *VmMaker) compileFunctions() {
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
 			if vmm.cp.fns[c] == nil { // This is so that if some functions are built recursively we won't waste our time.
-				vmm.compileFunction(vmm.cp.vm, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
+				vmm.compileFunction(vmm.cp.mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
 			}
 			c++
 		}
@@ -143,7 +143,7 @@ const (
 
 )
 
-// On the one hand, the vm must know the names of the enums and their elements so it can describe them.
+// On the one hand, the mc must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
 func (vmm *VmMaker) createEnums() {
 	for chunk := 0; chunk < len(vmm.uP.Parser.TokenizedDeclarations[enumDeclaration]); chunk++ {
@@ -154,17 +154,17 @@ func (vmm *VmMaker) createEnums() {
 			vmm.uP.Throw("init/enum/lhs", tok1)
 		}
 
-		vmm.cp.vm.typeNames = append(vmm.cp.vm.typeNames, tok1.Literal)
-		vmm.cp.vm.enums = append(vmm.cp.vm.enums, []string{})
-		vmm.cp.vm.ub_enums++
+		vmm.cp.mc.typeNames = append(vmm.cp.mc.typeNames, tok1.Literal)
+		vmm.cp.mc.enums = append(vmm.cp.mc.enums, []string{})
+		vmm.cp.mc.ub_enums++
 
 		vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken() // This says "enum" or we wouldn't be here.
 		for tok := vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
 				vmm.uP.Throw("init/enum/ident", tok)
 			}
-			vmm.cp.enums[tok.Literal] = enumOrdinates{values.ValueType(chunk) + values.LB_ENUMS, len(vmm.cp.vm.enums[chunk])}
-			vmm.cp.vm.enums[chunk] = append(vmm.cp.vm.enums[chunk], tok.Literal)
+			vmm.cp.enums[tok.Literal] = enumOrdinates{values.ValueType(chunk) + values.LB_ENUMS, len(vmm.cp.mc.enums[chunk])}
+			vmm.cp.mc.enums[chunk] = append(vmm.cp.mc.enums[chunk], tok.Literal)
 
 			tok = vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
@@ -176,7 +176,7 @@ func (vmm *VmMaker) createEnums() {
 	}
 }
 
-func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment, ix int) *cpFunc {
+func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, outerEnv *environment, ix int) *cpFunc {
 	cpF := cpFunc{}
 	functionName, sig, _, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
@@ -190,20 +190,20 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 	}
 	fnenv := newEnvironment()
 	fnenv.ext = outerEnv
-	cpF.loReg = vm.memTop()
+	cpF.loReg = mc.memTop()
 	for _, pair := range sig {
 		if pair.VarType == "bling" {
 			continue
 		}
-		vmm.cp.reserve(vm, values.INT, DUMMY)
+		vmm.cp.reserve(mc, values.INT, DUMMY)
 		if pair.VarType == "ref" {
-			vmm.cp.addVariable(vm, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.typeNameToTypeList[pair.VarType])
+			vmm.cp.addVariable(mc, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.typeNameToTypeList[pair.VarType])
 			continue
 		}
-		vmm.cp.addVariable(vm, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
+		vmm.cp.addVariable(mc, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.typeNameToTypeList[pair.VarType])
 	}
-	cpF.hiReg = vm.memTop()
-	cpF.callTo = vm.codeTop()
+	cpF.hiReg = mc.memTop()
+	cpF.callTo = mc.codeTop()
 	if body.GetToken().Type == token.BUILTIN {
 		types, ok := BUILTINS[body.(*ast.BuiltInExpression).Name]
 		if ok {
@@ -212,15 +212,15 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 	} else {
 		if given != nil {
 			vmm.cp.thunkList = []thunk{}
-			vmm.cp.compileNode(vm, given, fnenv)
-			cpF.callTo = vm.codeTop()
+			vmm.cp.compileNode(mc, given, fnenv)
+			cpF.callTo = mc.codeTop()
 			for _, pair := range vmm.cp.thunkList {
-				vmm.cp.emit(vm, Thnk, pair.mLoc, pair.cLoc)
+				vmm.cp.emit(mc, Thnk, pair.mLoc, pair.cLoc)
 			}
 		}
-		cpF.types, _ = vmm.cp.compileNode(vm, body, fnenv) // TODO --- could we in fact do anything useful if we knew it was a constant?
-		vmm.cp.emit(vm, Ret)
-		cpF.outReg = vm.that()
+		cpF.types, _ = vmm.cp.compileNode(mc, body, fnenv) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		vmm.cp.emit(mc, Ret)
+		cpF.outReg = mc.that()
 	}
 	vmm.cp.fns[ix] = &cpF
 	return &cpF
@@ -228,9 +228,9 @@ func (vmm *VmMaker) compileFunction(vm *Vm, node ast.Node, outerEnv *environment
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.gvars.ext = vmm.cp.gconsts
-	vmm.cp.reserve(vmm.cp.vm, values.NULL, nil)
-	vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
-	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.vm, values.TYPE, values.TUPLE)
+	vmm.cp.reserve(vmm.cp.mc, values.NULL, nil)
+	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
+	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.mc, values.TYPE, values.TUPLE)
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {
@@ -241,19 +241,19 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 				vmm.uP.Throw("vmm/assign/ident", *dec.GetToken())
 			}
 			vname := lhs.(*ast.Identifier).Value
-			runFrom := vmm.cp.vm.codeTop()
-			inferedType, _ := vmm.cp.compileNode(vmm.cp.vm, rhs, vmm.cp.gvars)
+			runFrom := vmm.cp.mc.codeTop()
+			inferedType, _ := vmm.cp.compileNode(vmm.cp.mc, rhs, vmm.cp.gvars)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
-			vmm.cp.emit(vmm.cp.vm, Ret)
-			vmm.cp.vm.Run(runFrom)
+			vmm.cp.emit(vmm.cp.mc, Ret)
+			vmm.cp.mc.Run(runFrom)
 			if declarations == int(constantDeclaration) {
-				vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
+				vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
 			} else {
-				vmm.cp.addVariable(vmm.cp.vm, vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
+				vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
 			}
-			vmm.cp.vm.code = vmm.cp.vm.code[:runFrom]
+			vmm.cp.mc.code = vmm.cp.mc.code[:runFrom]
 		}
 	}
 }

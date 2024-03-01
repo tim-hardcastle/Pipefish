@@ -25,8 +25,6 @@ func main() {
 
 	fmt.Print(text.Logo())
 
-	// vm.DoIt()
-
 	hub := hub.New(os.Stdin, os.Stdout)
 	hub.Open()
 	argString := ""
