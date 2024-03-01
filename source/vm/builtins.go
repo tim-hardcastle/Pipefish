@@ -45,148 +45,148 @@ var BUILTINS = map[string]functionAndReturnType{
 	"type_of_tuple":     {(*Compiler).btTypeOfTuple, altType(values.TYPE)},
 }
 
-func (cp *Compiler) btAddFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Addf, dest, args[0], args[2])
+func (cp *Compiler) btAddFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Addf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btAddIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Addi, dest, args[0], args[2])
+func (cp *Compiler) btAddIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Addi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btAddStrings(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Adds, dest, args[0], args[2])
+func (cp *Compiler) btAddStrings(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Adds, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btDivideFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserve(vm, values.FLOAT, 0.0)
-	cp.put(vm, Equf, args[2], vm.that())
-	cp.emit(vm, Qtru, vm.that(), vm.codeTop()+3)
-	cp.reserveError(vm, "built/div/float", tok, []any{})
-	cp.emit(vm, Asgm, dest, vm.that())
-	cp.emit(vm, Jmp, vm.codeTop()+2)
-	cp.emit(vm, Divf, dest, args[0], args[2])
+func (cp *Compiler) btDivideFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserve(mc, values.FLOAT, 0.0)
+	cp.put(mc, Equf, args[2], mc.that())
+	cp.emit(mc, Qtru, mc.that(), mc.codeTop()+3)
+	cp.reserveError(mc, "built/div/float", tok, []any{})
+	cp.emit(mc, Asgm, dest, mc.that())
+	cp.emit(mc, Jmp, mc.codeTop()+2)
+	cp.emit(mc, Divf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btDivideIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserve(vm, values.INT, 0)
-	cp.put(vm, Equi, args[2], vm.that())
-	cp.emit(vm, Qtru, vm.that(), vm.codeTop()+3)
-	cp.reserveError(vm, "built/div/int", tok, []any{})
-	cp.emit(vm, Asgm, dest, vm.that())
-	cp.emit(vm, Jmp, vm.codeTop()+2)
-	cp.emit(vm, Divi, dest, args[0], args[2])
+func (cp *Compiler) btDivideIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserve(mc, values.INT, 0)
+	cp.put(mc, Equi, args[2], mc.that())
+	cp.emit(mc, Qtru, mc.that(), mc.codeTop()+3)
+	cp.reserveError(mc, "built/div/int", tok, []any{})
+	cp.emit(mc, Asgm, dest, mc.that())
+	cp.emit(mc, Jmp, mc.codeTop()+2)
+	cp.emit(mc, Divi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btFloatOfInt(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Flti, dest, args[0])
+func (cp *Compiler) btFloatOfInt(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Flti, dest, args[0])
 }
 
-func (cp *Compiler) btFloatOfString(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Flts, dest, args[0])
+func (cp *Compiler) btFloatOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Flts, dest, args[0])
 }
 
-func (cp *Compiler) btGtFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gthf, dest, args[0], args[2])
+func (cp *Compiler) btGtFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gthf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btGteFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gtef, dest, args[0], args[2])
+func (cp *Compiler) btGteFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gtef, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btGtInts(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gthi, dest, args[0], args[2])
+func (cp *Compiler) btGtInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gthi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btGteInts(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gtei, dest, args[0], args[2])
+func (cp *Compiler) btGteInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gtei, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btIntOfFloat(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Intf, dest, args[0])
+func (cp *Compiler) btIntOfFloat(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Intf, dest, args[0])
 }
 
-func (cp *Compiler) btIntOfString(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Ints, dest, args[0])
+func (cp *Compiler) btIntOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Ints, dest, args[0])
 }
 
-func (cp *Compiler) btLenString(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Lens, dest, args[0])
+func (cp *Compiler) btLenString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Lens, dest, args[0])
 }
 
-func (cp *Compiler) btLiteral(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Litx, dest, args[0])
+func (cp *Compiler) btLiteral(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Litx, dest, args[0])
 }
 
-func (cp *Compiler) btLtFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gthf, dest, args[2], args[0])
+func (cp *Compiler) btLtFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gthf, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btLteFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gtef, dest, args[2], args[0])
+func (cp *Compiler) btLteFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gtef, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btLtInts(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gthi, dest, args[2], args[0])
+func (cp *Compiler) btLtInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gthi, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btLteInts(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Gtei, dest, args[2], args[0])
+func (cp *Compiler) btLteInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Gtei, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btMakeError(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Mker, dest, args[0], cp.reserveToken(vm, tok))
+func (cp *Compiler) btMakeError(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Mker, dest, args[0], cp.reserveToken(mc, tok))
 }
 
-func (cp *Compiler) btModuloIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserve(vm, values.INT, 0)
-	cp.put(vm, Equi, args[2], vm.that())
-	cp.emit(vm, Qtru, vm.that(), vm.codeTop()+3)
-	cp.reserveError(vm, "built/mod", tok, []any{})
-	cp.emit(vm, Asgm, dest, vm.that())
-	cp.emit(vm, Jmp, vm.codeTop()+2)
-	cp.emit(vm, Modi, dest, args[0], args[2])
+func (cp *Compiler) btModuloIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserve(mc, values.INT, 0)
+	cp.put(mc, Equi, args[2], mc.that())
+	cp.emit(mc, Qtru, mc.that(), mc.codeTop()+3)
+	cp.reserveError(mc, "built/mod", tok, []any{})
+	cp.emit(mc, Asgm, dest, mc.that())
+	cp.emit(mc, Jmp, mc.codeTop()+2)
+	cp.emit(mc, Modi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btMultiplyFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Mulf, dest, args[0], args[2])
+func (cp *Compiler) btMultiplyFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Mulf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btMultiplyIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Muli, dest, args[0], args[2])
+func (cp *Compiler) btMultiplyIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Muli, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btNegateFloat(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Negf, dest, args[0])
+func (cp *Compiler) btNegateFloat(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Negf, dest, args[0])
 }
 
-func (cp *Compiler) btNegateInteger(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Negi, dest, args[0])
+func (cp *Compiler) btNegateInteger(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Negi, dest, args[0])
 }
 
-func (cp *Compiler) btSubtractFloats(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Subf, dest, args[0], args[2])
+func (cp *Compiler) btSubtractFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Subf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btString(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Strx, dest, args[0])
+func (cp *Compiler) btString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Strx, dest, args[0])
 }
 
-func (cp *Compiler) btSubtractIntegers(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Subi, dest, args[0], args[2])
+func (cp *Compiler) btSubtractIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Subi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btType(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Typx, dest, args[0])
+func (cp *Compiler) btType(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Typx, dest, args[0])
 }
 
-func (cp *Compiler) btTupleOfSingle(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Cv1T, dest, args[0])
+func (cp *Compiler) btTupleOfSingle(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Cv1T, dest, args[0])
 }
 
-func (cp *Compiler) btTupleOfTuple(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Asgm, dest, args[0])
+func (cp *Compiler) btTupleOfTuple(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Asgm, dest, args[0])
 }
 
-func (cp *Compiler) btTypeOfTuple(vm *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(vm, Asgm, dest, cp.tupleType)
+func (cp *Compiler) btTypeOfTuple(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, Asgm, dest, cp.tupleType)
 }

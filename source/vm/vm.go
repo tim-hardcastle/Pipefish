@@ -33,7 +33,7 @@ type lambdaFactory struct {
 }
 
 type lambda struct {
-	vm        *Vm
+	mc        *Vm
 	extTop    uint32
 	prmTop    uint32
 	dest      uint32
@@ -166,11 +166,11 @@ loop:
 		case Dofn:
 			lhs := vm.mem[args[1]].V.(lambda)
 			for i := 0; i < int(lhs.prmTop-lhs.extTop); i++ {
-				lhs.vm.mem[int(lhs.extTop)+i] = vm.mem[args[2+i]]
+				lhs.mc.mem[int(lhs.extTop)+i] = vm.mem[args[2+i]]
 			}
 			copy(lhs.captures, vm.mem)
-			lhs.vm.Run(lhs.locToCall)
-			vm.mem[args[0]] = lhs.vm.mem[lhs.dest]
+			lhs.mc.Run(lhs.locToCall)
+			vm.mem[args[0]] = lhs.mc.mem[lhs.dest]
 		case Dref:
 			vm.mem[args[0]] = vm.mem[vm.mem[args[1]].V.(uint32)]
 		case Equb:
