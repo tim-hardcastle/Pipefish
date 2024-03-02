@@ -8,10 +8,12 @@ import (
 
 	"strconv"
 	"strings"
+
+	"src.elv.sh/pkg/persistent/vector"
 )
 
 const (
-	SHOW_RUN = false
+	SHOW_RUN = true
 	DUMMY    = 4294967295
 )
 
@@ -127,7 +129,8 @@ loop:
 		case Adds:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + vm.Mem[args[2]].V.(string)}
 		case Adtk:
-			(vm.Mem[args[0]].V.(*object.Error)).AddToTrace(vm.Tokens[args[1]])
+			vm.Mem[args[0]] = vm.Mem[args[1]]
+			vm.Mem[args[0]].V.(*object.Error).AddToTrace(vm.Tokens[args[2]])
 		case Andb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(bool) && vm.Mem[args[2]].V.(bool)}
 		case Asgm:
@@ -225,6 +228,16 @@ loop:
 			continue
 		case Lens:
 			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.(string))}
+		case List:
+			list := vector.Empty
+			if vm.Mem[args[1]].T == values.TUPLE {
+				for _, v := range vm.Mem[args[1]].V.([]values.Value) {
+					list = list.Conj(v)
+				}
+			} else {
+				list = list.Conj(vm.Mem[args[1]])
+			}
+			vm.Mem[args[0]] = values.Value{values.LIST, list}
 		case Litx:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Literal(vm.Mem[args[1]])}
 		case Mker:
@@ -332,12 +345,6 @@ func (vm *Vm) describe(v values.Value) string {
 	switch v.T {
 	case values.INT:
 		return strconv.Itoa(v.V.(int))
-	case values.LIST:
-		result := make([]string, len(v.V.([]values.Value)))
-		for i, v := range v.V.([]values.Value) {
-			result[i] = vm.describe(v)
-		}
-		return "[" + strings.Join(result, ", ") + ")"
 	case values.STRING:
 		return v.V.(string)
 	case values.TYPE:
@@ -376,6 +383,13 @@ func (vm *Vm) describe(v values.Value) string {
 		return "lambda function"
 	case values.UNDEFINED_VALUE:
 		return "UNDEFINED VALUE! values.ERROR!"
+	case values.LIST:
+		result := make([]string, v.V.(vector.Vector).Len())
+		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
+			el, _ := v.V.(vector.Vector).Index(i)
+			result[i] = vm.describe(el.(values.Value))
+		}
+		return "[" + strings.Join(result, ", ") + "]"
 	}
 
 	panic("can't describe value")
