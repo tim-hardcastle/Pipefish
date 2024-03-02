@@ -728,10 +728,15 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 			b.types[i], cstI = cp.compileNode(mc, arg, env)
 			cst = cst && cstI
 			b.valLocs[i] = mc.That()
-			var failed bool
-			backtrackList[i], failed = cp.emitErrorBoilerplate(mc, b.types[i].(alternateType), "comp/arg/error", node.GetToken(), true)
-			if failed {
+			if b.types[i].(alternateType).only(tp(values.ERROR)) {
+				cp.p.Throw("comp/arg/error", node.GetToken())
 				return altType(values.ERROR), true
+			}
+			if b.types[i].(alternateType).contains(tp(values.ERROR)) {
+				cp.emit(mc, vm.Qtyp, mc.That(), uint32(tp(values.ERROR)), mc.CodeTop()+2)
+				backtrackList[i] = mc.CodeTop()
+				cp.emit(mc, vm.Asgm, DUMMY, mc.That(), mc.ThatToken())
+				cp.emit(mc, vm.Ret)
 			}
 		}
 	}
