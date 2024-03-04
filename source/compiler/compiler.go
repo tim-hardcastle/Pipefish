@@ -13,11 +13,6 @@ import (
 const SHOW_COMPILE = true
 const SHOW_RUN = true
 
-type enumOrdinates struct {
-	enum    values.ValueType
-	element int
-}
-
 type thunk struct {
 	mLoc uint32
 	cLoc uint32
@@ -26,7 +21,7 @@ type thunk struct {
 type Compiler struct {
 	p                  *parser.Parser
 	mc                 *vm.Vm
-	enums              map[string]enumOrdinates
+	enums              map[string]uint32
 	gconsts            *environment
 	gvars              *environment
 	fns                []*cpFunc
@@ -53,7 +48,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
 		p:         p,
 		mc:        vm.BlankVm(),
-		enums:     make(map[string]enumOrdinates),
+		enums:     make(map[string]uint32),
 		gconsts:   newEnvironment(),
 		gvars:     newEnvironment(),
 		thunkList: []thunk{},
@@ -65,13 +60,21 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"float64":  altType(values.FLOAT),
 			"error":    altType(values.ERROR),
 			"type":     altType(values.TYPE),
+			"pair":     altType(values.PAIR),
+			"list":     altType(values.LIST),
+			"map":      altType(values.MAP),
+			"set":      altType(values.SET),
 			"int?":     altType(values.NULL, values.INT),
 			"string?":  altType(values.NULL, values.STRING),
 			"bool?":    altType(values.NULL, values.BOOL),
 			"float64?": altType(values.NULL, values.FLOAT),
 			"type?":    altType(values.NULL, values.TYPE),
+			"pair?":    altType(values.PAIR, values.NULL),
+			"list?":    altType(values.LIST, values.NULL),
+			"map?":     altType(values.MAP, values.NULL),
+			"set?":     altType(values.SET, values.NULL),
 			"null":     altType(values.NULL),
-			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.LIST, values.PAIR, values.LIST, values.MAP, values.SET),
+			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET),
 			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET),
 		},
 	}
@@ -265,8 +268,8 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 	case *ast.Identifier:
 		enumElement, ok := cp.enums[node.Value]
 		if ok {
-			cp.reserve(mc, enumElement.enum, enumElement.element)
-			rtnTypes, rtnConst = altType(enumElement.enum), true
+			cp.put(mc, vm.Asgm, enumElement)
+			rtnTypes, rtnConst = altType(mc.Mem[enumElement].T), true
 			break
 		}
 		v, ok := env.getVar(node.Value)

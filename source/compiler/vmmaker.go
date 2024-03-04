@@ -167,7 +167,7 @@ func (vmm *VmMaker) createEnums() {
 			if tok.Type != token.IDENT {
 				vmm.uP.Throw("init/enum/ident", tok)
 			}
-			vmm.cp.enums[tok.Literal] = enumOrdinates{values.ValueType(chunk) + values.LB_ENUMS, len(vmm.cp.mc.Enums[chunk])}
+			vmm.cp.enums[tok.Literal] = vmm.cp.reserve(vmm.cp.mc, values.ValueType(chunk)+values.LB_ENUMS, len(vmm.cp.mc.Enums[chunk]))
 			vmm.cp.mc.Enums[chunk] = append(vmm.cp.mc.Enums[chunk], tok.Literal)
 
 			tok = vmm.uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
