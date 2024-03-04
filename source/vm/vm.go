@@ -25,7 +25,7 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	Ub_enums        uint32
+	Ub_enums        values.ValueType
 	TypeNames       []string
 	Enums           [][]string
 	Tokens          []*token.Token
@@ -104,10 +104,10 @@ var OPCODE_LIST []func(vm *Vm, args []uint32)
 var CONSTANTS = []values.Value{values.FALSE, values.TRUE, values.U_OBJ}
 
 func BlankVm() *Vm {
-	newVm := &Vm{Mem: CONSTANTS}
+	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS + 1}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	newVm.TypeNames = []string{"UNDEFINED VALUE!!! values.ERROR!", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
-		"int", "bool", "string", "float64", "type", "func", "list"}
+	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
+		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set"}
 	return newVm
 }
 
@@ -250,6 +250,8 @@ loop:
 				newLambda.Captures[i] = vm.Mem[v]
 			}
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
+		case Mkpr:
+			vm.Mem[args[0]] = values.Value{values.PAIR, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 		case Modi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 		case Mulf:
@@ -342,6 +344,9 @@ func (vm *Vm) describeType(t values.ValueType) string {
 }
 
 func (vm *Vm) describe(v values.Value) string {
+	if values.LB_ENUMS <= v.T && v.T < values.ValueType(vm.Ub_enums) {
+		return vm.Enums[v.T-values.LB_ENUMS][v.V.(int)]
+	}
 	switch v.T {
 	case values.INT:
 		return strconv.Itoa(v.V.(int))
@@ -382,7 +387,7 @@ func (vm *Vm) describe(v values.Value) string {
 	case values.FUNC:
 		return "lambda function"
 	case values.UNDEFINED_VALUE:
-		return "UNDEFINED VALUE! values.ERROR!"
+		return "UNDEFINED VALUE!!!"
 	case values.LIST:
 		result := make([]string, v.V.(vector.Vector).Len())
 		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
@@ -390,8 +395,11 @@ func (vm *Vm) describe(v values.Value) string {
 			result[i] = vm.describe(el.(values.Value))
 		}
 		return "[" + strings.Join(result, ", ") + "]"
+	case values.PAIR:
+		vals := v.V.([]values.Value)
+		return vm.describe(vals[0]) + "::" + vm.describe(vals[1])
 	}
-
+	println("Undescribable value", v.T)
 	panic("can't describe value")
 }
 

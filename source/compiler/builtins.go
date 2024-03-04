@@ -32,6 +32,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"lt_ints":           {(*Compiler).btLtInts, altType(values.BOOL)},
 	"lte_ints":          {(*Compiler).btLteInts, altType(values.BOOL)},
 	"make_error":        {(*Compiler).btMakeError, altType(values.ERROR)},
+	"make_pair":         {(*Compiler).btMakePair, altType(values.PAIR)},
 	"modulo_integers":   {(*Compiler).btModuloIntegers, altType(values.ERROR, values.INT)},
 	"multiply_floats":   {(*Compiler).btMultiplyFloats, altType(values.FLOAT)},
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, altType(values.INT)},
@@ -136,6 +137,10 @@ func (cp *Compiler) btLteInts(mc *vm.Vm, tok *token.Token, dest uint32, args []u
 
 func (cp *Compiler) btMakeError(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Mker, dest, args[0], cp.reserveToken(mc, tok))
+}
+
+func (cp *Compiler) btMakePair(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Mkpr, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btModuloIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {

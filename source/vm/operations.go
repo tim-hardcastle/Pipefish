@@ -104,6 +104,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	List: {"list", operands{dst, mem}},
 	Mker: {"mker", operands{dst, mem, tok}},
 	Mkfn: {"mkfn", operands{dst, lfc}},
+	Mkpr: {"mkpr", operands{dst, mem, mem}},
 	Modi: {"modi", operands{dst, mem, mem}},
 	Mulf: {"mulf", operands{dst, mem, mem}},
 	Muli: {"muli", operands{dst, mem, mem}},
@@ -189,6 +190,7 @@ const (
 	Litx
 	Mker
 	Mkfn
+	Mkpr
 	makS
 	Modi
 	Mulf

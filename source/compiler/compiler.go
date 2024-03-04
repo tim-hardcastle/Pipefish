@@ -263,6 +263,12 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		rtnTypes, rtnConst = altType(values.FUNC), isConst
 		break
 	case *ast.Identifier:
+		enumElement, ok := cp.enums[node.Value]
+		if ok {
+			cp.reserve(mc, enumElement.enum, enumElement.element)
+			rtnTypes, rtnConst = altType(enumElement.enum), true
+			break
+		}
 		v, ok := env.getVar(node.Value)
 		if !ok {
 			cp.p.Throw("comp/ident/known", node.GetToken())

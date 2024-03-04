@@ -2,6 +2,8 @@
 
 def
 
+// Symbols are in alphabetical order of their hooks.
+
 (x float64) + (y float64) : builtin "add_floats"
 (x int) + (y int) : builtin "add_integers"
 (x list) + (y list) : builtin "add_lists"
@@ -17,6 +19,7 @@ def
 (x float64) <= (y float64) : builtin "lte_floats"
 (x int) < (y int) : builtin "lt_ints"
 (x int) <= (y int) : builtin "lte_ints"
+(x single?) :: (y single?) : builtin "make_pair"
 (x int) % (y int) : builtin "modulo_integers"
 (x float64) * (y float64) : builtin "multiply_floats"
 (x int) * (y int) : builtin "multiply_integers"
@@ -24,6 +27,8 @@ def
 - (x int) : builtin "negate_integer"
 (x float64) - (y float64) : builtin "subtract_floats"
 (x int) - (y int) : builtin "subtract_integers"
+
+// Ordinary functions are in order of their function name.
 
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"
@@ -36,7 +41,7 @@ type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
 
 
-
+Colors = enum RED, GREEN, BLUE
 
 
 
