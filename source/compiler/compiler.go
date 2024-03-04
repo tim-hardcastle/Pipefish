@@ -71,8 +71,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"float64?": altType(values.NULL, values.FLOAT),
 			"type?":    altType(values.NULL, values.TYPE),
 			"null":     altType(values.NULL),
-			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.LIST),
-			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.LIST),
+			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.LIST, values.PAIR, values.LIST, values.MAP, values.SET),
+			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET),
 		},
 	}
 }

@@ -156,6 +156,9 @@ func (vmm *VmMaker) createEnums() {
 		}
 
 		vmm.cp.mc.TypeNames = append(vmm.cp.mc.TypeNames, tok1.Literal)
+		vmm.cp.typeNameToTypeList["single"] = vmm.cp.typeNameToTypeList["single"].union(altType(values.LB_ENUMS + values.ValueType(len(vmm.cp.mc.Enums))))
+		vmm.cp.typeNameToTypeList["single?"] = vmm.cp.typeNameToTypeList["single?"].union(altType(values.LB_ENUMS + values.ValueType(len(vmm.cp.mc.Enums))))
+		vmm.cp.typeNameToTypeList[tok1.Literal] = vmm.cp.typeNameToTypeList[tok1.Literal].union(altType(values.LB_ENUMS + values.ValueType(len(vmm.cp.mc.Enums))))
 		vmm.cp.mc.Enums = append(vmm.cp.mc.Enums, []string{})
 		vmm.cp.mc.Ub_enums++
 
