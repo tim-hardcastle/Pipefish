@@ -6,7 +6,7 @@ The `docs` folder contains supplementary information about the Pipefish programm
 
 ## Contents of the `docs` folder
 
-* [Pipefish: a high-level view](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/-a-high-level-view.md). This explains the goals and design principles of the language.
+* [Pipefish: a high-level view](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/pipefish-a-high-level-view.md). This explains the goals and design principles of the language.
 * [Style guide](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/style-guide.md). This gives best practices for the style in which one should write Pipefish code.
 * [Writing an adventure game in Pipefish](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/writing-an-adventure-game-in-.md). A tutorial.
 * [Functional core, imperative shell](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/functional-core-imperative-shell.md). A synopsis of the language paradigm.
