@@ -1,25 +1,11 @@
 package values
 
 import (
-	"fmt"
 	"math/rand"
-	"strings"
 )
 
 type Set struct {
 	root *setNode
-}
-
-func (m *Set) String() string {
-	var buf strings.Builder
-	buf.WriteString("map(")
-	var sep string
-	m.Range(func(k Value) {
-		fmt.Fprintf(&buf, "%s%v", sep, k)
-		sep = ", "
-	})
-	buf.WriteByte(')')
-	return buf.String()
 }
 
 type setNode struct {
@@ -28,14 +14,14 @@ type setNode struct {
 	left, right *setNode
 }
 
-func (pm *Set) Add(element Value) {
+func (pm Set) Add(element Value) {
 	first := pm.root
 	second := newSetNode(element)
 	pm.root = setUnion(first, second, true)
 }
 
 // Delete deletes the value for a element.
-func (pm *Set) Delete(element Value) {
+func (pm Set) Delete(element Value) {
 	root := pm.root
 	left, mid, right := setSplit(root, element, true)
 	if mid == nil {
@@ -44,7 +30,7 @@ func (pm *Set) Delete(element Value) {
 	pm.root = setMerge(left, right)
 }
 
-func (pm *Set) Contains(element Value) bool {
+func (pm Set) Contains(element Value) bool {
 	node := pm.root
 	for node != nil {
 		if element.compare(node.element) {
@@ -59,13 +45,13 @@ func (pm *Set) Contains(element Value) bool {
 }
 
 // Range calls f sequentially in ascending element order for all entries in the set.
-func (pm *Set) Range(f func(element Value)) {
+func (pm Set) Range(f func(element Value)) {
 	pm.root.forEach(func(k Value) {
 		f(k)
 	})
 }
 
-func (pm *Set) Union(other *Set) {
+func (pm Set) Union(other *Set) {
 	root := pm.root
 	pm.root = setUnion(root, other.root, true)
 }

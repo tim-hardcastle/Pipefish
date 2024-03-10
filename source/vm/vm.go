@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"pipefish/source/object"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -252,6 +253,24 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
 		case Mkpr:
 			vm.Mem[args[0]] = values.Value{values.PAIR, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
+		case Mkst:
+			result := values.Set{}
+			err := false
+			for i := 1; i < len(args); i++ {
+				v := vm.Mem[args[i]]
+				println("element is", vm.describe(v))
+				if (values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums) {
+					result.Add(v)
+				} else {
+					err = true
+					break
+				}
+				if err {
+					vm.Mem[args[0]] = vm.Mem[vm.That()] // I.e. an error created before the mkst call.
+				} else {
+					vm.Mem[args[0]] = values.Value{values.SET, result}
+				}
+			}
 		case Modi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 		case Mulf:
@@ -398,6 +417,16 @@ func (vm *Vm) describe(v values.Value) string {
 	case values.PAIR:
 		vals := v.V.([]values.Value)
 		return vm.describe(vals[0]) + "::" + vm.describe(vals[1])
+	case values.SET:
+		var buf strings.Builder
+		buf.WriteString("set(")
+		var sep string
+		v.V.(values.Set).Range(func(k values.Value) {
+			fmt.Fprintf(&buf, "%s%v", sep, k)
+			sep = ", "
+		})
+		buf.WriteByte(')')
+		return buf.String()
 	}
 	println("Undescribable value", v.T)
 	panic("can't describe value")

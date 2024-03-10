@@ -32,7 +32,9 @@ var BUILTINS = map[string]functionAndReturnType{
 	"lt_ints":           {(*Compiler).btLtInts, altType(values.BOOL)},
 	"lte_ints":          {(*Compiler).btLteInts, altType(values.BOOL)},
 	"make_error":        {(*Compiler).btMakeError, altType(values.ERROR)},
+	"make_map":          {(*Compiler).btMakeMap, altType(values.MAP)},
 	"make_pair":         {(*Compiler).btMakePair, altType(values.PAIR)},
+	"make_set":          {(*Compiler).btMakeSet, altType(values.SET)},
 	"modulo_integers":   {(*Compiler).btModuloIntegers, altType(values.ERROR, values.INT)},
 	"multiply_floats":   {(*Compiler).btMultiplyFloats, altType(values.FLOAT)},
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, altType(values.INT)},
@@ -139,8 +141,18 @@ func (cp *Compiler) btMakeError(mc *vm.Vm, tok *token.Token, dest uint32, args [
 	cp.emit(mc, vm.Mker, dest, args[0], cp.reserveToken(mc, tok))
 }
 
+func (cp *Compiler) btMakeMap(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/map/type", tok, []any{})
+	cp.emit(mc, vm.Mkmp, dest, args[0])
+}
+
 func (cp *Compiler) btMakePair(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Mkpr, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btMakeSet(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/set/type", tok, []any{})
+	cp.emit(mc, vm.Mkst, dest, args[0])
 }
 
 func (cp *Compiler) btModuloIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
