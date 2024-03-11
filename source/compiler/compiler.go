@@ -768,7 +768,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 			traceTokenReserved = true
 		}
 		cp.emit(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.CodeTop()+3)
-		cp.emit(mc, vm.Adtk, mc.That(), mc.ThatToken())
+		cp.emit(mc, vm.Adtk, mc.That(), mc.That(), mc.ThatToken())
 		cp.emit(mc, vm.Ret)
 	}
 	return returnTypes, cst
