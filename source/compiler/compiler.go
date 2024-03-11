@@ -34,12 +34,13 @@ type Compiler struct {
 }
 
 type cpFunc struct {
-	callTo  uint32
-	loReg   uint32
-	hiReg   uint32
-	outReg  uint32
-	types   alternateType
-	builtin string // A non-empty string in case it is a builtin.
+	callTo   uint32
+	loReg    uint32
+	hiReg    uint32
+	outReg   uint32
+	tupleReg uint32
+	types    alternateType
+	builtin  string // A non-empty string in case it is a builtin.
 }
 
 const DUMMY = 4294967295
@@ -1067,8 +1068,13 @@ func (cp *Compiler) reput(mc *vm.Vm, opcode vm.Opcode, args ...uint32) {
 }
 
 func (cp *Compiler) emitFunctionCall(mc *vm.Vm, funcNumber uint32, valLocs []uint32) {
-	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
-	cp.emit(mc, vm.Call, args...)
+	if cp.fns[funcNumber].tupleReg == DUMMY { // We specialize on whether we have to capture tuples.
+		args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
+		cp.emit(mc, vm.Call, args...)
+	} else {
+		args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg, cp.fns[funcNumber].tupleReg}, valLocs...)
+		cp.emit(mc, vm.CalT, args...)
+	}
 }
 
 func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {

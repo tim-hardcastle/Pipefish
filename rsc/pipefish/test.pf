@@ -47,7 +47,8 @@ Colors = enum RED, GREEN, BLUE
 
 
 
-
+foo(T tuple) :
+    T
 
 
 

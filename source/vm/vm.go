@@ -107,7 +107,7 @@ var CONSTANTS = []values.Value{values.FALSE, values.TRUE, values.U_OBJ}
 func BlankVm() *Vm {
 	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS + 1}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
+	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "INT_ARRAY", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
 		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set"}
 	return newVm
 }
@@ -140,6 +140,28 @@ loop:
 			offset := args[1]
 			for i := args[1]; i < args[2]; i++ {
 				vm.Mem[i] = vm.Mem[args[3+i-offset]]
+			}
+			vm.callstack = append(vm.callstack, loc)
+			loc = args[0]
+			continue
+		case CalT:
+			offset := int(args[1]) - 4
+			var tupleTime bool
+			var tplpt int
+			tupleList := vm.Mem[args[3]].V.([]uint32)
+			for j := 4; j < len(args); j++ {
+				if tplpt <= len(tupleList) && j-4 == int(tupleList[tplpt]) {
+					tupleTime = true
+					vm.Mem[args[1]+tupleList[tplpt]] = values.Value{values.TUPLE, make([]values.Value, 0, 10)}
+				}
+				// if vm.Mem[i].T == values.BLING {}
+				if tupleTime {
+					tupleVal := vm.Mem[args[1]+tupleList[tplpt]].V.([]values.Value)
+					tupleVal = append(tupleVal, vm.Mem[args[j]])
+					vm.Mem[args[1]+tupleList[tplpt]].V = tupleVal
+				} else {
+					vm.Mem[j+offset] = vm.Mem[args[j]]
+				}
 			}
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
@@ -369,6 +391,16 @@ func (vm *Vm) describe(v values.Value) string {
 	switch v.T {
 	case values.INT:
 		return strconv.Itoa(v.V.(int))
+	case values.INT_ARRAY:
+		var buf strings.Builder
+		buf.WriteString("INT_ARRAY(")
+		var sep string
+		for _, v := range v.V.([]uint32) {
+			fmt.Fprintf(&buf, "%s%v", sep, v)
+			sep = ", "
+		}
+		buf.WriteByte(')')
+		return buf.String()
 	case values.STRING:
 		return v.V.(string)
 	case values.TYPE:

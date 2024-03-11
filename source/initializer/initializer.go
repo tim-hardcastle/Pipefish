@@ -778,7 +778,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 	c := 0
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
-			functionName, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
+			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 			}

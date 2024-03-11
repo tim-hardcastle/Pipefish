@@ -4,6 +4,7 @@ type ValueType uint32
 
 const ( // Cross-reference with typeNames in blankVm()
 	UNDEFINED_VALUE ValueType = iota // For debugging purposes, it is useful to have the zero value something it should never actually be.
+	INT_ARRAY                        // For internal use only
 	THUNK
 	CREATED_LOCAL_CONSTANT
 	TUPLE

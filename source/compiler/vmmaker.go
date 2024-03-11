@@ -182,7 +182,7 @@ func (vmm *VmMaker) createEnums() {
 
 func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environment, ix int) *cpFunc {
 	cpF := cpFunc{}
-	functionName, sig, _, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
+	functionName, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 	}
@@ -199,7 +199,7 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 		if pair.VarType == "bling" {
 			continue
 		}
-		vmm.cp.reserve(mc, values.INT, DUMMY)
+		vmm.cp.reserve(mc, values.UNDEFINED_VALUE, DUMMY)
 		if pair.VarType == "ref" {
 			vmm.cp.addVariable(mc, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.typeNameToTypeList[pair.VarType])
 			continue
@@ -208,6 +208,11 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 	}
 	cpF.hiReg = mc.MemTop()
 	cpF.callTo = mc.CodeTop()
+	if len(tupleList) > 0 {
+		cpF.tupleReg = vmm.cp.reserve(mc, values.INT_ARRAY, tupleList)
+	} else {
+		cpF.tupleReg = DUMMY
+	}
 	if body.GetToken().Type == token.BUILTIN {
 		types, ok := BUILTINS[body.(*ast.BuiltInExpression).Name]
 		if ok {
