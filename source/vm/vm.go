@@ -397,6 +397,22 @@ func (vm *Vm) describe(v values.Value) string {
 		return vm.Enums[v.T-values.LB_ENUMS][v.V.(int)]
 	}
 	switch v.T {
+	case values.BOOL:
+		if v.V.(bool) {
+			return "true"
+		} else {
+			return "false"
+		}
+	case values.ERROR:
+		ob := v.V.(*object.Error)
+		if ob.ErrorId != "eval/user" {
+			ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
+		}
+		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
+	case values.FLOAT:
+		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
+	case values.FUNC:
+		return "lambda function"
 	case values.INT:
 		return strconv.Itoa(v.V.(int))
 	case values.INT_ARRAY:
@@ -409,44 +425,6 @@ func (vm *Vm) describe(v values.Value) string {
 		}
 		buf.WriteByte(')')
 		return buf.String()
-	case values.STRING:
-		return v.V.(string)
-	case values.TYPE:
-		return vm.describeType(v.V.(values.ValueType))
-	case values.BOOL:
-		if v.V.(bool) {
-			return "true"
-		} else {
-			return "false"
-		}
-	case values.FLOAT:
-		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
-	case values.UNSAT:
-		return "unsatisfied conditional"
-	case values.NULL:
-		return "values.NULL"
-	case values.THUNK:
-		return "thunk"
-	case values.TUPLE:
-		result := make([]string, len(v.V.([]values.Value)))
-		for i, v := range v.V.([]values.Value) {
-			result[i] = vm.describe(v)
-		}
-		prefix := "("
-		if len(result) == 1 {
-			prefix = "tuple("
-		}
-		return prefix + strings.Join(result, ", ") + ")"
-	case values.ERROR:
-		ob := v.V.(*object.Error)
-		if ob.ErrorId != "eval/user" {
-			ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
-		}
-		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
-	case values.FUNC:
-		return "lambda function"
-	case values.UNDEFINED_VALUE:
-		return "UNDEFINED VALUE!!!"
 	case values.LIST:
 		var buf strings.Builder
 		buf.WriteString("[]")
@@ -458,6 +436,18 @@ func (vm *Vm) describe(v values.Value) string {
 		}
 		buf.WriteByte(')')
 		return buf.String()
+	case values.MAP:
+		var buf strings.Builder
+		buf.WriteString("map(")
+		var sep string
+		(v.V.(*values.Map)).Range(func(k, v values.Value) {
+			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.describe(k), vm.describe(v))
+			sep = ", "
+		})
+		buf.WriteByte(')')
+		return buf.String()
+	case values.NULL:
+		return "NULL"
 	case values.PAIR:
 		vals := v.V.([]values.Value)
 		return vm.describe(vals[0]) + "::" + vm.describe(vals[1])
@@ -471,16 +461,26 @@ func (vm *Vm) describe(v values.Value) string {
 		})
 		buf.WriteByte(')')
 		return buf.String()
-	case values.MAP:
-		var buf strings.Builder
-		buf.WriteString("map(")
-		var sep string
-		(v.V.(*values.Map)).Range(func(k, v values.Value) {
-			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.describe(k), vm.describe(v))
-			sep = ", "
-		})
-		buf.WriteByte(')')
-		return buf.String()
+	case values.STRING:
+		return v.V.(string)
+	case values.THUNK:
+		return "thunk"
+	case values.TUPLE:
+		result := make([]string, len(v.V.([]values.Value)))
+		for i, v := range v.V.([]values.Value) {
+			result[i] = vm.describe(v)
+		}
+		prefix := "("
+		if len(result) == 1 {
+			prefix = "tuple("
+		}
+		return prefix + strings.Join(result, ", ") + ")"
+	case values.TYPE:
+		return vm.describeType(v.V.(values.ValueType))
+	case values.UNDEFINED_VALUE:
+		return "UNDEFINED VALUE!!!"
+	case values.UNSAT:
+		return "UNSATIFIED CONDITIONAL!!!"
 	}
 	println("Undescribable value", v.T)
 	panic("can't describe value")
