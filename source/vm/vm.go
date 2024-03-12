@@ -145,12 +145,12 @@ loop:
 			loc = args[0]
 			continue
 		case CalT:
-			offset := int(args[1]) - 4
+			offset := int(args[1]) - 3
 			var tupleTime bool
 			var tplpt int
-			tupleList := vm.Mem[args[3]].V.([]uint32)
-			for j := 4; j < len(args); j++ {
-				if tplpt <= len(tupleList) && j-4 == int(tupleList[tplpt]) {
+			tupleList := vm.Mem[args[2]].V.([]uint32) // This is the hireg of the parameters, and (numbering being exclusive) is the reg containing the integer array saying where tuple captures start.
+			for j := 3; j < len(args); j++ {
+				if tplpt <= len(tupleList) && j-3 == int(tupleList[tplpt]) {
 					tupleTime = true
 					vm.Mem[args[1]+tupleList[tplpt]] = values.Value{values.TUPLE, make([]values.Value, 0, 10)}
 				}
@@ -279,20 +279,28 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.PAIR, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 		case Mkst:
 			result := values.Set{}
-			err := false
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
-				if (values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums) {
-					result = result.Add(v)
-				} else {
-					err = true
+				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
+					vm.Mem[args[0]] = vm.Mem[vm.That()] // I.e. an error created before the mkst call.
+				}
+				result = result.Add(v)
+			}
+			vm.Mem[args[0]] = values.Value{values.SET, result}
+		case Mkmp:
+			result := &values.Map{}
+			for _, p := range vm.Mem[args[1]].V.([]values.Value) {
+				if p.T != values.PAIR {
+					vm.Mem[args[0]] = vm.Mem[vm.That()-1] // I.e. an error created before the mkmp call.
 					break
 				}
-				if err {
+				k := p.V.([]values.Value)[0]
+				v := p.V.([]values.Value)[1]
+				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
 					vm.Mem[args[0]] = vm.Mem[vm.That()] // I.e. an error created before the mkst call.
-				} else {
-					vm.Mem[args[0]] = values.Value{values.SET, result}
 				}
+				result.Set(k, v)
 			}
+			vm.Mem[args[0]] = values.Value{values.MAP, result}
 		case Modi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 		case Mulf:
@@ -459,6 +467,16 @@ func (vm *Vm) describe(v values.Value) string {
 		var sep string
 		v.V.(values.Set).Range(func(k values.Value) {
 			fmt.Fprintf(&buf, "%s%s", sep, vm.describe(k))
+			sep = ", "
+		})
+		buf.WriteByte(')')
+		return buf.String()
+	case values.MAP:
+		var buf strings.Builder
+		buf.WriteString("map(")
+		var sep string
+		(v.V.(*values.Map)).Range(func(k, v values.Value) {
+			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.describe(k), vm.describe(v))
 			sep = ", "
 		})
 		buf.WriteByte(')')

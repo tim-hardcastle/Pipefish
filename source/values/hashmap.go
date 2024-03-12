@@ -1,25 +1,11 @@
 package values
 
 import (
-	"fmt"
 	"math/rand"
-	"strings"
 )
 
 type Map struct {
 	root *mapNode
-}
-
-func (m *Map) String() string {
-	var buf strings.Builder
-	buf.WriteString("map(")
-	var sep string
-	m.Range(func(k, v Value) {
-		fmt.Fprintf(&buf, "%s%v::%v", sep, k, v)
-		sep = ", "
-	})
-	buf.WriteByte(')')
-	return buf.String()
 }
 
 type mapNode struct {

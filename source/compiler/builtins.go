@@ -147,6 +147,7 @@ func (cp *Compiler) btMakeError(mc *vm.Vm, tok *token.Token, dest uint32, args [
 }
 
 func (cp *Compiler) btMakeMap(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/map/pair", tok, []any{})
 	cp.reserveError(mc, "built/map/type", tok, []any{})
 	cp.emit(mc, vm.Mkmp, dest, args[0])
 }

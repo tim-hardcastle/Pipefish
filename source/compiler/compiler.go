@@ -1068,11 +1068,10 @@ func (cp *Compiler) reput(mc *vm.Vm, opcode vm.Opcode, args ...uint32) {
 }
 
 func (cp *Compiler) emitFunctionCall(mc *vm.Vm, funcNumber uint32, valLocs []uint32) {
+	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
 	if cp.fns[funcNumber].tupleReg == DUMMY { // We specialize on whether we have to capture tuples.
-		args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
 		cp.emit(mc, vm.Call, args...)
 	} else {
-		args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg, cp.fns[funcNumber].tupleReg}, valLocs...)
 		cp.emit(mc, vm.CalT, args...)
 	}
 }
