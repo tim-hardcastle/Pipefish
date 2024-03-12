@@ -23,6 +23,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"gte_floats":        {(*Compiler).btGteFloats, altType(values.BOOL)},
 	"gt_ints":           {(*Compiler).btGtInts, altType(values.BOOL)},
 	"gte_ints":          {(*Compiler).btGteInts, altType(values.BOOL)},
+	"identity":          {(*Compiler).btIdentity, altType(values.TUPLE)},
 	"int_of_float":      {(*Compiler).btIntOfFloat, altType(values.INT)},
 	"int_of_string":     {(*Compiler).btIntOfString, altType(values.ERROR, values.INT)},
 	"len_string":        {(*Compiler).btLenString, altType(values.INT)},
@@ -103,6 +104,10 @@ func (cp *Compiler) btGtInts(mc *vm.Vm, tok *token.Token, dest uint32, args []ui
 
 func (cp *Compiler) btGteInts(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Gtei, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btIdentity(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Idfn, dest, args[0])
 }
 
 func (cp *Compiler) btIntOfFloat(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {

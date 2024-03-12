@@ -231,6 +231,8 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(int) > vm.Mem[args[2]].V.(int)}
 		case Halt:
 			break loop
+		case Idfn:
+			vm.Mem[args[0]] = vm.Mem[args[1]]
 		case Intf:
 			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(float64))}
 		case Ints:
@@ -278,11 +280,9 @@ loop:
 		case Mkst:
 			result := values.Set{}
 			err := false
-			for i := 1; i < len(args); i++ {
-				v := vm.Mem[args[i]]
-				println("element is", vm.describe(v))
+			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
 				if (values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums) {
-					result.Add(v)
+					result = result.Add(v)
 				} else {
 					err = true
 					break
@@ -440,12 +440,16 @@ func (vm *Vm) describe(v values.Value) string {
 	case values.UNDEFINED_VALUE:
 		return "UNDEFINED VALUE!!!"
 	case values.LIST:
-		result := make([]string, v.V.(vector.Vector).Len())
+		var buf strings.Builder
+		buf.WriteString("[]")
+		var sep string
 		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
 			el, _ := v.V.(vector.Vector).Index(i)
-			result[i] = vm.describe(el.(values.Value))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.describe(el.(values.Value)))
+			sep = ", "
 		}
-		return "[" + strings.Join(result, ", ") + "]"
+		buf.WriteByte(')')
+		return buf.String()
 	case values.PAIR:
 		vals := v.V.([]values.Value)
 		return vm.describe(vals[0]) + "::" + vm.describe(vals[1])
@@ -454,7 +458,7 @@ func (vm *Vm) describe(v values.Value) string {
 		buf.WriteString("set(")
 		var sep string
 		v.V.(values.Set).Range(func(k values.Value) {
-			fmt.Fprintf(&buf, "%s%v", sep, k)
+			fmt.Fprintf(&buf, "%s%s", sep, vm.describe(k))
 			sep = ", "
 		})
 		buf.WriteByte(')')

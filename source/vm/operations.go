@@ -95,6 +95,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Gthf: {"gthf", operands{dst, mem, mem}},
 	Gthi: {"gthi", operands{dst, mem, mem}},
 	Halt: {"halt", operands{}},
+	Idfn: {"idfn", operands{dst, mem}},
 	IdxT: {"idxT", operands{dst, mem, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
@@ -178,6 +179,7 @@ const (
 	idxl
 	idxm
 	idxs
+	Idfn // Identity function, for testing.
 	IdxT
 	Ints
 	Intf

@@ -14,10 +14,11 @@ type setNode struct {
 	left, right *setNode
 }
 
-func (pm Set) Add(element Value) {
+func (pm Set) Add(element Value) Set {
 	first := pm.root
 	second := newSetNode(element)
 	pm.root = setUnion(first, second, true)
+	return pm
 }
 
 // Delete deletes the value for a element.

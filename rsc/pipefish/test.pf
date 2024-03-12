@@ -36,21 +36,16 @@ float(x string) : builtin "float_of_string"
 int(x string) : builtin "int_of_string"
 int(x float64) : builtin "int_of_float"
 len(x string) : builtin "len_string"
-map(x tuple) : builtin "make_map"
-set(x tuple) : builtin "make_set"
+mapmaker(x tuple) : builtin "make_map"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
+map(T tuple) : mapmaker T                 //
+setmaker(x tuple) : builtin "make_set"    // TODO --- something better.
+set(T tuple) : setmaker T                 // 
 string(x single?) : builtin "string"
 type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
 
 
 Colors = enum RED, GREEN, BLUE
-
-
-
-foo(T tuple) :
-    set T
-
-
 
 
 
