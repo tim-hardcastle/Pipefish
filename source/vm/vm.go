@@ -253,8 +253,16 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
+		case LenL:
+			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(vector.Vector).Len()}
+		case LenM:
+			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(*values.Map).Len()}
 		case Lens:
 			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.(string))}
+		case LenS:
+			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(values.Set).Len()}
+		case LenT:
+			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.([]values.Value))}
 		case List:
 			list := vector.Empty
 			if vm.Mem[args[1]].T == values.TUPLE {
@@ -450,14 +458,14 @@ func (vm *Vm) describe(v values.Value) string {
 		return vm.Labels[v.V.(int)]
 	case values.LIST:
 		var buf strings.Builder
-		buf.WriteString("[]")
+		buf.WriteString("[")
 		var sep string
 		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
 			el, _ := v.V.(vector.Vector).Index(i)
 			fmt.Fprintf(&buf, "%s%s", sep, vm.describe(el.(values.Value)))
 			sep = ", "
 		}
-		buf.WriteByte(')')
+		buf.WriteByte(']')
 		return buf.String()
 	case values.MAP:
 		var buf strings.Builder

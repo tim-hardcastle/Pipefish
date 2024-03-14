@@ -74,10 +74,10 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"bool?":    altType(values.NULL, values.BOOL),
 			"float64?": altType(values.NULL, values.FLOAT),
 			"type?":    altType(values.NULL, values.TYPE),
-			"pair?":    altType(values.PAIR, values.NULL),
-			"list?":    altType(values.LIST, values.NULL),
-			"map?":     altType(values.MAP, values.NULL),
-			"set?":     altType(values.SET, values.NULL),
+			"pair?":    altType(values.NULL, values.PAIR),
+			"list?":    altType(values.NULL, values.LIST),
+			"map?":     altType(values.NULL, values.MAP),
+			"set?":     altType(values.NULL, values.SET),
 			"null":     altType(values.NULL),
 			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
@@ -422,6 +422,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		}
 		cp.put(mc, vm.List, mc.That())
 		mc.Code[backTrackTo].Args[0] = mc.That()
+		rtnTypes = altType(values.LIST)
 		break
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {

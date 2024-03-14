@@ -30,12 +30,21 @@ def
 
 // Ordinary functions are in order of their function name.
 
+aritymaker(x tuple) : builtin "len_tuple"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
+arity(T tuple) : aritymaker T   
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"
 float(x string) : builtin "float_of_string"
 int(x string) : builtin "int_of_string"
 int(x float64) : builtin "int_of_float"
+
+zort(x tuple) : x
+
+len(x list) : builtin "len_list"
+len(x map) : builtin "len_map"
+len(x set) : builtin "len_set"
 len(x string) : builtin "len_string"
+
 mapmaker(x tuple) : builtin "make_map"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
 map(T tuple) : mapmaker T                 //
 setmaker(x tuple) : builtin "make_set"    // TODO --- something better.

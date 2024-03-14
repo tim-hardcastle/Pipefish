@@ -26,7 +26,11 @@ var BUILTINS = map[string]functionAndReturnType{
 	"identity":          {(*Compiler).btIdentity, altType(values.TUPLE)},
 	"int_of_float":      {(*Compiler).btIntOfFloat, altType(values.INT)},
 	"int_of_string":     {(*Compiler).btIntOfString, altType(values.ERROR, values.INT)},
+	"len_list":          {(*Compiler).btLenList, altType(values.INT)},
+	"len_map":           {(*Compiler).btLenMap, altType(values.INT)},
+	"len_set":           {(*Compiler).btLenSet, altType(values.INT)},
 	"len_string":        {(*Compiler).btLenString, altType(values.INT)},
+	"len_tuple":         {(*Compiler).btLenTuple, altType(values.INT)},
 	"literal":           {(*Compiler).btLiteral, altType(values.STRING)},
 	"lt_floats":         {(*Compiler).btLtFloats, altType(values.BOOL)},
 	"lte_floats":        {(*Compiler).btLteFloats, altType(values.BOOL)},
@@ -118,8 +122,24 @@ func (cp *Compiler) btIntOfString(mc *vm.Vm, tok *token.Token, dest uint32, args
 	cp.emit(mc, vm.Ints, dest, args[0])
 }
 
+func (cp *Compiler) btLenList(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.LenL, dest, args[0])
+}
+
+func (cp *Compiler) btLenMap(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.LenM, dest, args[0])
+}
+
+func (cp *Compiler) btLenSet(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.LenS, dest, args[0])
+}
+
 func (cp *Compiler) btLenString(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Lens, dest, args[0])
+}
+
+func (cp *Compiler) btLenTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.LenT, dest, args[0])
 }
 
 func (cp *Compiler) btLiteral(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {

@@ -52,6 +52,10 @@ func (pm Set) Range(f func(element Value)) {
 	})
 }
 
+func (pm Set) Len() int {
+	return pm.root.len()
+}
+
 func (pm Set) Union(other *Set) {
 	root := pm.root
 	pm.root = setUnion(root, other.root, true)
@@ -78,6 +82,13 @@ func (node *setNode) forEach(f func(element Value)) {
 	node.left.forEach(f)
 	f(node.element)
 	node.right.forEach(f)
+}
+
+func (node *setNode) len() int {
+	if node == nil {
+		return 0
+	}
+	return node.left.len() + 1 + node.right.len()
 }
 
 func setUnion(first, second *setNode, overwrite bool) *setNode {

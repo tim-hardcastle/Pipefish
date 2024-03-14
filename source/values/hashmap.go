@@ -38,6 +38,10 @@ func (pm *Map) Range(f func(key, value Value)) {
 	})
 }
 
+func (pm *Map) Len() int {
+	return pm.root.len()
+}
+
 func (node *mapNode) forEach(f func(key, value Value)) {
 	if node == nil {
 		return
@@ -45,6 +49,13 @@ func (node *mapNode) forEach(f func(key, value Value)) {
 	node.left.forEach(f)
 	f(node.key, node.value)
 	node.right.forEach(f)
+}
+
+func (node *mapNode) len() int {
+	if node == nil {
+		return 0
+	}
+	return node.left.len() + 1 + node.right.len()
 }
 
 // Get returns the map value associated with the specified key.

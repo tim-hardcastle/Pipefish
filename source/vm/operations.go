@@ -188,9 +188,11 @@ const (
 	Jsr
 	keym
 	keyS
-	lenl
+	LenL
 	Lens
-	lenT
+	LenM
+	LenS
+	LenT
 	leqf
 	leqi
 	List
