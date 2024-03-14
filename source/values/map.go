@@ -2,6 +2,8 @@ package values
 
 import (
 	"math/rand"
+
+	"src.elv.sh/pkg/persistent/vector"
 )
 
 type Map struct {
@@ -40,6 +42,25 @@ func (pm *Map) Range(f func(key, value Value)) {
 
 func (pm *Map) Len() int {
 	return pm.root.len()
+}
+
+func (pm *Map) AsVector() vector.Vector {
+	return pm.root.getVector()
+}
+
+func (node *mapNode) getVector() vector.Vector {
+	if node == nil {
+		return vector.Empty
+	}
+	lhs := node.left.getVector()
+	el := node.key
+	rhs := node.right.getVector()
+	new := lhs.Conj(el)
+	for i := 0; i < rhs.Len(); i++ {
+		v, _ := rhs.Index(i)
+		new = new.Conj(v)
+	}
+	return new
 }
 
 func (node *mapNode) forEach(f func(key, value Value)) {

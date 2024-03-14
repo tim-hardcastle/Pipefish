@@ -116,12 +116,12 @@ func BlankVm() *Vm {
 
 func (vm *Vm) Run(loc uint32) {
 	if SHOW_RUN {
-		print("\nRunning:\n\n")
+		println()
 	}
 loop:
 	for {
 		if SHOW_RUN {
-			println(text.RED + vm.DescribeCode(loc) + text.RESET)
+			println(text.GREEN + "    " + vm.DescribeCode(loc) + text.RESET)
 		}
 		args := vm.Code[loc].Args
 		switch vm.Code[loc].Opcode {
@@ -253,6 +253,14 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
+		case KeyM:
+			vm.Mem[args[0]] = values.Value{values.LIST, vm.Mem[args[1]].V.(*values.Map).AsVector()}
+		case KeyZ:
+			result := vector.Empty
+			for _, labelNumber := range vm.StructLabels[vm.Mem[args[1]].T-vm.Ub_enums] {
+				result = result.Conj(values.Value{values.LABEL, labelNumber})
+			}
+			vm.Mem[args[0]] = values.Value{values.LIST, result}
 		case LenL:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(vector.Vector).Len()}
 		case LenM:

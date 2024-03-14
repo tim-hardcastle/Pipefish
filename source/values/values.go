@@ -52,7 +52,8 @@ func (v Value) compare(w Value) bool {
 	case TYPE:
 		return v.V.(ValueType) < w.V.(ValueType)
 	}
-	panic("Attempt to compare incomparable type.")
+	// So we're going to assume that it's an enum and that this has been checked elsewhere.
+	return v.V.(int) < w.V.(int)
 }
 
 var (

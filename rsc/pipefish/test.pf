@@ -37,14 +37,12 @@ float(x int) : builtin "float_of_int"
 float(x string) : builtin "float_of_string"
 int(x string) : builtin "int_of_string"
 int(x float64) : builtin "int_of_float"
-
-zort(x tuple) : x
-
+keys(x map) : builtin "keys_of_map"
+keys(x struct) : builtin "keys_of_struct"
 len(x list) : builtin "len_list"
 len(x map) : builtin "len_map"
 len(x set) : builtin "len_set"
 len(x string) : builtin "len_string"
-
 mapmaker(x tuple) : builtin "make_map"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
 map(T tuple) : mapmaker T                 //
 setmaker(x tuple) : builtin "make_set"    // TODO --- something better.

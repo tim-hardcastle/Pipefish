@@ -223,6 +223,8 @@ func (vmm *VmMaker) createStructs() {
 		typeNo := vmm.cp.mc.Ub_enums + values.ValueType(chunk)
 		vmm.cp.typeNameToTypeList["single"] = vmm.cp.typeNameToTypeList["single"].union(altType(typeNo))
 		vmm.cp.typeNameToTypeList["single?"] = vmm.cp.typeNameToTypeList["single?"].union(altType(typeNo))
+		vmm.cp.typeNameToTypeList["struct"] = vmm.cp.typeNameToTypeList["struct"].union(altType(typeNo))
+		vmm.cp.typeNameToTypeList["struct?"] = vmm.cp.typeNameToTypeList["struct?"].union(altType(typeNo))
 		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
 		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.structNumbers[name] = typeNo

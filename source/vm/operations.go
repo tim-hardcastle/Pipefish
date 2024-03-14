@@ -101,7 +101,13 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Ints: {"ints", operands{dst, mem}},
 	Jmp:  {"jmp", operands{loc}},
 	Jsr:  {"jsr", operands{loc}},
+	KeyM: {"keyM", operands{dst, mem}},
+	KeyZ: {"keyZ", operands{dst, mem}},
+	LenL: {"lenL", operands{dst, mem}},
+	LenM: {"lenM", operands{dst, mem}},
 	Lens: {"lens", operands{dst, mem}},
+	LenS: {"lenS", operands{dst, mem}},
+	LenT: {"lenT", operands{dst, mem}},
 	Litx: {"litx", operands{dst, mem}},
 	List: {"list", operands{dst, mem}},
 	Mker: {"mker", operands{dst, mem, tok}},
@@ -186,8 +192,8 @@ const (
 	Intf
 	Jmp
 	Jsr
-	keym
-	keyS
+	KeyM
+	KeyZ
 	LenL
 	Lens
 	LenM

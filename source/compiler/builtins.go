@@ -26,6 +26,8 @@ var BUILTINS = map[string]functionAndReturnType{
 	"identity":          {(*Compiler).btIdentity, altType(values.TUPLE)},
 	"int_of_float":      {(*Compiler).btIntOfFloat, altType(values.INT)},
 	"int_of_string":     {(*Compiler).btIntOfString, altType(values.ERROR, values.INT)},
+	"keys_of_map":       {(*Compiler).btKeysOfMap, altType(values.LIST)},
+	"keys_of_struct":    {(*Compiler).btKeysOfStruct, altType(values.LIST)},
 	"len_list":          {(*Compiler).btLenList, altType(values.INT)},
 	"len_map":           {(*Compiler).btLenMap, altType(values.INT)},
 	"len_set":           {(*Compiler).btLenSet, altType(values.INT)},
@@ -120,6 +122,14 @@ func (cp *Compiler) btIntOfFloat(mc *vm.Vm, tok *token.Token, dest uint32, args 
 
 func (cp *Compiler) btIntOfString(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Ints, dest, args[0])
+}
+
+func (cp *Compiler) btKeysOfMap(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.KeyM, dest, args[0])
+}
+
+func (cp *Compiler) btKeysOfStruct(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.KeyZ, dest, args[0])
 }
 
 func (cp *Compiler) btLenList(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
