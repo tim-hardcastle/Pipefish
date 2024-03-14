@@ -22,6 +22,7 @@ const ( // Cross-reference with typeNames in blankVm()
 	LIST
 	MAP
 	SET
+	LABEL
 	LB_ENUMS // I.e the first of the enums.
 )
 

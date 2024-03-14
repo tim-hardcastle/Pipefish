@@ -122,6 +122,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Ret:  {"ret", operands{}},
+	Strc: {"strc", operands{dst, typ, tup}},
 	Strx: {"strx", operands{dst, mem}},
 	Subf: {"subf", operands{dst, mem, mem}},
 	Subi: {"subi", operands{dst, mem, mem}},
@@ -150,13 +151,13 @@ const (
 	Adds
 	Adtk
 	Andb
+	Asgm
 	Cc11
 	Cc1T
 	CcT1
 	CcTT
 	Ccxx
 	Cv1T
-	Asgm
 	Call
 	CalT // Specialized for tuple capture.
 	cmp
@@ -217,6 +218,7 @@ const (
 	slil
 	slis
 	sliT
+	Strc
 	Strx
 	Subf
 	Subi

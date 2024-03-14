@@ -28,7 +28,9 @@ type Vm struct {
 
 	Ub_enums        values.ValueType
 	TypeNames       []string
-	Enums           [][]string
+	StructLabels    [][]int    // Array from a struct to its label numbers.
+	Enums           [][]string // Array from the number of the enum to a list of the strings of its elements.
+	Labels          []string   // Array from the number of a field label to its name.
 	Tokens          []*token.Token
 	LambdaFactories []*LambdaFactory
 }
@@ -37,7 +39,7 @@ type Vm struct {
 type LambdaFactory struct {
 	Model  *Lambda  // Copy this to make the lambda.
 	ExtMem []uint32 // Then these are the location of the values we're closing over, so we copy them into the lambda.
-	Size   uint32   // The size of te memory for a new VM.
+	Size   uint32   // The size of the memory for a new VM.
 }
 
 type Lambda struct {
@@ -105,10 +107,10 @@ var OPCODE_LIST []func(vm *Vm, args []uint32)
 var CONSTANTS = []values.Value{values.FALSE, values.TRUE, values.U_OBJ}
 
 func BlankVm() *Vm {
-	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS + 1}
+	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "INT_ARRAY", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
-		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set"}
+		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set", "label"}
 	return newVm
 }
 
@@ -355,6 +357,12 @@ loop:
 			}
 			loc = vm.callstack[len(vm.callstack)-1]
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
+		case Strc:
+			fields := make([]values.Value, 0, len(args)-2)
+			for _, loc := range args[2:] {
+				fields = append(fields, vm.Mem[loc])
+			}
+			vm.Mem[args[0]] = values.Value{values.ValueType(args[1]), fields}
 		case Strx:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.describe(vm.Mem[args[1]])}
 		case Subf:
@@ -393,7 +401,20 @@ func (vm *Vm) describeType(t values.ValueType) string {
 }
 
 func (vm *Vm) describe(v values.Value) string {
-	if values.LB_ENUMS <= v.T && v.T < values.ValueType(vm.Ub_enums) {
+	if v.T >= vm.Ub_enums { // We have a struct.
+		var buf strings.Builder
+		buf.WriteString(vm.TypeNames[v.T])
+		buf.WriteString(" with (")
+		var sep string
+		labels := vm.StructLabels[v.T-vm.Ub_enums]
+		for i, el := range v.V.([]values.Value) {
+			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[labels[i]], vm.describe(el))
+			sep = ", "
+		}
+		buf.WriteByte(')')
+		return buf.String()
+	}
+	if values.LB_ENUMS <= v.T && v.T < values.ValueType(vm.Ub_enums) { // We have an enum.
 		return vm.Enums[v.T-values.LB_ENUMS][v.V.(int)]
 	}
 	switch v.T {
@@ -425,6 +446,8 @@ func (vm *Vm) describe(v values.Value) string {
 		}
 		buf.WriteByte(')')
 		return buf.String()
+	case values.LABEL:
+		return vm.Labels[v.V.(int)]
 	case values.LIST:
 		var buf strings.Builder
 		buf.WriteString("[]")

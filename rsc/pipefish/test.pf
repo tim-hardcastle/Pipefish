@@ -45,7 +45,11 @@ type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
 
 
-Colors = enum RED, GREEN, BLUE
+Color = enum RED, GREEN, BLUE
+
+Number = enum ONE, TWO
+
+Person = struct(name string, age int)
 
 
 

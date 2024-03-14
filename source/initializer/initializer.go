@@ -775,7 +775,7 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 func (uP *Initializer) MakeFunctions(sourceName string) {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := evaluator.NewGoHandler(uP.Parser)
-	c := 0
+	c := len(uP.Parser.ParsedDeclarations[typeDeclaration]) // Because we've already declared the constructors for each struct type.
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])

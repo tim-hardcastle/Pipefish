@@ -21,7 +21,9 @@ type thunk struct {
 type Compiler struct {
 	p                  *parser.Parser
 	mc                 *vm.Vm
-	enums              map[string]uint32
+	enumElements       map[string]uint32
+	fieldLabels        map[string]uint32
+	structNumbers      map[string]values.ValueType
 	gconsts            *environment
 	gvars              *environment
 	fns                []*cpFunc
@@ -47,13 +49,15 @@ const DUMMY = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
-		p:         p,
-		mc:        vm.BlankVm(),
-		enums:     make(map[string]uint32),
-		gconsts:   newEnvironment(),
-		gvars:     newEnvironment(),
-		thunkList: []thunk{},
-		fns:       []*cpFunc{},
+		p:             p,
+		mc:            vm.BlankVm(),
+		enumElements:  make(map[string]uint32),
+		fieldLabels:   make(map[string]uint32),
+		structNumbers: make(map[string]values.ValueType),
+		gconsts:       newEnvironment(),
+		gvars:         newEnvironment(),
+		thunkList:     []thunk{},
+		fns:           []*cpFunc{},
 		typeNameToTypeList: map[string]alternateType{
 			"int":      altType(values.INT),
 			"string":   altType(values.STRING),
@@ -75,8 +79,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"map?":     altType(values.MAP, values.NULL),
 			"set?":     altType(values.SET, values.NULL),
 			"null":     altType(values.NULL),
-			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET),
-			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET),
+			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 		},
 	}
 }
@@ -267,10 +271,16 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		rtnTypes, rtnConst = altType(values.FUNC), isConst
 		break
 	case *ast.Identifier:
-		enumElement, ok := cp.enums[node.Value]
+		enumElement, ok := cp.enumElements[node.Value]
 		if ok {
 			cp.put(mc, vm.Asgm, enumElement)
 			rtnTypes, rtnConst = altType(mc.Mem[enumElement].T), true
+			break
+		}
+		labelNumber, ok := cp.fieldLabels[node.Value]
+		if ok {
+			cp.put(mc, vm.Asgm, labelNumber)
+			rtnTypes, rtnConst = altType(values.LABEL), true
 			break
 		}
 		v, ok := env.getVar(node.Value)
@@ -487,7 +497,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		rtnTypes, rtnConst = altType(values.ERROR), true
 		break
 	case *ast.TypeLiteral:
-		cp.reserve(mc, values.TYPE, cp.typeNameToTypeList[node.Value][0])
+		cp.reserve(mc, values.TYPE, values.ValueType(cp.typeNameToTypeList[node.Value][0].(simpleType)))
 		rtnTypes, rtnConst = altType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
@@ -1012,16 +1022,23 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 	for _, branch := range b.treePosition.Branch { // TODO --- this is a pretty vile hack; it would make sense for it to always be at the top.}
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
-			functionAndType, ok := BUILTINS[cp.fns[fNo].builtin]
+			builtinTag := cp.fns[fNo].builtin
+			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
-				if cp.fns[fNo].builtin == "tuple_of_single?" {
+				if builtinTag == "tuple_of_single?" {
 					functionAndType.t = alternateType{finiteTupleType{b.types[0]}}
 				}
-				if cp.fns[fNo].builtin == "tuple_of_tuple" {
+				if builtinTag == "tuple_of_tuple" {
 					// TODO --- hack this.
 				}
 				functionAndType.f(cp, mc, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.t
+			}
+			structNumber, ok := cp.structNumbers[builtinTag]
+			if ok {
+				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
+				cp.emit(mc, vm.Strc, args...)
+				return altType(structNumber)
 			}
 			cp.emitFunctionCall(mc, fNo, b.valLocs)
 			cp.emit(mc, vm.Asgm, b.outLoc, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
