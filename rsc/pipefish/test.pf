@@ -48,15 +48,18 @@ map(T tuple) : mapmaker T                 //
 setmaker(x tuple) : builtin "make_set"    // TODO --- something better.
 set(T tuple) : setmaker T                 // 
 string(x single?) : builtin "string"
+tuple(x tuple) : builtin "tuple_of_tuple"
+tuplify(L list) : builtin "tuplify_list"
 type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
 
 
-Color = enum RED, GREEN, BLUE
+Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
 
 Number = enum ONE, TWO
 
 Person = struct(name string, age int)
 
 
-
+foo(T tuple) :
+    arity T

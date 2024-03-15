@@ -192,6 +192,12 @@ loop:
 			}
 		case Cv1T:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]]}}
+		case CvTT:
+			slice := make([]values.Value, len(args)-1)
+			for i := 0; i < len(slice); i++ {
+				slice[i] = vm.Mem[args[i+1]]
+			}
+			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
 		case Divf:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / vm.Mem[args[2]].V.(float64)}
 		case Divi:
@@ -244,7 +250,58 @@ loop:
 			} else {
 				vm.Mem[args[0]] = values.Value{values.INT, i}
 			}
+		case IdxL:
+			vec := vm.Mem[args[1]].V.(vector.Vector)
+			ix := vm.Mem[args[2]].V.(int)
+			val, ok := vec.Index(ix)
+			if !ok {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+
+			} else {
+				vm.Mem[args[0]] = val.(values.Value)
+			}
+		case Idxp:
+			pair := vm.Mem[args[1]].V.([]values.Value)
+			ix := vm.Mem[args[2]].V.(int)
+			ok := ix == 0 || ix == 1
+			if ok {
+				vm.Mem[args[0]] = pair[ix]
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
+		case Idxs:
+			str := vm.Mem[args[1]].V.(string)
+			ix := vm.Mem[args[2]].V.(int)
+			ok := 0 <= ix && ix < len(str)
+			if ok {
+				val := values.Value{values.STRING, string(str[ix])}
+				vm.Mem[args[0]] = val
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
+		case Idxt:
+			typ := vm.Mem[args[1]].V.(values.ValueType)
+			if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+				break
+			}
+			ix := vm.Mem[args[2]].V.(int)
+			ok := 0 <= ix && ix < len(vm.Enums[typ-values.LB_ENUMS])
+			if ok {
+				vm.Mem[args[0]] = values.Value{typ, ix}
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[4]]
+			}
 		case IdxT:
+			tuple := vm.Mem[args[1]].V.([]values.Value)
+			ix := vm.Mem[args[2]].V.(int)
+			ok := 0 <= ix && ix < len(tuple)
+			if ok {
+				vm.Mem[args[0]] = tuple[ix]
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
+		case IxTn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case Jmp:
 			loc = args[0]
@@ -388,6 +445,15 @@ loop:
 		case Thnk:
 			vm.Mem[args[0]].T = values.THUNK
 			vm.Mem[args[0]].V = args[1]
+		case TupL:
+			vector := vm.Mem[args[1]].V.(vector.Vector)
+			length := vector.Len()
+			slice := make([]values.Value, length)
+			for i := 0; i < length; i++ {
+				element, _ := vector.Index(i)
+				slice[i] = element.(values.Value)
+			}
+			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
 		case Typx:
 			vm.Mem[args[0]] = values.Value{values.TYPE, vm.Mem[args[1]].T}
 		case Untk:

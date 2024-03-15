@@ -50,8 +50,9 @@ var BUILTINS = map[string]functionAndReturnType{
 	"string":            {(*Compiler).btString, altType(values.STRING)},
 	"subtract_floats":   {(*Compiler).btSubtractFloats, altType(values.FLOAT)},
 	"subtract_integers": {(*Compiler).btSubtractIntegers, altType(values.INT)},
-	"tuple_of_single?":  {(*Compiler).btTupleOfSingle, alternateType{finiteTupleType{}}},
-	"tuple_of_tuple":    {(*Compiler).btTupleOfTuple, alternateType{finiteTupleType{}}},
+	"tuple_of_single?":  {(*Compiler).btTupleOfSingle, altType()}, // Since we can't know the typeschemes in advance, these are kludged in by the seekFunctionCall method.
+	"tuple_of_tuple":    {(*Compiler).btTupleOfTuple, altType()},  //
+	"tuplify_list":      {(*Compiler).btTuplifyList, altType()},   // We know that this should be alternateType{typedTupleType{single?}}, but we don't know what single? is yet.
 	"type":              {(*Compiler).btType, altType(values.TYPE)},
 	"type_of_tuple":     {(*Compiler).btTypeOfTuple, altType(values.TYPE)},
 }
@@ -233,12 +234,17 @@ func (cp *Compiler) btType(mc *vm.Vm, tok *token.Token, dest uint32, args []uint
 	cp.emit(mc, vm.Typx, dest, args[0])
 }
 
-func (cp *Compiler) btTupleOfSingle(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+func (cp *Compiler) btTupleOfSingle(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) { // TODO --- do we need this or not?
 	cp.emit(mc, vm.Cv1T, dest, args[0])
 }
 
+func (cp *Compiler) btTuplifyList(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.TupL, dest, args[0])
+}
+
 func (cp *Compiler) btTupleOfTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(mc, vm.Asgm, dest, args[0])
+	destWithArgs := append([]uint32{dest}, args...)
+	cp.emit(mc, vm.CvTT, destWithArgs...)
 }
 
 func (cp *Compiler) btTypeOfTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {

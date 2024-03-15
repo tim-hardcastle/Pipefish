@@ -79,7 +79,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	CcT1: {"ccT1", operands{dst, mem, mem}},
 	CcTT: {"ccTT", operands{dst, mem, mem}},
 	Ccxx: {"ccxx", operands{dst, mem, mem}},
-	Cv1T: {"cv1T", operands{dst, mem, mem}},
+	Cv1T: {"Cv1T", operands{dst, mem}},
+	CvTT: {"CvTT", operands{dst, tup}},
 	Divf: {"divf", operands{dst, mem, mem}},
 	Divi: {"divi", operands{dst, mem, mem}},
 	Dofn: {"dofn", operands{dst, mem, tup}},
@@ -96,7 +97,12 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Gthi: {"gthi", operands{dst, mem, mem}},
 	Halt: {"halt", operands{}},
 	Idfn: {"idfn", operands{dst, mem}},
-	IdxT: {"idxT", operands{dst, mem, mem}},
+	IdxL: {"idxL", operands{dst, mem, mem, mem}},
+	Idxp: {"idxs", operands{dst, mem, mem, mem}},
+	Idxs: {"idxs", operands{dst, mem, mem, mem}},
+	Idxt: {"idxs", operands{dst, mem, mem, mem, mem}},
+	IdxT: {"idxs", operands{dst, mem, mem, mem}},
+	IxTn: {"ixTn", operands{dst, mem, num}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
 	Jmp:  {"jmp", operands{loc}},
@@ -133,6 +139,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Subf: {"subf", operands{dst, mem, mem}},
 	Subi: {"subi", operands{dst, mem, mem}},
 	Thnk: {"thnk", operands{dst, loc}},
+	TupL: {"tupL", operands{dst, mem}},
 	Typx: {"typx", operands{dst, mem}},
 	Untk: {"untk", operands{dst}},
 }
@@ -164,6 +171,7 @@ const (
 	CcTT
 	Ccxx
 	Cv1T
+	CvTT
 	Call
 	CalT // Specialized for tuple capture.
 	cmp
@@ -183,13 +191,16 @@ const (
 	Gthf
 	Gthi
 	Halt // do we use this?
-	idxl
-	idxm
-	idxs
 	Idfn // Identity function, for testing.
+	IdxL
+	IdxM
+	Idxp
+	Idxs
+	Idxt
 	IdxT
 	Ints
 	Intf
+	IxTn
 	Jmp
 	Jsr
 	KeyM
@@ -199,8 +210,6 @@ const (
 	LenM
 	LenS
 	LenT
-	leqf
-	leqi
 	List
 	Litx
 	Mker
@@ -231,6 +240,7 @@ const (
 	Subf
 	Subi
 	Thnk
+	TupL
 	Typx
 	Untk
 )

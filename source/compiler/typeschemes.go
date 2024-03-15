@@ -185,9 +185,10 @@ func (vL alternateType) without(t typeScheme) alternateType {
 	return x
 }
 
-func (alternateType alternateType) only(t simpleType) bool {
-	if len(alternateType) == 1 {
-		switch el := alternateType[0].(type) {
+func (aT alternateType) only(vt values.ValueType) bool {
+	t := simpleType(vt)
+	if len(aT) == 1 {
+		switch el := aT[0].(type) {
 		case simpleType:
 			return el == t
 		default:
@@ -197,14 +198,40 @@ func (alternateType alternateType) only(t simpleType) bool {
 	return false
 }
 
-func (alternateType alternateType) contains(t simpleType) bool {
-	for _, ty := range alternateType {
+func (aT alternateType) contains(vt values.ValueType) bool {
+	t := simpleType(vt)
+	for _, ty := range aT {
 		switch el := ty.(type) {
 		case simpleType:
 			return (el) == t
 		}
 	}
 	return false
+}
+
+func (aT alternateType) containsOnlyTuples() bool {
+	for _, ty := range aT {
+		switch el := ty.(type) {
+		case simpleType:
+			return false
+		case alternateType:
+			if !el.containsOnlyTuples() {
+				return false
+			}
+		case blingType, listType:
+			return false
+		}
+	}
+	return true
+}
+
+func (aT alternateType) isNoneOf(vts ...values.ValueType) bool {
+	for _, vt := range vts {
+		if aT.contains(vt) {
+			return false
+		}
+	}
+	return true
 }
 
 func (t alternateType) compare(u typeScheme) int {
