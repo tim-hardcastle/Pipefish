@@ -250,6 +250,7 @@ func (vmm *VmMaker) createStructs() {
 			}
 		}
 		vmm.cp.mc.StructLabels = append(vmm.cp.mc.StructLabels, labelsForStruct)
+		vmm.cp.mc.StructResolve = vmm.cp.mc.StructResolve.Add(chunk, labelsForStruct)
 	}
 }
 

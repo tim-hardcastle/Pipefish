@@ -60,6 +60,5 @@ Number = enum ONE, TWO
 
 Person = struct(name string, age int)
 
-
-foo(T tuple) :
-    arity T
+foo(str struct, lab label) :
+    str[lab]

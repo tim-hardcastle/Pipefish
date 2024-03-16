@@ -69,6 +69,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"list":     altType(values.LIST),
 			"map":      altType(values.MAP),
 			"set":      altType(values.SET),
+			"label":    altType(values.LABEL),
 			"int?":     altType(values.NULL, values.INT),
 			"string?":  altType(values.NULL, values.STRING),
 			"bool?":    altType(values.NULL, values.BOOL),
@@ -78,6 +79,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"list?":    altType(values.NULL, values.LIST),
 			"map?":     altType(values.NULL, values.MAP),
 			"set?":     altType(values.NULL, values.SET),
+			"label?":   altType(values.NULL, values.LABEL),
 			"null":     altType(values.NULL),
 			"single":   altType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
@@ -317,8 +319,8 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
 
-		if containerType.only(values.LIST) {
-			if indexType.only(values.INT) {
+		if containerType.isOnly(values.LIST) {
+			if indexType.isOnly(values.INT) {
 				boundsError := cp.reserveError(mc, "vm/list/index", &node.Token, []any{})
 				cp.put(mc, vm.IdxL, container, index, boundsError)
 				break
@@ -328,8 +330,8 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				break
 			}
 		}
-		if containerType.only(values.STRING) {
-			if indexType.only(values.INT) {
+		if containerType.isOnly(values.STRING) {
+			if indexType.isOnly(values.INT) {
 				boundsError := cp.reserveError(mc, "vm/string/index", &node.Token, []any{})
 				cp.put(mc, vm.Idxs, container, index, boundsError)
 				break
@@ -340,7 +342,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			}
 		}
 		if containerType.containsOnlyTuples() {
-			if indexType.only(values.INT) {
+			if indexType.isOnly(values.INT) {
 				boundsError := cp.reserveError(mc, "vm/tuple/index", &node.Token, []any{})
 				cp.put(mc, vm.IdxT, container, index, boundsError)
 				break
@@ -350,8 +352,8 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				break
 			}
 		}
-		if containerType.only(values.PAIR) {
-			if indexType.only(values.INT) {
+		if containerType.isOnly(values.PAIR) {
+			if indexType.isOnly(values.INT) {
 				boundsError := cp.reserveError(mc, "vm/pair/index", &node.Token, []any{})
 				cp.put(mc, vm.Idxp, container, index, boundsError)
 				break
@@ -361,8 +363,8 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				break
 			}
 		}
-		if containerType.only(values.TYPE) {
-			if indexType.only(values.INT) {
+		if containerType.isOnly(values.TYPE) {
+			if indexType.isOnly(values.INT) {
 				enumError := cp.reserveError(mc, "vm/type/enum", &node.Token, []any{})
 				boundsError := cp.reserveError(mc, "vm/type/index", &node.Token, []any{})
 				cp.put(mc, vm.Idxt, container, index, enumError, boundsError)
@@ -370,6 +372,29 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			}
 			if indexType.isNoneOf(values.INT) {
 				cp.p.Throw("comp/type/index", node.GetToken())
+				break
+			}
+		}
+		structType, ok := containerType.isOnlyStruct(int(mc.Ub_enums))
+		if ok {
+			if indexType.isOnly(values.LABEL) {
+				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
+					structNumber := structType - mc.Ub_enums
+					indexNumber := mc.Mem[index].V.(int)
+					fieldNumber := mc.StructResolve.Resolve(int(structNumber), indexNumber)
+					if fieldNumber == -1 {
+						cp.p.Throw("comp/struct/index", node.GetToken())
+						break
+					}
+					cp.put(mc, vm.IxZn, container, uint32(fieldNumber))
+					break
+				}
+				boundsError := cp.reserveError(mc, "vm/struct/index", &node.Token, []any{})
+				cp.put(mc, vm.IxZl, container, index, boundsError)
+				break
+			}
+			if indexType.isNoneOf(values.LABEL) {
+				cp.p.Throw("comp/struct/index", node.GetToken())
 				break
 			}
 		}
@@ -465,7 +490,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			lTypes, lcst := cp.compileNode(mc, node.Left, env)
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
-			if lTypes.only(values.CREATED_LOCAL_CONSTANT) {
+			if lTypes.isOnly(values.CREATED_LOCAL_CONSTANT) {
 				_, cst := cp.compileNode(mc, node.Right, env)
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
@@ -500,7 +525,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
 			allTypes, cst := cp.compileNode(mc, node.Args[0], env)
-			if allTypes.only(values.BOOL) {
+			if allTypes.isOnly(values.BOOL) {
 				cp.put(mc, vm.Notb, mc.That())
 				rtnTypes, rtnConst = altType(values.BOOL), cst
 				break
@@ -521,7 +546,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				rtnTypes, rtnConst = altType(values.ERROR), true
 				break
 			}
-			if v.types.only(values.FUNC) { // Then no type checking for v.
+			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
 				cp.put(mc, vm.Dofn, operands...)
 			}
 			rtnTypes = ANY_TYPE
@@ -604,12 +629,12 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 // This needs its own very special logic because the type it returns has to be composed in a different way from all the other operators.
 func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
 	lTypes, lcst := cp.compileNode(mc, node.Args[0], env)
-	if lTypes.only(values.ERROR) {
+	if lTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/tuple/err/a", node.GetToken())
 	}
 	left := mc.That()
 	rTypes, rcst := cp.compileNode(mc, node.Args[2], env)
-	if rTypes.only(values.ERROR) {
+	if rTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/tuple/err/b", node.GetToken())
 	}
 	right := mc.That()
@@ -714,7 +739,7 @@ func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environ
 func (cp *Compiler) emitErrorBoilerplate(mc *vm.Vm, types alternateType, errCode string, tok *token.Token, appendToken bool) (uint32, bool) {
 	failed := false
 	var backtrackTo uint32
-	if types.only(values.ERROR) {
+	if types.isOnly(values.ERROR) {
 		cp.p.Throw("comp/list/err", tok)
 		failed = true
 	}
@@ -822,7 +847,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 			b.types[i], cstI = cp.compileNode(mc, arg, env)
 			cst = cst && cstI
 			b.valLocs[i] = mc.That()
-			if b.types[i].(alternateType).only(values.ERROR) {
+			if b.types[i].(alternateType).isOnly(values.ERROR) {
 				cp.p.Throw("comp/arg/error", node.GetToken())
 				return altType(values.ERROR), true
 			}
@@ -838,7 +863,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 	returnTypes := cp.generateNewArgument(mc, b) // This is our path into the recursion that will in fact generate the whole function call.
 
 	cp.put(mc, vm.Asgm, b.outLoc)
-	if returnTypes.only(values.ERROR) && node.GetToken().Literal != "error" {
+	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
 		cp.p.Throw("comp/call", b.tok)
 	}
 	for _, v := range backtrackList {
@@ -1172,19 +1197,19 @@ func (cp *Compiler) emitFunctionCall(mc *vm.Vm, funcNumber uint32, valLocs []uin
 
 func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
 	lTypes, lcst := cp.compileNode(mc, node.Args[0], env)
-	if lTypes.only(values.ERROR) {
+	if lTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/eq/err/a", node.GetToken())
 		return altType(values.ERROR), true
 	}
 	leftRg := mc.That()
 	rTypes, rcst := cp.compileNode(mc, node.Args[2], env)
-	if rTypes.only(values.ERROR) {
+	if rTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/eq/err/b", node.GetToken())
 		return altType(values.ERROR), true
 	}
 	rightRg := mc.That()
 	oL := lTypes.intersect(rTypes)
-	if oL.only(values.ERROR) {
+	if oL.isOnly(values.ERROR) {
 		cp.p.Throw("comp/eq/err/c", node.GetToken())
 		return altType(values.ERROR), true
 	}
@@ -1223,7 +1248,7 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, rhs ast.Node,
 	if rhs.GetToken().Type == token.IDENT {
 		v, ok := env.getVar(rhs.GetToken().Literal)
 		if ok && v.types.contains(values.FUNC) {
-			if v.types.only(values.FUNC) {
+			if v.types.isOnly(values.FUNC) {
 				cp.put(mc, vm.Dofn, v.mLoc, mc.That())
 				return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
 			} else {

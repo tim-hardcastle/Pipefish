@@ -26,6 +26,7 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
+	StructResolve   StructResolver
 	Ub_enums        values.ValueType
 	TypeNames       []string
 	StructLabels    [][]int    // Array from a struct to its label numbers.
@@ -49,6 +50,33 @@ type Lambda struct {
 	Dest      uint32
 	LocToCall uint32
 	Captures  []values.Value
+}
+
+type StructResolver interface {
+	Add(structNumber int, labels []int) StructResolver // Not the struct type, but its number, i.e. we start at 0.
+	Resolve(structNumber int, labelNumber int) int
+}
+
+type MapResolver []map[int]int
+
+func (mr MapResolver) Add(structNumber int, labels []int) StructResolver {
+	if structNumber != len(mr) {
+		panic("That wasn't meant to happen.")
+	}
+	newMap := make(map[int]int, len(labels))
+	for k, v := range labels {
+		newMap[v] = k
+	}
+	mr = append(mr, newMap)
+	return mr
+}
+
+func (mr MapResolver) Resolve(structNumber int, labelNumber int) int {
+	fieldNo, ok := mr[structNumber][labelNumber]
+	if ok {
+		return fieldNo
+	}
+	return -1
 }
 
 func (vm *Vm) MemTop() uint32 {
@@ -107,7 +135,7 @@ var OPCODE_LIST []func(vm *Vm, args []uint32)
 var CONSTANTS = []values.Value{values.FALSE, values.TRUE, values.U_OBJ}
 
 func BlankVm() *Vm {
-	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS}
+	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "INT_ARRAY", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
 		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set", "label"}
@@ -302,6 +330,11 @@ loop:
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
 		case IxTn:
+			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
+		case IxZl:
+			ix := vm.StructResolve.Resolve(int(vm.Mem[args[1]].T-vm.Ub_enums), vm.Mem[args[2]].V.(int))
+			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
+		case IxZn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case Jmp:
 			loc = args[0]

@@ -185,7 +185,7 @@ func (vL alternateType) without(t typeScheme) alternateType {
 	return x
 }
 
-func (aT alternateType) only(vt values.ValueType) bool {
+func (aT alternateType) isOnly(vt values.ValueType) bool {
 	t := simpleType(vt)
 	if len(aT) == 1 {
 		switch el := aT[0].(type) {
@@ -196,6 +196,21 @@ func (aT alternateType) only(vt values.ValueType) bool {
 		}
 	}
 	return false
+}
+
+func (aT alternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
+	if len(aT) == 1 {
+		switch el := aT[0].(type) {
+		case simpleType:
+			if ub <= int(el) {
+				return values.ValueType(el), true
+			}
+		default:
+			return values.UNDEFINED_VALUE, false
+		}
+	}
+	println("c")
+	return values.UNDEFINED_VALUE, false
 }
 
 func (aT alternateType) contains(vt values.ValueType) bool {
