@@ -56,9 +56,10 @@ type(x tuple) : builtin "type_of_tuple"
 
 Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
 
-Number = enum ONE, TWO
+Number = enum ONE, TWO, THREE
 
 Person = struct(name string, age int)
 
 foo(str struct, lab label) :
     str[lab]
+

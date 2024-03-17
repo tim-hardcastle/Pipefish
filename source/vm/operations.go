@@ -30,6 +30,9 @@ type Opcode uint8
 
 func (op *Operation) ppOperand(i int) string {
 	opType := OPERANDS[op.Opcode].or[i]
+	if i >= len(op.Args) {
+		panic("Not enough operands for " + OPERANDS[op.Opcode].oc)
+	}
 	opVal := strconv.Itoa(int(op.Args[i]))
 	switch opType {
 	case dst:

@@ -60,10 +60,12 @@ var (
 	FALSE = Value{T: BOOL, V: false}
 	TRUE  = Value{T: BOOL, V: true}
 	U_OBJ = Value{T: UNSAT}
+	ONE   = Value{T: INT, V: 1}
 )
 
 const (
 	C_FALSE = iota
 	C_TRUE
 	C_U_OBJ
+	C_ONE
 )

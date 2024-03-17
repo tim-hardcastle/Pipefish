@@ -564,22 +564,15 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			rtnTypes, rtnConst = altType(values.ERROR), true
 			break
 		}
-		var whatAccess varAccess
-		if lhsConst {
-			whatAccess = VERY_LOCAL_CONSTANT
-		} else {
-			whatAccess = VERY_LOCAL_VARIABLE
-		}
-		envWithThat := &environment{data: map[string]variable{"that": {mLoc: mc.That(), access: whatAccess, types: lhsTypes}}, ext: env}
 		// And that's about all the streaming operators really do have in common under the hood, so let's do a switch on the operators.
 		var rhsConst bool
 		switch node.Operator {
 		case "->":
-			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, node.Right, envWithThat)
+			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, lhsConst, node.Right, env)
 		case ">>":
-			rtnTypes, rhsConst = cp.compileMapping(mc, lhsTypes, node.Right, envWithThat)
+			rtnTypes, rhsConst = cp.compileMapping(mc, lhsTypes, lhsConst, node.Right, env)
 		default:
-			rtnTypes, rhsConst = cp.compileFilter(mc, lhsTypes, node.Right, envWithThat)
+			rtnTypes, rhsConst = cp.compileFilter(mc, lhsTypes, lhsConst, node.Right, env)
 		}
 		rtnConst = lhsConst && rhsConst
 		break
@@ -1050,6 +1043,7 @@ var TYPE_COMPARISONS = map[string]*vm.Operation{
 	"float64": {vm.Qtyp, []uint32{DUMMY, uint32(values.FLOAT), DUMMY}},
 	"null":    {vm.Qtyp, []uint32{DUMMY, uint32(values.NULL), DUMMY}},
 	"list":    {vm.Qtyp, []uint32{DUMMY, uint32(values.LIST), DUMMY}},
+	"set":     {vm.Qtyp, []uint32{DUMMY, uint32(values.SET), DUMMY}},
 	"func":    {vm.Qtyp, []uint32{DUMMY, uint32(values.FUNC), DUMMY}},
 	"single":  {vm.Qsng, []uint32{DUMMY, DUMMY}},
 	"single?": {vm.QsnQ, []uint32{DUMMY, DUMMY}},
@@ -1243,28 +1237,140 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 
 // The various 'streaming operators'. TODO, find different name.
 
-func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, rhs ast.Node, env *environment) (alternateType, bool) {
+func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment) (alternateType, bool) {
+	var envWithThat *environment
+	var isAttemptedFunc bool
+	var v *variable
+	backtrack := uint32(DUMMY)
+	lhs := mc.That()
 	// If we have a single identifier, we wish it to contain a function ...
-	if rhs.GetToken().Type == token.IDENT {
-		v, ok := env.getVar(rhs.GetToken().Literal)
-		if ok && v.types.contains(values.FUNC) {
-			if v.types.isOnly(values.FUNC) {
-				cp.put(mc, vm.Dofn, v.mLoc, mc.That())
-				return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
+	switch rhs := rhs.(type) {
+	case *ast.Identifier:
+		v, ok := env.getVar(rhs.Value)
+		if ok {
+			cp.p.Throw("comp/pipe/ident", rhs.GetToken())
+			return altType(values.ERROR), true
+		}
+		isAttemptedFunc = true
+		if !v.types.contains(values.FUNC) {
+			if rhs.GetToken().Literal == "that" { // Yeah it's a stupid corner case but the stupid user has a right to it.
+				isAttemptedFunc = false
 			} else {
-				// Emit some error handling.
+				cp.p.Throw("comp/pipe/func", rhs.GetToken())
+				return altType(values.ERROR), true
+			}
+		}
+		if !v.types.isOnly(values.FUNC) {
+			cp.reserveError(mc, "vm/pipe/func", rhs.GetToken(), []any{})
+			cp.emit(mc, vm.Qtyp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
+			backtrack = mc.CodeTop()
+			cp.emit(mc, vm.Asgm, DUMMY, mc.That())
+			cp.emit(mc, vm.Jmp, DUMMY)
+		}
+	default:
+		var whatAccess varAccess
+		if lhsConst {
+			whatAccess = VERY_LOCAL_CONSTANT
+		} else {
+			whatAccess = VERY_LOCAL_VARIABLE
+		}
+		envWithThat = &environment{data: map[string]variable{"that": {mLoc: mc.That(), access: whatAccess, types: lhsTypes}}, ext: env}
+	}
+	if isAttemptedFunc {
+		cp.put(mc, vm.Dofn, v.mLoc, lhs)
+	} else {
+		return cp.compileNode(mc, rhs, envWithThat)
+	}
+	if backtrack != uint32(DUMMY) {
+		mc.Code[backtrack].Args[0] = mc.That()
+		mc.Code[backtrack+1].Args[0] = mc.CodeTop()
+	}
+	return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
+}
 
+func (cp *Compiler) compileMapping(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment) (alternateType, bool) {
+	var isConst bool
+	var isAttemptedFunc bool
+	var v *variable
+	backtrack := uint32(DUMMY)
+	resultBacktrack := uint32(DUMMY)
+	var types alternateType
+	sourceList := mc.That()
+	envWithThat := &environment{}
+	thatLoc := uint32(DUMMY)
+	// If we have a single identifier, we wish it to contain a function ...
+	switch rhs := rhs.(type) {
+	case *ast.Identifier:
+		if rhs.GetToken().Literal != "that" {
+			v, ok := env.getVar(rhs.Value)
+			if !ok {
+				cp.p.Throw("comp/mapping/ident", rhs.GetToken())
+				return altType(values.ERROR), true
+			}
+			isAttemptedFunc = true
+			isConst = ALL_CONST_ACCESS.Contains(v.access)
+			if !v.types.contains(values.FUNC) {
+				cp.p.Throw("comp/mapping/func", rhs.GetToken())
+			}
+			if !v.types.isOnly(values.FUNC) {
+				cp.reserveError(mc, "vm/mapping/func", rhs.GetToken(), []any{})
+				cp.emit(mc, vm.Qtyp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
+				backtrack = mc.CodeTop()
+				cp.emit(mc, vm.Asgm, DUMMY, mc.That())
+				cp.emit(mc, vm.Jmp, DUMMY)
 			}
 		}
 	}
-	// Otherwise we are in the presence of a 'that' expression. We can simply compile and return.
-	return cp.compileNode(mc, rhs, env)
+	if !isAttemptedFunc {
+		thatLoc = cp.reserve(mc, values.UNDEFINED_VALUE, DUMMY)
+		envWithThat = &environment{data: map[string]variable{"that": {mLoc: mc.That(), access: VERY_LOCAL_VARIABLE, types: cp.typeNameToTypeList["single?"]}}, ext: env}
+	}
+	counter := cp.reserve(mc, values.INT, 0)
+	accumulator := cp.reserve(mc, values.TUPLE, []values.Value{})
+	cp.put(mc, vm.LenL, sourceList)
+	length := mc.That()
+
+	loopStart := mc.CodeTop()
+	cp.put(mc, vm.Gthi, length, counter)
+	loopBacktrack := mc.CodeTop()
+	cp.emit(mc, vm.Qtru, mc.That(), DUMMY)
+	if isAttemptedFunc {
+		cp.put(mc, vm.IdxL, sourceList, counter, DUMMY)
+		cp.put(mc, vm.Dofn, v.mLoc, mc.That())
+		types = altType(values.ERROR).union(cp.typeNameToTypeList["single?"]) // Very much TODO. Normally the function is constant and so we know its return types.
+	} else {
+		cp.emit(mc, vm.IdxL, thatLoc, sourceList, counter, DUMMY)
+		types, isConst = cp.compileNode(mc, rhs, envWithThat)
+	}
+	element := mc.That()
+	if types.contains(values.ERROR) {
+		cp.emit(mc, vm.Qtyp, element, uint32(values.ERROR), mc.CodeTop()+3)
+		resultBacktrack = mc.CodeTop()
+		cp.emit(mc, vm.Asgm, DUMMY, element)
+		cp.emit(mc, vm.Jmp, DUMMY)
+	}
+	cp.emit(mc, vm.CcT1, accumulator, accumulator, mc.That())
+	cp.emit(mc, vm.Addi, counter, counter, values.C_ONE)
+	cp.emit(mc, vm.Jmp, loopStart)
+
+	mc.Code[loopBacktrack].Args[1] = mc.CodeTop()
+	cp.put(mc, vm.List, accumulator)
+
+	if backtrack != uint32(DUMMY) {
+		mc.Code[backtrack].Args[0] = mc.That()
+		mc.Code[backtrack+1].Args[0] = mc.CodeTop()
+	}
+	if resultBacktrack != uint32(DUMMY) {
+		mc.Code[resultBacktrack].Args[0] = mc.That()
+		mc.Code[resultBacktrack+1].Args[0] = mc.CodeTop()
+	}
+
+	if types.contains(values.ERROR) {
+		return altType(values.ERROR, values.LIST), isConst
+	}
+	return altType(values.LIST), isConst
 }
 
-func (cp *Compiler) compileMapping(mc *vm.Vm, lhsTypes alternateType, rhs ast.Node, env *environment) (alternateType, bool) {
-	return alternateType{}, false
-}
-
-func (cp *Compiler) compileFilter(mc *vm.Vm, lhsTypes alternateType, rhs ast.Node, env *environment) (alternateType, bool) {
+func (cp *Compiler) compileFilter(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment) (alternateType, bool) {
 	return alternateType{}, false
 }
