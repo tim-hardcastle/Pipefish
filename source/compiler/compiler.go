@@ -325,6 +325,11 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				cp.put(mc, vm.IdxL, container, index, boundsError)
 				break
 			}
+			if indexType.isOnly(values.PAIR) {
+				boundsError := cp.reserveError(mc, "vm/list/slice", &node.Token, []any{})
+				cp.put(mc, vm.SliL, container, index, boundsError)
+				break
+			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
 				cp.p.Throw("comp/list/index", node.GetToken())
 				break
@@ -336,6 +341,11 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				cp.put(mc, vm.Idxs, container, index, boundsError)
 				break
 			}
+			if indexType.isOnly(values.PAIR) {
+				boundsError := cp.reserveError(mc, "vm/string/slice", &node.Token, []any{})
+				cp.put(mc, vm.Slis, container, index, boundsError)
+				break
+			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
 				cp.p.Throw("comp/string/index", node.GetToken())
 				break
@@ -345,6 +355,11 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			if indexType.isOnly(values.INT) {
 				boundsError := cp.reserveError(mc, "vm/tuple/index", &node.Token, []any{})
 				cp.put(mc, vm.IdxT, container, index, boundsError)
+				break
+			}
+			if indexType.isOnly(values.PAIR) {
+				boundsError := cp.reserveError(mc, "vm/tuple/slice", &node.Token, []any{})
+				cp.put(mc, vm.SliT, container, index, boundsError)
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {

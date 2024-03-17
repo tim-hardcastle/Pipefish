@@ -478,6 +478,36 @@ loop:
 			}
 			loc = vm.callstack[len(vm.callstack)-1]
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
+		case SliL:
+			vec := vm.Mem[args[1]].V.(vector.Vector)
+			ix := vm.Mem[args[2]].V.([]values.Value)
+			lb := ix[0].V.(int)
+			ub := ix[1].V.(int)
+			if true {
+				vm.Mem[args[0]] = values.Value{values.LIST, vec.SubVector(lb, ub)}
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
+		case Slis:
+			str := vm.Mem[args[1]].V.(string)
+			ix := vm.Mem[args[2]].V.([]values.Value)
+			lb := ix[0].V.(int)
+			ub := ix[1].V.(int)
+			if true {
+				vm.Mem[args[0]] = values.Value{values.STRING, str[lb:ub]}
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
+		case SliT:
+			tup := vm.Mem[args[1]].V.([]values.Value)
+			ix := vm.Mem[args[2]].V.([]values.Value)
+			lb := ix[0].V.(int)
+			ub := ix[1].V.(int)
+			if true {
+				vm.Mem[args[0]] = values.Value{values.TUPLE, tup[lb:ub]}
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
 		case Strc:
 			fields := make([]values.Value, 0, len(args)-2)
 			for _, loc := range args[2:] {
