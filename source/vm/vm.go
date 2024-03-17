@@ -481,30 +481,27 @@ loop:
 		case SliL:
 			vec := vm.Mem[args[1]].V.(vector.Vector)
 			ix := vm.Mem[args[2]].V.([]values.Value)
-			lb := ix[0].V.(int)
-			ub := ix[1].V.(int)
-			if true {
-				vm.Mem[args[0]] = values.Value{values.LIST, vec.SubVector(lb, ub)}
+			if ix[0].T == values.INT && ix[1].T == values.INT && 0 <= ix[0].V.(int) &&
+				ix[0].V.(int) <= ix[1].V.(int) && ix[1].V.(int) <= vec.Len() {
+				vm.Mem[args[0]] = values.Value{values.LIST, vec.SubVector(ix[0].V.(int), ix[1].V.(int))}
 			} else {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
 		case Slis:
 			str := vm.Mem[args[1]].V.(string)
 			ix := vm.Mem[args[2]].V.([]values.Value)
-			lb := ix[0].V.(int)
-			ub := ix[1].V.(int)
-			if true {
-				vm.Mem[args[0]] = values.Value{values.STRING, str[lb:ub]}
+			if ix[0].T == values.INT && ix[1].T == values.INT && 0 <= ix[0].V.(int) &&
+				ix[0].V.(int) <= ix[1].V.(int) && ix[1].V.(int) <= len(str) {
+				vm.Mem[args[0]] = values.Value{values.STRING, str[ix[0].V.(int):ix[1].V.(int)]}
 			} else {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
 		case SliT:
 			tup := vm.Mem[args[1]].V.([]values.Value)
 			ix := vm.Mem[args[2]].V.([]values.Value)
-			lb := ix[0].V.(int)
-			ub := ix[1].V.(int)
-			if true {
-				vm.Mem[args[0]] = values.Value{values.TUPLE, tup[lb:ub]}
+			if ix[0].T == values.INT && ix[1].T == values.INT && 0 <= ix[0].V.(int) &&
+				ix[0].V.(int) <= ix[1].V.(int) && ix[1].V.(int) <= len(tup) {
+				vm.Mem[args[0]] = values.Value{values.STRING, tup[ix[0].V.(int):ix[1].V.(int)]}
 			} else {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
