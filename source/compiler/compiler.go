@@ -570,9 +570,9 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		case "->":
 			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, lhsConst, node.Right, env)
 		case ">>":
-			rtnTypes, rhsConst = cp.compileMapping(mc, lhsTypes, lhsConst, node.Right, env)
+			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, false)
 		default:
-			rtnTypes, rhsConst = cp.compileFilter(mc, lhsTypes, lhsConst, node.Right, env)
+			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, true)
 		}
 		rtnConst = lhsConst && rhsConst
 		break
@@ -1288,12 +1288,14 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 	return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
 }
 
-func (cp *Compiler) compileMapping(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment) (alternateType, bool) {
+func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, isFilter bool) (alternateType, bool) {
 	var isConst bool
 	var isAttemptedFunc bool
 	var v *variable
+	inputElement := uint32(DUMMY)
 	backtrack := uint32(DUMMY)
 	resultBacktrack := uint32(DUMMY)
+	boolBacktrack := uint32(DUMMY)
 	var types alternateType
 	sourceList := mc.That()
 	envWithThat := &environment{}
@@ -1304,16 +1306,16 @@ func (cp *Compiler) compileMapping(mc *vm.Vm, lhsTypes alternateType, lhsConst b
 		if rhs.GetToken().Literal != "that" {
 			v, ok := env.getVar(rhs.Value)
 			if !ok {
-				cp.p.Throw("comp/mapping/ident", rhs.GetToken())
+				cp.p.Throw("comp/mf/ident", rhs.GetToken())
 				return altType(values.ERROR), true
 			}
 			isAttemptedFunc = true
 			isConst = ALL_CONST_ACCESS.Contains(v.access)
 			if !v.types.contains(values.FUNC) {
-				cp.p.Throw("comp/mapping/func", rhs.GetToken())
+				cp.p.Throw("comp/mf/func", rhs.GetToken())
 			}
 			if !v.types.isOnly(values.FUNC) {
-				cp.reserveError(mc, "vm/mapping/func", rhs.GetToken(), []any{})
+				cp.reserveError(mc, "vm/mf/func", rhs.GetToken(), []any{})
 				cp.emit(mc, vm.Qtyp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
 				backtrack = mc.CodeTop()
 				cp.emit(mc, vm.Asgm, DUMMY, mc.That())
@@ -1336,20 +1338,38 @@ func (cp *Compiler) compileMapping(mc *vm.Vm, lhsTypes alternateType, lhsConst b
 	cp.emit(mc, vm.Qtru, mc.That(), DUMMY)
 	if isAttemptedFunc {
 		cp.put(mc, vm.IdxL, sourceList, counter, DUMMY)
+		inputElement = mc.That()
 		cp.put(mc, vm.Dofn, v.mLoc, mc.That())
 		types = altType(values.ERROR).union(cp.typeNameToTypeList["single?"]) // Very much TODO. Normally the function is constant and so we know its return types.
 	} else {
 		cp.emit(mc, vm.IdxL, thatLoc, sourceList, counter, DUMMY)
+		inputElement = thatLoc
 		types, isConst = cp.compileNode(mc, rhs, envWithThat)
 	}
-	element := mc.That()
+	resultElement := mc.That()
 	if types.contains(values.ERROR) {
-		cp.emit(mc, vm.Qtyp, element, uint32(values.ERROR), mc.CodeTop()+3)
+		cp.emit(mc, vm.Qtyp, resultElement, uint32(values.ERROR), mc.CodeTop()+3)
 		resultBacktrack = mc.CodeTop()
-		cp.emit(mc, vm.Asgm, DUMMY, element)
+		cp.emit(mc, vm.Asgm, DUMMY, resultElement)
 		cp.emit(mc, vm.Jmp, DUMMY)
 	}
-	cp.emit(mc, vm.CcT1, accumulator, accumulator, mc.That())
+	if isFilter {
+		if !types.contains(values.BOOL) {
+			cp.p.Throw("comp/filter/bool", rhs.GetToken())
+		}
+		if !types.isOnly(values.BOOL) {
+			cp.reserveError(mc, "vm/filter/bool", rhs.GetToken(), []any{})
+			cp.emit(mc, vm.Qtyp, resultElement, uint32(values.BOOL), mc.CodeTop()+2)
+			cp.emit(mc, vm.Jmp, mc.CodeTop()+3)
+			boolBacktrack = mc.CodeTop()
+			cp.emit(mc, vm.Asgm, DUMMY, mc.That())
+			cp.emit(mc, vm.Jmp, DUMMY)
+		}
+		cp.emit(mc, vm.Qtru, resultElement, mc.CodeTop()+2)
+		cp.emit(mc, vm.CcT1, accumulator, accumulator, inputElement)
+	} else {
+		cp.emit(mc, vm.CcT1, accumulator, accumulator, resultElement)
+	}
 	cp.emit(mc, vm.Addi, counter, counter, values.C_ONE)
 	cp.emit(mc, vm.Jmp, loopStart)
 
@@ -1364,13 +1384,13 @@ func (cp *Compiler) compileMapping(mc *vm.Vm, lhsTypes alternateType, lhsConst b
 		mc.Code[resultBacktrack].Args[0] = mc.That()
 		mc.Code[resultBacktrack+1].Args[0] = mc.CodeTop()
 	}
+	if boolBacktrack != uint32(DUMMY) {
+		mc.Code[boolBacktrack].Args[0] = mc.That()
+		mc.Code[boolBacktrack+1].Args[0] = mc.CodeTop()
+	}
 
 	if types.contains(values.ERROR) {
 		return altType(values.ERROR, values.LIST), isConst
 	}
 	return altType(values.LIST), isConst
-}
-
-func (cp *Compiler) compileFilter(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment) (alternateType, bool) {
-	return alternateType{}, false
 }

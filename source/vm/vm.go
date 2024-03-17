@@ -511,7 +511,7 @@ func (vm *Vm) DescribeCode(loc uint32) string {
 	return spaces + prefix + describe(vm.Code[loc])
 }
 
-func (vm *Vm) describeType(t values.ValueType) string {
+func (vm *Vm) DescribeType(t values.ValueType) string {
 	return vm.TypeNames[t]
 }
 
@@ -614,7 +614,7 @@ func (vm *Vm) describe(v values.Value) string {
 		}
 		return prefix + strings.Join(result, ", ") + ")"
 	case values.TYPE:
-		return vm.describeType(v.V.(values.ValueType))
+		return vm.DescribeType(v.V.(values.ValueType))
 	case values.UNDEFINED_VALUE:
 		return "UNDEFINED VALUE!!!"
 	case values.UNSAT:

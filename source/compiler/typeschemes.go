@@ -1,12 +1,16 @@
 package compiler
 
 import (
+	"fmt"
 	"pipefish/source/set"
 	"pipefish/source/values"
+	"pipefish/source/vm"
+	"strings"
 )
 
 type typeScheme interface {
 	compare(u typeScheme) int
+	describe(mc *vm.Vm) string
 }
 
 // TODO, think about this one.
@@ -121,6 +125,10 @@ func (t simpleType) compare(u typeScheme) int {
 	}
 }
 
+func (t simpleType) describe(mc *vm.Vm) string {
+	return mc.DescribeType(values.ValueType(t))
+}
+
 type alternateType []typeScheme
 
 func (vL alternateType) intersect(wL alternateType) alternateType {
@@ -141,6 +149,16 @@ func (vL alternateType) intersect(wL alternateType) alternateType {
 		wix++
 	}
 	return x
+}
+
+func (aT alternateType) describe(mc *vm.Vm) string {
+	var buf strings.Builder
+	var sep string
+	for _, v := range aT {
+		fmt.Fprintf(&buf, "%s%s", sep, v.describe(mc))
+		sep = "/"
+	}
+	return buf.String()
 }
 
 func (vL alternateType) union(wL alternateType) alternateType {
@@ -218,7 +236,9 @@ func (aT alternateType) contains(vt values.ValueType) bool {
 	for _, ty := range aT {
 		switch el := ty.(type) {
 		case simpleType:
-			return (el) == t
+			if (el) == t {
+				return true
+			}
 		}
 	}
 	return false
@@ -233,7 +253,7 @@ func (aT alternateType) containsOnlyTuples() bool {
 			if !el.containsOnlyTuples() {
 				return false
 			}
-		case blingType, listType:
+		case blingType: //, listType
 			return false
 		}
 	}
@@ -293,6 +313,18 @@ func (t finiteTupleType) compare(u typeScheme) int {
 	}
 }
 
+func (fT finiteTupleType) describe(mc *vm.Vm) string {
+	var buf strings.Builder
+	buf.WriteString("tuple[")
+	var sep string
+	for _, v := range fT {
+		fmt.Fprintf(&buf, "%s%s", sep, v.describe(mc))
+		sep = ", "
+	}
+	buf.WriteString("]")
+	return buf.String()
+}
+
 type typedTupleType struct { // We don't know how long it is but we know what its elements are. (or we can say 'single?' if we don't.)
 	t alternateType
 }
@@ -306,6 +338,14 @@ func (t typedTupleType) compare(u typeScheme) int {
 	default:
 		return -1
 	}
+}
+
+func (aT typedTupleType) describe(mc *vm.Vm) string {
+	var buf strings.Builder
+	buf.WriteString("tuple[")
+	buf.WriteString(aT.t.describe(mc))
+	buf.WriteString("... ]")
+	return buf.String()
 }
 
 type blingType struct {
@@ -329,28 +369,32 @@ func (t blingType) compare(u typeScheme) int {
 	}
 }
 
-type listType []typeScheme
-
-func (t listType) compare(u typeScheme) int {
-	switch u := u.(type) {
-	case simpleType, finiteTupleType, typedTupleType, blingType:
-		return 1
-	case listType:
-		diff := len(t) - len(u)
-		if diff != 0 {
-			return diff
-		}
-		for i := 0; i < len(t); i++ {
-			diff := (t)[i].compare((u)[i])
-			if diff != 0 {
-				return diff
-			}
-		}
-		return 0
-	default:
-		return -1
-	}
+func (bT blingType) describe(mc *vm.Vm) string {
+	return bT.tag
 }
+
+// type listType []typeScheme
+
+// func (t listType) compare(u typeScheme) int {
+// 	switch u := u.(type) {
+// 	case simpleType, finiteTupleType, typedTupleType, blingType:
+// 		return 1
+// 	case listType:
+// 		diff := len(t) - len(u)
+// 		if diff != 0 {
+// 			return diff
+// 		}
+// 		for i := 0; i < len(t); i++ {
+// 			diff := (t)[i].compare((u)[i])
+// 			if diff != 0 {
+// 				return diff
+// 			}
+// 		}
+// 		return 0
+// 	default:
+// 		return -1
+// 	}
+// }
 
 func altType(t ...values.ValueType) alternateType {
 	result := make(alternateType, len(t))
