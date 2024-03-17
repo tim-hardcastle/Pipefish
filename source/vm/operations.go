@@ -71,6 +71,8 @@ type opDescriptor struct {
 var OPERANDS = map[Opcode]opDescriptor{
 	Addf: {"addf", operands{dst, mem, mem}},
 	Addi: {"addi", operands{dst, mem, mem}},
+	AddL: {"addL", operands{dst, mem, mem}},
+	AddS: {"addS", operands{dst, mem, mem}},
 	Adds: {"adds", operands{dst, mem, mem}},
 	Adtk: {"adtk", operands{dst, mem, tok}},
 	Andb: {"andb", operands{dst, mem, mem}},
@@ -165,7 +167,8 @@ func (op *Operation) MakeLastArg(loc uint32) {
 const (
 	Addf Opcode = iota
 	Addi
-	addl
+	AddL
+	AddS
 	Adds
 	Adtk
 	Andb

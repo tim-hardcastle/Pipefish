@@ -56,7 +56,7 @@ func (pm Set) Len() int {
 	return pm.root.len()
 }
 
-func (pm Set) Union(other *Set) {
+func (pm *Set) Union(other Set) {
 	root := pm.root
 	pm.root = setUnion(root, other.root, true)
 }

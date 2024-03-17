@@ -63,3 +63,6 @@ Person = struct(name string, age int)
 foo(str struct, lab label) :
     str[lab]
 
+X = [1, 2]
+
+Y = set 1, 2

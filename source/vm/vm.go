@@ -157,6 +157,21 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) + vm.Mem[args[2]].V.(float64)}
 		case Addi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) + vm.Mem[args[2]].V.(int)}
+		case AddL:
+			result := vm.Mem[args[1]].V.(vector.Vector)
+			rhs := vm.Mem[args[2]].V.(vector.Vector)
+			for i := 0; ; i++ {
+				el, ok := rhs.Index(i)
+				if !ok {
+					break
+				}
+				result = result.Conj(el)
+			}
+			vm.Mem[args[0]] = values.Value{values.LIST, result}
+		case AddS:
+			result := vm.Mem[args[1]].V.(values.Set)
+			result.Union(vm.Mem[args[2]].V.(values.Set))
+			vm.Mem[args[0]] = values.Value{values.SET, result}
 		case Adds:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + vm.Mem[args[2]].V.(string)}
 		case Adtk:

@@ -14,6 +14,8 @@ type functionAndReturnType struct {
 var BUILTINS = map[string]functionAndReturnType{
 	"add_floats":        {(*Compiler).btAddFloats, altType(values.FLOAT)},
 	"add_integers":      {(*Compiler).btAddIntegers, altType(values.INT)},
+	"add_lists":         {(*Compiler).btAddLists, altType(values.LIST)},
+	"add_sets":          {(*Compiler).btAddSets, altType(values.SET)},
 	"add_strings":       {(*Compiler).btAddStrings, altType(values.STRING)},
 	"divide_floats":     {(*Compiler).btDivideFloats, altType(values.ERROR, values.FLOAT)},
 	"divide_integers":   {(*Compiler).btDivideIntegers, altType(values.ERROR, values.INT)},
@@ -63,6 +65,14 @@ func (cp *Compiler) btAddFloats(mc *vm.Vm, tok *token.Token, dest uint32, args [
 
 func (cp *Compiler) btAddIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Addi, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btAddLists(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.AddL, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btAddSets(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.AddS, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddStrings(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
