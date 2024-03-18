@@ -35,6 +35,11 @@ arity(T tuple) : aritymaker T
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"
 float(x string) : builtin "float_of_string"
+(x single?) in (y list) : builtin "single_in_list"
+(x single?) in (y set) : builtin "single_in_set"
+intuplemaker(x single?, y tuple) : builtin "single_in_tuple"
+(x single?) in (y tuple) : intuplemaker x, y
+(x single?) in (y type) : builtin "single_in_type"
 int(x string) : builtin "int_of_string"
 int(x float64) : builtin "int_of_float"
 keys(x map) : builtin "keys_of_map"
@@ -66,3 +71,17 @@ foo(str struct, lab label) :
 X = [1, 2]
 
 Y = set 1, 2
+
+zort (t tuple) : 
+    t 
+
+troz (i int, t tuple) :
+    t
+
+spoit (t tuple) fnurp :
+    t 
+
+(i int) goo (t tuple) :
+    t
+
+(x int) fnarf (y int) : x * y

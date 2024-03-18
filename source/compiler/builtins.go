@@ -50,6 +50,10 @@ var BUILTINS = map[string]functionAndReturnType{
 	"negate_float":      {(*Compiler).btNegateFloat, altType(values.FLOAT)},
 	"negate_integer":    {(*Compiler).btNegateInteger, altType(values.INT)},
 	"string":            {(*Compiler).btString, altType(values.STRING)},
+	"single_in_list":    {(*Compiler).btSingleInList, altType(values.BOOL)},
+	"single_in_set":     {(*Compiler).btSingleInSet, altType(values.BOOL)},
+	"single_in_tuple":   {(*Compiler).btSingleInTuple, altType(values.BOOL)},
+	"single_in_type":    {(*Compiler).btSingleInType, altType(values.BOOL)},
 	"subtract_floats":   {(*Compiler).btSubtractFloats, altType(values.FLOAT)},
 	"subtract_integers": {(*Compiler).btSubtractIntegers, altType(values.INT)},
 	"tuple_of_single?":  {(*Compiler).btTupleOfSingle, altType()}, // Since we can't know the typeschemes in advance, these are kludged in by the seekFunctionCall method.
@@ -228,12 +232,28 @@ func (cp *Compiler) btNegateInteger(mc *vm.Vm, tok *token.Token, dest uint32, ar
 	cp.emit(mc, vm.Negi, dest, args[0])
 }
 
-func (cp *Compiler) btSubtractFloats(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(mc, vm.Subf, dest, args[0], args[2])
+func (cp *Compiler) btSingleInList(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.InxL, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btSingleInSet(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.InxS, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btSingleInTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.InxT, dest, args[0], args[1])
+}
+
+func (cp *Compiler) btSingleInType(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Inxt, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btString(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Strx, dest, args[0])
+}
+
+func (cp *Compiler) btSubtractFloats(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Subf, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSubtractIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {

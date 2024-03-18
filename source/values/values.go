@@ -31,8 +31,8 @@ type Value struct {
 	V any
 }
 
-func (v Value) compare(w Value) bool {
-	if v.T < w.T {
+func (v Value) compare(w Value) bool { // To implement the set and hash structures. It doesn't really matter which order
+	if v.T < w.T { // these things are in, so long as there is one.
 		return true
 	}
 	if w.T < v.T {
@@ -57,10 +57,11 @@ func (v Value) compare(w Value) bool {
 }
 
 var (
-	FALSE = Value{T: BOOL, V: false}
-	TRUE  = Value{T: BOOL, V: true}
+	FALSE = Value{BOOL, false}
+	TRUE  = Value{BOOL, true}
 	U_OBJ = Value{T: UNSAT}
-	ONE   = Value{T: INT, V: 1}
+	ONE   = Value{INT, 1}
+	BL    = Value{BLING, "bling"}
 )
 
 const (
@@ -68,4 +69,5 @@ const (
 	C_TRUE
 	C_U_OBJ
 	C_ONE
+	C_BLING
 )

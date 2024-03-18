@@ -344,6 +344,43 @@ loop:
 			} else {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
+		case InxL:
+			x := vm.Mem[args[1]]
+			L := vm.Mem[args[2]].V.(vector.Vector)
+			i := 0
+			vm.Mem[args[0]] = values.Value{values.BOOL, false}
+			for el, ok := L.Index(i); ok; {
+				if x.T == el.(values.Value).T {
+					if vm.equals(x, el.(values.Value)) {
+						vm.Mem[args[0]] = values.Value{values.BOOL, true}
+						break
+					}
+				}
+				i++
+				el, ok = L.Index(i)
+			}
+		case InxS:
+			x := vm.Mem[args[1]]
+			S := vm.Mem[args[2]].V.(values.Set)
+			if S.Contains(x) {
+				vm.Mem[args[0]] = values.Value{values.BOOL, true}
+			} else {
+				vm.Mem[args[0]] = values.Value{values.BOOL, false}
+			}
+		case InxT:
+			x := vm.Mem[args[1]]
+			T := vm.Mem[args[2]].V.([]values.Value)
+			vm.Mem[args[0]] = values.Value{values.BOOL, false}
+			for _, el := range T {
+				if x.T == el.T {
+					if vm.equals(x, el) {
+						vm.Mem[args[0]] = values.Value{values.BOOL, true}
+						break
+					}
+				}
+			}
+		case Inxt:
+			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].T == vm.Mem[args[2]].V.(values.ValueType)}
 		case IxTn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxZl:
@@ -545,6 +582,58 @@ loop:
 	if SHOW_RUN {
 		println()
 	}
+}
+
+// Implements equality-by-value. Assumes that the two values have already been verified to have the same type.
+func (mc Vm) equals(v, w values.Value) bool {
+	switch v.T {
+	case values.NULL:
+		return true
+	case values.INT:
+		return v.V.(int) == w.V.(int)
+	case values.BOOL:
+		return v.V.(bool) == w.V.(bool)
+	case values.STRING:
+		return v.V.(string) == w.V.(string)
+	case values.FLOAT:
+		return v.V.(float64) == w.V.(float64)
+	case values.TYPE:
+		return v.V.(values.ValueType) == w.V.(values.ValueType)
+	case values.PAIR:
+		return mc.equals(v.V.([]values.Value)[0], w.V.([]values.Value)[0]) &&
+			mc.equals(v.V.([]values.Value)[1], w.V.([]values.Value)[1])
+	case values.LIST:
+		K := v.V.(vector.Vector)
+		L := w.V.(vector.Vector)
+		lth := K.Len()
+		if L.Len() != lth {
+			return false
+		}
+		for i := 0; i < lth; i++ {
+			kEl, _ := K.Index(i)
+			lEl, _ := L.Index(i)
+			if kEl.(values.Value).T != lEl.(values.Value).T {
+				return false
+			}
+			if !mc.equals(kEl.(values.Value), lEl.(values.Value)) {
+				return false
+			}
+		}
+		return true
+	case values.SET:
+
+	case values.MAP:
+
+	case values.FUNC:
+		return false
+	}
+	if values.LB_ENUMS <= v.T && v.T < mc.Ub_enums {
+		return v.V.(int) == w.V.(int)
+	}
+	if v.T >= mc.Ub_enums {
+
+	}
+	panic("Wut?")
 }
 
 func (vm *Vm) DescribeCode(loc uint32) string {

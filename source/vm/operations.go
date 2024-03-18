@@ -110,6 +110,10 @@ var OPERANDS = map[Opcode]opDescriptor{
 	IxTn: {"ixTn", operands{dst, mem, num}},
 	IxZl: {"ixZl", operands{dst, mem, mem, mem}},
 	IxZn: {"ixZn", operands{dst, mem, num}},
+	InxL: {"inxL", operands{dst, mem, mem}},
+	InxS: {"inxS", operands{dst, mem, mem}},
+	Inxt: {"inxt", operands{dst, mem, mem}},
+	InxT: {"inxT", operands{dst, mem, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
 	Jmp:  {"jmp", operands{loc}},
@@ -209,6 +213,10 @@ const (
 	Idxs
 	Idxt
 	IdxT
+	InxL
+	InxS
+	Inxt
+	InxT
 	Ints
 	Intf
 	IxTn

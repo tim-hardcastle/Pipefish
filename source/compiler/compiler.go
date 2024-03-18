@@ -920,16 +920,16 @@ func (cp *Compiler) generateNewArgument(mc *vm.Vm, b *bindle) alternateType {
 			return cp.seekBling(mc, b, bl.tag)
 		}
 	}
-	// Case (3) : we have a reference.
-	if b.treePosition.Branch[b.branchNo].TypeName == "ref" {
+	// Case (3) : we're in tuple time.
+	if b.tupleTime {
 		newBindle := *b
-		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.argNo++
 		return cp.generateNewArgument(mc, &newBindle)
 	}
-	// Case (4) : we're in tuple time.
-	if b.tupleTime {
+	// Case (4) : we have a reference.
+	if b.treePosition.Branch[b.branchNo].TypeName == "ref" {
 		newBindle := *b
+		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.argNo++
 		return cp.generateNewArgument(mc, &newBindle)
 	}
