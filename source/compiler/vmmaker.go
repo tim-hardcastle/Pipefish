@@ -290,9 +290,6 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 	fnenv.ext = outerEnv
 	cpF.loReg = mc.MemTop()
 	for _, pair := range sig {
-		if pair.VarType == "bling" {
-			continue
-		}
 		vmm.cp.reserve(mc, values.UNDEFINED_VALUE, DUMMY)
 		if pair.VarType == "ref" {
 			vmm.cp.addVariable(mc, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.typeNameToTypeList[pair.VarType])

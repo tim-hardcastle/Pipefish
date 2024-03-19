@@ -7,6 +7,7 @@ const ( // Cross-reference with typeNames in blankVm()
 	INT_ARRAY                        // For internal use only
 	THUNK
 	CREATED_LOCAL_CONSTANT
+	BLING
 	TUPLE
 	ERROR
 	UNSAT
@@ -56,16 +57,19 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 	return v.V.(int) < w.V.(int)
 }
 
+// Cross-reference with CONSTANTS in vm.go.
 var (
+	UNDEF = Value{UNDEFINED_VALUE, nil}
 	FALSE = Value{BOOL, false}
 	TRUE  = Value{BOOL, true}
 	U_OBJ = Value{T: UNSAT}
 	ONE   = Value{INT, 1}
-	BL    = Value{BLING, "bling"}
+	BLNG  = Value{BLING, "bling"}
 )
 
 const (
-	C_FALSE = iota
+	C_UNDEF = iota
+	C_FALSE
 	C_TRUE
 	C_U_OBJ
 	C_ONE

@@ -132,12 +132,12 @@ func (vm *Vm) add(vmToAdd *Vm) {
 
 var OPCODE_LIST []func(vm *Vm, args []uint32)
 
-var CONSTANTS = []values.Value{values.FALSE, values.TRUE, values.U_OBJ, values.ONE}
+var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG}
 
 func BlankVm() *Vm {
 	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "INT_ARRAY", "thunk", "created local constant", "tuple", "error", "unsat", "ref", "null",
+	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "INT_ARRAY", "thunk", "created local constant", "bling", "tuple", "error", "unsat", "ref", "null",
 		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set", "label"}
 	return newVm
 }
@@ -199,7 +199,9 @@ loop:
 					tupleTime = true
 					vm.Mem[args[1]+tupleList[tplpt]] = values.Value{values.TUPLE, make([]values.Value, 0, 10)}
 				}
-				// if vm.Mem[i].T == values.BLING {}
+				if vm.Mem[args[j]].T == values.BLING {
+					tupleTime = false
+				}
 				if tupleTime {
 					tupleVal := vm.Mem[args[1]+tupleList[tplpt]].V.([]values.Value)
 					tupleVal = append(tupleVal, vm.Mem[args[j]])
@@ -664,6 +666,8 @@ func (vm *Vm) describe(v values.Value) string {
 		return vm.Enums[v.T-values.LB_ENUMS][v.V.(int)]
 	}
 	switch v.T {
+	case values.BLING:
+		return v.V.(string)
 	case values.BOOL:
 		if v.V.(bool) {
 			return "true"

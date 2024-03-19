@@ -851,6 +851,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 		switch arg := arg.(type) { // It might be bling.
 		case *ast.Bling:
 			b.types[i] = alternateType{blingType{arg.Value}}
+			b.valLocs[i] = values.C_BLING
 		default: // Otherwise we emit code to evaluate it.
 			b.types[i], cstI = cp.compileNode(mc, arg, env)
 			cst = cst && cstI
