@@ -749,6 +749,22 @@ loop:
 				}
 			}
 			vm.Mem[args[0]] = result
+		case WtoM:
+			var items []values.Value
+			if (vm.Mem[args[2]].T) == values.TUPLE {
+				items = vm.Mem[args[2]].V.([]values.Value)
+			} else {
+				items = []values.Value{vm.Mem[args[2]]}
+			}
+			mp := vm.Mem[args[1]].V.(*values.Map)
+			for _, key := range items {
+				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || key.T >= vm.Ub_enums) { // Check that the key is orderable.
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break Switch
+				}
+				mp = (*mp).Delete(key)
+			}
+			vm.Mem[args[0]] = values.Value{values.MAP, mp}
 		default:
 			panic("Unhandled opcode!")
 		}

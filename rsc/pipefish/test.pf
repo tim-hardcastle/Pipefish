@@ -57,18 +57,16 @@ tuple(x tuple) : builtin "tuple_of_tuple"
 tuplify(L list) : builtin "tuplify_list"
 type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
-(x list) with (y pair) : builtin "list_with"
-listwithmaker(x list, dummy int, y tuple)  : builtin "list_with"
-(x list) with (y tuple) : listwithmaker x, 0, y        // The 0 is so the struct_with call will have three arguments whether it's called with a tuple or a pair.
-(x map) with (y pair) : builtin "map_with"
-mapwithmaker(x map, dummy int, y tuple)  : builtin "map_with"
-(x map) with (y tuple) : mapwithmaker x, 0, y        // The 0 is so the struct_with call will have three arguments whether it's called with a tuple or a pair.
-(x struct) with (y pair) : builtin "struct_with"
-structwithmaker(x struct, dummy int, y tuple)  : builtin "struct_with"
-(x struct) with (y tuple) : structwithmaker x, 0, y        // The 0 is so the struct_with call will have three arguments whether it's called with a tuple or a pair.
-(x type) with (y pair) : builtin "type_with"
-typewithmaker(x type, dummy int, y tuple) : builtin "type_with"
-(x type) with (y tuple) : typewithmaker x, 0, y
+listwithmaker(x list, y tuple)  : builtin "list_with"
+(x list) with (y tuple) : listwithmaker x, y   
+mapwithmaker(x map, y tuple)  : builtin "map_with"
+(x map) with (y tuple) : mapwithmaker x, y   
+structwithmaker(x struct, y tuple)  : builtin "struct_with"
+(x struct) with (y tuple) : structwithmaker x, y   
+typewithmaker(x type, y tuple) : builtin "type_with" 
+(x type) with (y tuple) : typewithmaker x, y        
+mapwithoutmaker(x map, y tuple)  : builtin "map_without"
+(x map) without (y tuple) : mapwithoutmaker x, y    
 
 Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
 

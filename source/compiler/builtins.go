@@ -46,6 +46,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"make_pair":         {(*Compiler).btMakePair, altType(values.PAIR)},
 	"make_set":          {(*Compiler).btMakeSet, altType(values.SET)},
 	"map_with":          {(*Compiler).btMapWith, altType(values.MAP)},
+	"map_without":       {(*Compiler).btMapWithout, altType(values.MAP)},
 	"modulo_integers":   {(*Compiler).btModuloIntegers, altType(values.ERROR, values.INT)},
 	"multiply_floats":   {(*Compiler).btMultiplyFloats, altType(values.FLOAT)},
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, altType(values.INT)},
@@ -173,7 +174,7 @@ func (cp *Compiler) btLenTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []
 
 func (cp *Compiler) btListWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.reserveError(mc, "built/with/list", tok, []any{})
-	cp.emit(mc, vm.WthL, dest, args[0], args[2], mc.That())
+	cp.emit(mc, vm.WthL, dest, args[0], args[1], mc.That())
 }
 
 func (cp *Compiler) btLiteral(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -217,7 +218,12 @@ func (cp *Compiler) btMakeSet(mc *vm.Vm, tok *token.Token, dest uint32, args []u
 
 func (cp *Compiler) btMapWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.reserveError(mc, "built/with/map", tok, []any{})
-	cp.emit(mc, vm.WthM, dest, args[0], args[2], mc.That())
+	cp.emit(mc, vm.WthM, dest, args[0], args[1], mc.That())
+}
+
+func (cp *Compiler) btMapWithout(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/without/map", tok, []any{})
+	cp.emit(mc, vm.WtoM, dest, args[0], args[1], mc.That())
 }
 
 func (cp *Compiler) btModuloIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -268,7 +274,7 @@ func (cp *Compiler) btString(mc *vm.Vm, tok *token.Token, dest uint32, args []ui
 
 func (cp *Compiler) btStructWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.reserveError(mc, "built/with/struct", tok, []any{})
-	cp.emit(mc, vm.WthZ, dest, args[0], args[2], mc.That())
+	cp.emit(mc, vm.WthZ, dest, args[0], args[1], mc.That())
 }
 
 func (cp *Compiler) btSubtractFloats(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -302,5 +308,5 @@ func (cp *Compiler) btTypeOfTuple(mc *vm.Vm, tok *token.Token, dest uint32, args
 
 func (cp *Compiler) btTypeWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.reserveError(mc, "built/with/type", tok, []any{})
-	cp.emit(mc, vm.Wtht, dest, args[0], args[2], mc.That())
+	cp.emit(mc, vm.Wtht, dest, args[0], args[1], mc.That())
 }
