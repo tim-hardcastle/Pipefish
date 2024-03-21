@@ -35,6 +35,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"len_set":           {(*Compiler).btLenSet, altType(values.INT)},
 	"len_string":        {(*Compiler).btLenString, altType(values.INT)},
 	"len_tuple":         {(*Compiler).btLenTuple, altType(values.INT)},
+	"list_with":         {(*Compiler).btListWith, altType(values.LIST)},
 	"literal":           {(*Compiler).btLiteral, altType(values.STRING)},
 	"lt_floats":         {(*Compiler).btLtFloats, altType(values.BOOL)},
 	"lte_floats":        {(*Compiler).btLteFloats, altType(values.BOOL)},
@@ -44,6 +45,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"make_map":          {(*Compiler).btMakeMap, altType(values.MAP)},
 	"make_pair":         {(*Compiler).btMakePair, altType(values.PAIR)},
 	"make_set":          {(*Compiler).btMakeSet, altType(values.SET)},
+	"map_with":          {(*Compiler).btMapWith, altType(values.MAP)},
 	"modulo_integers":   {(*Compiler).btModuloIntegers, altType(values.ERROR, values.INT)},
 	"multiply_floats":   {(*Compiler).btMultiplyFloats, altType(values.FLOAT)},
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, altType(values.INT)},
@@ -55,11 +57,13 @@ var BUILTINS = map[string]functionAndReturnType{
 	"single_in_tuple":   {(*Compiler).btSingleInTuple, altType(values.BOOL)},
 	"single_in_type":    {(*Compiler).btSingleInType, altType(values.BOOL)},
 	"subtract_floats":   {(*Compiler).btSubtractFloats, altType(values.FLOAT)},
+	"struct_with":       {(*Compiler).btStructWith, altType()},
 	"subtract_integers": {(*Compiler).btSubtractIntegers, altType(values.INT)},
 	"tuple_of_single?":  {(*Compiler).btTupleOfSingle, altType()}, // Since we can't know the typeschemes in advance, these are kludged in by the seekFunctionCall method.
 	"tuple_of_tuple":    {(*Compiler).btTupleOfTuple, altType()},  //
 	"tuplify_list":      {(*Compiler).btTuplifyList, altType()},   // We know that this should be alternateType{typedTupleType{single?}}, but we don't know what single? is yet.
 	"type":              {(*Compiler).btType, altType(values.TYPE)},
+	"type_with":         {(*Compiler).btTypeWith, altType()},
 	"type_of_tuple":     {(*Compiler).btTypeOfTuple, altType(values.TYPE)},
 }
 
@@ -167,6 +171,11 @@ func (cp *Compiler) btLenTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []
 	cp.emit(mc, vm.LenT, dest, args[0])
 }
 
+func (cp *Compiler) btListWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/with/list", tok, []any{})
+	cp.emit(mc, vm.WthL, dest, args[0], args[2], mc.That())
+}
+
 func (cp *Compiler) btLiteral(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Litx, dest, args[0])
 }
@@ -204,6 +213,11 @@ func (cp *Compiler) btMakePair(mc *vm.Vm, tok *token.Token, dest uint32, args []
 func (cp *Compiler) btMakeSet(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.reserveError(mc, "built/set/type", tok, []any{})
 	cp.emit(mc, vm.Mkst, dest, args[0])
+}
+
+func (cp *Compiler) btMapWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/with/map", tok, []any{})
+	cp.emit(mc, vm.WthM, dest, args[0], args[2], mc.That())
 }
 
 func (cp *Compiler) btModuloIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -252,16 +266,17 @@ func (cp *Compiler) btString(mc *vm.Vm, tok *token.Token, dest uint32, args []ui
 	cp.emit(mc, vm.Strx, dest, args[0])
 }
 
+func (cp *Compiler) btStructWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/with/struct", tok, []any{})
+	cp.emit(mc, vm.WthZ, dest, args[0], args[2], mc.That())
+}
+
 func (cp *Compiler) btSubtractFloats(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Subf, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSubtractIntegers(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Subi, dest, args[0], args[2])
-}
-
-func (cp *Compiler) btType(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.emit(mc, vm.Typx, dest, args[0])
 }
 
 func (cp *Compiler) btTupleOfSingle(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) { // TODO --- do we need this or not?
@@ -277,6 +292,15 @@ func (cp *Compiler) btTupleOfTuple(mc *vm.Vm, tok *token.Token, dest uint32, arg
 	cp.emit(mc, vm.CvTT, destWithArgs...)
 }
 
+func (cp *Compiler) btType(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Typx, dest, args[0])
+}
+
 func (cp *Compiler) btTypeOfTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Asgm, dest, cp.tupleType)
+}
+
+func (cp *Compiler) btTypeWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/with/type", tok, []any{})
+	cp.emit(mc, vm.Wtht, dest, args[0], args[2], mc.That())
 }

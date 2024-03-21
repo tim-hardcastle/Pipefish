@@ -152,6 +152,7 @@ loop:
 			println(text.GREEN + "    " + vm.DescribeCode(loc) + text.RESET)
 		}
 		args := vm.Code[loc].Args
+	Switch:
 		switch vm.Code[loc].Opcode {
 		case Addf:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) + vm.Mem[args[2]].V.(float64)}
@@ -460,7 +461,7 @@ loop:
 				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
 					vm.Mem[args[0]] = vm.Mem[vm.That()] // I.e. an error created before the mkst call.
 				}
-				result.Set(k, v)
+				result = result.Set(k, v)
 			}
 			vm.Mem[args[0]] = values.Value{values.MAP, result}
 		case Modi:
@@ -492,6 +493,20 @@ loop:
 			continue
 		case QsnQ:
 			if vm.Mem[args[0]].T >= values.NULL {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case Qstr:
+			if vm.Mem[args[0]].T >= vm.Ub_enums {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case QstQ:
+			if vm.Mem[args[0]].T >= vm.Ub_enums || vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
 			} else {
 				loc = args[1]
@@ -576,6 +591,164 @@ loop:
 				loc = vm.Mem[args[0]].V.(uint32)
 				continue
 			}
+		case WthL:
+			var pairs []values.Value
+			if (vm.Mem[args[2]].T) == values.PAIR {
+				pairs = []values.Value{vm.Mem[args[2]]}
+			} else {
+				pairs = vm.Mem[args[2]].V.([]values.Value)
+			}
+			result := values.Value{values.LIST, vm.Mem[args[1]].V.(vector.Vector)}
+			for _, pair := range pairs {
+				if pair.T != values.PAIR {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break
+				}
+				key := pair.V.([]values.Value)[0]
+				val := pair.V.([]values.Value)[1]
+				var keys []values.Value
+				if key.T == values.LIST {
+					vec := key.V.(vector.Vector)
+					ln := vec.Len()
+					if ln == 0 {
+						vm.Mem[args[0]] = vm.Mem[args[3]]
+						break
+					}
+					keys = make([]values.Value, ln)
+					for i := 0; i < ln; i++ {
+						el, _ := vec.Index(i)
+						keys[i] = el.(values.Value)
+					}
+				} else {
+					keys = []values.Value{key}
+				}
+				result = vm.with(result, keys, val, vm.Mem[args[3]])
+				if result.T == values.ERROR {
+					break
+				}
+			}
+			vm.Mem[args[0]] = result
+		case WthM:
+			var pairs []values.Value
+			if (vm.Mem[args[2]].T) == values.PAIR {
+				pairs = []values.Value{vm.Mem[args[2]]}
+			} else {
+				pairs = vm.Mem[args[2]].V.([]values.Value)
+			}
+			result := values.Value{values.MAP, vm.Mem[args[1]].V.(*values.Map)}
+			for _, pair := range pairs {
+				if pair.T != values.PAIR {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break
+				}
+				key := pair.V.([]values.Value)[0]
+				val := pair.V.([]values.Value)[1]
+				var keys []values.Value
+				if key.T == values.LIST {
+					vec := key.V.(vector.Vector)
+					ln := vec.Len()
+					if ln == 0 {
+						vm.Mem[args[0]] = vm.Mem[args[3]]
+						break
+					}
+					keys = make([]values.Value, ln)
+					for i := 0; i < ln; i++ {
+						el, _ := vec.Index(i)
+						keys[i] = el.(values.Value)
+					}
+				} else {
+					keys = []values.Value{key}
+				}
+				result = vm.with(result, keys, val, vm.Mem[args[3]])
+				if result.T == values.ERROR {
+					break
+				}
+			}
+			vm.Mem[args[0]] = result
+		case Wtht:
+			typ := vm.Mem[args[1]].V.(values.ValueType)
+			if (typ) < vm.Ub_enums {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+				break Switch
+			}
+			typeNumber := typ - vm.Ub_enums
+			var pairs []values.Value
+			if (vm.Mem[args[2]].T) == values.PAIR {
+				pairs = []values.Value{vm.Mem[args[0]]}
+			} else {
+				pairs = vm.Mem[args[2]].V.([]values.Value)
+			}
+			outVals := make([]values.Value, len(vm.StructLabels[typeNumber]))
+			for _, pair := range pairs {
+				if pair.T != values.PAIR {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break
+				}
+				key := pair.V.([]values.Value)[0]
+				val := pair.V.([]values.Value)[1]
+				if key.T != values.LABEL {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break Switch
+				}
+				keyNumber := vm.StructResolve.Resolve(int(typeNumber), key.V.(int))
+				if keyNumber == -1 {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break Switch
+				}
+				if outVals[keyNumber].T != values.UNDEFINED_VALUE {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break Switch
+				}
+				outVals[keyNumber] = val
+			}
+			for _, v := range outVals {
+				if v.T == values.UNDEFINED_VALUE {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break Switch
+				}
+			}
+			vm.Mem[args[0]] = values.Value{typ, outVals}
+		case WthZ:
+			typ := vm.Mem[args[1]].T
+			typeNumber := typ - vm.Ub_enums
+			var pairs []values.Value
+			if (vm.Mem[args[2]].T) == values.PAIR {
+				pairs = []values.Value{vm.Mem[args[2]]}
+			} else {
+				pairs = vm.Mem[args[2]].V.([]values.Value)
+			}
+			outVals := make([]values.Value, len(vm.StructLabels[typeNumber]))
+			copy(outVals, vm.Mem[args[1]].V.([]values.Value))
+			result := values.Value{typ, outVals}
+			for _, pair := range pairs {
+				if pair.T != values.PAIR {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break
+				}
+				key := pair.V.([]values.Value)[0]
+				val := pair.V.([]values.Value)[1]
+				var keys []values.Value
+				if key.T == values.LIST {
+					vec := key.V.(vector.Vector)
+					ln := vec.Len()
+					if ln == 0 {
+						vm.Mem[args[0]] = vm.Mem[args[3]]
+						break
+					}
+					keys = make([]values.Value, ln)
+					for i := 0; i < ln; i++ {
+						el, _ := vec.Index(i)
+						keys[i] = el.(values.Value)
+					}
+				} else {
+					keys = []values.Value{key}
+				}
+				result = vm.with(result, keys, val, vm.Mem[args[3]])
+				if result.T == values.ERROR {
+					break
+				}
+			}
+			vm.Mem[args[0]] = result
 		default:
 			panic("Unhandled opcode!")
 		}
@@ -636,6 +809,60 @@ func (mc Vm) equals(v, w values.Value) bool {
 
 	}
 	panic("Wut?")
+}
+
+func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value, err values.Value) values.Value {
+	key := keys[0]
+	switch container.T {
+	case values.LIST:
+		vec := container.V.(vector.Vector)
+		if key.T != values.INT {
+			return err
+		}
+		keyNumber := key.V.(int)
+		if keyNumber < 0 || keyNumber >= vec.Len() {
+			return err
+		}
+		if len(keys) == 1 {
+			container.V = vec.Assoc(keyNumber, val)
+			return container
+		}
+		el, _ := vec.Index(keyNumber)
+		container.V = vec.Assoc(keyNumber, vm.with(el.(values.Value), keys[1:], val, err))
+		return container
+	case values.MAP:
+		mp := container.V.(*values.Map)
+		if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || key.T >= vm.Ub_enums) { // Check that the key is orderable.
+			return err
+		}
+		if len(keys) == 1 {
+			mp = mp.Set(key, val)
+			return values.Value{values.MAP, mp}
+		}
+		el, _ := mp.Get(key)
+		mp = mp.Set(key, vm.with(el, keys[1:], val, err))
+		return values.Value{values.MAP, mp}
+	default: // It's a struct.
+		fields := make([]values.Value, len(container.V.([]values.Value)))
+		clone := values.Value{container.T, fields}
+		copy(fields, container.V.([]values.Value))
+		typeNumber := container.T - vm.Ub_enums
+
+		if key.T != values.LABEL {
+			return err
+		}
+		fieldNumber := vm.StructResolve.Resolve(int(typeNumber), key.V.(int))
+		if fieldNumber == -1 {
+			return err
+		}
+		if len(keys) == 1 {
+			fields[fieldNumber] = val
+			return clone
+		}
+		fields[fieldNumber] = vm.with(fields[fieldNumber], keys[1:], val, err)
+		return clone
+	}
+	panic("Unhandled case.")
 }
 
 func (vm *Vm) DescribeCode(loc uint32) string {

@@ -23,6 +23,8 @@ func NewTypeSystem() TypeSystem {
 		}
 	}
 	T.AddTransitiveArrow("single", "single?")
+	T.AddTransitiveArrow("struct", "single")
+	T.AddTransitiveArrow("struct?", "single?")
 	T.AddTransitiveArrow("label", "label?")
 	T.AddTransitiveArrow("enum", "label")
 	T.AddTransitiveArrow("field", "label")
@@ -32,6 +34,7 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("null", "label?")
 	T.AddTransitiveArrow("null", "enum?")
 	T.AddTransitiveArrow("null", "field?")
+	T.AddTransitiveArrow("null", "struct?")
 	T.AddTransitiveArrow("language", "snippet")
 	T.AddTransitiveArrow("contact", "snippet")
 	T.AddTransitiveArrow("snippet", "snippet?")

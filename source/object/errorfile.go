@@ -2217,7 +2217,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish expected your return typesto the left of the '->' to be one or more types separated by " +
+			return "Pipefish expected your return types to the right of the '->' to be one or more types separated by " +
 				"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
 		},
 	},
@@ -2227,7 +2227,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish expected your return typesto the left of the '->' to be one or more types separated by " +
+			return "Pipefish expected your return types to the right of the '->' to be one or more types separated by " +
 				"commas, and so it is puzzled to find " + text.DescribeTok(tok) + " instead."
 		},
 	},

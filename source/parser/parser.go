@@ -719,7 +719,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			}
 			fn := &ast.FuncExpression{Token: p.curToken}
 			fn.Body = right
-			fn.Sig, _ = p.getSigFromArgs(left.Args, "single")
+			fn.Sig, _ = p.getSigFromArgs(left.Args, "single?")
 			expression.Right = fn
 			if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
 				fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.Token.Literal, &fn.Sig)
@@ -928,7 +928,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 			p.Throw("parse/colon", &p.curToken)
 			return nil
 		}
-		expression.Sig, _ = p.RecursivelySlurpSignature(root.Left, "single")
+		expression.Sig, _ = p.RecursivelySlurpSignature(root.Left, "single?")
 		if p.ErrorsExist() {
 			return nil
 		}
@@ -1274,9 +1274,9 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 		}
 		if j == len(args)-1 && varType == "*" {
 			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = "single"
+				sig[i].VarType = "single?"
 			}
-			varType = "single"
+			varType = "single?"
 		}
 		if !(varType == "bling" || varType == "*") {
 			for i := backTrackTo; i < len(sig); i++ {
@@ -1287,7 +1287,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 		if varType == "bling" {
 			if len(sig) > 0 && sig[len(sig)-1].VarType == "*" {
 				for i := backTrackTo; i < len(sig); i++ {
-					sig[i].VarType = "single"
+					sig[i].VarType = "single?"
 				}
 			}
 		}

@@ -140,14 +140,16 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Notb: {"notb", operands{dst, mem}},
 	Orb:  {"orb", operands{dst, mem, mem}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
-	QsnQ: {"qsnQ", operands{mem, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
+	QsnQ: {"qsnQ", operands{mem, loc}},
+	Qstr: {"qstr", operands{mem, loc}},
+	QstQ: {"qstQ", operands{mem, loc}},
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Ret:  {"ret", operands{}},
-	SliL: {"SliL", operands{dst, mem, mem, mem}},
-	Slis: {"Slis", operands{dst, mem, mem, mem}},
-	SliT: {"SliT", operands{dst, mem, mem, mem}},
+	SliL: {"SliL", operands{dst, mem, mem, mem}}, // Third operand is error.
+	Slis: {"Slis", operands{dst, mem, mem, mem}}, //
+	SliT: {"SliT", operands{dst, mem, mem, mem}}, //
 	Strc: {"strc", operands{dst, typ, tup}},
 	Strx: {"strx", operands{dst, mem}},
 	Subf: {"subf", operands{dst, mem, mem}},
@@ -156,6 +158,10 @@ var OPERANDS = map[Opcode]opDescriptor{
 	TupL: {"tupL", operands{dst, mem}},
 	Typx: {"typx", operands{dst, mem}},
 	Untk: {"untk", operands{dst}},
+	WthL: {"wthL", operands{dst, mem, mem, mem}}, // Third operand is error.
+	WthM: {"wthM", operands{dst, mem, mem, mem}}, //
+	Wtht: {"wtht", operands{dst, mem, mem, mem}}, //
+	WthZ: {"wthZ", operands{dst, mem, mem, mem}}, //
 }
 
 func describe(op *Operation) string {
@@ -189,7 +195,6 @@ const (
 	CvTT
 	Call
 	CalT // Specialized for tuple capture.
-	cmp
 	Divf
 	Divi
 	Dofn // For lambdas, as opposed to call for outer functions.
@@ -200,7 +205,6 @@ const (
 	Equs
 	Flti
 	Flts
-	getS // S, key number
 	Gtef
 	Gtei
 	Gthf
@@ -238,7 +242,6 @@ const (
 	Mkmp
 	Mkpr
 	Mkst
-	makS
 	Modi
 	Mulf
 	Muli
@@ -250,6 +253,8 @@ const (
 	Qtyp
 	Qsng
 	QsnQ
+	Qstr
+	QstQ
 	QlnT
 	Ret
 	SliL
@@ -263,4 +268,8 @@ const (
 	TupL
 	Typx
 	Untk
+	WthL
+	WthM
+	Wtht
+	WthZ
 )

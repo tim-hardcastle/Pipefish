@@ -501,7 +501,8 @@ func (uP *Initializer) ParseTypeDefs() {
 			uP.Throw("init/struct", tok1)
 		} else {
 			uP.Parser.TokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
-			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "struct")
+			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
+			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "struct?")
 			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal+"?")
 			uP.Parser.Suffixes.Add(tok1.Literal)

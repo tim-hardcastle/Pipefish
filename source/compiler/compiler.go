@@ -752,7 +752,7 @@ func (cp *Compiler) emitErrorBoilerplate(mc *vm.Vm, types alternateType, errCode
 		failed = true
 	}
 	if types.contains(values.ERROR) {
-		cp.emit(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.CodeTop()+2)
+		cp.emit(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.CodeTop()+3)
 		backtrackTo = mc.CodeTop()
 		if appendToken {
 			cp.reserveToken(mc, tok)
@@ -861,7 +861,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 				return altType(values.ERROR), true
 			}
 			if b.types[i].(alternateType).contains(values.ERROR) {
-				cp.emit(mc, vm.Qtyp, mc.That(), uint32(tp(values.ERROR)), mc.CodeTop()+2)
+				cp.emit(mc, vm.Qtyp, mc.That(), uint32(tp(values.ERROR)), mc.CodeTop()+3)
 				backtrackList[i] = mc.CodeTop()
 				cp.emit(mc, vm.Asgm, DUMMY, mc.That(), mc.ThatToken())
 				cp.emit(mc, vm.Ret)
@@ -1058,11 +1058,15 @@ var TYPE_COMPARISONS = map[string]*vm.Operation{
 	"bool":    {vm.Qtyp, []uint32{DUMMY, uint32(values.BOOL), DUMMY}},
 	"float64": {vm.Qtyp, []uint32{DUMMY, uint32(values.FLOAT), DUMMY}},
 	"null":    {vm.Qtyp, []uint32{DUMMY, uint32(values.NULL), DUMMY}},
+	"label":   {vm.Qtyp, []uint32{DUMMY, uint32(values.LABEL), DUMMY}},
 	"list":    {vm.Qtyp, []uint32{DUMMY, uint32(values.LIST), DUMMY}},
 	"set":     {vm.Qtyp, []uint32{DUMMY, uint32(values.SET), DUMMY}},
+	"map":     {vm.Qtyp, []uint32{DUMMY, uint32(values.PAIR), DUMMY}},
 	"func":    {vm.Qtyp, []uint32{DUMMY, uint32(values.FUNC), DUMMY}},
 	"single":  {vm.Qsng, []uint32{DUMMY, DUMMY}},
 	"single?": {vm.QsnQ, []uint32{DUMMY, DUMMY}},
+	"struct":  {vm.Qstr, []uint32{DUMMY, DUMMY}},
+	"struct?": {vm.QstQ, []uint32{DUMMY, DUMMY}},
 }
 
 func (cp *Compiler) emitTypeComparison(mc *vm.Vm, typeAsString string, mem, loc uint32) {
@@ -1142,6 +1146,12 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 				}
 				if builtinTag == "tuplify_list" {
 					functionAndType.t = alternateType{typedTupleType{cp.typeNameToTypeList["single?"]}}
+				}
+				if builtinTag == "type_with" {
+					functionAndType.t = alternateType{cp.typeNameToTypeList["struct"]}.union(altType(values.ERROR))
+				}
+				if builtinTag == "struct_with" {
+					functionAndType.t = alternateType{cp.typeNameToTypeList["struct"]}.union(altType(values.ERROR))
 				}
 				functionAndType.f(cp, mc, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.t

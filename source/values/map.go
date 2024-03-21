@@ -103,13 +103,11 @@ func (pm *Map) SetAll(other *Map) {
 	pm.root = union(root, other.root, true)
 }
 
-// Set updates the value associated with the specified key.
-// If release is non-nil, it will be called with entry's key and value once the
-// key is no longer contained in the map or any clone.
-func (pm *Map) Set(key, value Value) {
+func (pm Map) Set(key, value Value) *Map {
 	first := pm.root
 	second := newNode(key, value)
 	pm.root = union(first, second, true)
+	return &pm
 }
 
 // union returns a new tree which is a union of first and second one.

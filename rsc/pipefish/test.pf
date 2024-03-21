@@ -31,7 +31,7 @@ def
 // Ordinary functions are in order of their function name.
 
 aritymaker(x tuple) : builtin "len_tuple"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
-arity(T tuple) : aritymaker T   
+arity(x tuple) : aritymaker x   
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"
 float(x string) : builtin "float_of_string"
@@ -49,15 +49,26 @@ len(x map) : builtin "len_map"
 len(x set) : builtin "len_set"
 len(x string) : builtin "len_string"
 mapmaker(x tuple) : builtin "make_map"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
-map(T tuple) : mapmaker T                 //
+map(x tuple) : mapmaker x                 //
 setmaker(x tuple) : builtin "make_set"    // TODO --- something better.
-set(T tuple) : setmaker T                 // 
+set(x tuple) : setmaker x                 // 
 string(x single?) : builtin "string"
 tuple(x tuple) : builtin "tuple_of_tuple"
 tuplify(L list) : builtin "tuplify_list"
 type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
-
+(x list) with (y pair) : builtin "list_with"
+listwithmaker(x list, dummy int, y tuple)  : builtin "list_with"
+(x list) with (y tuple) : listwithmaker x, 0, y        // The 0 is so the struct_with call will have three arguments whether it's called with a tuple or a pair.
+(x map) with (y pair) : builtin "map_with"
+mapwithmaker(x map, dummy int, y tuple)  : builtin "map_with"
+(x map) with (y tuple) : mapwithmaker x, 0, y        // The 0 is so the struct_with call will have three arguments whether it's called with a tuple or a pair.
+(x struct) with (y pair) : builtin "struct_with"
+structwithmaker(x struct, dummy int, y tuple)  : builtin "struct_with"
+(x struct) with (y tuple) : structwithmaker x, 0, y        // The 0 is so the struct_with call will have three arguments whether it's called with a tuple or a pair.
+(x type) with (y pair) : builtin "type_with"
+typewithmaker(x type, dummy int, y tuple) : builtin "type_with"
+(x type) with (y tuple) : typewithmaker x, 0, y
 
 Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
 
@@ -72,16 +83,22 @@ X = [1, 2]
 
 Y = set 1, 2
 
-zort (t tuple) : 
-    t 
-
-troz (i int, t tuple) :
-    t
-
-spoit (t tuple) fnurp :
-    t 
-
 (i int) goo (t tuple) :
     t
 
 (x int) fnarf (y int) : x * y
+
+doug = Person("Douglas", 42)
+
+myList = [[1, 2], [3, 4]]
+
+myMap = map 1::BLUE, 2::GREEN, 3::RED
+
+zort(p struct) :
+    p[age]
+
+troz(Z struct) :
+    Z[age]
+
+id(x) :
+    x
