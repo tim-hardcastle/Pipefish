@@ -92,11 +92,13 @@ myList = [[1, 2], [3, 4]]
 
 myMap = map 1::BLUE, 2::GREEN, 3::RED
 
-zort(p struct) :
-    p[age]
-
 troz(Z struct) :
     Z[age]
 
 id(x) :
+    x
+
+private
+
+zort(x) :
     x

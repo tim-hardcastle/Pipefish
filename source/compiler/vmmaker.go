@@ -130,7 +130,7 @@ func (vmm *VmMaker) compileFunctions() {
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
 			if vmm.cp.fns[c] == nil { // This is so that if some functions are built recursively we won't waste our time.
-				vmm.compileFunction(vmm.cp.mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c)
+				vmm.compileFunction(vmm.cp.mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c, j)
 			}
 			c++
 		}
@@ -274,8 +274,18 @@ func (vmm *VmMaker) compileConstructor(mc *vm.Vm, name string, sig signature.Sig
 	return cpF
 }
 
-func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environment, ix int) *cpFunc {
+func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environment, ix int, dec declarationType) *cpFunc {
 	cpF := cpFunc{}
+	var ac Access
+	if dec == functionDeclaration || dec == privateFunctionDeclaration {
+		ac = DEF
+	} else {
+		ac = CMD
+		cpF.command = true
+	}
+	if dec == privateFunctionDeclaration || dec == privateCommandDeclaration {
+		cpF.private = true
+	}
 	functionName, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
@@ -318,13 +328,13 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 	} else {
 		if given != nil {
 			vmm.cp.thunkList = []thunk{}
-			vmm.cp.compileNode(mc, given, fnenv)
+			vmm.cp.compileNode(mc, given, fnenv, ac)
 			cpF.callTo = mc.CodeTop()
 			for _, pair := range vmm.cp.thunkList {
 				vmm.cp.emit(mc, vm.Thnk, pair.mLoc, pair.cLoc)
 			}
 		}
-		cpF.types, _ = vmm.cp.compileNode(mc, body, fnenv) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		cpF.types, _ = vmm.cp.compileNode(mc, body, fnenv, ac) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		vmm.cp.emit(mc, vm.Ret)
 		cpF.outReg = mc.That()
 	}
@@ -348,7 +358,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := vmm.cp.mc.CodeTop()
-			inferedType, _ := vmm.cp.compileNode(vmm.cp.mc, rhs, vmm.cp.gvars)
+			inferedType, _ := vmm.cp.compileNode(vmm.cp.mc, rhs, vmm.cp.gvars, INIT)
 			if vmm.uP.ErrorsExist() {
 				return
 			}

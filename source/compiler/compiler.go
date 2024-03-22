@@ -35,15 +35,28 @@ type Compiler struct {
 	thunkList []thunk
 }
 
-type cpFunc struct {
+type cpFunc struct { // The compiler's representation of a function after the function has been compiled.
 	callTo   uint32
 	loReg    uint32
 	hiReg    uint32
 	outReg   uint32
 	tupleReg uint32
 	types    alternateType
-	builtin  string // A non-empty string in case it is a builtin.
+	builtin  string // A non-empty string if it's a builtin, saying which one.
+	private  bool
+	command  bool
 }
+
+type Access int
+
+const ( // We use this to keep track of what we're doing so we don't e.g. call a command from a function, or let a command see the globals without a `global` keyword, etc.
+	REPL Access = iota
+	CMD
+	DEF
+	INIT
+	LAMBDA
+	NAMESPACE
+)
 
 const DUMMY = 4294967295
 
@@ -106,7 +119,7 @@ func (cp *Compiler) Do(line string) values.Value {
 	if cp.p.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	cp.compileNode(cp.mc, node, cp.gvars)
+	cp.compileNode(cp.mc, node, cp.gvars, REPL)
 	if cp.p.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
@@ -127,7 +140,7 @@ func (cp *Compiler) Describe(v values.Value) string {
 func (cp *Compiler) Compile(source, sourcecode string) {
 	cp.mc = vm.BlankVm()
 	node := cp.p.ParseLine(source, sourcecode)
-	cp.compileNode(cp.mc, node, cp.gvars)
+	cp.compileNode(cp.mc, node, cp.gvars, REPL)
 	cp.emit(cp.mc, vm.Ret)
 }
 
@@ -165,10 +178,8 @@ func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *as
 	locals := ast.GetLhsOfAssignments(fnNode.Given)
 	// Find all the variable names in the body.
 	bodyNames := ast.GetVariableNames(fnNode.Body)
-	externals := bodyNames.SubtractSet(params).SubtractSet(locals) // I.e. the "externals" things, if any, that we're closing over.
-
-	// Copy the externals to the environment.
-	for k := range externals {
+	captures := bodyNames.SubtractSet(params).SubtractSet(locals)
+	for k := range captures {
 		v, ok := env.getVar(k)
 		if !ok {
 			cp.p.Throw("comp/body/known", tok)
@@ -193,7 +204,7 @@ func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *as
 
 	if fnNode.Given != nil {
 		cp.thunkList = []thunk{}
-		cp.compileNode(LF.Model.Mc, fnNode.Given, newEnv)
+		cp.compileNode(LF.Model.Mc, fnNode.Given, newEnv, LAMBDA)
 		for _, pair := range cp.thunkList {
 			cp.emit(LF.Model.Mc, vm.Thnk, pair.mLoc, pair.cLoc)
 		}
@@ -209,7 +220,7 @@ func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *as
 
 	// Now we can emit the main body of the function.
 
-	cp.compileNode(LF.Model.Mc, fnNode.Body, newEnv)
+	cp.compileNode(LF.Model.Mc, fnNode.Body, newEnv, LAMBDA)
 	LF.Model.Dest = LF.Model.Mc.That()
 	LF.Size = LF.Model.Mc.CodeTop()
 	cp.emit(LF.Model.Mc, vm.Ret)
@@ -217,14 +228,14 @@ func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *as
 	// We have made our lambda factory!
 
 	mc.LambdaFactories = append(mc.LambdaFactories, LF)
-	return uint32(len(mc.LambdaFactories) - 1), externals.IsEmpty() // A lambda which doesn't close over anything is a constant.
+	return uint32(len(mc.LambdaFactories) - 1), captures.IsEmpty() // A lambda which doesn't close over anything is a constant.
 }
 
 func (cp *Compiler) addVariable(mc *vm.Vm, env *environment, name string, acc varAccess, types alternateType) {
 	env.data[name] = variable{mLoc: mc.That(), access: acc, types: types}
 }
 
-func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alternateType, bool) {
+func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac Access) (alternateType, bool) {
 	rtnTypes, rtnConst := alternateType{}, true
 	mT := mc.MemTop()
 	cT := mc.CodeTop()
@@ -240,7 +251,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 				break
 			}
 			thunkStart := mc.Next()
-			types, cst := cp.compileNode(mc, node.Right, env)
+			types, cst := cp.compileNode(mc, node.Right, env, ac)
 			cp.emit(mc, vm.Ret)
 			if cst {
 				cp.addVariable(mc, env, node.Left.(*ast.Identifier).Value, LOCAL_TRUE_CONSTANT, types)
@@ -292,6 +303,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			cp.p.Throw("comp/ident/known", node.GetToken())
 			break
 		}
+		if ac == REPL && v.access == GLOBAL_CONSTANT_PUBLIC
 		if v.access == LOCAL_CONSTANT_THUNK {
 			cp.emit(mc, vm.Untk, v.mLoc)
 		}
@@ -305,9 +317,9 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		rtnConst = ALL_CONST_ACCESS.Contains(v.access)
 		break
 	case *ast.IndexExpression:
-		containerType, ctrConst := cp.compileNode(mc, node.Left, env)
+		containerType, ctrConst := cp.compileNode(mc, node.Left, env, ac)
 		container := mc.That()
-		indexType, idxConst := cp.compileNode(mc, node.Index, env)
+		indexType, idxConst := cp.compileNode(mc, node.Index, env, ac)
 		index := mc.That()
 		rtnConst = ctrConst && idxConst
 		// Things we can index:
@@ -415,19 +427,19 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		}
 	case *ast.InfixExpression:
 		if cp.p.Infixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		if node.Operator == "," {
-			rtnTypes, rtnConst = cp.emitComma(mc, node, env)
+			rtnTypes, rtnConst = cp.emitComma(mc, node, env, ac)
 			break
 		}
 		if node.Operator == "==" {
-			rtnTypes, rtnConst = cp.emitEquals(mc, node, env)
+			rtnTypes, rtnConst = cp.emitEquals(mc, node, env, ac)
 			break
 		}
 		if node.Operator == "!=" {
-			rtnTypes, rtnConst = cp.emitEquals(mc, node, env)
+			rtnTypes, rtnConst = cp.emitEquals(mc, node, env, ac)
 			cp.put(mc, vm.Notb, mc.That())
 			break
 		}
@@ -440,7 +452,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		break
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
-			lTypes, lcst := cp.compileNode(mc, node.Left, env)
+			lTypes, lcst := cp.compileNode(mc, node.Left, env, ac)
 			if !lTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/or/bool/left", node.GetToken())
 				break
@@ -449,7 +461,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			cp.emit(mc, vm.Qtru, leftRg, mc.Next()+2)
 			backtrack := mc.Next()
 			cp.emit(mc, vm.Jmp, DUMMY)
-			rTypes, rcst := cp.compileNode(mc, node.Right, env)
+			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			if !rTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/or/bool/right", node.GetToken())
 				break
@@ -461,7 +473,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			break
 		}
 		if node.Operator == "and" {
-			lTypes, lcst := cp.compileNode(mc, node.Left, env)
+			lTypes, lcst := cp.compileNode(mc, node.Left, env, ac)
 			if !lTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/and/bool/left", node.GetToken())
 				break
@@ -469,7 +481,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			leftRg := mc.That()
 			backtrack := mc.Next()
 			cp.emit(mc, vm.Qtru, leftRg, DUMMY)
-			rTypes, rcst := cp.compileNode(mc, node.Right, env)
+			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			if !rTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.GetToken())
 				break
@@ -482,10 +494,10 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		}
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
-				rtnTypes, rtnConst = cp.compileNode(mc, node.Right, env)
+				rtnTypes, rtnConst = cp.compileNode(mc, node.Right, env, ac)
 				break
 			}
-			lTypes, lcst := cp.compileNode(mc, node.Left, env)
+			lTypes, lcst := cp.compileNode(mc, node.Left, env, ac)
 			if !lTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/cond/bool", node.GetToken())
 				break
@@ -493,7 +505,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			leftRg := mc.That()
 			backtrack := mc.Next()
 			cp.emit(mc, vm.Qtru, leftRg, DUMMY)
-			rTypes, rcst := cp.compileNode(mc, node.Right, env)
+			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			cp.put(mc, vm.Asgm, mc.That())
 			cp.emit(mc, vm.Jmp, mc.Next()+2)
 			mc.Code[backtrack].Args[1] = mc.Next()
@@ -502,18 +514,18 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			break
 		}
 		if node.Operator == ";" {
-			lTypes, lcst := cp.compileNode(mc, node.Left, env)
+			lTypes, lcst := cp.compileNode(mc, node.Left, env, ac)
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
 			if lTypes.isOnly(values.CREATED_LOCAL_CONSTANT) {
-				_, cst := cp.compileNode(mc, node.Right, env)
+				_, cst := cp.compileNode(mc, node.Right, env, ac)
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
 			leftRg := mc.That()
 			backtrack := mc.Next()
 			cp.emit(mc, vm.Qtyp, leftRg, uint32(values.UNSAT), DUMMY)
-			rTypes, rcst := cp.compileNode(mc, node.Right, env)
+			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			rightRg := mc.That()
 			cp.put(mc, vm.Asgm, rightRg)
 			cp.emit(mc, vm.Jmp, mc.Next()+2)
@@ -528,7 +540,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		}
 	case *ast.ListExpression:
 		var containedTypes alternateType
-		containedTypes, rtnConst = cp.compileNode(mc, node.List, env)
+		containedTypes, rtnConst = cp.compileNode(mc, node.List, env, ac)
 		backTrackTo, failed := cp.emitErrorBoilerplate(mc, containedTypes, "comp/list/err", node.GetToken(), false)
 		if failed {
 			break
@@ -539,7 +551,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		break
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
-			allTypes, cst := cp.compileNode(mc, node.Args[0], env)
+			allTypes, cst := cp.compileNode(mc, node.Args[0], env, ac)
 			if allTypes.isOnly(values.BOOL) {
 				cp.put(mc, vm.Notb, mc.That())
 				rtnTypes, rtnConst = altType(values.BOOL), cst
@@ -554,7 +566,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		if ok && v.types.contains(values.FUNC) {
 			operands := []uint32{v.mLoc}
 			for _, arg := range node.Args {
-				cp.compileNode(mc, arg, env)
+				cp.compileNode(mc, arg, env, ac)
 				operands = append(operands, mc.That())
 			}
 			if cp.p.ErrorsExist() {
@@ -568,13 +580,13 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 			break
 		}
 		if cp.p.Prefixes.Contains(node.Operator) || cp.p.Functions.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
 		break
 	case *ast.StreamingExpression: // I.e. -> >> and -> and ?> .
-		lhsTypes, lhsConst := cp.compileNode(mc, node.Left, env)
+		lhsTypes, lhsConst := cp.compileNode(mc, node.Left, env, ac)
 		if cp.p.ErrorsExist() {
 			rtnTypes, rtnConst = altType(values.ERROR), true
 			break
@@ -583,11 +595,11 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		var rhsConst bool
 		switch node.Operator {
 		case "->":
-			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, lhsConst, node.Right, env)
+			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, lhsConst, node.Right, env, ac)
 		case ">>":
-			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, false)
+			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, false, ac)
 		default:
-			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, true)
+			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, true, ac)
 		}
 		rtnConst = lhsConst && rhsConst
 		break
@@ -597,7 +609,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		break
 	case *ast.SuffixExpression:
 		if cp.p.Suffixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
@@ -609,7 +621,7 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 		break
 	case *ast.UnfixExpression:
 		if cp.p.Unfixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env)
+			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/unfix", node.GetToken())
@@ -635,13 +647,13 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment) (alt
 }
 
 // This needs its own very special logic because the type it returns has to be composed in a different way from all the other operators.
-func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
-	lTypes, lcst := cp.compileNode(mc, node.Args[0], env)
+func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environment, ac Access) (alternateType, bool) {
+	lTypes, lcst := cp.compileNode(mc, node.Args[0], env, ac)
 	if lTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/tuple/err/a", node.GetToken())
 	}
 	left := mc.That()
-	rTypes, rcst := cp.compileNode(mc, node.Args[2], env)
+	rTypes, rcst := cp.compileNode(mc, node.Args[2], env, ac)
 	if rTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/tuple/err/b", node.GetToken())
 	}
@@ -806,7 +818,7 @@ func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
 	return s, T
 }
 
-func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *environment) (alternateType, bool) {
+func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *environment, ac Access) (alternateType, bool) {
 	args := node.GetArgs()
 	if len(args) == 1 {
 		switch args[0].(type) {
@@ -820,6 +832,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
+		access:       ac,
 	}
 	backtrackList := make([]uint32, len(args))
 	var traceTokenReserved bool
@@ -853,7 +866,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 			b.types[i] = alternateType{blingType{arg.Value}}
 			b.valLocs[i] = values.C_BLING
 		default: // Otherwise we emit code to evaluate it.
-			b.types[i], cstI = cp.compileNode(mc, arg, env)
+			b.types[i], cstI = cp.compileNode(mc, arg, env, ac)
 			cst = cst && cstI
 			b.valLocs[i] = mc.That()
 			if b.types[i].(alternateType).isOnly(values.ERROR) {
@@ -907,6 +920,7 @@ type bindle struct {
 	env          *environment    // Associates variable names with memory locations
 	tupleTime    bool            // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
+	access       Access
 }
 
 func (cp *Compiler) generateNewArgument(mc *vm.Vm, b *bindle) alternateType {
@@ -1135,7 +1149,17 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 	for _, branch := range b.treePosition.Branch { // TODO --- this is a pretty vile hack; it would make sense for it to always be at the top.}
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
-			builtinTag := cp.fns[fNo].builtin
+			F := cp.fns[fNo]
+			// Before we do anything else, let's control for access. The REPL shouldn't be able to access private
+			// commands or functions, and functions shouldn't be able to access commands.
+			if b.access == REPL && F.private {
+				cp.p.Throw("comp/private", b.tok)
+			}
+			if b.access == DEF && F.command {
+				cp.p.Throw("comp/command", b.tok)
+			}
+			// Deal with the case where the function is a builtin.
+			builtinTag := F.builtin
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
 				if builtinTag == "tuple_of_single?" {
@@ -1156,15 +1180,17 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 				functionAndType.f(cp, mc, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.t
 			}
+			// Do the short-form constructors.
 			structNumber, ok := cp.structNumbers[builtinTag]
 			if ok {
 				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
 				cp.emit(mc, vm.Strc, args...)
 				return altType(structNumber)
 			}
+			// Otherwise it's a regular old function call, which we do like this:
 			cp.emitFunctionCall(mc, fNo, b.valLocs)
-			cp.emit(mc, vm.Asgm, b.outLoc, cp.fns[fNo].outReg) // Because the different implementations of the function will have their own out register.
-			return cp.fns[fNo].types                           // TODO : Is there a reason why this should be so?
+			cp.emit(mc, vm.Asgm, b.outLoc, F.outReg) // Because the different implementations of the function will have their own out register.
+			return F.types                           // TODO : Is there a reason why this should be so?
 		}
 	}
 	cp.reserveError(mc, "mc/types/b", b.tok, []any{}) // TODO : the bindle can accumulate the types to allow us to generates this error properly.
@@ -1215,14 +1241,14 @@ func (cp *Compiler) emitFunctionCall(mc *vm.Vm, funcNumber uint32, valLocs []uin
 	}
 }
 
-func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *environment) (alternateType, bool) {
-	lTypes, lcst := cp.compileNode(mc, node.Args[0], env)
+func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *environment, ac Access) (alternateType, bool) {
+	lTypes, lcst := cp.compileNode(mc, node.Args[0], env, ac)
 	if lTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/eq/err/a", node.GetToken())
 		return altType(values.ERROR), true
 	}
 	leftRg := mc.That()
-	rTypes, rcst := cp.compileNode(mc, node.Args[2], env)
+	rTypes, rcst := cp.compileNode(mc, node.Args[2], env, ac)
 	if rTypes.isOnly(values.ERROR) {
 		cp.p.Throw("comp/eq/err/b", node.GetToken())
 		return altType(values.ERROR), true
@@ -1263,7 +1289,7 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 
 // The various 'streaming operators'. TODO, find different name.
 
-func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment) (alternateType, bool) {
+func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, ac Access) (alternateType, bool) {
 	var envWithThat *environment
 	var isAttemptedFunc bool
 	var v *variable
@@ -1305,7 +1331,7 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 	if isAttemptedFunc {
 		cp.put(mc, vm.Dofn, v.mLoc, lhs)
 	} else {
-		return cp.compileNode(mc, rhs, envWithThat)
+		return cp.compileNode(mc, rhs, envWithThat, ac)
 	}
 	if backtrack != uint32(DUMMY) {
 		mc.Code[backtrack].Args[0] = mc.That()
@@ -1314,7 +1340,7 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 	return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
 }
 
-func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, isFilter bool) (alternateType, bool) {
+func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, isFilter bool, ac Access) (alternateType, bool) {
 	var isConst bool
 	var isAttemptedFunc bool
 	var v *variable
@@ -1370,7 +1396,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 	} else {
 		cp.emit(mc, vm.IdxL, thatLoc, sourceList, counter, DUMMY)
 		inputElement = thatLoc
-		types, isConst = cp.compileNode(mc, rhs, envWithThat)
+		types, isConst = cp.compileNode(mc, rhs, envWithThat, ac)
 	}
 	resultElement := mc.That()
 	if types.contains(values.ERROR) {
