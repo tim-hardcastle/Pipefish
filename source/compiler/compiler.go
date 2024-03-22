@@ -303,7 +303,6 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 			cp.p.Throw("comp/ident/known", node.GetToken())
 			break
 		}
-		if ac == REPL && v.access == GLOBAL_CONSTANT_PUBLIC
 		if v.access == LOCAL_CONSTANT_THUNK {
 			cp.emit(mc, vm.Untk, v.mLoc)
 		}
