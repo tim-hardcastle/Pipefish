@@ -102,3 +102,16 @@ private
 
 zort(x) :
     x
+
+var
+
+myVar = 42
+myOtherVar = 42
+
+cmd
+
+spoit(x int) :
+    global myVar, myOtherVar
+    y = x
+    myVar = x
+    myOtherVar = 2 * y

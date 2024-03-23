@@ -96,16 +96,19 @@ func (vmm *VmMaker) Make() {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	vmm.makeConstructors()
+
 	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
 	// compileFunction method.
-	vmm.compileFunctions()
+	vmm.compileFunctions(functionDeclaration, privateFunctionDeclaration)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 	// NOTE: There's some unDRYness here --- e.g. we use .ExtractPartsOfFunction twice --- but that can
 	// be disposed of when we strip out the evaluator.
 
-	// Finally we can evaluate the constants and variables, which needs the full resources of the language
+	// Finally we can evaluate the constants and variables, which needs the functions to be compiled
 	// first because the RHS of the assignment can be any expression.
 	// NOTE: is this even going to work any more? You also need to use the types of the variables/consts.
 	// So it all needs to be thrown into a dependency digraph and sorted.
@@ -113,31 +116,23 @@ func (vmm *VmMaker) Make() {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	vmm.compileFunctions(commandDeclaration, privateCommandDeclaration)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 }
 
-func (vmm *VmMaker) compileFunctions() {
-	total := 0
-	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
-		total = total + len(vmm.cp.p.ParsedDeclarations[j])
-	}
-	total = total + len(vmm.cp.p.ParsedDeclarations[typeDeclaration])
-	vmm.cp.fns = make([]*cpFunc, total)
+func (vmm *VmMaker) compileFunctions(args ...declarationType) {
 
-	vmm.makeConstructors()
-
-	c := len(vmm.cp.p.ParsedDeclarations[typeDeclaration])
-
-	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
+	for _, j := range args {
 		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
-			if vmm.cp.fns[c] == nil { // This is so that if some functions are built recursively we won't waste our time.
-				vmm.compileFunction(vmm.cp.mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, c, j)
-			}
-			c++
+			vmm.compileFunction(vmm.cp.mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, j)
 		}
 	}
 }
 
-// TODO This duplicates the type in the initializer and is therefore terrible.
+// TODO This duplicates the type in the initializer and is therefore terrible. Eventually they will be the same file.
 type declarationType int
 
 const (
@@ -255,10 +250,10 @@ func (vmm *VmMaker) createStructs() {
 }
 
 func (vmm *VmMaker) makeConstructors() {
-	for i, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
+	for _, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.fns[i] = vmm.compileConstructor(vmm.cp.mc, name, sig)
+		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(vmm.cp.mc, name, sig))
 	}
 }
 
@@ -274,7 +269,7 @@ func (vmm *VmMaker) compileConstructor(mc *vm.Vm, name string, sig signature.Sig
 	return cpF
 }
 
-func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environment, ix int, dec declarationType) *cpFunc {
+func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environment, dec declarationType) *cpFunc {
 	cpF := cpFunc{}
 	var ac Access
 	if dec == functionDeclaration || dec == privateFunctionDeclaration {
@@ -338,7 +333,7 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 		vmm.cp.emit(mc, vm.Ret)
 		cpF.outReg = mc.That()
 	}
-	vmm.cp.fns[ix] = &cpF
+	vmm.cp.fns = append(vmm.cp.fns, &cpF)
 	return &cpF
 }
 

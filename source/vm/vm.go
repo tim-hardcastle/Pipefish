@@ -132,13 +132,17 @@ func (vm *Vm) add(vmToAdd *Vm) {
 
 var OPCODE_LIST []func(vm *Vm, args []uint32)
 
-var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG}
+// These inhabit the first few memory addresses of the VM.
+var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK}
 
 func BlankVm() *Vm {
 	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	newVm.TypeNames = []string{"UNDEFINED VALUE!!!", "INT_ARRAY", "thunk", "created local constant", "bling", "tuple", "error", "unsat", "ref", "null",
-		"int", "bool", "string", "float64", "type", "func", "pair", "list", "map", "set", "label"}
+	// Type names in constants are things the user should never see.
+	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT",
+		"BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
+		"SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
+		"pair", "list", "map", "set", "label"}
 	return newVm
 }
 
@@ -878,7 +882,6 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		fields[fieldNumber] = vm.with(fields[fieldNumber], keys[1:], val, err)
 		return clone
 	}
-	panic("Unhandled case.")
 }
 
 func (vm *Vm) DescribeCode(loc uint32) string {
@@ -931,7 +934,7 @@ func (vm *Vm) describe(v values.Value) string {
 		return strconv.Itoa(v.V.(int))
 	case values.INT_ARRAY:
 		var buf strings.Builder
-		buf.WriteString("INT_ARRAY(")
+		buf.WriteString("INT_ARRAY!(")
 		var sep string
 		for _, v := range v.V.([]uint32) {
 			fmt.Fprintf(&buf, "%s%v", sep, v)
@@ -979,8 +982,10 @@ func (vm *Vm) describe(v values.Value) string {
 		return buf.String()
 	case values.STRING:
 		return v.V.(string)
+	case values.SUCCESSFUL_VALUE:
+		return text.GREEN + "ok" + text.RESET
 	case values.THUNK:
-		return "thunk"
+		return "THUNK!"
 	case values.TUPLE:
 		result := make([]string, len(v.V.([]values.Value)))
 		for i, v := range v.V.([]values.Value) {
@@ -994,9 +999,9 @@ func (vm *Vm) describe(v values.Value) string {
 	case values.TYPE:
 		return vm.DescribeType(v.V.(values.ValueType))
 	case values.UNDEFINED_VALUE:
-		return "UNDEFINED VALUE!!!"
+		return "UNDEFINED VALUE!"
 	case values.UNSAT:
-		return "UNSATIFIED CONDITIONAL!!!"
+		return "UNSATIFIED CONDITIONAL!"
 	}
 	println("Undescribable value", v.T)
 	panic("can't describe value")

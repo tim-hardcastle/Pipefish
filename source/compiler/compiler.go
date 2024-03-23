@@ -241,30 +241,48 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 	cT := mc.CodeTop()
 	tT := cp.mc.TokenTop()
 	lT := cp.mc.LfTop()
+NodeTypeSwitch:
 	switch node := node.(type) {
 	case *ast.AssignmentExpression:
-		if node.Token.Type == token.GVN_ASSIGN {
-			// TODO --- need to do this better after we implement tuples
-			if node.Left.GetToken().Type != token.IDENT {
-				cp.p.Throw("comp/assign/ident", node.Left.GetToken())
-				rtnTypes, rtnConst = altType(values.ERROR), true
-				break
-			}
+		// TODO --- need to do this better after we implement tuples
+		if node.Left.GetToken().Type != token.IDENT {
+			cp.p.Throw("comp/assign/ident", node.Left.GetToken())
+			rtnTypes, rtnConst = altType(values.ERROR), true
+			break NodeTypeSwitch
+		}
+		name := node.Left.(*ast.Identifier).Value
+		switch node.Token.Type {
+		case token.GVN_ASSIGN:
 			thunkStart := mc.Next()
 			types, cst := cp.compileNode(mc, node.Right, env, ac)
 			cp.emit(mc, vm.Ret)
 			if cst {
-				cp.addVariable(mc, env, node.Left.(*ast.Identifier).Value, LOCAL_TRUE_CONSTANT, types)
+				cp.addVariable(mc, env, name, LOCAL_TRUE_CONSTANT, types)
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), true
-				break
+				break NodeTypeSwitch
 			}
-			cp.addVariable(mc, env, node.Left.(*ast.Identifier).Value, LOCAL_CONSTANT_THUNK, types)
+			cp.addVariable(mc, env, name, LOCAL_CONSTANT_THUNK, types)
 			cp.thunkList = append(cp.thunkList, thunk{mc.That(), thunkStart})
 			rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), false
-			break
+			break NodeTypeSwitch
+		case token.CMD_ASSIGN:
+			rhsTypes, _ := cp.compileNode(mc, node.Right, env, ac)
+			rtnTypes = altType(values.SUCCESSFUL_VALUE)
+			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
+			v, ok := env.getVar(name)
+			if !ok { // Then we create a local variable.
+				cp.reserve(mc, values.UNDEFINED_VALUE, DUMMY)
+				cp.addVariable(mc, env, name, LOCAL_VARIABLE, rhsTypes)
+				cp.emit(mc, vm.Asgm, mc.That(), mc.That()-1)
+				break NodeTypeSwitch
+			} // Otherwise we update the variable we've got.
+			// TODO --- type checking after refactoring type representation.
+			cp.emit(mc, vm.Asgm, v.mLoc, mc.That())
+			break NodeTypeSwitch
+		default: // Of switch on ast.Assignment.
+			cp.p.Throw("comp/assign", node.GetToken())
+			break NodeTypeSwitch
 		}
-		cp.p.Throw("comp/assign", node.GetToken())
-		break
 	case *ast.ApplicationExpression:
 		// I doubt that this and related forms such as GroupedExpression are still serving a function in the parser.
 		panic("Tim, you were wrong")
@@ -521,6 +539,13 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
+			// In the main body of a command, we may be dealing with a `global` statement,
+			if lTypes.isOnly(values.SUCCESSFUL_VALUE) {
+				cp.compileNode(mc, node.Right, env, ac)
+				cp.put(mc, vm.Asgm, values.C_OK)
+				rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
+				break
+			}
 			leftRg := mc.That()
 			backtrack := mc.Next()
 			cp.emit(mc, vm.Qtyp, leftRg, uint32(values.UNSAT), DUMMY)
@@ -560,6 +585,24 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 				cp.p.Throw("comp/not/bool", node.GetToken())
 				break
 			}
+		}
+		if node.Operator == "global" { // This is in effect a compiler directive, it doesn't need to emit any code, it just mutates the environment.
+			for _, v := range node.Args {
+				switch arg := v.(type) {
+				case *ast.Identifier:
+					variable, ok := cp.gvars.getVar(arg.Value)
+					if !ok {
+						cp.p.Throw("comp/global/global", arg.GetToken())
+						break NodeTypeSwitch
+					}
+					env.data[arg.Value] = *variable
+				default:
+					cp.p.Throw("comp/global/ident", arg.GetToken())
+					break NodeTypeSwitch
+				}
+			}
+			rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
+			break
 		}
 		v, ok := env.getVar(node.Operator)
 		if ok && v.types.contains(values.FUNC) {

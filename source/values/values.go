@@ -2,28 +2,40 @@ package values
 
 type ValueType uint32
 
-const ( // Cross-reference with typeNames in blankVm()
-	UNDEFINED_VALUE ValueType = iota // For debugging purposes, it is useful to have the zero value something it should never actually be.
-	INT_ARRAY                        // For internal use only
-	THUNK
-	CREATED_LOCAL_CONSTANT
-	BLING
-	TUPLE
-	ERROR
-	UNSAT
-	REF
-	NULL
-	INT
-	BOOL
-	STRING
-	FLOAT
-	TYPE
-	FUNC
-	PAIR
-	LIST
-	MAP
-	SET
-	LABEL
+const ( // Cross-reference with typeNames in BlankVm()
+
+	// The types from UNDEFINED VALUE to REF inclusive are internal types which should never actually be seen by the user.
+	// In some cases, e.g. CREATED_LOCAL_CONSTANT, they are also not instantiated: they are there to
+	// return in a typeScheme object when the compiled code doesn't create a value.
+
+	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
+	INT_ARRAY                               // V is an array of Golang integers.
+	THUNK                                   // Contains what we need to evaluate inner variables.
+	CREATED_LOCAL_CONSTANT                  // Returned by the compiler in the typeScheme when we compile a thunk.
+	BLING                                   // Values representing e.g. the `troz` in `foo (x) troz (y)`.
+	UNSAT                                   // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
+	REF                                     // A reference variable. This is always dereferenced when used, so the type is invisible.
+
+	// The SUCCESSFUL_VALUE is visible to the user only in the REPL, it's not first-class.
+
+	SUCCESSFUL_VALUE
+
+	// And now we have types visible to the user.
+
+	TUPLE    // V : []values.Value
+	ERROR    // V : *object.Error
+	NULL     // V : nil
+	INT      // V : int
+	BOOL     // V : bool
+	STRING   // V : string
+	FLOAT    // V : float
+	TYPE     // V : --- currently ValueType but should be something else.
+	FUNC     // V : vm.Lambda
+	PAIR     // V : []values.Value
+	LIST     // V : vector.Vector
+	MAP      // V : *values.Map
+	SET      // V : values.Set
+	LABEL    // V : int
 	LB_ENUMS // I.e the first of the enums.
 )
 
@@ -65,6 +77,7 @@ var (
 	U_OBJ = Value{T: UNSAT}
 	ONE   = Value{INT, 1}
 	BLNG  = Value{BLING, "bling"}
+	OK    = Value{SUCCESSFUL_VALUE, nil}
 )
 
 const (
@@ -74,4 +87,5 @@ const (
 	C_U_OBJ
 	C_ONE
 	C_BLING
+	C_OK
 )
