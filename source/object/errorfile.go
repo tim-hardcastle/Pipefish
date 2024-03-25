@@ -292,6 +292,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/unreachable": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unreachable code"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You have written code which can't be reached because one of the previous branches " +
+				"must be taken. As there is never any point in doing this, Pipefish assumes that this is a mistake."
+		},
+	},
+
 	"err/misdirect": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "Pipefish is trying and failing to raise an error with reference '" + args[0].(string) + "'"

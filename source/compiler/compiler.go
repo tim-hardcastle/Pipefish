@@ -235,6 +235,9 @@ func (cp *Compiler) addVariable(mc *vm.Vm, env *environment, name string, acc va
 	env.data[name] = variable{mLoc: mc.That(), access: acc, types: types}
 }
 
+// The heart of the compiler. It starts by taking a snapshot of the vm. It then does a big switch on the node type
+// and compiles accordingly. It then performs some sanity checks and, if the compiled expression is constant,
+// evaluates it and uses the snapshot to roll back the vm.
 func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac Access) (alternateType, bool) {
 	rtnTypes, rtnConst := alternateType{}, true
 	mT := mc.MemTop()
@@ -243,11 +246,13 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 	lT := cp.mc.LfTop()
 NodeTypeSwitch:
 	switch node := node.(type) {
+	case *ast.ApplicationExpression:
+		// I doubt that this and related forms such as GroupedExpression are still serving a function in the parser.
+		panic("Tim, you were wrong.")
 	case *ast.AssignmentExpression:
 		// TODO --- need to do this better after we implement tuples
 		if node.Left.GetToken().Type != token.IDENT {
 			cp.p.Throw("comp/assign/ident", node.Left.GetToken())
-			rtnTypes, rtnConst = altType(values.ERROR), true
 			break NodeTypeSwitch
 		}
 		name := node.Left.(*ast.Identifier).Value
@@ -266,26 +271,26 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), false
 			break NodeTypeSwitch
 		case token.CMD_ASSIGN:
+			println("Doing cmd assign")
 			rhsTypes, _ := cp.compileNode(mc, node.Right, env, ac)
 			rtnTypes = altType(values.SUCCESSFUL_VALUE)
 			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
 			v, ok := env.getVar(name)
 			if !ok { // Then we create a local variable.
 				cp.reserve(mc, values.UNDEFINED_VALUE, DUMMY)
-				cp.addVariable(mc, env, name, LOCAL_VARIABLE, rhsTypes)
+				cp.addVariable(mc, env, name, LOCAL_VARIABLE, rhsTypes) // TODO --- once you put in error-handling, remove ERROR from rhsTypes.
 				cp.emit(mc, vm.Asgm, mc.That(), mc.That()-1)
+				cp.put(mc, vm.Asgm, values.C_OK)
 				break NodeTypeSwitch
 			} // Otherwise we update the variable we've got.
 			// TODO --- type checking after refactoring type representation.
 			cp.emit(mc, vm.Asgm, v.mLoc, mc.That())
+			cp.put(mc, vm.Asgm, values.C_OK)
 			break NodeTypeSwitch
 		default: // Of switch on ast.Assignment.
 			cp.p.Throw("comp/assign", node.GetToken())
 			break NodeTypeSwitch
 		}
-	case *ast.ApplicationExpression:
-		// I doubt that this and related forms such as GroupedExpression are still serving a function in the parser.
-		panic("Tim, you were wrong")
 	case *ast.BooleanLiteral:
 		cp.reserve(mc, values.BOOL, node.Value)
 		rtnTypes, rtnConst = altType(values.BOOL), true
@@ -461,7 +466,7 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/infix", node.GetToken())
-		rtnTypes, rtnConst = altType(values.ERROR), true
+
 		break
 	case *ast.IntegerLiteral:
 		cp.reserve(mc, values.INT, node.Value)
@@ -539,11 +544,13 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
-			// In the main body of a command, we may be dealing with a `global` statement,
 			if lTypes.isOnly(values.SUCCESSFUL_VALUE) {
-				cp.compileNode(mc, node.Right, env, ac)
-				cp.put(mc, vm.Asgm, values.C_OK)
-				rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
+				rtnTypes, rtnConst = cp.compileNode(mc, node.Right, env, ac)
+				break
+			}
+			cmdRet := lTypes.isLegalCmdReturn()
+			if (cmdRet && lTypes.isOnly(values.BREAK)) || (!cmdRet && !lTypes.contains(values.UNSAT)) {
+				cp.p.Throw("comp/unreachable", node.GetToken())
 				break
 			}
 			leftRg := mc.That()
@@ -586,7 +593,7 @@ NodeTypeSwitch:
 				break
 			}
 		}
-		if node.Operator == "global" { // This is in effect a compiler directive, it doesn't need to emit any code, it just mutates the environment.
+		if node.Operator == "global" { // This is in effect a compiler directive, it doesn't need to emit any code besides `ok`, it just mutates the environment.
 			for _, v := range node.Args {
 				switch arg := v.(type) {
 				case *ast.Identifier:
@@ -612,7 +619,7 @@ NodeTypeSwitch:
 				operands = append(operands, mc.That())
 			}
 			if cp.p.ErrorsExist() {
-				rtnTypes, rtnConst = altType(values.ERROR), true
+
 				break
 			}
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
@@ -630,7 +637,7 @@ NodeTypeSwitch:
 	case *ast.StreamingExpression: // I.e. -> >> and -> and ?> .
 		lhsTypes, lhsConst := cp.compileNode(mc, node.Left, env, ac)
 		if cp.p.ErrorsExist() {
-			rtnTypes, rtnConst = altType(values.ERROR), true
+
 			break
 		}
 		// And that's about all the streaming operators really do have in common under the hood, so let's do a switch on the operators.
@@ -655,7 +662,7 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
-		rtnTypes, rtnConst = altType(values.ERROR), true
+
 		break
 	case *ast.TypeLiteral:
 		cp.reserve(mc, values.TYPE, values.ValueType(cp.typeNameToTypeList[node.Value][0].(simpleType)))
@@ -667,18 +674,25 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/unfix", node.GetToken())
-		rtnTypes, rtnConst = altType(values.ERROR), true
+
 		break
 	default:
 		panic("Unimplemented node type.")
 	}
+	if !rtnTypes.isLegalCmdReturn() && !rtnTypes.isLegalDefReturn() {
+		cp.p.Throw("comp/sanity/a", node.GetToken())
+	}
+	if ac == DEF && !rtnTypes.isLegalDefReturn() {
+		cp.p.Throw("comp/fcis", node.GetToken())
+	}
 	if cp.p.ErrorsExist() {
-		return altType(values.ERROR), false
+		return altType(values.COMPILE_TIME_ERROR), false // False because we don't want any code folding to happen as that could remove information about the error.
 	}
 	if rtnConst && mc.CodeTop() > cT {
 		cp.emit(mc, vm.Ret)
 		mc.Run(cT)
 		result := mc.Mem[mc.That()]
+		rtnTypes = altType(result.T)
 		mc.Mem = mc.Mem[:mT]
 		mc.Code = mc.Code[:cT]
 		cp.mc.Tokens = cp.mc.Tokens[:tT]

@@ -231,6 +231,32 @@ func (aT alternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
 	return values.UNDEFINED_VALUE, false
 }
 
+func (aT alternateType) isLegalCmdReturn() bool {
+	for _, u := range aT {
+		switch u := u.(type) {
+		case simpleType:
+			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (aT alternateType) isLegalDefReturn() bool {
+	for _, u := range aT {
+		switch u := u.(type) {
+		case simpleType:
+			if u == simpleType(values.SUCCESSFUL_VALUE) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (aT alternateType) contains(vt values.ValueType) bool {
 	t := simpleType(vt)
 	for _, ty := range aT {

@@ -334,6 +334,12 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 		cpF.outReg = mc.That()
 	}
 	vmm.cp.fns = append(vmm.cp.fns, &cpF)
+	if ac == DEF && !cpF.types.isLegalDefReturn() {
+		vmm.cp.p.Throw("comp/return/def/a", node.GetToken())
+	}
+	if ac == CMD && !cpF.types.isLegalCmdReturn() {
+		vmm.cp.p.Throw("comp/return/cmd/a", node.GetToken())
+	}
 	return &cpF
 }
 

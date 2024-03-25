@@ -115,3 +115,16 @@ spoit(x int) :
     y = x
     myVar = x
     myOtherVar = 2 * y
+
+cmd
+
+(x ref) ++ :
+    x = x + 1
+
+def
+
+pruit() :
+    2 + 2 == 3 or 2 + 2 == 4 :
+        "foo"
+    else :
+        "bar"

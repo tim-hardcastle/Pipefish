@@ -140,7 +140,7 @@ func BlankVm() *Vm {
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in constants are things the user should never see.
 	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT",
-		"BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
+		"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE", "BREAK",
 		"SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
 		"pair", "list", "map", "set", "label"}
 	return newVm
@@ -886,7 +886,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 
 func (vm *Vm) DescribeCode(loc uint32) string {
 	prefix := "@" + strconv.Itoa(int(loc)) + " : "
-	spaces := strings.Repeat(" ", 6-len(prefix))
+	spaces := strings.Repeat(" ", 8-len(prefix))
 	return spaces + prefix + describe(vm.Code[loc])
 }
 
