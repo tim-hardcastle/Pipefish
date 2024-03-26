@@ -734,7 +734,15 @@ NodeTypeSwitch:
 		cp.emit(mc, vm.Ret)
 		mc.Run(cT)
 		result := mc.Mem[mc.That()]
-		rtnTypes = altType(result.T)
+		if result.T == values.TUPLE {
+			tType := finiteTupleType{}
+			for _, v := range result.V.([]values.Value) {
+				tType = append(tType, simpleType(v.T))
+			}
+			rtnTypes = alternateType{tType}
+		} else {
+			rtnTypes = altType(result.T)
+		}
 		mc.Mem = mc.Mem[:mT]
 		mc.Code = mc.Code[:cT]
 		cp.mc.Tokens = cp.mc.Tokens[:tT]
@@ -1381,7 +1389,6 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 }
 
 // The various 'streaming operators'. TODO, find different name.
-
 func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, ac Access) (alternateType, bool) {
 	var envWithThat *environment
 	var isAttemptedFunc bool
