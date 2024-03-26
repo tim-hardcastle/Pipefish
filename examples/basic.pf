@@ -4,7 +4,7 @@ import
 
 def
 
-INTRO = "\nWelcome to Charm BASIC!\n\nKeywords are QUIT, PRINT, LET, LIST, GOTO, RUN, and IF ... THEN.\n\nOperators are + - * / MOD = < > <= >= <> AND OR and NOT.\n\n" + ..
+INTRO = "\nWelcome to BASIC in Pipefish!\n\nKeywords are QUIT, PRINT, LET, LIST, GOTO, RUN, and IF ... THEN.\n\nOperators are + - * / MOD = < > <= >= <> AND OR and NOT.\n\n" + ..
      .. "Builtins are SQR, LEN, LEFT, and RIGHT.\n\nConstants are TRUE, FALSE, and NEWLINE.\n\nFor reasons of nostalgia CAPITALS are MANDATORY.\n"
 
 MachineState = struct(outStr string, vars map, program Program, pointer int)
