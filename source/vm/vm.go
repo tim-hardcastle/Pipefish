@@ -495,7 +495,7 @@ loop:
 				loc = args[1]
 			}
 			continue
-		case QsnQ:
+		case Qsnq:
 			if vm.Mem[args[0]].T >= values.NULL {
 				loc = loc + 1
 			} else {
@@ -509,7 +509,7 @@ loop:
 				loc = args[1]
 			}
 			continue
-		case QstQ:
+		case Qstq:
 			if vm.Mem[args[0]].T >= vm.Ub_enums || vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
 			} else {

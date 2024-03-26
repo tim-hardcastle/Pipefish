@@ -31,8 +31,9 @@ type Compiler struct {
 
 	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}
 
-	// Very temporary state. Arguably shouldn't be here.
+	// Temporary state.
 	thunkList []thunk
+	ifStack   []uint32
 }
 
 type cpFunc struct { // The compiler's representation of a function after the function has been compiled.
@@ -235,6 +236,52 @@ func (cp *Compiler) addVariable(mc *vm.Vm, env *environment, name string, acc va
 	env.data[name] = variable{mLoc: mc.That(), access: acc, types: types}
 }
 
+func (cp *Compiler) vmIf(mc *vm.Vm, oc vm.Opcode, args ...uint32) {
+	cp.ifStack = append(cp.ifStack, mc.CodeTop())
+	cp.emit(mc, oc, (append(args, DUMMY))...)
+}
+
+func (cp *Compiler) vmElse(mc *vm.Vm) {
+	cLoc := cp.ifStack[len(cp.ifStack)-1]
+	cp.ifStack = cp.ifStack[:len(cp.ifStack)-1]
+	mc.Code[cLoc].MakeLastArg(mc.CodeTop())
+}
+
+type bkGoto int
+
+func (cp *Compiler) vmGoTo(mc *vm.Vm) bkGoto {
+	cp.emit(mc, vm.Jmp, DUMMY)
+	return bkGoto(mc.CodeTop() - 1)
+}
+
+type bkEarlyReturn int
+
+func (cp *Compiler) vmEarlyReturn(mc *vm.Vm, mLoc uint32) bkEarlyReturn {
+	cp.emit(mc, vm.Asgm, DUMMY, mLoc)
+	cp.emit(mc, vm.Jmp, DUMMY)
+	return bkEarlyReturn(mc.CodeTop() - 2)
+}
+
+func (cp *Compiler) vmComeFrom(mc *vm.Vm, items ...any) {
+	for _, item := range items {
+		switch item := item.(type) {
+		case bkGoto:
+			if uint32(item) == DUMMY {
+				continue
+			}
+			mc.Code[uint32(item)].MakeLastArg(mc.CodeTop())
+		case bkEarlyReturn:
+			if uint32(item) == DUMMY {
+				continue
+			}
+			mc.Code[uint32(item)].Args[0] = mc.That()
+			mc.Code[uint32(item)+1].MakeLastArg(mc.CodeTop())
+		default:
+			panic("Can't ComeFrom that!")
+		}
+	}
+}
+
 // The heart of the compiler. It starts by taking a snapshot of the vm. It then does a big switch on the node type
 // and compiles accordingly. It then performs some sanity checks and, if the compiled expression is constant,
 // evaluates it and uses the snapshot to roll back the vm.
@@ -271,7 +318,6 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), false
 			break NodeTypeSwitch
 		case token.CMD_ASSIGN:
-			println("Doing cmd assign")
 			rhsTypes, _ := cp.compileNode(mc, node.Right, env, ac)
 			rtnTypes = altType(values.SUCCESSFUL_VALUE)
 			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
@@ -481,15 +527,14 @@ NodeTypeSwitch:
 			}
 			leftRg := mc.That()
 			cp.emit(mc, vm.Qtru, leftRg, mc.Next()+2)
-			backtrack := mc.Next()
-			cp.emit(mc, vm.Jmp, DUMMY)
+			skipElse := cp.vmGoTo(mc)
 			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			if !rTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/or/bool/right", node.GetToken())
 				break
 			}
 			rightRg := mc.That()
-			mc.Code[backtrack].Args[0] = mc.Next()
+			cp.vmComeFrom(mc, skipElse)
 			cp.put(mc, vm.Orb, leftRg, rightRg)
 			rtnTypes, rtnConst = altType(values.BOOL), lcst && rcst
 			break
@@ -501,15 +546,14 @@ NodeTypeSwitch:
 				break
 			}
 			leftRg := mc.That()
-			backtrack := mc.Next()
-			cp.emit(mc, vm.Qtru, leftRg, DUMMY)
+			cp.vmIf(mc, vm.Qtru, leftRg)
 			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			if !rTypes.contains(values.BOOL) {
 				cp.p.Throw("comp/and/bool/right", node.GetToken())
 				break
 			}
 			rightRg := mc.That()
-			mc.Code[backtrack].Args[1] = mc.Next()
+			cp.vmElse(mc)
 			cp.put(mc, vm.Andb, leftRg, rightRg)
 			rtnTypes, rtnConst = altType(values.BOOL), lcst && rcst
 			break
@@ -525,12 +569,11 @@ NodeTypeSwitch:
 				break
 			}
 			leftRg := mc.That()
-			backtrack := mc.Next()
-			cp.emit(mc, vm.Qtru, leftRg, DUMMY)
+			cp.vmIf(mc, vm.Qtru, leftRg)
 			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			cp.put(mc, vm.Asgm, mc.That())
 			cp.emit(mc, vm.Jmp, mc.Next()+2)
-			mc.Code[backtrack].Args[1] = mc.Next()
+			cp.vmElse(mc)
 			cp.reput(mc, vm.Asgm, values.C_U_OBJ)
 			rtnTypes, rtnConst = rTypes.union(altType(values.UNSAT)), lcst && rcst
 			break
@@ -554,13 +597,12 @@ NodeTypeSwitch:
 				break
 			}
 			leftRg := mc.That()
-			backtrack := mc.Next()
-			cp.emit(mc, vm.Qtyp, leftRg, uint32(values.UNSAT), DUMMY)
+			cp.vmIf(mc, vm.Qtyp, leftRg, uint32(values.UNSAT))
 			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
 			rightRg := mc.That()
 			cp.put(mc, vm.Asgm, rightRg)
 			cp.emit(mc, vm.Jmp, mc.Next()+2)
-			mc.Code[backtrack].Args[2] = mc.Next()
+			cp.vmElse(mc)
 			cp.reput(mc, vm.Asgm, leftRg)
 			if !(lTypes.contains(values.UNSAT) && rTypes.contains(values.UNSAT)) {
 				rtnTypes, rtnConst = lTypes.union(rTypes).without(tp(values.UNSAT)), lcst && rcst
@@ -1075,7 +1117,7 @@ func (cp *Compiler) generateBranch(mc *vm.Vm, b *bindle) alternateType {
 		case len(overlap):
 			cp.emitTypeComparison(mc, branch.TypeName, b.valLocs[b.argNo], DUMMY)
 		default:
-			cp.emit(mc, vm.QsnQ, b.valLocs[b.argNo], mc.CodeTop()+3)
+			cp.emit(mc, vm.Qsnq, b.valLocs[b.argNo], mc.CodeTop()+3)
 			cp.emitTypeComparison(mc, branch.TypeName, b.valLocs[b.argNo], DUMMY)
 			cp.emit(mc, vm.Jmp, mc.CodeTop()+3)
 			cp.put(mc, vm.IxTn, b.valLocs[b.argNo], uint32(b.index))
@@ -1091,20 +1133,17 @@ func (cp *Compiler) generateBranch(mc *vm.Vm, b *bindle) alternateType {
 	case len(overlap):
 		typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(mc, &newBindle)
 	default:
-		backtrack := mc.CodeTop()
-		cp.emit(mc, vm.QsnQ, b.valLocs[b.argNo], DUMMY)
+		cp.vmIf(mc, vm.Qsnq, b.valLocs[b.argNo])
 		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(mc, &newBindle)
-		cp.emit(mc, vm.Jmp, DUMMY)
-		mc.Code[backtrack].MakeLastArg(mc.CodeTop())
-		backtrack = mc.CodeTop()
+		skipElse := cp.vmGoTo(mc)
+		cp.vmElse(mc)
 		typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(mc, &newBindle)
-		mc.Code[backtrack].MakeLastArg(mc.CodeTop())
+		cp.vmComeFrom(mc, skipElse)
 		typesFromGoingAcross = typesFromSingles.union(typesFromTuples)
 	}
 	// And now we need to do the 'else' branch if there is one.
 	if needsOtherBranch {
-		elseBacktrack := mc.CodeTop()
-		cp.emit(mc, vm.Jmp, DUMMY) // The last part of the 'if' branch: jumps over the 'else'.
+		skipElse := cp.vmGoTo(mc)
 		// We need to backtrack on whatever conditional we generated.
 		switch len(acceptedSingleTypes) {
 		case 0:
@@ -1117,7 +1156,7 @@ func (cp *Compiler) generateBranch(mc *vm.Vm, b *bindle) alternateType {
 		}
 		// We recurse on the next branch down.
 		typesFromGoingDown = cp.generateNextBranchDown(mc, &newBindle)
-		mc.Code[elseBacktrack].MakeLastArg(mc.CodeTop())
+		cp.vmComeFrom(mc, skipElse)
 	}
 	return typesFromGoingAcross.union(typesFromGoingDown)
 }
@@ -1134,9 +1173,9 @@ var TYPE_COMPARISONS = map[string]*vm.Operation{
 	"map":     {vm.Qtyp, []uint32{DUMMY, uint32(values.PAIR), DUMMY}},
 	"func":    {vm.Qtyp, []uint32{DUMMY, uint32(values.FUNC), DUMMY}},
 	"single":  {vm.Qsng, []uint32{DUMMY, DUMMY}},
-	"single?": {vm.QsnQ, []uint32{DUMMY, DUMMY}},
+	"single?": {vm.Qsnq, []uint32{DUMMY, DUMMY}},
 	"struct":  {vm.Qstr, []uint32{DUMMY, DUMMY}},
-	"struct?": {vm.QstQ, []uint32{DUMMY, DUMMY}},
+	"struct?": {vm.Qstq, []uint32{DUMMY, DUMMY}},
 }
 
 func (cp *Compiler) emitTypeComparison(mc *vm.Vm, typeAsString string, mem, loc uint32) {
@@ -1167,22 +1206,20 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(mc *vm.Vm, b *bindle)
 	var typesFromNextArgument alternateType
 	needsConditional := b.maxLength == -1 || // Then there's a non-finite tuple
 		b.lengths.Contains(newBindle.index) // Then we may have run off the end of a finite tuple.
-	backtrack1 := mc.CodeTop()
-	var backtrack2 uint32
+	var skipElse bkGoto
 	if needsConditional {
-		cp.emit(mc, vm.QlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index), DUMMY)
+		cp.vmIf(mc, vm.QlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index))
 		newArgumentBindle := newBindle
 		newArgumentBindle.argNo++
 		typesFromNextArgument = cp.generateNewArgument(mc, &newArgumentBindle)
-		backtrack2 = mc.CodeTop()
-		cp.emit(mc, vm.Jmp, DUMMY)
-		mc.Code[backtrack1].Args[2] = mc.CodeTop()
+		skipElse = cp.vmGoTo(mc)
+		cp.vmElse(mc)
 	}
 
 	typesFromContinuingInTuple := cp.generateFromTopBranchDown(mc, &newBindle)
 
 	if needsConditional {
-		mc.Code[backtrack2].Args[0] = backtrack2
+		cp.vmComeFrom(mc, skipElse)
 	}
 
 	return typesFromContinuingInTuple.union(typesFromNextArgument)
@@ -1349,7 +1386,9 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 	var envWithThat *environment
 	var isAttemptedFunc bool
 	var v *variable
-	backtrack := uint32(DUMMY)
+	typeIsNotFunc := bkEarlyReturn(DUMMY)
+	var rtnTypes alternateType
+	var rtnConst bool
 	lhs := mc.That()
 	// If we have a single identifier, we wish it to contain a function ...
 	switch rhs := rhs.(type) {
@@ -1370,10 +1409,8 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 		}
 		if !v.types.isOnly(values.FUNC) {
 			cp.reserveError(mc, "vm/pipe/func", rhs.GetToken(), []any{})
-			cp.emit(mc, vm.Qtyp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
-			backtrack = mc.CodeTop()
-			cp.emit(mc, vm.Asgm, DUMMY, mc.That())
-			cp.emit(mc, vm.Jmp, DUMMY)
+			cp.emit(mc, vm.Qntp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
+			typeIsNotFunc = cp.vmEarlyReturn(mc, mc.That())
 		}
 	default:
 		var whatAccess varAccess
@@ -1386,14 +1423,12 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 	}
 	if isAttemptedFunc {
 		cp.put(mc, vm.Dofn, v.mLoc, lhs)
+		rtnTypes, rtnConst = ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
 	} else {
-		return cp.compileNode(mc, rhs, envWithThat, ac)
+		rtnTypes, rtnConst = cp.compileNode(mc, rhs, envWithThat, ac)
 	}
-	if backtrack != uint32(DUMMY) {
-		mc.Code[backtrack].Args[0] = mc.That()
-		mc.Code[backtrack+1].Args[0] = mc.CodeTop()
-	}
-	return ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
+	cp.vmComeFrom(mc, typeIsNotFunc)
+	return rtnTypes, rtnConst
 }
 
 func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, isFilter bool, ac Access) (alternateType, bool) {
@@ -1401,9 +1436,9 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 	var isAttemptedFunc bool
 	var v *variable
 	inputElement := uint32(DUMMY)
-	backtrack := uint32(DUMMY)
-	resultBacktrack := uint32(DUMMY)
-	boolBacktrack := uint32(DUMMY)
+	typeIsNotFunc := bkEarlyReturn(DUMMY)
+	resultIsError := bkEarlyReturn(DUMMY)
+	resultIsNotBool := bkEarlyReturn(DUMMY)
 	var types alternateType
 	sourceList := mc.That()
 	envWithThat := &environment{}
@@ -1424,10 +1459,8 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 			}
 			if !v.types.isOnly(values.FUNC) {
 				cp.reserveError(mc, "vm/mf/func", rhs.GetToken(), []any{})
-				cp.emit(mc, vm.Qtyp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
-				backtrack = mc.CodeTop()
-				cp.emit(mc, vm.Asgm, DUMMY, mc.That())
-				cp.emit(mc, vm.Jmp, DUMMY)
+				cp.emit(mc, vm.Qntp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
+				typeIsNotFunc = cp.vmEarlyReturn(mc, mc.That())
 			}
 		}
 	}
@@ -1442,8 +1475,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 
 	loopStart := mc.CodeTop()
 	cp.put(mc, vm.Gthi, length, counter)
-	loopBacktrack := mc.CodeTop()
-	cp.emit(mc, vm.Qtru, mc.That(), DUMMY)
+	cp.vmIf(mc, vm.Qtru, mc.That())
 	if isAttemptedFunc {
 		cp.put(mc, vm.IdxL, sourceList, counter, DUMMY)
 		inputElement = mc.That()
@@ -1457,9 +1489,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 	resultElement := mc.That()
 	if types.contains(values.ERROR) {
 		cp.emit(mc, vm.Qtyp, resultElement, uint32(values.ERROR), mc.CodeTop()+3)
-		resultBacktrack = mc.CodeTop()
-		cp.emit(mc, vm.Asgm, DUMMY, resultElement)
-		cp.emit(mc, vm.Jmp, DUMMY)
+		resultIsError = cp.vmEarlyReturn(mc, mc.That())
 	}
 	if isFilter {
 		if !types.contains(values.BOOL) {
@@ -1467,11 +1497,8 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 		}
 		if !types.isOnly(values.BOOL) {
 			cp.reserveError(mc, "vm/filter/bool", rhs.GetToken(), []any{})
-			cp.emit(mc, vm.Qtyp, resultElement, uint32(values.BOOL), mc.CodeTop()+2)
-			cp.emit(mc, vm.Jmp, mc.CodeTop()+3)
-			boolBacktrack = mc.CodeTop()
-			cp.emit(mc, vm.Asgm, DUMMY, mc.That())
-			cp.emit(mc, vm.Jmp, DUMMY)
+			cp.emit(mc, vm.Qntp, resultElement, uint32(values.BOOL), mc.CodeTop()+2)
+			resultIsNotBool = cp.vmEarlyReturn(mc, mc.That())
 		}
 		cp.emit(mc, vm.Qtru, resultElement, mc.CodeTop()+2)
 		cp.emit(mc, vm.CcT1, accumulator, accumulator, inputElement)
@@ -1481,21 +1508,10 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 	cp.emit(mc, vm.Addi, counter, counter, values.C_ONE)
 	cp.emit(mc, vm.Jmp, loopStart)
 
-	mc.Code[loopBacktrack].Args[1] = mc.CodeTop()
+	cp.vmElse(mc)
 	cp.put(mc, vm.List, accumulator)
 
-	if backtrack != uint32(DUMMY) {
-		mc.Code[backtrack].Args[0] = mc.That()
-		mc.Code[backtrack+1].Args[0] = mc.CodeTop()
-	}
-	if resultBacktrack != uint32(DUMMY) {
-		mc.Code[resultBacktrack].Args[0] = mc.That()
-		mc.Code[resultBacktrack+1].Args[0] = mc.CodeTop()
-	}
-	if boolBacktrack != uint32(DUMMY) {
-		mc.Code[boolBacktrack].Args[0] = mc.That()
-		mc.Code[boolBacktrack+1].Args[0] = mc.CodeTop()
-	}
+	cp.vmComeFrom(mc, typeIsNotFunc, resultIsError, resultIsNotBool)
 
 	if types.contains(values.ERROR) {
 		return altType(values.ERROR, values.LIST), isConst

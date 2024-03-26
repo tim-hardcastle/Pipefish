@@ -123,8 +123,10 @@ cmd
 
 def
 
-pruit() :
-    2 + 2 == 3 or 2 + 2 == 4 :
-        "foo"
+zero(i int) :
+    i == 0 :
+        "yes"
     else :
-        "bar"
+        "no"
+
+

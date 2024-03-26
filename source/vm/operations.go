@@ -140,10 +140,11 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Notb: {"notb", operands{dst, mem}},
 	Orb:  {"orb", operands{dst, mem, mem}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
+	Qntp: {"qntp", operands{mem, typ, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
-	QsnQ: {"qsnQ", operands{mem, loc}},
+	Qsnq: {"qsnq", operands{mem, loc}},
 	Qstr: {"qstr", operands{mem, loc}},
-	QstQ: {"qstQ", operands{mem, loc}},
+	Qstq: {"qstq", operands{mem, loc}},
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Ret:  {"ret", operands{}},
@@ -250,12 +251,13 @@ const (
 	Negi
 	Notb
 	Orb
+	Qntp
 	Qtru
 	Qtyp
 	Qsng
-	QsnQ
+	Qsnq
 	Qstr
-	QstQ
+	Qstq
 	QlnT
 	Ret
 	SliL

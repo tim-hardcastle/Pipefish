@@ -24,4 +24,4 @@ T - tuple
 x - anything
 Z - a struct
 
-Conditionals begin with Q, their last operand being a code location. The semantics of the conditional is "if the condition is met, continue to the next operation, otherwise jump to the given location.
+Conditionals begin with `Q`, their last operand being a code location. The semantics of the conditional is "if the condition is met, continue to the next operation, otherwise jump to the given location". `Qn` means "if not".
