@@ -670,6 +670,9 @@ NodeTypeSwitch:
 		cp.vmComeFrom(mc, ifError)
 		rtnTypes = altType(values.SUCCESSFUL_VALUE, values.ERROR)
 		break
+	case *ast.Nothing: // TODO: there is no reason why both this and the ast.EmptyTuple type should exist.
+		cp.put(mc, vm.Asgm, values.C_EMPTY_TUPLE)
+		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
 	case *ast.PipingExpression: // I.e. -> >> and -> and ?> .
 		lhsTypes, lhsConst := cp.compileNode(mc, node.Left, env, ac)
 		if cp.p.ErrorsExist() {
@@ -741,6 +744,8 @@ NodeTypeSwitch:
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
 		break
+	case *ast.SetExpression:
+		panic("This has been deprecated and should be removed.") // TODO.
 	case *ast.StringLiteral:
 		cp.reserve(mc, values.STRING, node.Value)
 		rtnTypes, rtnConst = altType(values.STRING), true
@@ -1360,12 +1365,6 @@ func (cp *Compiler) put(mc *vm.Vm, opcode vm.Opcode, args ...uint32) {
 	mc.Mem = append(mc.Mem, values.Value{})
 }
 
-// Reput puts the value in the last memory address to be used.
-func (cp *Compiler) reput(mc *vm.Vm, opcode vm.Opcode, args ...uint32) {
-	args = append([]uint32{mc.That()}, args...)
-	cp.emit(mc, opcode, args...)
-}
-
 func (cp *Compiler) emitFunctionCall(mc *vm.Vm, funcNumber uint32, valLocs []uint32) {
 	args := append([]uint32{cp.fns[funcNumber].callTo, cp.fns[funcNumber].loReg, cp.fns[funcNumber].hiReg}, valLocs...)
 	if cp.fns[funcNumber].tupleReg == DUMMY { // We specialize on whether we have to capture tuples.
@@ -1421,7 +1420,7 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 	}
 }
 
-// The various 'streaming operators'. TODO, find different name.
+// The various 'piping operators'.
 func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool, rhs ast.Node, env *environment, ac Access) (alternateType, bool) {
 	var envWithThat *environment
 	var isAttemptedFunc bool

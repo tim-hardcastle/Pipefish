@@ -81,6 +81,7 @@ var (
 	BLNG  = Value{BLING, "bling"}
 	OK    = Value{SUCCESSFUL_VALUE, nil}
 	BRK   = Value{BREAK, nil}
+	EMPTY = Value{TUPLE, []Value{}}
 )
 
 const (
@@ -92,4 +93,5 @@ const (
 	C_BLING
 	C_OK
 	C_BREAK
+	C_EMPTY_TUPLE
 )

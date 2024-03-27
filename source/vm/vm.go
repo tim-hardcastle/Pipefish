@@ -133,7 +133,7 @@ func (vm *Vm) add(vmToAdd *Vm) {
 var OPCODE_LIST []func(vm *Vm, args []uint32)
 
 // These inhabit the first few memory addresses of the VM.
-var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK}
+var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
 func BlankVm() *Vm {
 	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}}
