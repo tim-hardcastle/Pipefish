@@ -347,6 +347,10 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.gvars.ext = vmm.cp.gconsts
 	vmm.cp.reserve(vmm.cp.mc, values.NULL, nil)
 	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
+	vmm.cp.reserve(vmm.cp.mc, values.SUCCESSFUL_VALUE, nil)
+	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "ok", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
+	vmm.cp.reserve(vmm.cp.mc, values.BREAK, nil)
+	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
 	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.mc, values.TYPE, values.TUPLE)
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)

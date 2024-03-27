@@ -385,7 +385,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 		return applyFunction(left.(*object.Func).Function, params, node.GetToken(), newContext)
 	case *ast.Nothing:
 		return &object.Tuple{Elements: []object.Object{}}
-	case *ast.StreamingExpression:
+	case *ast.PipingExpression:
 		left := Eval(node.Left, c)
 		if isError(left) {
 			left.(*object.Error).Trace = append(left.(*object.Error).Trace, node.GetToken())

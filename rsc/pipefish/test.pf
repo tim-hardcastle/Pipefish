@@ -105,21 +105,25 @@ zort(x) :
 
 var
 
-myVar = 42
+myVar = 15
 myOtherVar = 42
 
 cmd
 
-spoit(x int) :
-    global myVar, myOtherVar
-    y = x
-    myVar = x
-    myOtherVar = 2 * y
+foo(i int) :
+    i == 0 :
+        break
+    else :
+        ok
 
-cmd
+lTest(i int) :
+    global myVar
+    loop :
+        myVar == 42 :
+            break 
+        else :
+            myVar = myVar + 1
 
-(x ref) ++ :
-    x = x + 1
 
 def
 
@@ -128,5 +132,4 @@ zero(i int) :
         "yes"
     else :
         "no"
-
 

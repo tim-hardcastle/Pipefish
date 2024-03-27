@@ -235,7 +235,23 @@ func (aT alternateType) isLegalCmdReturn() bool {
 	for _, u := range aT {
 		switch u := u.(type) {
 		case simpleType:
-			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) {
+			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) &&
+				u != simpleType(values.BREAK) && u != simpleType(values.UNSAT) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (aT alternateType) isLegalReturnFromLoopBody() bool {
+	for _, u := range aT {
+		switch u := u.(type) {
+		case simpleType:
+			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) &&
+				u != simpleType(values.BREAK) {
 				return false
 			}
 		default:

@@ -750,7 +750,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 
 // In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
 func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
-	expression := &ast.StreamingExpression{
+	expression := &ast.PipingExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
 		Left:     left,
@@ -1134,8 +1134,8 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 	}
 
 	if start.GetToken().Type == token.PIPE {
-		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.StreamingExpression).Right)
-		start = start.(*ast.StreamingExpression).Left
+		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.PipingExpression).Right)
+		start = start.(*ast.PipingExpression).Left
 	}
 
 	switch start := start.(type) {

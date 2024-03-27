@@ -133,7 +133,7 @@ func (vm *Vm) add(vmToAdd *Vm) {
 var OPCODE_LIST []func(vm *Vm, args []uint32)
 
 // These inhabit the first few memory addresses of the VM.
-var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK}
+var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK}
 
 func BlankVm() *Vm {
 	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}}
@@ -488,6 +488,13 @@ loop:
 			} else {
 				loc = args[2]
 			}
+		case Qntp:
+			if vm.Mem[args[0]].T != values.ValueType(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
+			continue
 		case Qsng:
 			if vm.Mem[args[0]].T >= values.INT {
 				loc = loc + 1
@@ -920,6 +927,8 @@ func (vm *Vm) describe(v values.Value) string {
 		} else {
 			return "false"
 		}
+	case values.BREAK:
+		return "break"
 	case values.ERROR:
 		ob := v.V.(*object.Error)
 		if ob.ErrorId != "eval/user" {
@@ -1011,7 +1020,9 @@ func (vm *Vm) Literal(v values.Value) string {
 	switch v.T {
 	case values.STRING:
 		return "\"" + v.V.(string) + "\""
+	case values.SUCCESSFUL_VALUE:
+		return "ok"
 	default:
-		return vm.describe(v)
+		return vm.describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
 	}
 }

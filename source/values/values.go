@@ -80,6 +80,7 @@ var (
 	ONE   = Value{INT, 1}
 	BLNG  = Value{BLING, "bling"}
 	OK    = Value{SUCCESSFUL_VALUE, nil}
+	BRK   = Value{BREAK, nil}
 )
 
 const (
@@ -90,4 +91,5 @@ const (
 	C_ONE
 	C_BLING
 	C_OK
+	C_BREAK
 )

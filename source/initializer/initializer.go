@@ -615,7 +615,7 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 }
 
 func (uP *Initializer) ParseEverything() {
-	uP.Parser.Unfixes.Add("break")
+	// uP.Parser.Unfixes.Add("break")
 	uP.Parser.Unfixes.Add("stop")
 	for declarations := languageDeclaration; declarations <= privateCommandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[declarations]); chunk++ {

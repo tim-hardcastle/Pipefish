@@ -341,16 +341,16 @@ func (se *SetExpression) String() string {
 	return out.String()
 }
 
-type StreamingExpression struct {
+type PipingExpression struct {
 	Token    token.Token
 	Left     Node
 	Operator string
 	Right    Node
 }
 
-func (se *StreamingExpression) Children() []Node       { return []Node{se.Left, se.Right} }
-func (se *StreamingExpression) GetToken() *token.Token { return &se.Token }
-func (se *StreamingExpression) String() string {
+func (se *PipingExpression) Children() []Node       { return []Node{se.Left, se.Right} }
+func (se *PipingExpression) GetToken() *token.Token { return &se.Token }
+func (se *PipingExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")

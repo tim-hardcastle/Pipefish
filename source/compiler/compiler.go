@@ -241,7 +241,7 @@ func (cp *Compiler) vmIf(mc *vm.Vm, oc vm.Opcode, args ...uint32) {
 	cp.emit(mc, oc, (append(args, DUMMY))...)
 }
 
-func (cp *Compiler) vmElse(mc *vm.Vm) {
+func (cp *Compiler) vmEndIf(mc *vm.Vm) {
 	cLoc := cp.ifStack[len(cp.ifStack)-1]
 	cp.ifStack = cp.ifStack[:len(cp.ifStack)-1]
 	mc.Code[cLoc].MakeLastArg(mc.CodeTop())
@@ -260,6 +260,12 @@ func (cp *Compiler) vmEarlyReturn(mc *vm.Vm, mLoc uint32) bkEarlyReturn {
 	cp.emit(mc, vm.Asgm, DUMMY, mLoc)
 	cp.emit(mc, vm.Jmp, DUMMY)
 	return bkEarlyReturn(mc.CodeTop() - 2)
+}
+
+func (cp *Compiler) vmConditionalEarlyReturn(mc *vm.Vm, oc vm.Opcode, args ...uint32) bkEarlyReturn {
+	mLoc := args[len(args)-1]
+	cp.emit(mc, oc, append(args[:len(args)-1], mc.CodeTop()+3)...)
+	return cp.vmEarlyReturn(mc, mLoc)
 }
 
 func (cp *Compiler) vmComeFrom(mc *vm.Vm, items ...any) {
@@ -553,7 +559,7 @@ NodeTypeSwitch:
 				break
 			}
 			rightRg := mc.That()
-			cp.vmElse(mc)
+			cp.vmEndIf(mc)
 			cp.put(mc, vm.Andb, leftRg, rightRg)
 			rtnTypes, rtnConst = altType(values.BOOL), lcst && rcst
 			break
@@ -571,15 +577,16 @@ NodeTypeSwitch:
 			leftRg := mc.That()
 			cp.vmIf(mc, vm.Qtru, leftRg)
 			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
-			cp.put(mc, vm.Asgm, mc.That())
-			cp.emit(mc, vm.Jmp, mc.Next()+2)
-			cp.vmElse(mc)
-			cp.reput(mc, vm.Asgm, values.C_U_OBJ)
+			ifCondition := cp.vmEarlyReturn(mc, mc.That())
+			cp.vmEndIf(mc)
+			cp.put(mc, vm.Asgm, values.C_U_OBJ)
+			cp.vmComeFrom(mc, ifCondition)
 			rtnTypes, rtnConst = rTypes.union(altType(values.UNSAT)), lcst && rcst
 			break
 		}
 		if node.Operator == ";" {
 			lTypes, lcst := cp.compileNode(mc, node.Left, env, ac)
+			leftRg := mc.That()
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
 			if lTypes.isOnly(values.CREATED_LOCAL_CONSTANT) {
@@ -587,23 +594,33 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
-			if lTypes.isOnly(values.SUCCESSFUL_VALUE) {
-				rtnTypes, rtnConst = cp.compileNode(mc, node.Right, env, ac)
-				break
-			}
 			cmdRet := lTypes.isLegalCmdReturn()
 			if (cmdRet && lTypes.isOnly(values.BREAK)) || (!cmdRet && !lTypes.contains(values.UNSAT)) {
 				cp.p.Throw("comp/unreachable", node.GetToken())
 				break
 			}
-			leftRg := mc.That()
-			cp.vmIf(mc, vm.Qtyp, leftRg, uint32(values.UNSAT))
-			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
-			rightRg := mc.That()
-			cp.put(mc, vm.Asgm, rightRg)
-			cp.emit(mc, vm.Jmp, mc.Next()+2)
-			cp.vmElse(mc)
-			cp.reput(mc, vm.Asgm, leftRg)
+			var rTypes alternateType
+			var rcst bool
+			if cmdRet { // It could be error, break, OK, or an unsatisfied conditional.
+				ifBreak := bkEarlyReturn(DUMMY)
+				ifError := bkEarlyReturn(DUMMY)
+				if lTypes.contains(values.BREAK) {
+					ifBreak = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, leftRg, uint32(values.BREAK), values.C_BREAK)
+				}
+				if lTypes.contains(values.ERROR) {
+					ifError = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+				}
+				rTypes, _ = cp.compileNode(mc, node.Right, env, ac) // In a cmd we wish rConst to remain false to avoid folding.
+				cp.vmComeFrom(mc, ifBreak, ifError)
+
+			} else { // Otherwise it's functional.
+				cp.vmIf(mc, vm.Qtyp, leftRg, uint32(values.UNSAT))
+				rTypes, rcst = cp.compileNode(mc, node.Right, env, ac)
+				lhsIsUnsat := cp.vmEarlyReturn(mc, mc.That())
+				cp.vmEndIf(mc)
+				cp.put(mc, vm.Asgm, leftRg)
+				cp.vmComeFrom(mc, lhsIsUnsat)
+			}
 			if !(lTypes.contains(values.UNSAT) && rTypes.contains(values.UNSAT)) {
 				rtnTypes, rtnConst = lTypes.union(rTypes).without(tp(values.UNSAT)), lcst && rcst
 				break
@@ -621,6 +638,54 @@ NodeTypeSwitch:
 		cp.put(mc, vm.List, mc.That())
 		mc.Code[backTrackTo].Args[0] = mc.That()
 		rtnTypes = altType(values.LIST)
+		break
+	case *ast.LoopExpression:
+		rtnConst = false
+		loopStart := mc.CodeTop()
+		bodyTypes, _ := cp.compileNode(mc, node.Code, env, ac)
+		if cp.p.ErrorsExist() {
+			break
+		}
+		result := mc.That()
+		if !bodyTypes.isLegalReturnFromLoopBody() {
+			cp.p.Throw("comp/loop/body", node.GetToken())
+			break
+		}
+		if bodyTypes.isNoneOf(values.BREAK, values.ERROR) {
+			cp.p.Throw("comp/loop/infinite", node.GetToken())
+			break
+		}
+		cp.emit(mc, vm.Qntp, result, uint32(values.SUCCESSFUL_VALUE), loopStart)
+		if bodyTypes.isOnly(values.ERROR) {
+			rtnTypes = altType(values.ERROR)
+			break
+		}
+		if bodyTypes.isOnly(values.BREAK) {
+			cp.put(mc, vm.Asgm, values.C_OK)
+			rtnTypes = altType(values.SUCCESSFUL_VALUE)
+			break
+		}
+		ifError := cp.vmConditionalEarlyReturn(mc, vm.Qtyp, result, uint32(values.ERROR), result)
+		cp.put(mc, vm.Asgm, values.C_OK)
+		cp.vmComeFrom(mc, ifError)
+		rtnTypes = altType(values.SUCCESSFUL_VALUE, values.ERROR)
+		break
+	case *ast.PipingExpression: // I.e. -> >> and -> and ?> .
+		lhsTypes, lhsConst := cp.compileNode(mc, node.Left, env, ac)
+		if cp.p.ErrorsExist() {
+			break
+		}
+		// And that's about all the streaming operators really do have in common under the hood, so let's do a switch on the operators.
+		var rhsConst bool
+		switch node.Operator {
+		case "->":
+			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, lhsConst, node.Right, env, ac)
+		case ">>":
+			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, false, ac)
+		default:
+			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, true, ac)
+		}
+		rtnConst = lhsConst && rhsConst
 		break
 	case *ast.PrefixExpression:
 		if node.Operator == "not" {
@@ -675,24 +740,6 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
-		break
-	case *ast.StreamingExpression: // I.e. -> >> and -> and ?> .
-		lhsTypes, lhsConst := cp.compileNode(mc, node.Left, env, ac)
-		if cp.p.ErrorsExist() {
-
-			break
-		}
-		// And that's about all the streaming operators really do have in common under the hood, so let's do a switch on the operators.
-		var rhsConst bool
-		switch node.Operator {
-		case "->":
-			rtnTypes, rhsConst = cp.compilePipe(mc, lhsTypes, lhsConst, node.Right, env, ac)
-		case ">>":
-			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, false, ac)
-		default:
-			rtnTypes, rhsConst = cp.compileMappingOrFilter(mc, lhsTypes, lhsConst, node.Right, env, true, ac)
-		}
-		rtnConst = lhsConst && rhsConst
 		break
 	case *ast.StringLiteral:
 		cp.reserve(mc, values.STRING, node.Value)
@@ -764,22 +811,13 @@ func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environ
 		cp.p.Throw("comp/tuple/err/b", node.GetToken())
 	}
 	right := mc.That()
-	var leftBacktrack, rightBacktrack uint32
+	leftIsError := bkEarlyReturn(DUMMY)
+	rightIsError := bkEarlyReturn(DUMMY)
 	if lTypes.contains(values.ERROR) {
-		cp.emit(mc, vm.Qtyp, left, uint32(tp(values.ERROR)), mc.CodeTop()+2)
-		leftBacktrack = mc.CodeTop()
-		cp.put(mc, vm.Asgm, DUMMY, left)
-		if rTypes.contains(values.ERROR) {
-			cp.emit(mc, vm.Jmp, mc.CodeTop()+5)
-		} else {
-			cp.emit(mc, vm.Jmp, mc.CodeTop()+2)
-		}
+		cp.vmConditionalEarlyReturn(mc, vm.Qtyp, left, uint32(tp(values.ERROR)), left)
 	}
 	if rTypes.contains(values.ERROR) {
-		cp.emit(mc, vm.Qtyp, right, uint32(tp(values.ERROR)), mc.CodeTop()+2)
-		rightBacktrack = mc.CodeTop()
-		cp.put(mc, vm.Asgm, right)
-		cp.emit(mc, vm.Jmp, mc.CodeTop()+2)
+		cp.vmConditionalEarlyReturn(mc, vm.Qtyp, right, uint32(tp(values.ERROR)), right)
 	}
 	leftMustBeSingle, leftMustBeTuple := lTypes.mustBeSingleOrTuple()
 	rightMustBeSingle, rightMustBeTuple := rTypes.mustBeSingleOrTuple()
@@ -795,12 +833,7 @@ func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environ
 	default:
 		cp.put(mc, vm.Ccxx, left, right) // We can after all let the operation dispatch for us.
 	}
-	if lTypes.contains(values.ERROR) {
-		mc.Code[leftBacktrack].Args[0] = mc.That()
-	}
-	if rTypes.contains(values.ERROR) {
-		mc.Code[rightBacktrack].Args[0] = mc.That()
-	}
+	cp.vmComeFrom(mc, leftIsError, rightIsError)
 	lT := lTypes.reduce()
 	rT := rTypes.reduce()
 	cst := lcst && rcst
@@ -1144,7 +1177,7 @@ func (cp *Compiler) generateBranch(mc *vm.Vm, b *bindle) alternateType {
 		cp.vmIf(mc, vm.Qsnq, b.valLocs[b.argNo])
 		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(mc, &newBindle)
 		skipElse := cp.vmGoTo(mc)
-		cp.vmElse(mc)
+		cp.vmEndIf(mc)
 		typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(mc, &newBindle)
 		cp.vmComeFrom(mc, skipElse)
 		typesFromGoingAcross = typesFromSingles.union(typesFromTuples)
@@ -1221,7 +1254,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(mc *vm.Vm, b *bindle)
 		newArgumentBindle.argNo++
 		typesFromNextArgument = cp.generateNewArgument(mc, &newArgumentBindle)
 		skipElse = cp.vmGoTo(mc)
-		cp.vmElse(mc)
+		cp.vmEndIf(mc)
 	}
 
 	typesFromContinuingInTuple := cp.generateFromTopBranchDown(mc, &newBindle)
@@ -1514,10 +1547,8 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 	}
 	cp.emit(mc, vm.Addi, counter, counter, values.C_ONE)
 	cp.emit(mc, vm.Jmp, loopStart)
-
-	cp.vmElse(mc)
+	cp.vmEndIf(mc)
 	cp.put(mc, vm.List, accumulator)
-
 	cp.vmComeFrom(mc, typeIsNotFunc, resultIsError, resultIsNotBool)
 
 	if types.contains(values.ERROR) {
