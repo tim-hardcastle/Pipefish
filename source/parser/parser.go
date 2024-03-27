@@ -864,7 +864,7 @@ func (p *Parser) parseElse() ast.Node {
 func (p *Parser) parseGroupedExpression() ast.Node {
 	p.NextToken()
 	if p.curToken.Type == token.RPAREN { // then what we must have is an empty tuple
-		return &ast.EmptyTuple{Token: p.curToken}
+		return &ast.Nothing{Token: p.curToken}
 	}
 	exp := p.parseExpression(LOWEST)
 	if !p.expectPeek(token.RPAREN) {
@@ -887,7 +887,7 @@ func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {
 	}
 	p.NextToken()
 	if p.curToken.Type == token.RPAREN { // then what we must have is an empty tuple
-		expression.Right = &ast.EmptyTuple{Token: p.curToken}
+		expression.Right = &ast.Nothing{Token: p.curToken}
 		return expression
 	}
 	expression.Right = p.parseExpression(LOWEST)
@@ -1165,7 +1165,7 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 
 func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 	sig := signature.Signature{}
-	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.EmptyTuple{})) {
+	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
 		return sig
 	}
 	backTrackTo := 0

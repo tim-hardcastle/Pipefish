@@ -92,15 +92,6 @@ func (bi *BuiltInExpression) GetToken() *token.Token {
 }
 func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
 
-type EmptyTuple struct {
-	Token token.Token
-	Value string
-}
-
-func (et *EmptyTuple) Children() []Node       { return []Node{} }
-func (et *EmptyTuple) GetToken() *token.Token { return &et.Token }
-func (et *EmptyTuple) String() string         { return "()" }
-
 type FloatLiteral struct {
 	Token token.Token
 	Value float64

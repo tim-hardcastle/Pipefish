@@ -85,7 +85,7 @@ func Eval(node ast.Node, c *Context) object.Object {
 	case *ast.TypeLiteral:
 		return &object.Type{Value: node.Value}
 
-	case *ast.EmptyTuple:
+	case *ast.Nothing:
 		return &object.Tuple{Elements: []object.Object{}}
 
 	case *ast.PrefixExpression:
@@ -383,8 +383,6 @@ func Eval(node ast.Node, c *Context) object.Object {
 		left.(*object.Func).Env.Ext = c.env
 		newContext := NewContext(c.prsr, left.(*object.Func).Env, c.access, c.logging)
 		return applyFunction(left.(*object.Func).Function, params, node.GetToken(), newContext)
-	case *ast.Nothing:
-		return &object.Tuple{Elements: []object.Object{}}
 	case *ast.PipingExpression:
 		left := Eval(node.Left, c)
 		if isError(left) {

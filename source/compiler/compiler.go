@@ -343,13 +343,11 @@ NodeTypeSwitch:
 			cp.p.Throw("comp/assign", node.GetToken())
 			break NodeTypeSwitch
 		}
+	case *ast.Bling:
+		panic("There is no reason to compile this.")
 	case *ast.BooleanLiteral:
 		cp.reserve(mc, values.BOOL, node.Value)
 		rtnTypes, rtnConst = altType(values.BOOL), true
-		break
-	case *ast.EmptyTuple:
-		cp.reserve(mc, values.TUPLE, []values.Value{})
-		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
 		break
 	case *ast.FloatLiteral:
 		cp.reserve(mc, values.FLOAT, node.Value)
@@ -670,7 +668,7 @@ NodeTypeSwitch:
 		cp.vmComeFrom(mc, ifError)
 		rtnTypes = altType(values.SUCCESSFUL_VALUE, values.ERROR)
 		break
-	case *ast.Nothing: // TODO: there is no reason why both this and the ast.EmptyTuple type should exist.
+	case *ast.Nothing: // TODO: there is no reason why both this and the ast.Nothing type should exist.
 		cp.put(mc, vm.Asgm, values.C_EMPTY_TUPLE)
 		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
 	case *ast.PipingExpression: // I.e. -> >> and -> and ?> .
@@ -750,6 +748,8 @@ NodeTypeSwitch:
 		cp.reserve(mc, values.STRING, node.Value)
 		rtnTypes, rtnConst = altType(values.STRING), true
 		break
+	case *ast.StructExpression:
+		panic("This is used only in the vmmaker and should never be compiled.")
 	case *ast.SuffixExpression:
 		if cp.p.Suffixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
@@ -966,7 +966,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 	args := node.GetArgs()
 	if len(args) == 1 {
 		switch args[0].(type) {
-		case *ast.EmptyTuple:
+		case *ast.Nothing:
 			args = []ast.Node{}
 		}
 	}
