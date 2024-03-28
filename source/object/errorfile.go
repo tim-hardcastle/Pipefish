@@ -272,12 +272,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/assign/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an identifier, not " + text.Emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The left-hand side of an assignment should contain one or more variable names."
+		},
+	},
+
 	"comp/eq/types": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't compare values of different types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Charm doesn't let you compare values of different types, on the grounds that " +
+			return "Pipefish doesn't let you compare values of different types, on the grounds that " +
 				"this is more often a mistake than intentional."
 		},
 	},

@@ -105,31 +105,27 @@ zort(x) :
 
 var
 
-myVar = 15
+myVar = 42
 myOtherVar = 42
+myStr = "blurp"
 
 cmd
 
+
+
+
+
+zort(i int) :
+    global myStr
+    i == 1 :
+        myStr = "foo" 
+    else :
+        myStr = myStr + "bar"
+
 foo(i int) :
-    i == 0 :
-        break
-    else :
-        ok
-
-lTest(i int) :
     global myVar
-    loop :
-        myVar == 42 :
-            break 
-        else :
-            myVar = myVar + 1
-
-
-def
-
-zero(i int) :
-    i == 0 :
-        "yes"
-    else :
-        "no"
+    try e :
+        i == 0 : error "foo"
+        else : myVar = 1
+    else : myVar = myVar + 3
 

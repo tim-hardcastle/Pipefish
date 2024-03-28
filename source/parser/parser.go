@@ -30,8 +30,8 @@ const (
 	WEAK_COLON  // kludge to make logging work. TODO --- find out how.
 	GVN_ASSIGN  //
 	LOGGING     //
-	ASSIGN      // =
 	COLON       // :
+	ASSIGN      // =
 	PIPING      // ->, >>, ?>
 	OR          // or
 	AND         // and

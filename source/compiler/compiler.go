@@ -572,6 +572,7 @@ NodeTypeSwitch:
 				cp.p.Throw("comp/cond/bool", node.GetToken())
 				break
 			}
+			// TODO --- what if it's not *only* bool?
 			leftRg := mc.That()
 			cp.vmIf(mc, vm.Qtru, leftRg)
 			rTypes, rcst := cp.compileNode(mc, node.Right, env, ac)
@@ -602,15 +603,20 @@ NodeTypeSwitch:
 			if cmdRet { // It could be error, break, OK, or an unsatisfied conditional.
 				ifBreak := bkEarlyReturn(DUMMY)
 				ifError := bkEarlyReturn(DUMMY)
+				ifCouldBeUnsatButIsnt := bkEarlyReturn(DUMMY)
 				if lTypes.contains(values.BREAK) {
 					ifBreak = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, leftRg, uint32(values.BREAK), values.C_BREAK)
 				}
 				if lTypes.contains(values.ERROR) {
 					ifError = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
 				}
+				if lTypes.contains(values.UNSAT) { // Then it is an else-less conditional or a try, and it it isn't UNSAT then we should skip the right node.
+					ifCouldBeUnsatButIsnt = cp.vmConditionalEarlyReturn(mc, vm.Qntp, leftRg, uint32(values.UNSAT), leftRg)
+				}
 				rTypes, _ = cp.compileNode(mc, node.Right, env, ac) // In a cmd we wish rConst to remain false to avoid folding.
-				cp.vmComeFrom(mc, ifBreak, ifError)
-
+				cp.vmComeFrom(mc, ifBreak, ifError, ifCouldBeUnsatButIsnt)
+				rtnTypes, rtnConst = lTypes.union(rTypes), lcst && rcst
+				break
 			} else { // Otherwise it's functional.
 				cp.vmIf(mc, vm.Qtyp, leftRg, uint32(values.UNSAT))
 				rTypes, rcst = cp.compileNode(mc, node.Right, env, ac)
@@ -618,13 +624,11 @@ NodeTypeSwitch:
 				cp.vmEndIf(mc)
 				cp.put(mc, vm.Asgm, leftRg)
 				cp.vmComeFrom(mc, lhsIsUnsat)
+				if !(lTypes.contains(values.UNSAT) && rTypes.contains(values.UNSAT)) {
+					rtnTypes, rtnConst = lTypes.union(rTypes).without(tp(values.UNSAT)), lcst && rcst
+					break
+				}
 			}
-			if !(lTypes.contains(values.UNSAT) && rTypes.contains(values.UNSAT)) {
-				rtnTypes, rtnConst = lTypes.union(rTypes).without(tp(values.UNSAT)), lcst && rcst
-				break
-			}
-			rtnTypes, rtnConst = lTypes.union(rTypes), lcst && rcst
-			break
 		}
 	case *ast.ListExpression:
 		var containedTypes alternateType
@@ -756,7 +760,33 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
-
+		break
+	case *ast.TryExpression:
+		ident := node.VarName
+		v, exists := env.getVar(ident)
+		if exists && (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC ||
+			v.access == GLOBAL_VARIABLE_PRIVATE || v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_CONSTANT_THUNK) {
+			cp.p.Throw("comp/try/var", node.GetToken())
+			break
+		}
+		var err uint32
+		if !exists {
+			err = cp.reserve(mc, values.NULL, nil)
+			cp.addVariable(mc, env, ident, LOCAL_VARIABLE, altType(values.NULL, values.ERROR))
+		} else {
+			err = v.mLoc
+		}
+		tryTypes, _ := cp.compileNode(mc, node.Right, env, ac)
+		if tryTypes.isNoneOf(values.ERROR, values.SUCCESSFUL_VALUE) {
+			cp.p.Throw("comp/try/return", node.GetToken())
+			break
+		}
+		cp.emit(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.CodeTop()+4)
+		cp.emit(mc, vm.Asgm, err, mc.That())
+		cp.emit(mc, vm.Asgm, mc.That(), values.C_U_OBJ)
+		cp.emit(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.CodeTop()+2)
+		cp.emit(mc, vm.Asgm, mc.That(), values.C_OK)
+		rtnTypes, rtnConst = altType(values.UNSAT, values.SUCCESSFUL_VALUE), false
 		break
 	case *ast.TypeLiteral:
 		cp.reserve(mc, values.TYPE, values.ValueType(cp.typeNameToTypeList[node.Value][0].(simpleType)))
@@ -768,7 +798,6 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/unfix", node.GetToken())
-
 		break
 	default:
 		panic("Unimplemented node type.")
