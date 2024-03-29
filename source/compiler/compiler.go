@@ -325,13 +325,19 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), false
 			break NodeTypeSwitch
 		case token.CMD_ASSIGN:
-			rhsTypes, _ := cp.compileNode(mc, node.Right, env, ac)
-			rtnTypes = altType(values.SUCCESSFUL_VALUE)
+			rhsIsError := bkEarlyReturn(DUMMY)
+			rTypes, _ := cp.compileNode(mc, node.Right, env, ac)
+			if rTypes.contains(values.ERROR) {
+				rhsIsError = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.That())
+				rtnTypes = altType(values.SUCCESSFUL_VALUE, values.ERROR)
+			} else {
+				rtnTypes = altType(values.SUCCESSFUL_VALUE)
+			}
 			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
 			v, ok := env.getVar(name)
 			if !ok { // Then we create a local variable.
 				cp.reserve(mc, values.UNDEFINED_VALUE, DUMMY)
-				cp.addVariable(mc, env, name, LOCAL_VARIABLE, rhsTypes) // TODO --- once you put in error-handling, remove ERROR from rhsTypes.
+				cp.addVariable(mc, env, name, LOCAL_VARIABLE, rTypes.without(simpleType(values.ERROR)))
 				cp.emit(mc, vm.Asgm, mc.That(), mc.That()-1)
 				cp.put(mc, vm.Asgm, values.C_OK)
 				break NodeTypeSwitch
@@ -339,6 +345,31 @@ NodeTypeSwitch:
 			// TODO --- type checking after refactoring type representation.
 			cp.emit(mc, vm.Asgm, v.mLoc, mc.That())
 			cp.put(mc, vm.Asgm, values.C_OK)
+			cp.vmComeFrom(mc, rhsIsError)
+			break NodeTypeSwitch
+		case token.ASSIGN: // If this hasn't been turned into some other kind of _ASSIGN then we're in the REPL.
+			rhsIsError := bkEarlyReturn(DUMMY)
+			rTypes, _ := cp.compileNode(mc, node.Right, env, ac)
+			if rTypes.contains(values.ERROR) {
+				rhsIsError = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.That())
+				rtnTypes = altType(values.SUCCESSFUL_VALUE, values.ERROR)
+			} else {
+				rtnTypes = altType(values.SUCCESSFUL_VALUE)
+			}
+			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
+			v, ok := env.getVar(name)
+			if !ok {
+				cp.p.Throw("comp/var/exist", node.GetToken(), name)
+				break NodeTypeSwitch
+			}
+			if v.access != GLOBAL_VARIABLE_PUBLIC {
+				cp.p.Throw("comp/var/public", node.GetToken(), name)
+				break NodeTypeSwitch
+			}
+			// TODO --- type checking after refactoring type representation.
+			cp.emit(mc, vm.Asgm, v.mLoc, mc.That())
+			cp.put(mc, vm.Asgm, values.C_OK)
+			cp.vmComeFrom(mc, rhsIsError)
 			break NodeTypeSwitch
 		default: // Of switch on ast.Assignment.
 			cp.p.Throw("comp/assign", node.GetToken())
