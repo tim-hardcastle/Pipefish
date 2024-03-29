@@ -14,15 +14,16 @@ import (
 )
 
 const (
-	SHOW_RUN = true
+	SHOW_RUN = false
 	DUMMY    = 4294967295
 )
 
 type Vm struct {
 	// Temporary state: things we change at runtime.
 	Mem       []values.Value
-	callstack []uint32
 	Code      []*Operation
+	callstack []uint32
+	logging   bool
 
 	// Permanent state: things established at compile time.
 
@@ -136,9 +137,10 @@ var OPCODE_LIST []func(vm *Vm, args []uint32)
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
 func BlankVm() *Vm {
-	newVm := &Vm{Mem: CONSTANTS, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}}
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}, logging: true}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in constants are things the user should never see.
+	copy(newVm.Mem, CONSTANTS)
 	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT",
 		"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE", "BREAK",
 		"SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
@@ -432,6 +434,12 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, list}
 		case Litx:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Literal(vm.Mem[args[1]])}
+		case Log:
+			fmt.Print(vm.Mem[args[0]].V.(string) + "\n\n")
+		case Logn:
+			vm.logging = false
+		case Logy:
+			vm.logging = true
 		case Mker:
 			vm.Mem[args[0]] = values.Value{values.ERROR, &object.Error{ErrorId: "eval/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
 		case Mkfn:
@@ -488,6 +496,14 @@ loop:
 			} else {
 				loc = args[2]
 			}
+			continue
+		case Qlog:
+			if vm.logging {
+				loc = loc + 1
+			} else {
+				loc = args[0]
+			}
+			continue
 		case Qntp:
 			if vm.Mem[args[0]].T != values.ValueType(args[1]) {
 				loc = loc + 1

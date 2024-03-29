@@ -5,13 +5,14 @@ import (
 	"pipefish/source/object"
 	"pipefish/source/parser"
 	"pipefish/source/set"
+	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"pipefish/source/vm"
+	"strconv"
 )
 
-const SHOW_COMPILE = true
-const SHOW_RUN = true
+const SHOW_COMPILE = false
 
 type thunk struct {
 	mLoc uint32
@@ -640,6 +641,33 @@ NodeTypeSwitch:
 		cp.put(mc, vm.List, mc.That())
 		mc.Code[backTrackTo].Args[0] = mc.That()
 		rtnTypes = altType(values.LIST)
+		break
+	case *ast.LogExpression:
+		rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
+		initStr := cp.reserve(mc, values.STRING, "Log at line "+text.YELLOW+strconv.Itoa(node.GetToken().Line)+text.RESET+":\n    ")
+		output := cp.reserve(mc, values.STRING, "")
+		cp.vmIf(mc, vm.Qlog)
+		cp.emit(mc, vm.Logn)
+		cp.emit(mc, vm.Asgm, output, initStr)
+		logMayHaveError := cp.compileLog(mc, node, env, ac)
+		cp.emit(mc, vm.Log, output)
+		cp.emit(mc, vm.Logy)
+		ifRuntimeError := bkEarlyReturn(DUMMY)
+		if logMayHaveError {
+			ifRuntimeError = cp.vmConditionalEarlyReturn(mc, vm.Qtyp, output, uint32(values.ERROR), output)
+		}
+		cp.vmEndIf(mc)
+		// Syntactically a log expression is attached to a normal expression, which we must now compile.
+		switch node.GetToken().Type {
+		case token.IFLOG:
+			ifNode := &ast.LazyInfixExpression{Operator: ":", Token: *node.GetToken(), Left: node.Left, Right: node.Right}
+			rtnTypes, _ = cp.compileNode(mc, ifNode, env, ac)
+		case token.PRELOG:
+			rtnTypes, _ = cp.compileNode(mc, node.Right, env, ac)
+		default: // I.e. token.LOG.
+			rtnTypes, _ = cp.compileNode(mc, node.Left, env, ac)
+		}
+		cp.vmComeFrom(mc, ifRuntimeError)
 		break
 	case *ast.LoopExpression:
 		rtnConst = false
@@ -1447,6 +1475,67 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 	} else {
 		panic("Haven't implemented this bit because of having no way to test it at this point.")
 	}
+}
+
+func (cp *Compiler) compileLog(mc *vm.Vm, node *ast.LogExpression, env *environment, ac Access) bool {
+	output := mc.That()
+	logStr := node.Value
+	if logStr == "" {
+
+	}
+	strList := []string{}
+	var (
+		word string
+		exp  bool
+	)
+	for _, c := range logStr {
+		if c == '|' {
+			if exp {
+				strList = append(strList, word+"|")
+				word = ""
+				exp = false
+			} else {
+				strList = append(strList, word)
+				word = "|"
+				exp = true
+			}
+		} else {
+			word = word + string(c)
+		}
+	}
+	if exp {
+		cp.p.Throw("comp/log/close", &node.Token)
+		return false
+	}
+	strList = append(strList, word)
+	// So at this point we have a strList consisting of things which either do or don't need parsing and compiling,
+	// depending on whether they are or aren't bracketed by | symbols.
+	// If they don't need compiling they can just be concatenated to the output.
+	errorReturns := []bkEarlyReturn{}
+	for _, str := range strList {
+		if str == "" {
+			continue
+		}
+		if str[0] == '|' { // Then we must parse and compile.
+			parsedAst := cp.p.ParseLine("code snippet", str[1:len(str)-1])
+			sTypes, _ := cp.compileNode(mc, parsedAst, env, ac)
+			thingToAdd := mc.That()
+			if sTypes.contains(values.ERROR) {
+				errorReturns = append(errorReturns,
+					cp.vmConditionalEarlyReturn(mc, vm.Qtyp, mc.That(), uint32(values.ERROR), mc.That()))
+			}
+			cp.put(mc, vm.Strx, thingToAdd)
+			cp.emit(mc, vm.Adds, output, output, mc.That())
+			continue
+		}
+		// Otherwise, we just add it on as a string.
+		cp.reserve(mc, values.STRING, str)
+		cp.emit(mc, vm.Adds, output, output, mc.That())
+	}
+	for _, rtn := range errorReturns {
+		cp.vmComeFrom(mc, rtn)
+	}
+	return len(errorReturns) > 0
 }
 
 // The various 'piping operators'.

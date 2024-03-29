@@ -109,23 +109,11 @@ myVar = 42
 myOtherVar = 42
 myStr = "blurp"
 
-cmd
+def 
 
-
-
-
-
-zort(i int) :
-    global myStr
-    i == 1 :
-        myStr = "foo" 
-    else :
-        myStr = myStr + "bar"
-
-foo(i int) :
-    global myVar
-    try e :
-        i == 0 : error "foo"
-        else : myVar = 1
-    else : myVar = myVar + 3
+zort(i int) :         \\ Called function zort with i = |i|.
+    i == 0 :
+        "zero"        \\ Condition was met.
+    else :            \\ Condition failed, else branch taken.
+        "not zero"
 

@@ -127,6 +127,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	LenT: {"lenT", operands{dst, mem}},
 	Litx: {"litx", operands{dst, mem}},
 	List: {"list", operands{dst, mem}},
+	Log:  {"log", operands{mem}},
+	Logn: {"logn", operands{}},
+	Logy: {"logy", operands{}},
 	Mker: {"mker", operands{dst, mem, tok}},
 	Mkfn: {"mkfn", operands{dst, lfc}},
 	Mkmp: {"mkmp", operands{dst, mem}},
@@ -140,6 +143,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Notb: {"notb", operands{dst, mem}},
 	Orb:  {"orb", operands{dst, mem, mem}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
+	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
 	Qsnq: {"qsnq", operands{mem, loc}},
@@ -239,6 +243,9 @@ const (
 	LenT
 	List
 	Litx
+	Log
+	Logn
+	Logy
 	Mker
 	Mkfn
 	Mkmp
@@ -259,6 +266,7 @@ const (
 	Qstr
 	Qstq
 	QlnT
+	Qlog
 	Ret
 	SliL
 	Slis
