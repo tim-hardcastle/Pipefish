@@ -41,7 +41,7 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 
 	file, err := os.Open("rsc/go/gotimes.dat")
 	if err != nil {
-		panic("Can't file 'rsc/go/gotimes.dat'.")
+		panic("Can't open file 'rsc/go/gotimes.dat'.")
 	}
 	defer file.Close()
 
@@ -87,6 +87,9 @@ func (gh *GoHandler) CleanUp() {
 }
 
 func (gh *GoHandler) BuildGoMods() {
+
+	// 'tuplify' ensures that just one thing of type any is returned, since this is all the definition of
+	// golang functions can cope with.
 
 	appendix := `func tuplify(args ...any) any {
 	if len(args) == 1 {

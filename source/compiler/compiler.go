@@ -35,6 +35,7 @@ type Compiler struct {
 	// Temporary state.
 	thunkList []thunk
 	ifStack   []uint32
+	goNumber  uint32 // Keeps track of how many Go functions we've created.
 }
 
 type cpFunc struct { // The compiler's representation of a function after the function has been compiled.
@@ -47,6 +48,8 @@ type cpFunc struct { // The compiler's representation of a function after the fu
 	builtin  string // A non-empty string if it's a builtin, saying which one.
 	private  bool
 	command  bool
+	goNumber uint32
+	hasGo    bool
 }
 
 type Access int
@@ -1407,12 +1410,29 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 				functionAndType.f(cp, mc, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.t
 			}
-			// Do the short-form constructors.
+			// It might be a short-form constructor.
 			structNumber, ok := cp.structNumbers[builtinTag]
 			if ok {
 				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
 				cp.emit(mc, vm.Strc, args...)
 				return altType(structNumber)
+			}
+			// It could have a Golang body.
+			if F.hasGo {
+				args := append([]uint32{b.outLoc, F.goNumber}, b.valLocs...)
+				cp.emit(mc, vm.Gofn, args...)
+				if len(branch.Node.Fn.Rets) == 0 {
+					return ANY_TYPE
+				}
+				if len(branch.Node.Fn.Rets) == 1 {
+					return cp.typeNameToTypeList[branch.Node.Fn.Rets[0].VarType]
+				}
+				// Otherwise it's a tuple.
+				tt := make(alternateType, 0, len(branch.Node.Fn.Rets))
+				for _, v := range branch.Node.Fn.Rets {
+					tt = append(tt, cp.typeNameToTypeList[v.VarType])
+				}
+				return alternateType{finiteTupleType{tt}}
 			}
 			// Otherwise it's a regular old function call, which we do like this:
 			cp.emitFunctionCall(mc, fNo, b.valLocs)

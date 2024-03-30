@@ -35,6 +35,12 @@ type Vm struct {
 	Labels          []string   // Array from the number of a field label to its name.
 	Tokens          []*token.Token
 	LambdaFactories []*LambdaFactory
+	GoFns           []GoFn
+}
+
+type GoFn struct {
+	Code func(args ...any) any
+	Raw  []bool
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -280,6 +286,19 @@ loop:
 				vm.Mem[args[0]] = values.Value{values.ERROR, DUMMY}
 			} else {
 				vm.Mem[args[0]] = values.Value{values.FLOAT, i}
+			}
+		case Gofn:
+			F := vm.GoFns[args[1]]
+			goTpl := make([]any, 0, len(args))
+			for i, v := range args[2:] {
+				el := vm.Mem[v]
+				if F.Raw[i] {
+					goTpl = append(goTpl, el)
+				} else {
+					goTpl = append(goTpl, pipefishToGo(el))
+
+				}
+				vm.Mem[args[0]] = goToPipefish(F.Code(goTpl...))
 			}
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
@@ -1040,5 +1059,43 @@ func (vm *Vm) Literal(v values.Value) string {
 		return "ok"
 	default:
 		return vm.describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
+	}
+}
+
+func pipefishToGo(v values.Value) any {
+	switch v.T {
+	case values.INT:
+		return v.V.(int)
+	case values.FLOAT:
+		return v.V.(int)
+	case values.STRING:
+		return v.V.(string)
+	case values.BOOL:
+		return v.V.(bool)
+	default:
+		panic("Can't convert Pipefish value.")
+	}
+}
+
+func goToPipefish(v any) values.Value {
+	switch v := v.(type) {
+	case *object.GoReturn:
+		result := make([]values.Value, 0, len(v.Elements))
+		for el := range v.Elements {
+			result = append(result, goToPipefish(el))
+		}
+		return values.Value{values.TUPLE, result}
+	case int:
+		return values.Value{values.INT, v}
+	case float64:
+		return values.Value{values.FLOAT, v}
+	case string:
+		return values.Value{values.STRING, v}
+	case bool:
+		return values.Value{values.BOOL, v}
+	case nil:
+		return values.Value{values.NULL, v}
+	default:
+		panic("Can't convert Golang value.")
 	}
 }

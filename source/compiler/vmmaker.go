@@ -309,7 +309,8 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 	} else {
 		cpF.tupleReg = DUMMY
 	}
-	if body.GetToken().Type == token.BUILTIN {
+	switch body.GetToken().Type {
+	case token.BUILTIN:
 		name := body.(*ast.BuiltInExpression).Name
 		types, ok := BUILTINS[name]
 		if ok {
@@ -320,7 +321,11 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 				cpF.types = altType(structNo)
 			}
 		}
-	} else {
+	case token.GOLANG:
+		cpF.goNumber = uint32(len(mc.GoFns))
+		cpF.hasGo = true
+		mc.GoFns = append(mc.GoFns, vm.GoFn{body.(*ast.GolangExpression).ObjectCode, body.(*ast.GolangExpression).Raw})
+	default:
 		if given != nil {
 			vmm.cp.thunkList = []thunk{}
 			vmm.cp.compileNode(mc, given, fnenv, ac)

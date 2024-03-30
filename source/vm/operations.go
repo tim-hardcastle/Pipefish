@@ -15,13 +15,14 @@ type operandType uint8
 
 const (
 	dst operandType = iota
-	mem
+	gfn
 	lfc
 	loc
-	typ
+	mem
 	num
 	tok
 	tup
+	typ
 )
 
 type operands []operandType
@@ -37,6 +38,8 @@ func (op *Operation) ppOperand(i int) string {
 	switch opType {
 	case dst:
 		return " m" + opVal + " <-"
+	case gfn:
+		return " Γ" + opVal
 	case lfc:
 		return " Λ" + opVal
 	case loc:
@@ -96,6 +99,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Equs: {"equs", operands{dst, mem, mem}},
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
+	Gofn: {"gofn", operands{dst, gfn, tup}},
 	Gtef: {"gtef", operands{dst, mem, mem}},
 	Gtei: {"gtei", operands{dst, mem, mem}},
 	Gthf: {"gthf", operands{dst, mem, mem}},
@@ -211,6 +215,7 @@ const (
 	Equs
 	Flti
 	Flts
+	Gofn
 	Gtef
 	Gtei
 	Gthf

@@ -111,9 +111,6 @@ myStr = "blurp"
 
 def 
 
-zort(i int) :         \\ Called function zort with i = |i|.
-    i == 0 :
-        "zero"        \\ Condition was met.
-    else :            \\ Condition failed, else branch taken.
-        "not zero"
-
+troz(i int) -> int : gocode {
+    return i * 2
+}
