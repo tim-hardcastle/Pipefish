@@ -20,6 +20,16 @@ const (
 	PROMPT      = "→ "
 )
 
+func ExtractFileName(s string) string {
+	if strings.LastIndex(s, ".") >= 0 {
+		s = s[:strings.LastIndex(s, ".")]
+	}
+	if strings.LastIndex(s, "/") >= 0 {
+		s = s[strings.LastIndex(s, "/")+1:]
+	}
+	return s
+}
+
 func ToEscapedText(s string) string {
 	result := "\""
 	for _, ch := range s {

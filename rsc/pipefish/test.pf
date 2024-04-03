@@ -109,8 +109,3 @@ myVar = 42
 myOtherVar = 42
 myStr = "blurp"
 
-def 
-
-troz(i int) -> int : gocode {
-    return i * 2
-}

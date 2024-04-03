@@ -675,12 +675,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\n")
 		return false
 	case "vm":
-		vmm := compiler.NewVmMaker("", "", hub.Db)
-		vmm.Make()
-		cp := vmm.GetCompiler()
-		if cp.GetParser().ErrorsExist() {
-			hub.GetAndReportErrors(cp.GetParser())
-			cp.GetParser().ClearErrors()
+		sourcecode, _ := os.ReadFile("examples/dep.pf")
+		vms := compiler.NewService("examples/dep.pf", string(sourcecode)+"\n", hub.Db)
+		if vms.Cp.GetParser().ErrorsExist() {
+			hub.GetAndReportErrors(vms.Cp.GetParser())
+			vms.Cp.GetParser().ClearErrors()
 			return false
 		}
 		rline := readline.NewInstance()
@@ -706,25 +705,27 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			if len(line) >= 4 && line[:4] == "run " {
 				filename := line[4:]
 				sourcecode, _ := os.ReadFile(filename)
-				vmm := compiler.NewVmMaker(filename, string(sourcecode)+"\n", hub.Db)
-				vmm.Make()
-				cp = vmm.GetCompiler()
-				if cp.GetParser().ErrorsExist() {
-					hub.GetAndReportErrors(cp.GetParser())
-					cp.GetParser().ClearErrors()
+				vms = compiler.NewService(filename, string(sourcecode)+"\n", hub.Db)
+				if vms.Cp.GetParser().ErrorsExist() {
+					hub.GetAndReportErrors(vms.Cp.GetParser())
+					vms.Cp.GetParser().ClearErrors()
 				}
 				continue
 			}
-			output := cp.Do(line)
-			if cp.GetParser().ErrorsExist() {
-				hub.GetAndReportErrors(cp.GetParser())
-				cp.GetParser().ClearErrors()
+			if line == "reset" {
+				vms = compiler.NewService("", "", hub.Db)
+				continue
+			}
+			output := vms.Cp.Do(vms.Mc, line)
+			if vms.Cp.GetParser().ErrorsExist() {
+				hub.GetAndReportErrors(vms.Cp.GetParser())
+				vms.Cp.GetParser().ClearErrors()
 				continue
 			}
 			if output.T == values.ERROR {
 				lastError = output.V.(*object.Error)
 			}
-			hub.WriteString(cp.Describe(output))
+			hub.WriteString(vms.Cp.Describe(vms.Mc, output))
 		}
 		return false
 	case "where":

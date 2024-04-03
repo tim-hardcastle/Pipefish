@@ -21,7 +21,6 @@ type thunk struct {
 
 type Compiler struct {
 	p                  *parser.Parser
-	mc                 *vm.Vm
 	enumElements       map[string]uint32
 	fieldLabels        map[string]uint32
 	structNumbers      map[string]values.ValueType
@@ -29,6 +28,7 @@ type Compiler struct {
 	gvars              *environment
 	fns                []*cpFunc
 	typeNameToTypeList map[string]alternateType
+	libraries          map[string]*Compiler
 
 	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}
 
@@ -68,7 +68,6 @@ const DUMMY = 4294967295
 func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
 		p:             p,
-		mc:            vm.BlankVm(),
 		enumElements:  make(map[string]uint32),
 		fieldLabels:   make(map[string]uint32),
 		structNumbers: make(map[string]values.ValueType),
@@ -76,6 +75,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		gvars:         newEnvironment(),
 		thunkList:     []thunk{},
 		fns:           []*cpFunc{},
+		libraries:     make(map[string]*Compiler),
 		typeNameToTypeList: map[string]alternateType{
 			"int":      altType(values.INT),
 			"string":   altType(values.STRING),
@@ -107,46 +107,45 @@ func NewCompiler(p *parser.Parser) *Compiler {
 	}
 }
 
-func (cp *Compiler) Run() {
-	cp.mc.Run(0)
+func (cp *Compiler) Run(mc *vm.Vm) {
+	mc.Run(0)
 }
 
 func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.p
 }
 
-func (cp *Compiler) Do(line string) values.Value {
-	mT := cp.mc.MemTop()
-	cT := cp.mc.CodeTop()
-	tT := cp.mc.TokenTop()
-	lT := cp.mc.LfTop()
+func (cp *Compiler) Do(mc *vm.Vm, line string) values.Value {
+	mT := mc.MemTop()
+	cT := mc.CodeTop()
+	tT := mc.TokenTop()
+	lT := mc.LfTop()
 	node := cp.p.ParseLine("REPL input", line)
 	if cp.p.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	cp.compileNode(cp.mc, node, cp.gvars, REPL)
+	cp.compileNode(mc, node, cp.gvars, REPL)
 	if cp.p.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	cp.emit(cp.mc, vm.Ret)
-	cp.mc.Run(cT)
-	result := cp.mc.Mem[cp.mc.That()]
-	cp.mc.Mem = cp.mc.Mem[:mT]
-	cp.mc.Code = cp.mc.Code[:cT]
-	cp.mc.Tokens = cp.mc.Tokens[:tT]
-	cp.mc.LambdaFactories = cp.mc.LambdaFactories[:lT]
+	cp.emit(mc, vm.Ret)
+	mc.Run(cT)
+	result := mc.Mem[mc.That()]
+	mc.Mem = mc.Mem[:mT]
+	mc.Code = mc.Code[:cT]
+	mc.Tokens = mc.Tokens[:tT]
+	mc.LambdaFactories = mc.LambdaFactories[:lT]
 	return result
 }
 
-func (cp *Compiler) Describe(v values.Value) string {
-	return cp.mc.Literal(v)
+func (cp *Compiler) Describe(mc *vm.Vm, v values.Value) string {
+	return mc.Literal(v)
 }
 
-func (cp *Compiler) Compile(source, sourcecode string) {
-	cp.mc = vm.BlankVm()
+func (cp *Compiler) Compile(mc *vm.Vm, source, sourcecode string) {
 	node := cp.p.ParseLine(source, sourcecode)
-	cp.compileNode(cp.mc, node, cp.gvars, REPL)
-	cp.emit(cp.mc, vm.Ret)
+	cp.compileNode(mc, node, cp.gvars, REPL)
+	cp.emit(mc, vm.Ret)
 }
 
 func (cp *Compiler) reserve(mc *vm.Vm, t values.ValueType, v any) uint32 {
@@ -166,7 +165,7 @@ func (cp *Compiler) reserveToken(mc *vm.Vm, tok *token.Token) uint32 {
 
 func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
 	LF := &vm.LambdaFactory{Model: &vm.Lambda{}}
-	LF.Model.Mc = vm.BlankVm()
+	LF.Model.Mc = vm.BlankVm(mc.Db)
 	LF.Model.Mc.Code = []*vm.Operation{}
 	newEnv := newEnvironment()
 	sig := fnNode.Sig
@@ -299,8 +298,8 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 	rtnTypes, rtnConst := alternateType{}, true
 	mT := mc.MemTop()
 	cT := mc.CodeTop()
-	tT := cp.mc.TokenTop()
-	lT := cp.mc.LfTop()
+	tT := mc.TokenTop()
+	lT := mc.LfTop()
 NodeTypeSwitch:
 	switch node := node.(type) {
 	case *ast.ApplicationExpression:
@@ -888,8 +887,8 @@ NodeTypeSwitch:
 		}
 		mc.Mem = mc.Mem[:mT]
 		mc.Code = mc.Code[:cT]
-		cp.mc.Tokens = cp.mc.Tokens[:tT]
-		cp.mc.LambdaFactories = cp.mc.LambdaFactories[:lT]
+		mc.Tokens = mc.Tokens[:tT]
+		mc.LambdaFactories = mc.LambdaFactories[:lT]
 		cp.reserve(mc, result.T, result.V)
 	}
 	return rtnTypes, rtnConst

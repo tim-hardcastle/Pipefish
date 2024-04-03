@@ -30,6 +30,7 @@ import (
 	"pipefish/source/object"
 	"pipefish/source/parser"
 	"pipefish/source/relexer"
+	"pipefish/source/text"
 
 	"pipefish/source/signature"
 	"pipefish/source/sysvars"
@@ -82,7 +83,7 @@ type Initializer struct {
 	Sources map[string][]string
 }
 
-func New(source, input string, db *sql.DB) *Initializer {
+func NewInitializer(source, input string, db *sql.DB) *Initializer {
 	uP := &Initializer{
 		rl:      *relexer.New(source, input),
 		Parser:  parser.New(),
@@ -101,21 +102,21 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if scriptFilepath != "" {
 		file, err := os.Stat(newService.ScriptFilepath)
 		if err != nil {
-			init := New(scriptFilepath, "", db)
+			init := NewInitializer(scriptFilepath, "", db)
 			init.Throw("init/code/a", token.Token{Source: scriptFilepath}, err.Error())
 			return newService, init
 		}
 		newService.Timestamp = file.ModTime().UnixMilli()
 		dat, err := os.ReadFile(scriptFilepath)
 		if err != nil {
-			init := New(scriptFilepath, "", db)
+			init := NewInitializer(scriptFilepath, "", db)
 			init.Throw("init/code/b", token.Token{Source: scriptFilepath}, err.Error())
 			return newService, init
 		}
 		code = strings.TrimRight(string(dat), "\n") + "\n"
 	}
 
-	init := New(scriptFilepath, code, db)
+	init := NewInitializer(scriptFilepath, code, db)
 	newService.Parser = init.Parser
 	init.GetSource(scriptFilepath)
 	init.Parser.Database = db
@@ -217,7 +218,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		definingToken token.Token
 	)
 
-	tok = uP.rl.NextToken()    // note that we've already removed leading newlines.
+	tok = uP.rl.NextToken() // note that we've already removed leading newlines.
+
 	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
 		return
 	}
@@ -692,13 +694,7 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 		switch imp := (imp).(type) {
 		case *ast.StringLiteral:
 			scriptFilepath = imp.Value
-			namespace = scriptFilepath
-			if strings.LastIndex(namespace, ".") >= 0 {
-				namespace = namespace[:strings.LastIndex(namespace, ".")]
-			}
-			if strings.LastIndex(namespace, "/") >= 0 {
-				namespace = namespace[strings.LastIndex(namespace, "/")+1:]
-			}
+			namespace = text.ExtractFileName(scriptFilepath)
 		case *ast.InfixExpression:
 			if imp.GetToken().Literal != "::" {
 				uP.Throw("init/import/infix", imp.Token)

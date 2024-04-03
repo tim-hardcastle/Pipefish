@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"database/sql"
 	"fmt"
 	"pipefish/source/object"
 	"pipefish/source/text"
@@ -36,6 +37,7 @@ type Vm struct {
 	Tokens          []*token.Token
 	LambdaFactories []*LambdaFactory
 	GoFns           []GoFn
+	Db              *sql.DB
 }
 
 type GoFn struct {
@@ -142,8 +144,8 @@ var OPCODE_LIST []func(vm *Vm, args []uint32)
 // These inhabit the first few memory addresses of the VM.
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
-func BlankVm() *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}, logging: true}
+func BlankVm(db *sql.DB) *Vm {
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Db: db, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}, logging: true}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in constants are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)

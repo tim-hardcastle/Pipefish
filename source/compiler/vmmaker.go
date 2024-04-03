@@ -1,9 +1,11 @@
 package compiler
 
 import (
+	"os"
 	"pipefish/source/ast"
 	"pipefish/source/initializer"
 	"pipefish/source/parser"
+	"pipefish/source/relexer"
 	"pipefish/source/signature"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -15,17 +17,14 @@ import (
 // Just as the initializer directs the tokenizer and the parser in the construction of the parsed code
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the mc.
 
-// Hence the vmMaker contains all the state which is not needed by the compiler (e.g. the function table),
-// and the compiler contains the state needed at compile time but not at runtime.
-
 type VmMaker struct {
 	cp             *Compiler
 	uP             *initializer.Initializer
 	scriptFilepath string
 }
 
-func NewVmMaker(scriptFilepath, sourcecode string, db *sql.DB) *VmMaker {
-	uP := initializer.New(scriptFilepath, sourcecode, db)
+func NewVmMaker(scriptFilepath, sourcecode string, mc *vm.Vm) *VmMaker {
+	uP := initializer.NewInitializer(scriptFilepath, sourcecode, mc.Db)
 	vmm := &VmMaker{
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
@@ -35,30 +34,52 @@ func NewVmMaker(scriptFilepath, sourcecode string, db *sql.DB) *VmMaker {
 	return vmm
 }
 
-func (vmm *VmMaker) GetCompiler() *Compiler {
+type VmService struct { // This is what we're trying to construct: a vm and a compiler that between them can evaluate a line of Pipefish.
+	Mc *vm.Vm
+	Cp *Compiler
+}
+
+// The base case: we start off with a blank vm.
+func NewService(scriptFilepath, sourcecode string, db *sql.DB) VmService {
+	mc := vm.BlankVm(db)
+	cp := initalizeEverything(mc, scriptFilepath, sourcecode)
+	return VmService{mc, cp}
+}
+
+// Then we can recurse over this, passing it the same vm every time.
+// This returns a compiler and mutates the vm.
+func initalizeEverything(mc *vm.Vm, scriptFilepath, sourcecode string) *Compiler {
+	vmm := NewVmMaker(scriptFilepath, sourcecode, mc)
+	vmm.Make(mc, scriptFilepath, sourcecode)
 	return vmm.cp
 }
 
-func (vmm *VmMaker) Make() {
+func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 
+	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/test.pf"}) // , "rsc/pipefish/world.pf"
+	vmm.uP.SetRelexer(*relexer.New(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/test.pf"}) // , "rsc/pipefish/world.pf"
-	vmm.uP.ParseImports()
+	vmm.uP.ParseImports() // That is, parse the import declarations. The files being imported are imported by the
 	if vmm.uP.ErrorsExist() {
 		return
 	}
-	// unnamespacedImports := vmm.uP.InitializeNamespacedImportsAndReturnUnnamespacedImports(root, namePath)
+	unnamespacedImports := vmm.uP.InitializeNamespacedImportsAndReturnUnnamespacedImports(vmm.cp.p.RootService, vmm.cp.p.NamespacePath)
 
-	// if vmm.uP.ErrorsExist() {
-	// 	return newService, init
-	// }
-	// vmm.uP.AddToNameSpace(unnamespacedImports)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+	vmm.uP.AddToNameSpace(unnamespacedImports)
 
-	vmm.createEnums()
+	vmm.compileImports(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
+	vmm.createEnums(mc)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -74,7 +95,7 @@ func (vmm *VmMaker) Make() {
 	}
 
 	// We make the struct names and labels, but not the constructors, which come later.
-	vmm.createStructs()
+	vmm.createStructs(mc)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -97,11 +118,11 @@ func (vmm *VmMaker) Make() {
 		return
 	}
 
-	vmm.makeConstructors()
+	vmm.makeConstructors(mc)
 
 	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
 	// compileFunction method.
-	vmm.compileFunctions(functionDeclaration, privateFunctionDeclaration)
+	vmm.compileFunctions(mc, functionDeclaration, privateFunctionDeclaration)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -112,23 +133,30 @@ func (vmm *VmMaker) Make() {
 	// first because the RHS of the assignment can be any expression.
 	// NOTE: is this even going to work any more? You also need to use the types of the variables/consts.
 	// So it all needs to be thrown into a dependency digraph and sorted.
-	vmm.evaluateConstantsAndVariables()
+	vmm.evaluateConstantsAndVariables(mc)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	vmm.compileFunctions(commandDeclaration, privateCommandDeclaration)
+	vmm.compileFunctions(mc, commandDeclaration, privateCommandDeclaration)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 }
 
-func (vmm *VmMaker) compileFunctions(args ...declarationType) {
-
+func (vmm *VmMaker) compileFunctions(mc *vm.Vm, args ...declarationType) {
 	for _, j := range args {
 		for i := 0; i < len(vmm.cp.p.ParsedDeclarations[j]); i++ {
-			vmm.compileFunction(vmm.cp.mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, j)
+			vmm.compileFunction(mc, vmm.cp.p.ParsedDeclarations[j][i], vmm.cp.gconsts, j)
 		}
+	}
+}
+
+func (vmm *VmMaker) compileImports(mc *vm.Vm) {
+	for namespace, lib := range vmm.cp.p.NamespaceBranch {
+		sourcecode, _ := os.ReadFile(lib.ScriptFilepath)
+		newCp := initalizeEverything(mc, lib.ScriptFilepath, string(sourcecode))
+		vmm.cp.libraries[namespace] = newCp
 	}
 }
 
@@ -153,7 +181,7 @@ const (
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
-func (vmm *VmMaker) createEnums() {
+func (vmm *VmMaker) createEnums(mc *vm.Vm) {
 	for chunk, tokens := range vmm.uP.Parser.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
@@ -166,7 +194,7 @@ func (vmm *VmMaker) createEnums() {
 			vmm.uP.Throw("init/enum/type", tok1)
 		}
 
-		vmm.cp.mc.TypeNames = append(vmm.cp.mc.TypeNames, tok1.Literal)
+		mc.TypeNames = append(mc.TypeNames, tok1.Literal)
 		vmm.uP.Parser.Suffixes.Add(tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		typeNo := values.LB_ENUMS + values.ValueType(chunk)
@@ -174,8 +202,8 @@ func (vmm *VmMaker) createEnums() {
 		vmm.cp.typeNameToTypeList["single?"] = vmm.cp.typeNameToTypeList["single?"].union(altType(typeNo))
 		vmm.cp.typeNameToTypeList[tok1.Literal] = altType(typeNo)
 		vmm.cp.typeNameToTypeList[tok1.Literal+"?"] = altType(values.NULL, typeNo)
-		vmm.cp.mc.Enums = append(vmm.cp.mc.Enums, []string{})
-		vmm.cp.mc.Ub_enums++
+		mc.Enums = append(mc.Enums, []string{})
+		mc.Ub_enums++
 
 		tokens.NextToken() // This says "enum" or we wouldn't be here.
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
@@ -187,8 +215,8 @@ func (vmm *VmMaker) createEnums() {
 				vmm.uP.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.enumElements[tok.Literal] = vmm.cp.reserve(vmm.cp.mc, values.ValueType(chunk)+values.LB_ENUMS, len(vmm.cp.mc.Enums[chunk]))
-			vmm.cp.mc.Enums[chunk] = append(vmm.cp.mc.Enums[chunk], tok.Literal)
+			vmm.cp.enumElements[tok.Literal] = vmm.cp.reserve(mc, values.ValueType(chunk)+values.LB_ENUMS, len(mc.Enums[chunk]))
+			mc.Enums[chunk] = append(mc.Enums[chunk], tok.Literal)
 
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
@@ -199,7 +227,7 @@ func (vmm *VmMaker) createEnums() {
 	}
 }
 
-func (vmm *VmMaker) createStructs() {
+func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 	for chunk, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		if lhs.GetToken().Type != token.IDENT {
@@ -214,8 +242,8 @@ func (vmm *VmMaker) createStructs() {
 
 		// We make the type itself exist.
 
-		vmm.cp.mc.TypeNames = append(vmm.cp.mc.TypeNames, name)
-		typeNo := vmm.cp.mc.Ub_enums + values.ValueType(chunk)
+		typeNo := values.ValueType(len(mc.TypeNames))
+		mc.TypeNames = append(mc.TypeNames, name)
 		vmm.cp.typeNameToTypeList["single"] = vmm.cp.typeNameToTypeList["single"].union(altType(typeNo))
 		vmm.cp.typeNameToTypeList["single?"] = vmm.cp.typeNameToTypeList["single?"].union(altType(typeNo))
 		vmm.cp.typeNameToTypeList["struct"] = vmm.cp.typeNameToTypeList["struct"].union(altType(typeNo))
@@ -237,23 +265,23 @@ func (vmm *VmMaker) createStructs() {
 			labelName := labelNameAndType.VarName
 			labelLocation, alreadyExists := vmm.cp.fieldLabels[labelName]
 			if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice..
-				labelsForStruct = append(labelsForStruct, vmm.cp.mc.Mem[labelLocation].V.(int))
+				labelsForStruct = append(labelsForStruct, mc.Mem[labelLocation].V.(int))
 			} else {
-				vmm.cp.fieldLabels[labelName] = vmm.cp.reserve(vmm.cp.mc, values.LABEL, len(vmm.cp.mc.Labels))
-				labelsForStruct = append(labelsForStruct, len(vmm.cp.mc.Labels))
-				vmm.cp.mc.Labels = append(vmm.cp.mc.Labels, labelName)
+				vmm.cp.fieldLabels[labelName] = vmm.cp.reserve(mc, values.LABEL, len(mc.Labels))
+				labelsForStruct = append(labelsForStruct, len(mc.Labels))
+				mc.Labels = append(mc.Labels, labelName)
 			}
 		}
-		vmm.cp.mc.StructLabels = append(vmm.cp.mc.StructLabels, labelsForStruct)
-		vmm.cp.mc.StructResolve = vmm.cp.mc.StructResolve.Add(chunk, labelsForStruct)
+		mc.StructLabels = append(mc.StructLabels, labelsForStruct)
+		mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
 	}
 }
 
-func (vmm *VmMaker) makeConstructors() {
+func (vmm *VmMaker) makeConstructors(mc *vm.Vm) {
 	for _, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(vmm.cp.mc, name, sig))
+		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
 	}
 }
 
@@ -348,15 +376,15 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 	return &cpF
 }
 
-func (vmm *VmMaker) evaluateConstantsAndVariables() {
+func (vmm *VmMaker) evaluateConstantsAndVariables(mc *vm.Vm) {
 	vmm.cp.gvars.ext = vmm.cp.gconsts
-	vmm.cp.reserve(vmm.cp.mc, values.NULL, nil)
-	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
-	vmm.cp.reserve(vmm.cp.mc, values.SUCCESSFUL_VALUE, nil)
-	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "ok", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
-	vmm.cp.reserve(vmm.cp.mc, values.BREAK, nil)
-	vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
-	vmm.cp.tupleType = vmm.cp.reserve(vmm.cp.mc, values.TYPE, values.TUPLE)
+	vmm.cp.reserve(mc, values.NULL, nil)
+	vmm.cp.addVariable(mc, vmm.cp.gconsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
+	vmm.cp.reserve(mc, values.SUCCESSFUL_VALUE, nil)
+	vmm.cp.addVariable(mc, vmm.cp.gconsts, "ok", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
+	vmm.cp.reserve(mc, values.BREAK, nil)
+	vmm.cp.addVariable(mc, vmm.cp.gconsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
+	vmm.cp.tupleType = vmm.cp.reserve(mc, values.TYPE, values.TUPLE)
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {
@@ -367,19 +395,19 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 				vmm.uP.Throw("vmm/assign/ident", *dec.GetToken())
 			}
 			vname := lhs.(*ast.Identifier).Value
-			runFrom := vmm.cp.mc.CodeTop()
-			inferedType, _ := vmm.cp.compileNode(vmm.cp.mc, rhs, vmm.cp.gvars, INIT)
+			runFrom := mc.CodeTop()
+			inferedType, _ := vmm.cp.compileNode(mc, rhs, vmm.cp.gvars, INIT)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
-			vmm.cp.emit(vmm.cp.mc, vm.Ret)
-			vmm.cp.mc.Run(runFrom)
+			vmm.cp.emit(mc, vm.Ret)
+			mc.Run(runFrom)
 			if declarations == int(constantDeclaration) {
-				vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
+				vmm.cp.addVariable(mc, vmm.cp.gconsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
 			} else {
-				vmm.cp.addVariable(vmm.cp.mc, vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
+				vmm.cp.addVariable(mc, vmm.cp.gvars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
 			}
-			vmm.cp.mc.Code = vmm.cp.mc.Code[:runFrom]
+			mc.Code = mc.Code[:runFrom]
 		}
 	}
 }
