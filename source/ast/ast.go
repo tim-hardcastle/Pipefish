@@ -65,8 +65,9 @@ func (ae *AssignmentExpression) String() string {
 }
 
 type Bling struct {
-	Token token.Token
-	Value string
+	Token     token.Token
+	Value     string
+	Namespace []string
 }
 
 func (bl *Bling) Children() []Node       { return []Node{} }
@@ -130,8 +131,9 @@ func (ge *GolangExpression) GetToken() *token.Token { return &ge.Token }
 func (ge *GolangExpression) String() string         { return ge.Token.Literal }
 
 type Identifier struct {
-	Token token.Token
-	Value string
+	Token     token.Token
+	Value     string
+	Namespace []string
 }
 
 func (i *Identifier) Children() []Node       { return []Node{} }
@@ -159,9 +161,10 @@ func (ie *IndexExpression) String() string {
 }
 
 type InfixExpression struct {
-	Token    token.Token
-	Operator string
-	Args     []Node
+	Token     token.Token
+	Operator  string
+	Args      []Node
+	Namespace []string
 }
 
 func (ie *InfixExpression) Children() []Node       { return ie.Args }
@@ -286,9 +289,10 @@ func (ne *Nothing) GetToken() *token.Token { return &ne.Token }
 func (ne *Nothing) String() string         { return "" }
 
 type PrefixExpression struct {
-	Token    token.Token
-	Operator string
-	Args     []Node
+	Token     token.Token
+	Operator  string
+	Args      []Node
+	Namespace []string
 }
 
 func (pe *PrefixExpression) Children() []Node       { return pe.Args }
@@ -372,9 +376,10 @@ func (st *StructExpression) GetToken() *token.Token { return &st.Token }
 func (st *StructExpression) String() string         { return "struct " + st.Sig.String() }
 
 type SuffixExpression struct {
-	Token    token.Token
-	Operator string
-	Args     []Node
+	Token     token.Token
+	Operator  string
+	Args      []Node
+	Namespace []string
 }
 
 func (se *SuffixExpression) Children() []Node       { return se.Args }
@@ -417,8 +422,9 @@ func (t *TryExpression) String() string {
 }
 
 type TypeLiteral struct {
-	Token token.Token
-	Value string
+	Token     token.Token
+	Value     string
+	Namespace []string
 }
 
 func (t *TypeLiteral) Children() []Node       { return []Node{} }
@@ -426,8 +432,9 @@ func (t *TypeLiteral) GetToken() *token.Token { return &t.Token }
 func (t *TypeLiteral) String() string         { return t.Value }
 
 type UnfixExpression struct {
-	Token    token.Token
-	Operator string
+	Token     token.Token
+	Operator  string
+	Namespace []string
 }
 
 func (uf *UnfixExpression) Children() []Node       { return []Node{} }

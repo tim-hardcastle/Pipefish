@@ -393,19 +393,26 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = altType(values.FUNC), isConst
 		break
 	case *ast.Identifier:
-		enumElement, ok := cp.enumElements[node.Value]
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		enumElement, ok := resolvingCompiler.enumElements[node.Value]
 		if ok {
 			cp.put(mc, vm.Asgm, enumElement)
 			rtnTypes, rtnConst = altType(mc.Mem[enumElement].T), true
 			break
 		}
-		labelNumber, ok := cp.fieldLabels[node.Value]
+		labelNumber, ok := resolvingCompiler.fieldLabels[node.Value]
 		if ok {
 			cp.put(mc, vm.Asgm, labelNumber)
 			rtnTypes, rtnConst = altType(values.LABEL), true
 			break
 		}
-		v, ok := env.getVar(node.Value)
+		var v *variable
+		println("node is", node.Value, len(node.Namespace))
+		if resolvingCompiler != cp {
+			v, ok = resolvingCompiler.gconsts.getVar(node.Value)
+		} else {
+			v, ok = env.getVar(node.Value)
+		}
 		if !ok {
 			cp.p.Throw("comp/ident/known", node.GetToken())
 			break
@@ -532,8 +539,9 @@ NodeTypeSwitch:
 			}
 		}
 	case *ast.InfixExpression:
-		if cp.p.Infixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		if resolvingCompiler.p.Infixes.Contains(node.Operator) {
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		if node.Operator == "," {
@@ -550,7 +558,6 @@ NodeTypeSwitch:
 			break
 		}
 		cp.p.Throw("comp/infix", node.GetToken())
-
 		break
 	case *ast.IntegerLiteral:
 		cp.reserve(mc, values.INT, node.Value)
@@ -784,7 +791,16 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
 			break
 		}
-		v, ok := env.getVar(node.Operator)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		var (
+			v  *variable
+			ok bool
+		)
+		if resolvingCompiler != cp {
+			v, ok = resolvingCompiler.gvars.getVar(node.Operator)
+		} else {
+			v, ok = env.getVar(node.Operator)
+		}
 		if ok && v.types.contains(values.FUNC) {
 			operands := []uint32{v.mLoc}
 			for _, arg := range node.Args {
@@ -801,8 +817,8 @@ NodeTypeSwitch:
 			rtnTypes = ANY_TYPE
 			break
 		}
-		if cp.p.Prefixes.Contains(node.Operator) || cp.p.Functions.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
+		if resolvingCompiler.p.Prefixes.Contains(node.Operator) || resolvingCompiler.p.Functions.Contains(node.Operator) {
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
@@ -816,8 +832,9 @@ NodeTypeSwitch:
 	case *ast.StructExpression:
 		panic("This is used only in the vmmaker and should never be compiled.")
 	case *ast.SuffixExpression:
-		if cp.p.Suffixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		if resolvingCompiler.p.Suffixes.Contains(node.Operator) {
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
@@ -850,15 +867,17 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = altType(values.UNSAT, values.SUCCESSFUL_VALUE), false
 		break
 	case *ast.TypeLiteral:
-		cp.reserve(mc, values.TYPE, values.ValueType(cp.typeNameToTypeList[node.Value][0].(simpleType)))
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		cp.reserve(mc, values.TYPE, values.ValueType(resolvingCompiler.typeNameToTypeList[node.Value][0].(simpleType)))
 		rtnTypes, rtnConst = altType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
-		if cp.p.Unfixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = cp.createFunctionCall(mc, node, env, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		if resolvingCompiler.p.Unfixes.Contains(node.Operator) {
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
 			break
 		}
-		cp.p.Throw("comp/unfix", node.GetToken())
+		cp.p.Throw("comp/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
 		break
 	default:
 		panic("Unimplemented node type.")
@@ -990,6 +1009,20 @@ func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environ
 	}
 }
 
+// Finds the appropriate compiler for a given namespace.
+func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Compiler {
+	lC := cp
+	var ok bool
+	for _, name := range namespace {
+		lC, ok = lC.libraries[name]
+		if !ok {
+			cp.p.Throw("comp/namespace/exist", node.GetToken(), name)
+		}
+	}
+	return lC
+}
+
+// TODO --- this can be replaced with other generalizations.
 func (cp *Compiler) emitErrorBoilerplate(mc *vm.Vm, types alternateType, errCode string, tok *token.Token, appendToken bool) (uint32, bool) {
 	failed := false
 	var backtrackTo uint32

@@ -61,7 +61,7 @@ const (
 	LBRACK = "["
 	RBRACK = "]"
 
-	NAMESPACE = "."
+	NAMESPACE_SEPARATOR = "."
 
 	// Headwords
 

@@ -98,14 +98,10 @@ troz(Z struct) :
 id(x) :
     x
 
-private
-
-zort(x) :
-    x
-
 var
 
 myVar = 42
 myOtherVar = 42
 myStr = "blurp"
+
 

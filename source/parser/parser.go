@@ -55,39 +55,39 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
-	token.SEMICOLON:   SEMICOLON,
-	token.NEWLINE:     SEMICOLON,
-	token.WEAK_COLON:  WEAK_COLON,
-	token.LOG:         LOGGING,
-	token.IFLOG:       LOGGING,
-	token.PRELOG:      LOGGING,
-	token.GLOBAL:      FUNC,
-	token.GIVEN:       GIVEN,
-	token.LOOP:        GIVEN,
-	token.ASSIGN:      ASSIGN,
-	token.CMD_ASSIGN:  ASSIGN,
-	token.VAR_ASSIGN:  ASSIGN,
-	token.DEF_ASSIGN:  ASSIGN,
-	token.GVN_ASSIGN:  GVN_ASSIGN,
-	token.LZY_ASSIGN:  ASSIGN,
-	token.TYP_ASSIGN:  ASSIGN,
-	token.PVR_ASSIGN:  ASSIGN,
-	token.COLON:       COLON,
-	token.MAGIC_COLON: COLON,
-	token.PIPE:        PIPING,
-	token.MAP:         PIPING,
-	token.FILTER:      PIPING,
-	token.OR:          OR,
-	token.AND:         AND,
-	token.NOT:         NOT,
-	token.EQ:          EQUALS,
-	token.NOT_EQ:      EQUALS,
-	token.WEAK_COMMA:  WEAK_COMMA,
-	token.COMMA:       COMMA,
-	token.LBRACK:      INDEX,
-	token.EVAL:        FPREFIX,
-	token.EMDASH:      FSUFFIX,
-	token.NAMESPACE:   NAMESPACE,
+	token.SEMICOLON:           SEMICOLON,
+	token.NEWLINE:             SEMICOLON,
+	token.WEAK_COLON:          WEAK_COLON,
+	token.LOG:                 LOGGING,
+	token.IFLOG:               LOGGING,
+	token.PRELOG:              LOGGING,
+	token.GLOBAL:              FUNC,
+	token.GIVEN:               GIVEN,
+	token.LOOP:                GIVEN,
+	token.ASSIGN:              ASSIGN,
+	token.CMD_ASSIGN:          ASSIGN,
+	token.VAR_ASSIGN:          ASSIGN,
+	token.DEF_ASSIGN:          ASSIGN,
+	token.GVN_ASSIGN:          GVN_ASSIGN,
+	token.LZY_ASSIGN:          ASSIGN,
+	token.TYP_ASSIGN:          ASSIGN,
+	token.PVR_ASSIGN:          ASSIGN,
+	token.COLON:               COLON,
+	token.MAGIC_COLON:         COLON,
+	token.PIPE:                PIPING,
+	token.MAP:                 PIPING,
+	token.FILTER:              PIPING,
+	token.OR:                  OR,
+	token.AND:                 AND,
+	token.NOT:                 NOT,
+	token.EQ:                  EQUALS,
+	token.NOT_EQ:              EQUALS,
+	token.WEAK_COMMA:          WEAK_COMMA,
+	token.COMMA:               COMMA,
+	token.LBRACK:              INDEX,
+	token.EVAL:                FPREFIX,
+	token.EMDASH:              FSUFFIX,
+	token.NAMESPACE_SEPARATOR: NAMESPACE,
 }
 
 type TokenSupplier interface{ NextToken() token.Token }
@@ -119,6 +119,7 @@ type Parser struct {
 	Logging               bool
 	TokenizedDeclarations [12]tokenizedCodeChunks
 	ParsedDeclarations    [12]ParsedCodeChunks
+	currentNamespace      []string
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -176,7 +177,7 @@ func New() *Parser {
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER,
-			token.NAMESPACE, token.IFLOG}),
+			token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
@@ -308,12 +309,18 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		noNativePrefix = true
 	}
 
+	// If we're in a namespace, we need the symbol to be resolved by the appropriate parser.
+	resolvingParser := p.getResolvingParser()
+	if p.ErrorsExist() {
+		return nil
+	}
+
 	// So what we're going to do is find out if the identifier *thinks* it's a function, i.e. if it precedes
 	// something that's a prefix (in the broader sense, i.e. an identifier, literal, LPAREN, etc). But not a
 	// minus sign, that would be confusing, people can use parentheses.
 	// If so, then we will parse it as though it's a Function, and it had better turn out to be a lambda at
 	// runtime. If it isn't, then we'll treat it as an identifier.
-	if noNativePrefix {
+	if noNativePrefix { // TODO -- why aren't builtin, func, and struct not native prefixes?
 		if p.curToken.Type == token.IDENT {
 			if p.curToken.Literal == "builtin" {
 				leftExp = p.parseBuiltInExpression()
@@ -332,11 +339,11 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// Here we step in and deal with things that are functions and objects, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
-			if !p.positionallyFunctional() {
-				if TypeExists(p.curToken.Literal, p.TypeSystem) {
+			if !resolvingParser.positionallyFunctional() {
+				if TypeExists(p.curToken.Literal, resolvingParser.TypeSystem) {
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
 				} else {
-					if p.Unfixes.Contains(p.curToken.Literal) {
+					if resolvingParser.Unfixes.Contains(p.curToken.Literal) {
 						leftExp = p.parseUnfixExpression()
 					} else {
 						leftExp = p.parseIdentifier()
@@ -344,7 +351,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				}
 			} else {
 				switch {
-				case p.Prefixes.Contains(p.curToken.Literal) || p.Forefixes.Contains(p.curToken.Literal):
+				case resolvingParser.Prefixes.Contains(p.curToken.Literal) || resolvingParser.Forefixes.Contains(p.curToken.Literal):
 					leftExp = p.parsePrefixExpression()
 				default:
 					leftExp = p.parseFunctionExpression() // That, at least, is what it is syntactictally.
@@ -356,7 +363,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	}
 
 	for precedence < p.peekPrecedence() {
-		for p.Suffixes.Contains(p.peekToken.Literal) || p.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH {
+		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH {
 			if p.curToken.Type == token.NOT || p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
 				p.prefixSuffixError()
 				return nil
@@ -376,8 +383,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 
 		foundInfix := p.nativeInfixes.Contains(p.peekToken.Type) ||
 			p.lazyInfixes.Contains(p.peekToken.Type) ||
-			p.Infixes.Contains(p.peekToken.Literal) ||
-			p.Midfixes.Contains(p.peekToken.Literal)
+			resolvingParser.Infixes.Contains(p.peekToken.Literal) ||
+			resolvingParser.Midfixes.Contains(p.peekToken.Literal)
 		if !foundInfix {
 			return leftExp
 		}
@@ -394,6 +401,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseStreamingExpression(leftExp)
 			case p.curToken.Type == token.IFLOG:
 				leftExp = p.parseIfLogExpression(leftExp)
+			case p.curToken.Type == token.NAMESPACE_SEPARATOR:
+				leftExp = p.parseNamespaceExpression(leftExp)
 			default:
 				leftExp = p.parseInfixExpression(leftExp)
 			}
@@ -413,6 +422,24 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		return nil
 	}
 	return leftExp
+}
+
+// The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
+// to find what parser should resolve the symbol.
+func (p *Parser) getResolvingParser() *Parser {
+	lP := p
+	for _, name := range p.currentNamespace {
+		s, ok := lP.NamespaceBranch[name]
+		if !ok {
+			p.Throw("parse/namespace/exist", &p.curToken, name)
+		}
+		lP = s.Parser
+	}
+	// We don't need the resolving parser to parse anything but we *do* need to call isPositionallyFunctional,
+	// so it needs the following data to work.
+	lP.curToken = p.curToken
+	lP.peekToken = p.peekToken
+	return lP
 }
 
 func (p *Parser) positionallyFunctional() bool {
@@ -497,7 +524,7 @@ func (p *Parser) peekPrecedence() int {
 }
 
 func (p *Parser) curPrecedence() int {
-	if p.curToken.Type == token.NAMESPACE {
+	if p.curToken.Type == token.NAMESPACE_SEPARATOR {
 		return BELOW_NAMESPACE
 	}
 	if p, ok := precedences[p.curToken.Type]; ok {
@@ -698,6 +725,38 @@ func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
 	return expression
 }
 
+func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
+	p.NextToken()
+	if left.GetToken().Type != token.IDENT {
+		p.Throw("parse/namespace/lhs", left.GetToken())
+		return nil
+	}
+	p.currentNamespace = append(p.currentNamespace, left.GetToken().Literal)
+	right := p.parseExpression(NAMESPACE)
+	namespace := p.currentNamespace
+	p.currentNamespace = []string{}
+	switch right := right.(type) {
+	case *ast.Bling:
+		right.Namespace = namespace
+	case *ast.Identifier:
+		right.Namespace = namespace
+	case *ast.InfixExpression:
+		right.Namespace = namespace
+	case *ast.PrefixExpression:
+		right.Namespace = namespace
+	case *ast.SuffixExpression:
+		right.Namespace = namespace
+	case *ast.TypeLiteral:
+		right.Namespace = namespace
+	case *ast.UnfixExpression:
+		right.Namespace = namespace
+	default:
+		p.Throw("parse/namespace/rhs", right.GetToken())
+	}
+
+	return right
+}
+
 func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	if assignmentTokens.Contains(p.curToken.Type) {
 		return p.parseAssignmentExpression(left)
@@ -815,7 +874,7 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { // Adds "that" a
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
 	case *ast.InfixExpression:
-		if typedExp.GetToken().Type == token.NAMESPACE {
+		if typedExp.GetToken().Type == token.NAMESPACE_SEPARATOR {
 			if typedExp.Args[0].GetToken().Type == token.IDENT {
 				service, ok := p.NamespaceBranch[typedExp.Args[0].(*ast.Identifier).Value]
 				if ok {

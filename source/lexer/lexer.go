@@ -161,7 +161,7 @@ func (l *Lexer) NextToken() token.Token {
 				}
 			}
 		} else {
-			tok = l.NewToken(token.NAMESPACE, ".")
+			tok = l.NewToken(token.NAMESPACE_SEPARATOR, ".")
 		}
 	default:
 		if l.ch == '/' && l.peekChar() == '/' {
