@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lmorg/readline"
 	"src.elv.sh/pkg/persistent/vector"
 
 	"pipefish/source/compiler"
