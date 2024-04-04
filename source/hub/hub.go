@@ -664,59 +664,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString("\n")
 		return false
-	case "vm":
-		vms, _ := compiler.StartService("", "", hub.Db)
-		if vms.Cp.GetParser().ErrorsExist() {
-			hub.GetAndReportErrors(vms.Cp.GetParser())
-			vms.Cp.GetParser().ClearErrors()
-			return false
-		}
-		rline := readline.NewInstance()
-		rline.SetPrompt("vm >> ")
-		var lastError *object.Error
-		for {
-			line, _ := rline.Readline()
-			if line == "quit" {
-				return true
-			}
-			if line == "trace" {
-				if lastError == nil {
-					hub.WriteError("no error to trace.")
-					continue
-				}
-				hub.WritePretty(text.RT_ERROR + lastError.Message + "\n\n")
-				for i := len(lastError.Trace) - 1; i >= 0; i-- {
-					hub.WritePretty("  From: " + text.DescribeTok(lastError.Trace[i]) + text.DescribePos(lastError.Trace[i]) + ".")
-				}
-				hub.WriteString("\n")
-				continue
-			}
-			if len(line) >= 4 && line[:4] == "run " {
-				filename := line[4:]
-				sourcecode, _ := os.ReadFile(filename)
-				vms, _ = compiler.StartService(filename, string(sourcecode)+"\n", hub.Db)
-				if vms.Cp.GetParser().ErrorsExist() {
-					hub.GetAndReportErrors(vms.Cp.GetParser())
-					vms.Cp.GetParser().ClearErrors()
-				}
-				continue
-			}
-			if line == "reset" {
-				vms, _ = compiler.StartService("", "", hub.Db)
-				continue
-			}
-			output := vms.Cp.Do(vms.Mc, line)
-			if vms.Cp.GetParser().ErrorsExist() {
-				hub.GetAndReportErrors(vms.Cp.GetParser())
-				vms.Cp.GetParser().ClearErrors()
-				continue
-			}
-			if output.T == values.ERROR {
-				lastError = output.V.(*object.Error)
-			}
-			hub.WriteString(vms.Cp.Describe(vms.Mc, output))
-		}
-		return false
 	case "where":
 		num, err := strconv.Atoi(args[0])
 		if err != nil {

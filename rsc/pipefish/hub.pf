@@ -156,9 +156,6 @@ users of service(srv string) :
 values :
     HubResponse("values", [])
 
-vm :
-    HubResponse("vm", [])
-
 where(errorNo int) :
     HubResponse("where", [string errorNo])
     
