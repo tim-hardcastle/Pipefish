@@ -676,7 +676,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 	case "vm":
 		sourcecode, _ := os.ReadFile("examples/dep.pf")
-		vms := compiler.NewService("examples/dep.pf", string(sourcecode)+"\n", hub.Db)
+		vms := compiler.StartService("examples/dep.pf", string(sourcecode)+"\n", hub.Db)
 		if vms.Cp.GetParser().ErrorsExist() {
 			hub.GetAndReportErrors(vms.Cp.GetParser())
 			vms.Cp.GetParser().ClearErrors()
@@ -705,7 +705,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			if len(line) >= 4 && line[:4] == "run " {
 				filename := line[4:]
 				sourcecode, _ := os.ReadFile(filename)
-				vms = compiler.NewService(filename, string(sourcecode)+"\n", hub.Db)
+				vms = compiler.StartService(filename, string(sourcecode)+"\n", hub.Db)
 				if vms.Cp.GetParser().ErrorsExist() {
 					hub.GetAndReportErrors(vms.Cp.GetParser())
 					vms.Cp.GetParser().ClearErrors()
@@ -713,7 +713,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				continue
 			}
 			if line == "reset" {
-				vms = compiler.NewService("", "", hub.Db)
+				vms = compiler.StartService("", "", hub.Db)
 				continue
 			}
 			output := vms.Cp.Do(vms.Mc, line)

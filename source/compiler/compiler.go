@@ -20,6 +20,7 @@ type thunk struct {
 }
 
 type Compiler struct {
+	// Permanent state, i.e. it is unchanged after initialization.
 	p                  *parser.Parser
 	enumElements       map[string]uint32
 	fieldLabels        map[string]uint32
@@ -28,9 +29,10 @@ type Compiler struct {
 	gvars              *environment
 	fns                []*cpFunc
 	typeNameToTypeList map[string]alternateType
-	libraries          map[string]*Compiler
+	Services           map[string]*VmService
+	Contacts           []string // The names of services which are contacts.
 
-	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}
+	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>} TODO --- why?
 
 	// Temporary state.
 	thunkList []thunk
@@ -75,7 +77,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		gvars:         newEnvironment(),
 		thunkList:     []thunk{},
 		fns:           []*cpFunc{},
-		libraries:     make(map[string]*Compiler),
+		Services:      make(map[string]*VmService),
 		typeNameToTypeList: map[string]alternateType{
 			"int":      altType(values.INT),
 			"string":   altType(values.STRING),
@@ -1012,12 +1014,12 @@ func (cp *Compiler) emitComma(mc *vm.Vm, node *ast.InfixExpression, env *environ
 // Finds the appropriate compiler for a given namespace.
 func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Compiler {
 	lC := cp
-	var ok bool
 	for _, name := range namespace {
-		lC, ok = lC.libraries[name]
+		service, ok := lC.Services[name]
 		if !ok {
 			cp.p.Throw("comp/namespace/exist", node.GetToken(), name)
 		}
+		lC = service.Cp
 	}
 	return lC
 }

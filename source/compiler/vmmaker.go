@@ -34,16 +34,11 @@ func NewVmMaker(scriptFilepath, sourcecode string, mc *vm.Vm) *VmMaker {
 	return vmm
 }
 
-type VmService struct { // This is what we're trying to construct: a vm and a compiler that between them can evaluate a line of Pipefish.
-	Mc *vm.Vm
-	Cp *Compiler
-}
-
 // The base case: we start off with a blank vm.
-func NewService(scriptFilepath, sourcecode string, db *sql.DB) VmService {
+func StartService(scriptFilepath, sourcecode string, db *sql.DB) VmService {
 	mc := vm.BlankVm(db)
 	cp := initalizeEverything(mc, scriptFilepath, sourcecode)
-	return VmService{mc, cp}
+	return VmService{Mc: mc, Cp: cp, ScriptFilepath: scriptFilepath}
 }
 
 // Then we can recurse over this, passing it the same vm every time.
@@ -63,7 +58,7 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.uP.ParseImports() // That is, parse the import declarations. The files being imported are imported by the
+	vmm.uP.ParseImports() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -156,7 +151,7 @@ func (vmm *VmMaker) compileImports(mc *vm.Vm) {
 	for namespace, lib := range vmm.cp.p.NamespaceBranch {
 		sourcecode, _ := os.ReadFile(lib.ScriptFilepath)
 		newCp := initalizeEverything(mc, lib.ScriptFilepath, string(sourcecode))
-		vmm.cp.libraries[namespace] = newCp
+		vmm.cp.Services[namespace] = &VmService{Cp: newCp, Mc: mc, ScriptFilepath: lib.ScriptFilepath}
 	}
 }
 
