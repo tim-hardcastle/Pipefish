@@ -76,7 +76,7 @@ func (oH *ConsumingOutHandler) Out(vals []object.Object, p *Parser, env *object.
 
 }
 
-func MakeSnapEffectHandler(out io.Writer, env object.Environment, sn *Snap) EffectHandler {
+func MakeSnapEffectHandler(out io.Writer, sn *Snap) EffectHandler {
 	iH := &snapInHandler{stdIn: standardInHandler{}, snap: sn}
 	oH := &snapOutHandler{stdOut: standardOutHandler{out: out}, snap: sn}
 	return EffectHandler{InHandle: iH, OutHandle: oH}
@@ -113,7 +113,7 @@ func (oH *snapOutHandler) Out(vals []object.Object, p *Parser, env *object.Envir
 	oH.stdOut.Out(vals, p, env)
 }
 
-func MakeTestEffectHandler(out io.Writer, env object.Environment, scanner *bufio.Scanner, testOutputType TestOutputType) EffectHandler {
+func MakeTestEffectHandler(out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) EffectHandler {
 	iH := &TestInHandler{out: out, stdIn: standardInHandler{}, scanner: scanner, testOutputType: testOutputType}
 	oH := &TestOutHandler{stdOut: standardOutHandler{out: out}, scanner: scanner, testOutputType: testOutputType}
 	return EffectHandler{InHandle: iH, OutHandle: oH}

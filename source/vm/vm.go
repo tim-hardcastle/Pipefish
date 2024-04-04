@@ -614,7 +614,7 @@ loop:
 			}
 			vm.Mem[args[0]] = values.Value{values.ValueType(args[1]), fields}
 		case Strx:
-			vm.Mem[args[0]] = values.Value{values.STRING, vm.describe(vm.Mem[args[1]])}
+			vm.Mem[args[0]] = values.Value{values.STRING, vm.Describe(vm.Mem[args[1]])}
 		case Subf:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) - vm.Mem[args[2]].V.(float64)}
 		case Subi:
@@ -938,7 +938,7 @@ func (vm *Vm) DescribeType(t values.ValueType) string {
 	return vm.TypeNames[t]
 }
 
-func (vm *Vm) describe(v values.Value) string {
+func (vm *Vm) Describe(v values.Value) string {
 	if v.T >= vm.Ub_enums { // We have a struct.
 		var buf strings.Builder
 		buf.WriteString(vm.TypeNames[v.T])
@@ -946,7 +946,7 @@ func (vm *Vm) describe(v values.Value) string {
 		var sep string
 		labels := vm.StructLabels[v.T-vm.Ub_enums]
 		for i, el := range v.V.([]values.Value) {
-			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[labels[i]], vm.describe(el))
+			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[labels[i]], vm.Describe(el))
 			sep = ", "
 		}
 		buf.WriteByte(')')
@@ -996,7 +996,7 @@ func (vm *Vm) describe(v values.Value) string {
 		var sep string
 		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
 			el, _ := v.V.(vector.Vector).Index(i)
-			fmt.Fprintf(&buf, "%s%s", sep, vm.describe(el.(values.Value)))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.Describe(el.(values.Value)))
 			sep = ", "
 		}
 		buf.WriteByte(']')
@@ -1006,7 +1006,7 @@ func (vm *Vm) describe(v values.Value) string {
 		buf.WriteString("map(")
 		var sep string
 		(v.V.(*values.Map)).Range(func(k, v values.Value) {
-			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.describe(k), vm.describe(v))
+			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.Describe(k), vm.Describe(v))
 			sep = ", "
 		})
 		buf.WriteByte(')')
@@ -1015,13 +1015,13 @@ func (vm *Vm) describe(v values.Value) string {
 		return "NULL"
 	case values.PAIR:
 		vals := v.V.([]values.Value)
-		return vm.describe(vals[0]) + "::" + vm.describe(vals[1])
+		return vm.Describe(vals[0]) + "::" + vm.Describe(vals[1])
 	case values.SET:
 		var buf strings.Builder
 		buf.WriteString("set(")
 		var sep string
 		v.V.(values.Set).Range(func(k values.Value) {
-			fmt.Fprintf(&buf, "%s%s", sep, vm.describe(k))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.Describe(k))
 			sep = ", "
 		})
 		buf.WriteByte(')')
@@ -1035,7 +1035,7 @@ func (vm *Vm) describe(v values.Value) string {
 	case values.TUPLE:
 		result := make([]string, len(v.V.([]values.Value)))
 		for i, v := range v.V.([]values.Value) {
-			result[i] = vm.describe(v)
+			result[i] = vm.Describe(v)
 		}
 		prefix := "("
 		if len(result) == 1 {
@@ -1060,7 +1060,7 @@ func (vm *Vm) Literal(v values.Value) string {
 	case values.SUCCESSFUL_VALUE:
 		return "ok"
 	default:
-		return vm.describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
+		return vm.Describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
 	}
 }
 

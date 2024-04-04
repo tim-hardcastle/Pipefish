@@ -24,7 +24,7 @@ type Compiler struct {
 	p                  *parser.Parser
 	enumElements       map[string]uint32
 	fieldLabels        map[string]uint32
-	structNumbers      map[string]values.ValueType
+	StructNumbers      map[string]values.ValueType
 	gconsts            *environment
 	gvars              *environment
 	fns                []*cpFunc
@@ -37,7 +37,6 @@ type Compiler struct {
 	// Temporary state.
 	thunkList []thunk
 	ifStack   []uint32
-	goNumber  uint32 // Keeps track of how many Go functions we've created.
 }
 
 type cpFunc struct { // The compiler's representation of a function after the function has been compiled.
@@ -72,7 +71,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		p:             p,
 		enumElements:  make(map[string]uint32),
 		fieldLabels:   make(map[string]uint32),
-		structNumbers: make(map[string]values.ValueType),
+		StructNumbers: make(map[string]values.ValueType),
 		gconsts:       newEnvironment(),
 		gvars:         newEnvironment(),
 		thunkList:     []thunk{},
@@ -409,7 +408,6 @@ NodeTypeSwitch:
 			break
 		}
 		var v *variable
-		println("node is", node.Value, len(node.Namespace))
 		if resolvingCompiler != cp {
 			v, ok = resolvingCompiler.gconsts.getVar(node.Value)
 		} else {
@@ -1445,7 +1443,7 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 				return functionAndType.t
 			}
 			// It might be a short-form constructor.
-			structNumber, ok := cp.structNumbers[builtinTag]
+			structNumber, ok := cp.StructNumbers[builtinTag]
 			if ok {
 				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
 				cp.emit(mc, vm.Strc, args...)

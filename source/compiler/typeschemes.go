@@ -227,7 +227,6 @@ func (aT alternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
 			return values.UNDEFINED_VALUE, false
 		}
 	}
-	println("c")
 	return values.UNDEFINED_VALUE, false
 }
 

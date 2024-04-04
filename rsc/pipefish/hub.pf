@@ -16,7 +16,7 @@ config db :
     HubResponse("config-db", [])
 
 create(grp string) :
-    HubResponse("create" [grp])
+    HubResponse("create", [grp])
 
 edit(filename string) :
     HubResponse("edit", [filename])
@@ -136,7 +136,7 @@ unadd(usr string) to (grp string) :
     HubResponse("unadd", [usr, grp])
 
 uncreate(grp string) :
-    HubResponse("uncreate" [grp])
+    HubResponse("uncreate", [grp])
 
 unlet(grp string) use (srv string) :
     HubResponse("unlet-use", [grp, srv])

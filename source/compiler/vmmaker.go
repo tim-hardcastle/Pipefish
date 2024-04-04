@@ -35,18 +35,18 @@ func NewVmMaker(scriptFilepath, sourcecode string, mc *vm.Vm) *VmMaker {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, sourcecode string, db *sql.DB) VmService {
+func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*VmService, *initializer.Initializer) {
 	mc := vm.BlankVm(db)
-	cp := initalizeEverything(mc, scriptFilepath, sourcecode)
-	return VmService{Mc: mc, Cp: cp, ScriptFilepath: scriptFilepath}
+	cp, uP := initalizeEverything(mc, scriptFilepath, sourcecode) // We pass back the uP bcause it contains the sources.
+	return &VmService{Mc: mc, Cp: cp, ScriptFilepath: scriptFilepath}, uP
 }
 
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and mutates the vm.
-func initalizeEverything(mc *vm.Vm, scriptFilepath, sourcecode string) *Compiler {
+func initalizeEverything(mc *vm.Vm, scriptFilepath, sourcecode string) (*Compiler, *initializer.Initializer) {
 	vmm := NewVmMaker(scriptFilepath, sourcecode, mc)
 	vmm.Make(mc, scriptFilepath, sourcecode)
-	return vmm.cp
+	return vmm.cp, vmm.uP
 }
 
 func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
@@ -150,7 +150,7 @@ func (vmm *VmMaker) compileFunctions(mc *vm.Vm, args ...declarationType) {
 func (vmm *VmMaker) compileImports(mc *vm.Vm) {
 	for namespace, lib := range vmm.cp.p.NamespaceBranch {
 		sourcecode, _ := os.ReadFile(lib.ScriptFilepath)
-		newCp := initalizeEverything(mc, lib.ScriptFilepath, string(sourcecode))
+		newCp, _ := initalizeEverything(mc, lib.ScriptFilepath, string(sourcecode))
 		vmm.cp.Services[namespace] = &VmService{Cp: newCp, Mc: mc, ScriptFilepath: lib.ScriptFilepath}
 	}
 }
@@ -230,7 +230,7 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 		}
 		name := lhs.GetToken().Literal
 
-		_, alreadyExists := vmm.cp.structNumbers[name]
+		_, alreadyExists := vmm.cp.StructNumbers[name]
 		if alreadyExists {
 			vmm.uP.Throw("init/struct/type", *lhs.GetToken())
 		}
@@ -245,7 +245,7 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 		vmm.cp.typeNameToTypeList["struct?"] = vmm.cp.typeNameToTypeList["struct?"].union(altType(typeNo))
 		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
 		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
-		vmm.cp.structNumbers[name] = typeNo
+		vmm.cp.StructNumbers[name] = typeNo
 
 		// The parser needs to know about it too.
 
@@ -281,7 +281,7 @@ func (vmm *VmMaker) makeConstructors(mc *vm.Vm) {
 }
 
 func (vmm *VmMaker) compileConstructor(mc *vm.Vm, name string, sig signature.Signature) *cpFunc {
-	typeNo := vmm.cp.structNumbers[name]
+	typeNo := vmm.cp.StructNumbers[name]
 	cpF := &cpFunc{types: altType(typeNo), builtin: name}
 	fnenv := newEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.loReg = mc.MemTop()
@@ -339,7 +339,7 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 		if ok {
 			cpF.types = types.t
 		} else {
-			structNo, ok := vmm.cp.structNumbers[name]
+			structNo, ok := vmm.cp.StructNumbers[name]
 			if ok {
 				cpF.types = altType(structNo)
 			}
