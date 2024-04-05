@@ -340,14 +340,15 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
 			if !resolvingParser.positionallyFunctional() {
-				if TypeExists(p.curToken.Literal, resolvingParser.TypeSystem) {
+				switch {
+				case TypeExists(p.curToken.Literal, resolvingParser.TypeSystem):
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
-				} else {
-					if resolvingParser.Unfixes.Contains(p.curToken.Literal) {
-						leftExp = p.parseUnfixExpression()
-					} else {
-						leftExp = p.parseIdentifier()
-					}
+				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
+					leftExp = p.parseUnfixExpression()
+				case resolvingParser.Bling.Contains(p.curToken.Literal):
+					leftExp = &ast.Bling{Token: p.curToken, Value: p.curToken.Literal}
+				default:
+					leftExp = p.parseIdentifier()
 				}
 			} else {
 				switch {

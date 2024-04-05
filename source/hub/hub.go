@@ -185,12 +185,21 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	val := ServiceDo(service, line)
 	// *** FROM ALL THAT LOGIC, WE EXTRACT ONE PIPEFISH VALUE !!!
 
+	if service.Cp.GetParser().ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
+		hub.GetAndReportErrors(service.Cp.GetParser())
+		return passedServiceName, object.OK_RESPONSE
+	}
+
 	if val.T == values.ERROR {
 		hub.WritePretty("\n[0] " + valToString(service, val))
 		hub.WriteString("\n")
 		hub.ers = []*object.Error{val.V.(*object.Error)}
 	} else {
-		hub.WriteString(service.Mc.Describe(val))
+		out := service.Mc.Describe(val)
+		hub.WriteString(out)
+		if hub.currentServiceName == "#snap" {
+			hub.snap.AddOutput(out)
+		}
 	}
 
 	return passedServiceName, object.OK_RESPONSE
@@ -199,6 +208,10 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 	hubService := hub.services["hub"]
 	hubReturn := ServiceDo(hubService, line)
+	if hubService.Cp.GetParser().ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
+		hub.GetAndReportErrors(hubService.Cp.GetParser())
+		return "error", []string{}
+	}
 	if hubReturn.T == values.ERROR {
 		hub.WriteError(hubReturn.V.(*object.Error).Message)
 		return "error", []string{hubReturn.V.(*object.Error).Message}
@@ -503,6 +516,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 	case "snap":
 		scriptFilepath := args[0]
+		println("Script filepath is", scriptFilepath)
 		testFilepath := args[1]
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
@@ -1402,6 +1416,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	h.WriteString(text.OK + "\n")
 }
 
+// We return the parser because this is where any compile-time errors in lex-parse-compile will end up.
 func ServiceDo(service *compiler.VmService, line string) values.Value {
 	return service.Cp.Do(service.Mc, line)
 }

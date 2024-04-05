@@ -281,6 +281,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/call": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "No implementation of function " + text.Emph(tok.Literal) + "exists for the given types"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You have supplied the function with arguments for which no function of that name is defined."
+		},
+	},
+
 	"comp/eq/types": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't compare values of different types"
@@ -291,13 +300,22 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/ident/known": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "Unknown identifier " + text.Emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You don't seem to have declared that as a variable, function, constant, or anything else."
+		},
+	},
+
 	"comp/not/bool": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't apply 'not' to non-boolean type"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Charm has no concept of \"truthiness\", so the 'not' operaotr can only be applied " +
-				"to one of the two values 'true' and 'false' in the type 'boo'."
+			return "Charm has no concept of \"truthiness\", so the 'not' operator can only be applied " +
+				"to one of the two values 'true' and 'false' in the type 'bool'."
 		},
 	},
 

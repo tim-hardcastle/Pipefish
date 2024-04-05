@@ -379,7 +379,8 @@ NodeTypeSwitch:
 			break NodeTypeSwitch
 		}
 	case *ast.Bling:
-		panic("There is no reason to compile this.")
+		cp.p.Throw("comp/bling", node.GetToken())
+		break
 	case *ast.BooleanLiteral:
 		cp.reserve(mc, values.BOOL, node.Value)
 		rtnTypes, rtnConst = altType(values.BOOL), true
@@ -1110,12 +1111,12 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 		if i < cp.p.FunctionGroupMap[node.GetToken().Literal].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
 				cp.p.Throw("comp/ref/ident", node.GetToken())
-				return altType(values.ERROR), true
+				return altType(values.COMPILE_TIME_ERROR), false
 			}
 			v, ok := env.getVar(arg.GetToken().Literal)
 			if !ok {
 				cp.p.Throw("comp/ref/var", node.GetToken())
-				return altType(values.ERROR), true
+				return altType(values.COMPILE_TIME_ERROR), false
 			}
 			b.types[i] = cp.typeNameToTypeList["single?"]
 			cst = false
@@ -1134,11 +1135,14 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 			b.valLocs[i] = values.C_BLING
 		default: // Otherwise we emit code to evaluate it.
 			b.types[i], cstI = cp.compileNode(mc, arg, env, ac)
+			if b.types[i].(alternateType).contains(values.COMPILE_TIME_ERROR) {
+				return altType(values.COMPILE_TIME_ERROR), false
+			}
 			cst = cst && cstI
 			b.valLocs[i] = mc.That()
 			if b.types[i].(alternateType).isOnly(values.ERROR) {
 				cp.p.Throw("comp/arg/error", node.GetToken())
-				return altType(values.ERROR), true
+				return altType(values.COMPILE_TIME_ERROR), false
 			}
 			if b.types[i].(alternateType).contains(values.ERROR) {
 				cp.emit(mc, vm.Qtyp, mc.That(), uint32(tp(values.ERROR)), mc.CodeTop()+3)
