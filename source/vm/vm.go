@@ -28,16 +28,17 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve   StructResolver
-	Ub_enums        values.ValueType
-	TypeNames       []string
-	StructLabels    [][]int    // Array from a struct to its label numbers.
-	Enums           [][]string // Array from the number of the enum to a list of the strings of its elements.
-	Labels          []string   // Array from the number of a field label to its name.
-	Tokens          []*token.Token
-	LambdaFactories []*LambdaFactory
-	GoFns           []GoFn
-	Db              *sql.DB
+	StructResolve    StructResolver
+	Ub_enums         values.ValueType
+	TypeNames        []string
+	StructLabels     [][]int    // Array from a struct to its label numbers.
+	Enums            [][]string // Array from the number of the enum to a list of the strings of its elements.
+	Labels           []string   // Array from the number of a field label to its name.
+	Tokens           []*token.Token
+	LambdaFactories  []*LambdaFactory
+	SnippetFactories []*SnippetFactory
+	GoFns            []GoFn
+	Db               *sql.DB
 }
 
 type GoFn struct {
@@ -50,6 +51,13 @@ type LambdaFactory struct {
 	Model  *Lambda  // Copy this to make the lambda.
 	ExtMem []uint32 // Then these are the location of the values we're closing over, so we copy them into the lambda.
 	Size   uint32   // The size of the memory for a new VM.
+}
+
+// All the information we need to make a snippet at a particular point in the code.
+type SnippetFactory struct {
+	SnippetType values.ValueType
+	Env         map[string]uint32 // A flattened map of strings to memory locations of variables.
+	Code        string
 }
 
 type Lambda struct {
@@ -497,6 +505,14 @@ loop:
 				result = result.Set(k, v)
 			}
 			vm.Mem[args[0]] = values.Value{values.MAP, result}
+		case MkSn:
+			sFac := vm.SnippetFactories[args[1]]
+			result := &values.Map{}
+			for k, v := range sFac.Env {
+				result = result.Set(values.Value{values.STRING, k}, vm.Mem[v])
+			}
+			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.SnippetType),
+				[]values.Value{values.Value{values.STRING, sFac.Code}, values.Value{values.MAP, result}}}
 		case Modi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 		case Mulf:

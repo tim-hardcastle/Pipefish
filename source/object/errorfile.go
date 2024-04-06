@@ -283,10 +283,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/call": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "No implementation of function " + text.Emph(tok.Literal) + "exists for the given types"
+			return "No implementation of function " + text.Emph(tok.Literal) + " exists for the given types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You have supplied the function with arguments for which no function of that name is defined."
+			return "You have supplied the function with arguments of types for which no function of that name is defined."
 		},
 	},
 

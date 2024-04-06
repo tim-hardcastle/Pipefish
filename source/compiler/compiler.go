@@ -104,6 +104,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"single?":  altType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"struct":   altType(),
 			"struct?":  altType(values.NULL),
+			"snippet":  altType(),
+			"snippet?": altType(values.NULL),
 		},
 	}
 }
@@ -162,6 +164,25 @@ func (cp *Compiler) reserveError(mc *vm.Vm, ec string, tok *token.Token, args []
 func (cp *Compiler) reserveToken(mc *vm.Vm, tok *token.Token) uint32 {
 	mc.Tokens = append(mc.Tokens, tok)
 	return uint32(len(mc.Tokens) - 1)
+}
+
+func (cp *Compiler) reserveSnippetFactory(mc *vm.Vm, t string, env *environment, fnNode *ast.SuffixExpression) uint32 {
+	vMap := make(map[string]uint32)
+	vMap = flattenEnv(env, vMap)
+	snF := &vm.SnippetFactory{SnippetType: cp.StructNumbers[t], Code: fnNode.Token.Literal, Env: vMap}
+	mc.SnippetFactories = append(mc.SnippetFactories, snF)
+	return uint32(len(mc.SnippetFactories) - 1)
+}
+
+func flattenEnv(env *environment, vMap map[string]uint32) map[string]uint32 {
+	// TODO --- variables captured should be restricted by access.
+	if env.ext != nil {
+		flattenEnv(env.ext, vMap)
+	}
+	for k, v := range env.data {
+		vMap[k] = v.mLoc
+	}
+	return vMap
 }
 
 func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
@@ -834,6 +855,17 @@ NodeTypeSwitch:
 		panic("This is used only in the vmmaker and should never be compiled.")
 	case *ast.SuffixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		if node.GetToken().Type == token.EMDASH {
+			switch t := node.Args[0].(type) {
+			case *ast.TypeLiteral:
+				snF := cp.reserveSnippetFactory(mc, t.Value, env, node)
+				cp.put(mc, vm.MkSn, snF)
+				break NodeTypeSwitch
+			default:
+				cp.p.Throw("comp/snippet/type/b", node.GetToken())
+				break NodeTypeSwitch
+			}
+		}
 		if resolvingCompiler.p.Suffixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
 			break

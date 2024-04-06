@@ -982,7 +982,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok *token.Toke
 	c.prsr.BuiltinFunctions[structName] = constructor
 
 	// And the first constructor function as it appears in the parser's function table.
-
+	panic("Oops")
 	c.prsr.FunctionTable.Add(c.prsr.TypeSystem,
 		structName, // The function name ...
 		ast.Function{Sig: sig, // ... signature ...
@@ -1032,7 +1032,7 @@ func AssignStructDef(structName string, sig signature.Signature, tok *token.Toke
 
 	c.prsr.BuiltinFunctions[structName+"_with"] = constructor_2
 	// And the second constructor function as it appears in the parser's function table.
-
+	panic("Oops")
 	c.prsr.FunctionTable.Add(c.prsr.TypeSystem, structName, // The function name ...
 		ast.Function{Sig: signature.Signature{
 			signature.NameTypePair{VarName: "t", VarType: "tuple"}}, // ... signature ...

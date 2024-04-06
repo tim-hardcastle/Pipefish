@@ -95,6 +95,11 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
+	vmm.createLanguagesAndContacts(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
 	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -113,6 +118,7 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
+	// We add in constructors for the structs, languages, and contacts.
 	vmm.makeConstructors(mc)
 
 	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
@@ -223,7 +229,7 @@ func (vmm *VmMaker) createEnums(mc *vm.Vm) {
 }
 
 func (vmm *VmMaker) createStructs(mc *vm.Vm) {
-	for chunk, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
+	for _, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		if lhs.GetToken().Type != token.IDENT {
 			vmm.uP.Throw("init/enum/lhs", *lhs.GetToken())
@@ -251,7 +257,7 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 
 		vmm.uP.Parser.Functions.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.p.FunctionTable.Add(vmm.cp.p.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: uint32(chunk)}) // TODO --- give them their own ast type?
+		vmm.cp.p.FunctionTable.Add(vmm.cp.p.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?
 
 		// We make the labels exist.
 
@@ -272,10 +278,68 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 	}
 }
 
+func (vmm *VmMaker) createLanguagesAndContacts(mc *vm.Vm) {
+	for _, name := range vmm.cp.p.Languages {
+		vmm.addLanguageOrContact(mc, name)
+	}
+	for name := range vmm.cp.p.Contacts {
+		vmm.addLanguageOrContact(mc, name)
+	}
+}
+
+func (vmm *VmMaker) addLanguageOrContact(mc *vm.Vm, name string) {
+
+	sig := signature.Signature{signature.NameTypePair{VarName: "text", VarType: "string"}, signature.NameTypePair{VarName: "env", VarType: "map"}}
+
+	typeNo := values.ValueType(len(mc.TypeNames))
+	mc.TypeNames = append(mc.TypeNames, name)
+	vmm.cp.typeNameToTypeList["single"] = vmm.cp.typeNameToTypeList["single"].union(altType(typeNo))
+	vmm.cp.typeNameToTypeList["single?"] = vmm.cp.typeNameToTypeList["single?"].union(altType(typeNo))
+	vmm.cp.typeNameToTypeList["struct"] = vmm.cp.typeNameToTypeList["struct"].union(altType(typeNo))
+	vmm.cp.typeNameToTypeList["struct?"] = vmm.cp.typeNameToTypeList["struct?"].union(altType(typeNo))
+	vmm.cp.typeNameToTypeList["snippet"] = vmm.cp.typeNameToTypeList["snippet"].union(altType(typeNo))
+	vmm.cp.typeNameToTypeList["snippet?"] = vmm.cp.typeNameToTypeList["snippet?"].union(altType(typeNo))
+	vmm.cp.typeNameToTypeList[name] = altType(typeNo)
+	vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
+	vmm.cp.StructNumbers[name] = typeNo
+
+	// The parser needs to know about it too.
+
+	vmm.uP.Parser.Functions.Add(name)
+	vmm.cp.p.FunctionTable.Add(vmm.cp.p.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
+
+	// And the vm.
+	vmm.addStructLabelsToMc(mc, name, typeNo, sig)
+}
+
+func (vmm *VmMaker) addStructLabelsToMc(mc *vm.Vm, name string, typeNo values.ValueType, sig signature.Signature) {
+	labelsForStruct := make([]int, 0, len(sig))
+	for _, labelNameAndType := range sig {
+		labelName := labelNameAndType.VarName
+		labelLocation, alreadyExists := vmm.cp.fieldLabels[labelName]
+		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice..
+			labelsForStruct = append(labelsForStruct, mc.Mem[labelLocation].V.(int))
+		} else {
+			vmm.cp.fieldLabels[labelName] = vmm.cp.reserve(mc, values.LABEL, len(mc.Labels))
+			labelsForStruct = append(labelsForStruct, len(mc.Labels))
+			mc.Labels = append(mc.Labels, labelName)
+		}
+	}
+	mc.StructLabels = append(mc.StructLabels, labelsForStruct)
+	mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
+}
+
 func (vmm *VmMaker) makeConstructors(mc *vm.Vm) {
 	for _, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
+	}
+	sig := signature.Signature{signature.NameTypePair{VarName: "text", VarType: "string"}, signature.NameTypePair{VarName: "env", VarType: "map"}}
+	for _, name := range vmm.cp.p.Languages {
+		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
+	}
+	for name := range vmm.cp.p.Contacts {
 		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
 	}
 }

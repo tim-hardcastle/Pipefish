@@ -20,6 +20,7 @@ const (
 	loc
 	mem
 	num
+	sfc
 	tok
 	tup
 	typ
@@ -48,6 +49,8 @@ func (op *Operation) ppOperand(i int) string {
 		return " m" + opVal
 	case num:
 		return " %" + opVal
+	case sfc:
+		return " Σ" + opVal
 	case tok:
 		return " TK" + opVal
 	case tup:
@@ -138,6 +141,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Mkfn: {"mkfn", operands{dst, lfc}},
 	Mkmp: {"mkmp", operands{dst, mem}},
 	Mkpr: {"mkpr", operands{dst, mem, mem}},
+	MkSn: {"mkSn", operands{dst, sfc}},
 	Mkst: {"mkst", operands{dst, mem}},
 	Modi: {"modi", operands{dst, mem, mem}},
 	Mulf: {"mulf", operands{dst, mem, mem}},
@@ -256,6 +260,7 @@ const (
 	Mkmp
 	Mkpr
 	Mkst
+	MkSn
 	Modi
 	Mulf
 	Muli

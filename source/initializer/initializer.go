@@ -586,8 +586,11 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				var ty string
 				if kindOfDeclarationToParse == languageDeclaration {
 					ty = "language"
+					uP.Parser.Languages = append(uP.Parser.Languages, name)
+
 				} else {
 					ty = "contact"
+					uP.Parser.Contacts[name] = path
 				}
 				uP.Parser.TypeSystem.AddTransitiveArrow(name, ty)
 				uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
@@ -596,21 +599,6 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				uP.Parser.AllFunctionIdents.Add(name)
 				uP.Parser.Functions.Add(name)
 				uP.Parser.Structs.Add(name)
-				evaluator.AssignStructDef(name, SNIPPET_SIG, parsedCode.GetToken(), evaluator.NewContext(uP.Parser, uP.Parser.GlobalConstants, evaluator.DEF, false))
-			}
-			if kindOfDeclarationToParse == contactDeclaration {
-				service, init := CreateService(path, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, &parser.Service{}, "")
-				service.Parser.RootService = service
-				uP.Parser.Services[name] = service
-				uP.Parser.Contacts = append(uP.Parser.Contacts, name)
-				init.GetSource(path)
-				if len(init.Parser.Errors) > 0 {
-					uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)
-					uP.Parser.Services[name].Broken = true
-				}
-				for k, v := range init.Sources {
-					uP.Sources[k] = v
-				}
 			}
 		}
 	}
@@ -741,7 +729,6 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 }
 
 func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
-
 	D := digraph.Digraph[int]{}
 	// I build the map and the digraph.
 	for i := range uP.Parser.TokenizedDeclarations[declarations] {
@@ -772,7 +759,6 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 func (uP *Initializer) MakeFunctions(sourceName string) {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := evaluator.NewGoHandler(uP.Parser)
-	c := len(uP.Parser.ParsedDeclarations[typeDeclaration]) // Because we've already declared the constructors for each struct type.
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
@@ -785,9 +771,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
 					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
-					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration,
-					Number:  uint32(c)})
-			c++
+					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)
 			}
@@ -807,7 +791,6 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 				body.(*ast.GolangExpression).Sig = sig
 				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}
-
 		}
 	}
 
