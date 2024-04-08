@@ -327,16 +327,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseBuiltInExpression()
 				return leftExp
 			}
-
-			if p.curToken.Literal == "func" {
-				leftExp = p.parseFuncExpression()
-				return leftExp
-			}
-
-			if p.curToken.Literal == "struct" {
-				leftExp = p.parseStructExpression()
-				return leftExp
-			}
 			// Here we step in and deal with things that are functions and objects, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
@@ -352,6 +342,14 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					leftExp = p.parseIdentifier()
 				}
 			} else {
+				if p.curToken.Literal == "func" {
+					leftExp = p.parseFuncExpression()
+					return leftExp
+				}
+				if p.curToken.Literal == "struct" {
+					leftExp = p.parseStructExpression()
+					return leftExp
+				}
 				switch {
 				case resolvingParser.Prefixes.Contains(p.curToken.Literal) || resolvingParser.Forefixes.Contains(p.curToken.Literal):
 					leftExp = p.parsePrefixExpression()
