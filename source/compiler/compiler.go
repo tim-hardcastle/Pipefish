@@ -1394,6 +1394,21 @@ func (cp *Compiler) emitTypeComparison(mc *vm.Vm, typeAsString string, mem, loc 
 		cp.emit(mc, newOp.Opcode, newArgs...)
 		return
 	}
+	var abType values.AbstractType
+	for _, aT := range mc.AbstractTypes {
+		if aT.Name == typeAsString {
+			abType = aT.AT
+			break
+		}
+	}
+	if abType != nil {
+		args := []uint32{DUMMY}
+		for _, t := range abType {
+			args = append(args, uint32(t))
+		}
+		args = append(args, DUMMY)
+		cp.emit(mc, vm.Qabt, args...)
+	}
 	panic("Unknown type: " + typeAsString)
 }
 

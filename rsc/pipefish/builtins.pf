@@ -71,5 +71,22 @@ mapwithoutmaker(x map, y tuple)  : builtin "map_without"
 
 types
 
-foo = bar
+Dragon = struct(name string, temperatureOfFire int, valueOfHoard int)
+Troll = struct(name string, turnedToStone bool, IQ bool)
+Orc = struct(name string, urukHai bool)
+Person = struct(name string, age int)
 
+Monster = Dragon/Troll/Orc
+
+const
+
+smaug = Dragon("Smaug", 451, 1000000)
+doug = Person("Douglas", 42)
+
+def
+
+kill(m Monster) :
+    "You kill the " + string(type(m)) + "."
+
+kill(p Person) :
+    "Killing people is wrong!"

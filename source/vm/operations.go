@@ -54,11 +54,11 @@ func (op *Operation) ppOperand(i int) string {
 	case tok:
 		return " TK" + opVal
 	case tup:
-		args := op.Args[i:]
+		args := op.Args[i : len(op.Args)+1-len(OPERANDS[op.Opcode].or)+i]
 		result := " ("
-		for i, v := range args {
+		for j, v := range args[:] {
 			result = result + "m" + strconv.Itoa(int(v))
-			if i < len(args)-1 {
+			if j < len(args)-1 {
 				result = result + " "
 			}
 		}
@@ -154,6 +154,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Orb:  {"orb", operands{dst, mem, mem}},
 	Outp: {"outp", operands{mem}},
 	Outt: {"outt", operands{mem}},
+	Qabt: {"qabt", operands{mem, tup, loc}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
@@ -277,6 +278,7 @@ const (
 	Orb
 	Outp
 	Outt
+	Qabt
 	Qntp
 	Qtru
 	Qtyp

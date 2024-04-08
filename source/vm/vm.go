@@ -544,6 +544,15 @@ loop:
 			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
 		case Outt:
 			fmt.Println(vm.Describe(vm.Mem[args[0]]))
+		case Qabt:
+			for _, t := range args[1 : len(args)-1] {
+				if vm.Mem[args[0]].T == values.ValueType(t) {
+					loc = loc + 1
+					continue loop
+				}
+			}
+			loc = args[len(args)-1]
+			continue
 		case QlnT:
 			if len(vm.Mem[args[0]].V.([]values.Value)) == int(args[1]) {
 				loc = loc + 1

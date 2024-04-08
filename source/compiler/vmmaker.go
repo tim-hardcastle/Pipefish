@@ -95,6 +95,8 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
+	vmm.createAbstractTypes(mc)
+
 	vmm.createLanguagesAndContacts(mc)
 	if vmm.uP.ErrorsExist() {
 		return
@@ -169,9 +171,10 @@ type declarationType int
 const (
 	importDeclaration          declarationType = iota
 	enumDeclaration                            //
-	typeDeclaration                            //
+	structDeclaration                          //
 	languageDeclaration                        //
-	contactDeclaration                         // The fact that these things come
+	contactDeclaration                         //
+	abstractDeclaration                        // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
 	functionDeclaration                        // a great deal of forethought.
@@ -231,7 +234,7 @@ func (vmm *VmMaker) createEnums(mc *vm.Vm) {
 }
 
 func (vmm *VmMaker) createStructs(mc *vm.Vm) {
-	for _, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
+	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		if lhs.GetToken().Type != token.IDENT {
 			vmm.uP.Throw("init/enum/lhs", *lhs.GetToken())
@@ -277,6 +280,56 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 		}
 		mc.StructLabels = append(mc.StructLabels, labelsForStruct)
 		mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
+	}
+}
+
+func (vmm *VmMaker) createAbstractTypes(mc *vm.Vm) {
+	for _, tcc := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
+		tcc.ToStart()
+		nameTok := tcc.NextToken()
+		if nameTok.Type != token.IDENT {
+			vmm.uP.Throw("init/type/ident", nameTok)
+		}
+		newTypename := nameTok.Literal
+		eqTok := tcc.NextToken()
+		if eqTok.Type != token.DEF_ASSIGN {
+			vmm.uP.Throw("init/type/assign", eqTok)
+		}
+		typeNames := []string{}
+		for {
+			typeTok := tcc.NextToken()
+			divTok := tcc.NextToken()
+			if typeTok.Type != token.IDENT {
+				vmm.uP.Throw("init/type/form/a", typeTok)
+				break
+			}
+			if divTok.Type != token.EOF && !(divTok.Type == token.IDENT && divTok.Literal == "/") {
+				vmm.uP.Throw("init/type/form/b", typeTok)
+				break
+			}
+			tname := typeTok.Literal
+			if !vmm.cp.p.TypeSystem.SetOfNodes().Contains(tname) {
+				vmm.uP.Throw("init/type/known", typeTok)
+				break
+			}
+			vmm.cp.p.TypeSystem.AddTransitiveArrow(tname, newTypename)
+			typeNames = append(typeNames, tname)
+			vmm.cp.typeNameToTypeList[newTypename] = vmm.cp.typeNameToTypeList[newTypename].union(vmm.cp.typeNameToTypeList[tname])
+			if divTok.Type == token.EOF {
+				break
+			}
+		}
+		mc.AbstractTypes = append(mc.AbstractTypes, values.NameAbstractTypePair{newTypename, vmm.cp.typeNameToTypeList[newTypename].ToAbstractType()})
+		vmm.uP.Parser.Suffixes.Add(newTypename)
+		if !vmm.cp.typeNameToTypeList[newTypename].contains(values.NULL) {
+			for _, tname := range typeNames {
+				vmm.cp.p.TypeSystem.AddTransitiveArrow(tname, newTypename+"?")
+				vmm.cp.typeNameToTypeList[newTypename+"?"] = vmm.cp.typeNameToTypeList[newTypename+"?"].union(vmm.cp.typeNameToTypeList[tname])
+			}
+			vmm.cp.typeNameToTypeList[newTypename+"?"] = vmm.cp.typeNameToTypeList[newTypename+"?"].union(altType(values.NULL))
+			vmm.uP.Parser.Suffixes.Add(newTypename + "?")
+			vmm.cp.p.TypeSystem.AddTransitiveArrow("null", newTypename+"?")
+		}
 	}
 }
 
@@ -332,7 +385,7 @@ func (vmm *VmMaker) addStructLabelsToMc(mc *vm.Vm, name string, typeNo values.Va
 }
 
 func (vmm *VmMaker) makeConstructors(mc *vm.Vm) {
-	for _, node := range vmm.uP.Parser.ParsedDeclarations[typeDeclaration] {
+	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
@@ -376,6 +429,8 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 		cpF.command = true
 	}
 	if dec == privateFunctionDeclaration || dec == privateCommandDeclaration {
+		if dec == privateFunctionDeclaration {
+		}
 		cpF.private = true
 	}
 	functionName, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)

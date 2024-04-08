@@ -47,7 +47,7 @@ const (
 	DefSection
 	LanguagesSection
 	ContactsSection
-	TypeSection
+	TypesSection
 	ConstSection
 	UndefinedSection
 )
@@ -57,9 +57,10 @@ type declarationType int
 const (
 	importDeclaration          declarationType = iota
 	enumDeclaration                            //
-	typeDeclaration                            //
+	structDeclaration                          //
 	languageDeclaration                        //
-	contactDeclaration                         // The fact that these things come
+	contactDeclaration                         //
+	abstractDeclaration                        // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
 	functionDeclaration                        // a great deal of forethought.
@@ -77,7 +78,7 @@ var tokenTypeToSection = map[token.TokenType]Section{
 	token.DEF:       DefSection,
 	token.LANGUAGES: LanguagesSection,
 	token.CONTACTS:  ContactsSection,
-	token.TYPES:     TypeSection,
+	token.TYPES:     TypesSection,
 	token.CONST:     ConstSection,
 }
 
@@ -285,6 +286,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				if expressionIsFunction {
 					uP.Throw("init/def/assign", definingToken)
 				}
+			case TypesSection:
+				tok.Type = token.DEF_ASSIGN // TODO --- might want to give it its own token. Or alternatively cull a few.
 			case VarSection:
 				if isPrivate {
 					tok.Type = token.PVR_ASSIGN
@@ -404,8 +407,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 						uP.Parser.TokenizedDeclarations[constantDeclaration] =
 							append(uP.Parser.TokenizedDeclarations[constantDeclaration], line)
 					case expressionIsStruct:
-						uP.Parser.TokenizedDeclarations[typeDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[typeDeclaration], line)
+						uP.Parser.TokenizedDeclarations[structDeclaration] =
+							append(uP.Parser.TokenizedDeclarations[structDeclaration], line)
 					case expressionIsEnum:
 						uP.Parser.TokenizedDeclarations[enumDeclaration] =
 							append(uP.Parser.TokenizedDeclarations[enumDeclaration], line)
@@ -420,9 +423,22 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					}
 				}
 			case ConstSection:
-				println("We're in the unimplemented const section!")
-			case TypeSection:
-				println("We're in the unimplemented type section!")
+				if expressionIsAssignment {
+					uP.Parser.TokenizedDeclarations[constantDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[constantDeclaration], line)
+				}
+			case TypesSection:
+				switch {
+				case expressionIsAssignment:
+					uP.Parser.TokenizedDeclarations[abstractDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[abstractDeclaration], line)
+				case expressionIsStruct:
+					uP.Parser.TokenizedDeclarations[structDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[structDeclaration], line)
+				case expressionIsEnum:
+					uP.Parser.TokenizedDeclarations[enumDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[enumDeclaration], line)
+				}
 			}
 			line = tokenized_code_chunk.New()
 			expressionIsAssignment = false
@@ -503,14 +519,14 @@ func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
 
 func (uP *Initializer) ParseTypeDefs() {
 	// First we need to make the struct types into types so the parser parses them properly.
-	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[typeDeclaration]); chunk++ {
-		uP.Parser.TokenizedDeclarations[typeDeclaration][chunk].ToStart()
-		tok1 := uP.Parser.TokenizedDeclarations[typeDeclaration][chunk].NextToken()
-		tok2 := uP.Parser.TokenizedDeclarations[typeDeclaration][chunk].NextToken()
+	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[structDeclaration]); chunk++ {
+		uP.Parser.TokenizedDeclarations[structDeclaration][chunk].ToStart()
+		tok1 := uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken()
+		tok2 := uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken()
 		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
 			uP.Throw("init/struct", tok1)
 		} else {
-			uP.Parser.TokenizedDeclarations[typeDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
+			uP.Parser.TokenizedDeclarations[structDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "struct?")
 			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
@@ -525,15 +541,15 @@ func (uP *Initializer) ParseTypeDefs() {
 
 	// Now we can parse them.
 
-	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[typeDeclaration]); chunk++ {
-		uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[typeDeclaration][chunk]
-		uP.Parser.TokenizedDeclarations[typeDeclaration][chunk].ToStart()
-		uP.Parser.ParsedDeclarations[typeDeclaration] = append(uP.Parser.ParsedDeclarations[typeDeclaration], uP.Parser.ParseTokenizedChunk())
+	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[structDeclaration]); chunk++ {
+		uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[structDeclaration][chunk]
+		uP.Parser.TokenizedDeclarations[structDeclaration][chunk].ToStart()
+		uP.Parser.ParsedDeclarations[structDeclaration] = append(uP.Parser.ParsedDeclarations[structDeclaration], uP.Parser.ParseTokenizedChunk())
 	}
 }
 
 func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
-	for _, v := range uP.Parser.ParsedDeclarations[typeDeclaration] {
+	for _, v := range uP.Parser.ParsedDeclarations[structDeclaration] {
 		result := evaluator.Evaluate(v, evaluator.NewContext(uP.Parser, env, evaluator.DEF, false))
 		if result.Type() == object.ERROR_OBJ {
 			uP.Throw(result.(*object.Error).ErrorId, *result.(*object.Error).Token)
