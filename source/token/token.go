@@ -72,6 +72,8 @@ const (
 	PRIVATE   = "private"
 	LANGUAGES = "languages"
 	CONTACTS  = "contacts"
+	CONST     = "const"
+	TYPES     = "types"
 
 	// Keywords
 	ELSE   = "else"
@@ -110,6 +112,8 @@ var keywords = map[string]TokenType{
 	"private":   PRIVATE,
 	"languages": LANGUAGES,
 	"contacts":  CONTACTS,
+	"const":     CONST,
+	"types":     TYPES,
 
 	"true":  TRUE,
 	"false": FALSE,
@@ -140,5 +144,5 @@ func LookupIdent(ident string) TokenType {
 }
 
 func TokenTypeIsHeadword(t TokenType) bool {
-	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANGUAGES || t == CONTACTS
+	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANGUAGES || t == CONTACTS || t == TYPES || t == CONST
 }

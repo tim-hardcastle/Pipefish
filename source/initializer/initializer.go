@@ -47,6 +47,8 @@ const (
 	DefSection
 	LanguagesSection
 	ContactsSection
+	TypeSection
+	ConstSection
 	UndefinedSection
 )
 
@@ -75,6 +77,8 @@ var tokenTypeToSection = map[token.TokenType]Section{
 	token.DEF:       DefSection,
 	token.LANGUAGES: LanguagesSection,
 	token.CONTACTS:  ContactsSection,
+	token.TYPES:     TypeSection,
+	token.CONST:     ConstSection,
 }
 
 type Initializer struct {
@@ -415,6 +419,10 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 						}
 					}
 				}
+			case ConstSection:
+				println("We're in the unimplemented const section!")
+			case TypeSection:
+				println("We're in the unimplemented type section!")
 			}
 			line = tokenized_code_chunk.New()
 			expressionIsAssignment = false

@@ -69,9 +69,7 @@ typewithmaker(x type, y tuple) : builtin "type_with"
 mapwithoutmaker(x map, y tuple)  : builtin "map_without"
 (x map) without (y tuple) : mapwithoutmaker x, y 
 
-Person = struct(name string, age int)
+types
 
+foo = bar
 
-ty1 = int 
-
-ty2 = string

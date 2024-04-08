@@ -145,10 +145,6 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			rl.nexTok.Type == token.NEWLINE {
 			return rl.burnNextToken()
 		}
-		// if rl.nexTok.Type == token.BEGIN { // Puts the logging inside the function.
-		// 	rl.curTok, rl.nexTok = rl.nexTok, rl.curTok
-		// }
-
 	case token.NO_INDENT:
 		return rl.burnToken()
 	case token.DOTDOT:
