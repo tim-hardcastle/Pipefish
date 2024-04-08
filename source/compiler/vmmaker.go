@@ -51,7 +51,7 @@ func initalizeEverything(mc *vm.Vm, scriptFilepath, sourcecode string) (*Compile
 
 func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 
-	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/test.pf"}) // , "rsc/pipefish/world.pf"
+	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf"})
 	vmm.uP.SetRelexer(*relexer.New(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
@@ -99,6 +99,8 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	vmm.addAbstractTypesToVm(mc)
 
 	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
@@ -356,6 +358,14 @@ func (vmm *VmMaker) compileConstructor(mc *vm.Vm, name string, sig signature.Sig
 	return cpF
 }
 
+// The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
+func (vmm *VmMaker) addAbstractTypesToVm(mc *vm.Vm) {
+	nativeAbstractTypes := []string{"single", "struct", "snippet"}
+	for _, t := range nativeAbstractTypes {
+		mc.AbstractTypes = append(mc.AbstractTypes, values.NameAbstractTypePair{t, vmm.cp.typeNameToTypeList[t].ToAbstractType()})
+	}
+}
+
 func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environment, dec declarationType) *cpFunc {
 	cpF := cpFunc{}
 	var ac Access
@@ -443,7 +453,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *vm.Vm) {
 	vmm.cp.addVariable(mc, vmm.cp.gconsts, "ok", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
 	vmm.cp.reserve(mc, values.BREAK, nil)
 	vmm.cp.addVariable(mc, vmm.cp.gconsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
-	vmm.cp.tupleType = vmm.cp.reserve(mc, values.TYPE, values.TUPLE)
+	vmm.cp.tupleType = vmm.cp.reserve(mc, values.TYPE, values.AbstractType{values.TUPLE})
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {

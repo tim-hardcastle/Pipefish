@@ -1,0 +1,17 @@
+def
+
+Output = struct()
+Terminal = struct()
+Input = struct(prompt string)
+
+cmd
+
+posttooutputmaker(x single) : builtin "post_to_output"
+post (x single) to (o Output): posttooutputmaker(x)
+post (x single) : builtin "post_to_output"
+// post (x tuple) to (o Output): posttooutputmaker(x)
+
+posttoterminalmaker(x single) : builtin "post_to_terminal"
+post (x single) to (t Terminal): posttoterminalmaker(x)
+
+get (x ref) from (i Input) : builtin "get_from_input"

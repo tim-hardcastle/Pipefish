@@ -901,7 +901,7 @@ NodeTypeSwitch:
 		break
 	case *ast.TypeLiteral:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
-		cp.reserve(mc, values.TYPE, values.ValueType(resolvingCompiler.typeNameToTypeList[node.Value][0].(simpleType)))
+		cp.reserve(mc, values.TYPE, (resolvingCompiler.typeNameToTypeList[node.Value]).ToAbstractType())
 		rtnTypes, rtnConst = altType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
@@ -924,7 +924,7 @@ NodeTypeSwitch:
 	if cp.p.ErrorsExist() {
 		return altType(values.COMPILE_TIME_ERROR), false // False because we don't want any code folding to happen as that could remove information about the error.
 	}
-	if rtnConst && mc.CodeTop() > cT {
+	if rtnConst && (!rtnTypes.hasSideEffects()) && mc.CodeTop() > cT {
 		cp.emit(mc, vm.Ret)
 		mc.Run(cT)
 		result := mc.Mem[mc.That()]
@@ -1584,6 +1584,8 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 				cp.put(mc, vm.Equb, leftRg, rightRg)
 			case tp(values.FLOAT):
 				cp.put(mc, vm.Equf, leftRg, rightRg)
+			case tp(values.TYPE):
+				cp.put(mc, vm.Equt, leftRg, rightRg)
 			default:
 				panic("Unimplemented comparison type.")
 			}

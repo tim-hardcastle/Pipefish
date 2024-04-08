@@ -21,6 +21,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"divide_integers":   {(*Compiler).btDivideIntegers, altType(values.ERROR, values.INT)},
 	"float_of_int":      {(*Compiler).btFloatOfInt, altType(values.FLOAT)},
 	"float_of_string":   {(*Compiler).btFloatOfString, altType(values.ERROR, values.FLOAT)},
+	"get_from_input":    {(*Compiler).btGetFromInput, altType(values.SUCCESSFUL_VALUE)},
 	"gt_floats":         {(*Compiler).btGtFloats, altType(values.BOOL)},
 	"gte_floats":        {(*Compiler).btGteFloats, altType(values.BOOL)},
 	"gt_ints":           {(*Compiler).btGtInts, altType(values.BOOL)},
@@ -52,6 +53,8 @@ var BUILTINS = map[string]functionAndReturnType{
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, altType(values.INT)},
 	"negate_float":      {(*Compiler).btNegateFloat, altType(values.FLOAT)},
 	"negate_integer":    {(*Compiler).btNegateInteger, altType(values.INT)},
+	"post_to_output":    {(*Compiler).btPostToOutput, altType(values.SUCCESSFUL_VALUE)},
+	"post_to_terminal":  {(*Compiler).btPostToTerminal, altType(values.SUCCESSFUL_VALUE)},
 	"string":            {(*Compiler).btString, altType(values.STRING)},
 	"single_in_list":    {(*Compiler).btSingleInList, altType(values.BOOL)},
 	"single_in_set":     {(*Compiler).btSingleInSet, altType(values.BOOL)},
@@ -66,6 +69,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"type":              {(*Compiler).btType, altType(values.TYPE)},
 	"type_with":         {(*Compiler).btTypeWith, altType()},
 	"type_of_tuple":     {(*Compiler).btTypeOfTuple, altType(values.TYPE)},
+	"type_union":        {(*Compiler).btTypeUnion, altType(values.TYPE)},
 }
 
 func (cp *Compiler) btAddFloats(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -114,6 +118,11 @@ func (cp *Compiler) btFloatOfInt(mc *vm.Vm, tok *token.Token, dest uint32, args 
 
 func (cp *Compiler) btFloatOfString(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Flts, dest, args[0])
+}
+
+func (cp *Compiler) btGetFromInput(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Inpt, mc.Mem[args[0]].V.(uint32), args[2])
+	cp.emit(mc, vm.Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btGtFloats(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -252,6 +261,16 @@ func (cp *Compiler) btNegateInteger(mc *vm.Vm, tok *token.Token, dest uint32, ar
 	cp.emit(mc, vm.Negi, dest, args[0])
 }
 
+func (cp *Compiler) btPostToOutput(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Outp, args[0])
+	cp.emit(mc, vm.Asgm, dest, values.C_OK)
+}
+
+func (cp *Compiler) btPostToTerminal(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Outt, args[0])
+	cp.emit(mc, vm.Asgm, dest, values.C_OK)
+}
+
 func (cp *Compiler) btSingleInList(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.InxL, dest, args[0], args[2])
 }
@@ -304,6 +323,10 @@ func (cp *Compiler) btType(mc *vm.Vm, tok *token.Token, dest uint32, args []uint
 
 func (cp *Compiler) btTypeOfTuple(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.emit(mc, vm.Asgm, dest, cp.tupleType)
+}
+
+func (cp *Compiler) btTypeUnion(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.emit(mc, vm.Typu, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btTypeWith(mc *vm.Vm, tok *token.Token, dest uint32, args []uint32) {

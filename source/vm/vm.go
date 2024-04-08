@@ -3,15 +3,16 @@ package vm
 import (
 	"database/sql"
 	"fmt"
-	"pipefish/source/object"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
-
+	"os"
 	"strconv"
 	"strings"
 
 	"src.elv.sh/pkg/persistent/vector"
+
+	"pipefish/source/object"
+	"pipefish/source/text"
+	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 const (
@@ -38,7 +39,9 @@ type Vm struct {
 	LambdaFactories  []*LambdaFactory
 	SnippetFactories []*SnippetFactory
 	GoFns            []GoFn
+	IoHandle         IoHandler
 	Db               *sql.DB
+	AbstractTypes    []values.NameAbstractTypePair
 }
 
 type GoFn struct {
@@ -153,7 +156,8 @@ var OPCODE_LIST []func(vm *Vm, args []uint32)
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
 func BlankVm(db *sql.DB) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Db: db, Ub_enums: values.LB_ENUMS, StructResolve: MapResolver{}, logging: true}
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Db: db, Ub_enums: values.LB_ENUMS,
+		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in constants are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
@@ -288,6 +292,8 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(int) == vm.Mem[args[2]].V.(int)}
 		case Equs:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(string) == vm.Mem[args[2]].V.(string)}
+		case Equt:
+			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(values.AbstractType).Equals(vm.Mem[args[2]].V.(values.AbstractType))}
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:
@@ -322,15 +328,6 @@ loop:
 			break loop
 		case Idfn:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
-		case Intf:
-			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(float64))}
-		case Ints:
-			i, err := strconv.Atoi(vm.Mem[args[1]].V.(string))
-			if err != nil {
-				vm.Mem[args[0]] = values.Value{values.ERROR, DUMMY}
-			} else {
-				vm.Mem[args[0]] = values.Value{values.INT, i}
-			}
 		case IdxL:
 			vec := vm.Mem[args[1]].V.(vector.Vector)
 			ix := vm.Mem[args[2]].V.(int)
@@ -382,6 +379,17 @@ loop:
 			} else {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
+		case Inpt:
+			vm.Mem[args[0]] = values.Value{values.STRING, vm.IoHandle.InHandle.Get(vm.Mem[args[1]].V.([]values.Value)[0].V.(string))}
+		case Intf:
+			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(float64))}
+		case Ints:
+			i, err := strconv.Atoi(vm.Mem[args[1]].V.(string))
+			if err != nil {
+				vm.Mem[args[0]] = values.Value{values.ERROR, DUMMY}
+			} else {
+				vm.Mem[args[0]] = values.Value{values.INT, i}
+			}
 		case InxL:
 			x := vm.Mem[args[1]]
 			L := vm.Mem[args[2]].V.(vector.Vector)
@@ -418,7 +426,12 @@ loop:
 				}
 			}
 		case Inxt:
-			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].T == vm.Mem[args[2]].V.(values.ValueType)}
+			vm.Mem[args[0]] = values.Value{values.BOOL, false}
+			for _, t := range vm.Mem[args[2]].V.(values.AbstractType) {
+				if vm.Mem[args[1]].T == t {
+					vm.Mem[args[0]] = values.Value{values.BOOL, true}
+				}
+			}
 		case IxTn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxZl:
@@ -527,6 +540,10 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, !vm.Mem[args[1]].V.(bool)}
 		case Orb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, (vm.Mem[args[1]].V.(bool) || vm.Mem[args[2]].V.(bool))}
+		case Outp:
+			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
+		case Outt:
+			fmt.Println(vm.Describe(vm.Mem[args[0]]))
 		case QlnT:
 			if len(vm.Mem[args[0]].V.([]values.Value)) == int(args[1]) {
 				loc = loc + 1
@@ -647,8 +664,35 @@ loop:
 				slice[i] = element.(values.Value)
 			}
 			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
+		case Typu:
+			lhs := vm.Mem[args[1]].V.(values.AbstractType)
+			rhs := vm.Mem[args[2]].V.(values.AbstractType)
+			i := 0
+			j := 0
+			result := make(values.AbstractType, 0, len(lhs)+len(rhs))
+			for i < len(lhs) || j < len(rhs) {
+				switch {
+				case i == len(lhs):
+					result = append(result, rhs[j])
+					j++
+				case j == len(rhs):
+					result = append(result, lhs[i])
+					i++
+				case lhs[i] == rhs[j]:
+					result = append(result, lhs[i])
+					i++
+					j++
+				case lhs[i] < rhs[j]:
+					result = append(result, lhs[i])
+					i++
+				case rhs[j] < lhs[i]:
+					result = append(result, rhs[j])
+					j++
+				}
+			}
+			vm.Mem[args[0]] = values.Value{values.TYPE, result}
 		case Typx:
-			vm.Mem[args[0]] = values.Value{values.TYPE, vm.Mem[args[1]].T}
+			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{vm.Mem[args[1]].T}}
 		case Untk:
 			if (vm.Mem[args[0]].T) == values.THUNK {
 				vm.callstack = append(vm.callstack, loc)
@@ -853,7 +897,7 @@ func (mc Vm) equals(v, w values.Value) bool {
 	case values.FLOAT:
 		return v.V.(float64) == w.V.(float64)
 	case values.TYPE:
-		return v.V.(values.ValueType) == w.V.(values.ValueType)
+		return v.V.(values.AbstractType).Equals(w.V.(values.AbstractType))
 	case values.PAIR:
 		return mc.equals(v.V.([]values.Value)[0], w.V.([]values.Value)[0]) &&
 			mc.equals(v.V.([]values.Value)[1], w.V.([]values.Value)[1])
@@ -1059,7 +1103,7 @@ func (vm *Vm) Describe(v values.Value) string {
 		}
 		return prefix + strings.Join(result, ", ") + ")"
 	case values.TYPE:
-		return vm.DescribeType(v.V.(values.ValueType))
+		return vm.DescribeAbstractType(v.V.(values.AbstractType))
 	case values.UNDEFINED_VALUE:
 		return "UNDEFINED VALUE!"
 	case values.UNSAT:
@@ -1067,6 +1111,48 @@ func (vm *Vm) Describe(v values.Value) string {
 	}
 	println("Undescribable value", v.T)
 	panic("can't describe value")
+}
+
+func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
+	result := []string{}
+	T := aT
+	// First we greedily remove the abstract types.
+	for {
+		var biggestType int
+		var sizeOfBiggestType int
+		for i, pair := range vm.AbstractTypes {
+			if pair.AT.IsSubtypeOf(T) {
+				if len(pair.AT) > sizeOfBiggestType {
+					biggestType = i
+					sizeOfBiggestType = len(pair.AT)
+				}
+			}
+		}
+		if sizeOfBiggestType == 0 {
+			break
+		}
+		result = append(result, vm.AbstractTypes[biggestType].Name)
+		T = T.Without(vm.AbstractTypes[biggestType].AT)
+	}
+
+	// We then add on all the other types except null, which we will represent with a ?
+	nullFlag := false
+	for _, t := range T {
+		if t == values.NULL {
+			nullFlag = true
+		} else {
+			result = append(result, vm.DescribeType(t))
+		}
+	}
+	// Deal with null
+	if nullFlag {
+		if len(result) > 0 {
+			result[len(result)-1] = result[len(result)-1] + "?"
+		} else {
+			result = []string{"null"}
+		}
+	}
+	return strings.Join(result, "/")
 }
 
 func (vm *Vm) Literal(v values.Value) string {

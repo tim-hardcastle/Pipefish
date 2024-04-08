@@ -100,6 +100,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Equf: {"equf", operands{dst, mem, mem}},
 	Equi: {"equi", operands{dst, mem, mem}},
 	Equs: {"equs", operands{dst, mem, mem}},
+	Equt: {"equt", operands{dst, mem, mem}},
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, gfn, tup}},
@@ -117,6 +118,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	IxTn: {"ixTn", operands{dst, mem, num}},
 	IxZl: {"ixZl", operands{dst, mem, mem, mem}},
 	IxZn: {"ixZn", operands{dst, mem, num}},
+	Inpt: {"inpt", operands{dst, mem}},
 	InxL: {"inxL", operands{dst, mem, mem}},
 	InxS: {"inxS", operands{dst, mem, mem}},
 	Inxt: {"inxt", operands{dst, mem, mem}},
@@ -150,6 +152,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Negi: {"negi", operands{dst, mem}},
 	Notb: {"notb", operands{dst, mem}},
 	Orb:  {"orb", operands{dst, mem, mem}},
+	Outp: {"outp", operands{mem}},
+	Outt: {"outt", operands{mem}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
@@ -169,6 +173,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Subi: {"subi", operands{dst, mem, mem}},
 	Thnk: {"thnk", operands{dst, loc}},
 	TupL: {"tupL", operands{dst, mem}},
+	Typu: {"typu", operands{dst, mem, mem}},
 	Typx: {"typx", operands{dst, mem}},
 	Untk: {"untk", operands{dst}},
 	WthL: {"wthL", operands{dst, mem, mem, mem}}, // Third operand is error.
@@ -217,6 +222,7 @@ const (
 	Equf
 	Equi
 	Equs
+	Equt
 	Flti
 	Flts
 	Gofn
@@ -232,6 +238,7 @@ const (
 	Idxs
 	Idxt
 	IdxT
+	Inpt
 	InxL
 	InxS
 	Inxt
@@ -268,6 +275,8 @@ const (
 	Negi
 	Notb
 	Orb
+	Outp
+	Outt
 	Qntp
 	Qtru
 	Qtyp
@@ -287,6 +296,7 @@ const (
 	Subi
 	Thnk
 	TupL
+	Typu
 	Typx
 	Untk
 	WthL

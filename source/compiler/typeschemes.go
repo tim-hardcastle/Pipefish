@@ -131,6 +131,16 @@ func (t simpleType) describe(mc *vm.Vm) string {
 
 type alternateType []typeScheme
 
+// This assumes that the alternateType came from the typeNameToTypeList array and therefore contains only elements of
+// type simpleType.
+func (aT alternateType) ToAbstractType() values.AbstractType {
+	result := make(values.AbstractType, 0, len(aT))
+	for _, v := range aT {
+		result = append(result, values.ValueType(v.(simpleType)))
+	}
+	return result
+}
+
 func (vL alternateType) intersect(wL alternateType) alternateType {
 	x := alternateType{}
 	var vix, wix int
@@ -228,6 +238,18 @@ func (aT alternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
 		}
 	}
 	return values.UNDEFINED_VALUE, false
+}
+
+func (aT alternateType) hasSideEffects() bool {
+	for _, u := range aT {
+		switch u := u.(type) {
+		case simpleType:
+			if u == simpleType(values.SUCCESSFUL_VALUE) || u == simpleType(values.BREAK) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (aT alternateType) isLegalCmdReturn() bool {

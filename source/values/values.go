@@ -95,3 +95,69 @@ const (
 	C_BREAK
 	C_EMPTY_TUPLE
 )
+
+// AbstractTypes are constructed from the altTypes in the compiler and so are assumed to be ordered.
+type AbstractType []ValueType
+
+// Because AbstractTypes are ordered we could use binary search for this and there is a threshold beyond which
+// it would be quicker, but this must be determined empirically and I haven't done that yet. TODO.
+func (a AbstractType) Contains(v ValueType) bool {
+	for _, w := range a {
+		if v == w {
+			return true
+		}
+	}
+	return false
+}
+
+func (a AbstractType) Equals(b AbstractType) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
+	if len(a) > len(b) {
+		return false
+	}
+	i := 0
+	for _, t := range a {
+		for ; i < len(b) && b[i] < t; i++ {
+		}
+		if i >= len(b) {
+			return false
+		}
+		if t != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (a AbstractType) Without(b AbstractType) AbstractType {
+	r := make(AbstractType, 0, len(a))
+	i := 0
+	for _, t := range a {
+		for ; i < len(b) && b[i] < t; i++ {
+		}
+		if i >= len(b) {
+			r = append(r, t)
+			continue
+		}
+		if t != b[i] {
+			r = append(r, t)
+		}
+	}
+	return r
+}
+
+type NameAbstractTypePair struct {
+	Name string
+	AT   AbstractType
+}

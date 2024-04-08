@@ -302,7 +302,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/ident/known": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Unknown identifier " + text.Emph(tok.Literal)
+			return "unknown identifier " + text.Emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You don't seem to have declared that as a variable, function, constant, or anything else."
@@ -316,6 +316,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Charm has no concept of \"truthiness\", so the 'not' operator can only be applied " +
 				"to one of the two values 'true' and 'false' in the type 'bool'."
+		},
+	},
+
+	"comp/prefix/known": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown prefix " + text.Emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You don't seem to have declared that as a function, but you'ree trying to use it as one."
 		},
 	},
 
