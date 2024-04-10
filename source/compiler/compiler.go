@@ -23,7 +23,8 @@ type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
 	p                  *parser.Parser
 	enumElements       map[string]uint32
-	fieldLabels        map[string]uint32
+	fieldLabelsInMem   map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	fieldTypes         [][]alternateType
 	StructNumbers      map[string]values.ValueType
 	gconsts            *environment
 	gvars              *environment
@@ -68,15 +69,15 @@ const DUMMY = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	return &Compiler{
-		p:             p,
-		enumElements:  make(map[string]uint32),
-		fieldLabels:   make(map[string]uint32),
-		StructNumbers: make(map[string]values.ValueType),
-		gconsts:       newEnvironment(),
-		gvars:         newEnvironment(),
-		thunkList:     []thunk{},
-		fns:           []*cpFunc{},
-		Services:      make(map[string]*VmService),
+		p:                p,
+		enumElements:     make(map[string]uint32),
+		fieldLabelsInMem: make(map[string]uint32),
+		StructNumbers:    make(map[string]values.ValueType),
+		gconsts:          newEnvironment(),
+		gvars:            newEnvironment(),
+		thunkList:        []thunk{},
+		fns:              []*cpFunc{},
+		Services:         make(map[string]*VmService),
 		typeNameToTypeList: map[string]alternateType{
 			"int":      altType(values.INT),
 			"string":   altType(values.STRING),
@@ -425,7 +426,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(mc.Mem[enumElement].T), true
 			break
 		}
-		labelNumber, ok := resolvingCompiler.fieldLabels[node.Value]
+		labelNumber, ok := resolvingCompiler.fieldLabelsInMem[node.Value]
 		if ok {
 			cp.put(mc, vm.Asgm, labelNumber)
 			rtnTypes, rtnConst = altType(values.LABEL), true
@@ -483,6 +484,7 @@ NodeTypeSwitch:
 				cp.p.Throw("comp/list/index", node.GetToken())
 				break
 			}
+			rtnTypes = cp.typeNameToTypeList["single?"].union(altType(values.ERROR))
 		}
 		if containerType.isOnly(values.STRING) {
 			if indexType.isOnly(values.INT) {
@@ -499,6 +501,7 @@ NodeTypeSwitch:
 				cp.p.Throw("comp/string/index", node.GetToken())
 				break
 			}
+			rtnTypes = altType(values.ERROR, values.STRING)
 		}
 		if containerType.containsOnlyTuples() {
 			if indexType.isOnly(values.INT) {
@@ -515,6 +518,7 @@ NodeTypeSwitch:
 				cp.p.Throw("comp/tuple/index", node.GetToken())
 				break
 			}
+			rtnTypes = cp.typeNameToTypeList["single?"].union(altType(values.ERROR))
 		}
 		if containerType.isOnly(values.PAIR) {
 			if indexType.isOnly(values.INT) {
@@ -526,6 +530,7 @@ NodeTypeSwitch:
 				cp.p.Throw("comp/pair/index", node.GetToken())
 				break
 			}
+			rtnTypes = cp.typeNameToTypeList["single?"].union(altType(values.ERROR))
 		}
 		if containerType.isOnly(values.TYPE) {
 			if indexType.isOnly(values.INT) {
@@ -538,12 +543,21 @@ NodeTypeSwitch:
 				cp.p.Throw("comp/type/index", node.GetToken())
 				break
 			}
+			if ctrConst {
+				rtnTypes = altType(values.ERROR, mc.Mem[container].T)
+			} else {
+				allEnums := make(alternateType, 0, 1+mc.Ub_enums-values.LB_ENUMS) // TODO --- yu only need to calcu;ate this once.
+				allEnums = append(allEnums, simpleType(values.ERROR))
+				for i := values.LB_ENUMS; i < mc.Ub_enums; i++ {
+					allEnums = append(allEnums, simpleType(i))
+				}
+			}
 		}
 		structType, ok := containerType.isOnlyStruct(int(mc.Ub_enums))
 		if ok {
+			structNumber := structType - mc.Ub_enums
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
-					structNumber := structType - mc.Ub_enums
 					indexNumber := mc.Mem[index].V.(int)
 					fieldNumber := mc.StructResolve.Resolve(int(structNumber), indexNumber)
 					if fieldNumber == -1 {
@@ -551,16 +565,60 @@ NodeTypeSwitch:
 						break
 					}
 					cp.put(mc, vm.IxZn, container, uint32(fieldNumber))
+					rtnTypes = cp.fieldTypes[structNumber][fieldNumber]
 					break
 				}
 				boundsError := cp.reserveError(mc, "vm/struct/index", &node.Token, []any{})
 				cp.put(mc, vm.IxZl, container, index, boundsError)
+				rtnTypes = altType()
+				for _, t := range cp.fieldTypes[structNumber] {
+					rtnTypes = rtnTypes.union(t)
+				}
+				rtnTypes = rtnTypes.union(altType(values.ERROR))
 				break
 			}
 			if indexType.isNoneOf(values.LABEL) {
 				cp.p.Throw("comp/struct/index", node.GetToken())
 				break
 			}
+		}
+		if containerType.isOnlyAssortedStructs(int(mc.Ub_enums)) {
+			if indexType.isOnly(values.LABEL) {
+				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
+					labelIsPossible := false
+					labelIsCertain := true
+					rtnTypes = altType()
+					for _, structTypeAsSimpleType := range containerType {
+						structType := values.ValueType(structTypeAsSimpleType.(simpleType))
+						structNumber := structType - mc.Ub_enums
+						indexNumber := mc.Mem[index].V.(int)
+						fieldNumber := mc.StructResolve.Resolve(int(structNumber), indexNumber)
+						if fieldNumber != -1 {
+							labelIsPossible = true
+							rtnTypes = rtnTypes.union(cp.fieldTypes[structNumber][fieldNumber])
+						} else {
+							labelIsCertain = false
+						}
+					}
+					if !labelIsPossible {
+						cp.p.Throw("comp/struct/index/b", node.GetToken())
+						break
+					}
+					if !labelIsCertain {
+						rtnTypes = rtnTypes.union(altType(values.ERROR))
+					}
+					boundsError := uint32(DUMMY)
+					if !labelIsCertain {
+						boundsError = cp.reserveError(mc, "vm/struct/index/b", &node.Token, []any{})
+					}
+					cp.put(mc, vm.IxZl, container, index, boundsError)
+					break
+				}
+				boundsError := cp.reserveError(mc, "vm/struct/index/c", &node.Token, []any{})
+				cp.put(mc, vm.IxZl, container, index, boundsError)
+				break
+			}
+
 		}
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
@@ -764,7 +822,7 @@ NodeTypeSwitch:
 		cp.vmComeFrom(mc, ifError)
 		rtnTypes = altType(values.SUCCESSFUL_VALUE, values.ERROR)
 		break
-	case *ast.Nothing: // TODO: there is no reason why both this and the ast.Nothing type should exist.
+	case *ast.Nothing:
 		cp.put(mc, vm.Asgm, values.C_EMPTY_TUPLE)
 		rtnTypes, rtnConst = alternateType{finiteTupleType{}}, true
 	case *ast.PipingExpression: // I.e. -> >> and -> and ?> .

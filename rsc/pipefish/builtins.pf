@@ -81,12 +81,15 @@ Monster = Dragon/Troll/Orc
 const
 
 smaug = Dragon("Smaug", 451, 1000000)
+
+var
+
 doug = Person("Douglas", 42)
 
 def
 
 kill(m Monster) :
-    "You kill the " + string(type(m)) + "."
+    "You kill " + m[name] + "."
 
 kill(p Person) :
-    "Killing people is wrong!"
+    "Killing people is wrong! Even " + p[name] + "."

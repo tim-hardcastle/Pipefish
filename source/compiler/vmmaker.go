@@ -267,17 +267,25 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 		// We make the labels exist.
 
 		labelsForStruct := make([]int, 0, len(sig))
+		typesForStruct := make([]alternateType, 0, len(sig))
+		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
 			labelName := labelNameAndType.VarName
-			labelLocation, alreadyExists := vmm.cp.fieldLabels[labelName]
+			labelLocation, alreadyExists := vmm.cp.fieldLabelsInMem[labelName]
 			if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice..
 				labelsForStruct = append(labelsForStruct, mc.Mem[labelLocation].V.(int))
 			} else {
-				vmm.cp.fieldLabels[labelName] = vmm.cp.reserve(mc, values.LABEL, len(mc.Labels))
+				vmm.cp.fieldLabelsInMem[labelName] = vmm.cp.reserve(mc, values.LABEL, len(mc.Labels))
 				labelsForStruct = append(labelsForStruct, len(mc.Labels))
 				mc.Labels = append(mc.Labels, labelName)
 			}
+			typesForStruct = append(typesForStruct, vmm.cp.typeNameToTypeList[labelNameAndType.VarType])
 		}
+		for _, t := range typesForStruct {
+			typesForStructForVm = append(typesForStructForVm, t.ToAbstractType())
+		}
+		mc.StructFields = append(mc.StructFields, typesForStructForVm)
+		vmm.cp.fieldTypes = append(vmm.cp.fieldTypes, typesForStruct)
 		mc.StructLabels = append(mc.StructLabels, labelsForStruct)
 		mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
 	}
@@ -371,11 +379,11 @@ func (vmm *VmMaker) addStructLabelsToMc(mc *vm.Vm, name string, typeNo values.Va
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
-		labelLocation, alreadyExists := vmm.cp.fieldLabels[labelName]
+		labelLocation, alreadyExists := vmm.cp.fieldLabelsInMem[labelName]
 		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice..
 			labelsForStruct = append(labelsForStruct, mc.Mem[labelLocation].V.(int))
 		} else {
-			vmm.cp.fieldLabels[labelName] = vmm.cp.reserve(mc, values.LABEL, len(mc.Labels))
+			vmm.cp.fieldLabelsInMem[labelName] = vmm.cp.reserve(mc, values.LABEL, len(mc.Labels))
 			labelsForStruct = append(labelsForStruct, len(mc.Labels))
 			mc.Labels = append(mc.Labels, labelName)
 		}

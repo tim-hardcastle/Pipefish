@@ -32,7 +32,8 @@ type Vm struct {
 	StructResolve    StructResolver
 	Ub_enums         values.ValueType
 	TypeNames        []string
-	StructLabels     [][]int    // Array from a struct to its label numbers.
+	StructLabels     [][]int // Array from a struct to its label numbers.
+	StructFields     [][]values.AbstractType
 	Enums            [][]string // Array from the number of the enum to a list of the strings of its elements.
 	Labels           []string   // Array from the number of a field label to its name.
 	Tokens           []*token.Token
@@ -783,7 +784,12 @@ loop:
 			}
 			vm.Mem[args[0]] = result
 		case Wtht:
-			typ := vm.Mem[args[1]].V.(values.ValueType)
+			typL := vm.Mem[args[1]].V.(values.AbstractType)
+			if len(typL) != 1 {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+				break Switch
+			}
+			typ := typL[0]
 			if (typ) < vm.Ub_enums {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 				break Switch
