@@ -1,8 +1,22 @@
-def
+import
+
+gocode "os"
+
+types
 
 Output = struct()
 Terminal = struct()
 Input = struct(prompt string)
+Random = struct(params single)
+RandomSeed = struct()
+Clock = struct()
+File = struct(filepath string, asType type)
+FileExists = struct(filepath string)
+
+def
+
+//File(filepath string) :
+//    File(filepath, string) 
 
 cmd
 
@@ -15,3 +29,12 @@ posttoterminalmaker(x single) : builtin "post_to_terminal"
 post (x single) to (t Terminal): posttoterminalmaker(x)
 
 get (x ref) from (i Input) : builtin "get_from_input"
+
+goFileExists(fname string) : gocode {
+    _, err := os.Stat(fname)
+    return err == nil
+}
+
+get (x ref) from (fileAccess FileExists) :
+    x = goFileExists(fileAccess[filepath])
+

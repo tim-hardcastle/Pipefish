@@ -119,7 +119,7 @@ type Parser struct {
 	Logging               bool
 	TokenizedDeclarations [13]tokenizedCodeChunks
 	ParsedDeclarations    [13]ParsedCodeChunks
-	currentNamespace      []string
+	CurrentNamespace      []string
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -428,14 +428,14 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 // to find what parser should resolve the symbol.
 func (p *Parser) getResolvingParser() *Parser {
 	lP := p
-	for _, name := range p.currentNamespace {
+	for _, name := range p.CurrentNamespace {
 		s, ok := lP.NamespaceBranch[name]
 		if !ok {
 			p.Throw("parse/namespace/exist", &p.curToken, name)
 		}
 		lP = s.Parser
 	}
-	// We don't need the resolving parser to parse anything but we *do* need to call isPositionallyFunctional,
+	// We don't need the resolving parser to parse anything but we *do* need to call positionallyFunctional,
 	// so it needs the following data to work.
 	lP.curToken = p.curToken
 	lP.peekToken = p.peekToken
@@ -731,10 +731,10 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		p.Throw("parse/namespace/lhs", left.GetToken())
 		return nil
 	}
-	p.currentNamespace = append(p.currentNamespace, left.GetToken().Literal)
+	p.CurrentNamespace = append(p.CurrentNamespace, left.GetToken().Literal)
 	right := p.parseExpression(NAMESPACE)
-	namespace := p.currentNamespace
-	p.currentNamespace = []string{}
+	namespace := p.CurrentNamespace
+	p.CurrentNamespace = []string{}
 	switch right := right.(type) {
 	case *ast.Bling:
 		right.Namespace = namespace

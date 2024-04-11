@@ -93,3 +93,6 @@ kill(m Monster) :
 
 kill(p Person) :
     "Killing people is wrong! Even " + p[name] + "."
+
+
+boolThing = false

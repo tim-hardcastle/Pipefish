@@ -3,10 +3,12 @@ package compiler
 import (
 	"os"
 	"pipefish/source/ast"
+	"pipefish/source/evaluator"
 	"pipefish/source/initializer"
 	"pipefish/source/parser"
 	"pipefish/source/relexer"
 	"pipefish/source/signature"
+	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"pipefish/source/vm"
@@ -109,11 +111,15 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// An intermediate step that groups the functions by name and orders them by specificity in a "function table"
-	vmm.uP.MakeFunctions(vmm.scriptFilepath)
+	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
+	// We return a GoHandler for the next step.
+	goHandler := vmm.uP.MakeFunctions(vmm.scriptFilepath)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	// We build the Go files, if any.
+	vmm.MakeGoMods(mc, goHandler)
 
 	// Now we turn this into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
@@ -147,6 +153,31 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+}
+
+func (vmm *VmMaker) MakeGoMods(mc *vm.Vm, goHandler *evaluator.GoHandler) {
+	uP := vmm.uP
+	goHandler.TypeDeclarations = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler)
+	if uP.Parser.ErrorsExist() {
+		return
+	}
+	goHandler.BuildGoMods()
+	if uP.Parser.ErrorsExist() {
+		return
+	}
+	for functionName, fns := range uP.Parser.FunctionTable {
+		for _, v := range fns {
+			if v.Body.GetToken().Type == token.GOLANG {
+				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
+			}
+		}
+	}
+
+	fnSymbol, _ := goHandler.Plugins["rsc/pipefish/world.pf"].Lookup("ConvertGoStructHalfwayToPipefish")
+	mc.ConvGoTypeToPfType = fnSymbol.(func(any) (uint32, []any, bool))
+	fnSymbol, _ = goHandler.Plugins["rsc/pipefish/world.pf"].Lookup("ConvertPipefishStructToGoStruct")
+	mc.MakeGoStruct = fnSymbol.(func(uint32, []any) any)
+	goHandler.CleanUp()
 }
 
 func (vmm *VmMaker) compileFunctions(mc *vm.Vm, args ...declarationType) {

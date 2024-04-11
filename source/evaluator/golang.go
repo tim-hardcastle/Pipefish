@@ -14,6 +14,7 @@ import (
 	"pipefish/source/ast"
 	"pipefish/source/object"
 	"pipefish/source/parser"
+	"pipefish/source/set"
 	"pipefish/source/signature"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -22,22 +23,25 @@ import (
 var counter int
 
 type GoHandler struct {
-	Prsr        *parser.Parser
-	timeMap     map[string]int
-	modules     map[string]string
-	plugins     map[string]*plugin.Plugin
-	rawHappened bool
+	Prsr             *parser.Parser
+	timeMap          map[string]int
+	modules          map[string]string
+	Plugins          map[string]*plugin.Plugin
+	rawHappened      bool
+	StructNames      set.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
+	TypeDeclarations string          // A string to put the generated source code for declaring stucts in.
 }
 
 func NewGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
-		Prsr: prsr,
+		Prsr:        prsr,
+		StructNames: set.Set[string]{},
 	}
 
 	gh.timeMap = make(map[string]int)
 	gh.modules = make(map[string]string)
-	gh.plugins = make(map[string]*plugin.Plugin)
+	gh.Plugins = make(map[string]*plugin.Plugin)
 
 	file, err := os.Open("rsc/go/gotimes.dat")
 	if err != nil {
@@ -91,7 +95,7 @@ func (gh *GoHandler) BuildGoMods() {
 	// 'tuplify' ensures that just one thing of type any is returned, since this is all the definition of
 	// golang functions can cope with.
 
-	appendix := `func tuplify(args ...any) any {
+	appendix := gh.TypeDeclarations + `func tuplify(args ...any) any {
 	if len(args) == 1 {
 		return args[0]
 	}
@@ -114,7 +118,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if ok {
 			if modifiedTime == int64(lastChange) {
 				soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
-				gh.plugins[source], err = plugin.Open(soFile)
+				gh.Plugins[source], err = plugin.Open(soFile)
 				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
 					continue
 				}
@@ -162,7 +166,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if err != nil {
 			gh.Prsr.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
 		}
-		gh.plugins[source], err = plugin.Open(soFile)
+		gh.Plugins[source], err = plugin.Open(soFile)
 		if err != nil {
 			gh.Prsr.Throw("golang/open", &token.Token{}, err.Error())
 		} else {
@@ -197,7 +201,7 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 				return
 			}
 		} else {
-			ty, ok = typeConv[v.VarType]
+			ty, ok = gh.doTypeConversion(v.VarType)
 			if !ok {
 				gh.Prsr.Throw("golang/type/b", golang.GetToken(), v.VarType)
 				return
@@ -222,7 +226,7 @@ func (gh *GoHandler) AddPureGoBlock(source, code string) {
 
 func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) any {
 	name := capitalize(fnName)
-	fn, err := gh.plugins[tok.Source].Lookup(name)
+	fn, err := gh.Plugins[tok.Source].Lookup(name)
 	if err != nil {
 		gh.Prsr.Throw("golang/found", tok, name)
 		return nil
@@ -261,6 +265,31 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"string":  ".(string)",
 	"tuple":   ".([]any)",
 	"type":    ".(string)",
+}
+
+func (gh *GoHandler) doTypeConversion(pTy string) (string, bool) {
+	goTy, ok := typeConv[pTy]
+	if ok {
+		return goTy, true
+	}
+	// If it's not a native type, then it may be a struct, so it may be namespaced.
+	bits := strings.Split(pTy, ".")
+	name := bits[len(bits)-1]
+	namespacePath := bits[0 : len(bits)-1]
+	resolvingParser := gh.Prsr
+	for _, namespace := range namespacePath {
+		s, ok := resolvingParser.NamespaceBranch[namespace]
+		if !ok {
+			gh.Prsr.Throw("parse/namespace/exist/b", &token.Token{Source: "function doing type conversion for Golang"}, namespace) // ToDp
+		}
+		resolvingParser = s.Parser
+	}
+
+	if resolvingParser.Structs.Contains(name) {
+		return ".(" + text.Flatten(pTy) + ")", true
+	}
+	gh.StructNames.Add(pTy)
+	return "", false
 }
 
 func (gh *GoHandler) CharmToGo(ch object.Object) any {

@@ -780,7 +780,9 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
-func (uP *Initializer) MakeFunctions(sourceName string) {
+//
+// We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
+func (uP *Initializer) MakeFunctions(sourceName string) *evaluator.GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := evaluator.NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
@@ -790,7 +792,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 			}
 			if uP.Parser.ErrorsExist() {
-				return
+				return nil
 			}
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
@@ -810,7 +812,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 				}
 				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression))
 				if uP.Parser.ErrorsExist() {
-					return
+					return nil
 				}
 				body.(*ast.GolangExpression).Sig = sig
 				body.(*ast.GolangExpression).ReturnTypes = rTypes
@@ -827,20 +829,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) {
 		code := token.Literal[:len(token.Literal)]
 		goHandler.AddPureGoBlock(source, code)
 	}
-
-	goHandler.BuildGoMods()
-	if uP.Parser.ErrorsExist() {
-		uP.Parser.Errors[len(uP.Parser.Errors)-1].Token = &token.Token{Source: sourceName}
-		return
-	}
-	for functionName, fns := range uP.Parser.FunctionTable {
-		for _, v := range fns {
-			if v.Body.GetToken().Type == token.GOLANG {
-				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(flatten(functionName), v.Body.GetToken())
-			}
-		}
-	}
-	goHandler.CleanUp()
+	return goHandler
 }
 
 func flatten(s string) string {
