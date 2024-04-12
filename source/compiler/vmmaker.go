@@ -23,6 +23,8 @@ type VmMaker struct {
 	cp             *Compiler
 	uP             *initializer.Initializer
 	scriptFilepath string
+	goToPf         map[string]func(any) (uint32, []any, bool)
+	pfToGo         map[string]func(uint32, []any) any
 }
 
 func NewVmMaker(scriptFilepath, sourcecode string, mc *vm.Vm) *VmMaker {
@@ -157,26 +159,32 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 
 func (vmm *VmMaker) MakeGoMods(mc *vm.Vm, goHandler *evaluator.GoHandler) {
 	uP := vmm.uP
-	goHandler.TypeDeclarations = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler)
-	if uP.Parser.ErrorsExist() {
-		return
+	for source, _ := range goHandler.Modules {
+		goHandler.TypeDeclarations[source] = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler, source)
+		if uP.Parser.ErrorsExist() {
+			return
+		}
 	}
 	goHandler.BuildGoMods()
 	if uP.Parser.ErrorsExist() {
 		return
 	}
-	for functionName, fns := range uP.Parser.FunctionTable {
+
+	vmm.goToPf = map[string]func(any) (uint32, []any, bool){}
+	vmm.pfToGo = map[string]func(uint32, []any) any{}
+	for source, _ := range goHandler.Modules {
+		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
+		vmm.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
+		vmm.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
+	}
+	for functionName, fns := range uP.Parser.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOLANG {
 				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
 			}
 		}
 	}
-
-	fnSymbol, _ := goHandler.Plugins["rsc/pipefish/world.pf"].Lookup("ConvertGoStructHalfwayToPipefish")
-	mc.ConvGoTypeToPfType = fnSymbol.(func(any) (uint32, []any, bool))
-	fnSymbol, _ = goHandler.Plugins["rsc/pipefish/world.pf"].Lookup("ConvertPipefishStructToGoStruct")
-	mc.MakeGoStruct = fnSymbol.(func(uint32, []any) any)
 	goHandler.CleanUp()
 }
 
@@ -515,7 +523,8 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 	case token.GOLANG:
 		cpF.goNumber = uint32(len(mc.GoFns))
 		cpF.hasGo = true
-		mc.GoFns = append(mc.GoFns, vm.GoFn{body.(*ast.GolangExpression).ObjectCode, body.(*ast.GolangExpression).Raw})
+		mc.GoFns = append(mc.GoFns, vm.GoFn{body.(*ast.GolangExpression).ObjectCode,
+			vmm.goToPf[body.GetToken().Source], vmm.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
 	default:
 		if given != nil {
 			vmm.cp.thunkList = []thunk{}

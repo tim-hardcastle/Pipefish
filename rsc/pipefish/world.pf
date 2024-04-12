@@ -30,11 +30,11 @@ post (x single) to (t Terminal): posttoterminalmaker(x)
 
 get (x ref) from (i Input) : builtin "get_from_input"
 
-goFileExists(fname string) : gocode {
-    _, err := os.Stat(fname)
-    return err == nil
-}
+// goFileExists(fname string) : gocode {
+//     _, err := os.Stat(fname)
+//     return err == nil
+// }
 
-get (x ref) from (fileAccess FileExists) :
-    x = goFileExists(fileAccess[filepath])
+// get (x ref) from (fileAccess FileExists) :
+//     x = goFileExists(fileAccess[filepath])
 

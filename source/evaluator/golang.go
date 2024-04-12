@@ -25,23 +25,25 @@ var counter int
 type GoHandler struct {
 	Prsr             *parser.Parser
 	timeMap          map[string]int
-	modules          map[string]string
+	Modules          map[string]string
 	Plugins          map[string]*plugin.Plugin
 	rawHappened      bool
-	StructNames      set.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
-	TypeDeclarations string          // A string to put the generated source code for declaring stucts in.
+	StructNames      map[string]set.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
+	TypeDeclarations map[string]string          // A string to put the generated source code for declaring stucts in.
 }
 
 func NewGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
 		Prsr:        prsr,
-		StructNames: set.Set[string]{},
+		StructNames: map[string]set.Set[string]{},
 	}
 
 	gh.timeMap = make(map[string]int)
-	gh.modules = make(map[string]string)
+	gh.Modules = make(map[string]string)
 	gh.Plugins = make(map[string]*plugin.Plugin)
+	gh.StructNames = make(map[string]set.Set[string])
+	gh.TypeDeclarations = make(map[string]string)
 
 	file, err := os.Open("rsc/go/gotimes.dat")
 	if err != nil {
@@ -67,7 +69,7 @@ func (gh *GoHandler) CleanUp() {
 
 	// We add the newly compiled modules to the list of times.
 
-	for k := range gh.modules {
+	for k := range gh.Modules {
 		file, err := os.Stat(k)
 
 		if err != nil {
@@ -95,7 +97,7 @@ func (gh *GoHandler) BuildGoMods() {
 	// 'tuplify' ensures that just one thing of type any is returned, since this is all the definition of
 	// golang functions can cope with.
 
-	appendix := gh.TypeDeclarations + `func tuplify(args ...any) any {
+	appendix := `func tuplify(args ...any) any {
 	if len(args) == 1 {
 		return args[0]
 	}
@@ -106,7 +108,7 @@ func (gh *GoHandler) BuildGoMods() {
 	return result
 }`
 
-	for source, functionBodies := range gh.modules {
+	for source, functionBodies := range gh.Modules {
 
 		var modifiedTime int64
 		f, err := os.Stat(source)
@@ -158,7 +160,7 @@ func (gh *GoHandler) BuildGoMods() {
 		}
 		goFile := "gocode " + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)
-		file.WriteString(preface + functionBodies + appendix)
+		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
 		file.Close()
 		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
@@ -178,6 +180,10 @@ func (gh *GoHandler) BuildGoMods() {
 func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signature, golang *ast.GolangExpression) {
 
 	source := golang.GetToken().Source
+
+	if gh.StructNames[source] == nil {
+		gh.StructNames[source] = make(set.Set[string])
+	}
 
 	// We check to see whether the source code has been modified.
 
@@ -201,7 +207,7 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 				return
 			}
 		} else {
-			ty, ok = gh.doTypeConversion(v.VarType)
+			ty, ok = gh.doTypeConversion(source, v.VarType)
 			if !ok {
 				gh.Prsr.Throw("golang/type/b", golang.GetToken(), v.VarType)
 				return
@@ -215,13 +221,21 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes signature.Signatur
 		fnString = fnString + "    " + v.VarName + " := " + kludge + "args[" + strconv.Itoa(i) + "]" + ty + "\n"
 	}
 
+	for _, v := range rTypes {
+		_, ok := gh.doTypeConversion(source, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
+		if !ok {
+			gh.Prsr.Throw("golang/type/c", golang.GetToken(), v.VarType)
+			return
+		}
+	}
+
 	fnString = fnString + doctorReturns(golang.Token.Literal) + "\n\n"
 
-	gh.modules[golang.Token.Source] = gh.modules[golang.Token.Source] + fnString
+	gh.Modules[source] = gh.Modules[source] + fnString
 }
 
 func (gh *GoHandler) AddPureGoBlock(source, code string) {
-	gh.modules[source] = gh.modules[source] + "\n" + code[:len(code)-2] + "\n\n"
+	gh.Modules[source] = gh.Modules[source] + "\n" + code[:len(code)-2] + "\n\n"
 }
 
 func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) any {
@@ -267,7 +281,7 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"type":    ".(string)",
 }
 
-func (gh *GoHandler) doTypeConversion(pTy string) (string, bool) {
+func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
 	goTy, ok := typeConv[pTy]
 	if ok {
 		return goTy, true
@@ -286,9 +300,9 @@ func (gh *GoHandler) doTypeConversion(pTy string) (string, bool) {
 	}
 
 	if resolvingParser.Structs.Contains(name) {
+		gh.StructNames[source].Add(pTy)
 		return ".(" + text.Flatten(pTy) + ")", true
 	}
-	gh.StructNames.Add(pTy)
 	return "", false
 }
 

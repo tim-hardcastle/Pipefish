@@ -309,6 +309,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/namespace/exist": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown namespace " + text.Emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are using " + text.Emph(tok.Literal) + " as though it was a namespace, but you haven't declared it as such in the 'import' section."
+		},
+	},
+
 	"comp/not/bool": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't apply 'not' to non-boolean type"

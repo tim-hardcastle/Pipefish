@@ -1111,6 +1111,7 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Com
 		service, ok := lC.Services[name]
 		if !ok {
 			cp.p.Throw("comp/namespace/exist", node.GetToken(), name)
+			return nil
 		}
 		lC = service.Cp
 	}
@@ -1875,12 +1876,12 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 // In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
 // a function which can convert the Go structs back into Pipefish structs. This function prepares this as a
 // snippet of text which can be added to the Go source code we're compiling.
-func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *evaluator.GoHandler) string {
+func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *evaluator.GoHandler, source string) string {
 	decs := "\n" // The type declarations.
-	convGoTypeToPfType := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {\n"
-	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {\n"
+	convGoTypeToPfType := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
+	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"
 	// The conversion function.
-	for el := range goHandler.StructNames {
+	for el := range goHandler.StructNames[source] {
 		bits := strings.Split(el, ".")
 		name := bits[len(bits)-1]
 		goStructName := text.Flatten(el)
@@ -1889,23 +1890,23 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *evaluator.Go
 		structType := resolvingCompiler.StructNumbers[name]
 		structNo := structType - mc.Ub_enums
 		// We add the definition of the struct.
-		typeDefStr := "type " + goStructName + "struct {\n"
-		for _, lN := range mc.StructLabels[structNo] {
-			typeDefStr = typeDefStr + "\t" + text.Flatten(mc.Labels[lN]) + " : " + cp.ConvertFieldType(mc, mc.StructFields[structNo][lN]) + "\n"
+		typeDefStr := "\ntype " + goStructName + " struct {\n"
+		for i, lN := range mc.StructLabels[structNo] {
+			typeDefStr = typeDefStr + "\t" + text.Flatten(mc.Labels[lN]) + " " + cp.ConvertFieldType(mc, mc.StructFields[structNo][i]) + "\n"
 		}
-		typeDefStr = typeDefStr + "\n\n}"
+		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
 		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		convGoTypeToPfType = convGoTypeToPfType + "\ncase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structType)) + ")"
+		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structType)) + ")"
 		convGoTypeToPfType = convGoTypeToPfType + ", []any{"
 		sep := ""
 		for _, lN := range mc.StructLabels[structNo] {
-			convGoTypeToPfType = convGoTypeToPfType + "v." + text.Flatten(mc.Labels[lN])
+			convGoTypeToPfType = convGoTypeToPfType + sep + "v.(" + goStructName + ")." + text.Flatten(mc.Labels[lN])
 			sep = ", "
 		}
 		convGoTypeToPfType = convGoTypeToPfType + "}, true\n"
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
-		makeGoStruct = makeGoStruct + "\ncase " + strconv.Itoa(int(structType)) + " : \n\t\treturn" + goStructName + "{"
+		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structType)) + " : \n\t\treturn " + goStructName + "{"
 		sep = ""
 		for i, ty := range mc.StructFields[structNo] {
 			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(mc, ty) + ")"

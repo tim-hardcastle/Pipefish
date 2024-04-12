@@ -29,27 +29,27 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve      StructResolver
-	Ub_enums           values.ValueType
-	TypeNames          []string
-	StructLabels       [][]int // Array from a struct to its label numbers.
-	StructFields       [][]values.AbstractType
-	Enums              [][]string // Array from the number of the enum to a list of the strings of its elements.
-	Labels             []string   // Array from the number of a field label to its name.
-	Tokens             []*token.Token
-	LambdaFactories    []*LambdaFactory
-	SnippetFactories   []*SnippetFactory
-	GoFns              []GoFn
-	IoHandle           IoHandler
-	Db                 *sql.DB
-	AbstractTypes      []values.NameAbstractTypePair
-	ConvGoTypeToPfType func(v any) (uint32, []any, bool)
-	MakeGoStruct       func(T uint32, args []any) any
+	StructResolve    StructResolver
+	Ub_enums         values.ValueType
+	TypeNames        []string
+	StructLabels     [][]int // Array from a struct to its label numbers.
+	StructFields     [][]values.AbstractType
+	Enums            [][]string // Array from the number of the enum to a list of the strings of its elements.
+	Labels           []string   // Array from the number of a field label to its name.
+	Tokens           []*token.Token
+	LambdaFactories  []*LambdaFactory
+	SnippetFactories []*SnippetFactory
+	GoFns            []GoFn
+	IoHandle         IoHandler
+	Db               *sql.DB
+	AbstractTypes    []values.NameAbstractTypePair
 }
 
 type GoFn struct {
-	Code func(args ...any) any
-	Raw  []bool
+	Code   func(args ...any) any
+	GoToPf func(v any) (uint32, []any, bool)
+	PfToGo func(T uint32, args []any) any
+	Raw    []bool
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -314,11 +314,10 @@ loop:
 				if F.Raw[i] {
 					goTpl = append(goTpl, el)
 				} else {
-					goTpl = append(goTpl, vm.pipefishToGo(el))
-
+					goTpl = append(goTpl, vm.pipefishToGo(el, F.PfToGo))
 				}
-				vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...))
 			}
+			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPf)
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
 		case Gtei:
@@ -1183,14 +1182,14 @@ func (vm *Vm) Literal(v values.Value) string {
 	}
 }
 
-func (vm *Vm) pipefishToGo(v values.Value) any {
+func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) any {
 	if v.T >= vm.Ub_enums {
 		pVals := v.V.([]values.Value)
 		gVals := make([]any, 0, len(pVals))
 		for _, v := range pVals {
-			gVals = append(gVals, vm.pipefishToGo(v))
+			gVals = append(gVals, vm.pipefishToGo(v, converter))
 		}
-		return vm.MakeGoStruct(uint32(v.T), gVals)
+		return converter(uint32(v.T), gVals)
 	}
 	switch v.T {
 	case values.INT:
@@ -1206,12 +1205,12 @@ func (vm *Vm) pipefishToGo(v values.Value) any {
 	}
 }
 
-func (vm *Vm) goToPipefish(v any) values.Value {
+func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) values.Value {
 	switch v := v.(type) {
 	case *object.GoReturn:
 		result := make([]values.Value, 0, len(v.Elements))
 		for el := range v.Elements {
-			result = append(result, vm.goToPipefish(el))
+			result = append(result, vm.goToPipefish(el, converter))
 		}
 		return values.Value{values.TUPLE, result}
 	case int:
@@ -1225,11 +1224,11 @@ func (vm *Vm) goToPipefish(v any) values.Value {
 	case nil:
 		return values.Value{values.NULL, v}
 	}
-	structType, gVals, ok := vm.ConvGoTypeToPfType(v)
+	structType, gVals, ok := converter(v)
 	if ok {
 		pVals := make([]values.Value, 0, len(gVals))
 		for _, gVal := range gVals {
-			pVals = append(pVals, vm.goToPipefish(gVal))
+			pVals = append(pVals, vm.goToPipefish(gVal, converter))
 		}
 		return values.Value{values.ValueType(structType), pVals}
 	}
