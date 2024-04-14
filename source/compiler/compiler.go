@@ -372,6 +372,11 @@ NodeTypeSwitch:
 				break NodeTypeSwitch
 			} // Otherwise we update the variable we've got.
 			// TODO --- type checking after refactoring type representation.
+			if v.access == REFERENCE_VARIABLE {
+				cp.emit(mc, vm.Aref, v.mLoc, mc.That())
+				cp.vmComeFrom(mc, rhsIsError)
+				break NodeTypeSwitch
+			}
 			cp.emit(mc, vm.Asgm, v.mLoc, mc.That())
 			cp.put(mc, vm.Asgm, values.C_OK)
 			cp.vmComeFrom(mc, rhsIsError)
@@ -1216,7 +1221,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, argCompiler *Compiler, node as
 			}
 			b.types[i] = cp.typeNameToTypeList["single?"]
 			cst = false
-			if v.access == REFERENCE_VARIABLE {
+			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(mc, vm.Asgm, v.mLoc)
 				b.valLocs[i] = mc.That()
 			} else {

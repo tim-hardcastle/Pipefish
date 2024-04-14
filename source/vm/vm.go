@@ -209,6 +209,8 @@ loop:
 			vm.Mem[args[0]].V.(*object.Error).AddToTrace(vm.Tokens[args[2]])
 		case Andb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(bool) && vm.Mem[args[2]].V.(bool)}
+		case Aref:
+			vm.Mem[vm.Mem[args[0]].V.(uint32)] = vm.Mem[args[1]]
 		case Asgm:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
 		case Call:

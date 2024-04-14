@@ -82,6 +82,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Adds: {"adds", operands{dst, mem, mem}},
 	Adtk: {"adtk", operands{dst, mem, tok}},
 	Andb: {"andb", operands{dst, mem, mem}},
+	Aref: {"aref", operands{dst, mem, mem}},
 	Asgm: {"asgm", operands{dst, mem}},
 	Call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
 	CalT: {"calt", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; the memory location of a list of places where we capture tuples, and a tuple saying where to get them from.
@@ -205,6 +206,7 @@ const (
 	Adds
 	Adtk
 	Andb
+	Aref
 	Asgm
 	Cc11
 	Cc1T

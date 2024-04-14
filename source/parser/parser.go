@@ -246,7 +246,7 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 }
 
 func (p *Parser) prefixSuffixError() {
-	p.Throw("parse/before", &p.curToken, p.peekToken)
+	p.Throw("parse/before", &p.curToken, &p.peekToken)
 }
 
 func (p *Parser) ParseTokenizedChunk() ast.Node {
@@ -1101,12 +1101,12 @@ func (p *Parser) checkNesting() {
 			return
 		}
 		if !checkConsistency(popped, p.curToken) {
-			p.Throw("parse/nesting", &p.curToken, popped)
+			p.Throw("parse/nesting", &p.curToken, &popped)
 		}
 	}
 	if p.curToken.Type == token.EOF {
 		for popped, poppable := p.nesting.Pop(); poppable; popped, poppable = p.nesting.Pop() {
-			p.Throw("parse/eol", &p.curToken, popped)
+			p.Throw("parse/eol", &p.curToken, &popped)
 		}
 	}
 }

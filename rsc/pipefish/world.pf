@@ -1,6 +1,7 @@
 import
 
-gocode "os"
+// gocode "os"
+gocode "time"
 
 types
 
@@ -29,6 +30,14 @@ posttoterminalmaker(x single) : builtin "post_to_terminal"
 post (x single) to (t Terminal): posttoterminalmaker(x)
 
 get (x ref) from (i Input) : builtin "get_from_input"
+
+goGetClock() -> Time : gocode {
+    goNow := time.Now()
+    return Time{goNow.Year(), int(goNow.Month()), goNow.Day(), goNow.Hour(), goNow.Minute(), goNow.Second(), goNow.Nanosecond(), goNow.Location().String()}
+}
+
+get (x ref) from (c Clock) :
+    x = goGetClock() 
 
 // goFileExists(fname string) : gocode {
 //     _, err := os.Stat(fname)
