@@ -52,7 +52,7 @@ func initializeEverything(mc *vm.Vm, scriptFilepath string) (*Compiler, *initial
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		sourcebytes, err := os.ReadFile(scriptFilepath)
-		sourcecode = string(sourcebytes)
+		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
 			uP := initializer.NewInitializer(scriptFilepath, sourcecode, nil)
 			uP.Throw("vmm/source", token.Token{Source: "linking"}, scriptFilepath)
