@@ -2,7 +2,7 @@ package compiler
 
 import (
 	"pipefish/source/ast"
-	"pipefish/source/evaluator"
+	"pipefish/source/initializer"
 	"pipefish/source/object"
 	"pipefish/source/parser"
 	"pipefish/source/set"
@@ -1882,7 +1882,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 // In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
 // a function which can convert the Go structs back into Pipefish structs. This function prepares this as a
 // snippet of text which can be added to the Go source code we're compiling.
-func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *evaluator.GoHandler, source string) string {
+func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *initializer.GoHandler, source string) string {
 	decs := "\n" // The type declarations.
 	convGoTypeToPfType := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
 	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"

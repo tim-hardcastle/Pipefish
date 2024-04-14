@@ -3,7 +3,6 @@ package compiler
 import (
 	"os"
 	"pipefish/source/ast"
-	"pipefish/source/evaluator"
 	"pipefish/source/initializer"
 	"pipefish/source/parser"
 	"pipefish/source/relexer"
@@ -228,7 +227,7 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 	}
 }
 
-func (vmm *VmMaker) MakeGoMods(mc *vm.Vm, goHandler *evaluator.GoHandler) {
+func (vmm *VmMaker) MakeGoMods(mc *vm.Vm, goHandler *initializer.GoHandler) {
 	uP := vmm.uP
 	for source, _ := range goHandler.Modules {
 		goHandler.TypeDeclarations[source] = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler, source)

@@ -26,14 +26,11 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/digraph"
-	"pipefish/source/evaluator"
 	"pipefish/source/object"
 	"pipefish/source/parser"
 	"pipefish/source/relexer"
-	"pipefish/source/text"
 
 	"pipefish/source/signature"
-	"pipefish/source/sysvars"
 	"pipefish/source/token"
 	"pipefish/source/tokenized_code_chunk"
 )
@@ -97,86 +94,6 @@ func NewInitializer(source, input string, db *sql.DB) *Initializer {
 	uP.GetSource(source)
 	uP.Parser.Database = db
 	return uP
-}
-
-func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service, namePath string) (*parser.Service, *Initializer) {
-	newService := parser.NewService()
-	newService.Broken = true
-	newService.ScriptFilepath = scriptFilepath
-	code := ""
-	if scriptFilepath != "" {
-		file, err := os.Stat(newService.ScriptFilepath)
-		if err != nil {
-			init := NewInitializer(scriptFilepath, "", db)
-			init.Throw("init/code/a", token.Token{Source: scriptFilepath}, err.Error())
-			return newService, init
-		}
-		newService.Timestamp = file.ModTime().UnixMilli()
-		dat, err := os.ReadFile(scriptFilepath)
-		if err != nil {
-			init := NewInitializer(scriptFilepath, "", db)
-			init.Throw("init/code/b", token.Token{Source: scriptFilepath}, err.Error())
-			return newService, init
-		}
-		code = strings.TrimRight(string(dat), "\n") + "\n"
-	}
-
-	init := NewInitializer(scriptFilepath, code, db)
-	newService.Parser = init.Parser
-	init.GetSource(scriptFilepath)
-	init.Parser.Database = db
-	init.Parser.Services = services
-	init.Parser.NamespacePath = namePath
-	init.MakeParserAndTokenizedProgram()
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	init.AddToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf"})
-	init.ParseImports()
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	unnamespacedImports := init.InitializeNamespacedImportsAndReturnUnnamespacedImports(root, namePath)
-
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	init.AddToNameSpace(unnamespacedImports)
-
-	env := object.NewEnvironment()
-	init.ParseEnumDefs(env)
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	init.MakeLanguagesAndContacts()
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	init.ParseTypeDefs()
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	init.ParseEverything()
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	init.InitializeEverything(env, scriptFilepath)
-	if init.ErrorsExist() {
-		return newService, init
-	}
-	newService.Parser = init.Parser
-	newService.Parser.RootService = root
-	newService.Env = env
-	newService.Broken = false
-	init.Parser.EffHandle = eff
-	if init.Parser.Unfixes.Contains("init") {
-		obj := evaluator.Evaluate(newService.Parser.ParseLine("Initializer", "init"),
-			evaluator.NewContext(newService.Parser, newService.Env, evaluator.REPL, true))
-		if obj.Type() == object.ERROR_OBJ {
-			init.addError(obj.(*object.Error))
-		}
-	}
-	return newService, init
 }
 
 func (init *Initializer) AddToNameSpace(thingsToImport []string) {
@@ -548,15 +465,6 @@ func (uP *Initializer) ParseTypeDefs() {
 	}
 }
 
-func (uP *Initializer) EvaluateTypeDefs(env *object.Environment) {
-	for _, v := range uP.Parser.ParsedDeclarations[structDeclaration] {
-		result := evaluator.Evaluate(v, evaluator.NewContext(uP.Parser, env, evaluator.DEF, false))
-		if result.Type() == object.ERROR_OBJ {
-			uP.Throw(result.(*object.Error).ErrorId, *result.(*object.Error).Token)
-		}
-	}
-}
-
 var SNIPPET_SIG = signature.Signature{signature.NameTypePair{VarName: "text", VarType: "string"}, signature.NameTypePair{VarName: "env", VarType: "map"}}
 
 func (uP *Initializer) MakeLanguagesAndContacts() {
@@ -654,102 +562,12 @@ func (uP *Initializer) ParseEverything() {
 	uP.Parser.Bling.AddSet(uP.Parser.Endfixes)
 }
 
-func (uP *Initializer) InitializeEverything(env *object.Environment, sourceName string) {
-	uP.EvaluateTypeDefs(env)
-	if uP.ErrorsExist() {
-		return
-	}
-	uP.MakeFunctions(sourceName)
-	uP.MakeFunctionTrees()
-	env.InitializeConstant("NULL", object.NULL)
-	env.InitializeConstant("ok", object.SUCCESS)
-	env.InitializeConstant("errorMessage", &object.Label{Value: "errorMessage"})
-	env.InitializeConstant("errorCode", &object.Label{Value: "errorCode"})
-	// Initialize the user-declared constants and variables
-	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
-		assignmentOrder := uP.ReturnOrderOfAssignments(declarations)
-		for k := range assignmentOrder {
-			result := evaluator.Evaluate(uP.Parser.ParsedDeclarations[declarations][k], evaluator.NewContext(uP.Parser, env, evaluator.INIT, false))
-			if result.Type() == object.ERROR_OBJ {
-				uP.Parser.Errors = object.AddErr(result.(*object.Error), uP.Parser.Errors, result.(*object.Error).Token)
-			}
-		}
-		if declarations == int(constantDeclaration) {
-			// We copy the constants to the global constants map.
-			for k, v := range env.Store {
-				uP.Parser.GlobalConstants.Store[k] = v
-			}
-		}
-
-	}
-	for k, v := range sysvars.Sysvars { // Service variables not in the script.
-		if !env.Exists(k) {
-			env.InitializeVariable(k, v.Dflt, object.ConcreteType(v.Dflt))
-		}
-	}
-	uP.Parser.AllGlobals = env // The logger needs to be able to see the global variables so it can see the service variables.
-}
-
 func (uP *Initializer) SetRelexer(rl relexer.Relexer) {
 	uP.rl = rl
 }
 
 func (uP *Initializer) ImportsExist() bool {
 	return len(uP.Parser.TokenizedDeclarations[importDeclaration]) > 0
-}
-
-func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(root *parser.Service, namePath string) []string {
-	unnamespacedImports := []string{}
-	for _, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
-		scriptFilepath := ""
-		namespace := ""
-		switch imp := (imp).(type) {
-		case *ast.StringLiteral:
-			scriptFilepath = imp.Value
-			namespace = text.ExtractFileName(scriptFilepath)
-		case *ast.InfixExpression:
-			if imp.GetToken().Literal != "::" {
-				uP.Throw("init/import/infix", imp.Token)
-			}
-			lhs := imp.Args[0]
-			rhs := imp.Args[2]
-			switch rhs := rhs.(type) {
-			case *ast.StringLiteral:
-				scriptFilepath = rhs.Value
-				switch lhs := lhs.(type) {
-				case *ast.Identifier:
-					if lhs.Value != "NULL" {
-						namespace = lhs.Value
-					} else {
-						namespace = ""
-					}
-				default:
-					uP.Throw("init/import/ident", *lhs.GetToken())
-				}
-			default:
-				uP.Throw("init/import/string", *lhs.GetToken())
-			}
-		case *ast.GolangExpression:
-			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)
-			continue
-		default:
-			uP.Throw("init/import/pair", *imp.GetToken())
-		}
-		if namespace == "" {
-			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
-		}
-		var init *Initializer
-		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root, namePath+namespace+".")
-		init.GetSource(scriptFilepath)
-		if len(init.Parser.Errors) > 0 {
-			uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)
-			uP.Parser.NamespaceBranch[namespace].Broken = true
-		}
-		for k, v := range init.Sources {
-			uP.Sources[k] = v
-		}
-	}
-	return unnamespacedImports
 }
 
 func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
@@ -782,9 +600,9 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 // implementing overloading.
 //
 // We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (uP *Initializer) MakeFunctions(sourceName string) *evaluator.GoHandler {
+func (uP *Initializer) MakeFunctions(sourceName string) *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := evaluator.NewGoHandler(uP.Parser)
+	goHandler := NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
