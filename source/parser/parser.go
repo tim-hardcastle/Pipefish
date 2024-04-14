@@ -585,10 +585,12 @@ func (p *Parser) parseIndexExpression(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseIdentifier() ast.Node {
+	p.CurrentNamespace = nil
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) parseUnfixExpression() ast.Node {
+	p.CurrentNamespace = nil
 	return &ast.UnfixExpression{Token: p.curToken, Operator: p.curToken.Literal}
 }
 
@@ -711,6 +713,7 @@ func (p *Parser) parseFunctionExpression() ast.Node {
 }
 
 func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
+	p.CurrentNamespace = nil
 	expression := &ast.SuffixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
