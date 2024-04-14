@@ -880,7 +880,6 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	if scriptFilepath == "" {
 		newService, init = compiler.StartService("", "", hub.Db)
 	} else {
-
 		sourcecode, _ := os.ReadFile(scriptFilepath)
 		newService, init = compiler.StartService(scriptFilepath, string(sourcecode), hub.Db)
 	}
@@ -888,7 +887,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	hub.services[name] = newService
 	hub.Sources = init.Sources
 
-	if newService.Cp.GetParser().ErrorsExist() {
+	if init.ErrorsExist() {
 		newService.Broken = true
 		hub.GetAndReportErrors(init.Parser)
 		return false

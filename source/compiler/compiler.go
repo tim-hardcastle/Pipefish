@@ -625,7 +625,7 @@ NodeTypeSwitch:
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		if resolvingCompiler.p.Infixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, cp, node, env, ac)
 			break
 		}
 		if node.Operator == "," {
@@ -881,7 +881,7 @@ NodeTypeSwitch:
 			ok bool
 		)
 		if resolvingCompiler != cp {
-			v, ok = resolvingCompiler.gvars.getVar(node.Operator)
+			v, ok = resolvingCompiler.gconsts.getVar(node.Operator)
 		} else {
 			v, ok = env.getVar(node.Operator)
 		}
@@ -902,7 +902,7 @@ NodeTypeSwitch:
 			break
 		}
 		if resolvingCompiler.p.Prefixes.Contains(node.Operator) || resolvingCompiler.p.Functions.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, cp, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
@@ -929,7 +929,7 @@ NodeTypeSwitch:
 			}
 		}
 		if resolvingCompiler.p.Suffixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, cp, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/suffix", node.GetToken())
@@ -969,7 +969,7 @@ NodeTypeSwitch:
 	case *ast.UnfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		if resolvingCompiler.p.Unfixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, nil, node, env, ac)
 			break
 		}
 		cp.p.Throw("comp/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
@@ -1181,7 +1181,8 @@ func (t alternateType) mustBeSingleOrTuple() (bool, bool) {
 	return s, T
 }
 
-func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *environment, ac Access) (alternateType, bool) {
+// The compiler in the method reeiver is where we look up the function name. The arguments need to be compiled in their own namespace by the argCompiler.
+func (cp *Compiler) createFunctionCall(mc *vm.Vm, argCompiler *Compiler, node ast.Callable, env *environment, ac Access) (alternateType, bool) {
 	args := node.GetArgs()
 	if len(args) == 1 {
 		switch args[0].(type) {
@@ -1229,7 +1230,7 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, node ast.Callable, env *enviro
 			b.types[i] = alternateType{blingType{arg.Value}}
 			b.valLocs[i] = values.C_BLING
 		default: // Otherwise we emit code to evaluate it.
-			b.types[i], cstI = cp.compileNode(mc, arg, env, ac)
+			b.types[i], cstI = argCompiler.compileNode(mc, arg, env, ac)
 			if b.types[i].(alternateType).contains(values.COMPILE_TIME_ERROR) {
 				return altType(values.COMPILE_TIME_ERROR), false
 			}

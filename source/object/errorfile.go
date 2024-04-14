@@ -2217,6 +2217,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/namespace/exist": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "Can't find namespace " + text.Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You haven't declared that namespace in the " + text.Emph("import") + " section"
+		},
+	},
+
 	"parse/nesting": {
 		Message: func(tok *token.Token, args ...any) string {
 			return text.DescribeTok(args[0].(*token.Token)) + text.DescribePos(args[0].(*token.Token)) +

@@ -201,7 +201,7 @@ func (uP *Initializer) GetSource(source string) {
 
 	uP.Sources[source] = []string{}
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(file) // TODO --- is there any reason this is line by line? Also why do we need the sources in the uP at this stage anyway?
 	for scanner.Scan() {
 		uP.Sources[source] = append(uP.Sources[source], scanner.Text())
 	}

@@ -310,6 +310,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		noNativePrefix = true
 	}
 
+	// We're looking at an identifier.
 	// If we're in a namespace, we need the symbol to be resolved by the appropriate parser.
 	resolvingParser := p.getResolvingParser()
 	if p.ErrorsExist() {
@@ -432,6 +433,7 @@ func (p *Parser) getResolvingParser() *Parser {
 		s, ok := lP.NamespaceBranch[name]
 		if !ok {
 			p.Throw("parse/namespace/exist", &p.curToken, name)
+			return nil
 		}
 		lP = s.Parser
 	}
@@ -643,6 +645,7 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 }
 
 func (p *Parser) parsePrefixExpression() ast.Node {
+	p.CurrentNamespace = nil
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
@@ -687,6 +690,7 @@ func (p *Parser) parseBuiltInExpression() ast.Node {
 }
 
 func (p *Parser) parseFunctionExpression() ast.Node {
+	p.CurrentNamespace = nil
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
@@ -731,25 +735,27 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		p.Throw("parse/namespace/lhs", left.GetToken())
 		return nil
 	}
-	p.CurrentNamespace = append(p.CurrentNamespace, left.GetToken().Literal)
+	name := left.GetToken().Literal
+	p.CurrentNamespace = append(p.CurrentNamespace, name)
 	right := p.parseExpression(NAMESPACE)
-	namespace := p.CurrentNamespace
-	p.CurrentNamespace = []string{}
+	if p.ErrorsExist() {
+		return nil
+	}
 	switch right := right.(type) {
 	case *ast.Bling:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	case *ast.Identifier:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	case *ast.InfixExpression:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	case *ast.PrefixExpression:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	case *ast.SuffixExpression:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	case *ast.TypeLiteral:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	case *ast.UnfixExpression:
-		right.Namespace = namespace
+		right.Namespace = append(right.Namespace, name)
 	default:
 		p.Throw("parse/namespace/rhs", right.GetToken())
 	}
