@@ -2,25 +2,22 @@ package parser
 
 import (
 	"os"
-
-	"pipefish/source/object"
 )
 
-type Service struct {
+type ParserData struct {
 	Parser         *Parser
-	Env            *object.Environment
 	ScriptFilepath string
 	Timestamp      int64
 	Broken         bool
 	Visited        bool
 }
 
-func NewService() *Service {
-	service := Service{}
+func NewService() *ParserData {
+	service := ParserData{}
 	return &service
 }
 
-func (service *Service) NeedsUpdate() (bool, error) {
+func (service *ParserData) NeedsUpdate() (bool, error) {
 	file, err := os.Stat(service.ScriptFilepath)
 	if err != nil {
 		return false, err

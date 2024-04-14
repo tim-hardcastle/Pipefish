@@ -3,6 +3,7 @@ package object
 import (
 	"pipefish/source/text"
 	"pipefish/source/token"
+	"pipefish/source/values"
 
 	"fmt"
 	"strconv"
@@ -65,37 +66,37 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/hash/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys"
+			return "objects of type " + EmphType(args[0].(values.Value)) + " cannot be used as hashkeys"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "In Pipefish as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
+				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(values.Value))
 		},
 	},
 
 	"built/hash/c": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys"
+			return "objects of type " + EmphType(args[0].(values.Value)) + " cannot be used as hashkeys"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "In Pipefish as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(Object))
+				"<int>, <string>, <float64>, <label> and <bool> — but not " + EmphType(args[0].(values.Value))
 		},
 	},
 
 	"built/hash/d": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "objects of type " + EmphType(args[0].(Object)) + " cannot be used as hashkeys"
+			return "objects of type " + EmphType(args[0].(values.Value)) + " cannot be used as hashkeys"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "In Pipefish as presently implemented, only some types can be used as hashkeys, including " +
-				"<int>, <string>, <float64>, <label> and <bool> — but not" + EmphType(args[0].(Object))
+				"<int>, <string>, <float64>, <label> and <bool> — but not" + EmphType(args[0].(values.Value))
 		},
 	},
 
 	"built/hash/pairs/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "a map must be constructed from things of type 'pair', not of type " + EmphType(args[0].(Object))
+			return "a map must be constructed from things of type 'pair', not of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A map in Pipefish consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
@@ -104,7 +105,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/hash/pairs/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "a map must be constructed from things of type <pair>, not of type " + EmphType(args[0].(Object))
+			return "a map must be constructed from things of type <pair>, not of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A map in Pipefish consists of '<key>::<value>' pairs, and if you try to make a map out of anything else this will fail."
@@ -131,7 +132,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"built/list/int": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "a list can only be indexed by something of type <integer>, not of type " + EmphType(args[0].(Object))
+			return "a list can only be indexed by something of type <integer>, not of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A list L can be indexed by an expression of the form L[n], where n is an integer from 0 up to " +
@@ -232,7 +233,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"built/slice/int/range": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "ranges are defined by pairs of type <int>::<int>, not of type " +
-				EmphType(args[0].(Object)) + "::" + EmphType(args[1].(Object))
+				EmphType(args[0].(values.Value)) + "::" + EmphType(args[1].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A range is a list of numbers given from one integer up to (but not including) another, " +
@@ -359,20 +360,20 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/apply": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Can't apply " + EmphType(args[0].(Object)) + " as a function"
+			return "Can't apply " + EmphType(args[0].(values.Value)) + " as a function"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "In this line you have written something of the form '(<expression 1>) (<expression 2>)'. " +
 				"The only way Pipefish can evaluate something like that is if expression 1 evaluates to something of " +
 				" type <func>, in which case this will be applied to expression 2. However, in this case the " +
-				"first expression evaluated to something of type " + EmphType(args[0].(Object)) + "."
+				"first expression evaluated to something of type " + EmphType(args[0].(values.Value)) + "."
 		},
 	},
 
 	"eval/args/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
-				DescribeSomeParams(args[0].([]Object), args[1].(bool))
+				DescribeSomeParams(args[0].([]values.Value), args[1].(bool))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -382,11 +383,11 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/args/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			if len(args[0].([]Object)) == 0 {
+			if len(args[0].([]values.Value)) == 0 {
 				return "can't find implementation of function " + text.DescribeTok(tok) + " requiring no parameters"
 			}
 			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
-				DescribeSomeParams(args[0].([]Object), args[1].(bool))
+				DescribeSomeParams(args[0].([]values.Value), args[1].(bool))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it takes parameters, you can't just " +
@@ -397,7 +398,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/args/c": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't find implementation of function " + text.DescribeTok(tok) + " accepting parameters of the given types " +
-				DescribeSomeParams(args[0].([]Object), args[1].(bool))
+				DescribeSomeParams(args[0].([]values.Value), args[1].(bool))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While the function or operator you have used is defined, it is not defined for the " +
@@ -407,7 +408,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/bool/iflog": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't apply " + emph(":") + " to things of type " + EmphType(args[0].(Object))
+			return "can't apply " + emph(":") + " to things of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish has no concept of \"truthiness\": the only valid left-hand side of the " +
@@ -417,7 +418,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/bool/left": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
+			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish has no concept of \"truthiness\": the only valid left-hand side of the " +
@@ -427,7 +428,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/bool/not": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
+			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish has no concept of \"truthiness\": the only valid argument of the " +
@@ -437,7 +438,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/bool/right": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(Object))
+			return "can't apply " + text.DescribeTok(tok) + " to things of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish has no concept of \"truthiness\": the only valid right-hand side of the " +
@@ -524,7 +525,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/const/type": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to constant of type '" +
+			return "attempting to assign object of type " + EmphType(args[0].(values.Value)) + " to constant of type '" +
 				args[1].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
@@ -560,7 +561,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When you use 'post', 'put', or 'delete' to get a value from a contact service, the contact service mustn't 'post' anything to 'Output()' in response, " +
-				"but only emit a Successful Object (the little green 'ok')."
+				"but only emit a Successful values.Value (the little green 'ok')."
 		},
 	},
 
@@ -614,7 +615,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/filter/list": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "'?>' operates on a list, not an object of type " + EmphType(args[0].(Object))
+			return "'?>' operates on a list, not an object of type " + EmphType(args[0].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "the filter operator '?>' takes a list as its left-hand parameter, and" +
@@ -636,7 +637,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	"eval/field/type": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "field '" + args[0].(string) + "' of variable '" + args[1].(string) +
-				"' should have type <" + args[2].(string) + ">, not " + EmphType(args[3].(Object))
+				"' should have type <" + args[2].(string) + ">, not " + EmphType(args[3].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You will see this error when you try to assign a value to a field of a struct " +
@@ -779,7 +780,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/index/types": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't index " + string(args[0].(ObjectType)) + " by " + string(args[1].(ObjectType))
+			return "can't index " + EmphType(args[0].(values.Value)) + " by " + EmphType(args[1].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You can index a list or a string or a tuple by an integer, or by a pair of integers to make a slice; or you can index a map by a key, or a struct by the label of one of its fields. But you have done none of these things and Pipefish is puzzled."
@@ -1071,7 +1072,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/repl/type": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to a variable of type " +
+			return "attempting to assign object of type " + EmphType(args[0].(values.Value)) + " to a variable of type " +
 				text.Emph(args[1].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
@@ -1094,7 +1095,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/rets/match": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "return value " + DescribeParams(args[0].([]Object)) + " doesn't match function definition "
+			return "return value " + DescribeParams(args[0].([]values.Value)) + " doesn't match function definition "
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The function in question has a return type, given after the '->' operator, and what you have " +
@@ -1157,7 +1158,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/sig/lambda": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]Object))
+			return "can't apply the supplied anonymous function to " + DescribeParams(args[0].([]values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "There is a mismatch between the parameters of the anonymous function you defined " +
@@ -1251,7 +1252,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/unknown/operator": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unknown operator: " + EmphType(args[0].(Object)) + " " + text.DescribeTok(tok) + " " + EmphType(args[1].(Object))
+			return "unknown operator: " + EmphType(args[0].(values.Value)) + " " + text.DescribeTok(tok) + " " + EmphType(args[1].(values.Value))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You're using " + text.DescribeTok(tok) + " as though it was an infix operator, but " +
@@ -1429,7 +1430,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/var/type/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type '" +
+			return "attempting to assign object of type " + EmphType(args[0].(values.Value)) + " to variable of type '" +
 				args[1].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
@@ -1440,7 +1441,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/var/type/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type '" +
+			return "attempting to assign object of type " + EmphType(args[0].(values.Value)) + " to variable of type '" +
 				args[1].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
@@ -1451,7 +1452,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"eval/var/type/c": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempting to assign object of type " + EmphType(args[0].(Object)) + " to variable of type '" +
+			return "attempting to assign object of type " + EmphType(args[0].(values.Value)) + " to variable of type '" +
 				args[1].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
@@ -2616,4 +2617,26 @@ func emphNum(i any) string {
 
 func emphText(s any) string {
 	return "'" + s.(string) + "'"
+}
+
+func EmphType(v values.Value) string {
+	return "'" + strconv.Itoa(int(v.T)) + "'" // TODO.
+}
+
+func DescribeParams(vL []values.Value) string {
+	result := ""
+	sep := ""
+	for _, v := range vL {
+		result = result + sep + EmphType(v)
+		sep = ", "
+	}
+	return result
+}
+
+func DescribeSomeParams(vL []values.Value, unfinished bool) string {
+	result := DescribeParams(vL)
+	if unfinished {
+		result = result + " ..."
+	}
+	return result
 }

@@ -397,43 +397,6 @@ func (uP *Initializer) ParseImports() {
 	}
 }
 
-func (uP *Initializer) ParseEnumDefs(env *object.Environment) {
-	// We add the name of the enum to the type system.
-	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[enumDeclaration]); chunk++ {
-		uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].ToStart()
-		tok1 := uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
-		tok2 := uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
-		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
-			uP.Throw("init/enum/lhs", tok1)
-		}
-		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "enum")
-		uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
-		uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal+"?")
-		uP.Parser.Enums[tok1.Literal] = []*object.Label{}
-		uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken() // This says "enum" or we wouldn't be here.
-		for tok := uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken(); tok.Type != token.EOF; {
-			if tok.Type != token.IDENT {
-				uP.Throw("init/enum/ident", tok)
-			}
-			if env.Exists(tok.Literal) {
-				uP.Throw("init/enum/free", tok)
-			}
-			labelConst := &object.Label{Value: tok.Literal, Name: tok1.Literal, Namespace: uP.Parser.NamespacePath}
-			env.InitializeConstant(tok.Literal, labelConst)
-
-			uP.Parser.Enums[tok1.Literal] = append(uP.Parser.Enums[tok1.Literal], labelConst)
-
-			tok = uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
-			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
-				uP.Throw("init/enum/comma", tok)
-			}
-			tok = uP.Parser.TokenizedDeclarations[enumDeclaration][chunk].NextToken()
-			uP.Parser.Suffixes.Add(tok1.Literal)
-		}
-	}
-
-}
-
 func (uP *Initializer) ParseTypeDefs() {
 	// First we need to make the struct types into types so the parser parses them properly.
 	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[structDeclaration]); chunk++ {

@@ -113,10 +113,10 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 		timestamp := file.ModTime().UnixMilli()
 		if newUP.ErrorsExist() {
 			uP.Parser.Errors = append(uP.Parser.Errors, newUP.Parser.Errors...)
-			vmm.uP.Parser.NamespaceBranch[namespace] = &parser.Service{newCp.p, nil, scriptFilepath, timestamp, true, false}
+			vmm.uP.Parser.NamespaceBranch[namespace] = &parser.ParserData{newCp.p, scriptFilepath, timestamp, true, false}
 			vmm.cp.Services[namespace] = &VmService{mc, newCp, scriptFilepath, timestamp, true, false}
 		} else {
-			vmm.uP.Parser.NamespaceBranch[namespace] = &parser.Service{newCp.p, nil, scriptFilepath, timestamp, false, false}
+			vmm.uP.Parser.NamespaceBranch[namespace] = &parser.ParserData{newCp.p, scriptFilepath, timestamp, false, false}
 			vmm.cp.Services[namespace] = &VmService{mc, newCp, scriptFilepath, timestamp, false, false}
 		}
 	}

@@ -5,7 +5,6 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/digraph"
-	"pipefish/source/object"
 	"pipefish/source/signature"
 )
 
@@ -113,10 +112,6 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (resu
 	result = aIsMoreSpecific
 	ok = true
 	return
-}
-
-func IsObjectInType(typesystem TypeSystem, obj object.Object, ty string) bool {
-	return IsSameTypeOrSubtype(typesystem, object.InnerType(obj), ty)
 }
 
 func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {

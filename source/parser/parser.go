@@ -140,22 +140,17 @@ type Parser struct {
 
 	FunctionTable    FunctionTable
 	FunctionGroupMap map[string]*ast.FunctionGroup
-	GlobalConstants  *object.Environment
-	AllGlobals       *object.Environment
 	TypeSystem       TypeSystem
-	BuiltinFunctions map[string]func(p *Parser, tok *token.Token, args ...object.Object) object.Object
-	Enums            map[string][]*object.Label
 	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]signature.Signature // <--- in here.
-	Services         map[string]*Service            // This has injected into it the hub's own map of services.
+	Services         map[string]*ParserData         // This has injected into it the hub's own map of services.
 	Contacts         map[string]string
 	Languages        []string
 	GoImports        map[string][]string
 	Database         *sql.DB
-	EffHandle        EffectHandler
-	NamespaceBranch  map[string]*Service
+	NamespaceBranch  map[string]*ParserData
 	NamespacePath    string
-	RootService      *Service
+	RootService      *ParserData
 }
 
 func New() *Parser {
@@ -182,13 +177,11 @@ func New() *Parser {
 		lazyInfixes: set.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
-		FunctionGroupMap: make(map[string]*ast.FunctionGroup),
-		GlobalConstants:  object.NewEnvironment(), // I need my functions to be able to see the global constants.
-		AllGlobals:       object.NewEnvironment(), // The logger needs to be able to see service variables and this is the simplest way.
+		FunctionGroupMap: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeSystem:       NewTypeSystem(),
 		Structs:          make(set.Set[string]),
 		GoImports:        make(map[string][]string),
-		NamespaceBranch:  make(map[string]*Service),
+		NamespaceBranch:  make(map[string]*ParserData),
 		Contacts:         make(map[string]string),
 	}
 
@@ -205,15 +198,6 @@ func New() *Parser {
 
 	p.Functions.AddSet(set.MakeFromSlice([]string{"builtin"}))
 
-	// The parser adds constructors for structs to the builtins and so must keep its own
-	// collection of them.
-	p.BuiltinFunctions = make(map[string]func(p *Parser, tok *token.Token, args ...object.Object) object.Object)
-
-	for k, v := range Builtins {
-		p.BuiltinFunctions[k] = v
-	}
-
-	p.Enums = make(map[string][]*object.Label)
 	p.StructSig = make(map[string]signature.Signature)
 
 	return p
@@ -1560,4 +1544,10 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (set.Set[string], set.Set[str
 
 	}
 	return LHS, RHS
+}
+
+func newError(ident string, tok *token.Token, args ...any) *object.Error {
+	errorToReturn := object.CreateErr(ident, tok, args...)
+	errorToReturn.Trace = []*token.Token{tok}
+	return errorToReturn
 }

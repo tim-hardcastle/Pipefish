@@ -5,6 +5,7 @@ import (
 
 	"pipefish/source/text"
 	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 // This handles the creation of errors, their messages, and their explanations, and the maintainance
@@ -66,7 +67,7 @@ func CreateErr(errorId string, tok *token.Token, args ...any) *Error {
 	return &Error{ErrorId: errorId, Message: msg, Token: tok, Args: args}
 }
 
-func CreateErrWithVals(errorId string, tok *token.Token, vals []Object, args ...any) *Error {
+func CreateErrWithVals(errorId string, tok *token.Token, vals []values.Value, args ...any) *Error {
 	errorCreator, ok := ErrorCreatorMap[errorId]
 	if !ok {
 		return CreateErr("err/misdirect", tok, errorId)
