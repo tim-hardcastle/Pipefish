@@ -3,68 +3,16 @@ package token
 type TokenType string
 
 const (
-	ILLEGAL = "ILLEGAL"
-	EOF     = "EOF"
-	BUILTIN = "BUILTIN"
-
-	// Identifiers + literals
-	IDENT   = "IDENT"   // add, foobar, x, y, ...
-	INT     = "int"     // 1343456
-	FLOAT   = "float64" // 1.23
-	STRING  = "string"  // "foo", `bar`
-	TRUE    = "true"
-	FALSE   = "false"
-	COMMENT = "COMMENT" // // foo bar zort troz
-
-	BEGIN = "BEGIN"
-	END   = "END"
-
-	// Operators
-	ASSIGN     = "="
-	CMD_ASSIGN = "=cmd="
-	VAR_ASSIGN = "=var="
-	DEF_ASSIGN = "=def="
-	GVN_ASSIGN = "=gvn="
-	LZY_ASSIGN = "=lzy="
-	PVR_ASSIGN = "=pvr="
-	TYP_ASSIGN = "=typ="
-
-	COLON     = ":"
-	NEWLINE   = "\n"
-	SEMICOLON = ";"
-
-	AND = "and"
-	OR  = "or"
-	NOT = "not"
-
-	EQ     = "=="
-	NOT_EQ = "!="
-
-	DOUBLESLASH = "//"
-
-	LOG    = "LOG"
-	IFLOG  = "IFLOG"
-	PRELOG = "PRELOG"
-
-	TRY = "try"
-
-	DOTDOT    = ".."
-	NO_INDENT = "|||"
-
-	COMMA      = ","
-	WEAK_COMMA = ",,"
-
-	LPAREN = "("
-	RPAREN = ")"
-	LBRACE = "{"
-	RBRACE = "}"
-	LBRACK = "["
-	RBRACK = "]"
-
-	NAMESPACE_SEPARATOR = "."
+	// Keywords
+	ELSE   = "else"
+	EVAL   = "eval"
+	GIVEN  = "given"
+	GLOBAL = "global"
+	GOLANG = "gocode"
+	LOOP   = "loop"
+	TRY    = "try"
 
 	// Headwords
-
 	IMPORT    = "import"
 	VAR       = "var"
 	CMD       = "cmd"
@@ -75,24 +23,66 @@ const (
 	CONST     = "const"
 	TYPES     = "types"
 
-	// Keywords
-	ELSE   = "else"
-	GIVEN  = "given"
-	EVAL   = "eval"
-	LOOP   = "loop"
-	GOLANG = "gocode"
-	GLOBAL = "global"
+	// Special operations
+	AND = "and"
+	OR  = "or"
+	NOT = "not"
 
-	// For internal use
-	MAGIC_COLON = "MAGIC_COLON"
-	WEAK_COLON  = "WEAK_COLON"
+	EMDASH  = "---"
+	EQ      = "=="
+	FILTER  = "?>"
+	MAPPING = ">>"
+	NOT_EQ  = "!="
+	PIPE    = "->"
 
-	// Streaming operators
-	PIPE   = "->"
-	MAP    = ">>"
-	FILTER = "?>"
+	// Assignment operators
+	ASSIGN     = "="
+	CMD_ASSIGN = "=CMD="
+	DEF_ASSIGN = "=DEF="
+	GVN_ASSIGN = "=GVN="
+	LZY_ASSIGN = "=LZY="
+	PVR_ASSIGN = "=PVR="
+	TYP_ASSIGN = "=TYP="
+	VAR_ASSIGN = "=VAR="
 
-	EMDASH = "EMDASH"
+	// The protected punctuation.
+	COLON               = ":"
+	DOTDOT              = ".."
+	COMMA               = ","
+	LPAREN              = "("
+	LBRACE              = "{"
+	LBRACK              = "["
+	NAMESPACE_SEPARATOR = "."
+	NEWLINE             = "\n"
+	RBRACE              = "}"
+	RBRACK              = "]"
+	RPAREN              = ")"
+	SEMICOLON           = ";"
+
+	// Literals, comments, and identifiers.
+	COMMENT = "COMMENT"
+	FLOAT   = "FLOAT LITERAL"
+	IDENT   = "IDENT"
+	INT     = "INTEGER LITERAL"
+	STRING  = "STRING LITERAL"
+
+	// False and true.
+	FALSE = "false"
+	TRUE  = "true"
+
+	// For internal use.
+	BEGIN       = "BEGIN"
+	BUILTIN     = "BUILTIN"
+	END         = "END"
+	EOF         = "EOF"
+	IFLOG       = "IFLOG"
+	ILLEGAL     = "ILLEGAL"
+	LOG         = "LOG"
+	MAGIC_COLON = "MAGIC COLON"
+	NO_INDENT   = "|||"
+	PRELOG      = "PRELOG"
+	WEAK_COLON  = "WEAK COLON"
+	WEAK_COMMA  = ",,"
 )
 
 type Token struct {
@@ -105,35 +95,40 @@ type Token struct {
 }
 
 var keywords = map[string]TokenType{
-	"import":    IMPORT,
-	"var":       VAR,
-	"cmd":       CMD,
-	"def":       DEF,
-	"private":   PRIVATE,
-	"languages": LANGUAGES,
-	"contacts":  CONTACTS,
-	"const":     CONST,
-	"types":     TYPES,
-
-	"true":  TRUE,
-	"false": FALSE,
-	"else":  ELSE,
-
-	"and": AND,
-	"or":  OR,
-	"not": NOT,
-
-	"loop": LOOP,
-
+	// Keywords.
+	"else":   ELSE,
 	"eval":   EVAL,
 	"given":  GIVEN,
 	"gocode": GOLANG,
 	"global": GLOBAL,
+	"loop":   LOOP,
+	"try":    TRY,
 
-	"try": TRY,
+	// Headwords.
+	"const":     CONST,
+	"contacts":  CONTACTS,
+	"cmd":       CMD,
+	"def":       DEF,
+	"import":    IMPORT,
+	"languages": LANGUAGES,
+	"private":   PRIVATE,
+	"types":     TYPES,
+	"var":       VAR,
 
+	//Special operators.
+	"and": AND,
+	"or":  OR,
+	"not": NOT,
 	"->":  PIPE,
+	">>":  MAPPING,
+	"?>":  FILTER,
+	"==":  EQ,
+	"!=":  NOT_EQ,
 	"---": EMDASH,
+
+	// False and true.
+	"true":  TRUE,
+	"false": FALSE,
 }
 
 func LookupIdent(ident string) TokenType {

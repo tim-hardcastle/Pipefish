@@ -14,10 +14,6 @@ import (
 	"pipefish/source/token"
 )
 
-// The parser, obviously. However, I'm temporarily tucking the effect handlers for the evaluator in here despite
-// the fact that they don't parse anything and are just here because like the parser they're a dependency of
-// the evaluator that doesn't change during evaluation.
-
 const (
 	_ int = iota
 	LOWEST
@@ -72,7 +68,7 @@ var precedences = map[token.TokenType]int{
 	token.COLON:               COLON,
 	token.MAGIC_COLON:         COLON,
 	token.PIPE:                PIPING,
-	token.MAP:                 PIPING,
+	token.MAPPING:             PIPING,
 	token.FILTER:              PIPING,
 	token.OR:                  OR,
 	token.AND:                 AND,
@@ -172,7 +168,7 @@ func New() *Parser {
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
-			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER,
+			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAPPING, token.FILTER,
 			token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
@@ -379,7 +375,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseLazyInfixExpression(leftExp)
 			case p.curToken.Type == token.LBRACK:
 				leftExp = p.parseIndexExpression(leftExp)
-			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAP ||
+			case p.curToken.Type == token.PIPE || p.curToken.Type == token.MAPPING ||
 				p.curToken.Type == token.FILTER:
 				leftExp = p.parseStreamingExpression(leftExp)
 			case p.curToken.Type == token.IFLOG:
@@ -431,7 +427,7 @@ func (p *Parser) positionallyFunctional() bool {
 		return false
 	}
 	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
-		p.peekToken.Type == token.MAP || p.peekToken.Type == token.FILTER ||
+		p.peekToken.Type == token.MAPPING || p.peekToken.Type == token.FILTER ||
 		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON ||
 		p.peekToken.Type == token.COMMA {
 		return false

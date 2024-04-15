@@ -227,8 +227,11 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			}
 		}
 
-		if (tok.Type == token.NEWLINE) &&
-			!lastTokenWasColon && indentCount == 0 && line.Length() != 0 {
+		if ((tok.Type == token.NEWLINE) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
+			tok.Type == token.GOLANG {
+			if tok.Type == token.GOLANG {
+				line.Append(tok)
+			}
 			if beginCount != 0 {
 				uP.Throw("init/close", tok)
 				beginCount = 0 // Prevents error storm.

@@ -34,36 +34,14 @@ func NewLexer(source, input string) *Lexer {
 		input:           input,
 		line:            1,
 		char:            -1,
-		newline:         true,
-		afterWhitespace: true,
 		whitespaceStack: *stack,
 		Ers:             []*report.Error{},
 		source:          source,
 	}
-	l.readChar()
 	return l
 }
 
-func LexDump(input string) {
-	fmt.Print("\nLexer output: \n\n")
-	l := NewLexer("", input)
-	for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
-		fmt.Println(tok)
-	}
-	fmt.Println()
-}
-
-func (l *Lexer) NextNonCommentToken() token.Token {
-	for tok := l.NextToken(); ; tok = l.NextToken() {
-		if tok.Type != token.COMMENT {
-			return tok
-		}
-	}
-
-}
-
 func (l *Lexer) NextToken() token.Token {
-	var tok token.Token
 
 	if l.afterSnippet {
 		l.afterSnippet = false
@@ -74,187 +52,144 @@ func (l *Lexer) NextToken() token.Token {
 
 	if l.newline {
 		l.afterWhitespace = true
+		l.newline = false
 		return l.interpretWhitespace()
 	}
-
+	l.newline = false
 	l.skipWhitespace()
-
 	l.tstart = l.char
 
 	switch l.ch {
+	case 0:
+		return l.NewToken(token.EOF, "EOF")
 	case '\n':
-		tok = l.NewToken(token.NEWLINE, ";")
-	case '=':
-		if l.peekChar() == '=' {
-			l.readChar()
-			tok = l.NewToken(token.EQ, "==")
-		} else {
-			tok = l.NewToken(token.ASSIGN, "=")
-		}
+		return l.NewToken(token.NEWLINE, ";")
 	case '\\':
 		if l.peekChar() == '\\' {
 			l.readChar()
-			tok = l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))
-			l.readChar()
-			return tok
+			return l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))
 		}
 	case ';':
-		tok = l.NewToken(token.SEMICOLON, ";")
+		return l.NewToken(token.SEMICOLON, ";")
 	case ':':
 		if l.peekChar() == ':' {
 			l.readChar()
-			tok = l.NewToken(token.IDENT, "::")
+			return l.NewToken(token.IDENT, "::") // We return this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
-			tok = l.NewToken(token.COLON, ":")
+			return l.NewToken(token.COLON, ":")
 		}
 	case ',':
 		if l.skipWhitespaceAfterPotentialContinuation() {
-			tok = l.NewToken(token.COMMA, ",")
+			return l.NewToken(token.COMMA, ",")
 		} else {
-			tok = l.NewToken(token.ILLEGAL, "lex/comma")
-			l.Throw("lex/comma", tok)
+			return l.Throw("lex/comma")
 		}
 	case '{':
-		tok = l.NewToken(token.LBRACE, "{")
+		return l.NewToken(token.LBRACE, "{")
 	case '}':
-		tok = l.NewToken(token.RBRACE, "}")
+		return l.NewToken(token.RBRACE, "}")
 	case '[':
-		tok = l.NewToken(token.LBRACK, "[")
+		return l.NewToken(token.LBRACK, "[")
 	case ']':
-		if l.peekChar() == '>' {
-			l.readChar()
-			tok = l.NewToken(token.MAP, ">>")
-		} else {
-			tok = l.NewToken(token.RBRACK, "]")
-		}
+		return l.NewToken(token.RBRACK, "]")
 	case '(':
-		tok = l.NewToken(token.LPAREN, "(")
+		return l.NewToken(token.LPAREN, "(")
 	case ')':
-		tok = l.NewToken(token.RPAREN, ")")
+		return l.NewToken(token.RPAREN, ")")
 	case '"':
-		tok = l.NewToken(token.STRING, "")
 		s, ok := l.readFormattedString()
-		tok.Literal = s
 		if !ok {
-			l.Throw("lex/quote/a", tok)
+			return l.Throw("lex/quote/a")
 		}
+		return l.NewToken(token.STRING, s)
 	case '`':
-		tok = l.NewToken(token.STRING, ")")
 		s, ok := l.readPlaintextString()
-		tok.Literal = s
 		if !ok {
-			l.Throw("lex/quote/b", tok)
+			return l.Throw("lex/quote/b")
 		}
-	case 0:
-		tok = l.NewToken(token.EOF, "EOF")
+		return l.NewToken(token.STRING, s)
 	case '.':
 		if l.peekChar() == '.' {
 			l.readChar()
 			if l.skipWhitespaceAfterPotentialContinuation() {
-				tok = l.NewToken(token.DOTDOT, "..")
+				return l.NewToken(token.DOTDOT, "..")
 			} else {
-				tok = l.NewToken(token.ILLEGAL, "lex/cont/a")
-				l.Throw("lex/cont/a", tok)
-				if l.afterWhitespace {
-					tok = l.NewToken(token.ILLEGAL, "lex/cont/b")
-					l.Throw("lex/cont/b", tok)
-				}
+				return l.Throw("lex/cont/a")
 			}
 		} else {
-			tok = l.NewToken(token.NAMESPACE_SEPARATOR, ".")
-		}
-	default:
-		if l.ch == '/' && l.peekChar() == '/' {
-			l.readChar()
-			tok = l.NewToken(token.COMMENT, l.readComment())
-			l.readChar()
-			return tok
-		}
-		if l.ch == '!' && l.peekChar() == '=' {
-			l.readChar()
-			l.readChar()
-			tok = l.NewToken(token.NOT_EQ, "!=")
-			l.afterWhitespace = false
-			return tok
-		}
-		if l.ch == '>' && l.peekChar() == '>' {
-			l.readChar()
-			tok = l.NewToken(token.MAP, ">>")
-			l.readChar()
-			return tok
-		}
-		if l.ch == '?' && l.peekChar() == '>' {
-			l.readChar()
-			tok = l.NewToken(token.FILTER, "?>")
-			l.readChar()
-			return tok
-		}
-		if l.ch == '0' {
-			switch l.peekChar() {
-			case 'b':
-				numString := l.readBinaryNumber()
-				if num, err := strconv.ParseInt(numString, 2, 64); err == nil {
-					return l.NewToken(token.INT, strconv.FormatInt(num, 10))
-				}
-				l.Throw("lex/bin", tok, numString)
-				return l.NewToken(token.ILLEGAL, "lex/bin")
-			case 'o':
-				numString := l.readOctalNumber()
-				if num, err := strconv.ParseInt(numString, 8, 64); err == nil {
-					return l.NewToken(token.INT, strconv.FormatInt(num, 10))
-				}
-				l.Throw("lex/oct", tok, numString)
-				return l.NewToken(token.ILLEGAL, "lex/oct")
-			case 'x':
-				numString := l.readHexNumber()
-				if num, err := strconv.ParseInt(numString, 16, 64); err == nil {
-					return l.NewToken(token.INT, strconv.FormatInt(num, 10))
-				}
-				l.Throw("lex/hex", tok, numString)
-				return l.NewToken(token.ILLEGAL, "lex/hex")
-			}
-		}
-		if isLegalStart(l.ch) {
-			tok.Literal = l.readIdentifier()
-			tok = l.NewToken(token.LookupIdent(tok.Literal), tok.Literal)
-			if tok.Type == token.GOLANG {
-				tok.Literal = l.readGolang()
-			}
-			if tok.Type == token.EMDASH {
-				tok.Literal = l.readSnippet()
-			}
-			return tok
-		} else if isDigit(l.ch) {
-
-			numString := l.readNumber()
-			if _, err := strconv.ParseInt(numString, 0, 64); err == nil {
-				return l.NewToken(token.INT, numString)
-			}
-			if _, err := strconv.ParseFloat(numString, 64); err == nil {
-				return l.NewToken(token.FLOAT, numString)
-			}
-			l.Throw("lex/num", tok, numString)
-			return l.NewToken(token.ILLEGAL, "lex/num")
-
-		} else { // not a digit either
-			l.Throw("lex/ill", tok, l.ch)
-			tok = l.NewToken(token.ILLEGAL, "lex/ill")
+			return l.NewToken(token.NAMESPACE_SEPARATOR, ".")
 		}
 	}
-	tok.Line = l.line
-	tok.ChStart = l.tstart
-	tok.ChEnd = l.char
-	l.readChar()
-	l.afterWhitespace = false
-	return tok
+
+	// We may have a comment.
+	if l.ch == '/' && l.peekChar() == '/' {
+		l.readChar()
+		return l.NewToken(token.COMMENT, l.readComment())
+	}
+
+	// We may have a binary, octal, or hex literal.
+	if l.ch == '0' {
+		switch l.peekChar() {
+		case 'b':
+			numString := l.readBinaryNumber()
+			if num, err := strconv.ParseInt(numString, 2, 64); err == nil {
+				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+			}
+			return l.Throw("lex/bin", numString)
+		case 'o':
+			numString := l.readOctalNumber()
+			if num, err := strconv.ParseInt(numString, 8, 64); err == nil {
+				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+			}
+			return l.Throw("lex/oct", numString)
+		case 'x':
+			numString := l.readHexNumber()
+			if num, err := strconv.ParseInt(numString, 16, 64); err == nil {
+				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+			}
+			return l.Throw("lex/hex", numString)
+		}
+	}
+
+	// We may have a normal base-ten literal.
+	if isDigit(l.ch) {
+		numString := l.readNumber()
+		if _, err := strconv.ParseInt(numString, 0, 64); err == nil {
+			return l.NewToken(token.INT, numString)
+		}
+		if _, err := strconv.ParseFloat(numString, 64); err == nil {
+			return l.NewToken(token.FLOAT, numString)
+		}
+		return l.Throw("lex/num", numString)
+	}
+
+	// We may have an identifier, a gocode block, or a snippet.
+	if isLegalStart(l.ch) {
+		lit := l.readIdentifier()
+		tType := token.LookupIdent(lit)
+		switch tType {
+		case token.GOLANG:
+			text := l.readGolang()
+			return l.NewToken(tType, text)
+		case token.EMDASH:
+			return l.NewToken(tType, l.readSnippet())
+		default:
+			return l.NewToken(tType, lit)
+		}
+	}
+
+	// Or we have nothing recognizable.
+	return l.Throw("lex/ill", l.ch)
 }
 
 func (l *Lexer) interpretWhitespace() token.Token {
+
 	l.newline = false
 	whitespace := ""
+
 	for l.ch == ' ' || l.ch == '\t' {
-		whitespace = whitespace + string(l.ch)
 		l.readChar()
+		whitespace = whitespace + string(l.ch)
 	}
 	if l.snippetWhitespace != "" {
 		whitespace = l.snippetWhitespace
@@ -272,26 +207,24 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	if l.ch == '.' && l.peekChar() == '.' {
 		l.readChar()
 		l.readChar()
-		l.Throw("lex/cont/c", l.NewToken(token.ILLEGAL, "lex/cont/c"))
-		return l.NewToken(token.ILLEGAL, "lex/cont/c")
+		return l.Throw("lex/cont/c")
 	}
 	previousWhitespace, _ := l.whitespaceStack.HeadValue()
 	if whitespace == previousWhitespace {
-		return l.NewToken(token.NO_INDENT, "|||")
+		return l.MakeToken(token.NO_INDENT, "|||")
 	}
 	if strings.HasPrefix(whitespace, previousWhitespace) {
 		l.whitespaceStack.Push(whitespace)
-		return l.NewToken(token.BEGIN, "|->")
+		return l.MakeToken(token.BEGIN, "|->")
 	}
 	level := l.whitespaceStack.Find(whitespace)
 	if level > 0 {
 		for i := 0; i < level; i++ {
 			l.whitespaceStack.Pop()
 		}
-		return l.NewToken(token.END, fmt.Sprint(level))
+		return l.MakeToken(token.END, fmt.Sprint(level))
 	}
-	l.Throw("lex/wsp", l.NewToken(token.ILLEGAL, "lex/wsp"), describeWhitespace(whitespace))
-	return l.NewToken(token.ILLEGAL, "lex/wsp")
+	return l.Throw("lex/wsp", describeWhitespace(whitespace))
 }
 
 func describeWhitespace(s string) string {
@@ -314,6 +247,18 @@ func describeWhitespace(s string) string {
 			}
 			if cur == '\t' {
 				result = result + strconv.Itoa(count) + " " + "tab"
+				if count > 1 {
+					result = result + "s"
+				}
+				if i < len(s)-1 {
+					result = result + ", "
+				}
+				cur = ch
+				count = 1
+				continue
+			}
+			if cur == '\n' {
+				result = result + strconv.Itoa(count) + " " + "newline"
 				if count > 1 {
 					result = result + "s"
 				}
@@ -386,8 +331,8 @@ func (l *Lexer) peekChar() rune {
 }
 
 func (l *Lexer) readNumber() string {
-	result := ""
-	for isDigit(l.ch) || l.ch == '.' {
+	result := string(l.ch)
+	for isDigit(l.peekChar()) || l.peekChar() == '.' {
 		result = result + string(l.ch)
 		l.readChar()
 	}
@@ -397,10 +342,9 @@ func (l *Lexer) readNumber() string {
 func (l *Lexer) readBinaryNumber() string {
 	result := ""
 	l.readChar()
-	l.readChar()
-	for isBinaryDigit(l.ch) {
-		result = result + string(l.ch)
+	for isBinaryDigit(l.peekChar()) {
 		l.readChar()
+		result = result + string(l.ch)
 	}
 	return result
 }
@@ -408,10 +352,9 @@ func (l *Lexer) readBinaryNumber() string {
 func (l *Lexer) readOctalNumber() string {
 	result := ""
 	l.readChar()
-	l.readChar()
-	for isOctalDigit(l.ch) {
-		result = result + string(l.ch)
+	for isOctalDigit(l.peekChar()) {
 		l.readChar()
+		result = result + string(l.ch)
 	}
 	return result
 }
@@ -419,10 +362,9 @@ func (l *Lexer) readOctalNumber() string {
 func (l *Lexer) readHexNumber() string {
 	result := ""
 	l.readChar()
-	l.readChar()
-	for isHexDigit(l.ch) {
-		result = result + string(l.ch)
+	for isHexDigit(l.peekChar()) {
 		l.readChar()
+		result = result + string(l.ch)
 	}
 	return result
 }
@@ -502,10 +444,10 @@ func (l *Lexer) readSnippet() string {
 
 func (l *Lexer) readGolang() string {
 	result := ""
-	for (l.peekChar() == ' ' || l.peekChar() == '\t') && l.peekChar() != '{' {
+	for l.peekChar() == ' ' || l.peekChar() == '\t' { // Get rid of the whitespace between 'gocode' and whatever follows it.
 		l.readChar()
 	}
-	// We expect a brace after the gocode keyword.
+	// We expect a brace or quotes after the gocode keyword.
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
 		l.Throw("lex/gocode", l.NewToken(token.ILLEGAL, "lex/gocode"))
 		return ""
@@ -516,7 +458,6 @@ func (l *Lexer) readGolang() string {
 		if !ok {
 			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "lex/quote/c"))
 		}
-		l.readChar()
 		return s
 	}
 	if l.peekChar() == '`' {
@@ -525,7 +466,6 @@ func (l *Lexer) readGolang() string {
 		if !ok {
 			l.Throw("lex/quote/d", l.NewToken(token.ILLEGAL, "lex/quote/d"))
 		}
-		l.readChar()
 		return s
 	}
 	// So now we look for the closing brace, ignoring those inside strings
@@ -560,7 +500,6 @@ func (l *Lexer) readGolang() string {
 		}
 		result = result + string(l.ch)
 	}
-	l.readChar()
 	return result
 }
 
@@ -620,26 +559,27 @@ func (l *Lexer) readPlaintextString() (string, bool) {
 }
 
 func (l *Lexer) readIdentifier() string {
-	result := ""
-	for isLegalNonStart(l.ch) {
-		if isPeriod(l.ch) {
-			break
-		}
-		result = result + string(l.ch)
-		if isSymbol(l.ch) != isSymbol(l.peekChar()) {
-			l.readChar()
-			break
-		}
+	result := string(l.ch) // i.e. the character that suggested this was an identifier.
+	for !l.atBoundary() {
 		l.readChar()
+		result = result + string(l.ch)
 	}
 	return result
 }
 
+func isAlphanumeric(c rune) bool {
+	return isLetter(c) || isDigit(c)
+}
+
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '\'' || ch == '$' || ch == '.' || ch == '?'
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '$' || ch == '?'
 }
 
 func isPeriod(ch rune) bool {
+	return ch == '.'
+}
+
+func isUnderscore(ch rune) bool {
 	return ch == '.'
 }
 
@@ -659,7 +599,7 @@ func isHexDigit(ch rune) bool {
 	return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
 }
 
-func isProtectedPunctuation(ch rune) bool {
+func isProtectedPunctuationOrWhitespace(ch rune) bool {
 	return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' || ch == ' ' || ch == ',' ||
 		ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == 0
 }
@@ -669,21 +609,48 @@ func isWhitespace(ch rune) bool {
 }
 
 func isSymbol(ch rune) bool {
-	return !(isLetter(ch) || isDigit(ch) || isProtectedPunctuation(ch))
+	return !(ch == '_') && !(isLetter(ch) || isDigit(ch) || isProtectedPunctuationOrWhitespace(ch))
 }
 
 func isLegalStart(ch rune) bool {
-	return !(isProtectedPunctuation(ch) || isDigit(ch) || isPeriod(ch))
+	return !(isProtectedPunctuationOrWhitespace(ch) || isDigit(ch) || isPeriod(ch) || isUnderscore(ch))
 }
 
-func isLegalNonStart(ch rune) bool {
-	return !(isProtectedPunctuation(ch)) || ch == '$'
+// FInds if we're at the end of an identifier.
+func (l *Lexer) atBoundary() bool {
+	pc := l.peekChar()
+	return isProtectedPunctuationOrWhitespace(pc) || (isAlphanumeric(l.ch) && isSymbol(pc)) || (isSymbol(l.ch) && isAlphanumeric(pc))
 }
 
 func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
+	l.readChar()
+	l.afterWhitespace = false
+	return l.MakeToken(tokenType, st)
+}
+
+func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.line, ChStart: l.tstart, ChEnd: l.char}
 }
 
-func (l *Lexer) Throw(errorID string, tok token.Token, args ...any) {
+func (l *Lexer) Throw(errorID string, args ...any) token.Token {
+	tok := l.NewToken(token.ILLEGAL, errorID)
 	l.Ers = report.Throw(errorID, l.Ers, &tok, args...)
+	return tok
+}
+
+func LexDump(input string) {
+	fmt.Print("\nLexer output: \n\n")
+	l := NewLexer("", input)
+	for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
+		fmt.Println(tok)
+	}
+	fmt.Println()
+}
+
+func (l *Lexer) NextNonCommentToken() token.Token {
+	for tok := l.NextToken(); ; tok = l.NextToken() {
+		if tok.Type != token.COMMENT {
+			return tok
+		}
+	}
 }

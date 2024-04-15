@@ -68,4 +68,3 @@ typewithmaker(x type, y tuple) : builtin "type_with"
 (x type) with (y tuple) : typewithmaker x, y        
 mapwithoutmaker(x map, y tuple)  : builtin "map_without"
 (x map) without (y tuple) : mapwithoutmaker x, y 
-
