@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"reflect"
 
-	"pipefish/source/set"
-	"pipefish/source/signature"
+	"pipefish/source/dtypes"
 	"pipefish/source/token"
 )
 
@@ -22,26 +21,6 @@ type Callable interface {
 }
 
 // Nodes in alphabetical order. Other structures and functions are in a separate section at the bottom.
-
-type ApplicationExpression struct {
-	Left  Node
-	Right Node
-	Token token.Token
-}
-
-func (ae *ApplicationExpression) Children() []Node       { return []Node{ae.Left, ae.Right} }
-func (ae *ApplicationExpression) GetToken() *token.Token { return &ae.Token }
-func (ae *ApplicationExpression) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("(")
-	out.WriteString(ae.Left.String())
-	out.WriteString(" (")
-	out.WriteString(ae.Right.String())
-	out.WriteString("))")
-
-	return out.String()
-}
 
 func (ae *AssignmentExpression) Children() []Node { return []Node{ae.Left, ae.Right} }
 
@@ -122,8 +101,8 @@ type GolangExpression struct {
 	Token       token.Token
 	ObjectCode  func(args ...any) any
 	Raw         []bool
-	Sig         signature.Signature
-	ReturnTypes signature.Signature
+	Sig         Signature
+	ReturnTypes Signature
 }
 
 func (ge *GolangExpression) Children() []Node       { return []Node{} }
@@ -368,7 +347,7 @@ func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Litera
 
 type StructExpression struct {
 	Token token.Token
-	Sig   signature.Signature
+	Sig   Signature
 }
 
 func (st *StructExpression) Children() []Node       { return []Node{} }
@@ -453,7 +432,7 @@ func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
 
 // And other useful stuff.
 
-func GetLhsOfAssignments(n Node) set.Set[string] {
+func GetLhsOfAssignments(n Node) dtypes.Set[string] {
 	switch n := n.(type) {
 	case *AssignmentExpression:
 		return GetVariableNames(n.Left)
@@ -462,12 +441,12 @@ func GetLhsOfAssignments(n Node) set.Set[string] {
 		result.AddSet(GetLhsOfAssignments(n.Right))
 		return result
 	default:
-		return set.Set[string]{}
+		return dtypes.Set[string]{}
 	}
 }
 
-func GetVariableNames(n Node) set.Set[string] {
-	result := set.Set[string]{}
+func GetVariableNames(n Node) dtypes.Set[string] {
+	result := dtypes.Set[string]{}
 	children := recursiveChildren(n)
 	for _, v := range children {
 		switch ident := v.(type) {
@@ -487,8 +466,8 @@ func recursiveChildren(n Node) []Node {
 }
 
 type Function = struct {
-	Sig     signature.Signature
-	Rets    signature.Signature
+	Sig     Signature
+	Rets    Signature
 	Body    Node
 	Given   Node
 	Cmd     bool

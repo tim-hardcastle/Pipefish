@@ -1,0 +1,8 @@
+def 
+
+foo(x int) :
+    2 * x
+
+types 
+
+Zort = struct(i int)

@@ -3,10 +3,8 @@ package compiler
 import (
 	"os"
 	"pipefish/source/ast"
-	"pipefish/source/initializer"
+	"pipefish/source/lexer"
 	"pipefish/source/parser"
-	"pipefish/source/relexer"
-	"pipefish/source/signature"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -20,14 +18,14 @@ import (
 
 type VmMaker struct {
 	cp             *Compiler
-	uP             *initializer.Initializer
+	uP             *Initializer
 	scriptFilepath string
 	goToPf         map[string]func(any) (uint32, []any, bool)
 	pfToGo         map[string]func(uint32, []any) any
 }
 
 func NewVmMaker(scriptFilepath, sourcecode string, mc *vm.Vm) *VmMaker {
-	uP := initializer.NewInitializer(scriptFilepath, sourcecode, mc.Db)
+	uP := NewInitializer(scriptFilepath, sourcecode, mc.Db)
 	vmm := &VmMaker{
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
@@ -38,7 +36,7 @@ func NewVmMaker(scriptFilepath, sourcecode string, mc *vm.Vm) *VmMaker {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*VmService, *initializer.Initializer) {
+func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*VmService, *Initializer) {
 	mc := vm.BlankVm(db)
 	cp, uP := initializeEverything(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	return &VmService{Mc: mc, Cp: cp, ScriptFilepath: scriptFilepath}, uP
@@ -47,13 +45,13 @@ func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*VmService, *i
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it wll contain the cource code and the errors in the store in its parser.
-func initializeEverything(mc *vm.Vm, scriptFilepath string) (*Compiler, *initializer.Initializer) {
+func initializeEverything(mc *vm.Vm, scriptFilepath string) (*Compiler, *Initializer) {
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		sourcebytes, err := os.ReadFile(scriptFilepath)
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			uP := initializer.NewInitializer(scriptFilepath, sourcecode, nil)
+			uP := NewInitializer(scriptFilepath, sourcecode, nil)
 			uP.Throw("vmm/source", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
@@ -113,10 +111,8 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 		timestamp := file.ModTime().UnixMilli()
 		if newUP.ErrorsExist() {
 			uP.Parser.Errors = append(uP.Parser.Errors, newUP.Parser.Errors...)
-			vmm.uP.Parser.NamespaceBranch[namespace] = &parser.ParserData{newCp.p, scriptFilepath, timestamp, true, false}
 			vmm.cp.Services[namespace] = &VmService{mc, newCp, scriptFilepath, timestamp, true, false}
 		} else {
-			vmm.uP.Parser.NamespaceBranch[namespace] = &parser.ParserData{newCp.p, scriptFilepath, timestamp, false, false}
 			vmm.cp.Services[namespace] = &VmService{mc, newCp, scriptFilepath, timestamp, false, false}
 		}
 	}
@@ -126,7 +122,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 
 	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/timeStruct.pf"})
-	vmm.uP.SetRelexer(*relexer.New(scriptFilepath, sourcecode))
+	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -227,7 +223,7 @@ func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
 	}
 }
 
-func (vmm *VmMaker) MakeGoMods(mc *vm.Vm, goHandler *initializer.GoHandler) {
+func (vmm *VmMaker) MakeGoMods(mc *vm.Vm, goHandler *GoHandler) {
 	uP := vmm.uP
 	for source, _ := range goHandler.Modules {
 		goHandler.TypeDeclarations[source] = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler, source)
@@ -272,26 +268,6 @@ func (vmm *VmMaker) compileImports(mc *vm.Vm) {
 		vmm.cp.Services[namespace] = &VmService{Cp: newCp, Mc: mc, ScriptFilepath: lib.ScriptFilepath}
 	}
 }
-
-// TODO This duplicates the type in the initializer and is therefore terrible. Eventually they will be the same file.
-type declarationType int
-
-const (
-	importDeclaration          declarationType = iota
-	enumDeclaration                            //
-	structDeclaration                          //
-	languageDeclaration                        //
-	contactDeclaration                         //
-	abstractDeclaration                        // The fact that these things come
-	constantDeclaration                        // in this order is used in the code
-	variableDeclaration                        // and should not be changed without
-	functionDeclaration                        // a great deal of forethought.
-	privateFunctionDeclaration                 //
-	commandDeclaration                         //
-	privateCommandDeclaration                  //
-	golangDeclaration                          // Pure golang in a block; the Charm functions with golang bodies don't go here.
-
-)
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
@@ -460,7 +436,7 @@ func (vmm *VmMaker) createLanguagesAndContacts(mc *vm.Vm) {
 
 func (vmm *VmMaker) addLanguageOrContact(mc *vm.Vm, name string) {
 
-	sig := signature.Signature{signature.NameTypePair{VarName: "text", VarType: "string"}, signature.NameTypePair{VarName: "env", VarType: "map"}}
+	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 
 	typeNo := values.ValueType(len(mc.TypeNames))
 	mc.TypeNames = append(mc.TypeNames, name)
@@ -483,7 +459,7 @@ func (vmm *VmMaker) addLanguageOrContact(mc *vm.Vm, name string) {
 	vmm.addStructLabelsToMc(mc, name, typeNo, sig)
 }
 
-func (vmm *VmMaker) addStructLabelsToMc(mc *vm.Vm, name string, typeNo values.ValueType, sig signature.Signature) {
+func (vmm *VmMaker) addStructLabelsToMc(mc *vm.Vm, name string, typeNo values.ValueType, sig ast.Signature) {
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
@@ -506,7 +482,7 @@ func (vmm *VmMaker) makeConstructors(mc *vm.Vm) {
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
 	}
-	sig := signature.Signature{signature.NameTypePair{VarName: "text", VarType: "string"}, signature.NameTypePair{VarName: "env", VarType: "map"}}
+	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 	for _, name := range vmm.cp.p.Languages {
 		vmm.cp.fns = append(vmm.cp.fns, vmm.compileConstructor(mc, name, sig))
 	}
@@ -515,7 +491,7 @@ func (vmm *VmMaker) makeConstructors(mc *vm.Vm) {
 	}
 }
 
-func (vmm *VmMaker) compileConstructor(mc *vm.Vm, name string, sig signature.Signature) *cpFunc {
+func (vmm *VmMaker) compileConstructor(mc *vm.Vm, name string, sig ast.Signature) *cpFunc {
 	typeNo := vmm.cp.StructNumbers[name]
 	cpF := &cpFunc{types: altType(typeNo), builtin: name}
 	fnenv := newEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.

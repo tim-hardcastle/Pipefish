@@ -4,14 +4,13 @@ import (
 	"strconv"
 
 	"pipefish/source/ast"
-	"pipefish/source/digraph"
-	"pipefish/source/signature"
+	"pipefish/source/dtypes"
 )
 
-type TypeSystem = *digraph.Digraph[string]
+type TypeSystem = *dtypes.Digraph[string]
 
 func NewTypeSystem() TypeSystem {
-	T := make(digraph.Digraph[string])
+	T := make(dtypes.Digraph[string])
 	T.AddTransitiveArrow("single", "tuple")
 	for _, t := range BaseTypes {
 		T.AddTransitiveArrow(t, "single")
@@ -55,7 +54,7 @@ func TypeExists(s string, t TypeSystem) bool {
 var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "list",
 	"pair", "set", "map", "func", "struct", "label", "null"}
 
-func IsMoreSpecific(typesystem TypeSystem, sigA, sigB signature.Signature) (result bool, ok bool) {
+func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.Signature) (result bool, ok bool) {
 	if len(sigA) > len(sigB) {
 		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" { // TODO --- probably needs broadening now.
 			result = false

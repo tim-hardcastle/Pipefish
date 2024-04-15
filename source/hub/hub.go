@@ -21,11 +21,9 @@ import (
 
 	"pipefish/source/compiler"
 	"pipefish/source/database"
-	"pipefish/source/initializer"
 	"pipefish/source/lexer"
-	"pipefish/source/object"
 	"pipefish/source/parser"
-	"pipefish/source/relexer"
+	"pipefish/source/report"
 	"pipefish/source/text"
 	"pipefish/source/values"
 	"pipefish/source/vm"
@@ -37,7 +35,7 @@ var (
 
 type Hub struct {
 	services               map[string]*compiler.VmService
-	ers                    object.Errors
+	ers                    report.Errors
 	currentServiceName     string
 	peek                   bool
 	in                     io.Reader
@@ -154,7 +152,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	// If hub peek is turned on, this will show us the wheels going round.
 	if hub.peek {
 		lexer.LexDump(line)
-		relexer.RelexDump(line)
+		lexer.RelexDump(line)
 		service.Cp.GetParser().ParseDump(hub.currentServiceName, line)
 	}
 
@@ -194,7 +192,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if val.T == values.ERROR {
 		hub.WritePretty("\n[0] " + valToString(service, val))
 		hub.WriteString("\n")
-		hub.ers = []*object.Error{val.V.(*object.Error)}
+		hub.ers = []*report.Error{val.V.(*report.Error)}
 	} else {
 		out := service.Mc.Describe(val)
 		hub.WriteString(out)
@@ -214,8 +212,8 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return "error", []string{}
 	}
 	if hubReturn.T == values.ERROR {
-		hub.WriteError(hubReturn.V.(*object.Error).Message)
-		return "error", []string{hubReturn.V.(*object.Error).Message}
+		hub.WriteError(hubReturn.V.(*report.Error).Message)
+		return "error", []string{hubReturn.V.(*report.Error).Message}
 	}
 
 	if hubReturn.T == hubService.Cp.StructNumbers["HubResponse"] {
@@ -319,7 +317,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("There are no recent errors.")
 			return false
 		}
-		hub.WritePretty(object.GetList(hub.ers))
+		hub.WritePretty(report.GetList(hub.ers))
 		return false
 	case "groups-of-user":
 		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
@@ -714,7 +712,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
-			".\n\n" + object.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Args...) + "\n")
+			".\n\n" + report.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Args...) + "\n")
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
@@ -846,7 +844,7 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 		if val.T == values.ERROR {
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName], val))
 			hub.WriteString("\n")
-			hub.ers = []*object.Error{val.V.(*object.Error)}
+			hub.ers = []*report.Error{val.V.(*report.Error)}
 		} else {
 			hub.WriteString(valToString(hub.services[hub.currentServiceName], val))
 		}
@@ -876,7 +874,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	}
 	var (
 		newService *compiler.VmService
-		init       *initializer.Initializer
+		init       *compiler.Initializer
 	)
 	if scriptFilepath == "" {
 		newService, init = compiler.StartService("", "", hub.Db)
@@ -893,24 +891,13 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		hub.GetAndReportErrors(init.Parser)
 		return false
 	}
-	psrService := &parser.ParserData{Parser: newService.Cp.GetParser()} // TODO --- at least rename the thing.
-	recursivelySetRootService(psrService, psrService, "")
 
 	return true
 }
 
-func recursivelySetRootService(service, rootService *parser.ParserData, path string) {
-	service.Parser.RootService = rootService
-	service.Parser.NamespacePath = path
-	for k, v := range service.Parser.NamespaceBranch {
-		newPath := path + k + "."
-		recursivelySetRootService(v, rootService, newPath)
-	}
-}
-
 func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
 	hub.ers = p.Errors
-	hub.WritePretty(object.GetList(hub.ers))
+	hub.WritePretty(report.GetList(hub.ers))
 }
 
 func (hub *Hub) GetCurrentServiceName() string {

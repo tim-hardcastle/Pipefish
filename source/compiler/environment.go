@@ -1,6 +1,6 @@
 package compiler
 
-import "pipefish/source/set"
+import "pipefish/source/dtypes"
 
 type varAccess int
 
@@ -19,7 +19,7 @@ const (
 )
 
 // Update with:
-var ALL_CONST_ACCESS = set.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, GLOBAL_CONSTANT_PRIVATE, LOCAL_TRUE_CONSTANT, VERY_LOCAL_CONSTANT})
+var ALL_CONST_ACCESS = dtypes.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTANT_PUBLIC, GLOBAL_CONSTANT_PRIVATE, LOCAL_TRUE_CONSTANT, VERY_LOCAL_CONSTANT})
 
 type variable struct {
 	mLoc   uint32

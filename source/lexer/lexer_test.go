@@ -106,7 +106,7 @@ else : 6
 		{token.INT, "6", 15},
 	}
 
-	l := New("dummy source", input)
+	l := NewLexer("dummy source", input)
 
 	for i, tt := range tests {
 
@@ -177,7 +177,7 @@ line five`
 		{token.IDENT, "five", 7},
 	}
 
-	l := New("dummy source", input)
+	l := NewLexer("dummy source", input)
 
 	for i, tt := range tests {
 

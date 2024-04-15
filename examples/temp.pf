@@ -1,0 +1,34 @@
+languages
+
+Cpp
+
+def
+
+Foo = struct(a, b int)
+
+troz(i int) :
+    2 * i
+
+var 
+
+t = Time(0, 0, 0, 0, 0, 0, 0, "foo")
+
+myInt = 42
+
+cmd 
+
+showTime :
+    global t
+    get t from Clock() 
+    post t 
+
+get (i ref) from (s string) :
+    i = i + 1
+
+inc :
+    global myInt 
+    get myInt from "foo"
+    post myInt
+
+
+

@@ -5,30 +5,30 @@ import (
 	"strconv"
 	"strings"
 
-	"pipefish/source/object"
-	"pipefish/source/stack"
+	"pipefish/source/dtypes"
+	"pipefish/source/report"
 	"pipefish/source/token"
 )
 
 type Lexer struct {
 	reader            strings.Reader
 	input             string
-	ch                rune                // current rune under examination
-	line              int                 // the line number
-	char              int                 // the character number
-	tstart            int                 // the value of char at the start of a token
-	newline           bool                // whether we are at the start of a line and so should be treating whitespace syntactically
-	afterWhitespace   bool                // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
-	whitespaceStack   stack.Stack[string] // levels of whitespace to unindent to
-	Ers               object.Errors
+	ch                rune                 // current rune under examination
+	line              int                  // the line number
+	char              int                  // the character number
+	tstart            int                  // the value of char at the start of a token
+	newline           bool                 // whether we are at the start of a line and so should be treating whitespace syntactically
+	afterWhitespace   bool                 // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
+	whitespaceStack   dtypes.Stack[string] // levels of whitespace to unindent to
+	Ers               report.Errors
 	source            string
 	snippetWhitespace string
 	afterSnippet      bool
 }
 
-func New(source, input string) *Lexer {
+func NewLexer(source, input string) *Lexer {
 	r := *strings.NewReader(input)
-	stack := stack.NewStack[string]()
+	stack := dtypes.NewStack[string]()
 	stack.Push("")
 	l := &Lexer{reader: r,
 		input:           input,
@@ -37,7 +37,7 @@ func New(source, input string) *Lexer {
 		newline:         true,
 		afterWhitespace: true,
 		whitespaceStack: *stack,
-		Ers:             []*object.Error{},
+		Ers:             []*report.Error{},
 		source:          source,
 	}
 	l.readChar()
@@ -46,7 +46,7 @@ func New(source, input string) *Lexer {
 
 func LexDump(input string) {
 	fmt.Print("\nLexer output: \n\n")
-	l := New("", input)
+	l := NewLexer("", input)
 	for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
 		fmt.Println(tok)
 	}
@@ -685,5 +685,5 @@ func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
 }
 
 func (l *Lexer) Throw(errorID string, tok token.Token, args ...any) {
-	l.Ers = object.Throw(errorID, l.Ers, &tok, args...)
+	l.Ers = report.Throw(errorID, l.Ers, &tok, args...)
 }

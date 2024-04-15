@@ -9,7 +9,7 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
-	"pipefish/source/object"
+	"pipefish/source/report"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -206,7 +206,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + vm.Mem[args[2]].V.(string)}
 		case Adtk:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
-			vm.Mem[args[0]].V.(*object.Error).AddToTrace(vm.Tokens[args[2]])
+			vm.Mem[args[0]].V.(*report.Error).AddToTrace(vm.Tokens[args[2]])
 		case Andb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(bool) && vm.Mem[args[2]].V.(bool)}
 		case Aref:
@@ -487,7 +487,7 @@ loop:
 		case Logy:
 			vm.logging = true
 		case Mker:
-			vm.Mem[args[0]] = values.Value{values.ERROR, &object.Error{ErrorId: "eval/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
+			vm.Mem[args[0]] = values.Value{values.ERROR, &report.Error{ErrorId: "eval/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
 		case Mkfn:
 			lf := vm.LambdaFactories[args[1]]
 			newLambda := *lf.Model
@@ -1045,9 +1045,9 @@ func (vm *Vm) Describe(v values.Value) string {
 	case values.BREAK:
 		return "break"
 	case values.ERROR:
-		ob := v.V.(*object.Error)
+		ob := v.V.(*report.Error)
 		if ob.ErrorId != "eval/user" {
-			ob = object.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
+			ob = report.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
 		}
 		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
 	case values.FLOAT:
@@ -1209,7 +1209,7 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 
 func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) values.Value {
 	switch v := v.(type) {
-	case *object.GoReturn:
+	case *values.GoReturn:
 		result := make([]values.Value, 0, len(v.Elements))
 		for el := range v.Elements {
 			result = append(result, vm.goToPipefish(el, converter))
@@ -1235,5 +1235,5 @@ func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) val
 		return values.Value{values.ValueType(structType), pVals}
 	}
 
-	return values.Value{values.ERROR, &object.Error{ErrorId: "vm/go/conv", Token: &token.Token{Source: "golang conversion function"}}}
+	return values.Value{values.ERROR, &report.Error{ErrorId: "vm/go/conv", Token: &token.Token{Source: "golang conversion function"}}}
 }

@@ -23,8 +23,8 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
+	"pipefish/source/lexer"
 	"pipefish/source/parser"
-	"pipefish/source/relexer"
 	"pipefish/source/report"
 
 	"pipefish/source/token"
@@ -75,14 +75,14 @@ var tokenTypeToSection = map[token.TokenType]Section{
 }
 
 type Initializer struct {
-	rl      relexer.Relexer
+	rl      lexer.Relexer
 	Parser  *parser.Parser
 	Sources map[string][]string
 }
 
 func NewInitializer(source, input string, db *sql.DB) *Initializer {
 	uP := &Initializer{
-		rl:      *relexer.New(source, input),
+		rl:      *lexer.NewRelexer(source, input),
 		Parser:  parser.New(),
 		Sources: make(map[string][]string),
 	}
@@ -95,7 +95,7 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
 		libDat, _ := os.ReadFile(fname)
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
-		init.SetRelexer(*relexer.New(fname, stdImp))
+		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))
 		init.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.
 		init.GetSource(fname)
 	}
@@ -518,7 +518,7 @@ func (uP *Initializer) ParseEverything() {
 	uP.Parser.Bling.AddSet(uP.Parser.Endfixes)
 }
 
-func (uP *Initializer) SetRelexer(rl relexer.Relexer) {
+func (uP *Initializer) SetRelexer(rl lexer.Relexer) {
 	uP.rl = rl
 }
 

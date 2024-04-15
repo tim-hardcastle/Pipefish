@@ -18,7 +18,3 @@ type Error struct {
 func (e *Error) AddToTrace(tok *token.Token) {
 	e.Trace = append(e.Trace, tok)
 }
-
-type GoReturn struct {
-	Elements []any
-}

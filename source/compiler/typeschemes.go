@@ -2,7 +2,7 @@ package compiler
 
 import (
 	"fmt"
-	"pipefish/source/set"
+	"pipefish/source/dtypes"
 	"pipefish/source/values"
 	"pipefish/source/vm"
 	"strings"
@@ -22,8 +22,8 @@ var ANY_TYPE = alternateType{tp(values.NULL), tp(values.INT), tp(values.BOOL), t
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
 // This allows us to figure out if we need to generate a check on the length of a tuple or whether we can take it for granted
 // at compile time.
-func lengths(t typeScheme) set.Set[int] {
-	result := make(set.Set[int])
+func lengths(t typeScheme) dtypes.Set[int] {
+	result := make(dtypes.Set[int])
 	switch t := t.(type) {
 	case simpleType:
 		result.Add(1)
@@ -57,7 +57,7 @@ func lengths(t typeScheme) set.Set[int] {
 	panic("We shouldn't be here!")
 }
 
-func maxLengthsOrMinusOne(s set.Set[int]) int {
+func maxLengthsOrMinusOne(s dtypes.Set[int]) int {
 	max := 0
 	for k := range s {
 		if k == -1 {
@@ -78,9 +78,9 @@ func typesAtIndex(t typeScheme, ix int) alternateType {
 
 // TODO: This is somewhat wasteful because there ought to be some sensible way to fix it so the algorithm uses data from computing this for
 // i - 1. But let's get the VM working first and optimise the compiler later.
-func recursiveTypesAtIndex(t typeScheme, ix int) (alternateType, set.Set[int]) {
+func recursiveTypesAtIndex(t typeScheme, ix int) (alternateType, dtypes.Set[int]) {
 	resultTypes := alternateType{}
-	resultSet := make(set.Set[int])
+	resultSet := make(dtypes.Set[int])
 	switch t := t.(type) {
 	case simpleType:
 		if ix == 0 {

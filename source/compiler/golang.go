@@ -98,7 +98,7 @@ func (gh *GoHandler) BuildGoMods() {
 	if len(args) == 1 {
 		return args[0]
 	}
-	result := &object.GoReturn{Elements: []any{}}
+	result := &values.GoReturn{Elements: []any{}}
 	for _, v := range(args) {
 		result.Elements = append(result.Elements, v)
 	}
@@ -127,19 +127,7 @@ func (gh *GoHandler) BuildGoMods() {
 
 		preface := "package main\n\n"
 
-		objectHappened := false
-
-		// We make sure it imports pipefish/object exactly once.
-
-		for _, v := range gh.Prsr.GoImports[source] {
-			if v == "pipefish/source/object" {
-				objectHappened = true
-				break
-			}
-		}
-		if !objectHappened {
-			gh.Prsr.GoImports[source] = append(gh.Prsr.GoImports[source], "pipefish/source/object")
-		}
+		gh.Prsr.GoImports[source] = append(gh.Prsr.GoImports[source], "pipefish/source/values")
 
 		if len(gh.Prsr.GoImports[source]) > 0 {
 			preface = preface + "import (\n"

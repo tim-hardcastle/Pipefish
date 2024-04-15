@@ -2,10 +2,9 @@ package compiler
 
 import (
 	"pipefish/source/ast"
-	"pipefish/source/initializer"
-	"pipefish/source/object"
+	"pipefish/source/dtypes"
 	"pipefish/source/parser"
-	"pipefish/source/set"
+	"pipefish/source/report"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -162,7 +161,7 @@ func (cp *Compiler) reserve(mc *vm.Vm, t values.ValueType, v any) uint32 {
 }
 
 func (cp *Compiler) reserveError(mc *vm.Vm, ec string, tok *token.Token, args []any) uint32 {
-	mc.Mem = append(mc.Mem, values.Value{T: values.ERROR, V: &object.Error{ErrorId: ec, Token: tok, Args: append([]any{mc}, args...), Trace: make([]*token.Token, 0, 10)}})
+	mc.Mem = append(mc.Mem, values.Value{T: values.ERROR, V: &report.Error{ErrorId: ec, Token: tok, Args: append([]any{mc}, args...), Trace: make([]*token.Token, 0, 10)}})
 	return uint32(len(mc.Mem) - 1)
 }
 
@@ -201,7 +200,7 @@ func (cp *Compiler) reserveLambdaFactory(mc *vm.Vm, env *environment, fnNode *as
 	// then subtract them from the identifiers in the main body of the function.
 
 	// We get the function parameters.
-	params := set.Set[string]{}
+	params := dtypes.Set[string]{}
 	for _, pair := range sig {
 		params.Add(pair.VarName)
 	}
@@ -329,9 +328,6 @@ func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac A
 	lT := mc.LfTop()
 NodeTypeSwitch:
 	switch node := node.(type) {
-	case *ast.ApplicationExpression:
-		// I doubt that this and related forms such as GroupedExpression are still serving a function in the parser.
-		panic("Tim, you were wrong.")
 	case *ast.AssignmentExpression:
 		// TODO --- need to do this better after we implement tuples
 		if node.Left.GetToken().Type != token.IDENT {
@@ -1282,7 +1278,7 @@ type bindle struct {
 	branchNo     int             // The number of the branch in the function tree.
 	argNo        int             // The number of the argument we're looking at.
 	index        int             // The index we're looking at in the argument we're looking at.
-	lengths      set.Set[int]    // The possible arities of the values of the argument we're looking at.
+	lengths      dtypes.Set[int] // The possible arities of the values of the argument we're looking at.
 	maxLength    int             // The maximum of the 'lengths' set, or -1 if the set contains this.
 	targetList   alternateType   // The possible types associated with this tree position.
 	doneList     alternateType   // The types we've looked at up to and including those of the current branchNo.
@@ -1444,7 +1440,9 @@ var TYPE_COMPARISONS = map[string]*vm.Operation{
 	"label":   {vm.Qtyp, []uint32{DUMMY, uint32(values.LABEL), DUMMY}},
 	"list":    {vm.Qtyp, []uint32{DUMMY, uint32(values.LIST), DUMMY}},
 	"set":     {vm.Qtyp, []uint32{DUMMY, uint32(values.SET), DUMMY}},
-	"map":     {vm.Qtyp, []uint32{DUMMY, uint32(values.PAIR), DUMMY}},
+	"type":    {vm.Qtyp, []uint32{DUMMY, uint32(values.TYPE), DUMMY}},
+	"map":     {vm.Qtyp, []uint32{DUMMY, uint32(values.MAP), DUMMY}},
+	"pair":    {vm.Qtyp, []uint32{DUMMY, uint32(values.PAIR), DUMMY}},
 	"func":    {vm.Qtyp, []uint32{DUMMY, uint32(values.FUNC), DUMMY}},
 	"single":  {vm.Qsng, []uint32{DUMMY, DUMMY}},
 	"single?": {vm.Qsnq, []uint32{DUMMY, DUMMY}},
@@ -1882,7 +1880,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *vm.Vm, lhsTypes alternateType, lh
 // In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
 // a function which can convert the Go structs back into Pipefish structs. This function prepares this as a
 // snippet of text which can be added to the Go source code we're compiling.
-func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *initializer.GoHandler, source string) string {
+func (cp *Compiler) MakeTypeDeclarationsForGo(mc *vm.Vm, goHandler *GoHandler, source string) string {
 	decs := "\n" // The type declarations.
 	convGoTypeToPfType := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
 	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"

@@ -1,0 +1,11 @@
+import 
+
+"examples/thingA.pf"
+"examples/thingC.pf"
+
+def
+
+troz(i int) :
+    thingA.Zort (thingA.foo thingA.THING)
+
+

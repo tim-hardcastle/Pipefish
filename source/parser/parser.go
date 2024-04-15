@@ -8,13 +8,10 @@ import (
 	"strings"
 
 	"pipefish/source/ast"
-	"pipefish/source/object"
-	"pipefish/source/relexer"
-	"pipefish/source/set"
-	"pipefish/source/signature"
-	"pipefish/source/stack"
+	"pipefish/source/dtypes"
+	"pipefish/source/lexer"
+	"pipefish/source/report"
 	"pipefish/source/token"
-	"pipefish/source/tokenized_code_chunk"
 )
 
 // The parser, obviously. However, I'm temporarily tucking the effect handlers for the evaluator in here despite
@@ -100,9 +97,14 @@ func String(t TokenSupplier) string {
 	return result
 }
 
-type tokenizedCodeChunks []*tokenized_code_chunk.TokenizedCodeChunk
+type tokenizedCodeChunks []*token.TokenizedCodeChunk
 
 type ParsedCodeChunks []ast.Node
+
+type ParserData struct {
+	Parser         *Parser
+	ScriptFilepath string
+}
 
 type Parser struct {
 
@@ -112,8 +114,8 @@ type Parser struct {
 	// Temporary state: things that are used to parse one line.
 
 	TokenizedCode         TokenSupplier
-	Errors                object.Errors
-	nesting               stack.Stack[token.Token]
+	Errors                report.Errors
+	nesting               dtypes.Stack[token.Token]
 	curToken              token.Token
 	peekToken             token.Token
 	Logging               bool
@@ -124,62 +126,60 @@ type Parser struct {
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
 
-	Functions         set.Set[string]
-	Prefixes          set.Set[string]
-	Forefixes         set.Set[string]
-	Midfixes          set.Set[string]
-	Endfixes          set.Set[string]
-	Infixes           set.Set[string]
-	Suffixes          set.Set[string]
-	Unfixes           set.Set[string]
-	Bling             set.Set[string]
-	AllFunctionIdents set.Set[string]
+	Functions         dtypes.Set[string]
+	Prefixes          dtypes.Set[string]
+	Forefixes         dtypes.Set[string]
+	Midfixes          dtypes.Set[string]
+	Endfixes          dtypes.Set[string]
+	Infixes           dtypes.Set[string]
+	Suffixes          dtypes.Set[string]
+	Unfixes           dtypes.Set[string]
+	Bling             dtypes.Set[string]
+	AllFunctionIdents dtypes.Set[string]
 
-	nativeInfixes set.Set[token.TokenType]
-	lazyInfixes   set.Set[token.TokenType]
+	nativeInfixes dtypes.Set[token.TokenType]
+	lazyInfixes   dtypes.Set[token.TokenType]
 
 	FunctionTable    FunctionTable
 	FunctionGroupMap map[string]*ast.FunctionGroup
 	TypeSystem       TypeSystem
-	Structs          set.Set[string]                // TODO --- remove: this has nothing to do that can't be done by the presence of a key
-	StructSig        map[string]signature.Signature // <--- in here.
-	Services         map[string]*ParserData         // This has injected into it the hub's own map of services.
+	Structs          dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
+	StructSig        map[string]ast.Signature // <--- in here.
 	Contacts         map[string]string
 	Languages        []string
 	GoImports        map[string][]string
 	Database         *sql.DB
 	NamespaceBranch  map[string]*ParserData
 	NamespacePath    string
-	RootService      *ParserData
 }
 
 func New() *Parser {
 	p := &Parser{
-		Errors:            []*object.Error{},
+		Errors:            []*report.Error{},
 		Logging:           true,
-		nesting:           *stack.NewStack[token.Token](),
-		Functions:         make(set.Set[string]),
-		Prefixes:          make(set.Set[string]),
-		Forefixes:         make(set.Set[string]),
-		Midfixes:          make(set.Set[string]),
-		Endfixes:          make(set.Set[string]),
-		Infixes:           make(set.Set[string]),
-		Suffixes:          make(set.Set[string]),
-		Unfixes:           make(set.Set[string]),
-		AllFunctionIdents: make(set.Set[string]),
-		Bling:             make(set.Set[string]),
-		nativeInfixes: set.MakeFromSlice([]token.TokenType{
+		nesting:           *dtypes.NewStack[token.Token](),
+		Functions:         make(dtypes.Set[string]),
+		Prefixes:          make(dtypes.Set[string]),
+		Forefixes:         make(dtypes.Set[string]),
+		Midfixes:          make(dtypes.Set[string]),
+		Endfixes:          make(dtypes.Set[string]),
+		Infixes:           make(dtypes.Set[string]),
+		Suffixes:          make(dtypes.Set[string]),
+		Unfixes:           make(dtypes.Set[string]),
+		AllFunctionIdents: make(dtypes.Set[string]),
+		Bling:             make(dtypes.Set[string]),
+		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
 			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
 			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAP, token.FILTER,
 			token.NAMESPACE_SEPARATOR, token.IFLOG}),
-		lazyInfixes: set.MakeFromSlice([]token.TokenType{token.AND,
+		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
 		FunctionGroupMap: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeSystem:       NewTypeSystem(),
-		Structs:          make(set.Set[string]),
+		Structs:          make(dtypes.Set[string]),
 		GoImports:        make(map[string][]string),
 		NamespaceBranch:  make(map[string]*ParserData),
 		Contacts:         make(map[string]string),
@@ -196,9 +196,9 @@ func New() *Parser {
 
 	p.Infixes.Add("varchar")
 
-	p.Functions.AddSet(set.MakeFromSlice([]string{"builtin"}))
+	p.Functions.AddSet(dtypes.MakeFromSlice([]string{"builtin"}))
 
-	p.StructSig = make(map[string]signature.Signature)
+	p.StructSig = make(map[string]ast.Signature)
 
 	return p
 }
@@ -234,7 +234,7 @@ func (p *Parser) prefixSuffixError() {
 }
 
 func (p *Parser) ParseTokenizedChunk() ast.Node {
-	p.nesting = *stack.NewStack[token.Token]()
+	p.nesting = *dtypes.NewStack[token.Token]()
 	p.SafeNextToken()
 	p.SafeNextToken()
 	expn := p.parseExpression(LOWEST)
@@ -245,10 +245,10 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 	return expn
 }
 
-var literals = set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
-var literalsAndLParen = set.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
+var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
+var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
 	token.LPAREN, token.LBRACE, token.EVAL})
-var assignmentTokens = set.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN,
+var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN,
 	token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
@@ -839,7 +839,7 @@ func (p *Parser) parsePrelogExpression() ast.Node {
 	return expression
 }
 
-func DescribeFunctionCall(name string, sig *signature.Signature) string {
+func DescribeFunctionCall(name string, sig *ast.Signature) string {
 	result := "Called '" + name + "'"
 	vars := []string{}
 	for _, pair := range *sig {
@@ -923,31 +923,7 @@ func (p *Parser) parseGroupedExpression() ast.Node {
 		p.NextToken() // Forces emission of the error
 		return nil
 	}
-	if p.peekToken.Type == token.LPAREN {
-		p.NextToken()
-		exp = p.parsePresumedApplication(exp)
-	}
 	return exp
-}
-
-// We assume that in things of the form (<expression 1>) (<expression 2>), the intention is that expression 1
-// should return a function which is applied to expression 2.
-func (p *Parser) parsePresumedApplication(left ast.Node) ast.Node {
-	expression := &ast.ApplicationExpression{
-		Token: p.curToken,
-		Left:  left,
-	}
-	p.NextToken()
-	if p.curToken.Type == token.RPAREN { // then what we must have is an empty tuple
-		expression.Right = &ast.Nothing{Token: p.curToken}
-		return expression
-	}
-	expression.Right = p.parseExpression(LOWEST)
-	if !p.expectPeek(token.RPAREN) {
-		p.NextToken() // Forces emission of the error
-		return nil
-	}
-	return expression
 }
 
 func (p *Parser) parseGolangExpression() ast.Node {
@@ -1118,7 +1094,7 @@ func checkConsistency(left, right token.Token) bool {
 
 func (p *Parser) ParseLine(source, input string) ast.Node {
 	p.ClearErrors()
-	rl := relexer.New(source, input)
+	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
 	result := p.ParseTokenizedChunk()
 	p.Errors = append(rl.GetErrors(), p.Errors...)
@@ -1134,7 +1110,7 @@ func (p *Parser) ParseDump(source, input string) {
 }
 
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
-	p.Errors = object.Throw(errorID, p.Errors, tok, args...)
+	p.Errors = report.Throw(errorID, p.Errors, tok, args...)
 }
 
 func (p *Parser) ErrorsExist() bool {
@@ -1142,21 +1118,21 @@ func (p *Parser) ErrorsExist() bool {
 }
 
 func (p *Parser) ReturnErrors() string {
-	return object.GetList(p.Errors)
+	return report.GetList(p.Errors)
 }
 
 func (p *Parser) ClearErrors() {
-	p.Errors = []*object.Error{}
+	p.Errors = []*report.Error{}
 }
 
 // Slurps the signature of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signature, signature.Signature, ast.Node, ast.Node, []uint32) {
+func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, ast.Signature, ast.Signature, ast.Node, ast.Node, []uint32) {
 	var (
 		functionName          string
-		sig                   signature.Signature
-		rTypes                signature.Signature
+		sig                   ast.Signature
+		rTypes                ast.Signature
 		start, content, given ast.Node
 	)
 	tupleList := make([]uint32, 0)
@@ -1202,7 +1178,7 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 		sig = prsr.extractSig(start.Args)
 	case *ast.UnfixExpression:
 		functionName = start.Operator
-		sig = signature.Signature{}
+		sig = ast.Signature{}
 	default:
 		prsr.Throw("parse/sig/malformed/d", fn.GetToken())
 		return functionName, sig, rTypes, content, given, tupleList
@@ -1215,8 +1191,8 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, signature.Signa
 	return functionName, sig, rTypes, content, given, tupleList
 }
 
-func (p *Parser) extractSig(args []ast.Node) signature.Signature {
-	sig := signature.Signature{}
+func (p *Parser) extractSig(args []ast.Node) ast.Signature {
+	sig := ast.Signature{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
 		return sig
 	}
@@ -1343,7 +1319,7 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 				}
 			}
 		}
-		sig = append(sig, signature.NameTypePair{VarName: varName, VarType: varType})
+		sig = append(sig, ast.NameTypePair{VarName: varName, VarType: varType})
 		if !(varType == "*") {
 			backTrackTo = len(sig)
 		}
@@ -1355,11 +1331,11 @@ func (p *Parser) extractSig(args []ast.Node) signature.Signature {
 }
 
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
-func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (signature.Signature, *object.Error) {
-	sig := signature.Signature{}
+func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.Signature, *report.Error) {
+	sig := ast.Signature{}
 	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
-			sig = append(sig, signature.NameTypePair{VarName: arg.GetToken().Literal, VarType: "bling"})
+			sig = append(sig, ast.NameTypePair{VarName: arg.GetToken().Literal, VarType: "bling"})
 		} else {
 			partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
 			if err != nil {
@@ -1371,7 +1347,7 @@ func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (signature.Signatu
 	return sig, nil
 }
 
-func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signature.Signature, *object.Error) {
+func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Signature, *report.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -1384,7 +1360,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signatur
 			if err != nil {
 				return nil, err
 			}
-			middle := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
+			middle := ast.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(append(LHS, middle), RHS...), nil
 		case typednode.Token.Type == token.COMMA || typednode.Token.Type == token.WEAK_COMMA:
 			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
@@ -1409,7 +1385,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signatur
 			if err != nil {
 				return nil, err
 			}
-			return signature.Signature{signature.NameTypePair{VarName: namespacedIdent, VarType: dflt}}, nil
+			return ast.Signature{ast.NameTypePair{VarName: namespacedIdent, VarType: dflt}}, nil
 		default:
 			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
@@ -1439,36 +1415,36 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (signatur
 			if err != nil {
 				return nil, err
 			}
-			end := signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
+			end := ast.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(LHS, end), nil
 		default:
 			return nil, newError("parse/sig/c", typednode.GetToken())
 		}
 	case *ast.Identifier:
 		if p.Endfixes.Contains(typednode.Value) {
-			return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: "bling"}}, nil
+			return ast.Signature{ast.NameTypePair{VarName: typednode.Value, VarType: "bling"}}, nil
 		}
-		return signature.Signature{signature.NameTypePair{VarName: typednode.Value, VarType: dflt}}, nil
+		return ast.Signature{ast.NameTypePair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {
 			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
 			if err != nil {
 				return nil, err
 			}
-			front := signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
+			front := ast.Signature{ast.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
 			return append(front, RHS...), nil
 		} else {
 			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 			// name under those circumstances.
-			return signature.Signature{signature.NameTypePair{VarName: typednode.Operator, VarType: dflt}}, nil
+			return ast.Signature{ast.NameTypePair{VarName: typednode.Operator, VarType: dflt}}, nil
 		}
 	}
 	return nil, newError("parse/sig/d", node.GetToken())
 }
 
-func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *object.Error) {
+func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *report.Error) {
 	if len(root.Args) != 3 {
 		return "", newError("parse/sig.namespace/a", root.Args[1].GetToken())
 	}
@@ -1477,7 +1453,7 @@ func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *object.Error
 	}
 	LHS := ""
 	RHS := ""
-	var err *object.Error
+	var err *report.Error
 	switch leftNode := root.Args[0].(type) {
 	case *ast.Identifier:
 		LHS = leftNode.Value
@@ -1503,7 +1479,7 @@ func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *object.Error
 	return LHS + "." + RHS, nil
 }
 
-func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature {
+func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.Signature {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -1515,16 +1491,16 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) signature.Signature 
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
-		return signature.Signature{signature.NameTypePair{VarName: "x", VarType: typednode.Value}}
+		return ast.Signature{ast.NameTypePair{VarName: "x", VarType: typednode.Value}}
 	default:
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}
 	return nil
 }
 
-func (p *Parser) ExtractVariables(T TokenSupplier) (set.Set[string], set.Set[string]) {
-	LHS := make(set.Set[string])
-	RHS := make(set.Set[string])
+func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.Set[string]) {
+	LHS := make(dtypes.Set[string])
+	RHS := make(dtypes.Set[string])
 	assignHasHappened := false
 	for tok := T.NextToken(); tok.Type != token.EOF; tok = T.NextToken() {
 		if tok.Type == token.IDENT &&
@@ -1546,8 +1522,8 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (set.Set[string], set.Set[str
 	return LHS, RHS
 }
 
-func newError(ident string, tok *token.Token, args ...any) *object.Error {
-	errorToReturn := object.CreateErr(ident, tok, args...)
+func newError(ident string, tok *token.Token, args ...any) *report.Error {
+	errorToReturn := report.CreateErr(ident, tok, args...)
 	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
 }

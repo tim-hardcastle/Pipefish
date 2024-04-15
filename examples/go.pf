@@ -2,7 +2,6 @@ import
 
 gocode "errors"
 gocode "strings"
-gocode "pipefish/source/object"
 
 def
 

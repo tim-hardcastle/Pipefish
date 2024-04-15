@@ -3,7 +3,6 @@ package sql
 // import (
 // 	"strconv"
 
-// 	"pipefish/source/object"
 // 	"pipefish/source/parser"
 // 	"pipefish/source/signature"
 // 	"pipefish/source/token"

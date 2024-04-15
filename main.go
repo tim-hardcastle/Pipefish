@@ -17,7 +17,6 @@ import (
 	"os"
 
 	"pipefish/source/hub"
-	"pipefish/source/repl"
 	"pipefish/source/text"
 )
 
@@ -25,8 +24,8 @@ func main() {
 
 	fmt.Print(text.Logo())
 
-	hub := hub.New(os.Stdin, os.Stdout)
-	hub.Open()
+	hb := hub.New(os.Stdin, os.Stdout)
+	hb.Open()
 	argString := ""
 	if len(os.Args) > 1 {
 		for _, v := range os.Args[1:] {
@@ -35,12 +34,12 @@ func main() {
 	}
 	quit := false
 	if argString != "" {
-		verb, args := hub.ParseHubCommand(argString)
+		verb, args := hb.ParseHubCommand(argString)
 		if verb != "error" {
-			quit = hub.DoHubCommand("", "", verb, args)
+			quit = hb.DoHubCommand("", "", verb, args)
 		}
 	}
 	if len(os.Args) == 1 || !quit {
-		repl.Start(hub, os.Stdin, os.Stdout)
+		hub.StartHub(hb, os.Stdin, os.Stdout)
 	}
 }
