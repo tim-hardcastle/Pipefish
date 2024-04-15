@@ -908,8 +908,6 @@ NodeTypeSwitch:
 		}
 		cp.p.Throw("comp/prefix/known", node.GetToken())
 		break
-	case *ast.SetExpression:
-		panic("This has been deprecated and should be removed.") // TODO.
 	case *ast.StringLiteral:
 		cp.reserve(mc, values.STRING, node.Value)
 		rtnTypes, rtnConst = altType(values.STRING), true

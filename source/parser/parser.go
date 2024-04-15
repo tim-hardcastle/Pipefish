@@ -282,8 +282,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseGroupedExpression()
 	case token.LBRACK:
 		leftExp = p.parseListExpression()
-	case token.LBRACE:
-		leftExp = p.parseSetExpression()
 	case token.TRY:
 		leftExp = p.parseTryExpression()
 	case token.GOLANG:
@@ -979,20 +977,6 @@ func (p *Parser) parseListExpression() ast.Node {
 		return nil
 	}
 	expression := &ast.ListExpression{List: exp, Token: p.curToken}
-	return expression
-}
-
-func (p *Parser) parseSetExpression() ast.Node {
-	p.NextToken()
-	if p.curToken.Type == token.RBRACE { // Deals with the case where the set is {}
-		return &ast.SetExpression{Set: &ast.Nothing{Token: p.curToken}, Token: p.curToken}
-	}
-	exp := p.parseExpression(LOWEST)
-	if !p.expectPeek(token.RBRACE) {
-		p.NextToken() // Forces emission of error.
-		return nil
-	}
-	expression := &ast.SetExpression{Set: exp, Token: p.curToken}
 	return expression
 }
 

@@ -298,23 +298,6 @@ func (pe *PrefixExpression) String() string {
 	return out.String()
 }
 
-type SetExpression struct {
-	Token token.Token // The { token
-	Set   Node
-}
-
-func (se *SetExpression) Children() []Node       { return []Node{se.Set} }
-func (se *SetExpression) GetToken() *token.Token { return &se.Token }
-func (se *SetExpression) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("{")
-	out.WriteString(se.Set.String() + " ")
-	out.WriteString("}")
-
-	return out.String()
-}
-
 type PipingExpression struct {
 	Token    token.Token
 	Left     Node
