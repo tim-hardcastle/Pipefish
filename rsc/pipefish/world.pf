@@ -1,18 +1,19 @@
 import
 
-// gocode "os"
+gocode "math/rand"
+gocode "os"
 gocode "time"
 
 types
 
-Output = struct()
-Terminal = struct()
-Input = struct(prompt string)
-Random = struct(params single)
-RandomSeed = struct()
 Clock = struct()
 File = struct(filepath string, asType type)
 FileExists = struct(filepath string)
+Input = struct(prompt string)
+Output = struct()
+Random = struct(params single)
+RandomSeed = struct()
+Terminal = struct()
 
 def
 
@@ -31,19 +32,80 @@ post (x single) to (t Terminal): posttoterminalmaker(x)
 
 get (x ref) from (i Input) : builtin "get_from_input"
 
+def
+
 goGetClock() -> Time : gocode {
     goNow := time.Now()
     return Time{goNow.Year(), int(goNow.Month()), goNow.Day(), goNow.Hour(), goNow.Minute(), goNow.Second(), goNow.Nanosecond(), goNow.Location().String()}
 }
 
+goFileExists(fname string) : gocode {
+     _, err := os.Stat(fname)
+     return err == nil
+}
+
+randomFunctionOf(randomizer) :
+    8
+
+cmd
+
+// goRandomize(i int) : gocode {
+//     rand.Seed(int64(i))
+//     return values.SUCCESSFUL_VALUE
+// }
+
+// put (seed int) into (randomizer RandomSeed) :
+//     goRandomize(seed)
+
 get (x ref) from (c Clock) :
     x = goGetClock() 
 
-// goFileExists(fname string) : gocode {
-//     _, err := os.Stat(fname)
-//     return err == nil
+get (x ref) from (fileAccess FileExists) :
+     x = goFileExists(fileAccess[filepath])
+
+// goRandomInt(i int) : gocode {
+//     return rand.Intn(i)
 // }
 
-// get (x ref) from (fileAccess FileExists) :
-//     x = goFileExists(fileAccess[filepath])
+// get (x ref) from (rng Random) :
+//      x = randomFunctionOf(rng)  
 
+
+def
+
+goGetFileAsString(fname string) : gocode {
+    fileContent, err := ioutil.ReadFile(fname)
+    if err != nil {
+        return &object.Error{Message : "can't find file '" + fname + "'"}
+    }
+    return &object.String{Value : string(fileContent)}
+}
+
+goGetFileAsList(fname string) : gocode {
+    file, err := os.Open(fname)
+    if err != nil {
+        return &object.Error{Message : "can't find file '" + fname + "'"}
+    }
+    defer file.Close()
+
+    result := &object.List{Elements: []object.Object{}}
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        result.Elements =
+            append(result.Elements, &object.String{Value: scanner.Text()})
+    }
+    return result
+}
+
+cmd
+
+get (contents ref) from (fileAccess File) : 
+    fileAccess[asType] == string :
+        contents = goGetFileAsString(fileAccess[filepath])
+    fileAccess[asType] == list :
+        contents = goGetFileAsList(fileAccess[filepath])
+    else :
+        error "can't get file as type '" + string(fileAccess[asType]) + "'"
+
+get (x ref) from (fileAccess FileExists) :
+    x = goFileExists(fileAccess[filepath])
