@@ -145,7 +145,7 @@ First of all, considering our examples so far, both clones of `int`, we might as
 
 But should they have no relation with `int`? It seems like it would be cumbersome in a dynamic language to have to increment a variable `n` of type `NumberOfHeads` by doing type coercion and writing `t = t + NumberOfHeads(1)`.
 
-And when it comes to multiplication, multiplying a NumberOfHeads by a plain int makes more sense than multiplying it by a NumberOfHeads, because of dimensional correctness.
+And when it comes to multiplication, multiplying a `NumberOfHeads` by a plain int makes more sense than multiplying it by a `NumberOfHeads`, because of dimensional correctness.
 
 So looked at that way, it might make sense that the builtin functions/operations for a type should work for its cloned types together with a little bit of type coercion. It's what the programmer would want to happen.
 
