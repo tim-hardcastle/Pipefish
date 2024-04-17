@@ -78,6 +78,13 @@ func (l *Lexer) NextToken() token.Token {
 		} else {
 			return l.NewToken(token.COLON, ":")
 		}
+	case '=':
+		if l.peekChar() == '=' {
+			l.readChar()
+			return l.NewToken(token.EQ, "==") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+		} else {
+			return l.NewToken(token.ASSIGN, "=")
+		}
 	case ',':
 		if l.skipWhitespaceAfterPotentialContinuation() {
 			return l.NewToken(token.COMMA, ",")
