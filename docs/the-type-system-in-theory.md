@@ -24,7 +24,7 @@ Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
 Dragon = struct(name string, color Color, valueOfHoard int)
 ```
 
-# Abstract types
+## Abstract types
 
 Perhaps these had better be called "filter types": I'll change this next time I overhaul the documents. In the meantime I'll go on calling them abstract types for consistency with the rest of the documentation.
 
