@@ -97,7 +97,7 @@ Now in the system implemented, each concrete type can be represented as an integ
 
 If we add generic types, however, then the types themselves have to have structure. If we have a list literal like `[1, 2, [true, "foo"]` then its type is `list<int/list<bool/string>>`. We will have to construct that type in parallel with constructing the list, and we have to have a little recursive algorithm to inspect the type any time we want to see if it's the same type or a subtype of another type. We even have a litle bit of overhead even if we have things of a basic type like `int`, since they still have to be expressed in terms of this more elaborate structure.
 
-These considerations together suggest that it's hard to make a dynamic type system that can incorporate generic types and yet have sensible syntax and be performant.
+These considerations together suggest that it's hard to make a dynamic type system that can incorporate generic types and yet have sensible semantics and be performant.
 
 ## Other extensions
 
