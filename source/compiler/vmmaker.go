@@ -120,7 +120,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 }
 
 func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
-
+	// vmm.uP.AddToNameSpace([]string{"examples/temp.pf"})
 	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/timeStruct.pf"})
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()

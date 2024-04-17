@@ -188,8 +188,8 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	whitespace := ""
 
 	for l.ch == ' ' || l.ch == '\t' {
-		l.readChar()
 		whitespace = whitespace + string(l.ch)
+		l.readChar()
 	}
 	if l.snippetWhitespace != "" {
 		whitespace = l.snippetWhitespace
@@ -227,48 +227,34 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	return l.Throw("lex/wsp", describeWhitespace(whitespace))
 }
 
+func dW(s string) string {
+	result := ""
+	for _, ch := range s {
+		result = result + strconv.Itoa(int(ch)) + " "
+	}
+	return result
+}
+
+var whitespaceDescriptions = map[rune]string{' ': "space", '\n': "newline", '\t': "tab"}
+
 func describeWhitespace(s string) string {
 	result := ""
-	cur := '#'
+	cur := '#' // We could use any character that isn't whitespace.
 	count := 0
 	for i, ch := range s {
 		if ch != cur || i == len(s)-1 {
-			if cur == ' ' {
-				result = result + strconv.Itoa(count) + " " + "space"
-				if count > 1 {
-					result = result + "s"
-				}
-				if i < len(s)-1 {
-					result = result + ", "
-				}
-				cur = ch
-				count = 1
-				continue
+			singular := whitespaceDescriptions[ch]
+			result = result + strconv.Itoa(count) + " " + singular
+			if count > 1 {
+				result = result + "s"
 			}
-			if cur == '\t' {
-				result = result + strconv.Itoa(count) + " " + "tab"
-				if count > 1 {
-					result = result + "s"
-				}
-				if i < len(s)-1 {
-					result = result + ", "
-				}
-				cur = ch
-				count = 1
-				continue
+			if i < len(s)-1 {
+				result = result + ", "
 			}
-			if cur == '\n' {
-				result = result + strconv.Itoa(count) + " " + "newline"
-				if count > 1 {
-					result = result + "s"
-				}
-				if i < len(s)-1 {
-					result = result + ", "
-				}
-				cur = ch
-				count = 1
-				continue
-			}
+			cur = ch
+			count = 1
+		} else {
+			count++
 		}
 	}
 	if result == "" {

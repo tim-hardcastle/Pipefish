@@ -1225,6 +1225,9 @@ func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) val
 		return values.Value{values.BOOL, v}
 	case nil:
 		return values.Value{values.NULL, v}
+	case error:
+		return values.Value{values.ERROR, report.Error{Message: v.Error()}}
+
 	}
 	structType, gVals, ok := converter(v)
 	if ok {

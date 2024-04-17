@@ -1,8 +1,11 @@
 import
 
+gocode "io/ioutil"
+gocode "bufio"
 gocode "math/rand"
 gocode "os"
 gocode "time"
+gocode "errors"
 
 types
 
@@ -19,6 +22,11 @@ def
 
 //File(filepath string) :
 //    File(filepath, string) 
+
+foo(i int) :
+    blorp 
+given :
+    blorp = 2 * i
 
 cmd
 
@@ -44,9 +52,6 @@ goFileExists(fname string) : gocode {
      return err == nil
 }
 
-randomFunctionOf(randomizer) :
-    8
-
 cmd
 
 // goRandomize(i int) : gocode {
@@ -60,15 +65,19 @@ cmd
 get (x ref) from (c Clock) :
     x = goGetClock() 
 
-get (x ref) from (fileAccess FileExists) :
-     x = goFileExists(fileAccess[filepath])
+def
 
-// goRandomInt(i int) : gocode {
-//     return rand.Intn(i)
-// }
+goRandomInt(i int) : gocode {
+    return rand.Intn(i)
+}
 
-// get (x ref) from (rng Random) :
-//      x = randomFunctionOf(rng)  
+randomFunctionOf(randomizer) :
+    8
+
+cmd
+
+get (x ref) from (rng Random) :
+     x = randomFunctionOf(rng)  
 
 
 def
@@ -76,25 +85,24 @@ def
 goGetFileAsString(fname string) : gocode {
     fileContent, err := ioutil.ReadFile(fname)
     if err != nil {
-        return &object.Error{Message : "can't find file '" + fname + "'"}
+        return errors.New("can't find file '" + fname + "'")
     }
-    return &object.String{Value : string(fileContent)}
+    return string(fileContent)
 }
 
 goGetFileAsList(fname string) : gocode {
     file, err := os.Open(fname)
-    if err != nil {
-        return &object.Error{Message : "can't find file '" + fname + "'"}
-    }
-    defer file.Close()
+	if err != nil {
+		return errors.New("can't find file '" + fname + "'")
+	}
+	defer file.Close()
 
-    result := &object.List{Elements: []object.Object{}}
-    scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
-        result.Elements =
-            append(result.Elements, &object.String{Value: scanner.Text()})
-    }
-    return result
+	result := []string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		result = append(result, scanner.Text())
+	}
+	return result
 }
 
 cmd

@@ -186,7 +186,7 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.Signature, gol
 		ok := false
 		if golang.Raw[i] {
 			gh.rawHappened = true
-			ty, ok = rawConv[v.VarType]
+			ty = ".(value.Value)"
 			if !ok {
 				gh.Prsr.Throw("golang/type/a", golang.GetToken(), v.VarType)
 				return
@@ -232,22 +232,6 @@ func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) an
 	}
 	fnToReturn := fn.(func(args ...any) any)
 	return fnToReturn
-}
-
-var rawConv = map[string]string{"bling": ".(*object.Bling)",
-	"bool":    ".(*object.Boolean)",
-	"error":   ".(*object.Error)",
-	"float64": ".(*object.Float)",
-	"func":    ".(*object.Function)",
-	"int":     ".(*object.Integer)",
-	"label":   ".(*object.Label)",
-	"list":    ".(*object.List)",
-	"pair":    ".(*object.Pair)",
-	"set":     ".(*object.Set)",
-	"single":  "",
-	"string":  ".(*object.String)",
-	"tuple":   ".(*object.Tuple)",
-	"type":    ".(*object.Type)",
 }
 
 var typeConv = map[string]string{"bling": ".(string)",

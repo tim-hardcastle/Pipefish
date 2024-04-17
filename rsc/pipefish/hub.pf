@@ -163,5 +163,4 @@ where(errorNo int) :
     
 why(errorNo int) :
     HubResponse("why", [string errorNo])
-    
-    
+
