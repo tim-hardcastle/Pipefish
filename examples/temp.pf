@@ -1,8 +1,9 @@
-def
+var i = 0
 
-foo(i int) :
-    i == 0 :
-        "a"
-    else :
-        "c"
+cmd
+
+foo :
+    global i
+    get i from Random(10)
+    post i 
 

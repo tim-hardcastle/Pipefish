@@ -50,13 +50,13 @@ goFileExists(fname string) : gocode {
 
 cmd
 
-// goRandomize(i int) : gocode {
-//     rand.Seed(int64(i))
-//     return values.SUCCESSFUL_VALUE
-// }
+goRandomize(i int) : gocode {
+    rand.Seed(int64(i))
+    return values.Value{values.SUCCESSFUL_VALUE, nil}
+}
 
-// put (seed int) into (randomizer RandomSeed) :
-//     goRandomize(seed)
+put (seed int) into (randomizer RandomSeed) :
+    goRandomize(seed)
 
 get (x ref) from (c Clock) :
     x = goGetClock() 

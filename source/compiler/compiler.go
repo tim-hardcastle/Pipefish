@@ -1583,7 +1583,11 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 				args := append([]uint32{b.outLoc, F.goNumber}, b.valLocs...)
 				cp.emit(mc, vm.Gofn, args...)
 				if len(branch.Node.Fn.Rets) == 0 {
-					return ANY_TYPE
+					if F.command {
+						return altType(values.SUCCESSFUL_VALUE, values.ERROR)
+					} else {
+						return ANY_TYPE
+					}
 				}
 				if len(branch.Node.Fn.Rets) == 1 {
 					return cp.typeNameToTypeList[branch.Node.Fn.Rets[0].VarType]
