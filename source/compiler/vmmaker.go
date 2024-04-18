@@ -5,6 +5,7 @@ import (
 	"pipefish/source/ast"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -120,8 +121,12 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 }
 
 func (vmm *VmMaker) Make(mc *vm.Vm, scriptFilepath, sourcecode string) {
-	// vmm.uP.AddToNameSpace([]string{"examples/temp.pf"})
-	vmm.uP.AddToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/timeStruct.pf"})
+	if !settings.OMIT_BUILTINS {
+		vmm.uP.AddToNameSpace(settings.MandatoryImports)
+	}
+	if settings.USE_TEST {
+		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/test.pf"})
+	}
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
@@ -521,8 +526,6 @@ func (vmm *VmMaker) compileFunction(mc *vm.Vm, node ast.Node, outerEnv *environm
 		cpF.command = true
 	}
 	if dec == privateFunctionDeclaration || dec == privateCommandDeclaration {
-		if dec == privateFunctionDeclaration {
-		}
 		cpF.private = true
 	}
 	functionName, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)

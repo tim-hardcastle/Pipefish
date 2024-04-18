@@ -5,15 +5,16 @@ import (
 	"pipefish/source/dtypes"
 	"pipefish/source/parser"
 	"pipefish/source/report"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"pipefish/source/vm"
+
+	"fmt"
 	"strconv"
 	"strings"
 )
-
-const SHOW_COMPILE = false
 
 type thunk struct {
 	mLoc uint32
@@ -37,8 +38,9 @@ type Compiler struct {
 	tupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>} TODO --- why?
 
 	// Temporary state.
-	thunkList []thunk
-	ifStack   []uint32
+	thunkList   []thunk
+	ifStack     []uint32
+	showCompile bool
 }
 
 type cpFunc struct { // The compiler's representation of a function after the function has been compiled.
@@ -128,6 +130,9 @@ func (cp *Compiler) Do(mc *vm.Vm, line string) values.Value {
 	tT := mc.TokenTop()
 	lT := mc.LfTop()
 	node := cp.p.ParseLine("REPL input", line)
+	if settings.SHOW_PARSER {
+		fmt.Println("Parsed line:", node.String())
+	}
 	if cp.p.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
@@ -147,12 +152,6 @@ func (cp *Compiler) Do(mc *vm.Vm, line string) values.Value {
 
 func (cp *Compiler) Describe(mc *vm.Vm, v values.Value) string {
 	return mc.Literal(v)
-}
-
-func (cp *Compiler) Compile(mc *vm.Vm, source, sourcecode string) {
-	node := cp.p.ParseLine(source, sourcecode)
-	cp.compileNode(mc, node, cp.gvars, REPL)
-	cp.emit(mc, vm.Ret)
 }
 
 func (cp *Compiler) reserve(mc *vm.Vm, t values.ValueType, v any) uint32 {
@@ -321,6 +320,7 @@ func (cp *Compiler) vmComeFrom(mc *vm.Vm, items ...any) {
 // and compiles accordingly. It then performs some sanity checks and, if the compiled expression is constant,
 // evaluates it and uses the snapshot to roll back the vm.
 func (cp *Compiler) compileNode(mc *vm.Vm, node ast.Node, env *environment, ac Access) (alternateType, bool) {
+	cp.showCompile = settings.SHOW_COMPILER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := alternateType{}, true
 	mT := mc.MemTop()
 	cT := mc.CodeTop()
@@ -726,10 +726,12 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = altType(values.CREATED_LOCAL_CONSTANT), lcst && cst
 				break
 			}
+			// We may be executing a command.
 			cmdRet := lTypes.isLegalCmdReturn()
 			if (cmdRet && lTypes.isOnly(values.BREAK)) || (!cmdRet && !lTypes.contains(values.UNSAT)) {
-				cp.p.Throw("comp/unreachable", node.GetToken())
-				break
+				// TODO --- implement warnings.
+				// cp.p.Throw("comp/unreachable", node.GetToken())
+				// break
 			}
 			var rTypes alternateType
 			var rcst bool
@@ -749,18 +751,22 @@ NodeTypeSwitch:
 				rTypes, _ = cp.compileNode(mc, node.Right, env, ac) // In a cmd we wish rConst to remain false to avoid folding.
 				cp.vmComeFrom(mc, ifBreak, ifError, ifCouldBeUnsatButIsnt)
 				rtnTypes, rtnConst = lTypes.union(rTypes), lcst && rcst
+
 				break
 			} else { // Otherwise it's functional.
-				cp.vmIf(mc, vm.Qtyp, leftRg, uint32(values.UNSAT))
-				rTypes, rcst = cp.compileNode(mc, node.Right, env, ac)
-				lhsIsUnsat := cp.vmEarlyReturn(mc, mc.That())
+				cp.vmIf(mc, vm.Qsat, leftRg)
+				lhsIsSat := cp.vmEarlyReturn(mc, leftRg)
 				cp.vmEndIf(mc)
-				cp.put(mc, vm.Asgm, leftRg)
-				cp.vmComeFrom(mc, lhsIsUnsat)
+				rTypes, rcst = cp.compileNode(mc, node.Right, env, ac)
+				cp.put(mc, vm.Asgm, mc.That())
+				cp.vmComeFrom(mc, lhsIsSat)
+				rtnConst = lcst && rcst
 				if !(lTypes.contains(values.UNSAT) && rTypes.contains(values.UNSAT)) {
-					rtnTypes, rtnConst = lTypes.union(rTypes).without(tp(values.UNSAT)), lcst && rcst
-					break
+					rtnTypes = lTypes.union(rTypes).without(tp(values.UNSAT))
+				} else {
+					rtnTypes = lTypes.union(rTypes)
 				}
+				break
 			}
 		}
 	case *ast.ListExpression:
@@ -1617,7 +1623,7 @@ func (cp *Compiler) seekBling(mc *vm.Vm, b *bindle, bling string) alternateType 
 // the destination is the next free memory address.
 func (cp *Compiler) emit(mc *vm.Vm, opcode vm.Opcode, args ...uint32) {
 	mc.Code = append(mc.Code, vm.MakeOp(opcode, args...))
-	if SHOW_COMPILE {
+	if cp.showCompile {
 		println(mc, mc.DescribeCode(mc.CodeTop()-1))
 	}
 }
@@ -1665,22 +1671,25 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 			switch el {
 			case tp(values.INT):
 				cp.put(mc, vm.Equi, leftRg, rightRg)
+				return altType(values.BOOL), lcst && rcst
 			case tp(values.STRING):
 				cp.put(mc, vm.Equs, leftRg, rightRg)
+				return altType(values.BOOL), lcst && rcst
 			case tp(values.BOOL):
 				cp.put(mc, vm.Equb, leftRg, rightRg)
+				return altType(values.BOOL), lcst && rcst
 			case tp(values.FLOAT):
 				cp.put(mc, vm.Equf, leftRg, rightRg)
+				return altType(values.BOOL), lcst && rcst
 			case tp(values.TYPE):
 				cp.put(mc, vm.Equt, leftRg, rightRg)
-			default:
-				cp.put(mc, vm.Eqxx, leftRg, rightRg)
+				return altType(values.BOOL), lcst && rcst
 			}
-		default:
-			cp.put(mc, vm.Eqxx, leftRg, rightRg)
 		}
 	}
-	return altType(values.BOOL), lcst && rcst
+	typeError := cp.reserveError(mc, "mc/eq/types", node.GetToken(), []any{})
+	cp.put(mc, vm.Eqxx, leftRg, rightRg, typeError)
+	return altType(values.ERROR, values.BOOL), lcst && rcst
 }
 
 func (cp *Compiler) compileLog(mc *vm.Vm, node *ast.LogExpression, env *environment, ac Access) bool {

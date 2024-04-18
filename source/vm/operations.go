@@ -102,7 +102,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Equi: {"equi", operands{dst, mem, mem}},
 	Equs: {"equs", operands{dst, mem, mem}},
 	Equt: {"equt", operands{dst, mem, mem}},
-	Eqxx: {"eqxx", operands{dst, mem, mem}},
+	Eqxx: {"eqxx", operands{dst, mem, mem, mem}},
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, gfn, tup}},
@@ -161,6 +161,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
+	Qsat: {"qsat", operands{mem, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
 	Qsnq: {"qsnq", operands{mem, loc}},
 	Qstr: {"qstr", operands{mem, loc}},
@@ -285,15 +286,16 @@ const (
 	Outp
 	Outt
 	Qabt
+	QlnT
+	Qlog
 	Qntp
-	Qtru
-	Qtyp
+	Qsat
 	Qsng
 	Qsnq
 	Qstr
 	Qstq
-	QlnT
-	Qlog
+	Qtru
+	Qtyp
 	Ret
 	SliL
 	Slis

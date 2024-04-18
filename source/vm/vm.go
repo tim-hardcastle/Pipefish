@@ -10,14 +10,14 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 
 	"pipefish/source/report"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
 )
 
 const (
-	SHOW_RUN = false
-	DUMMY    = 4294967295
+	DUMMY = 4294967295
 )
 
 type Vm struct {
@@ -172,12 +172,12 @@ func BlankVm(db *sql.DB) *Vm {
 }
 
 func (vm *Vm) Run(loc uint32) {
-	if SHOW_RUN {
+	if settings.SHOW_RUNTIME {
 		println()
 	}
 loop:
 	for {
-		if SHOW_RUN {
+		if settings.SHOW_RUNTIME {
 			println(text.GREEN + "    " + vm.DescribeCode(loc) + text.RESET)
 		}
 		args := vm.Code[loc].Args
@@ -301,7 +301,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(values.AbstractType).Equals(vm.Mem[args[2]].V.(values.AbstractType))}
 		case Eqxx:
 			if vm.Mem[args[1]].T != vm.Mem[args[2]].T {
-				vm.Mem[args[0]] = values.Value{values.BOOL, false}
+				vm.Mem[args[0]] = vm.Mem[args[3]]
 			} else {
 				vm.Mem[args[0]] = values.Value{values.BOOL, vm.equals(vm.Mem[args[1]], vm.Mem[args[2]])}
 			}
@@ -674,6 +674,13 @@ loop:
 				loc = args[2]
 			}
 			continue
+		case Qsat:
+			if vm.Mem[args[0]].T != values.UNSAT {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
 		case Qsng:
 			if vm.Mem[args[0]].T >= values.INT {
 				loc = loc + 1
@@ -992,7 +999,7 @@ loop:
 		}
 		loc++
 	}
-	if SHOW_RUN {
+	if settings.SHOW_RUNTIME {
 		println()
 	}
 }

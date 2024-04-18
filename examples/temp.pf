@@ -1,22 +1,8 @@
-var x = 0
-
-cmd
-
-troz(i int) :
-    i == 0 :
-        post "a"
-    i == 1 :
-        post "b"
-    else :
-        post "c"
-
 def
 
 foo(i int) :
     i == 0 :
         "a"
-    i == 1 :
-        "b"
     else :
         "c"
 

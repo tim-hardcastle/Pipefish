@@ -31,7 +31,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	BOOL     // V : bool
 	STRING   // V : string
 	FLOAT    // V : float
-	TYPE     // V : --- currently ValueType but should be something else.
+	TYPE     // V : abstractType
 	FUNC     // V : vm.Lambda
 	PAIR     // V : []values.Value
 	LIST     // V : vector.Vector

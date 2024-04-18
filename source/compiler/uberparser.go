@@ -26,6 +26,7 @@ import (
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/report"
+	"pipefish/source/settings"
 
 	"pipefish/source/token"
 )
@@ -136,6 +137,9 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	)
 
 	tok = uP.rl.NextToken() // note that we've already removed leading newlines.
+	if settings.SHOW_RELEXER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(tok.Source)) {
+		println(tok.Type, tok.Literal)
+	}
 
 	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
 		return
@@ -150,10 +154,9 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	line := token.NewCodeChunk()
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
-
-		// if tok.Source != "rsc/pipefish/world.pf" && tok.Source != "rsc/pipefish/builtins.pf" && tok.Source != "rsc/pipefish/hub.pf" {
-		// 	println("token is", tok.Type, tok.Literal)
-		// }
+		if settings.SHOW_RELEXER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(tok.Source)) {
+			println(tok.Type, tok.Literal)
+		}
 
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
