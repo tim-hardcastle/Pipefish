@@ -326,8 +326,8 @@ func (l *Lexer) peekChar() rune {
 func (l *Lexer) readNumber() string {
 	result := string(l.ch)
 	for isDigit(l.peekChar()) || l.peekChar() == '.' {
-		result = result + string(l.ch)
 		l.readChar()
+		result = result + string(l.ch)
 	}
 	return result
 }

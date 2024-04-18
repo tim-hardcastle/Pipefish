@@ -23,10 +23,6 @@ def
 //File(filepath string) :
 //    File(filepath, string) 
 
-foo(i int) :
-    blorp 
-given :
-    blorp = 2 * i
 
 cmd
 
@@ -71,13 +67,26 @@ goRandomInt(i int) : gocode {
     return rand.Intn(i)
 }
 
-randomFunctionOf(randomizer) :
-    8
+randomFunctionOf(random Random) :
+    type r == int : 
+        r <= 0 :
+            error "range of Random object cannot be <= 0"
+        else :
+            goRandomInt(r)
+    type r == list :
+        r == [] :
+            error "can't take random element of empty list"
+        else :
+            r[goRandomInt(len r)]
+    else :
+        error "can't randomize things of type " + string(type r)
+given :
+    r = random[params]
 
 cmd
 
-get (x ref) from (rng Random) :
-     x = randomFunctionOf(rng)  
+get (x ref) from (random Random) :
+     x = randomFunctionOf(random)  
 
 
 def

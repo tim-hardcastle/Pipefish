@@ -549,7 +549,7 @@ NodeTypeSwitch:
 			if ctrConst {
 				rtnTypes = altType(values.ERROR, mc.Mem[container].T)
 			} else {
-				allEnums := make(alternateType, 0, 1+mc.Ub_enums-values.LB_ENUMS) // TODO --- yu only need to calcu;ate this once.
+				allEnums := make(alternateType, 0, 1+mc.Ub_enums-values.LB_ENUMS) // TODO --- yu only need to calculate this once.
 				allEnums = append(allEnums, simpleType(values.ERROR))
 				for i := values.LB_ENUMS; i < mc.Ub_enums; i++ {
 					allEnums = append(allEnums, simpleType(i))
@@ -621,7 +621,14 @@ NodeTypeSwitch:
 				cp.put(mc, vm.IxZl, container, index, boundsError)
 				break
 			}
-
+		}
+		// If we can't infer anything else about the types we can emit a catchall indexing operation.
+		boundsError := cp.reserveError(mc, "vm/index", &node.Token, []any{})
+		cp.put(mc, vm.IxXx, container, index, boundsError)
+		if containerType.contains(values.TUPLE) {
+			rtnTypes = ANY_TYPE
+		} else {
+			rtnTypes = cp.typeNameToTypeList["single?"]
 		}
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
@@ -1653,7 +1660,7 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 		return altType(values.ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
-		switch el := oL[0].(type) {
+		switch el := oL[0].(type) { // TODO --- we can do as much of this stuff as actually makes things performant before handing it over to Eqxx
 		case simpleType:
 			switch el {
 			case tp(values.INT):
@@ -1667,15 +1674,13 @@ func (cp *Compiler) emitEquals(mc *vm.Vm, node *ast.InfixExpression, env *enviro
 			case tp(values.TYPE):
 				cp.put(mc, vm.Equt, leftRg, rightRg)
 			default:
-				panic("Unimplemented comparison type.")
+				cp.put(mc, vm.Eqxx, leftRg, rightRg)
 			}
-			return altType(values.BOOL), lcst && rcst
 		default:
-			panic("Unimplemented comparison type.")
+			cp.put(mc, vm.Eqxx, leftRg, rightRg)
 		}
-	} else {
-		panic("Haven't implemented this bit because of having no way to test it at this point.")
 	}
+	return altType(values.BOOL), lcst && rcst
 }
 
 func (cp *Compiler) compileLog(mc *vm.Vm, node *ast.LogExpression, env *environment, ac Access) bool {

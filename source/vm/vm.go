@@ -299,6 +299,12 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(string) == vm.Mem[args[2]].V.(string)}
 		case Equt:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(values.AbstractType).Equals(vm.Mem[args[2]].V.(values.AbstractType))}
+		case Eqxx:
+			if vm.Mem[args[1]].T != vm.Mem[args[2]].T {
+				vm.Mem[args[0]] = values.Value{values.BOOL, false}
+			} else {
+				vm.Mem[args[0]] = values.Value{values.BOOL, vm.equals(vm.Mem[args[1]], vm.Mem[args[2]])}
+			}
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:
@@ -381,6 +387,96 @@ loop:
 			if ok {
 				vm.Mem[args[0]] = tuple[ix]
 			} else {
+				vm.Mem[args[0]] = vm.Mem[args[3]]
+			}
+			if vm.Mem[args[2]].T == values.PAIR { // Then we're slicing.
+				// We switch on the type of the lhs.
+				switch vm.Mem[args[1]].T {
+				case values.LIST:
+					vec := vm.Mem[args[1]].V.(vector.Vector)
+					ix := vm.Mem[args[2]].V.([]values.Value)
+					if ix[0].T == values.INT && ix[1].T == values.INT && 0 <= ix[0].V.(int) &&
+						ix[0].V.(int) <= ix[1].V.(int) && ix[1].V.(int) <= vec.Len() {
+						vm.Mem[args[0]] = values.Value{values.LIST, vec.SubVector(ix[0].V.(int), ix[1].V.(int))}
+					} else {
+						vm.Mem[args[0]] = vm.Mem[args[3]]
+					}
+				case values.STRING:
+					str := vm.Mem[args[1]].V.(string)
+					ix := vm.Mem[args[2]].V.([]values.Value)
+					if ix[0].T == values.INT && ix[1].T == values.INT && 0 <= ix[0].V.(int) &&
+						ix[0].V.(int) <= ix[1].V.(int) && ix[1].V.(int) <= len(str) {
+						vm.Mem[args[0]] = values.Value{values.STRING, str[ix[0].V.(int):ix[1].V.(int)]}
+					} else {
+						vm.Mem[args[0]] = vm.Mem[args[3]]
+					}
+				case values.TUPLE:
+					tup := vm.Mem[args[1]].V.([]values.Value)
+					ix := vm.Mem[args[2]].V.([]values.Value)
+					if ix[0].T == values.INT && ix[1].T == values.INT && 0 <= ix[0].V.(int) &&
+						ix[0].V.(int) <= ix[1].V.(int) && ix[1].V.(int) <= len(tup) {
+						vm.Mem[args[0]] = values.Value{values.STRING, tup[ix[0].V.(int):ix[1].V.(int)]}
+					} else {
+						vm.Mem[args[0]] = vm.Mem[args[3]]
+					}
+				default:
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+				}
+			}
+			// Otherwise it's not a slice. We switch on the type of the lhs.
+			switch vm.Mem[args[1]].T {
+			case values.LIST:
+				vec := vm.Mem[args[1]].V.(vector.Vector)
+				ix := vm.Mem[args[2]].V.(int)
+				val, ok := vec.Index(ix)
+				if !ok {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+
+				} else {
+					vm.Mem[args[0]] = val.(values.Value)
+				}
+			case values.PAIR:
+				pair := vm.Mem[args[1]].V.([]values.Value)
+				ix := vm.Mem[args[2]].V.(int)
+				ok := ix == 0 || ix == 1
+				if ok {
+					vm.Mem[args[0]] = pair[ix]
+				} else {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+				}
+			case values.STRING:
+				str := vm.Mem[args[1]].V.(string)
+				ix := vm.Mem[args[2]].V.(int)
+				ok := 0 <= ix && ix < len(str)
+				if ok {
+					val := values.Value{values.STRING, string(str[ix])}
+					vm.Mem[args[0]] = val
+				} else {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+				}
+			case values.TYPE:
+				typ := vm.Mem[args[1]].V.(values.ValueType)
+				if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+					break
+				}
+				ix := vm.Mem[args[2]].V.(int)
+				ok := 0 <= ix && ix < len(vm.Enums[typ-values.LB_ENUMS])
+				if ok {
+					vm.Mem[args[0]] = values.Value{typ, ix}
+				} else {
+					vm.Mem[args[0]] = vm.Mem[args[4]]
+				}
+			case values.TUPLE:
+				tuple := vm.Mem[args[1]].V.([]values.Value)
+				ix := vm.Mem[args[2]].V.(int)
+				ok := 0 <= ix && ix < len(tuple)
+				if ok {
+					vm.Mem[args[0]] = tuple[ix]
+				} else {
+					vm.Mem[args[0]] = vm.Mem[args[3]]
+				}
+			default:
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 			}
 		case Inpt:

@@ -102,6 +102,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Equi: {"equi", operands{dst, mem, mem}},
 	Equs: {"equs", operands{dst, mem, mem}},
 	Equt: {"equt", operands{dst, mem, mem}},
+	Eqxx: {"eqxx", operands{dst, mem, mem}},
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, gfn, tup}},
@@ -126,6 +127,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	InxT: {"inxT", operands{dst, mem, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
+	IxXx: {"ixXx", operands{dst, mem, mem, mem}},
 	Jmp:  {"jmp", operands{loc}},
 	Jsr:  {"jsr", operands{loc}},
 	KeyM: {"keyM", operands{dst, mem}},
@@ -226,6 +228,7 @@ const (
 	Equi
 	Equs
 	Equt
+	Eqxx
 	Flti
 	Flts
 	Gofn
@@ -249,6 +252,7 @@ const (
 	Ints
 	Intf
 	IxTn
+	IxXx
 	IxZl
 	IxZn
 	Jmp

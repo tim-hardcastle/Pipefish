@@ -310,6 +310,17 @@ func (aT alternateType) isLegalDefReturn() bool {
 
 func (aT alternateType) contains(vt values.ValueType) bool {
 	t := simpleType(vt)
+	if vt == values.TUPLE { // Special-case tuples.
+		for _, ty := range aT {
+			switch ty.(type) {
+			case finiteTupleType:
+				return true
+			case typedTupleType:
+				return true
+			}
+		}
+		return false
+	}
 	for _, ty := range aT {
 		switch el := ty.(type) {
 		case simpleType:
