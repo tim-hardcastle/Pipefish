@@ -57,7 +57,7 @@ var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "l
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.Signature) (result bool, ok bool) {
 	if len(sigA) > len(sigB) {
 		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" { // TODO --- probably needs broadening now.
-			result = false
+			result = true
 			ok = true
 			return
 		}
