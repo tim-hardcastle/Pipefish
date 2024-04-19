@@ -1,9 +1,9 @@
-var i = 0
-
 cmd
 
 foo :
-    global i
+    get t from Clock()
+    post t
+    put t[nsec] into RandomSeed()
     get i from Random(10)
     post i 
 

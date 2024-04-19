@@ -32,6 +32,7 @@ type Compiler struct {
 	gvars              *environment
 	fns                []*cpFunc
 	typeNameToTypeList map[string]alternateType
+	anyTypeScheme      alternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
 	Services           map[string]*VmService
 	Contacts           []string // The names of services which are contacts.
 
@@ -71,7 +72,7 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 const DUMMY = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
-	return &Compiler{
+	newC := &Compiler{
 		p:                p,
 		enumElements:     make(map[string]uint32),
 		fieldLabelsInMem: make(map[string]uint32),
@@ -114,6 +115,10 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"snippet?": altType(values.NULL),
 		},
 	}
+	copy(newC.anyTypeScheme, newC.typeNameToTypeList["single?"])
+	newC.anyTypeScheme = newC.anyTypeScheme.union(altType(values.ERROR))
+	newC.anyTypeScheme = append(newC.anyTypeScheme, typedTupleType{newC.typeNameToTypeList["single?"]})
+	return newC
 }
 
 func (cp *Compiler) Run(mc *vm.Vm) {
@@ -626,7 +631,7 @@ NodeTypeSwitch:
 		boundsError := cp.reserveError(mc, "vm/index", &node.Token, []any{})
 		cp.put(mc, vm.IxXx, container, index, boundsError)
 		if containerType.contains(values.TUPLE) {
-			rtnTypes = ANY_TYPE
+			rtnTypes = cp.anyTypeScheme
 		} else {
 			rtnTypes = cp.typeNameToTypeList["single?"]
 		}
@@ -912,7 +917,7 @@ NodeTypeSwitch:
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
 				cp.put(mc, vm.Dofn, operands...)
 			}
-			rtnTypes = ANY_TYPE
+			rtnTypes = cp.anyTypeScheme
 			break
 		}
 		if resolvingCompiler.p.Prefixes.Contains(node.Operator) || resolvingCompiler.p.Functions.Contains(node.Operator) {
@@ -1221,10 +1226,18 @@ func (cp *Compiler) createFunctionCall(mc *vm.Vm, argCompiler *Compiler, node as
 				cp.p.Throw("comp/ref/ident", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR), false
 			}
+			var v *variable
 			v, ok := env.getVar(arg.GetToken().Literal)
 			if !ok {
-				cp.p.Throw("comp/ref/var", node.GetToken())
-				return altType(values.COMPILE_TIME_ERROR), false
+				if ac == REPL {
+					cp.p.Throw("comp/ref/var", node.GetToken())
+					return altType(values.COMPILE_TIME_ERROR), false
+				} else { // We must be in a command. We can create a local variable.
+					cp.reserve(mc, values.UNDEFINED_VALUE, nil)
+					newVar := variable{mc.That(), LOCAL_VARIABLE, cp.typeNameToTypeList["single?"]}
+					env.data[arg.GetToken().Literal] = newVar
+					v = &newVar
+				}
 			}
 			b.types[i] = cp.typeNameToTypeList["single?"]
 			cst = false
@@ -1586,7 +1599,7 @@ func (cp *Compiler) seekFunctionCall(mc *vm.Vm, b *bindle) alternateType {
 					if F.command {
 						return altType(values.SUCCESSFUL_VALUE, values.ERROR)
 					} else {
-						return ANY_TYPE
+						return cp.anyTypeScheme
 					}
 				}
 				if len(branch.Node.Fn.Rets) == 1 {
@@ -1799,7 +1812,7 @@ func (cp *Compiler) compilePipe(mc *vm.Vm, lhsTypes alternateType, lhsConst bool
 	}
 	if isAttemptedFunc {
 		cp.put(mc, vm.Dofn, v.mLoc, lhs)
-		rtnTypes, rtnConst = ANY_TYPE, ALL_CONST_ACCESS.Contains(v.access)
+		rtnTypes, rtnConst = cp.anyTypeScheme, ALL_CONST_ACCESS.Contains(v.access)
 	} else {
 		rtnTypes, rtnConst = cp.compileNode(mc, rhs, envWithThat, ac)
 	}

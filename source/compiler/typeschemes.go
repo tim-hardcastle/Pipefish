@@ -13,12 +13,6 @@ type typeScheme interface {
 	describe(mc *vm.Vm) string
 }
 
-// TODO, think about this one.
-var ANY_TYPE = alternateType{tp(values.NULL), tp(values.INT), tp(values.BOOL), tp(values.STRING), tp(values.FLOAT), tp(values.TYPE), tp(values.FUNC),
-	tp(values.PAIR), tp(values.LIST), tp(values.MAP), tp(values.SET), tp(values.LABEL),
-	typedTupleType{alternateType{tp(values.NULL), tp(values.INT), tp(values.BOOL), tp(values.STRING), tp(values.FLOAT), tp(values.TYPE), tp(values.FUNC),
-		tp(values.PAIR), tp(values.LIST), tp(values.MAP), tp(values.SET), tp(values.LABEL)}}}
-
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
 // This allows us to figure out if we need to generate a check on the length of a tuple or whether we can take it for granted
 // at compile time.

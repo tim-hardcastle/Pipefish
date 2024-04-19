@@ -298,6 +298,11 @@ func (vmm *VmMaker) createEnums(mc *vm.Vm) {
 		vmm.cp.typeNameToTypeList[tok1.Literal] = altType(typeNo)
 		vmm.cp.typeNameToTypeList[tok1.Literal+"?"] = altType(values.NULL, typeNo)
 		mc.Enums = append(mc.Enums, []string{})
+		vmm.cp.anyTypeScheme = vmm.cp.anyTypeScheme.union(altType(typeNo))
+		// We are now going to assume that the last element of anyType is a typedTupleType and add the new enum type accordingly.
+		lastType := vmm.cp.anyTypeScheme[len(vmm.cp.anyTypeScheme)-1].(typedTupleType)
+		vmm.cp.anyTypeScheme[len(vmm.cp.anyTypeScheme)-1] = typedTupleType{(lastType.t).union(altType(typeNo))}
+
 		mc.Ub_enums++
 
 		tokens.NextToken() // This says "enum" or we wouldn't be here.
@@ -346,9 +351,12 @@ func (vmm *VmMaker) createStructs(mc *vm.Vm) {
 		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
 		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNumbers[name] = typeNo
+		vmm.cp.anyTypeScheme = vmm.cp.anyTypeScheme.union(altType(typeNo))
+		// We are now going to assume that the last element of anyType is a typedTupleType and add the new struct type accordingly.
+		lastType := vmm.cp.anyTypeScheme[len(vmm.cp.anyTypeScheme)-1].(typedTupleType)
+		vmm.cp.anyTypeScheme[len(vmm.cp.anyTypeScheme)-1] = typedTupleType{(lastType.t).union(altType(typeNo))}
 
 		// The parser needs to know about it too.
-
 		vmm.uP.Parser.Functions.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		vmm.cp.p.FunctionTable.Add(vmm.cp.p.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?

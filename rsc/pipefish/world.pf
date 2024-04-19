@@ -1,7 +1,6 @@
 import
 
 gocode "io/ioutil"
-gocode "bufio"
 gocode "math/rand"
 gocode "os"
 gocode "time"
@@ -10,19 +9,13 @@ gocode "errors"
 types
 
 Clock = struct()
-File = struct(filepath string, asType type)
+File = struct(filepath string)
 FileExists = struct(filepath string)
 Input = struct(prompt string)
 Output = struct()
 Random = struct(params single)
 RandomSeed = struct()
 Terminal = struct()
-
-def
-
-//File(filepath string) :
-//    File(filepath, string) 
-
 
 cmd
 
@@ -91,7 +84,7 @@ get (x ref) from (random Random) :
 
 def
 
-goGetFileAsString(fname string) : gocode {
+goGetFile(fname string) : gocode {
     fileContent, err := ioutil.ReadFile(fname)
     if err != nil {
         return errors.New("can't find file '" + fname + "'")
@@ -99,30 +92,39 @@ goGetFileAsString(fname string) : gocode {
     return string(fileContent)
 }
 
-goGetFileAsList(fname string) : gocode {
-    file, err := os.Open(fname)
-	if err != nil {
-		return errors.New("can't find file '" + fname + "'")
-	}
-	defer file.Close()
-
-	result := []string{}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		result = append(result, scanner.Text())
-	}
-	return result
-}
-
 cmd
 
+goDeleteFile(fname string) : gocode {
+    err := os.Remove(fname) 
+    if err != nil {
+        return errors.New("can't delete file '" + fname + "'")
+    } else {
+        return values.SUCCESSFUL_VALUE
+    }
+}
+
+goPutStringInFile(output string, fname string) : gocode {
+    f, err := os.Create(fname)
+    if err != nil {
+        return errors.New("can't access file '" + fname + "'")
+    }
+    defer f.Close()
+    _, err2 := f.WriteString(output)
+
+    if err2 != nil {
+        return errors.New("can't write to file '" + fname + "'")
+    }
+    return values.SUCCESSFUL_VALUE
+}
+
 get (contents ref) from (fileAccess File) : 
-    fileAccess[asType] == string :
-        contents = goGetFileAsString(fileAccess[filepath])
-    fileAccess[asType] == list :
-        contents = goGetFileAsList(fileAccess[filepath])
-    else :
-        error "can't get file as type '" + string(fileAccess[asType]) + "'"
+    contents = goGetFile(fileAccess[filepath])
 
 get (x ref) from (fileAccess FileExists) :
     x = goFileExists(fileAccess[filepath])
+
+put (s string) into (fileAccess File) : 
+    goPutStringInFile(s, fileAccess[filepath])
+
+delete (fileAccess File) :
+    goDeleteFile(fileAccess[filepath])
