@@ -1,4 +1,6 @@
-package vm
+package service
+
+// Converts values from Pipefish to Go and back for the vm.
 
 import (
 	"pipefish/source/report"

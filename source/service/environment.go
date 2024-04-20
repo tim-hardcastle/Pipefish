@@ -1,4 +1,6 @@
-package compiler
+package service
+
+// How the compiler keeps track of where in memory the variables are stored, and what the access to them is like.
 
 import "pipefish/source/dtypes"
 
@@ -24,19 +26,19 @@ var ALL_CONST_ACCESS = dtypes.MakeFromSlice[varAccess]([]varAccess{GLOBAL_CONSTA
 type variable struct {
 	mLoc   uint32
 	access varAccess
-	types  alternateType
+	types  AlternateType
 }
 
-type environment struct {
+type Environment struct {
 	data map[string]variable
-	ext  *environment
+	Ext  *Environment
 }
 
-func newEnvironment() *environment {
-	return &environment{data: make(map[string]variable), ext: nil}
+func NewEnvironment() *Environment {
+	return &Environment{data: make(map[string]variable), Ext: nil}
 }
 
-func (env *environment) getVar(name string) (*variable, bool) {
+func (env *Environment) getVar(name string) (*variable, bool) {
 	if env == nil {
 		return nil, false
 	}
@@ -44,5 +46,5 @@ func (env *environment) getVar(name string) (*variable, bool) {
 	if ok {
 		return &v, true
 	}
-	return env.ext.getVar(name)
+	return env.Ext.getVar(name)
 }

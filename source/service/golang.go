@@ -1,6 +1,6 @@
-package compiler
+package service
 
-// Code for handling the embedded golang.
+// Code for compiling the embedded golang.
 
 import (
 	"bufio"

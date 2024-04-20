@@ -1,24 +1,18 @@
-package compiler
+package service
 
 import (
 	"os"
-	"pipefish/source/vm"
 )
 
 // This is what initialization constructs: a vm and a compiler that between them can evaluate a line of Pipefish.
 type VmService struct {
-	Mc             *vm.Vm
+	Mc             *Vm
 	Cp             *Compiler
 	ScriptFilepath string
 	Timestamp      int64
 	Broken         bool
 	Visited        bool
 }
-
-// func NewService() *VmService {
-// 	service := VmService{}
-// 	return &service
-// }
 
 func (service *VmService) NeedsUpdate() (bool, error) {
 	file, err := os.Stat(service.ScriptFilepath)

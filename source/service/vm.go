@@ -1,4 +1,4 @@
-package vm
+package service
 
 import (
 	"database/sql"
@@ -13,10 +13,6 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
-)
-
-const (
-	DUMMY = 4294967295
 )
 
 type Vm struct {

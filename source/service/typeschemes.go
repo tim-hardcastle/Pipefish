@@ -1,16 +1,15 @@
-package compiler
+package service
 
 import (
 	"fmt"
 	"pipefish/source/dtypes"
 	"pipefish/source/values"
-	"pipefish/source/vm"
 	"strings"
 )
 
 type typeScheme interface {
 	compare(u typeScheme) int
-	describe(mc *vm.Vm) string
+	describe(mc *Vm) string
 }
 
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
@@ -22,10 +21,10 @@ func lengths(t typeScheme) dtypes.Set[int] {
 	case simpleType:
 		result.Add(1)
 		return result
-	case typedTupleType:
+	case TypedTupleType:
 		result.Add(-1)
 		return result
-	case alternateType:
+	case AlternateType:
 		for _, v := range t {
 			newSet := lengths(v)
 			result.AddSet(newSet)
@@ -65,31 +64,31 @@ func maxLengthsOrMinusOne(s dtypes.Set[int]) int {
 }
 
 // This finds all the possible ix-th elements in a typeScheme.
-func typesAtIndex(t typeScheme, ix int) alternateType {
+func typesAtIndex(t typeScheme, ix int) AlternateType {
 	result, _ := recursiveTypesAtIndex(t, ix)
 	return result
 }
 
 // TODO: This is somewhat wasteful because there ought to be some sensible way to fix it so the algorithm uses data from computing this for
 // i - 1. But let's get the VM working first and optimise the compiler later.
-func recursiveTypesAtIndex(t typeScheme, ix int) (alternateType, dtypes.Set[int]) {
-	resultTypes := alternateType{}
+func recursiveTypesAtIndex(t typeScheme, ix int) (AlternateType, dtypes.Set[int]) {
+	resultTypes := AlternateType{}
 	resultSet := make(dtypes.Set[int])
 	switch t := t.(type) {
 	case simpleType:
 		if ix == 0 {
-			resultTypes = resultTypes.union(alternateType{t})
+			resultTypes = resultTypes.Union(AlternateType{t})
 		}
 		resultSet.Add(1)
 		return resultTypes, resultSet
-	case typedTupleType:
-		resultTypes = resultTypes.union(t.t)
+	case TypedTupleType:
+		resultTypes = resultTypes.Union(t.T)
 		resultSet.Add(ix)
 		return resultTypes, resultSet
-	case alternateType:
+	case AlternateType:
 		for _, v := range t {
 			newTypes, newSet := recursiveTypesAtIndex(v, ix)
-			resultTypes = resultTypes.union(newTypes)
+			resultTypes = resultTypes.Union(newTypes)
 			resultSet.AddSet(newSet)
 		}
 		return resultTypes, resultSet
@@ -100,7 +99,7 @@ func recursiveTypesAtIndex(t typeScheme, ix int) (alternateType, dtypes.Set[int]
 		resultTypes, resultSet = recursiveTypesAtIndex(t[0], ix)
 		for jx := range resultSet {
 			newTypes, newSet := recursiveTypesAtIndex(t[1:], ix-jx)
-			resultTypes = resultTypes.union(newTypes)
+			resultTypes = resultTypes.Union(newTypes)
 			resultSet.AddSet(newSet)
 		}
 		return resultTypes, resultSet
@@ -119,15 +118,15 @@ func (t simpleType) compare(u typeScheme) int {
 	}
 }
 
-func (t simpleType) describe(mc *vm.Vm) string {
+func (t simpleType) describe(mc *Vm) string {
 	return mc.DescribeType(values.ValueType(t))
 }
 
-type alternateType []typeScheme
+type AlternateType []typeScheme
 
 // This assumes that the alternateType came from the typeNameToTypeList array and therefore contains only elements of
 // type simpleType.
-func (aT alternateType) ToAbstractType() values.AbstractType {
+func (aT AlternateType) ToAbstractType() values.AbstractType {
 	result := make(values.AbstractType, 0, len(aT))
 	for _, v := range aT {
 		result = append(result, values.ValueType(v.(simpleType)))
@@ -135,8 +134,8 @@ func (aT alternateType) ToAbstractType() values.AbstractType {
 	return result
 }
 
-func (vL alternateType) intersect(wL alternateType) alternateType {
-	x := alternateType{}
+func (vL AlternateType) intersect(wL AlternateType) AlternateType {
+	x := AlternateType{}
 	var vix, wix int
 	for vix < len(vL) && wix < len(wL) {
 		comp := vL[vix].compare(wL[wix])
@@ -155,7 +154,7 @@ func (vL alternateType) intersect(wL alternateType) alternateType {
 	return x
 }
 
-func (aT alternateType) describe(mc *vm.Vm) string {
+func (aT AlternateType) describe(mc *Vm) string {
 	var buf strings.Builder
 	var sep string
 	for _, v := range aT {
@@ -165,8 +164,8 @@ func (aT alternateType) describe(mc *vm.Vm) string {
 	return buf.String()
 }
 
-func (vL alternateType) union(wL alternateType) alternateType {
-	x := alternateType{}
+func (vL AlternateType) Union(wL AlternateType) AlternateType {
+	x := AlternateType{}
 	var vix, wix int
 	for vix < len(vL) || wix < len(wL) {
 		if vix == len(vL) {
@@ -197,8 +196,8 @@ func (vL alternateType) union(wL alternateType) alternateType {
 	return x
 }
 
-func (vL alternateType) without(t typeScheme) alternateType {
-	x := alternateType{}
+func (vL AlternateType) without(t typeScheme) AlternateType {
+	x := AlternateType{}
 	for _, v := range vL {
 		if v.compare(t) != 0 {
 			x = append(x, v)
@@ -207,7 +206,7 @@ func (vL alternateType) without(t typeScheme) alternateType {
 	return x
 }
 
-func (aT alternateType) isOnly(vt values.ValueType) bool {
+func (aT AlternateType) isOnly(vt values.ValueType) bool {
 	t := simpleType(vt)
 	if len(aT) == 1 {
 		switch el := aT[0].(type) {
@@ -220,7 +219,7 @@ func (aT alternateType) isOnly(vt values.ValueType) bool {
 	return false
 }
 
-func (aT alternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
+func (aT AlternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
 	if len(aT) == 1 {
 		switch el := aT[0].(type) {
 		case simpleType:
@@ -234,7 +233,7 @@ func (aT alternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
 	return values.UNDEFINED_VALUE, false
 }
 
-func (aT alternateType) isOnlyAssortedStructs(ub int) bool {
+func (aT AlternateType) isOnlyAssortedStructs(ub int) bool {
 	for _, el := range aT {
 		switch el := el.(type) {
 		case simpleType:
@@ -248,7 +247,7 @@ func (aT alternateType) isOnlyAssortedStructs(ub int) bool {
 	return true
 }
 
-func (aT alternateType) hasSideEffects() bool {
+func (aT AlternateType) hasSideEffects() bool {
 	for _, u := range aT {
 		switch u := u.(type) {
 		case simpleType:
@@ -260,7 +259,7 @@ func (aT alternateType) hasSideEffects() bool {
 	return false
 }
 
-func (aT alternateType) isLegalCmdReturn() bool {
+func (aT AlternateType) IsLegalCmdReturn() bool {
 	for _, u := range aT {
 		switch u := u.(type) {
 		case simpleType:
@@ -275,7 +274,7 @@ func (aT alternateType) isLegalCmdReturn() bool {
 	return true
 }
 
-func (aT alternateType) isLegalReturnFromLoopBody() bool {
+func (aT AlternateType) isLegalReturnFromLoopBody() bool {
 	for _, u := range aT {
 		switch u := u.(type) {
 		case simpleType:
@@ -290,7 +289,7 @@ func (aT alternateType) isLegalReturnFromLoopBody() bool {
 	return true
 }
 
-func (aT alternateType) isLegalDefReturn() bool {
+func (aT AlternateType) IsLegalDefReturn() bool {
 	for _, u := range aT {
 		switch u := u.(type) {
 		case simpleType:
@@ -302,14 +301,14 @@ func (aT alternateType) isLegalDefReturn() bool {
 	return true
 }
 
-func (aT alternateType) contains(vt values.ValueType) bool {
+func (aT AlternateType) Contains(vt values.ValueType) bool {
 	t := simpleType(vt)
 	if vt == values.TUPLE { // Special-case tuples.
 		for _, ty := range aT {
 			switch ty.(type) {
 			case finiteTupleType:
 				return true
-			case typedTupleType:
+			case TypedTupleType:
 				return true
 			}
 		}
@@ -326,12 +325,12 @@ func (aT alternateType) contains(vt values.ValueType) bool {
 	return false
 }
 
-func (aT alternateType) containsOnlyTuples() bool {
+func (aT AlternateType) containsOnlyTuples() bool {
 	for _, ty := range aT {
 		switch el := ty.(type) {
 		case simpleType:
 			return false
-		case alternateType:
+		case AlternateType:
 			if !el.containsOnlyTuples() {
 				return false
 			}
@@ -342,20 +341,20 @@ func (aT alternateType) containsOnlyTuples() bool {
 	return true
 }
 
-func (aT alternateType) isNoneOf(vts ...values.ValueType) bool {
+func (aT AlternateType) isNoneOf(vts ...values.ValueType) bool {
 	for _, vt := range vts {
-		if aT.contains(vt) {
+		if aT.Contains(vt) {
 			return false
 		}
 	}
 	return true
 }
 
-func (t alternateType) compare(u typeScheme) int {
+func (t AlternateType) compare(u typeScheme) int {
 	switch u := u.(type) {
 	case simpleType:
 		return 1
-	case alternateType:
+	case AlternateType:
 		diff := len(t) - len(u)
 		if diff != 0 {
 			return diff
@@ -376,7 +375,7 @@ type finiteTupleType []typeScheme // "Finite" meaning that we know its size at c
 
 func (t finiteTupleType) compare(u typeScheme) int {
 	switch u := u.(type) {
-	case simpleType, alternateType:
+	case simpleType, AlternateType:
 		return 1
 	case finiteTupleType:
 		diff := len(t) - len(u)
@@ -395,7 +394,7 @@ func (t finiteTupleType) compare(u typeScheme) int {
 	}
 }
 
-func (fT finiteTupleType) describe(mc *vm.Vm) string {
+func (fT finiteTupleType) describe(mc *Vm) string {
 	var buf strings.Builder
 	buf.WriteString("tuple[")
 	var sep string
@@ -407,25 +406,25 @@ func (fT finiteTupleType) describe(mc *vm.Vm) string {
 	return buf.String()
 }
 
-type typedTupleType struct { // We don't know how long it is but we know what its elements are. (or we can say 'single?' if we don't.)
-	t alternateType
+type TypedTupleType struct { // We don't know how long it is but we know what its elements are (or we can say 'single?' if we don't.)
+	T AlternateType
 }
 
-func (t typedTupleType) compare(u typeScheme) int {
+func (t TypedTupleType) compare(u typeScheme) int {
 	switch u := u.(type) {
 	case simpleType, finiteTupleType:
 		return 1
-	case typedTupleType:
-		return t.t.compare(u.t)
+	case TypedTupleType:
+		return t.T.compare(u.T)
 	default:
 		return -1
 	}
 }
 
-func (aT typedTupleType) describe(mc *vm.Vm) string {
+func (aT TypedTupleType) describe(mc *Vm) string {
 	var buf strings.Builder
 	buf.WriteString("tuple[")
-	buf.WriteString(aT.t.describe(mc))
+	buf.WriteString(aT.T.describe(mc))
 	buf.WriteString("... ]")
 	return buf.String()
 }
@@ -436,7 +435,7 @@ type blingType struct {
 
 func (t blingType) compare(u typeScheme) int {
 	switch u := u.(type) {
-	case simpleType, finiteTupleType, typedTupleType:
+	case simpleType, finiteTupleType, TypedTupleType:
 		return 1
 	case blingType:
 		if t.tag < u.tag {
@@ -451,35 +450,12 @@ func (t blingType) compare(u typeScheme) int {
 	}
 }
 
-func (bT blingType) describe(mc *vm.Vm) string {
+func (bT blingType) describe(mc *Vm) string {
 	return bT.tag
 }
 
-// type listType []typeScheme
-
-// func (t listType) compare(u typeScheme) int {
-// 	switch u := u.(type) {
-// 	case simpleType, finiteTupleType, typedTupleType, blingType:
-// 		return 1
-// 	case listType:
-// 		diff := len(t) - len(u)
-// 		if diff != 0 {
-// 			return diff
-// 		}
-// 		for i := 0; i < len(t); i++ {
-// 			diff := (t)[i].compare((u)[i])
-// 			if diff != 0 {
-// 				return diff
-// 			}
-// 		}
-// 		return 0
-// 	default:
-// 		return -1
-// 	}
-// }
-
-func altType(t ...values.ValueType) alternateType {
-	result := make(alternateType, len(t))
+func AltType(t ...values.ValueType) AlternateType {
+	result := make(AlternateType, len(t))
 	for i, v := range t {
 		result[i] = simpleType(v)
 	}

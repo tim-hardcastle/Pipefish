@@ -1,4 +1,6 @@
-package vm
+package service
+
+// Used by the vm to describe Pipefish values and types, and also to describe bytecode for debugging purposes.
 
 import (
 	"pipefish/source/report"

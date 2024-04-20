@@ -26,8 +26,8 @@ import (
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/report"
+	"pipefish/source/service"
 	"pipefish/source/settings"
-
 	"pipefish/source/token"
 )
 
@@ -562,9 +562,9 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 // implementing overloading.
 //
 // We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (uP *Initializer) MakeFunctions(sourceName string) *GoHandler {
+func (uP *Initializer) MakeFunctions(sourceName string) *service.GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := NewGoHandler(uP.Parser)
+	goHandler := service.NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
