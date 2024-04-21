@@ -187,6 +187,13 @@ func (vmm *VmMaker) Make(mc *service.Vm, scriptFilepath, sourcecode string) {
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
 	goHandler := vmm.uP.MakeFunctions(vmm.scriptFilepath)
+
+	if settings.FUNCTION_TO_PEEK != "" {
+		for _, f := range vmm.uP.Parser.FunctionTable[settings.FUNCTION_TO_PEEK] {
+			println(f.Sig.String())
+		}
+	}
+
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -240,7 +247,6 @@ func (vmm *VmMaker) MakeGoMods(mc *service.Vm, goHandler *service.GoHandler) {
 	if uP.Parser.ErrorsExist() {
 		return
 	}
-
 	vmm.goToPf = map[string]func(any) (uint32, []any, bool){}
 	vmm.pfToGo = map[string]func(uint32, []any) any{}
 	for source, _ := range goHandler.Modules {
@@ -439,15 +445,17 @@ func (vmm *VmMaker) createAbstractTypes(mc *service.Vm) {
 }
 
 func (vmm *VmMaker) createLanguagesAndContacts(mc *service.Vm) {
+	mc.Lb_snippets = values.ValueType(len(mc.TypeNames))
 	for _, name := range vmm.cp.P.Languages {
-		vmm.addLanguageOrContact(mc, name)
+		vmm.addLanguageOrContact(mc, name, false)
 	}
+	mc.Ub_langs = values.ValueType(len(mc.TypeNames))
 	for name := range vmm.cp.P.Contacts {
-		vmm.addLanguageOrContact(mc, name)
+		vmm.addLanguageOrContact(mc, name, true)
 	}
 }
 
-func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string) {
+func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string, isContact bool) {
 
 	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 
@@ -459,6 +467,8 @@ func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string) {
 	vmm.cp.TypeNameToTypeList["struct?"] = vmm.cp.TypeNameToTypeList["struct?"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList["snippet"] = vmm.cp.TypeNameToTypeList["snippet"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList["snippet?"] = vmm.cp.TypeNameToTypeList["snippet?"].Union(altType(typeNo))
+	vmm.cp.TypeNameToTypeList["contact"] = vmm.cp.TypeNameToTypeList["contact"].Union(altType(typeNo))
+	vmm.cp.TypeNameToTypeList["contact?"] = vmm.cp.TypeNameToTypeList["contact?"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList[name] = altType(typeNo)
 	vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 	vmm.cp.StructNumbers[name] = typeNo

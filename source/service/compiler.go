@@ -110,6 +110,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"struct":   AltType(),
 			"struct?":  AltType(values.NULL),
+			"contact":  AltType(),
+			"contact?": AltType(values.NULL),
 			"snippet":  AltType(),
 			"snippet?": AltType(values.NULL),
 		},
@@ -410,7 +412,7 @@ NodeTypeSwitch:
 			break NodeTypeSwitch
 		}
 	case *ast.Bling:
-		cp.P.Throw("comp/bling", node.GetToken())
+		cp.P.Throw("comp/bling/wut", node.GetToken())
 		break
 	case *ast.BooleanLiteral:
 		cp.Reserve(mc, values.BOOL, node.Value)
@@ -558,6 +560,7 @@ NodeTypeSwitch:
 				for i := values.LB_ENUMS; i < mc.Ub_enums; i++ {
 					allEnums = append(allEnums, simpleType(i))
 				}
+				rtnTypes = allEnums
 			}
 		}
 		structType, ok := containerType.isOnlyStruct(int(mc.Ub_enums))
@@ -1454,38 +1457,33 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
-var TYPE_COMPARISONS = map[string]*Operation{
-	"int":     {Qtyp, []uint32{DUMMY, uint32(values.INT), DUMMY}},
-	"string":  {Qtyp, []uint32{DUMMY, uint32(values.STRING), DUMMY}},
-	"bool":    {Qtyp, []uint32{DUMMY, uint32(values.BOOL), DUMMY}},
-	"float64": {Qtyp, []uint32{DUMMY, uint32(values.FLOAT), DUMMY}},
-	"null":    {Qtyp, []uint32{DUMMY, uint32(values.NULL), DUMMY}},
-	"label":   {Qtyp, []uint32{DUMMY, uint32(values.LABEL), DUMMY}},
-	"list":    {Qtyp, []uint32{DUMMY, uint32(values.LIST), DUMMY}},
-	"set":     {Qtyp, []uint32{DUMMY, uint32(values.SET), DUMMY}},
-	"type":    {Qtyp, []uint32{DUMMY, uint32(values.TYPE), DUMMY}},
-	"map":     {Qtyp, []uint32{DUMMY, uint32(values.MAP), DUMMY}},
-	"pair":    {Qtyp, []uint32{DUMMY, uint32(values.PAIR), DUMMY}},
-	"func":    {Qtyp, []uint32{DUMMY, uint32(values.FUNC), DUMMY}},
-	"single":  {Qsng, []uint32{DUMMY, DUMMY}},
-	"single?": {Qsnq, []uint32{DUMMY, DUMMY}},
-	"struct":  {Qstr, []uint32{DUMMY, DUMMY}},
-	"struct?": {Qstq, []uint32{DUMMY, DUMMY}},
+var TYPE_COMPARISONS = map[string]Opcode{
+	"snippet":  Qspt,
+	"snippet?": Qspq,
+	"contact":  Qctc,
+	"contact?": Qctq,
+	"single":   Qsng,
+	"single?":  Qsnq,
+	"struct":   Qstr,
+	"struct?":  Qstq,
 }
 
 func (cp *Compiler) emitTypeComparison(mc *Vm, typeAsString string, mem, loc uint32) {
-	op, ok := TYPE_COMPARISONS[typeAsString]
-	if ok {
-		newArgs := make([]uint32, len(op.Args))
-		copy(newArgs, op.Args)
-		newOp := &Operation{op.Opcode, newArgs}
-		newOp.Args[0] = mem
-		newOp.MakeLastArg(loc)
-		cp.Emit(mc, newOp.Opcode, newArgs...)
+	// It may be a plain old concrete type.
+	ty := cp.TypeNameToTypeList[typeAsString]
+	if len(ty) == 1 {
+		cp.Emit(mc, Qtyp, mem, uint32(ty[0].(simpleType)), loc)
 		return
 	}
+	// It may be one of the built-in abstract types, 'struct', 'snippet', etc.
+	op, ok := TYPE_COMPARISONS[typeAsString]
+	if ok {
+		cp.Emit(mc, op, mem, loc)
+		return
+	}
+	// It may be a user-defined abstract type.
 	var abType values.AbstractType
-	for _, aT := range mc.AbstractTypes {
+	for _, aT := range mc.AbstractTypes { // TODO --- the lookup here and in the VM could be much faster, this by a map, that by a slice of booleans.
 		if aT.Name == typeAsString {
 			abType = aT.AT
 			break
@@ -1539,6 +1537,7 @@ func (cp *Compiler) generateMoveAlongBranchViaSingleValue(mc *Vm, b *bindle) Alt
 	newBindle := *b
 	newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 	newBindle.argNo++
+	newBindle.branchNo = 0
 	return cp.generateNewArgument(mc, &newBindle)
 }
 
@@ -1571,8 +1570,8 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 				if builtinTag == "tuple_of_tuple" {
 					functionAndType.T = b.doneList
 				}
-				if builtinTag == "tuplify_list" {
-					functionAndType.T = AlternateType{TypedTupleType{cp.TypeNameToTypeList["single?"]}}
+				if builtinTag == "tuplify_list" || builtinTag == "get_from_contact" || builtinTag == "get_from_SQL" {
+					functionAndType.T = cp.AnyTypeScheme
 				}
 				if builtinTag == "type_with" {
 					functionAndType.T = AlternateType{cp.TypeNameToTypeList["struct"]}.Union(AltType(values.ERROR))
@@ -1631,7 +1630,6 @@ func (cp *Compiler) seekBling(mc *Vm, b *bindle, bling string) AlternateType {
 			return cp.generateMoveAlongBranchViaSingleValue(mc, &newBindle)
 		}
 	}
-	cp.P.Throw("comp/eq/err/a", b.tok) // TODO -- the bindle should pass all the original args or at least their tokens for better error messages.
 	return AltType(values.ERROR)
 }
 
@@ -1714,31 +1712,11 @@ func (cp *Compiler) compileLog(mc *Vm, node *ast.LogExpression, env *Environment
 	if logStr == "" {
 
 	}
-	strList := []string{}
-	var (
-		word string
-		exp  bool
-	)
-	for _, c := range logStr {
-		if c == '|' {
-			if exp {
-				strList = append(strList, word+"|")
-				word = ""
-				exp = false
-			} else {
-				strList = append(strList, word)
-				word = "|"
-				exp = true
-			}
-		} else {
-			word = word + string(c)
-		}
-	}
-	if exp {
+	strList, unclosed := text.GetTextWithBarsAsList(logStr)
+	if unclosed {
 		cp.P.Throw("comp/log/close", &node.Token)
 		return false
 	}
-	strList = append(strList, word)
 	// So at this point we have a strList consisting of things which either do or don't need parsing and compiling,
 	// depending on whether they are or aren't bracketed by | symbols.
 	// If they don't need compiling they can just be concatenated to the output.

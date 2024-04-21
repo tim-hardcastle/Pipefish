@@ -494,7 +494,7 @@ func (tree FnTreeNode) IndentString(indent string) string {
 	for _, v := range tree.Branch {
 		result = result + "\n" + indent + v.TypeName
 		if v.Node.Fn != nil {
-			result = result + "func " + v.Node.Fn.Sig.String()
+			result = result + "func" + v.Node.Fn.Sig.String()
 		} else {
 			result = result + v.Node.IndentString(indent+"    ")
 		}

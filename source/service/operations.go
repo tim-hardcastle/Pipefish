@@ -158,12 +158,16 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Outp: {"outp", operands{mem}},
 	Outt: {"outt", operands{mem}},
 	Qabt: {"qabt", operands{mem, tup, loc}},
+	Qctc: {"qctc", operands{mem, loc}},
+	Qctq: {"qctq", operands{mem, loc}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
 	Qsat: {"qsat", operands{mem, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
 	Qsnq: {"qsnq", operands{mem, loc}},
+	Qspt: {"qspt", operands{mem, loc}},
+	Qspq: {"qspq", operands{mem, loc}},
 	Qstr: {"qstr", operands{mem, loc}},
 	Qstq: {"qstq", operands{mem, loc}},
 	Qtru: {"qtru", operands{mem, loc}},
@@ -186,6 +190,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Wtht: {"wtht", operands{dst, mem, mem, mem}}, //
 	WthZ: {"wthZ", operands{dst, mem, mem, mem}}, //
 	WtoM: {"wthM", operands{dst, mem, mem, mem}}, //
+	Xcon: {"xcon", operands{dst, mem}},
+	Xsql: {"xsql", operands{dst, mem}},
 }
 
 func describe(op *Operation) string {
@@ -286,12 +292,16 @@ const (
 	Outp
 	Outt
 	Qabt
+	Qctc
+	Qctq
 	QlnT
 	Qlog
 	Qntp
 	Qsat
 	Qsng
 	Qsnq
+	Qspt
+	Qspq
 	Qstr
 	Qstq
 	Qtru
@@ -314,4 +324,6 @@ const (
 	Wtht
 	WthZ
 	WtoM
+	Xcon
+	Xsql
 )

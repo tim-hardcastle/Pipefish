@@ -55,62 +55,50 @@ var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "l
 	"pair", "set", "map", "func", "struct", "label", "null"}
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.Signature) (result bool, ok bool) {
-	if len(sigA) > len(sigB) {
-		if len(sigB) == 0 || sigB[len(sigB)-1].VarType != "tuple" { // TODO --- probably needs broadening now.
-			result = true
-			ok = true
-			return
-		}
+	if len(sigB) == 0 {
+		result = true
+		ok = true
+		return
 	}
-	if len(sigB) > len(sigA) {
-		if len(sigA) == 0 || sigA[len(sigA)-1].VarType != "tuple" {
-			result = false
-			ok = true
-			return
-		}
+	if len(sigA) == 0 {
+		result = false
+		ok = true
+		return
 	}
 	var aIsMoreSpecific, bIsMoreSpecific bool
-	for i := 0; i < len(sigA); i++ {
-		if sigA[i].VarType == "bling" && i >= len(sigB) ||
-			sigA[i].VarType == "bling" && sigB[i].VarType == "bling" && sigA[i].VarName != sigB[i].VarName {
-			result = false
-			ok = true
-			return
+	max := len(sigA)
+	if len(sigB) > max {
+		max = len(sigB)
+	}
+	for i := 0; i < max; i++ {
+		if i < len(sigA) && i < len(sigB) && sigA[i].VarType == "bling" && sigB[i].VarType == "bling" && sigA[i].VarName != sigB[i].VarName {
+			return aIsMoreSpecific, true
+		}
+		if i >= len(sigB) || i >= len(sigA) {
+			return aIsMoreSpecific, true
 		}
 		asubb := typesystem.PointsTo(sigA[i].VarType, sigB[i].VarType)
 		bsuba := typesystem.PointsTo(sigB[i].VarType, sigA[i].VarType)
 		aIsMoreSpecific = aIsMoreSpecific || asubb
 		bIsMoreSpecific = bIsMoreSpecific || bsuba
 		if aIsMoreSpecific && bIsMoreSpecific {
-			result = false
-			ok = false
-			return
+			return false, false
 		}
 		if (i == len(sigA)-1) && (i == len(sigB)-1) && sigA[i].TypeOrBling() == sigB[i].TypeOrBling() {
 			if !(aIsMoreSpecific || bIsMoreSpecific) {
-				result = false
-				ok = false
-				return
+				return false, false
 			} else {
-				result = aIsMoreSpecific
-				ok = true
-				return
+				return aIsMoreSpecific, true
 			}
 		}
 		if !(asubb || bsuba || sigA[i].VarType == sigB[i].VarType) {
-			result = false
-			ok = true
-			return
+			return false, true
 		}
 	}
 	if !(aIsMoreSpecific || bIsMoreSpecific) {
-		result = false
-		ok = false
-		return
+		return false, false
 	}
-	result = aIsMoreSpecific
-	ok = true
-	return
+	return aIsMoreSpecific, true
 }
 
 func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {

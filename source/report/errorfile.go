@@ -282,6 +282,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/bling/wut": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "Unknown bling " + text.Emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This error shouldn't occur."
+		},
+	},
+
 	"comp/call": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "No implementation of function " + text.Emph(tok.Literal) + " exists for the given types"

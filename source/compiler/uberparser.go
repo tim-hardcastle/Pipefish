@@ -580,6 +580,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) *service.GoHandler {
 					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)
+				return nil
 			}
 			if body.GetToken().Type == token.GOLANG {
 				body.(*ast.GolangExpression).Raw = []bool{}
@@ -630,7 +631,7 @@ func (uP *Initializer) MakeFunctionTrees() {
 		for i := range v {
 			tree = uP.addSigToTree(tree, &v[i], 0)
 
-			refs := 0
+			refs := 0 // Overloaded functions must have the same number of reference variables, which go at the start.
 			for ; refs < len(v[i].Sig) && v[i].Sig[refs].VarType == "ref"; refs++ {
 			}
 			if i == 0 {
@@ -643,6 +644,10 @@ func (uP *Initializer) MakeFunctionTrees() {
 			}
 		}
 		uP.Parser.FunctionGroupMap[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
+		if settings.FUNCTION_TO_PEEK != "" && k == settings.FUNCTION_TO_PEEK {
+			println("Function tree for " + k)
+			println(uP.Parser.FunctionGroupMap[k].Tree.IndentString(""))
+		}
 	}
 }
 

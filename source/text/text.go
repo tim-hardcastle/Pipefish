@@ -317,3 +317,31 @@ func Pretty(s string, lMargin, rMargin int) string {
 	}
 	return result
 }
+
+func GetTextWithBarsAsList(text string) ([]string, bool) {
+	strList := []string{}
+	var (
+		word string
+		exp  bool
+	)
+	for _, c := range text {
+		if c == '|' {
+			if exp {
+				strList = append(strList, word+"|")
+				word = ""
+				exp = false
+			} else {
+				strList = append(strList, word)
+				word = "|"
+				exp = true
+			}
+		} else {
+			word = word + string(c)
+		}
+	}
+	if exp {
+		return nil, true
+	}
+	strList = append(strList, word)
+	return strList, false
+}

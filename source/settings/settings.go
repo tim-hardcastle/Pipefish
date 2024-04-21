@@ -13,7 +13,10 @@ var MandatoryImportSet = dtypes.MakeFromSlice(MandatoryImports)
 const (
 	OMIT_BUILTINS     = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
 	USE_TEST          = false // If true the file rsc/pipefish/test.pf will be added to any service along with the builtins etc.
-	SUPPRESS_BUILTINS = true  // Should usually be left true. Means that the first three flags below won't show instrumentation when compiling buitins.p, world.pf, etc.
+	SUPPRESS_BUILTINS = true  // Should usually be left true. Means that the first three flags below won't show instrumentation when compiling buitins.pf, world.pf, etc.
+
+	FUNCTION_TO_PEEK = "" // Shows the function table entry and function tree associated with the function named in the string, if non-empty.
+
 	// These do what it sounds like.
 	SHOW_LEXER    = false
 	SHOW_RELEXER  = false

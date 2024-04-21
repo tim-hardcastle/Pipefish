@@ -25,7 +25,9 @@ type Vm struct {
 	// Permanent state: things established at compile time.
 
 	StructResolve    StructResolver
-	Ub_enums         values.ValueType
+	Ub_enums         values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
+	Ub_langs         values.ValueType // (Exclusive) upper bound of the languages. Everything above this is a contact.
+	Lb_snippets      values.ValueType // (Inclusive) lower bound of the snippets.
 	TypeNames        []string
 	StructLabels     [][]int // Array from a struct to its label numbers.
 	StructFields     [][]values.AbstractType
@@ -575,6 +577,20 @@ loop:
 			}
 			loc = args[len(args)-1]
 			continue
+		case Qctc:
+			if vm.Mem[args[0]].T >= vm.Ub_langs {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case Qctq:
+			if vm.Mem[args[0]].T >= vm.Ub_langs || vm.Mem[args[0]].T == values.NULL {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
 		case QlnT:
 			if len(vm.Mem[args[0]].V.([]values.Value)) == int(args[1]) {
 				loc = loc + 1
@@ -612,6 +628,20 @@ loop:
 			continue
 		case Qsnq:
 			if vm.Mem[args[0]].T >= values.NULL {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case Qspt:
+			if vm.Mem[args[0]].T >= vm.Lb_snippets {
+				loc = loc + 1
+			} else {
+				loc = args[1]
+			}
+			continue
+		case Qspq:
+			if vm.Mem[args[0]].T >= vm.Lb_snippets || vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
 			} else {
 				loc = args[1]
@@ -916,6 +946,16 @@ loop:
 				mp = (*mp).Delete(key)
 			}
 			vm.Mem[args[0]] = values.Value{values.MAP, mp}
+		case Xcon:
+			snippet := vm.Mem[args[1]].V.([]values.Value)[0].V.(string)
+			//env := vm.Mem[args[1]].V.([]values.Value)[1].V.(*values.Map)
+			println(snippet)
+			vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
+		case Xsql:
+			snippet := vm.Mem[args[1]].V.([]values.Value)[0].V.(string)
+			//env := vm.Mem[args[1]].V.([]values.Value)[1].V.(*values.Map)
+			println(snippet)
+			vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 		default:
 			panic("Unhandled opcode '" + OPERANDS[vm.Code[loc].Opcode].oc + "'")
 		}
@@ -973,7 +1013,12 @@ func (mc Vm) equals(v, w values.Value) bool {
 		return v.V.(int) == w.V.(int)
 	}
 	if v.T >= mc.Ub_enums {
-
+		for i, v := range v.V.([]values.Value) {
+			if !mc.equals(v, w.V.([]values.Value)[i]) {
+				return false
+			}
+		}
+		return true
 	}
 	panic("Wut?")
 }

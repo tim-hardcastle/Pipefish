@@ -180,6 +180,7 @@ func (l *Lexer) NextToken() token.Token {
 			text := l.readGolang()
 			return l.NewToken(tType, text)
 		case token.EMDASH:
+			l.readChar()
 			return l.NewToken(tType, l.readSnippet())
 		default:
 			return l.NewToken(tType, lit)

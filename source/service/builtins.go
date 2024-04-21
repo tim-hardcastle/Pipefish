@@ -18,9 +18,13 @@ var BUILTINS = map[string]functionAndReturnType{
 	"add_strings":       {(*Compiler).btAddStrings, AltType(values.STRING)},
 	"divide_floats":     {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":   {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
+	"execute_contact":   {(*Compiler).btExecuteContact, AltType(values.ERROR, values.SUCCESSFUL_VALUE)},
+	"execute_SQL":       {(*Compiler).btExecuteSQL, AltType(values.ERROR, values.SUCCESSFUL_VALUE)},
 	"float_of_int":      {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":   {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
+	"get_from_contact":  {(*Compiler).btExecuteContact, AltType()}, // This needs to be anyTypeScheme, so the compiler adds it in during intialization.
 	"get_from_input":    {(*Compiler).btGetFromInput, AltType(values.SUCCESSFUL_VALUE)},
+	"get_from_SQL":      {(*Compiler).btExecuteSQL, AltType()}, // This needs to be anyTypeScheme, so the compiler adds it in during intialization.
 	"gt_floats":         {(*Compiler).btGtFloats, AltType(values.BOOL)},
 	"gte_floats":        {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":           {(*Compiler).btGtInts, AltType(values.BOOL)},
@@ -64,7 +68,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"subtract_integers": {(*Compiler).btSubtractIntegers, AltType(values.INT)},
 	"tuple_of_single?":  {(*Compiler).btTupleOfSingle, AltType()}, // Since we can't know the typeschemes in advance, these are kludged in by the seekFunctionCall method.
 	"tuple_of_tuple":    {(*Compiler).btTupleOfTuple, AltType()},  //
-	"tuplify_list":      {(*Compiler).btTuplifyList, AltType()},   // We know that this should be alternateType{typedTupleType{single?}}, but we don't know what single? is yet.
+	"tuplify_list":      {(*Compiler).btTuplifyList, AltType()},   // This needs to be anyTypeScheme, so the compiler adds it in durin intialization.
 	"type":              {(*Compiler).btType, AltType(values.TYPE)},
 	"type_with":         {(*Compiler).btTypeWith, AltType()},
 	"type_of_tuple":     {(*Compiler).btTypeOfTuple, AltType(values.TYPE)},
@@ -99,6 +103,14 @@ func (cp *Compiler) btDivideFloats(mc *Vm, tok *token.Token, dest uint32, args [
 	cp.Emit(mc, Asgm, dest, mc.That())
 	cp.Emit(mc, Jmp, mc.CodeTop()+2)
 	cp.Emit(mc, Divf, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btExecuteContact(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(mc, Xcon, dest, args[0])
+}
+
+func (cp *Compiler) btExecuteSQL(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(mc, Xsql, dest, args[0])
 }
 
 func (cp *Compiler) btDivideIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
