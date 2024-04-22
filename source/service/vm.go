@@ -42,6 +42,30 @@ type Vm struct {
 	AbstractTypes    []values.NameAbstractTypePair
 }
 
+// This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
+// point. Then to roll back the vm, we can call the rollback function (below) on the state returned by getState.
+type vmState struct {
+	mem              int
+	code             int
+	tokens           int
+	lambdaFactories  int
+	snippetFactories int
+}
+
+// This captures the record.
+func (vm *Vm) getState() vmState {
+	return vmState{len(vm.Mem), len(vm.Code), len(vm.Tokens), len(vm.LambdaFactories), len(vm.SnippetFactories)}
+}
+
+// And this rolls back the machine.
+func (vm *Vm) rollback(vms vmState) {
+	vm.Code = vm.Code[:vms.code]
+	vm.Mem = vm.Mem[:vms.mem]
+	vm.Tokens = vm.Tokens[:vms.tokens]
+	vm.LambdaFactories = vm.LambdaFactories[:vms.lambdaFactories]
+	vm.SnippetFactories = vm.SnippetFactories[:vms.snippetFactories]
+}
+
 type GoFn struct {
 	Code   func(args ...any) any
 	GoToPf func(v any) (uint32, []any, bool)

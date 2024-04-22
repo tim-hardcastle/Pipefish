@@ -131,10 +131,8 @@ func (cp *Compiler) GetParser() *parser.Parser {
 }
 
 func (cp *Compiler) Do(mc *Vm, line string) values.Value {
-	mT := mc.MemTop()
+	state := mc.getState()
 	cT := mc.CodeTop()
-	tT := mc.TokenTop()
-	lT := mc.LfTop()
 	node := cp.P.ParseLine("REPL input", line)
 	if settings.SHOW_PARSER {
 		fmt.Println("Parsed line:", node.String())
@@ -149,10 +147,7 @@ func (cp *Compiler) Do(mc *Vm, line string) values.Value {
 	cp.Emit(mc, Ret)
 	mc.Run(cT)
 	result := mc.Mem[mc.That()]
-	mc.Mem = mc.Mem[:mT]
-	mc.Code = mc.Code[:cT]
-	mc.Tokens = mc.Tokens[:tT]
-	mc.LambdaFactories = mc.LambdaFactories[:lT]
+	mc.rollback(state)
 	return result
 }
 
@@ -328,10 +323,8 @@ func (cp *Compiler) vmComeFrom(mc *Vm, items ...any) {
 func (cp *Compiler) CompileNode(mc *Vm, node ast.Node, env *Environment, ac Access) (AlternateType, bool) {
 	cp.showCompile = settings.SHOW_COMPILER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := AlternateType{}, true
-	mT := mc.MemTop()
+	state := mc.getState()
 	cT := mc.CodeTop()
-	tT := mc.TokenTop()
-	lT := mc.LfTop()
 NodeTypeSwitch:
 	switch node := node.(type) {
 	case *ast.AssignmentExpression:
@@ -1018,10 +1011,7 @@ NodeTypeSwitch:
 		} else {
 			rtnTypes = AltType(result.T)
 		}
-		mc.Mem = mc.Mem[:mT]
-		mc.Code = mc.Code[:cT]
-		mc.Tokens = mc.Tokens[:tT]
-		mc.LambdaFactories = mc.LambdaFactories[:lT]
+		mc.rollback(state)
 		cp.Reserve(mc, result.T, result.V)
 	}
 	return rtnTypes, rtnConst
