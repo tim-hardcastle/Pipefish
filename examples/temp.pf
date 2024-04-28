@@ -8,8 +8,6 @@ zort :
     post i 
     post SQL --- flerp
 
-
-
 def
 
 foo(x string) : "A"
@@ -22,7 +20,5 @@ foo(x int, y int) : "G"
 foo(x bool) troz (b bool) : "H"
 foo(x single, y bool) : "I"
 foo(x single?, y bool) : "J"
-
-
 
 

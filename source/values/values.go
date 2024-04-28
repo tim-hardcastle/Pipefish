@@ -4,12 +4,14 @@ type ValueType uint32
 
 const ( // Cross-reference with typeNames in BlankVm()
 
-	// The types from UNDEFINED VALUE to REF inclusive are internal types which should never actually be seen by the user.
+	// The types from UNDEFINED VALUE to BREAK inclusive are internal types which should never actually be seen by the user.
 	// In some cases, e.g. CREATED_LOCAL_CONSTANT, they are also not instantiated: they are there to
 	// return in a typeScheme object when the compiled code doesn't create a value.
 
 	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
 	INT_ARRAY                               // V is an array of Golang integers.
+	CONTACT_QUERY                           // Constructed by Bcon and consumed by Gcon and Xcon.
+	SQL_QUERY                               // Constructed by Bsql and consumed by Gsql and Xsql.
 	THUNK                                   // Contains what we need to evaluate inner variables.
 	CREATED_LOCAL_CONSTANT                  // Returned by the compiler in the typeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                      // For when we have to return a type, but what we have is a compile time error.
@@ -95,6 +97,16 @@ const (
 	C_BREAK
 	C_EMPTY_TUPLE
 )
+
+type ContactQuery struct {
+	contactName string
+	queryText   string
+}
+
+type SQLQuery struct {
+	queryText string
+	pfValues  []Value
+}
 
 // AbstractTypes are constructed from the altTypes in the compiler and so are assumed to be ordered.
 type AbstractType []ValueType

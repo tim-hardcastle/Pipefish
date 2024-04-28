@@ -63,6 +63,23 @@ func (node *mapNode) getVector() vector.Vector {
 	return new
 }
 
+// It is assumed that we know the map is keyed by strings.
+func (pm *Map) ToEnv() (map[string]uint32, []Value) {
+	return pm.root.toEnv(make(map[string]uint32), []Value{})
+}
+func (node *mapNode) toEnv(env map[string]uint32, mem []Value) (map[string]uint32, []Value) {
+	if node == nil {
+		return env, mem
+	}
+	env, mem = node.left.toEnv(env, mem)
+	k := node.key
+	v := node.value
+	env[k.V.(string)] = uint32(len(mem))
+	mem = append(mem, v)
+	env, mem = node.left.toEnv(env, mem)
+	return env, mem
+}
+
 func (node *mapNode) forEach(f func(key, value Value)) {
 	if node == nil {
 		return

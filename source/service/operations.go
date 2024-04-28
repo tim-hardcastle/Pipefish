@@ -84,6 +84,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Andb: {"andb", operands{dst, mem, mem}},
 	Aref: {"aref", operands{dst, mem, mem}},
 	Asgm: {"asgm", operands{dst, mem}},
+	Bcon: {"bcon", operands{dst, mem}},
+	Bsql: {"bsql", operands{dst, mem}},
 	Call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
 	CalT: {"calt", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; the memory location of a list of places where we capture tuples, and a tuple saying where to get them from.
 	Cc11: {"cc11", operands{dst, mem, mem}},
@@ -105,6 +107,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Eqxx: {"eqxx", operands{dst, mem, mem, mem}},
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
+	Gcon: {"gcon", operands{dst, mem}},
+	Gsql: {"gsql", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, gfn, tup}},
 	Gtef: {"gtef", operands{dst, mem, mem}},
 	Gtei: {"gtei", operands{dst, mem, mem}},
@@ -217,6 +221,8 @@ const (
 	Andb
 	Aref
 	Asgm
+	Bcon
+	Bsql
 	Cc11
 	Cc1T
 	CcT1
@@ -238,6 +244,8 @@ const (
 	Eqxx
 	Flti
 	Flts
+	Gcon
+	Gsql
 	Gofn
 	Gtef
 	Gtei

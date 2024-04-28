@@ -9,10 +9,10 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
+	"strings"
 
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 type Thunk struct {
@@ -1265,6 +1265,7 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 			}
 		}
 	}
+	b.cst = cst
 	// Having gotten the arguments, we create the function call itself.
 	returnTypes := cp.generateNewArgument(mc, b) // This is our path into the recursion that will in fact generate the whole function call.
 
@@ -1304,7 +1305,8 @@ type bindle struct {
 	env          *Environment    // Associates variable names with memory locations
 	tupleTime    bool            // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
-	access       Access
+	access       Access          // Whether the function call is coming from the REPL, the cmd section, etc.
+	cst          bool            // Whether the arguments are constant.
 }
 
 func (cp *Compiler) generateNewArgument(mc *Vm, b *bindle) AlternateType {
@@ -1538,7 +1540,7 @@ func (cp *Compiler) generateNextBranchDown(mc *Vm, b *bindle) AlternateType {
 }
 
 func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
-	for _, branch := range b.treePosition.Branch { // TODO --- this is a pretty vile hack; it would make sense for it to always be at the top.}
+	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
 			F := cp.Fns[fNo]
@@ -1554,19 +1556,47 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			builtinTag := F.Builtin
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
-				if builtinTag == "tuple_of_single?" {
+				// Now we do all the builtins with special cases. First of all the contacts and snippets need to be done
+				// here entirely, since we need to be able to see the bindle for these.
+				//
+				// Because a snippet will almost always be a constant, we can in such case compile the thing that builds the query
+				// from it at compile time. In the rare event where the snippet is not constant, we would have to special-case it
+				// by parsing it into a query at runtime. This is a low-priority TODO: in the meantime we'll just throw an error.
+				switch builtinTag {
+				case "execute_contact", "execute_SQL", "get_from_contact", "get_from_SQL":
+					if b.cst {
+						cp.P.Throw("comp/snippet", b.tok)
+						return (AltType(values.ERROR))
+					}
+				}
+				switch builtinTag {
+				case "execute_contact":
+					cp.compileContactSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
+					cp.Emit(mc, Xcon, b.outLoc, mc.That())
+					return (AltType(values.SUCCESSFUL_VALUE, values.ERROR))
+				case "execute_SQL":
+					cp.compileSQLSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
+					cp.Emit(mc, Xsql, b.outLoc, mc.That())
+					return (AltType(values.SUCCESSFUL_VALUE, values.ERROR))
+				case "get_from_contact":
+					cp.compileContactSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
+					cp.Emit(mc, Gcon, b.outLoc, mc.That())
+					return cp.AnyTypeScheme
+				case "get_from_SQL":
+					cp.compileSQLSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
+					cp.Emit(mc, Gsql, b.outLoc, mc.That())
+					return cp.AnyTypeScheme
+				// Then the remaining special cases can still be executed as builtins but we need to special-case
+				// their return types.
+				case "tuple_of_single?":
 					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
-				}
-				if builtinTag == "tuple_of_tuple" {
+				case "tuple_of_tuple":
 					functionAndType.T = b.doneList
-				}
-				if builtinTag == "tuplify_list" || builtinTag == "get_from_contact" || builtinTag == "get_from_SQL" {
+				case "tuplify_list":
 					functionAndType.T = cp.AnyTypeScheme
-				}
-				if builtinTag == "type_with" {
+				case "type_with":
 					functionAndType.T = AlternateType{cp.TypeNameToTypeList["struct"]}.Union(AltType(values.ERROR))
-				}
-				if builtinTag == "struct_with" {
+				case "struct_with":
 					functionAndType.T = AlternateType{cp.TypeNameToTypeList["struct"]}.Union(AltType(values.ERROR))
 				}
 				functionAndType.f(cp, mc, b.tok, b.outLoc, b.valLocs)
@@ -1873,78 +1903,51 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 	return AltType(values.LIST), isConst
 }
 
-// In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
-// a function which can convert the Go structs back into Pipefish structs. This function prepares this as a
-// snippet of text which can be added to the Go source code we're compiling.
-func (cp *Compiler) MakeTypeDeclarationsForGo(mc *Vm, goHandler *GoHandler, source string) string {
-	decs := "\n" // The type declarations.
-	convGoTypeToPfType := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
-	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"
-	// The conversion function.
-	for el := range goHandler.StructNames[source] {
-		bits := strings.Split(el, ".")
-		name := bits[len(bits)-1]
-		goStructName := text.Flatten(el)
-		namespacePath := bits[0 : len(bits)-1]
-		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath)
-		structType := resolvingCompiler.StructNumbers[name]
-		structNo := structType - mc.Ub_enums
-		// We add the definition of the struct.
-		typeDefStr := "\ntype " + goStructName + " struct {\n"
-		for i, lN := range mc.StructLabels[structNo] {
-			typeDefStr = typeDefStr + "\t" + text.Flatten(mc.Labels[lN]) + " " + cp.ConvertFieldType(mc, mc.StructFields[structNo][i]) + "\n"
-		}
-		typeDefStr = typeDefStr + "}\n"
-		decs = decs + typeDefStr
-		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structType)) + ")"
-		convGoTypeToPfType = convGoTypeToPfType + ", []any{"
-		sep := ""
-		for _, lN := range mc.StructLabels[structNo] {
-			convGoTypeToPfType = convGoTypeToPfType + sep + "v.(" + goStructName + ")." + text.Flatten(mc.Labels[lN])
-			sep = ", "
-		}
-		convGoTypeToPfType = convGoTypeToPfType + "}, true\n"
-		// We add part of a type switch that helps convert a Pipefish struct to Go.
-		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structType)) + " : \n\t\treturn " + goStructName + "{"
-		sep = ""
-		for i, ty := range mc.StructFields[structNo] {
-			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(mc, ty) + ")"
-			sep = ", "
-		}
-		makeGoStruct = makeGoStruct + "}\n"
+func (cp *Compiler) compileContactSnippet(mc *Vm, tok *token.Token, snippet values.Value, access Access) {
+	fields := snippet.V.([]values.Value)
+	sText := fields[0].V.(string)
+	sEnv := fields[1].V.(*values.Map)
+	newEnv, newMem := sEnv.ToEnv()
+	bits, ok := text.GetTextWithBarsAsList(sText)
+	if !ok {
+		cp.P.Throw("comp/snippet/form/a", tok)
+		return
 	}
-	convGoTypeToPfType = convGoTypeToPfType + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
-	makeGoStruct = makeGoStruct + "\tdefault:\n\t\tpanic(\"I'm not sure if this error can arise.\")\n\t}\n}\n\n"
-	return decs + convGoTypeToPfType + makeGoStruct
+	result := cp.Reserve(mc, values.STRING, "")
+	for _, bit := range bits {
+		if bit[0] == '|' {
+			code := bit[1 : len(bit)-1]
+			node := cp.P.ParseLine(tok.Source, code)
+
+			cp.CompileNode(mc, node, newEnv, access)
+			cp.put(mc, Litx, mc.That())
+		} else {
+			cp.Reserve(mc, values.STRING, bit)
+		}
+		cp.Emit(mc, Adds, result, result, mc.That())
+	}
 }
 
-func (cp *Compiler) ConvertFieldType(mc *Vm, aT values.AbstractType) string {
-	if len(aT) > 1 {
-		cp.P.Throw("go/conv/type/b", &token.Token{Source: "golang conversion function"})
+func (cp *Compiler) compileSQLSnippet(mc *Vm, tok *token.Token, snippet values.Value, access Access) {
+	fields := snippet.V.([]values.Value)
+	sText := fields[0].V.(string)
+	sEnv := fields[1].V.(*values.Map)
+	newEnv, newMem := sEnv.ToEnv()
+	bits, ok := text.GetTextWithBarsAsList(sText)
+	if !ok {
+		cp.P.Throw("comp/snippet/form/b", tok)
+		return
 	}
-	tNo := aT[0]
-	if tNo >= mc.Ub_enums {
-		return text.Flatten(mc.TypeNames[tNo])
+	c := 1
+	codeBits := []string{}
+	var buf strings.Builder
+	for _, bit := range bits {
+		if bit[0] == '|' {
+			codeBits = append(codeBits, bit[1:len(bit)-1])
+			buf.WriteString("$" + strconv.Itoa(c))
+			c++
+		} else {
+			buf.WriteString(bit)
+		}
 	}
-	if convStr, ok := fConvert[tNo]; ok {
-		return convStr
-	}
-	cp.P.Throw("go/conv/type/c", &token.Token{Source: "golang conversion function"})
-	return ""
-}
-
-var fConvert = map[values.ValueType]string{
-	values.INT:    "int",
-	values.FLOAT:  "float64",
-	values.FUNC:   "func(args ...any) any",
-	values.LABEL:  "string",
-	values.TYPE:   "string",
-	values.STRING: "string",
-	values.LIST:   "[]any",
-	values.PAIR:   "[]any",
-	values.SET:    "[]any",
-	values.TUPLE:  "[]any",
-	values.BOOL:   "bool",
-	values.ERROR:  "error",
 }

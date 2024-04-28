@@ -105,9 +105,9 @@ func BlankVm(db *sql.DB) *Vm {
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
-	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT",
-		"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE", "BREAK",
-		"SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
+	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "CONSTANT QUERY", "SQL QUERY", "THUNK",
+		"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
+		"BREAK", "SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
 		"pair", "list", "map", "set", "label"}
 	return newVm
 }

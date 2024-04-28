@@ -467,8 +467,10 @@ func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string, isContact 
 	vmm.cp.TypeNameToTypeList["struct?"] = vmm.cp.TypeNameToTypeList["struct?"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList["snippet"] = vmm.cp.TypeNameToTypeList["snippet"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList["snippet?"] = vmm.cp.TypeNameToTypeList["snippet?"].Union(altType(typeNo))
-	vmm.cp.TypeNameToTypeList["contact"] = vmm.cp.TypeNameToTypeList["contact"].Union(altType(typeNo))
-	vmm.cp.TypeNameToTypeList["contact?"] = vmm.cp.TypeNameToTypeList["contact?"].Union(altType(typeNo))
+	if isContact {
+		vmm.cp.TypeNameToTypeList["contact"] = vmm.cp.TypeNameToTypeList["contact"].Union(altType(typeNo))
+		vmm.cp.TypeNameToTypeList["contact?"] = vmm.cp.TypeNameToTypeList["contact?"].Union(altType(typeNo))
+	}
 	vmm.cp.TypeNameToTypeList[name] = altType(typeNo)
 	vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 	vmm.cp.StructNumbers[name] = typeNo
