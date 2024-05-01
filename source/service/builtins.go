@@ -20,7 +20,9 @@ var BUILTINS = map[string]functionAndReturnType{
 	"divide_integers":   {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
 	"float_of_int":      {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":   {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
+	"get_from_contact":  {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"get_from_input":    {(*Compiler).btGetFromInput, AltType(values.SUCCESSFUL_VALUE)},
+	"get_from_SQL":      {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"gt_floats":         {(*Compiler).btGtFloats, AltType(values.BOOL)},
 	"gte_floats":        {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":           {(*Compiler).btGtInts, AltType(values.BOOL)},
@@ -52,8 +54,11 @@ var BUILTINS = map[string]functionAndReturnType{
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, AltType(values.INT)},
 	"negate_float":      {(*Compiler).btNegateFloat, AltType(values.FLOAT)},
 	"negate_integer":    {(*Compiler).btNegateInteger, AltType(values.INT)},
+	"post_contact":      {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
+	"post_html":         {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_output":    {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
-	"post_to_terminal":  {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
+	"post_sql":          {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE)},
+	"post_to_terminal":  {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"string":            {(*Compiler).btString, AltType(values.STRING)},
 	"single_in_list":    {(*Compiler).btSingleInList, AltType(values.BOOL)},
 	"single_in_set":     {(*Compiler).btSingleInSet, AltType(values.BOOL)},
@@ -117,6 +122,14 @@ func (cp *Compiler) btFloatOfInt(mc *Vm, tok *token.Token, dest uint32, args []u
 
 func (cp *Compiler) btFloatOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(mc, Flts, dest, args[0])
+}
+
+func (cp *Compiler) btGetFromSpecialSnippet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(mc, Gsnp, mc.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(mc, Qtyp, mc.Mem[args[0]].V.(uint32), uint32(values.ERROR), mc.CodeTop()+3)
+	cp.Emit(mc, Asgm, dest, mc.Mem[args[0]].V.(uint32))
+	cp.Emit(mc, Jmp, mc.CodeTop()+2)
+	cp.Emit(mc, Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btGetFromInput(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -262,6 +275,14 @@ func (cp *Compiler) btNegateInteger(mc *Vm, tok *token.Token, dest uint32, args 
 
 func (cp *Compiler) btPostToOutput(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(mc, Outp, args[0])
+	cp.Emit(mc, Asgm, dest, values.C_OK)
+}
+
+func (cp *Compiler) btPostSpecialSnippet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(mc, Psnp, mc.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(mc, Qtyp, mc.Mem[args[0]].V.(uint32), uint32(values.ERROR), mc.CodeTop()+3)
+	cp.Emit(mc, Asgm, dest, mc.Mem[args[0]].V.(uint32))
+	cp.Emit(mc, Jmp, mc.CodeTop()+2)
 	cp.Emit(mc, Asgm, dest, values.C_OK)
 }
 

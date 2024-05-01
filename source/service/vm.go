@@ -82,9 +82,26 @@ type LambdaFactory struct {
 
 // All the information we need to make a snippet at a particular point in the code.
 type SnippetFactory struct {
-	SnippetType values.ValueType
-	Env         map[string]uint32 // A flattened map of strings to memory locations of variables.
-	Code        string
+	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, a contact, SQL, or HTML.
+	snippetType         values.ValueType    // The type of the snippet, adoy.
+	sourceEnv           *Environment        // A flattened map of strings to memory locations of variables, used to compute the env field of the snippet at runtime.
+	sourceString        string              // The plain text of the snippet before processing.
+	bindle              *SnippetBindle      // Points to the structure defined below.
+}
+
+// A grouping of all the things a snippet from a given snippet factory have in common.
+type SnippetBindle struct {
+	varLocsStart    uint32   // Destination of the environment slice.
+	codeLoc         uint32   // Where to find the code to compute the object string and the values.
+	objectStringLoc uint32   // Where to find the object string.
+	valueLocs       []uint32 // The values for SQL or HTML snippets.
+}
+
+// Then the SnippetData consists of that and the environment slice, which we can't insert into memory until call
+// time because another snippet of the same type might be called first.
+type SnippetData struct {
+	EnvironmentSlice []values.Value // For similar reasons --- the values referenced may change between making and using the snippet --- we must pass these as values and not locations.
+	Bindle           *SnippetBindle
 }
 
 type Lambda struct {
@@ -105,7 +122,7 @@ func BlankVm(db *sql.DB) *Vm {
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
-	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "CONSTANT QUERY", "SQL QUERY", "THUNK",
+	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
 		"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 		"BREAK", "SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
 		"pair", "list", "map", "set", "label"}
@@ -569,11 +586,11 @@ loop:
 		case MkSn:
 			sFac := vm.SnippetFactories[args[1]]
 			result := &values.Map{}
-			for k, v := range sFac.Env {
-				result = result.Set(values.Value{values.STRING, k}, vm.Mem[v])
+			for k, v := range sFac.sourceEnv.data { // TODO --- check access.
+				result = result.Set(values.Value{values.STRING, k}, vm.Mem[v.mLoc])
 			}
-			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.SnippetType),
-				[]values.Value{values.Value{values.STRING, sFac.Code}, values.Value{values.MAP, result}}}
+			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.snippetType),
+				[]values.Value{values.Value{values.STRING, sFac.sourceString}, values.Value{values.MAP, result}}}
 		case Modi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 		case Mulf:

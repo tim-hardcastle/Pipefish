@@ -9,6 +9,7 @@ gocode "errors"
 languages
 
 SQL
+HTML
 
 types
 
@@ -133,15 +134,17 @@ put (s string) into (fileAccess File) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
-post(x contact) : builtin "execute_contact"
-put(x contact) : builtin "execute_contact"
-delete(x contact) : builtin "execute_contact"
+post(x contact) : builtin "post_contact"
+put(x contact) : builtin "post_contact"
+delete(x contact) : builtin "post_contact"
 get(x ref) from (y contact) : builtin "get_from_contact"
 
-post(x SQL) : builtin "execute_SQL"
-put(x SQL) : builtin "execute_SQL"
-delete(x SQL) : builtin "execute_SQL"
+post(x SQL) : builtin "post_SQL"
+put(x SQL) : builtin "post_SQL"
+delete(x SQL) : builtin "post_SQL"
 get(x ref) from (y SQL) : builtin "get_from_SQL"
+
+post(x HTML) : builtin "post_HTML"
 
 
 

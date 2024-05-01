@@ -107,8 +107,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Eqxx: {"eqxx", operands{dst, mem, mem, mem}},
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
-	Gcon: {"gcon", operands{dst, mem}},
-	Gsql: {"gsql", operands{dst, mem}},
+	Gsnp: {"gsnp", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, gfn, tup}},
 	Gtef: {"gtef", operands{dst, mem, mem}},
 	Gtei: {"gtei", operands{dst, mem, mem}},
@@ -161,6 +160,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Orb:  {"orb", operands{dst, mem, mem}},
 	Outp: {"outp", operands{mem}},
 	Outt: {"outt", operands{mem}},
+	Psnp: {"gsnp", operands{dst, mem}},
 	Qabt: {"qabt", operands{mem, tup, loc}},
 	Qctc: {"qctc", operands{mem, loc}},
 	Qctq: {"qctq", operands{mem, loc}},
@@ -194,8 +194,6 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Wtht: {"wtht", operands{dst, mem, mem, mem}}, //
 	WthZ: {"wthZ", operands{dst, mem, mem, mem}}, //
 	WtoM: {"wthM", operands{dst, mem, mem, mem}}, //
-	Xcon: {"xcon", operands{dst, mem}},
-	Xsql: {"xsql", operands{dst, mem}},
 }
 
 func describe(op *Operation) string {
@@ -244,9 +242,8 @@ const (
 	Eqxx
 	Flti
 	Flts
-	Gcon
-	Gsql
 	Gofn
+	Gsnp
 	Gtef
 	Gtei
 	Gthf
@@ -299,6 +296,7 @@ const (
 	Orb
 	Outp
 	Outt
+	Psnp
 	Qabt
 	Qctc
 	Qctq

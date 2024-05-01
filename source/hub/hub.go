@@ -216,7 +216,7 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return "error", []string{hubReturn.V.(*report.Error).Message}
 	}
 
-	if hubReturn.T == hubService.Cp.StructNumbers["HubResponse"] {
+	if hubReturn.T == hubService.Cp.StructNameToTypeNumber["HubResponse"] {
 		hR := hubReturn.V.([]values.Value)
 		verb := hR[0].V.(string)
 		args := []string{}

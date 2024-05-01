@@ -22,18 +22,18 @@ type Thunk struct {
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	P                  *parser.Parser
-	EnumElements       map[string]uint32
-	FieldLabelsInMem   map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
-	FieldTypes         [][]AlternateType
-	StructNumbers      map[string]values.ValueType
-	GlobalConsts       *Environment
-	GlobalVars         *Environment
-	Fns                []*CpFunc
-	TypeNameToTypeList map[string]AlternateType
-	AnyTypeScheme      AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
-	Services           map[string]*VmService
-	Contacts           []string // The names of services which are contacts.
+	P                      *parser.Parser
+	EnumElements           map[string]uint32
+	FieldLabelsInMem       map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	FieldTypes             [][]AlternateType
+	StructNameToTypeNumber map[string]values.ValueType
+	GlobalConsts           *Environment
+	GlobalVars             *Environment
+	Fns                    []*CpFunc
+	TypeNameToTypeList     map[string]AlternateType
+	AnyTypeScheme          AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
+	Services               map[string]*VmService
+	Contacts               []string // The names of services which are contacts.
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>} TODO --- why?
 
@@ -72,15 +72,15 @@ const DUMMY = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
-		P:                p,
-		EnumElements:     make(map[string]uint32),
-		FieldLabelsInMem: make(map[string]uint32),
-		StructNumbers:    make(map[string]values.ValueType),
-		GlobalConsts:     NewEnvironment(),
-		GlobalVars:       NewEnvironment(),
-		ThunkList:        []Thunk{},
-		Fns:              []*CpFunc{},
-		Services:         make(map[string]*VmService),
+		P:                      p,
+		EnumElements:           make(map[string]uint32),
+		FieldLabelsInMem:       make(map[string]uint32),
+		StructNameToTypeNumber: make(map[string]values.ValueType),
+		GlobalConsts:           NewEnvironment(),
+		GlobalVars:             NewEnvironment(),
+		ThunkList:              []Thunk{},
+		Fns:                    []*CpFunc{},
+		Services:               make(map[string]*VmService),
 		TypeNameToTypeList: map[string]AlternateType{
 			"int":      AltType(values.INT),
 			"string":   AltType(values.STRING),
@@ -170,23 +170,63 @@ func (cp *Compiler) reserveToken(mc *Vm, tok *token.Token) uint32 {
 	return uint32(len(mc.Tokens) - 1)
 }
 
-func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fnNode *ast.SuffixExpression) uint32 {
-	vMap := make(map[string]uint32)
-	vMap = flattenEnv(env, vMap)
-	snF := &SnippetFactory{SnippetType: cp.StructNumbers[t], Code: fnNode.Token.Literal, Env: vMap}
+type compiledSnippetKind int
+
+const (
+	UNCOMPILED_SNIPPET compiledSnippetKind = iota
+	CONTACT_SNIPPET
+	SQL_SNIPPET
+	HTML_SNIPPET
+)
+
+func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fnNode *ast.SuffixExpression, ac Access) uint32 {
+	sEnv := NewEnvironment() // The source environment is used to build the env field of the snippet. NOTE: if we never reference this field, as we often won't, we can remove this as an optimization.
+	sEnv = flattenEnv(env, sEnv)
+	snF := &SnippetFactory{snippetType: cp.StructNameToTypeNumber[t], sourceString: fnNode.Token.Literal, sourceEnv: sEnv}
+	if t == "SQL" {
+		snF.compiledSnippetKind = SQL_SNIPPET
+	}
+	if t == "HTML" {
+		snF.compiledSnippetKind = HTML_SNIPPET
+	}
+	if snF.snippetType > mc.Ub_langs {
+		snF.compiledSnippetKind = CONTACT_SNIPPET
+	}
+	varLocsStart := mc.MemTop()
+	if snF.compiledSnippetKind != UNCOMPILED_SNIPPET { // Then it's a contact snippet, or HTML, or SQL, and we should compile some code.
+		cEnv := NewEnvironment() // The compliation environment is used to compile against.
+		sliceSource := []uint32{}
+		for k, v := range sEnv.data {
+			where := cp.Reserve(mc, values.UNDEFINED_VALUE, nil)
+			w := v
+			w.mLoc = where
+			sliceSource = append(sliceSource, v.mLoc)
+			cEnv.data[k] = w
+		}
+		// We can now compile against the cEnv. The calls to external contacts is quite different from the others,
+		// since in that case we only have to compile the object string itself, whereas with the HTML and SQL snippets
+		// we need to inject the values into it at call time.
+		switch snF.compiledSnippetKind {
+		case CONTACT_SNIPPET:
+			snF.bindle = cp.compileContactSnippet(mc, fnNode.GetToken(), cEnv, snF.sourceString, ac)
+		default:
+			snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, snF.compiledSnippetKind, snF.sourceString, ac)
+		}
+		snF.bindle.varLocsStart = varLocsStart
+	} // End of handling special snippets.
 	mc.SnippetFactories = append(mc.SnippetFactories, snF)
 	return uint32(len(mc.SnippetFactories) - 1)
 }
 
-func flattenEnv(env *Environment, vMap map[string]uint32) map[string]uint32 {
+func flattenEnv(env *Environment, target *Environment) *Environment {
 	// TODO --- variables captured should be restricted by access.
 	if env.Ext != nil {
-		flattenEnv(env.Ext, vMap)
+		flattenEnv(env.Ext, target)
 	}
 	for k, v := range env.data {
-		vMap[k] = v.mLoc
+		target.data[k] = v
 	}
-	return vMap
+	return target
 }
 
 func (cp *Compiler) reserveLambdaFactory(mc *Vm, env *Environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
@@ -932,11 +972,13 @@ NodeTypeSwitch:
 		if node.GetToken().Type == token.EMDASH {
 			switch t := node.Args[0].(type) {
 			case *ast.TypeLiteral:
-				snF := cp.reserveSnippetFactory(mc, t.Value, env, node)
+				skipOverCompiledSnippet := cp.vmGoTo(mc)
+				snF := cp.reserveSnippetFactory(mc, t.Value, env, node, ac)
+				cp.vmComeFrom(mc, skipOverCompiledSnippet)
 				cp.put(mc, MkSn, snF)
 				break NodeTypeSwitch
 			default:
-				cp.P.Throw("comp/snippet/type/b", node.GetToken())
+				cp.P.Throw("comp/snippet/type/b", node.GetToken()) // There is no reason why this should be a first-class value, that would just be confusing. Hence the error.
 				break NodeTypeSwitch
 			}
 		}
@@ -1563,37 +1605,19 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 				// from it at compile time. In the rare event where the snippet is not constant, we would have to special-case it
 				// by parsing it into a query at runtime. This is a low-priority TODO: in the meantime we'll just throw an error.
 				switch builtinTag {
-				case "execute_contact", "execute_SQL", "get_from_contact", "get_from_SQL":
+				case "post_contact", "post_SQL", "post_html", "get_from_contact", "get_from_SQL":
 					if b.cst {
 						cp.P.Throw("comp/snippet", b.tok)
 						return (AltType(values.ERROR))
 					}
 				}
-				switch builtinTag {
-				case "execute_contact":
-					cp.compileContactSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
-					cp.Emit(mc, Xcon, b.outLoc, mc.That())
-					return (AltType(values.SUCCESSFUL_VALUE, values.ERROR))
-				case "execute_SQL":
-					cp.compileSQLSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
-					cp.Emit(mc, Xsql, b.outLoc, mc.That())
-					return (AltType(values.SUCCESSFUL_VALUE, values.ERROR))
-				case "get_from_contact":
-					cp.compileContactSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
-					cp.Emit(mc, Gcon, b.outLoc, mc.That())
-					return cp.AnyTypeScheme
-				case "get_from_SQL":
-					cp.compileSQLSnippet(mc, b.tok, mc.Mem[b.valLocs[0]], b.access)
-					cp.Emit(mc, Gsql, b.outLoc, mc.That())
-					return cp.AnyTypeScheme
-				// Then the remaining special cases can still be executed as builtins but we need to special-case
-				// their return types.
+				switch builtinTag { // Then for these we need to special-case their return types.
+				case "tuplify_list", "get_from_contact", "get_from_sql":
+					functionAndType.T = cp.AnyTypeScheme
 				case "tuple_of_single?":
 					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
 				case "tuple_of_tuple":
 					functionAndType.T = b.doneList
-				case "tuplify_list":
-					functionAndType.T = cp.AnyTypeScheme
 				case "type_with":
 					functionAndType.T = AlternateType{cp.TypeNameToTypeList["struct"]}.Union(AltType(values.ERROR))
 				case "struct_with":
@@ -1603,7 +1627,7 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 				return functionAndType.T
 			}
 			// It might be a short-form constructor.
-			structNumber, ok := cp.StructNumbers[builtinTag]
+			structNumber, ok := cp.StructNameToTypeNumber[builtinTag]
 			if ok {
 				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
 				cp.Emit(mc, Strc, args...)
@@ -1903,51 +1927,66 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 	return AltType(values.LIST), isConst
 }
 
-func (cp *Compiler) compileContactSnippet(mc *Vm, tok *token.Token, snippet values.Value, access Access) {
-	fields := snippet.V.([]values.Value)
-	sText := fields[0].V.(string)
-	sEnv := fields[1].V.(*values.Map)
-	newEnv, newMem := sEnv.ToEnv()
+func (cp *Compiler) compileContactSnippet(mc *Vm, tok *token.Token, newEnv *Environment, sText string, ac Access) *SnippetBindle {
+	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
 		cp.P.Throw("comp/snippet/form/a", tok)
-		return
+		return &bindle
 	}
+	bindle.codeLoc = mc.CodeTop()
 	result := cp.Reserve(mc, values.STRING, "")
+	bindle.objectStringLoc = mc.That()
 	for _, bit := range bits {
 		if bit[0] == '|' {
 			code := bit[1 : len(bit)-1]
 			node := cp.P.ParseLine(tok.Source, code)
-
-			cp.CompileNode(mc, node, newEnv, access)
+			cp.CompileNode(mc, node, newEnv, ac)
 			cp.put(mc, Litx, mc.That())
 		} else {
 			cp.Reserve(mc, values.STRING, bit)
 		}
 		cp.Emit(mc, Adds, result, result, mc.That())
 	}
+	cp.Emit(mc, Ret)
+	return &bindle
 }
 
-func (cp *Compiler) compileSQLSnippet(mc *Vm, tok *token.Token, snippet values.Value, access Access) {
-	fields := snippet.V.([]values.Value)
-	sText := fields[0].V.(string)
-	sEnv := fields[1].V.(*values.Map)
-	newEnv, newMem := sEnv.ToEnv()
+func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac Access) *SnippetBindle {
+	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
-		cp.P.Throw("comp/snippet/form/b", tok)
-		return
+		cp.P.Throw("comp/snippet/form/a", tok)
+		return &bindle
 	}
-	c := 1
 	codeBits := []string{}
 	var buf strings.Builder
+	c := 0
 	for _, bit := range bits {
 		if bit[0] == '|' {
 			codeBits = append(codeBits, bit[1:len(bit)-1])
-			buf.WriteString("$" + strconv.Itoa(c))
+			switch csk {
+			case SQL_SNIPPET:
+				buf.WriteString("$")
+				buf.WriteString(strconv.Itoa(c + 1)) // The injection sites in SQL go $1 , $2 , $3 ...
+			case HTML_SNIPPET:
+				buf.WriteString("{{index .Data ")
+				buf.WriteString(strconv.Itoa(c)) // The injection sites in HTML go {{index .Data 0}} , {{index .Data 1}} ...
+				buf.WriteString("}}")
+			}
 			c++
 		} else {
 			buf.WriteString(bit)
 		}
 	}
+	bindle.codeLoc = mc.CodeTop()
+	cp.Reserve(mc, values.STRING, buf.String())
+	bindle.objectStringLoc = mc.That()
+	for _, code := range codeBits {
+		node := cp.P.ParseLine(tok.Source, code)
+		cp.CompileNode(mc, node, newEnv, ac)
+		bindle.valueLocs = append(bindle.valueLocs, mc.That())
+	}
+	cp.Emit(mc, Ret)
+	return &bindle
 }

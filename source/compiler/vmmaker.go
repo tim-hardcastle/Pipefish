@@ -341,7 +341,7 @@ func (vmm *VmMaker) createStructs(mc *service.Vm) {
 		}
 		name := lhs.GetToken().Literal
 
-		_, alreadyExists := vmm.cp.StructNumbers[name]
+		_, alreadyExists := vmm.cp.StructNameToTypeNumber[name]
 		if alreadyExists {
 			vmm.uP.Throw("init/struct/type", *lhs.GetToken())
 		}
@@ -356,7 +356,7 @@ func (vmm *VmMaker) createStructs(mc *service.Vm) {
 		vmm.cp.TypeNameToTypeList["struct?"] = vmm.cp.TypeNameToTypeList["struct?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList[name] = altType(typeNo)
 		vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
-		vmm.cp.StructNumbers[name] = typeNo
+		vmm.cp.StructNameToTypeNumber[name] = typeNo
 		vmm.cp.AnyTypeScheme = vmm.cp.AnyTypeScheme.Union(altType(typeNo))
 		// We are now going to assume that the last element of anyType is a service.TypedTupleType and add the new struct type accordingly.
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(service.TypedTupleType)
@@ -473,7 +473,7 @@ func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string, isContact 
 	}
 	vmm.cp.TypeNameToTypeList[name] = altType(typeNo)
 	vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
-	vmm.cp.StructNumbers[name] = typeNo
+	vmm.cp.StructNameToTypeNumber[name] = typeNo
 
 	// The parser needs to know about it too.
 
@@ -517,7 +517,7 @@ func (vmm *VmMaker) makeConstructors(mc *service.Vm) {
 }
 
 func (vmm *VmMaker) compileConstructor(mc *service.Vm, name string, sig ast.Signature) *service.CpFunc {
-	typeNo := vmm.cp.StructNumbers[name]
+	typeNo := vmm.cp.StructNameToTypeNumber[name]
 	cpF := &service.CpFunc{Types: altType(typeNo), Builtin: name}
 	fnenv := service.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = mc.MemTop()
@@ -583,7 +583,7 @@ func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *ser
 		if ok {
 			cpF.Types = types.T
 		} else {
-			structNo, ok := vmm.cp.StructNumbers[name]
+			structNo, ok := vmm.cp.StructNameToTypeNumber[name]
 			if ok {
 				cpF.Types = altType(structNo)
 			}

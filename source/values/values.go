@@ -10,8 +10,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 
 	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
 	INT_ARRAY                               // V is an array of Golang integers.
-	CONTACT_QUERY                           // Constructed by Bcon and consumed by Gcon and Xcon.
-	SQL_QUERY                               // Constructed by Bsql and consumed by Gsql and Xsql.
+	SNIPPET_DATA                            // V is ContactData or SQLData
 	THUNK                                   // Contains what we need to evaluate inner variables.
 	CREATED_LOCAL_CONSTANT                  // Returned by the compiler in the typeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                      // For when we have to return a type, but what we have is a compile time error.
@@ -98,14 +97,8 @@ const (
 	C_EMPTY_TUPLE
 )
 
-type ContactQuery struct {
-	contactName string
-	queryText   string
-}
-
-type SQLQuery struct {
-	queryText string
-	pfValues  []Value
+// A couple of similar types for containing data to covertly attach to snippets to help the runtime.
+type ContactData struct {
 }
 
 // AbstractTypes are constructed from the altTypes in the compiler and so are assumed to be ordered.
