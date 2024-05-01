@@ -33,7 +33,7 @@ def
     x == -y 
 ```
 
-then this will compile and work almost exactly what you think it will. However, you have *not* in this case defined an infix operator `~R`: rather, the definition above is equivalent to:
+then this will compile and work almost exactly how you think it will. However, you have *not* in this case defined an infix operator `~R`: rather, the definition above is equivalent to:
 
 ```
 def
