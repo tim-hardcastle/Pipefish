@@ -8,7 +8,7 @@ We can divide Unicode characters into the following groups:
 
 Whitespace. You can't use this in an identifier.
 
-The "protected punctuation", the characters `(`, `)`, `[`, `]`, `{`, `}`, `,`, `;`, `:`, `.`, `"`, `\`, `'` and `|`. You can't use any of these in an identifier.
+The "protected punctuation", the characters `(`, `)`, `[`, `]`, `{`, `}`, `,`, `;`, `:`, `.`, `"`, `` ` ``, `'` and `|`. You can't use any of these in an identifier.
 
 Alphabetic characters together with `$` and `?`. You can use any of these in an identifier.
 
