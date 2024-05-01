@@ -3,8 +3,10 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"html/template"
 	"os"
 	"strconv"
+	"strings"
 
 	"src.elv.sh/pkg/persistent/vector"
 
@@ -82,19 +84,19 @@ type LambdaFactory struct {
 
 // All the information we need to make a snippet at a particular point in the code.
 type SnippetFactory struct {
-	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, a contact, SQL, or HTML.
-	snippetType         values.ValueType    // The type of the snippet, adoy.
-	sourceEnv           *Environment        // A flattened map of strings to memory locations of variables, used to compute the env field of the snippet at runtime.
-	sourceString        string              // The plain text of the snippet before processing.
-	bindle              *SnippetBindle      // Points to the structure defined below.
+	snippetType  values.ValueType // The type of the snippet, adoy.
+	sourceEnv    *Environment     // A flattened map of strings to memory locations of variables, used to compute the env field of the snippet at runtime.
+	sourceString string           // The plain text of the snippet before processing.
+	bindle       *SnippetBindle   // Points to the structure defined below.
 }
 
 // A grouping of all the things a snippet from a given snippet factory have in common.
 type SnippetBindle struct {
-	varLocsStart    uint32   // Destination of the environment slice.
-	codeLoc         uint32   // Where to find the code to compute the object string and the values.
-	objectStringLoc uint32   // Where to find the object string.
-	valueLocs       []uint32 // The values for SQL or HTML snippets.
+	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, a contact, SQL, or HTML.
+	varLocsStart        uint32              // Destination of the environment slice.
+	codeLoc             uint32              // Where to find the code to compute the object string and the values.
+	objectStringLoc     uint32              // Where to find the object string.
+	valueLocs           []uint32            // The values for SQL or HTML snippets.
 }
 
 // Then the SnippetData consists of that and the environment slice, which we can't insert into memory until call
@@ -111,6 +113,11 @@ type Lambda struct {
 	Dest      uint32
 	LocToCall uint32
 	Captures  []values.Value
+}
+
+// Used for injecting data into HTML.
+type HTMLInjector struct {
+	Data []any
 }
 
 // These inhabit the first few memory addresses of the VM.
@@ -586,11 +593,14 @@ loop:
 		case MkSn:
 			sFac := vm.SnippetFactories[args[1]]
 			result := &values.Map{}
+			slice := make([]values.Value, 0, len(sFac.sourceEnv.data))
 			for k, v := range sFac.sourceEnv.data { // TODO --- check access.
 				result = result.Set(values.Value{values.STRING, k}, vm.Mem[v.mLoc])
+				slice = append(slice, vm.Mem[v.mLoc])
 			}
 			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.snippetType),
-				[]values.Value{values.Value{values.STRING, sFac.sourceString}, values.Value{values.MAP, result}}}
+				[]values.Value{values.Value{values.STRING, sFac.sourceString}, values.Value{values.MAP, result},
+					values.Value{values.SNIPPET_DATA, SnippetData{slice, sFac.bindle}}}}
 		case Modi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 		case Mulf:
@@ -609,6 +619,48 @@ loop:
 			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
 		case Outt:
 			fmt.Println(vm.Describe(vm.Mem[args[0]]))
+		case Psnp:
+			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
+			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.
+			sData := vm.Mem[args[1]].V.([]values.Value)[2].V.(SnippetData)
+			vals := sData.EnvironmentSlice
+			bindle := sData.Bindle
+			for i := bindle.varLocsStart; i < bindle.varLocsStart+uint32(len(vals)); i++ {
+				vm.Mem[i] = vals[i]
+			}
+			vm.Run(bindle.codeLoc)
+			objectString := vm.Mem[bindle.objectStringLoc].V.(string)
+			// What we do at that point depends on what kind of snippet it is, which is also recorded in the snippet data:
+			switch bindle.compiledSnippetKind {
+			case HTML_SNIPPET: // This is the easy one, we just parse it and shove it to whatever Output is.
+				t, err := template.New("html snippet").Parse(objectString) // TODO: parse this at compile time and stick it in the bindle.
+				if err != nil {
+					// TODO --- this.
+					continue
+				}
+				var buf *strings.Builder
+				injector := HTMLInjector{make([]any, 0, len(bindle.valueLocs))}
+				for _, mLoc := range bindle.valueLocs {
+					v := vm.Mem[mLoc]
+					switch v.T {
+					case values.STRING:
+						injector.Data = append(injector.Data, v.V.(string))
+					case values.INT:
+						injector.Data = append(injector.Data, v.V.(int))
+					case values.BOOL:
+						injector.Data = append(injector.Data, v.V.(bool))
+					case values.FLOAT:
+						injector.Data = append(injector.Data, v.V.(float64))
+					default:
+						panic("Unhandled case!")
+					}
+				}
+				t.Execute(buf, injector)
+				vm.IoHandle.OutHandle.Out([]values.Value{values.Value{values.STRING, buf.String()}}, vm)
+				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
+			case SQL_SNIPPET:
+			case CONTACT_SNIPPET:
+			}
 		case Qabt:
 			for _, t := range args[1 : len(args)-1] {
 				if vm.Mem[args[0]].T == values.ValueType(t) {
@@ -987,16 +1039,6 @@ loop:
 				mp = (*mp).Delete(key)
 			}
 			vm.Mem[args[0]] = values.Value{values.MAP, mp}
-		case Xcon:
-			snippet := vm.Mem[args[1]].V.([]values.Value)[0].V.(string)
-			//env := vm.Mem[args[1]].V.([]values.Value)[1].V.(*values.Map)
-			println(snippet)
-			vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
-		case Xsql:
-			snippet := vm.Mem[args[1]].V.([]values.Value)[0].V.(string)
-			//env := vm.Mem[args[1]].V.([]values.Value)[1].V.(*values.Map)
-			println(snippet)
-			vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 		default:
 			panic("Unhandled opcode '" + OPERANDS[vm.Code[loc].Opcode].oc + "'")
 		}

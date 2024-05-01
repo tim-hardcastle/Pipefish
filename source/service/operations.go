@@ -177,9 +177,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Ret:  {"ret", operands{}},
-	SliL: {"SliL", operands{dst, mem, mem, mem}}, // Third operand is error.
-	Slis: {"Slis", operands{dst, mem, mem, mem}}, //
-	SliT: {"SliT", operands{dst, mem, mem, mem}}, //
+	SliL: {"sliL", operands{dst, mem, mem, mem}}, // Third operand is error.
+	Slis: {"slis", operands{dst, mem, mem, mem}}, //
+	SliT: {"sliT", operands{dst, mem, mem, mem}}, //
 	Strc: {"strc", operands{dst, typ, tup}},
 	Strx: {"strx", operands{dst, mem}},
 	Subf: {"subf", operands{dst, mem, mem}},
@@ -330,6 +330,4 @@ const (
 	Wtht
 	WthZ
 	WtoM
-	Xcon
-	Xsql
 )

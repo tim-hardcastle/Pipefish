@@ -183,17 +183,17 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 	sEnv := NewEnvironment() // The source environment is used to build the env field of the snippet. NOTE: if we never reference this field, as we often won't, we can remove this as an optimization.
 	sEnv = flattenEnv(env, sEnv)
 	snF := &SnippetFactory{snippetType: cp.StructNameToTypeNumber[t], sourceString: fnNode.Token.Literal, sourceEnv: sEnv}
-	if t == "SQL" {
-		snF.compiledSnippetKind = SQL_SNIPPET
-	}
-	if t == "HTML" {
-		snF.compiledSnippetKind = HTML_SNIPPET
-	}
-	if snF.snippetType > mc.Ub_langs {
-		snF.compiledSnippetKind = CONTACT_SNIPPET
+	csk := UNCOMPILED_SNIPPET
+	switch {
+	case t == "SQL":
+		csk = SQL_SNIPPET
+	case t == "HTML":
+		csk = HTML_SNIPPET
+	case snF.snippetType > mc.Ub_langs:
+		csk = CONTACT_SNIPPET
 	}
 	varLocsStart := mc.MemTop()
-	if snF.compiledSnippetKind != UNCOMPILED_SNIPPET { // Then it's a contact snippet, or HTML, or SQL, and we should compile some code.
+	if csk != UNCOMPILED_SNIPPET { // Then it's a contact snippet, or HTML, or SQL, and we should compile some code.
 		cEnv := NewEnvironment() // The compliation environment is used to compile against.
 		sliceSource := []uint32{}
 		for k, v := range sEnv.data {
@@ -206,12 +206,13 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 		// We can now compile against the cEnv. The calls to external contacts is quite different from the others,
 		// since in that case we only have to compile the object string itself, whereas with the HTML and SQL snippets
 		// we need to inject the values into it at call time.
-		switch snF.compiledSnippetKind {
+		switch csk {
 		case CONTACT_SNIPPET:
 			snF.bindle = cp.compileContactSnippet(mc, fnNode.GetToken(), cEnv, snF.sourceString, ac)
 		default:
-			snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, snF.compiledSnippetKind, snF.sourceString, ac)
+			snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, csk, snF.sourceString, ac)
 		}
+		snF.bindle.compiledSnippetKind = csk
 		snF.bindle.varLocsStart = varLocsStart
 	} // End of handling special snippets.
 	mc.SnippetFactories = append(mc.SnippetFactories, snF)
