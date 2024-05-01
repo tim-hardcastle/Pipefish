@@ -22,7 +22,7 @@ Symbols, consisting of everything else. You can use these in an identifier, but 
 
 The upshot of this is that if people want to write a/b or x+1 they can do so and this is unambiguous, since the letters and numbers must belong to different identifiers than the symbols. *However*, it may sometimes be useful to qualify a symbol by a letter or word or vice-versa. At this point one can write for example `~_R`, using the `_` as a neutral bridge between symbol and letter.
 
-# Note
+## Note
 
 A little experimentation may make you think that you can break these rules. For example if you define :
 
