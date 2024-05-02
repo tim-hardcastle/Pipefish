@@ -137,7 +137,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	)
 
 	tok = uP.rl.NextToken() // note that we've already removed leading newlines.
-	if settings.SHOW_RELEXER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(tok.Source)) {
+	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(tok.Type, tok.Literal)
 	}
 
@@ -154,7 +154,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	line := token.NewCodeChunk()
 
 	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
-		if settings.SHOW_RELEXER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(tok.Source)) {
+		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 			println(tok.Type, tok.Literal)
 		}
 

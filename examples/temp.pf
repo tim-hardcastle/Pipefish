@@ -1,24 +1,10 @@
 cmd
 
-zort :
-    get t from Clock()
-    post t
-    put t[nsec] into RandomSeed()
-    get i from Random(10)
-    post i 
-    post SQL --- flerp
+zort(x int) :
+    post HTML --- foo |x + 1| bar
 
 def
 
-foo(x string) : "A"
-foo(x single) : "B"
-foo(x bool) : "C"
-foo(x bool, y bool) : "D"
-foo(x int, y bool) : "E"
-foo(x int, y bool, z bool) : "F"
-foo(x int, y int) : "G"
-foo(x bool) troz (b bool) : "H"
-foo(x single, y bool) : "I"
-foo(x single?, y bool) : "J"
-
+(x int) merp :
+    2 * x
 

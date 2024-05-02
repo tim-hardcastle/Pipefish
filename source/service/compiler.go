@@ -362,7 +362,7 @@ func (cp *Compiler) vmComeFrom(mc *Vm, items ...any) {
 // and compiles accordingly. It then performs some sanity checks and, if the compiled expression is constant,
 // evaluates it and uses the snapshot to roll back the vm.
 func (cp *Compiler) CompileNode(mc *Vm, node ast.Node, env *Environment, ac Access) (AlternateType, bool) {
-	cp.showCompile = settings.SHOW_COMPILER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(node.GetToken().Source))
+	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := mc.getState()
 	cT := mc.CodeTop()
@@ -977,6 +977,7 @@ NodeTypeSwitch:
 				snF := cp.reserveSnippetFactory(mc, t.Value, env, node, ac)
 				cp.vmComeFrom(mc, skipOverCompiledSnippet)
 				cp.put(mc, MkSn, snF)
+				rtnTypes, rtnConst = AltType(cp.StructNameToTypeNumber[t.Value]), false
 				break NodeTypeSwitch
 			default:
 				cp.P.Throw("comp/snippet/type/b", node.GetToken()) // There is no reason why this should be a first-class value, that would just be confusing. Hence the error.
@@ -1599,19 +1600,18 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			builtinTag := F.Builtin
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
-				// Now we do all the builtins with special cases. First of all the contacts and snippets need to be done
-				// here entirely, since we need to be able to see the bindle for these.
+				// Now we do all the builtins with special cases.
 				//
 				// Because a snippet will almost always be a constant, we can in such case compile the thing that builds the query
 				// from it at compile time. In the rare event where the snippet is not constant, we would have to special-case it
 				// by parsing it into a query at runtime. This is a low-priority TODO: in the meantime we'll just throw an error.
-				switch builtinTag {
-				case "post_contact", "post_SQL", "post_html", "get_from_contact", "get_from_SQL":
-					if b.cst {
-						cp.P.Throw("comp/snippet", b.tok)
-						return (AltType(values.ERROR))
-					}
-				}
+				// switch builtinTag {           // TODO --- but we've declared that the product of a snippet factory isn't constant so we don't fold it. I think the best option is for it to just be able to wave a "don't fold me" flag.
+				// case "post_contact", "post_sql", "post_html", "get_from_contact", "get_from_SQL":
+				// 	if !b.cst {
+				// 		cp.P.Throw("comp/snippet", b.tok)
+				// 		return (AltType(values.ERROR))
+				// 	}
+				// }
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_contact", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
@@ -1957,7 +1957,7 @@ func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *E
 	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
-		cp.P.Throw("comp/snippet/form/a", tok)
+		cp.P.Throw("comp/snippet/form/b", tok)
 		return &bindle
 	}
 	codeBits := []string{}

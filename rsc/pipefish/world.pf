@@ -139,13 +139,13 @@ put(x contact) : builtin "post_contact"
 delete(x contact) : builtin "post_contact"
 get(x ref) from (y contact) : builtin "get_from_contact"
 
-post(x SQL) : builtin "post_SQL"
-put(x SQL) : builtin "post_SQL"
-delete(x SQL) : builtin "post_SQL"
+post(x SQL) : builtin "post_sql"
+put(x SQL) : builtin "post_sql"
+delete(x SQL) : builtin "post_sql"
 get(x ref) from (y SQL) : builtin "get_from_SQL"
 
-post(x HTML) : builtin "post_HTML"
+post(x HTML) : builtin "post_html"
 
-
+snarf(x HTML) : builtin "post_html"
 
 

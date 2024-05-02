@@ -624,7 +624,7 @@ func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
 }
 
 func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
-	if settings.SHOW_LEXER && !(settings.SUPPRESS_BUILTINS && settings.MandatoryImportSet.Contains(l.source)) {
+	if settings.SHOW_LEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(l.source)) {
 		fmt.Println(tokenType, st)
 	}
 	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.line, ChStart: l.tstart, ChEnd: l.char}

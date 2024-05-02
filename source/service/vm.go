@@ -626,7 +626,7 @@ loop:
 			vals := sData.EnvironmentSlice
 			bindle := sData.Bindle
 			for i := bindle.varLocsStart; i < bindle.varLocsStart+uint32(len(vals)); i++ {
-				vm.Mem[i] = vals[i]
+				vm.Mem[i] = vals[i-bindle.varLocsStart]
 			}
 			vm.Run(bindle.codeLoc)
 			objectString := vm.Mem[bindle.objectStringLoc].V.(string)
@@ -635,10 +635,11 @@ loop:
 			case HTML_SNIPPET: // This is the easy one, we just parse it and shove it to whatever Output is.
 				t, err := template.New("html snippet").Parse(objectString) // TODO: parse this at compile time and stick it in the bindle.
 				if err != nil {
+					panic("Template parsing error.")
 					// TODO --- this.
-					continue
+					// continue
 				}
-				var buf *strings.Builder
+				var buf strings.Builder
 				injector := HTMLInjector{make([]any, 0, len(bindle.valueLocs))}
 				for _, mLoc := range bindle.valueLocs {
 					v := vm.Mem[mLoc]
@@ -652,14 +653,16 @@ loop:
 					case values.FLOAT:
 						injector.Data = append(injector.Data, v.V.(float64))
 					default:
-						panic("Unhandled case!")
+						panic("Unhandled case:" + vm.TypeNames[v.T])
 					}
 				}
-				t.Execute(buf, injector)
+				t.Execute(&buf, injector)
 				vm.IoHandle.OutHandle.Out([]values.Value{values.Value{values.STRING, buf.String()}}, vm)
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 			case SQL_SNIPPET:
+				panic("Not done that yet!")
 			case CONTACT_SNIPPET:
+				panic("Not done that yet!")
 			}
 		case Qabt:
 			for _, t := range args[1 : len(args)-1] {

@@ -35,8 +35,9 @@ func (S Set[E]) IsEmpty() bool {
 	return len(S) == 0
 }
 
-func (S Set[E]) Add(e E) {
+func (S Set[E]) Add(e E) Set[E] {
 	S[e] = struct{}{}
+	return S
 }
 
 func (S Set[E]) AddSet(T Set[E]) {

@@ -31,8 +31,9 @@ func (vm *Vm) Describe(v values.Value) string {
 		buf.WriteString(" with (")
 		var sep string
 		labels := vm.StructLabels[v.T-vm.Ub_enums]
-		for i, el := range v.V.([]values.Value) {
-			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[labels[i]], vm.Describe(el))
+		vals := v.V.([]values.Value)
+		for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
+			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.Describe(vals[i]))
 			sep = ", "
 		}
 		buf.WriteByte(')')

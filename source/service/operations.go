@@ -33,6 +33,9 @@ type Opcode uint8
 func (op *Operation) ppOperand(i int) string {
 	opType := OPERANDS[op.Opcode].or[i]
 	if i >= len(op.Args) {
+		if opType == tup {
+			return " ()"
+		}
 		panic("Not enough operands for " + OPERANDS[op.Opcode].oc)
 	}
 	opVal := strconv.Itoa(int(op.Args[i]))
@@ -160,7 +163,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Orb:  {"orb", operands{dst, mem, mem}},
 	Outp: {"outp", operands{mem}},
 	Outt: {"outt", operands{mem}},
-	Psnp: {"gsnp", operands{dst, mem}},
+	Psnp: {"psnp", operands{dst, mem}},
 	Qabt: {"qabt", operands{mem, tup, loc}},
 	Qctc: {"qctc", operands{mem, loc}},
 	Qctq: {"qctq", operands{mem, loc}},

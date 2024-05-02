@@ -279,11 +279,7 @@ func (cp *Compiler) btPostToOutput(mc *Vm, tok *token.Token, dest uint32, args [
 }
 
 func (cp *Compiler) btPostSpecialSnippet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Psnp, mc.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(mc, Qtyp, mc.Mem[args[0]].V.(uint32), uint32(values.ERROR), mc.CodeTop()+3)
-	cp.Emit(mc, Asgm, dest, mc.Mem[args[0]].V.(uint32))
-	cp.Emit(mc, Jmp, mc.CodeTop()+2)
-	cp.Emit(mc, Asgm, dest, values.C_OK)
+	cp.Emit(mc, Psnp, dest, args[0])
 }
 
 func (cp *Compiler) btPostToTerminal(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
