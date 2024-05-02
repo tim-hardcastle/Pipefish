@@ -26,8 +26,6 @@ Dragon = struct(name string, color Color, valueOfHoard int)
 
 ## Abstract types
 
-Perhaps these had better be called "filter types": I'll change this next time I overhaul the documents. In the meantime I'll go on calling them abstract types for consistency with the rest of the documentation.
-
 These are not types that a value can actually have. Rather they are a filter on what can be stored in a variable, or the field of a struct, or passed to a function.
 
 Pipefish suppplies you with a few built-in abstract types: `single`, which includes evrything but the `null` type ad the `tuple` type; `struct`, which includes all structs; and a "nullable twin" of each type, containing that type and null: `int?`, `string?`, etc. User-defined types and other abstrct types also have nullable twins: `Dragon?`, `struct?`, etc.
@@ -67,7 +65,7 @@ I have given (what I hope is) a reasonable definition of a dynamic language beca
 
 ## Problems with generic types
 
-We can now talk about why Pipefish doesn't have generic types like `list<list<int>>` or whatever.
+We can now talk about why Pipefish doesn't have generic types like `list<list<int>>` or whatever. (Similar remarks will apply to unions.)
 
 ### The semantic problems
 
