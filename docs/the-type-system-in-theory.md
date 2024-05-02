@@ -79,11 +79,11 @@ First, implementing this raises some question about semantics the answers to whi
 
 (c) The runtime checks the types of everything in `y` (at O(n) cost, natch) and returns a `list<string>` if everything in it is a string but otherwise returns a `list<single>`.
 
-(d) The runtime checks the types of everything in `y`, and returns a `list<string>` if everything in it is a string but otherwise returns a `runtime error.
+(d) The runtime checks the types of everything in `y`, and returns a `list<string>` if everything in it is a string but otherwise returns a runtime error.
 
 (e) Other?
 
-(Now consider what whould happen if we try to add together two things of type `list<int>` and `list<string>` if this is always a type error requiring conversions to get it to work, then the language is again becoming undynamic in spirit. If on the other hand it blithely returns something of type `list<int/string>` without any type error then what is the point of being able to represent generic types?)
+(Now consider what whould happen if we try to add together two things of type `list<int>` and `list<string>`: if this is always a type error requiring conversions to get it to work, then the language is again becoming undynamic in spirit. If on the other hand it blithely returns something of type `list<int/string>` without any type error then what is the point of being able to represent generic types?)
 
 This is exactly the sort of thing that trips programmers up because in the heat of the moment they will tend to assume that the semantics will do what would make most sense in the context of the particular thing they're doing.
 
