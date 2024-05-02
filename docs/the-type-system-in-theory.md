@@ -114,7 +114,7 @@ given :
 
 ### Formulaic definition of abstract types
 
-As things are, abstract types must be defined "by hand", e.g. by writing `Monster = Troll/Orc/Dragon`. But we could define an abstact class by the properties of its members, e.g. that it contains all structs having a given field label. Or that it can have function `foo` called on it.
+As things are, abstract types must be defined "by hand", e.g. by writing `Monster = Troll/Orc/Dragon`. But we could define an abstract class by the properties of its members, e.g. that it contains all structs having a given field label. Or that it can have function `foo` called on it.
 
 Given that simplicity is an important goal of the language, I'd have to think about what could be commonly useful and clearly expressible. I don't want to havre obscure idioms. People can just write more code.
 
