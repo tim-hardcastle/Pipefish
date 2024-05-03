@@ -26,7 +26,7 @@ type VmMaker struct {
 }
 
 func NewVmMaker(scriptFilepath, sourcecode string, mc *service.Vm) *VmMaker {
-	uP := NewInitializer(scriptFilepath, sourcecode, mc.Db)
+	uP := NewInitializer(scriptFilepath, sourcecode)
 	vmm := &VmMaker{
 		cp: service.NewCompiler(uP.Parser),
 		uP: uP,
@@ -52,7 +52,7 @@ func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compi
 		sourcebytes, err := os.ReadFile(scriptFilepath)
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode, nil)
+			uP := NewInitializer(scriptFilepath, sourcecode)
 			uP.Throw("vmm/source", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}

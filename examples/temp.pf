@@ -1,3 +1,9 @@
+var
+
+z = 69
+
+w = 78
+
 cmd
 
 zort(x int) :

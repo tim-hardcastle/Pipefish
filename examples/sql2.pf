@@ -1,0 +1,13 @@
+def 
+
+Person = struct(name varchar(32), age int) 
+
+cmd // We wrap some commands around SQL.
+
+clear :
+    put SQL --- DROP TABLE People
+
+add (name string, age int) :
+    put SQL ---
+        INSERT INTO People
+        VALUES |name, age|

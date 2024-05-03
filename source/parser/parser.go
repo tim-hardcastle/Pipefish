@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"database/sql"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -144,7 +143,6 @@ type Parser struct {
 	Contacts         map[string]string
 	Languages        []string
 	GoImports        map[string][]string
-	Database         *sql.DB
 	NamespaceBranch  map[string]*ParserData
 	NamespacePath    string
 }

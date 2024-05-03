@@ -195,12 +195,12 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 	varLocsStart := mc.MemTop()
 	if csk != UNCOMPILED_SNIPPET { // Then it's a contact snippet, or HTML, or SQL, and we should compile some code.
 		cEnv := NewEnvironment() // The compliation environment is used to compile against.
-		sliceSource := []uint32{}
+		sourceLocs := []uint32{}
 		for k, v := range sEnv.data {
 			where := cp.Reserve(mc, values.UNDEFINED_VALUE, nil)
 			w := v
 			w.mLoc = where
-			sliceSource = append(sliceSource, v.mLoc)
+			sourceLocs = append(sourceLocs, v.mLoc)
 			cEnv.data[k] = w
 		}
 		// We can now compile against the cEnv. The calls to external contacts is quite different from the others,
@@ -212,8 +212,9 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 		default:
 			snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, csk, snF.sourceString, ac)
 		}
-		snF.bindle.compiledSnippetKind = csk
 		snF.bindle.varLocsStart = varLocsStart
+		snF.bindle.sourceLocs = sourceLocs
+		snF.bindle.compiledSnippetKind = csk
 	} // End of handling special snippets.
 	mc.SnippetFactories = append(mc.SnippetFactories, snF)
 	return uint32(len(mc.SnippetFactories) - 1)
@@ -232,7 +233,7 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 
 func (cp *Compiler) reserveLambdaFactory(mc *Vm, env *Environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
 	LF := &LambdaFactory{Model: &Lambda{}}
-	LF.Model.Mc = BlankVm(mc.Db)
+	LF.Model.Mc = BlankVm(mc.Database)
 	LF.Model.Mc.Code = []*Operation{}
 	newEnv := NewEnvironment()
 	sig := fnNode.Sig

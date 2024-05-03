@@ -17,7 +17,6 @@ package compiler
 
 import (
 	"bufio"
-	"database/sql"
 	"os"
 	"strings"
 
@@ -81,14 +80,13 @@ type Initializer struct {
 	Sources map[string][]string
 }
 
-func NewInitializer(source, input string, db *sql.DB) *Initializer {
+func NewInitializer(source, input string) *Initializer {
 	uP := &Initializer{
 		rl:      *lexer.NewRelexer(source, input),
 		Parser:  parser.New(),
 		Sources: make(map[string][]string),
 	}
 	uP.GetSource(source)
-	uP.Parser.Database = db
 	return uP
 }
 

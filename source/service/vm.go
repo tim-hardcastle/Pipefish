@@ -40,7 +40,7 @@ type Vm struct {
 	SnippetFactories []*SnippetFactory
 	GoFns            []GoFn
 	IoHandle         IoHandler
-	Db               *sql.DB
+	Database         *sql.DB
 	AbstractTypes    []values.NameAbstractTypePair
 }
 
@@ -94,9 +94,10 @@ type SnippetFactory struct {
 type SnippetBindle struct {
 	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, a contact, SQL, or HTML.
 	varLocsStart        uint32              // Destination of the environment slice.
+	sourceLocs          []uint32            // Locations of the environment slice.
 	codeLoc             uint32              // Where to find the code to compute the object string and the values.
 	objectStringLoc     uint32              // Where to find the object string.
-	valueLocs           []uint32            // The values for SQL or HTML snippets.
+	valueLocs           []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
 }
 
 // Then the SnippetData consists of that and the environment slice, which we can't insert into memory until call
@@ -124,7 +125,7 @@ type HTMLInjector struct {
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
 func BlankVm(db *sql.DB) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Db: db, Ub_enums: values.LB_ENUMS,
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, Ub_enums: values.LB_ENUMS,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
@@ -593,10 +594,12 @@ loop:
 		case MkSn:
 			sFac := vm.SnippetFactories[args[1]]
 			result := &values.Map{}
-			slice := make([]values.Value, 0, len(sFac.sourceEnv.data))
+			slice := make([]values.Value, 0, len(sFac.bindle.sourceLocs))
+			for _, mLoc := range sFac.bindle.sourceLocs {
+				slice = append(slice, vm.Mem[mLoc])
+			}
 			for k, v := range sFac.sourceEnv.data { // TODO --- check access.
 				result = result.Set(values.Value{values.STRING, k}, vm.Mem[v.mLoc])
-				slice = append(slice, vm.Mem[v.mLoc])
 			}
 			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.snippetType),
 				[]values.Value{values.Value{values.STRING, sFac.sourceString}, values.Value{values.MAP, result},
@@ -625,14 +628,14 @@ loop:
 			sData := vm.Mem[args[1]].V.([]values.Value)[2].V.(SnippetData)
 			vals := sData.EnvironmentSlice
 			bindle := sData.Bindle
-			for i := bindle.varLocsStart; i < bindle.varLocsStart+uint32(len(vals)); i++ {
-				vm.Mem[i] = vals[i-bindle.varLocsStart]
+			for i := 0; i < len(vals); i++ {
+				vm.Mem[i+int(bindle.varLocsStart)] = vals[i]
 			}
 			vm.Run(bindle.codeLoc)
 			objectString := vm.Mem[bindle.objectStringLoc].V.(string)
 			// What we do at that point depends on what kind of snippet it is, which is also recorded in the snippet data:
 			switch bindle.compiledSnippetKind {
-			case HTML_SNIPPET: // This is the easy one, we just parse it and shove it to whatever Output is.
+			case HTML_SNIPPET: // We parse this and emit it to whatever Output is.
 				t, err := template.New("html snippet").Parse(objectString) // TODO: parse this at compile time and stick it in the bindle.
 				if err != nil {
 					panic("Template parsing error.")
@@ -657,10 +660,14 @@ loop:
 					}
 				}
 				t.Execute(&buf, injector)
-				vm.IoHandle.OutHandle.Out([]values.Value{values.Value{values.STRING, buf.String()}}, vm)
+				vm.IoHandle.OutHandle.Out([]values.Value{{values.STRING, buf.String()}}, vm)
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 			case SQL_SNIPPET:
-				panic("Not done that yet!")
+				injector := make([]values.Value, 0, len(bindle.valueLocs))
+				for _, mLoc := range bindle.valueLocs {
+					injector = append(injector, vm.Mem[mLoc])
+				}
+				vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
 			case CONTACT_SNIPPET:
 				panic("Not done that yet!")
 			}

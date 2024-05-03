@@ -1003,7 +1003,7 @@ func (hub *Hub) Open() {
 
 		for _, v := range hub.services {
 			if !v.Broken {
-				v.Cp.GetParser().Database = hub.Db
+				v.Mc.Database = hub.Db
 			}
 		}
 
@@ -1384,7 +1384,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	}
 
 	for _, v := range h.services {
-		v.Cp.GetParser().Database = h.Db
+		v.Mc.Database = h.Db
 	}
 
 	fi, err := os.Create("user/database.dat")
