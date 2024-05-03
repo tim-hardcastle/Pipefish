@@ -147,7 +147,7 @@ And when it comes to multiplication, multiplying a `NumberOfHeads` by a plain `i
 
 So looked at that way, it might make sense that the builtin functions/operations for a type should work for its cloned types together with a little bit of type coercion. It's what the programmer would want to happen.
 
-OK, but now let's apply that same rule to a list. We make a type called `ListOfMonsters` by cloning `list`. We can now add the list `["foo", "bar"]` to a ListOfMonsters without any type error. This is not what the programmer would want to happen. Or again this rule would alow us to add any string to a CapitalizedString, etc.
+OK, but now let's apply that same rule to a list. We make a type called `ListOfMonsters` by cloning `list`. We can now add the list `["foo", "bar"]` to a ListOfMonsters without any type error. This is not what the programmer would want to happen. Or again this rule would alow us to add any string to a `CapitalizedString`, etc.
 
 (Treating the different builtin functions differently would be madness all round.)
 
