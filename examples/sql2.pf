@@ -23,6 +23,8 @@ grob :
 florb :
     post "florb" to Terminal()
 
+blob :
+    post HTML --- foo
 
 // show (name string) :
 //     get personList as Person from SQL ---

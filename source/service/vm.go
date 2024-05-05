@@ -141,6 +141,7 @@ func (vm *Vm) Run(loc uint32) {
 	if settings.SHOW_RUNTIME {
 		println()
 	}
+	stackHeight := len(vm.callstack)
 loop:
 	for {
 		if settings.SHOW_RUNTIME {
@@ -631,6 +632,7 @@ loop:
 			for i := 0; i < len(vals); i++ {
 				vm.Mem[i+int(bindle.varLocsStart)] = vals[i]
 			}
+			vm.callstack = append(vm.callstack, loc)
 			vm.Run(bindle.codeLoc)
 			objectString := vm.Mem[bindle.objectStringLoc].V.(string)
 			// What we do at that point depends on what kind of snippet it is, which is also recorded in the snippet data:
@@ -781,7 +783,7 @@ loop:
 			}
 			continue
 		case Ret:
-			if len(vm.callstack) == 0 {
+			if len(vm.callstack) == stackHeight { // This is so that we can call "Run" when we have things on the stack and it will bottom out at the appropriate time.
 				break loop
 			}
 			loc = vm.callstack[len(vm.callstack)-1]
