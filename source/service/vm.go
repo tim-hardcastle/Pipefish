@@ -667,7 +667,9 @@ loop:
 				for _, mLoc := range bindle.valueLocs {
 					injector = append(injector, vm.Mem[mLoc])
 				}
-				vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
+				println("Object string", objectString)
+				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
+				// vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
 			case CONTACT_SNIPPET:
 				panic("Not done that yet!")
 			}

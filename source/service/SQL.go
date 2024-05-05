@@ -82,8 +82,8 @@ func (vm *Vm) evalGetSQL(structTypeNumber values.ValueType, query string, pfArgs
 	return values.Value{values.LIST, vec}
 }
 
-func (vm *Vm) getSqlSig(pfStructType uint32) (string, bool) {
-	pfStructNumber := pfStructType - uint32(vm.Ub_enums)
+func (vm *Vm) getSqlSig(pfStructType values.ValueType) (string, bool) {
+	pfStructNumber := pfStructType - vm.Ub_enums
 	var buf strings.Builder
 	buf.WriteString("(")
 	sep := ""
@@ -98,7 +98,7 @@ func (vm *Vm) getSqlSig(pfStructType uint32) (string, bool) {
 		buf.WriteString(sqlType)
 		sep = ", "
 	}
-	buf.WriteString("(")
+	buf.WriteString(")")
 	return buf.String(), true
 }
 

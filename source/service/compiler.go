@@ -1601,18 +1601,6 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			builtinTag := F.Builtin
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
-				// Now we do all the builtins with special cases.
-				//
-				// Because a snippet will almost always be a constant, we can in such case compile the thing that builds the query
-				// from it at compile time. In the rare event where the snippet is not constant, we would have to special-case it
-				// by parsing it into a query at runtime. This is a low-priority TODO: in the meantime we'll just throw an error.
-				// switch builtinTag {           // TODO --- but we've declared that the product of a snippet factory isn't constant so we don't fold it. I think the best option is for it to just be able to wave a "don't fold me" flag.
-				// case "post_contact", "post_sql", "post_html", "get_from_contact", "get_from_SQL":
-				// 	if !b.cst {
-				// 		cp.P.Throw("comp/snippet", b.tok)
-				// 		return (AltType(values.ERROR))
-				// 	}
-				// }
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_contact", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
@@ -1961,34 +1949,45 @@ func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *E
 		cp.P.Throw("comp/snippet/form/b", tok)
 		return &bindle
 	}
-	codeBits := []string{}
 	var buf strings.Builder
+	bindle.codeLoc = mc.CodeTop()
 	c := 0
 	for _, bit := range bits {
+		if len(bit) == 0 {
+			continue
+		}
 		if bit[0] == '|' {
-			codeBits = append(codeBits, bit[1:len(bit)-1])
+			node := cp.P.ParseLine(tok.Source, bit[1:len(bit)-1])
+			types, cst := cp.CompileNode(mc, node, newEnv, ac)
+			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
+				typeNumbers := mc.Mem[mc.That()].V.(values.AbstractType)
+				if len(typeNumbers) == 1 && typeNumbers[0] > mc.Ub_enums {
+					sig, ok := mc.getSqlSig(typeNumbers[0])
+					if !ok {
+						cp.P.Throw("comp/snippet/sig", tok)
+					}
+					buf.WriteString(sig)
+					continue // ... the for loop.
+				}
+			}
+			bindle.valueLocs = append(bindle.valueLocs, mc.That())
 			switch csk {
 			case SQL_SNIPPET:
 				buf.WriteString("$")
-				buf.WriteString(strconv.Itoa(c + 1)) // The injection sites in SQL go $1 , $2 , $3 ...
+				c++
+				buf.WriteString(strconv.Itoa(c)) // The injection sites in SQL go $1 , $2 , $3 ...
 			case HTML_SNIPPET:
 				buf.WriteString("{{index .Data ")
 				buf.WriteString(strconv.Itoa(c)) // The injection sites in HTML go {{index .Data 0}} , {{index .Data 1}} ...
 				buf.WriteString("}}")
+				c++
 			}
-			c++
 		} else {
 			buf.WriteString(bit)
 		}
 	}
-	bindle.codeLoc = mc.CodeTop()
 	cp.Reserve(mc, values.STRING, buf.String())
 	bindle.objectStringLoc = mc.That()
-	for _, code := range codeBits {
-		node := cp.P.ParseLine(tok.Source, code)
-		cp.CompileNode(mc, node, newEnv, ac)
-		bindle.valueLocs = append(bindle.valueLocs, mc.That())
-	}
 	cp.Emit(mc, Ret)
 	return &bindle
 }

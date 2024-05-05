@@ -146,6 +146,3 @@ get(x ref) from (y SQL) : builtin "get_from_SQL"
 
 post(x HTML) : builtin "post_html"
 
-snarf(x HTML) : builtin "post_html"
-
-

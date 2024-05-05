@@ -57,8 +57,8 @@ var BUILTINS = map[string]functionAndReturnType{
 	"post_contact":      {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_html":         {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_output":    {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
-	"post_sql":          {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE)},
-	"post_to_terminal":  {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
+	"post_sql":          {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
+	"post_to_terminal":  {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
 	"string":            {(*Compiler).btString, AltType(values.STRING)},
 	"single_in_list":    {(*Compiler).btSingleInList, AltType(values.BOOL)},
 	"single_in_set":     {(*Compiler).btSingleInSet, AltType(values.BOOL)},
@@ -280,6 +280,7 @@ func (cp *Compiler) btPostToOutput(mc *Vm, tok *token.Token, dest uint32, args [
 
 func (cp *Compiler) btPostSpecialSnippet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(mc, Psnp, dest, args[0])
+	cp.Emit(mc, Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btPostToTerminal(mc *Vm, tok *token.Token, dest uint32, args []uint32) {

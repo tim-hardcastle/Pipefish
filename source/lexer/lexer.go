@@ -180,8 +180,7 @@ func (l *Lexer) NextToken() token.Token {
 			text := l.readGolang()
 			return l.NewToken(tType, text)
 		case token.EMDASH:
-			l.readChar()
-			return l.NewToken(tType, l.readSnippet())
+			return l.MakeToken(tType, l.readSnippet())
 		default:
 			return l.NewToken(tType, lit)
 		}
@@ -374,27 +373,27 @@ func (l *Lexer) readComment() string {
 }
 
 func (l *Lexer) readSnippet() string {
+	// Note --- what we return from this is followed by makeToken, which doesn't read a character, rather than NewToken, which does.
+	// This is because we may end up in a position where we've just realized that we've unindented. (See other use of MakeChar.)
 	l.afterSnippet = true
 	result := ""
-	for l.ch == ' ' || l.ch == '\t' {
+	for l.peekChar() == ' ' || l.peekChar() == '\t' { // We consume the whitespace between the emdash and either a non-whitespace character or a newline.
 		l.readChar()
 	}
-	// There are two possibilities. Either the whole snippet is on the same line as the
-	// `---` token, or it's an indent on the succeeding lines. Just like with a colon.
-	if l.ch == '\n' { // --- then we have to mess with whitespace.
+	// There are two possibilities. Either we found a non-whitespace character, and the whole snippet is on the same line as the
+	// `---` token, or we found a newline and the snipped is an indent on the succeeding lines. Just like with a colon.
+	if l.peekChar() == '\n' { // --- then we have to mess with whitespace.
+		l.readChar()
 		langIndent := ""
 		stackTop, ok := l.whitespaceStack.HeadValue()
 		if !ok {
 			stackTop = ""
 		}
-		l.readChar()
 		for {
 			currentWhitespace := ""
-			for isWhitespace(l.ch) && !(langIndent != "" && currentWhitespace == langIndent) {
-				if l.ch != '\n' {
-					currentWhitespace = currentWhitespace + string(l.ch)
-				}
+			for (l.peekChar() == '\t' || l.peekChar() == ' ') && !(langIndent != "" && currentWhitespace == langIndent) {
 				l.readChar()
+				currentWhitespace = currentWhitespace + string(l.ch)
 			}
 			if langIndent == "" { // Then this is the first time around.
 				if currentWhitespace == "" {
@@ -414,25 +413,25 @@ func (l *Lexer) readSnippet() string {
 				return result
 			}
 			if !strings.HasPrefix(currentWhitespace, stackTop) && !(currentWhitespace == "\n") {
-
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "lex/emdash/indent/c"))
 				return result
 			}
-			for l.ch != '\n' && l.peekChar() != 0 {
-				result = result + string(l.ch)
+			for l.peekChar() != '\n' && l.peekChar() != 0 {
 				l.readChar()
+				result = result + string(l.ch)
 			}
 			if l.peekChar() == 0 {
 				return result
 			}
-			result = result + "\n"
 			l.readChar()
+			result = result + "\n"
 		}
 	} else {
-		for l.ch != '\n' && l.ch != 0 {
-			result = result + string(l.ch)
+		for l.peekChar() != '\n' && l.peekChar() != 0 {
 			l.readChar()
+			result = result + string(l.ch)
 		}
+		l.readChar()
 		return result
 	}
 }
