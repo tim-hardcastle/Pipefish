@@ -14,7 +14,7 @@ clear :
 add (name string, age int) :
     put SQL ---
         INSERT INTO People
-        VALUES |name|, |age|
+        VALUES |name, age|
 
 grob :
     post HTML --- foo |2|

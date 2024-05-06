@@ -1959,6 +1959,7 @@ func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *E
 		if bit[0] == '|' {
 			node := cp.P.ParseLine(tok.Source, bit[1:len(bit)-1])
 			types, cst := cp.CompileNode(mc, node, newEnv, ac)
+			val := mc.That()
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
 				typeNumbers := mc.Mem[mc.That()].V.(values.AbstractType)
 				if len(typeNumbers) == 1 && typeNumbers[0] > mc.Ub_enums {
@@ -1970,17 +1971,38 @@ func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *E
 					continue // ... the for loop.
 				}
 			}
-			bindle.valueLocs = append(bindle.valueLocs, mc.That())
-			switch csk {
-			case SQL_SNIPPET:
-				buf.WriteString("$")
-				c++
-				buf.WriteString(strconv.Itoa(c)) // The injection sites in SQL go $1 , $2 , $3 ...
-			case HTML_SNIPPET:
-				buf.WriteString("{{index .Data ")
-				buf.WriteString(strconv.Itoa(c)) // The injection sites in HTML go {{index .Data 0}} , {{index .Data 1}} ...
-				buf.WriteString("}}")
-				c++
+			// If it's a tuple of fixed length, we can split it and inject the values separately.
+			// If it's of indeterminate length then we need to throw an error.
+			numberOfInjectionSites := 1 // Default, if the type is single.
+			if types.Contains(values.TUPLE) {
+				lengths := lengths(types)
+				if lengths.Contains(-1) || len(lengths) > 1 { // ... then we can't infer the length and must throw an error.
+					cp.P.Throw("comp/snippet/tuple", tok)
+				}
+				numberOfInjectionSites, _ = lengths.GetArbitraryElement()
+				for i := 0; i < numberOfInjectionSites; i++ {
+					cp.put(mc, IxTn, val, uint32(i))
+					bindle.valueLocs = append(bindle.valueLocs, mc.That())
+				}
+			} else { // We have a single element so we add it to the injectable values.
+				bindle.valueLocs = append(bindle.valueLocs, val)
+			}
+			sep := ""
+			for i := 0; i < numberOfInjectionSites; i++ {
+				buf.WriteString(sep)
+				switch csk {
+				case SQL_SNIPPET:
+					buf.WriteString("$")
+					c++
+					buf.WriteString(strconv.Itoa(c)) // The injection sites in SQL go $1 , $2 , $3 ...
+				case HTML_SNIPPET:
+
+					buf.WriteString("{{index .Data ")
+					buf.WriteString(strconv.Itoa(c)) // The injection sites in HTML go {{index .Data 0}} , {{index .Data 1}} ...
+					buf.WriteString("}}")
+					c++
+				}
+				sep = ", "
 			}
 		} else {
 			buf.WriteString(bit)
