@@ -149,9 +149,9 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
 		var sizeOfBiggestType int
 		for i, pair := range vm.AbstractTypes {
 			if pair.AT.IsSubtypeOf(T) {
-				if len(pair.AT) > sizeOfBiggestType {
+				if pair.AT.Len() > sizeOfBiggestType {
 					biggestType = i
-					sizeOfBiggestType = len(pair.AT)
+					sizeOfBiggestType = pair.AT.Len()
 				}
 			}
 		}
@@ -164,11 +164,15 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
 
 	// We then add on all the other types except null, which we will represent with a ?
 	nullFlag := false
-	for _, t := range T {
+	for _, t := range T.Types {
 		if t == values.NULL {
 			nullFlag = true
 		} else {
-			result = append(result, vm.DescribeType(t))
+			if t == values.STRING && T.Varchar < DUMMY {
+				result = append(result, "varchar("+strconv.Itoa(int(T.Varchar))+")")
+			} else {
+				result = append(result, vm.DescribeType(t))
+			}
 		}
 	}
 	// Deal with null

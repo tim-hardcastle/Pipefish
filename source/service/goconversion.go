@@ -117,10 +117,10 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(mc *Vm, goHandler *GoHandler, sour
 }
 
 func (cp *Compiler) ConvertFieldType(mc *Vm, aT values.AbstractType) string {
-	if len(aT) > 1 {
+	if aT.Len() > 1 {
 		cp.P.Throw("go/conv/type/b", &token.Token{Source: "golang conversion function"})
 	}
-	tNo := aT[0]
+	tNo := aT.Types[0]
 	if tNo >= mc.Ub_enums {
 		return text.Flatten(mc.TypeNames[tNo])
 	}

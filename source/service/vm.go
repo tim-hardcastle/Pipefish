@@ -404,7 +404,7 @@ loop:
 			}
 		case Inxt:
 			vm.Mem[args[0]] = values.Value{values.BOOL, false}
-			for _, t := range vm.Mem[args[2]].V.(values.AbstractType) {
+			for _, t := range vm.Mem[args[2]].V.(values.AbstractType).Types {
 				if vm.Mem[args[1]].T == t {
 					vm.Mem[args[0]] = values.Value{values.BOOL, true}
 				}
@@ -676,8 +676,10 @@ loop:
 				panic("Not done that yet!")
 			}
 		case Qabt:
-			for _, t := range args[1 : len(args)-1] {
-				if vm.Mem[args[0]].T == values.ValueType(t) {
+			varcharLimit := args[1]
+			for _, t := range args[2 : len(args)-1] {
+				if vm.Mem[args[0]].T == values.ValueType(t) &&
+					!(values.ValueType(t) == values.STRING && uint32(len(vm.Mem[args[0]].V.(string))) > varcharLimit) {
 					loc = loc + 1
 					continue loop
 				}
@@ -782,6 +784,13 @@ loop:
 				loc = args[2]
 			}
 			continue
+		case Qvch:
+			if vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
+			continue
 		case Ret:
 			if len(vm.callstack) == stackHeight { // This is so that we can call "Run" when we have things on the stack and it will bottom out at the appropriate time.
 				break loop
@@ -844,35 +853,48 @@ loop:
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)
 			i := 0
 			j := 0
-			result := make(values.AbstractType, 0, len(lhs)+len(rhs))
-			for i < len(lhs) || j < len(rhs) {
+			result := make([]values.ValueType, 0, len(lhs.Types)+len(rhs.Types))
+			for i < len(lhs.Types) || j < len(rhs.Types) {
 				switch {
-				case i == len(lhs):
-					result = append(result, rhs[j])
+				case i == len(lhs.Types):
+					result = append(result, rhs.Types[j])
 					j++
-				case j == len(rhs):
-					result = append(result, lhs[i])
+				case j == len(rhs.Types):
+					result = append(result, lhs.Types[i])
 					i++
-				case lhs[i] == rhs[j]:
-					result = append(result, lhs[i])
+				case lhs.Types[i] == rhs.Types[j]:
+					result = append(result, lhs.Types[i])
 					i++
 					j++
-				case lhs[i] < rhs[j]:
-					result = append(result, lhs[i])
+				case lhs.Types[i] < rhs.Types[j]:
+					result = append(result, lhs.Types[i])
 					i++
-				case rhs[j] < lhs[i]:
-					result = append(result, rhs[j])
+				case rhs.Types[j] < lhs.Types[i]:
+					result = append(result, rhs.Types[j])
 					j++
 				}
 			}
-			vm.Mem[args[0]] = values.Value{values.TYPE, result}
+			maxVc := uint32(0)
+			if lhs.Varchar > rhs.Varchar {
+				maxVc = lhs.Varchar
+			} else {
+				maxVc = rhs.Varchar
+			}
+			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{result, maxVc}}
 		case Typx:
-			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{vm.Mem[args[1]].T}}
+			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, DUMMY}}
 		case Untk:
 			if (vm.Mem[args[0]].T) == values.THUNK {
 				vm.callstack = append(vm.callstack, loc)
 				loc = vm.Mem[args[0]].V.(uint32)
 				continue
+			}
+		case Varc:
+			n := vm.Mem[args[1]].V.(int)
+			if n < 0 || n > DUMMY {
+				vm.Mem[args[0]] = vm.Mem[args[2]] // A prepared error.
+			} else {
+				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, uint32(n)}}
 			}
 		case WthL:
 			var pairs []values.Value
@@ -950,11 +972,11 @@ loop:
 			vm.Mem[args[0]] = result
 		case Wtht:
 			typL := vm.Mem[args[1]].V.(values.AbstractType)
-			if len(typL) != 1 {
+			if typL.Len() != 1 {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 				break Switch
 			}
-			typ := typL[0]
+			typ := typL.Types[0]
 			if (typ) < vm.Ub_enums {
 				vm.Mem[args[0]] = vm.Mem[args[3]]
 				break Switch

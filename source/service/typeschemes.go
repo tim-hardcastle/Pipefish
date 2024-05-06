@@ -127,11 +127,11 @@ type AlternateType []typeScheme
 // This assumes that the alternateType came from the typeNameToTypeList array and therefore contains only elements of
 // type simpleType.
 func (aT AlternateType) ToAbstractType() values.AbstractType {
-	result := make(values.AbstractType, 0, len(aT))
+	result := make([]values.ValueType, 0, len(aT))
 	for _, v := range aT {
 		result = append(result, values.ValueType(v.(simpleType)))
 	}
-	return result
+	return values.AbstractType{result, DUMMY}
 }
 
 func (vL AlternateType) intersect(wL AlternateType) AlternateType {

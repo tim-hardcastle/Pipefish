@@ -1,3 +1,2 @@
-TEMP, examples/temp.pf
-SQL, examples/sql2.pf
 hub, rsc/pipefish/hub.pf
+TEMP, examples/temp.pf

@@ -624,7 +624,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *service.Vm) {
 	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "ok", service.GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
 	vmm.cp.Reserve(mc, values.BREAK, nil)
 	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "break", service.GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
-	vmm.cp.TupleType = vmm.cp.Reserve(mc, values.TYPE, values.AbstractType{values.TUPLE})
+	vmm.cp.TupleType = vmm.cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0})
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {

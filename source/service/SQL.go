@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strconv"
 	"strings"
 
 	"pipefish/source/values"
@@ -104,17 +105,21 @@ func (vm *Vm) getSqlSig(pfStructType values.ValueType) (string, bool) {
 
 func getSqlType(pfType values.AbstractType) string {
 	switch {
-	case pfType.Equals(values.AbstractType{values.INT}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.INT}, 0}):
 		return "INTEGER NOT NULL"
-	case pfType.Equals(values.AbstractType{values.NULL, values.INT}):
+	case pfType.Equals((values.AbstractType{[]values.ValueType{values.NULL, values.INT}, 0})):
 		return "INTEGER"
-	case pfType.Equals(values.AbstractType{values.STRING}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}):
 		return "STRING NOT NULL"
-	case pfType.Equals(values.AbstractType{values.NULL, values.STRING}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}):
 		return "STRING"
-	case pfType.Equals(values.AbstractType{values.BOOL}):
+	case pfType.IsVarchar():
+		return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ") NOT NULL"
+	case pfType.IsVarcharOrNull():
+		return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ")"
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.BOOL}, 0}):
 		return "BOOL NOT NULL"
-	case pfType.Equals(values.AbstractType{values.NULL, values.BOOL}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.BOOL}, 0}):
 		return "BOOL"
 	default:
 		return ""

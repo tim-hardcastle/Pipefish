@@ -179,6 +179,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qstq: {"qstq", operands{mem, loc}},
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
+	Qvch: {"qvch", operands{mem, num, loc}},
 	Ret:  {"ret", operands{}},
 	SliL: {"sliL", operands{dst, mem, mem, mem}}, // Third operand is error.
 	Slis: {"slis", operands{dst, mem, mem, mem}}, //
@@ -192,6 +193,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Typu: {"typu", operands{dst, mem, mem}},
 	Typx: {"typx", operands{dst, mem}},
 	Untk: {"untk", operands{dst}},
+	Varc: {"wthL", operands{dst, mem, mem}},      // Second
 	WthL: {"wthL", operands{dst, mem, mem, mem}}, // Third operand is error.
 	WthM: {"wthM", operands{dst, mem, mem, mem}}, //
 	Wtht: {"wtht", operands{dst, mem, mem, mem}}, //
@@ -315,6 +317,7 @@ const (
 	Qstq
 	Qtru
 	Qtyp
+	Qvch
 	Ret
 	SliL
 	Slis
@@ -328,6 +331,7 @@ const (
 	Typu
 	Typx
 	Untk
+	Varc
 	WthL
 	WthM
 	Wtht

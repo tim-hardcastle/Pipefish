@@ -42,6 +42,8 @@ const ( // Cross-reference with typeNames in BlankVm()
 	LB_ENUMS // I.e the first of the enums.
 )
 
+const DUMMY = 4294967295
+
 type Value struct {
 	T ValueType
 	V any
@@ -97,17 +99,16 @@ const (
 	C_EMPTY_TUPLE
 )
 
-// A couple of similar types for containing data to covertly attach to snippets to help the runtime.
-type ContactData struct {
-}
-
 // AbstractTypes are constructed from the altTypes in the compiler and so are assumed to be ordered.
-type AbstractType []ValueType
+type AbstractType struct {
+	Types   []ValueType
+	Varchar uint32 // A kludge. if this has the maximum value (DUMMY), and there's a string in the types, then it's a string; otherwise it's a varchar with that value.
+}
 
 // Because AbstractTypes are ordered we could use binary search for this and there is a threshold beyond which
 // it would be quicker, but this must be determined empirically and I haven't done that yet. TODO.
 func (a AbstractType) Contains(v ValueType) bool {
-	for _, w := range a {
+	for _, w := range a.Types {
 		if v == w {
 			return true
 		}
@@ -115,12 +116,24 @@ func (a AbstractType) Contains(v ValueType) bool {
 	return false
 }
 
+func (a AbstractType) Len() int {
+	return len(a.Types)
+}
+
+func (a AbstractType) IsVarchar() bool {
+	return len(a.Types) == 1 && a.Types[0] == STRING && a.Varchar < DUMMY
+}
+
+func (a AbstractType) IsVarcharOrNull() bool {
+	return len(a.Types) == 1 && a.Types[0] == STRING && a.Types[1] == STRING && a.Varchar < DUMMY
+}
+
 func (a AbstractType) Equals(b AbstractType) bool {
-	if len(a) != len(b) {
+	if len(a.Types) != len(b.Types) || a.Varchar != b.Varchar {
 		return false
 	}
-	for i, v := range a {
-		if v != b[i] {
+	for i, v := range a.Types {
+		if v != b.Types[i] {
 			return false
 		}
 	}
@@ -128,17 +141,17 @@ func (a AbstractType) Equals(b AbstractType) bool {
 }
 
 func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
-	if len(a) > len(b) {
+	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar {
 		return false
 	}
 	i := 0
-	for _, t := range a {
-		for ; i < len(b) && b[i] < t; i++ {
+	for _, t := range a.Types {
+		for ; i < len(b.Types) && b.Types[i] < t; i++ {
 		}
-		if i >= len(b) {
+		if i >= len(b.Types) {
 			return false
 		}
-		if t != b[i] {
+		if t != b.Types[i] {
 			return false
 		}
 	}
@@ -146,20 +159,25 @@ func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 }
 
 func (a AbstractType) Without(b AbstractType) AbstractType {
-	r := make(AbstractType, 0, len(a))
+	rTypes := make([]ValueType, 0, len(a.Types))
+	varCharFlag := false
 	i := 0
-	for _, t := range a {
-		for ; i < len(b) && b[i] < t; i++ {
+	for _, t := range a.Types {
+		for ; i < len(b.Types) && b.Types[i] < t; i++ {
 		}
-		if i >= len(b) {
-			r = append(r, t)
+		if i >= len(b.Types) {
+			rTypes = append(rTypes, t)
 			continue
 		}
-		if t != b[i] {
-			r = append(r, t)
+		if (t != b.Types[i]) || (t == STRING && a.Varchar != b.Varchar) {
+			rTypes = append(rTypes, t)
+			varCharFlag = (t == STRING && a.Varchar == b.Varchar)
 		}
 	}
-	return r
+	if varCharFlag { // Then we've removed a varchar(n) type.
+		return AbstractType{rTypes, 0}
+	}
+	return AbstractType{rTypes, a.Varchar}
 }
 
 type NameAbstractTypePair struct {

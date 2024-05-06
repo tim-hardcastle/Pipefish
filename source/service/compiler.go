@@ -1526,9 +1526,9 @@ func (cp *Compiler) emitTypeComparison(mc *Vm, typeAsString string, mem, loc uin
 			break
 		}
 	}
-	if abType != nil {
-		args := []uint32{DUMMY}
-		for _, t := range abType {
+	if abType.Types != nil {
+		args := []uint32{DUMMY, abType.Varchar}
+		for _, t := range abType.Types {
 			args = append(args, uint32(t))
 		}
 		args = append(args, DUMMY)
@@ -1961,7 +1961,7 @@ func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *E
 			types, cst := cp.CompileNode(mc, node, newEnv, ac)
 			val := mc.That()
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
-				typeNumbers := mc.Mem[mc.That()].V.(values.AbstractType)
+				typeNumbers := mc.Mem[mc.That()].V.(values.AbstractType).Types
 				if len(typeNumbers) == 1 && typeNumbers[0] > mc.Ub_enums {
 					sig, ok := mc.getSqlSig(typeNumbers[0])
 					if !ok {

@@ -58,6 +58,7 @@ tuple(x tuple) : builtin "tuple_of_tuple"
 tuplify(L list) : builtin "tuplify_list"
 type(x single?) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
+varchar(x int) : builtin "varchar"
 listwithmaker(x list, y tuple)  : builtin "list_with"
 (x list) with (y tuple) : listwithmaker x, y   
 mapwithmaker(x map, y tuple)  : builtin "map_with"
