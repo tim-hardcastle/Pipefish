@@ -103,9 +103,6 @@ type ParserData struct {
 
 type Parser struct {
 
-	// The parser should be either entirely stateless or nearly so (we might except curToken, peekToken, a
-	// pointer to the permanent state.
-
 	// Temporary state: things that are used to parse one line.
 
 	TokenizedCode         TokenSupplier
@@ -114,8 +111,8 @@ type Parser struct {
 	curToken              token.Token
 	peekToken             token.Token
 	Logging               bool
-	TokenizedDeclarations [13]tokenizedCodeChunks
-	ParsedDeclarations    [13]ParsedCodeChunks
+	TokenizedDeclarations [13]tokenizedCodeChunks // TODO --- neither this nor the thing below should be in the parser at all
+	ParsedDeclarations    [13]ParsedCodeChunks    // since they're no use after the uberparser has finished with them.
 	CurrentNamespace      []string
 
 	// Permanent state: things set up by the initializer which are

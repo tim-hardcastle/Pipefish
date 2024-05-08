@@ -40,12 +40,12 @@ func NewVmMaker(scriptFilepath, sourcecode string, mc *service.Vm) *VmMaker {
 func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*service.VmService, *Initializer) {
 	mc := service.BlankVm(db)
 	cp, uP := initializeEverything(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	return &service.VmService{Mc: mc, Cp: cp, ScriptFilepath: scriptFilepath}, uP
+	return &service.VmService{Mc: mc, Cp: cp}, uP
 }
 
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
-// We want the initializer back in case there are errors --- it wll contain the cource code and the errors in the store in its parser.
+// We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
 func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compiler, *Initializer) {
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
@@ -59,6 +59,11 @@ func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compi
 	}
 	vmm := NewVmMaker(scriptFilepath, sourcecode, mc)
 	vmm.Make(mc, scriptFilepath, sourcecode)
+	vmm.cp.ScriptFilepath = scriptFilepath
+	if scriptFilepath != "" {
+		file, _ := os.Stat(scriptFilepath)
+		vmm.cp.Timestamp = file.ModTime().UnixMilli()
+	}
 	return vmm.cp, vmm.uP
 }
 
@@ -108,13 +113,11 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 		for k, v := range newUP.Sources {
 			uP.Sources[k] = v
 		}
-		file, _ := os.Stat(scriptFilepath)
-		timestamp := file.ModTime().UnixMilli()
 		if newUP.ErrorsExist() {
 			uP.Parser.Errors = append(uP.Parser.Errors, newUP.Parser.Errors...)
-			vmm.cp.Services[namespace] = &service.VmService{mc, newCp, scriptFilepath, timestamp, true, false}
+			vmm.cp.Imports[namespace] = &service.VmService{mc, newCp, true, false}
 		} else {
-			vmm.cp.Services[namespace] = &service.VmService{mc, newCp, scriptFilepath, timestamp, false, false}
+			vmm.cp.Imports[namespace] = &service.VmService{mc, newCp, false, false}
 		}
 	}
 	return unnamespacedImports
@@ -276,7 +279,7 @@ func (vmm *VmMaker) compileFunctions(mc *service.Vm, args ...declarationType) {
 func (vmm *VmMaker) compileImports(mc *service.Vm) {
 	for namespace, lib := range vmm.cp.P.NamespaceBranch {
 		newCp, _ := initializeEverything(mc, lib.ScriptFilepath)
-		vmm.cp.Services[namespace] = &service.VmService{Cp: newCp, Mc: mc, ScriptFilepath: lib.ScriptFilepath}
+		vmm.cp.Imports[namespace] = &service.VmService{Cp: newCp, Mc: mc}
 	}
 }
 

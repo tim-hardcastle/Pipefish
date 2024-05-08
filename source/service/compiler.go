@@ -1,6 +1,7 @@
 package service
 
 import (
+	"os"
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
 	"pipefish/source/parser"
@@ -32,8 +33,10 @@ type Compiler struct {
 	Fns                    []*CpFunc
 	TypeNameToTypeList     map[string]AlternateType
 	AnyTypeScheme          AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
-	Services               map[string]*VmService
+	Imports                map[string]*VmService
 	Contacts               []string // The names of services which are contacts.
+	Timestamp              int64
+	ScriptFilepath         string
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>} TODO --- why?
 
@@ -80,7 +83,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		GlobalVars:             NewEnvironment(),
 		ThunkList:              []Thunk{},
 		Fns:                    []*CpFunc{},
-		Services:               make(map[string]*VmService),
+		Imports:                make(map[string]*VmService),
 		TypeNameToTypeList: map[string]AlternateType{
 			"int":      AltType(values.INT),
 			"string":   AltType(values.STRING),
@@ -124,6 +127,24 @@ func NewCompiler(p *parser.Parser) *Compiler {
 
 func (cp *Compiler) Run(mc *Vm) {
 	mc.Run(0)
+}
+
+func (cp *Compiler) NeedsUpdate() (bool, error) {
+	file, err := os.Stat(cp.ScriptFilepath)
+	if err != nil {
+		return false, err
+	}
+	currentTimeStamp := file.ModTime().UnixMilli()
+	if cp.Timestamp != currentTimeStamp {
+		return true, nil
+	}
+	for _, imp := range cp.Imports {
+		impNeedsUpdate, impError := imp.Cp.NeedsUpdate()
+		if impNeedsUpdate || impError != nil {
+			return impNeedsUpdate, impError
+		}
+	}
+	return false, nil
 }
 
 func (cp *Compiler) GetParser() *parser.Parser {
@@ -1170,7 +1191,7 @@ func (cp *Compiler) emitComma(mc *Vm, node *ast.InfixExpression, env *Environmen
 func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Compiler {
 	lC := cp
 	for _, name := range namespace {
-		srv, ok := lC.Services[name]
+		srv, ok := lC.Imports[name]
 		if !ok {
 			cp.P.Throw("comp/namespace/exist", node.GetToken(), name)
 			return nil

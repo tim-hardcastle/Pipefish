@@ -16,6 +16,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		// The hub's CurrentForm setting allows it to ask for information from the user instead of
 		// just sitting waiting to be told. If CurrentForm is not nil then it contains a structured
 		// request for information which must be completed before returnng to the regular REPL.
+		// TODO --- this can now be replaced by Pipefish's own facilities for IO.
 		if hub.CurrentForm != nil {
 
 			for {

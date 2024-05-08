@@ -167,9 +167,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
-	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
+	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName)
 	if hub.hot && needsUpdate {
-		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].ScriptFilepath)
+		hub.Start(hub.Username, hub.currentServiceName, hub.services[hub.currentServiceName].Cp.ScriptFilepath)
 		serviceToUse = hub.services[hub.currentServiceName]
 		if serviceToUse.Broken {
 			return passedServiceName, false
@@ -469,9 +469,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("service is empty, nothing to reset.")
 			return false
 		}
-		hub.WritePretty("Restarting script '" + serviceToReset.ScriptFilepath +
+		hub.WritePretty("Restarting script '" + serviceToReset.Cp.ScriptFilepath +
 			"' as service '" + hub.currentServiceName + "'.\n")
-		hub.Start(username, hub.currentServiceName, serviceToReset.ScriptFilepath)
+		hub.Start(username, hub.currentServiceName, serviceToReset.Cp.ScriptFilepath)
 		hub.lastRun = []string{hub.currentServiceName}
 		return false
 	case "rerun":
@@ -479,9 +479,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
-		hub.WritePretty("Rerunning script '" + hub.services[hub.lastRun[0]].ScriptFilepath +
+		hub.WritePretty("Rerunning script '" + hub.services[hub.lastRun[0]].Cp.ScriptFilepath +
 			"' as service '" + hub.lastRun[0] + "'.\n")
-		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].ScriptFilepath)
+		hub.Start(username, hub.lastRun[0], hub.services[hub.lastRun[0]].Cp.ScriptFilepath)
 		hub.tryMain()
 		return false
 	case "run":
@@ -851,7 +851,7 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 	}
 }
 
-func (hub *Hub) serviceNeedsUpdate(name, scriptFilepath string) bool {
+func (hub *Hub) serviceNeedsUpdate(name string) bool {
 	serviceToUpdate, present := hub.services[name]
 	if !present {
 		return true
@@ -868,7 +868,7 @@ func (hub *Hub) serviceNeedsUpdate(name, scriptFilepath string) bool {
 }
 
 func (hub *Hub) createService(name, scriptFilepath string) bool {
-	needsRebuild := hub.serviceNeedsUpdate(name, scriptFilepath)
+	needsRebuild := hub.serviceNeedsUpdate(name)
 	if !needsRebuild {
 		return false
 	}
@@ -916,7 +916,7 @@ func (hub *Hub) save() string {
 	defer f.Close()
 	for k := range hub.services {
 		if !isAnonymous(k) && k != "#snap" && k != "#test" {
-			_, err := f.WriteString(k + ", " + hub.services[k].ScriptFilepath + "\n")
+			_, err := f.WriteString(k + ", " + hub.services[k].Cp.ScriptFilepath + "\n")
 			if err != nil {
 				return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 			}
@@ -1032,10 +1032,10 @@ func (hub *Hub) list() {
 		}
 		if hub.services[k].Broken {
 			hub.WriteString(text.BROKEN)
-			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].ScriptFilepath) + "'.")
+			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].Cp.ScriptFilepath) + "'.")
 		} else {
 			hub.WriteString(text.GOOD_BULLET)
-			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].ScriptFilepath) + "'.")
+			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].Cp.ScriptFilepath) + "'.")
 		}
 	}
 	hub.WriteString("\n")

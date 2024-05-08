@@ -1,7 +1,7 @@
 def
 
 blurp (x varchar(10)) :
-    x + " is a short string"
+    x + " is a tiny string"
 
 blurp (x varchar(20)) :
     x + " is a longer string"
