@@ -6,7 +6,7 @@ gocode "os"
 gocode "time"
 gocode "errors"
 
-language
+lang
 
 SQL
 HTML

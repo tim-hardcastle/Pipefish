@@ -13,15 +13,15 @@ const (
 	TRY    = "try"
 
 	// Headwords
-	IMPORT   = "import"
-	VAR      = "var"
-	CMD      = "cmd"
-	DEF      = "def"
-	PRIVATE  = "private"
-	LANGUAGE = "language"
-	EXTERNAL = "external"
-	CONST    = "const"
-	NEWTYPE  = "newtype"
+	IMPORT  = "import"
+	VAR     = "var"
+	CMD     = "cmd"
+	DEF     = "def"
+	PRIVATE = "private"
+	LANG    = "lang"
+	EXTERN  = "extern"
+	CONST   = "const"
+	NEWTYPE = "newtype"
 
 	// Special operations
 	AND = "and"
@@ -105,15 +105,15 @@ var keywords = map[string]TokenType{
 	"try":    TRY,
 
 	// Headwords.
-	"const":    CONST,
-	"external": EXTERNAL,
-	"cmd":      CMD,
-	"def":      DEF,
-	"import":   IMPORT,
-	"language": LANGUAGE,
-	"private":  PRIVATE,
-	"newtype":  NEWTYPE,
-	"var":      VAR,
+	"const":   CONST,
+	"extern":  EXTERN,
+	"cmd":     CMD,
+	"def":     DEF,
+	"import":  IMPORT,
+	"lang":    LANG,
+	"private": PRIVATE,
+	"newtype": NEWTYPE,
+	"var":     VAR,
 
 	//Special operators.
 	"and": AND,
@@ -139,5 +139,5 @@ func LookupIdent(ident string) TokenType {
 }
 
 func TokenTypeIsHeadword(t TokenType) bool {
-	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANGUAGE || t == EXTERNAL || t == NEWTYPE || t == CONST
+	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANG || t == EXTERN || t == NEWTYPE || t == CONST
 }

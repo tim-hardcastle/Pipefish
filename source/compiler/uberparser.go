@@ -64,14 +64,14 @@ const (
 )
 
 var tokenTypeToSection = map[token.TokenType]Section{
-	token.IMPORT:   ImportSection,
-	token.VAR:      VarSection,
-	token.CMD:      CmdSection,
-	token.DEF:      DefSection,
-	token.LANGUAGE: LanguagesSection,
-	token.EXTERNAL: ExternalSection,
-	token.NEWTYPE:  TypesSection,
-	token.CONST:    ConstSection,
+	token.IMPORT:  ImportSection,
+	token.VAR:     VarSection,
+	token.CMD:     CmdSection,
+	token.DEF:     DefSection,
+	token.LANG:    LanguagesSection,
+	token.EXTERN:  ExternalSection,
+	token.NEWTYPE: TypesSection,
+	token.CONST:   ConstSection,
 }
 
 type Initializer struct {
