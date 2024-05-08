@@ -34,7 +34,7 @@ type Compiler struct {
 	TypeNameToTypeList     map[string]AlternateType
 	AnyTypeScheme          AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
 	Imports                map[string]*VmService
-	Contacts               []string // The names of services which are contacts.
+	Externals              []string // The names of services which have been declared as external.
 	Timestamp              int64
 	ScriptFilepath         string
 
@@ -85,38 +85,38 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Fns:                    []*CpFunc{},
 		Imports:                make(map[string]*VmService),
 		TypeNameToTypeList: map[string]AlternateType{
-			"int":      AltType(values.INT),
-			"string":   AltType(values.STRING),
-			"bool":     AltType(values.BOOL),
-			"float64":  AltType(values.FLOAT),
-			"error":    AltType(values.ERROR),
-			"type":     AltType(values.TYPE),
-			"pair":     AltType(values.PAIR),
-			"list":     AltType(values.LIST),
-			"map":      AltType(values.MAP),
-			"set":      AltType(values.SET),
-			"label":    AltType(values.LABEL),
-			"func":     AltType(values.FUNC),
-			"int?":     AltType(values.NULL, values.INT),
-			"string?":  AltType(values.NULL, values.STRING),
-			"bool?":    AltType(values.NULL, values.BOOL),
-			"float64?": AltType(values.NULL, values.FLOAT),
-			"type?":    AltType(values.NULL, values.TYPE),
-			"pair?":    AltType(values.NULL, values.PAIR),
-			"list?":    AltType(values.NULL, values.LIST),
-			"map?":     AltType(values.NULL, values.MAP),
-			"set?":     AltType(values.NULL, values.SET),
-			"label?":   AltType(values.NULL, values.LABEL),
-			"func?":    AltType(values.NULL, values.FUNC),
-			"null":     AltType(values.NULL),
-			"single":   AltType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"struct":   AltType(),
-			"struct?":  AltType(values.NULL),
-			"contact":  AltType(),
-			"contact?": AltType(values.NULL),
-			"snippet":  AltType(),
-			"snippet?": AltType(values.NULL),
+			"int":       AltType(values.INT),
+			"string":    AltType(values.STRING),
+			"bool":      AltType(values.BOOL),
+			"float64":   AltType(values.FLOAT),
+			"error":     AltType(values.ERROR),
+			"type":      AltType(values.TYPE),
+			"pair":      AltType(values.PAIR),
+			"list":      AltType(values.LIST),
+			"map":       AltType(values.MAP),
+			"set":       AltType(values.SET),
+			"label":     AltType(values.LABEL),
+			"func":      AltType(values.FUNC),
+			"int?":      AltType(values.NULL, values.INT),
+			"string?":   AltType(values.NULL, values.STRING),
+			"bool?":     AltType(values.NULL, values.BOOL),
+			"float64?":  AltType(values.NULL, values.FLOAT),
+			"type?":     AltType(values.NULL, values.TYPE),
+			"pair?":     AltType(values.NULL, values.PAIR),
+			"list?":     AltType(values.NULL, values.LIST),
+			"map?":      AltType(values.NULL, values.MAP),
+			"set?":      AltType(values.NULL, values.SET),
+			"label?":    AltType(values.NULL, values.LABEL),
+			"func?":     AltType(values.NULL, values.FUNC),
+			"null":      AltType(values.NULL),
+			"single":    AltType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single?":   AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"struct":    AltType(),
+			"struct?":   AltType(values.NULL),
+			"external":  AltType(),
+			"external?": AltType(values.NULL),
+			"snippet":   AltType(),
+			"snippet?":  AltType(values.NULL),
 		},
 	}
 	copy(newC.AnyTypeScheme, newC.TypeNameToTypeList["single?"])
@@ -195,7 +195,7 @@ type compiledSnippetKind int
 
 const (
 	UNCOMPILED_SNIPPET compiledSnippetKind = iota
-	CONTACT_SNIPPET
+	EXTERNAL_SNIPPET
 	SQL_SNIPPET
 	HTML_SNIPPET
 )
@@ -211,10 +211,10 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 	case t == "HTML":
 		csk = HTML_SNIPPET
 	case snF.snippetType > mc.Ub_langs:
-		csk = CONTACT_SNIPPET
+		csk = EXTERNAL_SNIPPET
 	}
 	varLocsStart := mc.MemTop()
-	if csk != UNCOMPILED_SNIPPET { // Then it's a contact snippet, or HTML, or SQL, and we should compile some code.
+	if csk != UNCOMPILED_SNIPPET { // Then it's an external snippet, or HTML, or SQL, and we should compile some code.
 		cEnv := NewEnvironment() // The compliation environment is used to compile against.
 		sourceLocs := []uint32{}
 		for k, v := range sEnv.data {
@@ -224,12 +224,12 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 			sourceLocs = append(sourceLocs, v.mLoc)
 			cEnv.data[k] = w
 		}
-		// We can now compile against the cEnv. The calls to external contacts is quite different from the others,
+		// We can now compile against the cEnv. The calls to external services is quite different from the others,
 		// since in that case we only have to compile the object string itself, whereas with the HTML and SQL snippets
 		// we need to inject the values into it at call time.
 		switch csk {
-		case CONTACT_SNIPPET:
-			snF.bindle = cp.compileContactSnippet(mc, fnNode.GetToken(), cEnv, snF.sourceString, ac)
+		case EXTERNAL_SNIPPET:
+			snF.bindle = cp.compileExternalSnippet(mc, fnNode.GetToken(), cEnv, snF.sourceString, ac)
 		default:
 			snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, csk, snF.sourceString, ac)
 		}
@@ -1547,14 +1547,14 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 }
 
 var TYPE_COMPARISONS = map[string]Opcode{
-	"snippet":  Qspt,
-	"snippet?": Qspq,
-	"contact":  Qctc,
-	"contact?": Qctq,
-	"single":   Qsng,
-	"single?":  Qsnq,
-	"struct":   Qstr,
-	"struct?":  Qstq,
+	"snippet":   Qspt,
+	"snippet?":  Qspq,
+	"external":  Qctc,
+	"external?": Qctq,
+	"single":    Qsng,
+	"single?":   Qsnq,
+	"struct":    Qstr,
+	"struct?":   Qstq,
 }
 
 func (cp *Compiler) emitTypeComparison(mc *Vm, typeAsString string, mem, loc uint32) {
@@ -1666,7 +1666,7 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
 				switch builtinTag { // Then for these we need to special-case their return types.
-				case "tuplify_list", "get_from_contact", "get_from_sql":
+				case "tuplify_list", "get_from_external", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
 				case "tuple_of_single?":
 					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
@@ -1981,7 +1981,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 	return AltType(values.LIST), isConst
 }
 
-func (cp *Compiler) compileContactSnippet(mc *Vm, tok *token.Token, newEnv *Environment, sText string, ac Access) *SnippetBindle {
+func (cp *Compiler) compileExternalSnippet(mc *Vm, tok *token.Token, newEnv *Environment, sText string, ac Access) *SnippetBindle {
 	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {

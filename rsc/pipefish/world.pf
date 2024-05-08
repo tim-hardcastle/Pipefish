@@ -6,12 +6,12 @@ gocode "os"
 gocode "time"
 gocode "errors"
 
-languages
+language
 
 SQL
 HTML
 
-types
+newtype
 
 Clock = struct()
 File = struct(filepath string)
@@ -134,10 +134,10 @@ put (s string) into (fileAccess File) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
-post(x contact) : builtin "post_contact"
-put(x contact) : builtin "post_contact"
-delete(x contact) : builtin "post_contact"
-get(x ref) from (y contact) : builtin "get_from_contact"
+post(x external) : builtin "post_external"
+put(x external) : builtin "post_external"
+delete(x external) : builtin "post_external"
+get(x ref) from (y external) : builtin "get_from_external"
 
 post(x SQL) : builtin "post_sql"
 put(x SQL) : builtin "post_sql"

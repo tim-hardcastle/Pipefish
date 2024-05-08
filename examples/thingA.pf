@@ -3,6 +3,6 @@ def
 foo(x int) :
     2 * x
 
-types 
+newtype
 
 Zort = struct(i int)

@@ -1,4 +1,4 @@
-types
+newtype
 
 HubResponse = struct(responseName string, vals list)
 

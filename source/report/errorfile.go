@@ -544,37 +544,37 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"eval/contact/": {
+	"eval/external/": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't evaluate " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You have used '|...|' to embed a piece of Pipefish into a call to a contact service, " +
+			return "You have used '|...|' to embed a piece of Pipefish into a call to a external service, " +
 				"this snippet being evaluated by the calling service. In this case, however, the calling service was unable " +
 				"even to parse the code: it is syntactically incorrect."
 		},
 	},
 
-	"eval/contact/response": {
+	"eval/external/response": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "called service didn't post to output"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When you use 'get' to get a value from a contact service, the contact service must 'post' something to 'Output()' in response."
+			return "When you use 'get' to get a value from a external service, the external service must 'post' something to 'Output()' in response."
 		},
 	},
 
-	"eval/contact/return": {
+	"eval/external/return": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "called service didn't post to output"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When you use 'post', 'put', or 'delete' to get a value from a contact service, the contact service mustn't 'post' anything to 'Output()' in response, " +
+			return "When you use 'post', 'put', or 'delete' to get a value from a external service, the external service mustn't 'post' anything to 'Output()' in response, " +
 				"but only emit a Successful values.Value (the little green 'ok')."
 		},
 	},
 
-	"eval/contact/service": {
+	"eval/external/service": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "service " + emph(args[0].(string)) + "doesn't exist"
 		},
@@ -1559,12 +1559,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/contacts/assign": {
+	"init/external/assign": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempt to declare a variable or constant in the 'contacts' section"
+			return "attempt to declare a variable or constant in the 'external' section"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
+			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
@@ -1573,7 +1573,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
+			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
 		},
 	},
 
@@ -1582,43 +1582,43 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
+			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
 		},
 	},
 
-	"init/contacts/form": {
+	"init/external/form": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'contacts' section"
+			return "malformed entry in 'external' section"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
+			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
 		},
 	},
 
-	"init/contacts/ident": {
+	"init/external/ident": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'contacts' section"
+			return "malformed entry in 'external' section"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
+			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
-	"init/contacts/infix": {
+	"init/external/infix": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'contacts' section"
+			return "malformed entry in 'external' section"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
+			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
-	"init/contacts/string": {
+	"init/external/string": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'contacts' section"
+			return "malformed entry in 'external' section"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'contacts' section should consist either of a string representing a filepath, or of an expression of the form "<file path>" -> <service name>.`
+			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form "<file path>" -> <service name>.`
 		},
 	},
 

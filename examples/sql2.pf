@@ -1,4 +1,4 @@
-types
+newtype
 
 Person = struct(name string, age int) 
 

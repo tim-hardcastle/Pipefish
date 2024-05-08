@@ -38,7 +38,7 @@ const (
 	CmdSection
 	DefSection
 	LanguagesSection
-	ContactsSection
+	ExternalSection
 	TypesSection
 	ConstSection
 	UndefinedSection
@@ -51,7 +51,7 @@ const (
 	enumDeclaration                            //
 	structDeclaration                          //
 	languageDeclaration                        //
-	contactDeclaration                         //
+	externalDeclaration                        //
 	abstractDeclaration                        // The fact that these things come
 	constantDeclaration                        // in this order is used in the code
 	variableDeclaration                        // and should not be changed without
@@ -64,14 +64,14 @@ const (
 )
 
 var tokenTypeToSection = map[token.TokenType]Section{
-	token.IMPORT:    ImportSection,
-	token.VAR:       VarSection,
-	token.CMD:       CmdSection,
-	token.DEF:       DefSection,
-	token.LANGUAGES: LanguagesSection,
-	token.CONTACTS:  ContactsSection,
-	token.TYPES:     TypesSection,
-	token.CONST:     ConstSection,
+	token.IMPORT:   ImportSection,
+	token.VAR:      VarSection,
+	token.CMD:      CmdSection,
+	token.DEF:      DefSection,
+	token.LANGUAGE: LanguagesSection,
+	token.EXTERNAL: ExternalSection,
+	token.NEWTYPE:  TypesSection,
+	token.CONST:    ConstSection,
 }
 
 type Initializer struct {
@@ -229,8 +229,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		}
 
 		if ((tok.Type == token.NEWLINE) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
-			tok.Type == token.GOLANG {
-			if tok.Type == token.GOLANG {
+			tok.Type == token.GOCODE {
+			if tok.Type == token.GOCODE {
 				line.Append(tok)
 			}
 			if beginCount != 0 {
@@ -259,16 +259,16 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					uP.Parser.TokenizedDeclarations[languageDeclaration] =
 						append(uP.Parser.TokenizedDeclarations[languageDeclaration], line)
 				}
-			case ContactsSection:
+			case ExternalSection:
 				if expressionIsAssignment {
-					uP.Throw("init/contacts/assign", definingToken)
+					uP.Throw("init/external/assign", definingToken)
 				} else {
-					uP.Parser.TokenizedDeclarations[contactDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[contactDeclaration], line)
+					uP.Parser.TokenizedDeclarations[externalDeclaration] =
+						append(uP.Parser.TokenizedDeclarations[externalDeclaration], line)
 				}
 			case CmdSection:
 				line.ToStart()
-				if line.Length() == 1 && line.NextToken().Type == token.GOLANG {
+				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
 					uP.Parser.TokenizedDeclarations[golangDeclaration] =
 						append(uP.Parser.TokenizedDeclarations[golangDeclaration], line)
 				} else {
@@ -314,7 +314,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				}
 			case DefSection:
 				line.ToStart()
-				if line.Length() == 1 && line.NextToken().Type == token.GOLANG {
+				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
 					uP.Parser.TokenizedDeclarations[golangDeclaration] =
 						append(uP.Parser.TokenizedDeclarations[golangDeclaration], line)
 				} else {
@@ -427,8 +427,8 @@ func (uP *Initializer) ParseTypeDefs() {
 	}
 }
 
-func (uP *Initializer) MakeLanguagesAndContacts() {
-	for kindOfDeclarationToParse := languageDeclaration; kindOfDeclarationToParse <= contactDeclaration; kindOfDeclarationToParse++ {
+func (uP *Initializer) MakeLanguagesAndExternals() {
+	for kindOfDeclarationToParse := languageDeclaration; kindOfDeclarationToParse <= externalDeclaration; kindOfDeclarationToParse++ {
 		for _, v := range uP.Parser.TokenizedDeclarations[kindOfDeclarationToParse] {
 			v.ToStart()
 			uP.Parser.TokenizedCode = v
@@ -443,7 +443,7 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					uP.Throw("init/lang/infix", parsedCode.Token)
 				}
 				if parsedCode.GetToken().Literal != "::" {
-					uP.Throw("init/contacts/infix", parsedCode.Token)
+					uP.Throw("init/external/infix", parsedCode.Token)
 				}
 				lhs := parsedCode.Args[0]
 				rhs := parsedCode.Args[2]
@@ -454,10 +454,10 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					case *ast.Identifier:
 						name = lhs.Value
 					default:
-						uP.Throw("init/contacts/ident", *lhs.GetToken())
+						uP.Throw("init/external/ident", *lhs.GetToken())
 					}
 				default:
-					uP.Throw("init/contacts/string", *lhs.GetToken())
+					uP.Throw("init/external/string", *lhs.GetToken())
 				}
 			case *ast.StringLiteral:
 				path = parsedCode.Value
@@ -469,8 +469,8 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					name = name[strings.LastIndex(name, "/")+1:]
 				}
 			default:
-				if kindOfDeclarationToParse == contactDeclaration {
-					uP.Throw("init/contacts/form", *parsedCode.GetToken())
+				if kindOfDeclarationToParse == externalDeclaration {
+					uP.Throw("init/external/form", *parsedCode.GetToken())
 				}
 				uP.Throw("init/lang/form", *parsedCode.GetToken())
 			}
@@ -481,8 +481,8 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 					uP.Parser.Languages = append(uP.Parser.Languages, name)
 
 				} else {
-					ty = "contact"
-					uP.Parser.Contacts[name] = path
+					ty = "external"
+					uP.Parser.Externals[name] = path
 				}
 				uP.Parser.TypeSystem.AddTransitiveArrow(name, ty)
 				uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
@@ -580,7 +580,7 @@ func (uP *Initializer) MakeFunctions(sourceName string) *service.GoHandler {
 				uP.Throw("init/overload", token.Token{}, functionName)
 				return nil
 			}
-			if body.GetToken().Type == token.GOLANG {
+			if body.GetToken().Type == token.GOCODE {
 				body.(*ast.GolangExpression).Raw = []bool{}
 				for i, v := range sig {
 					body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,

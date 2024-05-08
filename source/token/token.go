@@ -8,20 +8,20 @@ const (
 	EVAL   = "eval"
 	GIVEN  = "given"
 	GLOBAL = "global"
-	GOLANG = "gocode"
+	GOCODE = "gocode"
 	LOOP   = "loop"
 	TRY    = "try"
 
 	// Headwords
-	IMPORT    = "import"
-	VAR       = "var"
-	CMD       = "cmd"
-	DEF       = "def"
-	PRIVATE   = "private"
-	LANGUAGES = "languages"
-	CONTACTS  = "contacts"
-	CONST     = "const"
-	TYPES     = "types"
+	IMPORT   = "import"
+	VAR      = "var"
+	CMD      = "cmd"
+	DEF      = "def"
+	PRIVATE  = "private"
+	LANGUAGE = "language"
+	EXTERNAL = "external"
+	CONST    = "const"
+	NEWTYPE  = "newtype"
 
 	// Special operations
 	AND = "and"
@@ -99,21 +99,21 @@ var keywords = map[string]TokenType{
 	"else":   ELSE,
 	"eval":   EVAL,
 	"given":  GIVEN,
-	"gocode": GOLANG,
+	"gocode": GOCODE,
 	"global": GLOBAL,
 	"loop":   LOOP,
 	"try":    TRY,
 
 	// Headwords.
-	"const":     CONST,
-	"contacts":  CONTACTS,
-	"cmd":       CMD,
-	"def":       DEF,
-	"import":    IMPORT,
-	"languages": LANGUAGES,
-	"private":   PRIVATE,
-	"types":     TYPES,
-	"var":       VAR,
+	"const":    CONST,
+	"external": EXTERNAL,
+	"cmd":      CMD,
+	"def":      DEF,
+	"import":   IMPORT,
+	"language": LANGUAGE,
+	"private":  PRIVATE,
+	"newtype":  NEWTYPE,
+	"var":      VAR,
 
 	//Special operators.
 	"and": AND,
@@ -139,5 +139,5 @@ func LookupIdent(ident string) TokenType {
 }
 
 func TokenTypeIsHeadword(t TokenType) bool {
-	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANGUAGES || t == CONTACTS || t == TYPES || t == CONST
+	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == LANGUAGE || t == EXTERNAL || t == NEWTYPE || t == CONST
 }

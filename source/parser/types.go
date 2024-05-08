@@ -34,11 +34,11 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("null", "field?")
 	T.AddTransitiveArrow("null", "struct?")
 	T.AddTransitiveArrow("language", "snippet")
-	T.AddTransitiveArrow("contact", "snippet")
+	T.AddTransitiveArrow("external", "snippet")
 	T.AddTransitiveArrow("snippet", "snippet?")
 	T.AddTransitiveArrow("null", "snippet?")
 	T.AddTransitiveArrow("null", "language?")
-	T.AddTransitiveArrow("null", "contact?")
+	T.AddTransitiveArrow("null", "external?")
 	T.AddTransitiveArrow("snippet", "struct")
 	T.AddTransitiveArrow("outer function", "func")
 

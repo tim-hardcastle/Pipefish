@@ -176,7 +176,7 @@ func (l *Lexer) NextToken() token.Token {
 		lit := l.readIdentifier()
 		tType := token.LookupIdent(lit)
 		switch tType {
-		case token.GOLANG:
+		case token.GOCODE:
 			text := l.readGolang()
 			return l.NewToken(tType, text)
 		case token.EMDASH:

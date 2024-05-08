@@ -10,7 +10,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 
 	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
 	INT_ARRAY                               // V is an array of Golang integers.
-	SNIPPET_DATA                            // V is ContactData or SQLData
+	SNIPPET_DATA                            // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
 	THUNK                                   // Contains what we need to evaluate inner variables.
 	CREATED_LOCAL_CONSTANT                  // Returned by the compiler in the typeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                      // For when we have to return a type, but what we have is a compile time error.

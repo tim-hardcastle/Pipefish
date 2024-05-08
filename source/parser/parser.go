@@ -137,7 +137,7 @@ type Parser struct {
 	TypeSystem       TypeSystem
 	Structs          dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]ast.Signature // <--- in here.
-	Contacts         map[string]string
+	Externals        map[string]string
 	Languages        []string
 	GoImports        map[string][]string
 	NamespaceBranch  map[string]*ParserData
@@ -173,7 +173,7 @@ func New() *Parser {
 		Structs:          make(dtypes.Set[string]),
 		GoImports:        make(map[string][]string),
 		NamespaceBranch:  make(map[string]*ParserData),
-		Contacts:         make(map[string]string),
+		Externals:        make(map[string]string),
 	}
 
 	for k := range *p.TypeSystem {
@@ -275,7 +275,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseListExpression()
 	case token.TRY:
 		leftExp = p.parseTryExpression()
-	case token.GOLANG:
+	case token.GOCODE:
 		leftExp = p.parseGolangExpression()
 	case token.PRELOG:
 		leftExp = p.parsePrelogExpression()

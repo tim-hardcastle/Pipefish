@@ -297,7 +297,7 @@ foo = "walrus"
 ***
 headwords
 
-Pipefish's headwords are 'def', 'cmd', 'var', 'import', 'contacts' and 'languages'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
+Pipefish's headwords are 'def', 'cmd', 'var', 'import', 's' and 'languages'. What makes them “headwords” is that after one occurs it has scope until another headword (or the end of the script) without needing any braces or parentheses or indentation to establish this.
 
 A headword my occur more than once in the script, with the exception of 'import', which, if it occurs, must do so only once, at the top.
 

@@ -28,7 +28,7 @@ type Vm struct {
 
 	StructResolve    StructResolver
 	Ub_enums         values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs         values.ValueType // (Exclusive) upper bound of the languages. Everything above this is a contact.
+	Ub_langs         values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
 	Lb_snippets      values.ValueType // (Inclusive) lower bound of the snippets.
 	TypeNames        []string
 	StructLabels     [][]int // Array from a struct to its label numbers.
@@ -92,7 +92,7 @@ type SnippetFactory struct {
 
 // A grouping of all the things a snippet from a given snippet factory have in common.
 type SnippetBindle struct {
-	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, a contact, SQL, or HTML.
+	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, an external service, SQL, or HTML.
 	varLocsStart        uint32              // Destination of the environment slice.
 	sourceLocs          []uint32            // Locations of the environment slice.
 	codeLoc             uint32              // Where to find the code to compute the object string and the values.
@@ -672,7 +672,7 @@ loop:
 				println("Object string", objectString)
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 				// vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
-			case CONTACT_SNIPPET:
+			case EXTERNAL_SNIPPET:
 				panic("Not done that yet!")
 			}
 		case Qabt:

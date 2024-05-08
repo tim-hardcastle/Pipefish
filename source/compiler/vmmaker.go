@@ -53,7 +53,7 @@ func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compi
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode)
-			uP.Throw("vmm/source", token.Token{Source: "linking"}, scriptFilepath)
+			uP.Throw("vmm/source/a", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
 	}
@@ -61,7 +61,12 @@ func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compi
 	vmm.Make(mc, scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if scriptFilepath != "" {
-		file, _ := os.Stat(scriptFilepath)
+		file, err := os.Stat(scriptFilepath)
+		if err != nil {
+			uP := NewInitializer(scriptFilepath, sourcecode)
+			uP.Throw("vmm/source/b", token.Token{Source: "linking"}, scriptFilepath)
+			return nil, uP
+		}
 		vmm.cp.Timestamp = file.ModTime().UnixMilli()
 	}
 	return vmm.cp, vmm.uP
@@ -157,7 +162,7 @@ func (vmm *VmMaker) Make(mc *service.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.uP.MakeLanguagesAndContacts()
+	vmm.uP.MakeLanguagesAndExternals()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -175,7 +180,7 @@ func (vmm *VmMaker) Make(mc *service.Vm, scriptFilepath, sourcecode string) {
 
 	vmm.createAbstractTypes(mc)
 
-	vmm.createLanguagesAndContacts(mc)
+	vmm.createLanguagesAndExternals(mc)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -211,7 +216,7 @@ func (vmm *VmMaker) Make(mc *service.Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// We add in constructors for the structs, languages, and contacts.
+	// We add in constructors for the structs, languages, and externals.
 	vmm.makeConstructors(mc)
 
 	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
@@ -260,7 +265,7 @@ func (vmm *VmMaker) MakeGoMods(mc *service.Vm, goHandler *service.GoHandler) {
 	}
 	for functionName, fns := range uP.Parser.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
-			if v.Body.GetToken().Type == token.GOLANG {
+			if v.Body.GetToken().Type == token.GOCODE {
 				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
 			}
 		}
@@ -447,18 +452,18 @@ func (vmm *VmMaker) createAbstractTypes(mc *service.Vm) {
 	}
 }
 
-func (vmm *VmMaker) createLanguagesAndContacts(mc *service.Vm) {
+func (vmm *VmMaker) createLanguagesAndExternals(mc *service.Vm) {
 	mc.Lb_snippets = values.ValueType(len(mc.TypeNames))
 	for _, name := range vmm.cp.P.Languages {
-		vmm.addLanguageOrContact(mc, name, false)
+		vmm.addLanguageOrExternal(mc, name, false)
 	}
 	mc.Ub_langs = values.ValueType(len(mc.TypeNames))
-	for name := range vmm.cp.P.Contacts {
-		vmm.addLanguageOrContact(mc, name, true)
+	for name := range vmm.cp.P.Externals {
+		vmm.addLanguageOrExternal(mc, name, true)
 	}
 }
 
-func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string, isContact bool) {
+func (vmm *VmMaker) addLanguageOrExternal(mc *service.Vm, name string, isExternal bool) {
 
 	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 
@@ -470,9 +475,9 @@ func (vmm *VmMaker) addLanguageOrContact(mc *service.Vm, name string, isContact 
 	vmm.cp.TypeNameToTypeList["struct?"] = vmm.cp.TypeNameToTypeList["struct?"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList["snippet"] = vmm.cp.TypeNameToTypeList["snippet"].Union(altType(typeNo))
 	vmm.cp.TypeNameToTypeList["snippet?"] = vmm.cp.TypeNameToTypeList["snippet?"].Union(altType(typeNo))
-	if isContact {
-		vmm.cp.TypeNameToTypeList["contact"] = vmm.cp.TypeNameToTypeList["contact"].Union(altType(typeNo))
-		vmm.cp.TypeNameToTypeList["contact?"] = vmm.cp.TypeNameToTypeList["contact?"].Union(altType(typeNo))
+	if isExternal {
+		vmm.cp.TypeNameToTypeList["external"] = vmm.cp.TypeNameToTypeList["external"].Union(altType(typeNo))
+		vmm.cp.TypeNameToTypeList["external?"] = vmm.cp.TypeNameToTypeList["external?"].Union(altType(typeNo))
 	}
 	vmm.cp.TypeNameToTypeList[name] = altType(typeNo)
 	vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
@@ -514,7 +519,7 @@ func (vmm *VmMaker) makeConstructors(mc *service.Vm) {
 	for _, name := range vmm.cp.P.Languages {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
 	}
-	for name := range vmm.cp.P.Contacts {
+	for name := range vmm.cp.P.Externals {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
 	}
 }
@@ -600,7 +605,7 @@ func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *ser
 				cpF.Types = altType(structNo)
 			}
 		}
-	case token.GOLANG:
+	case token.GOCODE:
 		cpF.GoNumber = uint32(len(mc.GoFns))
 		cpF.HasGo = true
 		mc.GoFns = append(mc.GoFns, service.GoFn{body.(*ast.GolangExpression).ObjectCode,
