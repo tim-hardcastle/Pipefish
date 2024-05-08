@@ -31,12 +31,21 @@ type operands []operandType
 type Opcode uint8
 
 func (op *Operation) ppOperand(i int) string {
+	// If we're calling this, the OPERANDS table shows that the operation ought to have an i-dx operand.
+	//
 	opType := OPERANDS[op.Opcode].or[i]
 	if i >= len(op.Args) {
 		if opType == tup {
 			return " ()"
 		}
-		panic("Not enough operands for " + OPERANDS[op.Opcode].oc)
+		println("Not enough operands supplied to " + OPERANDS[op.Opcode].oc + "; was expecting " + strconv.Itoa(len(OPERANDS[op.Opcode].or)) + " but got " + strconv.Itoa(len(op.Args)) + ".")
+		argStr := "Args were:"
+		for j := range op.Args {
+			argStr = argStr + " " + op.ppOperand(j)
+		}
+		argStr = argStr + "."
+		println(argStr)
+		panic("That's all folks!")
 	}
 	opVal := strconv.Itoa(int(op.Args[i]))
 	switch opType {
@@ -170,6 +179,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
+	Qnvh: {"qnvh", operands{mem, num, loc}},
+	Qnvq: {"qnvq", operands{mem, num, loc}},
 	Qsat: {"qsat", operands{mem, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
 	Qsnq: {"qsnq", operands{mem, loc}},
@@ -180,6 +191,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Qvch: {"qvch", operands{mem, num, loc}},
+	Qvcq: {"qvcq", operands{mem, num, loc}},
 	Ret:  {"ret", operands{}},
 	SliL: {"sliL", operands{dst, mem, mem, mem}}, // Third operand is error.
 	Slis: {"slis", operands{dst, mem, mem, mem}}, //
@@ -317,7 +329,10 @@ const (
 	Qstq
 	Qtru
 	Qtyp
+	Qnvq
+	Qnvh
 	Qvch
+	Qvcq
 	Ret
 	SliL
 	Slis

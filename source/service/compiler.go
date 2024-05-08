@@ -1020,7 +1020,15 @@ NodeTypeSwitch:
 		break
 	case *ast.TypeLiteral:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
-		cp.Reserve(mc, values.TYPE, (resolvingCompiler.TypeNameToTypeList[node.Value]).ToAbstractType())
+		typeName := node.Value
+		switch { // We special-case it a bit because otherwise a string would look like a varchar(0).
+		case typeName == "string":
+			cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY})
+		case typeName == "string?":
+			cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY})
+		default:
+			cp.Reserve(mc, values.TYPE, (resolvingCompiler.TypeNameToTypeList[typeName]).ToAbstractType())
+		}
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
@@ -1235,7 +1243,9 @@ func (t AlternateType) mustBeSingleOrTuple() (bool, bool) {
 	return s, T
 }
 
-// The compiler in the method reeiver is where we look up the function name. The arguments need to be compiled in their own namespace by the argCompiler.
+// The compiler in the method receiver is where we look up the function name (the "resolving compiler").
+// The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
+// use them to look up the function.
 func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.Callable, env *Environment, ac Access) (AlternateType, bool) {
 	args := node.GetArgs()
 	if len(args) == 1 {
@@ -1417,7 +1427,18 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 		return AltType(values.ERROR)
 	}
 	branch := b.treePosition.Branch[b.branchNo]
-	acceptedTypes := cp.TypeNameToTypeList[branch.TypeName]
+	var acceptedTypes AlternateType
+	typeName := branch.TypeName
+	isVarchar := len(typeName) >= 8 && typeName[0:8] == "varchar("
+	if isVarchar {
+		if typeName[len(typeName)-1] == '?' {
+			acceptedTypes = cp.TypeNameToTypeList["string?"]
+		} else {
+			acceptedTypes = cp.TypeNameToTypeList["string"]
+		}
+	} else {
+		acceptedTypes = cp.TypeNameToTypeList[branch.TypeName]
+	}
 	overlap := acceptedTypes.intersect(b.targetList)
 	if len(overlap) == 0 { // We drew a blank.
 		return cp.generateNextBranchDown(mc, b)
@@ -1436,8 +1457,15 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 			}
 		}
 	}
+
 	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve single values,
 	// whereas the length of doneList tells us whether we need to recurse on the next branch or not.
+
+	// We may have found a match because any string is a match for a varchar at this point. In that case we do need to do a type check on the length and
+	// conditionally continue to the next branch. We can kludge this by taking STRING out of the doneList of the bindle.
+	if isVarchar {
+		newBindle.doneList = newBindle.doneList.without(simpleType(values.STRING))
+	}
 
 	needsOtherBranch := len(newBindle.doneList) != len(newBindle.targetList)
 	branchBacktrack := mc.CodeTop()
@@ -1457,7 +1485,10 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 			cp.emitTypeComparison(mc, branch.TypeName, mc.That(), DUMMY)
 		}
 	}
-	// Now we're in the 'if' part of the 'if-else'. We can recurse along the branch.
+	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
+	// a type match, or we're inside a conditional that has checked for one.
+
+	// Now we can recurse along the branch.
 	// If we know whether we're looking at a single or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
 	var typesFromGoingAcross, typesFromGoingDown AlternateType
 	switch len(acceptedSingleTypes) {
@@ -1506,6 +1537,18 @@ var TYPE_COMPARISONS = map[string]Opcode{
 }
 
 func (cp *Compiler) emitTypeComparison(mc *Vm, typeAsString string, mem, loc uint32) {
+	// We may have a 'varchar'.
+	if len(typeAsString) >= 8 && typeAsString[0:8] == "varchar(" {
+		if typeAsString[len(typeAsString)-1] == '?' {
+			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-2])
+			cp.Emit(mc, Qvcq, mem, uint32(vChar), loc)
+			return
+		} else {
+			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-1])
+			cp.Emit(mc, Qvch, mem, uint32(vChar), loc)
+			return
+		}
+	}
 	// It may be a plain old concrete type.
 	ty := cp.TypeNameToTypeList[typeAsString]
 	if len(ty) == 1 {

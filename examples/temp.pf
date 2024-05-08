@@ -1,16 +1,10 @@
-var
-
-z = 69
-
-w = 78
-
-cmd
-
-zort(x int) :
-    post HTML --- foo |x + 1| bar
-
 def
 
-(x int) merp :
-    2 * x
+blurp (x varchar(10)) :
+    x + " is a short string"
 
+blurp (x varchar(20)) :
+    x + " is a longer string"
+
+blurp (x string) :
+    x + " is a much longer string"

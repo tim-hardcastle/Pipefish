@@ -146,3 +146,10 @@ get(x ref) from (y SQL) : builtin "get_from_SQL"
 
 post(x HTML) : builtin "post_html"
 
+// This is strictly speaking not part of the "world" at all but it has to go somewhere and for reasons
+// beyond me (TODO) I can no longer define ordinary functions in builtins.pf, just the builtin hooks.
+
+def
+
+(x type) ? :
+    x/null

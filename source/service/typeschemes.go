@@ -131,7 +131,7 @@ func (aT AlternateType) ToAbstractType() values.AbstractType {
 	for _, v := range aT {
 		result = append(result, values.ValueType(v.(simpleType)))
 	}
-	return values.AbstractType{result, DUMMY}
+	return values.AbstractType{result, 0}
 }
 
 func (vL AlternateType) intersect(wL AlternateType) AlternateType {

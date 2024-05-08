@@ -2597,6 +2597,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Only concrete subtypes of 'struct' can be converted to the signature of a SQL table."
 		},
 	},
+
+	"vm/varchar": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "varchar limit exceeded"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The function you are trying to pass the string to has a parameter with a varchar type which restricts how long " +
+				"a string you can pass to it, and you have exceeded that limit."
+		},
+	},
 }
 
 func blame(errors Errors, pos int, args ...string) string {

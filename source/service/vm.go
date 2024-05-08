@@ -721,6 +721,20 @@ loop:
 				loc = args[2]
 			}
 			continue
+		case Qnvh:
+			if vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1]) {
+				loc = args[2]
+			} else {
+				loc = loc + 1
+			}
+			continue
+		case Qnvq:
+			if vm.Mem[args[0]].T == values.NULL || (vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1])) {
+				loc = args[2]
+			} else {
+				loc = loc + 1
+			}
+			continue
 		case Qsat:
 			if vm.Mem[args[0]].T != values.UNSAT {
 				loc = loc + 1
@@ -786,6 +800,13 @@ loop:
 			continue
 		case Qvch:
 			if vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
+			continue
+		case Qvcq:
+			if vm.Mem[args[0]].T == values.NULL || (vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1])) {
 				loc = loc + 1
 			} else {
 				loc = args[2]

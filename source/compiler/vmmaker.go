@@ -567,7 +567,16 @@ func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *ser
 			vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.REFERENCE_VARIABLE, vmm.cp.TypeNameToTypeList[pair.VarType])
 			continue
 		}
-		vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
+		typeName := pair.VarType
+		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
+			if typeName[len(typeName)-1] == '?' {
+				vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string?"]) // TODO --- need to attach varchar to variables.
+			} else {
+				vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string"])
+			}
+		} else {
+			vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
+		}
 	}
 	cpF.HiReg = mc.MemTop()
 	cpF.CallTo = mc.CodeTop()
