@@ -883,6 +883,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	}
 
 	hub.services[name] = newService
+	hub.services[name].Mc.OwnService = newService
 	hub.Sources = init.Sources
 
 	if init.ErrorsExist() {

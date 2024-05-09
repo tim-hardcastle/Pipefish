@@ -32,6 +32,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"int_of_string":     {(*Compiler).btIntOfString, AltType(values.ERROR, values.INT)},
 	"keys_of_map":       {(*Compiler).btKeysOfMap, AltType(values.LIST)},
 	"keys_of_struct":    {(*Compiler).btKeysOfStruct, AltType(values.LIST)},
+	"label_of_string":   {(*Compiler).btLabelOfString, AltType(values.LABEL)},
 	"len_list":          {(*Compiler).btLenList, AltType(values.INT)},
 	"len_map":           {(*Compiler).btLenMap, AltType(values.INT)},
 	"len_set":           {(*Compiler).btLenSet, AltType(values.INT)},
@@ -172,6 +173,11 @@ func (cp *Compiler) btKeysOfMap(mc *Vm, tok *token.Token, dest uint32, args []ui
 
 func (cp *Compiler) btKeysOfStruct(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(mc, KeyZ, dest, args[0])
+}
+
+func (cp *Compiler) btLabelOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+	cp.reserveError(mc, "built/with/struct", tok, []any{})
+	cp.Emit(mc, Lbls, dest, args[0], mc.That())
 }
 
 func (cp *Compiler) btLenList(mc *Vm, tok *token.Token, dest uint32, args []uint32) {

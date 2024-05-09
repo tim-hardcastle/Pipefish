@@ -147,6 +147,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Jsr:  {"jsr", operands{loc}},
 	KeyM: {"keyM", operands{dst, mem}},
 	KeyZ: {"keyZ", operands{dst, mem}},
+	Lbls: {"lbls", operands{dst, mem, mem}}, // Last operand is error.
 	LenL: {"lenL", operands{dst, mem}},
 	LenM: {"lenM", operands{dst, mem}},
 	Lens: {"lens", operands{dst, mem}},
@@ -288,6 +289,7 @@ const (
 	Jsr
 	KeyM
 	KeyZ
+	Lbls
 	LenL
 	Lens
 	LenM

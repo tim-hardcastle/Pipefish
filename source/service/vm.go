@@ -42,6 +42,7 @@ type Vm struct {
 	IoHandle         IoHandler
 	Database         *sql.DB
 	AbstractTypes    []values.NameAbstractTypePair
+	OwnService       *VmService // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -528,6 +529,14 @@ loop:
 				result = result.Conj(values.Value{values.LABEL, labelNumber})
 			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
+		case Lbls:
+			stringToConvert := vm.Mem[args[1]].V.(string)
+			labelNo, ok := vm.OwnService.Cp.FieldLabelsInMem[stringToConvert]
+			if ok {
+				vm.Mem[args[0]] = vm.Mem[labelNo]
+			} else {
+				vm.Mem[args[0]] = vm.Mem[args[2]]
+			}
 		case LenL:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(vector.Vector).Len()}
 		case LenM:
