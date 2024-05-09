@@ -13,7 +13,7 @@
 // parse tokens into ASTs. We apply one to the other and produce ASTs from our
 // tokenized code.
 
-package compiler
+package service
 
 import (
 	"bufio"
@@ -25,7 +25,6 @@ import (
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/report"
-	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/token"
 )
@@ -560,9 +559,9 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 // implementing overloading.
 //
 // We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (uP *Initializer) MakeFunctions(sourceName string) *service.GoHandler {
+func (uP *Initializer) MakeFunctions(sourceName string) *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := service.NewGoHandler(uP.Parser)
+	goHandler := NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])

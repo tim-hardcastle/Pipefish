@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 
-	"pipefish/source/compiler"
 	"pipefish/source/database"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
@@ -874,13 +873,13 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	}
 	var (
 		newService *service.VmService
-		init       *compiler.Initializer
+		init       *service.Initializer
 	)
 	if scriptFilepath == "" {
-		newService, init = compiler.StartService("", "", hub.Db)
+		newService, init = service.StartService("", "", hub.Db)
 	} else {
 		sourcecode, _ := os.ReadFile(scriptFilepath)
-		newService, init = compiler.StartService(scriptFilepath, string(sourcecode), hub.Db)
+		newService, init = service.StartService(scriptFilepath, string(sourcecode), hub.Db)
 	}
 
 	hub.services[name] = newService

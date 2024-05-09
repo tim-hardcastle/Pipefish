@@ -1,11 +1,10 @@
-package compiler
+package service
 
 import (
 	"os"
 	"pipefish/source/ast"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
-	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -18,17 +17,17 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the mc.
 
 type VmMaker struct {
-	cp             *service.Compiler
+	cp             *Compiler
 	uP             *Initializer
 	scriptFilepath string
 	goToPf         map[string]func(any) (uint32, []any, bool)
 	pfToGo         map[string]func(uint32, []any) any
 }
 
-func NewVmMaker(scriptFilepath, sourcecode string, mc *service.Vm) *VmMaker {
+func NewVmMaker(scriptFilepath, sourcecode string, mc *Vm) *VmMaker {
 	uP := NewInitializer(scriptFilepath, sourcecode)
 	vmm := &VmMaker{
-		cp: service.NewCompiler(uP.Parser),
+		cp: NewCompiler(uP.Parser),
 		uP: uP,
 	}
 	vmm.scriptFilepath = scriptFilepath
@@ -37,16 +36,16 @@ func NewVmMaker(scriptFilepath, sourcecode string, mc *service.Vm) *VmMaker {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*service.VmService, *Initializer) {
-	mc := service.BlankVm(db)
+func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*VmService, *Initializer) {
+	mc := BlankVm(db)
 	cp, uP := initializeEverything(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	return &service.VmService{Mc: mc, Cp: cp}, uP
+	return &VmService{Mc: mc, Cp: cp}, uP
 }
 
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
-func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compiler, *Initializer) {
+func initializeEverything(mc *Vm, scriptFilepath string) (*Compiler, *Initializer) {
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		sourcebytes, err := os.ReadFile(scriptFilepath)
@@ -72,7 +71,7 @@ func initializeEverything(mc *service.Vm, scriptFilepath string) (*service.Compi
 	return vmm.cp, vmm.uP
 }
 
-func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *service.Vm) []string {
+func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *Vm) []string {
 	uP := vmm.uP
 	unnamespacedImports := []string{}
 	for _, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
@@ -120,15 +119,15 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 		}
 		if newUP.ErrorsExist() {
 			uP.Parser.Errors = append(uP.Parser.Errors, newUP.Parser.Errors...)
-			vmm.cp.Imports[namespace] = &service.VmService{mc, newCp, true, false}
+			vmm.cp.Imports[namespace] = &VmService{mc, newCp, true, false}
 		} else {
-			vmm.cp.Imports[namespace] = &service.VmService{mc, newCp, false, false}
+			vmm.cp.Imports[namespace] = &VmService{mc, newCp, false, false}
 		}
 	}
 	return unnamespacedImports
 }
 
-func (vmm *VmMaker) Make(mc *service.Vm, scriptFilepath, sourcecode string) {
+func (vmm *VmMaker) Make(mc *Vm, scriptFilepath, sourcecode string) {
 	if !settings.OMIT_BUILTINS {
 		vmm.uP.AddToNameSpace(settings.MandatoryImports)
 	}
@@ -243,7 +242,7 @@ func (vmm *VmMaker) Make(mc *service.Vm, scriptFilepath, sourcecode string) {
 	}
 }
 
-func (vmm *VmMaker) MakeGoMods(mc *service.Vm, goHandler *service.GoHandler) {
+func (vmm *VmMaker) MakeGoMods(mc *Vm, goHandler *GoHandler) {
 	uP := vmm.uP
 	for source, _ := range goHandler.Modules {
 		goHandler.TypeDeclarations[source] = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler, source)
@@ -273,7 +272,7 @@ func (vmm *VmMaker) MakeGoMods(mc *service.Vm, goHandler *service.GoHandler) {
 	goHandler.CleanUp()
 }
 
-func (vmm *VmMaker) compileFunctions(mc *service.Vm, args ...declarationType) {
+func (vmm *VmMaker) compileFunctions(mc *Vm, args ...declarationType) {
 	for _, j := range args {
 		for i := 0; i < len(vmm.cp.P.ParsedDeclarations[j]); i++ {
 			vmm.compileFunction(mc, vmm.cp.P.ParsedDeclarations[j][i], vmm.cp.GlobalConsts, j)
@@ -281,16 +280,16 @@ func (vmm *VmMaker) compileFunctions(mc *service.Vm, args ...declarationType) {
 	}
 }
 
-func (vmm *VmMaker) compileImports(mc *service.Vm) {
+func (vmm *VmMaker) compileImports(mc *Vm) {
 	for namespace, lib := range vmm.cp.P.NamespaceBranch {
 		newCp, _ := initializeEverything(mc, lib.ScriptFilepath)
-		vmm.cp.Imports[namespace] = &service.VmService{Cp: newCp, Mc: mc}
+		vmm.cp.Imports[namespace] = &VmService{Cp: newCp, Mc: mc}
 	}
 }
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
-func (vmm *VmMaker) createEnums(mc *service.Vm) {
+func (vmm *VmMaker) createEnums(mc *Vm) {
 	for chunk, tokens := range vmm.uP.Parser.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
@@ -313,9 +312,9 @@ func (vmm *VmMaker) createEnums(mc *service.Vm) {
 		vmm.cp.TypeNameToTypeList[tok1.Literal+"?"] = altType(values.NULL, typeNo)
 		mc.Enums = append(mc.Enums, []string{})
 		vmm.cp.AnyTypeScheme = vmm.cp.AnyTypeScheme.Union(altType(typeNo))
-		// We are now going to assume that the last element of anyType is a service.TypedTupleType and add the new enum type accordingly.
-		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(service.TypedTupleType)
-		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = service.TypedTupleType{(lastType.T).Union(altType(typeNo))}
+		// We are now going to assume that the last element of anyType is a TypedTupleType and add the new enum type accordingly.
+		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
+		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = TypedTupleType{(lastType.T).Union(altType(typeNo))}
 
 		mc.Ub_enums++
 
@@ -341,7 +340,7 @@ func (vmm *VmMaker) createEnums(mc *service.Vm) {
 	}
 }
 
-func (vmm *VmMaker) createStructs(mc *service.Vm) {
+func (vmm *VmMaker) createStructs(mc *Vm) {
 	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		if lhs.GetToken().Type != token.IDENT {
@@ -366,9 +365,9 @@ func (vmm *VmMaker) createStructs(mc *service.Vm) {
 		vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
 		vmm.cp.AnyTypeScheme = vmm.cp.AnyTypeScheme.Union(altType(typeNo))
-		// We are now going to assume that the last element of anyType is a service.TypedTupleType and add the new struct type accordingly.
-		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(service.TypedTupleType)
-		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = service.TypedTupleType{(lastType.T).Union(altType(typeNo))}
+		// We are now going to assume that the last element of anyType is a TypedTupleType and add the new struct type accordingly.
+		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
+		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = TypedTupleType{(lastType.T).Union(altType(typeNo))}
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
@@ -378,7 +377,7 @@ func (vmm *VmMaker) createStructs(mc *service.Vm) {
 		// We make the labels exist.
 
 		labelsForStruct := make([]int, 0, len(sig))
-		typesForStruct := make([]service.AlternateType, 0, len(sig))
+		typesForStruct := make([]AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
 			labelName := labelNameAndType.VarName
@@ -402,7 +401,7 @@ func (vmm *VmMaker) createStructs(mc *service.Vm) {
 	}
 }
 
-func (vmm *VmMaker) createAbstractTypes(mc *service.Vm) {
+func (vmm *VmMaker) createAbstractTypes(mc *Vm) {
 	for _, tcc := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
@@ -452,7 +451,7 @@ func (vmm *VmMaker) createAbstractTypes(mc *service.Vm) {
 	}
 }
 
-func (vmm *VmMaker) createLanguagesAndExternals(mc *service.Vm) {
+func (vmm *VmMaker) createLanguagesAndExternals(mc *Vm) {
 	mc.Lb_snippets = values.ValueType(len(mc.TypeNames))
 	for _, name := range vmm.cp.P.Languages {
 		vmm.addLanguageOrExternal(mc, name, false)
@@ -463,7 +462,7 @@ func (vmm *VmMaker) createLanguagesAndExternals(mc *service.Vm) {
 	}
 }
 
-func (vmm *VmMaker) addLanguageOrExternal(mc *service.Vm, name string, isExternal bool) {
+func (vmm *VmMaker) addLanguageOrExternal(mc *Vm, name string, isExternal bool) {
 
 	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 
@@ -492,7 +491,7 @@ func (vmm *VmMaker) addLanguageOrExternal(mc *service.Vm, name string, isExterna
 	vmm.addStructLabelsToMc(mc, name, typeNo, sig)
 }
 
-func (vmm *VmMaker) addStructLabelsToMc(mc *service.Vm, name string, typeNo values.ValueType, sig ast.Signature) {
+func (vmm *VmMaker) addStructLabelsToMc(mc *Vm, name string, typeNo values.ValueType, sig ast.Signature) {
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
@@ -509,7 +508,7 @@ func (vmm *VmMaker) addStructLabelsToMc(mc *service.Vm, name string, typeNo valu
 	mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
 }
 
-func (vmm *VmMaker) makeConstructors(mc *service.Vm) {
+func (vmm *VmMaker) makeConstructors(mc *Vm) {
 	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
@@ -524,33 +523,33 @@ func (vmm *VmMaker) makeConstructors(mc *service.Vm) {
 	}
 }
 
-func (vmm *VmMaker) compileConstructor(mc *service.Vm, name string, sig ast.Signature) *service.CpFunc {
+func (vmm *VmMaker) compileConstructor(mc *Vm, name string, sig ast.Signature) *CpFunc {
 	typeNo := vmm.cp.StructNameToTypeNumber[name]
-	cpF := &service.CpFunc{Types: altType(typeNo), Builtin: name}
-	fnenv := service.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
+	cpF := &CpFunc{Types: altType(typeNo), Builtin: name}
+	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = mc.MemTop()
 	for _, pair := range sig {
-		vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
+		vmm.cp.AddVariable(mc, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
 	}
 	cpF.HiReg = mc.MemTop()
 	return cpF
 }
 
 // The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
-func (vmm *VmMaker) addAbstractTypesToVm(mc *service.Vm) {
+func (vmm *VmMaker) addAbstractTypesToVm(mc *Vm) {
 	nativeAbstractTypes := []string{"single", "struct", "snippet"}
 	for _, t := range nativeAbstractTypes {
 		mc.AbstractTypes = append(mc.AbstractTypes, values.NameAbstractTypePair{t, vmm.cp.TypeNameToTypeList[t].ToAbstractType()})
 	}
 }
 
-func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *service.Environment, dec declarationType) *service.CpFunc {
-	cpF := service.CpFunc{}
-	var ac service.Access
+func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, outerEnv *Environment, dec declarationType) *CpFunc {
+	cpF := CpFunc{}
+	var ac Access
 	if dec == functionDeclaration || dec == privateFunctionDeclaration {
-		ac = service.DEF
+		ac = DEF
 	} else {
-		ac = service.CMD
+		ac = CMD
 		cpF.Command = true
 	}
 	if dec == privateFunctionDeclaration || dec == privateCommandDeclaration {
@@ -566,24 +565,24 @@ func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *ser
 	if body.GetToken().Type == token.BUILTIN {
 		cpF.Builtin = body.(*ast.BuiltInExpression).Name
 	}
-	fnenv := service.NewEnvironment()
+	fnenv := NewEnvironment()
 	fnenv.Ext = outerEnv
 	cpF.LoReg = mc.MemTop()
 	for _, pair := range sig {
-		vmm.cp.Reserve(mc, values.UNDEFINED_VALUE, service.DUMMY)
+		vmm.cp.Reserve(mc, values.UNDEFINED_VALUE, DUMMY)
 		if pair.VarType == "ref" {
-			vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.REFERENCE_VARIABLE, vmm.cp.TypeNameToTypeList[pair.VarType])
+			vmm.cp.AddVariable(mc, fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.TypeNameToTypeList[pair.VarType])
 			continue
 		}
 		typeName := pair.VarType
 		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
 			if typeName[len(typeName)-1] == '?' {
-				vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string?"]) // TODO --- need to attach varchar to variables.
+				vmm.cp.AddVariable(mc, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string?"]) // TODO --- need to attach varchar to variables.
 			} else {
-				vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string"])
+				vmm.cp.AddVariable(mc, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string"])
 			}
 		} else {
-			vmm.cp.AddVariable(mc, fnenv, pair.VarName, service.FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
+			vmm.cp.AddVariable(mc, fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
 		}
 	}
 	cpF.HiReg = mc.MemTop()
@@ -591,12 +590,12 @@ func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *ser
 	if len(tupleList) > 0 {
 		cpF.TupleReg = vmm.cp.Reserve(mc, values.INT_ARRAY, tupleList)
 	} else {
-		cpF.TupleReg = service.DUMMY
+		cpF.TupleReg = DUMMY
 	}
 	switch body.GetToken().Type {
 	case token.BUILTIN:
 		name := body.(*ast.BuiltInExpression).Name
-		types, ok := service.BUILTINS[name]
+		types, ok := BUILTINS[name]
 		if ok {
 			cpF.Types = types.T
 		} else {
@@ -608,39 +607,39 @@ func (vmm *VmMaker) compileFunction(mc *service.Vm, node ast.Node, outerEnv *ser
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(mc.GoFns))
 		cpF.HasGo = true
-		mc.GoFns = append(mc.GoFns, service.GoFn{body.(*ast.GolangExpression).ObjectCode,
+		mc.GoFns = append(mc.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
 			vmm.goToPf[body.GetToken().Source], vmm.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
 	default:
 		if given != nil {
-			vmm.cp.ThunkList = []service.Thunk{}
+			vmm.cp.ThunkList = []Thunk{}
 			vmm.cp.CompileNode(mc, given, fnenv, ac)
 			cpF.CallTo = mc.CodeTop()
 			for _, pair := range vmm.cp.ThunkList {
-				vmm.cp.Emit(mc, service.Thnk, pair.MLoc, pair.CLoc)
+				vmm.cp.Emit(mc, Thnk, pair.MLoc, pair.CLoc)
 			}
 		}
 		cpF.Types, _ = vmm.cp.CompileNode(mc, body, fnenv, ac) // TODO --- could we in fact do anything useful if we knew it was a constant?
-		vmm.cp.Emit(mc, service.Ret)
+		vmm.cp.Emit(mc, Ret)
 		cpF.OutReg = mc.That()
 	}
 	vmm.cp.Fns = append(vmm.cp.Fns, &cpF)
-	if ac == service.DEF && !cpF.Types.IsLegalDefReturn() {
+	if ac == DEF && !cpF.Types.IsLegalDefReturn() {
 		vmm.cp.P.Throw("comp/return/def/a", node.GetToken())
 	}
-	if ac == service.CMD && !cpF.Types.IsLegalCmdReturn() {
+	if ac == CMD && !cpF.Types.IsLegalCmdReturn() {
 		vmm.cp.P.Throw("comp/return/cmd/a", node.GetToken())
 	}
 	return &cpF
 }
 
-func (vmm *VmMaker) evaluateConstantsAndVariables(mc *service.Vm) {
+func (vmm *VmMaker) evaluateConstantsAndVariables(mc *Vm) {
 	vmm.cp.GlobalVars.Ext = vmm.cp.GlobalConsts
 	vmm.cp.Reserve(mc, values.NULL, nil)
-	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "NULL", service.GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
+	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
 	vmm.cp.Reserve(mc, values.SUCCESSFUL_VALUE, nil)
-	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "ok", service.GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
+	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "ok", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
 	vmm.cp.Reserve(mc, values.BREAK, nil)
-	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "break", service.GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
+	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
 	vmm.cp.TupleType = vmm.cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0})
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
@@ -653,22 +652,22 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *service.Vm) {
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := mc.CodeTop()
-			inferedType, _ := vmm.cp.CompileNode(mc, rhs, vmm.cp.GlobalVars, service.INIT)
+			inferedType, _ := vmm.cp.CompileNode(mc, rhs, vmm.cp.GlobalVars, INIT)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
-			vmm.cp.Emit(mc, service.Ret)
+			vmm.cp.Emit(mc, Ret)
 			mc.Run(runFrom)
 			if declarations == int(constantDeclaration) {
-				vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, service.GLOBAL_CONSTANT_PUBLIC, inferedType)
+				vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
 			} else {
-				vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, service.GLOBAL_VARIABLE_PUBLIC, inferedType)
+				vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
 			}
 			mc.Code = mc.Code[:runFrom]
 		}
 	}
 }
 
-func altType(t ...values.ValueType) service.AlternateType {
-	return service.AltType(t...)
+func altType(t ...values.ValueType) AlternateType {
+	return AltType(t...)
 }
