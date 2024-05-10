@@ -161,7 +161,7 @@ func (vmm *VmMaker) Make(mc *Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.uP.MakeLanguagesAndExternals()
+	vmm.uP.MakeSnippets()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -220,7 +220,7 @@ func (vmm *VmMaker) Make(mc *Vm, scriptFilepath, sourcecode string) {
 
 	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
 	// compileFunction method.
-	vmm.compileFunctions(mc, functionDeclaration, privateFunctionDeclaration)
+	vmm.compileFunctions(mc, functionDeclaration)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -236,7 +236,7 @@ func (vmm *VmMaker) Make(mc *Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.compileFunctions(mc, commandDeclaration, privateCommandDeclaration)
+	vmm.compileFunctions(mc, commandDeclaration)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -256,7 +256,7 @@ func (vmm *VmMaker) MakeGoMods(mc *Vm, goHandler *GoHandler) {
 	}
 	vmm.goToPf = map[string]func(any) (uint32, []any, bool){}
 	vmm.pfToGo = map[string]func(uint32, []any) any{}
-	for source, _ := range goHandler.Modules {
+	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
 		vmm.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
@@ -275,7 +275,7 @@ func (vmm *VmMaker) MakeGoMods(mc *Vm, goHandler *GoHandler) {
 func (vmm *VmMaker) compileFunctions(mc *Vm, args ...declarationType) {
 	for _, j := range args {
 		for i := 0; i < len(vmm.cp.P.ParsedDeclarations[j]); i++ {
-			vmm.compileFunction(mc, vmm.cp.P.ParsedDeclarations[j][i], vmm.cp.GlobalConsts, j)
+			vmm.compileFunction(mc, vmm.cp.P.ParsedDeclarations[j][i], vmm.uP.isPrivate(int(j), i), vmm.cp.GlobalConsts, j)
 		}
 	}
 }
@@ -294,14 +294,12 @@ func (vmm *VmMaker) createEnums(mc *Vm) {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		tok2 := tokens.NextToken()
-		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
+		if !(tok1.Type == token.IDENT && tok2.Type == token.ASSIGN) {
 			vmm.uP.Throw("init/enum/lhs", tok1)
 		}
-
 		if parser.TypeExists(tok1.Literal, vmm.uP.Parser.TypeSystem) {
 			vmm.uP.Throw("init/enum/type", tok1)
 		}
-
 		mc.TypeNames = append(mc.TypeNames, tok1.Literal)
 		vmm.uP.Parser.Suffixes.Add(tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
@@ -410,7 +408,7 @@ func (vmm *VmMaker) createAbstractTypes(mc *Vm) {
 		}
 		newTypename := nameTok.Literal
 		eqTok := tcc.NextToken()
-		if eqTok.Type != token.DEF_ASSIGN {
+		if eqTok.Type != token.ASSIGN {
 			vmm.uP.Throw("init/type/assign", eqTok)
 		}
 		typeNames := []string{}
@@ -543,18 +541,16 @@ func (vmm *VmMaker) addAbstractTypesToVm(mc *Vm) {
 	}
 }
 
-func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, outerEnv *Environment, dec declarationType) *CpFunc {
+func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
 	cpF := CpFunc{}
 	var ac Access
-	if dec == functionDeclaration || dec == privateFunctionDeclaration {
+	if dec == functionDeclaration {
 		ac = DEF
 	} else {
 		ac = CMD
 		cpF.Command = true
 	}
-	if dec == privateFunctionDeclaration || dec == privateCommandDeclaration {
-		cpF.Private = true
-	}
+	cpF.Private = private
 	functionName, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
@@ -658,16 +654,25 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *Vm) {
 			}
 			vmm.cp.Emit(mc, Ret)
 			mc.Run(runFrom)
+			isPrivate := vmm.uP.isPrivate(declarations, v)
 			if declarations == int(constantDeclaration) {
-				vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
+				if isPrivate {
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PRIVATE, inferedType)
+				} else {
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
+				}
 			} else {
-				vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
+				if isPrivate {
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PRIVATE, inferedType)
+				} else {
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
+				}
 			}
 			mc.Code = mc.Code[:runFrom]
 		}
 	}
 }
 
-func altType(t ...values.ValueType) AlternateType {
+func altType(t ...values.ValueType) AlternateType { // TODO --- Why!?!
 	return AltType(t...)
 }

@@ -1684,7 +1684,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/head": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok) + " without a headword"
+			return "unexpected occurrence of " + text.DescribeTok(tok) + " without a headword"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish expects every part of your script to go in a section headed by one of the headwords " +
@@ -2288,7 +2288,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/ret/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
+			return "unexpected occurrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish expected your return types to the right of the '->' to be one or more types separated by " +
@@ -2298,7 +2298,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/ret/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok) + " in return types"
+			return "unexpected occurrence of " + text.DescribeTok(tok) + " in return types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish expected your return types to the right of the '->' to be one or more types separated by " +
@@ -2335,7 +2335,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/infix": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok)
+			return "unexpected occurrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
@@ -2389,7 +2389,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok)
+			return "unexpected occurrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
@@ -2399,7 +2399,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/c": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok)
+			return "unexpected occurrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
@@ -2409,7 +2409,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/sig/d": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrrence of " + text.DescribeTok(tok)
+			return "unexpected occurrence of " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish is trying to interpret this as a function or assignment signature, and " +

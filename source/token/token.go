@@ -37,13 +37,9 @@ const (
 
 	// Assignment operators
 	ASSIGN     = "="
-	CMD_ASSIGN = "=CMD="
-	DEF_ASSIGN = "=DEF="
-	GVN_ASSIGN = "=GVN="
+	GVN_ASSIGN = "=GVN=" // To store hidden data. Probably can be abolished now like the others. TODO.
 	LZY_ASSIGN = "=LZY="
-	PVR_ASSIGN = "=PVR="
-	TYP_ASSIGN = "=TYP="
-	VAR_ASSIGN = "=VAR="
+	CMD_ASSIGN = "=CMD="
 
 	// The protected punctuation.
 	COLON               = ":"

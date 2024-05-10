@@ -58,12 +58,8 @@ var precedences = map[token.TokenType]int{
 	token.LOOP:                GIVEN,
 	token.ASSIGN:              ASSIGN,
 	token.CMD_ASSIGN:          ASSIGN,
-	token.VAR_ASSIGN:          ASSIGN,
-	token.DEF_ASSIGN:          ASSIGN,
 	token.GVN_ASSIGN:          GVN_ASSIGN,
 	token.LZY_ASSIGN:          ASSIGN,
-	token.TYP_ASSIGN:          ASSIGN,
-	token.PVR_ASSIGN:          ASSIGN,
 	token.COLON:               COLON,
 	token.MAGIC_COLON:         COLON,
 	token.PIPE:                PIPING,
@@ -161,10 +157,9 @@ func New() *Parser {
 		Bling:             make(dtypes.Set[string]),
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
-			token.ASSIGN, token.DEF_ASSIGN, token.CMD_ASSIGN, token.PVR_ASSIGN,
-			token.VAR_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.TYP_ASSIGN, token.GIVEN,
-			token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAPPING, token.FILTER,
-			token.NAMESPACE_SEPARATOR, token.IFLOG}),
+			token.ASSIGN, token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN,
+			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAPPING,
+			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
@@ -239,8 +234,7 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
 var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
 	token.LPAREN, token.LBRACE, token.EVAL})
-var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.VAR_ASSIGN, token.DEF_ASSIGN,
-	token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN, token.PVR_ASSIGN, token.TYP_ASSIGN})
+var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN})
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
@@ -1487,9 +1481,7 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.S
 				LHS.Add(tok.Literal)
 			}
 		}
-		if tok.Type == token.ASSIGN || tok.Type == token.DEF_ASSIGN ||
-			tok.Type == token.VAR_ASSIGN || tok.Type == token.CMD_ASSIGN ||
-			tok.Type == token.PVR_ASSIGN {
+		if tok.Type == token.ASSIGN || tok.Type == token.CMD_ASSIGN {
 			assignHasHappened = true
 		}
 

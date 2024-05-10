@@ -33,11 +33,11 @@ type Section int
 
 const (
 	ImportSection Section = iota
+	ExternalSection
 	VarSection
 	CmdSection
 	DefSection
 	LanguagesSection
-	ExternalSection
 	TypesSection
 	ConstSection
 	UndefinedSection
@@ -46,29 +46,27 @@ const (
 type declarationType int
 
 const (
-	importDeclaration          declarationType = iota
-	enumDeclaration                            //
-	structDeclaration                          //
-	languageDeclaration                        //
-	externalDeclaration                        //
-	abstractDeclaration                        // The fact that these things come
-	constantDeclaration                        // in this order is used in the code
-	variableDeclaration                        // and should not be changed without
-	functionDeclaration                        // a great deal of forethought.
-	privateFunctionDeclaration                 //
-	commandDeclaration                         //
-	privateCommandDeclaration                  //
-	golangDeclaration                          // Pure golang in a block; the Charm functions with golang bodies don't go here.
+	importDeclaration   declarationType = iota
+	externalDeclaration                 //
+	enumDeclaration                     //
+	structDeclaration                   //
+	languageDeclaration                 //
+	abstractDeclaration                 // The fact that these things come
+	constantDeclaration                 // in this order is used in the code
+	variableDeclaration                 // and should not be changed without
+	functionDeclaration                 // a great deal of forethought.
+	commandDeclaration                  //
+	golangDeclaration                   // Pure golang in a block; the Charm functions with golang bodies don't go here but under function or command as they were declared.
 
 )
 
 var tokenTypeToSection = map[token.TokenType]Section{
 	token.IMPORT:  ImportSection,
+	token.EXTERN:  ExternalSection,
 	token.VAR:     VarSection,
 	token.CMD:     CmdSection,
 	token.DEF:     DefSection,
 	token.LANG:    LanguagesSection,
-	token.EXTERN:  ExternalSection,
 	token.NEWTYPE: TypesSection,
 	token.CONST:   ConstSection,
 }
@@ -117,20 +115,22 @@ func (uP *Initializer) GetSource(source string) {
 	}
 }
 
+func (uP *Initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
+	line.Private = private
+	uP.Parser.TokenizedDeclarations[decType] = append(uP.Parser.TokenizedDeclarations[decType], line)
+}
+
 func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	currentSection := UndefinedSection
 	beginCount := 0
 	indentCount := 0
 	lastTokenWasColon := false
 	colonMeansFunctionOrCommand := true
-	expressionIsAssignment := false
 	expressionIsStruct := false
-	expressionIsFunction := false
 	expressionIsEnum := false
 	isPrivate := false
 	var (
-		tok           token.Token
-		definingToken token.Token
+		tok token.Token
 	)
 
 	tok = uP.rl.NextToken() // note that we've already removed leading newlines.
@@ -154,7 +154,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 			println(tok.Type, tok.Literal)
 		}
-
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
 				uP.Throw("init/import/first", tok)
@@ -165,7 +164,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			colonMeansFunctionOrCommand = true
 			continue
 		}
-
 		if tok.Type == token.PRIVATE {
 			if isPrivate {
 				uP.Throw("init/private", tok)
@@ -173,60 +171,29 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			isPrivate = true
 			continue
 		}
-
-		if tok.Type == token.IDENT && tok.Literal == "struct" && expressionIsAssignment {
-			expressionIsAssignment = false
-			expressionIsStruct = true
-			definingToken = tok
-		}
-
-		if tok.Type == token.IDENT && tok.Literal == "enum" && expressionIsAssignment {
-			expressionIsAssignment = false
-			expressionIsEnum = true
-			definingToken = tok
-		}
-
-		if tok.Literal == "=" && !(tok.Type == token.GVN_ASSIGN || tok.Type == token.STRING) {
-			if currentSection != CmdSection {
-				colonMeansFunctionOrCommand = false
-				expressionIsAssignment = true
-				definingToken = tok
+		if currentSection == TypesSection && tok.Type == token.IDENT {
+			if tok.Literal == "struct" {
+				expressionIsStruct = true
 			}
-			switch currentSection {
-			case DefSection:
-				tok.Type = token.DEF_ASSIGN
-				if expressionIsFunction {
-					uP.Throw("init/def/assign", definingToken)
-				}
-			case TypesSection:
-				tok.Type = token.DEF_ASSIGN // TODO --- might want to give it its own token. Or alternatively cull a few.
-			case VarSection:
-				if isPrivate {
-					tok.Type = token.PVR_ASSIGN
-				} else {
-					tok.Type = token.VAR_ASSIGN
-				}
-			case CmdSection:
-				tok.Type = token.CMD_ASSIGN
-			default:
-				tok.Type = token.ASSIGN
+			if tok.Literal == "enum" {
+				expressionIsEnum = true
 			}
 		}
-
+		if tok.Type == token.ASSIGN && currentSection == CmdSection { // Note that the =s in the `given` block have already been turned into GVN_ASSIGN.
+			tok.Type = token.CMD_ASSIGN
+		}
 		if tok.Type == token.LPAREN {
 			beginCount++
 			if tok.Literal == "|->" {
 				indentCount++
 			}
 		}
-
 		if tok.Type == token.RPAREN {
 			beginCount--
 			if tok.Literal == "<-|" {
 				indentCount--
 			}
 		}
-
 		if ((tok.Type == token.NEWLINE) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
 			tok.Type == token.GOCODE {
 			if tok.Type == token.GOCODE {
@@ -235,131 +202,71 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			if beginCount != 0 {
 				uP.Throw("init/close", tok)
 				beginCount = 0 // Prevents error storm.
-				expressionIsAssignment = false
 				expressionIsStruct = false
 				expressionIsEnum = false
-				expressionIsFunction = false
 				colonMeansFunctionOrCommand = true
-
 				continue
 			}
 			switch currentSection {
 			case ImportSection:
-				if expressionIsAssignment {
-					uP.Throw("init/import/assign", definingToken)
-				} else {
-					uP.Parser.TokenizedDeclarations[importDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[importDeclaration], line)
-				}
+				uP.addTokenizedDeclaration(importDeclaration, line, isPrivate)
 			case LanguagesSection:
-				if expressionIsAssignment {
-					uP.Throw("init/lang/assign", definingToken)
-				} else {
-					uP.Parser.TokenizedDeclarations[languageDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[languageDeclaration], line)
-				}
+				uP.addTokenizedDeclaration(languageDeclaration, line, isPrivate)
 			case ExternalSection:
-				if expressionIsAssignment {
-					uP.Throw("init/external/assign", definingToken)
-				} else {
-					uP.Parser.TokenizedDeclarations[externalDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[externalDeclaration], line)
-				}
+				uP.addTokenizedDeclaration(externalDeclaration, line, isPrivate)
 			case CmdSection:
 				line.ToStart()
 				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
-					uP.Parser.TokenizedDeclarations[golangDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[golangDeclaration], line)
+					uP.addTokenizedDeclaration(golangDeclaration, line, isPrivate)
 				} else {
-					if expressionIsAssignment {
-						uP.Throw("init/cmd/assign", definingToken)
-					} else {
-						if isPrivate {
-							uP.Parser.TokenizedDeclarations[privateCommandDeclaration] =
-								append(uP.Parser.TokenizedDeclarations[privateCommandDeclaration], line)
-						} else {
-							uP.Parser.TokenizedDeclarations[commandDeclaration] =
-								append(uP.Parser.TokenizedDeclarations[commandDeclaration], line)
-						}
-					}
-				}
-			case VarSection:
-				switch {
-				case !expressionIsAssignment:
-					uP.Throw("init/var/function", definingToken)
-				default:
-					// As a wretched kludge, we will now weaken some of the commas on the LHS of
-					// the assignment so that it parses properly. (TODO: at this point it would be much easier to
-					// do this in the relexer.)
-					lastWasType := false
-					lastWasVar := false
-					line.ToStart()
-					for t := line.NextToken(); !(t.Type == token.VAR_ASSIGN || t.Type == token.PVR_ASSIGN); t = line.NextToken() {
-						if t.Type == token.COMMA {
-							if lastWasType {
-								line.Change(token.Token{Type: token.WEAK_COMMA, Line: tok.Line, Literal: ","})
-							}
-							lastWasType = false
-							lastWasVar = false
-						} else {
-							lastWasType = lastWasVar
-							lastWasVar = !lastWasType
-						}
-					}
-
-					uP.Parser.TokenizedDeclarations[variableDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[variableDeclaration], line)
-
+					uP.addTokenizedDeclaration(commandDeclaration, line, isPrivate)
 				}
 			case DefSection:
 				line.ToStart()
 				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
-					uP.Parser.TokenizedDeclarations[golangDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[golangDeclaration], line)
+					uP.addTokenizedDeclaration(golangDeclaration, line, isPrivate)
 				} else {
-					switch {
-					case expressionIsAssignment:
-						uP.Parser.TokenizedDeclarations[constantDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[constantDeclaration], line)
-					case expressionIsStruct:
-						uP.Parser.TokenizedDeclarations[structDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[structDeclaration], line)
-					case expressionIsEnum:
-						uP.Parser.TokenizedDeclarations[enumDeclaration] =
-							append(uP.Parser.TokenizedDeclarations[enumDeclaration], line)
-					default:
-						if isPrivate {
-							uP.Parser.TokenizedDeclarations[privateFunctionDeclaration] =
-								append(uP.Parser.TokenizedDeclarations[privateFunctionDeclaration], line)
-						} else {
-							uP.Parser.TokenizedDeclarations[functionDeclaration] =
-								append(uP.Parser.TokenizedDeclarations[functionDeclaration], line)
+					uP.addTokenizedDeclaration(functionDeclaration, line, isPrivate)
+				}
+			case VarSection, ConstSection:
+				// As a wretched kludge, we will now weaken some of the commas on the LHS of
+				// the assignment so that it parses properly. (TODO: at this point it would be much easier to
+				// do this in the relexer.)
+				lastWasType := false
+				lastWasVar := false
+				line.ToStart()
+				for t := line.NextToken(); !(t.Type == token.ASSIGN); t = line.NextToken() {
+					if t.Type == token.COMMA {
+						if lastWasType {
+							line.Change(token.Token{Type: token.WEAK_COMMA, Line: tok.Line, Literal: ","})
 						}
+						lastWasType = false
+						lastWasVar = false
+					} else {
+						lastWasType = lastWasVar
+						lastWasVar = !lastWasType
 					}
 				}
-			case ConstSection:
-				if expressionIsAssignment {
-					uP.Parser.TokenizedDeclarations[constantDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[constantDeclaration], line)
+				if currentSection == VarSection {
+					uP.addTokenizedDeclaration(variableDeclaration, line, isPrivate)
+				} else {
+					uP.addTokenizedDeclaration(constantDeclaration, line, isPrivate)
 				}
 			case TypesSection:
 				switch {
-				case expressionIsAssignment:
-					uP.Parser.TokenizedDeclarations[abstractDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[abstractDeclaration], line)
 				case expressionIsStruct:
-					uP.Parser.TokenizedDeclarations[structDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[structDeclaration], line)
+					uP.addTokenizedDeclaration(structDeclaration, line, isPrivate)
 				case expressionIsEnum:
-					uP.Parser.TokenizedDeclarations[enumDeclaration] =
-						append(uP.Parser.TokenizedDeclarations[enumDeclaration], line)
+					uP.addTokenizedDeclaration(enumDeclaration, line, isPrivate)
+				default:
+					uP.addTokenizedDeclaration(abstractDeclaration, line, isPrivate)
 				}
+			default:
+				panic("Unhandled section type.")
 			}
 			line = token.NewCodeChunk()
-			expressionIsAssignment = false
 			expressionIsStruct = false
 			expressionIsEnum = false
-			expressionIsFunction = false
 			colonMeansFunctionOrCommand = true
 			continue
 		}
@@ -370,13 +277,9 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 		lastTokenWasColon = (tok.Type == token.COLON || tok.Type == token.WEAK_COLON)
 
-		if (lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand {
+		if (lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand { // If we found the first : in a command/function declaration, then what is to the left of the colon is the command/function's signature.
 			colonMeansFunctionOrCommand = false
 			uP.addWordsToParser(line)
-			if currentSection == DefSection {
-				expressionIsFunction = true
-				definingToken = tok
-			}
 		}
 		line.Append(tok)
 	}
@@ -401,10 +304,9 @@ func (uP *Initializer) ParseTypeDefs() {
 		uP.Parser.TokenizedDeclarations[structDeclaration][chunk].ToStart()
 		tok1 := uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken()
 		tok2 := uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken()
-		if !(tok1.Type == token.IDENT && tok2.Type == token.DEF_ASSIGN) {
+		if !(tok1.Type == token.IDENT && tok2.Type == token.ASSIGN) {
 			uP.Throw("init/struct", tok1)
 		} else {
-			uP.Parser.TokenizedDeclarations[structDeclaration][chunk].Change(token.Token{Type: token.TYP_ASSIGN, Literal: "=", Line: tok2.Line, Source: tok2.Source})
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
 			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "struct?")
 			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
@@ -416,9 +318,7 @@ func (uP *Initializer) ParseTypeDefs() {
 			uP.Parser.Structs.Add(tok1.Literal)
 		}
 	}
-
 	// Now we can parse them.
-
 	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[structDeclaration]); chunk++ {
 		uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[structDeclaration][chunk]
 		uP.Parser.TokenizedDeclarations[structDeclaration][chunk].ToStart()
@@ -426,71 +326,26 @@ func (uP *Initializer) ParseTypeDefs() {
 	}
 }
 
-func (uP *Initializer) MakeLanguagesAndExternals() {
-	for kindOfDeclarationToParse := languageDeclaration; kindOfDeclarationToParse <= externalDeclaration; kindOfDeclarationToParse++ {
-		for _, v := range uP.Parser.TokenizedDeclarations[kindOfDeclarationToParse] {
-			v.ToStart()
-			uP.Parser.TokenizedCode = v
-			parsedCode := uP.Parser.ParseTokenizedChunk()
-			name := ""
-			path := ""
-			switch parsedCode := parsedCode.(type) {
-			case *ast.Identifier:
-				name = parsedCode.Value
-			case *ast.InfixExpression:
-				if kindOfDeclarationToParse == languageDeclaration {
-					uP.Throw("init/lang/infix", parsedCode.Token)
-				}
-				if parsedCode.GetToken().Literal != "::" {
-					uP.Throw("init/external/infix", parsedCode.Token)
-				}
-				lhs := parsedCode.Args[0]
-				rhs := parsedCode.Args[2]
-				switch rhs := rhs.(type) {
-				case *ast.StringLiteral:
-					path = rhs.Value
-					switch lhs := lhs.(type) {
-					case *ast.Identifier:
-						name = lhs.Value
-					default:
-						uP.Throw("init/external/ident", *lhs.GetToken())
-					}
-				default:
-					uP.Throw("init/external/string", *lhs.GetToken())
-				}
-			case *ast.StringLiteral:
-				path = parsedCode.Value
-				name = path
-				if strings.LastIndex(name, ".") >= 0 {
-					name = name[:strings.LastIndex(name, ".")]
-				}
-				if strings.LastIndex(name, "/") >= 0 {
-					name = name[strings.LastIndex(name, "/")+1:]
-				}
-			default:
-				if kindOfDeclarationToParse == externalDeclaration {
-					uP.Throw("init/external/form", *parsedCode.GetToken())
-				}
-				uP.Throw("init/lang/form", *parsedCode.GetToken())
-			}
-			if name != "" {
-				var ty string
-				if kindOfDeclarationToParse == languageDeclaration {
-					ty = "language"
-					uP.Parser.Languages = append(uP.Parser.Languages, name)
-
-				} else {
-					ty = "external"
-					uP.Parser.Externals[name] = path
-				}
-				uP.Parser.TypeSystem.AddTransitiveArrow(name, ty)
-				uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
-				uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
-				uP.Parser.Suffixes.Add(name)
-				uP.Parser.AllFunctionIdents.Add(name)
-				uP.Parser.Functions.Add(name)
-				uP.Parser.Structs.Add(name)
-			}
+func (uP *Initializer) MakeSnippets() {
+	for _, v := range uP.Parser.TokenizedDeclarations[languageDeclaration] {
+		v.ToStart()
+		uP.Parser.TokenizedCode = v
+		parsedCode := uP.Parser.ParseTokenizedChunk()
+		name := ""
+		switch parsedCode := parsedCode.(type) {
+		case *ast.Identifier:
+			name = parsedCode.Value
+			uP.Parser.Languages = append(uP.Parser.Languages, name)
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, "language")
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, "language?")
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
+			uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
+			uP.Parser.Suffixes.Add(name)
+			uP.Parser.AllFunctionIdents.Add(name)
+			uP.Parser.Functions.Add(name)
+			uP.Parser.Structs.Add(name)
+		default:
+			uP.Throw("init/lang/form", *parsedCode.GetToken())
 		}
 	}
 }
@@ -498,12 +353,11 @@ func (uP *Initializer) MakeLanguagesAndExternals() {
 func (uP *Initializer) ParseEverything() {
 	// uP.Parser.Unfixes.Add("break")
 	uP.Parser.Unfixes.Add("stop")
-	for declarations := languageDeclaration; declarations <= privateCommandDeclaration; declarations++ {
+	for declarations := languageDeclaration; declarations <= commandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[declarations][chunk]
 			uP.Parser.TokenizedDeclarations[declarations][chunk].ToStart()
 			uP.Parser.ParsedDeclarations[declarations] = append(uP.Parser.ParsedDeclarations[declarations], uP.Parser.ParseTokenizedChunk())
-
 		}
 	}
 
@@ -554,6 +408,10 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 	return result
 }
 
+func (uP *Initializer) isPrivate(x, y int) bool {
+	return uP.Parser.TokenizedDeclarations[x][y].Private
+}
+
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
@@ -562,7 +420,7 @@ func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
 func (uP *Initializer) MakeFunctions(sourceName string) *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := NewGoHandler(uP.Parser)
-	for j := functionDeclaration; j <= privateCommandDeclaration; j++ {
+	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
@@ -573,8 +431,8 @@ func (uP *Initializer) MakeFunctions(sourceName string) *GoHandler {
 			}
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
 				ast.Function{Sig: sig, Rets: rTypes, Body: body, Given: given,
-					Cmd:     j == commandDeclaration || j == privateCommandDeclaration,
-					Private: j == privateCommandDeclaration || j == privateFunctionDeclaration})
+					Cmd:     j == commandDeclaration,
+					Private: uP.isPrivate(int(j), i)})
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)
 				return nil
@@ -775,10 +633,6 @@ func (uP *Initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) 
 
 func (uP *Initializer) Throw(errorID string, tok token.Token, args ...any) {
 	uP.Parser.Throw(errorID, &tok, args...)
-}
-
-func (uP *Initializer) addError(err *report.Error) {
-	uP.Parser.Errors = append(uP.Parser.Errors, err)
 }
 
 func (uP *Initializer) ErrorsExist() bool {

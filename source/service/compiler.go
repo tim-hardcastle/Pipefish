@@ -454,8 +454,8 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/var/exist", node.GetToken(), name)
 				break NodeTypeSwitch
 			}
-			if v.access != GLOBAL_VARIABLE_PUBLIC {
-				cp.P.Throw("comp/var/public", node.GetToken(), name)
+			if !((v.access == GLOBAL_VARIABLE_PUBLIC) || (v.access == GLOBAL_VARIABLE_PRIVATE && ac != REPL)) {
+				cp.P.Throw("comp/var", node.GetToken(), name)
 				break NodeTypeSwitch
 			}
 			// TODO --- type checking after refactoring type representation.
@@ -505,6 +505,10 @@ NodeTypeSwitch:
 		}
 		if !ok {
 			cp.P.Throw("comp/ident/known", node.GetToken())
+			break
+		}
+		if (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
+			cp.P.Throw("comp/ident/private", node.GetToken())
 			break
 		}
 		if v.access == LOCAL_CONSTANT_THUNK {

@@ -7,6 +7,7 @@ import (
 type TokenizedCodeChunk struct {
 	position int
 	code     []Token
+	Private  bool
 }
 
 func NewCodeChunk() *TokenizedCodeChunk {

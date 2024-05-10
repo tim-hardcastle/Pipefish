@@ -8,3 +8,25 @@ blurp (x varchar(20)) :
 
 blurp (x string) :
     x + " is a much longer string"
+
+private
+
+fuzz(x string) :
+    "**" + x + "**"
+
+var 
+
+x = 42
+
+private 
+
+y = 43
+
+def
+
+troz(x string) :
+    fuzz x
+
+const
+
+PI = 3.141592
