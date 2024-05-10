@@ -507,17 +507,16 @@ func (vmm *VmMaker) addStructLabelsToMc(mc *Vm, name string, typeNo values.Value
 }
 
 func (vmm *VmMaker) makeConstructors(mc *Vm) {
-	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
+	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
+		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
 	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
-	for _, name := range vmm.cp.P.Languages {
+	for i, name := range vmm.cp.P.Languages {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
-	}
-	for name := range vmm.cp.P.Externals {
-		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
+		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(languageDeclaration), i)
 	}
 }
 
