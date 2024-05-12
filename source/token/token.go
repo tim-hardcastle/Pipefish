@@ -19,7 +19,7 @@ const (
 	DEF     = "def"
 	PRIVATE = "private"
 	LANG    = "lang"
-	EXTERN  = "extern"
+	EXTERN  = "external"
 	CONST   = "const"
 	NEWTYPE = "newtype"
 
@@ -101,15 +101,15 @@ var keywords = map[string]TokenType{
 	"try":    TRY,
 
 	// Headwords.
-	"const":   CONST,
-	"extern":  EXTERN,
-	"cmd":     CMD,
-	"def":     DEF,
-	"import":  IMPORT,
-	"lang":    LANG,
-	"private": PRIVATE,
-	"newtype": NEWTYPE,
-	"var":     VAR,
+	"const":    CONST,
+	"external": EXTERN,
+	"cmd":      CMD,
+	"def":      DEF,
+	"import":   IMPORT,
+	"lang":     LANG,
+	"private":  PRIVATE,
+	"newtype":  NEWTYPE,
+	"var":      VAR,
 
 	//Special operators.
 	"and": AND,

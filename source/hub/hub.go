@@ -876,10 +876,10 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		init       *service.Initializer
 	)
 	if scriptFilepath == "" {
-		newService, init = service.StartService("", "", hub.Db)
+		newService, init = service.StartService("", "", hub.Db, hub.services)
 	} else {
 		sourcecode, _ := os.ReadFile(scriptFilepath)
-		newService, init = service.StartService(scriptFilepath, string(sourcecode), hub.Db)
+		newService, init = service.StartService(scriptFilepath, string(sourcecode), hub.Db, hub.services)
 	}
 
 	hub.services[name] = newService

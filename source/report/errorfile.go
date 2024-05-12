@@ -1586,6 +1586,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/external/exist": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "service " + emph(tok.Literal) + " does not exist on this hub"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return `When a declaration in the 'external' section consists only of an identifier, this will work only if the hub is already running a service with that name.`
+		},
+	},
+
 	"init/external/form": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed entry in 'external' section"

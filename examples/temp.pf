@@ -1,14 +1,12 @@
-newtype 
+external
 
-Person =  struct(name string, fmk Fmk)
+qux
 
-private 
+foo::"blurp/spong.pf"
 
-Fmk = enum FUCK, MARRY, KILL
+"blurp/zort.pf"
 
-
-
-
+NULL::"blah.pf"
 
 def
 

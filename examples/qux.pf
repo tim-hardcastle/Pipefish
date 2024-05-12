@@ -1,0 +1,4 @@
+def 
+
+blort(s string) :
+    "qux says: " + s 

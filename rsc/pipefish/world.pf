@@ -134,11 +134,6 @@ put (s string) into (fileAccess File) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
-post(x external) : builtin "post_external"
-put(x external) : builtin "post_external"
-delete(x external) : builtin "post_external"
-get(x ref) from (y external) : builtin "get_from_external"
-
 post(x SQL) : builtin "post_sql"
 put(x SQL) : builtin "post_sql"
 delete(x SQL) : builtin "post_sql"

@@ -133,11 +133,12 @@ type Parser struct {
 	TypeSystem       TypeSystem
 	Structs          dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]ast.Signature // <--- in here.
-	Externals        map[string]string
-	Languages        []string
-	GoImports        map[string][]string
-	NamespaceBranch  map[string]*ParserData
-	NamespacePath    string
+
+	Snippets        []string
+	GoImports       map[string][]string
+	NamespaceBranch map[string]*ParserData
+	NamespacePath   string
+	Externals       map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 }
 
 func New() *Parser {
@@ -168,7 +169,7 @@ func New() *Parser {
 		Structs:          make(dtypes.Set[string]),
 		GoImports:        make(map[string][]string),
 		NamespaceBranch:  make(map[string]*ParserData),
-		Externals:        make(map[string]string),
+		Externals:        make(map[string]*Parser),
 	}
 
 	for k := range *p.TypeSystem {
@@ -393,16 +394,21 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 }
 
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
-// to find what parser should resolve the symbol.
+// to find which parser should resolve the symbol.
 func (p *Parser) getResolvingParser() *Parser {
 	lP := p
 	for _, name := range p.CurrentNamespace {
 		s, ok := lP.NamespaceBranch[name]
-		if !ok {
-			p.Throw("parse/namespace/exist", &p.curToken, name)
-			return nil
+		if ok {
+			lP = s.Parser
+			continue
 		}
-		lP = s.Parser
+		externalService, ok := lP.Externals[name]
+		if ok {
+			lP = externalService.getResolvingParser()
+		}
+		p.Throw("parse/namespace/exist", &p.curToken, name)
+		return nil
 	}
 	// We don't need the resolving parser to parse anything but we *do* need to call positionallyFunctional,
 	// so it needs the following data to work.

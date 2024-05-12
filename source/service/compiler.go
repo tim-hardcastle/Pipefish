@@ -34,7 +34,7 @@ type Compiler struct {
 	TypeNameToTypeList     map[string]AlternateType
 	AnyTypeScheme          AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
 	Imports                map[string]*VmService
-	Externals              []string // The names of services which have been declared as external.
+	ExternalOrdinals       map[string]uint32
 	Timestamp              int64
 	ScriptFilepath         string
 	typeAccess             []tyAccess // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
@@ -95,6 +95,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		ThunkList:              []Thunk{},
 		Fns:                    []*CpFunc{},
 		Imports:                make(map[string]*VmService),
+		ExternalOrdinals:       make(map[string]uint32),           // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeAccess:             make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
 		TypeNameToTypeList: map[string]AlternateType{
 			"int":       AltType(values.INT),
@@ -275,7 +276,7 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 
 func (cp *Compiler) reserveLambdaFactory(mc *Vm, env *Environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
 	LF := &LambdaFactory{Model: &Lambda{}}
-	LF.Model.Mc = BlankVm(mc.Database)
+	LF.Model.Mc = BlankVm(mc.Database, mc.HubServices)
 	LF.Model.Mc.Code = []*Operation{}
 	newEnv := NewEnvironment()
 	sig := fnNode.Sig
@@ -982,6 +983,11 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = AltType(values.SUCCESSFUL_VALUE), false
 			break
 		}
+		externalServiceOrdinal := cp.getExternalServiceOrdinal(node.Namespace)
+		if externalServiceOrdinal != DUMMY {
+			rtnTypes, rtnConst = cp.emitExternalCall(mc, node, env, ac, externalServiceOrdinal, node.Namespace, PREFIX)
+			break
+		}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		var (
 			v  *variable
@@ -1223,6 +1229,7 @@ func (cp *Compiler) emitComma(mc *Vm, node *ast.InfixExpression, env *Environmen
 
 // Finds the appropriate compiler for a given namespace.
 func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Compiler {
+
 	lC := cp
 	for _, name := range namespace {
 		srv, ok := lC.Imports[name]
@@ -1233,6 +1240,17 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Com
 		lC = srv.Cp
 	}
 	return lC
+}
+
+func (cp *Compiler) getExternalServiceOrdinal(namespace []string) uint32 {
+	if len(namespace) == 0 {
+		return DUMMY
+	}
+	ordinal, ok := cp.ExternalOrdinals[namespace[0]]
+	if ok {
+		return ordinal
+	}
+	return DUMMY
 }
 
 // TODO --- this can be replaced with other generalizations.
@@ -1836,6 +1854,36 @@ func (cp *Compiler) emitEquals(mc *Vm, node *ast.InfixExpression, env *Environme
 	typeError := cp.reserveError(mc, "mc/eq/types", node.GetToken(), []any{})
 	cp.put(mc, Eqxx, leftRg, rightRg, typeError)
 	return AltType(values.ERROR, values.BOOL), lcst && rcst
+}
+
+const (
+	PREFIX uint32 = iota
+	INFIX
+	SUFFIX
+)
+
+func (cp *Compiler) emitExternalCall(mc *Vm, node ast.Callable, env *Environment, ac cpAccess, externalOrdinal uint32, namespace []string, pip uint32) (AlternateType, bool) {
+	name := node.GetToken().Literal
+	args := node.GetArgs()
+	var remainingNamespace string
+	for i := 1; i < len(namespace); i++ {
+		remainingNamespace = remainingNamespace + namespace[i] + "."
+	}
+	rtnTypes := cp.AnyTypeScheme
+	rtnConst := false // TODO --- it's very unlikely that this should be true. We can deal with this case, but must be careful not to fold away calls to commands, and we don't know which they are.
+	vmArgs := make([]uint32, len(args)+3)
+	vmArgs = append(vmArgs, externalOrdinal, pip)
+	cp.Reserve(mc, values.STRING, remainingNamespace)
+	vmArgs = append(vmArgs, mc.That())
+	cp.Reserve(mc, values.STRING, name)
+	vmArgs = append(vmArgs, mc.That())
+	for _, arg := range args {
+		cp.CompileNode(mc, arg, env, ac)
+		vmArgs = append(vmArgs, mc.That())
+	}
+
+	cp.put(mc, Extn, vmArgs...)
+	return rtnTypes, rtnConst
 }
 
 func (cp *Compiler) compileLog(mc *Vm, node *ast.LogExpression, env *Environment, ac cpAccess) bool {

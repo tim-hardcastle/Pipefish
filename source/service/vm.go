@@ -42,7 +42,9 @@ type Vm struct {
 	IoHandle          IoHandler
 	Database          *sql.DB
 	AbstractTypes     []values.NameAbstractTypePair
-	OwnService        *VmService // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	OwnService        *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	HubServices       map[string]*VmService // The same map that the hub has.
+	ExternalServices  []externalService     // The services declared external, whether on the same hub or a different one.
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -125,8 +127,8 @@ type HTMLInjector struct {
 // These inhabit the first few memory addresses of the VM.
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
-func BlankVm(db *sql.DB) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, Ub_enums: values.LB_ENUMS,
+func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
@@ -273,6 +275,40 @@ loop:
 			} else {
 				vm.Mem[args[0]] = values.Value{values.BOOL, vm.equals(vm.Mem[args[1]], vm.Mem[args[2]])}
 			}
+		case Extn:
+			externalOrdinal := args[1]
+			operatorType := args[2]
+			remainingNamespace := vm.Mem[args[3]].V.(string)
+			name := vm.Mem[args[4]].V.(string)
+			argLocs := args[5:]
+			var buf strings.Builder
+			if operatorType == PREFIX {
+				buf.WriteString(remainingNamespace)
+				buf.WriteString(name)
+			}
+			buf.WriteString("(")
+			for i, loc := range argLocs {
+				serialize := vm.Literal(vm.Mem[loc])
+				if vm.Mem[loc].T == values.BLING && serialize == name {
+					buf.WriteString(") ")
+					buf.WriteString(remainingNamespace)
+					buf.WriteString(serialize)
+					buf.WriteString(" (")
+					continue
+				}
+				buf.WriteString(serialize)
+				if vm.Mem[loc].T == values.BLING || i+1 == len(argLocs) || vm.Mem[argLocs[i+1]].T == values.BLING {
+					buf.WriteString(" ")
+				} else {
+					buf.WriteString(", ")
+				}
+			}
+			buf.WriteString(")")
+			if operatorType == SUFFIX {
+				buf.WriteString(remainingNamespace)
+				buf.WriteString(name)
+			}
+			vm.Mem[args[0]] = vm.ExternalServices[externalOrdinal].evaluate(buf.String())
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:

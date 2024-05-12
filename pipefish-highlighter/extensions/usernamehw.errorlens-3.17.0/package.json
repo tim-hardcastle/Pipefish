@@ -1,0 +1,1273 @@
+{
+	"name": "errorlens",
+	"displayName": "Error Lens",
+	"description": "Improve highlighting of errors, warnings and other language diagnostics.",
+	"version": "3.17.0",
+	"publisher": "usernamehw",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.85.0",
+		"npm": ">=7.0.0"
+	},
+	"extensionKind": [
+		"ui",
+		"workspace"
+	],
+	"categories": [
+		"Other"
+	],
+	"qna": false,
+	"keywords": [
+		"highlight",
+		"problem",
+		"problems",
+		"error",
+		"warning",
+		"inline",
+		"message",
+		"diagnostic",
+		"status bar",
+		"gutter"
+	],
+	"icon": "img/icon.png",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/usernamehw/vscode-error-lens"
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"main": "./dist/extension.js",
+	"browser": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "errorLens.toggle",
+				"title": "Toggle (Enable/Disable) Everything",
+				"description": "Toggle (Enable/Disable) Everything (toggle global setting `\"errorLens.enabled\"`)",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.toggleError",
+				"title": "Toggle Errors",
+				"description": "Enable/Disable Errors in `\"errorLens.enabledDiagnosticLevels\"` setting.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.toggleWarning",
+				"title": "Toggle Warnings",
+				"description": "Enable/Disable Warnings in `\"errorLens.enabledDiagnosticLevels\"` setting.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.toggleInfo",
+				"title": "Toggle Info",
+				"description": "Enable/Disable Info in `\"errorLens.enabledDiagnosticLevels\"` setting.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.toggleHint",
+				"title": "Toggle Hint",
+				"description": "Enable/Disable Hint in `\"errorLens.enabledDiagnosticLevels\"` setting.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.toggleInlineMessage",
+				"title": "Toggle Inline Message",
+				"description": "Toggle global setting `\"errorLens.messageEnabled\"`.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.searchForProblem",
+				"title": "Search for problem",
+				"description": "Open problem in default browser (controlled by `errorLens.searchForProblemQuery` setting).",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.selectProblem",
+				"title": "Select Problem",
+				"description": "Set editor selection to the problem range (controlled by `errorLens.selectProblemType` setting).",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorlens.toggleWorkspace",
+				"title": "Toggle Workspace in Disabled List",
+				"description": "Exclude/Include current workspace by fs path.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.disableLine",
+				"title": "Disable line",
+				"description": "Add a comment to disable line for linter rule. Comment format is controlled by `\"errorLens.disableLineComments\"` setting.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.findLinterRuleDefinition",
+				"title": "Find Linter Rule Definition",
+				"description": "Search in local linter files (like `.eslintrc.json`) for the rule definition.",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.copyProblemMessage",
+				"title": "Copy Problem Message",
+				"description": "Copy problem message to the clipboard (at the active cursor).",
+				"category": "Error Lens"
+			},
+			{
+				"command": "errorLens.copyProblemCode",
+				"title": "Copy Problem Code",
+				"description": "Copy problem code to the clipboard (at the active cursor).",
+				"category": "Error Lens"
+			}
+		],
+		"configuration": {
+			"properties": {
+				"errorLens.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Controls all decorations and features (except commands)."
+				},
+				"errorLens.respectUpstreamEnabled": {
+					"type": "object",
+					"properties": {
+						"enabled": {
+							"type": "boolean",
+							"default": true
+						},
+						"inlineMessage": {
+							"type": "boolean",
+							"default": true
+						},
+						"gutter": {
+							"type": "boolean",
+							"default": true
+						},
+						"statusBar": {
+							"type": "boolean",
+							"default": false
+						}
+					},
+					"default": {
+						"enabled": true,
+						"inlineMessage": true,
+						"gutter": true,
+						"statusBar": false
+					},
+					"markdownDescription": "When enabled - extension will take into account global VSCode setting `#problems.visibility#`. ([1.85.0 changelog](https://code.visualstudio.com/updates/v1_85#_hide-problem-decorations)).",
+					"additionalProperties": false
+				},
+				"errorLens.enabledInMergeConflict": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Controls if decorations are shown if the editor has git merge conflict indicators `<<<<<<<` or `=======` or `>>>>>>>`."
+				},
+				"errorLens.fontFamily": {
+					"type": "string",
+					"default": "",
+					"description": "Font family of inline message."
+				},
+				"errorLens.fontWeight": {
+					"type": "string",
+					"enum": [
+						"100",
+						"200",
+						"300",
+						"400",
+						"normal",
+						"500",
+						"600",
+						"700",
+						"bold",
+						"800",
+						"900"
+					],
+					"default": "normal",
+					"markdownDescription": "Font weight of inline message. `\"normal\"` is alias for 400, `\"bold\"` is alias for 700)."
+				},
+				"errorLens.fontStyleItalic": {
+					"type": "boolean",
+					"default": false,
+					"description": "When enabled - shows inline message in italic font style."
+				},
+				"errorLens.fontSize": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "Font size of inline message ([CSS units](https://developer.mozilla.org/en-US/docs/Web/CSS/length))."
+				},
+				"errorLens.margin": {
+					"type": "string",
+					"default": "4ch",
+					"markdownDescription": "Distance between the last word on the line and the start of inline message ([CSS units](https://developer.mozilla.org/en-US/docs/Web/CSS/length))."
+				},
+				"errorLens.alignMessage": {
+					"type": "object",
+					"properties": {
+						"start": {
+							"type": "integer",
+							"minimum": 0,
+							"description": "Starting column where to align decorations."
+						},
+						"end": {
+							"type": "integer",
+							"minimum": 0,
+							"description": "Ending column where to align decorations."
+						},
+						"minimumMargin": {
+							"type": "integer",
+							"description": "Minimal space between line end and decoration. Very similar to the global setting `errorLens.margin`, but can only be a number of characters.",
+							"minimum": 0
+						},
+						"useFixedPosition": {
+							"type": "boolean",
+							"default": false,
+							"description": "Use fixed position for decoration that has stuttering/twitching when typing... BUT!!! decoration can overlap text in editor for a short period of time on the active line."
+						}
+					},
+					"default": {
+						"start": 0,
+						"end": 0,
+						"minimumMargin": 0
+					},
+					"markdownDescription": "Align inline error message (either by starting position or ending position).",
+					"additionalProperties": false
+				},
+				"errorLens.padding": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "Padding of the inline message. Visible when `#errorLens.messageBackgroundMode#` is set to \"message\".",
+					"examples": [
+						"2px 1ch"
+					]
+				},
+				"errorLens.borderRadius": {
+					"type": "string",
+					"default": "0.2em",
+					"markdownDescription": "Border radius of the inline message. Visible when `#errorLens.messageBackgroundMode#` is set to \"message\".",
+					"examples": [
+						"5px",
+						"5em 0px",
+						"0px 5em 5em 0px"
+					]
+				},
+				"errorLens.enabledDiagnosticLevels": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"enum": [
+							"error",
+							"warning",
+							"info",
+							"hint"
+						]
+					},
+					"uniqueItems": true,
+					"description": "Customize which diagnostic levels(severity) to highlight.",
+					"default": [
+						"error",
+						"warning",
+						"info"
+					]
+				},
+				"errorLens.messageTemplate": {
+					"type": "string",
+					"default": "$message",
+					"markdownDescription": "Template used for all inline messages. Whitespace between items is important.\n\nList of variables:\n\n- `$message` - diagnostic message text\n\n- `$count` - Number of diagnostics on the line\n\n- `$severity` - Severity prefix taken from `#errorLens.severityText#`\n\n- `$source` - Source of diagnostic e.g. \"eslint\"\n\n- `$code` - Code of the diagnostic"
+				},
+				"errorLens.messageMaxChars": {
+					"type": "integer",
+					"default": 500,
+					"minimum": 0,
+					"markdownDescription": "Cut off inline message if it's longer than this value. (Improves performance when the diagnostic message is long)."
+				},
+				"errorLens.severityText": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"markdownDescription": "Replaces `$severity` variable in `#errorLens.messageTemplate#`.",
+					"default": [
+						"⛔",
+						"⚠",
+						"ℹ",
+						"🍏"
+					],
+					"minItems": 4,
+					"maxItems": 4
+				},
+				"errorLens.messageEnabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Controls whether inline message is shown or not (Including background highlight)."
+				},
+				"errorLens.messageBackgroundMode": {
+					"type": "string",
+					"default": "line",
+					"enum": [
+						"line",
+						"message",
+						"none"
+					],
+					"enumDescriptions": [
+						"The entire line is highlighted.",
+						"Inline message is highlighted.",
+						"Message is not highlighted (only has foreground colors)."
+					],
+					"description": "Controls how inline message is highlighted in the editor (entire line / only message / none)."
+				},
+				"errorLens.problemRangeDecorationEnabled": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "When checked - highlight the entire problem range."
+				},
+				"errorLens.editorHoverPartsEnabled": {
+					"type": "object",
+					"properties": {
+						"messageEnabled": {
+							"type": "boolean",
+							"default": false
+						},
+						"sourceCodeEnabled": {
+							"type": "boolean",
+							"default": false
+						},
+						"buttonsEnabled": {
+							"type": "boolean",
+							"default": false
+						}
+					},
+					"additionalProperties": false,
+					"default": {
+						"messageEnabled": false,
+						"sourceCodeEnabled": false,
+						"buttonsEnabled": false
+					},
+					"markdownDescription": "Controls which parts of the editor hover tooltip to show."
+				},
+				"errorLens.statusBarIconsEnabled": {
+					"type": "boolean",
+					"markdownDescription": "When enabled - shows highlighted error/warning icons in status bar.",
+					"default": false
+				},
+				"errorLens.statusBarIconsPriority": {
+					"type": "integer",
+					"markdownDescription": "Move status bar icons left or right by adjusting the number priority.",
+					"default": -9000
+				},
+				"errorLens.statusBarIconsAlignment": {
+					"type": "string",
+					"markdownDescription": "Choose on which side the icons status bar is on: left or right.",
+					"enum": [
+						"left",
+						"right"
+					],
+					"default": "left"
+				},
+				"errorLens.statusBarIconsTargetProblems": {
+					"type": "string",
+					"enum": [
+						"all",
+						"activeEditor",
+						"visibleEditors"
+					],
+					"enumDescriptions": [
+						"Should be the same as native status bar icons - counts all known problems from all files.",
+						"Count only problems from the active text editor.",
+						"Count only problems from the visible text editors."
+					],
+					"default": "all",
+					"markdownDescription": "Which problems to use for counting problems at icons status bar."
+				},
+				"errorLens.statusBarIconsUseBackground": {
+					"type": "boolean",
+					"markdownDescription": "When enabled - highlights status bar icons with background, when disabled - with foreground.",
+					"default": true
+				},
+				"errorLens.statusBarIconsAtZero": {
+					"type": "string",
+					"markdownDescription": "What to do when there are 0 errors/warnings - hide the item or strip its background color.",
+					"enum": [
+						"hide",
+						"removeBackground"
+					],
+					"default": "removeBackground"
+				},
+				"errorLens.statusBarMessageEnabled": {
+					"type": "boolean",
+					"markdownDescription": "When enabled - shows message in status bar.",
+					"default": false
+				},
+				"errorLens.statusBarMessagePriority": {
+					"type": "integer",
+					"markdownDescription": "Move status bar message left or right by adjusting the number priority.",
+					"default": -10000
+				},
+				"errorLens.statusBarMessageAlignment": {
+					"type": "string",
+					"markdownDescription": "Choose on which side the message status bar is on: left or right.",
+					"enum": [
+						"left",
+						"right"
+					],
+					"default": "left"
+				},
+				"errorLens.statusBarColorsEnabled": {
+					"type": "boolean",
+					"markdownDescription": "When enabled - use message decoration foreground as color of Status Bar text.",
+					"default": false
+				},
+				"errorLens.statusBarMessageType": {
+					"type": "string",
+					"markdownDescription": "Pick what to show in Status Bar: closest message or only message for the active line.",
+					"enum": [
+						"closestProblem",
+						"closestSeverity",
+						"activeLine"
+					],
+					"enumDescriptions": [
+						"Show closest to the cursor diagnostic.",
+						"Show closest to the cursor diagnostic (sorted by severity e.g. error will be shown before warning even if it's farther from the cursor).",
+						"Show only diagnostic that is on the same line as the cursor."
+					],
+					"default": "activeLine"
+				},
+				"errorLens.statusBarCommand": {
+					"type": "string",
+					"markdownDescription": "Pick command that activates on click for Status Bar.",
+					"enum": [
+						"goToProblem",
+						"goToLine",
+						"copyMessage"
+					],
+					"default": "goToProblem"
+				},
+				"errorLens.statusBarMessageTemplate": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "Template for status bar message. Whitespace between items is important.\n\nList of variables:\n\n- `$message` - diagnostic message text\n\n- `$count` - Number of diagnostics on the line\n\n- `$severity` - Severity prefix taken from `#errorLens.severityText#`\n\n- `$source` - Source of diagnostic e.g. \"eslint\"\n\n- `$code` - Code of the diagnostic"
+				},
+				"errorLens.replace": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "object",
+						"properties": {
+							"matcher": {
+								"type": "string",
+								"description": "The RegExp pattern against which to match diagnostic messages"
+							},
+							"message": {
+								"type": "string",
+								"description": "The entire replacement for messages matching matcher. Can reference match groups like $0 (entire expression), $1 (first capture group), etc."
+							}
+						},
+						"required": [
+							"matcher",
+							"message"
+						]
+					},
+					"markdownDescription": "Specify message to transform. E.g. if this is configured to [{ matcher: 'foo (.*)', message: 'just $1' }], the message 'foo bar' would be displayed as 'just bar'."
+				},
+				"errorLens.exclude": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"markdownDescription": "Specify messages that should not be highlighted (RegExp). Strings passed to the RegExp constructor: `new RegExp(EXCLUDE_ITEM, 'i');`"
+				},
+				"errorLens.excludeBySource": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"markdownDescription": "Specify `source` or `source(code)` pair to exclude. Examples: \n\n```json\n[\n\t\"eslint\",// exclude all problems from eslint linter\n\t\"eslint(padded-blocks)\",// exclude padded-blocks rule from eslint linter\n\t\"Pylance(reportUndefinedVariable)\",// exlude reportUndefinedVariable rule from Pylance linter\n]\n```"
+				},
+				"errorLens.excludePatterns": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"markdownDescription": "Exclude files by using [glob](https://code.visualstudio.com/docs/editor/glob-patterns) pattern. Example `[\"**/*.{ts,js}\"]`"
+				},
+				"errorLens.excludeWorkspaces": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"markdownDescription": "Exclude workspaces by path."
+				},
+				"errorLens.disableLineComments": {
+					"type": "object",
+					"markdownDescription": "Used for `errorLens.disableLine` command that adds a comment disabling linter rule for a line.\nTo force comment on the same line - add `SAME_LINE` to the message: `\"eslint\": \"// eslint-disable-line $code SAME_LINE\"`",
+					"patternProperties": {
+						".*": {
+							"type": "string"
+						}
+					},
+					"default": {
+						"eslint": "// eslint-disable-next-line $code",
+						"Stylelint": "/* stylelint-disable-next-line $code */"
+					}
+				},
+				"errorLens.lintFilePaths": {
+					"type": "object",
+					"default": {
+						"eslint": [
+							"**/*.eslintrc.{js,cjs,yaml,yml,json}",
+							"**/*package.json"
+						],
+						"Stylelint": [
+							"**/*.stylelintrc",
+							"**/*.stylelintrc.{cjs,js,json,yaml,yml}",
+							"**/*stylelint.config.{cjs,js}",
+							"**/*package.json"
+						]
+					},
+					"patternProperties": {
+						".*": {
+							"oneOf": [
+								{
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								{
+									"type": "string",
+									"enum": [
+										"none"
+									]
+								}
+							]
+						}
+					},
+					"markdownDescription": "Specify where to search for linter rule definitions by diagnostic source ([glob](https://code.visualstudio.com/docs/editor/glob-patterns) for local linter files). `node_modules` folder is excluded."
+				},
+				"errorLens.searchForProblemQuery": {
+					"type": "string",
+					"default": "https://duckduckgo.com/?q=$message",
+					"markdownDescription": "Pick query to open in default browser when searching for problem with `errorLens.searchForProblem` command."
+				},
+				"errorLens.selectProblemType": {
+					"type": "string",
+					"default": "closestProblem",
+					"enum": [
+						"closestProblem",
+						"closestSeverity",
+						"activeLine"
+					],
+					"enumDescriptions": [
+						"Show closest to the cursor diagnostic.",
+						"Show closest to the cursor diagnostic (sorted by severity e.g. error will be shown before warning even if it's farther from the cursor).",
+						"Show only diagnostic that is on the same line as the cursor."
+					],
+					"markdownDescription": "Which problem to select (closest / active line) when executing `errorLens.selectProblem` command."
+				},
+				"errorLens.light": {
+					"type": "object",
+					"markdownDescription": "Specify color of decorations for when the light color theme is active.",
+					"properties": {
+						"errorGutterIconPath": {
+							"type": "string",
+							"description": "Absolute path to error gutter icon for light themes.",
+							"default": ""
+						},
+						"warningGutterIconPath": {
+							"type": "string",
+							"description": "Absolute path to warning gutter icon for light themes.",
+							"default": ""
+						},
+						"infoGutterIconPath": {
+							"type": "string",
+							"description": "Absolute path to info gutter icon for light themes.",
+							"default": ""
+						},
+						"hintGutterIconPath": {
+							"type": "string",
+							"description": "Absolute path to hint gutter icon for light themes.",
+							"default": ""
+						},
+						"errorGutterIconColor": {
+							"type": "string",
+							"default": "",
+							"markdownDescription": "Error color of simple gutter icons (shapes and letters) for light themes.",
+							"format": "color"
+						},
+						"warningGutterIconColor": {
+							"type": "string",
+							"default": "",
+							"markdownDescription": "Warning color of simple gutter icons (shapes and letters) for light themes.",
+							"format": "color"
+						},
+						"infoGutterIconColor": {
+							"type": "string",
+							"default": "",
+							"markdownDescription": "Info color of simple gutter icons (shapes and letters) for light themes.",
+							"format": "color"
+						},
+						"hintGutterIconColor": {
+							"type": "string",
+							"default": "",
+							"markdownDescription": "Hint color of simple gutter icons (shapes and letters) for light themes.",
+							"format": "color"
+						}
+					}
+				},
+				"errorLens.delay": {
+					"type": "integer",
+					"markdownDescription": "Delay (ms) before showing problem decorations (**0** to disable). Minimum delay of **500** is enforced by the extension. `#errorLens.delayMode#` controls how to handle the delay.",
+					"default": 0
+				},
+				"errorLens.delayMode": {
+					"type": "string",
+					"default": "old",
+					"enum": [
+						"old",
+						"debounce"
+					],
+					"markdownEnumDescriptions": [
+						"New problems appear according to `errorLens.delay` setting. Fixed problems disappear faster. A bit buggy.",
+						"Decorations for problems are debounced according to `errorLens.delay` setting."
+					],
+					"markdownDescription": "Pick which version of the delay to use."
+				},
+				"errorLens.onSave": {
+					"type": "boolean",
+					"description": "When enabled - updates decorations only on document save (manual).",
+					"default": false
+				},
+				"errorLens.onSaveTimeout": {
+					"type": "number",
+					"description": "Time period (ms) that used for showing decorations after the document save.",
+					"default": 1000
+				},
+				"errorLens.enableOnDiffView": {
+					"type": "boolean",
+					"markdownDescription": "Enable decorations when viewing a diff view in the editor (e.g. Git diff).",
+					"default": false
+				},
+				"errorLens.followCursor": {
+					"type": "string",
+					"enum": [
+						"allLines",
+						"allLinesExceptActive",
+						"activeLine",
+						"closestProblem",
+						"closestProblemMultiline",
+						"closestProblemMultilineInViewport",
+						"closestProblemMultilineBySeverity"
+					],
+					"enumDescriptions": [
+						"Highlight all problems in file",
+						"Highlight all problems in file (except the line at the cursor)",
+						"Highlight only the problem at the cursor",
+						"Highlight only closest to the cursor problem",
+						"Highlight only closest to the cursor problem (only in visible lines) (decoration spans multiple lines)",
+						"Highlight only closest to the cursor problem (error before warning, ...) (decoration spans multiple lines)"
+					],
+					"description": "Highlight only portion of the problems.",
+					"default": "allLines"
+				},
+				"errorLens.followCursorMore": {
+					"type": "number",
+					"markdownDescription": "Augments `#errorLens.followCursor#`.\nAdds number of lines to top and bottom when `#errorLens.followCursor#` is set to `activeLine`.\n Adds number of closest problems when `#errorLens.followCursor#` is `closestProblem`",
+					"default": 0
+				},
+				"errorLens.multilineMessage": {
+					"type": "object",
+					"properties": {
+						"decorationMaxNumberOfLines": {
+							"type": "integer",
+							"default": 6,
+							"maximum": 20
+						},
+						"maxColumnForCalculation": {
+							"type": "integer",
+							"default": 130
+						},
+						"preferFittingMessageMultiplier": {
+							"type": "number",
+							"default": 2
+						},
+						"highlightProblemLine": {
+							"type": "string",
+							"enum": [
+								"line",
+								"range",
+								"none"
+							],
+							"default": "line"
+						},
+						"alignStart": {
+							"type": "integer",
+							"minimum": 0,
+							"default": 0,
+							"description": "NOT IMPLEMENTED."
+						},
+						"alignEnd": {
+							"type": "integer",
+							"minimum": 0,
+							"default": 0,
+							"description": "NOT IMPLEMENTED."
+						},
+						"margin": {
+							"type": "integer",
+							"default": 4
+						},
+						"padding": {
+							"type": "integer",
+							"default": 1
+						},
+						"borderRadius": {
+							"type": "string",
+							"default": ""
+						},
+						"useFixedPosition": {
+							"type": "boolean",
+							"default": false,
+							"description": "Use fixed position for decoration that has stuttering/twitching when typing... BUT!!! decoration can overlap text in editor for a short period of time on the active line."
+						}
+					},
+					"default": {
+						"decorationMaxNumberOfLines": 6,
+						"preferFittingMessageMultiplier": 2,
+						"maxColumnForCalculation": 130,
+						"preferSameLineMultiplier": 1,
+						"highlightProblemLine": "line",
+						"alignStart": 0,
+						"alignEnd": 0,
+						"margin": 4,
+						"padding": 1,
+						"borderRadius": "",
+						"useFixedPosition": false
+					},
+					"additionalProperties": false,
+					"markdownDescription": "EXPERIMENTAL. Not implemented."
+				},
+				"errorLens.gutterIconsEnabled": {
+					"type": "boolean",
+					"description": "When enabled - shows gutter icons (In place of the debug breakpoint icon).",
+					"default": false
+				},
+				"errorLens.gutterIconsFollowCursorOverride": {
+					"type": "boolean",
+					"markdownDescription": "When enabled and `#errorLens.followCursor#` setting is not `allLines`, then gutter icons would be rendered for all problems. But line decorations (background, message) only for active line.",
+					"default": true
+				},
+				"errorLens.gutterIconSize": {
+					"type": "string",
+					"markdownDescription": "Change gutter icon size. Examples: `auto`, `contain`, `cover`, `50%`, `150%` ([CSS units](https://developer.mozilla.org/en-US/docs/Web/CSS/background-size)).",
+					"examples": [
+						"auto",
+						"contain",
+						"cover",
+						"50%",
+						"150%"
+					],
+					"default": "100%"
+				},
+				"errorLens.gutterIconSet": {
+					"type": "string",
+					"description": "Change gutter icon style.",
+					"enum": [
+						"default",
+						"defaultOutline",
+						"borderless",
+						"circle",
+						"square",
+						"squareRounded",
+						"letter",
+						"emoji"
+					],
+					"enumDescriptions": [
+						"Similar to vscode icons in Problems Panel (old).",
+						"Similar to vscode icons in Problems Panel (new).",
+						"Similar to vscode icons in Problems Panel, only without a border.",
+						"Simple filled circle.",
+						"Simple filled square.",
+						"Simple filled square with rounded corners.",
+						"Simple one letter icon (E,W,I,H).",
+						"Emoji. (`errorLens.gutterEmoji` to control which emoji to show.)"
+					],
+					"default": "default"
+				},
+				"errorLens.gutterEmoji": {
+					"type": "object",
+					"properties": {
+						"error": {
+							"type": "string",
+							"minLength": 0,
+							"maxLength": 2,
+							"default": "💀"
+						},
+						"warning": {
+							"type": "string",
+							"minLength": 0,
+							"maxLength": 2,
+							"default": "😞"
+						},
+						"info": {
+							"type": "string",
+							"minLength": 0,
+							"maxLength": 2,
+							"default": "🆗"
+						},
+						"hint": {
+							"type": "string",
+							"minLength": 0,
+							"maxLength": 2,
+							"default": "🍏"
+						}
+					},
+					"default": {
+						"error": "💀",
+						"warning": "😞",
+						"info": "🆗",
+						"hint": "🍏"
+					},
+					"additionalProperties": false,
+					"markdownDescription": "Pick emoji symbol for gutter icon when `#errorLens.gutterIconSet#` is `emoji`."
+				},
+				"errorLens.errorGutterIconPath": {
+					"type": "string",
+					"description": "Absolute path to error gutter icon.",
+					"default": ""
+				},
+				"errorLens.warningGutterIconPath": {
+					"type": "string",
+					"description": "Absolute path to warning gutter icon.",
+					"default": ""
+				},
+				"errorLens.infoGutterIconPath": {
+					"type": "string",
+					"description": "Absolute path to info gutter icon.",
+					"default": ""
+				},
+				"errorLens.hintGutterIconPath": {
+					"type": "string",
+					"description": "Absolute path to hint gutter icon.",
+					"default": ""
+				},
+				"errorLens.errorGutterIconColor": {
+					"type": "string",
+					"default": "#e45454",
+					"markdownDescription": "Error color of simple gutter icons (shapes and letters).",
+					"format": "color"
+				},
+				"errorLens.warningGutterIconColor": {
+					"type": "string",
+					"default": "#ff942f",
+					"markdownDescription": "Warning color of simple gutter icons (shapes and letters).",
+					"format": "color"
+				},
+				"errorLens.infoGutterIconColor": {
+					"type": "string",
+					"default": "#00b7e4",
+					"markdownDescription": "Info color of simple gutter icons (shapes and letters).",
+					"format": "color"
+				},
+				"errorLens.hintGutterIconColor": {
+					"type": "string",
+					"default": "#2faf64",
+					"markdownDescription": "Hint color of simple gutter icons (shapes and letters).",
+					"format": "color"
+				},
+				"errorLens.removeLinebreaks": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "When enabled - replaces line breaks in inline diagnostic message with whitespaces."
+				},
+				"errorLens.replaceLinebreaksSymbol": {
+					"type": "string",
+					"default": "⏎",
+					"markdownDescription": "Symbol to replace linebreaks. Requires enabling `#errorLens.removeLinebreaks#`."
+				},
+				"errorLens.scrollbarHackEnabled": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "When enabled - prevents showing horizontal scrollbar in editor (caused by inline decorations). Also prevents mouse hover at inline message."
+				},
+				"errorLens.decorations": {
+					"type": "object",
+					"markdownDescription": "Advanced decoration tweaking. Possible keys: `errorRange`, `warningRange`, `infoRange`, `hintRange`.\n\n Possible properties: `backgroundColor`, `color`, `outline`, `border`, ...,",
+					"default": {
+						"errorRange": {},
+						"warningRange": {},
+						"infoRange": {},
+						"hintRange": {}
+					},
+					"patternProperties": {
+						"^(errorRange|warningRange|infoRange|hintRange|errorMessage|warningMessage|infoMessage|hintMessage)$": {
+							"type": "object",
+							"markdownDescription": "☑️ Key exists.",
+							"properties": {}
+						}
+					},
+					"additionalProperties": false
+				},
+				"errorLens.ignoreUntitled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Controls whether to run on untitled (unsaved) files."
+				},
+				"errorLens.codeLensEnabled": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Controls whether to show the Error Lens as a Code Lens above the code. "
+				},
+				"errorLens.codeLensLength": {
+					"type": "object",
+					"properties": {
+						"min": {
+							"type": "integer",
+							"minimum": 10,
+							"default": 30
+						},
+						"max": {
+							"type": "integer",
+							"minimum": 30,
+							"default": 100
+						}
+					},
+					"additionalProperties": false,
+					"default": {
+						"min": 30,
+						"max": 100
+					},
+					"markdownDescription": "Enforce minimum length of the first code lens item and max length of subsequent items."
+				},
+				"errorLens.codeLensTemplate": {
+					"type": "string",
+					"default": "$severity $message",
+					"markdownDescription": "Template used for all messages appearing in the `#errorLens.codeLensEnabled#`. Whitespace between items is important.\n\nList of variables:\n\n- `$message` - diagnostic message text\n\n- `$count` - Number of diagnostics on the line\n\n- `$severity` - Severity prefix taken from `#errorLens.severityText#`\n\n- `$source` - Source of diagnostic e.g. \"eslint\"\n\n- `$code` - Code of the diagnostic"
+				},
+				"errorLens.codeLensOnClick": {
+					"type": "string",
+					"enum": [
+						"none",
+						"showProblemsView",
+						"showQuickFix",
+						"searchForProblem"
+					],
+					"enumDescriptions": [
+						"Does nothing.",
+						"Shows problems view.",
+						"Shows quick fix menu.",
+						"Search for the problem."
+					],
+					"default": "showQuickFix",
+					"markdownDescription": "Controls what do on clicking the `#errorLens.codeLensEnabled#`."
+				}
+			}
+		},
+		"colors": [
+			{
+				"id": "errorLens.errorBackground",
+				"defaults": {
+					"dark": "#e454541b",
+					"light": "#e4545420",
+					"highContrast": "#e454541b"
+				},
+				"description": "Background color of the entire line containing error."
+			},
+			{
+				"id": "errorLens.errorMessageBackground",
+				"defaults": {
+					"dark": "#e4545419",
+					"light": "#e4545419",
+					"highContrast": "#e4545419"
+				},
+				"description": "Background color of the error message."
+			},
+			{
+				"id": "errorLens.errorRangeBackground",
+				"defaults": {
+					"dark": "#e4545419",
+					"light": "#e4545419",
+					"highContrast": "#e4545419"
+				},
+				"description": "Background color of the error range (when errorLens.problemRangeDecorationEnabled setting enabled)."
+			},
+			{
+				"id": "errorLens.errorBackgroundLight",
+				"defaults": {
+					"dark": "#e4545420",
+					"light": "#e4545420",
+					"highContrast": "#e4545420"
+				},
+				"description": "Background color of the entire line containing error (Only in light themes)."
+			},
+			{
+				"id": "errorLens.errorForeground",
+				"defaults": {
+					"dark": "#ff6464",
+					"light": "#e45454",
+					"highContrast": "#ff6464"
+				},
+				"description": "Text color used to highlight lines containing errors."
+			},
+			{
+				"id": "errorLens.errorForegroundLight",
+				"defaults": {
+					"dark": "#e45454",
+					"light": "#e45454",
+					"highContrast": "#e45454"
+				},
+				"description": "Text color used to highlight lines containing errors (Only in light themes)."
+			},
+			{
+				"id": "errorLens.warningBackground",
+				"defaults": {
+					"dark": "#ff942f1b",
+					"light": "#ff942f20",
+					"highContrast": "#ff942f1b"
+				},
+				"description": "Background color used to highlight lines containing warnings."
+			},
+			{
+				"id": "errorLens.warningMessageBackground",
+				"defaults": {
+					"dark": "#ff942f19",
+					"light": "#ff942f19",
+					"highContrast": "#ff942f19"
+				},
+				"description": "Background color of the warning message."
+			},
+			{
+				"id": "errorLens.warningRangeBackground",
+				"defaults": {
+					"dark": "#ff942f19",
+					"light": "#ff942f19",
+					"highContrast": "#ff942f19"
+				},
+				"description": "Background color of the warning range (when errorLens.problemRangeDecorationEnabled setting enabled)."
+			},
+			{
+				"id": "errorLens.warningBackgroundLight",
+				"defaults": {
+					"dark": "#ff942f20",
+					"light": "#ff942f20",
+					"highContrast": "#ff942f20"
+				},
+				"description": "Background color used to highlight lines containing warnings (Only in light themes)."
+			},
+			{
+				"id": "errorLens.warningForeground",
+				"defaults": {
+					"dark": "#fa973a",
+					"light": "#ff942f",
+					"highContrast": "#fa973a"
+				},
+				"description": "Text color used to highlight lines containing warnings."
+			},
+			{
+				"id": "errorLens.warningForegroundLight",
+				"defaults": {
+					"dark": "#ff942f",
+					"light": "#ff942f",
+					"highContrast": "#ff942f"
+				},
+				"description": "Text color used to highlight lines containing warnings (Only in light themes)."
+			},
+			{
+				"id": "errorLens.infoBackground",
+				"defaults": {
+					"dark": "#00b7e420",
+					"light": "#00b7e420",
+					"highContrast": "#00b7e420"
+				},
+				"description": "Background color used to highlight lines containing info."
+			},
+			{
+				"id": "errorLens.infoMessageBackground",
+				"defaults": {
+					"dark": "#00b7e419",
+					"light": "#00b7e419",
+					"highContrast": "#00b7e419"
+				},
+				"description": "Background color of the info message."
+			},
+			{
+				"id": "errorLens.infoRangeBackground",
+				"defaults": {
+					"dark": "#00b7e419",
+					"light": "#00b7e419",
+					"highContrast": "#00b7e419"
+				},
+				"description": "Background color of the info range (when errorLens.problemRangeDecorationEnabled setting enabled)."
+			},
+			{
+				"id": "errorLens.infoBackgroundLight",
+				"defaults": {
+					"dark": "#00b7e420",
+					"light": "#00b7e420",
+					"highContrast": "#00b7e420"
+				},
+				"description": "Background color used to highlight lines containing info (Only in light themes)."
+			},
+			{
+				"id": "errorLens.infoForeground",
+				"defaults": {
+					"dark": "#00b7e4",
+					"light": "#00b7e4",
+					"highContrast": "#00b7e4"
+				},
+				"description": "Text color used to highlight lines containing info."
+			},
+			{
+				"id": "errorLens.infoForegroundLight",
+				"defaults": {
+					"dark": "#00b7e4",
+					"light": "#00b7e4",
+					"highContrast": "#00b7e4"
+				},
+				"description": "Text color used to highlight lines containing info (Only in light themes)."
+			},
+			{
+				"id": "errorLens.hintBackground",
+				"defaults": {
+					"dark": "#17a2a220",
+					"light": "#17a2a220",
+					"highContrast": "#17a2a220"
+				},
+				"description": "Background color used to highlight lines containing hints."
+			},
+			{
+				"id": "errorLens.hintMessageBackground",
+				"defaults": {
+					"dark": "#17a2a219",
+					"light": "#17a2a219",
+					"highContrast": "#17a2a219"
+				},
+				"description": "Background color of the hint message."
+			},
+			{
+				"id": "errorLens.hintRangeBackground",
+				"defaults": {
+					"dark": "#17a2a219",
+					"light": "#17a2a219",
+					"highContrast": "#17a2a219"
+				},
+				"description": "Background color of the hint range (when errorLens.problemRangeDecorationEnabled setting enabled)."
+			},
+			{
+				"id": "errorLens.hintBackgroundLight",
+				"defaults": {
+					"dark": "#17a2a220",
+					"light": "#17a2a220",
+					"highContrast": "#17a2a220"
+				},
+				"description": "Background color used to highlight lines containing hints (Only in light themes)."
+			},
+			{
+				"id": "errorLens.hintForeground",
+				"defaults": {
+					"dark": "#2faf64",
+					"light": "#2faf64",
+					"highContrast": "#2faf64"
+				},
+				"description": "Text color used to highlight lines containing hints."
+			},
+			{
+				"id": "errorLens.hintForegroundLight",
+				"defaults": {
+					"dark": "#2faf64",
+					"light": "#2faf64",
+					"highContrast": "#2faf64"
+				},
+				"description": "Text color used to highlight lines containing hints (Only in light themes)."
+			},
+			{
+				"id": "errorLens.statusBarIconErrorForeground",
+				"defaults": {
+					"dark": "#ff6464",
+					"light": "#e45454",
+					"highContrast": "#ff6464"
+				},
+				"description": "Status bar icon item error color. Foreground is used when the `errorLens.statusBarIconsUseBackground` setting is disabled."
+			},
+			{
+				"id": "errorLens.statusBarIconWarningForeground",
+				"defaults": {
+					"dark": "#fa973a",
+					"light": "#ff942f",
+					"highContrast": "#fa973a"
+				},
+				"description": "Status bar icon item error color. Foreground is used when the `errorLens.statusBarIconsUseBackground` setting is disabled."
+			},
+			{
+				"id": "errorLens.statusBarErrorForeground",
+				"defaults": {
+					"dark": "#ff6464",
+					"light": "#e45454",
+					"highContrast": "#ff6464"
+				},
+				"description": "Status bar item error color."
+			},
+			{
+				"id": "errorLens.statusBarWarningForeground",
+				"defaults": {
+					"dark": "#fa973a",
+					"light": "#ff942f",
+					"highContrast": "#fa973a"
+				},
+				"description": "Status bar item warning color."
+			},
+			{
+				"id": "errorLens.statusBarInfoForeground",
+				"defaults": {
+					"dark": "#00b7e4",
+					"light": "#00b7e4",
+					"highContrast": "#00b7e4"
+				},
+				"description": "Status bar item info color."
+			},
+			{
+				"id": "errorLens.statusBarHintForeground",
+				"defaults": {
+					"dark": "#2faf64",
+					"light": "#2faf64",
+					"highContrast": "#2faf64"
+				},
+				"description": "Status bar item hint color."
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "webpack --mode production --color --devtool hidden-source-map",
+		"watch": "webpack --mode development --watch --stats minimal"
+	},
+	"devDependencies": {
+		"@soda/friendly-errors-webpack-plugin": "^1.8.1",
+		"@types/lodash": "^4.14.202",
+		"@types/node": "16.x",
+		"@types/vscode": "^1.85.0",
+		"@typescript-eslint/eslint-plugin": "^5.62.0",
+		"@typescript-eslint/parser": "^5.62.0",
+		"eslint": "^8.56.0",
+		"ts-loader": "^9.5.1",
+		"typescript": "^5.3.3",
+		"webpack": "^5.89.0",
+		"webpack-cli": "^5.1.4"
+	},
+	"dependencies": {
+		"lodash": "^4.17.21"
+	},
+	"__metadata": {
+		"id": "9d8c32ab-354c-4daf-a9bf-20b633734435",
+		"publisherId": "151820df-5dc5-4c97-8751-eb84643203fa",
+		"publisherDisplayName": "Alexander",
+		"targetPlatform": "undefined",
+		"isApplicationScoped": false,
+		"updated": true,
+		"isPreReleaseVersion": false,
+		"hasPreReleaseVersion": false,
+		"installedTimestamp": 1713132900601,
+		"pinned": false,
+		"preRelease": false,
+		"source": "gallery"
+	}
+}

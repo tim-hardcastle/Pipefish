@@ -33,16 +33,13 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("null", "enum?")
 	T.AddTransitiveArrow("null", "field?")
 	T.AddTransitiveArrow("null", "struct?")
-	T.AddTransitiveArrow("language", "snippet")
-	T.AddTransitiveArrow("external", "snippet")
 	T.AddTransitiveArrow("snippet", "snippet?")
 	T.AddTransitiveArrow("null", "snippet?")
-	T.AddTransitiveArrow("null", "language?")
-	T.AddTransitiveArrow("null", "external?")
 	T.AddTransitiveArrow("snippet", "struct")
+	T.AddTransitiveArrow("snippet?", "struct?")
 	T.AddTransitiveArrow("outer function", "func")
 
-	T.AddTransitiveArrow("ref", "***")
+	T.AddTransitiveArrow("ref", "dummy value")
 	return &T
 }
 

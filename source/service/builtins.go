@@ -55,7 +55,6 @@ var BUILTINS = map[string]functionAndReturnType{
 	"multiply_integers": {(*Compiler).btMultiplyIntegers, AltType(values.INT)},
 	"negate_float":      {(*Compiler).btNegateFloat, AltType(values.FLOAT)},
 	"negate_integer":    {(*Compiler).btNegateInteger, AltType(values.INT)},
-	"post_external":     {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_html":         {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_output":    {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
 	"post_sql":          {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},

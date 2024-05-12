@@ -26,6 +26,7 @@ import (
 	"pipefish/source/parser"
 	"pipefish/source/report"
 	"pipefish/source/settings"
+	"pipefish/source/text"
 	"pipefish/source/token"
 )
 
@@ -289,13 +290,54 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	uP.Parser.Errors = report.MergeErrors(uP.rl.GetErrors(), uP.Parser.Errors)
 }
 
-func (uP *Initializer) ParseImports() {
-	uP.Parser.ParsedDeclarations[importDeclaration] = parser.ParsedCodeChunks{}
-	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[importDeclaration]); chunk++ {
-		uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[importDeclaration][chunk]
-		uP.Parser.TokenizedDeclarations[importDeclaration][chunk].ToStart()
-		uP.Parser.ParsedDeclarations[importDeclaration] = append(uP.Parser.ParsedDeclarations[importDeclaration], uP.Parser.ParseTokenizedChunk())
+func (uP *Initializer) ParseImportsAndExternals() {
+	for kindOfDeclarationToParse := importDeclaration; kindOfDeclarationToParse <= externalDeclaration; kindOfDeclarationToParse++ {
+		uP.Parser.ParsedDeclarations[kindOfDeclarationToParse] = parser.ParsedCodeChunks{}
+		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[kindOfDeclarationToParse]); chunk++ {
+			uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[kindOfDeclarationToParse][chunk]
+			uP.Parser.TokenizedDeclarations[kindOfDeclarationToParse][chunk].ToStart()
+			uP.Parser.ParsedDeclarations[kindOfDeclarationToParse] = append(uP.Parser.ParsedDeclarations[kindOfDeclarationToParse], uP.Parser.ParseTokenizedChunk())
+		}
 	}
+}
+
+func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (string, string) {
+	namespace := ""
+	scriptFilepath := ""
+	switch imp := (imp).(type) {
+	case *ast.StringLiteral:
+		scriptFilepath = imp.Value
+		namespace = text.ExtractFileName(scriptFilepath)
+		return namespace, scriptFilepath
+	case *ast.Identifier:
+		namespace = imp.Value
+		return namespace, scriptFilepath
+	case *ast.InfixExpression:
+		if imp.GetToken().Literal != "::" {
+			uP.Throw("init/import/infix", imp.Token)
+		}
+		lhs := imp.Args[0]
+		rhs := imp.Args[2]
+		switch rhs := rhs.(type) {
+		case *ast.StringLiteral:
+			scriptFilepath = rhs.Value
+			switch lhs := lhs.(type) {
+			case *ast.Identifier:
+				if lhs.Value != "NULL" {
+					namespace = lhs.Value
+				} else {
+					namespace = ""
+				}
+				return namespace, scriptFilepath
+			default:
+				uP.Throw("init/import/ident", *lhs.GetToken())
+			}
+		default:
+			uP.Throw("init/import/string", *lhs.GetToken())
+		}
+	}
+	uP.Throw("init/import/weird", *imp.GetToken())
+	return "", ""
 }
 
 func (uP *Initializer) ParseTypeDefs() {
@@ -335,9 +377,9 @@ func (uP *Initializer) MakeSnippets() {
 		switch parsedCode := parsedCode.(type) {
 		case *ast.Identifier:
 			name = parsedCode.Value
-			uP.Parser.Languages = append(uP.Parser.Languages, name)
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, "language")
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, "language?")
+			uP.Parser.Snippets = append(uP.Parser.Snippets, name)
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, "snippet")
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, "snippet?")
 			uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
 			uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
 			uP.Parser.Suffixes.Add(name)

@@ -33,7 +33,7 @@
 		"headwords": {
                         "patterns": [{
                                 "name": "constant.other.pipefish",
-                                "match": "\\b(import|def|var|cmd|private|lang|extern|newtype|const)\\b"
+                                "match": "\\b(import|def|var|cmd|private|lang|external|newtype|const)\\b"
                         }]
                 },
 		"strings": {

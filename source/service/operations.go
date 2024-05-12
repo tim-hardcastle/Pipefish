@@ -117,6 +117,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Equs: {"equs", operands{dst, mem, mem}},
 	Equt: {"equt", operands{dst, mem, mem}},
 	Eqxx: {"eqxx", operands{dst, mem, mem, mem}},
+	Extn: {"extn", operands{dst, mem, mem, mem, mem, tup}}, // Operands are: the external service to call; whether the function is PREFIX, INFIX, or POSTFIX; the remainder of the namespace of the function as a string; the name of the function as a string; the locations of the arguments.
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
 	Gsnp: {"gsnp", operands{dst, mem}},
@@ -258,6 +259,7 @@ const (
 	Equs
 	Equt
 	Eqxx
+	Extn
 	Flti
 	Flts
 	Gofn

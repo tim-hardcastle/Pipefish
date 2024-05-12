@@ -25,8 +25,8 @@ type VmMaker struct {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, sourcecode string, db *sql.DB) (*VmService, *Initializer) {
-	mc := BlankVm(db)
+func StartService(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
+	mc := BlankVm(db, hubServices)
 	cp, uP := initializeFromScript(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	return &VmService{Mc: mc, Cp: cp}, uP
 }
@@ -84,10 +84,11 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.uP.ParseImports() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
+	vmm.uP.ParseImportsAndExternals() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
 	unnamespacedImports := vmm.InitializeNamespacedImportsAndReturnUnnamespacedImports(mc)
 
 	if vmm.uP.ErrorsExist() {
@@ -96,6 +97,11 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 	vmm.uP.AddToNameSpace(unnamespacedImports)
 
 	vmm.compileImports(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
+	vmm.initializeExternals(mc)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -196,8 +202,8 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 	uP := vmm.uP
 	unnamespacedImports := []string{}
 	for _, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
-		scriptFilepath := ""
 		namespace := ""
+		scriptFilepath := ""
 		switch imp := (imp).(type) {
 		case *ast.StringLiteral:
 			scriptFilepath = imp.Value
@@ -228,7 +234,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
-			uP.Throw("init/import/pair", *imp.GetToken())
+			namespace, scriptFilepath = uP.getPartsOfImportOrExternalDeclaration(imp)
 		}
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
@@ -250,7 +256,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 
 func (vmm *VmMaker) MakeGoMods(mc *Vm, goHandler *GoHandler) {
 	uP := vmm.uP
-	for source, _ := range goHandler.Modules {
+	for source := range goHandler.Modules {
 		goHandler.TypeDeclarations[source] = vmm.cp.MakeTypeDeclarationsForGo(mc, goHandler, source)
 		if uP.Parser.ErrorsExist() {
 			return
@@ -290,6 +296,39 @@ func (vmm *VmMaker) compileImports(mc *Vm) {
 	for namespace, lib := range vmm.cp.P.NamespaceBranch {
 		newCp, _ := initializeFromScript(mc, lib.ScriptFilepath)
 		vmm.cp.Imports[namespace] = &VmService{Cp: newCp, Mc: mc}
+	}
+}
+
+// There are three possibilities. Either we have a namespace without a path, in which case we're looking for
+// a service with that name already running on the hub. Or we have a namespace and a filename, in which case
+// we're looking for a service with that name running on the hub, checking that it has the same filename,
+// updating it if necessary, and if it doesn't exist, trying to launch it.
+//
+// Note that getPartsOfImportOrExternalDeclaration will guess the default service name from the file name if
+// one is not supplied, so there is no need to do it here.
+//
+// The third case is that we have a namespace and a path to a website. In that case, we need to find out whether
+// there is in fact a Pipefish service, or at least something emulating one, on the other end.
+//
+// Either way, we then need to extract a stub of the external service's public functions, types, etc.
+//
+// Details of the external services are kept in the vm, because it will have to make the external calls.
+func (vmm *VmMaker) initializeExternals(mc *Vm) {
+	for _, declaration := range vmm.cp.P.ParsedDeclarations[externalDeclaration] {
+		name, path := vmm.uP.getPartsOfImportOrExternalDeclaration(declaration)
+		switch {
+		case path == "": // Then this will work only if there's already an instance of a service of that name running on the hub.
+			hubService, ok := mc.HubServices[name]
+			if !ok {
+				vmm.uP.Throw("init/external/exist", *declaration.GetToken())
+				continue
+			}
+			serviceToAdd := externalServiceOnSameHub{mc.OwnService, hubService}
+			vmm.cp.ExternalOrdinals[name] = uint32(len(vmm.cp.P.Externals))
+			vmm.cp.P.Externals[name] = hubService.Cp.P
+			mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
+
+		}
 	}
 }
 
@@ -467,7 +506,7 @@ func (vmm *VmMaker) createAbstractTypes(mc *Vm) {
 
 func (vmm *VmMaker) createSnippetTypes(mc *Vm) {
 	mc.Lb_snippets = values.ValueType(len(mc.concreteTypeNames))
-	for i, name := range vmm.cp.P.Languages {
+	for i, name := range vmm.cp.P.Snippets {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(mc.concreteTypeNames))
 		mc.concreteTypeNames = append(mc.concreteTypeNames, name)
@@ -542,7 +581,7 @@ func (vmm *VmMaker) makeConstructors(mc *Vm) {
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
 	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
-	for i, name := range vmm.cp.P.Languages {
+	for i, name := range vmm.cp.P.Snippets {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(languageDeclaration), i)
 	}
