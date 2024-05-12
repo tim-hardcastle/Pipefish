@@ -18,7 +18,7 @@ File = struct(filepath string)
 FileExists = struct(filepath string)
 Input = struct(prompt string)
 Output = struct()
-Random = struct(params single)
+Random = struct(params int)
 RandomSeed = struct()
 Terminal = struct()
 
@@ -71,11 +71,11 @@ randomFunctionOf(random Random) :
             error "range of Random object cannot be <= 0"
         else :
             goRandomInt(r)
-    type r == list :
-        r == [] :
-            error "can't take random element of empty list"
-        else :
-            r[goRandomInt(len r)]
+    // type r == list :
+    //     r == [] :
+    //         error "can't take random element of empty list"
+    //     else :
+    //         r[goRandomInt(len r)]
     else :
         error "can't randomize things of type " + string(type r)
 given :

@@ -37,8 +37,9 @@ type Compiler struct {
 	Externals              []string // The names of services which have been declared as external.
 	Timestamp              int64
 	ScriptFilepath         string
+	typeAccess             []tyAccess // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
 
-	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>} TODO --- why?
+	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}. TODO --- why?
 
 	// Temporary state.
 	ThunkList   []Thunk
@@ -60,15 +61,25 @@ type CpFunc struct { // The compiler's representation of a function after the fu
 	HasGo    bool
 }
 
-type Access int
+// The access that the compiler has at any given point in the compilation. Are we compiling code in a function, a command, a REPL?
+type cpAccess int
 
 const ( // We use this to keep track of what we're doing so we don't e.g. call a command from a function, or let a command see the globals without a `global` keyword, etc.
-	REPL Access = iota
+	REPL cpAccess = iota
 	CMD
 	DEF
 	INIT
 	LAMBDA
 	NAMESPACE
+)
+
+// A type may be private. At compile time we check this quality recursively.
+type tyAccess int
+
+const (
+	NATIVE tyAccess = iota
+	PUBLIC
+	PRIVATE
 )
 
 const DUMMY = 4294967295
@@ -84,6 +95,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		ThunkList:              []Thunk{},
 		Fns:                    []*CpFunc{},
 		Imports:                make(map[string]*VmService),
+		typeAccess:             make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
 		TypeNameToTypeList: map[string]AlternateType{
 			"int":       AltType(values.INT),
 			"string":    AltType(values.STRING),
@@ -151,6 +163,15 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.P
 }
 
+func (cp *Compiler) isPrivate(a values.AbstractType) bool {
+	for _, w := range a.Types {
+		if cp.typeAccess[w] == PRIVATE {
+			return true
+		}
+	}
+	return false
+}
+
 func (cp *Compiler) Do(mc *Vm, line string) values.Value {
 	state := mc.getState()
 	cT := mc.CodeTop()
@@ -200,7 +221,7 @@ const (
 	HTML_SNIPPET
 )
 
-func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fnNode *ast.SuffixExpression, ac Access) uint32 {
+func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fnNode *ast.SuffixExpression, ac cpAccess) uint32 {
 	sEnv := NewEnvironment() // The source environment is used to build the env field of the snippet. NOTE: if we never reference this field, as we often won't, we can remove this as an optimization.
 	sEnv = flattenEnv(env, sEnv)
 	snF := &SnippetFactory{snippetType: cp.StructNameToTypeNumber[t], sourceString: fnNode.Token.Literal, sourceEnv: sEnv}
@@ -383,7 +404,7 @@ func (cp *Compiler) vmComeFrom(mc *Vm, items ...any) {
 // The heart of the compiler. It starts by taking a snapshot of the vm. It then does a big switch on the node type
 // and compiles accordingly. It then performs some sanity checks and, if the compiled expression is constant,
 // evaluates it and uses the snapshot to roll back the vm.
-func (cp *Compiler) CompileNode(mc *Vm, node ast.Node, env *Environment, ac Access) (AlternateType, bool) {
+func (cp *Compiler) CompileNode(mc *Vm, node ast.Node, env *Environment, ac cpAccess) (AlternateType, bool) {
 	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := mc.getState()
@@ -487,6 +508,11 @@ NodeTypeSwitch:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
+			if cp.typeAccess[mc.Mem[enumElement].T] == PRIVATE {
+				cp.P.Throw("comp/enum/private", node.GetToken())
+				break
+			}
+
 			cp.put(mc, Asgm, enumElement)
 			rtnTypes, rtnConst = AltType(mc.Mem[enumElement].T), true
 			break
@@ -1052,7 +1078,11 @@ NodeTypeSwitch:
 		case typeName == "string?":
 			cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY})
 		default:
-			cp.Reserve(mc, values.TYPE, (resolvingCompiler.TypeNameToTypeList[typeName]).ToAbstractType())
+			abType := resolvingCompiler.TypeNameToTypeList[typeName].ToAbstractType()
+			if ac == REPL && cp.isPrivate(abType) {
+				cp.P.Throw("comp/type/private", node.GetToken())
+			}
+			cp.Reserve(mc, values.TYPE, abType)
 		}
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 		break
@@ -1096,7 +1126,7 @@ NodeTypeSwitch:
 }
 
 // This needs its own very special logic because the type it returns has to be composed in a different way from all the other operators.
-func (cp *Compiler) emitComma(mc *Vm, node *ast.InfixExpression, env *Environment, ac Access) (AlternateType, bool) {
+func (cp *Compiler) emitComma(mc *Vm, node *ast.InfixExpression, env *Environment, ac cpAccess) (AlternateType, bool) {
 	lTypes, lcst := cp.CompileNode(mc, node.Args[0], env, ac)
 	if lTypes.isOnly(values.ERROR) {
 		cp.P.Throw("comp/tuple/err/a", node.GetToken())
@@ -1271,7 +1301,7 @@ func (t AlternateType) mustBeSingleOrTuple() (bool, bool) {
 // The compiler in the method receiver is where we look up the function name (the "resolving compiler").
 // The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
 // use them to look up the function.
-func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.Callable, env *Environment, ac Access) (AlternateType, bool) {
+func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.Callable, env *Environment, ac cpAccess) (AlternateType, bool) {
 	args := node.GetArgs()
 	if len(args) == 1 {
 		switch args[0].(type) {
@@ -1385,7 +1415,7 @@ type bindle struct {
 	env          *Environment    // Associates variable names with memory locations
 	tupleTime    bool            // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
-	access       Access          // Whether the function call is coming from the REPL, the cmd section, etc.
+	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
 	cst          bool            // Whether the arguments are constant.
 }
 
@@ -1759,7 +1789,7 @@ func (cp *Compiler) emitFunctionCall(mc *Vm, funcNumber uint32, valLocs []uint32
 	}
 }
 
-func (cp *Compiler) emitEquals(mc *Vm, node *ast.InfixExpression, env *Environment, ac Access) (AlternateType, bool) {
+func (cp *Compiler) emitEquals(mc *Vm, node *ast.InfixExpression, env *Environment, ac cpAccess) (AlternateType, bool) {
 	lTypes, lcst := cp.CompileNode(mc, node.Args[0], env, ac)
 	if lTypes.isOnly(values.ERROR) {
 		cp.P.Throw("comp/eq/err/a", node.GetToken())
@@ -1808,7 +1838,7 @@ func (cp *Compiler) emitEquals(mc *Vm, node *ast.InfixExpression, env *Environme
 	return AltType(values.ERROR, values.BOOL), lcst && rcst
 }
 
-func (cp *Compiler) compileLog(mc *Vm, node *ast.LogExpression, env *Environment, ac Access) bool {
+func (cp *Compiler) compileLog(mc *Vm, node *ast.LogExpression, env *Environment, ac cpAccess) bool {
 	output := mc.That()
 	logStr := node.Value
 	if logStr == "" {
@@ -1850,7 +1880,7 @@ func (cp *Compiler) compileLog(mc *Vm, node *ast.LogExpression, env *Environment
 }
 
 // The various 'piping operators'.
-func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, ac Access) (AlternateType, bool) {
+func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, ac cpAccess) (AlternateType, bool) {
 	var envWithThat *Environment
 	var isAttemptedFunc bool
 	var v *variable
@@ -1899,7 +1929,7 @@ func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, r
 	return rtnTypes, rtnConst
 }
 
-func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, isFilter bool, ac Access) (AlternateType, bool) {
+func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, isFilter bool, ac cpAccess) (AlternateType, bool) {
 	var isConst bool
 	var isAttemptedFunc bool
 	var v *variable
@@ -1985,7 +2015,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 	return AltType(values.LIST), isConst
 }
 
-func (cp *Compiler) compileExternalSnippet(mc *Vm, tok *token.Token, newEnv *Environment, sText string, ac Access) *SnippetBindle {
+func (cp *Compiler) compileExternalSnippet(mc *Vm, tok *token.Token, newEnv *Environment, sText string, ac cpAccess) *SnippetBindle {
 	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
@@ -2010,7 +2040,7 @@ func (cp *Compiler) compileExternalSnippet(mc *Vm, tok *token.Token, newEnv *Env
 	return &bindle
 }
 
-func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac Access) *SnippetBindle {
+func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac cpAccess) *SnippetBindle {
 	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {

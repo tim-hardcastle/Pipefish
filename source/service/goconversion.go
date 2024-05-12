@@ -122,7 +122,7 @@ func (cp *Compiler) ConvertFieldType(mc *Vm, aT values.AbstractType) string {
 	}
 	tNo := aT.Types[0]
 	if tNo >= mc.Ub_enums {
-		return text.Flatten(mc.TypeNames[tNo])
+		return text.Flatten(mc.concreteTypeNames[tNo])
 	}
 	if convStr, ok := fConvert[tNo]; ok {
 		return convStr

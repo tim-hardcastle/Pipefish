@@ -1,8 +1,14 @@
 newtype 
 
+Person =  struct(name string, fmk Fmk)
+
 private 
 
-Trog = struct(gort int)
+Fmk = enum FUCK, MARRY, KILL
+
+
+
+
 
 def
 

@@ -26,23 +26,23 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve    StructResolver
-	Ub_enums         values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs         values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
-	Lb_snippets      values.ValueType // (Inclusive) lower bound of the snippets.
-	TypeNames        []string
-	StructLabels     [][]int // Array from a struct to its label numbers.
-	StructFields     [][]values.AbstractType
-	Enums            [][]string // Array from the number of the enum to a list of the strings of its elements.
-	Labels           []string   // Array from the number of a field label to its name.
-	Tokens           []*token.Token
-	LambdaFactories  []*LambdaFactory
-	SnippetFactories []*SnippetFactory
-	GoFns            []GoFn
-	IoHandle         IoHandler
-	Database         *sql.DB
-	AbstractTypes    []values.NameAbstractTypePair
-	OwnService       *VmService // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	StructResolve     StructResolver
+	Ub_enums          values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
+	Ub_langs          values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
+	Lb_snippets       values.ValueType // (Inclusive) lower bound of the snippets.
+	concreteTypeNames []string
+	StructLabels      [][]int // Array from a struct to its label numbers.
+	StructFields      [][]values.AbstractType
+	Enums             [][]string // Array from the number of the enum to a list of the strings of its elements.
+	Labels            []string   // Array from the number of a field label to its name.
+	Tokens            []*token.Token
+	LambdaFactories   []*LambdaFactory
+	SnippetFactories  []*SnippetFactory
+	GoFns             []GoFn
+	IoHandle          IoHandler
+	Database          *sql.DB
+	AbstractTypes     []values.NameAbstractTypePair
+	OwnService        *VmService // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -131,7 +131,7 @@ func BlankVm(db *sql.DB) *Vm {
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
-	newVm.TypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
+	newVm.concreteTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
 		"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 		"BREAK", "SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
 		"pair", "list", "map", "set", "label"}
@@ -667,7 +667,7 @@ loop:
 					case values.FLOAT:
 						injector.Data = append(injector.Data, v.V.(float64))
 					default:
-						panic("Unhandled case:" + vm.TypeNames[v.T])
+						panic("Unhandled case:" + vm.concreteTypeNames[v.T])
 					}
 				}
 				t.Execute(&buf, injector)

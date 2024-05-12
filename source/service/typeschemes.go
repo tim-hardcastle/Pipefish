@@ -10,6 +10,7 @@ import (
 type typeScheme interface {
 	compare(u typeScheme) int
 	describe(mc *Vm) string
+	isPrivate(cp *Compiler) bool
 }
 
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
@@ -120,6 +121,10 @@ func (t simpleType) compare(u typeScheme) int {
 
 func (t simpleType) describe(mc *Vm) string {
 	return mc.DescribeType(values.ValueType(t))
+}
+
+func (t simpleType) isPrivate(cp *Compiler) bool {
+	return cp.typeAccess[t] == PRIVATE
 }
 
 type AlternateType []typeScheme
@@ -245,6 +250,15 @@ func (aT AlternateType) isOnlyAssortedStructs(ub int) bool {
 		}
 	}
 	return true
+}
+
+func (aT AlternateType) isPrivate(cp *Compiler) bool {
+	for _, el := range aT {
+		if el.isPrivate(cp) {
+			return true
+		}
+	}
+	return false
 }
 
 func (aT AlternateType) hasSideEffects() bool {
@@ -406,6 +420,15 @@ func (fT finiteTupleType) describe(mc *Vm) string {
 	return buf.String()
 }
 
+func (fT finiteTupleType) isPrivate(cp *Compiler) bool {
+	for _, el := range fT {
+		if el.isPrivate(cp) {
+			return true
+		}
+	}
+	return false
+}
+
 type TypedTupleType struct { // We don't know how long it is but we know what its elements are (or we can say 'single?' if we don't.)
 	T AlternateType
 }
@@ -421,12 +444,21 @@ func (t TypedTupleType) compare(u typeScheme) int {
 	}
 }
 
-func (aT TypedTupleType) describe(mc *Vm) string {
+func (tT TypedTupleType) describe(mc *Vm) string {
 	var buf strings.Builder
 	buf.WriteString("tuple[")
-	buf.WriteString(aT.T.describe(mc))
+	buf.WriteString(tT.T.describe(mc))
 	buf.WriteString("... ]")
 	return buf.String()
+}
+
+func (tT TypedTupleType) isPrivate(cp *Compiler) bool {
+	for _, el := range tT.T {
+		if el.isPrivate(cp) {
+			return true
+		}
+	}
+	return false
 }
 
 type blingType struct {
@@ -452,6 +484,10 @@ func (t blingType) compare(u typeScheme) int {
 
 func (bT blingType) describe(mc *Vm) string {
 	return bT.tag
+}
+
+func (bT blingType) isPrivate(cp *Compiler) bool {
+	return false // TODO --- not covered this yet.
 }
 
 func AltType(t ...values.ValueType) AlternateType {

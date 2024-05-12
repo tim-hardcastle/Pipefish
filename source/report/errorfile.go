@@ -1824,6 +1824,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/struct/private": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "public struct type " + emphText(args[0].(string)) + " cannot contain private type " + emphText(args[1].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A public struct cannot contain a field which has a private type."
+		},
+	},
+
 	"init/private": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "redeclaration of 'private'"

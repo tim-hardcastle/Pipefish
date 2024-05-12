@@ -21,13 +21,13 @@ func (vm *Vm) DescribeCode(loc uint32) string {
 }
 
 func (vm *Vm) DescribeType(t values.ValueType) string {
-	return vm.TypeNames[t]
+	return vm.concreteTypeNames[t]
 }
 
 func (vm *Vm) Describe(v values.Value) string {
 	if v.T >= vm.Ub_enums { // We have a struct.
 		var buf strings.Builder
-		buf.WriteString(vm.TypeNames[v.T])
+		buf.WriteString(vm.concreteTypeNames[v.T])
 		buf.WriteString(" with (")
 		var sep string
 		labels := vm.StructLabels[v.T-vm.Ub_enums]
