@@ -1,12 +1,6 @@
 external
 
-qux
-
-foo::"blurp/spong.pf"
-
-"blurp/zort.pf"
-
-NULL::"blah.pf"
+qux::"examples/qux.pf"
 
 def
 

@@ -318,19 +318,48 @@ func (vmm *VmMaker) compileImports(mc *Vm) {
 func (vmm *VmMaker) initializeExternals(mc *Vm) {
 	for _, declaration := range vmm.cp.P.ParsedDeclarations[externalDeclaration] {
 		name, path := vmm.uP.getPartsOfImportOrExternalDeclaration(declaration)
-		switch {
-		case path == "": // Then this will work only if there's already an instance of a service of that name running on the hub.
-			hubService, ok := mc.HubServices[name]
+		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
+			_, ok := mc.HubServices[name]
 			if !ok {
 				vmm.uP.Throw("init/external/exist", *declaration.GetToken())
 				continue
 			}
-			serviceToAdd := externalServiceOnSameHub{hubService}
-			vmm.cp.ExternalOrdinals[name] = uint32(len(vmm.cp.P.ExternalParsers))
-			vmm.cp.P.ExternalParsers[name] = hubService.Cp.P
-			mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
+			vmm.addExternal(mc, name)
+			continue
 		}
+		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
+		hubService, ok := mc.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
+		if ok {
+			if hubService.Cp.ScriptFilepath != path {
+				vmm.uP.Throw("init/external/exist", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
+			} else {
+				vmm.addExternal(mc, name)
+			}
+			continue // Either we've thrown an error or we don't need to do anything.
+		}
+		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
+		sourcecode, err := os.ReadFile(path)
+		if err != nil {
+			vmm.uP.Throw("init/external/source", *declaration.GetToken(), path)
+			continue
+		}
+		newService, newUP := StartService(path, string(sourcecode), mc.Database, mc.HubServices)
+		// We return the Intializer newUP because if errors have been thrown that's where they are.
+		if newUP.ErrorsExist() {
+			vmm.uP.Parser.Errors = append(vmm.uP.Parser.Errors, newUP.Parser.Errors...)
+			continue
+		}
+		mc.HubServices[name] = newService
+		vmm.addExternal(mc, name)
 	}
+}
+
+func (vmm *VmMaker) addExternal(mc *Vm, name string) {
+	hubService := mc.HubServices[name]
+	serviceToAdd := externalServiceOnSameHub{hubService}
+	vmm.cp.ExternalOrdinals[name] = uint32(len(vmm.cp.P.ExternalParsers))
+	vmm.cp.P.ExternalParsers[name] = hubService.Cp.P
+	mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
 }
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
