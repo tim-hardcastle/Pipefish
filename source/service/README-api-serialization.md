@@ -14,9 +14,9 @@ STRUCT | structName | fieldName1 type1a type1b ... |  fieldName2 type2a ...
 
 ABSTRACT | abstractName | type1 type2 ...
 
-FUNCTION | functionName | 0, 1, 2 for prefix/infix/postfix | parameterName1 type1 | parameterName2 type2 | serialization of typescheme
-
 COMMAND : same as for a function.
+
+FUNCTION | functionName | 0, 1, 2, 3 for prefix/infix/suffix/unfix | parameterName1 type1 | parameterName2 type2 | serialization of typescheme
 
 Note that for the functions and commands the return types are not those supplied by the user but those inferred by the compiler.
 

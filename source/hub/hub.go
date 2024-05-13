@@ -278,6 +278,16 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString(text.OK + "\n")
 		return false
+	case "api":
+		srv, ok := hub.services[args[0]]
+		if !ok {
+			hub.WriteError("Hub can't find service " + text.Emph(args[0]) + ".")
+			return false
+		}
+		serializationOfApi := srv.SerializeApi()
+		hub.WriteString("\n" + serializationOfApi + "/n")
+		stub := service.SerializedAPIToDeclarations(serializationOfApi)
+		hub.WriteString("\n" + stub + "\n")
 	case "config-admin":
 		if !hub.isAdministered() {
 			hub.configAdmin()
