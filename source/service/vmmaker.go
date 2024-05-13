@@ -648,7 +648,7 @@ func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, private bool, outerEn
 		cpF.Command = true
 	}
 	cpF.Private = private
-	functionName, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
+	functionName, _, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 	}

@@ -124,6 +124,7 @@ func (service VmService) SerializeApi() string {
 			}
 			buf.WriteString(name)
 			buf.WriteString(" | ")
+			buf.WriteString(strconv.Itoa(int(fn.Position)))
 			for _, ntp := range fn.Sig {
 				buf.WriteString(" | ")
 				buf.WriteString(ntp.VarName)
@@ -150,7 +151,7 @@ func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- ob
 // And then we need a way to turn a serialized API back into a set of declarations.
 func SerializedAPIToDeclarations(serializedAPI string) string {
 	var buf strings.Builder
-	lines := strings.Split(serializedAPI, "\n")
+	lines := strings.Split(strings.TrimRight(serializedAPI, "\n"), "\n")
 	lineNo := 0
 	hasHappened := map[string]bool{"ENUM": false, "STRUCT": false, "ABSTRACT": false, "COMMAND": false, "FUNCTION": false}
 	for lineNo < len(lines) {
@@ -165,6 +166,7 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 			buf.WriteString(" = enum ")
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), ", "))
 			buf.WriteString("\n")
+			lineNo++
 		case "STRUCT":
 			if !hasHappened["ENUM"] && !hasHappened["STRUCT"] {
 				buf.WriteString("newtype\n\n")
@@ -181,6 +183,7 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 				sep = ", "
 			}
 			buf.WriteString(")\n")
+			lineNo++
 		case "ABSTRACT":
 			if !hasHappened["ENUM"] && !hasHappened["STRUCT"] && !hasHappened["ABSTRACT"] {
 				buf.WriteString("newtype\n\n")
@@ -188,16 +191,22 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 			buf.WriteString(parts[1])
 			buf.WriteString(" = ")
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), "/"))
+			lineNo++
 		case "COMMAND":
 			if !hasHappened["COMMAND"] {
 				buf.WriteString("\ncmd\n\n")
 			}
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:]))
+			lineNo++
 		case "FUNCTION":
 			if !hasHappened["FUNCTION"] {
 				buf.WriteString("\ndef\n\n")
 			}
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:]))
+			lineNo++
+		default:
+			println("Oops, found", parts[0], "instead")
+			panic("Drat.")
 		}
 		hasHappened[parts[0]] = true
 	}
@@ -213,12 +222,14 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string) string {
 	posInt, _ := strconv.Atoi(parts[1])
 	position := uint32(posInt)
 	params := parts[2 : len(parts)-1]
-	if position == PREFIX || position == UNFIX {
-		buf.WriteString(functionName)
-		if position == PREFIX {
-			buf.WriteString(" ")
-		}
+	if position == UNFIX {
+		return functionName
 	}
+	if position == PREFIX {
+		buf.WriteString(functionName)
+		buf.WriteString(" ")
+	}
+	buf.WriteString("(")
 	lastWasBling := false
 	for i, param := range params {
 		bits := strings.Split(param, " ")
@@ -243,9 +254,12 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string) string {
 		buf.WriteString(" ")
 		buf.WriteString(bits[1])
 	}
+	buf.WriteString(")")
 	if position == SUFFIX {
+		buf.WriteString(" ")
 		buf.WriteString(functionName)
 	}
+	buf.WriteString("\n")
 	return buf.String()
 }
 
