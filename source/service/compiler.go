@@ -1871,7 +1871,7 @@ func (cp *Compiler) emitExternalCall(mc *Vm, node ast.Callable, env *Environment
 	}
 	rtnTypes := cp.AnyTypeScheme
 	rtnConst := false // TODO --- it's very unlikely that this should be true. We can deal with this case, but must be careful not to fold away calls to commands, and we don't know which they are.
-	vmArgs := make([]uint32, len(args)+3)
+	vmArgs := make([]uint32, 0, len(args)+3)
 	vmArgs = append(vmArgs, externalOrdinal, pip)
 	cp.Reserve(mc, values.STRING, remainingNamespace)
 	vmArgs = append(vmArgs, mc.That())

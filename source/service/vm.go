@@ -308,7 +308,7 @@ loop:
 				buf.WriteString(remainingNamespace)
 				buf.WriteString(name)
 			}
-			vm.Mem[args[0]] = vm.ExternalServices[externalOrdinal].evaluate(buf.String())
+			vm.Mem[args[0]] = vm.ExternalServices[externalOrdinal].evaluate(vm, buf.String())
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:

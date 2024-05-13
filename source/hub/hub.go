@@ -881,9 +881,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		sourcecode, _ := os.ReadFile(scriptFilepath)
 		newService, init = service.StartService(scriptFilepath, string(sourcecode), hub.Db, hub.services)
 	}
-
 	hub.services[name] = newService
-	hub.services[name].Mc.OwnService = newService
 	hub.Sources = init.Sources
 
 	if init.ErrorsExist() {

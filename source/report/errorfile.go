@@ -2250,7 +2250,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "Can't find namespace " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You haven't declared that namespace in the " + text.Emph("import") + " section"
+			return "You haven't declared that namespace in the " + text.Emph("import") + " or " + text.Emph("external") + " section"
 		},
 	},
 

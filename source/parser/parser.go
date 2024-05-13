@@ -138,7 +138,7 @@ type Parser struct {
 	GoImports       map[string][]string
 	NamespaceBranch map[string]*ParserData
 	NamespacePath   string
-	Externals       map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
+	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 }
 
 func New() *Parser {
@@ -169,7 +169,7 @@ func New() *Parser {
 		Structs:          make(dtypes.Set[string]),
 		GoImports:        make(map[string][]string),
 		NamespaceBranch:  make(map[string]*ParserData),
-		Externals:        make(map[string]*Parser),
+		ExternalParsers:  make(map[string]*Parser),
 	}
 
 	for k := range *p.TypeSystem {
@@ -403,9 +403,10 @@ func (p *Parser) getResolvingParser() *Parser {
 			lP = s.Parser
 			continue
 		}
-		externalService, ok := lP.Externals[name]
+		externalService, ok := lP.ExternalParsers[name]
 		if ok {
 			lP = externalService.getResolvingParser()
+			continue
 		}
 		p.Throw("parse/namespace/exist", &p.curToken, name)
 		return nil

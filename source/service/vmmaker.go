@@ -28,7 +28,9 @@ type VmMaker struct {
 func StartService(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
 	mc := BlankVm(db, hubServices)
 	cp, uP := initializeFromScript(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	return &VmService{Mc: mc, Cp: cp}, uP
+	result := &VmService{Mc: mc, Cp: cp}
+	mc.OwnService = result
+	return result, uP
 }
 
 // Then we can recurse over this, passing it the same vm every time.
@@ -323,11 +325,10 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 				vmm.uP.Throw("init/external/exist", *declaration.GetToken())
 				continue
 			}
-			serviceToAdd := externalServiceOnSameHub{mc.OwnService, hubService}
-			vmm.cp.ExternalOrdinals[name] = uint32(len(vmm.cp.P.Externals))
-			vmm.cp.P.Externals[name] = hubService.Cp.P
+			serviceToAdd := externalServiceOnSameHub{hubService}
+			vmm.cp.ExternalOrdinals[name] = uint32(len(vmm.cp.P.ExternalParsers))
+			vmm.cp.P.ExternalParsers[name] = hubService.Cp.P
 			mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
-
 		}
 	}
 }

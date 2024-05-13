@@ -23,22 +23,21 @@ func (service *VmService) NeedsUpdate() (bool, error) {
 // a different hub. Eventually we will need a third class of things on a different hub of the same instance of
 // Pipefish, but we haven't implemented that in general yet.
 type externalService interface {
-	evaluate(line string) values.Value
+	evaluate(mc *Vm, line string) values.Value
 	getResolvingParser() *parser.Parser
 	problem() *report.Error
 }
 
 type externalServiceOnSameHub struct {
-	homeService     *VmService
 	externalService *VmService
 }
 
-// There is a somehwat faster way of doing this when the services are on the same hub, since we would just need
+// There is a somewhat faster way of doing this when the services are on the same hub, since we would just need
 // to change the type numbers. TODO. Until then, this serves as a good test bed for the external services on other hubs.
-func (ex externalServiceOnSameHub) evaluate(line string) values.Value {
+func (ex externalServiceOnSameHub) evaluate(mc *Vm, line string) values.Value {
 	exVal := ex.externalService.Cp.Do(ex.externalService.Mc, line)
 	serialize := ex.externalService.Mc.Literal(exVal)
-	return ex.homeService.Cp.Do(ex.homeService.Mc, serialize)
+	return mc.OwnService.Cp.Do(mc, serialize)
 }
 
 func (ex externalServiceOnSameHub) getResolvingParser() *parser.Parser {
@@ -57,7 +56,7 @@ type externalServiceOnDifferentHub struct {
 	password string
 }
 
-func (ex externalServiceOnDifferentHub) evaluate(line string) values.Value {
+func (ex externalServiceOnDifferentHub) evaluate(mc *Vm, line string) values.Value {
 	return values.Value{values.NULL, nil}
 }
 
