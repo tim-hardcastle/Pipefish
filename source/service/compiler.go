@@ -1860,6 +1860,7 @@ const (
 	PREFIX uint32 = iota
 	INFIX
 	SUFFIX
+	UNFIX
 )
 
 func (cp *Compiler) emitExternalCall(mc *Vm, node ast.Callable, env *Environment, ac cpAccess, externalOrdinal uint32, namespace []string, pip uint32) (AlternateType, bool) {

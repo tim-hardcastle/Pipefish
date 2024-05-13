@@ -449,13 +449,14 @@ func recursiveChildren(n Node) []Node {
 }
 
 type Function = struct {
-	Sig     Signature
-	Rets    Signature
-	Body    Node
-	Given   Node
-	Cmd     bool
-	Private bool
-	Number  uint32
+	Sig      Signature
+	Rets     Signature
+	Body     Node
+	Given    Node
+	Cmd      bool
+	Private  bool
+	Number   uint32
+	Position uint32 // PREFIX, INFIX, SUFFIX
 }
 
 type FunctionGroup = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.

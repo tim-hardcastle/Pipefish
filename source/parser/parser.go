@@ -1104,7 +1104,7 @@ func (p *Parser) ClearErrors() {
 // Slurps the signature of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, ast.Signature, ast.Signature, ast.Node, ast.Node, []uint32) {
+func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Signature, ast.Signature, ast.Node, ast.Node, []uint32) {
 	var (
 		functionName          string
 		sig                   ast.Signature
@@ -1121,50 +1121,54 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, ast.Signature, 
 	case *ast.LazyInfixExpression:
 		if !(fn.Token.Type == token.COLON || fn.Token.Type == token.WEAK_COLON) {
 			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
-			return functionName, sig, rTypes, content, given, tupleList
+			return functionName, 0, sig, rTypes, content, given, tupleList
 		}
 		start = fn.Left
 		content = fn.Right
 	case *ast.InfixExpression:
 		if fn.Token.Type != token.MAGIC_COLON {
 			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
-			return functionName, sig, rTypes, content, given, tupleList
+			return functionName, 0, sig, rTypes, content, given, tupleList
 		}
 		start = fn.Args[0]
 		content = fn.Args[2]
 	default:
 		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
-		return functionName, sig, rTypes, content, given, tupleList
+		return functionName, 0, sig, rTypes, content, given, tupleList
 	}
 
 	if start.GetToken().Type == token.PIPE {
 		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.PipingExpression).Right)
 		start = start.(*ast.PipingExpression).Left
 	}
-
+	var pos uint32
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
 		functionName = start.Operator
+		pos = 0
 		sig = prsr.extractSig(start.Args)
 	case *ast.InfixExpression:
 		functionName = start.Operator
+		pos = 1
 		sig = prsr.extractSig(start.Args)
 	case *ast.SuffixExpression:
 		functionName = start.Operator
+		pos = 2
 		sig = prsr.extractSig(start.Args)
 	case *ast.UnfixExpression:
 		functionName = start.Operator
+		pos = 3
 		sig = ast.Signature{}
 	default:
 		prsr.Throw("parse/sig/malformed/d", fn.GetToken())
-		return functionName, sig, rTypes, content, given, tupleList
+		return functionName, pos, sig, rTypes, content, given, tupleList
 	}
 	for j, param := range sig {
 		if param.VarType == "tuple" {
 			tupleList = append(tupleList, uint32(j))
 		}
 	}
-	return functionName, sig, rTypes, content, given, tupleList
+	return functionName, pos, sig, rTypes, content, given, tupleList
 }
 
 func (p *Parser) extractSig(args []ast.Node) ast.Signature {

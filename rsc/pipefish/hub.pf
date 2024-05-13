@@ -11,6 +11,9 @@ def
 add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
 
+api(namespace string) :
+    HubResponse("api", [namespace])
+
 config admin :
     HubResponse("config-admin", [])
 
