@@ -135,7 +135,7 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	copy(newVm.Mem, CONSTANTS)
 	newVm.concreteTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
 		"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
-		"BREAK", "SUCCESSFUL VALUE", "tuple", "error", "null", "int", "bool", "string", "float64", "type", "func",
+		"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "float", "type", "func",
 		"pair", "list", "map", "set", "label"}
 	return newVm
 }

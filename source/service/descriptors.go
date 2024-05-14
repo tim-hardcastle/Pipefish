@@ -116,7 +116,7 @@ func (vm *Vm) Describe(v values.Value) string {
 	case values.STRING:
 		return v.V.(string)
 	case values.SUCCESSFUL_VALUE:
-		return text.GREEN + "ok" + text.RESET
+		return text.GREEN + "OK" + text.RESET
 	case values.THUNK:
 		return "THUNK!"
 	case values.TUPLE:
@@ -191,7 +191,7 @@ func (vm *Vm) Literal(v values.Value) string {
 	case values.STRING:
 		return "\"" + v.V.(string) + "\""
 	case values.SUCCESSFUL_VALUE:
-		return "ok"
+		return "OK"
 	default:
 		return vm.Describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
 	}

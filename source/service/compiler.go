@@ -98,10 +98,11 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		ExternalOrdinals:       make(map[string]uint32),           // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeAccess:             make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
 		TypeNameToTypeList: map[string]AlternateType{
+			"ok":        AltType(values.SUCCESSFUL_VALUE),
 			"int":       AltType(values.INT),
 			"string":    AltType(values.STRING),
 			"bool":      AltType(values.BOOL),
-			"float64":   AltType(values.FLOAT),
+			"float":     AltType(values.FLOAT),
 			"error":     AltType(values.ERROR),
 			"type":      AltType(values.TYPE),
 			"pair":      AltType(values.PAIR),

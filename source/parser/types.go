@@ -40,6 +40,7 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("outer function", "func")
 
 	T.AddTransitiveArrow("ref", "dummy value")
+	T.AddTransitiveArrow("ok", "dummy value")
 	return &T
 }
 
@@ -48,7 +49,7 @@ func TypeExists(s string, t TypeSystem) bool {
 	return ok
 }
 
-var BaseTypes = []string{"int", "float64", "bool", "string", "error", "type", "list",
+var BaseTypes = []string{"int", "float", "bool", "string", "error", "type", "list",
 	"pair", "set", "map", "func", "struct", "label", "null"}
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.Signature) (result bool, ok bool) {

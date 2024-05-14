@@ -730,7 +730,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *Vm) {
 	vmm.cp.Reserve(mc, values.NULL, nil)
 	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
 	vmm.cp.Reserve(mc, values.SUCCESSFUL_VALUE, nil)
-	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "ok", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
+	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "OK", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
 	vmm.cp.Reserve(mc, values.BREAK, nil)
 	vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
 	vmm.cp.TupleType = vmm.cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0})

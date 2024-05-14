@@ -205,7 +205,7 @@ var (
 	ERROR     = "$Error$"
 	RT_ERROR  = "$Runtime error$"
 	HUB_ERROR = "$Hub error$"
-	OK        = Green("ok")
+	OK        = Green("OK")
 )
 
 func HighlightLine(plainLine string, highlighter rune) (string, rune) {

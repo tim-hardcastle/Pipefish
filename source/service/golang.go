@@ -235,19 +235,19 @@ func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) an
 }
 
 var typeConv = map[string]string{"bling": ".(string)",
-	"bool":    ".(bool)",
-	"error":   ".(error)",
-	"float64": ".(float64)",
-	"func":    ".(func(args ...any) any)",
-	"int":     ".(int)",
-	"label":   ".(string)",
-	"list":    ".([]any)",
-	"pair":    ".([]any)",
-	"set":     ".([]any)",
-	"single":  "",
-	"string":  ".(string)",
-	"tuple":   ".([]any)",
-	"type":    ".(string)",
+	"bool":   ".(bool)",
+	"error":  ".(error)",
+	"float":  ".(float64)",
+	"func":   ".(func(args ...any) any)",
+	"int":    ".(int)",
+	"label":  ".(string)",
+	"list":   ".([]any)",
+	"pair":   ".([]any)",
+	"set":    ".([]any)",
+	"single": "",
+	"string": ".(string)",
+	"tuple":  ".([]any)",
+	"type":   ".(string)",
 }
 
 func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
