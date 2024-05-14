@@ -3,6 +3,7 @@ package service
 import (
 	"pipefish/source/parser"
 	"pipefish/source/report"
+	"pipefish/source/settings"
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"strconv"
@@ -74,7 +75,8 @@ func (es externalServiceOnDifferentHub) problem() *report.Error {
 func (service VmService) SerializeApi() string {
 	var buf strings.Builder
 	for i := values.LB_ENUMS; i < service.Mc.Ub_enums; i++ {
-		if service.Cp.typeAccess[i] == PUBLIC {
+		enumOrdinal := i - values.LB_ENUMS
+		if service.Cp.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
 			buf.WriteString(service.Mc.concreteTypeNames[i])
 			for _, el := range service.Mc.Enums[i-values.LB_ENUMS] {
@@ -86,10 +88,10 @@ func (service VmService) SerializeApi() string {
 	}
 
 	for i := service.Mc.Ub_enums; i < service.Mc.Lb_snippets; i++ {
-		if service.Cp.typeAccess[i] == PUBLIC {
+		structOrdinal := i - service.Mc.Ub_enums
+		if service.Cp.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Mc.concreteTypeNames[i])
-			structOrdinal := i - service.Mc.Ub_enums
 			labels := service.Mc.StructLabels[structOrdinal]
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
@@ -103,7 +105,7 @@ func (service VmService) SerializeApi() string {
 
 	for i := len(nativeAbstractTypes); i < len(service.Mc.AbstractTypes); i++ {
 		ty := service.Mc.AbstractTypes[i]
-		if !(service.isPrivate(ty.AT)) {
+		if !(service.isPrivate(ty.AT)) && !service.isMandatoryImport(abstractDeclaration, i) {
 			buf.WriteString("ABSTRACT | ")
 			buf.WriteString(ty.Name)
 			buf.WriteString(" | ")
@@ -113,33 +115,45 @@ func (service VmService) SerializeApi() string {
 	}
 
 	for name, fns := range service.Cp.P.FunctionTable {
-		for _, fn := range fns {
-			if fn.Private {
-				continue
-			}
-			if fn.Cmd {
-				buf.WriteString("COMMAND | ")
-			} else {
-				buf.WriteString("FUNCTION | ")
-			}
-			buf.WriteString(name)
-			buf.WriteString(" | ")
-			buf.WriteString(strconv.Itoa(int(fn.Position)))
-			for _, ntp := range fn.Sig {
+		for defOrCmd := 0; defOrCmd < 2; defOrCmd++ { // In the function table the commands and functions are all jumbled up. But we want the commands first, for neatness, so we'll do two passes.
+			for _, fn := range fns {
+				if fn.Private || settings.MandatoryImportSet.Contains(fn.Body.GetToken().Source) {
+					continue
+				}
+				if fn.Cmd {
+					if defOrCmd == 1 {
+						continue
+					}
+					buf.WriteString("COMMAND | ")
+				} else {
+					if defOrCmd == 0 {
+						continue
+					}
+					buf.WriteString("FUNCTION | ")
+				}
+				buf.WriteString(name)
 				buf.WriteString(" | ")
-				buf.WriteString(ntp.VarName)
-				buf.WriteString(" ")
-				buf.WriteString(ntp.VarType)
+				buf.WriteString(strconv.Itoa(int(fn.Position)))
+				for _, ntp := range fn.Sig {
+					buf.WriteString(" | ")
+					buf.WriteString(ntp.VarName)
+					buf.WriteString(" ")
+					buf.WriteString(ntp.VarType)
+				}
+				buf.WriteString(" | ")
+				buf.WriteString(service.serializeTypescheme(service.Cp.Fns[fn.Number].Types))
+				buf.WriteString("\n")
 			}
-			buf.WriteString(" | ")
-			buf.WriteString(service.serializeTypescheme(service.Cp.Fns[fn.Number].Types))
-			buf.WriteString("\n")
 		}
 	}
 	return buf.String()
 }
 
-func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs claculating once and sticking in the compiler.
+func (service *VmService) isMandatoryImport(dec declarationType, ordinal int) bool {
+	return settings.MandatoryImportSet.Contains(service.Cp.P.ParsedDeclarations[dec][ordinal].GetToken().Source)
+}
+
+func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
 	for _, w := range a.Types {
 		if service.Cp.typeAccess[w] == PRIVATE {
 			return true
@@ -168,6 +182,9 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 			buf.WriteString("\n")
 			lineNo++
 		case "STRUCT":
+			if hasHappened["ENUM"] && !hasHappened["STRUCT"] {
+				buf.WriteString("\n")
+			}
 			if !hasHappened["ENUM"] && !hasHappened["STRUCT"] {
 				buf.WriteString("newtype\n\n")
 			}
@@ -185,6 +202,9 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 			buf.WriteString(")\n")
 			lineNo++
 		case "ABSTRACT":
+			if (hasHappened["ENUM"] || hasHappened["STRUCT"]) && !hasHappened["ABSTRACT"] {
+				buf.WriteString("\n")
+			}
 			if !hasHappened["ENUM"] && !hasHappened["STRUCT"] && !hasHappened["ABSTRACT"] {
 				buf.WriteString("newtype\n\n")
 			}
@@ -193,13 +213,13 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), "/"))
 			lineNo++
 		case "COMMAND":
-			if !hasHappened["COMMAND"] {
+			if !hasHappened["CMD"] {
 				buf.WriteString("\ncmd\n\n")
 			}
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:]))
 			lineNo++
 		case "FUNCTION":
-			if !hasHappened["FUNCTION"] {
+			if !hasHappened["DEF"] {
 				buf.WriteString("\ndef\n\n")
 			}
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:]))

@@ -1,4 +1,9 @@
+newtype
+
+Zort = struct(foo int)
+
 def 
 
 blort(s string) :
     "qux says: " + s 
+

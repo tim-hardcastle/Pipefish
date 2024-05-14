@@ -118,10 +118,6 @@ func GetLengthFromType(maybeVarchar string) (int, bool) {
 			vcLen, _ := strconv.Atoi(maybeVarchar[8 : len(maybeVarchar)-1])
 			return vcLen, true
 		}
-		if maybeVarchar[0:9] == "varchar?(" {
-			vcLen, _ := strconv.Atoi(maybeVarchar[9 : len(maybeVarchar)-1])
-			return vcLen, true
-		}
 	}
 	return 0, false
 }
@@ -132,7 +128,7 @@ func GetNullabilityFromType(maybeNullable string) bool {
 
 func TypeIsStringlike(maybeString string) bool {
 	return maybeString == "string" || maybeString == "string?" || (len(maybeString) >= 10 &&
-		(maybeString[0:8] == "varchar(" || maybeString[0:9] == "varchar?("))
+		(maybeString[0:8] == "varchar("))
 }
 
 func UnnullType(maybeNulled string) string {

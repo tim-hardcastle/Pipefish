@@ -68,7 +68,7 @@ type BuiltInExpression struct {
 
 func (bi *BuiltInExpression) Children() []Node { return []Node{} }
 func (bi *BuiltInExpression) GetToken() *token.Token {
-	return &token.Token{Type: token.BUILTIN, Literal: bi.Name, Line: -1}
+	return &token.Token{Type: token.BUILTIN, Literal: bi.Name, Source: "rsc/pipefish/builtins.pf", Line: -1}
 }
 func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
 
@@ -448,7 +448,7 @@ func recursiveChildren(n Node) []Node {
 	return result
 }
 
-type Function = struct {
+type Function struct {
 	Sig      Signature
 	Rets     Signature
 	Body     Node

@@ -474,8 +474,28 @@ func (vmm *VmMaker) createStructs(mc *Vm) {
 			}
 			typesForStruct = append(typesForStruct, vmm.cp.TypeNameToTypeList[labelNameAndType.VarType])
 		}
-		for _, t := range typesForStruct {
-			typesForStructForVm = append(typesForStructForVm, t.ToAbstractType())
+		for _, labelNameAndType := range sig {
+			var abType values.AbstractType
+			typeName := labelNameAndType.VarType
+			switch {
+			case typeName == "string":
+				abType.Varchar = DUMMY
+				abType.Types = []values.ValueType{values.STRING}
+			case typeName == "string?":
+				abType.Varchar = DUMMY
+				abType.Types = []values.ValueType{values.NULL, values.STRING}
+			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] != '?'):
+				vc, _ := parser.GetLengthFromType(typeName)
+				abType.Varchar = uint32(vc)
+				abType.Types = []values.ValueType{values.STRING}
+			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] == '?'):
+				vc, _ := parser.GetLengthFromType(typeName)
+				abType.Varchar = uint32(vc)
+				abType.Types = []values.ValueType{values.NULL, values.STRING}
+			default:
+				abType = vmm.cp.TypeNameToTypeList[typeName].ToAbstractType()
+			}
+			typesForStructForVm = append(typesForStructForVm, abType)
 		}
 		mc.StructFields = append(mc.StructFields, typesForStructForVm)
 		vmm.cp.FieldTypes = append(vmm.cp.FieldTypes, typesForStruct)
