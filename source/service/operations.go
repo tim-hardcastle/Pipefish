@@ -176,8 +176,6 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Outt: {"outt", operands{mem}},
 	Psnp: {"psnp", operands{dst, mem}},
 	Qabt: {"qabt", operands{mem, tup, loc}},
-	Qctc: {"qctc", operands{mem, loc}},
-	Qctq: {"qctq", operands{mem, loc}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
@@ -319,8 +317,6 @@ const (
 	Outt
 	Psnp
 	Qabt
-	Qctc
-	Qctq
 	QlnT
 	Qlog
 	Qntp

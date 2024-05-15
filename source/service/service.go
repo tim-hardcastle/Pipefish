@@ -29,6 +29,7 @@ type externalService interface {
 	evaluate(mc *Vm, line string) values.Value
 	getResolvingParser() *parser.Parser
 	problem() *report.Error
+	getAPI() string
 }
 
 type externalServiceOnSameHub struct {
@@ -54,16 +55,20 @@ func (es externalServiceOnSameHub) problem() *report.Error {
 	return nil
 }
 
+func (es externalServiceOnSameHub) getAPI() string {
+	return es.externalService.SerializeApi()
+}
+
 type externalServiceOnDifferentHub struct {
 	username string
 	password string
 }
 
-func (ex externalServiceOnDifferentHub) evaluate(mc *Vm, line string) values.Value {
+func (es externalServiceOnDifferentHub) evaluate(mc *Vm, line string) values.Value {
 	return values.Value{values.NULL, nil}
 }
 
-func (es externalServiceOnDifferentHub) getResolvingParser() *parser.Parser {
+func (eS externalServiceOnDifferentHub) getResolvingParser() *parser.Parser {
 	return nil
 }
 
@@ -71,12 +76,16 @@ func (es externalServiceOnDifferentHub) problem() *report.Error {
 	return nil
 }
 
+func (es externalServiceOnDifferentHub) getAPI() string {
+	return ""
+}
+
 // For a description of the file format, see README-api-serialization.md
 func (service VmService) SerializeApi() string {
 	var buf strings.Builder
 	for i := values.LB_ENUMS; i < service.Mc.Ub_enums; i++ {
 		enumOrdinal := i - values.LB_ENUMS
-		if service.Cp.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
 			buf.WriteString(service.Mc.concreteTypeNames[i])
 			for _, el := range service.Mc.Enums[i-values.LB_ENUMS] {
@@ -89,7 +98,7 @@ func (service VmService) SerializeApi() string {
 
 	for i := service.Mc.Ub_enums; i < service.Mc.Lb_snippets; i++ {
 		structOrdinal := i - service.Mc.Ub_enums
-		if service.Cp.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
+		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Mc.concreteTypeNames[i])
 			labels := service.Mc.StructLabels[structOrdinal]
@@ -97,7 +106,7 @@ func (service VmService) SerializeApi() string {
 				buf.WriteString(" | ")
 				buf.WriteString(service.Mc.Labels[lb])
 				buf.WriteString(" ")
-				buf.WriteString(service.serializeAbstractType(service.Mc.StructFields[structOrdinal][i]))
+				buf.WriteString(service.serializeAbstractType(service.Mc.AbstractStructFields[structOrdinal][i]))
 			}
 			buf.WriteString("\n")
 		}
@@ -155,7 +164,7 @@ func (service *VmService) isMandatoryImport(dec declarationType, ordinal int) bo
 
 func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
 	for _, w := range a.Types {
-		if service.Cp.typeAccess[w] == PRIVATE {
+		if service.Mc.typeAccess[w] == PRIVATE {
 			return true
 		}
 	}
@@ -163,7 +172,9 @@ func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- ob
 }
 
 // And then we need a way to turn a serialized API back into a set of declarations.
-func SerializedAPIToDeclarations(serializedAPI string) string {
+// xserve is the external service number: set to DUMMY it will indicate that we're just doing this for human readers and
+// can therefore leave off the 'xcall' hooks.
+func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 	var buf strings.Builder
 	lines := strings.Split(strings.TrimRight(serializedAPI, "\n"), "\n")
 	lineNo := 0
@@ -189,7 +200,7 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 				buf.WriteString("newtype\n\n")
 			}
 			buf.WriteString(parts[1])
-			buf.WriteString(" = struct(")
+			buf.WriteString(" = struct (")
 			sep := ""
 			for _, param := range parts[2:] {
 				buf.WriteString(sep)
@@ -216,24 +227,25 @@ func SerializedAPIToDeclarations(serializedAPI string) string {
 			if !hasHappened["CMD"] {
 				buf.WriteString("\ncmd\n\n")
 			}
-			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:]))
+			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
 			lineNo++
 		case "FUNCTION":
 			if !hasHappened["DEF"] {
 				buf.WriteString("\ndef\n\n")
 			}
-			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:]))
+			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
+			lineNo++
+		case "":
 			lineNo++
 		default:
-			println("Oops, found", parts[0], "instead")
-			panic("Drat.")
+			panic("Oops, found" + parts[0] + "instead. Drat.")
 		}
 		hasHappened[parts[0]] = true
 	}
 	return buf.String()
 }
 
-func makeCommandOrFunctionDeclarationFromParts(parts []string) string {
+func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) string {
 	var buf strings.Builder
 	// We have snipped off the part saying "FUNCTION" or "COMMAND", so the list of parts now looks like this:
 	// functionName | 0, 1, 2, 3 for prefix/infix/suffix/unfix | parameterName1 type1 | parameterName2 type2 | serialization of typescheme
@@ -278,6 +290,20 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string) string {
 	if position == SUFFIX {
 		buf.WriteString(" ")
 		buf.WriteString(functionName)
+	}
+	if xserve != DUMMY { // Then we need to insert the hook.
+		buf.WriteString(" : xcall ")
+		buf.WriteString(strconv.Itoa(int(xserve)))
+		buf.WriteString(", ")
+		buf.WriteString("\"")
+		buf.WriteString(functionName)
+		buf.WriteString("\"")
+		buf.WriteString(", ")
+		buf.WriteString(strconv.Itoa(int(position)))
+		buf.WriteString(", ")
+		buf.WriteString("\"")
+		buf.WriteString(parts[len(parts)-1])
+		buf.WriteString("\"")
 	}
 	buf.WriteString("\n")
 	return buf.String()

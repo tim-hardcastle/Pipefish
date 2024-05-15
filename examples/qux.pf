@@ -1,9 +1,9 @@
 newtype
 
-Zort = struct(foo int)
+// Zort = struct (foo int)
 
 def 
 
-blort(s string) :
+blort (s string) :
     "qux says: " + s 
 

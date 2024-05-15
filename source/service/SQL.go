@@ -38,7 +38,7 @@ func (vm *Vm) evalGetSQL(structTypeNumber values.ValueType, query string, pfArgs
 	targetBools := []bool{}
 	pointerList := []any{}
 	structOrdinalNumber := structTypeNumber - vm.Ub_enums
-	for _, v := range vm.StructFields[structOrdinalNumber] {
+	for _, v := range vm.AbstractStructFields[structOrdinalNumber] {
 		switch {
 		case v.Contains(values.INT):
 			targetInts = append(targetInts, 0)
@@ -88,7 +88,7 @@ func (vm *Vm) getSqlSig(pfStructType values.ValueType) (string, bool) {
 	var buf strings.Builder
 	buf.WriteString("(")
 	sep := ""
-	for i, v := range vm.StructFields[pfStructNumber] {
+	for i, v := range vm.AbstractStructFields[pfStructNumber] {
 		sqlType := getSqlType(v)
 		if sqlType == "" {
 			return "", false

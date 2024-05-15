@@ -26,25 +26,27 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve     StructResolver
-	Ub_enums          values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs          values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
-	Lb_snippets       values.ValueType // (Inclusive) lower bound of the snippets.
-	concreteTypeNames []string
-	StructLabels      [][]int // Array from a struct to its label numbers.
-	StructFields      [][]values.AbstractType
-	Enums             [][]string // Array from the number of the enum to a list of the strings of its elements.
-	Labels            []string   // Array from the number of a field label to its name.
-	Tokens            []*token.Token
-	LambdaFactories   []*LambdaFactory
-	SnippetFactories  []*SnippetFactory
-	GoFns             []GoFn
-	IoHandle          IoHandler
-	Database          *sql.DB
-	AbstractTypes     []values.NameAbstractTypePair
-	OwnService        *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
-	HubServices       map[string]*VmService // The same map that the hub has.
-	ExternalServices  []externalService     // The services declared external, whether on the same hub or a different one.
+	StructResolve         StructResolver
+	Ub_enums              values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
+	Ub_langs              values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
+	Lb_snippets           values.ValueType // (Inclusive) lower bound of the snippets.
+	concreteTypeNames     []string
+	StructLabels          [][]int // Array from a struct ordinal to its label numbers.
+	AbstractStructFields  [][]values.AbstractType
+	AlternateStructFields [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
+	Enums                 [][]string        // Array from the number of the enum to a list of the strings of its elements.
+	Labels                []string          // Array from the number of a field label to its name.
+	typeAccess            []tyAccess        // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
+	Tokens                []*token.Token
+	LambdaFactories       []*LambdaFactory
+	SnippetFactories      []*SnippetFactory
+	GoFns                 []GoFn
+	IoHandle              IoHandler
+	Database              *sql.DB
+	AbstractTypes         []values.NameAbstractTypePair
+	OwnService            *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	HubServices           map[string]*VmService // The same map that the hub has.
+	ExternalServices      []externalService     // The services declared external, whether on the same hub or a different one.
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -129,7 +131,8 @@ var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
-		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout)}
+		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
+		typeAccess: make([]tyAccess, values.LB_ENUMS)} // This primes the list with NATIVE for every native type.
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
@@ -717,8 +720,6 @@ loop:
 				println("Object string", objectString)
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 				// vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
-			case EXTERNAL_SNIPPET:
-				panic("Not done that yet!")
 			}
 		case Qabt:
 			varcharLimit := args[1]
@@ -730,20 +731,6 @@ loop:
 				}
 			}
 			loc = args[len(args)-1]
-			continue
-		case Qctc:
-			if vm.Mem[args[0]].T >= vm.Ub_langs {
-				loc = loc + 1
-			} else {
-				loc = args[1]
-			}
-			continue
-		case Qctq:
-			if vm.Mem[args[0]].T >= vm.Ub_langs || vm.Mem[args[0]].T == values.NULL {
-				loc = loc + 1
-			} else {
-				loc = args[1]
-			}
 			continue
 		case QlnT:
 			if len(vm.Mem[args[0]].V.([]values.Value)) == int(args[1]) {

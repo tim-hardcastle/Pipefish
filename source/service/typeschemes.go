@@ -10,7 +10,7 @@ import (
 type typeScheme interface {
 	compare(u typeScheme) int
 	describe(mc *Vm) string
-	isPrivate(cp *Compiler) bool
+	isPrivate(mc *Vm) bool
 }
 
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
@@ -123,8 +123,8 @@ func (t simpleType) describe(mc *Vm) string {
 	return mc.DescribeType(values.ValueType(t))
 }
 
-func (t simpleType) isPrivate(cp *Compiler) bool {
-	return cp.typeAccess[t] == PRIVATE
+func (t simpleType) isPrivate(mc *Vm) bool {
+	return mc.typeAccess[t] == PRIVATE
 }
 
 type AlternateType []typeScheme
@@ -252,9 +252,9 @@ func (aT AlternateType) isOnlyAssortedStructs(ub int) bool {
 	return true
 }
 
-func (aT AlternateType) isPrivate(cp *Compiler) bool {
+func (aT AlternateType) isPrivate(mc *Vm) bool {
 	for _, el := range aT {
-		if el.isPrivate(cp) {
+		if el.isPrivate(mc) {
 			return true
 		}
 	}
@@ -420,9 +420,9 @@ func (fT finiteTupleType) describe(mc *Vm) string {
 	return buf.String()
 }
 
-func (fT finiteTupleType) isPrivate(cp *Compiler) bool {
+func (fT finiteTupleType) isPrivate(mc *Vm) bool {
 	for _, el := range fT {
-		if el.isPrivate(cp) {
+		if el.isPrivate(mc) {
 			return true
 		}
 	}
@@ -452,9 +452,9 @@ func (tT TypedTupleType) describe(mc *Vm) string {
 	return buf.String()
 }
 
-func (tT TypedTupleType) isPrivate(cp *Compiler) bool {
+func (tT TypedTupleType) isPrivate(mc *Vm) bool {
 	for _, el := range tT.T {
-		if el.isPrivate(cp) {
+		if el.isPrivate(mc) {
 			return true
 		}
 	}
@@ -486,7 +486,7 @@ func (bT blingType) describe(mc *Vm) string {
 	return bT.tag
 }
 
-func (bT blingType) isPrivate(cp *Compiler) bool {
+func (bT blingType) isPrivate(mc *Vm) bool {
 	return false // TODO --- not covered this yet.
 }
 

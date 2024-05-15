@@ -26,20 +26,18 @@ type Compiler struct {
 	P                      *parser.Parser
 	EnumElements           map[string]uint32
 	FieldLabelsInMem       map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
-	FieldTypes             [][]AlternateType
 	StructNameToTypeNumber map[string]values.ValueType
 	GlobalConsts           *Environment
 	GlobalVars             *Environment
 	Fns                    []*CpFunc
 	TypeNameToTypeList     map[string]AlternateType
-	AnyTypeScheme          AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
-	Imports                map[string]*VmService
-	ExternalOrdinals       map[string]uint32
+	AnyTypeScheme          AlternateType         // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
+	Services               map[string]*VmService // Both true internal services, and stubs that call the externals.
+	ExternalOrdinals       map[string]uint32     // Map from the names of external services to their index as stored in the vm.
 	Timestamp              int64
 	ScriptFilepath         string
-	typeAccess             []tyAccess // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
 
-	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}. TODO --- why?
+	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
 	// Temporary state.
 	ThunkList   []Thunk
@@ -54,11 +52,18 @@ type CpFunc struct { // The compiler's representation of a function after the fu
 	OutReg   uint32
 	TupleReg uint32
 	Types    AlternateType
-	Builtin  string // A non-empty string if it's a builtin, saying which one.
-	Private  bool
-	Command  bool
+	Builtin  string   // A non-empty string if it's a builtin, saying which one.
+	Xcall    *XBindle // Information for making an external call, if non-nil.
+	Private  bool     // True if it's private.
+	Command  bool     // True if it's a command.
 	GoNumber uint32
 	HasGo    bool
+}
+
+type XBindle struct { // The types have already been decoded and put into the types of the owning CpFunc.
+	ExternalServiceOrdinal uint32
+	FunctionName           string
+	Position               uint32
 }
 
 // The access that the compiler has at any given point in the compilation. Are we compiling code in a function, a command, a REPL?
@@ -94,43 +99,40 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		GlobalVars:             NewEnvironment(),
 		ThunkList:              []Thunk{},
 		Fns:                    []*CpFunc{},
-		Imports:                make(map[string]*VmService),
-		ExternalOrdinals:       make(map[string]uint32),           // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
-		typeAccess:             make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
+		Services:               make(map[string]*VmService),
+		ExternalOrdinals:       make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		TypeNameToTypeList: map[string]AlternateType{
-			"ok":        AltType(values.SUCCESSFUL_VALUE),
-			"int":       AltType(values.INT),
-			"string":    AltType(values.STRING),
-			"bool":      AltType(values.BOOL),
-			"float":     AltType(values.FLOAT),
-			"error":     AltType(values.ERROR),
-			"type":      AltType(values.TYPE),
-			"pair":      AltType(values.PAIR),
-			"list":      AltType(values.LIST),
-			"map":       AltType(values.MAP),
-			"set":       AltType(values.SET),
-			"label":     AltType(values.LABEL),
-			"func":      AltType(values.FUNC),
-			"int?":      AltType(values.NULL, values.INT),
-			"string?":   AltType(values.NULL, values.STRING),
-			"bool?":     AltType(values.NULL, values.BOOL),
-			"float64?":  AltType(values.NULL, values.FLOAT),
-			"type?":     AltType(values.NULL, values.TYPE),
-			"pair?":     AltType(values.NULL, values.PAIR),
-			"list?":     AltType(values.NULL, values.LIST),
-			"map?":      AltType(values.NULL, values.MAP),
-			"set?":      AltType(values.NULL, values.SET),
-			"label?":    AltType(values.NULL, values.LABEL),
-			"func?":     AltType(values.NULL, values.FUNC),
-			"null":      AltType(values.NULL),
-			"single":    AltType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"single?":   AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"struct":    AltType(),
-			"struct?":   AltType(values.NULL),
-			"external":  AltType(),
-			"external?": AltType(values.NULL),
-			"snippet":   AltType(),
-			"snippet?":  AltType(values.NULL),
+			"ok":       AltType(values.SUCCESSFUL_VALUE),
+			"int":      AltType(values.INT),
+			"string":   AltType(values.STRING),
+			"bool":     AltType(values.BOOL),
+			"float":    AltType(values.FLOAT),
+			"error":    AltType(values.ERROR),
+			"type":     AltType(values.TYPE),
+			"pair":     AltType(values.PAIR),
+			"list":     AltType(values.LIST),
+			"map":      AltType(values.MAP),
+			"set":      AltType(values.SET),
+			"label":    AltType(values.LABEL),
+			"func":     AltType(values.FUNC),
+			"int?":     AltType(values.NULL, values.INT),
+			"string?":  AltType(values.NULL, values.STRING),
+			"bool?":    AltType(values.NULL, values.BOOL),
+			"float64?": AltType(values.NULL, values.FLOAT),
+			"type?":    AltType(values.NULL, values.TYPE),
+			"pair?":    AltType(values.NULL, values.PAIR),
+			"list?":    AltType(values.NULL, values.LIST),
+			"map?":     AltType(values.NULL, values.MAP),
+			"set?":     AltType(values.NULL, values.SET),
+			"label?":   AltType(values.NULL, values.LABEL),
+			"func?":    AltType(values.NULL, values.FUNC),
+			"null":     AltType(values.NULL),
+			"single":   AltType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"struct":   AltType(),
+			"struct?":  AltType(values.NULL),
+			"snippet":  AltType(),
+			"snippet?": AltType(values.NULL),
 		},
 	}
 	copy(newC.AnyTypeScheme, newC.TypeNameToTypeList["single?"])
@@ -152,7 +154,7 @@ func (cp *Compiler) NeedsUpdate() (bool, error) {
 	if cp.Timestamp != currentTimeStamp {
 		return true, nil
 	}
-	for _, imp := range cp.Imports {
+	for _, imp := range cp.Services {
 		impNeedsUpdate, impError := imp.Cp.NeedsUpdate()
 		if impNeedsUpdate || impError != nil {
 			return impNeedsUpdate, impError
@@ -165,9 +167,9 @@ func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.P
 }
 
-func (cp *Compiler) isPrivate(a values.AbstractType) bool {
+func (mc *Vm) isPrivate(a values.AbstractType) bool {
 	for _, w := range a.Types {
-		if cp.typeAccess[w] == PRIVATE {
+		if mc.typeAccess[w] == PRIVATE {
 			return true
 		}
 	}
@@ -218,7 +220,6 @@ type compiledSnippetKind int
 
 const (
 	UNCOMPILED_SNIPPET compiledSnippetKind = iota
-	EXTERNAL_SNIPPET
 	SQL_SNIPPET
 	HTML_SNIPPET
 )
@@ -233,8 +234,6 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 		csk = SQL_SNIPPET
 	case t == "HTML":
 		csk = HTML_SNIPPET
-	case snF.snippetType > mc.Ub_langs:
-		csk = EXTERNAL_SNIPPET
 	}
 	varLocsStart := mc.MemTop()
 	if csk != UNCOMPILED_SNIPPET { // Then it's an external snippet, or HTML, or SQL, and we should compile some code.
@@ -247,15 +246,8 @@ func (cp *Compiler) reserveSnippetFactory(mc *Vm, t string, env *Environment, fn
 			sourceLocs = append(sourceLocs, v.mLoc)
 			cEnv.data[k] = w
 		}
-		// We can now compile against the cEnv. The calls to external services is quite different from the others,
-		// since in that case we only have to compile the object string itself, whereas with the HTML and SQL snippets
-		// we need to inject the values into it at call time.
-		switch csk {
-		case EXTERNAL_SNIPPET:
-			snF.bindle = cp.compileExternalSnippet(mc, fnNode.GetToken(), cEnv, snF.sourceString, ac)
-		default:
-			snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, csk, snF.sourceString, ac)
-		}
+		// We can now compile against the cEnv.
+		snF.bindle = cp.compileInjectableSnippet(mc, fnNode.GetToken(), cEnv, csk, snF.sourceString, ac)
 		snF.bindle.varLocsStart = varLocsStart
 		snF.bindle.sourceLocs = sourceLocs
 		snF.bindle.compiledSnippetKind = csk
@@ -510,7 +502,7 @@ NodeTypeSwitch:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
-			if cp.typeAccess[mc.Mem[enumElement].T] == PRIVATE {
+			if mc.typeAccess[mc.Mem[enumElement].T] == PRIVATE {
 				cp.P.Throw("comp/enum/private", node.GetToken())
 				break
 			}
@@ -663,13 +655,13 @@ NodeTypeSwitch:
 						break
 					}
 					cp.put(mc, IxZn, container, uint32(fieldNumber))
-					rtnTypes = cp.FieldTypes[structNumber][fieldNumber]
+					rtnTypes = mc.AlternateStructFields[structNumber][fieldNumber]
 					break
 				}
 				boundsError := cp.reserveError(mc, "vm/struct/index", &node.Token, []any{})
 				cp.put(mc, IxZl, container, index, boundsError)
 				rtnTypes = AltType()
-				for _, t := range cp.FieldTypes[structNumber] {
+				for _, t := range mc.AlternateStructFields[structNumber] {
 					rtnTypes = rtnTypes.Union(t)
 				}
 				rtnTypes = rtnTypes.Union(AltType(values.ERROR))
@@ -693,7 +685,7 @@ NodeTypeSwitch:
 						fieldNumber := mc.StructResolve.Resolve(int(structNumber), indexNumber)
 						if fieldNumber != -1 {
 							labelIsPossible = true
-							rtnTypes = rtnTypes.Union(cp.FieldTypes[structNumber][fieldNumber])
+							rtnTypes = rtnTypes.Union(mc.AlternateStructFields[structNumber][fieldNumber])
 						} else {
 							labelIsCertain = false
 						}
@@ -953,8 +945,8 @@ NodeTypeSwitch:
 		}
 		rtnConst = lhsConst && rhsConst
 		break
-	case *ast.PrefixExpression:
-		if node.Operator == "not" {
+	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin functions already.
+		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(mc, node.Args[0], env, ac)
 			if allTypes.isOnly(values.BOOL) {
 				cp.put(mc, Notb, mc.That())
@@ -966,7 +958,7 @@ NodeTypeSwitch:
 				break
 			}
 		}
-		if node.Operator == "global" { // This is in effect a compiler directive, it doesn't need to emit any code besides `ok`, it just mutates the environment.
+		if node.Token.Type == token.GLOBAL { // This is in effect a compiler directive, it doesn't need to emit any code besides `ok`, it just mutates the environment.
 			for _, v := range node.Args {
 				switch arg := v.(type) {
 				case *ast.Identifier:
@@ -984,12 +976,10 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = AltType(values.SUCCESSFUL_VALUE), false
 			break
 		}
-		externalServiceOrdinal := cp.getExternalServiceOrdinal(node.Namespace)
-		if externalServiceOrdinal != DUMMY {
-			rtnTypes, rtnConst = cp.emitExternalCall(mc, node, env, ac, externalServiceOrdinal, node.Namespace, PREFIX)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		if cp.P.ErrorsExist() {
 			break
 		}
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		var (
 			v  *variable
 			ok bool
@@ -1006,7 +996,6 @@ NodeTypeSwitch:
 				operands = append(operands, mc.That())
 			}
 			if cp.P.ErrorsExist() {
-
 				break
 			}
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
@@ -1086,7 +1075,7 @@ NodeTypeSwitch:
 			cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY})
 		default:
 			abType := resolvingCompiler.TypeNameToTypeList[typeName].ToAbstractType()
-			if ac == REPL && cp.isPrivate(abType) {
+			if ac == REPL && mc.isPrivate(abType) {
 				cp.P.Throw("comp/type/private", node.GetToken())
 			}
 			cp.Reserve(mc, values.TYPE, abType)
@@ -1230,10 +1219,9 @@ func (cp *Compiler) emitComma(mc *Vm, node *ast.InfixExpression, env *Environmen
 
 // Finds the appropriate compiler for a given namespace.
 func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Compiler {
-
 	lC := cp
 	for _, name := range namespace {
-		srv, ok := lC.Imports[name]
+		srv, ok := lC.Services[name]
 		if !ok {
 			cp.P.Throw("comp/namespace/exist", node.GetToken(), name)
 			return nil
@@ -1241,17 +1229,6 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Com
 		lC = srv.Cp
 	}
 	return lC
-}
-
-func (cp *Compiler) getExternalServiceOrdinal(namespace []string) uint32 {
-	if len(namespace) == 0 {
-		return DUMMY
-	}
-	ordinal, ok := cp.ExternalOrdinals[namespace[0]]
-	if ok {
-		return ordinal
-	}
-	return DUMMY
 }
 
 // TODO --- this can be replaced with other generalizations.
@@ -1600,14 +1577,12 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 }
 
 var TYPE_COMPARISONS = map[string]Opcode{
-	"snippet":   Qspt,
-	"snippet?":  Qspq,
-	"external":  Qctc,
-	"external?": Qctq,
-	"single":    Qsng,
-	"single?":   Qsnq,
-	"struct":    Qstr,
-	"struct?":   Qstq,
+	"snippet":  Qspt,
+	"snippet?": Qspq,
+	"single":   Qsng,
+	"single?":  Qsnq,
+	"struct":   Qstr,
+	"struct?":  Qstq,
 }
 
 func (cp *Compiler) emitTypeComparison(mc *Vm, typeAsString string, mem, loc uint32) {
@@ -1719,7 +1694,7 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
 				switch builtinTag { // Then for these we need to special-case their return types.
-				case "tuplify_list", "get_from_external", "get_from_sql":
+				case "tuplify_list", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
 				case "tuple_of_single?":
 					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
@@ -1760,6 +1735,19 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 					tt = append(tt, cp.TypeNameToTypeList[v.VarType])
 				}
 				return AlternateType{finiteTupleType{tt}}
+			}
+			// It could be a call to an external service.
+			if F.Xcall != nil {
+				var remainingNamespace string
+				vmArgs := make([]uint32, 0, len(b.valLocs)+5)
+				vmArgs = append(vmArgs, b.outLoc, F.Xcall.ExternalServiceOrdinal, F.Xcall.Position)
+				cp.Reserve(mc, values.STRING, remainingNamespace)
+				vmArgs = append(vmArgs, mc.That())
+				cp.Reserve(mc, values.STRING, F.Xcall.FunctionName)
+				vmArgs = append(vmArgs, mc.That())
+				vmArgs = append(vmArgs, b.valLocs...)
+				cp.Emit(mc, Extn, vmArgs...)
+				return F.Types
 			}
 			// Otherwise it's a regular old function call, which we do like this:
 			cp.emitFunctionCall(mc, fNo, b.valLocs)
@@ -1863,30 +1851,6 @@ const (
 	SUFFIX
 	UNFIX
 )
-
-func (cp *Compiler) emitExternalCall(mc *Vm, node ast.Callable, env *Environment, ac cpAccess, externalOrdinal uint32, namespace []string, pip uint32) (AlternateType, bool) {
-	name := node.GetToken().Literal
-	args := node.GetArgs()
-	var remainingNamespace string
-	for i := 1; i < len(namespace); i++ {
-		remainingNamespace = remainingNamespace + namespace[i] + "."
-	}
-	rtnTypes := cp.AnyTypeScheme
-	rtnConst := false // TODO --- it's very unlikely that this should be true. We can deal with this case, but must be careful not to fold away calls to commands, and we don't know which they are.
-	vmArgs := make([]uint32, 0, len(args)+3)
-	vmArgs = append(vmArgs, externalOrdinal, pip)
-	cp.Reserve(mc, values.STRING, remainingNamespace)
-	vmArgs = append(vmArgs, mc.That())
-	cp.Reserve(mc, values.STRING, name)
-	vmArgs = append(vmArgs, mc.That())
-	for _, arg := range args {
-		cp.CompileNode(mc, arg, env, ac)
-		vmArgs = append(vmArgs, mc.That())
-	}
-
-	cp.put(mc, Extn, vmArgs...)
-	return rtnTypes, rtnConst
-}
 
 func (cp *Compiler) compileLog(mc *Vm, node *ast.LogExpression, env *Environment, ac cpAccess) bool {
 	output := mc.That()

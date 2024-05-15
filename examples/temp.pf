@@ -1,4 +1,4 @@
-external
+import
 
 qux::"examples/qux.pf"
 

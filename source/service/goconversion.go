@@ -89,7 +89,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(mc *Vm, goHandler *GoHandler, sour
 		// We add the definition of the struct.
 		typeDefStr := "\ntype " + goStructName + " struct {\n"
 		for i, lN := range mc.StructLabels[structNo] {
-			typeDefStr = typeDefStr + "\t" + text.Flatten(mc.Labels[lN]) + " " + cp.ConvertFieldType(mc, mc.StructFields[structNo][i]) + "\n"
+			typeDefStr = typeDefStr + "\t" + text.Flatten(mc.Labels[lN]) + " " + cp.ConvertFieldType(mc, mc.AbstractStructFields[structNo][i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
@@ -105,7 +105,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(mc *Vm, goHandler *GoHandler, sour
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
 		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structType)) + " : \n\t\treturn " + goStructName + "{"
 		sep = ""
-		for i, ty := range mc.StructFields[structNo] {
+		for i, ty := range mc.AbstractStructFields[structNo] {
 			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(mc, ty) + ")"
 			sep = ", "
 		}

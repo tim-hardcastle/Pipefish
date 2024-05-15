@@ -321,10 +321,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/namespace/exist": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unknown namespace " + text.Emph(tok.Literal)
+			return "unknown namespace " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You are using " + text.Emph(tok.Literal) + " as though it was a namespace, but you haven't declared it as such in the 'import' section."
+			return "You are using " + text.Emph(args[0].(string)) + " as though it was a namespace, but you haven't declared it as such in the 'import' section."
 		},
 	},
 

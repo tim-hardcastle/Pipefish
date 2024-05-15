@@ -123,7 +123,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		command := exec.Command(hubWords[1], hubWords[2:]...)
 		out, err := command.Output()
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("/a" + err.Error())
 			return passedServiceName, false
 		}
 		if len(out) == 0 {
@@ -244,7 +244,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	if hub.isAdministered() {
 		isAdmin, err := database.IsUserAdmin(hub.Db, username)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("b/" + err.Error())
 			return false
 		}
 		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" ||
@@ -268,12 +268,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "add":
 		err := database.IsUserGroupOwner(hub.Db, username, args[1])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("c/ " + err.Error())
 			return false
 		}
 		err = database.AddUserToGroup(hub.Db, args[0], args[1], false)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("d/ " + err.Error())
 			return false
 		}
 		hub.WriteString(text.OK + "\n")
@@ -286,7 +286,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		serializationOfApi := srv.SerializeApi()
 		hub.WriteString("\n" + serializationOfApi + "\n")
-		stub := service.SerializedAPIToDeclarations(serializationOfApi)
+		stub := service.SerializedAPIToDeclarations(serializationOfApi, 0)
 		hub.WriteString("\n" + stub + "\n")
 		return false
 	case "config-admin":
@@ -303,12 +303,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "create":
 		err := database.AddGroup(hub.Db, args[0])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("e/ " + err.Error())
 			return false
 		}
 		err = database.AddUserToGroup(hub.Db, username, args[0], true)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("f/" + err.Error())
 			return false
 		}
 		hub.WriteString(text.OK + "\n")
@@ -319,7 +319,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		command.Stdout = os.Stdout
 		err := command.Run()
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("g/" + err.Error())
 		}
 		return false
 	case "errors":
@@ -332,7 +332,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "groups-of-user":
 		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("h/ " + err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
@@ -340,7 +340,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "groups-of-service":
 		result, err := database.GetGroupsOfService(hub.Db, args[0])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("i/ " + err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
@@ -382,7 +382,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "let":
 		isAdmin, err := database.IsUserAdmin(hub.Db, username)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("i/ " + err.Error())
 			return false
 		}
 		if !isAdmin {
@@ -391,7 +391,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		err = database.LetGroupUseService(hub.Db, args[0], args[1])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("j/ " + err.Error())
 			return false
 		}
 		hub.WriteString(text.OK + "\n")
@@ -416,7 +416,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "groups":
 		result, err := database.GetGroupsOfUser(hub.Db, username, true)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("l/ " + err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
@@ -425,7 +425,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if hub.isAdministered() {
 			result, err := database.GetServicesOfUser(hub.Db, username, true)
 			if err != nil {
-				hub.WriteError(err.Error())
+				hub.WriteError("m/ " + err.Error())
 			} else {
 				hub.WriteString(result)
 				return false
@@ -518,7 +518,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "services-of-group":
 		result, err := database.GetServicesOfGroup(hub.Db, args[0])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("n/ " + err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
@@ -582,7 +582,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			if hub.administered {
 				access, err := database.DoesUserHaveAccess(hub.Db, username, args[0])
 				if err != nil {
-					hub.WriteError(err.Error())
+					hub.WriteError("o/ " + err.Error())
 					return false
 				}
 				if !access {
@@ -604,21 +604,21 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "test":
 		file, err := os.Open(args[0])
 		if err != nil {
-			hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
+			hub.WriteError("p/ " + strings.TrimSpace(err.Error()) + "\n")
 			return false
 		}
 
 		defer file.Close()
 		fileInfo, err := file.Stat()
 		if err != nil {
-			hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
+			hub.WriteError(strings.TrimSpace("q/ "+err.Error()) + "\n")
 			return false
 		}
 
 		if fileInfo.IsDir() {
 			files, err := file.Readdir(0)
 			if err != nil {
-				hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
+				hub.WriteError("r/ " + strings.TrimSpace(err.Error()) + "\n")
 				return false
 			}
 
@@ -650,7 +650,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "users-of-group":
 		result, err := database.GetUsersOfGroup(hub.Db, args[0])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("s/ " + err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
@@ -658,7 +658,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "users-of-service":
 		result, err := database.GetUsersOfService(hub.Db, args[0])
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("t/ " + err.Error())
 		} else {
 			hub.WriteString(result)
 			return false
@@ -837,7 +837,7 @@ func (hub *Hub) Start(username, serviceName, scriptFilepath string) bool {
 	if hub.administered {
 		err := database.UpdateService(hub.Db, username, serviceName)
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("u/ " + err.Error())
 			return false
 		}
 	}
@@ -871,7 +871,7 @@ func (hub *Hub) serviceNeedsUpdate(name string) bool {
 	}
 	needsUpdate, err := serviceToUpdate.NeedsUpdate()
 	if err != nil {
-		hub.WriteError(err.Error())
+		hub.WriteError("v/ " + err.Error())
 		return false
 	}
 	return needsUpdate
@@ -961,7 +961,7 @@ func (hub *Hub) Open() {
 
 	f, err := os.Open("user/hub.dat")
 	if err != nil {
-		hub.WriteError(strings.TrimSpace(err.Error()))
+		hub.WriteError("w/ " + strings.TrimSpace(err.Error()))
 	}
 	defer f.Close()
 
@@ -977,7 +977,7 @@ func (hub *Hub) Open() {
 
 	f, err = os.Open("user/current.dat")
 	if err != nil {
-		hub.WriteError(strings.TrimSpace(err.Error()))
+		hub.WriteError("x/ " + strings.TrimSpace(err.Error()))
 	}
 
 	scanner = bufio.NewScanner(f)
@@ -1001,7 +1001,7 @@ func (hub *Hub) Open() {
 		fileBytes, err := os.ReadFile("user/database.dat")
 
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("y/ " + err.Error())
 			return
 		}
 
@@ -1017,7 +1017,7 @@ func (hub *Hub) Open() {
 		}
 
 		if err != nil {
-			hub.WriteError(err.Error())
+			hub.WriteError("z/" + err.Error())
 			return
 		}
 		if hub.administered && !hub.listeningToHttp {
@@ -1075,7 +1075,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 
 	f, err := os.Open(testFilepath)
 	if err != nil {
-		hub.WriteError(strings.TrimSpace(err.Error()) + "/n")
+		hub.WriteError("A/ " + strings.TrimSpace(err.Error()) + "/n")
 		return
 	}
 
@@ -1153,7 +1153,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	f, err := os.Open(testFilepath)
 	if err != nil {
-		hub.WriteError(strings.TrimSpace(err.Error()) + "/n")
+		hub.WriteError("C/ " + strings.TrimSpace(err.Error()) + "/n")
 		return
 	}
 	scanner := bufio.NewScanner(f)
@@ -1252,7 +1252,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
 		serviceName, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
-			h.WriteError(err.Error())
+			h.WriteError("D/ " + err.Error())
 			return
 		}
 	}
@@ -1292,7 +1292,7 @@ func (h *Hub) handleConfigUserForm(f *Form) {
 		return
 	}
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("E/ " + err.Error())
 		return
 	}
 	if f.Result["*Password"] != f.Result["*Confirm password"] {
@@ -1303,12 +1303,12 @@ func (h *Hub) handleConfigUserForm(f *Form) {
 	err = database.AddUser(h.Db, f.Result["Username"], f.Result["First name"],
 		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], "")
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("F/ " + err.Error())
 		return
 	}
 	err = database.AddUserToGroup(h.Db, f.Result["Username"], "Guests", false)
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("G/ " + err.Error())
 		return
 	}
 	h.Username = f.Result["Username"]
@@ -1335,7 +1335,7 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 	err := database.AddAdmin(h.Db, f.Result["Username"], f.Result["First name"],
 		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], h.currentServiceName)
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("H/ " + err.Error())
 		return
 	}
 	h.WriteString(text.OK + "\n")
@@ -1361,7 +1361,7 @@ func (h *Hub) handleLoginForm(f *Form) {
 	h.CurrentForm = nil
 	_, err := database.ValidateUser(h.Db, f.Result["Username"], f.Result["*Password"])
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("I/ " + err.Error())
 		h.WriteString("Please try again.\n\n")
 		return
 	}
@@ -1380,7 +1380,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	h.CurrentForm = nil
 	number, err := strconv.Atoi(f.Result[database.GetDriverOptions()])
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("J/ " + err.Error())
 		return
 	}
 
@@ -1388,7 +1388,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 		f.Result["Database"], f.Result["Username for database access"], f.Result["*Password for database access"])
 
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("K/ " + err.Error())
 		return
 	}
 
@@ -1398,7 +1398,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 
 	fi, err := os.Create("user/database.dat")
 	if err != nil {
-		h.WriteError(err.Error())
+		h.WriteError("L/ " + err.Error())
 	}
 
 	fi.WriteString(database.GetSortedDrivers()[number] + "\n")

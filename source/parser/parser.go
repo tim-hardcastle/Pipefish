@@ -74,6 +74,7 @@ var precedences = map[token.TokenType]int{
 	token.COMMA:               COMMA,
 	token.LBRACK:              INDEX,
 	token.EVAL:                FPREFIX,
+	token.XCALL:               FPREFIX,
 	token.EMDASH:              FSUFFIX,
 	token.NAMESPACE_SEPARATOR: NAMESPACE,
 }
@@ -254,7 +255,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseStringLiteral()
 	case token.NOT:
 		leftExp = p.parseNativePrefixExpression()
-	case token.EVAL, token.GLOBAL:
+	case token.EVAL, token.GLOBAL, token.XCALL:
 		leftExp = p.parsePrefixExpression()
 	case token.LOOP:
 		leftExp = p.parseLoopExpression()
@@ -401,11 +402,6 @@ func (p *Parser) getResolvingParser() *Parser {
 		s, ok := lP.NamespaceBranch[name]
 		if ok {
 			lP = s.Parser
-			continue
-		}
-		externalService, ok := lP.ExternalParsers[name]
-		if ok {
-			lP = externalService.getResolvingParser()
 			continue
 		}
 		p.Throw("parse/namespace/exist", &p.curToken, name)

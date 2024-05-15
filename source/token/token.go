@@ -79,6 +79,7 @@ const (
 	PRELOG      = "PRELOG"
 	WEAK_COLON  = "WEAK COLON"
 	WEAK_COMMA  = ",,"
+	XCALL       = "XCALL"
 )
 
 type Token struct {
@@ -125,6 +126,9 @@ var keywords = map[string]TokenType{
 	// False and true.
 	"true":  TRUE,
 	"false": FALSE,
+
+	// Secret sauce.
+	"xcall": XCALL,
 }
 
 func LookupIdent(ident string) TokenType {
