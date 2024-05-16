@@ -68,7 +68,7 @@ func GetSortedDrivers() []string {
 	return dr
 }
 
-func AddAdmin(db *sql.DB, username, firstName, lastName, email, password, serviceName string) error {
+func AddAdmin(db *sql.DB, username, firstName, lastName, email, password, serviceName string, dir string) error {
 
 	query :=
 		`CREATE TABLE IF NOT EXISTS _Users (
@@ -124,7 +124,7 @@ ON CONFLICT DO NOTHING;`
 
 	// This should only ever happen to a hub once. We create the file "user/admin.dat"
 	// to prove that it has.
-	_, err = os.Create("user/admin.dat")
+	_, err = os.Create(dir + "user/admin.dat")
 	return err
 }
 

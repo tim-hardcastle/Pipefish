@@ -96,6 +96,9 @@ func New(source, input string, db *sql.DB, dir string) *Initializer {
 func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service, namePath string, dir string) (*parser.Service, *Initializer) {
 	newService := parser.NewService()
 	newService.Broken = true
+	if len(scriptFilepath) >= 4 && (scriptFilepath[0:4] == "rsc/") {
+		scriptFilepath = dir + scriptFilepath
+	}
 	newService.ScriptFilepath = scriptFilepath
 	code := ""
 	if scriptFilepath != "" {
@@ -186,6 +189,9 @@ func (init *Initializer) addToNameSpace(thingsToImport []string) {
 func (uP *Initializer) GetSource(source string) {
 	if source == "" {
 		return
+	}
+	if len(source) >= 4 && source[0:4] == "rsc/" {
+		source = uP.Parser.Directory + source
 	}
 	file, err := os.Open(source)
 	if err != nil {
@@ -730,7 +736,7 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
 		var init *Initializer
-		if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "lib/" {
+		if len(scriptFilepath) >= 4 && (scriptFilepath[0:4] == "lib/" || scriptFilepath[0:4] == "rsc/") {
 			scriptFilepath = uP.Parser.Directory + scriptFilepath
 		}
 		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root, namePath+namespace+".", uP.Parser.Directory)
