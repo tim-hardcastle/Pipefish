@@ -70,12 +70,11 @@ type XBindle struct { // The types have already been decoded and put into the ty
 type cpAccess int
 
 const ( // We use this to keep track of what we're doing so we don't e.g. call a command from a function, or let a command see the globals without a `global` keyword, etc.
-	REPL cpAccess = iota
-	CMD
-	DEF
-	INIT
-	LAMBDA
-	NAMESPACE
+	REPL   cpAccess = iota // Call from the REPL, or an external service. TODO --- distinguish them for clarity?
+	CMD                    // We're in a command.
+	DEF                    // We're in a function.
+	INIT                   // We're initializing the global variables.
+	LAMBDA                 // We're in a lambda function.
 )
 
 // A type may be private. At compile time we check this quality recursively.
@@ -720,7 +719,10 @@ NodeTypeSwitch:
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		if resolvingCompiler.P.Infixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, cp, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
+			if cp != resolvingCompiler {
+				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+			}
 			break
 		}
 		if node.Operator == "," {
@@ -1005,7 +1007,10 @@ NodeTypeSwitch:
 			break
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
+			if cp != resolvingCompiler {
+				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+			}
 			break
 		}
 		cp.P.Throw("comp/prefix/known", node.GetToken())
@@ -1033,7 +1038,10 @@ NodeTypeSwitch:
 			}
 		}
 		if resolvingCompiler.P.Suffixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, cp, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
+			if cp != resolvingCompiler {
+				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+			}
 			break
 		}
 		cp.P.Throw("comp/suffix", node.GetToken())
@@ -1075,7 +1083,7 @@ NodeTypeSwitch:
 			cp.Reserve(mc, values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY})
 		default:
 			abType := resolvingCompiler.TypeNameToTypeList[typeName].ToAbstractType()
-			if ac == REPL && mc.isPrivate(abType) {
+			if (ac == REPL || resolvingCompiler != cp) && mc.isPrivate(abType) {
 				cp.P.Throw("comp/type/private", node.GetToken())
 			}
 			cp.Reserve(mc, values.TYPE, abType)
@@ -1085,7 +1093,10 @@ NodeTypeSwitch:
 	case *ast.UnfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
 		if resolvingCompiler.P.Unfixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, nil, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
+			if cp != resolvingCompiler {
+				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+			}
 			break
 		}
 		cp.P.Throw("comp/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
@@ -1297,7 +1308,7 @@ func (t AlternateType) mustBeSingleOrTuple() (bool, bool) {
 // The compiler in the method receiver is where we look up the function name (the "resolving compiler").
 // The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
 // use them to look up the function.
-func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.Callable, env *Environment, ac cpAccess) (AlternateType, bool) {
+func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.Callable, env *Environment, ac cpAccess, libcall bool) (AlternateType, bool) {
 	args := node.GetArgs()
 	if len(args) == 1 {
 		switch args[0].(type) {
@@ -1312,6 +1323,7 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
 		access:       ac,
+		libcall:      libcall,
 	}
 	backtrackList := make([]uint32, len(args))
 	var traceTokenReserved bool
@@ -1413,6 +1425,7 @@ type bindle struct {
 	tok          *token.Token    // For generating errors.
 	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
 	cst          bool            // Whether the arguments are constant.
+	libcall      bool            // Are we in a namespace?
 }
 
 func (cp *Compiler) generateNewArgument(mc *Vm, b *bindle) AlternateType {
@@ -1683,11 +1696,13 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			F := cp.Fns[fNo]
 			// Before we do anything else, let's control for access. The REPL shouldn't be able to access private
 			// commands or functions, and functions shouldn't be able to access commands.
-			if b.access == REPL && F.Private {
+			if (b.access == REPL || b.libcall) && F.Private {
 				cp.P.Throw("comp/private", b.tok)
+				return AltType(values.COMPILE_TIME_ERROR)
 			}
 			if b.access == DEF && F.Command {
 				cp.P.Throw("comp/command", b.tok)
+				return AltType(values.COMPILE_TIME_ERROR)
 			}
 			// Deal with the case where the function is a builtin.
 			builtinTag := F.Builtin

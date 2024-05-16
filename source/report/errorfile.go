@@ -347,6 +347,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/private": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to access an import's private function or command " + text.Emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When an imported or external service declares something as private, that means that this is for its own use and cannot be used by a client service."
+		},
+	},
+
 	"comp/unreachable": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unreachable code"
