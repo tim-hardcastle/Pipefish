@@ -945,7 +945,7 @@ NodeTypeSwitch:
 		}
 		rtnConst = lhsConst && rhsConst
 		break
-	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin functions already.
+	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin expressions already.
 		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(mc, node.Args[0], env, ac)
 			if allTypes.isOnly(values.BOOL) {
@@ -1005,7 +1005,7 @@ NodeTypeSwitch:
 			break
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, cp, node, env, ac)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac)
 			break
 		}
 		cp.P.Throw("comp/prefix/known", node.GetToken())

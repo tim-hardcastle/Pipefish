@@ -1,13 +1,8 @@
 external
 
-Bar::"examples/bar.pf"
+qux::"examples/qux.pf"
 
-cmd
+def
 
-getTheThing(s) :
-    get x from Bar --- returnTheThing |s|
-    post "* " + x + " *" to Output()
-
-makeBarDoTheThing(s) : 
-    post Bar --- doTheThing |s|
-
+troz (s string) :
+    "Foo got: " + qux.zort(s) + " from qux." 

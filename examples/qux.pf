@@ -1,9 +1,9 @@
-newtype
+def
 
-// Zort = struct (foo int)
+zort (s string) :
+    "~~" + s + "~~"
 
-def 
+private 
 
-blort (s string) :
-    "qux says: " + s 
-
+moo (i int) :
+    2 * i

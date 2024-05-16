@@ -1,8 +1,7 @@
-import
-
-qux::"examples/qux.pf"
-
 def
+
+troz(s string) :
+    "Qux says: " + qux.blort(s) 
 
 blurp (x varchar(10)) :
     x + " is a tiny string"
@@ -28,7 +27,7 @@ y = 43
 
 def
 
-troz(x string) :
+bloop(x string) :
     fuzz x
 
 const private

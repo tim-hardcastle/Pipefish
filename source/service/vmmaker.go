@@ -318,7 +318,6 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 				continue
 			}
 			vmm.addExternal(mc, service.Cp.ScriptFilepath, name)
-			vmm.cp.Services[name] = service
 			continue
 		}
 		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
@@ -328,7 +327,6 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 				vmm.uP.Throw("init/external/exist", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
 			} else {
 				vmm.addExternal(mc, path, name)
-				vmm.cp.Services[name] = hubService
 			}
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
@@ -345,7 +343,6 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 			continue
 		}
 		mc.HubServices[name] = newService
-		vmm.cp.Services[name] = newService
 		vmm.addExternal(mc, path, name)
 	}
 }
@@ -360,6 +357,7 @@ func (vmm *VmMaker) addExternal(mc *Vm, path, name string) {
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, uint32(externalServiceOrdinal))
 	newCp, _ := initializeFromSourcecode(mc, path, sourcecode)
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
+	vmm.cp.Services[name] = &VmService{mc, newCp, false, false}
 }
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
