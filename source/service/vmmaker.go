@@ -354,7 +354,7 @@ func (vmm *VmMaker) addExternal(mc *Vm, path, name string) {
 	vmm.cp.ExternalOrdinals[name] = externalServiceOrdinal
 	mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
 	serializedAPI := serviceToAdd.getAPI()
-	sourcecode := SerializedAPIToDeclarations(name, serializedAPI, uint32(externalServiceOrdinal))
+	sourcecode := SerializedAPIToDeclarations(serializedAPI, uint32(externalServiceOrdinal))
 	newCp, _ := initializeFromSourcecode(mc, path, sourcecode)
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	vmm.cp.Services[name] = &VmService{mc, newCp, false, false}
@@ -683,11 +683,9 @@ func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, private bool, outerEn
 	}
 	if body.GetToken().Type == token.XCALL {
 		Xargs := body.(*ast.PrefixExpression).Args
-		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[1].(*ast.IntegerLiteral).Value), FunctionName: Xargs[2].(*ast.StringLiteral).Value, Position: uint32(Xargs[3].(*ast.IntegerLiteral).Value)}
-		namespace := Xargs[0].(*ast.StringLiteral).Value
-		deserializingCompiler := vmm.cp.Services[namespace].Cp
-		serializedTypescheme := Xargs[4].(*ast.StringLiteral).Value
-		cpF.Types = deserializingCompiler.deserializeTypescheme(serializedTypescheme)
+		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value), FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
+		serializedTypescheme := Xargs[3].(*ast.StringLiteral).Value
+		cpF.Types = vmm.cp.deserializeTypescheme(serializedTypescheme)
 	}
 	fnenv := NewEnvironment()
 	fnenv.Ext = outerEnv

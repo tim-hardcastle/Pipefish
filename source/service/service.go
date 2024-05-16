@@ -175,7 +175,7 @@ func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- ob
 // And then we need a way to turn a serialized API back into a set of declarations.
 // xserve is the external service number: set to DUMMY it will indicate that we're just doing this for human readers and
 // can therefore leave off the 'xcall' hooks.
-func SerializedAPIToDeclarations(name, serializedAPI string, xserve uint32) string {
+func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 	var buf strings.Builder
 	lines := strings.Split(strings.TrimRight(serializedAPI, "\n"), "\n")
 	lineNo := 0
@@ -228,13 +228,13 @@ func SerializedAPIToDeclarations(name, serializedAPI string, xserve uint32) stri
 			if !hasHappened["CMD"] {
 				buf.WriteString("\ncmd\n\n")
 			}
-			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], name, xserve))
+			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
 			lineNo++
 		case "FUNCTION":
 			if !hasHappened["DEF"] {
 				buf.WriteString("\ndef\n\n")
 			}
-			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], name, xserve))
+			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
 			lineNo++
 		case "":
 			lineNo++
@@ -246,7 +246,7 @@ func SerializedAPIToDeclarations(name, serializedAPI string, xserve uint32) stri
 	return buf.String()
 }
 
-func makeCommandOrFunctionDeclarationFromParts(parts []string, nameOfNamespace string, xserve uint32) string {
+func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) string {
 	var buf strings.Builder
 	// We have snipped off the part saying "FUNCTION" or "COMMAND", so the list of parts now looks like this:
 	// functionName | 0, 1, 2, 3 for prefix/infix/suffix/unfix | parameterName1 type1 | parameterName2 type2 | serialization of typescheme
@@ -294,10 +294,6 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, nameOfNamespace s
 	}
 	if xserve != DUMMY { // Then we need to insert the hook.
 		buf.WriteString(" : xcall ")
-		buf.WriteString("\"")
-		buf.WriteString(nameOfNamespace)
-		buf.WriteString("\"")
-		buf.WriteString(", ")
 		buf.WriteString(strconv.Itoa(int(xserve)))
 		buf.WriteString(", ")
 		buf.WriteString("\"")
@@ -359,11 +355,13 @@ func (cp *Compiler) deserializeTypescheme(s string) AlternateType { // If it is 
 		word := words[ix]
 		ix++
 		if word[0] == '*' { // Then we have a constructor *TT, *AT, or *FT.
-			if ix == len(words)-1 { // Then the number we were expecting to find after the constructor can't be there.
+			if ix == len(words) { // Then the number we were expecting to find after the constructor can't be there.
 				cp.P.Throw("ext/deserialize/a", &token.Token{Source: "Pipefish builder"})
 				return nil
 			}
-			num, err := strconv.Atoi(word)
+			numAsString := words[ix]
+			ix++
+			num, err := strconv.Atoi(numAsString)
 			if err != nil {
 				cp.P.Throw("ext/deserialize/b", &token.Token{Source: "Pipefish builder"})
 				return nil
@@ -376,9 +374,17 @@ func (cp *Compiler) deserializeTypescheme(s string) AlternateType { // If it is 
 			// If we've gotten this far, then it's well-formed so far, and we can construct a compound type and stick it on the stack.
 			switch word {
 			case "*AT":
-				stack.Push(AlternateType(types))
+				res := altType()
+				for _, ty := range types {
+					res = append(res, ty)
+				}
+				stack.Push(res)
 			case "*FT":
-				stack.Push(finiteTupleType(types))
+				res := finiteTupleType{}
+				for _, ty := range types {
+					res = append(res, ty)
+				}
+				stack.Push(res)
 			case "*TT":
 				res := altType()
 				for _, ty := range types {
@@ -407,14 +413,14 @@ func (cp *Compiler) deserializeTypescheme(s string) AlternateType { // If it is 
 	// We're done.
 	result, ok := stack.Pop() // We should have one thing left on the stack, which is the answer.
 	if !ok {
-		cp.P.Throw("ext/deserialize/", &token.Token{Source: "Pipefish builder"})
+		cp.P.Throw("ext/deserialize/f", &token.Token{Source: "Pipefish builder"})
 		return nil
 	}
 	switch result := result.(type) { // And it should be an AlternateType.
 	case AlternateType:
 		return result
 	default:
-		cp.P.Throw("ext/deserialize/", &token.Token{Source: "Pipefish builder"})
+		cp.P.Throw("ext/deserialize/g", &token.Token{Source: "Pipefish builder"})
 		return nil
 
 	}
