@@ -145,6 +145,9 @@ func (cp *Compiler) Run(mc *Vm) {
 }
 
 func (cp *Compiler) NeedsUpdate() (bool, error) {
+	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" {
+		return false, nil
+	}
 	file, err := os.Stat(cp.ScriptFilepath)
 	if err != nil {
 		return false, err

@@ -193,7 +193,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.WriteString("\n")
 		hub.ers = []*report.Error{val.V.(*report.Error)}
 	} else {
-		out := serviceToUse.Mc.Describe(val)
+		out := serviceToUse.Mc.Literal(val)
 		hub.WriteString(out)
 		if hub.currentServiceName == "#snap" {
 			hub.snap.AddOutput(out)
@@ -285,9 +285,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		serializationOfApi := srv.SerializeApi()
-		println("Serialization is \n" + serializationOfApi)
 		stub := service.SerializedAPIToDeclarations(serializationOfApi, service.DUMMY)
-		hub.WriteString("\n" + stub + "\n")
+		hub.WriteString(stub + "\n")
 		return false
 	case "config-admin":
 		if !hub.isAdministered() {
@@ -399,7 +398,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "listen":
 		hub.WriteString(text.OK)
 		hub.WriteString("\nHub is listening.\n\n")
-		hub.StartHttp(args[0], args[1])
+		hub.StartHttp("/"+args[0], args[1])
 		return false
 	case "log-on":
 		hub.getLogin()
@@ -421,6 +420,15 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteString(result)
 			return false
 		}
+	case "serialize":
+		srv, ok := hub.services[args[0]]
+		if !ok {
+			hub.WriteError("Hub can't find service " + text.Emph(args[0]) + ".")
+			return false
+		}
+		serializationOfApi := srv.SerializeApi()
+		hub.WriteString(serializationOfApi)
+		return false
 	case "services":
 		if hub.isAdministered() {
 			result, err := database.GetServicesOfUser(hub.Db, username, true)
@@ -867,7 +875,7 @@ func (hub *Hub) serviceNeedsUpdate(name string) bool {
 		return true
 	}
 	if name == "" {
-		return true
+		return false
 	}
 	needsUpdate, err := serviceToUpdate.NeedsUpdate()
 	if err != nil {

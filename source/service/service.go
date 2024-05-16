@@ -1,8 +1,8 @@
 package service
 
 import (
+	p2p "pipefish/source"
 	"pipefish/source/dtypes"
-	"pipefish/source/parser"
 	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/token"
@@ -28,7 +28,7 @@ func (service *VmService) NeedsUpdate() (bool, error) {
 // Pipefish, but we haven't implemented that in general yet.
 type externalService interface {
 	evaluate(mc *Vm, line string) values.Value
-	getResolvingParser() *parser.Parser
+
 	problem() *report.Error
 	getAPI() string
 }
@@ -45,10 +45,6 @@ func (ex externalServiceOnSameHub) evaluate(mc *Vm, line string) values.Value {
 	return mc.OwnService.Cp.Do(mc, serialize)
 }
 
-func (ex externalServiceOnSameHub) getResolvingParser() *parser.Parser {
-	return ex.externalService.Cp.P
-}
-
 func (es externalServiceOnSameHub) problem() *report.Error {
 	if es.externalService.Broken {
 		return report.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
@@ -60,25 +56,34 @@ func (es externalServiceOnSameHub) getAPI() string {
 	return es.externalService.SerializeApi()
 }
 
-type externalServiceOnDifferentHub struct {
+type httpService struct {
+	host     string
+	service  string
 	username string
 	password string
 }
 
-func (es externalServiceOnDifferentHub) evaluate(mc *Vm, line string) values.Value {
-	return values.Value{values.NULL, nil}
+func (es httpService) evaluate(mc *Vm, line string) values.Value {
+	if settings.SHOW_XCALLS {
+		println("Line is", line)
+	}
+	exValAsString := p2p.Do(es.host, line, es.username, es.password)
+	if settings.SHOW_XCALLS {
+		println("Returned string is", exValAsString)
+	}
+	val := mc.OwnService.Cp.Do(mc, exValAsString)
+	if settings.SHOW_XCALLS {
+		println("Value is", mc.Describe(val))
+	}
+	return val
 }
 
-func (eS externalServiceOnDifferentHub) getResolvingParser() *parser.Parser {
+func (es httpService) problem() *report.Error {
 	return nil
 }
 
-func (es externalServiceOnDifferentHub) problem() *report.Error {
-	return nil
-}
-
-func (es externalServiceOnDifferentHub) getAPI() string {
-	return ""
+func (es httpService) getAPI() string {
+	return p2p.Do(es.host, "hub serialize \""+es.service+"\"", es.username, es.password)
 }
 
 // For a description of the file format, see README-api-serialization.md

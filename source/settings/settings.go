@@ -24,4 +24,5 @@ const (
 	SHOW_PARSER   = false // Note that this only applies to the REPL and not to code initialization.
 	SHOW_COMPILER = false
 	SHOW_RUNTIME  = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
+	SHOW_XCALLS   = false
 )

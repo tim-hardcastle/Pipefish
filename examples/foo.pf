@@ -1,8 +1,8 @@
-external
+import
 
-qux::"examples/qux.pf"
+"examples/qux.pf"
 
 def
 
 troz (s string) :
-    "Foo says: " + qux.zort s
+    "Qux returns: " + qux.zort s

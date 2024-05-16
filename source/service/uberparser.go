@@ -16,7 +16,6 @@
 package service
 
 import (
-	"bufio"
 	"os"
 	"strings"
 
@@ -99,21 +98,21 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 }
 
 func (uP *Initializer) GetSource(source string) {
-	if source == "" {
-		return
-	}
-	file, err := os.Open(source)
-	if err != nil {
-		uP.Throw("init/source/open", token.Token{}, source)
-	}
-	defer file.Close()
+	// if source == "" {
+	// 	return
+	// }
+	// file, err := os.Open(source)
+	// if err != nil {
+	// 	uP.Throw("init/source/open", token.Token{}, source)
+	// }
+	// defer file.Close()
 
-	uP.Sources[source] = []string{}
+	// uP.Sources[source] = []string{}
 
-	scanner := bufio.NewScanner(file) // TODO --- is there any reason this is line by line? Also why do we need the sources in the uP at this stage anyway?
-	for scanner.Scan() {
-		uP.Sources[source] = append(uP.Sources[source], scanner.Text())
-	}
+	// scanner := bufio.NewScanner(file) // TODO --- is there any reason this is line by line? Also why do we need the sources in the uP at this stage anyway?
+	// for scanner.Scan() {
+	// 	uP.Sources[source] = append(uP.Sources[source], scanner.Text())
+	// }
 }
 
 func (uP *Initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {

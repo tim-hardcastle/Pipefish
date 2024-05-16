@@ -98,6 +98,9 @@ run(filename string) :
 run(filename string) as (srv string) :
     HubResponse("run", [filename, srv])
 
+serialize(namespace string) :
+    HubResponse("serialize", [namespace])
+
 services :
     HubResponse("services", [])
 

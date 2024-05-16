@@ -9,8 +9,11 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
+	"strings"
 
 	"database/sql"
+
+	"github.com/lmorg/readline"
 )
 
 // Just as the initializer directs the tokenizer and the parser in the construction of the parsed code
@@ -54,7 +57,7 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode string) (*Compi
 	vmm := newVmMaker(scriptFilepath, sourcecode, mc)
 	vmm.makeAll(mc, scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
-	if scriptFilepath != "" {
+	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) {
 		file, err := os.Stat(scriptFilepath)
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode)
@@ -317,16 +320,42 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 				vmm.uP.Throw("init/external/exist", *declaration.GetToken())
 				continue
 			}
-			vmm.addExternal(mc, service.Cp.ScriptFilepath, name)
+			vmm.addExternalOnSameHub(mc, service.Cp.ScriptFilepath, name)
 			continue
 		}
+		if len(path) >= 5 && path[0:5] == "http:" {
+			pos := strings.LastIndex(path, "/")
+			if pos == -1 {
+				vmm.uP.Throw("init/external/path/a", *declaration.GetToken())
+				continue
+			}
+			hostpath := path[0:pos]
+			serviceName := path[pos+1:]
+			pos = strings.LastIndex(hostpath, "/")
+			if pos == -1 {
+				vmm.uP.Throw("init/external/path/b", *declaration.GetToken())
+				continue
+			}
+			hostname := hostpath[pos+1:]
+			// TODO --- there are doubtless reasons why I shouldn't do this with println and rline but I am too tired to remember what they are.
+			rline := readline.NewInstance()
+			println("Please enter your username and password for hub " + text.CYAN + "'" + hostname + "'" + text.RESET + ".")
+			rline.SetPrompt("Username: ")
+			username, _ := rline.Readline()
+			rline.SetPrompt("Password: ")
+			rline.PasswordMask = '▪'
+			password, _ := rline.Readline()
+			vmm.addHttpService(mc, hostpath, serviceName, username, password)
+			continue
+		}
+
 		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
 		hubService, ok := mc.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubService.Cp.ScriptFilepath != path {
 				vmm.uP.Throw("init/external/exist", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
 			} else {
-				vmm.addExternal(mc, path, name)
+				vmm.addExternalOnSameHub(mc, path, name)
 			}
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
@@ -343,19 +372,32 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 			continue
 		}
 		mc.HubServices[name] = newService
-		vmm.addExternal(mc, path, name)
+		vmm.addExternalOnSameHub(mc, path, name)
 	}
 }
 
-func (vmm *VmMaker) addExternal(mc *Vm, path, name string) {
+func (vmm *VmMaker) addExternalOnSameHub(mc *Vm, path, name string) {
 	hubService := mc.HubServices[name]
 	serviceToAdd := externalServiceOnSameHub{hubService}
+	vmm.addAnyExternalService(mc, serviceToAdd, path, name)
+}
+
+func (vmm *VmMaker) addHttpService(mc *Vm, path, name, username, password string) {
+	serviceToAdd := httpService{path, name, username, password}
+	vmm.addAnyExternalService(mc, serviceToAdd, path, name)
+}
+
+func (vmm *VmMaker) addAnyExternalService(mc *Vm, serviceToAdd externalService, path, name string) {
 	externalServiceOrdinal := uint32(len(mc.ExternalServices))
 	vmm.cp.ExternalOrdinals[name] = externalServiceOrdinal
 	mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
 	serializedAPI := serviceToAdd.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, uint32(externalServiceOrdinal))
-	newCp, _ := initializeFromSourcecode(mc, path, sourcecode)
+	newCp, newUp := initializeFromSourcecode(mc, path, sourcecode)
+	if newUp.ErrorsExist() {
+		vmm.cp.P.Errors = append(vmm.cp.P.Errors, newUp.Parser.Errors...)
+		return
+	}
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	vmm.cp.Services[name] = &VmService{mc, newCp, false, false}
 }
