@@ -4,5 +4,8 @@ qux::"examples/qux.pf"
 
 def
 
+blurp (s string) : 
+    "Foo says " + s
+
 troz (s string) :
-    "Foo got: " + qux.zort(s) + " from qux." 
+    "Foo got " + qux.zort(s)
