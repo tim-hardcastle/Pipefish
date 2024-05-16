@@ -722,6 +722,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
 			if cp != resolvingCompiler {
 				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+				resolvingCompiler.P.Errors = nil
 			}
 			break
 		}
@@ -1010,6 +1011,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
 			if cp != resolvingCompiler {
 				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+				resolvingCompiler.P.Errors = nil
 			}
 			break
 		}
@@ -1041,6 +1043,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
 			if cp != resolvingCompiler {
 				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+				resolvingCompiler.P.Errors = nil
 			}
 			break
 		}
@@ -1096,6 +1099,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
 			if cp != resolvingCompiler {
 				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
+				resolvingCompiler.P.Errors = nil
 			}
 			break
 		}

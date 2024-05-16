@@ -285,8 +285,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		serializationOfApi := srv.SerializeApi()
-		hub.WriteString("\n" + serializationOfApi + "\n")
-		stub := service.SerializedAPIToDeclarations(serializationOfApi, 0)
+		stub := service.SerializedAPIToDeclarations(args[0], serializationOfApi, service.DUMMY)
 		hub.WriteString("\n" + stub + "\n")
 		return false
 	case "config-admin":

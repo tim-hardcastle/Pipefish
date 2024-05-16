@@ -1,6 +1,7 @@
 package service
 
 import (
+	"pipefish/source/dtypes"
 	"pipefish/source/parser"
 	"pipefish/source/report"
 	"pipefish/source/settings"
@@ -50,7 +51,7 @@ func (ex externalServiceOnSameHub) getResolvingParser() *parser.Parser {
 
 func (es externalServiceOnSameHub) problem() *report.Error {
 	if es.externalService.Broken {
-		return report.CreateErr("ext/broken", &token.Token{})
+		return report.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
 	}
 	return nil
 }
@@ -174,7 +175,7 @@ func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- ob
 // And then we need a way to turn a serialized API back into a set of declarations.
 // xserve is the external service number: set to DUMMY it will indicate that we're just doing this for human readers and
 // can therefore leave off the 'xcall' hooks.
-func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
+func SerializedAPIToDeclarations(name, serializedAPI string, xserve uint32) string {
 	var buf strings.Builder
 	lines := strings.Split(strings.TrimRight(serializedAPI, "\n"), "\n")
 	lineNo := 0
@@ -227,13 +228,13 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 			if !hasHappened["CMD"] {
 				buf.WriteString("\ncmd\n\n")
 			}
-			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
+			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], name, xserve))
 			lineNo++
 		case "FUNCTION":
 			if !hasHappened["DEF"] {
 				buf.WriteString("\ndef\n\n")
 			}
-			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
+			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], name, xserve))
 			lineNo++
 		case "":
 			lineNo++
@@ -245,7 +246,7 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 	return buf.String()
 }
 
-func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) string {
+func makeCommandOrFunctionDeclarationFromParts(parts []string, nameOfNamespace string, xserve uint32) string {
 	var buf strings.Builder
 	// We have snipped off the part saying "FUNCTION" or "COMMAND", so the list of parts now looks like this:
 	// functionName | 0, 1, 2, 3 for prefix/infix/suffix/unfix | parameterName1 type1 | parameterName2 type2 | serialization of typescheme
@@ -293,6 +294,10 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 	}
 	if xserve != DUMMY { // Then we need to insert the hook.
 		buf.WriteString(" : xcall ")
+		buf.WriteString("\"")
+		buf.WriteString(nameOfNamespace)
+		buf.WriteString("\"")
+		buf.WriteString(", ")
 		buf.WriteString(strconv.Itoa(int(xserve)))
 		buf.WriteString(", ")
 		buf.WriteString("\"")
@@ -343,4 +348,74 @@ func (service *VmService) serializeTypescheme(t typeScheme) string {
 		return acc
 	}
 	panic("Unhandled type scheme!")
+}
+
+// And then the deserialization. We can't trust the dependency, so we must check at every step that the description is well-formed.
+func (cp *Compiler) deserializeTypescheme(s string) AlternateType { // If it is well-formed we know we must have been passed an AlternateType because all the function return information is stored in that form.
+	stack := dtypes.Stack[typeScheme]{}
+	words := strings.Split(s, " ")
+	ix := 0
+	for ix < len(words) {
+		word := words[ix]
+		ix++
+		if word[0] == '*' { // Then we have a constructor *TT, *AT, or *FT.
+			if ix == len(words)-1 { // Then the number we were expecting to find after the constructor can't be there.
+				cp.P.Throw("ext/deserialize/a", &token.Token{Source: "Pipefish builder"})
+				return nil
+			}
+			num, err := strconv.Atoi(word)
+			if err != nil {
+				cp.P.Throw("ext/deserialize/b", &token.Token{Source: "Pipefish builder"})
+				return nil
+			}
+			types, ok := stack.Take(num) // We try and take that many things off the stack.
+			if !ok {
+				cp.P.Throw("ext/deserialize/c", &token.Token{Source: "Pipefish builder"})
+				return nil
+			}
+			// If we've gotten this far, then it's well-formed so far, and we can construct a compound type and stick it on the stack.
+			switch word {
+			case "*AT":
+				stack.Push(AlternateType(types))
+			case "*FT":
+				stack.Push(finiteTupleType(types))
+			case "*TT":
+				res := altType()
+				for _, ty := range types {
+					res = append(res, ty)
+				}
+				stack.Push(TypedTupleType{res})
+			default:
+				cp.P.Throw("ext/deserialize/d", &token.Token{Source: "Pipefish builder"})
+				return nil
+			}
+		} else { // Otherwise we have a word denoting a simpleType
+			aT := cp.TypeNameToTypeList[word] // TODO --- is this really the only way to convert a concrete type name to its type number?
+			if len(aT) != 1 {
+				cp.P.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
+				return nil
+			}
+			ty := aT[0]
+			switch ty := ty.(type) {
+			case simpleType:
+				stack.Push(ty)
+			default:
+				cp.P.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
+			}
+		}
+	}
+	// We're done.
+	result, ok := stack.Pop() // We should have one thing left on the stack, which is the answer.
+	if !ok {
+		cp.P.Throw("ext/deserialize/", &token.Token{Source: "Pipefish builder"})
+		return nil
+	}
+	switch result := result.(type) { // And it should be an AlternateType.
+	case AlternateType:
+		return result
+	default:
+		cp.P.Throw("ext/deserialize/", &token.Token{Source: "Pipefish builder"})
+		return nil
+
+	}
 }

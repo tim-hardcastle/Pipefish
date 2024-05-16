@@ -20,6 +20,16 @@ func (s *Stack[T]) Pop() (T, bool) {
 	return top, true
 }
 
+func (s *Stack[T]) Take(n int) ([]T, bool) {
+	lb := len(s.vals) - n
+	if lb < 0 {
+		return nil, false
+	}
+	result := s.vals[lb:]
+	s.vals = s.vals[:lb]
+	return result, true
+}
+
 func (s *Stack[T]) HeadValue() (T, bool) {
 	if len(s.vals) == 0 {
 		var zero T
