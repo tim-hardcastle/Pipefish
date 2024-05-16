@@ -82,10 +82,10 @@ type Initializer struct {
 	Sources map[string][]string
 }
 
-func New(source, input string, db *sql.DB) *Initializer {
+func New(source, input string, db *sql.DB, dir string) *Initializer {
 	uP := &Initializer{
 		rl:      *relexer.New(source, input),
-		Parser:  parser.New(),
+		Parser:  parser.New(dir),
 		Sources: make(map[string][]string),
 	}
 	uP.GetSource(source)
@@ -93,7 +93,7 @@ func New(source, input string, db *sql.DB) *Initializer {
 	return uP
 }
 
-func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service, namePath string) (*parser.Service, *Initializer) {
+func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parser.Service, eff parser.EffectHandler, root *parser.Service, namePath string, dir string) (*parser.Service, *Initializer) {
 	newService := parser.NewService()
 	newService.Broken = true
 	newService.ScriptFilepath = scriptFilepath
@@ -101,21 +101,21 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if scriptFilepath != "" {
 		file, err := os.Stat(newService.ScriptFilepath)
 		if err != nil {
-			init := New(scriptFilepath, "", db)
+			init := New(scriptFilepath, "", db, dir)
 			init.Throw("init/code/a", token.Token{Source: scriptFilepath}, err.Error())
 			return newService, init
 		}
 		newService.Timestamp = file.ModTime().UnixMilli()
 		dat, err := os.ReadFile(scriptFilepath)
 		if err != nil {
-			init := New(scriptFilepath, "", db)
+			init := New(scriptFilepath, "", db, dir)
 			init.Throw("init/code/b", token.Token{Source: scriptFilepath}, err.Error())
 			return newService, init
 		}
 		code = strings.TrimRight(string(dat), "\n") + "\n"
 	}
 
-	init := New(scriptFilepath, code, db)
+	init := New(scriptFilepath, code, db, dir)
 	newService.Parser = init.Parser
 	init.GetSource(scriptFilepath)
 	init.Parser.Database = db
@@ -125,7 +125,7 @@ func CreateService(scriptFilepath string, db *sql.DB, services map[string]*parse
 	if init.ErrorsExist() {
 		return newService, init
 	}
-	init.addToNameSpace([]string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf"})
+	init.addToNameSpace([]string{init.Parser.Directory + "rsc/pipefish/builtins.pf", init.Parser.Directory + "rsc/pipefish/world.pf"})
 	init.ParseImports()
 	if init.ErrorsExist() {
 		return newService, init
@@ -596,7 +596,7 @@ func (uP *Initializer) MakeLanguagesAndContacts() {
 				evaluator.AssignStructDef(name, SNIPPET_SIG, parsedCode.GetToken(), evaluator.NewContext(uP.Parser, uP.Parser.GlobalConstants, evaluator.DEF, false))
 			}
 			if kindOfDeclarationToParse == contactDeclaration {
-				service, init := CreateService(path, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, &parser.Service{}, "")
+				service, init := CreateService(path, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, &parser.Service{}, "", uP.Parser.Directory)
 				service.Parser.RootService = service
 				uP.Parser.Services[name] = service
 				uP.Parser.Contacts = append(uP.Parser.Contacts, name)
@@ -730,7 +730,10 @@ func (uP *Initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports(r
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
 		var init *Initializer
-		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root, namePath+namespace+".")
+		if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "lib/" {
+			scriptFilepath = uP.Parser.Directory + scriptFilepath
+		}
+		uP.Parser.NamespaceBranch[namespace], init = CreateService(scriptFilepath, uP.Parser.Database, uP.Parser.Services, uP.Parser.EffHandle, root, namePath+namespace+".", uP.Parser.Directory)
 		init.GetSource(scriptFilepath)
 		if len(init.Parser.Errors) > 0 {
 			uP.Parser.Errors = append(uP.Parser.Errors, init.Parser.Errors...)

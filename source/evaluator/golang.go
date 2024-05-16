@@ -39,9 +39,9 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	gh.modules = make(map[string]string)
 	gh.plugins = make(map[string]*plugin.Plugin)
 
-	file, err := os.Open("rsc/go/gotimes.dat")
+	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
-		panic("Can't file 'rsc/go/gotimes.dat'.")
+		panic("Can't find file 'rsc/go/gotimes.dat'.")
 	}
 	defer file.Close()
 
@@ -75,7 +75,7 @@ func (gh *GoHandler) CleanUp() {
 	}
 
 	// And then write out the list of times to the .dat file.
-	f, err := os.Create("rsc/go/gotimes.dat")
+	f, err := os.Create(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't create file rsc/go/gotimes.dat")
 	}
@@ -110,7 +110,7 @@ func (gh *GoHandler) BuildGoMods() {
 		lastChange, ok := gh.timeMap[source]
 		if ok {
 			if modifiedTime == int64(lastChange) {
-				soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
+				soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.plugins[source], err = plugin.Open(soFile)
 				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
 					continue
@@ -145,9 +145,9 @@ func (gh *GoHandler) BuildGoMods() {
 
 		// You can't reuse the names of shared object files.
 		counter++
-		soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
+		soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
 		if lastChange != 0 {
-			os.Remove("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
+			os.Remove(gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
 		}
 		goFile := "gocode " + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)

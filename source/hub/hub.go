@@ -51,17 +51,20 @@ type Hub struct {
 	Password               string
 	path, port             string
 	hot                    bool
+	directory              string
 }
 
 // Most initialization is done in the Open method.
 func New(in io.Reader, out io.Writer) *Hub {
+	cwd, _ := os.Getwd()
 	hub := Hub{
 		services:           make(map[string]*parser.Service),
 		currentServiceName: "",
 		in:                 in,
 		out:                out,
 		lastRun:            []string{},
-		hot:                true}
+		hot:                true,
+		directory:          cwd + "/"}
 	return &hub
 }
 
@@ -777,7 +780,9 @@ var helpStrings = map[string]string{}
 var helpTopics = []string{}
 
 func init() {
-	file, err := os.Open("rsc/text/helpfile.txt")
+	cwd, _ := os.Getwd()
+	file, err := os.Open(cwd + "/rsc/text/helpfile.txt")
+	println(cwd + "rsc/text/helpfile.txt")
 	if err != nil {
 		panic("Can't find helpfile 'rsc/text/helpfile.txt'.")
 	}
@@ -871,7 +876,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	if !needsRebuild {
 		return false
 	}
-	newService, init := initializer.CreateService(scriptFilepath, hub.Db, hub.services, parser.MakeStandardEffectHandler(hub.out), &parser.Service{}, "")
+	newService, init := initializer.CreateService(scriptFilepath, hub.Db, hub.services, parser.MakeStandardEffectHandler(hub.out), &parser.Service{}, "", hub.directory)
 
 	hub.services[name] = newService
 	hub.Sources = init.Sources

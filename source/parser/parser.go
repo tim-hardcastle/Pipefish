@@ -154,9 +154,10 @@ type Parser struct {
 	NamespaceBranch  map[string]*Service
 	NamespacePath    string
 	RootService      *Service
+	Directory        string
 }
 
-func New() *Parser {
+func New(dir string) *Parser {
 	p := &Parser{
 		Errors:            []*object.Error{},
 		Logging:           true,
@@ -188,6 +189,7 @@ func New() *Parser {
 		GoImports:       make(map[string][]string),
 		NamespaceBranch: make(map[string]*Service),
 		Contacts:        []string{},
+		Directory:       dir,
 	}
 
 	for k := range *p.TypeSystem {
