@@ -46,7 +46,7 @@ type Vm struct {
 	AbstractTypes         []values.NameAbstractTypePair
 	OwnService            *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
 	HubServices           map[string]*VmService // The same map that the hub has.
-	ExternalServices      []externalService     // The services declared external, whether on the same hub or a different one.
+	ExternalCallHandlers  []externalCallHandler // The services declared external, whether on the same hub or a different one.
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -311,7 +311,7 @@ loop:
 				buf.WriteString(remainingNamespace)
 				buf.WriteString(name)
 			}
-			vm.Mem[args[0]] = vm.ExternalServices[externalOrdinal].evaluate(vm, buf.String())
+			vm.Mem[args[0]] = vm.ExternalCallHandlers[externalOrdinal].evaluate(vm, buf.String())
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:

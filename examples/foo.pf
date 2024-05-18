@@ -1,6 +1,6 @@
-import
+external private
 
-"examples/qux.pf"
+"http://localhost:3333/qux-host/qux"
 
 def
 

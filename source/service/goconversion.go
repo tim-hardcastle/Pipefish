@@ -83,7 +83,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(mc *Vm, goHandler *GoHandler, sour
 		name := bits[len(bits)-1]
 		goStructName := text.Flatten(el)
 		namespacePath := bits[0 : len(bits)-1]
-		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath)
+		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
 		structType := resolvingCompiler.StructNameToTypeNumber[name]
 		structNo := structType - mc.Ub_enums
 		// We add the definition of the struct.

@@ -1,8 +1,8 @@
 package service
 
 import (
-	p2p "pipefish/source"
 	"pipefish/source/dtypes"
+	"pipefish/source/p2p"
 	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/token"
@@ -26,44 +26,44 @@ func (service *VmService) NeedsUpdate() (bool, error) {
 // We have two types of external service, defined below: one for services on the same hub, one for services on
 // a different hub. Eventually we will need a third class of things on a different hub of the same instance of
 // Pipefish, but we haven't implemented that in general yet.
-type externalService interface {
+type externalCallHandler interface {
 	evaluate(mc *Vm, line string) values.Value
 
 	problem() *report.Error
 	getAPI() string
 }
 
-type externalServiceOnSameHub struct {
+type externalCallToHubHandler struct {
 	externalService *VmService
 }
 
 // There is a somewhat faster way of doing this when the services are on the same hub, since we would just need
 // to change the type numbers. TODO. Until then, this serves as a good test bed for the external services on other hubs.
-func (ex externalServiceOnSameHub) evaluate(mc *Vm, line string) values.Value {
+func (ex externalCallToHubHandler) evaluate(mc *Vm, line string) values.Value {
 	exVal := ex.externalService.Cp.Do(ex.externalService.Mc, line)
 	serialize := ex.externalService.Mc.Literal(exVal)
 	return mc.OwnService.Cp.Do(mc, serialize)
 }
 
-func (es externalServiceOnSameHub) problem() *report.Error {
+func (es externalCallToHubHandler) problem() *report.Error {
 	if es.externalService.Broken {
 		return report.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
 	}
 	return nil
 }
 
-func (es externalServiceOnSameHub) getAPI() string {
+func (es externalCallToHubHandler) getAPI() string {
 	return es.externalService.SerializeApi()
 }
 
-type httpService struct {
+type externalHttpCallHandler struct {
 	host     string
 	service  string
 	username string
 	password string
 }
 
-func (es httpService) evaluate(mc *Vm, line string) values.Value {
+func (es externalHttpCallHandler) evaluate(mc *Vm, line string) values.Value {
 	if settings.SHOW_XCALLS {
 		println("Line is", line)
 	}
@@ -78,11 +78,11 @@ func (es httpService) evaluate(mc *Vm, line string) values.Value {
 	return val
 }
 
-func (es httpService) problem() *report.Error {
+func (es externalHttpCallHandler) problem() *report.Error {
 	return nil
 }
 
-func (es httpService) getAPI() string {
+func (es externalHttpCallHandler) getAPI() string {
 	return p2p.Do(es.host, "hub serialize \""+es.service+"\"", es.username, es.password)
 }
 

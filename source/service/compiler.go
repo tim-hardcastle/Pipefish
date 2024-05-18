@@ -23,19 +23,19 @@ type Thunk struct {
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	P                      *parser.Parser
-	EnumElements           map[string]uint32
-	FieldLabelsInMem       map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
-	StructNameToTypeNumber map[string]values.ValueType
-	GlobalConsts           *Environment
-	GlobalVars             *Environment
-	Fns                    []*CpFunc
-	TypeNameToTypeList     map[string]AlternateType
-	AnyTypeScheme          AlternateType         // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
-	Services               map[string]*VmService // Both true internal services, and stubs that call the externals.
-	ExternalOrdinals       map[string]uint32     // Map from the names of external services to their index as stored in the vm.
-	Timestamp              int64
-	ScriptFilepath         string
+	P                        *parser.Parser
+	EnumElements             map[string]uint32
+	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	StructNameToTypeNumber   map[string]values.ValueType
+	GlobalConsts             *Environment
+	GlobalVars               *Environment
+	Fns                      []*CpFunc
+	TypeNameToTypeList       map[string]AlternateType
+	AnyTypeScheme            AlternateType         // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
+	Services                 map[string]*VmService // Both true internal services, and stubs that call the externals.
+	CallHandlerNumbersByName map[string]uint32     // Map from the names of external services to their index as stored in the vm.
+	Timestamp                int64
+	ScriptFilepath           string
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
@@ -90,16 +90,16 @@ const DUMMY = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
-		P:                      p,
-		EnumElements:           make(map[string]uint32),
-		FieldLabelsInMem:       make(map[string]uint32),
-		StructNameToTypeNumber: make(map[string]values.ValueType),
-		GlobalConsts:           NewEnvironment(),
-		GlobalVars:             NewEnvironment(),
-		ThunkList:              []Thunk{},
-		Fns:                    []*CpFunc{},
-		Services:               make(map[string]*VmService),
-		ExternalOrdinals:       make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
+		P:                        p,
+		EnumElements:             make(map[string]uint32),
+		FieldLabelsInMem:         make(map[string]uint32),
+		StructNameToTypeNumber:   make(map[string]values.ValueType),
+		GlobalConsts:             NewEnvironment(),
+		GlobalVars:               NewEnvironment(),
+		ThunkList:                []Thunk{},
+		Fns:                      []*CpFunc{},
+		Services:                 make(map[string]*VmService),
+		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		TypeNameToTypeList: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
@@ -501,7 +501,8 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.FUNC), isConst
 		break
 	case *ast.Identifier:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		cp.P.GetErrorsFrom(resolvingCompiler.P)
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
 			if mc.typeAccess[mc.Mem[enumElement].T] == PRIVATE {
@@ -720,13 +721,10 @@ NodeTypeSwitch:
 			rtnTypes = cp.TypeNameToTypeList["single?"]
 		}
 	case *ast.InfixExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler.P.Infixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
-			if cp != resolvingCompiler {
-				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
-				resolvingCompiler.P.Errors = nil
-			}
+			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		if node.Operator == "," {
@@ -982,7 +980,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = AltType(values.SUCCESSFUL_VALUE), false
 			break
 		}
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if cp.P.ErrorsExist() {
 			break
 		}
@@ -1012,10 +1010,7 @@ NodeTypeSwitch:
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
-			if cp != resolvingCompiler {
-				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
-				resolvingCompiler.P.Errors = nil
-			}
+			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		cp.P.Throw("comp/prefix/known", node.GetToken())
@@ -1027,7 +1022,7 @@ NodeTypeSwitch:
 	case *ast.StructExpression:
 		panic("This is used only in the vmmaker and should never be compiled.")
 	case *ast.SuffixExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if node.GetToken().Type == token.EMDASH {
 			switch t := node.Args[0].(type) {
 			case *ast.TypeLiteral:
@@ -1044,10 +1039,7 @@ NodeTypeSwitch:
 		}
 		if resolvingCompiler.P.Suffixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
-			if cp != resolvingCompiler {
-				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
-				resolvingCompiler.P.Errors = nil
-			}
+			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		cp.P.Throw("comp/suffix", node.GetToken())
@@ -1080,7 +1072,7 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.UNSAT, values.SUCCESSFUL_VALUE), false
 		break
 	case *ast.TypeLiteral:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		typeName := node.Value
 		switch { // We special-case it a bit because otherwise a string would look like a varchar(0).
 		case typeName == "string":
@@ -1097,13 +1089,10 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace)
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler.P.Unfixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(mc, resolvingCompiler, node, env, ac, len(node.Namespace) > 0)
-			if cp != resolvingCompiler {
-				cp.P.Errors = append(cp.P.Errors, resolvingCompiler.P.Errors...)
-				resolvingCompiler.P.Errors = nil
-			}
+			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		cp.P.Throw("comp/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
@@ -1236,7 +1225,7 @@ func (cp *Compiler) emitComma(mc *Vm, node *ast.InfixExpression, env *Environmen
 }
 
 // Finds the appropriate compiler for a given namespace.
-func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Compiler {
+func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string, ac cpAccess) *Compiler {
 	lC := cp
 	for _, name := range namespace {
 		srv, ok := lC.Services[name]
@@ -1245,6 +1234,10 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string) *Com
 			return nil
 		}
 		lC = srv.Cp
+		if lC.P.Private && (ac == REPL || len(namespace) > 1) {
+			cp.P.Throw("comp/namespace/private", node.GetToken(), name)
+			return nil
+		}
 	}
 	return lC
 }

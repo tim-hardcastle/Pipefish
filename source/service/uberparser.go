@@ -77,9 +77,9 @@ type Initializer struct {
 	Sources map[string][]string
 }
 
-func NewInitializer(source, input string) *Initializer {
+func NewInitializer(source, sourceCode string) *Initializer {
 	uP := &Initializer{
-		rl:      *lexer.NewRelexer(source, input),
+		rl:      *lexer.NewRelexer(source, sourceCode),
 		Parser:  parser.New(),
 		Sources: make(map[string][]string),
 	}

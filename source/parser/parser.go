@@ -140,6 +140,7 @@ type Parser struct {
 	NamespaceBranch map[string]*ParserData
 	NamespacePath   string
 	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
+	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
 func New() *Parser {
@@ -1095,6 +1096,13 @@ func (p *Parser) ReturnErrors() string {
 
 func (p *Parser) ClearErrors() {
 	p.Errors = []*report.Error{}
+}
+
+func (p *Parser) GetErrorsFrom(q *Parser) {
+	if p == q { // This can happen if for example we call getResolvingCompiler and we aren't in a namespace. At this point we don't want to double the list of our errors.
+		return
+	}
+	p.Errors = append(p.Errors, q.Errors...)
 }
 
 // Slurps the signature of a function out of it. As the colon after a function definition has

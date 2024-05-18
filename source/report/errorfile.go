@@ -324,7 +324,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unknown namespace " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You are using " + text.Emph(args[0].(string)) + " as though it was a namespace, but you haven't declared it as such in the 'import' section."
+			return "You are using " + text.Emph(args[0].(string)) + " as though it was a namespace, but you haven't declared it as such in the 'import' or 'external' section."
+		},
+	},
+
+	"comp/namespace/private": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to use private namespace " + text.Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "If an import or an external service has been declared private, you can only access it from the code that imports it, not from either the REPL or from code that imports the importing code."
 		},
 	},
 

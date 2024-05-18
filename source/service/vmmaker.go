@@ -20,11 +20,10 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the mc.
 
 type VmMaker struct {
-	cp             *Compiler
-	uP             *Initializer
-	scriptFilepath string
-	goToPf         map[string]func(any) (uint32, []any, bool)
-	pfToGo         map[string]func(uint32, []any) any
+	cp     *Compiler
+	uP     *Initializer
+	goToPf map[string]func(any) (uint32, []any, bool)
+	pfToGo map[string]func(uint32, []any) any
 }
 
 // The base case: we start off with a blank vm.
@@ -75,7 +74,6 @@ func newVmMaker(scriptFilepath, sourcecode string, mc *Vm) *VmMaker {
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
 	}
-	vmm.scriptFilepath = scriptFilepath
 	vmm.cp.ScriptFilepath = scriptFilepath
 	vmm.uP.GetSource(scriptFilepath)
 	return vmm
@@ -153,7 +151,7 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
-	goHandler := vmm.uP.MakeFunctions(vmm.scriptFilepath)
+	goHandler := vmm.uP.MakeFunctions(vmm.cp.ScriptFilepath)
 
 	if settings.FUNCTION_TO_PEEK != "" {
 		for _, f := range vmm.uP.Parser.FunctionTable[settings.FUNCTION_TO_PEEK] {
@@ -205,7 +203,7 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *Vm) []string {
 	uP := vmm.uP
 	unnamespacedImports := []string{}
-	for _, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
+	for i, imp := range uP.Parser.ParsedDeclarations[importDeclaration] {
 		namespace := ""
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
@@ -245,15 +243,13 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports(mc *
 		}
 		newCp, newUP := initializeFromFilepath(mc, scriptFilepath)
 		newUP.GetSource(scriptFilepath)
-		for k, v := range newUP.Sources {
-			uP.Sources[k] = v
-		}
 		if newUP.ErrorsExist() {
-			uP.Parser.Errors = append(uP.Parser.Errors, newUP.Parser.Errors...)
+			uP.Parser.GetErrorsFrom(newUP.Parser)
 			vmm.cp.Services[namespace] = &VmService{mc, newCp, true, false}
 		} else {
 			vmm.cp.Services[namespace] = &VmService{mc, newCp, false, false}
 			vmm.cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
+			newUP.Parser.Private = vmm.uP.isPrivate(int(importDeclaration), i)
 		}
 	}
 	return unnamespacedImports
@@ -368,7 +364,7 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 		newService, newUP := StartService(path, string(sourcecode), mc.Database, mc.HubServices)
 		// We return the Intializer newUP because if errors have been thrown that's where they are.
 		if newUP.ErrorsExist() {
-			vmm.uP.Parser.Errors = append(vmm.uP.Parser.Errors, newUP.Parser.Errors...)
+			vmm.uP.Parser.GetErrorsFrom(newUP.Parser)
 			continue
 		}
 		mc.HubServices[name] = newService
@@ -378,27 +374,28 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 
 func (vmm *VmMaker) addExternalOnSameHub(mc *Vm, path, name string) {
 	hubService := mc.HubServices[name]
-	serviceToAdd := externalServiceOnSameHub{hubService}
+	serviceToAdd := externalCallToHubHandler{hubService}
 	vmm.addAnyExternalService(mc, serviceToAdd, path, name)
 }
 
 func (vmm *VmMaker) addHttpService(mc *Vm, path, name, username, password string) {
-	serviceToAdd := httpService{path, name, username, password}
+	serviceToAdd := externalHttpCallHandler{path, name, username, password}
 	vmm.addAnyExternalService(mc, serviceToAdd, path, name)
 }
 
-func (vmm *VmMaker) addAnyExternalService(mc *Vm, serviceToAdd externalService, path, name string) {
-	externalServiceOrdinal := uint32(len(mc.ExternalServices))
-	vmm.cp.ExternalOrdinals[name] = externalServiceOrdinal
-	mc.ExternalServices = append(mc.ExternalServices, serviceToAdd)
-	serializedAPI := serviceToAdd.getAPI()
-	sourcecode := SerializedAPIToDeclarations(serializedAPI, uint32(externalServiceOrdinal))
+func (vmm *VmMaker) addAnyExternalService(mc *Vm, handlerForService externalCallHandler, path, name string) {
+	externalServiceOrdinal := uint32(len(mc.ExternalCallHandlers))
+	vmm.cp.CallHandlerNumbersByName[name] = externalServiceOrdinal
+	mc.ExternalCallHandlers = append(mc.ExternalCallHandlers, handlerForService)
+	serializedAPI := handlerForService.getAPI()
+	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
 	newCp, newUp := initializeFromSourcecode(mc, path, sourcecode)
 	if newUp.ErrorsExist() {
-		vmm.cp.P.Errors = append(vmm.cp.P.Errors, newUp.Parser.Errors...)
+		vmm.cp.P.GetErrorsFrom(newUp.Parser)
 		return
 	}
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
+	newCp.P.Private = vmm.uP.isPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	vmm.cp.Services[name] = &VmService{mc, newCp, false, false}
 }
 
