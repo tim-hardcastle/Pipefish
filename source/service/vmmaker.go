@@ -485,7 +485,7 @@ func (vmm *VmMaker) createStructs(mc *Vm) {
 		vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
 		vmm.cp.AnyTypeScheme = vmm.cp.AnyTypeScheme.Union(altType(typeNo))
-		// We are now going to assume that the last element of anyType is a TypedTupleType and add the new struct type accordingly.
+		// We are now going to assume that the last element of AnyTypeScheme is a TypedTupleType and add the new struct type accordingly.
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
 		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = TypedTupleType{(lastType.T).Union(altType(typeNo))}
 
@@ -538,6 +538,19 @@ func (vmm *VmMaker) createStructs(mc *Vm) {
 		mc.AlternateStructFields = append(mc.AlternateStructFields, typesForStruct)
 		mc.StructLabels = append(mc.StructLabels, labelsForStruct)
 		mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
+	}
+	// A label is private iff it is *only* used by struct types that were declared private.
+	// So we set them all private and then weed them out by iterating over the struct definitions.
+	for i := 0; i < len(vmm.cp.FieldLabelsInMem); i++ {
+		vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
+	}
+	for i, labs := range mc.StructLabels {
+		if vmm.uP.isPrivate(int(structDeclaration), i) {
+			continue
+		}
+		for _, lab := range labs {
+			vmm.cp.LabelIsPrivate[lab] = false
+		}
 	}
 }
 

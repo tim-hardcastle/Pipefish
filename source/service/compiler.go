@@ -26,6 +26,7 @@ type Compiler struct {
 	P                        *parser.Parser
 	EnumElements             map[string]uint32
 	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	LabelIsPrivate           []bool
 	StructNameToTypeNumber   map[string]values.ValueType
 	GlobalConsts             *Environment
 	GlobalVars               *Environment
@@ -506,17 +507,20 @@ NodeTypeSwitch:
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
 			if mc.typeAccess[mc.Mem[enumElement].T] == PRIVATE {
-				cp.P.Throw("comp/enum/private", node.GetToken())
+				cp.P.Throw("comp/private/enum", node.GetToken())
 				break
 			}
-
 			cp.put(mc, Asgm, enumElement)
 			rtnTypes, rtnConst = AltType(mc.Mem[enumElement].T), true
 			break
 		}
-		labelNumber, ok := resolvingCompiler.FieldLabelsInMem[node.Value]
+		labelNumberLocation, ok := resolvingCompiler.FieldLabelsInMem[node.Value]
 		if ok {
-			cp.put(mc, Asgm, labelNumber)
+			if resolvingCompiler.LabelIsPrivate[mc.Mem[labelNumberLocation].V.(int)] {
+				cp.P.Throw("comp/private/label", node.GetToken())
+				break
+			}
+			cp.put(mc, Asgm, labelNumberLocation)
 			rtnTypes, rtnConst = AltType(values.LABEL), true
 			break
 		}
@@ -1082,7 +1086,7 @@ NodeTypeSwitch:
 		default:
 			abType := resolvingCompiler.TypeNameToTypeList[typeName].ToAbstractType()
 			if (ac == REPL || resolvingCompiler != cp) && mc.isPrivate(abType) {
-				cp.P.Throw("comp/type/private", node.GetToken())
+				cp.P.Throw("comp/private/type", node.GetToken())
 			}
 			cp.Reserve(mc, values.TYPE, abType)
 		}

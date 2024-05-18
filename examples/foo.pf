@@ -1,8 +1,14 @@
-external private
+newtype
 
-"http://localhost:3333/qux-host/qux"
+Oom = struct(verp string, oof int)
+
+private
+
+Color = enum RED, BLACK
+
+Oof = struct(blort string, oof int)
 
 def
 
 troz (s string) :
-    "Qux returns: " + qux.zort s
+    s
