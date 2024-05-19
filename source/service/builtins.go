@@ -98,13 +98,11 @@ func (cp *Compiler) btAddStrings(mc *Vm, tok *token.Token, dest uint32, args []u
 }
 
 func (cp *Compiler) btDivideFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	errTok := cp.reserveToken(mc, tok)
-	cp.Emit(mc, Divf, dest, args[0], args[2], errTok)
+	cp.Emit(mc, Divf, dest, args[0], args[2], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btDivideIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	errTok := cp.reserveToken(mc, tok)
-	cp.Emit(mc, Divi, dest, args[0], args[2], errTok)
+	cp.Emit(mc, Divi, dest, args[0], args[2], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btFloatOfInt(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -165,8 +163,7 @@ func (cp *Compiler) btKeysOfStruct(mc *Vm, tok *token.Token, dest uint32, args [
 }
 
 func (cp *Compiler) btLabelOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/with/struct", tok, []any{})
-	cp.Emit(mc, Lbls, dest, args[0], mc.That())
+	cp.Emit(mc, Lbls, dest, args[0], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btLenList(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -190,8 +187,7 @@ func (cp *Compiler) btLenTuple(mc *Vm, tok *token.Token, dest uint32, args []uin
 }
 
 func (cp *Compiler) btListWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/with/list", tok, []any{})
-	cp.Emit(mc, WthL, dest, args[0], args[1], mc.That())
+	cp.Emit(mc, WthL, dest, args[0], args[1], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btLiteral(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -219,9 +215,7 @@ func (cp *Compiler) btMakeError(mc *Vm, tok *token.Token, dest uint32, args []ui
 }
 
 func (cp *Compiler) btMakeMap(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/map/pair", tok, []any{})
-	cp.reserveError(mc, "built/map/type", tok, []any{})
-	cp.Emit(mc, Mkmp, dest, args[0])
+	cp.Emit(mc, Mkmp, dest, args[0], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btMakePair(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -229,28 +223,19 @@ func (cp *Compiler) btMakePair(mc *Vm, tok *token.Token, dest uint32, args []uin
 }
 
 func (cp *Compiler) btMakeSet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/set/type", tok, []any{})
-	cp.Emit(mc, Mkst, dest, args[0])
+	cp.Emit(mc, Mkst, dest, args[0], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btMapWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/with/map", tok, []any{})
-	cp.Emit(mc, WthM, dest, args[0], args[1], mc.That())
+	cp.Emit(mc, WthM, dest, args[0], args[1], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btMapWithout(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/without/map", tok, []any{})
-	cp.Emit(mc, WtoM, dest, args[0], args[1], mc.That())
+	cp.Emit(mc, WtoM, dest, args[0], args[1], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btModuloIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Reserve(mc, values.INT, 0)
-	cp.put(mc, Equi, args[2], mc.That())
-	cp.Emit(mc, Qtru, mc.That(), mc.CodeTop()+3)
-	cp.reserveError(mc, "built/mod", tok, []any{})
-	cp.Emit(mc, Asgm, dest, mc.That())
-	cp.Emit(mc, Jmp, mc.CodeTop()+2)
-	cp.Emit(mc, Modi, dest, args[0], args[2])
+	cp.Emit(mc, Modi, dest, args[0], args[2], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btMultiplyFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -304,8 +289,7 @@ func (cp *Compiler) btString(mc *Vm, tok *token.Token, dest uint32, args []uint3
 }
 
 func (cp *Compiler) btStructWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/with/struct", tok, []any{})
-	cp.Emit(mc, WthZ, dest, args[0], args[1], mc.That())
+	cp.Emit(mc, WthZ, dest, args[0], args[1], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btSubtractFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
@@ -342,11 +326,9 @@ func (cp *Compiler) btTypeUnion(mc *Vm, tok *token.Token, dest uint32, args []ui
 }
 
 func (cp *Compiler) btTypeWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/with/type", tok, []any{})
-	cp.Emit(mc, Wtht, dest, args[0], args[1], mc.That())
+	cp.Emit(mc, Wtht, dest, args[0], args[1], cp.reserveToken(mc, tok))
 }
 
 func (cp *Compiler) btVarchar(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.reserveError(mc, "built/varchar", tok, []any{})
-	cp.Emit(mc, Varc, dest, args[0], mc.That())
+	cp.Emit(mc, Varc, dest, args[0], cp.reserveToken(mc, tok))
 }

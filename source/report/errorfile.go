@@ -377,7 +377,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"err/misdirect": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Pipefish is trying and failing to raise an error with reference '" + args[0].(string) + "'"
+			return "Pipefish is trying and failing to raise an error with reference " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The author of Pipefish, being a silly goose, has managed to throw an error with a code " +

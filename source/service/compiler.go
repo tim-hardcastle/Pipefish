@@ -556,6 +556,7 @@ NodeTypeSwitch:
 		indexType, idxConst := cp.CompileNode(mc, node.Index, env, ac)
 		index := mc.That()
 		rtnConst = ctrConst && idxConst
+		errTok := cp.reserveToken(mc, node.GetToken())
 		// Things we can index:
 		// Lists, by integers; or a pair for a slice.
 		// Tuples, ditto.
@@ -567,13 +568,11 @@ NodeTypeSwitch:
 
 		if containerType.isOnly(values.LIST) {
 			if indexType.isOnly(values.INT) {
-				boundsError := cp.reserveError(mc, "vm/list/index", &node.Token, []any{})
-				cp.put(mc, IdxL, container, index, boundsError)
+				cp.put(mc, IdxL, container, index, errTok)
 				break
 			}
 			if indexType.isOnly(values.PAIR) {
-				boundsError := cp.reserveError(mc, "vm/list/slice", &node.Token, []any{})
-				cp.put(mc, SliL, container, index, boundsError)
+				cp.put(mc, SliL, container, index, errTok)
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
@@ -584,13 +583,11 @@ NodeTypeSwitch:
 		}
 		if containerType.isOnly(values.STRING) {
 			if indexType.isOnly(values.INT) {
-				boundsError := cp.reserveError(mc, "vm/string/index", &node.Token, []any{})
-				cp.put(mc, Idxs, container, index, boundsError)
+				cp.put(mc, Idxs, container, index, errTok)
 				break
 			}
 			if indexType.isOnly(values.PAIR) {
-				boundsError := cp.reserveError(mc, "vm/string/slice", &node.Token, []any{})
-				cp.put(mc, Slis, container, index, boundsError)
+				cp.put(mc, Slis, container, index, errTok)
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
@@ -601,13 +598,11 @@ NodeTypeSwitch:
 		}
 		if containerType.containsOnlyTuples() {
 			if indexType.isOnly(values.INT) {
-				boundsError := cp.reserveError(mc, "vm/tuple/index", &node.Token, []any{})
-				cp.put(mc, IdxT, container, index, boundsError)
+				cp.put(mc, IdxT, container, index, errTok)
 				break
 			}
 			if indexType.isOnly(values.PAIR) {
-				boundsError := cp.reserveError(mc, "vm/tuple/slice", &node.Token, []any{})
-				cp.put(mc, SliT, container, index, boundsError)
+				cp.put(mc, SliT, container, index, errTok)
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
@@ -618,8 +613,7 @@ NodeTypeSwitch:
 		}
 		if containerType.isOnly(values.PAIR) {
 			if indexType.isOnly(values.INT) {
-				boundsError := cp.reserveError(mc, "vm/pair/index", &node.Token, []any{})
-				cp.put(mc, Idxp, container, index, boundsError)
+				cp.put(mc, Idxp, container, index, errTok)
 				break
 			}
 			if indexType.isNoneOf(values.INT) {
@@ -630,9 +624,7 @@ NodeTypeSwitch:
 		}
 		if containerType.isOnly(values.TYPE) {
 			if indexType.isOnly(values.INT) {
-				enumError := cp.reserveError(mc, "vm/type/enum", &node.Token, []any{})
-				boundsError := cp.reserveError(mc, "vm/type/index", &node.Token, []any{})
-				cp.put(mc, Idxt, container, index, enumError, boundsError)
+				cp.put(mc, Idxt, container, index, errTok)
 				break
 			}
 			if indexType.isNoneOf(values.INT) {
@@ -665,8 +657,7 @@ NodeTypeSwitch:
 					rtnTypes = mc.AlternateStructFields[structNumber][fieldNumber]
 					break
 				}
-				boundsError := cp.reserveError(mc, "vm/struct/index", &node.Token, []any{})
-				cp.put(mc, IxZl, container, index, boundsError)
+				cp.put(mc, IxZl, container, index, errTok)
 				rtnTypes = AltType()
 				for _, t := range mc.AlternateStructFields[structNumber] {
 					rtnTypes = rtnTypes.Union(t)
@@ -704,21 +695,15 @@ NodeTypeSwitch:
 					if !labelIsCertain {
 						rtnTypes = rtnTypes.Union(AltType(values.ERROR))
 					}
-					boundsError := uint32(DUMMY)
-					if !labelIsCertain {
-						boundsError = cp.reserveError(mc, "vm/struct/index/b", &node.Token, []any{})
-					}
-					cp.put(mc, IxZl, container, index, boundsError)
+					cp.put(mc, IxZl, container, index, errTok)
 					break
 				}
-				boundsError := cp.reserveError(mc, "vm/struct/index/c", &node.Token, []any{})
-				cp.put(mc, IxZl, container, index, boundsError)
+				cp.put(mc, IxZl, container, index, errTok)
 				break
 			}
 		}
 		// If we can't infer anything else about the types we can emit a catchall indexing operation.
-		boundsError := cp.reserveError(mc, "vm/index", &node.Token, []any{})
-		cp.put(mc, IxXx, container, index, boundsError)
+		cp.put(mc, IxXx, container, index, errTok)
 		if containerType.Contains(values.TUPLE) {
 			rtnTypes = cp.AnyTypeScheme
 		} else {
@@ -1859,8 +1844,7 @@ func (cp *Compiler) emitEquals(mc *Vm, node *ast.InfixExpression, env *Environme
 			}
 		}
 	}
-	typeError := cp.reserveError(mc, "mc/eq/types", node.GetToken(), []any{})
-	cp.put(mc, Eqxx, leftRg, rightRg, typeError)
+	cp.put(mc, Eqxx, leftRg, rightRg, cp.reserveToken(mc, node.GetToken()))
 	return AltType(values.ERROR, values.BOOL), lcst && rcst
 }
 

@@ -116,7 +116,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Equi: {"equi", operands{dst, mem, mem}},
 	Equs: {"equs", operands{dst, mem, mem}},
 	Equt: {"equt", operands{dst, mem, mem}},
-	Eqxx: {"eqxx", operands{dst, mem, mem, mem}},
+	Eqxx: {"eqxx", operands{dst, mem, mem, tok}},
 	Extn: {"extn", operands{dst, mem, mem, mem, mem, tup}}, // Operands are: the external service to call; whether the function is PREFIX, INFIX, or POSTFIX; the remainder of the namespace of the function as a string; the name of the function as a string; the locations of the arguments.
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
@@ -128,13 +128,13 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Gthi: {"gthi", operands{dst, mem, mem}},
 	Halt: {"halt", operands{}},
 	Idfn: {"idfn", operands{dst, mem}},
-	IdxL: {"idxL", operands{dst, mem, mem, mem}},
-	Idxp: {"idxs", operands{dst, mem, mem, mem}},
-	Idxs: {"idxs", operands{dst, mem, mem, mem}},
-	Idxt: {"idxs", operands{dst, mem, mem, mem, mem}},
-	IdxT: {"idxs", operands{dst, mem, mem, mem}},
+	IdxL: {"idxL", operands{dst, mem, mem, tok}},
+	Idxp: {"idxs", operands{dst, mem, mem, tok}},
+	Idxs: {"idxs", operands{dst, mem, mem, tok}},
+	Idxt: {"idxt", operands{dst, mem, mem, tok}},
+	IdxT: {"idxT", operands{dst, mem, mem, tok}},
 	IxTn: {"ixTn", operands{dst, mem, num}},
-	IxZl: {"ixZl", operands{dst, mem, mem, mem}},
+	IxZl: {"ixZl", operands{dst, mem, mem, tok}},
 	IxZn: {"ixZn", operands{dst, mem, num}},
 	Inpt: {"inpt", operands{dst, mem}},
 	InxL: {"inxL", operands{dst, mem, mem}},
@@ -143,12 +143,12 @@ var OPERANDS = map[Opcode]opDescriptor{
 	InxT: {"inxT", operands{dst, mem, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
-	IxXx: {"ixXx", operands{dst, mem, mem, mem}},
+	IxXx: {"ixXx", operands{dst, mem, mem, tok}},
 	Jmp:  {"jmp", operands{loc}},
 	Jsr:  {"jsr", operands{loc}},
 	KeyM: {"keyM", operands{dst, mem}},
 	KeyZ: {"keyZ", operands{dst, mem}},
-	Lbls: {"lbls", operands{dst, mem, mem}}, // Last operand is error.
+	Lbls: {"lbls", operands{dst, mem, tok}},
 	LenL: {"lenL", operands{dst, mem}},
 	LenM: {"lenM", operands{dst, mem}},
 	Lens: {"lens", operands{dst, mem}},
@@ -161,11 +161,11 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Logy: {"logy", operands{}},
 	Mker: {"mker", operands{dst, mem, tok}},
 	Mkfn: {"mkfn", operands{dst, lfc}},
-	Mkmp: {"mkmp", operands{dst, mem}},
+	Mkmp: {"mkmp", operands{dst, mem, tok}},
 	Mkpr: {"mkpr", operands{dst, mem, mem}},
 	MkSn: {"mkSn", operands{dst, sfc}},
-	Mkst: {"mkst", operands{dst, mem}},
-	Modi: {"modi", operands{dst, mem, mem}},
+	Mkst: {"mkst", operands{dst, mem, tok}},
+	Modi: {"modi", operands{dst, mem, mem, tok}},
 	Mulf: {"mulf", operands{dst, mem, mem}},
 	Muli: {"muli", operands{dst, mem, mem}},
 	Negf: {"negf", operands{dst, mem}},
@@ -193,9 +193,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qvch: {"qvch", operands{mem, num, loc}},
 	Qvcq: {"qvcq", operands{mem, num, loc}},
 	Ret:  {"ret", operands{}},
-	SliL: {"sliL", operands{dst, mem, mem, mem}}, // Third operand is error.
-	Slis: {"slis", operands{dst, mem, mem, mem}}, //
-	SliT: {"sliT", operands{dst, mem, mem, mem}}, //
+	SliL: {"sliL", operands{dst, mem, mem, tok}},
+	Slis: {"slis", operands{dst, mem, mem, tok}},
+	SliT: {"sliT", operands{dst, mem, mem, tok}},
 	Strc: {"strc", operands{dst, typ, tup}},
 	Strx: {"strx", operands{dst, mem}},
 	Subf: {"subf", operands{dst, mem, mem}},
@@ -205,12 +205,12 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Typu: {"typu", operands{dst, mem, mem}},
 	Typx: {"typx", operands{dst, mem}},
 	Untk: {"untk", operands{dst}},
-	Varc: {"wthL", operands{dst, mem, mem}},      // Second
-	WthL: {"wthL", operands{dst, mem, mem, mem}}, // Third operand is error.
-	WthM: {"wthM", operands{dst, mem, mem, mem}}, //
-	Wtht: {"wtht", operands{dst, mem, mem, mem}}, //
-	WthZ: {"wthZ", operands{dst, mem, mem, mem}}, //
-	WtoM: {"wthM", operands{dst, mem, mem, mem}}, //
+	Varc: {"wthL", operands{dst, mem, tok}},
+	WthL: {"wthL", operands{dst, mem, mem, tok}},
+	WthM: {"wthM", operands{dst, mem, mem, tok}},
+	Wtht: {"wtht", operands{dst, mem, mem, tok}},
+	WthZ: {"wthZ", operands{dst, mem, mem, tok}},
+	WtoM: {"wthM", operands{dst, mem, mem, tok}},
 }
 
 func describe(op *Operation) string {
