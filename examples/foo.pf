@@ -1,8 +1,14 @@
 newtype
 
-Oom = struct(verp string, oof int)
+Oom = struct(verp string, oof Number)
 
-private
+Number = int/float
+
+IntTree = struct (left, right TreeOrLeaf)
+
+TreeOrLeaf = IntTree/int
+
+// private
 
 Color = enum RED, BLACK
 
@@ -12,3 +18,6 @@ def
 
 troz (s string) :
     s
+
+double (n Number) :
+    n + n

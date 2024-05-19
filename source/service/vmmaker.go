@@ -101,7 +101,11 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
 	vmm.uP.AddToNameSpace(unnamespacedImports)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 
 	vmm.initializeExternals(mc)
 	if vmm.uP.ErrorsExist() {
@@ -118,7 +122,12 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.uP.ParseTypeDefs()
+	vmm.uP.addTypesToParser()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
+	vmm.uP.addConstructorsToParserAndParseStructDeclarations()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -129,7 +138,15 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.createAbstractTypes(mc)
+	vmm.defineAbstractTypes(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
+	vmm.addFieldsToStructs(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 
 	vmm.createSnippetTypes(mc)
 	if vmm.uP.ErrorsExist() {
@@ -143,6 +160,9 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 	}
 
 	vmm.addAbstractTypesToVm(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 
 	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
@@ -152,6 +172,9 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
 	goHandler := vmm.uP.MakeFunctions(vmm.cp.ScriptFilepath)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 
 	if settings.FUNCTION_TO_PEEK != "" {
 		for _, f := range vmm.uP.Parser.FunctionTable[settings.FUNCTION_TO_PEEK] {
@@ -159,12 +182,11 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 		}
 	}
 
+	// We build the Go files, if any.
+	vmm.MakeGoMods(mc, goHandler)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
-
-	// We build the Go files, if any.
-	vmm.MakeGoMods(mc, goHandler)
 
 	// Now we turn this into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
@@ -175,6 +197,9 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 
 	// We add in constructors for the structs, languages, and externals.
 	vmm.makeConstructors(mc)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
 
 	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
 	// compileFunction method.
@@ -182,8 +207,6 @@ func (vmm *VmMaker) makeAll(mc *Vm, scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
-	// NOTE: There's some unDRYness here --- e.g. we use .ExtractPartsOfFunction twice --- but that can
-	// be disposed of when we strip out the evaluator.
 
 	// Finally we can evaluate the constants and variables, which needs the functions to be compiled
 	// first because the RHS of the assignment can be any expression.
@@ -413,7 +436,6 @@ func (vmm *VmMaker) createEnums(mc *Vm) {
 			vmm.uP.Throw("init/enum/type", tok1)
 		}
 		mc.concreteTypeNames = append(mc.concreteTypeNames, tok1.Literal)
-		vmm.uP.Parser.Suffixes.Add(tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		typeNo := values.LB_ENUMS + values.ValueType(i)
 		if vmm.uP.isPrivate(int(enumDeclaration), i) {
@@ -455,6 +477,7 @@ func (vmm *VmMaker) createEnums(mc *Vm) {
 	}
 }
 
+// We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
 func (vmm *VmMaker) createStructs(mc *Vm) {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
@@ -497,8 +520,7 @@ func (vmm *VmMaker) createStructs(mc *Vm) {
 		// We make the labels exist.
 
 		labelsForStruct := make([]int, 0, len(sig))
-		typesForStruct := make([]AlternateType, 0, len(sig))
-		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
+
 		for _, labelNameAndType := range sig {
 			labelName := labelNameAndType.VarName
 			labelLocation, alreadyExists := vmm.cp.FieldLabelsInMem[labelName]
@@ -509,33 +531,7 @@ func (vmm *VmMaker) createStructs(mc *Vm) {
 				labelsForStruct = append(labelsForStruct, len(mc.Labels))
 				mc.Labels = append(mc.Labels, labelName)
 			}
-			typesForStruct = append(typesForStruct, vmm.cp.TypeNameToTypeList[labelNameAndType.VarType])
 		}
-		for _, labelNameAndType := range sig {
-			var abType values.AbstractType
-			typeName := labelNameAndType.VarType
-			switch {
-			case typeName == "string":
-				abType.Varchar = DUMMY
-				abType.Types = []values.ValueType{values.STRING}
-			case typeName == "string?":
-				abType.Varchar = DUMMY
-				abType.Types = []values.ValueType{values.NULL, values.STRING}
-			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] != '?'):
-				vc, _ := parser.GetLengthFromType(typeName)
-				abType.Varchar = uint32(vc)
-				abType.Types = []values.ValueType{values.STRING}
-			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] == '?'):
-				vc, _ := parser.GetLengthFromType(typeName)
-				abType.Varchar = uint32(vc)
-				abType.Types = []values.ValueType{values.NULL, values.STRING}
-			default:
-				abType = vmm.cp.TypeNameToTypeList[typeName].ToAbstractType()
-			}
-			typesForStructForVm = append(typesForStructForVm, abType)
-		}
-		mc.AbstractStructFields = append(mc.AbstractStructFields, typesForStructForVm)
-		mc.AlternateStructFields = append(mc.AlternateStructFields, typesForStruct)
 		mc.StructLabels = append(mc.StructLabels, labelsForStruct)
 		mc.StructResolve = mc.StructResolve.Add(int(typeNo-mc.Ub_enums), labelsForStruct)
 	}
@@ -554,7 +550,7 @@ func (vmm *VmMaker) createStructs(mc *Vm) {
 	}
 }
 
-func (vmm *VmMaker) createAbstractTypes(mc *Vm) {
+func (vmm *VmMaker) defineAbstractTypes(mc *Vm) {
 	for _, tcc := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
@@ -604,6 +600,40 @@ func (vmm *VmMaker) createAbstractTypes(mc *Vm) {
 	}
 }
 
+func (vmm *VmMaker) addFieldsToStructs(mc *Vm) {
+	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
+		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		typesForStruct := make([]AlternateType, 0, len(sig))
+		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
+		for _, labelNameAndType := range sig {
+			var abType values.AbstractType
+			typeName := labelNameAndType.VarType
+			switch {
+			case typeName == "string":
+				abType.Varchar = DUMMY
+				abType.Types = []values.ValueType{values.STRING}
+			case typeName == "string?":
+				abType.Varchar = DUMMY
+				abType.Types = []values.ValueType{values.NULL, values.STRING}
+			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] != '?'):
+				vc, _ := parser.GetLengthFromType(typeName)
+				abType.Varchar = uint32(vc)
+				abType.Types = []values.ValueType{values.STRING}
+			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] == '?'):
+				vc, _ := parser.GetLengthFromType(typeName)
+				abType.Varchar = uint32(vc)
+				abType.Types = []values.ValueType{values.NULL, values.STRING}
+			default:
+				abType = vmm.cp.TypeNameToTypeList[typeName].ToAbstractType()
+			}
+			typesForStructForVm = append(typesForStructForVm, abType)
+			typesForStruct = append(typesForStruct, vmm.cp.TypeNameToTypeList[labelNameAndType.VarType])
+		}
+		mc.AlternateStructFields = append(mc.AlternateStructFields, typesForStruct)
+		mc.AbstractStructFields = append(mc.AbstractStructFields, typesForStructForVm)
+	}
+}
+
 func (vmm *VmMaker) createSnippetTypes(mc *Vm) {
 	mc.Lb_snippets = values.ValueType(len(mc.concreteTypeNames))
 	abTypes := []values.AbstractType{values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}, values.AbstractType{[]values.ValueType{values.MAP}, DUMMY}}
@@ -612,7 +642,7 @@ func (vmm *VmMaker) createSnippetTypes(mc *Vm) {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(mc.concreteTypeNames))
 		mc.concreteTypeNames = append(mc.concreteTypeNames, name)
-		if vmm.uP.isPrivate(int(languageDeclaration), i) {
+		if vmm.uP.isPrivate(int(snippetDeclaration), i) {
 			mc.typeAccess = append(mc.typeAccess, PRIVATE)
 		} else {
 			mc.typeAccess = append(mc.typeAccess, PRIVATE)
@@ -688,7 +718,7 @@ func (vmm *VmMaker) makeConstructors(mc *Vm) {
 	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 	for i, name := range vmm.cp.P.Snippets {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(mc, name, sig))
-		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(languageDeclaration), i)
+		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(snippetDeclaration), i)
 	}
 }
 

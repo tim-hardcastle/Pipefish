@@ -125,6 +125,7 @@ type Parser struct {
 	Unfixes           dtypes.Set[string]
 	Bling             dtypes.Set[string]
 	AllFunctionIdents dtypes.Set[string]
+	Typenames         dtypes.Set[string]
 
 	nativeInfixes dtypes.Set[token.TokenType]
 	lazyInfixes   dtypes.Set[token.TokenType]
@@ -158,6 +159,7 @@ func New() *Parser {
 		Unfixes:           make(dtypes.Set[string]),
 		AllFunctionIdents: make(dtypes.Set[string]),
 		Bling:             make(dtypes.Set[string]),
+		Typenames:         make(dtypes.Set[string]),
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
 			token.ASSIGN, token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN,
@@ -181,7 +183,6 @@ func New() *Parser {
 	p.Suffixes.Add("raw")
 	p.Suffixes.Add("ast")
 	p.Suffixes.Add("ref")
-	p.Suffixes.Add("ident")
 
 	p.Infixes.Add("varchar")
 

@@ -16,6 +16,7 @@
 package service
 
 import (
+	"bufio"
 	"os"
 	"strings"
 
@@ -50,7 +51,7 @@ const (
 	externalDeclaration                 //
 	enumDeclaration                     //
 	structDeclaration                   //
-	languageDeclaration                 //
+	snippetDeclaration                  //
 	abstractDeclaration                 // The fact that these things come
 	constantDeclaration                 // in this order is used in the code
 	variableDeclaration                 // and should not be changed without
@@ -98,21 +99,21 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 }
 
 func (uP *Initializer) GetSource(source string) {
-	// if source == "" {
-	// 	return
-	// }
-	// file, err := os.Open(source)
-	// if err != nil {
-	// 	uP.Throw("init/source/open", token.Token{}, source)
-	// }
-	// defer file.Close()
+	if source == "" || len(source) >= 5 && source[0:5] == "http:" {
+		return
+	}
+	file, err := os.Open(source)
+	if err != nil {
+		uP.Throw("init/source/open", token.Token{}, source)
+	}
+	defer file.Close()
 
-	// uP.Sources[source] = []string{}
+	uP.Sources[source] = []string{}
 
-	// scanner := bufio.NewScanner(file) // TODO --- is there any reason this is line by line? Also why do we need the sources in the uP at this stage anyway?
-	// for scanner.Scan() {
-	// 	uP.Sources[source] = append(uP.Sources[source], scanner.Text())
-	// }
+	scanner := bufio.NewScanner(file) // TODO --- is there any reason this is line by line? Also why do we need the sources in the uP at this stage anyway?
+	for scanner.Scan() {
+		uP.Sources[source] = append(uP.Sources[source], scanner.Text())
+	}
 }
 
 func (uP *Initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
@@ -211,7 +212,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			case ImportSection:
 				uP.addTokenizedDeclaration(importDeclaration, line, isPrivate)
 			case LanguagesSection:
-				uP.addTokenizedDeclaration(languageDeclaration, line, isPrivate)
+				uP.addTokenizedDeclaration(snippetDeclaration, line, isPrivate)
 			case ExternalSection:
 				uP.addTokenizedDeclaration(externalDeclaration, line, isPrivate)
 			case CmdSection:
@@ -339,25 +340,52 @@ func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	return "", ""
 }
 
-func (uP *Initializer) ParseTypeDefs() {
+var correspondingAbstractType = map[declarationType]string{enumDeclaration: "enum", structDeclaration: "struct", snippetDeclaration: "snippet", abstractDeclaration: "single"}
+
+// We need to declare all the types as suffixes for all the user-defined types, and add at least their existence to the parser's type system,
+// so that the parser will be able to parse the struct definitions.
+func (uP *Initializer) addTypesToParser() {
+	for kindOfType := enumDeclaration; kindOfType <= abstractDeclaration; kindOfType++ {
+		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[kindOfType]); chunk++ {
+			// Each of them should begin with the name of the type being declared, and then followed by an = unless it's a snippet declaration.
+			uP.Parser.TokenizedDeclarations[kindOfType][chunk].ToStart()
+			tok1 := uP.Parser.TokenizedDeclarations[kindOfType][chunk].NextToken()
+			tok2 := uP.Parser.TokenizedDeclarations[kindOfType][chunk].NextToken()
+			if tok1.Type != token.IDENT || (kindOfType != snippetDeclaration && tok2.Type != token.ASSIGN) {
+				uP.Throw("init/type/form", tok1)
+				continue
+			}
+			name := tok1.Literal
+			hasNull := (name[len(name)-1] == '?')
+			if hasNull && !(kindOfType == abstractDeclaration) {
+				uP.Throw("init/type/null", tok1)
+				continue
+			}
+			uP.Parser.Suffixes.Add(tok1.Literal)
+			supertype := correspondingAbstractType[kindOfType]
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, supertype)
+			if hasNull {
+				uP.Parser.TypeSystem.AddTransitiveArrow("null", name)
+				uP.Parser.TypeSystem.AddTransitiveArrow(name, supertype+"?")
+				continue
+			}
+			uP.Parser.Suffixes.Add(name + "?")
+			uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
+			uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
+		}
+	}
+}
+
+func (uP *Initializer) addConstructorsToParserAndParseStructDeclarations() {
 	// First we need to make the struct types into types so the parser parses them properly.
 	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[structDeclaration]); chunk++ {
 		uP.Parser.TokenizedDeclarations[structDeclaration][chunk].ToStart()
+		// Note that the first two tokens should already have been validated by the createTypeSuffixes method as IDENT and ASSIGN respectively.
 		tok1 := uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken()
-		tok2 := uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken()
-		if !(tok1.Type == token.IDENT && tok2.Type == token.ASSIGN) {
-			uP.Throw("init/struct", tok1)
-		} else {
-			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "struct")
-			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal+"?", "struct?")
-			uP.Parser.TypeSystem.AddTransitiveArrow("null", tok1.Literal+"?")
-			uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, tok1.Literal+"?")
-			uP.Parser.Suffixes.Add(tok1.Literal)
-			uP.Parser.Suffixes.Add(tok1.Literal + "?")
-			uP.Parser.AllFunctionIdents.Add(tok1.Literal)
-			uP.Parser.Functions.Add(tok1.Literal)
-			uP.Parser.Structs.Add(tok1.Literal)
-		}
+		uP.Parser.TokenizedDeclarations[structDeclaration][chunk].NextToken() // We skip the = sign.
+		uP.Parser.AllFunctionIdents.Add(tok1.Literal)
+		uP.Parser.Functions.Add(tok1.Literal)
+		uP.Parser.Structs.Add(tok1.Literal)
 	}
 	// Now we can parse them.
 	for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[structDeclaration]); chunk++ {
@@ -368,33 +396,20 @@ func (uP *Initializer) ParseTypeDefs() {
 }
 
 func (uP *Initializer) MakeSnippets() {
-	for _, v := range uP.Parser.TokenizedDeclarations[languageDeclaration] {
+	for _, v := range uP.Parser.TokenizedDeclarations[snippetDeclaration] {
 		v.ToStart()
-		uP.Parser.TokenizedCode = v
-		parsedCode := uP.Parser.ParseTokenizedChunk()
-		name := ""
-		switch parsedCode := parsedCode.(type) {
-		case *ast.Identifier:
-			name = parsedCode.Value
-			uP.Parser.Snippets = append(uP.Parser.Snippets, name)
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, "snippet")
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, "snippet?")
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
-			uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
-			uP.Parser.Suffixes.Add(name)
-			uP.Parser.AllFunctionIdents.Add(name)
-			uP.Parser.Functions.Add(name)
-			uP.Parser.Structs.Add(name)
-		default:
-			uP.Throw("init/lang/form", *parsedCode.GetToken())
-		}
+		// Note that the first tokens should already have been validated by the createTypeSuffixes method as IDENT.
+		tok1 := v.NextToken()
+		name := tok1.Literal
+		uP.Parser.Snippets = append(uP.Parser.Snippets, name)
+		uP.Parser.AllFunctionIdents.Add(name)
+		uP.Parser.Functions.Add(name)
+		uP.Parser.Structs.Add(name)
 	}
 }
 
 func (uP *Initializer) ParseEverything() {
-	// uP.Parser.Unfixes.Add("break")
-	uP.Parser.Unfixes.Add("stop")
-	for declarations := languageDeclaration; declarations <= commandDeclaration; declarations++ {
+	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[declarations][chunk]
 			uP.Parser.TokenizedDeclarations[declarations][chunk].ToStart()
