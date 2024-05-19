@@ -249,9 +249,19 @@ loop:
 			}
 			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
 		case Divf:
-			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / vm.Mem[args[2]].V.(float64)}
+			divisor := vm.Mem[args[2]].V.(float64)
+			if divisor == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3], args[1], args[2])
+			} else {
+				vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / divisor}
+			}
 		case Divi:
-			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
+			divisor := vm.Mem[args[2]].V.(int)
+			if divisor == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/div/int", args[3], args[1], args[2])
+			} else {
+				vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
+			}
 		case Dofn:
 			lhs := vm.Mem[args[1]].V.(Lambda)
 			for i := 0; i < int(lhs.PrmTop-lhs.ExtTop); i++ {

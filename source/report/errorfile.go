@@ -2634,6 +2634,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/div/float": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "division by zero"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
+	"vm/div/int": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "division by zero"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
 	"vm/varchar": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "varchar limit exceeded"

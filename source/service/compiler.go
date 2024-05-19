@@ -209,7 +209,7 @@ func (cp *Compiler) Reserve(mc *Vm, t values.ValueType, v any) uint32 {
 	return uint32(len(mc.Mem) - 1)
 }
 
-func (cp *Compiler) reserveError(mc *Vm, ec string, tok *token.Token, args []any) uint32 {
+func (cp *Compiler) reserveError(mc *Vm, ec string, tok *token.Token, args ...any) uint32 {
 	mc.Mem = append(mc.Mem, values.Value{T: values.ERROR, V: &report.Error{ErrorId: ec, Token: tok, Args: append([]any{mc}, args...), Trace: make([]*token.Token, 0, 10)}})
 	return uint32(len(mc.Mem) - 1)
 }

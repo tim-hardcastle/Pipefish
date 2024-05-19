@@ -5,6 +5,7 @@ package service
 import (
 	"pipefish/source/report"
 	"pipefish/source/text"
+	"pipefish/source/token"
 	"pipefish/source/values"
 
 	"fmt"
@@ -195,4 +196,22 @@ func (vm *Vm) Literal(v values.Value) string {
 	default:
 		return vm.Describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
 	}
+}
+
+// To make an error, we need the error code, the number of the token to be attached to it,
+// the memory locations of the values that caused the problem, to be appended to the Values
+// field of the Error; and anything else we may want to package up with it, to go in the
+// Args field. The memory locations and miscellania are passed indifferently to the args field of the
+// makeError function, and it is assumed that anything of type uint32 represents a location.
+func (vm *Vm) makeError(errCode string, tokenOrdinal uint32, args ...any) values.Value {
+	result := &report.Error{ErrorId: errCode, Token: vm.Tokens[tokenOrdinal], Trace: []*token.Token{vm.Tokens[tokenOrdinal]}}
+	for _, arg := range args {
+		switch arg := arg.(type) {
+		case uint32:
+			result.Values = append(result.Values, vm.Mem[arg])
+		default:
+			result.Args = append(result.Args, arg)
+		}
+	}
+	return values.Value{values.ERROR, result}
 }

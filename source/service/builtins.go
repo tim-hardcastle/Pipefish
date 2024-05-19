@@ -98,23 +98,13 @@ func (cp *Compiler) btAddStrings(mc *Vm, tok *token.Token, dest uint32, args []u
 }
 
 func (cp *Compiler) btDivideFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Reserve(mc, values.FLOAT, 0.0)
-	cp.put(mc, Equf, args[2], mc.That())
-	cp.Emit(mc, Qtru, mc.That(), mc.CodeTop()+3)
-	cp.reserveError(mc, "built/div/float", tok, []any{})
-	cp.Emit(mc, Asgm, dest, mc.That())
-	cp.Emit(mc, Jmp, mc.CodeTop()+2)
-	cp.Emit(mc, Divf, dest, args[0], args[2])
+	errTok := cp.reserveToken(mc, tok)
+	cp.Emit(mc, Divf, dest, args[0], args[2], errTok)
 }
 
 func (cp *Compiler) btDivideIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Reserve(mc, values.INT, 0)
-	cp.put(mc, Equi, args[2], mc.That())
-	cp.Emit(mc, Qtru, mc.That(), mc.CodeTop()+3)
-	cp.reserveError(mc, "built/div/int", tok, []any{})
-	cp.Emit(mc, Asgm, dest, mc.That())
-	cp.Emit(mc, Jmp, mc.CodeTop()+2)
-	cp.Emit(mc, Divi, dest, args[0], args[2])
+	errTok := cp.reserveToken(mc, tok)
+	cp.Emit(mc, Divi, dest, args[0], args[2], errTok)
 }
 
 func (cp *Compiler) btFloatOfInt(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
