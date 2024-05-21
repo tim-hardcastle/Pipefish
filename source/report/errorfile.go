@@ -945,7 +945,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "identifier expected"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Entries in the import section should consist either of filenames or of things of the form <namespace>::<\"filename.\">."
+			return "Entries in the import or external section should consist either of paths to a service or of things of the form <namespace>::<path>."
+		},
+	},
+
+	"init/import/weird": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed import or external declaration"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Entries in the import or external section should consist either of paths to a service or of things of the form <namespace>::<path>."
 		},
 	},
 
@@ -1012,6 +1021,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/overload/ref": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "mismatching reference parameters in overloaded function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "if you overload function with reference parameters, then they must have the same number of reference parameters, at the start of the parameter list, or you will see this error."
+		},
+	},
+
 	"init/private": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "redeclaration of 'private'"
@@ -1061,6 +1079,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/source/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to get source " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The initializer can't retrieve the source code for the given file. Check that it exists."
+		},
+	},
+
 	"init/struct": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed struct definition"
@@ -1081,7 +1108,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/type/form": {
+	"init/type/form/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed type declaration"
 		},
@@ -1108,7 +1135,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/type/fknown": {
+	"init/type/known": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unknown type " + emph(tok.Literal)
 		},

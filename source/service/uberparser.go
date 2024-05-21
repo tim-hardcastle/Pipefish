@@ -104,7 +104,7 @@ func (uP *Initializer) GetSource(source string) {
 	}
 	file, err := os.Open(source)
 	if err != nil {
-		uP.Throw("init/source/open", token.Token{}, source)
+		uP.Throw("init/source/c", token.Token{}, source)
 	}
 	defer file.Close()
 
@@ -352,7 +352,7 @@ func (uP *Initializer) addTypesToParser() {
 			tok1 := uP.Parser.TokenizedDeclarations[kindOfType][chunk].NextToken()
 			tok2 := uP.Parser.TokenizedDeclarations[kindOfType][chunk].NextToken()
 			if tok1.Type != token.IDENT || (kindOfType != snippetDeclaration && tok2.Type != token.ASSIGN) {
-				uP.Throw("init/type/form", tok1)
+				uP.Throw("init/type/form/a", tok1)
 				continue
 			}
 			name := tok1.Literal
@@ -362,7 +362,7 @@ func (uP *Initializer) addTypesToParser() {
 				continue
 			}
 			if parser.TypeExists(name, uP.Parser.TypeSystem) {
-				uP.Throw("init//type/exists", tok1)
+				uP.Throw("init/type/exists", tok1)
 				continue
 			}
 			uP.Parser.Suffixes.Add(name)
