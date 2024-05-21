@@ -189,7 +189,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	}
 
 	if val.T == values.ERROR {
-		hub.WritePretty("\n[0] " + valToString(serviceToUse, val))
+		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
 		hub.ers = []*report.Error{val.V.(*report.Error)}
 		if len(val.V.(*report.Error).Values) > 0 {
