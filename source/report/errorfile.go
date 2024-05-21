@@ -2029,6 +2029,33 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/pipe/filter/bool": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "right-hand side of filter expression cannot return boolean"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expects the right-hand side of a filter operator to be a function returning a boolean, or an boolean-valued expression containing" + emph("that") + "."
+		},
+	},
+
+	"vm/pipe/mf/func": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to use " + emph(tok.Literal) + " as a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
+	"vm/pipe/pipe/func": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to use " + emph(tok.Literal) + " as a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
 	"vm/slice/list/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return fmt.Sprintf("lower bound of slice should be of type %v, not type %v", emph("int"), emph(args[0]))

@@ -1933,7 +1933,7 @@ func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, r
 			}
 		}
 		if !v.types.isOnly(values.FUNC) {
-			cp.reserveError(mc, "vm/pipe/func", rhs.GetToken())
+			cp.reserveError(mc, "vm/pipe/pipe/func", rhs.GetToken())
 			cp.Emit(mc, Qntp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
 			typeIsNotFunc = cp.vmEarlyReturn(mc, mc.That())
 		}
@@ -1983,7 +1983,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 				cp.P.Throw("comp/pipe/mf/func", rhs.GetToken())
 			}
 			if !v.types.isOnly(values.FUNC) {
-				cp.reserveError(mc, "vm/mf/func", rhs.GetToken())
+				cp.reserveError(mc, "vm/pipe/mf/func", rhs.GetToken())
 				cp.Emit(mc, Qntp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
 				typeIsNotFunc = cp.vmEarlyReturn(mc, mc.That())
 			}
@@ -2021,7 +2021,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 			cp.P.Throw("comp/pipe/filter/bool", rhs.GetToken())
 		}
 		if !types.isOnly(values.BOOL) {
-			cp.reserveError(mc, "vm/filter/bool", rhs.GetToken())
+			cp.reserveError(mc, "vm/pipe/filter/bool", rhs.GetToken())
 			cp.Emit(mc, Qntp, resultElement, uint32(values.BOOL), mc.CodeTop()+2)
 			resultIsNotBool = cp.vmEarlyReturn(mc, mc.That())
 		}
