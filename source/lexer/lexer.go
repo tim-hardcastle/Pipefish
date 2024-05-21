@@ -215,7 +215,7 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	if l.ch == '.' && l.peekChar() == '.' {
 		l.readChar()
 		l.readChar()
-		return l.Throw("lex/cont/c")
+		return l.Throw("lex/cont/b")
 	}
 	previousWhitespace, _ := l.whitespaceStack.HeadValue()
 	if whitespace == previousWhitespace {

@@ -336,7 +336,7 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
 			service, ok := mc.HubServices[name]
 			if !ok {
-				vmm.uP.Throw("init/external/exist", *declaration.GetToken())
+				vmm.uP.Throw("init/external/exist/a", *declaration.GetToken())
 				continue
 			}
 			vmm.addExternalOnSameHub(mc, service.Cp.ScriptFilepath, name)
@@ -372,7 +372,7 @@ func (vmm *VmMaker) initializeExternals(mc *Vm) {
 		hubService, ok := mc.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubService.Cp.ScriptFilepath != path {
-				vmm.uP.Throw("init/external/exist", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
+				vmm.uP.Throw("init/external/exist/b", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
 			} else {
 				vmm.addExternalOnSameHub(mc, path, name)
 			}
@@ -808,10 +808,10 @@ func (vmm *VmMaker) compileFunction(mc *Vm, node ast.Node, private bool, outerEn
 	}
 	vmm.cp.Fns = append(vmm.cp.Fns, &cpF)
 	if ac == DEF && !cpF.Types.IsLegalDefReturn() {
-		vmm.cp.P.Throw("comp/return/def/a", node.GetToken())
+		vmm.cp.P.Throw("comp/return/def", node.GetToken())
 	}
 	if ac == CMD && !cpF.Types.IsLegalCmdReturn() {
-		vmm.cp.P.Throw("comp/return/cmd/a", node.GetToken())
+		vmm.cp.P.Throw("comp/return/cmd", node.GetToken())
 	}
 	return &cpF
 }

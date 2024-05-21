@@ -1356,7 +1356,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		}
 		if !vm.AbstractStructFields[typeOrdinal][fieldNumber].Contains(val.T) {
 			labName := vm.Labels[key.V.(int)]
-			return vm.makeError("vm/with/g", errTok, vm.DescribeType(val.T), labName, vm.DescribeType(container.T), vm.DescribeAbstractType(vm.AbstractStructFields[typeOrdinal][fieldNumber]))
+			return vm.makeError("vm/with/f", errTok, vm.DescribeType(val.T), labName, vm.DescribeType(container.T), vm.DescribeAbstractType(vm.AbstractStructFields[typeOrdinal][fieldNumber]))
 		}
 		fields[fieldNumber] = val
 		return clone

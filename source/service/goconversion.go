@@ -67,7 +67,7 @@ func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) val
 		return values.Value{values.ValueType(structType), pVals}
 	}
 
-	return values.Value{values.ERROR, &report.Error{ErrorId: "vm/go/conv", Token: &token.Token{Source: "golang conversion function"}}}
+	return values.Value{values.ERROR, &report.Error{ErrorId: "vm/golang/conv/a", Token: &token.Token{Source: "golang conversion function"}}}
 }
 
 // In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
@@ -118,7 +118,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(mc *Vm, goHandler *GoHandler, sour
 
 func (cp *Compiler) ConvertFieldType(mc *Vm, aT values.AbstractType) string {
 	if aT.Len() > 1 {
-		cp.P.Throw("go/conv/type/b", &token.Token{Source: "golang conversion function"})
+		cp.P.Throw("golang/conv/b", &token.Token{Source: "golang conversion function"})
 	}
 	tNo := aT.Types[0]
 	if tNo >= mc.Ub_enums {
@@ -127,7 +127,7 @@ func (cp *Compiler) ConvertFieldType(mc *Vm, aT values.AbstractType) string {
 	if convStr, ok := fConvert[tNo]; ok {
 		return convStr
 	}
-	cp.P.Throw("go/conv/type/c", &token.Token{Source: "golang conversion function"})
+	cp.P.Throw("golang/conv/c", &token.Token{Source: "golang conversion function"})
 	return ""
 }
 

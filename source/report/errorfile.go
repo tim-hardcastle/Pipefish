@@ -358,6 +358,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/list/err": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to wrap an error in a list"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The expression you are trying to wrap in a list must evaluate to an error, and so trying to wrap it in a list would return an error rather than a list. Pipefish assumes that this is not what you want to do."
+		},
+	},
+
 	"comp/loop/body": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "trying to return a value from an imperative loop"
@@ -391,16 +400,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "If an import or an external service has been declared private, you can only access it from the code that imports it, not from either the REPL or from code that imports the importing code."
-		},
-	},
-
-	"comp/not/bool": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "can't apply 'not' to non-boolean type"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Charm has no concept of \"truthiness\", so the 'not' operator can only be applied " +
-				"to one of the two values 'true' and 'false' in the type 'bool'."
 		},
 	},
 
@@ -485,12 +484,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/sanity": {
+	"comp/return/cmd": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "mixture of imperative and functional code"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Some of this carries out imperative operations, other parts try to return values."
+			return "Despite this being defined as a command, it tries to return values."
+		},
+	},
+
+	"comp/return/def": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "mixture of imperative and functional code"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Despite this being defined as a function, it carries out some imperative behavior."
 		},
 	},
 
@@ -509,6 +517,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "It is not possible to create new variables in the REPL."
+		},
+	},
+
+	"comp/sanity": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "mixture of imperative and functional code"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Some of this carries out imperative operations, other parts try to return values."
 		},
 	},
 
@@ -631,12 +648,111 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"ext/broken": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "external service is broken"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish has been able to contact the service but it is currently in a non-functional state."
+		},
+	},
+
+	"ext/deserialize/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
+	"ext/deserialize/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
+	"ext/deserialize/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
+	"ext/deserialize/d": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
+	"ext/deserialize/e": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
+	"ext/deserialize/f": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
+	"ext/deserialize/g": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
 	"golang/build": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "failed to compile Go\n\nError was '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A Pipefish function written in Go has failed to compile at initialization time."
+		},
+	},
+
+	"golang/conv/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to convert golang values."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This error should not occur."
+		},
+	},
+
+	"golang/conv/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to convert golang values."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This error should not occur."
+		},
+	},
+
+	"golang/conv/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to convert golang values."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This error should not occur."
 		},
 	},
 
@@ -660,12 +776,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"golang/return": {
+	"golang/namespace": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "bad return value from golang"
+			return "can't find namespace " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This is because the author of Pipefish hasn't gotten around to it yet."
+			return "The Golang type converter can't find the specified namespace."
 		},
 	},
 
@@ -679,6 +795,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"golang/type/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't pass value of type " + emph(args[0]) + " to Go"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This is because the author of Pipefish hasn't gotten around to it yet."
+		},
+	},
+
+	"golang/type/c": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't pass value of type " + emph(args[0]) + " to Go"
 		},
@@ -708,43 +833,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"    (foo\n" +
 				"bar\n\n|-\n\n" + "This violates the nesting rules in just the same way " +
 				"as the ']' in '(foo] bar'."
-		},
-	},
-
-	"init/cmd/assign": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "attempt to declare a variable or constant in the 'cmd' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The only thing you should be doing in the 'cmd' section is defining commands."
-		},
-	},
-
-	"init/code/a": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
-		},
-	},
-
-	"init/code/b": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
-		},
-	},
-
-	"init/def/assign": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "attempted assignment in the main body of a function"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You can assign to local constants in the 'given' block of a function, if it has one, but " +
-				"apart from that, assignment in a function is a syntax error."
 		},
 	},
 
@@ -789,57 +877,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/enum/lhs": {
+	"init/external/exist/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed left-hand side of enum definition"
+			return "service " + emph(tok.Literal) + " does not exist"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When you declare an enum, the left hand side should consist of a single identifier followed by a '='."
+			return `If you try to initialize an external service just by giving the name of the service, then this will only work if a service of that name is already running on the hub.`
 		},
 	},
 
-	"init/external/assign": {
+	"init/external/exist/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "attempt to declare a variable or constant in the 'external' section"
+			return "source conflict for external service " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
-		},
-	},
-
-	"init/external/exist": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "service " + emph(tok.Literal) + " does not exist on this hub"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `When a declaration in the 'external' section consists only of an identifier, this will work only if the hub is already running a service with that name.`
-		},
-	},
-
-	"init/external/form": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'external' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
-		},
-	},
-
-	"init/external/ident": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'external' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
-		},
-	},
-
-	"init/external/infix": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'external' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
+			return `The service you specified already exists on the hub and keeps its sourcecode in a different file from the one you specified.`
 		},
 	},
 
@@ -861,12 +913,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/external/string": {
+	"init/external/source": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'external' section"
+			return "can't get source " + emph(args[0]) + "for external service"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form "<file path>" -> <service name>.`
+			return `Pipefish can't open the specified file.`
 		},
 	},
 
@@ -879,17 +931,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"'var', 'def', 'cmd', etc. Instead, you've started your script with something other than " +
 				"a headword, and so Pipefish doesn't know which section that thing should belong to." +
 				"\n\nFor more information about headwords see 'hub help \"headwords\"'."
-		},
-	},
-
-	"init/import/assign": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "attempted assignment in 'import' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The only thing you should be doing in the 'import' section is specifying " +
-				"files to import and, optionally, the namespaces to put them in." +
-				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
 		},
 	},
 
@@ -928,18 +969,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/import/pair": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrence of " + text.DescribeTok(tok) +
-				" in the 'import' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The only function or operator that Pipefish expects to find in the 'import' section is " +
-				"the pair operator '::' associating namespaces with files." +
-				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
-		},
-	},
-
 	"init/import/string": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "identifier expected"
@@ -968,33 +997,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"malformed function declaration, though it may also be returned when the surrounding code is so weird " +
 				"that Pipefish thinks you're trying to declare a function even though you're not." + blame(errors, pos, "lex/comma") +
 				"\n\nFor more information about function declarations, see 'hub help \"functions\"'."
-		},
-	},
-
-	"init/lang/assign": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "attempt to declare a variable or constant in the 'languages' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'languages' section should consist only of the name of a language.`
-		},
-	},
-
-	"init/lang/form": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'languages' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'languages' section should consist only of the name of a language.`
-		},
-	},
-
-	"init/lang/infix": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed entry in 'languages' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'languages' section should consist only of the name of a language.`
 		},
 	},
 
@@ -1085,17 +1087,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The initializer can't retrieve the source code for the given file. Check that it exists."
-		},
-	},
-
-	"init/struct": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed struct definition"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "On the one hand, the fact that you're using the word 'struct' here makes it " +
-				"look like you're declaring a struct, but on the other hand the rest of the line is too " +
-				"odd to parse as a struct definition."
 		},
 	},
 
@@ -1207,22 +1198,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"lex/cont/b": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unmatched or misplaced continuation sign '..'"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish allows two forms of continuation, and one is to end a line in a continuation sign " +
-				"'..', and to begin the next line with another '..'\n\n" +
-				"For example: \n\n" +
-				"|-----------------------------------------------\n\n" +
-				"someList = [1, 2, 4,\n         .. 8, 16, 32]\n\n" +
-				"|-\n\nNote that such continuations are not bound by the whitespace rules and can be positioned as you like " +
-				"for readability.\n\nThe error you are seeing is because you have put an isolated '..' at a line " +
-				"boundary, rather than one at the end of one line and another at the start of the next.."
-		},
-	},
-
-	"lex/cont/c": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "a line can't begin with a continuation unless it follows a line ending with either a continuation or a comma"
 		},
@@ -1366,18 +1341,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When you outdent your code, it should end up with the same indentation " +
 				"as some previous line of code, otherwise Pipefish can't infer what nesting level you're trying to indicate."
-		},
-	},
-
-	"init/var/function": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "declaration of function in 'var' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "In the 'var' section, as the name suggests, you are only supposed to declare the inttial " +
-				"values of variables. You've convinced Pipefish that you're trying to declare a function or operator or " +
-				"command in the 'var' section instead, probably because the line of code it's complaining about either " +
-				"contains a ':' or doesn't contain a '='."
 		},
 	},
 
@@ -1525,10 +1488,28 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/namespace/exist": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Can't find namespace " + emph(args[0])
+			return "can't find namespace " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You haven't declared that namespace in the " + emph("import") + " or " + emph("external") + " section"
+		},
+	},
+
+	"parse/namespace/lhs": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "was expecting namespace, not " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expects to find a namespace to the left of the " + emph(".") + " operator."
+		},
+	},
+
+	"parse/namespace/rhs": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "was expecting identifier"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expects to find something that can live in a namespace to the right of the " + emph(".") + " operator."
 		},
 	},
 
@@ -2137,15 +2118,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/map/set": {
-		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("can't put value of type %v in a set.", emphStr(args[0]))
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("To be an element of a set, a value must have a type which is not a struct.")
-		},
-	},
-
 	"vm/mod/int": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "taking the modulus of a number by zero"
@@ -2179,6 +2151,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
+	"vm/set": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("can't put value of type %v in a set.", emphStr(args[0]))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return fmt.Sprintf("To be an element of a set, a value must have a type which is not a struct.")
 		},
 	},
 
@@ -2363,15 +2344,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"vm/with/f": {
-		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("assignment in %v expression of value of type %v to field %v of struct of type %v, which requires %v", emph("with"), emph(args[0]), emph(args[1]), emph(args[2]), emph(args[3]))
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("The values that can be put into a struct are constrained by the types in its definition.")
-		},
-	},
-
-	"vm/with/g": {
 		Message: func(tok *token.Token, args ...any) string {
 			return fmt.Sprintf("assignment in %v expression of value of type %v to field %v of struct of type %v, which requires %v", emph("with"), emph(args[0]), emph(args[1]), emph(args[2]), emph(args[3]))
 		},

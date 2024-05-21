@@ -263,7 +263,7 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
 	for _, namespace := range namespacePath {
 		s, ok := resolvingParser.NamespaceBranch[namespace]
 		if !ok {
-			gh.Prsr.Throw("golang/namespace/exist", &token.Token{Source: "function doing type conversion for Golang"}, namespace) // ToDp
+			gh.Prsr.Throw("golang/namespace", &token.Token{Source: "function doing type conversion for Golang"}, namespace) // ToDp
 		}
 		resolvingParser = s.Parser
 	}
