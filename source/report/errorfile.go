@@ -687,6 +687,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/assign/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left-hand side of assignment should be identifier"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The left-hand side of an assignment operation names the things to be assigned to."
+		},
+	},
+
 	"init/close": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "'(' unclosed by outdent"
@@ -711,15 +720,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/external/assign": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "attempt to declare a variable or constant in the 'external' section"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
-		},
-	},
-
 	"init/code/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0])
@@ -735,6 +735,75 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
+		},
+	},
+
+	"init/def/assign": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "attempted assignment in the main body of a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can assign to local constants in the 'given' block of a function, if it has one, but " +
+				"apart from that, assignment in a function is a syntax error."
+		},
+	},
+
+	"init/enum/comma": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected comma, got " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expects an enum declaration to take the form:" +
+				"\n\n|-----------------------------------------------\n\n" +
+				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
+				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
+				"Pipefish was expecting to find a comma between elements of the enum."
+		},
+	},
+
+	"init/enum/element": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "element '" + tok.Literal + "' has already been declared"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The elements of two enums should always be distinct. So for example the following " +
+				"will produce an error because 'CLUBS' appears in both enums:" +
+				"\n\n|-----------------------------------------------\n\n" +
+				"def\n\nSuits = enum CLUBS, HEARTS, SPADES, DIAMONDS\n\n" +
+				"MedievalWeaponry = enum CLUBS, SWORDS, MACES\n\n|-\n\n" +
+				"And, of course, two elements of the same enum must also always be distinct."
+
+		},
+	},
+
+	"init/enum/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected identifier, got " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expects an enum declaration to take the form:" +
+				"\n\n|-----------------------------------------------\n\n" +
+				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
+				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
+				"Pipefish was expecting one of the elements of the enum."
+		},
+	},
+
+	"init/enum/lhs": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed left-hand side of enum definition"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When you declare an enum, the left hand side should consist of a single identifier followed by a '='."
+		},
+	},
+
+	"init/external/assign": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "attempt to declare a variable or constant in the 'external' section"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form <service name>::"<file path>".`
 		},
 	},
 
@@ -774,72 +843,30 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/external/path/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed path to external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return `Pipefish expects the path to an http service to be of the form <url>:<port>/<hostname>/<name of external service>.`
+		},
+	},
+
+	"init/external/path/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed path to external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return `Pipefish expects the path to an http service to be of the form <url>:<port>/<hostname>/<name of external service>.`
+		},
+	},
+
 	"init/external/string": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed entry in 'external' section"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return `A line in the 'external' section should consist either of a string representing a filepath, or of an expression of the form "<file path>" -> <service name>.`
-		},
-	},
-
-	"init/def/assign": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "attempted assignment in the main body of a function"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You can assign to local constants in the 'given' block of a function, if it has one, but " +
-				"apart from that, assignment in a function is a syntax error."
-		},
-	},
-
-	"init/enum/comma": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "expected comma, got " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish expects an enum declaration to take the form:" +
-				"\n\n|-----------------------------------------------\n\n" +
-				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
-				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
-				"Pipefish was expecting to find a comma between elements of the enum."
-		},
-	},
-
-	"init/enum/free": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "element '" + tok.Literal + "' has already been declared"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The elements of two enums should always be distinct. So for example the following " +
-				"will produce an error because 'CLUBS' appears in both enums:" +
-				"\n\n|-----------------------------------------------\n\n" +
-				"def\n\nSuits = enum CLUBS, HEARTS, SPADES, DIAMONDS\n\n" +
-				"MedievalWeaponry = enum CLUBS, SWORDS, MACES\n\n|-\n\n" +
-				"And, of course, two elements of the same enum must also always be distinct."
-
-		},
-	},
-
-	"init/enum/ident": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "expected identifier, got " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish expects an enum declaration to take the form:" +
-				"\n\n|-----------------------------------------------\n\n" +
-				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
-				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
-				"Pipefish was expecting one of the elements of the enum."
-		},
-	},
-
-	"init/enum/lhs": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed left-hand side of enum definition"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When you declare an enum, the left hand side should consist of a single identifier followed by a '='."
 		},
 	},
 
@@ -985,15 +1012,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/struct/private": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "public struct type " + emph(args[0]) + " cannot contain private type " + emph(args[1])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "A public struct cannot contain a field which has a private type."
-		},
-	},
-
 	"init/private": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "redeclaration of 'private'"
@@ -1007,9 +1025,36 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/source/open": {
+	"init/private/struct": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unable to get source '" + args[0].(string) + "'"
+			return "public struct type " + emph(tok.Literal) + " cannot contain private type " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A public struct cannot contain a field which has a private type."
+		},
+	},
+
+	"init/private/abstract": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "public abstract type " + emph(tok.Literal) + " cannot contain private type " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A public abstract type cannot contain a private type."
+		},
+	},
+
+	"init/source/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to get source " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The initializer can't retrieve the source code for the given file. Check that it exists."
+		},
+	},
+
+	"init/source/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to get source " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The initializer can't retrieve the source code for the given file. Check that it exists."
@@ -1024,6 +1069,60 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "On the one hand, the fact that you're using the word 'struct' here makes it " +
 				"look like you're declaring a struct, but on the other hand the rest of the line is too " +
 				"odd to parse as a struct definition."
+		},
+	},
+
+	"init/type/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "type" + emph(tok.Literal) + "already exists"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can't declare a type more than once.."
+		},
+	},
+
+	"init/type/form": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed type declaration"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The type should begin with the name of the type being defined, followed by an " + emph("=") + "."
+		},
+	},
+
+	"init/type/form/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed abstract type declaration"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An abstract type declaration should consist of types joined by the " + emph("/") + "operator."
+		},
+	},
+
+	"init/type/form/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed abstract type declaration"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An abstract type declaration should consist of types joined by the " + emph("/") + "operator."
+		},
+	},
+
+	"init/type/fknown": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown type " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An abstract type declaration should consist of types joined by the " + emph("/") + "operator, but you're using something that isn't the name of a type."
+		},
+	},
+
+	"init/type/null": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "type name ends in " + emph("?")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Only an abstract type name can end in " + emph("?") + ", and even then only if the type contains " + emph("NULL") + "."
 		},
 	},
 

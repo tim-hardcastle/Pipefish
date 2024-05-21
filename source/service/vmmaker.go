@@ -45,7 +45,7 @@ func initializeFromFilepath(mc *Vm, scriptFilepath string) (*Compiler, *Initiali
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode)
-			uP.Throw("vmm/source/a", token.Token{Source: "linking"}, scriptFilepath)
+			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
 	}
@@ -60,7 +60,7 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode string) (*Compi
 		file, err := os.Stat(scriptFilepath)
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode)
-			uP.Throw("vmm/source/b", token.Token{Source: "linking"}, scriptFilepath)
+			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
 		vmm.cp.Timestamp = file.ModTime().UnixMilli()
@@ -428,13 +428,7 @@ func (vmm *VmMaker) createEnums(mc *Vm) {
 	for i, tokens := range vmm.uP.Parser.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
-		tok2 := tokens.NextToken()
-		if !(tok1.Type == token.IDENT && tok2.Type == token.ASSIGN) {
-			vmm.uP.Throw("init/enum/lhs", tok1)
-		}
-		if parser.TypeExists(tok1.Literal, vmm.uP.Parser.TypeSystem) {
-			vmm.uP.Throw("init/enum/type", tok1)
-		}
+		tokens.NextToken()
 		mc.concreteTypeNames = append(mc.concreteTypeNames, tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		typeNo := values.LB_ENUMS + values.ValueType(i)
@@ -481,18 +475,9 @@ func (vmm *VmMaker) createEnums(mc *Vm) {
 func (vmm *VmMaker) createStructs(mc *Vm) {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
-		if lhs.GetToken().Type != token.IDENT {
-			vmm.uP.Throw("init/enum/lhs", *lhs.GetToken())
-		}
 		name := lhs.GetToken().Literal
 
-		_, alreadyExists := vmm.cp.StructNameToTypeNumber[name]
-		if alreadyExists {
-			vmm.uP.Throw("init/struct/type", *lhs.GetToken())
-		}
-
 		// We make the type itself exist.
-
 		typeNo := values.ValueType(len(mc.concreteTypeNames))
 		mc.concreteTypeNames = append(mc.concreteTypeNames, name)
 		if vmm.uP.isPrivate(int(structDeclaration), i) {
@@ -554,24 +539,18 @@ func (vmm *VmMaker) defineAbstractTypes(mc *Vm) {
 	for _, tcc := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
-		if nameTok.Type != token.IDENT {
-			vmm.uP.Throw("init/type/ident", nameTok)
-		}
 		newTypename := nameTok.Literal
-		eqTok := tcc.NextToken()
-		if eqTok.Type != token.ASSIGN {
-			vmm.uP.Throw("init/type/assign", eqTok)
-		}
+		tcc.NextToken()
 		typeNames := []string{}
 		for {
 			typeTok := tcc.NextToken()
 			divTok := tcc.NextToken()
 			if typeTok.Type != token.IDENT {
-				vmm.uP.Throw("init/type/form/a", typeTok)
+				vmm.uP.Throw("init/type/form/b", typeTok)
 				break
 			}
 			if divTok.Type != token.EOF && !(divTok.Type == token.IDENT && divTok.Literal == "/") {
-				vmm.uP.Throw("init/type/form/b", typeTok)
+				vmm.uP.Throw("init/type/form/c", typeTok)
 				break
 			}
 			tname := typeTok.Literal
@@ -675,7 +654,7 @@ func (vmm *VmMaker) checkTypesForConsistency(mc *Vm) {
 		if mc.typeAccess[structTypeNumber] == PUBLIC {
 			for _, ty := range fields {
 				if mc.isPrivate(ty) {
-					vmm.uP.Throw("init/struct/private", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), mc.concreteTypeNames[int(mc.Ub_enums)+structOrdinalNumber], mc.DescribeAbstractType(ty))
+					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), mc.concreteTypeNames[int(mc.Ub_enums)+structOrdinalNumber], mc.DescribeAbstractType(ty))
 				}
 			}
 		}
@@ -685,7 +664,7 @@ func (vmm *VmMaker) checkTypesForConsistency(mc *Vm) {
 		for _, vT := range abTypeInfo.AT.Types {
 			if mc.typeAccess[vT] == PRIVATE {
 				abDeclarationNo := i - len(nativeAbstractTypes)
-				vmm.uP.Throw("init/abstract/private", *vmm.uP.Parser.ParsedDeclarations[abstractDeclaration][abDeclarationNo].GetToken(), abTypeInfo.Name)
+				vmm.uP.Throw("init/private/abstract", *vmm.uP.Parser.ParsedDeclarations[abstractDeclaration][abDeclarationNo].GetToken(), abTypeInfo.Name)
 			}
 		}
 	}
@@ -853,7 +832,7 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *Vm) {
 			lhs := dec.(*ast.AssignmentExpression).Left
 			rhs := dec.(*ast.AssignmentExpression).Right
 			if lhs.GetToken().Type != token.IDENT { // TODO --- use assignment signature once tuples are working.
-				vmm.uP.Throw("vmm/assign/ident", *dec.GetToken())
+				vmm.uP.Throw("init/assign/ident", *dec.GetToken())
 			}
 			vname := lhs.(*ast.Identifier).Value
 			runFrom := mc.CodeTop()

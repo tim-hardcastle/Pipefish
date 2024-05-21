@@ -361,7 +361,11 @@ func (uP *Initializer) addTypesToParser() {
 				uP.Throw("init/type/null", tok1)
 				continue
 			}
-			uP.Parser.Suffixes.Add(tok1.Literal)
+			if parser.TypeExists(name, uP.Parser.TypeSystem) {
+				uP.Throw("init//type/exists", tok1)
+				continue
+			}
+			uP.Parser.Suffixes.Add(name)
 			supertype := correspondingAbstractType[kindOfType]
 			uP.Parser.TypeSystem.AddTransitiveArrow(name, supertype)
 			if hasNull {
