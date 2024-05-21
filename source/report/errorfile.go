@@ -42,6 +42,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/assign": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed assignment"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish assumes this is an assignment because it contains an " + emph("=") + " but is having a hard time making sense of it."
+		},
+	},
+
 	"comp/bling/wut": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "Unknown bling " + emph(tok.Literal)
@@ -51,12 +60,129 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/body/known": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown identifier " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You don't seem to have declared that as a variable, function, constant, or anything else."
+		},
+	},
+
+	"comp/bool/and/left": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left-hand side of " + emph("and") + " should be boolean expression."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+		},
+	},
+
+	"comp/bool/and/right": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "right-hand side of " + emph("and") + " should be boolean expression."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+		},
+	},
+
+	"comp/bool/cond": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left-hand side of conditional should be boolean expression."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the left-hand side of a conditional should be a boolean-valued expression."
+		},
+	},
+
+	"comp/bool/not": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to apply " + emph("not") + " to something that isn't a boolean expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the argument of " + emph("not") + " should be a boolean-valued expression."
+		},
+	},
+
+	"comp/bool/or/left": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left-hand side of " + emph("or") + " should be boolean expression."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+		},
+	},
+
+	"comp/bool/or/right": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "right-hand side of " + emph("or") + " should be boolean expression."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+		},
+	},
+
 	"comp/call": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have supplied the function with arguments of types for which no function of that name is defined."
+		},
+	},
+
+	"comp/command": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to access a command " + emph(tok.Literal) + " from a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Functions can only call other functions, whereas commands can call both functions and commands."
+		},
+	},
+
+	"comp/error/arg": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expression can only return error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "One of your function arguments can only return an error value, which means that the function itself will only ever return that error value. Pipefish assumes that this is a mistake."
+		},
+	},
+
+	"comp/error/eq/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left-hand side of comparison can only be error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "One of the values you're trying to compare can only ever be an error value, meaning that the comparison itself will just return this error. Pipefish assumes that this is a mistake."
+		},
+	},
+
+	"comp/error/eq/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "right-hand side of comparison can only be error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "One of the values you're trying to compare can only ever be an error value, meaning that the comparison itself will just return this error. Pipefish assumes that this is a mistake."
+		},
+	},
+
+	"comp/error/eq/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "comparison can only return error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Because of the types of the values you're trying to compare, the result, if compiled, could only ever produce a runtime error. Pipefish assumes that this is a mistake."
+		},
+	},
+
+	"comp/error/return": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "function can only return error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This function is written so that it can never return anything but an error. Pipefish assumes that this is a mistake."
 		},
 	},
 
@@ -70,6 +196,42 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/log/close": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unclosed " + emph("|") + " in logging expression."
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish interprets " + emph("| <expression> |") + " in a logging expression as meaning that the expression should be evaluated and inserted into the string. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
+		},
+	},
+
+	"comp/fcis": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "imperative code in " + emph("def") + " section"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Some of this carries out imperative operations, other parts try to return values."
+		},
+	},
+
+	"comp/global/global": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "identifier " + emph(tok.Literal) + " doesn't identify a global variable"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You're trying to bring a variable into the scope of the command by using the " + emph("global") + " keyword when it is not in fact a global variable."
+		},
+	},
+
+	"comp/global/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph(tok.Literal) + " after " + emph("global")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The only thing Pipefish expects to find after the " + emph("global") + " keyword is the name of a global variable"
+		},
+	},
+
 	"comp/ident/known": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unknown identifier " + emph(tok.Literal)
@@ -79,18 +241,153 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/namespace/exist": {
+	"comp/ident/private": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unknown namespace " + emph(args[0].(string))
+			return "attempt to access private identifier " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You are using " + emph(args[0].(string)) + " as though it was a namespace, but you haven't declared it as such in the 'import' or 'external' section."
+			return "Once a value has been declared private, it can only be accessed from within the service that owns it."
+		},
+	},
+
+	"comp/index/list": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "list index is not of type" + emph("int") + " or " + emph("pair")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A list may be indexed by an integer, to select a particular value, or by a pair of integers, to take a slice."
+		},
+	},
+
+	"comp/index/string": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "string index is not of type" + emph("int") + " or " + emph("pair")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A string may be indexed by an integer, to select a particular value, or by a pair of integers, to take a slice."
+		},
+	},
+
+	"comp/index/pair": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "pair index is not of type" + emph("int")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A pair may be indexed  only by the integers " + emph("0") + " and " + emph("1")
+		},
+	},
+
+	"comp/index/struct/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "label " + emph(args[0]) + " does not label any field of a struct of type " + emph(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A struct may only be indexed by the labels it was given in its definition."
+		},
+	},
+
+	"comp/index/struct/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "attempting to index a struct by something other than a label"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A struct may only be indexed by the labels it was given in its definition."
+		},
+	},
+
+	"comp/index/struct/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "struct cannot be indexed by given label expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "If this was compiled, it would always produce an error at runtime because the label would never match the struct type."
+		},
+	},
+
+	"comp/index/tuple": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "tuple index is not of type" + emph("int") + " or " + emph("pair")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A tuple may be indexed by an integer, to select a particular value, or by a pair of integers, to take a slice."
+		},
+	},
+
+	"comp/index/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "enum index is not of type" + emph("int")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An enum type may be indexed  only by the integers " + emph("0") + " and " + emph("1")
+		},
+	},
+
+	"comp/known/infix": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown infix " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are using " + emph(tok.Literal) + " as though it was an infix, but you haven't declared it as such in the 'cmd' or 'def' section."
+		},
+	},
+
+	"comp/known/prefix": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown prefix " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are using " + emph(tok.Literal) + " as though it was a prefix, but you haven't declared it as such in the 'cmd' or 'def' section."
+		},
+	},
+
+	"comp/known/suffix": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown suffix " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are using " + emph(tok.Literal) + " as though it was a suffix, but you haven't declared it as such in the 'cmd' or 'def' section."
+		},
+	},
+
+	"comp/known/unfix": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown unfix " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are using " + emph(tok.Literal) + " as though it was an unfix, but you haven't declared it as such in the 'cmd' or 'def' section."
+		},
+	},
+
+	"comp/loop/body": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to return a value from an imperative loop"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The body of a loop should consist only of imperative instructions. It cannot return any value except an error."
+		},
+	},
+
+	"comp/loop/infinite": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "look cannot terminate"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This loop can neither return an error nor encounter a " + emph("break") + " statement, and so can never halt."
+		},
+	},
+
+	"comp/namespace/exist": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown namespace " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are using " + emph(args[0]) + " as though it was a namespace, but you haven't declared it as such in the 'import' or 'external' section."
 		},
 	},
 
 	"comp/namespace/private": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "trying to use private namespace " + emph(args[0].(string))
+			return "trying to use private namespace " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "If an import or an external service has been declared private, you can only access it from the code that imports it, not from either the REPL or from code that imports the importing code."
@@ -107,12 +404,48 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/prefix/known": {
+	"comp/pipe/filter/bool": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unknown prefix " + emph(tok.Literal)
+			return "right-hand side of filter expression cannot return boolean"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You don't seem to have declared that as a function, but you'ree trying to use it as one."
+			return "Pipefish expects the right-hand side of a filter operator to be a function returning a boolean, or an boolean-valued expression containing" + emph("that") + "."
+		},
+	},
+
+	"comp/pipe/mf/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
+	"comp/pipe/mf/func": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to use " + emph(tok.Literal) + " as a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
+	"comp/pipe/pipe/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
+	"comp/pipe/pipe/func": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to use " + emph(tok.Literal) + " as a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
 		},
 	},
 
@@ -125,6 +458,141 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/private/enum": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to access an enum of private type " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When an enumerated type is declared private, so are all its elements."
+		},
+	},
+
+	"comp/private/label": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to access an label " + emph(args[0]) + " that only belongs to private struct types"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A struct field label is not public unless at least one of the types it belongs to is public."
+		},
+	},
+
+	"comp/private/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to access private type " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A type declared private can only be accessed by the service that owns it."
+		},
+	},
+
+	"comp/sanity": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "mixture of imperative and functional code"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Some of this carries out imperative operations, other parts try to return values."
+		},
+	},
+
+	"comp/ref/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "passing non-variable to reference parameter"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The only thing you can ever pass to a reference parameter of a command is the name of a variable."
+		},
+	},
+
+	"comp/ref/var": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to create variable " + emph(tok.Literal) + " in REPL"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "It is not possible to create new variables in the REPL."
+		},
+	},
+
+	"comp/snippet/form/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unmatched " + emph("|") + " in snippet constructor"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish interprets " + emph("| <expression> |") + " in a snippet constructor as meaning that the expression should be evaluated. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
+		},
+	},
+
+	"comp/snippet/form/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unmatched " + emph("|") + " in snippet constructor"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish interprets " + emph("| <expression> |") + " in a snippet constructor as meaning that the expression should be evaluated. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
+		},
+	},
+
+	"comp/snippet/sig": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "type " + emph(args[0]) + "in struct definition is incompatible with SQL"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "In order for a struct type to be used as the basis for creating a SQL table, all its field types must have corresponding types in SQL."
+		},
+	},
+
+	"comp/snippet/tuple": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't inject tuple of indeterminate length into SQL"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "To inject a tuple into SQL, the compiler needs to be able to figure out in advance how many elements the tuple will have, and in this case it can't."
+		},
+	},
+
+	"comp/snippet/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left hand side of snippet constructor " + emph("---") + " should be snippet type literal"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You declare a snippet of type " + emph("Foo") + " with " + emph("Foo ---") + "."
+		},
+	},
+
+	"comp/try/return": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to return value from " + emph("try") + " expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A " + emph("try") + " expression is imperative and can return only success or failure"
+		},
+	},
+
+	"comp/try/var": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "using global " + emph(tok.Literal) + " in " + emph("try") + "e xpression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "the variables that capture the error of a " + emph("try") + " expression can only be local variables."
+		},
+	},
+
+	"comp/tuple/err/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "concatenation must produce error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are trying to concatenate together two values one of which is certainly of type " + emph("error") + ". As this will only return the error, Pipefish assumes this is a mistake."
+		},
+	},
+
+	"comp/tuple/err/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "concatenation must produce error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are trying to concatenate together two values one of which is certainly of type " + emph("error") + ". As this will only return the error, Pipefish assumes this is a mistake."
+		},
+	},
+
 	"comp/unreachable": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unreachable code"
@@ -132,6 +600,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have written code which can't be reached because one of the previous branches " +
 				"must be taken. As there is never any point in doing this, Pipefish assumes that this is a mistake."
+		},
+	},
+
+	"comp/var/exist": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown identifier " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You don't seem to have declared that as a variable, function, constant, or anything else."
+		},
+	},
+
+	"comp/var/var": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to change value of constant " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Having declared that value as constant, you are not allowed to change it. If you want to, define it in the " + emph("var") + " section instead."
 		},
 	},
 
@@ -185,7 +671,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/type/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't pass value of type " + emph(args[0].(string)) + " to Go as raw value"
+			return "can't pass value of type " + emph(args[0]) + " to Go as raw value"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This is because the author of Pipefish hasn't gotten around to it yet."
@@ -194,7 +680,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"golang/type/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't pass value of type " + emph(args[0].(string)) + " to Go"
+			return "can't pass value of type " + emph(args[0]) + " to Go"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This is because the author of Pipefish hasn't gotten around to it yet."
@@ -236,7 +722,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/code/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0].(string))
+			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
@@ -245,7 +731,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/code/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0].(string))
+			return "unable to open " + emph(tok.Literal) + "; error was " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return `A line in the 'external' section should consist either of the name of a service, or of an expression of the form  <service name>::"<file path>".`
@@ -913,7 +1399,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/namespace/exist": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Can't find namespace " + emph(args[0].(string))
+			return "Can't find namespace " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You haven't declared that namespace in the " + emph("import") + " or " + emph("external") + " section"
@@ -1221,7 +1707,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"sql/in/type/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't read from database into type" + emph(args[0].(string))
+			return "can't read from database into type" + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish expects a subtype of 'struct' here that matches the data you're trying to fetch from the database."

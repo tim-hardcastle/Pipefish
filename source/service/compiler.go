@@ -473,7 +473,7 @@ NodeTypeSwitch:
 				break NodeTypeSwitch
 			}
 			if !((v.access == GLOBAL_VARIABLE_PUBLIC) || (v.access == GLOBAL_VARIABLE_PRIVATE && ac != REPL)) {
-				cp.P.Throw("comp/var", node.GetToken(), name)
+				cp.P.Throw("comp/var/var", node.GetToken(), name)
 				break NodeTypeSwitch
 			}
 			// TODO --- type checking after refactoring type representation.
@@ -507,7 +507,7 @@ NodeTypeSwitch:
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
 			if mc.typeAccess[mc.Mem[enumElement].T] == PRIVATE {
-				cp.P.Throw("comp/private/enum", node.GetToken())
+				cp.P.Throw("comp/private/enum", node.GetToken(), mc.DescribeType(mc.Mem[enumElement].T))
 				break
 			}
 			cp.put(mc, Asgm, enumElement)
@@ -576,7 +576,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
-				cp.P.Throw("comp/list/index", node.GetToken())
+				cp.P.Throw("comp/index/list", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList["single?"].Union(AltType(values.ERROR))
@@ -591,7 +591,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
-				cp.P.Throw("comp/string/index", node.GetToken())
+				cp.P.Throw("comp/index/string", node.GetToken())
 				break
 			}
 			rtnTypes = AltType(values.ERROR, values.STRING)
@@ -606,7 +606,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
-				cp.P.Throw("comp/tuple/index", node.GetToken())
+				cp.P.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList["single?"].Union(AltType(values.ERROR))
@@ -617,7 +617,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.isNoneOf(values.INT) {
-				cp.P.Throw("comp/pair/index", node.GetToken())
+				cp.P.Throw("comp/index/pair", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList["single?"].Union(AltType(values.ERROR))
@@ -628,7 +628,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.isNoneOf(values.INT) {
-				cp.P.Throw("comp/type/index", node.GetToken())
+				cp.P.Throw("comp/index/type", node.GetToken())
 				break
 			}
 			if ctrConst {
@@ -644,29 +644,30 @@ NodeTypeSwitch:
 		}
 		structType, ok := containerType.isOnlyStruct(int(mc.Ub_enums))
 		if ok {
-			structNumber := structType - mc.Ub_enums
+			structOrdinal := structType - mc.Ub_enums
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					indexNumber := mc.Mem[index].V.(int)
-					fieldNumber := mc.StructResolve.Resolve(int(structNumber), indexNumber)
+					labelName := mc.Labels[indexNumber]
+					fieldNumber := mc.StructResolve.Resolve(int(structOrdinal), indexNumber)
 					if fieldNumber == -1 {
-						cp.P.Throw("comp/struct/index", node.GetToken())
+						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, mc.DescribeType(structType))
 						break
 					}
 					cp.put(mc, IxZn, container, uint32(fieldNumber))
-					rtnTypes = mc.AlternateStructFields[structNumber][fieldNumber]
+					rtnTypes = mc.AlternateStructFields[structOrdinal][fieldNumber]
 					break
 				}
 				cp.put(mc, IxZl, container, index, errTok)
 				rtnTypes = AltType()
-				for _, t := range mc.AlternateStructFields[structNumber] {
+				for _, t := range mc.AlternateStructFields[structOrdinal] {
 					rtnTypes = rtnTypes.Union(t)
 				}
 				rtnTypes = rtnTypes.Union(AltType(values.ERROR))
 				break
 			}
 			if indexType.isNoneOf(values.LABEL) {
-				cp.P.Throw("comp/struct/index", node.GetToken())
+				cp.P.Throw("comp/index/struct/b", node.GetToken())
 				break
 			}
 		}
@@ -689,7 +690,7 @@ NodeTypeSwitch:
 						}
 					}
 					if !labelIsPossible {
-						cp.P.Throw("comp/struct/index/b", node.GetToken())
+						cp.P.Throw("comp/index/struct/c", node.GetToken())
 						break
 					}
 					if !labelIsCertain {
@@ -729,7 +730,7 @@ NodeTypeSwitch:
 			cp.put(mc, Notb, mc.That())
 			break
 		}
-		cp.P.Throw("comp/infix", node.GetToken())
+		cp.P.Throw("comp/known/infix", node.GetToken())
 		break
 	case *ast.IntegerLiteral:
 		cp.Reserve(mc, values.INT, node.Value)
@@ -739,7 +740,7 @@ NodeTypeSwitch:
 		if node.Operator == "or" {
 			lTypes, lcst := cp.CompileNode(mc, node.Left, env, ac)
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/or/bool/left", node.GetToken())
+				cp.P.Throw("comp/bool/or/left", node.GetToken())
 				break
 			}
 			leftRg := mc.That()
@@ -747,7 +748,7 @@ NodeTypeSwitch:
 			skipElse := cp.vmGoTo(mc)
 			rTypes, rcst := cp.CompileNode(mc, node.Right, env, ac)
 			if !rTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/or/bool/right", node.GetToken())
+				cp.P.Throw("comp/bool/or/right", node.GetToken())
 				break
 			}
 			rightRg := mc.That()
@@ -759,14 +760,14 @@ NodeTypeSwitch:
 		if node.Operator == "and" {
 			lTypes, lcst := cp.CompileNode(mc, node.Left, env, ac)
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/and/bool/left", node.GetToken())
+				cp.P.Throw("comp/bool/and/left", node.GetToken())
 				break
 			}
 			leftRg := mc.That()
 			cp.vmIf(mc, Qtru, leftRg)
 			rTypes, rcst := cp.CompileNode(mc, node.Right, env, ac)
 			if !rTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/and/bool/right", node.GetToken())
+				cp.P.Throw("comp/bool/and/right", node.GetToken())
 				break
 			}
 			rightRg := mc.That()
@@ -782,7 +783,7 @@ NodeTypeSwitch:
 			}
 			lTypes, lcst := cp.CompileNode(mc, node.Left, env, ac)
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/cond/bool", node.GetToken())
+				cp.P.Throw("comp/bool/cond", node.GetToken())
 				break
 			}
 			// TODO --- what if it's not *only* bool?
@@ -947,7 +948,7 @@ NodeTypeSwitch:
 				break
 			}
 			if !allTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/not/bool", node.GetToken())
+				cp.P.Throw("comp/bool/not", node.GetToken())
 				break
 			}
 		}
@@ -1002,7 +1003,7 @@ NodeTypeSwitch:
 			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
-		cp.P.Throw("comp/prefix/known", node.GetToken())
+		cp.P.Throw("comp/known/prefix", node.GetToken())
 		break
 	case *ast.StringLiteral:
 		cp.Reserve(mc, values.STRING, node.Value)
@@ -1022,7 +1023,7 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = AltType(cp.StructNameToTypeNumber[t.Value]), false
 				break NodeTypeSwitch
 			default:
-				cp.P.Throw("comp/snippet/type/b", node.GetToken()) // There is no reason why this should be a first-class value, that would just be confusing. Hence the error.
+				cp.P.Throw("comp/snippet/type", node.Args[0].GetToken()) // There is no reason why this should be a first-class value, that would just be confusing. Hence the error.
 				break NodeTypeSwitch
 			}
 		}
@@ -1031,7 +1032,7 @@ NodeTypeSwitch:
 			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
-		cp.P.Throw("comp/suffix", node.GetToken())
+		cp.P.Throw("comp/known/suffix", node.GetToken())
 		break
 	case *ast.TryExpression:
 		ident := node.VarName
@@ -1084,13 +1085,13 @@ NodeTypeSwitch:
 			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
-		cp.P.Throw("comp/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
+		cp.P.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
 		break
 	default:
 		panic("Unimplemented node type.")
 	}
-	if !rtnTypes.IsLegalCmdReturn() && !rtnTypes.IsLegalDefReturn() {
-		cp.P.Throw("comp/sanity/a", node.GetToken())
+	if !rtnTypes.IsLegalCmdReturn() && !rtnTypes.IsLegalDefReturn() && !rtnTypes.Contains(values.COMPILE_TIME_ERROR) {
+		cp.P.Throw("comp/sanity", node.GetToken())
 	}
 	if ac == DEF && !rtnTypes.IsLegalDefReturn() {
 		cp.P.Throw("comp/fcis", node.GetToken())
@@ -1322,14 +1323,14 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 		backtrackList[i] = DUMMY
 		if i < cp.P.FunctionGroupMap[node.GetToken().Literal].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
-				cp.P.Throw("comp/ref/ident", node.GetToken())
+				cp.P.Throw("comp/ref/ident", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			var v *variable
 			v, ok := env.getVar(arg.GetToken().Literal)
 			if !ok {
 				if ac == REPL {
-					cp.P.Throw("comp/ref/var", node.GetToken())
+					cp.P.Throw("comp/ref/var", arg.GetToken())
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(mc, values.UNDEFINED_VALUE, nil)
@@ -1362,7 +1363,7 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 			cst = cst && cstI
 			b.valLocs[i] = mc.That()
 			if b.types[i].(AlternateType).isOnly(values.ERROR) {
-				cp.P.Throw("comp/arg/error", node.GetToken())
+				cp.P.Throw("comp/error/arg", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if b.types[i].(AlternateType).Contains(values.ERROR) {
@@ -1379,7 +1380,7 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 
 	cp.put(mc, Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.P.Throw("comp/call", b.tok)
+		cp.P.Throw("comp/error/return", b.tok)
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
@@ -1812,19 +1813,19 @@ func (cp *Compiler) emitFunctionCall(mc *Vm, funcNumber uint32, valLocs []uint32
 func (cp *Compiler) emitEquals(mc *Vm, node *ast.InfixExpression, env *Environment, ac cpAccess) (AlternateType, bool) {
 	lTypes, lcst := cp.CompileNode(mc, node.Args[0], env, ac)
 	if lTypes.isOnly(values.ERROR) {
-		cp.P.Throw("comp/eq/err/a", node.GetToken())
+		cp.P.Throw("comp/error/eq/a", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	leftRg := mc.That()
 	rTypes, rcst := cp.CompileNode(mc, node.Args[2], env, ac)
 	if rTypes.isOnly(values.ERROR) {
-		cp.P.Throw("comp/eq/err/b", node.GetToken())
+		cp.P.Throw("comp/error/eq/b", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	rightRg := mc.That()
 	oL := lTypes.intersect(rTypes)
 	if oL.isOnly(values.ERROR) {
-		cp.P.Throw("comp/eq/err/c", node.GetToken())
+		cp.P.Throw("comp/error/eq/c", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 0 {
@@ -1919,7 +1920,7 @@ func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, r
 	case *ast.Identifier:
 		v, ok := env.getVar(rhs.Value)
 		if ok {
-			cp.P.Throw("comp/pipe/ident", rhs.GetToken())
+			cp.P.Throw("comp/pipe/pipe/ident", rhs.GetToken())
 			return AltType(values.ERROR), true
 		}
 		isAttemptedFunc = true
@@ -1927,7 +1928,7 @@ func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, r
 			if rhs.GetToken().Literal == "that" { // Yeah it's a stupid corner case but the stupid user has a right to it.
 				isAttemptedFunc = false
 			} else {
-				cp.P.Throw("comp/pipe/func", rhs.GetToken())
+				cp.P.Throw("comp/pipe/pipe/func", rhs.GetToken())
 				return AltType(values.ERROR), true
 			}
 		}
@@ -1973,13 +1974,13 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 		if rhs.GetToken().Literal != "that" {
 			v, ok := env.getVar(rhs.Value)
 			if !ok {
-				cp.P.Throw("comp/mf/ident", rhs.GetToken())
+				cp.P.Throw("comp/pipe/mf/ident", rhs.GetToken())
 				return AltType(values.ERROR), true
 			}
 			isAttemptedFunc = true
 			isConst = ALL_CONST_ACCESS.Contains(v.access)
 			if !v.types.Contains(values.FUNC) {
-				cp.P.Throw("comp/mf/func", rhs.GetToken())
+				cp.P.Throw("comp/pipe/mf/func", rhs.GetToken())
 			}
 			if !v.types.isOnly(values.FUNC) {
 				cp.reserveError(mc, "vm/mf/func", rhs.GetToken())
@@ -2017,7 +2018,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 	}
 	if isFilter {
 		if !types.Contains(values.BOOL) {
-			cp.P.Throw("comp/filter/bool", rhs.GetToken())
+			cp.P.Throw("comp/pipe/filter/bool", rhs.GetToken())
 		}
 		if !types.isOnly(values.BOOL) {
 			cp.reserveError(mc, "vm/filter/bool", rhs.GetToken())
@@ -2089,7 +2090,7 @@ func (cp *Compiler) compileInjectableSnippet(mc *Vm, tok *token.Token, newEnv *E
 				if len(typeNumbers) == 1 && typeNumbers[0] > mc.Ub_enums {
 					sig, ok := mc.getSqlSig(typeNumbers[0])
 					if !ok {
-						cp.P.Throw("comp/snippet/sig", tok)
+						cp.P.Throw("comp/snippet/sig", tok, mc.DescribeType(typeNumbers[0]))
 					}
 					buf.WriteString(sig)
 					continue // ... the for loop.
