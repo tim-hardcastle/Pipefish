@@ -117,7 +117,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
 			os.Chdir(hubWords[2])    // process, if we did it with exec it would do it for
-			hub.WriteString(text.OK) // that process and not for Charm.
+			hub.WriteString(text.OK) // that process and not for Pipefish.
 			return passedServiceName, false
 		}
 		command := exec.Command(hubWords[1], hubWords[2:]...)
@@ -192,6 +192,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.WritePretty("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
 		hub.ers = []*report.Error{val.V.(*report.Error)}
+		if len(val.V.(*report.Error).Values) > 0 {
+			hub.WritePretty("\nValues are available with 'hub values'.\n")
+		}
 	} else {
 		out := serviceToUse.Mc.Literal(val)
 		hub.WriteString(out)
@@ -677,7 +680,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		if hub.ers[0].Values == nil {
-			hub.WriteError("no values are available.")
+			hub.WriteError("no values were passed.")
 			return false
 		}
 		if len(hub.ers[0].Values) == 0 {
@@ -685,12 +688,16 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		if len(hub.ers[0].Values) == 1 {
-			hub.WriteString("\nThe value passed was:\n")
+			hub.WriteString("\nThe value passed was:\n\n")
 		} else {
-			hub.WriteString("\nValues passed were:\n")
+			hub.WriteString("\nValues passed were:\n\n")
 		}
 		for _, v := range hub.ers[0].Values {
-			hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName].Mc.Literal(v))
+			if v.T == values.BLING {
+				hub.WritePretty(text.BULLET_SPACING + hub.services[hub.currentServiceName].Mc.Literal(v))
+			} else {
+				hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName].Mc.Literal(v))
+			}
 		}
 		hub.WriteString("\n")
 		return false

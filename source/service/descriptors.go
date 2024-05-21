@@ -209,6 +209,8 @@ func (vm *Vm) makeError(errCode string, tokenOrdinal uint32, args ...any) values
 		switch arg := arg.(type) {
 		case uint32:
 			result.Values = append(result.Values, vm.Mem[arg])
+		case values.Value:
+			result.Values = append(result.Values, arg)
 		default:
 			result.Args = append(result.Args, arg)
 		}

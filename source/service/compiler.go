@@ -1307,7 +1307,7 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 	}
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.P.FunctionGroupMap[node.GetToken().Literal].Tree,
-		outLoc:       cp.reserveError(mc, "mc/oopsie", node.GetToken(), []any{}),
+		outLoc:       cp.reserveError(mc, "mc/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
@@ -1352,7 +1352,8 @@ func (cp *Compiler) createFunctionCall(mc *Vm, argCompiler *Compiler, node ast.C
 		switch arg := arg.(type) { // It might be bling.
 		case *ast.Bling:
 			b.types[i] = AlternateType{blingType{arg.Value}}
-			b.valLocs[i] = values.C_BLING
+			cp.Reserve(mc, values.BLING, arg.Value)
+			b.valLocs[i] = mc.That()
 		default: // Otherwise we emit code to evaluate it.
 			b.types[i], cstI = argCompiler.CompileNode(mc, arg, env, ac)
 			if b.types[i].(AlternateType).Contains(values.COMPILE_TIME_ERROR) {
@@ -1475,7 +1476,11 @@ func (cp *Compiler) generateBranch(mc *Vm, b *bindle) AlternateType {
 		return cp.generateNewArgument(mc, &newBindle)
 	}
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
-		cp.reserveError(mc, "mc/types/a", b.tok, []any{})
+		cp.reserveError(mc, "mc/types/a", b.tok)
+		for _, loc := range b.valLocs {
+			mc.Mem[mc.That()].V.(*report.Error).Args = append(mc.Mem[mc.That()].V.(*report.Error).Args, loc)
+		}
+		cp.Emit(mc, UntE, mc.That())
 		cp.Emit(mc, Asgm, b.outLoc, mc.That())
 		return AltType(values.ERROR)
 	}
@@ -1759,7 +1764,11 @@ func (cp *Compiler) seekFunctionCall(mc *Vm, b *bindle) AlternateType {
 			return F.Types                        // TODO : Is there a reason why this should be so?
 		}
 	}
-	cp.reserveError(mc, "mc/types/b", b.tok, []any{}) // TODO : the bindle can accumulate the types to allow us to generates this error properly.
+	cp.reserveError(mc, "mc/types/b", b.tok)
+	for _, loc := range b.valLocs {
+		mc.Mem[mc.That()].V.(*report.Error).Args = append(mc.Mem[mc.That()].V.(*report.Error).Args, loc)
+	}
+	cp.Emit(mc, UntE, mc.That())
 	cp.Emit(mc, Asgm, b.outLoc, mc.That())
 	return AltType(values.ERROR)
 }
@@ -1923,7 +1932,7 @@ func (cp *Compiler) compilePipe(mc *Vm, lhsTypes AlternateType, lhsConst bool, r
 			}
 		}
 		if !v.types.isOnly(values.FUNC) {
-			cp.reserveError(mc, "vm/pipe/func", rhs.GetToken(), []any{})
+			cp.reserveError(mc, "vm/pipe/func", rhs.GetToken())
 			cp.Emit(mc, Qntp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
 			typeIsNotFunc = cp.vmEarlyReturn(mc, mc.That())
 		}
@@ -1973,7 +1982,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 				cp.P.Throw("comp/mf/func", rhs.GetToken())
 			}
 			if !v.types.isOnly(values.FUNC) {
-				cp.reserveError(mc, "vm/mf/func", rhs.GetToken(), []any{})
+				cp.reserveError(mc, "vm/mf/func", rhs.GetToken())
 				cp.Emit(mc, Qntp, v.mLoc, uint32(values.FUNC), mc.CodeTop()+3)
 				typeIsNotFunc = cp.vmEarlyReturn(mc, mc.That())
 			}
@@ -2011,7 +2020,7 @@ func (cp *Compiler) compileMappingOrFilter(mc *Vm, lhsTypes AlternateType, lhsCo
 			cp.P.Throw("comp/filter/bool", rhs.GetToken())
 		}
 		if !types.isOnly(values.BOOL) {
-			cp.reserveError(mc, "vm/filter/bool", rhs.GetToken(), []any{})
+			cp.reserveError(mc, "vm/filter/bool", rhs.GetToken())
 			cp.Emit(mc, Qntp, resultElement, uint32(values.BOOL), mc.CodeTop()+2)
 			resultIsNotBool = cp.vmEarlyReturn(mc, mc.That())
 		}

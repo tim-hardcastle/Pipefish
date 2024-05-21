@@ -16,8 +16,11 @@ Oof = struct(blort string, oof int)
 
 def
 
-troz (s string) :
+troz(s string) :
     s
+
+zort(s, t) :
+    s + t
 
 double (n Number) :
     n + n

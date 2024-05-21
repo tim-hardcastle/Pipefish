@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	VERSION     = "0.4.1"
-	BULLET      = "  ▪ "
-	GOOD_BULLET = "\033[32m  ▪ \033[0m"
-	BROKEN      = "\033[31m  ✖ \033[0m"
-	PROMPT      = "→ "
+	VERSION        = "0.4.9"
+	BULLET         = "  ▪ "
+	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
+	GOOD_BULLET    = "\033[32m  ▪ \033[0m"
+	BROKEN         = "\033[31m  ✖ \033[0m"
+	PROMPT         = "→ "
 )
 
 func ExtractFileName(s string) string {
@@ -203,7 +204,7 @@ var (
 	WHITE  = "\033[97m"
 
 	ERROR     = "$Error$"
-	RT_ERROR  = "$Runtime error$"
+	RT_ERROR  = "$Error$"
 	HUB_ERROR = "$Hub error$"
 	OK        = Green("OK")
 )
