@@ -126,7 +126,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	beginCount := 0
 	indentCount := 0
 	lastTokenWasColon := false
-	colonMeansFunctionOrCommand := true
 	expressionIsStruct := false
 	expressionIsEnum := false
 	isPrivate := false
@@ -148,6 +147,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	}
 
 	currentSection = tokenTypeToSection[tok.Type]
+	colonMeansFunctionOrCommand := (currentSection == CmdSection || currentSection == DefSection)
 
 	line := token.NewCodeChunk()
 
@@ -162,7 +162,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			currentSection = tokenTypeToSection[tok.Type]
 			isPrivate = false
 			lastTokenWasColon = false
-			colonMeansFunctionOrCommand = true
+			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
 		if tok.Type == token.PRIVATE {
@@ -205,7 +205,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				beginCount = 0 // Prevents error storm.
 				expressionIsStruct = false
 				expressionIsEnum = false
-				colonMeansFunctionOrCommand = true
+				colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 				continue
 			}
 			switch currentSection {
@@ -268,7 +268,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			line = token.NewCodeChunk()
 			expressionIsStruct = false
 			expressionIsEnum = false
-			colonMeansFunctionOrCommand = true
+			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
 
@@ -361,7 +361,7 @@ func (uP *Initializer) addTypesToParser() {
 				uP.Throw("init/type/null", tok1)
 				continue
 			}
-			if parser.TypeExists(name, uP.Parser.TypeSystem) {
+			if uP.Parser.Suffixes.Contains(name) {
 				uP.Throw("init/type/exists", tok1)
 				continue
 			}

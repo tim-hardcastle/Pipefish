@@ -1092,7 +1092,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/type/exists": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "type" + emph(tok.Literal) + "already exists"
+			return "type " + emph(tok.Literal) + " already exists"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You can't declare a type more than once.."

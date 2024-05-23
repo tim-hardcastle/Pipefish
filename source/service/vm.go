@@ -10,6 +10,7 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
+	"pipefish/source/dtypes"
 	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/text"
@@ -47,6 +48,8 @@ type Vm struct {
 	OwnService            *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
 	HubServices           map[string]*VmService // The same map that the hub has.
 	ExternalCallHandlers  []externalCallHandler // The services declared external, whether on the same hub or a different one.
+	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
+	codeGeneratingTypes dtypes.Set[values.ValueType]
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -80,11 +83,19 @@ type GoFn struct {
 	Raw    []bool
 }
 
+type Lambda struct {
+	capturesStart  uint32
+	capturesEnd    uint32
+	parametersEnd  uint32
+	resultLocation uint32
+	addressToCall  uint32
+	Captures       []values.Value
+}
+
 // All the information we need to make a lambda at a particular point in the code.
 type LambdaFactory struct {
-	Model  *Lambda  // Copy this to make the lambda.
-	ExtMem []uint32 // Then these are the location of the values we're closing over, so we copy them into the lambda.
-	Size   uint32   // The size of the memory for a new VM.
+	Model            *Lambda  // Copy this to make the lambda.
+	CaptureLocations []uint32 // Then these are the location of the values we're closing over, so we copy them into the lambda.
 }
 
 // All the information we need to make a snippet at a particular point in the code.
@@ -112,15 +123,6 @@ type SnippetData struct {
 	Bindle           *SnippetBindle
 }
 
-type Lambda struct {
-	Mc        *Vm
-	ExtTop    uint32
-	PrmTop    uint32
-	Dest      uint32
-	LocToCall uint32
-	Captures  []values.Value
-}
-
 // Used for injecting data into HTML.
 type HTMLInjector struct {
 	Data []any
@@ -132,7 +134,8 @@ var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
-		typeAccess: make([]tyAccess, values.LB_ENUMS)} // This primes the list with NATIVE for every native type.
+		typeAccess:          make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
+		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
@@ -264,12 +267,14 @@ loop:
 			}
 		case Dofn:
 			lhs := vm.Mem[args[1]].V.(Lambda)
-			for i := 0; i < int(lhs.PrmTop-lhs.ExtTop); i++ {
-				lhs.Mc.Mem[int(lhs.ExtTop)+i] = vm.Mem[args[2+i]]
+			for i := 0; i < int(lhs.capturesEnd-lhs.capturesStart); i++ {
+				vm.Mem[int(lhs.capturesStart)+i] = lhs.Captures[i]
 			}
-			copy(lhs.Captures, vm.Mem)
-			lhs.Mc.Run(lhs.LocToCall)
-			vm.Mem[args[0]] = lhs.Mc.Mem[lhs.Dest]
+			for i := 0; i < int(lhs.parametersEnd-lhs.capturesEnd); i++ {
+				vm.Mem[int(lhs.capturesEnd)+i] = vm.Mem[args[2+i]]
+			}
+			vm.Run(lhs.addressToCall)
+			vm.Mem[args[0]] = vm.Mem[lhs.resultLocation]
 		case Dref:
 			vm.Mem[args[0]] = vm.Mem[vm.Mem[args[1]].V.(uint32)]
 		case Equb:
@@ -644,8 +649,8 @@ loop:
 		case Mkfn:
 			lf := vm.LambdaFactories[args[1]]
 			newLambda := *lf.Model
-			newLambda.Captures = make([]values.Value, len(lf.ExtMem))
-			for i, v := range lf.ExtMem {
+			newLambda.Captures = make([]values.Value, len(lf.CaptureLocations))
+			for i, v := range lf.CaptureLocations {
 				newLambda.Captures[i] = vm.Mem[v]
 			}
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
@@ -977,8 +982,7 @@ loop:
 		case Subi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
 		case Thnk:
-			vm.Mem[args[0]].T = values.THUNK
-			vm.Mem[args[0]].V = args[1]
+			vm.Mem[args[0]] = values.Value{values.THUNK, args[1]}
 		case TupL:
 			vector := vm.Mem[args[1]].V.(vector.Vector)
 			length := vector.Len()

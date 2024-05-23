@@ -1,26 +1,11 @@
-newtype
-
-Oom = struct(verp string, oof Number)
-
-Number = int/float
-
-IntTree = struct (left, right TreeOrLeaf)
-
-TreeOrLeaf = IntTree/int
-
-// private
-
-Color = enum RED, BLACK
-
-Oof = struct(blort string, oof int)
-
 def
 
-troz(s string) :
-    s
+zort(i) :
+    glerp 2 
+given :
+    glerp(x) :
+        i
 
-zort(s, t) :
-    s + t
 
-double (n Number) :
-    n + n
+
+

@@ -270,60 +270,61 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 	return target
 }
 
-func (cp *Compiler) reserveLambdaFactory(mc *Vm, env *Environment, fnNode *ast.FuncExpression, tok *token.Token) (uint32, bool) {
+func (cp *Compiler) compileLambda(mc *Vm, env *Environment, fnNode *ast.FuncExpression, tok *token.Token) bool {
+
 	LF := &LambdaFactory{Model: &Lambda{}}
-	LF.Model.Mc = BlankVm(mc.Database, mc.HubServices)
-	LF.Model.Mc.Code = []*Operation{}
 	newEnv := NewEnvironment()
 	sig := fnNode.Sig
-	// First, we're going to find all (if any) variables/constants declared outside of the function: anything we're closing over.
-	// We do this by a process of elimination: find the variables declared in the function parameters and the given block,
-	// then subtract them from the identifiers in the main body of the function.
+	skipLambdaCode := cp.vmGoTo(mc)
+	LF.Model.capturesStart = mc.MemTop()
 
-	// We get the function parameters.
+	// We get the function parameters. These shadow anything we might otherwise capture.
 	params := dtypes.Set[string]{}
 	for _, pair := range sig {
 		params.Add(pair.VarName)
 	}
 	// We find all the identifiers that we declare in the 'given' block.
-	locals := ast.GetLhsOfAssignments(fnNode.Given)
+	locals, rhs := ast.GetVariablesFromLhsAndRhsOfAssignments(fnNode.Given)
 	// Find all the variable names in the body.
 	bodyNames := ast.GetVariableNames(fnNode.Body)
-	captures := bodyNames.SubtractSet(params).SubtractSet(locals)
+	rhs.AddSet(bodyNames)
+	captures := rhs.SubtractSet(params).SubtractSet(locals)
 	for k := range captures {
 		v, ok := env.getVar(k)
 		if !ok {
 			cp.P.Throw("comp/body/known", tok)
 		}
-		cp.Reserve(LF.Model.Mc, 0, DUMMY) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
-		cp.AddVariable(LF.Model.Mc, newEnv, k, v.access, v.types)
+		cp.Reserve(mc, values.UNDEFINED_VALUE, nil) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
+		cp.AddVariable(mc, newEnv, k, v.access, v.types)
 		// At the same time, the lambda factory need to know where they are in the calling vm.Vm.
-		LF.ExtMem = append(LF.ExtMem, v.mLoc)
+		LF.CaptureLocations = append(LF.CaptureLocations, v.mLoc)
 	}
 
-	LF.Model.ExtTop = LF.Model.Mc.MemTop()
+	LF.Model.capturesEnd = mc.MemTop()
 
 	// Add the function parameters.
 	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
-		cp.Reserve(LF.Model.Mc, 0, DUMMY)
-		cp.AddVariable(LF.Model.Mc, newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType])
+		cp.Reserve(mc, 0, DUMMY)
+		cp.AddVariable(mc, newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType])
 	}
 
-	LF.Model.PrmTop = LF.Model.Mc.MemTop()
+	LF.Model.parametersEnd = mc.MemTop()
 
 	// Compile the locals.
 
 	if fnNode.Given != nil {
+		saveThunkList := cp.ThunkList // TODO --- this is bad coding and I know it. The whole ThunkList thing is deeply sus. Replace with a stack?
 		cp.ThunkList = []Thunk{}
-		cp.CompileNode(LF.Model.Mc, fnNode.Given, newEnv, LAMBDA)
+		cp.CompileNode(mc, fnNode.Given, newEnv, LAMBDA)
 		for _, pair := range cp.ThunkList {
-			cp.Emit(LF.Model.Mc, Thnk, pair.MLoc, pair.CLoc)
+			cp.Emit(mc, Thnk, pair.MLoc, pair.CLoc)
 		}
+		cp.ThunkList = saveThunkList
 	}
 
 	// Function starts here.
 
-	LF.Model.LocToCall = LF.Model.Mc.CodeTop()
+	LF.Model.addressToCall = mc.CodeTop()
 
 	// We have to typecheck inside the lambda, because the calling site doesn't know which function it's calling.
 
@@ -331,15 +332,21 @@ func (cp *Compiler) reserveLambdaFactory(mc *Vm, env *Environment, fnNode *ast.F
 
 	// Now we can emit the main body of the function.
 
-	cp.CompileNode(LF.Model.Mc, fnNode.Body, newEnv, LAMBDA)
-	LF.Model.Dest = LF.Model.Mc.That()
-	LF.Size = LF.Model.Mc.CodeTop()
-	cp.Emit(LF.Model.Mc, Ret)
+	cp.CompileNode(mc, fnNode.Body, newEnv, LAMBDA)
+	LF.Model.resultLocation = mc.That()
+	cp.Emit(mc, Ret)
+	cp.vmComeFrom(mc, skipLambdaCode)
 
-	// We have made our lambda factory!
+	// We have made our lambda factory! But do we need it? If there are no captures, then the function is a constant, and we
+	// can just reserve it in memory.
 
+	if captures.IsEmpty() {
+		cp.Reserve(mc, values.FUNC, *LF.Model)
+		return true
+	}
 	mc.LambdaFactories = append(mc.LambdaFactories, LF)
-	return uint32(len(mc.LambdaFactories) - 1), captures.IsEmpty() // A lambda which doesn't close over anything is a constant.
+	cp.put(mc, Mkfn, uint32(len(mc.LambdaFactories)-1))
+	return false
 }
 
 func (cp *Compiler) AddVariable(mc *Vm, env *Environment, name string, acc varAccess, types AlternateType) {
@@ -497,10 +504,9 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
 		break
 	case *ast.FuncExpression:
-		facNo, isConst := cp.reserveLambdaFactory(mc, env, node, node.GetToken())
-		cp.put(mc, Mkfn, facNo)
-		rtnTypes, rtnConst = AltType(values.FUNC), isConst
-		break
+		rtnConst = cp.compileLambda(mc, env, node, node.GetToken())
+		rtnTypes = AltType(values.FUNC) // In the case where the function is a constant (i.e. has no captures), the compileLambda function will emit an assignment rather than a lambda factory.)
+		break                           // Things that return functions and snippets are not folded, even if they are constant.
 	case *ast.Identifier:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		cp.P.GetErrorsFrom(resolvingCompiler.P)
@@ -984,6 +990,9 @@ NodeTypeSwitch:
 			v, ok = env.getVar(node.Operator)
 		}
 		if ok && v.types.Contains(values.FUNC) {
+			if v.access == LOCAL_CONSTANT_THUNK {
+				cp.Emit(mc, Untk, v.mLoc)
+			}
 			operands := []uint32{v.mLoc}
 			for _, arg := range node.Args {
 				cp.CompileNode(mc, arg, env, ac)
@@ -994,7 +1003,8 @@ NodeTypeSwitch:
 			}
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
 				cp.put(mc, Dofn, operands...)
-			}
+			} // TODO --- what if not?
+			rtnConst = false
 			rtnTypes = cp.AnyTypeScheme
 			break
 		}
@@ -1112,8 +1122,10 @@ NodeTypeSwitch:
 		} else {
 			rtnTypes = AltType(result.T)
 		}
-		mc.rollback(state)
-		cp.Reserve(mc, result.T, result.V)
+		if !rtnTypes.containsAnyOf(mc.codeGeneratingTypes.ToSlice()...) {
+			mc.rollback(state)
+			cp.Reserve(mc, result.T, result.V)
+		}
 	}
 	return rtnTypes, rtnConst
 }
@@ -1791,7 +1803,7 @@ func (cp *Compiler) seekBling(mc *Vm, b *bindle, bling string) AlternateType {
 func (cp *Compiler) Emit(mc *Vm, opcode Opcode, args ...uint32) {
 	mc.Code = append(mc.Code, MakeOp(opcode, args...))
 	if cp.showCompile {
-		println(mc, mc.DescribeCode(mc.CodeTop()-1))
+		println(mc.DescribeCode(mc.CodeTop() - 1))
 	}
 }
 

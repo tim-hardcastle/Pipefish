@@ -415,37 +415,33 @@ func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
 
 // And other useful stuff.
 
-func GetLhsOfAssignments(n Node) dtypes.Set[string] {
+func GetVariablesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.Set[string]) { // This slurps the variable usage out of `given` blocks specifically.
 	switch n := n.(type) {
 	case *AssignmentExpression:
-		return GetVariableNames(n.Left)
+		println("hi")
+		return GetVariableNames(n.Left), GetVariableNames(n.Right)
 	case *LazyInfixExpression:
-		result := GetLhsOfAssignments(n.Left)
-		result.AddSet(GetLhsOfAssignments(n.Right))
-		return result
+		lhs1, rhs1 := GetVariablesFromLhsAndRhsOfAssignments(n.Left)
+		lhs2, rhs2 := GetVariablesFromLhsAndRhsOfAssignments(n.Right)
+		lhs1.AddSet(lhs2)
+		rhs1.AddSet(rhs2)
+		return lhs1, lhs2
 	default:
-		return dtypes.Set[string]{}
+		return dtypes.Set[string]{}, dtypes.Set[string]{}
 	}
 }
 
 func GetVariableNames(n Node) dtypes.Set[string] {
-	result := dtypes.Set[string]{}
-	children := recursiveChildren(n)
-	for _, v := range children {
-		switch ident := v.(type) {
-		case *Identifier:
-			result.Add(ident.Value)
+	switch ident := n.(type) {
+	case *Identifier:
+		return (make(dtypes.Set[string])).Add(ident.Value)
+	default:
+		result := dtypes.Set[string]{}
+		for _, v := range n.Children() {
+			result.AddSet(GetVariableNames(v))
 		}
+		return result
 	}
-	return result
-}
-
-func recursiveChildren(n Node) []Node {
-	result := n.Children()
-	for _, v := range n.Children() {
-		result = append(result, recursiveChildren(v)...)
-	}
-	return result
 }
 
 type Function struct {

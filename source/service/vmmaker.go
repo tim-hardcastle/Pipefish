@@ -642,6 +642,7 @@ func (vmm *VmMaker) createSnippetTypes(mc *Vm) {
 
 		// And the vm.
 		vmm.addStructLabelsToMc(mc, name, typeNo, sig)
+		mc.codeGeneratingTypes.Add(typeNo) // This prevents the assignment of a snippet to a variable or a constant from being rolled back, erasing the generated code.
 
 		mc.AbstractStructFields = append(mc.AbstractStructFields, abTypes)
 		mc.AlternateStructFields = append(mc.AlternateStructFields, altTypes)
@@ -835,28 +836,31 @@ func (vmm *VmMaker) evaluateConstantsAndVariables(mc *Vm) {
 				vmm.uP.Throw("init/assign/ident", *dec.GetToken())
 			}
 			vname := lhs.(*ast.Identifier).Value
-			runFrom := mc.CodeTop()
-			inferedType, _ := vmm.cp.CompileNode(mc, rhs, vmm.cp.GlobalVars, INIT)
+			rollbackTo := mc.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations after
+			vmm.cp.CompileNode(mc, rhs, vmm.cp.GlobalVars, INIT)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
 			vmm.cp.Emit(mc, Ret)
-			mc.Run(runFrom)
+			mc.Run(uint32(rollbackTo.code))
+			result := mc.Mem[mc.That()]
 			isPrivate := vmm.uP.isPrivate(declarations, v)
 			if declarations == int(constantDeclaration) {
 				if isPrivate {
-					vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PRIVATE, inferedType)
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PRIVATE, altType(result.T))
 				} else {
-					vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PUBLIC, inferedType)
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PUBLIC, altType(result.T))
 				}
 			} else {
 				if isPrivate {
-					vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PRIVATE, inferedType)
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PRIVATE, altType(result.T))
 				} else {
-					vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, inferedType)
+					vmm.cp.AddVariable(mc, vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, altType(result.T))
 				}
 			}
-			mc.Code = mc.Code[:runFrom]
+			if !mc.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+				mc.rollback(rollbackTo)
+			}
 		}
 	}
 }

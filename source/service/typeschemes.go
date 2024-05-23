@@ -315,7 +315,16 @@ func (aT AlternateType) IsLegalDefReturn() bool {
 	return true
 }
 
-func (aT AlternateType) Contains(vt values.ValueType) bool {
+func (aT AlternateType) containsAnyOf(vts ...values.ValueType) bool {
+	for _, vt := range vts {
+		if aT.Contains(vt) {
+			return true
+		}
+	}
+	return false
+}
+
+func (aT AlternateType) Contains(vt values.ValueType) bool { // TODO --- make recursive on typedTupleTyp etc or there will be corner cases.
 	t := simpleType(vt)
 	if vt == values.TUPLE { // Special-case tuples.
 		for _, ty := range aT {
