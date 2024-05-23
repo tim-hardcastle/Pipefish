@@ -6,7 +6,7 @@ import (
 )
 
 type functionAndReturnType struct {
-	f func(cp *Compiler, mc *Vm, tok *token.Token, dest uint32, args []uint32)
+	f func(cp *Compiler, tok *token.Token, dest uint32, args []uint32)
 	T AlternateType
 }
 
@@ -77,258 +77,258 @@ var BUILTINS = map[string]functionAndReturnType{
 	"varchar":           {(*Compiler).btVarchar, AltType(values.TYPE, values.ERROR)},
 }
 
-func (cp *Compiler) btAddFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Addf, dest, args[0], args[2])
+func (cp *Compiler) btAddFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Addf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btAddIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Addi, dest, args[0], args[2])
+func (cp *Compiler) btAddIntegers(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Addi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btAddLists(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, AddL, dest, args[0], args[2])
+func (cp *Compiler) btAddLists(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(AddL, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btAddSets(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, AddS, dest, args[0], args[2])
+func (cp *Compiler) btAddSets(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(AddS, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btAddStrings(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Adds, dest, args[0], args[2])
+func (cp *Compiler) btAddStrings(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Adds, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btDivideFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Divf, dest, args[0], args[2], cp.reserveToken(mc, tok))
+func (cp *Compiler) btDivideFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Divf, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btDivideIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Divi, dest, args[0], args[2], cp.reserveToken(mc, tok))
+func (cp *Compiler) btDivideIntegers(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Divi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btFloatOfInt(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Flti, dest, args[0])
+func (cp *Compiler) btFloatOfInt(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Flti, dest, args[0])
 }
 
-func (cp *Compiler) btFloatOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Flts, dest, args[0])
+func (cp *Compiler) btFloatOfString(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Flts, dest, args[0])
 }
 
-func (cp *Compiler) btGetFromSpecialSnippet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gsnp, mc.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(mc, Qtyp, mc.Mem[args[0]].V.(uint32), uint32(values.ERROR), mc.CodeTop()+3)
-	cp.Emit(mc, Asgm, dest, mc.Mem[args[0]].V.(uint32))
-	cp.Emit(mc, Jmp, mc.CodeTop()+2)
-	cp.Emit(mc, Asgm, dest, values.C_OK)
+func (cp *Compiler) btGetFromSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gsnp, cp.vm.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(Qtyp, cp.vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
+	cp.Emit(Asgm, dest, cp.vm.Mem[args[0]].V.(uint32))
+	cp.Emit(Jmp, cp.CodeTop()+2)
+	cp.Emit(Asgm, dest, values.C_OK)
 }
 
-func (cp *Compiler) btGetFromInput(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Inpt, mc.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(mc, Asgm, dest, values.C_OK)
+func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Inpt, cp.vm.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(Asgm, dest, values.C_OK)
 }
 
-func (cp *Compiler) btGtFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gthf, dest, args[0], args[2])
+func (cp *Compiler) btGtFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gthf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btGteFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gtef, dest, args[0], args[2])
+func (cp *Compiler) btGteFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gtef, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btGtInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gthi, dest, args[0], args[2])
+func (cp *Compiler) btGtInts(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gthi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btGteInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gtei, dest, args[0], args[2])
+func (cp *Compiler) btGteInts(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gtei, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btIdentity(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Idfn, dest, args[0])
+func (cp *Compiler) btIdentity(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Idfn, dest, args[0])
 }
 
-func (cp *Compiler) btIntOfFloat(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Intf, dest, args[0])
+func (cp *Compiler) btIntOfFloat(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Intf, dest, args[0])
 }
 
-func (cp *Compiler) btIntOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Ints, dest, args[0])
+func (cp *Compiler) btIntOfString(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Ints, dest, args[0])
 }
 
-func (cp *Compiler) btKeysOfMap(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, KeyM, dest, args[0])
+func (cp *Compiler) btKeysOfMap(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(KeyM, dest, args[0])
 }
 
-func (cp *Compiler) btKeysOfStruct(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, KeyZ, dest, args[0])
+func (cp *Compiler) btKeysOfStruct(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(KeyZ, dest, args[0])
 }
 
-func (cp *Compiler) btLabelOfString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Lbls, dest, args[0], cp.reserveToken(mc, tok))
+func (cp *Compiler) btLabelOfString(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Lbls, dest, args[0], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btLenList(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, LenL, dest, args[0])
+func (cp *Compiler) btLenList(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(LenL, dest, args[0])
 }
 
-func (cp *Compiler) btLenMap(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, LenM, dest, args[0])
+func (cp *Compiler) btLenMap(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(LenM, dest, args[0])
 }
 
-func (cp *Compiler) btLenSet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, LenS, dest, args[0])
+func (cp *Compiler) btLenSet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(LenS, dest, args[0])
 }
 
-func (cp *Compiler) btLenString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Lens, dest, args[0])
+func (cp *Compiler) btLenString(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Lens, dest, args[0])
 }
 
-func (cp *Compiler) btLenTuple(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, LenT, dest, args[0])
+func (cp *Compiler) btLenTuple(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(LenT, dest, args[0])
 }
 
-func (cp *Compiler) btListWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, WthL, dest, args[0], args[1], cp.reserveToken(mc, tok))
+func (cp *Compiler) btListWith(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(WthL, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btLiteral(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Litx, dest, args[0])
+func (cp *Compiler) btLiteral(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Litx, dest, args[0])
 }
 
-func (cp *Compiler) btLtFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gthf, dest, args[2], args[0])
+func (cp *Compiler) btLtFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gthf, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btLteFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gtef, dest, args[2], args[0])
+func (cp *Compiler) btLteFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gtef, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btLtInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gthi, dest, args[2], args[0])
+func (cp *Compiler) btLtInts(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gthi, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btLteInts(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Gtei, dest, args[2], args[0])
+func (cp *Compiler) btLteInts(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Gtei, dest, args[2], args[0])
 }
 
-func (cp *Compiler) btMakeError(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Mker, dest, args[0], cp.reserveToken(mc, tok))
+func (cp *Compiler) btMakeError(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mker, dest, args[0], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btMakeMap(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Mkmp, dest, args[0], cp.reserveToken(mc, tok))
+func (cp *Compiler) btMakeMap(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mkmp, dest, args[0], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btMakePair(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Mkpr, dest, args[0], args[2])
+func (cp *Compiler) btMakePair(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mkpr, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btMakeSet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Mkst, dest, args[0], cp.reserveToken(mc, tok))
+func (cp *Compiler) btMakeSet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mkst, dest, args[0], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btMapWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, WthM, dest, args[0], args[1], cp.reserveToken(mc, tok))
+func (cp *Compiler) btMapWith(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(WthM, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btMapWithout(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, WtoM, dest, args[0], args[1], cp.reserveToken(mc, tok))
+func (cp *Compiler) btMapWithout(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(WtoM, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btModuloIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Modi, dest, args[0], args[2], cp.reserveToken(mc, tok))
+func (cp *Compiler) btModuloIntegers(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Modi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btMultiplyFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Mulf, dest, args[0], args[2])
+func (cp *Compiler) btMultiplyFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mulf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btMultiplyIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Muli, dest, args[0], args[2])
+func (cp *Compiler) btMultiplyIntegers(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Muli, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btNegateFloat(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Negf, dest, args[0])
+func (cp *Compiler) btNegateFloat(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Negf, dest, args[0])
 }
 
-func (cp *Compiler) btNegateInteger(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Negi, dest, args[0])
+func (cp *Compiler) btNegateInteger(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Negi, dest, args[0])
 }
 
-func (cp *Compiler) btPostToOutput(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Outp, args[0])
-	cp.Emit(mc, Asgm, dest, values.C_OK)
+func (cp *Compiler) btPostToOutput(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Outp, args[0])
+	cp.Emit(Asgm, dest, values.C_OK)
 }
 
-func (cp *Compiler) btPostSpecialSnippet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Psnp, dest, args[0])
+func (cp *Compiler) btPostSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Psnp, dest, args[0])
 }
 
-func (cp *Compiler) btPostToTerminal(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Outt, args[0])
-	cp.Emit(mc, Asgm, dest, values.C_OK)
+func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Outt, args[0])
+	cp.Emit(Asgm, dest, values.C_OK)
 }
 
-func (cp *Compiler) btSingleInList(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, InxL, dest, args[0], args[2])
+func (cp *Compiler) btSingleInList(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(InxL, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btSingleInSet(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, InxS, dest, args[0], args[2])
+func (cp *Compiler) btSingleInSet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(InxS, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btSingleInTuple(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, InxT, dest, args[0], args[1])
+func (cp *Compiler) btSingleInTuple(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(InxT, dest, args[0], args[1])
 }
 
-func (cp *Compiler) btSingleInType(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Inxt, dest, args[0], args[2])
+func (cp *Compiler) btSingleInType(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Inxt, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btString(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Strx, dest, args[0])
+func (cp *Compiler) btString(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Strx, dest, args[0])
 }
 
-func (cp *Compiler) btStructWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, WthZ, dest, args[0], args[1], cp.reserveToken(mc, tok))
+func (cp *Compiler) btStructWith(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(WthZ, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btSubtractFloats(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Subf, dest, args[0], args[2])
+func (cp *Compiler) btSubtractFloats(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Subf, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btSubtractIntegers(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Subi, dest, args[0], args[2])
+func (cp *Compiler) btSubtractIntegers(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Subi, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btTupleOfSingle(mc *Vm, tok *token.Token, dest uint32, args []uint32) { // TODO --- do we need this or not?
-	cp.Emit(mc, Cv1T, dest, args[0])
+func (cp *Compiler) btTupleOfSingle(tok *token.Token, dest uint32, args []uint32) { // TODO --- do we need this or not?
+	cp.Emit(Cv1T, dest, args[0])
 }
 
-func (cp *Compiler) btTuplifyList(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, TupL, dest, args[0])
+func (cp *Compiler) btTuplifyList(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(TupL, dest, args[0])
 }
 
-func (cp *Compiler) btTupleOfTuple(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
+func (cp *Compiler) btTupleOfTuple(tok *token.Token, dest uint32, args []uint32) {
 	destWithArgs := append([]uint32{dest}, args...)
-	cp.Emit(mc, CvTT, destWithArgs...)
+	cp.Emit(CvTT, destWithArgs...)
 }
 
-func (cp *Compiler) btType(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Typx, dest, args[0])
+func (cp *Compiler) btType(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Typx, dest, args[0])
 }
 
-func (cp *Compiler) btTypeOfTuple(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Asgm, dest, cp.TupleType)
+func (cp *Compiler) btTypeOfTuple(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Asgm, dest, cp.TupleType)
 }
 
-func (cp *Compiler) btTypeUnion(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Typu, dest, args[0], args[2])
+func (cp *Compiler) btTypeUnion(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Typu, dest, args[0], args[2])
 }
 
-func (cp *Compiler) btTypeWith(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Wtht, dest, args[0], args[1], cp.reserveToken(mc, tok))
+func (cp *Compiler) btTypeWith(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Wtht, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
-func (cp *Compiler) btVarchar(mc *Vm, tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(mc, Varc, dest, args[0], cp.reserveToken(mc, tok))
+func (cp *Compiler) btVarchar(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Varc, dest, args[0], cp.reserveToken(tok))
 }

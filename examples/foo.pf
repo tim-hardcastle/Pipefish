@@ -1,10 +1,10 @@
 def
 
-zort(i) :
-    glerp 2 
+zort(i, j) :
+    i + glerp i 
 given :
     glerp(x) :
-        i
+        j * x
 
 
 

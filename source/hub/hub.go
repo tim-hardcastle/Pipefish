@@ -1428,5 +1428,5 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 
 // We return the parser because this is where any compile-time errors in lex-parse-compile will end up.
 func ServiceDo(serviceToUse *service.VmService, line string) values.Value {
-	return serviceToUse.Cp.Do(serviceToUse.Mc, line)
+	return serviceToUse.Cp.Do(line)
 }

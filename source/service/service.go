@@ -40,9 +40,9 @@ type externalCallToHubHandler struct {
 // There is a somewhat faster way of doing this when the services are on the same hub, since we would just need
 // to change the type numbers. TODO. Until then, this serves as a good test bed for the external services on other hubs.
 func (ex externalCallToHubHandler) evaluate(mc *Vm, line string) values.Value {
-	exVal := ex.externalService.Cp.Do(ex.externalService.Mc, line)
+	exVal := ex.externalService.Cp.Do(line)
 	serialize := ex.externalService.Mc.Literal(exVal)
-	return mc.OwnService.Cp.Do(mc, serialize)
+	return mc.OwnService.Cp.Do(serialize)
 }
 
 func (es externalCallToHubHandler) problem() *report.Error {
@@ -71,7 +71,7 @@ func (es externalHttpCallHandler) evaluate(mc *Vm, line string) values.Value {
 	if settings.SHOW_XCALLS {
 		println("Returned string is", exValAsString)
 	}
-	val := mc.OwnService.Cp.Do(mc, exValAsString)
+	val := mc.OwnService.Cp.Do(exValAsString)
 	if settings.SHOW_XCALLS {
 		println("Value is", mc.Describe(val))
 	}

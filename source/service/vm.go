@@ -62,20 +62,6 @@ type vmState struct {
 	snippetFactories int
 }
 
-// This captures the record.
-func (vm *Vm) getState() vmState {
-	return vmState{len(vm.Mem), len(vm.Code), len(vm.Tokens), len(vm.LambdaFactories), len(vm.SnippetFactories)}
-}
-
-// And this rolls back the machine.
-func (vm *Vm) rollback(vms vmState) {
-	vm.Code = vm.Code[:vms.code]
-	vm.Mem = vm.Mem[:vms.mem]
-	vm.Tokens = vm.Tokens[:vms.tokens]
-	vm.LambdaFactories = vm.LambdaFactories[:vms.lambdaFactories]
-	vm.SnippetFactories = vm.SnippetFactories[:vms.snippetFactories]
-}
-
 type GoFn struct {
 	Code   func(args ...any) any
 	GoToPf func(v any) (uint32, []any, bool)
@@ -1392,32 +1378,4 @@ func (mr MapResolver) Resolve(structNumber int, labelNumber int) int {
 		return fieldNo
 	}
 	return -1
-}
-
-func (vm *Vm) MemTop() uint32 {
-	return uint32(len(vm.Mem))
-}
-
-func (vm *Vm) That() uint32 {
-	return uint32(len(vm.Mem) - 1)
-}
-
-func (vm *Vm) ThatToken() uint32 {
-	return uint32(len(vm.Tokens) - 1)
-}
-
-func (vm *Vm) CodeTop() uint32 {
-	return uint32(len(vm.Code))
-}
-
-func (vm *Vm) TokenTop() uint32 {
-	return uint32(len(vm.Tokens))
-}
-
-func (vm *Vm) LfTop() uint32 {
-	return uint32(len(vm.LambdaFactories))
-}
-
-func (vm *Vm) Next() uint32 {
-	return uint32(len(vm.Code))
 }
