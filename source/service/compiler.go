@@ -1316,7 +1316,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	}
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.P.FunctionGroupMap[node.GetToken().Literal].Tree,
-		outLoc:       cp.reserveError("mc/oopsie", node.GetToken()),
+		outLoc:       cp.reserveError("vm/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
 		types:        make(finiteTupleType, len(args)),
@@ -1481,7 +1481,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		return cp.generateNewArgument(&newBindle)
 	}
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
-		cp.reserveError("mc/types/a", b.tok)
+		cp.reserveError("vm/types/a", b.tok)
 		for _, loc := range b.valLocs {
 			cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 		}
@@ -1769,7 +1769,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			return F.Types                    // TODO : Is there a reason why this should be so?
 		}
 	}
-	cp.reserveError("mc/types/b", b.tok)
+	cp.reserveError("vm/types/b", b.tok)
 	for _, loc := range b.valLocs {
 		cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 	}

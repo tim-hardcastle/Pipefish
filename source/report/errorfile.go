@@ -2289,6 +2289,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/types/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You have supplied the function with arguments of types for which no function of that name is defined."
+		},
+	},
+
+	"vm/types/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You have supplied the function with arguments of types for which no function of that name is defined."
+		},
+	},
+
 	"vm/slice/tuple/e": {
 		Message: func(tok *token.Token, args ...any) string {
 			return fmt.Sprintf("upper bound %v of tuple slice is strictly greater than list length %v", emph(args[0]), args[1])
