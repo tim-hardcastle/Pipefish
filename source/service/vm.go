@@ -375,7 +375,7 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/index/string", args[3], ix, len(str), args[1], args[2])
 			}
 		case Idxt:
-			typ := vm.Mem[args[1]].V.(values.ValueType)
+			typ := (vm.Mem[args[1]].V.(values.AbstractType)).Types[0]
 			if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
 				vm.Mem[args[0]] = vm.makeError("vm/index/type/a", args[3], vm.DescribeType(typ))
 				break
