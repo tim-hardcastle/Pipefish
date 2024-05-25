@@ -224,34 +224,6 @@ func (aT AlternateType) isOnly(vt values.ValueType) bool {
 	return false
 }
 
-func (aT AlternateType) isOnlyStruct(ub int) (values.ValueType, bool) {
-	if len(aT) == 1 {
-		switch el := aT[0].(type) {
-		case simpleType:
-			if ub <= int(el) {
-				return values.ValueType(el), true
-			}
-		default:
-			return values.UNDEFINED_VALUE, false
-		}
-	}
-	return values.UNDEFINED_VALUE, false
-}
-
-func (aT AlternateType) isOnlyAssortedStructs(ub int) bool {
-	for _, el := range aT {
-		switch el := el.(type) {
-		case simpleType:
-			if ub > int(el) {
-				return false
-			}
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 func (aT AlternateType) isPrivate(mc *Vm) bool {
 	for _, el := range aT {
 		if el.isPrivate(mc) {

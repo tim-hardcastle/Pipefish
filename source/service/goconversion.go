@@ -13,7 +13,7 @@ import (
 )
 
 func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) any {
-	if v.T >= vm.Ub_enums {
+	if vm.structTypeNumberToStructOrdinal[v.T] != DUMMY {
 		pVals := v.V.([]values.Value)
 		gVals := make([]any, 0, len(pVals))
 		for _, v := range pVals {
@@ -85,7 +85,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		namespacePath := bits[0 : len(bits)-1]
 		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
 		structType := resolvingCompiler.StructNameToTypeNumber[name]
-		structNo := structType - cp.vm.Ub_enums
+		structNo := cp.vm.structTypeNumberToStructOrdinal[structType]
 		// We add the definition of the struct.
 		typeDefStr := "\ntype " + goStructName + " struct {\n"
 		for i, lN := range cp.vm.StructLabels[structNo] {
@@ -121,7 +121,7 @@ func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 		cp.P.Throw("golang/conv/b", &token.Token{Source: "golang conversion function"})
 	}
 	tNo := aT.Types[0]
-	if tNo >= cp.vm.Ub_enums {
+	if cp.vm.structTypeNumberToStructOrdinal[tNo] != DUMMY {
 		return text.Flatten(cp.vm.concreteTypeNames[tNo])
 	}
 	if convStr, ok := fConvert[tNo]; ok {

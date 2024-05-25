@@ -637,17 +637,20 @@ NodeTypeSwitch:
 			if ctrConst {
 				rtnTypes = AltType(values.ERROR, cp.vm.Mem[container].T)
 			} else {
-				allEnums := make(AlternateType, 0, 1+cp.vm.Ub_enums-values.LB_ENUMS) // TODO --- yu only need to calculate this once.
+				allEnums := AlternateType{} // TODO --- yu only need to calculate this once.
 				allEnums = append(allEnums, simpleType(values.ERROR))
-				for i := values.LB_ENUMS; i < cp.vm.Ub_enums; i++ {
+				for i := int(values.END_OF_NATIVE_TYPES); i < len(cp.vm.concreteTypeNames); i++ {
+					if cp.vm.enumTypeNumberToEnumOrdinal[i] == DUMMY {
+						continue
+					}
 					allEnums = append(allEnums, simpleType(i))
 				}
 				rtnTypes = allEnums
 			}
 		}
-		structType, ok := containerType.isOnlyStruct(int(cp.vm.Ub_enums))
+		structType, ok := cp.isOnlyStruct(containerType)
 		if ok {
-			structOrdinal := structType - cp.vm.Ub_enums
+			structOrdinal := cp.vm.structTypeNumberToStructOrdinal[structType]
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					indexNumber := cp.vm.Mem[index].V.(int)
@@ -674,7 +677,7 @@ NodeTypeSwitch:
 				break
 			}
 		}
-		if containerType.isOnlyAssortedStructs(int(cp.vm.Ub_enums)) {
+		if cp.isOnlyAssortedStructs(containerType) {
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					labelIsPossible := false
@@ -682,9 +685,9 @@ NodeTypeSwitch:
 					rtnTypes = AltType()
 					for _, structTypeAsSimpleType := range containerType {
 						structType := values.ValueType(structTypeAsSimpleType.(simpleType))
-						structNumber := structType - cp.vm.Ub_enums
+						structNumber := cp.vm.structTypeNumberToStructOrdinal[structType]
 						indexNumber := cp.vm.Mem[index].V.(int)
-						fieldNumber := cp.vm.StructResolve.Resolve(int(structNumber), indexNumber)
+						fieldNumber := cp.vm.StructResolve.Resolve(structNumber, indexNumber)
 						if fieldNumber != -1 {
 							labelIsPossible = true
 							rtnTypes = rtnTypes.Union(cp.vm.AlternateStructFields[structNumber][fieldNumber])
@@ -2091,7 +2094,7 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 			val := cp.That()
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
 				typeNumbers := cp.vm.Mem[cp.That()].V.(values.AbstractType).Types
-				if len(typeNumbers) == 1 && typeNumbers[0] > cp.vm.Ub_enums {
+				if len(typeNumbers) == 1 && cp.vm.structTypeNumberToStructOrdinal[typeNumbers[0]] != DUMMY {
 					sig, ok := cp.vm.getSqlSig(typeNumbers[0])
 					if !ok {
 						cp.P.Throw("comp/snippet/sig", tok, cp.vm.DescribeType(typeNumbers[0]))
@@ -2193,3 +2196,63 @@ const ( // Just exists to be passed to the function below.
 	STRUCT
 	SNIPPET
 )
+
+// Returns the ordinal, and true if the ordinal isn't DUMMY, i.e. it really is an enum.
+func (cp *Compiler) getEnumOrdinal(t values.ValueType) (int, bool) {
+	ord := cp.vm.enumTypeNumberToEnumOrdinal[t]
+	if ord == DUMMY {
+		return DUMMY, false
+	}
+	return DUMMY, true
+}
+
+// Returns the ordinal, and true if the ordinal isn't DUMMY, i.e. it really is a struct.
+func (cp *Compiler) getStructOrdinal(t values.ValueType) (int, bool) {
+	ord := cp.vm.structTypeNumberToStructOrdinal[t]
+	if ord == DUMMY {
+		return DUMMY, false
+	}
+	return DUMMY, true
+}
+
+// Returns the ordinal, and true if the ordinal isn't DUMMY, i.e. it really is a snippet.
+// Note that as a snippet is also a struct this will in fact return the stuct ordinal.
+func (cp *Compiler) getSnippetOrdinal(t values.ValueType) (int, bool) {
+	ord := cp.vm.structTypeNumberToStructOrdinal[t]
+	if ord == DUMMY {
+		return DUMMY, false
+	}
+	return DUMMY, true
+}
+
+func (cp *Compiler) isStruct(vT values.ValueType) bool {
+	return (cp.vm.structTypeNumberToStructOrdinal[vT] != DUMMY)
+}
+
+func (cp *Compiler) isOnlyStruct(aT AlternateType) (values.ValueType, bool) {
+	if len(aT) == 1 {
+		switch el := aT[0].(type) {
+		case simpleType:
+			if cp.isStruct(values.ValueType(el)) {
+				return values.ValueType(el), true
+			}
+		default:
+			return values.UNDEFINED_VALUE, false
+		}
+	}
+	return values.UNDEFINED_VALUE, false
+}
+
+func (cp *Compiler) isOnlyAssortedStructs(aT AlternateType) bool {
+	for _, el := range aT {
+		switch el := el.(type) {
+		case simpleType:
+			if !cp.isStruct(values.ValueType(el)) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}

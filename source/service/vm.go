@@ -28,9 +28,6 @@ type Vm struct {
 	// Permanent state: things established at compile time.
 
 	StructResolve                     StructResolver
-	Ub_enums                          values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs                          values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
-	Lb_snippets                       values.ValueType // (Inclusive) lower bound of the snippets.
 	concreteTypeNames                 []string
 	StructLabels                      [][]int // Array from a struct ordinal to its label numbers.
 	AbstractStructFields              [][]values.AbstractType
@@ -122,9 +119,9 @@ type HTMLInjector struct {
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
-		typeAccess:          make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
+		typeAccess:          make([]tyAccess, values.END_OF_NATIVE_TYPES), // This primes the list with NATIVE for every native type.
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
@@ -383,12 +380,13 @@ loop:
 			}
 		case Idxt:
 			typ := vm.Mem[args[1]].V.(values.ValueType)
-			if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
+			enumOrdinal := vm.enumTypeNumberToEnumOrdinal[typ]
+			if enumOrdinal == DUMMY {
 				vm.Mem[args[0]] = vm.makeError("vm/index/type/a", args[3], vm.DescribeType(typ))
 				break
 			}
 			ix := vm.Mem[args[2]].V.(int)
-			ok := 0 <= ix && ix < len(vm.Enums[typ-values.LB_ENUMS])
+			ok := 0 <= ix && ix < len(vm.Enums[enumOrdinal])
 			if ok {
 				vm.Mem[args[0]] = values.Value{typ, ix}
 			} else {
@@ -509,8 +507,9 @@ loop:
 				}
 			}
 			// Otherwise it's not a slice. We switch on the type of the lhs.
-			if vm.Ub_enums <= container.T {
-				ix := vm.StructResolve.Resolve(int(vm.Mem[args[1]].T-vm.Ub_enums), vm.Mem[args[2]].V.(int))
+			structOrdinal := vm.structTypeNumberToStructOrdinal[container.T]
+			if structOrdinal != DUMMY {
+				ix := vm.StructResolve.Resolve(structOrdinal, vm.Mem[args[2]].V.(int))
 				vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 				break
 			}
@@ -566,15 +565,21 @@ loop:
 					vm.Mem[args[0]] = vm.makeError("vm/index/m", args[3], ix, len(tuple), args[1], args[2])
 				}
 			case values.TYPE:
-				typ := container.V.(values.ValueType)
-				if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
+				typ := container.V.(values.AbstractType)
+				if len(typ.Types) != 1 {
+					vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3])
+					break
+				}
+				cTyp := typ.Types[0]
+				typeOrdinal := vm.structTypeNumberToStructOrdinal[container.T]
+				if structOrdinal == DUMMY {
 					vm.Mem[args[0]] = vm.makeError("vm/index/n", args[3])
 					break
 				}
 				ix := index.V.(int)
-				ok := 0 <= ix && ix < len(vm.Enums[typ-values.LB_ENUMS])
+				ok := 0 <= ix && ix < len(vm.Enums[typeOrdinal])
 				if ok {
-					vm.Mem[args[0]] = values.Value{typ, ix}
+					vm.Mem[args[0]] = values.Value{cTyp, ix}
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/o", args[3])
 				}
@@ -582,7 +587,8 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3], vm.DescribeType(vm.Mem[args[1]].T))
 			}
 		case IxZl:
-			ix := vm.StructResolve.Resolve(int(vm.Mem[args[1]].T-vm.Ub_enums), vm.Mem[args[2]].V.(int))
+
+			ix := vm.StructResolve.Resolve(vm.structTypeNumberToStructOrdinal[vm.Mem[args[1]].T], vm.Mem[args[2]].V.(int))
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
@@ -597,7 +603,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, vm.Mem[args[1]].V.(*values.Map).AsVector()}
 		case KeyZ:
 			result := vector.Empty
-			for _, labelNumber := range vm.StructLabels[vm.Mem[args[1]].T-vm.Ub_enums] {
+			for _, labelNumber := range vm.StructLabels[vm.structTypeNumberToStructOrdinal[vm.Mem[args[1]].T]] {
 				result = result.Conj(values.Value{values.LABEL, labelNumber})
 			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
@@ -656,7 +662,7 @@ loop:
 				}
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
-				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
+				if !((values.NULL <= v.T && v.T < values.PAIR) || (vm.enumTypeNumberToEnumOrdinal[v.T] != DUMMY)) {
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T))
 					break Switch
 				}
@@ -668,7 +674,7 @@ loop:
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
-				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
+				if !((values.NULL <= v.T && v.T < values.PAIR) || (vm.enumTypeNumberToEnumOrdinal[v.T] != DUMMY)) {
 					vm.Mem[args[0]] = vm.makeError("vm/set", args[2], v, vm.DescribeType(v.T))
 					break Switch
 				}
@@ -829,28 +835,28 @@ loop:
 			}
 			continue
 		case Qspt:
-			if vm.Mem[args[0]].T >= vm.Lb_snippets {
+			if vm.snippetTypeNumberToSnippetOrdinal[vm.Mem[args[0]].T] != DUMMY {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
 		case Qspq:
-			if vm.Mem[args[0]].T >= vm.Lb_snippets || vm.Mem[args[0]].T == values.NULL {
+			if vm.snippetTypeNumberToSnippetOrdinal[vm.Mem[args[0]].T] != DUMMY || vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
 		case Qstr:
-			if vm.Mem[args[0]].T >= vm.Ub_enums {
+			if vm.structTypeNumberToStructOrdinal[vm.Mem[args[0]].T] != DUMMY {
 				loc = loc + 1
 			} else {
 				loc = args[1]
 			}
 			continue
 		case Qstq:
-			if vm.Mem[args[0]].T >= vm.Ub_enums || vm.Mem[args[0]].T == values.NULL {
+			if vm.structTypeNumberToStructOrdinal[vm.Mem[args[0]].T] != DUMMY || vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
 			} else {
 				loc = args[1]
@@ -1128,11 +1134,11 @@ loop:
 				break Switch
 			}
 			typ := typL.Types[0]
-			if (typ) < vm.Ub_enums {
+			typeOrdinal := vm.structTypeNumberToStructOrdinal[typ]
+			if typeOrdinal == DUMMY {
 				vm.Mem[args[0]] = vm.makeError("vm/with/type/b", args[3], vm.DescribeType(typ))
 				break Switch
 			}
-			typeOrdinal := typ - vm.Ub_enums
 			var pairs []values.Value
 			if (vm.Mem[args[2]].T) == values.PAIR {
 				pairs = []values.Value{vm.Mem[args[0]]}
@@ -1182,14 +1188,14 @@ loop:
 			vm.Mem[args[0]] = values.Value{typ, outVals}
 		case WthZ:
 			typ := vm.Mem[args[1]].T
-			typeNumber := typ - vm.Ub_enums
+			typeOrdinal := vm.structTypeNumberToStructOrdinal[typ]
 			var pairs []values.Value
 			if (vm.Mem[args[2]].T) == values.PAIR {
 				pairs = []values.Value{vm.Mem[args[2]]}
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			outVals := make([]values.Value, len(vm.StructLabels[typeNumber]))
+			outVals := make([]values.Value, len(vm.StructLabels[typeOrdinal]))
 			copy(outVals, vm.Mem[args[1]].V.([]values.Value))
 			result := values.Value{typ, outVals}
 			for _, pair := range pairs {
@@ -1230,7 +1236,7 @@ loop:
 			}
 			mp := vm.Mem[args[1]].V.(*values.Map)
 			for _, key := range items {
-				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || key.T >= vm.Ub_enums) { // Check that the key is orderable.
+				if (key.T < values.NULL || key.T >= values.FUNC) && !(key.T == values.LABEL || vm.enumTypeNumberToEnumOrdinal[key.T] != DUMMY) { // Check that the key is orderable.
 					vm.Mem[args[0]] = vm.makeError("vm/without", args[3], vm.DescribeType(key.T))
 					break Switch
 				}
@@ -1290,10 +1296,10 @@ func (mc Vm) equals(v, w values.Value) bool {
 	case values.FUNC:
 		return false
 	}
-	if values.LB_ENUMS <= v.T && v.T < mc.Ub_enums {
+	if mc.enumTypeNumberToEnumOrdinal[v.T] != DUMMY {
 		return v.V.(int) == w.V.(int)
 	}
-	if v.T >= mc.Ub_enums {
+	if mc.structTypeNumberToStructOrdinal[v.T] != DUMMY {
 		for i, v := range v.V.([]values.Value) {
 			if !mc.equals(v, w.V.([]values.Value)[i]) {
 				return false
@@ -1325,7 +1331,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		return container
 	case values.MAP:
 		mp := container.V.(*values.Map)
-		if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || key.T >= vm.Ub_enums) { // Check that the key is orderable.
+		if (key.T < values.NULL || key.T >= values.FUNC) && !(key.T == values.LABEL || vm.enumTypeNumberToEnumOrdinal[key.T] != DUMMY) { // We check that the key is orderable.
 			return vm.makeError("vm/with/c", errTok, vm.DescribeType(key.T))
 		}
 		if len(keys) == 1 {
@@ -1339,7 +1345,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		fields := make([]values.Value, len(container.V.([]values.Value)))
 		clone := values.Value{container.T, fields}
 		copy(fields, container.V.([]values.Value))
-		typeOrdinal := container.T - vm.Ub_enums
+		typeOrdinal := vm.structTypeNumberToStructOrdinal[container.T]
 
 		if key.T != values.LABEL {
 			return vm.makeError("vm/with/d", errTok, vm.DescribeType(key.T))
