@@ -27,27 +27,31 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve         StructResolver
-	Ub_enums              values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs              values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
-	Lb_snippets           values.ValueType // (Inclusive) lower bound of the snippets.
-	concreteTypeNames     []string
-	StructLabels          [][]int // Array from a struct ordinal to its label numbers.
-	AbstractStructFields  [][]values.AbstractType
-	AlternateStructFields [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
-	Enums                 [][]string        // Array from the number of the enum to a list of the strings of its elements.
-	Labels                []string          // Array from the number of a field label to its name.
-	typeAccess            []tyAccess        // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
-	Tokens                []*token.Token
-	LambdaFactories       []*LambdaFactory
-	SnippetFactories      []*SnippetFactory
-	GoFns                 []GoFn
-	IoHandle              IoHandler
-	Database              *sql.DB
-	AbstractTypes         []values.NameAbstractTypePair
-	OwnService            *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
-	HubServices           map[string]*VmService // The same map that the hub has.
-	ExternalCallHandlers  []externalCallHandler // The services declared external, whether on the same hub or a different one.
+	StructResolve                     StructResolver
+	Ub_enums                          values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
+	Ub_langs                          values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
+	Lb_snippets                       values.ValueType // (Inclusive) lower bound of the snippets.
+	concreteTypeNames                 []string
+	StructLabels                      [][]int // Array from a struct ordinal to its label numbers.
+	AbstractStructFields              [][]values.AbstractType
+	AlternateStructFields             [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
+	Enums                             [][]string        // Array from the number of the enum to a list of the strings of its elements.
+	Labels                            []string          // Array from the number of a field label to its name.
+	typeAccess                        []tyAccess        // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
+	Tokens                            []*token.Token
+	LambdaFactories                   []*LambdaFactory
+	SnippetFactories                  []*SnippetFactory
+	GoFns                             []GoFn
+	IoHandle                          IoHandler
+	Database                          *sql.DB
+	AbstractTypes                     []values.NameAbstractTypePair
+	OwnService                        *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	HubServices                       map[string]*VmService // The same map that the hub has.
+	ExternalCallHandlers              []externalCallHandler // The services declared external, whether on the same hub or a different one.
+	enumTypeNumberToEnumOrdinal       []int                 // Each of these contains the ordinal number if the type is in the supertype,
+	structTypeNumberToStructOrdinal   []int                 // or DUMMY if it doesn't.
+	snippetTypeNumberToSnippetOrdinal []int
+
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
 	codeGeneratingTypes dtypes.Set[values.ValueType]
 }
@@ -129,6 +133,9 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 		"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 		"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "float", "type", "func",
 		"pair", "list", "map", "set", "label"}
+	for i := 0; i < len(newVm.concreteTypeNames); i++ {
+		addType(newVm, BUILTIN)
+	}
 	return newVm
 }
 

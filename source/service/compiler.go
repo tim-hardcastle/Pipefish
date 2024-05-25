@@ -2184,3 +2184,12 @@ func (cp *Compiler) rollback(vms vmState) {
 	cp.vm.LambdaFactories = cp.vm.LambdaFactories[:vms.lambdaFactories]
 	cp.vm.SnippetFactories = cp.vm.SnippetFactories[:vms.snippetFactories]
 }
+
+type tyDec int
+
+const ( // Just exists to be passed to the function below.
+	BUILTIN tyDec = iota
+	ENUM
+	STRUCT
+	SNIPPET
+)
