@@ -177,7 +177,6 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// A bit of instrumentation.
 	if settings.FUNCTION_TO_PEEK != "" {
 		for _, f := range vmm.uP.Parser.FunctionTable[settings.FUNCTION_TO_PEEK] {
 			println(f.Sig.String())
@@ -431,7 +430,6 @@ func (vmm *VmMaker) createEnums() {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		tokens.NextToken()
-		addType(vmm.cp.vm, ENUM)
 		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		typeNo := values.LB_ENUMS + values.ValueType(i)
@@ -482,7 +480,6 @@ func (vmm *VmMaker) createStructs() {
 
 		// We make the type itself exist.
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypeNames))
-		addType(vmm.cp.vm, STRUCT)
 		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, name)
 		if vmm.uP.isPrivate(int(structDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
@@ -624,7 +621,6 @@ func (vmm *VmMaker) createSnippetTypes() {
 	for i, name := range vmm.cp.P.Snippets {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypeNames))
-		addType(vmm.cp.vm, SNIPPET)
 		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, name)
 		if vmm.uP.isPrivate(int(snippetDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
@@ -872,26 +868,4 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 
 func altType(t ...values.ValueType) AlternateType { // TODO --- Why!?!
 	return AltType(t...)
-}
-
-// This belongs here rather than in the vm because it is only used at compile time.
-func addType(vm *Vm, supertype tyDec) {
-	switch supertype {
-	case BUILTIN:
-		vm.enumTypeNumberToEnumOrdinal = append(vm.enumTypeNumberToEnumOrdinal, DUMMY)
-		vm.structTypeNumberToStructOrdinal = append(vm.snippetTypeNumberToSnippetOrdinal, DUMMY)
-		vm.snippetTypeNumberToSnippetOrdinal = append(vm.snippetTypeNumberToSnippetOrdinal, DUMMY)
-	case ENUM:
-		vm.enumTypeNumberToEnumOrdinal = append(vm.enumTypeNumberToEnumOrdinal, len(vm.Enums))
-		vm.structTypeNumberToStructOrdinal = append(vm.structTypeNumberToStructOrdinal, DUMMY)
-		vm.snippetTypeNumberToSnippetOrdinal = append(vm.snippetTypeNumberToSnippetOrdinal, DUMMY)
-	case STRUCT:
-		vm.enumTypeNumberToEnumOrdinal = append(vm.enumTypeNumberToEnumOrdinal, DUMMY)
-		vm.structTypeNumberToStructOrdinal = append(vm.structTypeNumberToStructOrdinal, len(vm.StructLabels))
-		vm.snippetTypeNumberToSnippetOrdinal = append(vm.snippetTypeNumberToSnippetOrdinal, DUMMY)
-	case SNIPPET:
-		vm.enumTypeNumberToEnumOrdinal = append(vm.enumTypeNumberToEnumOrdinal, DUMMY)
-		vm.structTypeNumberToStructOrdinal = append(vm.structTypeNumberToStructOrdinal, len(vm.StructLabels))
-		vm.snippetTypeNumberToSnippetOrdinal = append(vm.snippetTypeNumberToSnippetOrdinal, len(vm.StructLabels))
-	}
 }
