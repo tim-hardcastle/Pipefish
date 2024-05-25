@@ -89,15 +89,12 @@ func (es externalHttpCallHandler) getAPI() string {
 // For a description of the file format, see README-api-serialization.md
 func (service VmService) SerializeApi() string {
 	var buf strings.Builder
-	for i := int(values.END_OF_NATIVE_TYPES); i < len(service.Mc.concreteTypeNames); i++ {
-		enumOrdinal := service.Mc.enumTypeNumberToEnumOrdinal[i]
-		if enumOrdinal == DUMMY {
-			continue
-		}
+	for i := values.LB_ENUMS; i < service.Mc.Ub_enums; i++ {
+		enumOrdinal := i - values.LB_ENUMS
 		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
 			buf.WriteString(service.Mc.concreteTypeNames[i])
-			for _, el := range service.Mc.Enums[enumOrdinal] {
+			for _, el := range service.Mc.Enums[i-values.LB_ENUMS] {
 				buf.WriteString(" | ")
 				buf.WriteString(el)
 			}
@@ -105,11 +102,8 @@ func (service VmService) SerializeApi() string {
 		}
 	}
 
-	for i := int(values.END_OF_NATIVE_TYPES); i < len(service.Mc.concreteTypeNames); i++ {
-		structOrdinal := service.Mc.enumTypeNumberToEnumOrdinal[i]
-		if structOrdinal == DUMMY {
-			continue
-		}
+	for i := service.Mc.Ub_enums; i < service.Mc.Lb_snippets; i++ {
+		structOrdinal := i - service.Mc.Ub_enums
 		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Mc.concreteTypeNames[i])

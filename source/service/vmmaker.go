@@ -434,7 +434,7 @@ func (vmm *VmMaker) createEnums() {
 		addType(vmm.cp.vm, ENUM)
 		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
-		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypeNames))
+		typeNo := values.LB_ENUMS + values.ValueType(i)
 		if vmm.uP.isPrivate(int(enumDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
 		} else {
@@ -450,6 +450,8 @@ func (vmm *VmMaker) createEnums() {
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
 		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = TypedTupleType{(lastType.T).Union(altType(typeNo))}
 
+		vmm.cp.vm.Ub_enums++
+
 		tokens.NextToken() // This says "enum" or we wouldn't be here.
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
@@ -460,7 +462,7 @@ func (vmm *VmMaker) createEnums() {
 				vmm.uP.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(typeNo, len(vmm.cp.vm.Enums[i]))
+			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.LB_ENUMS, len(vmm.cp.vm.Enums[i]))
 			vmm.cp.vm.Enums[i] = append(vmm.cp.vm.Enums[i], tok.Literal)
 
 			tok = tokens.NextToken()
@@ -519,9 +521,8 @@ func (vmm *VmMaker) createStructs() {
 				vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 			}
 		}
-		vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(len(vmm.cp.vm.StructLabels), labelsForStruct)
 		vmm.cp.vm.StructLabels = append(vmm.cp.vm.StructLabels, labelsForStruct)
-
+		vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 	}
 	// A label is private iff it is *only* used by struct types that were declared private.
 	// So we set them all private and then weed them out by iterating over the struct definitions.
@@ -617,6 +618,7 @@ func (vmm *VmMaker) addFieldsToStructs() {
 }
 
 func (vmm *VmMaker) createSnippetTypes() {
+	vmm.cp.vm.Lb_snippets = values.ValueType(len(vmm.cp.vm.concreteTypeNames))
 	abTypes := []values.AbstractType{values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}, values.AbstractType{[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
@@ -653,15 +655,12 @@ func (vmm *VmMaker) createSnippetTypes() {
 }
 
 func (vmm *VmMaker) checkTypesForConsistency() {
-	for structTypeNumber, structOrdinalNumber := range vmm.cp.vm.structTypeNumberToStructOrdinal {
-		if structOrdinalNumber == DUMMY {
-			continue
-		}
-		fields := vmm.cp.vm.AbstractStructFields[structOrdinalNumber]
+	for structOrdinalNumber, fields := range vmm.cp.vm.AbstractStructFields {
+		structTypeNumber := int(vmm.cp.vm.Ub_enums) + structOrdinalNumber
 		if vmm.cp.vm.typeAccess[structTypeNumber] == PUBLIC {
 			for _, ty := range fields {
 				if vmm.cp.vm.isPrivate(ty) {
-					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), vmm.cp.vm.concreteTypeNames[structTypeNumber], vmm.cp.vm.DescribeAbstractType(ty))
+					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), vmm.cp.vm.concreteTypeNames[int(vmm.cp.vm.Ub_enums)+structOrdinalNumber], vmm.cp.vm.DescribeAbstractType(ty))
 				}
 			}
 		}
@@ -690,8 +689,8 @@ func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, si
 			vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 		}
 	}
-	vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(len(vmm.cp.vm.StructLabels), labelsForStruct)
 	vmm.cp.vm.StructLabels = append(vmm.cp.vm.StructLabels, labelsForStruct)
+	vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 }
 
 func (vmm *VmMaker) makeConstructors() {

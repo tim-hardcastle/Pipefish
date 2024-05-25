@@ -11,7 +11,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
 	INT_ARRAY                               // V is an array of Golang integers.
 	SNIPPET_DATA                            // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
-	THUNK                                   // The address to call to evaluate the thunk.
+	THUNK                                   // Contains what we need to evaluate inner variables.
 	CREATED_LOCAL_CONSTANT                  // Returned by the compiler in the typeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                      // For when we have to return a type, but what we have is a compile time error.
 	BLING                                   // Values representing e.g. the `troz` in `foo (x) troz (y)`.
@@ -25,21 +25,21 @@ const ( // Cross-reference with typeNames in BlankVm()
 
 	// And now we have types visible to the user.
 
-	TUPLE  // V : []values.Value
-	ERROR  // V : *object.Error
-	NULL   // V : nil
-	INT    // V : int
-	BOOL   // V : bool
-	STRING // V : string
-	FLOAT  // V : float
-	TYPE   // V : abstractType
-	FUNC   // V : vm.Lambda
-	PAIR   // V : []values.Value
-	LIST   // V : vector.Vector
-	MAP    // V : *values.Map
-	SET    // V : values.Set
-	LABEL  // V : int
-	END_OF_NATIVE_TYPES
+	TUPLE    // V : []values.Value
+	ERROR    // V : *object.Error
+	NULL     // V : nil
+	INT      // V : int
+	BOOL     // V : bool
+	STRING   // V : string
+	FLOAT    // V : float
+	TYPE     // V : abstractType
+	FUNC     // V : vm.Lambda
+	PAIR     // V : []values.Value
+	LIST     // V : vector.Vector
+	MAP      // V : *values.Map
+	SET      // V : values.Set
+	LABEL    // V : int
+	LB_ENUMS // I.e the first of the enums.
 )
 
 const DUMMY = 4294967295

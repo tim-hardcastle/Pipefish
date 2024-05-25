@@ -26,13 +26,12 @@ func (vm *Vm) DescribeType(t values.ValueType) string {
 }
 
 func (vm *Vm) Describe(v values.Value) string {
-	structOrdinal := vm.structTypeNumberToStructOrdinal[v.T]
-	if structOrdinal != DUMMY { // We have a struct.
+	if v.T >= vm.Ub_enums { // We have a struct.
 		var buf strings.Builder
 		buf.WriteString(vm.concreteTypeNames[v.T])
 		buf.WriteString(" with (")
 		var sep string
-		labels := vm.StructLabels[structOrdinal]
+		labels := vm.StructLabels[v.T-vm.Ub_enums]
 		vals := v.V.([]values.Value)
 		for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.Describe(vals[i]))
@@ -41,9 +40,8 @@ func (vm *Vm) Describe(v values.Value) string {
 		buf.WriteByte(')')
 		return buf.String()
 	}
-	enumOrdinal := vm.structTypeNumberToStructOrdinal[v.T]
-	if enumOrdinal != DUMMY { // We have an enum.
-		return vm.Enums[enumOrdinal][v.V.(int)]
+	if values.LB_ENUMS <= v.T && v.T < values.ValueType(vm.Ub_enums) { // We have an enum.
+		return vm.Enums[v.T-values.LB_ENUMS][v.V.(int)]
 	}
 	switch v.T {
 	case values.BLING:
