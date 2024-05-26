@@ -27,4 +27,4 @@ nerp(s type?) :
 
 var
 
-myFoo = 42
+myFoo = Foo 42, "zort"

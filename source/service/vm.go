@@ -1291,6 +1291,8 @@ func (mc Vm) equals(v, w values.Value) bool {
 			}
 		}
 		return true
+	case values.LABEL:
+		return v.V.(int) == w.V.(int)
 	case values.SET:
 
 	case values.MAP:
