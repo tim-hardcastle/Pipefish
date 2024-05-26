@@ -25,21 +25,21 @@ const ( // Cross-reference with typeNames in BlankVm()
 
 	// And now we have types visible to the user.
 
-	TUPLE    // V : []values.Value
-	ERROR    // V : *object.Error
-	NULL     // V : nil
-	INT      // V : int
-	BOOL     // V : bool
-	STRING   // V : string
-	FLOAT    // V : float
-	TYPE     // V : abstractType
-	FUNC     // V : vm.Lambda
-	PAIR     // V : []values.Value
-	LIST     // V : vector.Vector
-	MAP      // V : *values.Map
-	SET      // V : values.Set
-	LABEL    // V : int
-	LB_ENUMS // I.e the first of the enums.
+	TUPLE              // V : []values.Value
+	ERROR              // V : *object.Error
+	NULL               // V : nil
+	INT                // V : int
+	BOOL               // V : bool
+	STRING             // V : string
+	FLOAT              // V : float
+	TYPE               // V : abstractType
+	FUNC               // V : vm.Lambda
+	PAIR               // V : []values.Value
+	LIST               // V : vector.Vector
+	MAP                // V : *values.Map
+	SET                // V : values.Set
+	LABEL              // V : int
+	FIRST_DEFINED_TYPE // I.e the first of the enums.
 )
 
 const DUMMY = 4294967295

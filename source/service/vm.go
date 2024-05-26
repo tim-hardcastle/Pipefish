@@ -27,24 +27,22 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve         StructResolver
-	Ub_enums              values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs              values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
-	Lb_snippets           values.ValueType // (Inclusive) lower bound of the snippets.
-	concreteTypes         []typeInformation
-	AbstractStructFields  [][]values.AbstractType
-	AlternateStructFields [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
-	Labels                []string          // Array from the number of a field label to its name.
-	Tokens                []*token.Token
-	LambdaFactories       []*LambdaFactory
-	SnippetFactories      []*SnippetFactory
-	GoFns                 []GoFn
-	IoHandle              IoHandler
-	Database              *sql.DB
-	AbstractTypes         []values.NameAbstractTypePair
-	OwnService            *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
-	HubServices           map[string]*VmService // The same map that the hub has.
-	ExternalCallHandlers  []externalCallHandler // The services declared external, whether on the same hub or a different one.
+	StructResolve        StructResolver
+	Ub_enums             values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
+	Ub_langs             values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
+	Lb_snippets          values.ValueType // (Inclusive) lower bound of the snippets.
+	concreteTypes        []typeInformation
+	Labels               []string // Array from the number of a field label to its name.
+	Tokens               []*token.Token
+	LambdaFactories      []*LambdaFactory
+	SnippetFactories     []*SnippetFactory
+	GoFns                []GoFn
+	IoHandle             IoHandler
+	Database             *sql.DB
+	AbstractTypes        []values.NameAbstractTypePair
+	OwnService           *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	HubServices          map[string]*VmService // The same map that the hub has.
+	ExternalCallHandlers []externalCallHandler // The services declared external, whether on the same hub or a different one.
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
 	codeGeneratingTypes dtypes.Set[values.ValueType]
 }
@@ -120,7 +118,7 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"pair", "list", "map", "set", "label"}
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.FIRST_DEFINED_TYPE,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
@@ -1178,7 +1176,7 @@ loop:
 			}
 			for i, v := range outVals {
 				if v.T == values.UNDEFINED_VALUE {
-					if vm.AbstractStructFields[typeOrdinal][i].Contains(values.NULL) {
+					if vm.concreteTypes[typ].(structType).abstractStructFields[i].Contains(values.NULL) {
 						outVals[i] = values.Value{values.NULL, nil}
 						break Switch
 					} else {
@@ -1187,9 +1185,9 @@ loop:
 						break Switch
 					}
 				}
-				if !vm.AbstractStructFields[typeOrdinal][i].Contains(v.T) {
+				if !vm.concreteTypes[typ].(structType).abstractStructFields[i].Contains(v.T) {
 					labName := vm.Labels[vm.concreteTypes[typ].(structType).labelNumbers[i]]
-					vm.Mem[args[0]] = vm.makeError("vm/with/type/h", args[3], vm.DescribeType(v.T), labName, vm.DescribeType(typ), vm.DescribeAbstractType(vm.AbstractStructFields[typeOrdinal][i]))
+					vm.Mem[args[0]] = vm.makeError("vm/with/type/h", args[3], vm.DescribeType(v.T), labName, vm.DescribeType(typ), vm.DescribeAbstractType(vm.concreteTypes[typ].(structType).abstractStructFields[i]))
 					break Switch
 				}
 			}
@@ -1365,9 +1363,9 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		if len(keys) >= 1 {
 			val = vm.with(fields[fieldNumber], keys[1:], val, errTok)
 		}
-		if !vm.AbstractStructFields[typeOrdinal][fieldNumber].Contains(val.T) {
+		if !vm.concreteTypes[container.T].(structType).abstractStructFields[fieldNumber].Contains(val.T) {
 			labName := vm.Labels[key.V.(int)]
-			return vm.makeError("vm/with/f", errTok, vm.DescribeType(val.T), labName, vm.DescribeType(container.T), vm.DescribeAbstractType(vm.AbstractStructFields[typeOrdinal][fieldNumber]))
+			return vm.makeError("vm/with/f", errTok, vm.DescribeType(val.T), labName, vm.DescribeType(container.T), vm.DescribeAbstractType(vm.concreteTypes[container.T].(structType).abstractStructFields[fieldNumber]))
 		}
 		fields[fieldNumber] = val
 		return clone
@@ -1466,10 +1464,12 @@ func (t enumType) isPrivate() bool {
 }
 
 type structType struct {
-	name         string
-	labelNumbers []int
-	snippet      bool
-	private      bool
+	name                  string
+	labelNumbers          []int
+	snippet               bool
+	private               bool
+	abstractStructFields  []values.AbstractType
+	alternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
 }
 
 func (t structType) getName() string {

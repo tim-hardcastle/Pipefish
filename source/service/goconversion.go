@@ -86,11 +86,10 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		namespacePath := bits[0 : len(bits)-1]
 		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
 		structTypeNumber := resolvingCompiler.StructNameToTypeNumber[name]
-		structNo := structTypeNumber - cp.vm.Ub_enums
 		// We add the definition of the struct.
 		typeDefStr := "\ntype " + goStructName + " struct {\n"
 		for i, lN := range cp.vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
-			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.vm.AbstractStructFields[structNo][i]) + "\n"
+			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.vm.concreteTypes[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
@@ -106,7 +105,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
 		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + goStructName + "{"
 		sep = ""
-		for i, ty := range cp.vm.AbstractStructFields[structNo] {
+		for i, ty := range cp.vm.concreteTypes[structTypeNumber].(structType).abstractStructFields {
 			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(ty) + ")"
 			sep = ", "
 		}

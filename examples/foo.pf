@@ -6,7 +6,7 @@ given :
     glerp(x) :
         j * x
 
-newtype private
+newtype
 
 Color = enum RED, WHITE, BLUE
 

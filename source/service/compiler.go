@@ -628,33 +628,33 @@ NodeTypeSwitch:
 			if ctrConst {
 				rtnTypes = AltType(values.ERROR, cp.vm.Mem[container].T)
 			} else {
-				allEnums := make(AlternateType, 0, 1+cp.vm.Ub_enums-values.LB_ENUMS) // TODO --- yu only need to calculate this once.
+				allEnums := make(AlternateType, 0, 1+cp.vm.Ub_enums-values.FIRST_DEFINED_TYPE) // TODO --- yu only need to calculate this once.
 				allEnums = append(allEnums, simpleType(values.ERROR))
-				for i := values.LB_ENUMS; i < cp.vm.Ub_enums; i++ {
+				for i := values.FIRST_DEFINED_TYPE; i < cp.vm.Ub_enums; i++ {
 					allEnums = append(allEnums, simpleType(i))
 				}
 				rtnTypes = allEnums
 			}
 		}
-		structType, ok := containerType.isOnlyStruct(int(cp.vm.Ub_enums))
+		structT, ok := containerType.isOnlyStruct(int(cp.vm.Ub_enums))
 		if ok {
-			structOrdinal := structType - cp.vm.Ub_enums
+			structOrdinal := structT - cp.vm.Ub_enums
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					indexNumber := cp.vm.Mem[index].V.(int)
 					labelName := cp.vm.Labels[indexNumber]
 					fieldNumber := cp.vm.StructResolve.Resolve(int(structOrdinal), indexNumber)
 					if fieldNumber == -1 {
-						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.vm.DescribeType(structType))
+						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.vm.DescribeType(structT))
 						break
 					}
 					cp.put(IxZn, container, uint32(fieldNumber))
-					rtnTypes = cp.vm.AlternateStructFields[structOrdinal][fieldNumber]
+					rtnTypes = cp.vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber]
 					break
 				}
 				cp.put(IxZl, container, index, errTok)
 				rtnTypes = AltType()
-				for _, t := range cp.vm.AlternateStructFields[structOrdinal] {
+				for _, t := range cp.vm.concreteTypes[structT].(structType).alternateStructFields {
 					rtnTypes = rtnTypes.Union(t)
 				}
 				rtnTypes = rtnTypes.Union(AltType(values.ERROR))
@@ -672,13 +672,13 @@ NodeTypeSwitch:
 					labelIsCertain := true
 					rtnTypes = AltType()
 					for _, structTypeAsSimpleType := range containerType {
-						structType := values.ValueType(structTypeAsSimpleType.(simpleType))
-						structNumber := structType - cp.vm.Ub_enums
+						structT := values.ValueType(structTypeAsSimpleType.(simpleType))
+						structNumber := structT - cp.vm.Ub_enums
 						indexNumber := cp.vm.Mem[index].V.(int)
 						fieldNumber := cp.vm.StructResolve.Resolve(int(structNumber), indexNumber)
 						if fieldNumber != -1 {
 							labelIsPossible = true
-							rtnTypes = rtnTypes.Union(cp.vm.AlternateStructFields[structNumber][fieldNumber])
+							rtnTypes = rtnTypes.Union(cp.vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber])
 						} else {
 							labelIsCertain = false
 						}

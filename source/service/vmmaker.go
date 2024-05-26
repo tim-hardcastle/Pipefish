@@ -20,10 +20,11 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vmm.cp.vm.
 
 type VmMaker struct {
-	cp     *Compiler
-	uP     *Initializer
-	goToPf map[string]func(any) (uint32, []any, bool)
-	pfToGo map[string]func(uint32, []any) any
+	cp                                  *Compiler
+	uP                                  *Initializer
+	goToPf                              map[string]func(any) (uint32, []any, bool)
+	pfToGo                              map[string]func(uint32, []any) any
+	structDeclarationNumberToTypeNumber map[int]values.ValueType
 }
 
 // The base case: we start off with a blank vm.
@@ -431,7 +432,7 @@ func (vmm *VmMaker) createEnums() {
 		tok1 := tokens.NextToken()
 		tokens.NextToken()
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
-		typeNo := values.LB_ENUMS + values.ValueType(i)
+		typeNo := values.FIRST_DEFINED_TYPE + values.ValueType(i)
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList[tok1.Literal] = altType(typeNo)
@@ -454,7 +455,7 @@ func (vmm *VmMaker) createEnums() {
 				vmm.uP.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.LB_ENUMS, len(vmm.cp.EnumElements))
+			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.FIRST_DEFINED_TYPE, len(vmm.cp.EnumElements))
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
@@ -468,6 +469,7 @@ func (vmm *VmMaker) createEnums() {
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
 func (vmm *VmMaker) createStructs() {
+	vmm.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
@@ -505,6 +507,8 @@ func (vmm *VmMaker) createStructs() {
 				vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 			}
 		}
+
+		vmm.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
 		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)})
 		vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 	}
@@ -573,7 +577,9 @@ func (vmm *VmMaker) defineAbstractTypes() {
 }
 
 func (vmm *VmMaker) addFieldsToStructs() {
-	for _, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
+	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
+		structNumber := vmm.structDeclarationNumberToTypeNumber[i]
+		structInfo := vmm.cp.vm.concreteTypes[structNumber].(structType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typesForStruct := make([]AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
@@ -601,19 +607,20 @@ func (vmm *VmMaker) addFieldsToStructs() {
 			typesForStructForVm = append(typesForStructForVm, abType)
 			typesForStruct = append(typesForStruct, vmm.cp.TypeNameToTypeList[labelNameAndType.VarType])
 		}
-		vmm.cp.vm.AlternateStructFields = append(vmm.cp.vm.AlternateStructFields, typesForStruct)
-		vmm.cp.vm.AbstractStructFields = append(vmm.cp.vm.AbstractStructFields, typesForStructForVm)
+		structInfo.alternateStructFields = typesForStruct
+		structInfo.abstractStructFields = typesForStructForVm
+		vmm.cp.vm.concreteTypes[structNumber] = structInfo
 	}
 }
 
 func (vmm *VmMaker) createSnippetTypes() {
 	vmm.cp.vm.Lb_snippets = values.ValueType(len(vmm.cp.vm.concreteTypes))
-	abTypes := []values.AbstractType{values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}, values.AbstractType{[]values.ValueType{values.MAP}, DUMMY}}
+	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i)})
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["struct"] = vmm.cp.TypeNameToTypeList["struct"].Union(altType(typeNo))
@@ -631,19 +638,18 @@ func (vmm *VmMaker) createSnippetTypes() {
 		// And the vm.
 		vmm.addStructLabelsToMc(name, typeNo, sig)
 		vmm.cp.vm.codeGeneratingTypes.Add(typeNo) // This prevents the assignment of a snippet to a variable or a constant from being rolled back, erasing the generated code.
-
-		vmm.cp.vm.AbstractStructFields = append(vmm.cp.vm.AbstractStructFields, abTypes)
-		vmm.cp.vm.AlternateStructFields = append(vmm.cp.vm.AlternateStructFields, altTypes)
 	}
 }
 
 func (vmm *VmMaker) checkTypesForConsistency() {
-	for structOrdinalNumber, fields := range vmm.cp.vm.AbstractStructFields {
-		structTypeNumber := int(vmm.cp.vm.Ub_enums) + structOrdinalNumber
-		if !vmm.cp.vm.concreteTypes[structTypeNumber].isPrivate() {
-			for _, ty := range fields {
+	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(vmm.cp.vm.concreteTypes); typeNumber++ {
+		if !vmm.cp.vm.concreteTypes[typeNumber].isStruct() {
+			continue
+		}
+		if !vmm.cp.vm.concreteTypes[typeNumber].isPrivate() {
+			for _, ty := range vmm.cp.vm.concreteTypes[typeNumber].(structType).abstractStructFields {
 				if vmm.cp.vm.isPrivate(ty) {
-					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), vmm.cp.vm.concreteTypes[int(vmm.cp.vm.Ub_enums)+structOrdinalNumber], vmm.cp.vm.DescribeAbstractType(ty))
+					vmm.uP.Throw("init/private/struct", token.Token{}, vmm.cp.vm.concreteTypes[typeNumber], vmm.cp.vm.DescribeAbstractType(ty))
 				}
 			}
 		}

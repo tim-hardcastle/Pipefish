@@ -89,11 +89,11 @@ func (es externalHttpCallHandler) getAPI() string {
 // For a description of the file format, see README-api-serialization.md
 func (service VmService) SerializeApi() string {
 	var buf strings.Builder
-	for i := int(values.LB_ENUMS); i < len(service.Mc.concreteTypes); i++ {
+	for i := int(values.FIRST_DEFINED_TYPE); i < len(service.Mc.concreteTypes); i++ {
 		if !service.Mc.concreteTypes[i].isEnum() {
 			continue
 		}
-		enumOrdinal := i - int(values.LB_ENUMS)
+		enumOrdinal := i - int(values.FIRST_DEFINED_TYPE)
 		if !service.Mc.concreteTypes[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
 			buf.WriteString(service.Mc.concreteTypes[i].getName())
@@ -105,20 +105,20 @@ func (service VmService) SerializeApi() string {
 		}
 	}
 
-	for i := int(values.LB_ENUMS); i < len(service.Mc.concreteTypes); i++ {
-		if !service.Mc.concreteTypes[i].isStruct() {
+	for ty := int(values.FIRST_DEFINED_TYPE); ty < len(service.Mc.concreteTypes); ty++ {
+		if !service.Mc.concreteTypes[ty].isStruct() {
 			continue
 		}
-		structOrdinal := i - int(service.Mc.Ub_enums)
-		if !service.Mc.concreteTypes[i].isPrivate() && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
+		structOrdinal := ty - int(service.Mc.Ub_enums)
+		if !service.Mc.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
-			buf.WriteString(service.Mc.concreteTypes[i].getName())
-			labels := service.Mc.concreteTypes[i].(structType).labelNumbers
+			buf.WriteString(service.Mc.concreteTypes[ty].getName())
+			labels := service.Mc.concreteTypes[ty].(structType).labelNumbers
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
 				buf.WriteString(service.Mc.Labels[lb])
 				buf.WriteString(" ")
-				buf.WriteString(service.serializeAbstractType(service.Mc.AbstractStructFields[structOrdinal][i]))
+				buf.WriteString(service.serializeAbstractType(service.Mc.concreteTypes[ty].(structType).abstractStructFields[i]))
 			}
 			buf.WriteString("\n")
 		}
