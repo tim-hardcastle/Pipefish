@@ -840,6 +840,10 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			vmm.cp.Emit(Ret)
 			vmm.cp.vm.Run(uint32(rollbackTo.code))
 			result := vmm.cp.vm.Mem[vmm.cp.That()]
+			if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+				vmm.cp.rollback(rollbackTo)
+				vmm.cp.Reserve(result.T, result.V)
+			}
 			isPrivate := vmm.uP.isPrivate(declarations, v)
 			if declarations == int(constantDeclaration) {
 				if isPrivate {
@@ -853,9 +857,6 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 				} else {
 					vmm.cp.AddVariable(vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, altType(result.T))
 				}
-			}
-			if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
-				vmm.cp.rollback(rollbackTo)
 			}
 		}
 	}
