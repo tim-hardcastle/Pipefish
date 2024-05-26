@@ -23,21 +23,22 @@ type Thunk struct {
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	vm                       *Vm // The vm we're compiling to.
-	P                        *parser.Parser
-	EnumElements             map[string]uint32
-	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
-	LabelIsPrivate           []bool
-	StructNameToTypeNumber   map[string]values.ValueType
-	GlobalConsts             *Environment
-	GlobalVars               *Environment
-	Fns                      []*CpFunc
-	TypeNameToTypeList       map[string]AlternateType
-	AnyTypeScheme            AlternateType         // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
-	Services                 map[string]*VmService // Both true internal services, and stubs that call the externals.
-	CallHandlerNumbersByName map[string]uint32     // Map from the names of external services to their index as stored in the vm.
-	Timestamp                int64
-	ScriptFilepath           string
+	vm                                  *Vm // The vm we're compiling to.
+	P                                   *parser.Parser
+	EnumElements                        map[string]uint32
+	FieldLabelsInMem                    map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	LabelIsPrivate                      []bool
+	StructNameToTypeNumber              map[string]values.ValueType
+	GlobalConsts                        *Environment
+	GlobalVars                          *Environment
+	Fns                                 []*CpFunc
+	TypeNameToTypeList                  map[string]AlternateType
+	AnyTypeScheme                       AlternateType         // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
+	Services                            map[string]*VmService // Both true internal services, and stubs that call the externals.
+	CallHandlerNumbersByName            map[string]uint32     // Map from the names of external services to their index as stored in the vm.
+	Timestamp                           int64
+	ScriptFilepath                      string
+	structDeclarationNumberToTypeNumber map[int]values.ValueType
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
@@ -628,22 +629,24 @@ NodeTypeSwitch:
 			if ctrConst {
 				rtnTypes = AltType(values.ERROR, cp.vm.Mem[container].T)
 			} else {
-				allEnums := make(AlternateType, 0, 1+cp.vm.Ub_enums-values.FIRST_DEFINED_TYPE) // TODO --- yu only need to calculate this once.
+				allEnums := AlternateType{} // TODO --- you only need to calculate this once.
 				allEnums = append(allEnums, simpleType(values.ERROR))
-				for i := values.FIRST_DEFINED_TYPE; i < cp.vm.Ub_enums; i++ {
-					allEnums = append(allEnums, simpleType(i))
+				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.vm.concreteTypes); i++ {
+					if cp.vm.concreteTypes[i].isEnum() {
+						allEnums = append(allEnums, simpleType(i))
+					}
 				}
 				rtnTypes = allEnums
 			}
 		}
-		structT, ok := containerType.isOnlyStruct(int(cp.vm.Ub_enums))
+		structT, ok := isOnlyStruct(cp.vm, containerType)
 		if ok {
-			structOrdinal := structT - cp.vm.Ub_enums
+			structInfo := cp.vm.concreteTypes[structT].(structType)
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					indexNumber := cp.vm.Mem[index].V.(int)
 					labelName := cp.vm.Labels[indexNumber]
-					fieldNumber := cp.vm.StructResolve.Resolve(int(structOrdinal), indexNumber)
+					fieldNumber := structInfo.resolve(indexNumber)
 					if fieldNumber == -1 {
 						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.vm.DescribeType(structT))
 						break
@@ -665,7 +668,7 @@ NodeTypeSwitch:
 				break
 			}
 		}
-		if containerType.isOnlyAssortedStructs(int(cp.vm.Ub_enums)) {
+		if isOnlyAssortedStructs(cp.vm, containerType) {
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					labelIsPossible := false
@@ -673,9 +676,9 @@ NodeTypeSwitch:
 					rtnTypes = AltType()
 					for _, structTypeAsSimpleType := range containerType {
 						structT := values.ValueType(structTypeAsSimpleType.(simpleType))
-						structNumber := structT - cp.vm.Ub_enums
+						structInfo := cp.vm.concreteTypes[structT].(structType)
 						indexNumber := cp.vm.Mem[index].V.(int)
-						fieldNumber := cp.vm.StructResolve.Resolve(int(structNumber), indexNumber)
+						fieldNumber := structInfo.resolve(indexNumber)
 						if fieldNumber != -1 {
 							labelIsPossible = true
 							rtnTypes = rtnTypes.Union(cp.vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber])
@@ -2082,7 +2085,7 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 			val := cp.That()
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
 				typeNumbers := cp.vm.Mem[cp.That()].V.(values.AbstractType).Types
-				if len(typeNumbers) == 1 && typeNumbers[0] > cp.vm.Ub_enums {
+				if len(typeNumbers) == 1 && cp.vm.concreteTypes[typeNumbers[0]].isStruct() {
 					sig, ok := cp.vm.getSqlSig(typeNumbers[0])
 					if !ok {
 						cp.P.Throw("comp/snippet/sig", tok, cp.vm.DescribeType(typeNumbers[0]))
@@ -2174,4 +2177,36 @@ func (cp *Compiler) rollback(vms vmState) {
 	cp.vm.Tokens = cp.vm.Tokens[:vms.tokens]
 	cp.vm.LambdaFactories = cp.vm.LambdaFactories[:vms.lambdaFactories]
 	cp.vm.SnippetFactories = cp.vm.SnippetFactories[:vms.snippetFactories]
+}
+
+func isStruct(mc *Vm, sT simpleType) bool {
+	return mc.concreteTypes[sT].isStruct()
+}
+
+func isOnlyStruct(mc *Vm, aT AlternateType) (values.ValueType, bool) {
+	if len(aT) == 1 {
+		switch el := aT[0].(type) {
+		case simpleType:
+			if isStruct(mc, el) {
+				return values.ValueType(el), true
+			}
+		default:
+			return values.UNDEFINED_VALUE, false
+		}
+	}
+	return values.UNDEFINED_VALUE, false
+}
+
+func isOnlyAssortedStructs(mc *Vm, aT AlternateType) bool {
+	for _, el := range aT {
+		switch el := el.(type) {
+		case simpleType:
+			if !isStruct(mc, el) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }

@@ -27,10 +27,6 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	StructResolve        StructResolver
-	Ub_enums             values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
-	Ub_langs             values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
-	Lb_snippets          values.ValueType // (Inclusive) lower bound of the snippets.
 	concreteTypes        []typeInformation
 	Labels               []string // Array from the number of a field label to its name.
 	Tokens               []*token.Token
@@ -118,8 +114,8 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"pair", "list", "map", "set", "label"}
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.FIRST_DEFINED_TYPE,
-		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
+	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
+		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
@@ -502,7 +498,7 @@ loop:
 			// Otherwise it's not a slice. We switch on the type of the lhs.
 			typeInfo := vm.concreteTypes[container.T]
 			if typeInfo.isStruct() {
-				ix := vm.StructResolve.Resolve(int(vm.Mem[args[1]].T-vm.Ub_enums), vm.Mem[args[2]].V.(int))
+				ix := typeInfo.(structType).resolve(vm.Mem[args[2]].V.(int))
 				vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 				break
 			}
@@ -579,7 +575,8 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3], vm.DescribeType(vm.Mem[args[1]].T))
 			}
 		case IxZl:
-			ix := vm.StructResolve.Resolve(int(vm.Mem[args[1]].T-vm.Ub_enums), vm.Mem[args[2]].V.(int))
+			typeInfo := vm.concreteTypes[vm.Mem[args[1]].T].(structType)
+			ix := typeInfo.resolve(vm.Mem[args[2]].V.(int))
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
@@ -1144,7 +1141,7 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/with/type/b", args[3], vm.DescribeType(typ))
 				break Switch
 			}
-			typeOrdinal := typ - vm.Ub_enums
+			typeInfo := vm.concreteTypes[typ].(structType)
 			var pairs []values.Value
 			if (vm.Mem[args[2]].T) == values.PAIR {
 				pairs = []values.Value{vm.Mem[args[0]]}
@@ -1163,7 +1160,7 @@ loop:
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/d", args[3], vm.DescribeType(pair.T))
 					break Switch
 				}
-				keyNumber := vm.StructResolve.Resolve(int(typeOrdinal), key.V.(int))
+				keyNumber := typeInfo.resolve(key.V.(int))
 				if keyNumber == -1 {
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/e", args[3], vm.Describe(key), vm.DescribeType(typ))
 					break Switch
@@ -1194,14 +1191,13 @@ loop:
 			vm.Mem[args[0]] = values.Value{typ, outVals}
 		case WthZ:
 			typ := vm.Mem[args[1]].T
-			typeNumber := typ - vm.Ub_enums
 			var pairs []values.Value
 			if (vm.Mem[args[2]].T) == values.PAIR {
 				pairs = []values.Value{vm.Mem[args[2]]}
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			outVals := make([]values.Value, len(vm.concreteTypes[typeNumber].(structType).labelNumbers))
+			outVals := make([]values.Value, len(vm.concreteTypes[typ].(structType).labelNumbers))
 			copy(outVals, vm.Mem[args[1]].V.([]values.Value))
 			result := values.Value{typ, outVals}
 			for _, pair := range pairs {
@@ -1305,7 +1301,7 @@ func (mc Vm) equals(v, w values.Value) bool {
 	if mc.concreteTypes[v.T].isEnum() {
 		return v.V.(int) == w.V.(int)
 	}
-	if v.T >= mc.Ub_enums {
+	if mc.concreteTypes[v.T].isStruct() {
 		for i, v := range v.V.([]values.Value) {
 			if !mc.equals(v, w.V.([]values.Value)[i]) {
 				return false
@@ -1351,12 +1347,11 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		fields := make([]values.Value, len(container.V.([]values.Value)))
 		clone := values.Value{container.T, fields}
 		copy(fields, container.V.([]values.Value))
-		typeOrdinal := container.T - vm.Ub_enums
-
+		typeInfo := vm.concreteTypes[container.T].(structType)
 		if key.T != values.LABEL {
 			return vm.makeError("vm/with/d", errTok, vm.DescribeType(key.T))
 		}
-		fieldNumber := vm.StructResolve.Resolve(int(typeOrdinal), key.V.(int))
+		fieldNumber := typeInfo.resolve(key.V.(int))
 		if fieldNumber == -1 {
 			return vm.makeError("vm/with/e", errTok, vm.Describe(key), vm.DescribeType(container.T))
 		}
@@ -1370,33 +1365,6 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		fields[fieldNumber] = val
 		return clone
 	}
-}
-
-type StructResolver interface {
-	Add(structNumber int, labels []int) StructResolver // Not the struct type, but its number, i.e. we start at 0.
-	Resolve(structNumber int, labelNumber int) int
-}
-
-type MapResolver []map[int]int
-
-func (mr MapResolver) Add(structNumber int, labels []int) StructResolver {
-	if structNumber != len(mr) {
-		panic("That wasn't meant to happen.")
-	}
-	newMap := make(map[int]int, len(labels))
-	for k, v := range labels {
-		newMap[v] = k
-	}
-	mr = append(mr, newMap)
-	return mr
-}
-
-func (mr MapResolver) Resolve(structNumber int, labelNumber int) int {
-	fieldNo, ok := mr[structNumber][labelNumber]
-	if ok {
-		return fieldNo
-	}
-	return -1
 }
 
 type supertype int
@@ -1470,6 +1438,7 @@ type structType struct {
 	private               bool
 	abstractStructFields  []values.AbstractType
 	alternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
+	resolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
 }
 
 func (t structType) getName() string {
@@ -1490,4 +1459,20 @@ func (t structType) isSnippet() bool {
 
 func (t structType) isPrivate() bool {
 	return t.private
+}
+
+func (t structType) addLabels(labels []int) structType {
+	t.resolvingMap = make(map[int]int)
+	for k, v := range labels {
+		t.resolvingMap[v] = k
+	}
+	return t
+}
+
+func (t structType) resolve(labelNumber int) int {
+	result, ok := t.resolvingMap[labelNumber]
+	if ok {
+		return result
+	}
+	return -1
 }

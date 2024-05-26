@@ -121,7 +121,7 @@ func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 		cp.P.Throw("golang/conv/b", &token.Token{Source: "golang conversion function"})
 	}
 	tNo := aT.Types[0]
-	if tNo >= cp.vm.Ub_enums {
+	if cp.vm.concreteTypes[tNo].isEnum() || cp.vm.concreteTypes[tNo].isStruct() {
 		return text.Flatten(cp.vm.concreteTypes[tNo].getName())
 	}
 	if convStr, ok := fConvert[tNo]; ok {

@@ -20,11 +20,10 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vmm.cp.vm.
 
 type VmMaker struct {
-	cp                                  *Compiler
-	uP                                  *Initializer
-	goToPf                              map[string]func(any) (uint32, []any, bool)
-	pfToGo                              map[string]func(uint32, []any) any
-	structDeclarationNumberToTypeNumber map[int]values.ValueType
+	cp     *Compiler
+	uP     *Initializer
+	goToPf map[string]func(any) (uint32, []any, bool)
+	pfToGo map[string]func(uint32, []any) any
 }
 
 // The base case: we start off with a blank vm.
@@ -442,8 +441,6 @@ func (vmm *VmMaker) createEnums() {
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
 		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = TypedTupleType{(lastType.T).Union(altType(typeNo))}
 
-		vmm.cp.vm.Ub_enums++
-
 		tokens.NextToken() // This says "enum" or we wouldn't be here.
 		elementNameList := []string{}
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
@@ -469,7 +466,7 @@ func (vmm *VmMaker) createEnums() {
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
 func (vmm *VmMaker) createStructs() {
-	vmm.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
+	vmm.cp.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
@@ -508,9 +505,10 @@ func (vmm *VmMaker) createStructs() {
 			}
 		}
 
-		vmm.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)})
-		vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
+		vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
+		stT := structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)}
+		stT = stT.addLabels(labelsForStruct)
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, stT)
 	}
 	// A label is private iff it is *only* used by struct types that were declared private.
 	// So we set them all private and then weed them out by iterating over the struct definitions.
@@ -578,7 +576,7 @@ func (vmm *VmMaker) defineAbstractTypes() {
 
 func (vmm *VmMaker) addFieldsToStructs() {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
-		structNumber := vmm.structDeclarationNumberToTypeNumber[i]
+		structNumber := vmm.cp.structDeclarationNumberToTypeNumber[i]
 		structInfo := vmm.cp.vm.concreteTypes[structNumber].(structType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typesForStruct := make([]AlternateType, 0, len(sig))
@@ -614,7 +612,6 @@ func (vmm *VmMaker) addFieldsToStructs() {
 }
 
 func (vmm *VmMaker) createSnippetTypes() {
-	vmm.cp.vm.Lb_snippets = values.ValueType(len(vmm.cp.vm.concreteTypes))
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
@@ -668,7 +665,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 	}
 }
 
-func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, sig ast.Signature) {
+func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, sig ast.Signature) { // TODO --- seems like we're only using this for snippets and not regular structs?
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
@@ -683,8 +680,8 @@ func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, si
 	}
 	typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
 	typeInfo.labelNumbers = labelsForStruct
+	typeInfo = typeInfo.addLabels(labelsForStruct)
 	vmm.cp.vm.concreteTypes[typeNo] = typeInfo
-	vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 }
 
 func (vmm *VmMaker) makeConstructors() {

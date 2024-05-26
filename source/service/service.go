@@ -105,12 +105,8 @@ func (service VmService) SerializeApi() string {
 		}
 	}
 
-	for ty := int(values.FIRST_DEFINED_TYPE); ty < len(service.Mc.concreteTypes); ty++ {
-		if !service.Mc.concreteTypes[ty].isStruct() {
-			continue
-		}
-		structOrdinal := ty - int(service.Mc.Ub_enums)
-		if !service.Mc.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
+	for declarationNumber, ty := range service.Cp.structDeclarationNumberToTypeNumber {
+		if !service.Mc.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Mc.concreteTypes[ty].getName())
 			labels := service.Mc.concreteTypes[ty].(structType).labelNumbers
