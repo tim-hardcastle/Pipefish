@@ -432,11 +432,6 @@ func (vmm *VmMaker) createEnums() {
 		tokens.NextToken()
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		typeNo := values.LB_ENUMS + values.ValueType(i)
-		if vmm.uP.isPrivate(int(enumDeclaration), i) {
-			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
-		} else {
-			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PUBLIC)
-		}
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList[tok1.Literal] = altType(typeNo)
@@ -467,7 +462,7 @@ func (vmm *VmMaker) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, elementNames: elementNameList})
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, elementNames: elementNameList, private: vmm.uP.isPrivate(int(enumDeclaration), i)})
 	}
 }
 
@@ -478,11 +473,6 @@ func (vmm *VmMaker) createStructs() {
 		name := lhs.GetToken().Literal
 		// We make the type itself exist.
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		if vmm.uP.isPrivate(int(structDeclaration), i) {
-			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
-		} else {
-			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PUBLIC)
-		}
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["struct"] = vmm.cp.TypeNameToTypeList["struct"].Union(altType(typeNo))
@@ -515,7 +505,7 @@ func (vmm *VmMaker) createStructs() {
 				vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 			}
 		}
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, labelNumbers: labelsForStruct})
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)})
 		vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 	}
 	// A label is private iff it is *only* used by struct types that were declared private.
@@ -623,12 +613,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 	for i, name := range vmm.cp.P.Snippets {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true})
-		if vmm.uP.isPrivate(int(snippetDeclaration), i) {
-			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
-		} else {
-			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
-		}
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i)})
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["struct"] = vmm.cp.TypeNameToTypeList["struct"].Union(altType(typeNo))
@@ -655,7 +640,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 func (vmm *VmMaker) checkTypesForConsistency() {
 	for structOrdinalNumber, fields := range vmm.cp.vm.AbstractStructFields {
 		structTypeNumber := int(vmm.cp.vm.Ub_enums) + structOrdinalNumber
-		if vmm.cp.vm.typeAccess[structTypeNumber] == PUBLIC {
+		if !vmm.cp.vm.concreteTypes[structTypeNumber].isPrivate() {
 			for _, ty := range fields {
 				if vmm.cp.vm.isPrivate(ty) {
 					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), vmm.cp.vm.concreteTypes[int(vmm.cp.vm.Ub_enums)+structOrdinalNumber], vmm.cp.vm.DescribeAbstractType(ty))
@@ -664,9 +649,12 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 		}
 	}
 	for i := len(nativeAbstractTypes); i < len(vmm.cp.vm.AbstractTypes); i++ {
+		if vmm.uP.isPrivate(int(abstractDeclaration), i) {
+			continue
+		}
 		abTypeInfo := vmm.cp.vm.AbstractTypes[i]
 		for _, vT := range abTypeInfo.AT.Types {
-			if vmm.cp.vm.typeAccess[vT] == PRIVATE {
+			if vmm.cp.vm.concreteTypes[vT].isPrivate() {
 				abDeclarationNo := i - len(nativeAbstractTypes)
 				vmm.uP.Throw("init/private/abstract", *vmm.uP.Parser.ParsedDeclarations[abstractDeclaration][abDeclarationNo].GetToken(), abTypeInfo.Name)
 			}

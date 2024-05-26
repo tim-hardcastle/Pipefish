@@ -124,7 +124,7 @@ func (t simpleType) describe(mc *Vm) string {
 }
 
 func (t simpleType) isPrivate(mc *Vm) bool {
-	return mc.typeAccess[t] == PRIVATE
+	return mc.concreteTypes[t].isPrivate()
 }
 
 type AlternateType []typeScheme

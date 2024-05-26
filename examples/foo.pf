@@ -6,11 +6,11 @@ given :
     glerp(x) :
         j * x
 
-newtype
+newtype private
 
 Color = enum RED, WHITE, BLUE
 
-Foo = struct(a int, b string)
+Foo = struct(smoop int, blart string)
 
 def
 

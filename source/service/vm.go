@@ -35,7 +35,6 @@ type Vm struct {
 	AbstractStructFields  [][]values.AbstractType
 	AlternateStructFields [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
 	Labels                []string          // Array from the number of a field label to its name.
-	typeAccess            []tyAccess        // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
 	Tokens                []*token.Token
 	LambdaFactories       []*LambdaFactory
 	SnippetFactories      []*SnippetFactory
@@ -123,7 +122,6 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
-		typeAccess:          make([]tyAccess, values.LB_ENUMS), // This primes the list with NATIVE for every native type.
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
@@ -1406,28 +1404,23 @@ func (mr MapResolver) Resolve(structNumber int, labelNumber int) int {
 type supertype int
 
 const (
-	BUILTIN supertype = iota
+	NATIVE supertype = iota
 	ENUM
 	STRUCT
-	SNIPPET
 )
 
 type typeInformation interface {
 	getName() string
-	getSupertype() supertype
 	isEnum() bool
 	isStruct() bool
 	isSnippet() bool
+	isPrivate() bool
 }
 
 type builtinType string
 
 func (t builtinType) getName() string {
 	return string(t)
-}
-
-func (t builtinType) getSupertype() supertype {
-	return BUILTIN
 }
 
 func (t builtinType) isEnum() bool {
@@ -1442,17 +1435,18 @@ func (t builtinType) isSnippet() bool {
 	return false
 }
 
+func (t builtinType) isPrivate() bool {
+	return false
+}
+
 type enumType struct {
 	name         string
 	elementNames []string
+	private      bool
 }
 
 func (t enumType) getName() string {
 	return t.name
-}
-
-func (t enumType) getSupertype() supertype {
-	return ENUM
 }
 
 func (t enumType) isEnum() bool {
@@ -1467,18 +1461,19 @@ func (t enumType) isSnippet() bool {
 	return false
 }
 
+func (t enumType) isPrivate() bool {
+	return t.private
+}
+
 type structType struct {
 	name         string
 	labelNumbers []int
 	snippet      bool
+	private      bool
 }
 
 func (t structType) getName() string {
 	return t.name
-}
-
-func (t structType) getSupertype() supertype {
-	return STRUCT
 }
 
 func (t structType) isEnum() bool {
@@ -1491,4 +1486,8 @@ func (t structType) isStruct() bool {
 
 func (t structType) isSnippet() bool {
 	return t.isSnippet()
+}
+
+func (t structType) isPrivate() bool {
+	return t.private
 }

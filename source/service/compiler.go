@@ -79,15 +79,6 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 	LAMBDA                 // We're in a lambda function.
 )
 
-// A type may be private. At compile time we check this quality recursively.
-type tyAccess int
-
-const (
-	NATIVE tyAccess = iota
-	PUBLIC
-	PRIVATE
-)
-
 const DUMMY = 4294967295
 
 func NewCompiler(p *parser.Parser) *Compiler {
@@ -169,7 +160,7 @@ func (cp *Compiler) GetParser() *parser.Parser {
 
 func (mc *Vm) isPrivate(a values.AbstractType) bool {
 	for _, w := range a.Types {
-		if mc.typeAccess[w] == PRIVATE {
+		if mc.concreteTypes[w].isPrivate() {
 			return true
 		}
 	}
@@ -509,7 +500,7 @@ NodeTypeSwitch:
 		cp.P.GetErrorsFrom(resolvingCompiler.P)
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
-			if cp.vm.typeAccess[cp.vm.Mem[enumElement].T] == PRIVATE {
+			if cp.vm.concreteTypes[cp.vm.Mem[enumElement].T].isPrivate() {
 				cp.P.Throw("comp/private/enum", node.GetToken(), cp.vm.DescribeType(cp.vm.Mem[enumElement].T))
 				break
 			}
@@ -519,7 +510,7 @@ NodeTypeSwitch:
 		}
 		labelNumberLocation, ok := resolvingCompiler.FieldLabelsInMem[node.Value]
 		if ok {
-			if cp != resolvingCompiler && resolvingCompiler.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
+			if (cp != resolvingCompiler || ac == REPL) && resolvingCompiler.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
 				cp.P.Throw("comp/private/label", node.GetToken())
 				break
 			}

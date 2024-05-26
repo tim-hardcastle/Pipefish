@@ -450,10 +450,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/private": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "trying to access an import's private function or command " + emph(tok.Literal)
+			return "trying to access a private function or command " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When an imported or external service declares something as private, that means that this is for its own use and cannot be used by a client service."
+			return "When a service declares something as private, that means that this is for its own use and cannot be used by a client service or from the REPL."
 		},
 	},
 

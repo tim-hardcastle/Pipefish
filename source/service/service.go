@@ -94,7 +94,7 @@ func (service VmService) SerializeApi() string {
 			continue
 		}
 		enumOrdinal := i - int(values.LB_ENUMS)
-		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+		if !service.Mc.concreteTypes[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
 			buf.WriteString(service.Mc.concreteTypes[i].getName())
 			for _, el := range service.Mc.concreteTypes[i].(enumType).elementNames {
@@ -110,7 +110,7 @@ func (service VmService) SerializeApi() string {
 			continue
 		}
 		structOrdinal := i - int(service.Mc.Ub_enums)
-		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
+		if !service.Mc.concreteTypes[i].isPrivate() && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Mc.concreteTypes[i].getName())
 			labels := service.Mc.concreteTypes[i].(structType).labelNumbers
@@ -176,7 +176,7 @@ func (service *VmService) isMandatoryImport(dec declarationType, ordinal int) bo
 
 func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
 	for _, w := range a.Types {
-		if service.Mc.typeAccess[w] == PRIVATE {
+		if service.Mc.concreteTypes[w].isPrivate() {
 			return true
 		}
 	}
