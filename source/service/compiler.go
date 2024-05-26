@@ -519,7 +519,7 @@ NodeTypeSwitch:
 		}
 		labelNumberLocation, ok := resolvingCompiler.FieldLabelsInMem[node.Value]
 		if ok {
-			if resolvingCompiler.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
+			if cp != resolvingCompiler && resolvingCompiler.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
 				cp.P.Throw("comp/private/label", node.GetToken())
 				break
 			}

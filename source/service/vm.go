@@ -32,7 +32,6 @@ type Vm struct {
 	Ub_langs              values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
 	Lb_snippets           values.ValueType // (Inclusive) lower bound of the snippets.
 	concreteTypes         []typeInformation
-	StructLabels          [][]int // Array from a struct ordinal to its label numbers.
 	AbstractStructFields  [][]values.AbstractType
 	AlternateStructFields [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
 	Labels                []string          // Array from the number of a field label to its name.
@@ -599,7 +598,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, vm.Mem[args[1]].V.(*values.Map).AsVector()}
 		case KeyZ:
 			result := vector.Empty
-			for _, labelNumber := range vm.StructLabels[vm.Mem[args[1]].T-vm.Ub_enums] {
+			for _, labelNumber := range vm.concreteTypes[vm.Mem[args[1]].T].(structType).labelNumbers {
 				result = result.Conj(values.Value{values.LABEL, labelNumber})
 			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
@@ -831,24 +830,29 @@ loop:
 			}
 			continue
 		case Qspt:
-			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
-			case snippetType:
-				loc = loc + 1
-			default:
-				loc = args[1]
+			switch ty := vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			case structType:
+				if ty.snippet {
+					loc = loc + 1
+					continue
+				}
 			}
+			loc = args[1]
 			continue
 		case Qspq:
 			if vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
 				continue
 			}
-			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
-			case snippetType:
-				loc = loc + 1
-			default:
-				loc = args[1]
+			switch ty := vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			case structType:
+				if ty.snippet {
+					loc = loc + 1
+					continue
+				}
 			}
+			loc = args[1]
+			continue
 		case Qstr:
 			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
 			case structType:
@@ -1151,7 +1155,7 @@ loop:
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			outVals := make([]values.Value, len(vm.StructLabels[typeOrdinal]))
+			outVals := make([]values.Value, len(vm.concreteTypes[typ].(structType).labelNumbers))
 			for _, pair := range pairs {
 				if pair.T != values.PAIR {
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/c", args[3], vm.DescribeType(pair.T))
@@ -1180,13 +1184,13 @@ loop:
 						outVals[i] = values.Value{values.NULL, nil}
 						break Switch
 					} else {
-						labName := vm.Labels[vm.StructLabels[typeOrdinal][i]]
+						labName := vm.Labels[vm.concreteTypes[typ].(structType).labelNumbers[i]]
 						vm.Mem[args[0]] = vm.makeError("vm/with/type/g", args[3], labName)
 						break Switch
 					}
 				}
 				if !vm.AbstractStructFields[typeOrdinal][i].Contains(v.T) {
-					labName := vm.Labels[vm.StructLabels[typeOrdinal][i]]
+					labName := vm.Labels[vm.concreteTypes[typ].(structType).labelNumbers[i]]
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/h", args[3], vm.DescribeType(v.T), labName, vm.DescribeType(typ), vm.DescribeAbstractType(vm.AbstractStructFields[typeOrdinal][i]))
 					break Switch
 				}
@@ -1201,7 +1205,7 @@ loop:
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			outVals := make([]values.Value, len(vm.StructLabels[typeNumber]))
+			outVals := make([]values.Value, len(vm.concreteTypes[typeNumber].(structType).labelNumbers))
 			copy(outVals, vm.Mem[args[1]].V.([]values.Value))
 			result := values.Value{typ, outVals}
 			for _, pair := range pairs {
@@ -1464,7 +1468,9 @@ func (t enumType) isSnippet() bool {
 }
 
 type structType struct {
-	name string
+	name         string
+	labelNumbers []int
+	snippet      bool
 }
 
 func (t structType) getName() string {
@@ -1480,33 +1486,9 @@ func (t structType) isEnum() bool {
 }
 
 func (t structType) isStruct() bool {
-	return false
+	return true
 }
 
 func (t structType) isSnippet() bool {
-	return false
-}
-
-type snippetType struct {
-	name string
-}
-
-func (t snippetType) getName() string {
-	return t.name
-}
-
-func (t snippetType) getSupertype() supertype {
-	return SNIPPET
-}
-
-func (t snippetType) isEnum() bool {
-	return false
-}
-
-func (t snippetType) isStruct() bool {
-	return true
-}
-
-func (t snippetType) isSnippet() bool {
-	return true
+	return t.isSnippet()
 }

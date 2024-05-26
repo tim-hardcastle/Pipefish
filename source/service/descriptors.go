@@ -26,21 +26,21 @@ func (vm *Vm) DescribeType(t values.ValueType) string {
 }
 
 func (vm *Vm) Describe(v values.Value) string {
-	if v.T >= vm.Ub_enums { // We have a struct.
+	typeInfo := vm.concreteTypes[v.T]
+	if typeInfo.isStruct() {
 		var buf strings.Builder
 		buf.WriteString(vm.concreteTypes[v.T].getName())
 		buf.WriteString(" with (")
 		var sep string
-		labels := vm.StructLabels[v.T-vm.Ub_enums]
 		vals := v.V.([]values.Value)
-		for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
+		for i, lb := range typeInfo.(structType).labelNumbers { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.Describe(vals[i]))
 			sep = ", "
 		}
 		buf.WriteByte(')')
 		return buf.String()
 	}
-	if vm.concreteTypes[v.T].isEnum() {
+	if typeInfo.isEnum() {
 		return vm.concreteTypes[v.T].(enumType).elementNames[v.V.(int)]
 	}
 	switch v.T {

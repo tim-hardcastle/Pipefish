@@ -90,26 +90,30 @@ func (es externalHttpCallHandler) getAPI() string {
 func (service VmService) SerializeApi() string {
 	var buf strings.Builder
 	for i := int(values.LB_ENUMS); i < len(service.Mc.concreteTypes); i++ {
-		if service.Mc.concreteTypes[i].isEnum() {
-			enumOrdinal := i - int(values.LB_ENUMS)
-			if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
-				buf.WriteString("ENUM | ")
-				buf.WriteString(service.Mc.concreteTypes[i].getName())
-				for _, el := range service.Mc.concreteTypes[i].(enumType).elementNames {
-					buf.WriteString(" | ")
-					buf.WriteString(el)
-				}
-				buf.WriteString("\n")
+		if !service.Mc.concreteTypes[i].isEnum() {
+			continue
+		}
+		enumOrdinal := i - int(values.LB_ENUMS)
+		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+			buf.WriteString("ENUM | ")
+			buf.WriteString(service.Mc.concreteTypes[i].getName())
+			for _, el := range service.Mc.concreteTypes[i].(enumType).elementNames {
+				buf.WriteString(" | ")
+				buf.WriteString(el)
 			}
+			buf.WriteString("\n")
 		}
 	}
 
-	for i := service.Mc.Ub_enums; i < service.Mc.Lb_snippets; i++ {
-		structOrdinal := i - service.Mc.Ub_enums
+	for i := int(values.LB_ENUMS); i < len(service.Mc.concreteTypes); i++ {
+		if !service.Mc.concreteTypes[i].isStruct() {
+			continue
+		}
+		structOrdinal := i - int(service.Mc.Ub_enums)
 		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Mc.concreteTypes[i].getName())
-			labels := service.Mc.StructLabels[structOrdinal]
+			labels := service.Mc.concreteTypes[i].(structType).labelNumbers
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
 				buf.WriteString(service.Mc.Labels[lb])

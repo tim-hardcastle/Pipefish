@@ -20,3 +20,6 @@ nerp(s type?) :
     else:
         s[0]
 
+var
+
+myFoo = 42

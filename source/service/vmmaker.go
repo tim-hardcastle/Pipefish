@@ -478,7 +478,6 @@ func (vmm *VmMaker) createStructs() {
 		name := lhs.GetToken().Literal
 		// We make the type itself exist.
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name})
 		if vmm.uP.isPrivate(int(structDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
 		} else {
@@ -516,7 +515,7 @@ func (vmm *VmMaker) createStructs() {
 				vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 			}
 		}
-		vmm.cp.vm.StructLabels = append(vmm.cp.vm.StructLabels, labelsForStruct)
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, labelNumbers: labelsForStruct})
 		vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 	}
 	// A label is private iff it is *only* used by struct types that were declared private.
@@ -524,11 +523,16 @@ func (vmm *VmMaker) createStructs() {
 	for i := 0; i < len(vmm.cp.FieldLabelsInMem); i++ {
 		vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
 	}
-	for i, labs := range vmm.cp.vm.StructLabels {
+	i := -1
+	for _, info := range vmm.cp.vm.concreteTypes {
+		if !info.isStruct() {
+			continue
+		}
+		i++
 		if vmm.uP.isPrivate(int(structDeclaration), i) {
 			continue
 		}
-		for _, lab := range labs {
+		for _, lab := range info.(structType).labelNumbers {
 			vmm.cp.LabelIsPrivate[lab] = false
 		}
 	}
@@ -619,7 +623,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 	for i, name := range vmm.cp.P.Snippets {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, snippetType{name: name})
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true})
 		if vmm.uP.isPrivate(int(snippetDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
 		} else {
@@ -683,7 +687,9 @@ func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, si
 			vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 		}
 	}
-	vmm.cp.vm.StructLabels = append(vmm.cp.vm.StructLabels, labelsForStruct)
+	typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
+	typeInfo.labelNumbers = labelsForStruct
+	vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 	vmm.cp.vm.StructResolve = vmm.cp.vm.StructResolve.Add(int(typeNo-vmm.cp.vm.Ub_enums), labelsForStruct)
 }
 

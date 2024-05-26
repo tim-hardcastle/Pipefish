@@ -94,7 +94,7 @@ func (vm *Vm) getSqlSig(pfStructType values.ValueType) (string, bool) {
 			return "", false
 		}
 		buf.WriteString(sep)
-		buf.WriteString(vm.Labels[vm.StructLabels[pfStructNumber][i]])
+		buf.WriteString(vm.Labels[vm.concreteTypes[pfStructType].(structType).labelNumbers[i]])
 		buf.WriteString(" ")
 		buf.WriteString(sqlType)
 		sep = ", "

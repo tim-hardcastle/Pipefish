@@ -468,7 +468,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/private/label": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "trying to access an label " + emph(args[0]) + " that only belongs to private struct types"
+			return "trying to access an label " + emph(tok.Literal) + " that only belongs to private struct types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A struct field label is not public unless at least one of the types it belongs to is public."

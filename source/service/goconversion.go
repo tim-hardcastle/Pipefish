@@ -13,7 +13,8 @@ import (
 )
 
 func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) any {
-	if v.T >= vm.Ub_enums {
+	typeInfo := vm.concreteTypes[v.T]
+	if typeInfo.isStruct() {
 		pVals := v.V.([]values.Value)
 		gVals := make([]any, 0, len(pVals))
 		for _, v := range pVals {
@@ -84,26 +85,26 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		goStructName := text.Flatten(el)
 		namespacePath := bits[0 : len(bits)-1]
 		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
-		structType := resolvingCompiler.StructNameToTypeNumber[name]
-		structNo := structType - cp.vm.Ub_enums
+		structTypeNumber := resolvingCompiler.StructNameToTypeNumber[name]
+		structNo := structTypeNumber - cp.vm.Ub_enums
 		// We add the definition of the struct.
 		typeDefStr := "\ntype " + goStructName + " struct {\n"
-		for i, lN := range cp.vm.StructLabels[structNo] {
+		for i, lN := range cp.vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
 			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.vm.AbstractStructFields[structNo][i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
 		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structType)) + ")"
+		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
 		convGoTypeToPfType = convGoTypeToPfType + ", []any{"
 		sep := ""
-		for _, lN := range cp.vm.StructLabels[structNo] {
+		for _, lN := range cp.vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
 			convGoTypeToPfType = convGoTypeToPfType + sep + "v.(" + goStructName + ")." + text.Flatten(cp.vm.Labels[lN])
 			sep = ", "
 		}
 		convGoTypeToPfType = convGoTypeToPfType + "}, true\n"
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
-		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structType)) + " : \n\t\treturn " + goStructName + "{"
+		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + goStructName + "{"
 		sep = ""
 		for i, ty := range cp.vm.AbstractStructFields[structNo] {
 			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(ty) + ")"
