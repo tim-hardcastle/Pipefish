@@ -22,13 +22,13 @@ func (vm *Vm) DescribeCode(loc uint32) string {
 }
 
 func (vm *Vm) DescribeType(t values.ValueType) string {
-	return vm.concreteTypeNames[t]
+	return vm.concreteTypes[t].getName()
 }
 
 func (vm *Vm) Describe(v values.Value) string {
 	if v.T >= vm.Ub_enums { // We have a struct.
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypeNames[v.T])
+		buf.WriteString(vm.concreteTypes[v.T].getName())
 		buf.WriteString(" with (")
 		var sep string
 		labels := vm.StructLabels[v.T-vm.Ub_enums]
@@ -40,8 +40,8 @@ func (vm *Vm) Describe(v values.Value) string {
 		buf.WriteByte(')')
 		return buf.String()
 	}
-	if values.LB_ENUMS <= v.T && v.T < values.ValueType(vm.Ub_enums) { // We have an enum.
-		return vm.Enums[v.T-values.LB_ENUMS][v.V.(int)]
+	if vm.concreteTypes[v.T].isEnum() {
+		return vm.concreteTypes[v.T].(enumType).elementNames[v.V.(int)]
 	}
 	switch v.T {
 	case values.BLING:

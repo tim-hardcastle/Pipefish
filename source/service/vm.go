@@ -31,11 +31,10 @@ type Vm struct {
 	Ub_enums              values.ValueType // (Exclusive) upper bound of the enums. Everything above this is a struct.
 	Ub_langs              values.ValueType // (Exclusive) upper bound of the languages. Everything above this is an external service.
 	Lb_snippets           values.ValueType // (Inclusive) lower bound of the snippets.
-	concreteTypeNames     []string
+	concreteTypes         []typeInformation
 	StructLabels          [][]int // Array from a struct ordinal to its label numbers.
 	AbstractStructFields  [][]values.AbstractType
 	AlternateStructFields [][]AlternateType // Array from a struct ordinal to an array of the types of its fields.
-	Enums                 [][]string        // Array from the number of the enum to a list of the strings of its elements.
 	Labels                []string          // Array from the number of a field label to its name.
 	typeAccess            []tyAccess        // Whether a type is NATIVE, PRIVATE, or PUBLIC, by type number.
 	Tokens                []*token.Token
@@ -117,6 +116,11 @@ type HTMLInjector struct {
 // These inhabit the first few memory addresses of the VM.
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
+var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
+	"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
+	"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "float", "type", "func",
+	"pair", "list", "map", "set", "label"}
+
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices, Ub_enums: values.LB_ENUMS,
 		StructResolve: MapResolver{}, logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
@@ -125,10 +129,9 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
 	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
-	newVm.concreteTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
-		"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
-		"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "float", "type", "func",
-		"pair", "list", "map", "set", "label"}
+	for _, name := range nativeTypeNames {
+		newVm.concreteTypes = append(newVm.concreteTypes, builtinType(name))
+	}
 	return newVm
 }
 
@@ -376,12 +379,12 @@ loop:
 			}
 		case Idxt:
 			typ := (vm.Mem[args[1]].V.(values.AbstractType)).Types[0]
-			if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
+			if !vm.concreteTypes[typ].isEnum() {
 				vm.Mem[args[0]] = vm.makeError("vm/index/type/a", args[3], vm.DescribeType(typ))
 				break
 			}
 			ix := vm.Mem[args[2]].V.(int)
-			ok := 0 <= ix && ix < len(vm.Enums[typ-values.LB_ENUMS])
+			ok := 0 <= ix && ix < len(vm.concreteTypes[typ].(enumType).elementNames)
 			if ok {
 				vm.Mem[args[0]] = values.Value{typ, ix}
 			} else {
@@ -454,8 +457,8 @@ loop:
 		case IxXx:
 			container := vm.Mem[args[1]]
 			index := vm.Mem[args[2]]
-			ix := vm.Mem[args[2]].V.([]values.Value)
 			if index.T == values.PAIR { // Then we're slicing.
+				ix := vm.Mem[args[2]].V.([]values.Value)
 				if ix[0].T != values.INT {
 					vm.Mem[args[0]] = vm.makeError("vm/index/a", args[3], vm.DescribeType(ix[0].T))
 					break Switch
@@ -502,7 +505,8 @@ loop:
 				}
 			}
 			// Otherwise it's not a slice. We switch on the type of the lhs.
-			if vm.Ub_enums <= container.T {
+			typeInfo := vm.concreteTypes[container.T]
+			if typeInfo.isStruct() {
 				ix := vm.StructResolve.Resolve(int(vm.Mem[args[1]].T-vm.Ub_enums), vm.Mem[args[2]].V.(int))
 				vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 				break
@@ -559,13 +563,18 @@ loop:
 					vm.Mem[args[0]] = vm.makeError("vm/index/m", args[3], ix, len(tuple), args[1], args[2])
 				}
 			case values.TYPE:
-				typ := container.V.(values.ValueType)
-				if typ < values.LB_ENUMS || vm.Ub_enums <= typ {
+				abTyp := container.V.(values.AbstractType)
+				if len(abTyp.Types) != 1 {
+					vm.Mem[args[0]] = vm.makeError("vm/index/n", args[3])
+					break
+				}
+				typ := abTyp.Types[0]
+				if !vm.concreteTypes[typ].isEnum() {
 					vm.Mem[args[0]] = vm.makeError("vm/index/n", args[3])
 					break
 				}
 				ix := index.V.(int)
-				ok := 0 <= ix && ix < len(vm.Enums[typ-values.LB_ENUMS])
+				ok := 0 <= ix && ix < len(vm.concreteTypes[typ].(enumType).elementNames)
 				if ok {
 					vm.Mem[args[0]] = values.Value{typ, ix}
 				} else {
@@ -649,7 +658,7 @@ loop:
 				}
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
-				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
+				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.concreteTypes[v.T].isEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T))
 					break Switch
 				}
@@ -661,7 +670,7 @@ loop:
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
-				if !((values.NULL <= v.T && v.T < values.PAIR) || (values.LB_ENUMS <= v.T && v.T < vm.Ub_enums)) {
+				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.concreteTypes[v.T].isEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/set", args[2], v, vm.DescribeType(v.T))
 					break Switch
 				}
@@ -739,7 +748,7 @@ loop:
 					case values.FLOAT:
 						injector.Data = append(injector.Data, v.V.(float64))
 					default:
-						panic("Unhandled case:" + vm.concreteTypeNames[v.T])
+						panic("Unhandled case:" + vm.concreteTypes[v.T].getName())
 					}
 				}
 				t.Execute(&buf, injector)
@@ -822,33 +831,43 @@ loop:
 			}
 			continue
 		case Qspt:
-			if vm.Mem[args[0]].T >= vm.Lb_snippets {
+			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			case snippetType:
 				loc = loc + 1
-			} else {
+			default:
 				loc = args[1]
 			}
 			continue
 		case Qspq:
-			if vm.Mem[args[0]].T >= vm.Lb_snippets || vm.Mem[args[0]].T == values.NULL {
+			if vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
-			} else {
+				continue
+			}
+			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			case snippetType:
+				loc = loc + 1
+			default:
 				loc = args[1]
 			}
-			continue
 		case Qstr:
-			if vm.Mem[args[0]].T >= vm.Ub_enums {
+			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			case structType:
 				loc = loc + 1
-			} else {
+			default:
 				loc = args[1]
 			}
 			continue
 		case Qstq:
-			if vm.Mem[args[0]].T >= vm.Ub_enums || vm.Mem[args[0]].T == values.NULL {
+			if vm.Mem[args[0]].T == values.NULL {
 				loc = loc + 1
-			} else {
+				continue
+			}
+			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			case structType:
+				loc = loc + 1
+			default:
 				loc = args[1]
 			}
-			continue
 		case Qtru:
 			if vm.Mem[args[0]].V.(bool) {
 				loc = loc + 1
@@ -1121,7 +1140,7 @@ loop:
 				break Switch
 			}
 			typ := typL.Types[0]
-			if (typ) < vm.Ub_enums {
+			if !vm.concreteTypes[typ].isStruct() {
 				vm.Mem[args[0]] = vm.makeError("vm/with/type/b", args[3], vm.DescribeType(typ))
 				break Switch
 			}
@@ -1223,7 +1242,7 @@ loop:
 			}
 			mp := vm.Mem[args[1]].V.(*values.Map)
 			for _, key := range items {
-				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || key.T >= vm.Ub_enums) { // Check that the key is orderable.
+				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || vm.concreteTypes[key.T].isEnum()) { // Check that the key is orderable.
 					vm.Mem[args[0]] = vm.makeError("vm/without", args[3], vm.DescribeType(key.T))
 					break Switch
 				}
@@ -1283,7 +1302,7 @@ func (mc Vm) equals(v, w values.Value) bool {
 	case values.FUNC:
 		return false
 	}
-	if values.LB_ENUMS <= v.T && v.T < mc.Ub_enums {
+	if mc.concreteTypes[v.T].isEnum() {
 		return v.V.(int) == w.V.(int)
 	}
 	if v.T >= mc.Ub_enums {
@@ -1318,7 +1337,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		return container
 	case values.MAP:
 		mp := container.V.(*values.Map)
-		if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || key.T >= vm.Ub_enums) { // Check that the key is orderable.
+		if ((key.T < values.NULL) || (key.T >= values.FUNC && key.T < values.LABEL)) && !vm.concreteTypes[key.T].isEnum() { // Check that the key is orderable.
 			return vm.makeError("vm/with/c", errTok, vm.DescribeType(key.T))
 		}
 		if len(keys) == 1 {
@@ -1378,4 +1397,116 @@ func (mr MapResolver) Resolve(structNumber int, labelNumber int) int {
 		return fieldNo
 	}
 	return -1
+}
+
+type supertype int
+
+const (
+	BUILTIN supertype = iota
+	ENUM
+	STRUCT
+	SNIPPET
+)
+
+type typeInformation interface {
+	getName() string
+	getSupertype() supertype
+	isEnum() bool
+	isStruct() bool
+	isSnippet() bool
+}
+
+type builtinType string
+
+func (t builtinType) getName() string {
+	return string(t)
+}
+
+func (t builtinType) getSupertype() supertype {
+	return BUILTIN
+}
+
+func (t builtinType) isEnum() bool {
+	return false
+}
+
+func (t builtinType) isStruct() bool {
+	return false
+}
+
+func (t builtinType) isSnippet() bool {
+	return false
+}
+
+type enumType struct {
+	name         string
+	elementNames []string
+}
+
+func (t enumType) getName() string {
+	return t.name
+}
+
+func (t enumType) getSupertype() supertype {
+	return ENUM
+}
+
+func (t enumType) isEnum() bool {
+	return true
+}
+
+func (t enumType) isStruct() bool {
+	return false
+}
+
+func (t enumType) isSnippet() bool {
+	return false
+}
+
+type structType struct {
+	name string
+}
+
+func (t structType) getName() string {
+	return t.name
+}
+
+func (t structType) getSupertype() supertype {
+	return STRUCT
+}
+
+func (t structType) isEnum() bool {
+	return false
+}
+
+func (t structType) isStruct() bool {
+	return false
+}
+
+func (t structType) isSnippet() bool {
+	return false
+}
+
+type snippetType struct {
+	name string
+}
+
+func (t snippetType) getName() string {
+	return t.name
+}
+
+func (t snippetType) getSupertype() supertype {
+	return SNIPPET
+}
+
+func (t snippetType) isEnum() bool {
+	return false
+}
+
+func (t snippetType) isStruct() bool {
+	return true
+}
+
+func (t snippetType) isSnippet() bool {
+	return true
 }

@@ -430,7 +430,6 @@ func (vmm *VmMaker) createEnums() {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		tokens.NextToken()
-		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, tok1.Literal)
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
 		typeNo := values.LB_ENUMS + values.ValueType(i)
 		if vmm.uP.isPrivate(int(enumDeclaration), i) {
@@ -442,7 +441,6 @@ func (vmm *VmMaker) createEnums() {
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList[tok1.Literal] = altType(typeNo)
 		vmm.cp.TypeNameToTypeList[tok1.Literal+"?"] = altType(values.NULL, typeNo)
-		vmm.cp.vm.Enums = append(vmm.cp.vm.Enums, []string{})
 		vmm.cp.AnyTypeScheme = vmm.cp.AnyTypeScheme.Union(altType(typeNo))
 		// We are now going to assume that the last element of anyType is a TypedTupleType and add the new enum type accordingly.
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
@@ -451,6 +449,7 @@ func (vmm *VmMaker) createEnums() {
 		vmm.cp.vm.Ub_enums++
 
 		tokens.NextToken() // This says "enum" or we wouldn't be here.
+		elementNameList := []string{}
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
 				vmm.uP.Throw("init/enum/ident", tok)
@@ -460,15 +459,15 @@ func (vmm *VmMaker) createEnums() {
 				vmm.uP.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.LB_ENUMS, len(vmm.cp.vm.Enums[i]))
-			vmm.cp.vm.Enums[i] = append(vmm.cp.vm.Enums[i], tok.Literal)
-
+			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.LB_ENUMS, len(vmm.cp.EnumElements))
+			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
 				vmm.uP.Throw("init/enum/comma", tok)
 			}
 			tok = tokens.NextToken()
 		}
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, elementNames: elementNameList})
 	}
 }
 
@@ -477,10 +476,9 @@ func (vmm *VmMaker) createStructs() {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
-
 		// We make the type itself exist.
-		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypeNames))
-		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, name)
+		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name})
 		if vmm.uP.isPrivate(int(structDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
 		} else {
@@ -615,13 +613,13 @@ func (vmm *VmMaker) addFieldsToStructs() {
 }
 
 func (vmm *VmMaker) createSnippetTypes() {
-	vmm.cp.vm.Lb_snippets = values.ValueType(len(vmm.cp.vm.concreteTypeNames))
+	vmm.cp.vm.Lb_snippets = values.ValueType(len(vmm.cp.vm.concreteTypes))
 	abTypes := []values.AbstractType{values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}, values.AbstractType{[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
 		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
-		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypeNames))
-		vmm.cp.vm.concreteTypeNames = append(vmm.cp.vm.concreteTypeNames, name)
+		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, snippetType{name: name})
 		if vmm.uP.isPrivate(int(snippetDeclaration), i) {
 			vmm.cp.vm.typeAccess = append(vmm.cp.vm.typeAccess, PRIVATE)
 		} else {
@@ -656,7 +654,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 		if vmm.cp.vm.typeAccess[structTypeNumber] == PUBLIC {
 			for _, ty := range fields {
 				if vmm.cp.vm.isPrivate(ty) {
-					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), vmm.cp.vm.concreteTypeNames[int(vmm.cp.vm.Ub_enums)+structOrdinalNumber], vmm.cp.vm.DescribeAbstractType(ty))
+					vmm.uP.Throw("init/private/struct", *vmm.uP.Parser.ParsedDeclarations[structDeclaration][structOrdinalNumber].GetToken(), vmm.cp.vm.concreteTypes[int(vmm.cp.vm.Ub_enums)+structOrdinalNumber], vmm.cp.vm.DescribeAbstractType(ty))
 				}
 			}
 		}

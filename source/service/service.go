@@ -89,16 +89,18 @@ func (es externalHttpCallHandler) getAPI() string {
 // For a description of the file format, see README-api-serialization.md
 func (service VmService) SerializeApi() string {
 	var buf strings.Builder
-	for i := values.LB_ENUMS; i < service.Mc.Ub_enums; i++ {
-		enumOrdinal := i - values.LB_ENUMS
-		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
-			buf.WriteString("ENUM | ")
-			buf.WriteString(service.Mc.concreteTypeNames[i])
-			for _, el := range service.Mc.Enums[i-values.LB_ENUMS] {
-				buf.WriteString(" | ")
-				buf.WriteString(el)
+	for i := int(values.LB_ENUMS); i < len(service.Mc.concreteTypes); i++ {
+		if service.Mc.concreteTypes[i].isEnum() {
+			enumOrdinal := i - int(values.LB_ENUMS)
+			if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+				buf.WriteString("ENUM | ")
+				buf.WriteString(service.Mc.concreteTypes[i].getName())
+				for _, el := range service.Mc.concreteTypes[i].(enumType).elementNames {
+					buf.WriteString(" | ")
+					buf.WriteString(el)
+				}
+				buf.WriteString("\n")
 			}
-			buf.WriteString("\n")
 		}
 	}
 
@@ -106,7 +108,7 @@ func (service VmService) SerializeApi() string {
 		structOrdinal := i - service.Mc.Ub_enums
 		if service.Mc.typeAccess[i] == PUBLIC && !service.isMandatoryImport(structDeclaration, int(structOrdinal)) {
 			buf.WriteString("STRUCT | ")
-			buf.WriteString(service.Mc.concreteTypeNames[i])
+			buf.WriteString(service.Mc.concreteTypes[i].getName())
 			labels := service.Mc.StructLabels[structOrdinal]
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
@@ -325,7 +327,7 @@ func (service *VmService) serializeAbstractType(ty values.AbstractType) string {
 func (service *VmService) serializeTypescheme(t typeScheme) string {
 	switch t := t.(type) {
 	case simpleType:
-		return service.Mc.concreteTypeNames[t]
+		return service.Mc.concreteTypes[t].getName()
 	case TypedTupleType:
 		acc := ""
 		for _, u := range t.T {
