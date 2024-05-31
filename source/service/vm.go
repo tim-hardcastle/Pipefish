@@ -766,6 +766,13 @@ loop:
 			}
 			loc = args[len(args)-1]
 			continue
+		case QleT:
+			if len(vm.Mem[args[0]].V.([]values.Value)) <= int(args[1]) {
+				loc = loc + 1
+			} else {
+				loc = args[2]
+			}
+			continue
 		case QlnT:
 			if len(vm.Mem[args[0]].V.([]values.Value)) == int(args[1]) {
 				loc = loc + 1
@@ -970,7 +977,9 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/slice/tuple/e", args[3], ix[1].V.(int), len(tup), args[1], args[2])
 				break Switch
 			}
-			vm.Mem[args[0]] = values.Value{values.STRING, tup[ix[0].V.(int):ix[1].V.(int)]}
+			vm.Mem[args[0]] = values.Value{values.TUPLE, tup[ix[0].V.(int):ix[1].V.(int)]}
+		case SlTn:
+			vm.Mem[args[0]] = values.Value{values.TUPLE, (vm.Mem[args[1]].V.([]values.Value))[args[2]:]}
 		case Strc:
 			fields := make([]values.Value, 0, len(args)-2)
 			for _, loc := range args[2:] {

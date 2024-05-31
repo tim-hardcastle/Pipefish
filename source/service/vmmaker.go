@@ -172,7 +172,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
-	goHandler := vmm.uP.MakeFunctions(vmm.cp.ScriptFilepath)
+	goHandler := vmm.uP.MakeFunctions()
 	if vmm.uP.ErrorsExist() {
 		return
 	}

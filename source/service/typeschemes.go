@@ -233,6 +233,24 @@ func (aT AlternateType) isPrivate(mc *Vm) bool {
 	return false
 }
 
+func (aT AlternateType) splitSinglesAndTuples() (AlternateType, AlternateType) {
+	singles := AlternateType{}
+	tuples := AlternateType{}
+	for _, t := range aT {
+		switch t := t.(type) {
+		case simpleType:
+			singles = append(singles, t)
+		case AlternateType:
+			recSng, recTup := t.splitSinglesAndTuples()
+			singles = append(singles, recSng)
+			tuples = append(tuples, recTup)
+		default:
+			tuples = append(tuples, t)
+		}
+	}
+	return singles, tuples
+}
+
 func (aT AlternateType) hasSideEffects() bool {
 	for _, u := range aT {
 		switch u := u.(type) {

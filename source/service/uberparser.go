@@ -477,7 +477,7 @@ func (uP *Initializer) isPrivate(x, y int) bool {
 // implementing overloading.
 //
 // We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (uP *Initializer) MakeFunctions(sourceName string) *GoHandler {
+func (uP *Initializer) MakeFunctions() *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
