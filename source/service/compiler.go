@@ -1241,7 +1241,7 @@ func (cp *Compiler) emitComma(node *ast.InfixExpression, env *Environment, ac cp
 		case simpleType:
 			return AlternateType{finiteTupleType{lT, rT}}, cst
 		case AlternateType:
-			return append(lT, rT...), cst
+			return AlternateType{finiteTupleType{lT, rT}}, cst
 		default:
 			panic("We shouldn't be here!")
 		}
@@ -1883,9 +1883,9 @@ func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
 // lambda, then the rest of the code in the lambda can then reurn an error if passed one.
 func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, insert bool) {
 	errorLocation := cp.reserveError("vm/typecheck", tok)
-	successfulSingleCheck := bkGoto(DUMMY)
 	lengthCheck := bkIf(DUMMY)
 	inputIsError := bkGoto(DUMMY)
+	successfulSingleCheck := bkGoto(DUMMY)
 	jumpToEnd := bkGoto(DUMMY)
 	typeChecks := []bkGoto{}
 	singles, tuples := types.splitSinglesAndTuples()
@@ -1921,11 +1921,10 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			cp.Emit(Asgm, vData.mLoc, loc)
 		}
 	}
-	successfulSingleCheck = cp.vmGoTo()
-
-	if len(tuples) > 0 {
+	if len(tuples) == 0 {
+		successfulSingleCheck = cp.vmGoTo()
+	} else {
 		cp.vmComeFrom(checkSingleType)
-
 		// So if we've got this far the value must be a tuple and we can assume this going forward.
 
 		lengths := lengths(tuples)
@@ -1962,6 +1961,8 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			vr, _ := env.getVar(sig.GetVarName(sig.Len() - 1))
 			cp.Emit(SlTn, vr.mLoc, loc, uint32(lookTo)) // Gets the end of the slice. We can put anything in a tuple.
 		}
+
+		elementLoc := uint32(DUMMY)
 		// Now let's typecheck the other things.
 		for i := 0; i < sig.Len(); i++ {
 			typesToCheck := typesAtIndex(types, i)
@@ -1974,7 +1975,11 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			if len(overlap) == len(typesToCheck) {
 				continue
 			}
-			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), cp.That())
+			if elementLoc == DUMMY {
+				elementLoc = cp.Reserve(values.UNDEFINED_VALUE, nil)
+			}
+			cp.Emit(IxTn, elementLoc, loc, uint32(i))
+			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), elementLoc)
 			typeChecks = append(typeChecks, typeCheck)
 		}
 
@@ -2008,8 +2013,9 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 		cp.Emit(Asgm, loc, errorLocation)
 	}
 
-	cp.vmComeFrom(successfulSingleCheck)
-
+	if len(tuples) == 0 {
+		cp.vmComeFrom(successfulSingleCheck)
+	}
 	cp.vmComeFrom(jumpToEnd)
 }
 

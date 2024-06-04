@@ -800,7 +800,6 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			}
 		}
 		cpF.Types, _ = vmm.cp.CompileNode(body, fnenv, ac) // TODO --- could we in fact do anything useful if we knew it was a constant?
-
 		cpF.OutReg = vmm.cp.That()
 
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
