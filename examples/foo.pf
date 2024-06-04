@@ -1,30 +1,4 @@
 def
 
-zort(i, j) :
-    i + glerp i 
-given :
-    glerp(x) :
-        j * x
-
-troz(x) :
-    x * m 
-given :
-    m = 2
-
-newtype
-
-Color = enum RED, WHITE, BLUE
-
-Foo = struct(smoop int, blart string)
-
-def
-
-nerp(s type?) :
-    s in null :
-        "Value is null"
-    else :
-        s[0]
-
-var
-
-myFoo = Foo 42, "zort"
+foo(x) -> int :
+    x + x

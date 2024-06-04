@@ -615,7 +615,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
-		sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
+		sig := ast.Signature{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
 		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
@@ -691,7 +691,7 @@ func (vmm *VmMaker) makeConstructors() {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
-	sig := ast.Signature{ast.NameTypePair{VarName: "text", VarType: "string"}, ast.NameTypePair{VarName: "env", VarType: "map"}}
+	sig := ast.Signature{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 	for i, name := range vmm.cp.P.Snippets {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(snippetDeclaration), i)
@@ -729,7 +729,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		cpF.Command = true
 	}
 	cpF.Private = private
-	functionName, _, sig, _, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
+	functionName, _, sig, rtnSig, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 	}
@@ -800,8 +800,14 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			}
 		}
 		cpF.Types, _ = vmm.cp.CompileNode(body, fnenv, ac) // TODO --- could we in fact do anything useful if we knew it was a constant?
-		vmm.cp.Emit(Ret)
+
 		cpF.OutReg = vmm.cp.That()
+
+		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
+			vmm.cp.emitTypeChecks(cpF.OutReg, cpF.Types, fnenv, rtnSig, ac, node.GetToken(), false)
+		}
+
+		vmm.cp.Emit(Ret)
 	}
 	vmm.cp.Fns = append(vmm.cp.Fns, &cpF)
 	if ac == DEF && !cpF.Types.IsLegalDefReturn() {

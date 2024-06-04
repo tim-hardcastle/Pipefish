@@ -1304,7 +1304,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.Signature {
 				}
 			}
 		}
-		sig = append(sig, ast.NameTypePair{VarName: varName, VarType: varType})
+		sig = append(sig, ast.NameTypenamePair{VarName: varName, VarType: varType})
 		if !(varType == "*") {
 			backTrackTo = len(sig)
 		}
@@ -1320,7 +1320,7 @@ func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.Signature, *r
 	sig := ast.Signature{}
 	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
-			sig = append(sig, ast.NameTypePair{VarName: arg.GetToken().Literal, VarType: "bling"})
+			sig = append(sig, ast.NameTypenamePair{VarName: arg.GetToken().Literal, VarType: "bling"})
 		} else {
 			partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
 			if err != nil {
@@ -1345,7 +1345,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Sign
 			if err != nil {
 				return nil, err
 			}
-			middle := ast.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
+			middle := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(append(LHS, middle), RHS...), nil
 		case typednode.Token.Type == token.COMMA || typednode.Token.Type == token.WEAK_COMMA:
 			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
@@ -1370,7 +1370,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Sign
 			if err != nil {
 				return nil, err
 			}
-			return ast.Signature{ast.NameTypePair{VarName: namespacedIdent, VarType: dflt}}, nil
+			return ast.Signature{ast.NameTypenamePair{VarName: namespacedIdent, VarType: dflt}}, nil
 		default:
 			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
@@ -1400,30 +1400,30 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Sign
 			if err != nil {
 				return nil, err
 			}
-			end := ast.NameTypePair{VarName: typednode.Operator, VarType: "bling"}
+			end := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(LHS, end), nil
 		default:
 			return nil, newError("parse/sig/c", typednode.GetToken())
 		}
 	case *ast.Identifier:
 		if p.Endfixes.Contains(typednode.Value) {
-			return ast.Signature{ast.NameTypePair{VarName: typednode.Value, VarType: "bling"}}, nil
+			return ast.Signature{ast.NameTypenamePair{VarName: typednode.Value, VarType: "bling"}}, nil
 		}
-		return ast.Signature{ast.NameTypePair{VarName: typednode.Value, VarType: dflt}}, nil
+		return ast.Signature{ast.NameTypenamePair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {
 			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
 			if err != nil {
 				return nil, err
 			}
-			front := ast.Signature{ast.NameTypePair{VarName: typednode.Operator, VarType: "bling"}}
+			front := ast.Signature{ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}}
 			return append(front, RHS...), nil
 		} else {
 			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 			// name under those circumstances.
-			return ast.Signature{ast.NameTypePair{VarName: typednode.Operator, VarType: dflt}}, nil
+			return ast.Signature{ast.NameTypenamePair{VarName: typednode.Operator, VarType: dflt}}, nil
 		}
 	}
 	return nil, newError("parse/sig/d", node.GetToken())
@@ -1476,7 +1476,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.Signature {
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
-		return ast.Signature{ast.NameTypePair{VarName: "x", VarType: typednode.Value}}
+		return ast.Signature{ast.NameTypenamePair{VarName: "x", VarType: typednode.Value}}
 	default:
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}

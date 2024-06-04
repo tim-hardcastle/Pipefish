@@ -63,10 +63,34 @@ type CpFunc struct { // The compiler's representation of a function after the fu
 	HasGo    bool
 }
 
-type XBindle struct { // The types have already been decoded and put into the types of the owning CpFunc.
+// Information we need in the CpFunc struct to call an external service.
+type XBindle struct {
 	ExternalServiceOrdinal uint32
 	FunctionName           string
 	Position               uint32
+}
+
+type signature interface {
+	GetVarName(i int) string
+	GetVarType(i int) any
+	Len() int
+}
+
+// This and the following exist because the compiler can infer a wider range of types for e.g. a variable than the parser
+// has words for. TODO --- yeah, we're duplicating things again. Isn't there some way to rationalize all the representations of the type system?
+
+type cpSig []ast.NameTypePair
+
+func (cs cpSig) GetVarName(i int) string {
+	return cs[i].GetName()
+}
+
+func (cs cpSig) GetVarType(i int) any {
+	return cs[i].GetType()
+}
+
+func (cs cpSig) Len() int {
+	return len(cs)
 }
 
 // The access that the compiler has at any given point in the compilation. Are we compiling code in a function, a command, a REPL?
@@ -1540,15 +1564,15 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		switch len(acceptedSingleTypes) {
 		case 0:
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			cp.emitTypeComparison(branch.TypeName, cp.That(), DUMMY)
+			cp.emitTypeComparisonFromTypeName(branch.TypeName, cp.That())
 		case len(overlap):
-			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
+			cp.emitTypeComparisonFromTypeName(branch.TypeName, b.valLocs[b.argNo])
 		default:
 			cp.Emit(Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
-			cp.emitTypeComparison(branch.TypeName, b.valLocs[b.argNo], DUMMY)
+			cp.emitTypeComparisonFromTypeName(branch.TypeName, b.valLocs[b.argNo])
 			cp.Emit(Jmp, cp.CodeTop()+3)
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			cp.emitTypeComparison(branch.TypeName, cp.That(), DUMMY)
+			cp.emitTypeComparisonFromTypeName(branch.TypeName, cp.That())
 		}
 	}
 	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
@@ -1600,29 +1624,45 @@ var TYPE_COMPARISONS = map[string]Opcode{
 	"struct?":  Qstq,
 }
 
-func (cp *Compiler) emitTypeComparison(typeAsString string, mem, loc uint32) bkGoto {
+// The reason why this and the following two functions exist is that we need to be able to emit restrictions on what values we
+// can assign to things, but these restrictions may be given by the user as 'int', 'struct' or whatever, or they can have been inferred
+// for a variable, and so be an AlternateType. At this point maybe we could translate everything to an AlternateType except that the
+// extra burden of this conversion and the subsequent check for whether it is a built-in abstract type is  more than my conscience could
+// reasonably bear. Hence a mass of pernickety little interfaces and functions try to conceal the fact that, again, I have like three-and-
+// a-half ways to represent types, in the parser, in the compiler, and in the VM.
+func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32) bkGoto {
+	switch typeRepresentation := typeRepresentation.(type) {
+	case string:
+		return cp.emitTypeComparisonFromTypeName(typeRepresentation, mem)
+	case AlternateType:
+		return cp.emitTypeComparisonFromAltType(typeRepresentation, mem)
+	}
+	panic("Now this was not meant to happen.")
+}
+
+func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32) bkGoto {
 	// We may have a 'varchar'.
 	if len(typeAsString) >= 8 && typeAsString[0:8] == "varchar(" {
 		if typeAsString[len(typeAsString)-1] == '?' {
 			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-2])
-			cp.Emit(Qvcq, mem, uint32(vChar), loc)
+			cp.Emit(Qvcq, mem, uint32(vChar), DUMMY)
 			return bkGoto(cp.CodeTop() - 1)
 		} else {
 			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-1])
-			cp.Emit(Qvch, mem, uint32(vChar), loc)
+			cp.Emit(Qvch, mem, uint32(vChar), DUMMY)
 			return bkGoto(cp.CodeTop() - 1)
 		}
 	}
 	// It may be a plain old concrete type.
 	ty := cp.TypeNameToTypeList[typeAsString]
 	if len(ty) == 1 {
-		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), loc)
+		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be one of the built-in abstract types, 'struct', 'snippet', etc.
 	op, ok := TYPE_COMPARISONS[typeAsString]
 	if ok {
-		cp.Emit(op, mem, loc)
+		cp.Emit(op, mem, DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be a user-defined abstract type.
@@ -1643,6 +1683,20 @@ func (cp *Compiler) emitTypeComparison(typeAsString string, mem, loc uint32) bkG
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	panic("Unknown type: " + typeAsString)
+}
+
+func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32) bkGoto { // TODO --- more of this.
+	if len(typeAsAlt) == 1 {
+		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)))
+		return bkGoto(cp.CodeTop() - 1)
+	}
+	args := []uint32{}
+	for _, t := range typeAsAlt {
+		args = append(args, uint32(t.(simpleType)))
+	}
+	args = append(args, DUMMY)
+	cp.Emit(Qabt, args...)
+	return bkGoto(cp.CodeTop() - 1)
 }
 
 func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateType {
@@ -1827,13 +1881,16 @@ func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
 // equivalent is to fill the parameters up with an error value generated from the token.
 // If the sig is of an assignment in a command or a given block, then this is in fact all that needs to be done. If it's a
 // lambda, then the rest of the code in the lambda can then reurn an error if passed one.
-func (cp *Compiler) emitTupleCheck(loc uint32, types AlternateType, env *Environment, sig ast.Signature, ac cpAccess, tok *token.Token, insert bool) {
-	errorLocation := cp.reserveError("vm/typecheck/args", tok)
+func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, insert bool) {
+	errorLocation := cp.reserveError("vm/typecheck", tok)
 	successfulSingleCheck := bkGoto(DUMMY)
+	lengthCheck := bkIf(DUMMY)
 	inputIsError := bkGoto(DUMMY)
+	jumpToEnd := bkGoto(DUMMY)
+	typeChecks := []bkGoto{}
 	singles, tuples := types.splitSinglesAndTuples()
 	acceptedSingles := AlternateType{}
-	lastIsTuple := len(sig) > 0 && sig[len(sig)-1].VarType == "tuple"
+	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
 	if types.isOnly(values.ERROR) {
 		cp.P.Throw("comp/typecheck/a", tok)
 		return
@@ -1843,103 +1900,108 @@ func (cp *Compiler) emitTupleCheck(loc uint32, types AlternateType, env *Environ
 		cp.Emit(Asgm, errorLocation, loc)
 		inputIsError = cp.vmGoTo()
 	}
-	if len(sig) > 0 {
-		acceptedSingles = singles.intersect(cp.TypeNameToTypeList[sig[0].VarType])
+	if sig.Len() > 0 {
+		acceptedSingles = singles.intersect(cp.getTypes(sig, 0))
 	}
 	checkSingleType := bkGoto(DUMMY)
 	if len(tuples) == 0 {
-		if len(sig) != 1 {
+		if sig.Len() != 1 {
 			cp.P.Throw("comp/typecheck/b", tok)
 			return
 		}
-		if len(acceptedSingles) != len(singles) {
-			checkSingleType = cp.emitTypeComparison(sig[0].VarType, loc, DUMMY)
-		}
-		if insert {
-			vData, _ := env.getVar(sig[0].VarName) // It is assumed that we've already made it exist.
-			if lastIsTuple {
-				cp.Emit(Cv1T, vData.mLoc, loc)
-			} else {
-				cp.Emit(Asgm, vData.mLoc, loc)
-			}
-		}
-		successfulSingleCheck = cp.vmGoTo()
 	}
-	cp.vmComeFrom(checkSingleType)
-	// At this point either there is no single type or we've already checked it.
-
-	lengths := lengths(types)
-	goodLengths := 0
-	badLengths := 0
-	for ln := range lengths {
-		if ln == -1 { // If the tuple can be any length then this is good only if the 0dx type of the sig is a tuple.
-			if lastIsTuple && len(sig) == 1 {
-				goodLengths++
-			}
-			continue
-		}
-		if ln == len(sig) || lastIsTuple && ln >= len(sig)-1 {
-			goodLengths++
-		} else {
-			badLengths++
-		}
+	if len(acceptedSingles) != len(singles) {
+		checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc)
 	}
-	if badLengths == len(lengths) {
-		cp.P.Throw("comp/tuplecheck/a", tok)
-		return
-	}
-	lengthCheck := bkIf(DUMMY)
-	if goodLengths != len(lengths) {
-		if lastIsTuple {
-			lengthCheck = cp.vmIf(QlnT, loc, uint32(len(lengths)))
-		} else {
-			lengthCheck = cp.vmIf(QleT, loc, uint32(len(lengths)))
-		}
-	}
-	lookTo := len(sig)
-	if lastIsTuple {
-		lookTo := lookTo - 1
-		vr, _ := env.getVar(sig[len(sig)-1].VarName)
-		cp.Emit(SlTn, vr.mLoc, loc, uint32(lookTo)) // Gets the end of the slice. We can put anything in a tuple.
-	}
-	// Now let's typecheck the other things.
-	typeChecks := []bkGoto{}
-	for i := 0; i < len(sig); i++ {
-		typesToCheck := typesAtIndex(types, i)
-		sigTypes := cp.TypeNameToTypeList[sig[i].VarType]
-		overlap := typesToCheck.intersect(sigTypes)
-		if len(overlap) == 0 || overlap.isOnly(values.ERROR) {
-			cp.P.Throw("comp/typecheck/b", tok)
-			return
-		}
-		if len(overlap) == len(typesToCheck) {
-			continue
-		}
-		cp.put(IxTn, loc, uint32(i))
-		typeCheck := cp.emitTypeComparison(sig[i].VarType, cp.That(), DUMMY)
-		typeChecks = append(typeChecks, typeCheck)
-	}
-
-	// At this point if we're not inserting into the sig but just checking, then our work is done --- the original location we were passed, if it
-	// contained an unacceptable type, now contains a type error, and if it didn't, it doesn't.
-	// If however we are inserting things into the sig then we do that now.
 	if insert {
-		for _, pair := range sig {
-			vr, _ := env.getVar(pair.VarName)
-			cp.Emit(IxTn, vr.mLoc, errorLocation)
+		vData, _ := env.getVar(sig.GetVarName(0)) // It is assumed that we've already made it exist.
+		if lastIsTuple {
+			cp.Emit(Cv1T, vData.mLoc, loc)
+		} else {
+			cp.Emit(Asgm, vData.mLoc, loc)
 		}
 	}
+	successfulSingleCheck = cp.vmGoTo()
 
-	jumpToEnd := cp.vmGoTo()
+	if len(tuples) > 0 {
+		cp.vmComeFrom(checkSingleType)
+
+		// So if we've got this far the value must be a tuple and we can assume this going forward.
+
+		lengths := lengths(tuples)
+		goodLengths := 0
+		badLengths := 0
+		for ln := range lengths {
+			if ln == -1 { // If the tuple can be any length then this is good only if the 0dx type of the sig is a tuple.
+				if lastIsTuple && sig.Len() == 1 {
+					goodLengths++
+				}
+				continue
+			}
+			if ln == sig.Len() || lastIsTuple && ln >= sig.Len()-1 {
+				goodLengths++
+			} else {
+				badLengths++
+			}
+		}
+		if badLengths == len(lengths) {
+			cp.P.Throw("comp/typecheck/c", tok)
+			return
+		}
+
+		if goodLengths != len(lengths) {
+			if lastIsTuple {
+				lengthCheck = cp.vmIf(QlnT, loc, uint32(len(lengths)))
+			} else {
+				lengthCheck = cp.vmIf(QleT, loc, uint32(len(lengths)))
+			}
+		}
+		lookTo := sig.Len()
+		if lastIsTuple {
+			lookTo := lookTo - 1
+			vr, _ := env.getVar(sig.GetVarName(sig.Len() - 1))
+			cp.Emit(SlTn, vr.mLoc, loc, uint32(lookTo)) // Gets the end of the slice. We can put anything in a tuple.
+		}
+		// Now let's typecheck the other things.
+		for i := 0; i < sig.Len(); i++ {
+			typesToCheck := typesAtIndex(types, i)
+			sigTypes := cp.getTypes(sig, i)
+			overlap := typesToCheck.intersect(sigTypes)
+			if len(overlap) == 0 || overlap.isOnly(values.ERROR) {
+				cp.P.Throw("comp/typecheck/d", tok)
+				return
+			}
+			if len(overlap) == len(typesToCheck) {
+				continue
+			}
+			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), cp.That())
+			typeChecks = append(typeChecks, typeCheck)
+		}
+
+		// At this point if we're not inserting into the sig but just checking, then our work is done --- the original location we were passed, if it
+		// contained an unacceptable type, now contains a type error, and if it didn't, it doesn't.
+		// If however we are inserting things into the sig then we do that now.
+		if insert {
+			for i := 0; i < lookTo; i++ {
+				vr, _ := env.getVar(sig.GetVarName(i))
+				cp.Emit(IxTn, vr.mLoc, loc, uint32(i))
+			}
+		}
+
+		jumpToEnd = cp.vmGoTo()
+	}
 
 	cp.vmComeFrom(lengthCheck, inputIsError) // This is where we jump to if we fail any of the runtime tests.
+	if len(tuples) == 0 {
+		cp.vmComeFrom(checkSingleType)
+	}
 	for _, tc := range typeChecks {
 		cp.vmComeFrom(tc)
 	}
 
 	if insert { // If we're putting things into a signature, then on error we want those things to contain the error. If we're just typechecking it, then we want to replace it with an error.
-		for _, pair := range sig {
-			vr, _ := env.getVar(pair.VarName)
+		for i := 0; i < sig.Len(); i++ {
+			vr, _ := env.getVar(sig.GetVarName(i))
 			cp.Emit(Asgm, vr.mLoc, errorLocation)
 		}
 	} else {
@@ -1949,6 +2011,20 @@ func (cp *Compiler) emitTupleCheck(loc uint32, types AlternateType, env *Environ
 	cp.vmComeFrom(successfulSingleCheck)
 
 	cp.vmComeFrom(jumpToEnd)
+}
+
+// Either we already have an AlternateType, and can return it, or we have a type in the form of a string and
+// can transform it into one.
+func (cp *Compiler) getTypes(s signature, i int) AlternateType {
+	typeRep := s.GetVarType(i)
+	switch typeRep := typeRep.(type) {
+	case string:
+		return cp.TypeNameToTypeList[typeRep]
+	case AlternateType:
+		return typeRep
+	default:
+		panic("Tim, you messed up.")
+	}
 }
 
 func (cp *Compiler) emitEquals(node *ast.InfixExpression, env *Environment, ac cpAccess) (AlternateType, bool) {
@@ -2181,31 +2257,6 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		return AltType(values.ERROR, values.LIST), isConst
 	}
 	return AltType(values.LIST), isConst
-}
-
-func (cp *Compiler) compileExternalSnippet(tok *token.Token, newEnv *Environment, sText string, ac cpAccess) *SnippetBindle {
-	bindle := SnippetBindle{}
-	bits, ok := text.GetTextWithBarsAsList(sText)
-	if !ok {
-		cp.P.Throw("comp/snippet/form/a", tok)
-		return &bindle
-	}
-	bindle.codeLoc = cp.CodeTop()
-	result := cp.Reserve(values.STRING, "")
-	bindle.objectStringLoc = cp.That()
-	for _, bit := range bits {
-		if bit[0] == '|' {
-			code := bit[1 : len(bit)-1]
-			node := cp.P.ParseLine(tok.Source, code)
-			cp.CompileNode(node, newEnv, ac)
-			cp.put(Litx, cp.That())
-		} else {
-			cp.Reserve(values.STRING, bit)
-		}
-		cp.Emit(Adds, result, result, cp.That())
-	}
-	cp.Emit(Ret)
-	return &bindle
 }
 
 func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac cpAccess) *SnippetBindle {
