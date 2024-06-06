@@ -162,7 +162,7 @@ func (gh *GoHandler) BuildGoMods() {
 	}
 }
 
-func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.Signature, golang *ast.GolangExpression) {
+func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang *ast.GolangExpression) {
 
 	source := golang.GetToken().Source
 

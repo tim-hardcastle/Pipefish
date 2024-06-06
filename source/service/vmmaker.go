@@ -615,7 +615,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
-		sig := ast.Signature{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
+		sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
 		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
@@ -665,7 +665,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 	}
 }
 
-func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, sig ast.Signature) { // TODO --- seems like we're only using this for snippets and not regular structs?
+func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, sig ast.AstSig) { // TODO --- seems like we're only using this for snippets and not regular structs?
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
@@ -691,14 +691,14 @@ func (vmm *VmMaker) makeConstructors() {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
-	sig := ast.Signature{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
+	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 	for i, name := range vmm.cp.P.Snippets {
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(snippetDeclaration), i)
 	}
 }
 
-func (vmm *VmMaker) compileConstructor(name string, sig ast.Signature) *CpFunc {
+func (vmm *VmMaker) compileConstructor(name string, sig ast.AstSig) *CpFunc {
 	typeNo := vmm.cp.StructNameToTypeNumber[name]
 	cpF := &CpFunc{Types: altType(typeNo), Builtin: name}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.

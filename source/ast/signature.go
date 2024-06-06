@@ -30,21 +30,21 @@ func (ntp NameTypenamePair) TypeOrBling() string {
 	return ntp.VarType
 }
 
-type Signature []NameTypenamePair
+type AstSig []NameTypenamePair
 
-func (s Signature) Len() int {
+func (s AstSig) Len() int {
 	return len(s)
 }
 
-func (s Signature) GetVarType(i int) any {
+func (s AstSig) GetVarType(i int) any {
 	return s[i].GetType()
 }
 
-func (s Signature) GetVarName(i int) string {
+func (s AstSig) GetVarName(i int) string {
 	return s[i].VarName
 }
 
-func (ns Signature) String() (result string) {
+func (ns AstSig) String() (result string) {
 	for _, v := range ns {
 		if result != "" {
 			result = result + ", "
@@ -55,7 +55,7 @@ func (ns Signature) String() (result string) {
 	return
 }
 
-func (ns Signature) NameSet() (result dtypes.Set[string]) {
+func (ns AstSig) NameSet() (result dtypes.Set[string]) {
 	for _, v := range ns {
 		result.Add(v.VarName)
 	}

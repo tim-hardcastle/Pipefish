@@ -33,7 +33,8 @@ type Compiler struct {
 	GlobalVars                          *Environment
 	Fns                                 []*CpFunc
 	TypeNameToTypeList                  map[string]AlternateType
-	AnyTypeScheme                       AlternateType         // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
+	AnyTypeScheme                       AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
+	AnyTuple                            AlternateType
 	Services                            map[string]*VmService // Both true internal services, and stubs that call the externals.
 	CallHandlerNumbersByName            map[string]uint32     // Map from the names of external services to their index as stored in the vm.
 	Timestamp                           int64
@@ -155,6 +156,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 	copy(newC.AnyTypeScheme, newC.TypeNameToTypeList["single?"])
 	newC.AnyTypeScheme = newC.AnyTypeScheme.Union(AltType(values.ERROR))
 	newC.AnyTypeScheme = append(newC.AnyTypeScheme, TypedTupleType{newC.TypeNameToTypeList["single?"]})
+	newC.AnyTuple = AlternateType{TypedTupleType{newC.TypeNameToTypeList["single?"]}}
 	return newC
 }
 
@@ -438,75 +440,81 @@ func (cp *Compiler) CompileNode(node ast.Node, env *Environment, ac cpAccess) (A
 NodeTypeSwitch:
 	switch node := node.(type) {
 	case *ast.AssignmentExpression:
-		// TODO --- need to do this better after we implement tuples
-		if node.Left.GetToken().Type != token.IDENT {
-			cp.P.Throw("comp/assign/ident", node.Left.GetToken())
+		sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
+		if err != nil {
+			cp.P.Throw("comp/assign/lhs", node.Left.GetToken())
 			break NodeTypeSwitch
 		}
-		name := node.Left.(*ast.Identifier).Value
 		switch node.Token.Type {
 		case token.GVN_ASSIGN:
 			thunkStart := cp.Next()
 			types, cst := cp.CompileNode(node.Right, env, ac)
+			resultLocation := cp.That()
+			if types.isOnly(values.ERROR) {
+				cp.P.Throw("comp/assign/error", node.Left.GetToken())
+				break NodeTypeSwitch
+			}
+			for i, pair := range sig {
+				typeToUse := cp.AnyTuple // TODO: we can extract more meanigful information about the tuple from the types.
+				if pair.VarType != "tuple" {
+					typeToUse = typesAtIndex(types, i)
+				}
+				if cst {
+					cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse)
+				} else {
+					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse)
+					cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
+				}
+			}
+			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), true)
 			cp.Emit(Ret)
 			if cst {
-				cp.AddVariable(env, name, LOCAL_TRUE_CONSTANT, types)
 				rtnTypes, rtnConst = AltType(values.CREATED_LOCAL_CONSTANT), true
 				break NodeTypeSwitch
 			}
-			cp.AddVariable(env, name, LOCAL_CONSTANT_THUNK, types)
-			cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
 			rtnTypes, rtnConst = AltType(values.CREATED_LOCAL_CONSTANT), false
 			break NodeTypeSwitch
-		case token.CMD_ASSIGN:
+		case token.ASSIGN, token.CMD_ASSIGN:
 			rhsIsError := bkEarlyReturn(DUMMY)
 			rTypes, _ := cp.CompileNode(node.Right, env, ac)
+			rhsResult := cp.That()
 			if rTypes.Contains(values.ERROR) {
-				rhsIsError = cp.vmConditionalEarlyReturn(Qtyp, cp.That(), uint32(values.ERROR), cp.That())
+				rhsIsError = cp.vmConditionalEarlyReturn(Qtyp, rhsResult, uint32(values.ERROR), rhsResult)
 				rtnTypes = AltType(values.SUCCESSFUL_VALUE, values.ERROR)
 			} else {
 				rtnTypes = AltType(values.SUCCESSFUL_VALUE)
 			}
 			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
-			v, ok := env.getVar(name)
-			if !ok { // Then we create a local variable.
-				cp.Reserve(values.UNDEFINED_VALUE, DUMMY)
-				cp.AddVariable(env, name, LOCAL_VARIABLE, rTypes.without(simpleType(values.ERROR)))
-				cp.Emit(Asgm, cp.That(), cp.That()-1)
-				cp.put(Asgm, values.C_OK)
-				break NodeTypeSwitch
-			} // Otherwise we update the variable we've got.
-			// TODO --- type checking after refactoring type representation.
-			if v.access == REFERENCE_VARIABLE {
-				cp.Emit(Aref, v.mLoc, cp.That())
-				cp.vmComeFrom(rhsIsError)
-				break NodeTypeSwitch
+			varLocs := make([]uint32, 0, len(sig))
+			types := rTypes.without(simpleType(values.ERROR))
+			for i, pair := range sig {
+				v, ok := env.getVar(pair.VarName)
+				if ok {
+					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_TRUE_CONSTANT ||
+						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT {
+						cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
+						break NodeTypeSwitch
+					}
+					if ac == REPL && (v.access != GLOBAL_VARIABLE_PUBLIC) {
+						cp.P.Throw("comp/assign/private", node.Left.GetToken())
+						break NodeTypeSwitch
+					}
+					varLocs = append(varLocs, v.mLoc)
+				} else { // Then we create a local variable.
+					if ac == REPL {
+						cp.P.Throw("comp/assign/error", node.Left.GetToken())
+						break NodeTypeSwitch
+					}
+					cp.Reserve(values.UNDEFINED_VALUE, DUMMY)
+					varLocs = append(varLocs, cp.That())
+					if pair.VarType == "tuple" {
+						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple)
+					} else {
+						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex(types, i))
+					}
+				}
 			}
-			cp.Emit(Asgm, v.mLoc, cp.That())
-			cp.put(Asgm, values.C_OK)
-			cp.vmComeFrom(rhsIsError)
-			break NodeTypeSwitch
-		case token.ASSIGN: // If this hasn't been turned into some other kind of _ASSIGN then we're in the REPL.
-			rhsIsError := bkEarlyReturn(DUMMY)
-			rTypes, _ := cp.CompileNode(node.Right, env, ac)
-			if rTypes.Contains(values.ERROR) {
-				rhsIsError = cp.vmConditionalEarlyReturn(Qtyp, cp.That(), uint32(values.ERROR), cp.That())
-				rtnTypes = AltType(values.SUCCESSFUL_VALUE, values.ERROR)
-			} else {
-				rtnTypes = AltType(values.SUCCESSFUL_VALUE)
-			}
-			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
-			v, ok := env.getVar(name)
-			if !ok {
-				cp.P.Throw("comp/var/exist", node.GetToken(), name)
-				break NodeTypeSwitch
-			}
-			if !((v.access == GLOBAL_VARIABLE_PUBLIC) || (v.access == GLOBAL_VARIABLE_PRIVATE && ac != REPL)) {
-				cp.P.Throw("comp/var/var", node.GetToken(), name)
-				break NodeTypeSwitch
-			}
-			// TODO --- type checking after refactoring type representation.
-			cp.Emit(Asgm, v.mLoc, cp.That())
+			cp.emitTypeChecks(rhsResult, types, env, sig, ac, node.GetToken(), true)
 			cp.put(Asgm, values.C_OK)
 			cp.vmComeFrom(rhsIsError)
 			break NodeTypeSwitch
@@ -1915,10 +1923,19 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	}
 	if insert {
 		vData, _ := env.getVar(sig.GetVarName(0)) // It is assumed that we've already made it exist.
-		if lastIsTuple {
-			cp.Emit(Cv1T, vData.mLoc, loc)
+		if vData.access == REFERENCE_VARIABLE {
+			if lastIsTuple {
+				cp.put(Cv1T, loc)
+				cp.Emit(Aref, vData.mLoc, cp.That())
+			} else {
+				cp.Emit(Aref, vData.mLoc, loc)
+			}
 		} else {
-			cp.Emit(Asgm, vData.mLoc, loc)
+			if lastIsTuple {
+				cp.Emit(Cv1T, vData.mLoc, loc)
+			} else {
+				cp.Emit(Asgm, vData.mLoc, loc)
+			}
 		}
 	}
 	if len(tuples) == 0 {
@@ -1989,10 +2006,14 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 		if insert {
 			for i := 0; i < lookTo; i++ {
 				vr, _ := env.getVar(sig.GetVarName(i))
-				cp.Emit(IxTn, vr.mLoc, loc, uint32(i))
+				if vr.access == REFERENCE_VARIABLE {
+					cp.put(IxTn, loc, uint32(i))
+					cp.Emit(Aref, vr.mLoc, cp.That())
+				} else {
+					cp.Emit(IxTn, vr.mLoc, loc, uint32(i))
+				}
 			}
 		}
-
 		jumpToEnd = cp.vmGoTo()
 	}
 

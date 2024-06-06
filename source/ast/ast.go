@@ -101,8 +101,8 @@ type GolangExpression struct {
 	Token       token.Token
 	ObjectCode  func(args ...any) any
 	Raw         []bool
-	Sig         Signature
-	ReturnTypes Signature
+	Sig         AstSig
+	ReturnTypes AstSig
 }
 
 func (ge *GolangExpression) Children() []Node       { return []Node{} }
@@ -330,7 +330,7 @@ func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Litera
 
 type StructExpression struct {
 	Token token.Token
-	Sig   Signature
+	Sig   AstSig
 }
 
 func (st *StructExpression) Children() []Node       { return []Node{} }
@@ -445,8 +445,8 @@ func GetVariableNames(n Node) dtypes.Set[string] {
 }
 
 type Function struct {
-	Sig      Signature
-	Rets     Signature
+	Sig      AstSig
+	Rets     AstSig
 	Body     Node
 	Given    Node
 	Cmd      bool
