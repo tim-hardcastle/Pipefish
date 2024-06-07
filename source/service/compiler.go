@@ -460,8 +460,10 @@ NodeTypeSwitch:
 					typeToUse = typesAtIndex(types, i)
 				}
 				if cst {
+					cp.Reserve(DUMMY, nil)
 					cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse)
 				} else {
+					cp.Reserve(DUMMY, nil)
 					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse)
 					cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
 				}
@@ -1999,6 +2001,8 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), elementLoc)
 			typeChecks = append(typeChecks, typeCheck)
 		}
+
+		// TODO --- obviously these should be the same loop.
 
 		// At this point if we're not inserting into the sig but just checking, then our work is done --- the original location we were passed, if it
 		// contained an unacceptable type, now contains a type error, and if it didn't, it doesn't.

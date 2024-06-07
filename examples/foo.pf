@@ -1,4 +1,9 @@
 def
 
-foo(x, y) -> int, single? :
-    x, y
+foo(x) :
+    q, w
+given :
+    q, w = 2 * x, x
+
+
+
