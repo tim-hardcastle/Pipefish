@@ -447,8 +447,12 @@ NodeTypeSwitch:
 		}
 		switch node.Token.Type {
 		case token.GVN_ASSIGN:
+			cp.cm("'given' block assignment", node.GetToken())
 			thunkStart := cp.Next()
 			types, cst := cp.CompileNode(node.Right, env, ac)
+			if recursivelyContains(types, simpleType(values.ERROR)) { // TODO --- this is a loathsome kludge over the fact that we're not constructing it that way in the first place.
+				types = types.Union(altType(values.ERROR))
+			}
 			resultLocation := cp.That()
 			if types.isOnly(values.ERROR) {
 				cp.P.Throw("comp/assign/error", node.Left.GetToken())
@@ -475,6 +479,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), cst
 			break NodeTypeSwitch
 		case token.ASSIGN, token.CMD_ASSIGN:
+			cp.cm("Assignment from REPL or in 'cmd' section", node.GetToken())
 			rhsIsError := bkEarlyReturn(DUMMY)
 			rTypes, _ := cp.CompileNode(node.Right, env, ac)
 			rhsResult := cp.That()

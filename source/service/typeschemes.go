@@ -64,6 +64,35 @@ func maxLengthsOrMinusOne(s dtypes.Set[int]) int {
 	return max
 }
 
+func recursivelyContains(t typeScheme, u simpleType) bool {
+	switch t := t.(type) {
+	case simpleType:
+		return t == u
+	case TypedTupleType:
+		for _, w := range t.T {
+			if recursivelyContains(w, u) {
+				return true
+			}
+		}
+		return false
+	case AlternateType:
+		for _, w := range t {
+			if recursivelyContains(w, u) {
+				return true
+			}
+		}
+		return false
+	case finiteTupleType:
+		for _, w := range t {
+			if recursivelyContains(w, u) {
+				return true
+			}
+		}
+		return false
+	}
+	panic("We shouldn't be here!")
+}
+
 // This finds all the possible ix-th elements in a typeScheme.
 func typesAtIndex(t typeScheme, ix int) AlternateType {
 	result, _ := recursiveTypesAtIndex(t, ix)

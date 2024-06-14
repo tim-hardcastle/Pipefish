@@ -1,6 +1,6 @@
 def
 
 foo(x int) :
-    q, w
+    w
 given :
     q, w = 6/x, 1
