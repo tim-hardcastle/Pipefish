@@ -1,9 +1,6 @@
 def
 
-foo(x) :
+foo(x int) :
     q, w
 given :
-    q, w = 2 * x, x
-
-
-
+    q, w = 6/x, 1

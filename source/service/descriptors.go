@@ -21,6 +21,23 @@ func (vm *Vm) DescribeCode(loc uint32) string {
 	return spaces + prefix + describe(vm.Code[loc])
 }
 
+func (vm *Vm) DescribeOperandValues(addr uint32) string {
+	op := vm.Code[addr]
+	operands := op.Args
+	operandTypes := OPERANDS[op.Opcode].or
+	result := ""
+	for i, operandType := range operandTypes {
+		if operandType == mem {
+			result = result + text.BULLET + "m" + strconv.Itoa(int(operands[i])) + " = " + vm.DescribeTypeAndValue(vm.Mem[operands[i]]) + "\n"
+		}
+	}
+	return result
+}
+
+func (vm *Vm) DescribeTypeAndValue(v values.Value) string {
+	return vm.DescribeType(v.T) + "::" + vm.Describe(v)
+}
+
 func (vm *Vm) DescribeType(t values.ValueType) string {
 	return vm.concreteTypes[t].getName()
 }

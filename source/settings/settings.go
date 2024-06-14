@@ -19,10 +19,12 @@ const (
 	FUNCTION_TO_PEEK = "" // Shows the function table entry and function tree associated with the function named in the string, if non-empty.
 
 	// These do what it sounds like.
-	SHOW_LEXER    = false
-	SHOW_RELEXER  = false
-	SHOW_PARSER   = false // Note that this only applies to the REPL and not to code initialization.
-	SHOW_COMPILER = true
-	SHOW_RUNTIME  = true // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
-	SHOW_XCALLS   = false
+	SHOW_LEXER             = false
+	SHOW_RELEXER           = false
+	SHOW_PARSER            = false // Note that this only applies to the REPL and not to code initialization.
+	SHOW_COMPILER          = true
+	SHOW_COMPILER_COMMENTS = true
+	SHOW_RUNTIME           = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
+	SHOW_RUNTIME_VALUES    = false // The firehose. Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
+	SHOW_XCALLS            = false
 )

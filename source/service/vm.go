@@ -108,6 +108,7 @@ type HTMLInjector struct {
 // These inhabit the first few memory addresses of the VM.
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.BRK, values.EMPTY}
 
+// Type names in upper case are things the user should never see.
 var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
 	"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 	"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "float", "type", "func",
@@ -117,8 +118,6 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
 		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
-	// Cross-reference with consts in values.go. TODO --- find something less stupidly brittle to do instead.
-	// Type names in upper case are things the user should never see.
 	copy(newVm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
 		newVm.concreteTypes = append(newVm.concreteTypes, builtinType(name))
@@ -135,6 +134,9 @@ loop:
 	for {
 		if settings.SHOW_RUNTIME {
 			println(text.GREEN + "    " + vm.DescribeCode(loc) + text.RESET)
+		}
+		if settings.SHOW_RUNTIME_VALUES {
+			print(vm.DescribeOperandValues(loc))
 		}
 		args := vm.Code[loc].Args
 	Switch:
@@ -1465,7 +1467,7 @@ func (t structType) isStruct() bool {
 }
 
 func (t structType) isSnippet() bool {
-	return t.isSnippet()
+	return t.snippet
 }
 
 func (t structType) isPrivate() bool {

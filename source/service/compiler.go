@@ -17,8 +17,8 @@ import (
 )
 
 type Thunk struct {
-	MLoc uint32
-	CLoc uint32
+	MLoc uint32 // The place in memory where the result of the thunk ends up when you unthunk it.
+	CLoc uint32 // The code address to call to unthunk the thunk.
 }
 
 type Compiler struct {
@@ -455,8 +455,10 @@ NodeTypeSwitch:
 				break NodeTypeSwitch
 			}
 			for i, pair := range sig {
-				typeToUse := cp.AnyTuple // TODO: we can extract more meanigful information about the tuple from the types.
-				if pair.VarType != "tuple" {
+				var typeToUse AlternateType // TODO: we can extract more meanigful information about the tuple from the types.
+				if pair.VarType == "tuple" {
+					typeToUse = cp.AnyTuple
+				} else {
 					typeToUse = typesAtIndex(types, i)
 				}
 				if cst {
@@ -470,11 +472,7 @@ NodeTypeSwitch:
 			}
 			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), true)
 			cp.Emit(Ret)
-			if cst {
-				rtnTypes, rtnConst = AltType(values.CREATED_LOCAL_CONSTANT), true
-				break NodeTypeSwitch
-			}
-			rtnTypes, rtnConst = AltType(values.CREATED_LOCAL_CONSTANT), false
+			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), cst
 			break NodeTypeSwitch
 		case token.ASSIGN, token.CMD_ASSIGN:
 			rhsIsError := bkEarlyReturn(DUMMY)
@@ -492,7 +490,7 @@ NodeTypeSwitch:
 			for i, pair := range sig {
 				v, ok := env.getVar(pair.VarName)
 				if ok {
-					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_TRUE_CONSTANT ||
+					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_TRUE_CONSTANT ||
 						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT {
 						cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
 						break NodeTypeSwitch
@@ -842,9 +840,9 @@ NodeTypeSwitch:
 			leftRg := cp.That()
 			// We deal with the case where the newline is separating local constant definitions
 			// in the 'given' block.
-			if lTypes.isOnly(values.CREATED_LOCAL_CONSTANT) {
+			if lTypes.isOnly(values.CREATED_THUNK_OR_CONST) {
 				_, cst := cp.CompileNode(node.Right, env, ac)
-				rtnTypes, rtnConst = AltType(values.CREATED_LOCAL_CONSTANT), lcst && cst
+				rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), lcst && cst
 				break
 			}
 			// We may be executing a command.
@@ -1179,10 +1177,10 @@ func (cp *Compiler) emitComma(node *ast.InfixExpression, env *Environment, ac cp
 	leftIsError := bkEarlyReturn(DUMMY)
 	rightIsError := bkEarlyReturn(DUMMY)
 	if lTypes.Contains(values.ERROR) {
-		cp.vmConditionalEarlyReturn(Qtyp, left, uint32(tp(values.ERROR)), left)
+		leftIsError = cp.vmConditionalEarlyReturn(Qtyp, left, uint32(tp(values.ERROR)), left)
 	}
 	if rTypes.Contains(values.ERROR) {
-		cp.vmConditionalEarlyReturn(Qtyp, right, uint32(tp(values.ERROR)), right)
+		rightIsError = cp.vmConditionalEarlyReturn(Qtyp, right, uint32(tp(values.ERROR)), right)
 	}
 	leftMustBeSingle, leftMustBeTuple := lTypes.mustBeSingleOrTuple()
 	rightMustBeSingle, rightMustBeTuple := rTypes.mustBeSingleOrTuple()
@@ -1410,7 +1408,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				cp.P.Throw("comp/error/arg", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
-			if b.types[i].(AlternateType).Contains(values.ERROR) {
+			if b.types[i].(AlternateType).Contains(values.ERROR) { // IMPORTANT --- find out if the ret statement is going to cause a problem with thunks as it did below before I fixed it.
 				cp.Emit(Qtyp, cp.That(), uint32(tp(values.ERROR)), cp.CodeTop()+4)
 				backtrackList[i] = cp.CodeTop()
 				cp.Emit(Asgm, DUMMY, cp.That())
@@ -1433,9 +1431,8 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		}
 	}
 	if returnTypes.Contains(values.ERROR) {
-		cp.Emit(Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+3)
+		cp.Emit(Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
 		cp.Emit(Adtk, cp.That(), cp.That(), cp.reserveToken(b.tok))
-		cp.Emit(Ret)
 	}
 	return returnTypes, cst
 }
@@ -1510,6 +1507,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 // and on the next branch for the unaccepted types.
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(b *bindle) AlternateType {
+	cp.cm("Generate branch", b.tok)
 	if b.tupleTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
 		newBindle := *b
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
@@ -1892,6 +1890,7 @@ func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
 // If the sig is of an assignment in a command or a given block, then this is in fact all that needs to be done. If it's a
 // lambda, then the rest of the code in the lambda can then reurn an error if passed one.
 func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, insert bool) {
+	cp.cm("Emit type checks", tok)
 	errorLocation := cp.reserveError("vm/typecheck", tok)
 	lengthCheck := bkIf(DUMMY)
 	inputIsError := bkGoto(DUMMY)
@@ -2291,6 +2290,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 }
 
 func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac cpAccess) *SnippetBindle {
+	cp.cm("Compile injectable snippet", tok)
 	bindle := SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
@@ -2434,4 +2434,10 @@ func isOnlyAssortedStructs(mc *Vm, aT AlternateType) bool {
 		}
 	}
 	return true
+}
+
+func (cp *Compiler) cm(comment string, tok *token.Token) {
+	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
+		println(text.CYAN + "// " + comment + text.RESET)
+	}
 }

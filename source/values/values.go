@@ -12,7 +12,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	INT_ARRAY                               // V is an array of Golang integers.
 	SNIPPET_DATA                            // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
 	THUNK                                   // Contains what we need to evaluate inner variables.
-	CREATED_LOCAL_CONSTANT                  // Returned by the compiler in the typeScheme when we compile a thunk.
+	CREATED_THUNK_OR_CONST                  // Returned by the compiler in the typeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                      // For when we have to return a type, but what we have is a compile time error.
 	BLING                                   // Values representing e.g. the `troz` in `foo (x) troz (y)`.
 	UNSAT                                   // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
