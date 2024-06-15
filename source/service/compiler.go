@@ -94,6 +94,19 @@ func (cs cpSig) Len() int {
 	return len(cs)
 }
 
+type NameAlternateTypePair struct {
+	VarName string
+	VarType AlternateType
+}
+
+func (ntp NameAlternateTypePair) GetName() string {
+	return ntp.VarName
+}
+
+func (ntp NameAlternateTypePair) GetType() any {
+	return ntp.VarType
+}
+
 // The access that the compiler has at any given point in the compilation. Are we compiling code in a function, a command, a REPL?
 type cpAccess int
 
@@ -440,14 +453,14 @@ func (cp *Compiler) CompileNode(node ast.Node, env *Environment, ac cpAccess) (A
 NodeTypeSwitch:
 	switch node := node.(type) {
 	case *ast.AssignmentExpression:
-		sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
-		if err != nil {
-			cp.P.Throw("comp/assign/lhs", node.Left.GetToken())
-			break NodeTypeSwitch
-		}
 		switch node.Token.Type {
 		case token.GVN_ASSIGN:
 			cp.cm("'given' block assignment", node.GetToken())
+			sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
+			if err != nil {
+				cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
+				break NodeTypeSwitch
+			}
 			thunkStart := cp.Next()
 			types, cst := cp.CompileNode(node.Right, env, ac)
 			if recursivelyContains(types, simpleType(values.ERROR)) { // TODO --- this is a loathsome kludge over the fact that we're not constructing it that way in the first place.
@@ -480,6 +493,11 @@ NodeTypeSwitch:
 			break NodeTypeSwitch
 		case token.ASSIGN, token.CMD_ASSIGN:
 			cp.cm("Assignment from REPL or in 'cmd' section", node.GetToken())
+			sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
+			if err != nil {
+				cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
+				break NodeTypeSwitch
+			}
 			rhsIsError := bkEarlyReturn(DUMMY)
 			rTypes, _ := cp.CompileNode(node.Right, env, ac)
 			rhsResult := cp.That()
@@ -490,11 +508,18 @@ NodeTypeSwitch:
 				rtnTypes = AltType(values.SUCCESSFUL_VALUE)
 			}
 			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
-			varLocs := make([]uint32, 0, len(sig))
 			types := rTypes.without(simpleType(values.ERROR))
+			newSig := cpSig{} // A more flexible form of signature that allows the types to be represented as a string or as an AlternateType.
 			for i, pair := range sig {
 				v, ok := env.getVar(pair.VarName)
 				if ok {
+					if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
+						if !Equals(v.types, cp.TypeNameToTypeList[sig[i].VarType]) {
+							cp.P.Throw("comp/assign/redefine/b", node.GetToken())
+							break NodeTypeSwitch
+						}
+					}
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
 					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_TRUE_CONSTANT ||
 						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT {
 						cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
@@ -504,22 +529,27 @@ NodeTypeSwitch:
 						cp.P.Throw("comp/assign/private", node.Left.GetToken())
 						break NodeTypeSwitch
 					}
-					varLocs = append(varLocs, v.mLoc)
 				} else { // Then we create a local variable.
 					if ac == REPL {
 						cp.P.Throw("comp/assign/error", node.Left.GetToken())
 						break NodeTypeSwitch
 					}
 					cp.Reserve(values.UNDEFINED_VALUE, DUMMY)
-					varLocs = append(varLocs, cp.That())
 					if pair.VarType == "tuple" {
 						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple)
+						newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
 					} else {
-						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex(types, i))
+						typesAtIndex := typesAtIndex(types, i)
+						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex)
+						if sig[i].VarName == "*inferred*" {
+							newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
+						} else {
+							newSig = append(newSig, ast.NameTypenamePair{pair.VarName, sig[i].VarType})
+						}
 					}
 				}
 			}
-			cp.emitTypeChecks(rhsResult, types, env, sig, ac, node.GetToken(), true)
+			cp.emitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), true)
 			cp.put(Asgm, values.C_OK)
 			cp.vmComeFrom(rhsIsError)
 			break NodeTypeSwitch

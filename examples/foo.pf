@@ -1,6 +1,6 @@
 var
 
-w tuple = 42, 43
+w int? = 42
 
 const
 

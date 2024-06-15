@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pipefish/source/dtypes"
 	"pipefish/source/values"
+	"reflect"
 	"strings"
 )
 
@@ -62,6 +63,47 @@ func maxLengthsOrMinusOne(s dtypes.Set[int]) int {
 		}
 	}
 	return max
+}
+
+func Equals(t, u typeScheme) bool {
+	if reflect.TypeOf(t) != reflect.TypeOf(u) {
+		return false
+	}
+	switch t := t.(type) {
+	case simpleType:
+		return t == u
+	case TypedTupleType:
+		if len(t.T) != len(u.(TypedTupleType).T) {
+			return false
+		}
+		for i, w := range t.T {
+			if !Equals(w, u.(TypedTupleType).T[i]) {
+				return false
+			}
+		}
+		return true
+	case AlternateType:
+		if len(t) != len(u.(AlternateType)) {
+			return false
+		}
+		for i, w := range t {
+			if !Equals(w, u.(AlternateType)[i]) {
+				return false
+			}
+		}
+		return true
+	case finiteTupleType:
+		if len(t) != len(u.(finiteTupleType)) {
+			return false
+		}
+		for i, w := range t {
+			if !Equals(w, u.(finiteTupleType)[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	panic("We shouldn't be here!")
 }
 
 func recursivelyContains(t typeScheme, u simpleType) bool {

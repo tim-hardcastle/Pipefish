@@ -65,26 +65,27 @@ goRandomInt(i int) : gocode {
     return rand.Intn(i)
 }
 
-randomFunctionOf(random Random) :
-    type r == int : 
-        r <= 0 :
-            error "range of Random object cannot be <= 0"
-        else :
-            goRandomInt(r)
-    // type r == list :
-    //     r == [] :
-    //         error "can't take random element of empty list"
-    //     else :
-    //         r[goRandomInt(len r)]
-    else :
-        error "can't randomize things of type " + string(type r)
-given :
-    r = random[params]
+// randomFunctionOf(random Random) :
+//     42
+// //     type r == int : 
+// //         r <= 0 :
+// //             error "range of Random object cannot be <= 0"
+// //         else :
+// //             goRandomInt(r)
+// //     // type r == list :
+// //     //     r == [] :
+// //     //         error "can't take random element of empty list"
+// //     //     else :
+// //     //         r[goRandomInt(len r)]
+// //     else :
+// //         error "can't randomize things of type " + string(type r)
+// // given :
+// //     r = random[params]
 
-cmd
+// cmd
 
-get (x ref) from (random Random) :
-     x = randomFunctionOf(random)  
+// get (x ref) from (random Random) :
+//      x = randomFunctionOf(random)  
 
 
 def
@@ -123,10 +124,10 @@ goPutStringInFile(output string, fname string) : gocode {
 }
 
 get (contents ref) from (fileAccess File) : 
-    contents = goGetFile(fileAccess[filepath])
+    contents = "" // goGetFile(fileAccess[filepath])
 
 get (x ref) from (fileAccess FileExists) :
-    x = goFileExists(fileAccess[filepath])
+    x = false // goFileExists(fileAccess[filepath])
 
 put (s string) into (fileAccess File) : 
     goPutStringInFile(s, fileAccess[filepath])
