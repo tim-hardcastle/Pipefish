@@ -833,10 +833,10 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
 			lhs := dec.(*ast.AssignmentExpression).Left
 			rhs := dec.(*ast.AssignmentExpression).Right
-			if lhs.GetToken().Type != token.IDENT { // TODO --- use assignment signature once tuples are working.
-				vmm.uP.Throw("init/assign/ident", *dec.GetToken())
+			sig, _ := vmm.cp.P.RecursivelySlurpSignature(lhs, "*inferred*")
+			if vmm.uP.ErrorsExist() {
+				return
 			}
-			vname := lhs.(*ast.Identifier).Value
 			rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations after
 			vmm.cp.CompileNode(rhs, vmm.cp.GlobalVars, INIT)
 			if vmm.uP.ErrorsExist() {
@@ -847,20 +847,72 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			result := vmm.cp.vm.Mem[vmm.cp.That()]
 			if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
 				vmm.cp.rollback(rollbackTo)
-				vmm.cp.Reserve(result.T, result.V)
 			}
 			isPrivate := vmm.uP.isPrivate(declarations, v)
+			var vAcc varAccess
+			envToAddTo := vmm.cp.GlobalConsts
 			if declarations == int(constantDeclaration) {
 				if isPrivate {
-					vmm.cp.AddVariable(vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PRIVATE, altType(result.T))
+					vAcc = GLOBAL_CONSTANT_PRIVATE
 				} else {
-					vmm.cp.AddVariable(vmm.cp.GlobalConsts, vname, GLOBAL_CONSTANT_PUBLIC, altType(result.T))
+					vAcc = GLOBAL_CONSTANT_PUBLIC
 				}
 			} else {
+				envToAddTo = vmm.cp.GlobalVars
 				if isPrivate {
-					vmm.cp.AddVariable(vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PRIVATE, altType(result.T))
+					vAcc = GLOBAL_VARIABLE_PRIVATE
 				} else {
-					vmm.cp.AddVariable(vmm.cp.GlobalVars, vname, GLOBAL_VARIABLE_PUBLIC, altType(result.T))
+					vAcc = GLOBAL_VARIABLE_PUBLIC
+				}
+			}
+
+			last := len(sig) - 1
+			lastIsTuple := sig[last].VarType == "tuple"
+			rhsIsTuple := result.T == values.TUPLE
+			tupleLen := 1
+			if rhsIsTuple {
+				tupleLen = len(result.V.([]values.Value))
+			}
+			if !lastIsTuple && tupleLen != len(sig) {
+				vmm.cp.P.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
+				return
+			}
+			if lastIsTuple && tupleLen < len(sig)-1 {
+				vmm.cp.P.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
+				return
+			}
+			loopTop := len(sig)
+			head := []values.Value{result}
+			if lastIsTuple {
+				loopTop = last
+				if rhsIsTuple {
+					head = result.V.([]values.Value)[:last]
+					vmm.cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:])
+				} else {
+					if tupleLen == len(sig)-1 {
+						vmm.cp.Reserve(values.TUPLE, []values.Value{})
+					} else {
+						vmm.cp.Reserve(values.TUPLE, result.V)
+					}
+				}
+				vmm.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE))
+			} else {
+				if rhsIsTuple {
+					head = result.V.([]values.Value)
+				}
+			}
+			for i := 0; i < loopTop; i++ {
+				vmm.cp.Reserve(head[i].T, head[i].V)
+				if sig[i].VarType == "*inferred*" {
+					vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T))
+				} else {
+					allowedTypes := vmm.cp.TypeNameToTypeList[sig[i].VarType]
+					if allowedTypes.isNoneOf(head[i].T) {
+						vmm.cp.P.Throw("comp/assign/type", dec.GetToken())
+						return
+					} else {
+						vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes)
+					}
 				}
 			}
 		}

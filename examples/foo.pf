@@ -1,6 +1,20 @@
+var
+
+w tuple = 42, 43
+
+const
+
+Q, V = "foo", true
+
 def
 
-foo(x int) :
-    w
+foo(x) :
+    q
 given :
-    q, w = 6/x, 1
+    q int = x
+
+cmd
+
+zort(x) :
+    w int = x
+    post w

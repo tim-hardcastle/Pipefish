@@ -41,6 +41,7 @@ type Vm struct {
 	ExternalCallHandlers []externalCallHandler // The services declared external, whether on the same hub or a different one.
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
 	codeGeneratingTypes dtypes.Set[values.ValueType]
+	typeCheckLoc        uint32 // A place to temporarily store the results of typechecking.
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -122,6 +123,8 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	for _, name := range nativeTypeNames {
 		newVm.concreteTypes = append(newVm.concreteTypes, builtinType(name))
 	}
+	newVm.typeCheckLoc = uint32(len(newVm.Mem))
+	newVm.Mem = append(newVm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil})
 	return newVm
 }
 
