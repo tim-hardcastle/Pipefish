@@ -803,7 +803,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		cpF.OutReg = vmm.cp.That()
 
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
-			vmm.cp.emitTypeChecks(cpF.OutReg, cpF.Types, fnenv, rtnSig, ac, node.GetToken(), false)
+			vmm.cp.emitTypeChecks(cpF.OutReg, cpF.Types, fnenv, rtnSig, ac, node.GetToken(), CHECK_RETURN_TYPES)
 		}
 
 		vmm.cp.Emit(Ret)

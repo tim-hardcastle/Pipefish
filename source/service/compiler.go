@@ -487,7 +487,7 @@ NodeTypeSwitch:
 					cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
 				}
 			}
-			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), true)
+			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
 			cp.Emit(Ret)
 			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), cst
 			break NodeTypeSwitch
@@ -498,7 +498,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
 				break NodeTypeSwitch
 			}
-			rhsIsError := bkEarlyReturn(DUMMY)
+			rhsIsError := bkEarlyReturn(DUMMY) // TODO --- since assigning an error would violate a type check, which we also perform, is this necessary?
 			rTypes, _ := cp.CompileNode(node.Right, env, ac)
 			rhsResult := cp.That()
 			if rTypes.Contains(values.ERROR) {
@@ -510,6 +510,8 @@ NodeTypeSwitch:
 			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
 			types := rTypes.without(simpleType(values.ERROR))
 			newSig := cpSig{} // A more flexible form of signature that allows the types to be represented as a string or as an AlternateType.
+			// We need to do typechecking differently according to whether anything on the LHS is a global, in which case we need to early-return an error from the typechecking.
+			flavor := CHECK_LOCAL_CMD_ASSIGNMENTS
 			for i, pair := range sig {
 				v, ok := env.getVar(pair.VarName)
 				if ok {
@@ -528,6 +530,9 @@ NodeTypeSwitch:
 					if ac == REPL && (v.access != GLOBAL_VARIABLE_PUBLIC) {
 						cp.P.Throw("comp/assign/private", node.Left.GetToken())
 						break NodeTypeSwitch
+					}
+					if v.access == GLOBAL_VARIABLE_PUBLIC {
+						flavor = CHECK_GLOBAL_ASSIGNMENTS
 					}
 				} else { // Then we create a local variable.
 					if ac == REPL {
@@ -549,9 +554,9 @@ NodeTypeSwitch:
 					}
 				}
 			}
-			cp.emitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), true)
+			typeCheckFailed := cp.emitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), flavor)
 			cp.put(Asgm, values.C_OK)
-			cp.vmComeFrom(rhsIsError)
+			cp.vmComeFrom(rhsIsError, typeCheckFailed)
 			break NodeTypeSwitch
 		default: // Of switch on ast.Assignment.
 			cp.P.Throw("comp/assign", node.GetToken())
@@ -1915,6 +1920,19 @@ func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
 	}
 }
 
+// To keep the following function from being many functions, we're going to pass it a thing modifying its behavior. Which, yeah,
+// has its own problems. I should have written a Lisp in Lisp, I'd have been finished in half-an-hour.
+type typeCheckFlavor int
+
+const (
+	CHECK_RETURN_TYPES typeCheckFlavor = iota
+	CHECK_GIVEN_ASSIGNMENTS
+	CHECK_INITIALIZATION_ASSIGNMENTS
+	CHECK_LAMBDA_PARAMETERS
+	CHECK_LOCAL_CMD_ASSIGNMENTS // Note that in the case of multiple assignment, just one global
+	CHECK_GLOBAL_ASSIGNMENTS    // variable on the left makes it global.
+)
+
 // We take (a location of) a single or tuple, the type as an AlternateType, a signature, an environment, a token, and a
 // flag `insert` which says whether the sig contains names we should be inserting the tuple elements into or is just a return
 // type signature in which case there will be no names and we can leave them as they are.
@@ -1924,8 +1942,15 @@ func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
 // equivalent is to fill the parameters up with an error value generated from the token.
 // If the sig is of an assignment in a command or a given block, then this is in fact all that needs to be done. If it's a
 // lambda, then the rest of the code in the lambda can then reurn an error if passed one.
-func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, insert bool) {
+func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, flavor typeCheckFlavor) bkEarlyReturn {
 	cp.cm("Emit type checks", tok)
+	// The insert variable says whether we're just doing a typecheck against the sig or whether we're inserting values into variables.
+	insert := (flavor != CHECK_RETURN_TYPES)
+	// The earlyReturnOnFailure variable does what it sounds like. In the case when we are typechecking the arguments of a lambda or an assignment involving a global
+	// variable, we have to be able to early-return the error.
+	earlyReturnOnFailure := (flavor == CHECK_GLOBAL_ASSIGNMENTS || flavor == CHECK_LAMBDA_PARAMETERS)
+	// And so this is the early return address that we're going to return to the caller if necessary, which can discharge it with a ComeFrom.
+	errorCheck := bkEarlyReturn(DUMMY)
 	errorLocation := cp.reserveError("vm/typecheck", tok)
 	lengthCheck := bkIf(DUMMY)
 	inputIsError := bkGoto(DUMMY)
@@ -1937,7 +1962,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
 	if types.isOnly(values.ERROR) {
 		cp.P.Throw("comp/typecheck/a", tok)
-		return
+		return errorCheck
 	}
 	if types.Contains(values.ERROR) {
 		cp.Emit(Qtyp, loc, uint32(values.ERROR), cp.CodeTop()+3)
@@ -1951,7 +1976,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	if len(tuples) == 0 {
 		if sig.Len() != 1 {
 			cp.P.Throw("comp/typecheck/b", tok)
-			return
+			return errorCheck
 		}
 	}
 	if len(acceptedSingles) != len(singles) {
@@ -1998,7 +2023,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 		}
 		if badLengths == len(lengths) {
 			cp.P.Throw("comp/typecheck/c", tok)
-			return
+			return errorCheck
 		}
 
 		if goodLengths != len(lengths) {
@@ -2023,7 +2048,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			overlap := typesToCheck.intersect(sigTypes)
 			if len(overlap) == 0 || overlap.isOnly(values.ERROR) {
 				cp.P.Throw("comp/typecheck/d", tok)
-				return
+				return errorCheck
 			}
 			if len(overlap) == len(typesToCheck) {
 				continue
@@ -2035,8 +2060,6 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), elementLoc)
 			typeChecks = append(typeChecks, typeCheck)
 		}
-
-		// TODO --- obviously these should be the same loop.
 
 		// At this point if we're not inserting into the sig but just checking, then our work is done --- the original location we were passed, if it
 		// contained an unacceptable type, now contains a type error, and if it didn't, it doesn't.
@@ -2063,12 +2086,19 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 		cp.vmComeFrom(tc)
 	}
 
-	if insert { // If we're putting things into a signature, then on error we want those things to contain the error. If we're just typechecking it, then we want to replace it with an error.
+	// If we're putting things into a signature, then on error we want those things to contain the error, unless
+	// it contains a global variable or we're typechecking a function, in which case we need an early return.
+	// If we're just typechecking it, then we want to replace it with an error --- that is, a function trying to
+	// return a tuple containing an error should just return the error.
+	switch {
+	case earlyReturnOnFailure:
+		errorCheck = cp.vmEarlyReturn(errorLocation)
+	case insert:
 		for i := 0; i < sig.Len(); i++ {
 			vr, _ := env.getVar(sig.GetVarName(i))
 			cp.Emit(Asgm, vr.mLoc, errorLocation)
 		}
-	} else {
+	default:
 		cp.Emit(Asgm, loc, errorLocation)
 	}
 
@@ -2076,6 +2106,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 		cp.vmComeFrom(successfulSingleCheck)
 	}
 	cp.vmComeFrom(jumpToEnd)
+	return errorCheck
 }
 
 // Either we already have an AlternateType, and can return it, or we have a type in the form of a string and
