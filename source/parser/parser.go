@@ -49,7 +49,6 @@ const (
 var precedences = map[token.TokenType]int{
 	token.SEMICOLON:           SEMICOLON,
 	token.NEWLINE:             SEMICOLON,
-	token.WEAK_COLON:          WEAK_COLON,
 	token.LOG:                 LOGGING,
 	token.IFLOG:               LOGGING,
 	token.PRELOG:              LOGGING,
@@ -57,9 +56,7 @@ var precedences = map[token.TokenType]int{
 	token.GIVEN:               GIVEN,
 	token.LOOP:                GIVEN,
 	token.ASSIGN:              ASSIGN,
-	token.CMD_ASSIGN:          ASSIGN,
 	token.GVN_ASSIGN:          GVN_ASSIGN,
-	token.LZY_ASSIGN:          ASSIGN,
 	token.COLON:               COLON,
 	token.MAGIC_COLON:         COLON,
 	token.PIPE:                PIPING,
@@ -162,11 +159,11 @@ func New() *Parser {
 		Typenames:         make(dtypes.Set[string]),
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
-			token.ASSIGN, token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN,
+			token.ASSIGN, token.GVN_ASSIGN,
 			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAPPING,
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
-			token.OR, token.COLON, token.WEAK_COLON, token.SEMICOLON, token.NEWLINE}),
+			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
 		FunctionGroupMap: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeSystem:       NewTypeSystem(),
@@ -238,7 +235,7 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
 var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
 	token.LPAREN, token.LBRACE, token.EVAL})
-var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.CMD_ASSIGN, token.GVN_ASSIGN, token.LZY_ASSIGN})
+var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.GVN_ASSIGN})
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
@@ -1124,7 +1121,7 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 
 	switch fn := fn.(type) {
 	case *ast.LazyInfixExpression:
-		if !(fn.Token.Type == token.COLON || fn.Token.Type == token.WEAK_COLON) {
+		if !(fn.Token.Type == token.COLON) {
 			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
 			return functionName, 0, sig, rTypes, content, given, tupleList
 		}
@@ -1504,7 +1501,7 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.S
 				LHS.Add(tok.Literal)
 			}
 		}
-		if tok.Type == token.ASSIGN || tok.Type == token.CMD_ASSIGN {
+		if tok.Type == token.ASSIGN {
 			assignHasHappened = true
 		}
 

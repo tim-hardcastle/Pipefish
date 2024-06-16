@@ -180,9 +180,6 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 				expressionIsEnum = true
 			}
 		}
-		if tok.Type == token.ASSIGN && currentSection == CmdSection { // Note that the =s in the `given` block have already been turned into GVN_ASSIGN.
-			tok.Type = token.CMD_ASSIGN
-		}
 		if tok.Type == token.LPAREN {
 			beginCount++
 			if tok.Literal == "|->" {
@@ -276,7 +273,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			continue
 		}
 
-		lastTokenWasColon = (tok.Type == token.COLON || tok.Type == token.WEAK_COLON)
+		lastTokenWasColon = (tok.Type == token.COLON)
 
 		if (lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand { // If we found the first : in a command/function declaration, then what is to the left of the colon is the command/function's signature.
 			colonMeansFunctionOrCommand = false

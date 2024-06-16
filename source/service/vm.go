@@ -67,7 +67,7 @@ type Lambda struct {
 	parametersEnd  uint32
 	resultLocation uint32
 	addressToCall  uint32
-	Captures       []values.Value
+	captures       []values.Value
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -253,7 +253,7 @@ loop:
 		case Dofn:
 			lhs := vm.Mem[args[1]].V.(Lambda)
 			for i := 0; i < int(lhs.capturesEnd-lhs.capturesStart); i++ {
-				vm.Mem[int(lhs.capturesStart)+i] = lhs.Captures[i]
+				vm.Mem[int(lhs.capturesStart)+i] = lhs.captures[i]
 			}
 			for i := 0; i < int(lhs.parametersEnd-lhs.capturesEnd); i++ {
 				vm.Mem[int(lhs.capturesEnd)+i] = vm.Mem[args[2+i]]
@@ -641,9 +641,9 @@ loop:
 		case Mkfn:
 			lf := vm.LambdaFactories[args[1]]
 			newLambda := *lf.Model
-			newLambda.Captures = make([]values.Value, len(lf.CaptureLocations))
+			newLambda.captures = make([]values.Value, len(lf.CaptureLocations))
 			for i, v := range lf.CaptureLocations {
-				newLambda.Captures[i] = vm.Mem[v]
+				newLambda.captures[i] = vm.Mem[v]
 			}
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
 		case Mkmp:

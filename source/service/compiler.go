@@ -352,13 +352,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	// Function starts here.
 
-	LF.Model.addressToCall = cp.CodeTop()
-
-	// We have to typecheck inside the lambda, because the calling site doesn't know which function it's calling.
-
-	// TODO !!!
-
-	// Now we can emit the main body of the function.
+	LF.Model.addressToCall = cp.CodeTop() // TODO --- find out why this comes *after* emitting the `Thnk`s.
 
 	cp.CompileNode(fnNode.Body, newEnv, LAMBDA)
 	LF.Model.resultLocation = cp.That()
@@ -491,7 +485,7 @@ NodeTypeSwitch:
 			cp.Emit(Ret)
 			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), cst
 			break NodeTypeSwitch
-		case token.ASSIGN, token.CMD_ASSIGN:
+		case token.ASSIGN:
 			cp.cm("Assignment from REPL or in 'cmd' section", node.GetToken())
 			sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
 			if err != nil {

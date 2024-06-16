@@ -38,8 +38,6 @@ const (
 	// Assignment operators
 	ASSIGN     = "="
 	GVN_ASSIGN = "=GVN=" // To store hidden data. Probably can be abolished now like the others. TODO.
-	LZY_ASSIGN = "=LZY="
-	CMD_ASSIGN = "=CMD="
 
 	// The protected punctuation.
 	COLON               = ":"
@@ -77,7 +75,6 @@ const (
 	MAGIC_COLON = "MAGIC COLON"
 	NO_INDENT   = "|||"
 	PRELOG      = "PRELOG"
-	WEAK_COLON  = "WEAK COLON"
 	WEAK_COMMA  = ",,"
 	XCALL       = "XCALL"
 )

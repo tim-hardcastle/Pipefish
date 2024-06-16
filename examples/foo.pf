@@ -2,6 +2,14 @@ var
 
 w int? = 42
 
+cmd 
+
+zero :
+    global w 
+    w = 0
+    z int = 0
+    post z
+
 const
 
 Q, V = "foo", true
@@ -13,8 +21,9 @@ foo(x) :
 given :
     q int = x
 
-cmd
-
-zort(x) :
-    w int = x
-    post w
+zort(i, j) :
+    a, glerp i
+given :
+    a = j * j
+    glerp(x int) :
+        j * x
