@@ -298,7 +298,7 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 	return target
 }
 
-func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, tok *token.Token) bool {
+func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, tok *token.Token) {
 
 	LF := &LambdaFactory{Model: &Lambda{}}
 	newEnv := NewEnvironment()
@@ -364,11 +364,10 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	if captures.IsEmpty() {
 		cp.Reserve(values.FUNC, *LF.Model)
-		return true
+		return
 	}
 	cp.vm.LambdaFactories = append(cp.vm.LambdaFactories, LF)
 	cp.put(Mkfn, uint32(len(cp.vm.LambdaFactories)-1))
-	return false
 }
 
 func (cp *Compiler) AddVariable(env *Environment, name string, acc varAccess, types AlternateType) {
@@ -568,9 +567,10 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
 		break
 	case *ast.FuncExpression:
-		rtnConst = cp.compileLambda(env, node, node.GetToken())
+		cp.compileLambda(env, node, node.GetToken())
 		rtnTypes = AltType(values.FUNC) // In the case where the function is a constant (i.e. has no captures), the compileLambda function will emit an assignment rather than a lambda factory.)
-		break                           // Things that return functions and snippets are not folded, even if they are constant.
+		rtnConst = false
+		break // Things that return functions and snippets are not folded, even if they are constant.
 	case *ast.Identifier:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		cp.P.GetErrorsFrom(resolvingCompiler.P)
