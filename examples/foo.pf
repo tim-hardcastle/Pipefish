@@ -1,7 +1,7 @@
 def
 
 zort(i, j) :
-    glerp i
+    glerp(i), j
 given :
     glerp(x int) :
-        x
+        i * j * x

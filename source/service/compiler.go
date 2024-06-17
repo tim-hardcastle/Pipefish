@@ -340,20 +340,24 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	// Compile the locals.
 
+	saveThunkList := cp.ThunkList // TODO --- this is bad coding and I know it. The whole ThunkList thing is deeply sus.
 	if fnNode.Given != nil {
-		saveThunkList := cp.ThunkList // TODO --- this is bad coding and I know it. The whole ThunkList thing is deeply sus. Replace with a stack?
 		cp.ThunkList = []Thunk{}
 		cp.CompileNode(fnNode.Given, newEnv, LAMBDA)
+	}
+
+	// Function starts here.
+	LF.Model.addressToCall = cp.CodeTop()
+
+	// Initialize the thunks, if any.
+	if fnNode.Given != nil {
 		for _, pair := range cp.ThunkList {
 			cp.Emit(Thnk, pair.MLoc, pair.CLoc)
 		}
 		cp.ThunkList = saveThunkList
 	}
 
-	// Function starts here.
-
-	LF.Model.addressToCall = cp.CodeTop() // TODO --- find out why this comes *after* emitting the `Thnk`s.
-
+	// Compile the main body of the lambda.
 	cp.CompileNode(fnNode.Body, newEnv, LAMBDA)
 	LF.Model.resultLocation = cp.That()
 	cp.Emit(Ret)
