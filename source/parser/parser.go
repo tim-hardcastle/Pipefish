@@ -13,13 +13,24 @@ import (
 	"pipefish/source/token"
 )
 
+// NOTE: it may seem weird that the semicolon/newline has a lower precedence than 'given' or the 'magic colon', since these are followed by blocks
+// of newline-concatenated expressions. However, these blocks are held together by the indent-outdent bracketing. If the semicolon/newline had
+// higher precedence, then something along the lines of:
+//
+// given :
+//     foo(x) :
+//         x
+//     a = 42
+//
+// would parse incorrectly because it would try and attach the assignment to the inner function.
+
 const (
 	_ int = iota
 	LOWEST
+	SEMICOLON // semantic newline or ;
 	FUNC
 	GIVEN       // 'given'
 	MAGIC_COLON // The colon separating the parameters of an inner function from its body.
-	SEMICOLON   // semantic newline or ;
 	WEAK_COLON  // A vile kludge.
 	GVN_ASSIGN  //
 	LOGGING     //
@@ -48,26 +59,26 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
-	token.MAGIC_COLON: COLON,
-	token.GIVEN:       GIVEN,
-	token.LOOP:        GIVEN,
-	token.SEMICOLON:   SEMICOLON,
-	token.NEWLINE:     SEMICOLON,
+	token.SEMICOLON: SEMICOLON,
+	token.NEWLINE:   SEMICOLON,
+	token.GIVEN:     GIVEN,
+	token.LOOP:      GIVEN,
 	// WEAK_COLON
-	token.GVN_ASSIGN: GVN_ASSIGN,
-	token.LOG:        LOGGING,
-	token.IFLOG:      LOGGING,
-	token.PRELOG:     LOGGING,
-	token.COLON:      COLON,
-	token.ASSIGN:     ASSIGN,
-	token.PIPE:       PIPING,
-	token.MAPPING:    PIPING,
-	token.FILTER:     PIPING,
-	token.OR:         OR,
-	token.AND:        AND,
-	token.NOT:        NOT,
-	token.EQ:         EQUALS,
-	token.NOT_EQ:     EQUALS,
+	token.GVN_ASSIGN:  GVN_ASSIGN,
+	token.LOG:         LOGGING,
+	token.IFLOG:       LOGGING,
+	token.PRELOG:      LOGGING,
+	token.MAGIC_COLON: COLON,
+	token.COLON:       COLON,
+	token.ASSIGN:      ASSIGN,
+	token.PIPE:        PIPING,
+	token.MAPPING:     PIPING,
+	token.FILTER:      PIPING,
+	token.OR:          OR,
+	token.AND:         AND,
+	token.NOT:         NOT,
+	token.EQ:          EQUALS,
+	token.NOT_EQ:      EQUALS,
 	// LESSGREATER
 	token.WEAK_COMMA: WEAK_COMMA,
 	token.GLOBAL:     FPREFIX,
@@ -506,9 +517,6 @@ func (p *Parser) peekPrecedence() int {
 }
 
 func (p *Parser) curPrecedence() int {
-	if p.curToken.Type == token.GIVEN {
-		return LOWEST
-	}
 	if p.curToken.Type == token.NAMESPACE_SEPARATOR {
 		return BELOW_NAMESPACE
 	}
@@ -761,7 +769,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Type = token.GVN_ASSIGN
 		newTok.Literal = "="
 		p.NextToken()
-		right := p.parseExpression(LOWEST)
+		right := p.parseExpression(WEAK_COLON)
 		fn := &ast.FuncExpression{Token: p.curToken}
 		expression := &ast.AssignmentExpression{
 			Token: newTok,
@@ -956,7 +964,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 		Token: p.curToken,
 	}
 	p.NextToken()
-	RHS := p.parseExpression(LOWEST)
+	RHS := p.parseExpression(WEAK_COLON)
 	// At this point the root of the RHS should be the colon dividing the function sig from its body.
 	root := RHS
 	if root.GetToken().Type != token.COLON {

@@ -1,7 +1,14 @@
 def
 
 zort(x) :
-    foo x
+    d * bar x
 given :
+    a = 3
+    b = 3
     foo(i int) :
-        i
+        5 * i
+    bar(i int) :
+        6 * i
+    d = 13
+
+
