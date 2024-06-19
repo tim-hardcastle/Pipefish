@@ -3,5 +3,5 @@ def
 zort(x) :
     foo x
 given :
-    foo(i int) -> int:
+    foo(i int) :
         i

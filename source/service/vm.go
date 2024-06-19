@@ -68,6 +68,8 @@ type Lambda struct {
 	resultLocation uint32
 	addressToCall  uint32
 	captures       []values.Value
+	sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'single?'
+	tok            *token.Token
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -258,8 +260,33 @@ loop:
 			for i := 0; i < int(lhs.parametersEnd-lhs.capturesEnd); i++ {
 				vm.Mem[int(lhs.capturesEnd)+i] = vm.Mem[args[2+i]]
 			}
-			vm.Run(lhs.addressToCall)
-			vm.Mem[args[0]] = vm.Mem[lhs.resultLocation]
+			success := true
+			if lhs.sig != nil {
+				for i, abType := range lhs.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
+					success = false
+					if abType.Types == nil {
+						success = true
+						continue
+					} else {
+						for _, ty := range abType.Types {
+							if ty == vm.Mem[int(lhs.capturesEnd)+i].T {
+								success = true
+								if vm.Mem[int(lhs.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lhs.capturesEnd)+i].V.(string)) > abType.Len() {
+									success = false
+								}
+							}
+						}
+					}
+					if !success {
+						vm.Mem[args[0]] = values.Value{values.ERROR, report.CreateErr("vm/func/types", lhs.tok)}
+						break
+					}
+				}
+			}
+			if success {
+				vm.Run(lhs.addressToCall)
+				vm.Mem[args[0]] = vm.Mem[lhs.resultLocation]
+			}
 		case Dref:
 			vm.Mem[args[0]] = vm.Mem[vm.Mem[args[1]].V.(uint32)]
 		case Equb:

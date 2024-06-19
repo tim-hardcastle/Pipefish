@@ -307,8 +307,20 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	// We get the function parameters. These shadow anything we might otherwise capture.
 	params := dtypes.Set[string]{}
+	checkNeeded := false
 	for _, pair := range sig {
 		params.Add(pair.VarName)
+		if pair.VarType == "single?" {
+			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY})
+		} else {
+			checkNeeded = true
+			LF.Model.sig = append(LF.Model.sig, cp.TypeNameToTypeList[pair.VarType].ToAbstractType())
+		}
+	}
+	if checkNeeded {
+		LF.Model.tok = &fnNode.Token
+	} else {
+		LF.Model.sig = nil
 	}
 	// We find all the identifiers that we declare in the 'given' block.
 	locals, rhs := ast.GetVariablesFromLhsAndRhsOfAssignments(fnNode.Given)
@@ -359,8 +371,11 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	}
 
 	// Compile the main body of the lambda.
-	cp.CompileNode(fnNode.Body, newEnv, LAMBDA)
+	types, _ := cp.CompileNode(fnNode.Body, newEnv, LAMBDA)
 	LF.Model.resultLocation = cp.That()
+	if fnNode.Rets != nil {
+		cp.emitTypeChecks(LF.Model.resultLocation, types, env, fnNode.Rets, LAMBDA, tok, CHECK_RETURN_TYPES)
+	}
 	cp.Emit(Ret)
 	cp.vmComeFrom(skipLambdaCode)
 

@@ -796,10 +796,6 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
 			fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.GetToken().Literal, &fn.Sig)
 		}
-		println("Call sig is", fn.Sig.String())
-		if fn.Rets != nil {
-			println("Return sig is", fn.Rets.String())
-		}
 		return expression
 	}
 
