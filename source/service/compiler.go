@@ -459,6 +459,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
 				break NodeTypeSwitch
 			}
+			rollbackTo := cp.getState()
 			thunkStart := cp.Next()
 			types, cst := cp.CompileNode(node.Right, env, ac)
 			if recursivelyContains(types, simpleType(values.ERROR)) { // TODO --- this is a loathsome kludge over the fact that we're not constructing it that way in the first place.
@@ -477,7 +478,18 @@ NodeTypeSwitch:
 					typeToUse = typesAtIndex(types, i)
 				}
 				if cst {
-					cp.Reserve(DUMMY, nil)
+					if !rtnTypes.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
+						cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse)
+						cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
+						cp.Emit(Ret)
+						if cp.P.ErrorsExist() {
+							return altType(values.COMPILE_TIME_ERROR), true
+						}
+						cp.vm.Run(uint32(rollbackTo.code))
+						v := cp.vm.Mem[resultLocation]
+						cp.rollback(state)
+						cp.Reserve(v.T, v.V)
+					}
 					cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse)
 				} else {
 					cp.Reserve(DUMMY, nil)
@@ -487,7 +499,7 @@ NodeTypeSwitch:
 			}
 			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
 			cp.Emit(Ret)
-			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), cst
+			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), false // Even if it is absolutely a constant, 'FOO = 42', we took care of that case above.
 			break NodeTypeSwitch
 		case token.ASSIGN:
 			cp.cm("Assignment from REPL or in 'cmd' section", node.GetToken())

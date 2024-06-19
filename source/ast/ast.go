@@ -37,6 +37,9 @@ func (ae *AssignmentExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(ae.Left.String())
 	out.WriteString(")")
+	if ae.Token.Type == token.GVN_ASSIGN {
+		out.WriteString(" {gvn}")
+	}
 	out.WriteString(" = ")
 	out.WriteString("(")
 	out.WriteString(ae.Right.String())
