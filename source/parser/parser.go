@@ -762,29 +762,45 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Literal = "="
 		p.NextToken()
 		right := p.parseExpression(LOWEST)
-		switch left := left.(type) {
-		case *ast.PrefixExpression:
-			expression := &ast.AssignmentExpression{
-				Token: newTok,
-				Left:  &ast.Identifier{Token: left.Token, Value: left.Token.Literal},
-			}
-			fn := &ast.FuncExpression{Token: p.curToken}
-			if right.GetToken().Type == token.GIVEN {
-				fn.Body = right.(*ast.InfixExpression).Args[0]
-				fn.Given = right.(*ast.InfixExpression).Args[2]
-			} else {
-				fn.Body = right
-			}
-
-			fn.Sig, _ = p.getSigFromArgs(left.Args, "single?")
-			expression.Right = fn
-			if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
-				fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.Token.Literal, &fn.Sig)
-			}
-			return expression
-		default:
-			p.Throw("parse/inner", &p.curToken)
+		fn := &ast.FuncExpression{Token: p.curToken}
+		expression := &ast.AssignmentExpression{
+			Token: newTok,
 		}
+		switch left := left.(type) {
+		case *ast.PipingExpression:
+			if left.GetToken().Literal != "->" {
+				p.Throw("parse/inner/a", left.GetToken())
+			}
+			fn.Rets = p.RecursivelySlurpReturnTypes(left.Right)
+			switch newLeft := left.Left.(type) {
+			case *ast.PrefixExpression:
+				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
+				fn.Sig, _ = p.getSigFromArgs(newLeft.Args, "single?")
+			default:
+				p.Throw("parse/inner/b", newLeft.GetToken())
+			}
+		case *ast.PrefixExpression:
+			expression.Left = &ast.Identifier{Token: *left.GetToken(), Value: left.GetToken().Literal}
+			fn.Sig, _ = p.getSigFromArgs(left.Args, "single?")
+		default:
+			p.Throw("parse/inner/c", left.GetToken())
+			return nil
+		}
+		if right.GetToken().Type == token.GIVEN {
+			fn.Body = right.(*ast.InfixExpression).Args[0]
+			fn.Given = right.(*ast.InfixExpression).Args[2]
+		} else {
+			fn.Body = right
+		}
+		expression.Right = fn
+		if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
+			fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.GetToken().Literal, &fn.Sig)
+		}
+		println("Call sig is", fn.Sig.String())
+		if fn.Rets != nil {
+			println("Return sig is", fn.Rets.String())
+		}
+		return expression
 	}
 
 	expression := &ast.InfixExpression{
@@ -1492,7 +1508,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
-		return ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: typednode.Value}}
+		return ast.AstSig{ast.NameTypenamePair{VarName: "*dummy*", VarType: typednode.Value}}
 	default:
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}

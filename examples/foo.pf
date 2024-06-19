@@ -1,6 +1,7 @@
 def
 
-zort(x int) :
-    a
+zort(x) :
+    foo x
 given :
-    a = 42
+    foo(i int) -> int:
+        i

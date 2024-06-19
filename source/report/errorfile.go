@@ -1409,7 +1409,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"parse/float64": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Couldn't parse '" + tok.Literal + "' as float64"
+			return "Couldn't parse " + emph(tok.Literal) + " as float"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Something about the form of '" + tok.Literal + "' has persuaded Pipefish to try and parse it " +
@@ -1427,9 +1427,18 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/inner": {
+	"parse/inner/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed inner function declaration"
+			return "malformed inner function declaration: unexpected occurrence of " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish thinks you're trying to declare an inner function here but is unable to parse it as such."
+		},
+	},
+
+	"parse/inner/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed inner function declaration: unexpected occurrence of " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish thinks you're trying to declare an inner function here but is unable to parse it as such."
