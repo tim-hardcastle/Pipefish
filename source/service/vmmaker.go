@@ -177,12 +177,6 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	if settings.FUNCTION_TO_PEEK != "" {
-		for _, f := range vmm.uP.Parser.FunctionTable[settings.FUNCTION_TO_PEEK] {
-			println(f.Sig.String())
-		}
-	}
-
 	// We build the Go files, if any.
 	vmm.MakeGoMods(goHandler)
 	if vmm.uP.ErrorsExist() {
@@ -730,6 +724,11 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
+
+	if settings.FUNCTION_TO_PEEK == functionName {
+		println(node.String() + "\n")
+	}
+
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 	}

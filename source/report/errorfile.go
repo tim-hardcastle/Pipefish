@@ -62,7 +62,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/body/known": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unknown identifier " + emph(tok.Literal)
+			return "unknown identifier " + emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You don't seem to have declared that as a variable, function, constant, or anything else."

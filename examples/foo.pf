@@ -1,7 +1,10 @@
 def
 
-zort(i, j) :
-    glerp(i), j
+zort(x int) :
+    2 * foo x
 given :
-    glerp(x int) :
-        i * j * x
+    foo(y int) :
+       3 * troz y
+    given :
+        troz(z int) :
+            5 * z

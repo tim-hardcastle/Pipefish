@@ -299,7 +299,6 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 }
 
 func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, tok *token.Token) {
-
 	LF := &LambdaFactory{Model: &Lambda{}}
 	newEnv := NewEnvironment()
 	sig := fnNode.Sig
@@ -316,11 +315,13 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	// Find all the variable names in the body.
 	bodyNames := ast.GetVariableNames(fnNode.Body)
 	rhs.AddSet(bodyNames)
+
 	captures := rhs.SubtractSet(params).SubtractSet(locals)
 	for k := range captures {
 		v, ok := env.getVar(k)
 		if !ok {
-			cp.P.Throw("comp/body/known", tok)
+			cp.P.Throw("comp/body/known", tok, k)
+			return
 		}
 		cp.Reserve(values.UNDEFINED_VALUE, nil) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
 		cp.AddVariable(newEnv, k, v.access, v.types)

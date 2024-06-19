@@ -16,10 +16,11 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	FUNC
+	GIVEN       // 'given'
+	MAGIC_COLON // The colon separating the parameters of an inner function from its body.
 	SEMICOLON   // semantic newline or ;
-	FUNC        // Lambda declaration
-	GIVEN       // given
-	WEAK_COLON  // kludge to make logging work. TODO --- find out how.
+	WEAK_COLON  // A vile kludge.
 	GVN_ASSIGN  //
 	LOGGING     //
 	COLON       // :
@@ -47,32 +48,42 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
-	token.SEMICOLON:           SEMICOLON,
-	token.NEWLINE:             SEMICOLON,
-	token.LOG:                 LOGGING,
-	token.IFLOG:               LOGGING,
-	token.PRELOG:              LOGGING,
-	token.GLOBAL:              FUNC,
-	token.GIVEN:               GIVEN,
-	token.LOOP:                GIVEN,
-	token.ASSIGN:              ASSIGN,
-	token.GVN_ASSIGN:          GVN_ASSIGN,
-	token.COLON:               COLON,
-	token.MAGIC_COLON:         COLON,
-	token.PIPE:                PIPING,
-	token.MAPPING:             PIPING,
-	token.FILTER:              PIPING,
-	token.OR:                  OR,
-	token.AND:                 AND,
-	token.NOT:                 NOT,
-	token.EQ:                  EQUALS,
-	token.NOT_EQ:              EQUALS,
-	token.WEAK_COMMA:          WEAK_COMMA,
-	token.COMMA:               COMMA,
-	token.LBRACK:              INDEX,
-	token.EVAL:                FPREFIX,
-	token.XCALL:               FPREFIX,
-	token.EMDASH:              FSUFFIX,
+	token.MAGIC_COLON: COLON,
+	token.GIVEN:       GIVEN,
+	token.LOOP:        GIVEN,
+	token.SEMICOLON:   SEMICOLON,
+	token.NEWLINE:     SEMICOLON,
+	// WEAK_COLON
+	token.GVN_ASSIGN: GVN_ASSIGN,
+	token.LOG:        LOGGING,
+	token.IFLOG:      LOGGING,
+	token.PRELOG:     LOGGING,
+	token.COLON:      COLON,
+	token.ASSIGN:     ASSIGN,
+	token.PIPE:       PIPING,
+	token.MAPPING:    PIPING,
+	token.FILTER:     PIPING,
+	token.OR:         OR,
+	token.AND:        AND,
+	token.NOT:        NOT,
+	token.EQ:         EQUALS,
+	token.NOT_EQ:     EQUALS,
+	// LESSGREATER
+	token.WEAK_COMMA: WEAK_COMMA,
+	token.GLOBAL:     FPREFIX,
+	token.EVAL:       FPREFIX,
+	token.XCALL:      FPREFIX,
+	// FMIDFIX
+	// FENDFIX
+	token.COMMA: COMMA,
+	// WITH
+	// FINFIX
+	// SUM
+	// PRODUCT
+	token.EMDASH: FSUFFIX,
+	// MINUS     (as prefix)
+	token.LBRACK: INDEX,
+	// BELOW_NAMESPACE
 	token.NAMESPACE_SEPARATOR: NAMESPACE,
 }
 
@@ -495,6 +506,9 @@ func (p *Parser) peekPrecedence() int {
 }
 
 func (p *Parser) curPrecedence() int {
+	if p.curToken.Type == token.GIVEN {
+		return LOWEST
+	}
 	if p.curToken.Type == token.NAMESPACE_SEPARATOR {
 		return BELOW_NAMESPACE
 	}
@@ -522,7 +536,7 @@ func (p *Parser) curPrecedence() int {
 		}
 		if p.Prefixes.Contains(p.curToken.Literal) || p.Functions.Contains(p.curToken.Literal) {
 			if p.curToken.Literal == "func" {
-				return FUNC
+				return LOWEST
 			}
 			return FPREFIX
 		}
@@ -747,7 +761,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Type = token.GVN_ASSIGN
 		newTok.Literal = "="
 		p.NextToken()
-		right := p.parseExpression(WEAK_COLON)
+		right := p.parseExpression(LOWEST)
 		switch left := left.(type) {
 		case *ast.PrefixExpression:
 			expression := &ast.AssignmentExpression{
@@ -755,7 +769,13 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 				Left:  &ast.Identifier{Token: left.Token, Value: left.Token.Literal},
 			}
 			fn := &ast.FuncExpression{Token: p.curToken}
-			fn.Body = right
+			if right.GetToken().Type == token.GIVEN {
+				fn.Body = right.(*ast.InfixExpression).Args[0]
+				fn.Given = right.(*ast.InfixExpression).Args[2]
+			} else {
+				fn.Body = right
+			}
+
 			fn.Sig, _ = p.getSigFromArgs(left.Args, "single?")
 			expression.Right = fn
 			if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
@@ -924,33 +944,25 @@ func (p *Parser) parseFuncExpression() ast.Node {
 		Token: p.curToken,
 	}
 	p.NextToken()
-	RHS := p.parseExpression(FUNC)
-	// At this point the root of the RHS should be a GIVEN or a COLON or who knows what's
-	// happened?
+	RHS := p.parseExpression(LOWEST)
+	// At this point the root of the RHS should be the colon dividing the function sig from its body.
 	root := RHS
-	switch RHS := RHS.(type) {
-	case *ast.InfixExpression:
-		if RHS.Token.Type == token.GIVEN {
-			root = RHS.Args[0]
-			expression.Given = RHS.Args[2]
-		}
-	}
-	switch root := root.(type) {
-	case *ast.LazyInfixExpression:
-		if root.Token.Type != token.COLON {
-			p.Throw("parse/colon", &p.curToken)
-			return nil
-		}
-		expression.Sig, _ = p.RecursivelySlurpSignature(root.Left, "single?")
-		if p.ErrorsExist() {
-			return nil
-		}
-		expression.Body = root.Right
-		return expression
-	default:
-		p.Throw("parse/malfunc", &p.curToken)
+	if root.GetToken().Type != token.COLON {
+		p.Throw("parse/colon", &p.curToken)
 		return nil
 	}
+	expression.Sig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, "single?")
+	if p.ErrorsExist() {
+		return nil
+	}
+	bodyRoot := root.(*ast.LazyInfixExpression).Right
+	if bodyRoot.GetToken().Type == token.GIVEN {
+		expression.Body = bodyRoot.(*ast.InfixExpression).Args[0]
+		expression.Given = bodyRoot.(*ast.InfixExpression).Args[2]
+	} else {
+		expression.Body = bodyRoot
+	}
+	return expression
 }
 
 func (p *Parser) parseListExpression() ast.Node {
