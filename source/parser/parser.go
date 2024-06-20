@@ -769,7 +769,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Type = token.GVN_ASSIGN
 		newTok.Literal = "="
 		p.NextToken()
-		right := p.parseExpression(WEAK_COLON)
+		right := p.parseExpression(FUNC)
 		fn := &ast.FuncExpression{Token: p.curToken}
 		expression := &ast.AssignmentExpression{
 			Token: newTok,

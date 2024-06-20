@@ -1,14 +1,13 @@
 def
 
-zort(x) :
-    d * bar x
+zort(x int) :
+    a * d * (foo x) * (bar x)
 given :
-    a = 3
-    b = 3
+    a = 10
     foo(i int) :
-        5 * i
+        z * i
+    given :
+        z = 11
     bar(i int) :
-        6 * i
-    d = 13
-
-
+        i
+    d = 5
