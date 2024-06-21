@@ -792,13 +792,15 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	default:
 		if given != nil {
 			vmm.cp.ThunkList = []Thunk{}
-			vmm.cp.CompileNode(given, fnenv, ac)
+			givenContext := context{fnenv, DEF, nil}
+			vmm.cp.CompileNode(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			for _, pair := range vmm.cp.ThunkList {
 				vmm.cp.Emit(Thnk, pair.MLoc, pair.CLoc)
 			}
 		}
-		cpF.Types, _ = vmm.cp.CompileNode(body, fnenv, ac) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		bodyContext := context{fnenv, ac, vmm.cp.returnSigToAlternateType(rtnSig)}
+		cpF.Types, _ = vmm.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = vmm.cp.That()
 
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
@@ -836,8 +838,9 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 			if vmm.uP.ErrorsExist() {
 				return
 			}
-			rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations after
-			vmm.cp.CompileNode(rhs, vmm.cp.GlobalVars, INIT)
+			rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
+			ctxt := context{vmm.cp.GlobalVars, INIT, nil}
+			vmm.cp.CompileNode(rhs, ctxt)
 			if vmm.uP.ErrorsExist() {
 				return
 			}
