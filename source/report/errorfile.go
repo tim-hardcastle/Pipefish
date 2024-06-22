@@ -4,6 +4,7 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
+	"strings"
 
 	"fmt"
 	"strconv"
@@ -89,7 +90,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/cond": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of conditional should be boolean expression."
+			return "left-hand side of conditional should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the left-hand side of a conditional should be a boolean-valued expression."
@@ -499,6 +500,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Despite this being defined as a function, it carries out some imperative behavior."
+		},
+	},
+
+	"comp/return/types": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "return " + redescribeType(args[0].(string)) + " cannot satisfy specifed return " + redescribeType(args[1].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You have given a return type to your function and at least one branch of this function cannot under any circumstances actually return anything that fits this return type. Pipefish assumes that this is an error."
 		},
 	},
 
@@ -2569,5 +2579,14 @@ func DescribeSomeParams(vL []values.Value, unfinished bool) string {
 	if unfinished {
 		result = result + " ..."
 	}
+	return result
+}
+
+func redescribeType(s string) string {
+	result := "type"
+	if strings.ContainsAny(s, ",/") {
+		result = result + "s"
+	}
+	result = result + " '" + s + "'"
 	return result
 }

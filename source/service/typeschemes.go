@@ -480,13 +480,11 @@ func (t finiteTupleType) compare(u typeScheme) int {
 
 func (fT finiteTupleType) describe(mc *Vm) string {
 	var buf strings.Builder
-	buf.WriteString("tuple[")
 	var sep string
 	for _, v := range fT {
 		fmt.Fprintf(&buf, "%s%s", sep, v.describe(mc))
 		sep = ", "
 	}
-	buf.WriteString("]")
 	return buf.String()
 }
 
@@ -516,9 +514,8 @@ func (t TypedTupleType) compare(u typeScheme) int {
 
 func (tT TypedTupleType) describe(mc *Vm) string {
 	var buf strings.Builder
-	buf.WriteString("tuple[")
 	buf.WriteString(tT.T.describe(mc))
-	buf.WriteString("... ]")
+	buf.WriteString("... ")
 	return buf.String()
 }
 

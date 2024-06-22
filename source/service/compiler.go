@@ -458,9 +458,9 @@ func (cp *Compiler) vmComeFrom(items ...any) {
 }
 
 type context struct {
-	env       *Environment  // The association of variable anmes to variable locations.
-	ac        cpAccess      // Whether we are compiling the body of a command; of a function; something typed into the REPL, etc.
-	typecheck AlternateType // The type(s) for the compiler to check for going forward; nil if it shouldn't.
+	env       *Environment    // The association of variable anmes to variable locations.
+	ac        cpAccess        // Whether we are compiling the body of a command; of a function; something typed into the REPL, etc.
+	typecheck finiteTupleType // The type(s) for the compiler to check for going forward; nil if it shouldn't.
 }
 
 // Unless we're going down a branch, we want the new context for each node compilation to have no forward type-checking.
@@ -1222,7 +1222,11 @@ NodeTypeSwitch:
 		cp.P.Throw("comp/fcis", node.GetToken())
 	}
 	if cp.P.ErrorsExist() {
-		return AltType(values.COMPILE_TIME_ERROR), false // False because we don't want any code folding to happen as that could remove information about the error.
+		return AltType(values.COMPILE_TIME_ERROR), true
+	}
+	cp.checkInferredTypesAgainstContext(rtnTypes, ctxt.typecheck, node.GetToken())
+	if cp.P.ErrorsExist() {
+		return AltType(values.COMPILE_TIME_ERROR), true
 	}
 	if rtnConst && (!rtnTypes.hasSideEffects()) && cp.CodeTop() > cT {
 		cp.Emit(Ret)
@@ -2550,18 +2554,32 @@ func isOnlyAssortedStructs(mc *Vm, aT AlternateType) bool {
 	return true
 }
 
-func (cp *Compiler) returnSigToAlternateType(sig ast.AstSig) AlternateType {
+func (cp *Compiler) returnSigToAlternateType(sig ast.AstSig) finiteTupleType {
 	if sig == nil {
 		return nil
-	}
-	if len(sig) == 1 {
-		return cp.TypeNameToTypeList[sig[0].VarType]
 	}
 	ftt := finiteTupleType{}
 	for _, pair := range sig {
 		ftt = append(ftt, cp.TypeNameToTypeList[pair.VarType])
 	}
-	return AlternateType{ftt}
+	return ftt
+}
+
+func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typecheck finiteTupleType, tok *token.Token) {
+	if typecheck == nil {
+		return
+	}
+	typeLengths := lengths(rtnTypes)
+	if !(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck))) {
+		cp.P.Throw("comp/return/length", tok, rtnTypes.describe(cp.vm), typecheck.describe(cp.vm))
+		return
+	}
+	for i, ty := range typecheck {
+		intersection := ty.(AlternateType).intersect(typesAtIndex(rtnTypes, i))
+		if len(intersection) == 0 {
+			cp.P.Throw("comp/return/types", tok, rtnTypes.without(simpleType(values.ERROR)).describe(cp.vm), typecheck.describe(cp.vm))
+		}
+	}
 }
 
 func (cp *Compiler) cm(comment string, tok *token.Token) {
