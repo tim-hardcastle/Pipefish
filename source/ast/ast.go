@@ -441,13 +441,23 @@ func GetVariablesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.
 	}
 }
 
+// We want to extract the variables used in a given node. However, the parameters of a lambda, or its locals, don't con't as "used", only its captures.
 func GetVariableNames(n Node) dtypes.Set[string] {
 	result := dtypes.Set[string]{}
-	switch ident := n.(type) {
+	switch n := n.(type) {
 	case *Identifier:
-		return result.Add(ident.Value)
+		return result.Add(n.Value)
 	case *FuncExpression:
-		return result
+		params := dtypes.Set[string]{}
+		for _, pair := range n.Sig {
+			params.Add(pair.VarName)
+		}
+		// We find all the identifiers that we declare in the 'given' block.
+		locals, rhs := GetVariablesFromLhsAndRhsOfAssignments(n.Given)
+		// Find all the variable names in the body.
+		bodyNames := GetVariableNames(n.Body)
+		rhs.AddSet(bodyNames)
+		return rhs.SubtractSet(params).SubtractSet(locals)
 	default:
 		for _, v := range n.Children() {
 			result.AddSet(GetVariableNames(v))

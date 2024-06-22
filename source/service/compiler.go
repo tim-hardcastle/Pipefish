@@ -323,13 +323,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	} else {
 		LF.Model.sig = nil
 	}
-	// We find all the identifiers that we declare in the 'given' block.
-	locals, rhs := ast.GetVariablesFromLhsAndRhsOfAssignments(fnNode.Given)
-	// Find all the variable names in the body.
-	bodyNames := ast.GetVariableNames(fnNode.Body)
-	rhs.AddSet(bodyNames)
-
-	captures := rhs.SubtractSet(params).SubtractSet(locals)
+	captures := ast.GetVariableNames(fnNode)
 	for k := range captures {
 		v, ok := env.getVar(k)
 		if !ok {
