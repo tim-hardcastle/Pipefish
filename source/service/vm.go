@@ -138,7 +138,7 @@ func (vm *Vm) Run(loc uint32) {
 loop:
 	for {
 		if settings.SHOW_RUNTIME {
-			println(text.GREEN + "    " + vm.DescribeCode(loc) + text.RESET)
+			println(text.GREEN + vm.DescribeCode(loc) + text.RESET)
 		}
 		if settings.SHOW_RUNTIME_VALUES {
 			print(vm.DescribeOperandValues(loc))
@@ -670,7 +670,12 @@ loop:
 			newLambda := *lf.Model
 			newLambda.captures = make([]values.Value, len(lf.CaptureLocations))
 			for i, v := range lf.CaptureLocations {
-				newLambda.captures[i] = vm.Mem[v]
+				val := vm.Mem[v]
+				if val.T == values.THUNK {
+					vm.Run(val.V.(uint32))
+					val = vm.Mem[v]
+				}
+				newLambda.captures[i] = val
 			}
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
 		case Mkmp:

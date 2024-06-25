@@ -770,10 +770,8 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Literal = "="
 		p.NextToken()
 		right := p.parseExpression(FUNC)
-		fn := &ast.FuncExpression{Token: p.curToken}
-		expression := &ast.AssignmentExpression{
-			Token: newTok,
-		}
+		fn := &ast.FuncExpression{Token: newTok}
+		expression := &ast.AssignmentExpression{Token: newTok}
 		switch left := left.(type) {
 		case *ast.PipingExpression:
 			if left.GetToken().Literal != "->" {

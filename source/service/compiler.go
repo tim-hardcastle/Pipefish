@@ -10,6 +10,7 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
+	"reflect"
 	"strings"
 
 	"fmt"
@@ -223,9 +224,10 @@ func (cp *Compiler) Do(line string) values.Value {
 		return values.Value{T: values.ERROR}
 	}
 	cp.Emit(Ret)
+	cp.cm("Calling Run from Do.", node.GetToken())
 	cp.vm.Run(cT)
 	result := cp.vm.Mem[cp.That()]
-	cp.rollback(state)
+	cp.rollback(state, node.GetToken())
 	return result
 }
 
@@ -233,7 +235,8 @@ func (cp *Compiler) Describe(v values.Value) string {
 	return cp.vm.Literal(v)
 }
 
-func (cp *Compiler) Reserve(t values.ValueType, v any) uint32 {
+func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 {
+	cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" with initial type "+cp.vm.DescribeType(t)+".", tok)
 	cp.vm.Mem = append(cp.vm.Mem, values.Value{T: t, V: v})
 	return uint32(len(cp.vm.Mem) - 1)
 }
@@ -272,7 +275,7 @@ func (cp *Compiler) reserveSnippetFactory(t string, env *Environment, fnNode *as
 		cEnv := NewEnvironment() // The compliation environment is used to compile against.
 		sourceLocs := []uint32{}
 		for k, v := range sEnv.data {
-			where := cp.Reserve(values.UNDEFINED_VALUE, nil)
+			where := cp.Reserve(values.UNDEFINED_VALUE, nil, fnNode.GetToken())
 			w := v
 			w.mLoc = where
 			sourceLocs = append(sourceLocs, v.mLoc)
@@ -297,6 +300,119 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 		target.data[k] = v
 	}
 	return target
+}
+
+func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
+	cp.cm("Compiling 'given' block.", given.GetToken())
+	nameToNode := map[string]*ast.AssignmentExpression{}
+	nameGraph := dtypes.Digraph[string]{}
+	chunks := cp.getPartsOfGiven(given, ctxt)
+	for _, chunk := range chunks {
+		if chunk.GetToken().Type != token.GVN_ASSIGN {
+			cp.P.Throw("comp/given/assign", chunk.GetToken())
+			break
+		}
+		lhsSig, _ := cp.P.RecursivelySlurpSignature(chunk.(*ast.AssignmentExpression).Left, "*default*")
+		rhs := ast.GetVariableNames(chunk.(*ast.AssignmentExpression).Right)
+		for _, pair := range lhsSig {
+			nameToNode[pair.VarName] = chunk.(*ast.AssignmentExpression)
+			for v := range rhs {
+				nameGraph.AddTransitiveArrow(pair.VarName, v)
+			}
+			if len(rhs) == 0 {
+				nameGraph.AddTransitiveArrow(pair.VarName, "")
+			}
+		}
+	}
+	order, cycle := dtypes.Ordering(nameGraph)
+	if cycle != nil {
+		cp.P.Throw("comp/given/cycle", given.GetToken(), cycle)
+	} else {
+		used := dtypes.Set[string]{} // If we have a multiple assignment, we only want to compile the rhs once.
+		for _, v := range order {
+			node, ok := nameToNode[v]
+			if ok && !used.Contains(v) {
+				lhsSig, _ := cp.P.RecursivelySlurpSignature(node.Left, "*default*")
+				for _, pair := range lhsSig {
+					used = used.Add(pair.VarName)
+				}
+				cp.compileOneGivenChunk(node, ctxt)
+			}
+		}
+	}
+}
+
+func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt context) {
+	cp.cm("Compiling one 'given' block assignment.", node.GetToken())
+
+	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
+	if err != nil {
+		cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
+		return
+	}
+	rollbackTo := cp.getState()
+	thunkStart := cp.Next()
+	types, cst := cp.CompileNode(node.Right, ctxt.x())
+	if recursivelyContains(types, simpleType(values.ERROR)) { // TODO --- this is a loathsome kludge over the fact that we're not constructing it that way in the first place.
+		types = types.Union(altType(values.ERROR))
+	}
+	resultLocation := cp.That()
+	if types.isOnly(values.ERROR) {
+		cp.P.Throw("comp/assign/error", node.Left.GetToken())
+		return
+	}
+	for i, pair := range sig {
+		var typeToUse AlternateType // TODO: we can extract more meanigful information about the tuple from the types.
+		if pair.VarType == "tuple" {
+			typeToUse = cp.AnyTuple
+		} else {
+			typeToUse = typesAtIndex(types, i)
+		}
+		if cst {
+			if !types.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
+				cp.cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
+				cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
+				cp.Emit(Ret)
+				if cp.P.ErrorsExist() {
+					return
+				}
+				cp.cm("Calling Run from compileOneGivenChunk to fold constant.", node.GetToken())
+				cp.vm.Run(uint32(rollbackTo.code))
+				v := cp.vm.Mem[resultLocation]
+				cp.rollback(rollbackTo, node.GetToken())
+				cp.Reserve(v.T, v.V, node.GetToken())
+				continue
+			} else {
+				cp.cm("Adding unfoldable constant from compileOneGivenChunk.", node.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
+			}
+		} else {
+			cp.Reserve(values.THUNK, Thunk{cp.That(), thunkStart}, node.GetToken())
+			cp.cm("Adding variable from compileOneGivenChunk.", node.GetToken())
+			cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
+			cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
+		}
+	}
+	cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
+	cp.Emit(Ret)
+}
+
+func (cp *Compiler) getPartsOfGiven(given ast.Node, ctxt context) []ast.Node {
+	result := []ast.Node{}
+	switch branch := given.(type) {
+	case *ast.LazyInfixExpression:
+		if branch.Token.Literal == ";" {
+			result = cp.getPartsOfGiven(branch.Left, ctxt)
+			rhs := cp.getPartsOfGiven(branch.Right, ctxt)
+			result = append(result, rhs...)
+		} else {
+			cp.P.Throw("parse/unexpected", given.GetToken())
+		}
+	default:
+		result = []ast.Node{given}
+	}
+	return result
 }
 
 func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, tok *token.Token) {
@@ -330,8 +446,14 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 			cp.P.Throw("comp/body/known", tok, k)
 			return
 		}
-		cp.Reserve(values.UNDEFINED_VALUE, nil) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
-		cp.AddVariable(newEnv, k, v.access, v.types)
+		if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == LOCAL_TRUE_CONSTANT {
+			cp.cm("Binding name "+text.Emph(k)+" in lambda to existing constant at location m"+strconv.Itoa(int(v.mLoc))+".", fnNode.GetToken())
+			newEnv.data[k] = *v
+		} else {
+			cp.Reserve(values.UNDEFINED_VALUE, nil, fnNode.GetToken()) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
+			cp.cm("Adding variable for lambda capture.", fnNode.GetToken())
+			cp.AddVariable(newEnv, k, v.access, v.types, fnNode.GetToken())
+		}
 		// At the same time, the lambda factory need to know where they are in the calling vm.Vm.
 		LF.CaptureLocations = append(LF.CaptureLocations, v.mLoc)
 	}
@@ -340,8 +462,9 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	// Add the function parameters.
 	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
-		cp.Reserve(0, DUMMY)
-		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType])
+		cp.Reserve(0, DUMMY, fnNode.GetToken())
+		cp.cm("Adding parameter to lambda.", fnNode.GetToken())
+		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType], fnNode.GetToken())
 	}
 
 	LF.Model.parametersEnd = cp.MemTop()
@@ -379,14 +502,15 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	// can just reserve it in memory.
 
 	if captures.IsEmpty() {
-		cp.Reserve(values.FUNC, *LF.Model)
+		cp.Reserve(values.FUNC, *LF.Model, fnNode.GetToken())
 		return
 	}
 	cp.vm.LambdaFactories = append(cp.vm.LambdaFactories, LF)
 	cp.put(Mkfn, uint32(len(cp.vm.LambdaFactories)-1))
 }
 
-func (cp *Compiler) AddVariable(env *Environment, name string, acc varAccess, types AlternateType) {
+func (cp *Compiler) AddVariable(env *Environment, name string, acc varAccess, types AlternateType, tok *token.Token) {
+	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That())), tok)
 	env.data[name] = variable{mLoc: cp.That(), access: acc, types: types}
 }
 
@@ -468,6 +592,7 @@ func (ctxt context) x() context {
 // and compiles accordingly. It then performs some sanity checks and, if the compiled expression is constant,
 // evaluates it and uses the snapshot to roll back the vm.
 func (cp *Compiler) CompileNode(node ast.Node, ctxt context) (AlternateType, bool) {
+	cp.cm("Compiling node of type "+(reflect.TypeOf(node).String())[5:]+" with literal "+text.Emph(node.GetToken().Literal)+".", node.GetToken())
 	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := cp.getState()
@@ -505,21 +630,25 @@ NodeTypeSwitch:
 				}
 				if cst {
 					if !rtnTypes.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
-						cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse)
+						cp.cm("Adding variable in deprecated GVN_ASSIGN, 1", node.GetToken())
+						cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
 						cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
 						cp.Emit(Ret)
 						if cp.P.ErrorsExist() {
 							return altType(values.COMPILE_TIME_ERROR), true
 						}
+						cp.cm("Calling Run from deprecated GVN_ASSIGN.", node.GetToken())
 						cp.vm.Run(uint32(rollbackTo.code))
 						v := cp.vm.Mem[resultLocation]
-						cp.rollback(state)
-						cp.Reserve(v.T, v.V)
+						cp.rollback(state, node.GetToken())
+						cp.Reserve(v.T, v.V, node.GetToken())
 					}
-					cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse)
+					cp.cm("Adding variable in deprecated GVN_ASSIGN, 2", node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
 				} else {
-					cp.Reserve(DUMMY, nil)
-					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse)
+					cp.Reserve(DUMMY, nil, node.GetToken())
+					cp.cm("Adding variable in deprecated GVN_ASSIGN, 3", node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
 					cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
 				}
 			}
@@ -575,13 +704,15 @@ NodeTypeSwitch:
 						cp.P.Throw("comp/assign/error", node.Left.GetToken())
 						break NodeTypeSwitch
 					}
-					cp.Reserve(values.UNDEFINED_VALUE, DUMMY)
+					cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
 					if pair.VarType == "tuple" {
-						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple)
+						cp.cm("Adding variable in ASSIGN, 1", node.GetToken())
+						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple, node.GetToken())
 						newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
 					} else {
 						typesAtIndex := typesAtIndex(types, i)
-						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex)
+						cp.cm("Adding variable in ASSIGN, 2", node.GetToken())
+						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
 						if sig[i].VarName == "*inferred*" {
 							newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
 						} else {
@@ -602,11 +733,11 @@ NodeTypeSwitch:
 		cp.P.Throw("comp/bling/wut", node.GetToken())
 		break
 	case *ast.BooleanLiteral:
-		cp.Reserve(values.BOOL, node.Value)
+		cp.Reserve(values.BOOL, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.BOOL), true
 		break
 	case *ast.FloatLiteral:
-		cp.Reserve(values.FLOAT, node.Value)
+		cp.Reserve(values.FLOAT, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
 		break
 	case *ast.FuncExpression:
@@ -848,7 +979,7 @@ NodeTypeSwitch:
 		cp.P.Throw("comp/known/infix", node.GetToken())
 		break
 	case *ast.IntegerLiteral:
-		cp.Reserve(values.INT, node.Value)
+		cp.Reserve(values.INT, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.INT), true
 		break
 	case *ast.LazyInfixExpression:
@@ -978,8 +1109,8 @@ NodeTypeSwitch:
 		break
 	case *ast.LogExpression:
 		rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
-		initStr := cp.Reserve(values.STRING, "Log at line "+text.YELLOW+strconv.Itoa(node.GetToken().Line)+text.RESET+":\n    ")
-		output := cp.Reserve(values.STRING, "")
+		initStr := cp.Reserve(values.STRING, "Log at line "+text.YELLOW+strconv.Itoa(node.GetToken().Line)+text.RESET+":\n    ", node.GetToken())
+		output := cp.Reserve(values.STRING, "", node.GetToken())
 		logCheck := cp.vmIf(Qlog)
 		cp.Emit(Logn)
 		cp.Emit(Asgm, output, initStr)
@@ -1125,7 +1256,7 @@ NodeTypeSwitch:
 		cp.P.Throw("comp/known/prefix", node.GetToken())
 		break
 	case *ast.StringLiteral:
-		cp.Reserve(values.STRING, node.Value)
+		cp.Reserve(values.STRING, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.STRING), true
 		break
 	case *ast.StructExpression:
@@ -1163,8 +1294,8 @@ NodeTypeSwitch:
 		}
 		var err uint32
 		if !exists {
-			err = cp.Reserve(values.NULL, nil)
-			cp.AddVariable(env, ident, LOCAL_VARIABLE, AltType(values.NULL, values.ERROR))
+			err = cp.Reserve(values.NULL, nil, node.GetToken())
+			cp.AddVariable(env, ident, LOCAL_VARIABLE, AltType(values.NULL, values.ERROR), node.GetToken())
 		} else {
 			err = v.mLoc
 		}
@@ -1185,15 +1316,15 @@ NodeTypeSwitch:
 		typeName := node.Value
 		switch { // We special-case it a bit because otherwise a string would look like a varchar(0).
 		case typeName == "string":
-			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY})
+			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}, node.GetToken())
 		case typeName == "string?":
-			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY})
+			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}, node.GetToken())
 		default:
 			abType := resolvingCompiler.TypeNameToTypeList[typeName].ToAbstractType()
 			if (ac == REPL || resolvingCompiler != cp) && cp.vm.isPrivate(abType) {
 				cp.P.Throw("comp/private/type", node.GetToken())
 			}
-			cp.Reserve(values.TYPE, abType)
+			cp.Reserve(values.TYPE, abType, node.GetToken())
 		}
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 		break
@@ -1224,6 +1355,7 @@ NodeTypeSwitch:
 	}
 	if rtnConst && (!rtnTypes.hasSideEffects()) && cp.CodeTop() > cT {
 		cp.Emit(Ret)
+		cp.cm("Calling Run from end of CompileNode as part of routine constant folding.", node.GetToken())
 		cp.vm.Run(cT)
 		result := cp.vm.Mem[cp.That()]
 		if result.T == values.TUPLE {
@@ -1236,8 +1368,8 @@ NodeTypeSwitch:
 			rtnTypes = AltType(result.T)
 		}
 		if !rtnTypes.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
-			cp.rollback(state)
-			cp.Reserve(result.T, result.V)
+			cp.rollback(state, node.GetToken())
+			cp.Reserve(result.T, result.V, node.GetToken())
 		}
 	}
 	return rtnTypes, rtnConst
@@ -1458,7 +1590,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					cp.P.Throw("comp/ref/var", arg.GetToken())
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
-					cp.Reserve(values.UNDEFINED_VALUE, nil)
+					cp.Reserve(values.UNDEFINED_VALUE, nil, node.GetToken())
 					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.TypeNameToTypeList["single?"]}
 					env.data[arg.GetToken().Literal] = newVar
 					v = &newVar
@@ -1470,7 +1602,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				cp.put(Asgm, v.mLoc)
 				b.valLocs[i] = cp.That()
 			} else {
-				cp.Reserve(values.REF, v.mLoc)
+				cp.Reserve(values.REF, v.mLoc, node.GetToken())
 				b.valLocs[i] = cp.That()
 			}
 			continue
@@ -1478,7 +1610,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		switch arg := arg.(type) { // It might be bling.
 		case *ast.Bling:
 			b.types[i] = AlternateType{blingType{arg.Value}}
-			cp.Reserve(values.BLING, arg.Value)
+			cp.Reserve(values.BLING, arg.Value, node.GetToken())
 			b.valLocs[i] = cp.That()
 		default: // Otherwise we emit code to evaluate it.
 			b.types[i], cstI = argCompiler.CompileNode(arg, ctxt.x())
@@ -1904,9 +2036,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				var remainingNamespace string
 				vmArgs := make([]uint32, 0, len(b.valLocs)+5)
 				vmArgs = append(vmArgs, b.outLoc, F.Xcall.ExternalServiceOrdinal, F.Xcall.Position)
-				cp.Reserve(values.STRING, remainingNamespace)
+				cp.Reserve(values.STRING, remainingNamespace, branch.Node.Fn.Body.GetToken())
 				vmArgs = append(vmArgs, cp.That())
-				cp.Reserve(values.STRING, F.Xcall.FunctionName)
+				cp.Reserve(values.STRING, F.Xcall.FunctionName, branch.Node.Fn.Body.GetToken())
 				vmArgs = append(vmArgs, cp.That())
 				vmArgs = append(vmArgs, b.valLocs...)
 				cp.Emit(Extn, vmArgs...)
@@ -2097,7 +2229,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 				continue
 			}
 			if elementLoc == DUMMY {
-				elementLoc = cp.Reserve(values.UNDEFINED_VALUE, nil)
+				elementLoc = cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
 			}
 			cp.Emit(IxTn, elementLoc, loc, uint32(i))
 			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), elementLoc)
@@ -2253,7 +2385,7 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt context) bool {
 			continue
 		}
 		// Otherwise, we just add it on as a string.
-		cp.Reserve(values.STRING, str)
+		cp.Reserve(values.STRING, str, node.GetToken())
 		cp.Emit(Adds, output, output, cp.That())
 	}
 	for _, rtn := range errorReturns {
@@ -2347,11 +2479,11 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		}
 	}
 	if !isAttemptedFunc {
-		thatLoc = cp.Reserve(values.UNDEFINED_VALUE, DUMMY)
+		thatLoc = cp.Reserve(values.UNDEFINED_VALUE, DUMMY, rhs.GetToken())
 		envWithThat = &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.TypeNameToTypeList["single?"]}}, Ext: env}
 	}
-	counter := cp.Reserve(values.INT, 0)
-	accumulator := cp.Reserve(values.TUPLE, []values.Value{})
+	counter := cp.Reserve(values.INT, 0, rhs.GetToken())
+	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
 	cp.put(LenL, sourceList)
 	length := cp.That()
 
@@ -2468,7 +2600,7 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 			buf.WriteString(bit)
 		}
 	}
-	cp.Reserve(values.STRING, buf.String())
+	cp.Reserve(values.STRING, buf.String(), tok)
 	bindle.objectStringLoc = cp.That()
 	cp.Emit(Ret)
 	return &bindle
@@ -2507,8 +2639,9 @@ func (cp *Compiler) getState() vmState {
 	return vmState{len(cp.vm.Mem), len(cp.vm.Code), len(cp.vm.Tokens), len(cp.vm.LambdaFactories), len(cp.vm.SnippetFactories)}
 }
 
-// And this rolls back the machine.
-func (cp *Compiler) rollback(vms vmState) {
+// And this rolls back the machine. The token is just there so that the .cm method can decide whether it should comment on the rollback or whether it's just boilerplate.
+func (cp *Compiler) rollback(vms vmState, tok *token.Token) {
+	cp.cm("Rolling back to address "+strconv.Itoa(vms.code)+" and location "+strconv.Itoa(vms.mem)+".", tok)
 	cp.vm.Code = cp.vm.Code[:vms.code]
 	cp.vm.Mem = cp.vm.Mem[:vms.mem]
 	cp.vm.Tokens = cp.vm.Tokens[:vms.tokens]

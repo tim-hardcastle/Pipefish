@@ -55,7 +55,7 @@ func Ordering[E comparable](D Digraph[E]) ([]E, []E) {
 func extractCycle[E comparable](D *Digraph[E]) []E {
 	start, ok := D.GetArbitraryNode()
 	if !ok {
-		return []E{}
+		return nil
 	}
 	result := []E{start}
 	for next, ok := ((*D)[start]).GetArbitraryElement(); true; next, ok = ((*D)[next]).GetArbitraryElement() {
@@ -74,7 +74,7 @@ func extractCycle[E comparable](D *Digraph[E]) []E {
 
 // In a digraph D, if we have x in D[y] for some y but x itself is undefined, something has gone
 // wrong. (x would NOT represent a leaf node, which would be represented by D[x] being {}.)
-// In the case of Charm, the particular thing gone wrong will be that something has been defined
+// In the case of Pipefish, the particular thing gone wrong will be that something has been defined
 // in terms of a constant or variable which doesn't exist.
 func (D *Digraph[E]) Check() (bool, E) {
 	nodes := *(D.SetOfNodes())

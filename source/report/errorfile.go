@@ -14,7 +14,7 @@ import (
 //
 // Errors in the map are in alphabetical order of their identifers.
 //
-// Major categories are built, err, eval, init, lex, parse, repl, and serve.
+// Major categories are built, err, init, lex, parse, repl, serve, and vm.
 //
 // Two otherwise identical errors thrown in different places in the Go code must be assigned
 // different identifiers, if only by suffixing /a, /b, etc to the identifier, with the following exception:
@@ -194,6 +194,31 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish doesn't let you compare values of different types, on the grounds that " +
 				"this is more often a mistake than intentional."
+		},
+	},
+
+	"comp/given/cycle": {
+		Message: func(tok *token.Token, args ...any) string {
+			cycle := args[0].([]string)
+			var description string
+			if len(cycle) == 1 {
+				description = emph(cycle[0]) + " is defined in terms of itself"
+			} else {
+				sep := ""
+				for _, name := range cycle {
+					description = description + sep + emph(name)
+					if sep == "" {
+						sep = " is defined in terms of "
+					} else {
+						sep = ", which is defined in terms of "
+					}
+				}
+				description = description + ", which is defined in terms of " + emph(cycle[0])
+			}
+			return description + " in " + emph("given") + " block"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "It isn't possible to define variables in terms of each other because how would that even work?"
 		},
 	},
 

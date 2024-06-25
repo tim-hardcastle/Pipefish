@@ -31,7 +31,7 @@ func (vm *Vm) DescribeOperandValues(addr uint32) string {
 			result = result + text.BULLET + "m" + strconv.Itoa(int(operands[i])) + " = " + vm.DescribeTypeAndValue(vm.Mem[operands[i]]) + "\n"
 		}
 	}
-	return result
+	return text.PURPLE + result + text.RESET
 }
 
 func (vm *Vm) DescribeTypeAndValue(v values.Value) string {

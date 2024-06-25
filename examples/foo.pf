@@ -1,8 +1,15 @@
 def
 
-zort(i, j) :
-    a, glerp i
+zort(i int) :
+    glerp 3 * i
 given :
-    a = j * j
+    a = 5 * i
     glerp(x int) :
-        j * x
+        7 * a * b * c * x * i
+    b = 11
+    c = 13 * a
+
+
+
+
+

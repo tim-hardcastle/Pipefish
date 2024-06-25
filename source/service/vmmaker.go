@@ -149,7 +149,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.createSnippetTypes()
+	vmm.createSnippetTypes(&token.Token{Source: scriptFilepath}) // We pass the token so the cp.cm method knows to ignore boilerplate.
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -446,7 +446,7 @@ func (vmm *VmMaker) createEnums() {
 				vmm.uP.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.FIRST_DEFINED_TYPE, len(vmm.cp.EnumElements))
+			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.FIRST_DEFINED_TYPE, len(vmm.cp.EnumElements), &tok)
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
@@ -493,7 +493,7 @@ func (vmm *VmMaker) createStructs() {
 			if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice..
 				labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
 			} else {
-				vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels))
+				vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), node.GetToken())
 				labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
 				vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 			}
@@ -605,7 +605,7 @@ func (vmm *VmMaker) addFieldsToStructs() {
 	}
 }
 
-func (vmm *VmMaker) createSnippetTypes() {
+func (vmm *VmMaker) createSnippetTypes(tok *token.Token) {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
@@ -627,7 +627,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
 
 		// And the vm.
-		vmm.addStructLabelsToMc(name, typeNo, sig)
+		vmm.addStructLabelsToMc(name, typeNo, sig, tok)
 		vmm.cp.vm.codeGeneratingTypes.Add(typeNo) // This prevents the assignment of a snippet to a variable or a constant from being rolled back, erasing the generated code.
 	}
 }
@@ -659,7 +659,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 	}
 }
 
-func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, sig ast.AstSig) { // TODO --- seems like we're only using this for snippets and not regular structs?
+func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, sig ast.AstSig, tok *token.Token) { // TODO --- seems like we're only using this for snippets and not regular structs?
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
@@ -667,7 +667,7 @@ func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, si
 		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
 			labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
 		} else {
-			vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels))
+			vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), tok)
 			labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
 			vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 		}
@@ -682,23 +682,23 @@ func (vmm *VmMaker) makeConstructors() {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig))
+		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig, node.GetToken()))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
 	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 	for i, name := range vmm.cp.P.Snippets {
-		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig))
+		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig, vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken()))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(snippetDeclaration), i)
 	}
 }
 
-func (vmm *VmMaker) compileConstructor(name string, sig ast.AstSig) *CpFunc {
+func (vmm *VmMaker) compileConstructor(name string, sig ast.AstSig, tok *token.Token) *CpFunc {
 	typeNo := vmm.cp.StructNameToTypeNumber[name]
 	cpF := &CpFunc{Types: altType(typeNo), Builtin: name}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = vmm.cp.MemTop()
 	for _, pair := range sig {
-		vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
+		vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType], tok)
 	}
 	cpF.HiReg = vmm.cp.MemTop()
 	return cpF
@@ -748,26 +748,26 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	fnenv.Ext = outerEnv
 	cpF.LoReg = vmm.cp.MemTop()
 	for _, pair := range sig {
-		vmm.cp.Reserve(values.UNDEFINED_VALUE, DUMMY)
+		vmm.cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
 		if pair.VarType == "ref" {
-			vmm.cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.TypeNameToTypeList[pair.VarType])
+			vmm.cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.TypeNameToTypeList[pair.VarType], node.GetToken())
 			continue
 		}
 		typeName := pair.VarType
 		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
 			if typeName[len(typeName)-1] == '?' {
-				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string?"]) // TODO --- need to attach varchar to variables.
+				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string?"], node.GetToken()) // TODO --- need to attach varchar to variables.
 			} else {
-				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string"])
+				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string"], node.GetToken())
 			}
 		} else {
-			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType])
+			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType], node.GetToken())
 		}
 	}
 	cpF.HiReg = vmm.cp.MemTop()
 	cpF.CallTo = vmm.cp.CodeTop()
 	if len(tupleList) > 0 {
-		cpF.TupleReg = vmm.cp.Reserve(values.INT_ARRAY, tupleList)
+		cpF.TupleReg = vmm.cp.Reserve(values.INT_ARRAY, tupleList, node.GetToken())
 	} else {
 		cpF.TupleReg = DUMMY
 	}
@@ -793,7 +793,8 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		if given != nil {
 			vmm.cp.ThunkList = []Thunk{}
 			givenContext := context{fnenv, DEF, nil}
-			vmm.cp.CompileNode(given, givenContext)
+			vmm.cp.compileGiven(given, givenContext)
+			//vmm.cp.CompileNode(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			for _, pair := range vmm.cp.ThunkList {
 				vmm.cp.Emit(Thnk, pair.MLoc, pair.CLoc)
@@ -821,13 +822,13 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 
 func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.GlobalVars.Ext = vmm.cp.GlobalConsts
-	vmm.cp.Reserve(values.NULL, nil)
-	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL))
-	vmm.cp.Reserve(values.SUCCESSFUL_VALUE, nil)
-	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "OK", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE))
-	vmm.cp.Reserve(values.BREAK, nil)
-	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK))
-	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0})
+	vmm.cp.Reserve(values.NULL, nil, &token.Token{Source: "Builtin constant"})
+	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL), &token.Token{Source: "Builtin constant"})
+	vmm.cp.Reserve(values.SUCCESSFUL_VALUE, nil, &token.Token{Source: "Builtin constant"})
+	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "OK", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE), &token.Token{Source: "Builtin constant"})
+	vmm.cp.Reserve(values.BREAK, nil, &token.Token{Source: "Builtin constant"})
+	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK), &token.Token{Source: "Builtin constant"})
+	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
 		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
 		for _, v := range assignmentOrder {
@@ -845,10 +846,11 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 				return
 			}
 			vmm.cp.Emit(Ret)
+			vmm.cp.cm("Calling Run from vmMaker's evaluateConstantsAndVariables method.", dec.GetToken())
 			vmm.cp.vm.Run(uint32(rollbackTo.code))
 			result := vmm.cp.vm.Mem[vmm.cp.That()]
 			if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
-				vmm.cp.rollback(rollbackTo)
+				vmm.cp.rollback(rollbackTo, dec.GetToken())
 			}
 			isPrivate := vmm.uP.isPrivate(declarations, v)
 			var vAcc varAccess
@@ -889,31 +891,31 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 				loopTop = last
 				if rhsIsTuple {
 					head = result.V.([]values.Value)[:last]
-					vmm.cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:])
+					vmm.cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:], rhs.GetToken())
 				} else {
 					if tupleLen == len(sig)-1 {
-						vmm.cp.Reserve(values.TUPLE, []values.Value{})
+						vmm.cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
 					} else {
-						vmm.cp.Reserve(values.TUPLE, result.V)
+						vmm.cp.Reserve(values.TUPLE, result.V, rhs.GetToken())
 					}
 				}
-				vmm.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE))
+				vmm.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
 			} else {
 				if rhsIsTuple {
 					head = result.V.([]values.Value)
 				}
 			}
 			for i := 0; i < loopTop; i++ {
-				vmm.cp.Reserve(head[i].T, head[i].V)
+				vmm.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
 				if sig[i].VarType == "*inferred*" {
-					vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T))
+					vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 				} else {
 					allowedTypes := vmm.cp.TypeNameToTypeList[sig[i].VarType]
 					if allowedTypes.isNoneOf(head[i].T) {
 						vmm.cp.P.Throw("comp/assign/type", dec.GetToken())
 						return
 					} else {
-						vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes)
+						vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
 					}
 				}
 			}
