@@ -1,13 +1,7 @@
 def
 
 zort(i int) :
-    a * b * glerp i
+    foo i
 given :
-    a = 5
-    b = 7 * i
-    glerp(y int) :
-        2 * foo y
-    given :
-        c = 2
     foo(z int) :
-        i * z
+        z

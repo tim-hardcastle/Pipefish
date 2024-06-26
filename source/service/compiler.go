@@ -329,9 +329,15 @@ func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
 			}
 			nameToNode[pair.VarName] = assEx
 			if reflect.TypeOf(assEx.Right) == reflect.TypeFor[*ast.FuncExpression]() {
-				cp.cm("Reserving dummy local function thunk "+text.Emph(pair.VarName)+".", assEx.GetToken())
-				cp.Reserve(values.THUNK, nil, chunk.GetToken())
-				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
+				if len(rhs) == 0 { // Then the lambda has no captures and so is a constant.
+					cp.cm("Reserving dummy local function "+text.Emph(pair.VarName)+".", assEx.GetToken())
+					cp.Reserve(values.FUNC, nil, chunk.GetToken())
+					cp.AddVariable(ctxt.env, pair.VarName, LOCAL_FUNCTION_CONSTANT, altType(values.FUNC), assEx.GetToken())
+				} else {
+					cp.cm("Reserving dummy local function thunk "+text.Emph(pair.VarName)+".", assEx.GetToken())
+					cp.Reserve(values.THUNK, nil, chunk.GetToken())
+					cp.AddVariable(ctxt.env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
+				}
 			}
 			for v := range rhs {
 				nameGraph.AddTransitiveArrow(pair.VarName, v)
@@ -389,7 +395,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 		if cst {
 			if !types.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
 				cp.cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
-				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 				cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
 				cp.Emit(Ret)
 				if cp.P.ErrorsExist() {
@@ -403,23 +409,27 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 				continue
 			} else {
 				cp.cm("Adding unfoldable constant from compileOneGivenChunk.", node.GetToken())
-				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 			}
 		} else {
 			v, alreadyExists := ctxt.env.getVar(pair.VarName)
 			if alreadyExists {
-				if v.access == LOCAL_FUNCTION_THUNK && cp.vm.Mem[v.mLoc].V == nil {
+				switch {
+				case v.access == LOCAL_FUNCTION_THUNK && cp.vm.Mem[v.mLoc].V == nil:
 					cp.cm("Reassigning local function thunk "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
 					cp.vm.Mem[v.mLoc] = values.Value{values.THUNK, ThunkValue{cp.That(), thunkStart}}
 					cp.ThunkList = append(cp.ThunkList, ThunkData{v.mLoc, ThunkValue{cp.That(), thunkStart}})
-				} else {
+				case v.access == LOCAL_FUNCTION_CONSTANT && cp.vm.Mem[v.mLoc].V == nil:
+					cp.cm("Reassigning local function constant "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
+					cp.vm.Mem[v.mLoc] = cp.vm.Mem[cp.That()]
+				default:
 					cp.P.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
 					return
 				}
 			} else {
 				cp.cm("Reserving local thunk in compileOneGivenChunk.", node.GetToken())
 				cp.Reserve(values.THUNK, ThunkValue{cp.That(), thunkStart}, node.GetToken())
-				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
 				cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), ThunkValue{cp.That(), thunkStart}})
 			}
 		}
@@ -476,7 +486,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 			cp.P.Throw("comp/body/known", tok, k)
 			return
 		}
-		if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == LOCAL_TRUE_CONSTANT {
+		if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == LOCAL_CONSTANT {
 			cp.cm("Binding name "+text.Emph(k)+" in lambda to existing constant at location m"+strconv.Itoa(int(v.mLoc))+".", fnNode.GetToken())
 			newEnv.data[k] = *v
 		} else {
@@ -672,7 +682,7 @@ NodeTypeSwitch:
 				if cst {
 					if !rtnTypes.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
 						cp.cm("Adding variable in deprecated GVN_ASSIGN, 1", node.GetToken())
-						cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
+						cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 						cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
 						cp.Emit(Ret)
 						if cp.P.ErrorsExist() {
@@ -685,11 +695,11 @@ NodeTypeSwitch:
 						cp.Reserve(v.T, v.V, node.GetToken())
 					}
 					cp.cm("Adding variable in deprecated GVN_ASSIGN, 2", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 				} else {
 					cp.Reserve(DUMMY, nil, node.GetToken())
 					cp.cm("Adding variable in deprecated GVN_ASSIGN, 3", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
 					cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), ThunkValue{cp.That(), thunkStart}})
 				}
 			}
@@ -728,7 +738,7 @@ NodeTypeSwitch:
 						}
 					}
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
-					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_TRUE_CONSTANT ||
+					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
 						cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
 						break NodeTypeSwitch
@@ -823,7 +833,7 @@ NodeTypeSwitch:
 			cp.P.Throw("comp/ident/private", node.GetToken())
 			break
 		}
-		if v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_FUNCTION_THUNK {
+		if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 			cp.Emit(Untk, v.mLoc)
 		}
 		if v.access == REFERENCE_VARIABLE {
@@ -1271,7 +1281,7 @@ NodeTypeSwitch:
 			v, ok = env.getVar(node.Operator)
 		}
 		if ok && v.types.Contains(values.FUNC) {
-			if v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_FUNCTION_THUNK {
+			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 				cp.Emit(Untk, v.mLoc)
 			}
 			operands := []uint32{v.mLoc}
@@ -1283,9 +1293,6 @@ NodeTypeSwitch:
 				break
 			}
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
-				if v.access == LOCAL_FUNCTION_THUNK {
-					cp.Emit(Untk, v.mLoc)
-				}
 				cp.put(Dofn, operands...)
 			} // TODO --- what if not?
 			rtnConst = false
@@ -1332,7 +1339,7 @@ NodeTypeSwitch:
 		ident := node.VarName
 		v, exists := env.getVar(ident)
 		if exists && (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == GLOBAL_VARIABLE_PRIVATE ||
-			v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_FUNCTION_THUNK) {
+			v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK) {
 			cp.P.Throw("comp/try/var", node.GetToken())
 			break
 		}
