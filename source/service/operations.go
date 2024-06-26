@@ -202,7 +202,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Strx: {"strx", operands{dst, mem}},
 	Subf: {"subf", operands{dst, mem, mem}},
 	Subi: {"subi", operands{dst, mem, mem}},
-	Thnk: {"thnk", operands{dst, loc}},
+	Thnk: {"thnk", operands{dst, mem, loc}},
 	TupL: {"tupL", operands{dst, mem}},
 	Typu: {"typu", operands{dst, mem, mem}},
 	Typx: {"typx", operands{dst, mem}},

@@ -791,13 +791,16 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.XCALL:
 	default:
 		if given != nil {
-			vmm.cp.ThunkList = []Thunk{}
+			vmm.cp.ThunkList = []ThunkData{}
 			givenContext := context{fnenv, DEF, nil}
 			vmm.cp.compileGiven(given, givenContext)
 			//vmm.cp.CompileNode(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
-			for _, pair := range vmm.cp.ThunkList {
-				vmm.cp.Emit(Thnk, pair.MLoc, pair.CLoc)
+			if len(vmm.cp.ThunkList) > 0 {
+				vmm.cp.cm("Making thunks for outer function.", body.GetToken())
+			}
+			for _, thunks := range vmm.cp.ThunkList {
+				vmm.cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)
 			}
 		}
 		bodyContext := context{fnenv, ac, vmm.cp.returnSigToAlternateType(rtnSig)}

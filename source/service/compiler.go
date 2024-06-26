@@ -17,9 +17,16 @@ import (
 	"strconv"
 )
 
-type Thunk struct {
-	MLoc uint32 // The place in memory where the result of the thunk ends up when you unthunk it.
-	CLoc uint32 // The code address to call to unthunk the thunk.
+// This contains what the compiler needs to emit the 'thnk' operations at the start of a function.
+type ThunkData struct {
+	dest  uint32
+	value ThunkValue
+}
+
+// This is the data that goes inside a THUNK value.
+type ThunkValue struct {
+	MLoc  uint32 // The place in memory where the result of the thunk ends up when you unthunk it.
+	CAddr uint32 // The code address to call to unthunk the thunk.
 }
 
 type Compiler struct {
@@ -45,8 +52,7 @@ type Compiler struct {
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
 	// Temporary state.
-	ThunkList   []Thunk
-	ifStack     []uint32
+	ThunkList   []ThunkData
 	showCompile bool
 }
 
@@ -129,7 +135,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		StructNameToTypeNumber:   make(map[string]values.ValueType),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
-		ThunkList:                []Thunk{},
+		ThunkList:                []ThunkData{},
 		Fns:                      []*CpFunc{},
 		Services:                 make(map[string]*VmService),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
@@ -312,10 +318,21 @@ func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
 			cp.P.Throw("comp/given/assign", chunk.GetToken())
 			break
 		}
-		lhsSig, _ := cp.P.RecursivelySlurpSignature(chunk.(*ast.AssignmentExpression).Left, "*default*")
-		rhs := ast.GetVariableNames(chunk.(*ast.AssignmentExpression).Right)
+		assEx := chunk.(*ast.AssignmentExpression)
+		lhsSig, _ := cp.P.RecursivelySlurpSignature(assEx.Left, "*default*")
+		rhs := ast.GetVariableNames(assEx.Right)
 		for _, pair := range lhsSig {
-			nameToNode[pair.VarName] = chunk.(*ast.AssignmentExpression)
+			_, exists := ctxt.env.getVar(pair.VarName)
+			if exists {
+				cp.P.Throw("comp/given/exists", chunk.GetToken())
+				return
+			}
+			nameToNode[pair.VarName] = assEx
+			if reflect.TypeOf(assEx.Right) == reflect.TypeFor[*ast.FuncExpression]() {
+				cp.cm("Reserving dummy local function thunk "+text.Emph(pair.VarName)+".", assEx.GetToken())
+				cp.Reserve(values.THUNK, nil, chunk.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
+			}
 			for v := range rhs {
 				nameGraph.AddTransitiveArrow(pair.VarName, v)
 			}
@@ -343,6 +360,7 @@ func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
 }
 
 func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt context) {
+
 	cp.cm("Compiling one 'given' block assignment.", node.GetToken())
 
 	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
@@ -388,10 +406,22 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_TRUE_CONSTANT, typeToUse, node.GetToken())
 			}
 		} else {
-			cp.Reserve(values.THUNK, Thunk{cp.That(), thunkStart}, node.GetToken())
-			cp.cm("Adding variable from compileOneGivenChunk.", node.GetToken())
-			cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
-			cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
+			v, alreadyExists := ctxt.env.getVar(pair.VarName)
+			if alreadyExists {
+				if v.access == LOCAL_FUNCTION_THUNK && cp.vm.Mem[v.mLoc].V == nil {
+					cp.cm("Reassigning local function thunk "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
+					cp.vm.Mem[v.mLoc] = values.Value{values.THUNK, ThunkValue{cp.That(), thunkStart}}
+					cp.ThunkList = append(cp.ThunkList, ThunkData{v.mLoc, ThunkValue{cp.That(), thunkStart}})
+				} else {
+					cp.P.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
+					return
+				}
+			} else {
+				cp.cm("Reserving local thunk in compileOneGivenChunk.", node.GetToken())
+				cp.Reserve(values.THUNK, ThunkValue{cp.That(), thunkStart}, node.GetToken())
+				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
+				cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), ThunkValue{cp.That(), thunkStart}})
+			}
 		}
 	}
 	cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
@@ -457,8 +487,16 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 		// At the same time, the lambda factory need to know where they are in the calling vm.Vm.
 		LF.CaptureLocations = append(LF.CaptureLocations, v.mLoc)
 	}
-
 	LF.Model.capturesEnd = cp.MemTop()
+
+	potentialFuncs := ast.GetPrefixes(fnNode)
+	for k := range potentialFuncs {
+		v, ok := env.getVar(k)
+		if ok {
+			cp.cm("Binding name of function "+text.Emph(k)+" in lambda to existing constant at location m"+strconv.Itoa(int(v.mLoc))+".", fnNode.GetToken())
+			newEnv.data[k] = *v
+		}
+	}
 
 	// Add the function parameters.
 	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
@@ -473,17 +511,20 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	saveThunkList := cp.ThunkList // TODO --- this is bad coding and I know it. The whole ThunkList thing is deeply sus.
 	if fnNode.Given != nil {
-		cp.ThunkList = []Thunk{}
+		cp.ThunkList = []ThunkData{}
 		cp.CompileNode(fnNode.Given, context{newEnv, LAMBDA, nil})
 	}
-
 	// Function starts here.
 	LF.Model.addressToCall = cp.CodeTop()
 
 	// Initialize the thunks, if any.
+
 	if fnNode.Given != nil {
-		for _, pair := range cp.ThunkList {
-			cp.Emit(Thnk, pair.MLoc, pair.CLoc)
+		if len(cp.ThunkList) > 0 {
+			cp.cm("Making thunks for lambda.", fnNode.GetToken())
+		}
+		for _, thunk := range cp.ThunkList {
+			cp.Emit(Thnk, thunk.dest, thunk.value.MLoc, thunk.value.CAddr)
 		}
 		cp.ThunkList = saveThunkList
 	}
@@ -576,7 +617,7 @@ func (cp *Compiler) vmComeFrom(items ...any) {
 }
 
 type context struct {
-	env       *Environment    // The association of variable anmes to variable locations.
+	env       *Environment    // The association of variable names to variable locations.
 	ac        cpAccess        // Whether we are compiling the body of a command; of a function; something typed into the REPL, etc.
 	typecheck finiteTupleType // The type(s) for the compiler to check for going forward; nil if it shouldn't.
 }
@@ -649,7 +690,7 @@ NodeTypeSwitch:
 					cp.Reserve(DUMMY, nil, node.GetToken())
 					cp.cm("Adding variable in deprecated GVN_ASSIGN, 3", node.GetToken())
 					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT_THUNK, typeToUse, node.GetToken())
-					cp.ThunkList = append(cp.ThunkList, Thunk{cp.That(), thunkStart})
+					cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), ThunkValue{cp.That(), thunkStart}})
 				}
 			}
 			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
@@ -688,7 +729,7 @@ NodeTypeSwitch:
 					}
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
 					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_TRUE_CONSTANT ||
-						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT {
+						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
 						cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
 						break NodeTypeSwitch
 					}
@@ -782,7 +823,7 @@ NodeTypeSwitch:
 			cp.P.Throw("comp/ident/private", node.GetToken())
 			break
 		}
-		if v.access == LOCAL_CONSTANT_THUNK {
+		if v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 			cp.Emit(Untk, v.mLoc)
 		}
 		if v.access == REFERENCE_VARIABLE {
@@ -1230,7 +1271,7 @@ NodeTypeSwitch:
 			v, ok = env.getVar(node.Operator)
 		}
 		if ok && v.types.Contains(values.FUNC) {
-			if v.access == LOCAL_CONSTANT_THUNK {
+			if v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 				cp.Emit(Untk, v.mLoc)
 			}
 			operands := []uint32{v.mLoc}
@@ -1242,6 +1283,9 @@ NodeTypeSwitch:
 				break
 			}
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
+				if v.access == LOCAL_FUNCTION_THUNK {
+					cp.Emit(Untk, v.mLoc)
+				}
 				cp.put(Dofn, operands...)
 			} // TODO --- what if not?
 			rtnConst = false
@@ -1287,8 +1331,8 @@ NodeTypeSwitch:
 	case *ast.TryExpression:
 		ident := node.VarName
 		v, exists := env.getVar(ident)
-		if exists && (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC ||
-			v.access == GLOBAL_VARIABLE_PRIVATE || v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_CONSTANT_THUNK) {
+		if exists && (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == GLOBAL_VARIABLE_PRIVATE ||
+			v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_CONSTANT_THUNK || v.access == LOCAL_FUNCTION_THUNK) {
 			cp.P.Throw("comp/try/var", node.GetToken())
 			break
 		}

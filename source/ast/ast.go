@@ -441,7 +441,22 @@ func GetVariablesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.
 	}
 }
 
-// We want to extract the variables used in a given node. However, the parameters of a lambda, or its locals, don't con't as "used", only its captures.
+func GetPrefixesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.Set[string]) { // This slurps the variable usage out of `given` blocks specifically.
+	switch n := n.(type) {
+	case *AssignmentExpression:
+		return GetVariableNames(n.Left), GetPrefixes(n.Right)
+	case *LazyInfixExpression:
+		lhs1, rhs1 := GetPrefixesFromLhsAndRhsOfAssignments(n.Left)
+		lhs2, rhs2 := GetPrefixesFromLhsAndRhsOfAssignments(n.Right)
+		lhs1.AddSet(lhs2)
+		rhs1.AddSet(rhs2)
+		return lhs1, lhs2
+	default:
+		return dtypes.Set[string]{}, dtypes.Set[string]{}
+	}
+}
+
+// We want to extract the variables used in a given node. However, the parameters of a lambda, or its locals, don't count as "used", only its captures.
 func GetVariableNames(n Node) dtypes.Set[string] {
 	result := dtypes.Set[string]{}
 	switch n := n.(type) {
@@ -461,6 +476,31 @@ func GetVariableNames(n Node) dtypes.Set[string] {
 	default:
 		for _, v := range n.Children() {
 			result.AddSet(GetVariableNames(v))
+		}
+		return result
+	}
+}
+
+// We want to extract the prefixes used in a given node.
+func GetPrefixes(n Node) dtypes.Set[string] {
+	result := dtypes.Set[string]{}
+	switch n := n.(type) {
+	case *PrefixExpression:
+		return result.Add(n.Operator)
+	case *FuncExpression:
+		params := dtypes.Set[string]{}
+		for _, pair := range n.Sig {
+			params.Add(pair.VarName)
+		}
+		// We find all the identifiers that we declare in the 'given' block.
+		locals, rhs := GetPrefixesFromLhsAndRhsOfAssignments(n.Given)
+		// Find all the variable names in the body.
+		bodyNames := GetPrefixes(n.Body)
+		rhs.AddSet(bodyNames)
+		return rhs.SubtractSet(params).SubtractSet(locals)
+	default:
+		for _, v := range n.Children() {
+			result.AddSet(GetPrefixes(v))
 		}
 		return result
 	}

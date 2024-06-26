@@ -136,7 +136,10 @@ func (vm *Vm) Describe(v values.Value) string {
 	case values.SUCCESSFUL_VALUE:
 		return text.GREEN + "OK" + text.RESET
 	case values.THUNK:
-		return "THUNK!"
+		if v.V == nil {
+			return "nil"
+		}
+		return "m" + strconv.Itoa(int(v.V.(ThunkValue).MLoc)) + ", @" + strconv.Itoa(int(v.V.(ThunkValue).CAddr))
 	case values.TUPLE:
 		result := make([]string, len(v.V.([]values.Value)))
 		for i, v := range v.V.([]values.Value) {

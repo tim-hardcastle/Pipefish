@@ -788,9 +788,7 @@ loop:
 				for _, mLoc := range bindle.valueLocs {
 					injector = append(injector, vm.Mem[mLoc])
 				}
-				println("Object string", objectString)
-				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
-				// vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
+				vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
 			}
 		case Qabt:
 			varcharLimit := args[1]
@@ -1030,7 +1028,7 @@ loop:
 		case Subi:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
 		case Thnk:
-			vm.Mem[args[0]] = values.Value{values.THUNK, args[1]}
+			vm.Mem[args[0]] = values.Value{values.THUNK, ThunkValue{args[1], args[2]}}
 		case TupL:
 			vector := vm.Mem[args[1]].V.(vector.Vector)
 			length := vector.Len()
@@ -1090,10 +1088,11 @@ loop:
 			err.Args = newArgs
 			err.Values = newVals
 		case Untk:
-			if (vm.Mem[args[0]].T) == values.THUNK {
-				vm.callstack = append(vm.callstack, loc)
-				loc = vm.Mem[args[0]].V.(uint32)
-				continue
+			if vm.Mem[args[0]].T == values.THUNK {
+				resultLoc := vm.Mem[args[0]].V.(ThunkValue).MLoc
+				codeAddr := vm.Mem[args[0]].V.(ThunkValue).CAddr
+				vm.Run(codeAddr)
+				vm.Mem[args[0]] = vm.Mem[resultLoc]
 			}
 		case Varc:
 			n := vm.Mem[args[1]].V.(int)
