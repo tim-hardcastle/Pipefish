@@ -794,10 +794,9 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			vmm.cp.ThunkList = []ThunkData{}
 			givenContext := context{fnenv, DEF, nil}
 			vmm.cp.compileGiven(given, givenContext)
-			//vmm.cp.CompileNode(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			if len(vmm.cp.ThunkList) > 0 {
-				vmm.cp.cm("Making thunks for outer function.", body.GetToken())
+				vmm.cp.cm("Initializing thunks for outer function.", body.GetToken())
 			}
 			for _, thunks := range vmm.cp.ThunkList {
 				vmm.cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)

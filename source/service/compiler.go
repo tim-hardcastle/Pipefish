@@ -519,19 +519,18 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 
 	// Compile the locals.
 
-	saveThunkList := cp.ThunkList // TODO --- this is bad coding and I know it. The whole ThunkList thing is deeply sus.
+	saveThunkList := cp.ThunkList
 	if fnNode.Given != nil {
 		cp.ThunkList = []ThunkData{}
-		cp.CompileNode(fnNode.Given, context{newEnv, LAMBDA, nil})
+		cp.compileGiven(fnNode.Given, context{newEnv, LAMBDA, nil})
 	}
 	// Function starts here.
 	LF.Model.addressToCall = cp.CodeTop()
 
 	// Initialize the thunks, if any.
-
 	if fnNode.Given != nil {
 		if len(cp.ThunkList) > 0 {
-			cp.cm("Making thunks for lambda.", fnNode.GetToken())
+			cp.cm("Initializing thunks for lambda.", fnNode.GetToken())
 		}
 		for _, thunk := range cp.ThunkList {
 			cp.Emit(Thnk, thunk.dest, thunk.value.MLoc, thunk.value.CAddr)
@@ -652,134 +651,77 @@ func (cp *Compiler) CompileNode(node ast.Node, ctxt context) (AlternateType, boo
 	ac := ctxt.ac
 NodeTypeSwitch:
 	switch node := node.(type) {
+	// Note that assignments in `given` blocks and var and const initialization are taken care of by the vmmaker, so we only have to deal with the cases where
+	// the assignment is in the body of a function or in the REPL.
 	case *ast.AssignmentExpression:
-		switch node.Token.Type {
-		case token.GVN_ASSIGN:
-			cp.cm("'given' block assignment", node.GetToken())
-			sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
-			if err != nil {
-				cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
-				break NodeTypeSwitch
-			}
-			rollbackTo := cp.getState()
-			thunkStart := cp.Next()
-			types, cst := cp.CompileNode(node.Right, ctxt.x())
-			if recursivelyContains(types, simpleType(values.ERROR)) { // TODO --- this is a loathsome kludge over the fact that we're not constructing it that way in the first place.
-				types = types.Union(altType(values.ERROR))
-			}
-			resultLocation := cp.That()
-			if types.isOnly(values.ERROR) {
-				cp.P.Throw("comp/assign/error", node.Left.GetToken())
-				break NodeTypeSwitch
-			}
-			for i, pair := range sig {
-				var typeToUse AlternateType // TODO: we can extract more meanigful information about the tuple from the types.
-				if pair.VarType == "tuple" {
-					typeToUse = cp.AnyTuple
-				} else {
-					typeToUse = typesAtIndex(types, i)
-				}
-				if cst {
-					if !rtnTypes.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
-						cp.cm("Adding variable in deprecated GVN_ASSIGN, 1", node.GetToken())
-						cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
-						cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
-						cp.Emit(Ret)
-						if cp.P.ErrorsExist() {
-							return altType(values.COMPILE_TIME_ERROR), true
-						}
-						cp.cm("Calling Run from deprecated GVN_ASSIGN.", node.GetToken())
-						cp.vm.Run(uint32(rollbackTo.code))
-						v := cp.vm.Mem[resultLocation]
-						cp.rollback(state, node.GetToken())
-						cp.Reserve(v.T, v.V, node.GetToken())
-					}
-					cp.cm("Adding variable in deprecated GVN_ASSIGN, 2", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
-				} else {
-					cp.Reserve(DUMMY, nil, node.GetToken())
-					cp.cm("Adding variable in deprecated GVN_ASSIGN, 3", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
-					cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), ThunkValue{cp.That(), thunkStart}})
-				}
-			}
-			cp.emitTypeChecks(resultLocation, types, env, sig, ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
-			cp.Emit(Ret)
-			rtnTypes, rtnConst = AltType(values.CREATED_THUNK_OR_CONST), false // Even if it is absolutely a constant, 'FOO = 42', we took care of that case above.
-			break NodeTypeSwitch
-		case token.ASSIGN:
-			cp.cm("Assignment from REPL or in 'cmd' section", node.GetToken())
-			sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
-			if err != nil {
-				cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
-				break NodeTypeSwitch
-			}
-			rhsIsError := bkEarlyReturn(DUMMY) // TODO --- since assigning an error would violate a type check, which we also perform, is this necessary?
-			rTypes, _ := cp.CompileNode(node.Right, ctxt.x())
-			rhsResult := cp.That()
-			if rTypes.Contains(values.ERROR) {
-				rhsIsError = cp.vmConditionalEarlyReturn(Qtyp, rhsResult, uint32(values.ERROR), rhsResult)
-				rtnTypes = AltType(values.SUCCESSFUL_VALUE, values.ERROR)
-			} else {
-				rtnTypes = AltType(values.SUCCESSFUL_VALUE)
-			}
-			rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
-			types := rTypes.without(simpleType(values.ERROR))
-			newSig := cpSig{} // A more flexible form of signature that allows the types to be represented as a string or as an AlternateType.
-			// We need to do typechecking differently according to whether anything on the LHS is a global, in which case we need to early-return an error from the typechecking.
-			flavor := CHECK_LOCAL_CMD_ASSIGNMENTS
-			for i, pair := range sig {
-				v, ok := env.getVar(pair.VarName)
-				if ok {
-					if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
-						if !Equals(v.types, cp.TypeNameToTypeList[sig[i].VarType]) {
-							cp.P.Throw("comp/assign/redefine/b", node.GetToken())
-							break NodeTypeSwitch
-						}
-					}
-					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
-					if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
-						v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
-						cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
-						break NodeTypeSwitch
-					}
-					if ac == REPL && (v.access != GLOBAL_VARIABLE_PUBLIC) {
-						cp.P.Throw("comp/assign/private", node.Left.GetToken())
-						break NodeTypeSwitch
-					}
-					if v.access == GLOBAL_VARIABLE_PUBLIC {
-						flavor = CHECK_GLOBAL_ASSIGNMENTS
-					}
-				} else { // Then we create a local variable.
-					if ac == REPL {
-						cp.P.Throw("comp/assign/error", node.Left.GetToken())
-						break NodeTypeSwitch
-					}
-					cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
-					if pair.VarType == "tuple" {
-						cp.cm("Adding variable in ASSIGN, 1", node.GetToken())
-						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple, node.GetToken())
-						newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
-					} else {
-						typesAtIndex := typesAtIndex(types, i)
-						cp.cm("Adding variable in ASSIGN, 2", node.GetToken())
-						cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
-						if sig[i].VarName == "*inferred*" {
-							newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
-						} else {
-							newSig = append(newSig, ast.NameTypenamePair{pair.VarName, sig[i].VarType})
-						}
-					}
-				}
-			}
-			typeCheckFailed := cp.emitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), flavor)
-			cp.put(Asgm, values.C_OK)
-			cp.vmComeFrom(rhsIsError, typeCheckFailed)
-			break NodeTypeSwitch
-		default: // Of switch on ast.Assignment.
-			cp.P.Throw("comp/assign", node.GetToken())
+		cp.cm("Assignment from REPL or in 'cmd' section", node.GetToken())
+		sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
+		if err != nil {
+			cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
 			break NodeTypeSwitch
 		}
+		rhsIsError := bkEarlyReturn(DUMMY) // TODO --- since assigning an error would violate a type check, which we also perform, is this necessary?
+		rTypes, _ := cp.CompileNode(node.Right, ctxt.x())
+		rhsResult := cp.That()
+		if rTypes.Contains(values.ERROR) {
+			rhsIsError = cp.vmConditionalEarlyReturn(Qtyp, rhsResult, uint32(values.ERROR), rhsResult)
+			rtnTypes = AltType(values.SUCCESSFUL_VALUE, values.ERROR)
+		} else {
+			rtnTypes = AltType(values.SUCCESSFUL_VALUE)
+		}
+		rtnConst = false // The initialization/mutation in the assignment makes it variable whatever the RHS is.
+		types := rTypes.without(simpleType(values.ERROR))
+		newSig := cpSig{} // A more flexible form of signature that allows the types to be represented as a string or as an AlternateType.
+		// We need to do typechecking differently according to whether anything on the LHS is a global, in which case we need to early-return an error from the typechecking.
+		flavor := CHECK_LOCAL_CMD_ASSIGNMENTS
+		for i, pair := range sig {
+			v, ok := env.getVar(pair.VarName)
+			if ok {
+				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
+					if !Equals(v.types, cp.TypeNameToTypeList[sig[i].VarType]) {
+						cp.P.Throw("comp/assign/redefine/b", node.GetToken())
+						break NodeTypeSwitch
+					}
+				}
+				newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
+				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
+					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
+					cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
+					break NodeTypeSwitch
+				}
+				if ac == REPL && (v.access != GLOBAL_VARIABLE_PUBLIC) {
+					cp.P.Throw("comp/assign/private", node.Left.GetToken())
+					break NodeTypeSwitch
+				}
+				if v.access == GLOBAL_VARIABLE_PUBLIC {
+					flavor = CHECK_GLOBAL_ASSIGNMENTS
+				}
+			} else { // Then we create a local variable.
+				if ac == REPL {
+					cp.P.Throw("comp/assign/error", node.Left.GetToken())
+					break NodeTypeSwitch
+				}
+				cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
+				if pair.VarType == "tuple" {
+					cp.cm("Adding variable in ASSIGN, 1", node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple, node.GetToken())
+					newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
+				} else {
+					typesAtIndex := typesAtIndex(types, i)
+					cp.cm("Adding variable in ASSIGN, 2", node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
+					if sig[i].VarName == "*inferred*" {
+						newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
+					} else {
+						newSig = append(newSig, ast.NameTypenamePair{pair.VarName, sig[i].VarType})
+					}
+				}
+			}
+		}
+		typeCheckFailed := cp.emitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), flavor)
+		cp.put(Asgm, values.C_OK)
+		cp.vmComeFrom(rhsIsError, typeCheckFailed)
+		break NodeTypeSwitch
 	case *ast.Bling:
 		cp.P.Throw("comp/bling/wut", node.GetToken())
 		break
