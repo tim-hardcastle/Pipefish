@@ -72,21 +72,6 @@ func extractCycle[E comparable](D Digraph[E]) []E {
 	return result
 }
 
-// This partitions the graph into strongly-connected components
-func (graph Digraph[E]) Tarjan() [][]E {
-	g := &data[E]{
-		graph: Digraph[E]{},
-		nodes: make([]node, 0, len(graph)),
-		index: make(map[E]int, len(graph)),
-	}
-	for v := range g.graph {
-		if _, ok := g.index[v]; !ok {
-			g.getStronglyConnectedComponent(v)
-		}
-	}
-	return g.output
-}
-
 type data[E comparable] struct {
 	graph  Digraph[E]
 	nodes  []node
@@ -98,6 +83,21 @@ type data[E comparable] struct {
 type node struct {
 	lowlink int
 	stacked bool
+}
+
+// This partitions the graph into strongly-connected components
+func (graph Digraph[E]) Tarjan() [][]E {
+	g := &data[E]{
+		graph: graph,
+		nodes: make([]node, 0, len(graph)),
+		index: make(map[E]int, len(graph)),
+	}
+	for v := range g.graph {
+		if _, ok := g.index[v]; !ok {
+			g.getStronglyConnectedComponent(v)
+		}
+	}
+	return g.output
 }
 
 func (data *data[E]) getStronglyConnectedComponent(v E) *node {
