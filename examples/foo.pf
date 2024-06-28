@@ -8,7 +8,7 @@ given :
     glerp(y int) :
         c * foo y
     given :
-        c = 2 * i
-    foo(z int) :
-        i * z
+        c = 2 * y
+        foo(z int) :
+            y * z
 

@@ -32,9 +32,9 @@ import (
 
 type Digraph[E comparable] map[E]Set[E]
 
-func (D *Digraph[E]) String() string {
+func (D Digraph[E]) String() string {
 	result := "{\n"
-	for k, v := range *D {
+	for k, v := range D {
 		result += fmt.Sprintf("%v : %v", k, v.String())
 	}
 	result += "}\n"
@@ -46,19 +46,19 @@ func Ordering[E comparable](D Digraph[E]) ([]E, []E) {
 	for leafnodes := D.StripLeafnodes(); len(leafnodes) > 0; leafnodes = D.StripLeafnodes() {
 		result = append(result, leafnodes.ToSlice()...)
 	}
-	return result, extractCycle(&D)
+	return result, extractCycle(D)
 }
 
 // This is just for the Ordering function to use: *IF* the digraph at the end of the
 // Ordering function is non-empty, then it consists of a bunch of cycles, and we can
 // choose one of them to return as proof of this fact.
-func extractCycle[E comparable](D *Digraph[E]) []E {
+func extractCycle[E comparable](D Digraph[E]) []E {
 	start, ok := D.GetArbitraryNode()
 	if !ok {
 		return nil
 	}
 	result := []E{start}
-	for next, ok := ((*D)[start]).GetArbitraryElement(); true; next, ok = ((*D)[next]).GetArbitraryElement() {
+	for next, ok := ((D)[start]).GetArbitraryElement(); true; next, ok = ((D)[next]).GetArbitraryElement() {
 		if !ok {
 			panic("extractCycle has found a leaf node, this is bad.")
 		}
@@ -72,35 +72,87 @@ func extractCycle[E comparable](D *Digraph[E]) []E {
 	return result
 }
 
-// In a digraph D, if we have x in D[y] for some y but x itself is undefined, something has gone
-// wrong. (x would NOT represent a leaf node, which would be represented by D[x] being {}.)
-// In the case of Pipefish, the particular thing gone wrong will be that something has been defined
-// in terms of a constant or variable which doesn't exist.
-func (D *Digraph[E]) Check() (bool, E) {
-	nodes := *(D.SetOfNodes())
-	for v := range nodes {
-		for w := range (*D)[v] {
-			if !nodes.Contains(w) {
-				return false, w
+// This partitions the graph into strongly-connected components
+func (graph Digraph[E]) Tarjan() [][]E {
+	g := &data[E]{
+		graph: Digraph[E]{},
+		nodes: make([]node, 0, len(graph)),
+		index: make(map[E]int, len(graph)),
+	}
+	for v := range g.graph {
+		if _, ok := g.index[v]; !ok {
+			g.getStronglyConnectedComponent(v)
+		}
+	}
+	return g.output
+}
+
+type data[E comparable] struct {
+	graph  Digraph[E]
+	nodes  []node
+	stack  []E
+	index  map[E]int
+	output [][]E
+}
+
+type node struct {
+	lowlink int
+	stacked bool
+}
+
+func (data *data[E]) getStronglyConnectedComponent(v E) *node {
+	index := len(data.nodes)
+	data.index[v] = index
+	data.stack = append(data.stack, v)
+	data.nodes = append(data.nodes, node{lowlink: index, stacked: true})
+	node := &data.nodes[index]
+
+	for w := range data.graph[v] {
+		i, seen := data.index[w]
+		if !seen {
+			n := data.getStronglyConnectedComponent(w)
+			if n.lowlink < node.lowlink {
+				node.lowlink = n.lowlink
+			}
+		} else if data.nodes[i].stacked {
+			if i < node.lowlink {
+				node.lowlink = i
 			}
 		}
 	}
-	var x E
-	return true, x
+
+	if node.lowlink == index {
+		var vertices []E
+		i := len(data.stack) - 1
+		for {
+			w := data.stack[i]
+			stackIndex := data.index[w]
+			data.nodes[stackIndex].stacked = false
+			vertices = append(vertices, w)
+			if stackIndex == index {
+				break
+			}
+			i--
+		}
+		data.stack = data.stack[:i]
+		data.output = append(data.output, vertices)
+	}
+
+	return node
 }
 
-func (D *Digraph[E]) SetOfNodes() *Set[E] {
+func (D Digraph[E]) SetOfNodes() *Set[E] {
 	result := Set[E]{}
-	for x := range *D {
+	for x := range D {
 		result.Add(x)
 	}
 	return &result
 }
 
-func (D *Digraph[E]) GetArbitraryNode() (E, bool) {
+func (D Digraph[E]) GetArbitraryNode() (E, bool) {
 	var result E
 	var ok bool
-	for k := range *D { // There should be a less clumsy way to do this but ...
+	for k := range D { // There should be a less clumsy way to do this but ...
 		result = k
 		ok = true
 		break
@@ -109,7 +161,7 @@ func (D *Digraph[E]) GetArbitraryNode() (E, bool) {
 }
 
 // This checks to see if a node already has an entry before adding it to the digraph.
-func (D *Digraph[E]) AddSafe(node E, neighbors []E) bool {
+func (D Digraph[E]) AddSafe(node E, neighbors []E) bool {
 	if !D.SetOfNodes().Contains(node) {
 		D.Add(node, neighbors)
 		return true
@@ -119,24 +171,24 @@ func (D *Digraph[E]) AddSafe(node E, neighbors []E) bool {
 
 // This adds an arrow with transitive closure to a digraph, on the assumption that it is
 // already transitively closed.
-func (D *Digraph[E]) AddTransitiveArrow(a, b E) {
+func (D Digraph[E]) AddTransitiveArrow(a, b E) {
 	if !D.SetOfNodes().Contains(a) {
-		(*D)[a] = Set[E]{b: struct{}{}}
+		(D)[a] = Set[E]{b: struct{}{}}
 	}
 	if !D.SetOfNodes().Contains(b) {
-		(*D)[b] = Set[E]{}
+		(D)[b] = Set[E]{}
 	}
-	(*D)[a].Add(b)
-	(*D)[a].AddSet((*D)[b])
+	(D)[a].Add(b)
+	(D)[a].AddSet((D)[b])
 	for e := range *(D.ArrowsTo(a)) {
-		(*D)[e].Add(b)
-		(*D)[e].AddSet((*D)[b])
+		(D)[e].Add(b)
+		(D)[e].AddSet((D)[b])
 	}
 }
 
-func (D *Digraph[E]) ArrowsTo(e E) *Set[E] {
+func (D Digraph[E]) ArrowsTo(e E) *Set[E] {
 	result := Set[E]{}
-	for k, V := range *D {
+	for k, V := range D {
 		if V.Contains(e) {
 			result.Add(k)
 		}

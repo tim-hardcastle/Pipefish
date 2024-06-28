@@ -3,6 +3,7 @@ package service
 import (
 	"os"
 	"pipefish/source/ast"
+	"pipefish/source/dtypes"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/settings"
@@ -196,26 +197,12 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// And we compile the functions in what is mainly a couple of loops wrapping around the aptly-named
-	// compileFunction method.
-	vmm.compileFunctions(functionDeclaration)
+	// We do a topological sort on the commands, functions, variable and constant declarations and then declare them in the right order.
+	vmm.compileEverything()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	// Finally we can evaluate the constants and variables, which needs the functions to be compiled
-	// first because the RHS of the assignment can be any expression.
-	// NOTE: is this even going to work any more? You also need to use the types of the variables/consts.
-	// So it all needs to be thrown into a dependency digraph and sorted.
-	vmm.evaluateConstantsAndVariables()
-	if vmm.uP.ErrorsExist() {
-		return
-	}
-
-	vmm.compileFunctions(commandDeclaration)
-	if vmm.uP.ErrorsExist() {
-		return
-	}
 }
 
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
@@ -303,12 +290,143 @@ func (vmm *VmMaker) MakeGoMods(goHandler *GoHandler) {
 	goHandler.CleanUp()
 }
 
-func (vmm *VmMaker) compileFunctions(args ...declarationType) {
-	for _, j := range args {
-		for i := 0; i < len(vmm.cp.P.ParsedDeclarations[j]); i++ {
-			vmm.compileFunction(vmm.cp.P.ParsedDeclarations[j][i], vmm.uP.isPrivate(int(j), i), vmm.cp.GlobalConsts, j)
+type labeledParsedCodeChunk struct {
+	chunk     ast.Node
+	decType   declarationType
+	decNumber int
+}
+
+// Now we need to do a big topological sort on evrything, according to the following rules:
+// A function, variable or constant can't depend on a command.
+// A constant can't depend on a variable.
+// A variable or constant can't depend on itself.
+func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
+	vmm.cp.GlobalVars.Ext = vmm.cp.GlobalConsts
+	namesToDeclarations := map[string][]labeledParsedCodeChunk{}
+	result := [][]labeledParsedCodeChunk{}
+	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
+		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
+			names := vmm.cp.P.GetVariablesFromSig(dec.(*ast.AssignmentExpression).Left)
+			for _, name := range names {
+				existingName, alreadyExists := namesToDeclarations[name]
+				if alreadyExists {
+					vmm.cp.P.Throw("init/name/exists/a", dec.GetToken(), vmm.cp.P.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
+					return nil
+				}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
+			}
 		}
 	}
+	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
+		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
+			var name string
+			switch dec := dec.(type) {
+			case *ast.PrefixExpression:
+				name = dec.Operator
+			case *ast.InfixExpression:
+				name = dec.Operator
+			case *ast.SuffixExpression:
+				name = dec.Operator
+			case *ast.UnfixExpression:
+				name = dec.Operator
+			default:
+				panic("That wasn't supposed to happen.")
+			}
+			_, alreadyExists := namesToDeclarations[name]
+			if alreadyExists {
+				names := namesToDeclarations[name]
+				for _, existingName := range names {
+					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
+						vmm.cp.P.Throw("init/name/exists/b", dec.GetToken(), vmm.cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+					}
+					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be a command or a function 'cos that would be weird.
+						vmm.cp.P.Throw("init/name/exists/c", dec.GetToken(), vmm.cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+					}
+				}
+				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i})
+			} else {
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
+			}
+		}
+	}
+	graph := dtypes.Digraph[string]{}
+	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
+		graph.Add(name, []string{})
+		for _, dec := range decs {
+			rhsNames := vmm.extractNamesFromCodeChunk(dec)
+			// IMPORTANT NOTE. 'extractNamesFromCodeChunk' will also slurp up a lot of cruft: type names, for example; bling; local true variables in cmds.
+			// So we do nothing to throw an error if a name doesn't exist. That will happen when we try to compile the function. What we're trying to
+			// do here is establish the relationship between the comds/defs/vars/consts that *do* exist.
+			for rhsName := range rhsNames {
+				rhsDecs, ok := namesToDeclarations[rhsName]
+				if ok && !(dec.decType == commandDeclaration) { // Again, we don't care if 'ok' is 'false', just about the relationships between the declarations if it's true.
+					// We check for forbidden relationships.
+					for _, rhsDec := range rhsDecs {
+						if rhsDec.decType == commandDeclaration {
+							vmm.cp.P.Throw("init/depend/cmd", dec.chunk.GetToken())
+							return nil
+						}
+						if rhsDec.decType == variableDeclaration {
+							vmm.cp.P.Throw("init/depend/const/var", dec.chunk.GetToken())
+							return nil
+						}
+					}
+					// And if there are no forbidden relationships we can add the dependency to the graph.
+					graph.AddTransitiveArrow(name, rhsName)
+				}
+			}
+		}
+	}
+	order := graph.Tarjan()
+	// We now have a list of lists of names to declare. We're off to the races!
+	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
+		groupOfDeclarations := []labeledParsedCodeChunk{}
+		for _, nameToDeclare := range namesToDeclare {
+			for _, dec := range namesToDeclarations[nameToDeclare] {
+				groupOfDeclarations = append(groupOfDeclarations, dec)
+			}
+		}
+		// If the declaration type is constant or variable it must be the only member of its Tarjan partion and there must only be one thing of that name.
+		if groupOfDeclarations[0].decType == constantDeclaration || groupOfDeclarations[0].decType == variableDeclaration {
+			vmm.compileGlobalConstantOrVariable(groupOfDeclarations[0].decType, groupOfDeclarations[0].decNumber)
+			continue
+		}
+		// So we have a group of functions/commands (but not both) which need to be declared together because either they have the same name or they
+		// have a recursive relationship, or both.
+		// We can't tell before we compile the group whether there is a recursive relationship in there, because we don't know how the dispatch is going to
+		// shake out. E.g. suppose we have a type 'Money = struct(dollars, cents int)' and we wish to implement '+'. We will of course do it using '+' for ints.
+		// This will not be recursion, but before we get that far we won't be able to tell whether it is or not.
+		for _, dec := range groupOfDeclarations {
+			switch dec.decType {
+			case functionDeclaration:
+				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalConsts, functionDeclaration)
+			case commandDeclaration:
+				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
+			}
+		}
+	}
+	return result
+}
+
+// This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
+// It is crude in that it will slurp other things too: type names, for example; bling; local true variables in cmds. We can live
+// with the false positives so long as there are no false negatives.
+func (vmm *VmMaker) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes.Set[string] {
+	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
+		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
+	}
+	_, _, sig, _, body, given, _ := vmm.cp.P.ExtractPartsOfFunction(vmm.cp.P.ParsedDeclarations[dec.decType][dec.decNumber])
+	sigNames := dtypes.Set[string]{}
+	for _, pair := range sig {
+		if pair.VarType != "bling" {
+			sigNames = sigNames.Add(pair.VarName)
+		}
+	}
+	bodyNames := ast.ExtractAllNames(body)
+	lhsG, rhsG := ast.ExtractNamesFromLhsAndRhsOfGivenBlock(given)
+	bodyNames.AddSet(rhsG)
+	bodyNames = bodyNames.SubtractSet(lhsG)
+	return bodyNames.SubtractSet(sigNames)
 }
 
 // There are three possibilities. Either we have a namespace without a path, in which case we're looking for
@@ -481,7 +599,7 @@ func (vmm *VmMaker) createStructs() {
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?
 
 		// We make the labels exist.
 
@@ -624,7 +742,7 @@ func (vmm *VmMaker) createSnippetTypes(tok *token.Token) {
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.Function{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
 
 		// And the vm.
 		vmm.addStructLabelsToMc(name, typeNo, sig, tok)
@@ -822,8 +940,8 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	return &cpF
 }
 
-func (vmm *VmMaker) evaluateConstantsAndVariables() {
-	vmm.cp.GlobalVars.Ext = vmm.cp.GlobalConsts
+// We add various global constants.
+func (vmm *VmMaker) initializeBuiltInConstants() {
 	vmm.cp.Reserve(values.NULL, nil, &token.Token{Source: "Builtin constant"})
 	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL), &token.Token{Source: "Builtin constant"})
 	vmm.cp.Reserve(values.SUCCESSFUL_VALUE, nil, &token.Token{Source: "Builtin constant"})
@@ -831,95 +949,93 @@ func (vmm *VmMaker) evaluateConstantsAndVariables() {
 	vmm.cp.Reserve(values.BREAK, nil, &token.Token{Source: "Builtin constant"})
 	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK), &token.Token{Source: "Builtin constant"})
 	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
-	for declarations := int(constantDeclaration); declarations <= int(variableDeclaration); declarations++ {
-		assignmentOrder := vmm.uP.ReturnOrderOfAssignments(declarations)
-		for _, v := range assignmentOrder {
-			dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
-			lhs := dec.(*ast.AssignmentExpression).Left
-			rhs := dec.(*ast.AssignmentExpression).Right
-			sig, _ := vmm.cp.P.RecursivelySlurpSignature(lhs, "*inferred*")
-			if vmm.uP.ErrorsExist() {
-				return
-			}
-			rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-			ctxt := context{vmm.cp.GlobalVars, INIT, nil}
-			vmm.cp.CompileNode(rhs, ctxt)
-			if vmm.uP.ErrorsExist() {
-				return
-			}
-			vmm.cp.Emit(Ret)
-			vmm.cp.cm("Calling Run from vmMaker's evaluateConstantsAndVariables method.", dec.GetToken())
-			vmm.cp.vm.Run(uint32(rollbackTo.code))
-			result := vmm.cp.vm.Mem[vmm.cp.That()]
-			if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
-				vmm.cp.rollback(rollbackTo, dec.GetToken())
-			}
-			isPrivate := vmm.uP.isPrivate(declarations, v)
-			var vAcc varAccess
-			envToAddTo := vmm.cp.GlobalConsts
-			if declarations == int(constantDeclaration) {
-				if isPrivate {
-					vAcc = GLOBAL_CONSTANT_PRIVATE
-				} else {
-					vAcc = GLOBAL_CONSTANT_PUBLIC
-				}
-			} else {
-				envToAddTo = vmm.cp.GlobalVars
-				if isPrivate {
-					vAcc = GLOBAL_VARIABLE_PRIVATE
-				} else {
-					vAcc = GLOBAL_VARIABLE_PUBLIC
-				}
-			}
+}
 
-			last := len(sig) - 1
-			lastIsTuple := sig[last].VarType == "tuple"
-			rhsIsTuple := result.T == values.TUPLE
-			tupleLen := 1
-			if rhsIsTuple {
-				tupleLen = len(result.V.([]values.Value))
-			}
-			if !lastIsTuple && tupleLen != len(sig) {
-				vmm.cp.P.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
-				return
-			}
-			if lastIsTuple && tupleLen < len(sig)-1 {
-				vmm.cp.P.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
-				return
-			}
-			loopTop := len(sig)
-			head := []values.Value{result}
-			if lastIsTuple {
-				loopTop = last
-				if rhsIsTuple {
-					head = result.V.([]values.Value)[:last]
-					vmm.cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:], rhs.GetToken())
-				} else {
-					if tupleLen == len(sig)-1 {
-						vmm.cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
-					} else {
-						vmm.cp.Reserve(values.TUPLE, result.V, rhs.GetToken())
-					}
-				}
-				vmm.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
+func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType, v int) {
+	dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
+	lhs := dec.(*ast.AssignmentExpression).Left
+	rhs := dec.(*ast.AssignmentExpression).Right
+	sig, _ := vmm.cp.P.RecursivelySlurpSignature(lhs, "*inferred*")
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+	rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
+	ctxt := context{vmm.cp.GlobalVars, INIT, nil}
+	vmm.cp.CompileNode(rhs, ctxt)
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+	vmm.cp.Emit(Ret)
+	vmm.cp.cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
+	vmm.cp.vm.Run(uint32(rollbackTo.code))
+	result := vmm.cp.vm.Mem[vmm.cp.That()]
+	if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+		vmm.cp.rollback(rollbackTo, dec.GetToken())
+	}
+	isPrivate := vmm.uP.isPrivate(int(declarations), v)
+	var vAcc varAccess
+	envToAddTo := vmm.cp.GlobalConsts
+	if declarations == constantDeclaration {
+		if isPrivate {
+			vAcc = GLOBAL_CONSTANT_PRIVATE
+		} else {
+			vAcc = GLOBAL_CONSTANT_PUBLIC
+		}
+	} else {
+		envToAddTo = vmm.cp.GlobalVars
+		if isPrivate {
+			vAcc = GLOBAL_VARIABLE_PRIVATE
+		} else {
+			vAcc = GLOBAL_VARIABLE_PUBLIC
+		}
+	}
+
+	last := len(sig) - 1
+	lastIsTuple := sig[last].VarType == "tuple"
+	rhsIsTuple := result.T == values.TUPLE
+	tupleLen := 1
+	if rhsIsTuple {
+		tupleLen = len(result.V.([]values.Value))
+	}
+	if !lastIsTuple && tupleLen != len(sig) {
+		vmm.cp.P.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
+		return
+	}
+	if lastIsTuple && tupleLen < len(sig)-1 {
+		vmm.cp.P.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
+		return
+	}
+	loopTop := len(sig)
+	head := []values.Value{result}
+	if lastIsTuple {
+		loopTop = last
+		if rhsIsTuple {
+			head = result.V.([]values.Value)[:last]
+			vmm.cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:], rhs.GetToken())
+		} else {
+			if tupleLen == len(sig)-1 {
+				vmm.cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
 			} else {
-				if rhsIsTuple {
-					head = result.V.([]values.Value)
-				}
+				vmm.cp.Reserve(values.TUPLE, result.V, rhs.GetToken())
 			}
-			for i := 0; i < loopTop; i++ {
-				vmm.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
-				if sig[i].VarType == "*inferred*" {
-					vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
-				} else {
-					allowedTypes := vmm.cp.TypeNameToTypeList[sig[i].VarType]
-					if allowedTypes.isNoneOf(head[i].T) {
-						vmm.cp.P.Throw("comp/assign/type", dec.GetToken())
-						return
-					} else {
-						vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
-					}
-				}
+		}
+		vmm.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
+	} else {
+		if rhsIsTuple {
+			head = result.V.([]values.Value)
+		}
+	}
+	for i := 0; i < loopTop; i++ {
+		vmm.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
+		if sig[i].VarType == "*inferred*" {
+			vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
+		} else {
+			allowedTypes := vmm.cp.TypeNameToTypeList[sig[i].VarType]
+			if allowedTypes.isNoneOf(head[i].T) {
+				vmm.cp.P.Throw("comp/assign/type", dec.GetToken())
+				return
+			} else {
+				vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
 			}
 		}
 	}

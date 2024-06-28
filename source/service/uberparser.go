@@ -487,7 +487,7 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 				return nil
 			}
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
-				ast.Function{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
+				ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
 					Cmd:     j == commandDeclaration,
 					Private: uP.isPrivate(int(j), i)})
 			if !ok {
@@ -564,7 +564,7 @@ func (uP *Initializer) MakeFunctionTrees() {
 }
 
 // Note that the sigs have already been sorted on their specificity.
-func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.Function, pos int) *ast.FnTreeNode {
+func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
 	sig := fn.Sig
 	if pos < len(sig) {
 		var currentType string

@@ -140,7 +140,7 @@ func UnnullType(maybeNulled string) string {
 	}
 }
 
-func insert(a []ast.Function, value ast.Function, index int) []ast.Function {
+func insert(a []ast.PrsrFunction, value ast.PrsrFunction, index int) []ast.PrsrFunction {
 	if len(a) == index { // nil or empty slice or after last element
 		return append(a, value)
 	}
@@ -149,11 +149,11 @@ func insert(a []ast.Function, value ast.Function, index int) []ast.Function {
 	return a
 }
 
-func AddInOrder(T TypeSystem, S []ast.Function, f ast.Function) ([]ast.Function, bool) {
+func AddInOrder(T TypeSystem, S []ast.PrsrFunction, f ast.PrsrFunction) ([]ast.PrsrFunction, bool) {
 	for i := 0; i < len(S); i++ {
 		yes, ok := IsMoreSpecific(T, f.Sig, S[i].Sig)
 		if !ok {
-			return []ast.Function{}, false
+			return []ast.PrsrFunction{}, false
 		}
 		if yes {
 			S = insert(S, f, i)

@@ -88,7 +88,7 @@ func (fl *FloatLiteral) String() string         { return fl.Token.Literal }
 
 type FuncExpression struct {
 	Token token.Token
-	Function
+	PrsrFunction
 }
 
 func (fe *FuncExpression) Children() []Node       { return []Node{fe.Body, fe.Given} }
@@ -430,24 +430,9 @@ func GetVariablesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.
 	switch n := n.(type) {
 	case *AssignmentExpression:
 		return GetVariableNames(n.Left), GetVariableNames(n.Right)
-	case *LazyInfixExpression:
+	case *LazyInfixExpression: // I.e. the ';' dividing asignments in a 'given' block.
 		lhs1, rhs1 := GetVariablesFromLhsAndRhsOfAssignments(n.Left)
 		lhs2, rhs2 := GetVariablesFromLhsAndRhsOfAssignments(n.Right)
-		lhs1.AddSet(lhs2)
-		rhs1.AddSet(rhs2)
-		return lhs1, lhs2
-	default:
-		return dtypes.Set[string]{}, dtypes.Set[string]{}
-	}
-}
-
-func GetPrefixesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.Set[string]) { // This slurps the variable usage out of `given` blocks specifically.
-	switch n := n.(type) {
-	case *AssignmentExpression:
-		return GetVariableNames(n.Left), GetPrefixes(n.Right)
-	case *LazyInfixExpression:
-		lhs1, rhs1 := GetPrefixesFromLhsAndRhsOfAssignments(n.Left)
-		lhs2, rhs2 := GetPrefixesFromLhsAndRhsOfAssignments(n.Right)
 		lhs1.AddSet(lhs2)
 		rhs1.AddSet(rhs2)
 		return lhs1, lhs2
@@ -481,18 +466,37 @@ func GetVariableNames(n Node) dtypes.Set[string] {
 	}
 }
 
-// We want to extract the prefixes used in a given node.
+// This works with the following function to find dependencies in a 'given' block.
+func GetPrefixesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.Set[string]) {
+	switch n := n.(type) {
+	case *AssignmentExpression:
+		return GetVariableNames(n.Left), GetPrefixes(n.Right)
+	case *LazyInfixExpression:
+		lhs1, rhs1 := GetPrefixesFromLhsAndRhsOfAssignments(n.Left)
+		lhs2, rhs2 := GetPrefixesFromLhsAndRhsOfAssignments(n.Right)
+		lhs1.AddSet(lhs2)
+		rhs1.AddSet(rhs2)
+		return lhs1, lhs2
+	default:
+		return dtypes.Set[string]{}, dtypes.Set[string]{}
+	}
+}
+
+// We want to extract the prefixes used in a 'given' node.
 func GetPrefixes(n Node) dtypes.Set[string] {
 	result := dtypes.Set[string]{}
 	switch n := n.(type) {
 	case *PrefixExpression:
+		for _, v := range n.Children() {
+			result.AddSet(GetPrefixes(v))
+		}
 		return result.Add(n.Operator)
 	case *FuncExpression:
 		params := dtypes.Set[string]{}
 		for _, pair := range n.Sig {
 			params.Add(pair.VarName)
 		}
-		// We find all the identifiers that we declare in the 'given' block.
+		// We find all the identifiers that we declare in the 'given' block of the lambda.
 		locals, rhs := GetPrefixesFromLhsAndRhsOfAssignments(n.Given)
 		// Find all the variable names in the body.
 		bodyNames := GetPrefixes(n.Body)
@@ -506,7 +510,64 @@ func GetPrefixes(n Node) dtypes.Set[string] {
 	}
 }
 
-type Function struct {
+// TODO --- this is unDRYly like the above functions and could be coalesced with them by making the types of nodes to be captured parameters of the function.
+func ExtractAllNames(node Node) dtypes.Set[string] {
+	result := dtypes.Set[string]{}
+	switch n := node.(type) {
+	case *PrefixExpression:
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result.Add(n.Operator)
+	case *InfixExpression:
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result.Add(n.Operator)
+	case *SuffixExpression:
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result.Add(n.Operator)
+	case *UnfixExpression:
+		return result.Add(n.Operator)
+	case *Identifier:
+		return result.Add(n.Value)
+	case *FuncExpression:
+		params := dtypes.Set[string]{}
+		for _, pair := range n.Sig {
+			params.Add(pair.VarName)
+		}
+		// We find all the identifiers that we declare in the 'given' block of the lambda.
+		locals, rhs := ExtractNamesFromLhsAndRhsOfGivenBlock(n.Given)
+		// Find all the variable names in the body.
+		bodyNames := ExtractAllNames(n.Body)
+		rhs.AddSet(bodyNames)
+		return rhs.SubtractSet(params).SubtractSet(locals)
+	default:
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result
+	}
+}
+
+func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.Set[string]) {
+	switch n := n.(type) {
+	case *AssignmentExpression:
+		return GetVariableNames(n.Left), ExtractAllNames(n.Right)
+	case *LazyInfixExpression:
+		lhs1, rhs1 := ExtractNamesFromLhsAndRhsOfGivenBlock(n.Left)
+		lhs2, rhs2 := ExtractNamesFromLhsAndRhsOfGivenBlock(n.Right)
+		lhs1.AddSet(lhs2)
+		rhs1.AddSet(rhs2)
+		return lhs1, lhs2
+	default:
+		return dtypes.Set[string]{}, dtypes.Set[string]{}
+	}
+}
+
+type PrsrFunction struct {
 	Sig      AstSig
 	Rets     AstSig
 	Body     Node
@@ -523,7 +584,7 @@ type FunctionGroup = struct { // Contains the start of a function tree plus the 
 }
 
 type FnTreeNode struct {
-	Fn     *Function
+	Fn     *PrsrFunction
 	Branch []*TypeNodePair
 }
 

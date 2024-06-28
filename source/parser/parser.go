@@ -1359,6 +1359,18 @@ func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.AstSig, *repo
 	return sig, nil
 }
 
+func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
+	result := []string{}
+	sig, e := p.RecursivelySlurpSignature(node, "*dummy*")
+	if e != nil {
+		return result
+	}
+	for _, pair := range sig {
+		result = append(result, pair.VarName)
+	}
+	return result
+}
+
 // TODO --- is there any sensible alternative to this?
 // This is all rather horrible and basically exists as a result of two reasons. First, since all the signatures whether of assignment
 // or function definition or struct definition or whatever fit into the same mold, we would like to be able to keep our code DRY by
@@ -1517,6 +1529,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 	return nil
 }
 
+// Gets the variable from the lhs and rhs of an assignment when it's still in the form of tokens.
 func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.Set[string]) {
 	LHS := make(dtypes.Set[string])
 	RHS := make(dtypes.Set[string])

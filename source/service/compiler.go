@@ -355,10 +355,7 @@ func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
 		for _, v := range order {
 			node, ok := nameToNode[v]
 			if ok && !used.Contains(v) {
-				lhsSig, _ := cp.P.RecursivelySlurpSignature(node.Left, "*default*")
-				for _, pair := range lhsSig {
-					used = used.Add(pair.VarName)
-				}
+				used.AddSet(dtypes.MakeFromSlice(cp.P.GetVariablesFromSig(node.Left)))
 				cp.compileOneGivenChunk(node, ctxt)
 			}
 		}
