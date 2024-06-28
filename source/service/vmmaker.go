@@ -319,19 +319,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 	}
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
-			var name string
-			switch dec := dec.(type) {
-			case *ast.PrefixExpression:
-				name = dec.Operator
-			case *ast.InfixExpression:
-				name = dec.Operator
-			case *ast.SuffixExpression:
-				name = dec.Operator
-			case *ast.UnfixExpression:
-				name = dec.Operator
-			default:
-				panic("That wasn't supposed to happen.")
-			}
+			name, _, _, _, _, _, _ := vmm.cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
 				names := namesToDeclarations[name]
@@ -377,12 +365,26 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
+
+	println("Graph is ", graph.String())
+
 	order := graph.Tarjan()
+
+	println("Graph order\n")
+	for _, list := range order {
+		for _, name := range list {
+			print(name, " ")
+		}
+		println()
+	}
+	println()
+
 	// We now have a list of lists of names to declare. We're off to the races!
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
 			for _, dec := range namesToDeclarations[nameToDeclare] {
+				println("Adding declaration corresponding to ", nameToDeclare)
 				groupOfDeclarations = append(groupOfDeclarations, dec)
 			}
 		}
