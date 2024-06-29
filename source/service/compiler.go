@@ -640,6 +640,7 @@ func (ctxt context) x() context {
 // evaluates it and uses the snapshot to roll back the vm.
 func (cp *Compiler) CompileNode(node ast.Node, ctxt context) (AlternateType, bool) {
 	cp.cm("Compiling node of type "+(reflect.TypeOf(node).String())[5:]+" with literal "+text.Emph(node.GetToken().Literal)+".", node.GetToken())
+	cp.cm("Node is "+node.String(), node.GetToken())
 	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := cp.getState()

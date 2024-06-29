@@ -531,6 +531,8 @@ func ExtractAllNames(node Node) dtypes.Set[string] {
 		return result.Add(n.Operator)
 	case *UnfixExpression:
 		return result.Add(n.Operator)
+	case *GolangExpression:
+		return result.Add(n.GetToken().Literal)
 	case *Identifier:
 		return result.Add(n.Value)
 	case *FuncExpression:
@@ -568,19 +570,19 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 }
 
 type PrsrFunction struct {
-	Sig      AstSig
-	Rets     AstSig
-	Body     Node
-	Given    Node
-	Cmd      bool
-	Private  bool
-	Number   uint32
-	Position uint32 // PREFIX, INFIX, SUFFIX
+	Sig      AstSig // The signature of the function, represented in a form where the types are given as strings.
+	Rets     AstSig // The return types: nil if not supplied.
+	Body     Node   // The body of the function.
+	Given    Node   // The 'givein' block: nil if there isn't one.
+	Cmd      bool   // Whether it's a command or not.
+	Private  bool   // Whether it's a suffix or not.
+	Number   uint32 // The order in which the function was compiled by the vmMaker. Initialized as DUMMY.
+	Position uint32 // PREFIX, INFIX, SUFFIX.
 }
 
 type FunctionGroup = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.
 	Tree     *FnTreeNode
-	RefCount int
+	RefCount int // For reasons, the reference variables in a function's sig must (a) come at the start (b) be of the same number for each of the overloaded variants of the function.
 }
 
 type FnTreeNode struct {

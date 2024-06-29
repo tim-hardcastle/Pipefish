@@ -4,23 +4,14 @@ import (
 	"pipefish/source/ast"
 )
 
-type FunctionTable map[string][]ast.PrsrFunction
+type FunctionTable map[string][]*ast.PrsrFunction
 
-func (ft FunctionTable) Add(T TypeSystem, functionName string, f ast.PrsrFunction) (ok bool) {
-	f.Number = uint32(ft.Count())
+func (ft FunctionTable) Add(T TypeSystem, functionName string, f *ast.PrsrFunction) (ok bool) {
 	if functions, ok := ft[functionName]; ok {
 		functions, ok = AddInOrder(T, functions, f)
 		ft[functionName] = functions
 		return ok
 	}
-	ft[functionName] = []ast.PrsrFunction{f}
+	ft[functionName] = []*ast.PrsrFunction{f}
 	return true
-}
-
-func (ft FunctionTable) Count() int {
-	result := 0
-	for _, v := range ft {
-		result = result + len(v)
-	}
-	return result
 }

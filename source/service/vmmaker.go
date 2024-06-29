@@ -21,10 +21,11 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vmm.cp.vm.
 
 type VmMaker struct {
-	cp     *Compiler
-	uP     *Initializer
-	goToPf map[string]func(any) (uint32, []any, bool)
-	pfToGo map[string]func(uint32, []any) any
+	cp              *Compiler
+	uP              *Initializer
+	goToPf          map[string]func(any) (uint32, []any, bool) // Used for Golang interop
+	pfToGo          map[string]func(uint32, []any) any         //           "
+	functionCounter uint32                                     // We want to assign a new number to each function as we compile it.
 }
 
 // The base case: we start off with a blank vm.
@@ -296,7 +297,7 @@ type labeledParsedCodeChunk struct {
 	decNumber int
 }
 
-// Now we need to do a big topological sort on evrything, according to the following rules:
+// Now we need to do a big topological sort on everything, according to the following rules:
 // A function, variable or constant can't depend on a command.
 // A constant can't depend on a variable.
 // A variable or constant can't depend on itself.
@@ -347,16 +348,18 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 			// do here is establish the relationship between the comds/defs/vars/consts that *do* exist.
 			for rhsName := range rhsNames {
 				rhsDecs, ok := namesToDeclarations[rhsName]
-				if ok && !(dec.decType == commandDeclaration) { // Again, we don't care if 'ok' is 'false', just about the relationships between the declarations if it's true.
-					// We check for forbidden relationships.
-					for _, rhsDec := range rhsDecs {
-						if rhsDec.decType == commandDeclaration {
-							vmm.cp.P.Throw("init/depend/cmd", dec.chunk.GetToken())
-							return nil
-						}
-						if rhsDec.decType == variableDeclaration {
-							vmm.cp.P.Throw("init/depend/const/var", dec.chunk.GetToken())
-							return nil
+				if ok { // Again, we don't care if 'ok' is 'false', just about the relationships between the declarations if it's true.
+					if dec.decType != commandDeclaration {
+						// We check for forbidden relationships.
+						for _, rhsDec := range rhsDecs {
+							if rhsDec.decType == commandDeclaration {
+								vmm.cp.P.Throw("init/depend/cmd", dec.chunk.GetToken())
+								return nil
+							}
+							if rhsDec.decType == variableDeclaration {
+								vmm.cp.P.Throw("init/depend/const/var", dec.chunk.GetToken())
+								return nil
+							}
 						}
 					}
 					// And if there are no forbidden relationships we can add the dependency to the graph.
@@ -384,8 +387,9 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
 			for _, dec := range namesToDeclarations[nameToDeclare] {
-				println("Adding declaration corresponding to ", nameToDeclare)
+				println("Adding declaration for", text.Emph(nameToDeclare))
 				groupOfDeclarations = append(groupOfDeclarations, dec)
+				println(dec.chunk.String())
 			}
 		}
 		// If the declaration type is constant or variable it must be the only member of its Tarjan partion and there must only be one thing of that name.
@@ -401,10 +405,14 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case functionDeclaration:
+				println("Compiling function", dec.chunk.String())
 				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalConsts, functionDeclaration)
 			case commandDeclaration:
+				println("Compiling command", dec.chunk.String())
 				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
 			}
+			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = vmm.functionCounter
+			vmm.functionCounter++
 		}
 	}
 	return result
@@ -601,7 +609,7 @@ func (vmm *VmMaker) createStructs() {
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?
 
 		// We make the labels exist.
 
@@ -744,7 +752,7 @@ func (vmm *VmMaker) createSnippetTypes(tok *token.Token) {
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
 
 		// And the vm.
 		vmm.addStructLabelsToMc(name, typeNo, sig, tok)

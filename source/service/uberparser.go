@@ -46,16 +46,17 @@ const (
 
 type declarationType int
 
+// The fact that these things come in this order is used in the code and should not be changed without a great deal of forethought.
 const (
 	importDeclaration   declarationType = iota
 	externalDeclaration                 //
 	enumDeclaration                     //
 	structDeclaration                   //
 	snippetDeclaration                  //
-	abstractDeclaration                 // The fact that these things come
-	constantDeclaration                 // in this order is used in the code
-	variableDeclaration                 // and should not be changed without
-	functionDeclaration                 // a great deal of forethought.
+	abstractDeclaration                 //
+	constantDeclaration                 //
+	variableDeclaration                 //
+	functionDeclaration                 //
 	commandDeclaration                  //
 	golangDeclaration                   // Pure golang in a block; the Charm functions with golang bodies don't go here but under function or command as they were declared.
 
@@ -72,10 +73,16 @@ var tokenTypeToSection = map[token.TokenType]Section{
 	token.CONST:   ConstSection,
 }
 
+type fnSource struct {
+	decType   declarationType
+	decNumber int
+}
+
 type Initializer struct {
 	rl      lexer.Relexer
 	Parser  *parser.Parser
 	Sources map[string][]string
+	fnIndex map[fnSource]*ast.PrsrFunction // We need to number the functions after we sort them into the function tree, in order of compilation. This keeps track of where they are.
 }
 
 func NewInitializer(source, sourceCode string) *Initializer {
@@ -83,6 +90,7 @@ func NewInitializer(source, sourceCode string) *Initializer {
 		rl:      *lexer.NewRelexer(source, sourceCode),
 		Parser:  parser.New(),
 		Sources: make(map[string][]string),
+		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 	}
 	uP.GetSource(source)
 	return uP
@@ -486,10 +494,10 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 			if uP.Parser.ErrorsExist() {
 				return nil
 			}
-			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName,
-				ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
-					Cmd:     j == commandDeclaration,
-					Private: uP.isPrivate(int(j), i)})
+			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
+				Cmd: j == commandDeclaration, Private: uP.isPrivate(int(j), i), Number: DUMMY}
+			uP.fnIndex[fnSource{j, i}] = &functionToAdd
+			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName, &functionToAdd)
 			if !ok {
 				uP.Throw("init/overload", token.Token{}, functionName)
 				return nil
@@ -531,17 +539,14 @@ func flatten(s string) string {
 
 // Having made the parsers FunctionTable, each function name is associated with an (partially) ordered list of
 // associated functions such that a more specific type signature comes before a less specific one.
-
-// In order to handle dispatch at runtime, we will re-represent this as a tree. This will apart
-// from anything else be rather faster. It also allows us to perform dispatch by evaluating one
-// argument of the function at a time.
+// We will now re-represent this as a tree.
 func (uP *Initializer) MakeFunctionTrees() {
 	uP.Parser.FunctionGroupMap = map[string]*ast.FunctionGroup{}
 	rc := 0
 	for k, v := range uP.Parser.FunctionTable {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
 		for i := range v {
-			tree = uP.addSigToTree(tree, &v[i], 0)
+			tree = uP.addSigToTree(tree, v[i], 0)
 
 			refs := 0 // Overloaded functions must have the same number of reference variables, which go at the start.
 			for ; refs < len(v[i].Sig) && v[i].Sig[refs].VarType == "ref"; refs++ {
