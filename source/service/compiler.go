@@ -224,7 +224,7 @@ func (cp *Compiler) Do(line string) values.Value {
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	ctxt := context{cp.GlobalConsts, REPL, nil}
+	ctxt := context{cp.GlobalVars, REPL, nil}
 	cp.CompileNode(node, ctxt)
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
@@ -1901,7 +1901,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 
 func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32) bkGoto { // TODO --- more of this.
 	if len(typeAsAlt) == 1 {
-		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)))
+		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	args := []uint32{}
@@ -1965,14 +1965,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
 			F := cp.Fns[fNo]
-			// Before we do anything else, let's control for access. The REPL shouldn't be able to access private
-			// commands or functions, and functions shouldn't be able to access commands.
 			if (b.access == REPL || b.libcall) && F.Private {
 				cp.P.Throw("comp/private", b.tok)
-				return AltType(values.COMPILE_TIME_ERROR)
-			}
-			if b.access == DEF && F.Command {
-				cp.P.Throw("comp/command", b.tok)
 				return AltType(values.COMPILE_TIME_ERROR)
 			}
 			// Deal with the case where the function is a builtin.

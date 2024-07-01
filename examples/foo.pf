@@ -1,15 +1,23 @@
-const
+cmd 
 
-PI = 3.141592
+test (z) :
+    global zort 
+    post zort * foo z
+    post Moo((zort * foo z), true)
+
+def
+
+foo(x) :
+    PI * x
 
 var
 
 zort = PI
 
-def
+const
 
-foo(x) :
-    PI 
+PI = 3.141592
 
-bar(x) :
-    foo(x)
+newtype
+
+Moo = struct(a float, b bool)

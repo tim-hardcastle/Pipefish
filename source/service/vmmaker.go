@@ -21,11 +21,10 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vmm.cp.vm.
 
 type VmMaker struct {
-	cp              *Compiler
-	uP              *Initializer
-	goToPf          map[string]func(any) (uint32, []any, bool) // Used for Golang interop
-	pfToGo          map[string]func(uint32, []any) any         //           "
-	functionCounter uint32                                     // We want to assign a new number to each function as we compile it.
+	cp     *Compiler
+	uP     *Initializer
+	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop
+	pfToGo map[string]func(uint32, []any) any         //           "                                     // We want to assign a new number to each function as we compile it.
 }
 
 // The base case: we start off with a blank vm.
@@ -411,8 +410,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 				println("Compiling command", dec.chunk.String())
 				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
 			}
-			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = vmm.functionCounter
-			vmm.functionCounter++
+			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(vmm.cp.Fns) - 1)
 		}
 	}
 	return result
@@ -993,6 +991,7 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 		}
 	} else {
 		envToAddTo = vmm.cp.GlobalVars
+		println("*********** Declaring ", dec.String())
 		if isPrivate {
 			vAcc = GLOBAL_VARIABLE_PRIVATE
 		} else {
