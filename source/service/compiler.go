@@ -1964,7 +1964,6 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
-			println("fNo is ", fNo)
 			F := cp.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
 				cp.P.Throw("comp/private", b.tok)

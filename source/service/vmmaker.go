@@ -981,7 +981,6 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 		}
 	} else {
 		envToAddTo = vmm.cp.GlobalVars
-		println("*********** Declaring ", dec.String())
 		if isPrivate {
 			vAcc = GLOBAL_VARIABLE_PRIVATE
 		} else {

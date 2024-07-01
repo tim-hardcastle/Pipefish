@@ -2,7 +2,7 @@ cmd
 
 test (z) :
     global zort 
-    post Moo(zort * foo z)
+    post Moo (zort * foo z), BLUE
 
 def
 
@@ -20,3 +20,5 @@ PI = 3.141592
 newtype
 
 Moo = struct(a float)
+
+Color = enum RED, YELLOW, BLUE
