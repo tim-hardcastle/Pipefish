@@ -194,6 +194,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qvch: {"qvch", operands{mem, num, loc}},
 	Qvcq: {"qvcq", operands{mem, num, loc}},
 	Ret:  {"ret", operands{}},
+	Rpop: {"rpop", operands{}},
+	Rpsh: {"Rpsh", operands{num, num}},
 	SliL: {"sliL", operands{dst, mem, mem, tok}},
 	Slis: {"slis", operands{dst, mem, mem, tok}},
 	SliT: {"sliT", operands{dst, mem, mem, tok}},
@@ -338,6 +340,8 @@ const (
 	Qvch
 	Qvcq
 	Ret
+	Rpop
+	Rpsh
 	SliL
 	Slis
 	SliT

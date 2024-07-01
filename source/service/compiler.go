@@ -52,9 +52,12 @@ type Compiler struct {
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
 	// Temporary state.
-	ThunkList   []ThunkData
-	showCompile bool
+	ThunkList      []ThunkData
+	recursionStore []bkRecursion // Places in the code where we need to go back and doctor it to make the recursion work.
+	showCompile    bool
 }
+
+type bkRecursion struct{ functionNumber, address uint32 }
 
 type CpFunc struct { // The compiler's representation of a function after the function has been compiled.
 	CallTo   uint32
@@ -224,7 +227,7 @@ func (cp *Compiler) Do(line string) values.Value {
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	ctxt := context{cp.GlobalVars, REPL, nil}
+	ctxt := context{cp.GlobalVars, REPL, nil, DUMMY}
 	cp.CompileNode(node, ctxt)
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
@@ -242,7 +245,11 @@ func (cp *Compiler) Describe(v values.Value) string {
 }
 
 func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 {
-	cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" with initial type "+cp.vm.DescribeType(t)+".", tok)
+	if t < values.ValueType(len(cp.vm.concreteTypes)) {
+		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" with initial type "+cp.vm.DescribeType(t)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
+	} else {
+		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" for initial lype not yet named.", tok)
+	}
 	cp.vm.Mem = append(cp.vm.Mem, values.Value{T: t, V: v})
 	return uint32(len(cp.vm.Mem) - 1)
 }
@@ -519,7 +526,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	saveThunkList := cp.ThunkList
 	if fnNode.Given != nil {
 		cp.ThunkList = []ThunkData{}
-		cp.compileGiven(fnNode.Given, context{newEnv, LAMBDA, nil})
+		cp.compileGiven(fnNode.Given, context{newEnv, LAMBDA, nil, DUMMY}) // TODO --- must pass from outer context.
 	}
 	// Function starts here.
 	LF.Model.addressToCall = cp.CodeTop()
@@ -535,7 +542,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 		cp.ThunkList = saveThunkList
 	}
 	newRets := cp.returnSigToAlternateType(fnNode.Rets)
-	newContext := context{newEnv, LAMBDA, newRets}
+	newContext := context{newEnv, LAMBDA, newRets, DUMMY} // TODO --- must pass loMem from outer context.
 	// Compile the main body of the lambda.
 	types, _ := cp.CompileNode(fnNode.Body, newContext)
 	LF.Model.resultLocation = cp.That()
@@ -626,6 +633,7 @@ type context struct {
 	env       *Environment    // The association of variable names to variable locations.
 	ac        cpAccess        // Whether we are compiling the body of a command; of a function; something typed into the REPL, etc.
 	typecheck finiteTupleType // The type(s) for the compiler to check for going forward; nil if it shouldn't.
+	lowMem    uint32          // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
 }
 
 // Unless we're going down a branch, we want the new context for each node compilation to have no forward type-checking.
@@ -1563,6 +1571,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		types:        make(finiteTupleType, len(args)),
 		access:       ac,
 		libcall:      libcall,
+		lowMem:       ctxt.lowMem, // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
 	}
 	backtrackList := make([]uint32, len(args))
 	var cstI bool
@@ -1661,6 +1670,7 @@ type bindle struct {
 	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
 	cst          bool            // Whether the arguments are constant.
 	libcall      bool            // Are we in a namespace?
+	lowMem       uint32          // The lowest point in memory that the function uses. Hence the lowest point from which we could need to copy when putting memory on the recursionStack.
 }
 
 func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
@@ -1964,6 +1974,15 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
+			if fNo >= uint32(len(cp.Fns)) {
+				cp.cm("Undefined function. We're doing recursion!", b.tok)
+				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
+				cp.recursionStore = append(cp.recursionStore, bkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
+				cp.emitFunctionCall(fNo, b.valLocs)                                           // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
+				cp.Emit(Rpop)
+				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
+				return cp.AnyTypeScheme        // Or what type.
+			}
 			F := cp.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
 				cp.P.Throw("comp/private", b.tok)
@@ -2072,6 +2091,11 @@ func (cp *Compiler) put(opcode Opcode, args ...uint32) {
 }
 
 func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
+	if funcNumber >= uint32(len(cp.Fns)) {
+		args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
+		cp.Emit(Call, args...)
+		return
+	}
 	args := append([]uint32{cp.Fns[funcNumber].CallTo, cp.Fns[funcNumber].LoReg, cp.Fns[funcNumber].HiReg}, valLocs...)
 	if cp.Fns[funcNumber].TupleReg == DUMMY { // We specialize on whether we have to capture tuples.
 		cp.Emit(Call, args...)
@@ -2423,7 +2447,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 		cp.put(Dofn, v.mLoc, lhs)
 		rtnTypes, rtnConst = cp.AnyTypeScheme, ALL_CONST_ACCESS.Contains(v.access)
 	} else {
-		newContext := context{envWithThat, ac, nil}
+		newContext := context{envWithThat, ac, nil, DUMMY} // TODO --- must get value from outer context.
 		rtnTypes, rtnConst = cp.CompileNode(rhs, newContext)
 	}
 	cp.vmComeFrom(typeIsNotFunc)
@@ -2483,7 +2507,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	} else {
 		cp.Emit(IdxL, thatLoc, sourceList, counter, DUMMY)
 		inputElement = thatLoc
-		newContext := context{envWithThat, ac, nil}
+		newContext := context{envWithThat, ac, nil, DUMMY} // TODO --- get mapping from outer context.
 		types, isConst = cp.CompileNode(rhs, newContext)
 	}
 	resultElement := cp.That()
@@ -2534,7 +2558,7 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 		}
 		if bit[0] == '|' {
 			node := cp.P.ParseLine(tok.Source, bit[1:len(bit)-1])
-			newContext := context{newEnv, ac, nil}
+			newContext := context{newEnv, ac, nil, DUMMY} // TODO --- must get lowMem from outer context.
 			types, cst := cp.CompileNode(node, newContext)
 			val := cp.That()
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {

@@ -20,10 +20,11 @@ import (
 
 type Vm struct {
 	// Temporary state: things we change at runtime.
-	Mem       []values.Value
-	Code      []*Operation
-	callstack []uint32
-	logging   bool
+	Mem            []values.Value
+	Code           []*Operation
+	callstack      []uint32
+	recursionStack []recursionData
+	logging        bool
 
 	// Permanent state: things established at compile time.
 
@@ -94,6 +95,11 @@ type SnippetBindle struct {
 	codeLoc             uint32              // Where to find the code to compute the object string and the values.
 	objectStringLoc     uint32              // Where to find the object string.
 	valueLocs           []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
+}
+
+type recursionData struct {
+	mems []values.Value
+	loc  uint32
 }
 
 // Then the SnippetData consists of that and the environment slice, which we can't insert into memory until call
@@ -941,6 +947,16 @@ loop:
 			}
 			loc = vm.callstack[len(vm.callstack)-1]
 			vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
+		case Rpop:
+			rData := vm.recursionStack[len(vm.recursionStack)-1]
+			vm.recursionStack = vm.recursionStack[:len(vm.recursionStack)-1]
+			copy(vm.Mem[rData.loc:int(rData.loc)+len(rData.mems)], rData.mems)
+		case Rpsh:
+			lowLoc := args[0]
+			highLoc := args[1]
+			memToSave := make([]values.Value, highLoc-lowLoc)
+			copy(memToSave, vm.Mem[lowLoc:highLoc])
+			vm.recursionStack = append(vm.recursionStack, recursionData{memToSave, lowLoc})
 		case SliL:
 			vec := vm.Mem[args[1]].V.(vector.Vector)
 			ix := vm.Mem[args[2]].V.([]values.Value)

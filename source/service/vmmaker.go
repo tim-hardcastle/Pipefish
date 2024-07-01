@@ -388,6 +388,12 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		// We can't tell before we compile the group whether there is a recursive relationship in there, because we don't know how the dispatch is going to
 		// shake out. E.g. suppose we have a type 'Money = struct(dollars, cents int)' and we wish to implement '+'. We will of course do it using '+' for ints.
 		// This will not be recursion, but before we get that far we won't be able to tell whether it is or not.
+		vmm.cp.recursionStore = []bkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
+		fCount := uint32(len(vmm.cp.Fns))       // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
+		for _, dec := range groupOfDeclarations {
+			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
+			fCount++
+		}
 		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case functionDeclaration:
@@ -396,6 +402,15 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
 			}
 			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(vmm.cp.Fns) - 1)
+		}
+		// We've reached the end of the group and can go back and put the recursion in.
+		for _, rDat := range vmm.cp.recursionStore {
+			funcNumber := rDat.functionNumber
+			addr := rDat.address
+			vmm.cp.vm.Code[addr].Args[0] = vmm.cp.Fns[funcNumber].CallTo
+			vmm.cp.vm.Code[addr].Args[1] = vmm.cp.Fns[funcNumber].LoReg
+			vmm.cp.vm.Code[addr].Args[2] = vmm.cp.Fns[funcNumber].HiReg
+			vmm.cp.vm.Code[addr+2].Args[1] = vmm.cp.Fns[funcNumber].OutReg
 		}
 	}
 	return result
@@ -908,7 +923,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	default:
 		if given != nil {
 			vmm.cp.ThunkList = []ThunkData{}
-			givenContext := context{fnenv, DEF, nil}
+			givenContext := context{fnenv, DEF, nil, cpF.LoReg}
 			vmm.cp.compileGiven(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			if len(vmm.cp.ThunkList) > 0 {
@@ -918,7 +933,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 				vmm.cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)
 			}
 		}
-		bodyContext := context{fnenv, ac, vmm.cp.returnSigToAlternateType(rtnSig)}
+		bodyContext := context{fnenv, ac, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg}
 		cpF.Types, _ = vmm.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = vmm.cp.That()
 
@@ -958,7 +973,7 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 		return
 	}
 	rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-	ctxt := context{vmm.cp.GlobalVars, INIT, nil}
+	ctxt := context{vmm.cp.GlobalVars, INIT, nil, DUMMY}
 	vmm.cp.CompileNode(rhs, ctxt)
 	if vmm.uP.ErrorsExist() {
 		return

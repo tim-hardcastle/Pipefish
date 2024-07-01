@@ -1,24 +1,12 @@
-cmd 
-
-test (z) :
-    global zort 
-    post Moo (zort * foo z), BLUE
-
 def
 
-foo(x) :
-    PI * x
+fac(i int) :
+    i == 0 :
+        1
+    else :
+        i * fac i - 1
 
-var
-
-zort = PI
-
-const
-
-PI = 3.141592
-
-newtype
-
-Moo = struct(a float)
-
-Color = enum RED, YELLOW, BLUE
+power(a, n int) :
+    n == 0 :
+        1
+    a * power(a, n - 1)
