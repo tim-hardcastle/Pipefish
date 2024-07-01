@@ -63,7 +63,7 @@ type CpFunc struct { // The compiler's representation of a function after the fu
 	OutReg   uint32
 	TupleReg uint32
 	Types    AlternateType
-	Builtin  string   // A non-empty string if it's a builtin, saying which one.
+	Builtin  string   // The name of a builtin or constructor, or an empty string if it's neither.
 	Xcall    *XBindle // Information for making an external call, if non-nil.
 	Private  bool     // True if it's private.
 	Command  bool     // True if it's a command.
@@ -1964,6 +1964,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
+			println("fNo is ", fNo)
 			F := cp.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
 				cp.P.Throw("comp/private", b.tok)

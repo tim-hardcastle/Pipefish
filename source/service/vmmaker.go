@@ -134,8 +134,8 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// We make the struct names and labels, but not the constructors, which come later.
-	vmm.createStructs()
+	// But not the constructors, which come later.
+	vmm.createStructNamesAndLabels()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -192,7 +192,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	}
 
 	// We add in constructors for the structs, languages, and externals.
-	vmm.makeConstructors()
+	vmm.compileConstructors()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -368,27 +368,14 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 
-	println("Graph is ", graph.String())
-
 	order := graph.Tarjan()
-
-	println("Graph order\n")
-	for _, list := range order {
-		for _, name := range list {
-			print(name, " ")
-		}
-		println()
-	}
-	println()
 
 	// We now have a list of lists of names to declare. We're off to the races!
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
 			for _, dec := range namesToDeclarations[nameToDeclare] {
-				println("Adding declaration for", text.Emph(nameToDeclare))
 				groupOfDeclarations = append(groupOfDeclarations, dec)
-				println(dec.chunk.String())
 			}
 		}
 		// If the declaration type is constant or variable it must be the only member of its Tarjan partion and there must only be one thing of that name.
@@ -404,10 +391,8 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case functionDeclaration:
-				println("Compiling function", dec.chunk.String())
 				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalConsts, functionDeclaration)
 			case commandDeclaration:
-				println("Compiling command", dec.chunk.String())
 				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
 			}
 			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(vmm.cp.Fns) - 1)
@@ -585,7 +570,7 @@ func (vmm *VmMaker) createEnums() {
 }
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
-func (vmm *VmMaker) createStructs() {
+func (vmm *VmMaker) createStructNamesAndLabels() {
 	vmm.cp.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
@@ -607,8 +592,9 @@ func (vmm *VmMaker) createStructs() {
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}) // TODO --- give them their own ast type?
-
+		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn) // TODO --- give them their own ast type?
+		vmm.uP.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist.
 
 		labelsForStruct := make([]int, 0, len(sig))
@@ -750,7 +736,9 @@ func (vmm *VmMaker) createSnippetTypes(tok *token.Token) {
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}})
+		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn)
+		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}] = fn
 
 		// And the vm.
 		vmm.addStructLabelsToMc(name, typeNo, sig, tok)
@@ -804,15 +792,17 @@ func (vmm *VmMaker) addStructLabelsToMc(name string, typeNo values.ValueType, si
 	vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 }
 
-func (vmm *VmMaker) makeConstructors() {
+func (vmm *VmMaker) compileConstructors() {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		vmm.uP.fnIndex[fnSource{structDeclaration, i}].Number = uint32(len(vmm.cp.Fns))
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig, node.GetToken()))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
 	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 	for i, name := range vmm.cp.P.Snippets {
+		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}].Number = uint32(len(vmm.cp.Fns))
 		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig, vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken()))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(snippetDeclaration), i)
 	}
