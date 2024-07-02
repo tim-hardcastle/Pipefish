@@ -242,6 +242,8 @@ loop:
 					vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 				}
 			}
+		case Cpnt:
+			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(rune))}
 		case Cv1T:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]]}}
 		case CvTT:
@@ -487,6 +489,8 @@ loop:
 					vm.Mem[args[0]] = values.Value{values.BOOL, true}
 				}
 			}
+		case Itor:
+			vm.Mem[args[0]] = values.Value{values.RUNE, rune(vm.Mem[args[1]].V.(int))}
 		case IxTn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxXx:

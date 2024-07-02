@@ -39,7 +39,8 @@ def
 // Ordinary functions are in order of their function name.
 
 aritymaker(x tuple) : builtin "len_tuple"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
-arity(x tuple) : aritymaker x   
+arity(x tuple) : aritymaker x
+codepoint(x rune) : builtin "codepoint"   
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"
 float(x string) : builtin "float_of_string"
@@ -59,6 +60,7 @@ len(x set) : builtin "len_set"
 len(x string) : builtin "len_string"
 mapmaker(x tuple) : builtin "make_map"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
 map(x tuple) : mapmaker x                 //
+rune(x int) : builtin "rune"
 setmaker(x tuple) : builtin "make_set"    // TODO --- something better.
 set(x tuple) : setmaker x                 // 
 string(x single?) : builtin "string"

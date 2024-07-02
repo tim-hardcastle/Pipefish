@@ -19,6 +19,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"add_sets":           {(*Compiler).btAddSets, AltType(values.SET)},
 	"add_string_to_rune": {(*Compiler).btAddStringToRune, AltType(values.STRING)},
 	"add_strings":        {(*Compiler).btAddStrings, AltType(values.STRING)},
+	"codepoint":          {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":      {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":    {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
 	"float_of_int":       {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
@@ -62,6 +63,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"post_to_output":     {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
 	"post_sql":           {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_terminal":   {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
+	"rune":               {(*Compiler).btRune, AltType(values.RUNE)},
 	"string":             {(*Compiler).btString, AltType(values.STRING)},
 	"single_in_list":     {(*Compiler).btSingleInList, AltType(values.BOOL)},
 	"single_in_set":      {(*Compiler).btSingleInSet, AltType(values.BOOL)},
@@ -110,6 +112,10 @@ func (cp *Compiler) btAddStrings(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btAddStringToRune(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Adsr, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btCodepoint(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cpnt, dest, args[0])
 }
 
 func (cp *Compiler) btDivideFloats(tok *token.Token, dest uint32, args []uint32) {
@@ -281,6 +287,10 @@ func (cp *Compiler) btPostSpecialSnippet(tok *token.Token, dest uint32, args []u
 func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Outt, args[0])
 	cp.Emit(Asgm, dest, values.C_OK)
+}
+
+func (cp *Compiler) btRune(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Itor, dest, args[0])
 }
 
 func (cp *Compiler) btSingleInList(tok *token.Token, dest uint32, args []uint32) {

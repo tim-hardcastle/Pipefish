@@ -108,8 +108,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	CcT1: {"ccT1", operands{dst, mem, mem}},
 	CcTT: {"ccTT", operands{dst, mem, mem}},
 	Ccxx: {"ccxx", operands{dst, mem, mem}},
-	Cv1T: {"Cv1T", operands{dst, mem}},
-	CvTT: {"CvTT", operands{dst, tup}},
+	Cpnt: {"cpnt", operands{dst, mem}},
+	Cv1T: {"cv1T", operands{dst, mem}},
+	CvTT: {"cvTT", operands{dst, tup}},
 	Divf: {"divf", operands{dst, mem, mem, tok}},
 	Divi: {"divi", operands{dst, mem, mem, tok}},
 	Dofn: {"dofn", operands{dst, mem, tup}},
@@ -146,6 +147,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	InxT: {"inxT", operands{dst, mem, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
+	Itor: {"itor", operands{dst, mem}},
 	IxXx: {"ixXx", operands{dst, mem, mem, tok}},
 	Jmp:  {"jmp", operands{loc}},
 	Jsr:  {"jsr", operands{loc}},
@@ -258,6 +260,7 @@ const (
 	Ccxx
 	Cv1T
 	CvTT
+	Cpnt
 	Call
 	CalT // Specialized for tuple capture.
 	Divf
@@ -294,6 +297,7 @@ const (
 	InxT
 	Ints
 	Intf
+	Itor
 	IxTn
 	IxXx
 	IxZl
