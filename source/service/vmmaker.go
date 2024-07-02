@@ -599,6 +599,9 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		vmm.cp.TypeNameToTypeList[name] = altType(typeNo)
 		vmm.cp.TypeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
+		if name == "Error" {
+			vmm.cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
+		}
 		vmm.cp.AnyTypeScheme = vmm.cp.AnyTypeScheme.Union(altType(typeNo))
 		// We are now going to assume that the last element of AnyTypeScheme is a TypedTupleType and add the new struct type accordingly.
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)

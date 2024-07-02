@@ -213,7 +213,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Typx: {"typx", operands{dst, mem}},
 	UntE: {"untE", operands{dst}},
 	Untk: {"untk", operands{dst}},
+	Uwrp: {"uwrp", operands{dst, mem, tok}},
 	Varc: {"wthL", operands{dst, mem, tok}},
+	Vlid: {"vlid", operands{dst, mem}},
 	WthL: {"wthL", operands{dst, mem, mem, tok}},
 	WthM: {"wthM", operands{dst, mem, mem, tok}},
 	Wtht: {"wtht", operands{dst, mem, mem, tok}},
@@ -362,7 +364,9 @@ const (
 	Typx
 	UntE
 	Untk
+	Uwrp
 	Varc
+	Vlid
 	WthL
 	WthM
 	Wtht

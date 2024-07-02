@@ -82,6 +82,8 @@ var precedences = map[token.TokenType]int{
 	token.NOT_EQ:      EQUALS,
 	// LESSGREATER
 	token.WEAK_COMMA: WEAK_COMMA,
+	token.VALID:      FPREFIX,
+	token.UNWRAP:     FPREFIX,
 	token.GLOBAL:     FPREFIX,
 	token.EVAL:       FPREFIX,
 	token.XCALL:      FPREFIX,
@@ -278,6 +280,10 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	case token.RUNE:
 		leftExp = p.parseRuneLiteral()
 	case token.NOT:
+		leftExp = p.parseNativePrefixExpression()
+	case token.UNWRAP:
+		leftExp = p.parseNativePrefixExpression()
+	case token.VALID:
 		leftExp = p.parseNativePrefixExpression()
 	case token.EVAL, token.GLOBAL, token.XCALL:
 		leftExp = p.parsePrefixExpression()
@@ -625,6 +631,7 @@ func (p *Parser) parseAutoLog() ast.Node {
 	return &ast.StringLiteral{Token: p.curToken}
 }
 
+// For things like NOT, UNWRAP, VALID where we don't want to treat it as a function but to evaluate the RHS and then handle it.
 func (p *Parser) parseNativePrefixExpression() ast.Node {
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
@@ -632,12 +639,7 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 	}
 	prefix := p.curToken
 	p.NextToken()
-	var right ast.Node
-	if prefix.Type == token.NOT {
-		right = p.parseExpression(NOT)
-	} else {
-		right = p.parseExpression(MINUS)
-	}
+	right := p.parseExpression(precedences[prefix.Type])
 	if right == nil {
 		p.Throw("parse/follow", &prefix)
 	}

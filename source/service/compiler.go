@@ -1206,7 +1206,7 @@ NodeTypeSwitch:
 	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin expressions already.
 		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(node.Args[0], ctxt.x())
-			if allTypes.isOnly(values.BOOL) {
+			if allTypes.isOnly(values.BOOL) { // TODO --- are you planning to handle this at any point you lazy swine?
 				cp.put(Notb, cp.That())
 				rtnTypes, rtnConst = AltType(values.BOOL), cst
 				break
@@ -1215,6 +1215,19 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/bool/not", node.GetToken())
 				break
 			}
+		}
+		if node.Token.Type == token.VALID {
+			_, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
+			cp.put(Vlid, cp.That())
+			rtnTypes = AltType(values.BOOL)
+			break
+		}
+		if node.Token.Type == token.UNWRAP {
+			_, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
+			errTok := cp.reserveToken(node.GetToken())
+			cp.put(Uwrp, cp.That(), errTok)
+			rtnTypes = AltType(values.ERROR).Union(cp.TypeNameToTypeList["Error"])
+			break
 		}
 		if node.Token.Type == token.GLOBAL { // This is in effect a compiler directive, it doesn't need to emit any code besides `ok`, it just mutates the environment.
 			for _, v := range node.Args {

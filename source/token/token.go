@@ -11,6 +11,8 @@ const (
 	GOCODE = "gocode"
 	LOOP   = "loop"
 	TRY    = "try"
+	UNWRAP = "unwrap"
+	VALID  = "valid"
 
 	// Headwords
 	IMPORT  = "import"
@@ -98,6 +100,8 @@ var keywords = map[string]TokenType{
 	"global": GLOBAL,
 	"loop":   LOOP,
 	"try":    TRY,
+	"unwrap": UNWRAP,
+	"valid":  VALID,
 
 	// Headwords.
 	"const":    CONST,

@@ -1,5 +1,9 @@
 // This file provides the type signatures for the builtin functions.
 
+newtype
+
+Error = struct(errorCode, errorText string)
+
 def
 
 // Symbols are in alphabetical order of their hooks.
