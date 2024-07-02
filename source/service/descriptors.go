@@ -121,6 +121,8 @@ func (vm *Vm) Describe(v values.Value) string {
 	case values.PAIR:
 		vals := v.V.([]values.Value)
 		return vm.Describe(vals[0]) + "::" + vm.Describe(vals[1])
+	case values.RUNE:
+		return fmt.Sprintf("%c", v.V.(rune))
 	case values.SET:
 		var buf strings.Builder
 		buf.WriteString("set(")
@@ -211,6 +213,8 @@ func (vm *Vm) Literal(v values.Value) string {
 	switch v.T {
 	case values.STRING:
 		return "\"" + v.V.(string) + "\""
+	case values.RUNE:
+		return fmt.Sprintf("'%c'", v.V.(rune))
 	case values.SUCCESSFUL_VALUE:
 		return "OK"
 	default:

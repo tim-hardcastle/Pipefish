@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"pipefish/source/dtypes"
 	"pipefish/source/report"
@@ -116,6 +117,12 @@ func (l *Lexer) NextToken() token.Token {
 			return l.Throw("lex/quote/b")
 		}
 		return l.NewToken(token.STRING, s)
+	case '\'':
+		r, ok := l.readRune()
+		if !ok {
+			return l.Throw("lex/quote/c")
+		}
+		return l.NewToken(token.RUNE, r)
 	case '.':
 		if l.peekChar() == '.' {
 			l.readChar()
@@ -495,6 +502,49 @@ func (l *Lexer) readGolang() string {
 		result = result + string(l.ch)
 	}
 	return result
+}
+
+func (l *Lexer) readRune() (string, bool) {
+	escape := false
+	result := ""
+	for {
+		l.readChar()
+		if (l.ch == '\'' && !escape) || l.ch == 0 || l.ch == 13 || l.ch == 10 {
+			break
+		}
+		if l.ch == '\\' {
+			escape = true
+			continue
+		}
+
+		charToAdd := l.ch
+
+		if escape {
+			escape = false
+			switch l.ch {
+			case 'n':
+				charToAdd = '\n'
+			case 'r':
+				charToAdd = '\r'
+			case 't':
+				charToAdd = '\t'
+			case '\'':
+				charToAdd = '\''
+			case '\\':
+				charToAdd = '\\'
+			case 'e':
+				charToAdd = '\033'
+			}
+		}
+		result = result + string(charToAdd)
+	}
+	if l.ch == 13 || l.ch == 0 || l.ch == 10 {
+		return result, false
+	}
+	if utf8.RuneCountInString(result) != 1 {
+		return result, false
+	}
+	return result, true
 }
 
 func (l *Lexer) readFormattedString() (string, bool) {

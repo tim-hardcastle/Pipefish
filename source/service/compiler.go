@@ -147,6 +147,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
 			"string":   AltType(values.STRING),
+			"rune":     AltType(values.RUNE),
 			"bool":     AltType(values.BOOL),
 			"float":    AltType(values.FLOAT),
 			"error":    AltType(values.ERROR),
@@ -169,8 +170,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"label?":   AltType(values.NULL, values.LABEL),
 			"func?":    AltType(values.NULL, values.FUNC),
 			"null":     AltType(values.NULL),
-			"single":   AltType(values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single":   AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"struct":   AltType(),
 			"struct?":  AltType(values.NULL),
 			"snippet":  AltType(),
@@ -843,17 +844,19 @@ NodeTypeSwitch:
 		if containerType.isOnly(values.STRING) {
 			if indexType.isOnly(values.INT) {
 				cp.put(Idxs, container, index, errTok)
+				rtnTypes = AltType(values.ERROR, values.RUNE)
 				break
 			}
 			if indexType.isOnly(values.PAIR) {
 				cp.put(Slis, container, index, errTok)
+				rtnTypes = AltType(values.ERROR, values.STRING)
 				break
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/string", node.GetToken())
 				break
 			}
-			rtnTypes = AltType(values.ERROR, values.STRING)
+
 		}
 		if containerType.containsOnlyTuples() {
 			if indexType.isOnly(values.INT) {
@@ -1279,6 +1282,10 @@ NodeTypeSwitch:
 			break
 		}
 		cp.P.Throw("comp/known/prefix", node.GetToken())
+		break
+	case *ast.RuneLiteral:
+		cp.Reserve(values.RUNE, node.Value, node.GetToken())
+		rtnTypes, rtnConst = AltType(values.RUNE), true
 		break
 	case *ast.StringLiteral:
 		cp.Reserve(values.STRING, node.Value, node.GetToken())

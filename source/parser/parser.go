@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
@@ -254,8 +255,8 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 	return expn
 }
 
-var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE})
-var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.TRUE, token.FALSE, token.ELSE,
+var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.RUNE, token.TRUE, token.FALSE, token.ELSE})
+var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.RUNE, token.TRUE, token.FALSE, token.ELSE,
 	token.LPAREN, token.LBRACE, token.EVAL})
 var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.GVN_ASSIGN})
 
@@ -274,6 +275,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseFloatLiteral()
 	case token.STRING:
 		leftExp = p.parseStringLiteral()
+	case token.RUNE:
+		leftExp = p.parseRuneLiteral()
 	case token.NOT:
 		leftExp = p.parseNativePrefixExpression()
 	case token.EVAL, token.GLOBAL, token.XCALL:
@@ -611,6 +614,11 @@ func (p *Parser) parseFloatLiteral() ast.Node {
 
 func (p *Parser) parseStringLiteral() ast.Node {
 	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseRuneLiteral() ast.Node {
+	r, _ := utf8.DecodeRune([]byte(p.curToken.Literal)) // We have already checked that the literal is a single rune at the lexing stage.
+	return &ast.RuneLiteral{Token: p.curToken, Value: r}
 }
 
 func (p *Parser) parseAutoLog() ast.Node {

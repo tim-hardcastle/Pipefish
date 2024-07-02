@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"reflect"
+	"strconv"
 
 	"pipefish/source/dtypes"
 	"pipefish/source/token"
@@ -329,6 +330,15 @@ func (se *PipingExpression) String() string {
 
 	return out.String()
 }
+
+type RuneLiteral struct {
+	Token token.Token
+	Value rune
+}
+
+func (rl *RuneLiteral) Children() []Node       { return []Node{} }
+func (rl *RuneLiteral) GetToken() *token.Token { return &rl.Token }
+func (rl *RuneLiteral) String() string         { return "'" + strconv.QuoteRune(rl.Value) + "'" }
 
 type StringLiteral struct {
 	Token token.Token

@@ -31,6 +31,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	INT                // V : int
 	BOOL               // V : bool
 	STRING             // V : string
+	RUNE               // V : string
 	FLOAT              // V : float
 	TYPE               // V : abstractType
 	FUNC               // V : vm.Lambda

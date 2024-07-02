@@ -59,6 +59,7 @@ const (
 	IDENT   = "IDENT"
 	INT     = "INTEGER LITERAL"
 	STRING  = "STRING LITERAL"
+	RUNE    = "RUNE LITERAL"
 
 	// False and true.
 	FALSE = "false"

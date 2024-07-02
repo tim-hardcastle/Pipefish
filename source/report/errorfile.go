@@ -2383,7 +2383,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("trying to index a map with a value of type %v in %v expression", emph(args[0]), emph("with"))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("A map can only be indexed by things of type %v, %v, %v, %v, %v or %v", emph("bool"), emph("enum"), emph("float"), emph("int"), emph("label"), emph("string"))
+			return fmt.Sprintf("A map can only be indexed by things of type %v, %v, %v, %v, %v or %v", emph("bool"), emph("enum"), emph("float"), emph("int"), emph("label"), emph("rune"), emph("string"))
 		},
 	},
 

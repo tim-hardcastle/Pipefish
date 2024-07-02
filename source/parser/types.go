@@ -50,7 +50,7 @@ func TypeExists(s string, t TypeSystem) bool {
 	return ok
 }
 
-var BaseTypes = []string{"int", "float", "bool", "string", "error", "type", "list",
+var BaseTypes = []string{"int", "float", "bool", "string", "rune", "error", "type", "list",
 	"pair", "set", "map", "func", "struct", "label", "null"}
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.AstSig) (result bool, ok bool) {

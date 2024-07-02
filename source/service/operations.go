@@ -92,6 +92,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	AddL: {"addL", operands{dst, mem, mem}},
 	AddS: {"addS", operands{dst, mem, mem}},
 	Adds: {"adds", operands{dst, mem, mem}},
+	Adrr: {"adds", operands{dst, mem, mem}},
+	Adrs: {"adds", operands{dst, mem, mem}},
+	Adsr: {"adds", operands{dst, mem, mem}},
 	Adtk: {"adtk", operands{dst, mem, tok}},
 	Andb: {"andb", operands{dst, mem, mem}},
 	Aref: {"aref", operands{dst, mem, mem}},
@@ -237,6 +240,9 @@ const (
 	AddL
 	AddS
 	Adds
+	Adrr
+	Adrs
+	Adsr
 	Adtk
 	Andb
 	Aref

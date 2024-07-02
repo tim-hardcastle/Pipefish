@@ -120,7 +120,7 @@ var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U
 // Type names in upper case are things the user should never see.
 var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
 	"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
-	"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "float", "type", "func",
+	"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label"}
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
@@ -173,6 +173,12 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.SET, result}
 		case Adds:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + vm.Mem[args[2]].V.(string)}
+		case Adrr:
+			vm.Mem[args[0]] = values.Value{values.STRING, string(vm.Mem[args[1]].V.(rune)) + string(vm.Mem[args[2]].V.(rune))}
+		case Adrs:
+			vm.Mem[args[0]] = values.Value{values.STRING, string(vm.Mem[args[1]].V.(rune)) + vm.Mem[args[2]].V.(string)}
+		case Adsr:
+			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + string(vm.Mem[args[2]].V.(rune))}
 		case Adtk:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
 			vm.Mem[args[0]].V.(*report.Error).AddToTrace(vm.Tokens[args[2]])
@@ -401,7 +407,7 @@ loop:
 			ix := vm.Mem[args[2]].V.(int)
 			ok := 0 <= ix && ix < len(str)
 			if ok {
-				val := values.Value{values.STRING, string(str[ix])}
+				val := values.Value{values.RUNE, rune(str[ix])}
 				vm.Mem[args[0]] = val
 			} else {
 				vm.Mem[args[0]] = vm.makeError("vm/index/string", args[3], ix, len(str), args[1], args[2])
@@ -577,7 +583,7 @@ loop:
 				ix := index.V.(int)
 				ok := 0 <= ix && ix < len(str)
 				if ok {
-					val := values.Value{values.STRING, string(str[ix])}
+					val := values.Value{values.RUNE, rune(str[ix])}
 					vm.Mem[args[0]] = val
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/l", args[3], ix, len(str), args[1], args[2])
@@ -1325,6 +1331,8 @@ func (mc Vm) equals(v, w values.Value) bool {
 		return v.V.(int) == w.V.(int)
 	case values.BOOL:
 		return v.V.(bool) == w.V.(bool)
+	case values.RUNE:
+		return v.V.(rune) == w.V.(rune)
 	case values.STRING:
 		return v.V.(string) == w.V.(string)
 	case values.FLOAT:

@@ -138,6 +138,7 @@ var fConvert = map[values.ValueType]string{
 	values.LABEL:  "string",
 	values.TYPE:   "string",
 	values.STRING: "string",
+	values.RUNE:   "rune",
 	values.LIST:   "[]any",
 	values.PAIR:   "[]any",
 	values.SET:    "[]any",
