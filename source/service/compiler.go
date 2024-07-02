@@ -52,9 +52,10 @@ type Compiler struct {
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
 	// Temporary state.
-	ThunkList      []ThunkData
-	recursionStore []bkRecursion // Places in the code where we need to go back and doctor it to make the recursion work.
-	showCompile    bool
+	ThunkList       []ThunkData
+	recursionStore  []bkRecursion // Places in the code where we need to go back and doctor it to make the recursion work for outer functions.
+	lambdaMemStarts []uint32      // A stack for the start (in memory, not code) of the lambda we're compiling so that if it turns out to be recursive we know the low bound of where to start saving memory from.
+	showCompile     bool
 }
 
 type bkRecursion struct{ functionNumber, address uint32 }
@@ -315,7 +316,7 @@ func flattenEnv(env *Environment, target *Environment) *Environment {
 	return target
 }
 
-func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
+func (cp *Compiler) compileGivenBlock(given ast.Node, ctxt context) {
 	cp.cm("Compiling 'given' block.", given.GetToken())
 	nameToNode := map[string]*ast.AssignmentExpression{}
 	nameGraph := dtypes.Digraph[string]{}
@@ -371,6 +372,8 @@ func (cp *Compiler) compileGiven(given ast.Node, ctxt context) {
 
 func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt context) {
 
+	oldThis, thisExists := ctxt.env.getVar("this")
+
 	cp.cm("Compiling one 'given' block assignment.", node.GetToken())
 
 	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
@@ -390,7 +393,17 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 		return
 	}
 	for i, pair := range sig {
-		var typeToUse AlternateType // TODO: we can extract more meanigful information about the tuple from the types.
+		v, alreadyExists := ctxt.env.getVar(pair.VarName) // In that case we (should) have an inner function declaration and the sig will have length 1.
+		// We check that it isn't just the user redefining a variable.
+		if alreadyExists {
+			if v.access == LOCAL_FUNCTION_THUNK && cp.vm.Mem[v.mLoc].V == nil || v.access == LOCAL_FUNCTION_CONSTANT && cp.vm.Mem[v.mLoc].V == nil {
+				ctxt.env.data["this"] = *v
+			} else {
+				cp.P.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
+				return
+			}
+		}
+		var typeToUse AlternateType // TODO: we can extract more meaningful information about the tuple from the types.
 		if pair.VarType == "tuple" {
 			typeToUse = cp.AnyTuple
 		} else {
@@ -416,19 +429,15 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 			}
 		} else {
-			v, alreadyExists := ctxt.env.getVar(pair.VarName)
 			if alreadyExists {
-				switch {
-				case v.access == LOCAL_FUNCTION_THUNK && cp.vm.Mem[v.mLoc].V == nil:
-					cp.cm("Reassigning local function thunk "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
+				switch { // The case where neither of these is true has been checked for above.
+				case v.access == LOCAL_FUNCTION_THUNK:
+					cp.cm("Reassigning local function thunk "+text.Emph(pair.VarName)+" from dummy value.", node.GetToken())
 					cp.vm.Mem[v.mLoc] = values.Value{values.THUNK, ThunkValue{cp.That(), thunkStart}}
 					cp.ThunkList = append(cp.ThunkList, ThunkData{v.mLoc, ThunkValue{cp.That(), thunkStart}})
-				case v.access == LOCAL_FUNCTION_CONSTANT && cp.vm.Mem[v.mLoc].V == nil:
+				case v.access == LOCAL_FUNCTION_CONSTANT:
 					cp.cm("Reassigning local function constant "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
 					cp.vm.Mem[v.mLoc] = cp.vm.Mem[cp.That()]
-				default:
-					cp.P.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
-					return
 				}
 			} else {
 				cp.cm("Reserving local thunk in compileOneGivenChunk.", node.GetToken())
@@ -439,6 +448,11 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 		}
 	}
 	cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
+	if thisExists {
+		ctxt.env.data["this"] = *oldThis
+	} else {
+		delete(ctxt.env.data, "this")
+	}
 	cp.Emit(Ret)
 }
 
@@ -465,6 +479,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	sig := fnNode.Sig
 	skipLambdaCode := cp.vmGoTo()
 	LF.Model.capturesStart = cp.MemTop()
+	cp.pushLambdaStart()
 
 	// We get the function parameters. These shadow anything we might otherwise capture.
 	params := dtypes.Set[string]{}
@@ -526,7 +541,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	saveThunkList := cp.ThunkList
 	if fnNode.Given != nil {
 		cp.ThunkList = []ThunkData{}
-		cp.compileGiven(fnNode.Given, context{newEnv, LAMBDA, nil, DUMMY}) // TODO --- must pass from outer context.
+		cp.compileGivenBlock(fnNode.Given, context{newEnv, LAMBDA, nil, DUMMY}) // TODO --- must pass from outer context.
 	}
 	// Function starts here.
 	LF.Model.addressToCall = cp.CodeTop()
@@ -550,6 +565,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 		cp.emitTypeChecks(LF.Model.resultLocation, types, env, fnNode.Rets, LAMBDA, tok, CHECK_RETURN_TYPES)
 	}
 	cp.Emit(Ret)
+	cp.popLambdaStart()
 	cp.vmComeFrom(skipLambdaCode)
 
 	// We have made our lambda factory! But do we need it? If there are no captures, then the function is a constant, and we
@@ -1228,6 +1244,13 @@ NodeTypeSwitch:
 		} else {
 			v, ok = env.getVar(node.Operator)
 		}
+		recursion := false
+		if ok && (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
+			if cp.vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
+				cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
+				recursion = true
+			}
+		}
 		if ok && v.types.Contains(values.FUNC) {
 			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 				cp.Emit(Untk, v.mLoc)
@@ -1242,6 +1265,9 @@ NodeTypeSwitch:
 			}
 			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
 				cp.put(Dofn, operands...)
+				if recursion {
+					cp.Emit(Rpop)
+				}
 			} // TODO --- what if not?
 			rtnConst = false
 			rtnTypes = cp.AnyTypeScheme
@@ -2722,4 +2748,16 @@ func (cp *Compiler) cm(comment string, tok *token.Token) {
 	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(text.CYAN + "// " + comment + text.RESET)
 	}
+}
+
+func (cp *Compiler) pushLambdaStart() {
+	cp.lambdaMemStarts = append(cp.lambdaMemStarts, cp.MemTop())
+}
+
+func (cp *Compiler) popLambdaStart() {
+	cp.lambdaMemStarts = cp.lambdaMemStarts[:len(cp.lambdaMemStarts)-1]
+}
+
+func (cp *Compiler) getLambdaStart() uint32 {
+	return cp.lambdaMemStarts[len(cp.lambdaMemStarts)-1]
 }

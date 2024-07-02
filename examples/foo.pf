@@ -1,6 +1,6 @@
 def
 
-fac(i int) :
+facA(i int) :
     i == 0 :
         1
     else :
@@ -9,4 +9,14 @@ fac(i int) :
 power(a, n int) :
     n == 0 :
         1
-    a * power(a, n - 1)
+    else :
+        a * power a, n - 1
+
+fac(i int) :
+    factorial i 
+given :
+    factorial(i int) :
+        i == 0 :
+            1
+        else :
+            i * factorial i - 1

@@ -924,7 +924,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		if given != nil {
 			vmm.cp.ThunkList = []ThunkData{}
 			givenContext := context{fnenv, DEF, nil, cpF.LoReg}
-			vmm.cp.compileGiven(given, givenContext)
+			vmm.cp.compileGivenBlock(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			if len(vmm.cp.ThunkList) > 0 {
 				vmm.cp.cm("Initializing thunks for outer function.", body.GetToken())

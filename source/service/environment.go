@@ -18,8 +18,9 @@ const (
 	LOCAL_FUNCTION_CONSTANT
 	LOCAL_CONSTANT
 	REFERENCE_VARIABLE
-	VERY_LOCAL_CONSTANT // i.e. 'that' when constant
-	VERY_LOCAL_VARIABLE // i.e. 'that' when variable
+	VERY_LOCAL_CONSTANT     // i.e. 'that' when constant
+	VERY_LOCAL_VARIABLE     // i.e. 'that' when variable
+	UNDEFINED_THIS_VARIABLE // When 'this' hasn't been defined because we haven't finished compiling the lambda.
 )
 
 // Update with:
