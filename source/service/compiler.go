@@ -1116,13 +1116,17 @@ NodeTypeSwitch:
 		}
 	case *ast.ListExpression:
 		var containedTypes AlternateType
+		errCheck := bkEarlyReturn(DUMMY)
 		containedTypes, rtnConst = cp.CompileNode(node.List, ctxt.x())
-		backTrackTo, failed := cp.emitErrorBoilerplate(containedTypes, "comp/list/err", node.GetToken(), false)
-		if failed {
+		if containedTypes.isOnly(values.ERROR) {
+			cp.P.Throw("comp/list/err", node.GetToken())
 			break
 		}
+		if containedTypes.Contains(values.ERROR) {
+			errCheck = cp.vmConditionalEarlyReturn(Qtyp, cp.That(), uint32(values.ERROR), cp.That())
+		}
 		cp.put(List, cp.That())
-		cp.vm.Code[backTrackTo].Args[0] = cp.That()
+		cp.vmComeFrom(errCheck)
 		rtnTypes = AltType(values.LIST)
 		break
 	case *ast.LogExpression:
