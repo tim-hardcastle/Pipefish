@@ -7,51 +7,55 @@ import (
 	"pipefish/source/dtypes"
 )
 
-type TypeSystem = *dtypes.Digraph[string]
+type TypeSystem = dtypes.Digraph[string]
 
 func NewTypeSystem() TypeSystem {
 	T := make(dtypes.Digraph[string])
-	T.AddTransitiveArrow("single", "tuple")
-	for _, t := range BaseTypes {
-		T.AddTransitiveArrow(t, "single")
-		T.AddTransitiveArrow(t, "single?")
-		if t != "null" {
-			T.AddTransitiveArrow(t, t+"?")
-			T.AddTransitiveArrow("null", t+"?")
-		}
-	}
+	// We put in the top and bottom of our type system by hand.
 	T.AddTransitiveArrow("single", "single?")
-	T.AddTransitiveArrow("struct", "single")
-	T.AddTransitiveArrow("struct?", "single?")
-	T.AddTransitiveArrow("label", "label?")
-	T.AddTransitiveArrow("enum", "single")
-	T.AddTransitiveArrow("field", "label")
-	T.AddTransitiveArrow("enum", "enum?")
-	T.AddTransitiveArrow("enum?", "single?")
-	T.AddTransitiveArrow("field", "field?")
+	T.AddTransitiveArrow("single", "...single")
+	T.AddTransitiveArrow("single?", "...single?")
+	T.AddTransitiveArrow("null", "...null")
 	T.AddTransitiveArrow("null", "single?")
-	T.AddTransitiveArrow("null", "label?")
-	T.AddTransitiveArrow("null", "enum?")
-	T.AddTransitiveArrow("null", "field?")
-	T.AddTransitiveArrow("null", "struct?")
-	T.AddTransitiveArrow("snippet", "snippet?")
-	T.AddTransitiveArrow("null", "snippet?")
-	T.AddTransitiveArrow("snippet", "struct")
-	T.AddTransitiveArrow("snippet?", "struct?")
-	T.AddTransitiveArrow("outer function", "func")
+	T.AddTransitiveArrow("single?", "any")
+	T.AddTransitiveArrow("tuple", "any")
 
+	// Then for the other built-in concrete and abstract types there is generic stuff we can do.
+	for _, t := range BaseTypesOtherThanNull {
+		AddType(T, t)
+	}
+	for _, t := range AbstractTypesOtherThanSingle {
+		AddType(T, t)
+	}
+
+	// Kludges.
+	T.AddTransitiveArrow("outer function", "func")
 	T.AddTransitiveArrow("ref", "dummy value")
 	T.AddTransitiveArrow("ok", "dummy value")
-	return &T
+	return T
 }
 
 func TypeExists(s string, t TypeSystem) bool {
-	_, ok := (*t)[s]
+	_, ok := t[s]
 	return ok
 }
 
-var BaseTypes = []string{"int", "float", "bool", "string", "rune", "error", "type", "list",
-	"pair", "set", "map", "func", "struct", "label", "null"}
+// Supertypes includes containing types other than 'single', 'single?', and 'any', which are taken for granted.
+func AddType(T TypeSystem, t string, supertypes ...string) {
+	T.AddTransitiveArrow(t, t+"?")
+	T.AddTransitiveArrow("null", t+"?")
+	T.AddTransitiveArrow(t, "..."+t)
+	supertypes = append(supertypes, "single")
+	for _, st := range supertypes {
+		T.AddTransitiveArrow(t, st)
+		T.AddTransitiveArrow("..."+t, "..."+st)
+	}
+}
+
+var BaseTypesOtherThanNull = []string{"int", "float", "bool", "string", "rune", "error", "type", "list", "label",
+	"pair", "set", "map", "func", "struct", "label"}
+
+var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 
 func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.AstSig) (result bool, ok bool) {
 	if len(sigB) == 0 {

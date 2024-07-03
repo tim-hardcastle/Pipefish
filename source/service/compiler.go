@@ -466,7 +466,7 @@ func (cp *Compiler) getPartsOfGiven(given ast.Node, ctxt context) []ast.Node {
 			rhs := cp.getPartsOfGiven(branch.Right, ctxt)
 			result = append(result, rhs...)
 		} else {
-			cp.P.Throw("parse/unexpected", given.GetToken())
+			cp.P.Throw("comp/unexpected", given.GetToken())
 		}
 	default:
 		result = []ast.Node{given}

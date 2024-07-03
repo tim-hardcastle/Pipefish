@@ -88,8 +88,8 @@ var precedences = map[token.TokenType]int{
 	token.EVAL:       FPREFIX,
 	token.XCALL:      FPREFIX,
 	// FMIDFIX
-	// FENDFIX
-	token.COMMA: COMMA,
+	token.DOTDOTDOT: FENDFIX,
+	token.COMMA:     COMMA,
 	// WITH
 	// FINFIX
 	// SUM
@@ -198,7 +198,7 @@ func New() *Parser {
 		ExternalParsers:  make(map[string]*Parser),
 	}
 
-	for k := range *p.TypeSystem {
+	for k := range p.TypeSystem {
 		p.Suffixes.Add(k)
 	}
 
@@ -1223,31 +1223,30 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 		varType := "*"
 		switch arg := arg.(type) {
 		case *ast.SuffixExpression:
-			if arg.Operator == "raw" {
+			if arg.Operator == "raw" { // TODO --- same for 'ref'?
 				switch inner := arg.Args[0].(type) {
 				case *ast.SuffixExpression:
 					if !TypeExists(inner.Operator, p.TypeSystem) {
-						p.Throw("parse/raw/type", inner.GetToken())
+						p.Throw("parse/suffix/type", inner.GetToken())
 						return nil
 					}
 					switch inmost := inner.Args[0].(type) {
 					case *ast.Identifier:
 						varName = inmost.Value
-						varType = inner.Operator + " raw"
+						varType = inner.Operator + " " + arg.Operator
 					default:
-						p.Throw("parse/raw/ident", inmost.GetToken())
+						p.Throw("parse/suffix/ident", inmost.GetToken())
 						return nil
 					}
 				case *ast.Identifier:
 					varName = inner.Value
-					varType = "raw"
+					varType = "single? " + arg.Operator
 				default:
-					p.Throw("parse/raw/form", arg.GetToken())
+					p.Throw("parse/sig/suffix/a", arg.GetToken())
 					return nil
 				}
-			} else { // The suffix is not 'raw'
-				if !(TypeExists(arg.Operator, p.TypeSystem) ||
-					arg.Operator == "ast" || arg.Operator == "ident") {
+			} else { // The suffix is not 'raw'.
+				if !TypeExists(arg.Operator, p.TypeSystem) {
 					p.Throw("parse/sig/type/a", &arg.Token)
 					return nil
 				}
@@ -1255,6 +1254,15 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				case *ast.Identifier:
 					varName = inner.Value
 					varType = arg.Operator
+				case *ast.SuffixExpression:
+					if inner.Operator != "..." {
+						p.Throw("parse/sig/suffix/b", inner.GetToken())
+						return nil
+					}
+					if innerer, ok := inner.Args[0].(*ast.Identifier); ok {
+						varName = innerer.Value
+						varType = "..." + arg.Operator
+					}
 				default:
 					p.Throw("parse/sig/ident/a", inner.GetToken())
 					return nil
