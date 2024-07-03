@@ -673,6 +673,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/varargs": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph("...")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The " + emph("...") + " token is meaningful only in the signature of a function, command, or assignment, where '<parameterName> <typename>...' indicates " +
+				"that the parameter can accept any number of arguments of the given type, e.g. " + emph("foo(numbers int...)") + ". It is meaningless in an ordinary statement or expression."
+		},
+	},
+
 	"err/misdirect": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "Pipefish is trying and failing to raise an error with reference " + emph(args[0])

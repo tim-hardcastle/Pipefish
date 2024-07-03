@@ -203,7 +203,6 @@ func New() *Parser {
 	}
 
 	p.Suffixes.Add("raw")
-	p.Suffixes.Add("ast")
 	p.Suffixes.Add("ref")
 
 	p.Infixes.Add("varchar")
@@ -363,7 +362,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	}
 
 	for precedence < p.peekPrecedence() {
-		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH {
+		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH || p.peekToken.Type == token.DOTDOTDOT {
 			if p.curToken.Type == token.NOT || p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
 				p.prefixSuffixError()
 				return nil

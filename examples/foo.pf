@@ -20,3 +20,6 @@ given :
             1
         else :
             i * factorial i - 1
+
+flerp(x int ...) :
+    x

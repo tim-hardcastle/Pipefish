@@ -1322,6 +1322,9 @@ NodeTypeSwitch:
 				break NodeTypeSwitch
 			}
 		}
+		if node.GetToken().Type == token.DOTDOTDOT {
+			cp.P.Throw("comp/varargs", node.GetToken())
+		}
 		if resolvingCompiler.P.Suffixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(resolvingCompiler, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.P.GetErrorsFrom(resolvingCompiler.P)

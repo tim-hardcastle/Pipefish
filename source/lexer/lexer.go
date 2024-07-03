@@ -126,6 +126,10 @@ func (l *Lexer) NextToken() token.Token {
 	case '.':
 		if l.peekChar() == '.' {
 			l.readChar()
+			if l.peekChar() == '.' {
+				l.readChar()
+				return l.NewToken(token.DOTDOTDOT, "...")
+			}
 			if l.skipWhitespaceAfterPotentialContinuation() {
 				return l.NewToken(token.DOTDOT, "..")
 			} else {
@@ -624,7 +628,7 @@ func isPeriod(ch rune) bool {
 }
 
 func isUnderscore(ch rune) bool {
-	return ch == '.'
+	return ch == '_'
 }
 
 func isDigit(ch rune) bool {
