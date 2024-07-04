@@ -645,6 +645,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/types": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "function cannot accept arguments of type " + text.Emph(args[0].(string))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are trying to concatenate together two values one of which is certainly of type " + emph("error") + ". As this will only return the error, Pipefish assumes this is a mistake."
+		},
+	},
+
 	"comp/unreachable": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unreachable code"

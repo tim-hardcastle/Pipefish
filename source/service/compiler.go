@@ -1607,6 +1607,7 @@ func (t AlternateType) mustBeSingleOrTuple() (bool, bool) {
 // The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
 // use them to look up the function.
 func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable, ctxt context, libcall bool) (AlternateType, bool) {
+	cp.cmP("Called createFunctionCall", node.GetToken())
 	args := node.GetArgs()
 	env := ctxt.env
 	ac := ctxt.ac
@@ -1687,11 +1688,12 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	}
 	b.cst = cst
 	// Having gotten the arguments, we create the function call itself.
+	cp.cmP("Prepared bindle, making initial call into generateNewArgument.", b.tok)
 	returnTypes := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
-
+	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.put(Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.P.Throw("comp/error/return", b.tok)
+		cp.P.Throw("comp/types", b.tok, b.types.describe(cp.vm))
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
@@ -1702,6 +1704,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		cp.Emit(Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
 		cp.Emit(Adtk, cp.That(), cp.That(), cp.reserveToken(b.tok))
 	}
+	cp.cmP("Returning from createFunctionCall.", b.tok)
 	return returnTypes, cst
 }
 
@@ -1718,7 +1721,7 @@ type bindle struct {
 	types        finiteTupleType // The types of the values.
 	outLoc       uint32          // Where we're going to put the output.
 	env          *Environment    // Associates variable names with memory locations
-	tupleTime    bool            // Once we've taken a tuple path, we can discard values 'til we reach bling or run out.
+	varargsTime  bool            // Once we've taken a varArgs path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
 	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
 	cst          bool            // Whether the arguments are constant.
@@ -1727,21 +1730,25 @@ type bindle struct {
 }
 
 func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
+	cp.cmP("Called generateNewArguments", b.tok)
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
 	if b.argNo >= len(b.types) {
+		cp.cmP("Run out of arguments, calling seekFunctionCall", b.tok)
 		return cp.seekFunctionCall(b)
 	}
 	// Case (2) : the argument is bling.
 	if len(b.types[b.argNo].(AlternateType)) == 1 {
 		switch bl := (b.types[b.argNo].(AlternateType)[0]).(type) {
 		case blingType:
+			cp.cmP("Found bling, calling seekBling", b.tok)
 			return cp.seekBling(b, bl.tag)
 		}
 	}
-	// Case (3) : we're in tuple time.
-	if b.tupleTime {
+	// Case (3) : we're in varargs time.
+	if b.varargsTime {
 		newBindle := *b
 		newBindle.argNo++
+		cp.cmP("In varargs time, calling generateNewArgument.", b.tok)
 		return cp.generateNewArgument(&newBindle)
 	}
 	// Case (4) : we have a reference.
@@ -1749,15 +1756,18 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 		newBindle := *b
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.argNo++
+		cp.cmP("Found reference variable, calling generateNewArgument.", b.tok)
 		return cp.generateNewArgument(&newBindle)
 	}
 	// Case (5) : We aren't yet at the end of the list of arguments.
 	newBindle := *b
 	newBindle.index = 0
+	cp.cmP("Found a new argument. Calling generateFromTopBranchDown.", b.tok)
 	return cp.generateFromTopBranchDown(b)
 }
 
 func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
+	cp.cmP("Called generateFromTopBranchDown.", b.tok)
 	newBindle := *b
 	newBindle.branchNo = 0
 	newBindle.targetList = typesAtIndex(b.types[b.argNo], b.index)
@@ -1766,6 +1776,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 		newBindle.lengths = lengths(newBindle.targetList)
 		newBindle.maxLength = maxLengthsOrMinusOne(newBindle.lengths)
 	}
+	cp.cmP("Calling generateBranch.", b.tok)
 	return cp.generateBranch(&newBindle)
 }
 
@@ -1776,12 +1787,14 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 // and on the next branch for the unaccepted types.
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(b *bindle) AlternateType {
-	cp.cm("Generate branch", b.tok)
-	if b.tupleTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
+	cp.cmP("Called generateBranch", b.tok)
+	if b.varargsTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
+		cp.cmP("Doing deprecated tuple stuff.", b.tok)
 		newBindle := *b
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
-		newBindle.tupleTime = true
+		newBindle.varargsTime = true
 		newBindle.argNo++
+		cp.cmP("Calling generateNewArgument.", b.tok)
 		return cp.generateNewArgument(&newBindle)
 	}
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
@@ -1796,18 +1809,27 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	branch := b.treePosition.Branch[b.branchNo]
 	var acceptedTypes AlternateType
 	typeName := branch.TypeName
-	isVarchar := len(typeName) >= 8 && typeName[0:8] == "varchar("
-	if isVarchar {
+	isVarargs := b.varargsTime || len(typeName) >= 3 && typeName[:3] == "..."
+	if isVarargs {
+		typeName = typeName[3:]
+	}
+	isVarchar := len(typeName) >= 8 && typeName[:8] == "varchar("
+
+	switch {
+	case isVarchar:
 		if typeName[len(typeName)-1] == '?' {
 			acceptedTypes = cp.TypeNameToTypeList["string?"]
 		} else {
 			acceptedTypes = cp.TypeNameToTypeList["string"]
 		}
-	} else {
+	default:
 		acceptedTypes = cp.TypeNameToTypeList[branch.TypeName]
 	}
+	cp.cmP("Accepted types are "+acceptedTypes.describe(cp.vm), b.tok)
+	cp.cmP("Target list is "+b.targetList.describe(cp.vm), b.tok)
 	overlap := acceptedTypes.intersect(b.targetList)
 	if len(overlap) == 0 { // We drew a blank.
+		cp.cmP("No overlap. Calling generateNextBranchDown", b.tok)
 		return cp.generateNextBranchDown(b)
 	}
 	// If we've got this far, the current branch accepts at least some of our types. Now we need to do conditionals based on
@@ -1837,19 +1859,20 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	needsOtherBranch := len(newBindle.doneList) != len(newBindle.targetList)
 	branchBacktrack := cp.CodeTop()
 	if needsOtherBranch {
+		cp.cmP("Overlap is partial. Emitting type comparisons.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			cp.emitTypeComparisonFromTypeName(branch.TypeName, cp.That())
+			cp.emitTypeComparisonFromTypeName(typeName, cp.That())
 		case len(overlap):
-			cp.emitTypeComparisonFromTypeName(branch.TypeName, b.valLocs[b.argNo])
+			cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
 		default:
 			cp.Emit(Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
-			cp.emitTypeComparisonFromTypeName(branch.TypeName, b.valLocs[b.argNo])
+			cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
 			cp.Emit(Jmp, cp.CodeTop()+3)
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			cp.emitTypeComparisonFromTypeName(branch.TypeName, cp.That())
+			cp.emitTypeComparisonFromTypeName(typeName, cp.That())
 		}
 	}
 	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
@@ -1858,19 +1881,31 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// Now we can recurse along the branch.
 	// If we know whether we're looking at a single or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
 	var typesFromGoingAcross, typesFromGoingDown AlternateType
-	switch len(acceptedSingleTypes) {
-	case 0:
-		typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
-	case len(overlap):
-		typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
-	default:
-		singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
-		typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
-		skipElse := cp.vmGoTo()
-		cp.vmComeFrom(singleCheck)
-		typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(&newBindle)
-		cp.vmComeFrom(skipElse)
-		typesFromGoingAcross = typesFromSingles.Union(typesFromTuples)
+
+	if isVarargs { // Then we don't want to move along the branch of the function tree, just get a new argument and continue.
+		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
+		newBindle.varargsTime = true
+		newBindle.argNo++
+		cp.cmP("Varargs time, calling generateNewArgument.", b.tok)
+		typesFromGoingAcross = cp.generateNewArgument(&newBindle)
+	} else {
+		switch len(acceptedSingleTypes) {
+		case 0:
+			cp.cmP("Nothing but tuples.", b.tok)
+			typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+		case len(overlap):
+			cp.cmP("Nothing but single types.", b.tok)
+			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+		default:
+			cp.cmP("Mix of single and tuple types.", b.tok)
+			singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
+			typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+			skipElse := cp.vmGoTo()
+			cp.vmComeFrom(singleCheck)
+			typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+			cp.vmComeFrom(skipElse)
+			typesFromGoingAcross = typesFromSingles.Union(typesFromTuples)
+		}
 	}
 	// And now we need to do the 'else' branch if there is one.
 	if needsOtherBranch {
@@ -1886,9 +1921,11 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			cp.vm.Code[branchBacktrack+4].MakeLastArg(cp.CodeTop())
 		}
 		// We recurse on the next branch down.
+		cp.cmP("Function generateBranch calls generateNextBranchDown.", b.tok)
 		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
 		cp.vmComeFrom(skipElse)
 	}
+	cp.cmP("We return from generateBranch.", b.tok)
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
@@ -1977,6 +2014,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 }
 
 func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateType {
+	cp.cmP("Called generateMoveAlongBranchViaTupleElement.", b.tok)
 	// We may definitely have run off the end of all the potential tuples.
 	if b.index+1 == b.maxLength {
 		newBindle := *b
@@ -2010,6 +2048,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 }
 
 func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) AlternateType {
+	cp.cmP("Called generateMoveAlongBranchViaSingleValue.", b.tok)
 	newBindle := *b
 	newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 	newBindle.argNo++
@@ -2018,26 +2057,30 @@ func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) AlternateTy
 }
 
 func (cp *Compiler) generateNextBranchDown(b *bindle) AlternateType {
+	cp.cmP("Called generateNextBranchDown.", b.tok)
 	newBindle := *b
 	newBindle.branchNo++
 	return cp.generateBranch(&newBindle)
 }
 
 func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
+	cp.cmP("Called seekFunctionCall.", b.tok)
 	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
 			fNo := branch.Node.Fn.Number
 			if fNo >= uint32(len(cp.Fns)) {
-				cp.cm("Undefined function. We're doing recursion!", b.tok)
+				cp.cmP("Undefined function. We're doing recursion!", b.tok)
 				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
 				cp.recursionStore = append(cp.recursionStore, bkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
-				cp.emitFunctionCall(fNo, b.valLocs)                                           // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
+				cp.cmP("Emitting call opcode.", b.tok)
+				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 				cp.Emit(Rpop)
 				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 				return cp.AnyTypeScheme        // Or what type.
 			}
 			F := cp.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
+				cp.cmP("REPL trying to access private function. Returning error.", b.tok)
 				cp.P.Throw("comp/private", b.tok)
 				return AltType(values.COMPILE_TIME_ERROR)
 			}
@@ -2045,6 +2088,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			builtinTag := F.Builtin
 			functionAndType, ok := BUILTINS[builtinTag]
 			if ok {
+				cp.cmP("Emitting builtin.", b.tok)
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
@@ -2063,12 +2107,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			// It might be a short-form constructor.
 			structNumber, ok := cp.StructNameToTypeNumber[builtinTag]
 			if ok {
+				cp.cmP("Emitting short form constructor.", b.tok)
 				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
 				cp.Emit(Strc, args...)
 				return AltType(structNumber)
 			}
 			// It could have a Golang body.
 			if F.HasGo {
+				cp.cmP("Emitting Go function call.", b.tok)
 				args := append([]uint32{b.outLoc, F.GoNumber}, b.valLocs...)
 				cp.Emit(Gofn, args...)
 				if len(branch.Node.Fn.Rets) == 0 {
@@ -2090,6 +2136,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			}
 			// It could be a call to an external service.
 			if F.Xcall != nil {
+				cp.cmP("Emitting xcall.", b.tok)
 				var remainingNamespace string
 				vmArgs := make([]uint32, 0, len(b.valLocs)+5)
 				vmArgs = append(vmArgs, b.outLoc, F.Xcall.ExternalServiceOrdinal, F.Xcall.Position)
@@ -2102,11 +2149,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				return F.Types
 			}
 			// Otherwise it's a regular old function call, which we do like this:
-			cp.emitFunctionCall(fNo, b.valLocs)
+			cp.cmP("Emitting call opcode.", b.tok)
+			cp.emitCallOpcode(fNo, b.valLocs)
 			cp.Emit(Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
 			return F.Types                    // TODO : Is there a reason why this should be so?
 		}
 	}
+	cp.cmP("Returning error.", b.tok)
 	cp.reserveError("vm/types/b", b.tok)
 	for _, loc := range b.valLocs {
 		cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
@@ -2117,11 +2166,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 }
 
 func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
+	cp.cmP("Called seekBling.", b.tok)
 	for i, branch := range b.treePosition.Branch {
 		if branch.TypeName == bling {
 			newBindle := *b
 			newBindle.branchNo = i
-			newBindle.tupleTime = false
+			newBindle.varargsTime = false
+			cp.cmP("FUnction seekBling calling moveAlongBranchViaSingleValue.", b.tok)
 			return cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 		}
 	}
@@ -2143,7 +2194,7 @@ func (cp *Compiler) put(opcode Opcode, args ...uint32) {
 	cp.vm.Mem = append(cp.vm.Mem, values.Value{})
 }
 
-func (cp *Compiler) emitFunctionCall(funcNumber uint32, valLocs []uint32) {
+func (cp *Compiler) emitCallOpcode(funcNumber uint32, valLocs []uint32) {
 	if funcNumber >= uint32(len(cp.Fns)) {
 		args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 		cp.Emit(Call, args...)
@@ -2774,6 +2825,13 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 func (cp *Compiler) cm(comment string, tok *token.Token) {
 	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(text.CYAN + "// " + comment + text.RESET)
+	}
+}
+
+// The same as the previous method but in purple. Used to comment on the resolution of the multiple dispatch in particular.
+func (cp *Compiler) cmP(comment string, tok *token.Token) {
+	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
+		println(text.PURPLE + "// " + comment + text.RESET)
 	}
 }
 
