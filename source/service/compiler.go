@@ -1730,7 +1730,7 @@ type bindle struct {
 }
 
 func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
-	cp.cmP("Called generateNewArguments", b.tok)
+	cp.cmP("Called generateNewArgument.", b.tok)
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
 	if b.argNo >= len(b.types) {
 		cp.cmP("Run out of arguments, calling seekFunctionCall", b.tok)
@@ -1787,7 +1787,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 // and on the next branch for the unaccepted types.
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(b *bindle) AlternateType {
-	cp.cmP("Called generateBranch", b.tok)
+	cp.cmP("Called generateBranch.", b.tok)
 	if b.varargsTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
 		cp.cmP("Doing deprecated tuple stuff.", b.tok)
 		newBindle := *b
@@ -1823,7 +1823,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			acceptedTypes = cp.TypeNameToTypeList["string"]
 		}
 	default:
-		acceptedTypes = cp.TypeNameToTypeList[branch.TypeName]
+		acceptedTypes = cp.TypeNameToTypeList[typeName]
 	}
 	cp.cmP("Accepted types are "+acceptedTypes.describe(cp.vm), b.tok)
 	cp.cmP("Target list is "+b.targetList.describe(cp.vm), b.tok)
