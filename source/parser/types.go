@@ -45,6 +45,10 @@ func AddType(T TypeSystem, t string, supertypes ...string) {
 	T.AddTransitiveArrow(t, t+"?")
 	T.AddTransitiveArrow("null", t+"?")
 	T.AddTransitiveArrow(t, "..."+t)
+	// It may seem weird that 'tuple' is more specific than any varargs, given that the varargs can be typed and the tuple can't. But 'tuple' *is* a type,
+	// whereas '...<type>' isn't, not even an abstract one. And we need 'foo(x tuple)' to take precedence over 'foo(x ...myType)' because the latter would in
+	// fact succeed when passed a tuple of 'myType', since it would autosplat, and so the variant of the function with 'x tuple' wouldn't be called.
+	T.AddTransitiveArrow("tuple", "..."+t)
 	supertypes = append(supertypes, "single")
 	for _, st := range supertypes {
 		T.AddTransitiveArrow(t, st)

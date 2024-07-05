@@ -38,16 +38,13 @@ def
 
 // Ordinary functions are in order of their function name.
 
-aritymaker(x tuple) : builtin "len_tuple"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
-arity(x tuple) : aritymaker x
 codepoint(x rune) : builtin "codepoint"   
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"
 float(x string) : builtin "float_of_string"
 (x single?) in (y list) : builtin "single_in_list"
 (x single?) in (y set) : builtin "single_in_set"
-intuplemaker(x single?, y tuple) : builtin "single_in_tuple"
-(x single?) in (y tuple) : intuplemaker x, y
+(x single?) in (y tuple) : builtin "single_in_tuple"
 (x single?) in (y type) : builtin "single_in_type"
 int(x string) : builtin "int_of_string"
 int(x float) : builtin "int_of_float"
@@ -58,25 +55,20 @@ len(x list) : builtin "len_list"
 len(x map) : builtin "len_map"
 len(x set) : builtin "len_set"
 len(x string) : builtin "len_string"
-mapmaker(x tuple) : builtin "make_map"    // Kludge to deal with the fact that builtins don't know how to capture tuples.
-map(x tuple) : mapmaker x                 //
+len(x tuple) : builtin "len_tuple"
+map(x, y ... pair) : builtin "make_map"
 rune(x int) : builtin "rune"
-setmaker(x tuple) : builtin "make_set"    // TODO --- something better.
-set(x tuple) : setmaker x                 // 
+set(x tuple) : builtin "make_set"           
 string(x single?) : builtin "string"
-tuple(x tuple) : builtin "tuple_of_tuple"
+// tuple(x tuple) : builtin "tuple_of_tuple"
+tuple(x ... single?) : builtin "tuple_of_varargs"
 tuplify(L list) : builtin "tuplify_list"
 type(x single?) : builtin "type"
 type(x ok) : builtin "type"
 type(x tuple) : builtin "type_of_tuple"
 varchar(x int) : builtin "varchar"
-listwithmaker(x list, y tuple)  : builtin "list_with"
-(x list) with (y tuple) : listwithmaker x, y   
-mapwithmaker(x map, y tuple)  : builtin "map_with"
-(x map) with (y tuple) : mapwithmaker x, y   
-structwithmaker(x struct, y tuple)  : builtin "struct_with"
-(x struct) with (y tuple) : structwithmaker x, y   
-typewithmaker(x type, y tuple) : builtin "type_with" 
-(x type) with (y tuple) : typewithmaker x, y        
-mapwithoutmaker(x map, y tuple)  : builtin "map_without"
-(x map) without (y tuple) : mapwithoutmaker x, y 
+(x list) with (y ... single?) : builtin "list_with"
+(x map) with (y ... single?) : builtin "map_with"
+(x struct) with (y ... single?) : builtin "struct_with"
+(x type) with (y ... single?) : builtin "type_with"        
+(x map) without (y ... single?) : builtin "map_without"

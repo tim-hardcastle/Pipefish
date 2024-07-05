@@ -620,10 +620,10 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/try/var": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "using global " + emph(tok.Literal) + " in " + emph("try") + "e xpression"
+			return "using global " + emph(tok.Literal) + " in " + emph("try") + "expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "the variables that capture the error of a " + emph("try") + " expression can only be local variables."
+			return "The variables that capture the error of a " + emph("try") + " expression can only be local variables."
 		},
 	},
 
@@ -650,7 +650,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "function cannot accept arguments of type " + text.Emph(args[0].(string))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You are trying to concatenate together two values one of which is certainly of type " + emph("error") + ". As this will only return the error, Pipefish assumes this is a mistake."
+			return "While this function or command does exist, there is no version of it accepting the types you have supplied."
 		},
 	},
 
@@ -973,6 +973,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return `Pipefish can't open the specified file.`
+		},
+	},
+
+	"init/func/body": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "function definition has no body"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return `This error pretty much speaks for itself. You have gotten as far as writing the signature of a function or command, but have neglected to supply it with a body saying what it actually does.`
 		},
 	},
 

@@ -488,6 +488,10 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
 			functionName, position, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
+			if body == nil {
+				uP.Throw("init/func/body", *uP.Parser.ParsedDeclarations[j][i].GetToken())
+				return nil
+			}
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 			}
@@ -499,7 +503,7 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 			uP.fnIndex[fnSource{j, i}] = &functionToAdd
 			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName, &functionToAdd)
 			if !ok {
-				uP.Throw("init/overload", token.Token{}, functionName)
+				uP.Throw("init/overload", *body.GetToken(), functionName)
 				return nil
 			}
 			if body.GetToken().Type == token.GOCODE {

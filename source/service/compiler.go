@@ -1771,6 +1771,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 	newBindle := *b
 	newBindle.branchNo = 0
 	newBindle.targetList = typesAtIndex(b.types[b.argNo], b.index)
+	cp.cmP("Function generateFromTopBranchDown @ arg "+strconv.Itoa(b.argNo)+" , index "+strconv.Itoa(b.index)+" made new target list "+newBindle.targetList.describe(cp.vm), newBindle.tok)
 	newBindle.doneList = make(AlternateType, 0, len(b.targetList))
 	if newBindle.index == 0 {
 		newBindle.lengths = lengths(newBindle.targetList)
@@ -1788,20 +1789,12 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
 func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	cp.cmP("Called generateBranch.", b.tok)
-	if b.varargsTime || b.branchNo < len(b.treePosition.Branch) && b.treePosition.Branch[b.branchNo].TypeName == "tuple" { // We can move on to the next argument.
-		cp.cmP("Doing deprecated tuple stuff.", b.tok)
-		newBindle := *b
-		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
-		newBindle.varargsTime = true
-		newBindle.argNo++
-		cp.cmP("Calling generateNewArgument.", b.tok)
-		return cp.generateNewArgument(&newBindle)
-	}
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
 		cp.reserveError("vm/types/a", b.tok)
 		for _, loc := range b.valLocs {
 			cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 		}
+		cp.cmP("Unthunking error "+text.Emph("vm/types/a")+".", b.tok)
 		cp.Emit(UntE, cp.That())
 		cp.Emit(Asgm, b.outLoc, cp.That())
 		return AltType(values.ERROR)
@@ -1809,12 +1802,14 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	branch := b.treePosition.Branch[b.branchNo]
 	var acceptedTypes AlternateType
 	typeName := branch.TypeName
+	cp.cmP("Typename is "+text.Emph(typeName)+".", b.tok)
 	isVarargs := b.varargsTime || len(typeName) >= 3 && typeName[:3] == "..."
 	if isVarargs {
+		cp.cmP("Parameter is a varargs.", b.tok)
 		typeName = typeName[3:]
 	}
 	isVarchar := len(typeName) >= 8 && typeName[:8] == "varchar("
-
+	acceptingTuple := typeName == "tuple" && b.index == 0
 	switch {
 	case isVarchar:
 		if typeName[len(typeName)-1] == '?' {
@@ -1822,13 +1817,21 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		} else {
 			acceptedTypes = cp.TypeNameToTypeList["string"]
 		}
+	case typeName == "tuple":
+		acceptedTypes = altType(values.TUPLE)
 	default:
 		acceptedTypes = cp.TypeNameToTypeList[typeName]
 	}
 	cp.cmP("Accepted types are "+acceptedTypes.describe(cp.vm), b.tok)
 	cp.cmP("Target list is "+b.targetList.describe(cp.vm), b.tok)
-	overlap := acceptedTypes.intersect(b.targetList)
-	if len(overlap) == 0 { // We drew a blank.
+	var overlap AlternateType
+	if acceptingTuple {
+		cp.cmP("Accepting tuple.", b.tok)
+		overlap = b.targetList // TODO --- it should in fact only be those types in the target list that we got from tuples.
+	} else {
+		overlap = acceptedTypes.intersect(b.targetList)
+	}
+	if len(overlap) == 0 && !acceptingTuple { // We drew a blank.
 		cp.cmP("No overlap. Calling generateNextBranchDown", b.tok)
 		return cp.generateNextBranchDown(b)
 	}
@@ -1858,7 +1861,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 
 	needsOtherBranch := len(newBindle.doneList) != len(newBindle.targetList)
 	branchBacktrack := cp.CodeTop()
-	if needsOtherBranch {
+	if needsOtherBranch && !acceptingTuple {
 		cp.cmP("Overlap is partial. Emitting type comparisons.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
@@ -1889,10 +1892,15 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		cp.cmP("Varargs time, calling generateNewArgument.", b.tok)
 		typesFromGoingAcross = cp.generateNewArgument(&newBindle)
 	} else {
+		var typesFromTuples AlternateType
 		switch len(acceptedSingleTypes) {
 		case 0:
 			cp.cmP("Nothing but tuples.", b.tok)
-			typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+			if typeName == "tuple" {
+				typesFromTuples = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+			} else {
+				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+			}
 		case len(overlap):
 			cp.cmP("Nothing but single types.", b.tok)
 			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
@@ -1902,7 +1910,11 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 			skipElse := cp.vmGoTo()
 			cp.vmComeFrom(singleCheck)
-			typesFromTuples := cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+			if typeName == "tuple" {
+				typesFromTuples = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+			} else {
+				typesFromTuples = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+			}
 			cp.vmComeFrom(skipElse)
 			typesFromGoingAcross = typesFromSingles.Union(typesFromTuples)
 		}
@@ -1971,6 +1983,11 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	ty := cp.TypeNameToTypeList[typeAsString]
 	if len(ty) == 1 {
 		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), DUMMY)
+		return bkGoto(cp.CodeTop() - 1)
+	}
+	// It may be a tuple. TODO --- I'm not sure whether I can safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
+	if typeAsString == "tuple" {
+		cp.Emit(Qtyp, mem, uint32(values.TUPLE), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be one of the built-in abstract types, 'struct', 'snippet', etc.
@@ -2092,7 +2109,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
-				case "tuple_of_single?":
+				case "tuple_of_varargs":
 					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
 				case "tuple_of_tuple":
 					functionAndType.T = b.doneList
@@ -2160,6 +2177,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	for _, loc := range b.valLocs {
 		cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 	}
+	cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
 	cp.Emit(UntE, cp.That())
 	cp.Emit(Asgm, b.outLoc, cp.That())
 	return AltType(values.ERROR)
@@ -2172,7 +2190,7 @@ func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 			newBindle := *b
 			newBindle.branchNo = i
 			newBindle.varargsTime = false
-			cp.cmP("FUnction seekBling calling moveAlongBranchViaSingleValue.", b.tok)
+			cp.cmP("Function seekBling calling moveAlongBranchViaSingleValue.", b.tok)
 			return cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 		}
 	}

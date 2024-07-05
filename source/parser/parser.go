@@ -1205,7 +1205,7 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 		return functionName, pos, sig, rTypes, content, given, tupleList
 	}
 	for j, param := range sig {
-		if param.VarType == "tuple" || len(param.VarType) >= 3 && param.VarType[:3] == "..." {
+		if len(param.VarType) >= 3 && param.VarType[:3] == "..." {
 			tupleList = append(tupleList, uint32(j))
 		}
 	}

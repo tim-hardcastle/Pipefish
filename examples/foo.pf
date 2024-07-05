@@ -1,3 +1,9 @@
+const
+
+x tuple = tuple(1, 2, 3)
+
+y tuple = tuple("a", "b")
+
 def
 
 facA(i int) :
@@ -22,5 +28,14 @@ given :
             i * factorial i - 1
 
 flerp(x ... int) :
+    x
+
+zerp(x ... single?) :
+    x
+
+jerp(x int, y int, z int) :
+    x, y, z
+
+gerp(x tuple) :
     x
 
