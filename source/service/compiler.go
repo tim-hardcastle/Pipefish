@@ -1827,19 +1827,18 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	var overlap AlternateType
 	if acceptingTuple {
 		cp.cmP("Accepting tuple.", b.tok)
-		overlap = b.targetList // TODO --- it should in fact only be those types in the target list that we got from tuples.
+		_, overlap = b.types[b.argNo].(AlternateType).splitSinglesAndTuples() // TODO --- it should in fact only be those types in the target list that we got from tuples.
 	} else {
 		overlap = acceptedTypes.intersect(b.targetList)
 	}
-	if len(overlap) == 0 && !acceptingTuple { // We drew a blank.
+	if len(overlap) == 0 { // We drew a blank.
 		cp.cmP("No overlap. Calling generateNextBranchDown", b.tok)
 		return cp.generateNextBranchDown(b)
 	}
-	// If we've got this far, the current branch accepts at least some of our types. Now we need to do conditionals based on
-	// whether this is some or all. But to generate the conditional we also need to know whether we might be looking at a mix of
-	// single values and of 0th elements of tuples.
+	// If we've got this far, the current branch accepts at least some of our types.
 	newBindle := *b
 	newBindle.doneList = newBindle.doneList.Union(overlap)
+	// Now we need to do conditionals based on whether this is some or all, and on whether we're looking at a mix of single values and of 0th elements of tuples, or one, or the other.
 	acceptedSingleTypes := make(AlternateType, 0, len(overlap))
 	if newBindle.index == 0 {
 		for _, t := range overlap {
@@ -1903,6 +1902,16 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			}
 		case len(overlap):
 			cp.cmP("Nothing but single types.", b.tok)
+			if typeName == "tuple" {
+				cp.reserveError("vm/types/b", b.tok)
+				for _, loc := range b.valLocs {
+					cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+				}
+				cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
+				cp.Emit(UntE, cp.That())
+				cp.Emit(Asgm, b.outLoc, cp.That())
+				return AltType(values.ERROR)
+			}
 			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 		default:
 			cp.cmP("Mix of single and tuple types.", b.tok)
@@ -1985,7 +1994,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	// It may be a tuple. TODO --- I'm not sure whether I can safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
+	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
 	if typeAsString == "tuple" {
 		cp.Emit(Qtyp, mem, uint32(values.TUPLE), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
@@ -2173,11 +2182,11 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 		}
 	}
 	cp.cmP("Returning error.", b.tok)
-	cp.reserveError("vm/types/b", b.tok)
+	cp.reserveError("vm/types/c", b.tok)
 	for _, loc := range b.valLocs {
 		cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 	}
-	cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
+	cp.cmP("Unthunking error "+text.Emph("vm/types/c")+".", b.tok)
 	cp.Emit(UntE, cp.That())
 	cp.Emit(Asgm, b.outLoc, cp.That())
 	return AltType(values.ERROR)

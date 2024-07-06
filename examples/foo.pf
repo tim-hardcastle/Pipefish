@@ -39,3 +39,5 @@ jerp(x int, y int, z int) :
 gerp(x tuple) :
     x
 
+gerp (x ... int) :
+    x
