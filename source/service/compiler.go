@@ -2118,6 +2118,18 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_sql":
 					functionAndType.T = cp.AnyTypeScheme
+				case "first_in_tuple":
+					if len(b.types) == 0 {
+						functionAndType.T = altType(values.COMPILE_TIME_ERROR)
+					} else {
+						functionAndType.T = typesAtIndex(b.types[0], 0)
+					}
+				case "last_in_tuple":
+					if len(b.types) == 0 {
+						functionAndType.T = altType(values.COMPILE_TIME_ERROR)
+					} else {
+						functionAndType.T = typesAtIndex(b.types[0], len(b.types)-1)
+					}
 				case "tuple_of_varargs":
 					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
 				case "tuple_of_tuple":
