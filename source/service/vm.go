@@ -1055,6 +1055,20 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
 		case Thnk:
 			vm.Mem[args[0]] = values.Value{values.THUNK, ThunkValue{args[1], args[2]}}
+		case Tplf:
+			tup := vm.Mem[args[1]].V.([]values.Value)
+			if len(tup) == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/tup/first", args[2])
+				break Switch
+			}
+			vm.Mem[args[0]] = tup[0]
+		case Tpll:
+			tup := vm.Mem[args[1]].V.([]values.Value)
+			if len(tup) == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/tup/last", args[2])
+				break Switch
+			}
+			vm.Mem[args[0]] = tup[len(tup)-1]
 		case TupL:
 			vector := vm.Mem[args[1]].V.(vector.Vector)
 			length := vector.Len()

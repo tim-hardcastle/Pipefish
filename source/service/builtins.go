@@ -22,6 +22,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"codepoint":          {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":      {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":    {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
+	"first_in_tuple":     {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller..
 	"float_of_int":       {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":    {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
 	"get_from_external":  {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
@@ -37,6 +38,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"keys_of_map":        {(*Compiler).btKeysOfMap, AltType(values.LIST)},
 	"keys_of_struct":     {(*Compiler).btKeysOfStruct, AltType(values.LIST)},
 	"label_of_string":    {(*Compiler).btLabelOfString, AltType(values.LABEL)},
+	"last_in_tuple":      {(*Compiler).btLastInTuple, AltType()},
 	"len_list":           {(*Compiler).btLenList, AltType(values.INT)},
 	"len_map":            {(*Compiler).btLenMap, AltType(values.INT)},
 	"len_set":            {(*Compiler).btLenSet, AltType(values.INT)},
@@ -126,6 +128,10 @@ func (cp *Compiler) btDivideIntegers(tok *token.Token, dest uint32, args []uint3
 	cp.Emit(Divi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
+func (cp *Compiler) btFirstInTuple(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Tplf, dest, args[0], cp.reserveToken(tok))
+}
+
 func (cp *Compiler) btFloatOfInt(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Flti, dest, args[0])
 }
@@ -185,6 +191,10 @@ func (cp *Compiler) btKeysOfStruct(tok *token.Token, dest uint32, args []uint32)
 
 func (cp *Compiler) btLabelOfString(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Lbls, dest, args[0], cp.reserveToken(tok))
+}
+
+func (cp *Compiler) btLastInTuple(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Tpll, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btLenList(tok *token.Token, dest uint32, args []uint32) {
