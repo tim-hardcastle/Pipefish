@@ -61,18 +61,18 @@ type Compiler struct {
 type bkRecursion struct{ functionNumber, address uint32 }
 
 type CpFunc struct { // The compiler's representation of a function after the function has been compiled.
-	CallTo   uint32
-	LoReg    uint32
-	HiReg    uint32
-	OutReg   uint32
-	TupleReg uint32
-	Types    AlternateType
-	Builtin  string   // The name of a builtin or constructor, or an empty string if it's neither.
-	Xcall    *XBindle // Information for making an external call, if non-nil.
-	Private  bool     // True if it's private.
-	Command  bool     // True if it's a command.
-	GoNumber uint32
-	HasGo    bool
+	CallTo                  uint32
+	LoReg                   uint32
+	HiReg                   uint32
+	OutReg                  uint32
+	locOfTupleAndVarargData uint32
+	Types                   AlternateType
+	Builtin                 string   // The name of a builtin or constructor, or an empty string if it's neither.
+	Xcall                   *XBindle // Information for making an external call, if non-nil.
+	Private                 bool     // True if it's private.
+	Command                 bool     // True if it's a command.
+	GoNumber                uint32
+	HasGo                   bool
 }
 
 // Information we need in the CpFunc struct to call an external service.
@@ -2240,10 +2240,10 @@ func (cp *Compiler) emitCallOpcode(funcNumber uint32, valLocs []uint32) {
 		return
 	}
 	args := append([]uint32{cp.Fns[funcNumber].CallTo, cp.Fns[funcNumber].LoReg, cp.Fns[funcNumber].HiReg}, valLocs...)
-	if cp.Fns[funcNumber].TupleReg == DUMMY { // We specialize on whether we have to capture tuples.
+	if cp.Fns[funcNumber].locOfTupleAndVarargData == DUMMY { // We specialize on whether we have to capture tuples or varargs.
 		cp.Emit(Call, args...)
 	} else {
-		cp.Emit(CalT, args...)
+		cp.Emit(CalT, args...) // As the data about tuples and varargs must have been stored in cp.Fns[funcNumber].HiReg if it exists, we don't need to supply anything mre in the opcode.
 	}
 }
 

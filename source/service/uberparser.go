@@ -487,7 +487,7 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 	goHandler := NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
-			functionName, position, sig, rTypes, body, given, _ := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
+			functionName, position, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
 			if body == nil {
 				uP.Throw("init/func/body", *uP.Parser.ParsedDeclarations[j][i].GetToken())
 				return nil

@@ -319,7 +319,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 	}
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
-			name, _, _, _, _, _, _ := vmm.cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
+			name, _, _, _, _, _ := vmm.cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
 				names := namesToDeclarations[name]
@@ -423,7 +423,7 @@ func (vmm *VmMaker) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes
 	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
 		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
 	}
-	_, _, sig, _, body, given, _ := vmm.cp.P.ExtractPartsOfFunction(vmm.cp.P.ParsedDeclarations[dec.decType][dec.decNumber])
+	_, _, sig, _, body, given := vmm.cp.P.ExtractPartsOfFunction(vmm.cp.P.ParsedDeclarations[dec.decType][dec.decNumber])
 	sigNames := dtypes.Set[string]{}
 	for _, pair := range sig {
 		if pair.VarType != "bling" {
@@ -857,7 +857,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		cpF.Command = true
 	}
 	cpF.Private = private
-	functionName, _, sig, rtnSig, body, given, tupleList := vmm.uP.Parser.ExtractPartsOfFunction(node)
+	functionName, _, sig, rtnSig, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
 
 	if settings.FUNCTION_TO_PEEK == functionName {
 		println(node.String() + "\n")
@@ -900,10 +900,25 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 	cpF.HiReg = vmm.cp.MemTop()
 	cpF.CallTo = vmm.cp.CodeTop()
-	if len(tupleList) > 0 {
-		cpF.TupleReg = vmm.cp.Reserve(values.INT_ARRAY, tupleList, node.GetToken())
+	tupleData := make([]uint32, len(sig))
+	var foundTupleOrVarArgs bool
+	for _, param := range sig {
+		switch {
+		case len(param.VarType) >= 3 && param.VarType[:3] == "...":
+			tupleData = append(tupleData, 1)
+			foundTupleOrVarArgs = true
+		case param.VarType == "tuple":
+			tupleData = append(tupleData, 2)
+			foundTupleOrVarArgs = true
+		default:
+			tupleData = append(tupleData, 0)
+		}
+
+	}
+	if foundTupleOrVarArgs {
+		cpF.locOfTupleAndVarargData = vmm.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
 	} else {
-		cpF.TupleReg = DUMMY
+		cpF.locOfTupleAndVarargData = DUMMY
 	}
 	switch body.GetToken().Type {
 	case token.BUILTIN:

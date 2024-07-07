@@ -1145,14 +1145,13 @@ func (p *Parser) GetErrorsFrom(q *Parser) {
 // Slurps the signature of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node, []uint32) {
+func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node) {
 	var (
 		functionName          string
 		sig                   ast.AstSig
 		rTypes                ast.AstSig
 		start, content, given ast.Node
 	)
-	tupleList := make([]uint32, 0)
 	if fn.GetToken().Type == token.GIVEN {
 		given = fn.(*ast.InfixExpression).Args[2]
 		fn = fn.(*ast.InfixExpression).Args[0]
@@ -1162,20 +1161,20 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 	case *ast.LazyInfixExpression:
 		if !(fn.Token.Type == token.COLON) {
 			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given, tupleList
+			return functionName, 0, sig, rTypes, content, given
 		}
 		start = fn.Left
 		content = fn.Right
 	case *ast.InfixExpression:
 		if fn.Token.Type != token.MAGIC_COLON {
 			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given, tupleList
+			return functionName, 0, sig, rTypes, content, given
 		}
 		start = fn.Args[0]
 		content = fn.Args[2]
 	default:
 		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
-		return functionName, 0, sig, rTypes, content, given, tupleList
+		return functionName, 0, sig, rTypes, content, given
 	}
 
 	if start.GetToken().Type == token.PIPE {
@@ -1202,14 +1201,9 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 		sig = ast.AstSig{}
 	default:
 		prsr.Throw("parse/sig/malformed/d", fn.GetToken())
-		return functionName, pos, sig, rTypes, content, given, tupleList
+		return functionName, pos, sig, rTypes, content, given
 	}
-	for j, param := range sig {
-		if len(param.VarType) >= 3 && param.VarType[:3] == "..." {
-			tupleList = append(tupleList, uint32(j))
-		}
-	}
-	return functionName, pos, sig, rTypes, content, given, tupleList
+	return functionName, pos, sig, rTypes, content, given
 }
 
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {

@@ -189,32 +189,68 @@ loop:
 		case Asgm:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
 		case Call:
-			offset := args[1]
-			for i := args[1]; i < args[2]; i++ {
-				vm.Mem[i] = vm.Mem[args[3+i-offset]]
+			paramNumber := args[1]
+			argNumber := 3
+			for paramNumber < args[2] {
+				v := vm.Mem[argNumber]
+				if v.T == values.TUPLE {
+					tup := v.V.([]values.Value)
+					for ix := 0; ix < len(tup); ix++ {
+						vm.Mem[paramNumber] = tup[ix]
+						paramNumber++
+					}
+					argNumber++
+				} else {
+					vm.Mem[paramNumber] = vm.Mem[args[argNumber]]
+					paramNumber++
+					argNumber++
+				}
 			}
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
-		case CalT:
-			offset := int(args[1]) - 3
-			var tupleTime bool
-			var tplpt int
-			tupleList := vm.Mem[args[2]].V.([]uint32) // This is the hireg of the parameters, and (numbering being exclusive) is the reg containing the integer array saying where tuple captures start.
-			for j := 3; j < len(args); j++ {
-				if tplpt <= len(tupleList) && j-3 == int(tupleList[tplpt]) {
-					tupleTime = true
-					vm.Mem[args[1]+tupleList[tplpt]] = values.Value{values.TUPLE, make([]values.Value, 0, 10)}
+		case CalT: // A more complicated version which can do vararg or tuple captures. TODO --- the chances of anything needing to do both are infinitessimally rare so maybe two simpler versions, one for varargs and one for tuples?
+			paramNumber := args[1]
+			argNumber := 3
+			tupleOrVarargsData := vm.Mem[args[2]].V.([]uint32)
+			var varargsTime bool
+			for paramNumber < args[2] {
+				torvIndex := paramNumber - args[1]
+				if tupleOrVarargsData[torvIndex] == 1 && !varargsTime {
+					vm.Mem[paramNumber] = values.Value{values.TUPLE, []values.Value{}}
+					varargsTime = true
 				}
-				if vm.Mem[args[j]].T == values.BLING {
-					tupleTime = false
+				v := vm.Mem[argNumber]
+				if v.T == values.BLING {
+					varargsTime = false
+					paramNumber++
 				}
-				if tupleTime {
-					tupleVal := vm.Mem[args[1]+tupleList[tplpt]].V.([]values.Value)
-					tupleVal = append(tupleVal, vm.Mem[args[j]])
-					vm.Mem[args[1]+tupleList[tplpt]].V = tupleVal
-				} else {
-					vm.Mem[j+offset] = vm.Mem[args[j]]
+				if v.T == values.TUPLE && tupleOrVarargsData[torvIndex] != 2 { // Then we're exploding a tuple.
+					tup := v.V.([]values.Value)
+					if varargsTime { // We may be doing a varargs, in which case we suck the whole tuple up into the vararg.
+						vararg := vm.Mem[paramNumber].V.([]values.Value)
+						vm.Mem[paramNumber].V = append(vararg, tup...)
+					} else { // Otherwise we need to explode it and put it into the parameters one at a time unless and untill we run out of them or we meet a varargs.
+						for ix := 0; ix < len(tup); ix++ {
+							if tupleOrVarargsData[paramNumber-args[1]] == 1 { // The vararg will slurp up what remains of the tuple.
+								varargsTime = true
+								vm.Mem[paramNumber] = values.Value{values.TUPLE, tup[ix:]}
+								break
+							}
+							vm.Mem[paramNumber] = tup[ix]
+							paramNumber++
+						}
+					}
+					argNumber++
+				} else { // Otherwise we're not exploding a tuple.
+					if varargsTime {
+						vararg := vm.Mem[paramNumber].V.([]values.Value)
+						vm.Mem[paramNumber].V = append(vararg, vm.Mem[args[argNumber]])
+					} else {
+						vm.Mem[paramNumber] = vm.Mem[args[argNumber]]
+						paramNumber++
+					}
+					argNumber++
 				}
 			}
 			vm.callstack = append(vm.callstack, loc)

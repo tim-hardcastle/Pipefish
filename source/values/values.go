@@ -9,7 +9,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	// return in a typeScheme object when the compiled code doesn't create a value.
 
 	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
-	INT_ARRAY                               // V is an array of Golang integers.
+	INT_ARRAY                               // V is an array of Golang uint32. TODO --- its only current use is a three-value enum.
 	SNIPPET_DATA                            // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
 	THUNK                                   // V is a ThunkValue which contains the address to call to evaluate the thunk and the memory location where the result ends up.
 	CREATED_THUNK_OR_CONST                  // Returned by the compiler in the typeScheme when we compile a thunk.
