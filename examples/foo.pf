@@ -25,3 +25,5 @@ flerp(x ... int) :
 zerp(x ... single?) :
     x
 
+merp(x tuple) :
+    x

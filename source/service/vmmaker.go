@@ -902,7 +902,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 	cpF.HiReg = vmm.cp.MemTop()
 	cpF.CallTo = vmm.cp.CodeTop()
-	tupleData := make([]uint32, len(sig))
+	tupleData := make([]uint32, 0, len(sig))
 	var foundTupleOrVarArgs bool
 	for _, param := range sig {
 		switch {

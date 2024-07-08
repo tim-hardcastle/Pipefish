@@ -1541,27 +1541,6 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string, ac c
 	return lC
 }
 
-// TODO --- this can be replaced with other generalizations.
-func (cp *Compiler) emitErrorBoilerplate(types AlternateType, errCode string, tok *token.Token, appendToken bool) (uint32, bool) {
-	failed := false
-	var backtrackTo uint32
-	if types.isOnly(values.ERROR) {
-		cp.P.Throw("comp/list/err", tok)
-		failed = true
-	}
-	if types.Contains(values.ERROR) {
-		cp.Emit(Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+3)
-		backtrackTo = cp.CodeTop()
-		if appendToken {
-			cp.Emit(Adtk, DUMMY, cp.That(), cp.reserveToken(tok))
-		} else {
-			cp.Emit(Asgm, DUMMY, cp.That())
-		}
-		cp.Emit(Ret)
-	}
-	return backtrackTo, failed
-}
-
 func getAllTypes(ts typeScheme) AlternateType {
 	result := AlternateType{}
 	switch ts := ts.(type) {
@@ -1928,7 +1907,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		}
 	}
 	// And now we need to do the 'else' branch if there is one.
-	if needsOtherBranch {
+	if needsOtherBranch && !acceptingTuple {
 		skipElse := cp.vmGoTo()
 		// We need to backtrack on whatever conditional we generated.
 		switch len(acceptedSingleTypes) {
@@ -2100,7 +2079,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
 				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
 				cp.recursionStore = append(cp.recursionStore, bkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
-				cp.cmP("Emitting call opcode.", b.tok)
+				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
 				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 				cp.Emit(Rpop)
 				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
@@ -2238,7 +2217,7 @@ func (cp *Compiler) put(opcode Opcode, args ...uint32) {
 func (cp *Compiler) emitCallOpcode(funcNumber uint32, valLocs []uint32) {
 	if funcNumber >= uint32(len(cp.Fns)) {
 		args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
-		cp.Emit(Call, args...)
+		cp.Emit(Call, args...) // TODO --- find out from the sig whether this should be CalT.
 		return
 	}
 	args := append([]uint32{cp.Fns[funcNumber].CallTo, cp.Fns[funcNumber].LoReg, cp.Fns[funcNumber].HiReg}, valLocs...)
