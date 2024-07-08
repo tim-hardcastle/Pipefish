@@ -1,12 +1,13 @@
-const
+var
 
-x tuple = tuple(1, 2, 3)
-
-y tuple = tuple("a", "b")
+z tuple = tuple 1, 2
 
 def
 
-facA(i int) :
+id(x, y int) :
+    x, y
+
+fac(i int) :
     i == 0 :
         1
     else :
@@ -18,23 +19,9 @@ power(a, n int) :
     else :
         a * power a, n - 1
 
-fac(i int) :
-    factorial i 
-given :
-    factorial(i int) :
-        i == 0 :
-            1
-        else :
-            i * factorial i - 1
-
 flerp(x ... int) :
     x
 
 zerp(x ... single?) :
     x
 
-jerp(x int, y int, z int) :
-    x, y, z
-
-gerp(x tuple) :
-    x

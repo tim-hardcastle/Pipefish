@@ -166,6 +166,8 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	vmm.cp.TypeNameToTypeList["tuple"] = vmm.cp.AnyTuple
+
 	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
 		return

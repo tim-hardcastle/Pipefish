@@ -192,7 +192,7 @@ loop:
 			paramNumber := args[1]
 			argNumber := 3
 			for paramNumber < args[2] {
-				v := vm.Mem[argNumber]
+				v := vm.Mem[args[argNumber]]
 				if v.T == values.TUPLE {
 					tup := v.V.([]values.Value)
 					for ix := 0; ix < len(tup); ix++ {
@@ -201,7 +201,7 @@ loop:
 					}
 					argNumber++
 				} else {
-					vm.Mem[paramNumber] = vm.Mem[args[argNumber]]
+					vm.Mem[paramNumber] = v
 					paramNumber++
 					argNumber++
 				}
@@ -220,7 +220,7 @@ loop:
 					vm.Mem[paramNumber] = values.Value{values.TUPLE, []values.Value{}}
 					varargsTime = true
 				}
-				v := vm.Mem[argNumber]
+				v := vm.Mem[args[argNumber]]
 				if v.T == values.BLING {
 					varargsTime = false
 					paramNumber++
@@ -245,9 +245,9 @@ loop:
 				} else { // Otherwise we're not exploding a tuple.
 					if varargsTime {
 						vararg := vm.Mem[paramNumber].V.([]values.Value)
-						vm.Mem[paramNumber].V = append(vararg, vm.Mem[args[argNumber]])
+						vm.Mem[paramNumber].V = append(vararg, v)
 					} else {
-						vm.Mem[paramNumber] = vm.Mem[args[argNumber]]
+						vm.Mem[paramNumber] = v
 						paramNumber++
 					}
 					argNumber++

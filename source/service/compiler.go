@@ -1671,6 +1671,9 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			if b.types[i].(AlternateType).Contains(values.COMPILE_TIME_ERROR) {
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
+			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == simpleType(values.TUPLE) {
+				b.types[i] = AlternateType{cp.AnyTuple}
+			}
 			cst = cst && cstI
 			b.valLocs[i] = cp.That()
 			if b.types[i].(AlternateType).isOnly(values.ERROR) {
@@ -1763,7 +1766,7 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 	newBindle := *b
 	newBindle.index = 0
 	cp.cmP("Found a new argument. Calling generateFromTopBranchDown.", b.tok)
-	return cp.generateFromTopBranchDown(b)
+	return cp.generateFromTopBranchDown(&newBindle)
 }
 
 func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
@@ -1774,7 +1777,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 	cp.cmP("Function generateFromTopBranchDown @ arg "+strconv.Itoa(b.argNo)+" , index "+strconv.Itoa(b.index)+" made new target list "+newBindle.targetList.describe(cp.vm), newBindle.tok)
 	newBindle.doneList = make(AlternateType, 0, len(b.targetList))
 	if newBindle.index == 0 {
-		newBindle.lengths = lengths(newBindle.targetList)
+		newBindle.lengths = lengths(b.types[b.argNo])
 		newBindle.maxLength = maxLengthsOrMinusOne(newBindle.lengths)
 	}
 	cp.cmP("Calling generateBranch.", b.tok)
@@ -1817,8 +1820,6 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		} else {
 			acceptedTypes = cp.TypeNameToTypeList["string"]
 		}
-	case typeName == "tuple":
-		acceptedTypes = altType(values.TUPLE)
 	default:
 		acceptedTypes = cp.TypeNameToTypeList[typeName]
 	}
@@ -1839,14 +1840,10 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	newBindle := *b
 	newBindle.doneList = newBindle.doneList.Union(overlap)
 	// Now we need to do conditionals based on whether this is some or all, and on whether we're looking at a mix of single values and of 0th elements of tuples, or one, or the other.
-	acceptedSingleTypes := make(AlternateType, 0, len(overlap))
-	if newBindle.index == 0 {
-		for _, t := range overlap {
-			switch t := t.(type) {
-			case simpleType:
-				acceptedSingleTypes = append(acceptedSingleTypes, t)
-			}
-		}
+
+	acceptedSingleTypes := make(AlternateType, 0)
+	if newBindle.index == 0 { // Otherwise we *must* be looking at the index-dx position of a tuple, and there are no single values to inspect.
+		acceptedSingleTypes, _ = b.types[b.argNo].(AlternateType).splitSinglesAndTuples()
 	}
 
 	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve single values,
@@ -1861,7 +1858,9 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	needsOtherBranch := len(newBindle.doneList) != len(newBindle.targetList)
 	branchBacktrack := cp.CodeTop()
 	if needsOtherBranch && !acceptingTuple {
-		cp.cmP("Overlap is partial. Emitting type comparisons.", b.tok)
+		cp.cmP("Overlap is partial: "+overlap.describe(cp.vm), b.tok)
+		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.vm), b.tok)
+		cp.cmP("Emitting type comparisons.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
@@ -1896,12 +1895,12 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		case 0:
 			cp.cmP("Nothing but tuples.", b.tok)
 			if typeName == "tuple" {
-				typesFromTuples = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+				typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
 			} else {
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 		case len(overlap):
-			cp.cmP("Nothing but single types.", b.tok)
+			cp.cmP("Nothing but single types", b.tok)
 			if typeName == "tuple" {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
@@ -2041,8 +2040,9 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 
 func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateType {
 	cp.cmP("Called generateMoveAlongBranchViaTupleElement.", b.tok)
-	// We may definitely have run off the end of all the potential tuples.
-	if b.index+1 == b.maxLength {
+	// We may definitely have run off the end of all the potential tuple elements.
+	if b.index == b.maxLength {
+		cp.cmP("Reached the end of the tuple.", b.tok)
 		newBindle := *b
 		newBindle.argNo++
 		return cp.generateNewArgument(&newBindle)
@@ -2056,6 +2056,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 		b.lengths.Contains(newBindle.index) // Then we may have run off the end of a finite tuple.
 	var skipElse bkGoto
 	if needsConditional {
+		cp.cmP("Generating a conditional to see if we move to the next argument or move along the tuple.", b.tok)
 		lengthCheck := cp.vmIf(QlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index))
 		newArgumentBindle := newBindle
 		newArgumentBindle.argNo++
@@ -2064,6 +2065,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 		cp.vmComeFrom(lengthCheck)
 	}
 
+	cp.cmP("Function generateMoveAlongBranchViaTupleElement calls generateFromTopBranchDown.", b.tok)
 	typesFromContinuingInTuple := cp.generateFromTopBranchDown(&newBindle)
 
 	if needsConditional {
@@ -2871,6 +2873,13 @@ func (cp *Compiler) cm(comment string, tok *token.Token) {
 func (cp *Compiler) cmP(comment string, tok *token.Token) {
 	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(text.PURPLE + "// " + comment + text.RESET)
+	}
+}
+
+// The same as the previous methods but in red. Used to draw attention to new comments which will either be downgraded to cyan or purple or removed.
+func (cp *Compiler) cmR(comment string, tok *token.Token) {
+	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
+		println(text.RED + "// " + comment + text.RESET)
 	}
 }
 

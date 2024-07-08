@@ -313,8 +313,8 @@ func (aT AlternateType) splitSinglesAndTuples() (AlternateType, AlternateType) {
 			singles = append(singles, t)
 		case AlternateType:
 			recSng, recTup := t.splitSinglesAndTuples()
-			singles = append(singles, recSng)
-			tuples = append(tuples, recTup)
+			singles = append(singles, recSng...)
+			tuples = append(tuples, recTup...)
 		default:
 			tuples = append(tuples, t)
 		}
