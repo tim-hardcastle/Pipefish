@@ -890,12 +890,19 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			continue
 		}
 		typeName := pair.VarType
+		isVarargs := len(typeName) >= 3 && typeName[:3] == "..."
+		if isVarargs {
+			typeName = typeName[3:]
+		}
 		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
 			if typeName[len(typeName)-1] == '?' {
-				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string?"], node.GetToken()) // TODO --- need to attach varchar to variables.
+				typeName = "string?"
 			} else {
-				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList["string"], node.GetToken())
+				typeName = "string"
 			}
+		}
+		if isVarargs {
+			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{vmm.cp.TypeNameToTypeList[pair.VarType]}}, node.GetToken())
 		} else {
 			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType], node.GetToken())
 		}

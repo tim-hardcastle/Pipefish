@@ -532,7 +532,11 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
 		cp.cm("Adding parameter to lambda.", fnNode.GetToken())
-		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType], fnNode.GetToken())
+		if pair.VarType[:3] == "..." {
+			cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{cp.TypeNameToTypeList[pair.VarType[3:]]}}, fnNode.GetToken())
+		} else {
+			cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType], fnNode.GetToken())
+		}
 	}
 
 	LF.Model.parametersEnd = cp.MemTop()
@@ -1058,7 +1062,7 @@ NodeTypeSwitch:
 			cp.vmComeFrom(checkLhs)
 			cp.put(Asgm, values.C_U_OBJ)
 			cp.vmComeFrom(ifCondition)
-			rtnTypes, rtnConst = rTypes.Union(AltType(values.UNSAT)), lcst && rcst
+			rtnTypes, rtnConst = rTypes.Union(AltType(values.UNSATISFIED_CONDITIONAL)), lcst && rcst
 			break
 		}
 		if node.Operator == ";" {
@@ -1073,7 +1077,7 @@ NodeTypeSwitch:
 			}
 			// We may be executing a command.
 			cmdRet := lTypes.IsLegalCmdReturn()
-			if (cmdRet && lTypes.isOnly(values.BREAK)) || (!cmdRet && !lTypes.Contains(values.UNSAT)) {
+			if (cmdRet && lTypes.isOnly(values.BREAK)) || (!cmdRet && !lTypes.Contains(values.UNSATISFIED_CONDITIONAL)) {
 				// TODO --- implement warnings.
 				// cp.p.Throw("comp/unreachable", node.GetToken())
 				// break
@@ -1090,8 +1094,8 @@ NodeTypeSwitch:
 				if lTypes.Contains(values.ERROR) {
 					ifError = cp.vmConditionalEarlyReturn(Qtyp, leftRg, uint32(values.ERROR), leftRg)
 				}
-				if lTypes.Contains(values.UNSAT) { // Then it is an else-less conditional or a try, and it it isn't UNSAT then we should skip the right node.
-					ifCouldBeUnsatButIsnt = cp.vmConditionalEarlyReturn(Qntp, leftRg, uint32(values.UNSAT), leftRg)
+				if lTypes.Contains(values.UNSATISFIED_CONDITIONAL) { // Then it is an else-less conditional or a try, and it it isn't UNSAT then we should skip the right node.
+					ifCouldBeUnsatButIsnt = cp.vmConditionalEarlyReturn(Qntp, leftRg, uint32(values.UNSATISFIED_CONDITIONAL), leftRg)
 				}
 				rTypes, _ = cp.CompileNode(node.Right, ctxt) // In a cmd we wish rConst to remain false to avoid folding.
 				cp.vmComeFrom(ifBreak, ifError, ifCouldBeUnsatButIsnt)
@@ -1106,8 +1110,8 @@ NodeTypeSwitch:
 				cp.put(Asgm, cp.That())
 				cp.vmComeFrom(lhsIsSat)
 				rtnConst = lcst && rcst
-				if !(lTypes.Contains(values.UNSAT) && rTypes.Contains(values.UNSAT)) {
-					rtnTypes = lTypes.Union(rTypes).without(tp(values.UNSAT))
+				if !(lTypes.Contains(values.UNSATISFIED_CONDITIONAL) && rTypes.Contains(values.UNSATISFIED_CONDITIONAL)) {
+					rtnTypes = lTypes.Union(rTypes).without(tp(values.UNSATISFIED_CONDITIONAL))
 				} else {
 					rtnTypes = lTypes.Union(rTypes)
 				}
@@ -1361,7 +1365,7 @@ NodeTypeSwitch:
 		cp.Emit(Asgm, cp.That(), values.C_U_OBJ)
 		cp.Emit(Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
 		cp.Emit(Asgm, cp.That(), values.C_OK)
-		rtnTypes, rtnConst = AltType(values.UNSAT, values.SUCCESSFUL_VALUE), false
+		rtnTypes, rtnConst = AltType(values.UNSATISFIED_CONDITIONAL, values.SUCCESSFUL_VALUE), false
 		break
 	case *ast.TypeLiteral:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
@@ -1834,17 +1838,15 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		newBindle.doneList = newBindle.doneList.without(simpleType(values.STRING))
 	}
 
-	needsOtherBranch := len(newBindle.doneList) != len(newBindle.targetList)
+	needsLowerBranch := len(newBindle.doneList) != len(newBindle.targetList)
 	branchBacktrack := cp.CodeTop()
-	if needsOtherBranch && !acceptingTuple {
+	if needsLowerBranch && !acceptingTuple {
 		cp.cmP("Overlap is partial: "+overlap.describe(cp.vm), b.tok)
 		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.vm), b.tok)
-		cp.cmP("Emitting type comparisons.", b.tok)
+		cp.cmP("Emitting type comparisons for single types.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
-		case 0:
-			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			cp.emitTypeComparisonFromTypeName(typeName, cp.That())
+		case 0: // We deal with checking the varargs further down.
 		case len(overlap):
 			cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
 		default:
@@ -1868,14 +1870,18 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		newBindle.argNo++
 		cp.cmP("Varargs time, calling generateNewArgument.", b.tok)
 		typesFromGoingAcross = cp.generateNewArgument(&newBindle)
+		cp.cmR("Returned types are "+typesFromGoingAcross.describe(cp.vm), b.tok)
 	} else {
 		var typesFromTuples AlternateType
+		var typesFromSingles AlternateType
 		switch len(acceptedSingleTypes) {
 		case 0:
 			cp.cmP("Nothing but tuples.", b.tok)
 			if typeName == "tuple" {
-				typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+				cp.cmP("Typename is tuple. Consuming tuple value.", b.tok)
+				typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
+				cp.cmP("Typename is "+typeName+". Consuming one element of the tuple.", b.tok)
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 		case len(overlap):
@@ -1890,29 +1896,37 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.Emit(Asgm, b.outLoc, cp.That())
 				return AltType(values.ERROR)
 			}
-			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+			cp.cmP("Going across branch consuming single value.", b.tok)
+			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 		default:
+			skipElse := bkGoto(DUMMY)
 			cp.cmP("Mix of single and tuple types.", b.tok)
-			singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
-			typesFromSingles := cp.generateMoveAlongBranchViaSingleValue(&newBindle)
-			skipElse := cp.vmGoTo()
-			cp.vmComeFrom(singleCheck)
 			if typeName == "tuple" {
-				typesFromTuples = cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+				cp.cmP("Typename is tuple. Generating branch to consume tuple.", b.tok)
+				typesFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
+				singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
+				cp.cmP("Generating branch to check out single values.", b.tok)
+				typesFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
+				skipElse = cp.vmGoTo()
+				cp.vmComeFrom(singleCheck)
+				cp.cmP("Generating branch to move along one element of a tuple.", b.tok)
 				typesFromTuples = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
+
 			cp.vmComeFrom(skipElse)
 			typesFromGoingAcross = typesFromSingles.Union(typesFromTuples)
 		}
 	}
+
+	cp.cmR("Types from going across are "+typesFromGoingAcross.describe(cp.vm), b.tok)
+
 	// And now we need to do the 'else' branch if there is one.
-	if needsOtherBranch && !acceptingTuple {
+	if needsLowerBranch && !acceptingTuple {
 		skipElse := cp.vmGoTo()
 		// We need to backtrack on whatever conditional we generated.
 		switch len(acceptedSingleTypes) {
-		case 0:
-			cp.vm.Code[branchBacktrack+1].MakeLastArg(cp.CodeTop())
+		case 0: // We didn't generate a backtrack --- there are no accepted single types, we must be in varargs time.
 		case len(overlap):
 			cp.vm.Code[branchBacktrack].MakeLastArg(cp.CodeTop())
 		default:
@@ -1925,6 +1939,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		cp.vmComeFrom(skipElse)
 	}
 	cp.cmP("We return from generateBranch.", b.tok)
+	cp.cmR("Types from going down are"+typesFromGoingDown.describe(cp.vm), b.tok)
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
@@ -2054,7 +2069,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 	return typesFromContinuingInTuple.Union(typesFromNextArgument)
 }
 
-func (cp *Compiler) generateMoveAlongBranchViaSingleValue(b *bindle) AlternateType {
+func (cp *Compiler) generateMoveAlongBranchViaSingleOrTupleValue(b *bindle) AlternateType {
 	cp.cmP("Called generateMoveAlongBranchViaSingleValue.", b.tok)
 	newBindle := *b
 	newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
@@ -2193,7 +2208,7 @@ func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 			newBindle.branchNo = i
 			newBindle.varargsTime = false
 			cp.cmP("Function seekBling calling moveAlongBranchViaSingleValue.", b.tok)
-			return cp.generateMoveAlongBranchViaSingleValue(&newBindle)
+			return cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 		}
 	}
 	return AltType(values.ERROR)

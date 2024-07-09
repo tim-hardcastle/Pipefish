@@ -156,7 +156,7 @@ func (vm *Vm) Describe(v values.Value) string {
 		return vm.DescribeAbstractType(v.V.(values.AbstractType))
 	case values.UNDEFINED_VALUE:
 		return "UNDEFINED VALUE!"
-	case values.UNSAT:
+	case values.UNSATISFIED_CONDITIONAL:
 		return "UNSATIFIED CONDITIONAL!"
 	}
 	println("Undescribable value", v.T)

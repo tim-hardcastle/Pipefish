@@ -898,7 +898,7 @@ loop:
 			}
 			continue
 		case Qsat:
-			if vm.Mem[args[0]].T != values.UNSAT {
+			if vm.Mem[args[0]].T != values.UNSATISFIED_CONDITIONAL {
 				loc = loc + 1
 			} else {
 				loc = args[1]

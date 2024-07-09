@@ -8,16 +8,16 @@ const ( // Cross-reference with typeNames in BlankVm()
 	// In some cases, e.g. CREATED_LOCAL_CONSTANT, they are also not instantiated: they are there to
 	// return in a typeScheme object when the compiled code doesn't create a value.
 
-	UNDEFINED_VALUE        ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
-	INT_ARRAY                               // V is an array of Golang uint32. TODO --- its only current use is a three-value enum.
-	SNIPPET_DATA                            // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
-	THUNK                                   // V is a ThunkValue which contains the address to call to evaluate the thunk and the memory location where the result ends up.
-	CREATED_THUNK_OR_CONST                  // Returned by the compiler in the typeScheme when we compile a thunk.
-	COMPILE_TIME_ERROR                      // For when we have to return a type, but what we have is a compile time error.
-	BLING                                   // Values representing e.g. the `troz` in `foo (x) troz (y)`.
-	UNSAT                                   // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
-	REF                                     // A reference variable. This is always dereferenced when used, so the type is invisible.
-	BREAK                                   // The value of the `break` statement.
+	UNDEFINED_VALUE         ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
+	INT_ARRAY                                // V is an array of Golang uint32. TODO --- its only current use is a three-value enum.
+	SNIPPET_DATA                             // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
+	THUNK                                    // V is a ThunkValue which contains the address to call to evaluate the thunk and the memory location where the result ends up.
+	CREATED_THUNK_OR_CONST                   // Returned by the compiler in the typeScheme when we compile a thunk.
+	COMPILE_TIME_ERROR                       // For when we have to return a type, but what we have is a compile time error.
+	BLING                                    // Values representing e.g. the `troz` in `foo (x) troz (y)`.
+	UNSATISFIED_CONDITIONAL                  // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
+	REF                                      // A reference variable. This is always dereferenced when used, so the type is invisible.
+	BREAK                                    // The value of the `break` statement.
 
 	// The SUCCESSFUL_VALUE is visible to the user only in the REPL, it's not first-class.
 
@@ -80,7 +80,7 @@ var (
 	UNDEF = Value{UNDEFINED_VALUE, nil}
 	FALSE = Value{BOOL, false}
 	TRUE  = Value{BOOL, true}
-	U_OBJ = Value{T: UNSAT}
+	U_OBJ = Value{T: UNSATISFIED_CONDITIONAL}
 	ONE   = Value{INT, 1}
 	BLNG  = Value{BLING, "bling"}
 	OK    = Value{SUCCESSFUL_VALUE, nil}

@@ -1,6 +1,8 @@
 var
 
-z tuple = tuple 1, 2
+z tuple = tuple "a", "b"
+
+y = 1
 
 def
 
