@@ -603,10 +603,6 @@ func (cp *Compiler) vmGoTo() bkGoto {
 	return bkGoto(cp.CodeTop() - 1)
 }
 
-func (gt bkGoto) wasUsed() bool {
-	return int(gt) == DUMMY
-}
-
 type bkEarlyReturn int
 
 func (cp *Compiler) vmEarlyReturn(mLoc uint32) bkEarlyReturn {
@@ -619,10 +615,6 @@ func (cp *Compiler) vmConditionalEarlyReturn(oc Opcode, args ...uint32) bkEarlyR
 	mLoc := args[len(args)-1]
 	cp.Emit(oc, append(args[:len(args)-1], cp.CodeTop()+3)...)
 	return cp.vmEarlyReturn(mLoc)
-}
-
-func (er bkEarlyReturn) wasUsed() bool {
-	return int(er) == DUMMY
 }
 
 func (cp *Compiler) vmComeFrom(items ...any) {
@@ -1839,22 +1831,27 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	}
 
 	needsLowerBranch := len(newBindle.doneList) != len(newBindle.targetList)
-	branchBacktrack := cp.CodeTop()
+	singleTypeCheck := bkGoto(DUMMY)
+	elementOfTupleTypeCheck := bkGoto(DUMMY)
+	varargsSlurpingTupleTypeCheck := bkGoto(DUMMY)
 	if needsLowerBranch && !acceptingTuple {
 		cp.cmP("Overlap is partial: "+overlap.describe(cp.vm), b.tok)
 		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.vm), b.tok)
 		cp.cmP("Emitting type comparisons for single types.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
-		case 0: // We deal with checking the varargs further down.
+		case 0:
+			if isVarargs { // I think this has to be true at this point but it can do no harm to check.
+				varargsSlurpingTupleTypeCheck = cp.emitVarargsTypeComparisonOfTupleFromTypeName(typeName, b.valLocs[b.argNo], b.index)
+			}
 		case len(overlap):
-			cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
+			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
 		default:
 			cp.Emit(Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
-			cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
+			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
 			cp.Emit(Jmp, cp.CodeTop()+3)
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			cp.emitTypeComparisonFromTypeName(typeName, cp.That())
+			elementOfTupleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, cp.That())
 		}
 	}
 	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
@@ -1870,7 +1867,6 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		newBindle.argNo++
 		cp.cmP("Varargs time, calling generateNewArgument.", b.tok)
 		typesFromGoingAcross = cp.generateNewArgument(&newBindle)
-		cp.cmR("Returned types are "+typesFromGoingAcross.describe(cp.vm), b.tok)
 	} else {
 		var typesFromTuples AlternateType
 		var typesFromSingles AlternateType
@@ -1919,27 +1915,19 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		}
 	}
 
-	cp.cmR("Types from going across are "+typesFromGoingAcross.describe(cp.vm), b.tok)
+	cp.cmP("Types from going across are "+typesFromGoingAcross.describe(cp.vm), b.tok)
 
 	// And now we need to do the 'else' branch if there is one.
 	if needsLowerBranch && !acceptingTuple {
 		skipElse := cp.vmGoTo()
-		// We need to backtrack on whatever conditional we generated.
-		switch len(acceptedSingleTypes) {
-		case 0: // We didn't generate a backtrack --- there are no accepted single types, we must be in varargs time.
-		case len(overlap):
-			cp.vm.Code[branchBacktrack].MakeLastArg(cp.CodeTop())
-		default:
-			cp.vm.Code[branchBacktrack+1].MakeLastArg(cp.CodeTop())
-			cp.vm.Code[branchBacktrack+4].MakeLastArg(cp.CodeTop())
-		}
+		cp.vmComeFrom(singleTypeCheck, elementOfTupleTypeCheck, varargsSlurpingTupleTypeCheck)
 		// We recurse on the next branch down.
 		cp.cmP("Function generateBranch calls generateNextBranchDown.", b.tok)
 		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
 		cp.vmComeFrom(skipElse)
 	}
 	cp.cmP("We return from generateBranch.", b.tok)
-	cp.cmR("Types from going down are"+typesFromGoingDown.describe(cp.vm), b.tok)
+	cp.cmP("Types from going down are"+typesFromGoingDown.describe(cp.vm), b.tok)
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
@@ -1966,6 +1954,21 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32) bkGot
 		return cp.emitTypeComparisonFromAltType(typeRepresentation, mem)
 	}
 	panic("Now this was not meant to happen.")
+}
+
+func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString string, mem uint32, index int) bkGoto { // TODO --- more of this.
+	ty, ok := cp.TypeNameToTypeList[typeAsString]
+	if ok {
+		args := []uint32{mem, uint32(index)}
+		for _, t := range ty {
+			args = append(args, uint32(t.(simpleType)))
+		}
+		args = append(args, DUMMY)
+		cp.Emit(Qtpt, args...)
+	} else {
+		panic("Unhandled type " + text.Emph(typeAsString))
+	}
+	return bkGoto(cp.CodeTop() - 1)
 }
 
 func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32) bkGoto {
@@ -2023,7 +2026,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	args := []uint32{}
+	args := []uint32{DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
 	for _, t := range typeAsAlt {
 		args = append(args, uint32(t.(simpleType)))
 	}

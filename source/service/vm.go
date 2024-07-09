@@ -961,6 +961,23 @@ loop:
 			default:
 				loc = args[1]
 			}
+		case Qtpt:
+			slice := vm.Mem[args[0]].V.([]values.Value)[args[1]:]
+			for _, v := range slice {
+				var found bool
+				for _, t := range args[2 : len(args)-1] {
+					if v.T == values.ValueType(t) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					loc = args[len(args)-1]
+					continue loop
+				}
+			}
+			loc = loc + 1
+			continue
 		case Qtru:
 			if vm.Mem[args[0]].V.(bool) {
 				loc = loc + 1

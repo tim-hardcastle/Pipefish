@@ -193,7 +193,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.WriteString("\n")
 		hub.ers = []*report.Error{val.V.(*report.Error)}
 		if len(val.V.(*report.Error).Values) > 0 {
-			hub.WritePretty("\nValues are available with 'hub values'.\n")
+			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
 		out := serviceToUse.Mc.Literal(val)
