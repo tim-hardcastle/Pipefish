@@ -87,6 +87,45 @@ func (fl *FloatLiteral) Children() []Node       { return []Node{} }
 func (fl *FloatLiteral) GetToken() *token.Token { return &fl.Token }
 func (fl *FloatLiteral) String() string         { return fl.Token.Literal }
 
+type ForExpression struct {
+	Token            token.Token
+	BoundVariables   Node
+	Initializer      Node
+	ConditionOrRange Node
+	Update           Node
+	Body             Node
+}
+
+func (fe *ForExpression) Children() []Node {
+	return []Node{fe.BoundVariables, fe.Initializer, fe.ConditionOrRange, fe.Update}
+}
+func (fe *ForExpression) GetToken() *token.Token { return &fe.Token }
+func (fe *ForExpression) String() string {
+	var out bytes.Buffer
+	if fe.BoundVariables != nil {
+		out.WriteString("from ")
+		out.WriteString(fe.BoundVariables.String())
+		out.WriteString(" ")
+	}
+	out.WriteString("for ")
+	if fe.Initializer != nil {
+		out.WriteString(fe.Initializer.String())
+		out.WriteString("; ")
+	}
+	if fe.ConditionOrRange != nil {
+		out.WriteString(fe.ConditionOrRange.String())
+		if fe.Update != nil {
+			out.WriteString("; ")
+		}
+	}
+	if fe.Update != nil {
+		out.WriteString(fe.Update.String())
+	}
+	out.WriteString(" : ")
+	out.WriteString(fe.Body.String())
+	return out.String()
+}
+
 type FuncExpression struct {
 	Token token.Token
 	PrsrFunction

@@ -6,6 +6,7 @@ const (
 	// Keywords
 	ELSE   = "else"
 	EVAL   = "eval"
+	FOR    = "for"
 	GIVEN  = "given"
 	GLOBAL = "global"
 	GOCODE = "gocode"
@@ -96,6 +97,7 @@ var keywords = map[string]TokenType{
 	// Keywords.
 	"else":   ELSE,
 	"eval":   EVAL,
+	"for":    FOR,
 	"given":  GIVEN,
 	"gocode": GOCODE,
 	"global": GLOBAL,
@@ -105,20 +107,20 @@ var keywords = map[string]TokenType{
 	"valid":  VALID,
 
 	// Headwords.
-	"const":    CONST,
-	"external": EXTERN,
 	"cmd":      CMD,
+	"const":    CONST,
 	"def":      DEF,
+	"external": EXTERN,
 	"import":   IMPORT,
 	"lang":     LANG,
-	"private":  PRIVATE,
 	"newtype":  NEWTYPE,
+	"private":  PRIVATE,
 	"var":      VAR,
 
 	//Special operators.
 	"and": AND,
-	"or":  OR,
 	"not": NOT,
+	"or":  OR,
 	"->":  PIPE,
 	">>":  MAPPING,
 	"?>":  FILTER,

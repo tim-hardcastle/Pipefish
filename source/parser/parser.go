@@ -28,11 +28,12 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	FOR
 	SEMICOLON // semantic newline or ;
 	FUNC
 	GIVEN       // 'given'
 	MAGIC_COLON // The colon separating the parameters of an inner function from its body.
-	WEAK_COLON  // A vile kludge.
+	WEAK_COLON  // A vile kludge. TODO --- can we get rid of it now?
 	GVN_ASSIGN  //
 	LOGGING     //
 	COLON       // :
@@ -60,6 +61,7 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
+	token.FOR:       FOR,
 	token.SEMICOLON: SEMICOLON,
 	token.NEWLINE:   SEMICOLON,
 	token.GIVEN:     GIVEN,
@@ -184,7 +186,7 @@ func New() *Parser {
 		Typenames:         make(dtypes.Set[string]),
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
-			token.ASSIGN, token.GVN_ASSIGN,
+			token.ASSIGN, token.GVN_ASSIGN, token.FOR,
 			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAPPING,
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
@@ -270,40 +272,48 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	noNativePrefix := false
 
 	switch p.curToken.Type {
-	case token.INT:
-		leftExp = p.parseIntegerLiteral()
+
+	// These just need a rhs.
+	case token.EVAL, token.GLOBAL, token.XCALL:
+		leftExp = p.parsePrefixExpression()
+
+	// Remaining prefix-position token types are in alphabetical order.
+
+	case token.ELSE:
+		leftExp = p.parseElse()
+	case token.FALSE:
+		leftExp = p.parseBoolean()
 	case token.FLOAT:
 		leftExp = p.parseFloatLiteral()
+	case token.FOR:
+		p.NextToken()
+		leftExp = p.parseForExpression()
+	case token.GOCODE:
+		leftExp = p.parseGolangExpression()
+	case token.INT:
+		leftExp = p.parseIntegerLiteral()
+	case token.LBRACK:
+		leftExp = p.parseListExpression()
+	case token.LOOP:
+		leftExp = p.parseLoopExpression()
+	case token.LPAREN:
+		leftExp = p.parseGroupedExpression()
+	case token.NOT:
+		leftExp = p.parseNativePrefixExpression()
+	case token.PRELOG:
+		leftExp = p.parsePrelogExpression()
 	case token.STRING:
 		leftExp = p.parseStringLiteral()
 	case token.RUNE:
 		leftExp = p.parseRuneLiteral()
-	case token.NOT:
-		leftExp = p.parseNativePrefixExpression()
+	case token.TRUE:
+		leftExp = p.parseBoolean()
+	case token.TRY:
+		leftExp = p.parseTryExpression()
 	case token.UNWRAP:
 		leftExp = p.parseNativePrefixExpression()
 	case token.VALID:
 		leftExp = p.parseNativePrefixExpression()
-	case token.EVAL, token.GLOBAL, token.XCALL:
-		leftExp = p.parsePrefixExpression()
-	case token.LOOP:
-		leftExp = p.parseLoopExpression()
-	case token.TRUE:
-		leftExp = p.parseBoolean()
-	case token.FALSE:
-		leftExp = p.parseBoolean()
-	case token.ELSE:
-		leftExp = p.parseElse()
-	case token.LPAREN:
-		leftExp = p.parseGroupedExpression()
-	case token.LBRACK:
-		leftExp = p.parseListExpression()
-	case token.TRY:
-		leftExp = p.parseTryExpression()
-	case token.GOCODE:
-		leftExp = p.parseGolangExpression()
-	case token.PRELOG:
-		leftExp = p.parsePrelogExpression()
 	default:
 		noNativePrefix = true
 	}
@@ -320,7 +330,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	// minus sign, that would be confusing, people can use parentheses.
 	// If so, then we will parse it as though it's a Function, and it had better turn out to be a lambda at
 	// runtime. If it isn't, then we'll treat it as an identifier.
-	if noNativePrefix { // TODO -- why aren't builtin, func, and struct not native prefixes?
+	// TODO -- why aren't builtin, func, and struct not native prefixes? Possibly func and struct aren't because they're types?
+	// 'from' isn't because we want to be able to use it as an infix and 'for' may end up the same way for the same reason.
+	if noNativePrefix {
 		if p.curToken.Type == token.IDENT {
 			if p.curToken.Literal == "builtin" {
 				leftExp = p.parseBuiltInExpression()
@@ -347,6 +359,10 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				}
 				if p.curToken.Literal == "struct" {
 					leftExp = p.parseStructExpression()
+					return leftExp
+				}
+				if p.curToken.Literal == "from" {
+					leftExp = p.parseFromExpression()
 					return leftExp
 				}
 				switch {
@@ -402,6 +418,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseIfLogExpression(leftExp)
 			case p.curToken.Type == token.NAMESPACE_SEPARATOR:
 				leftExp = p.parseNamespaceExpression(leftExp)
+			case p.curToken.Type == token.FOR:
+				leftExp = p.parseForAsInfix(leftExp) // For the (usual) case where the 'for' is inside a 'from' and the leftExp is, or should be, the bound variables of the loop.
 			default:
 				leftExp = p.parseInfixExpression(leftExp)
 			}
@@ -646,6 +664,74 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 	return expression
 }
 
+func (p *Parser) parseFromExpression() ast.Node {
+	p.CurrentNamespace = nil
+	fromToken := p.curToken
+	p.NextToken()
+	expression := p.parseExpression(LOWEST)
+	if p.ErrorsExist() {
+		return nil
+	}
+	_, ok := expression.(*ast.ForExpression)
+	if ok {
+		println("ParseFrom: For expression is " + expression.String())
+		return expression
+	}
+	p.Throw("parse/from", &fromToken)
+	return nil
+}
+
+func (p *Parser) parseForAsInfix(left ast.Node) *ast.ForExpression {
+	expression := p.parseForExpression()
+	if p.ErrorsExist() {
+		return nil
+	}
+	expression.BoundVariables = left
+	return expression
+}
+
+func (p *Parser) parseForExpression() *ast.ForExpression {
+	p.CurrentNamespace = nil
+	expression := &ast.ForExpression{
+		Token: p.curToken,
+	}
+	p.NextToken()
+	pieces := p.parseExpression(FOR)
+	if p.ErrorsExist() {
+		return nil
+	}
+	switch pieces.GetToken().Type {
+	case token.COLON:
+		expression.ConditionOrRange = pieces.(*ast.LazyInfixExpression).Left
+		expression.Body = pieces.(*ast.LazyInfixExpression).Left
+	case token.SEMICOLON:
+		leftPiece := pieces.(*ast.LazyInfixExpression).Left
+		rightPiece := pieces.(*ast.LazyInfixExpression).Right
+		if leftPiece, ok := leftPiece.(*ast.LazyInfixExpression); ok {
+			if leftPiece.GetToken().Type != token.SEMICOLON {
+				p.Throw("parse/for/a", &expression.Token)
+				return nil
+			}
+			expression.Initializer = leftPiece.Left
+			expression.ConditionOrRange = leftPiece.Right
+		}
+		if rightPiece, ok := rightPiece.(*ast.LazyInfixExpression); ok {
+			if rightPiece.GetToken().Type != token.COLON {
+				p.Throw("parse/for/b", &expression.Token)
+				return nil
+			}
+			expression.Update = rightPiece.Left
+			expression.Body = rightPiece.Right
+		}
+	default:
+		p.Throw("parse/for", &expression.Token)
+		return nil
+	}
+	println("OK so far!")
+	println(pieces.String())
+	return expression
+}
+
 func (p *Parser) parsePrefixExpression() ast.Node {
 	p.CurrentNamespace = nil
 	expression := &ast.PrefixExpression{
@@ -654,7 +740,6 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 	}
 	p.NextToken()
 	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
-	//expression.Right = p.parseExpression(FPREFIX)
 	return expression
 }
 

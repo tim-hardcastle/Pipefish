@@ -1,33 +1,7 @@
-var
-
-z tuple = tuple "a", "b"
-
-w tuple = tuple 1, 2
-
-y = 1
-
 def
 
-id(x, y int) :
-    x, y
-
-fac(i int) :
-    i == 0 :
-        1
+foo(n int) :
+    true : from a = 0 for i = 1; i <= n; i + 1 :
+        a + i
     else :
-        i * fac i - 1
-
-power(a, n int) :
-    n == 0 :
-        1
-    else :
-        a * power a, n - 1
-
-flerp(x ... int) :
-    x
-
-zerp(x ... single?) :
-    x
-
-merp(x tuple) :
-    x
+        42

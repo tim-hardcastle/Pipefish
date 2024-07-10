@@ -27,13 +27,13 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.pipefish",
-				"match": "\\b(else|given|loop|break|stop|given|eval|gocode|global|true|false|and|or|not|raw|ref)\\b"
+				"match": "\\b(and|break|else|false|for|given|global|gocode|loop|not|or|raw|ref|true)\\b"
 			}]
 		},
 		"headwords": {
                         "patterns": [{
                                 "name": "constant.other.pipefish",
-                                "match": "\\b(import|external|newtype|const|def|var|cmd|private)\\b"
+                                "match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
                         }]
                 },
 		"strings": {
@@ -70,7 +70,7 @@
 			"patterns": [
 				{
 				"name": "keyword.pipefish",
-				"match": "(==|!=|=|->|\\?>|\\>>|:|::|->|;|---)"
+				"match": "(==|!=|=|->|\\?>|\\>>|:|::|->|;|---|\\.\\.\\.)"
 				}
 			]
 		},
