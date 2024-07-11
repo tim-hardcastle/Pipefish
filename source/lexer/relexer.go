@@ -26,6 +26,7 @@ var (
 	FN_REWRITE   = 1
 	FN_REWRITTEN = 2
 	ASSIGNMENT   = 3
+	FOR_REWRITE  = 4
 )
 
 type keepTrack struct {
@@ -34,18 +35,15 @@ type keepTrack struct {
 }
 
 type Relexer struct {
-	stack                    *dtypes.Stack[keepTrack]
-	source                   string
-	lexer                    Lexer
-	preTok, curTok, nexTok   token.Token
-	givenHappened            bool
-	ifLogHappened            bool
-	lparenMeansInnerFunction bool
-	innerFunctionIsHappening bool
-	nestingLevel             int
-	Errors                   report.Errors
-	funcDef                  bool
-	structDef                bool
+	stack                  *dtypes.Stack[keepTrack]
+	source                 string
+	lexer                  Lexer
+	preTok, curTok, nexTok token.Token
+	ifLogHappened          bool
+	nestingLevel           int
+	Errors                 report.Errors
+	funcDef                bool
+	structDef              bool
 }
 
 func NewRelexer(source, input string) *Relexer {
@@ -66,18 +64,17 @@ func NewRelexer(source, input string) *Relexer {
 func (rl *Relexer) NextToken() token.Token {
 	// In this we call NextSemanticToken, which, as its name implies, returns a stream from which the syntactic
 	// whitespace has been stripped.
-
 	tok := rl.NextSemanticToken()
 
 	switch tok.Type {
 	case token.ASSIGN:
 		top, ok := rl.stack.HeadValue()
-		if ok {
+		if ok && top.state == GIVEN {
 			tok.Type = token.GVN_ASSIGN
-			if top.state == GIVEN {
-				rl.stack.Push(keepTrack{state: ASSIGNMENT, depth: rl.nestingLevel})
-			}
+			rl.stack.Push(keepTrack{state: ASSIGNMENT, depth: rl.nestingLevel})
 		}
+	case token.FOR:
+		rl.stack.Push(keepTrack{state: FOR_REWRITE, depth: rl.nestingLevel})
 	case token.COLON:
 		top, ok := rl.stack.HeadValue()
 		if ok && top.state == FN_REWRITE {
@@ -88,6 +85,9 @@ func (rl *Relexer) NextToken() token.Token {
 		if rl.nexTok.Type == token.LOG {
 			rl.nexTok.Type = token.PRELOG
 		}
+		if ok && top.state == FOR_REWRITE && top.depth == rl.nestingLevel {
+			rl.stack.Pop()
+		}
 	case token.LPAREN:
 		if tok.Literal == token.LPAREN {
 			top, ok := rl.stack.HeadValue()
@@ -97,6 +97,10 @@ func (rl *Relexer) NextToken() token.Token {
 		}
 	case token.GIVEN:
 		rl.stack.Push(keepTrack{GIVEN, rl.nestingLevel})
+	case token.SEMICOLON:
+		if top, ok := rl.stack.HeadValue(); ok && top.state == FOR_REWRITE && top.depth == rl.nestingLevel {
+			tok.Type = token.MAGIC_SEMICOLON
+		}
 	}
 
 	for {

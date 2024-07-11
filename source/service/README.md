@@ -2,7 +2,7 @@
 
 ## Overview
 
-This package consists of three systems which unfortunately all need to be able to see one another. It is therefore something of a tnagled web.
+This package consists of three systems which unfortunately all need to be able to see one another. It is therefore something of a tangled web.
 
 It can be divided into:
 
@@ -14,7 +14,7 @@ The two files are separate for historical reasons and could be condensed into on
 
 (C) The vm, as implemented by the `vm`, `descriptors`, `iohandler`, `operations`, `snap`, and `SQL` files.
 
-Obviously (A) has to be able to see (B) and (B) has to be able to see (C). But also in order to make use of external services the VM needs to be able to see the compiler, and in order to launch needed external dependencies at runtime the compiler needs to be able to see the initializer. Hence this tangled web.
+Obviously (A) has to be able to see (B) and (B) has to be able to see (C). But also in order to make use of external services the VM needs to be able to see the compiler, and in order to launch needed external dependencies at runtime the compiler needs to be able to see the initializer. Hence the tangled web.
 
 ## Notes on the vm.
 

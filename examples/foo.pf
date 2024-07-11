@@ -1,7 +1,7 @@
 def
 
 foo(n int) :
-    true : from a = 0 for i = 1; i <= n; i + 1 :
-        a + i
-    else :
-        42
+    from a = 0 for i = 1; i <= n; i + 1 :
+        a + i 
+
+

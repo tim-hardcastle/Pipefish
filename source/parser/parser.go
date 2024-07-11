@@ -28,60 +28,61 @@ import (
 const (
 	_ int = iota
 	LOWEST
-	FOR
 	SEMICOLON // semantic newline or ;
 	FUNC
-	GIVEN       // 'given'
-	MAGIC_COLON // The colon separating the parameters of an inner function from its body.
-	WEAK_COLON  // A vile kludge. TODO --- can we get rid of it now?
-	GVN_ASSIGN  //
-	LOGGING     //
-	COLON       // :
-	ASSIGN      // =
-	PIPING      // ->, >>, ?>
-	OR          // or
-	AND         // and
-	NOT         // not
-	EQUALS      // == or !=
-	LESSGREATER // > or < or <= or >=
-	WEAK_COMMA  // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
-	FPREFIX     // user-defined prefix or function
-	FMIDFIX     // user-defined midfix or forefix
-	FENDFIX     // user-defined endfix
-	COMMA       // ,
-	WITH        // with, but ONLY when peeking ahead, otherwise it's an FMIDFIX
-	FINFIX      // user-defined infix or ->
-	SUM         // + or -
-	PRODUCT     // * or / or %
-	FSUFFIX     // user-defined suffix, or type in type declaration
-	MINUS       //  - as a prefix
-	INDEX       // after [
+	GIVEN           // 'given'
+	MAGIC_COLON     // The colon separating the parameters of an inner function from its body.
+	WEAK_COLON      // A vile kludge. TODO --- can we get rid of it now?
+	GVN_ASSIGN      //
+	LOGGING         //
+	COLON           // :
+	MAGIC_SEMICOLON // For use in headers of 'for' blocks.
+	ASSIGN          // =
+	PIPING          // ->, >>, ?>
+	OR              // or
+	AND             // and
+	NOT             // not
+	EQUALS          // == or !=
+	LESSGREATER     // > or < or <= or >=
+	WEAK_COMMA      // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
+	FPREFIX         // user-defined prefix or function
+	FMIDFIX         // user-defined midfix or forefix
+	FENDFIX         // user-defined endfix
+	COMMA           // ,
+	WITH            // with, but ONLY when peeking ahead, otherwise it's an FMIDFIX
+	FINFIX          // user-defined infix or ->
+	SUM             // + or -
+	PRODUCT         // * or / or %
+	FSUFFIX         // user-defined suffix, or type in type declaration
+	MINUS           //  - as a prefix
+	INDEX           // after [
 	BELOW_NAMESPACE
 	NAMESPACE // 'foo.bar'
 )
 
 var precedences = map[token.TokenType]int{
-	token.FOR:       FOR,
 	token.SEMICOLON: SEMICOLON,
 	token.NEWLINE:   SEMICOLON,
 	token.GIVEN:     GIVEN,
 	token.LOOP:      GIVEN,
 	// WEAK_COLON
-	token.GVN_ASSIGN:  GVN_ASSIGN,
-	token.LOG:         LOGGING,
-	token.IFLOG:       LOGGING,
-	token.PRELOG:      LOGGING,
-	token.MAGIC_COLON: COLON,
-	token.COLON:       COLON,
-	token.ASSIGN:      ASSIGN,
-	token.PIPE:        PIPING,
-	token.MAPPING:     PIPING,
-	token.FILTER:      PIPING,
-	token.OR:          OR,
-	token.AND:         AND,
-	token.NOT:         NOT,
-	token.EQ:          EQUALS,
-	token.NOT_EQ:      EQUALS,
+	token.GVN_ASSIGN:      GVN_ASSIGN,
+	token.LOG:             LOGGING,
+	token.IFLOG:           LOGGING,
+	token.PRELOG:          LOGGING,
+	token.MAGIC_COLON:     COLON,
+	token.COLON:           COLON,
+	token.FOR:             GIVEN,
+	token.MAGIC_SEMICOLON: MAGIC_SEMICOLON,
+	token.ASSIGN:          ASSIGN,
+	token.PIPE:            PIPING,
+	token.MAPPING:         PIPING,
+	token.FILTER:          PIPING,
+	token.OR:              OR,
+	token.AND:             AND,
+	token.NOT:             NOT,
+	token.EQ:              EQUALS,
+	token.NOT_EQ:          EQUALS,
 	// LESSGREATER
 	token.WEAK_COMMA: WEAK_COMMA,
 	token.VALID:      FPREFIX,
@@ -185,9 +186,8 @@ func New() *Parser {
 		Bling:             make(dtypes.Set[string]),
 		Typenames:         make(dtypes.Set[string]),
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
-			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA,
-			token.ASSIGN, token.GVN_ASSIGN, token.FOR,
-			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.PIPE, token.MAPPING,
+			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
+			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
@@ -674,7 +674,6 @@ func (p *Parser) parseFromExpression() ast.Node {
 	}
 	_, ok := expression.(*ast.ForExpression)
 	if ok {
-		println("ParseFrom: For expression is " + expression.String())
 		return expression
 	}
 	p.Throw("parse/from", &fromToken)
@@ -696,39 +695,31 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 		Token: p.curToken,
 	}
 	p.NextToken()
-	pieces := p.parseExpression(FOR)
+	pieces := p.parseExpression(GIVEN)
 	if p.ErrorsExist() {
 		return nil
 	}
-	switch pieces.GetToken().Type {
-	case token.COLON:
-		expression.ConditionOrRange = pieces.(*ast.LazyInfixExpression).Left
-		expression.Body = pieces.(*ast.LazyInfixExpression).Left
-	case token.SEMICOLON:
-		leftPiece := pieces.(*ast.LazyInfixExpression).Left
-		rightPiece := pieces.(*ast.LazyInfixExpression).Right
-		if leftPiece, ok := leftPiece.(*ast.LazyInfixExpression); ok {
-			if leftPiece.GetToken().Type != token.SEMICOLON {
+	if pieces.GetToken().Type == token.COLON {
+		expression.Body = pieces.(*ast.LazyInfixExpression).Right
+		header := pieces.(*ast.LazyInfixExpression).Left
+		if header.GetToken().Type == token.MAGIC_SEMICOLON { // If it has one, it should have two.
+			leftBitOfHeader := header.(*ast.InfixExpression).Args[0]
+			rightBitOfHeader := header.(*ast.InfixExpression).Args[2]
+			if leftBitOfHeader.GetToken().Type == token.MAGIC_SEMICOLON {
+				expression.Initializer = leftBitOfHeader.(*ast.InfixExpression).Args[0]
+				expression.ConditionOrRange = leftBitOfHeader.(*ast.InfixExpression).Args[2]
+				expression.Update = rightBitOfHeader
+			} else {
 				p.Throw("parse/for/a", &expression.Token)
 				return nil
 			}
-			expression.Initializer = leftPiece.Left
-			expression.ConditionOrRange = leftPiece.Right
+		} else {
+			expression.ConditionOrRange = header
 		}
-		if rightPiece, ok := rightPiece.(*ast.LazyInfixExpression); ok {
-			if rightPiece.GetToken().Type != token.COLON {
-				p.Throw("parse/for/b", &expression.Token)
-				return nil
-			}
-			expression.Update = rightPiece.Left
-			expression.Body = rightPiece.Right
-		}
-	default:
-		p.Throw("parse/for", &expression.Token)
+	} else {
+		p.Throw("parse/for/b", &expression.Token)
 		return nil
 	}
-	println("OK so far!")
-	println(pieces.String())
 	return expression
 }
 

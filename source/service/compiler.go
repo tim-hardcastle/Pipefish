@@ -752,6 +752,10 @@ NodeTypeSwitch:
 		cp.Reserve(values.FLOAT, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
 		break
+	case *ast.ForExpression:
+		// rtnTypes = cp.compileForExpression()
+		rtnConst = false // If anyone misses out on an optimization because they manage to write a constant for loop this should if anything be a warning rather than an oportunity for optimization.
+		break
 	case *ast.FuncExpression:
 		cp.compileLambda(env, node, node.GetToken())
 		rtnTypes = AltType(values.FUNC) // In the case where the function is a constant (i.e. has no captures), the compileLambda function will emit an assignment rather than a lambda factory.)

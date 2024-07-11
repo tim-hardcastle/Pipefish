@@ -70,18 +70,19 @@ const (
 	TRUE  = "true"
 
 	// For internal use.
-	BEGIN       = "BEGIN"
-	BUILTIN     = "BUILTIN"
-	END         = "END"
-	EOF         = "EOF"
-	IFLOG       = "IFLOG"
-	ILLEGAL     = "ILLEGAL"
-	LOG         = "LOG"
-	MAGIC_COLON = "MAGIC COLON"
-	NO_INDENT   = "|||"
-	PRELOG      = "PRELOG"
-	WEAK_COMMA  = ",,"
-	XCALL       = "XCALL"
+	BEGIN           = "BEGIN"           // What we turn an indent into.
+	BUILTIN         = "BUILTIN"         // Used in the 'builtins.pf' file to supply hoods to the builtings.
+	END             = "END"             // What we turn an outdent into.
+	EOF             = "EOF"             // End of file.
+	IFLOG           = "IFLOG"           // What the relexer turns ': \\' into.
+	ILLEGAL         = "ILLEGAL"         // The type for the lexer to return when it is perp-lexed.
+	LOG             = "LOG"             // What we turn \\ into.
+	MAGIC_COLON     = "MAGIC COLON"     // What the relexer turns a colon into when it comes after the signature of an inner function.
+	MAGIC_SEMICOLON = "MAGIC_SEMICOLON" // What the semicolons in C-like for loops get turned into by the relexer.
+	NO_INDENT       = "|||"             // What we turn whitespace into when it isn't a new indent or outdent.
+	PRELOG          = "PRELOG"          // What we turn \\ into when it's the first thing after the function signature.
+	WEAK_COMMA      = ",,"              // What we turn commas after type names into in function signatures.
+	XCALL           = "XCALL"           // Used in generated code to supply hooks to the external calls.
 )
 
 type Token struct {
