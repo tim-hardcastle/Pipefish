@@ -855,6 +855,13 @@ loop:
 			}
 			loc = args[len(args)-1]
 			continue
+		case Qfls:
+			if vm.Mem[args[0]].V.(bool) {
+				loc = args[1]
+			} else {
+				loc = loc + 1
+			}
+			continue
 		case QleT:
 			if len(vm.Mem[args[0]].V.([]values.Value)) <= int(args[1]) {
 				loc = loc + 1

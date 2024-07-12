@@ -21,6 +21,8 @@ const (
 	VERY_LOCAL_CONSTANT     // i.e. 'that' when constant
 	VERY_LOCAL_VARIABLE     // i.e. 'that' when variable
 	UNDEFINED_THIS_VARIABLE // When 'this' hasn't been defined because we haven't finished compiling the lambda.
+	FOR_LOOP_BOUND_VARIABLE
+	FOR_LOOP_INDEX_VARIABLE
 )
 
 // Update with:

@@ -474,6 +474,153 @@ func (cp *Compiler) getPartsOfGiven(given ast.Node, ctxt context) []ast.Node {
 	return result
 }
 
+type loopFlavor int
+
+const (
+	UNDEFINED_LOOP_FLAVOR loopFlavor = iota
+	TRIPARTITE
+	WHILE
+	RANGE
+)
+
+func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) AlternateType {
+	tok := &node.Token
+	cp.cm("Called compileForExpression", tok)
+	// We have three cases.
+	// (i) The 'for' loop has a C-like tripartite header.
+	// (ii) The 'for' loop is acting as a 'while' loop and so just has a conditional.
+	// (iii) The 'for' loop is of the form x::y = range z
+
+	// The 'flavor' flag allows us to keep track of what we're doing
+	flavor := UNDEFINED_LOOP_FLAVOR
+	hasBoundVariables := false
+
+	// The parser so far has only broken the header up into its parts, but has not validated
+	// that they're in the proper form.
+
+	newEnv := &Environment{map[string]variable{}, ctxt.env}
+	newContext := ctxt.x()
+	newContext.env = newEnv
+
+	// First we set up the bound variables.
+
+	boundResultLoc := uint32(DUMMY)
+	indexResultLoc := uint32(DUMMY)
+	var boundSig, initSig ast.AstSig
+	var boundVariableTypes, indexVariableTypes AlternateType
+
+	if node.BoundVariables == nil {
+		if ctxt.ac != CMD && ctxt.ac != REPL {
+			cp.P.Throw("cp/for/bound/a", &node.Token)
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		cp.Reserve(values.UNDEFINED_VALUE, nil, node.BoundVariables.GetToken()) // If we don't have any bound variables, then this is presumptively an imperative loop and we'll need somewhere to put OK/break/error still.
+		boundResultLoc = cp.That()
+	} else {
+		hasBoundVariables = true
+		// We set up the bound variables. Note that type checking happens *inside* the 'for' loop, not up here.
+		if node.BoundVariables.GetToken().Type != token.ASSIGN {
+			cp.P.Throw("cp/for/bound/b", &node.Token)
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		lhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Left
+		rhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Right
+		boundSig, err := cp.P.RecursivelySlurpSignature(lhsOfBoundVariables, "*default*")
+		if err != nil {
+			cp.P.Throw("comp/for/bound/c", node.BoundVariables.GetToken())
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		boundVariableTypes, _ = cp.CompileNode(rhsOfBoundVariables, ctxt)
+		for i, pair := range boundSig {
+			_, exists := newEnv.getVar(pair.VarName)
+			if exists {
+				cp.P.Throw("comp/for/bound/exists", node.BoundVariables.GetToken())
+				return altType(values.COMPILE_TIME_ERROR)
+			}
+			cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
+			if pair.VarType == "*default*" {
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, typesAtIndex(boundVariableTypes, i), tok)
+			} else {
+				sigTypes := cp.TypeNameToTypeList[pair.VarType]
+				overlap := sigTypes.intersect(typesAtIndex(boundVariableTypes, i))
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, overlap, tok)
+			}
+		}
+	}
+
+	// Now the variables for the header, if any.
+
+	if node.Initializer != nil { // Then we have a C-like tripartite header.
+		flavor = TRIPARTITE
+		// For the initializer we have to do something very un-DRYly like what we just did with the bound variables; TODO ---
+		// is there any way to DRY it up that doesn't obfuscate the code?
+		if node.Initializer.GetToken().Type != token.ASSIGN {
+			cp.P.Throw("cp/for/init/a", &node.Token)
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		lhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Left
+		rhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Right
+		initSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, "*default*")
+		if err != nil {
+			cp.P.Throw("comp/for/init/b", node.Initializer.GetToken())
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		indexVariableTypes, _ = cp.CompileNode(rhsOfInitVariables, ctxt)
+		indexResultLoc = cp.That()
+		for i, pair := range initSig {
+			_, exists := newEnv.getVar(pair.VarName)
+			if exists {
+				cp.P.Throw("comp/for/index/exists", node.Initializer.GetToken())
+				return altType(values.COMPILE_TIME_ERROR)
+			}
+			cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
+			if pair.VarType == "*default*" {
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, typesAtIndex(indexVariableTypes, i), tok)
+			} else {
+				sigTypes := cp.TypeNameToTypeList[pair.VarType]
+				overlap := sigTypes.intersect(typesAtIndex(indexVariableTypes, i))
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, overlap, tok)
+			}
+		}
+		// Then this will emit the type checks and pour the boundResultLoc into the variables we just created.
+
+	} else { // Else we're in case (ii) or (iii), and we should first find out which.
+
+	}
+	conditionalFails := bkEarlyReturn(DUMMY)
+	startOfForLoop := cp.CodeTop()
+
+	// Typechecking happens here:
+
+	if hasBoundVariables {
+		cp.emitTypeChecks(boundResultLoc, boundVariableTypes, newEnv, boundSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_BOUND_VARIABLE))
+	}
+	if flavor == TRIPARTITE {
+		cp.emitTypeChecks(indexResultLoc, indexVariableTypes, newEnv, initSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_INDEX_VARIABLE))
+
+	}
+	// The conditional for ending the loop, according to the flavor of the loop.
+	if flavor == TRIPARTITE || flavor == WHILE {
+		cp.CompileNode(node.ConditionOrRange, newContext)
+		conditionalFails = cp.vmConditionalEarlyReturn(Qtru, cp.That())
+	}
+	// Now we get to emit the loop body, which is the same whatever the flavor of loop.
+	rtnTypes, _ := cp.CompileNode(node.Body, newContext)
+	cp.Emit(Asgm, boundResultLoc, cp.That())
+	// And then the iterator, which again differs according to the flavor.
+	if flavor == TRIPARTITE {
+		cp.CompileNode(node.Update, newContext)
+		cp.Emit(Asgm, indexResultLoc, cp.That())
+	}
+	// And we jump to the start of the loop.
+	cp.Emit(Jmp, startOfForLoop)
+	// When we break out of the loop, we just need to put the result (in the bound variables) on top of memory.
+	cp.put(Asgm, boundResultLoc)
+	cp.vmComeFrom(conditionalFails)
+
+	return rtnTypes
+}
+
 func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, tok *token.Token) {
 	LF := &LambdaFactory{Model: &Lambda{}}
 	newEnv := NewEnvironment()
@@ -753,7 +900,7 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
 		break
 	case *ast.ForExpression:
-		// rtnTypes = cp.compileForExpression()
+		rtnTypes = cp.compileForExpression(node, ctxt)
 		rtnConst = false // If anyone misses out on an optimization because they manage to write a constant for loop this should if anything be a warning rather than an oportunity for optimization.
 		break
 	case *ast.FuncExpression:
@@ -2254,9 +2401,12 @@ func (cp *Compiler) emitCallOpcode(funcNumber uint32, valLocs []uint32) {
 // has its own problems. I should have written a Lisp in Lisp, I'd have been finished in half-an-hour.
 type typeCheckFlavor int
 
+// At present, the only three of these we actually switch on are CHECK_RETURN_TYPES, CHECK_GLOCBAL_ASSIGNMENTS, and CHECK_LAMBDA_PARAMETERS.
+// The others are just meaningful ways of saying "none of the above".
 const (
 	CHECK_RETURN_TYPES typeCheckFlavor = iota
 	CHECK_GIVEN_ASSIGNMENTS
+	CHECK_BOUND_VARIABLE_ASSIGNMENTS
 	CHECK_INITIALIZATION_ASSIGNMENTS
 	CHECK_LAMBDA_PARAMETERS
 	CHECK_LOCAL_CMD_ASSIGNMENTS // Note that in the case of multiple assignment, just one global
@@ -2264,14 +2414,14 @@ const (
 )
 
 // We take (a location of) a single or tuple, the type as an AlternateType, a signature, an environment, a token, and a
-// flag `insert` which says whether the sig contains names we should be inserting the tuple elements into or is just a return
-// type signature in which case there will be no names and we can leave them as they are.
+// 'flavor' which says what exactly we're doing and in particular whether the sig contains names we should be inserting the tuple
+// elements into or is just a return type signature in which case there will be no names and we can leave them as they are.
 // We generate code which emits as much type-checking as is necessary given the fit of the signature to the AlternateType,
 // and which inserts the values of the tuple into the variables specified in the signature.
 // If the types cannot fit the sig we should of course emit a compile-time error. If they *may* not fit the sig, the runtime
 // equivalent is to fill the parameters up with an error value generated from the token.
 // If the sig is of an assignment in a command or a given block, then this is in fact all that needs to be done. If it's a
-// lambda, then the rest of the code in the lambda can then reurn an error if passed one.
+// lambda, then the rest of the code in the lambda can then return an error if passed one.
 func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, flavor typeCheckFlavor) bkEarlyReturn {
 	cp.cm("Emit type checks", tok)
 	// The insert variable says whether we're just doing a typecheck against the sig or whether we're inserting values into variables.
