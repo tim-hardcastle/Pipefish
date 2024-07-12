@@ -506,7 +506,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 
 	boundResultLoc := uint32(DUMMY)
 	indexResultLoc := uint32(DUMMY)
-	var boundSig, initSig ast.AstSig
+	var boundCpSig, indexCpSig cpSig
 	var boundVariableTypes, indexVariableTypes AlternateType
 
 	if node.BoundVariables == nil {
@@ -530,7 +530,12 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			cp.P.Throw("comp/for/bound/c", node.BoundVariables.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
+		cp.cm("Finding intitial values of bound variables", tok)
 		boundVariableTypes, _ = cp.CompileNode(rhsOfBoundVariables, ctxt)
+		boundResultLoc = cp.That()
+		if cp.P.ErrorsExist() {
+			return altType(values.COMPILE_TIME_ERROR)
+		}
 		for i, pair := range boundSig {
 			_, exists := newEnv.getVar(pair.VarName)
 			if exists {
@@ -539,11 +544,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			}
 			cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
 			if pair.VarType == "*default*" {
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, typesAtIndex(boundVariableTypes, i), tok)
+				types := typesAtIndex(boundVariableTypes, i)
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
+				boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
 			} else {
 				sigTypes := cp.TypeNameToTypeList[pair.VarType]
 				overlap := sigTypes.intersect(typesAtIndex(boundVariableTypes, i))
 				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, overlap, tok)
+				boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, overlap})
 			}
 		}
 	}
@@ -560,14 +568,18 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 		}
 		lhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Left
 		rhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Right
-		initSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, "*default*")
+		indexSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, "*default*")
 		if err != nil {
 			cp.P.Throw("comp/for/init/b", node.Initializer.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
+		cp.cm("Finding intitial values of index variables", tok)
 		indexVariableTypes, _ = cp.CompileNode(rhsOfInitVariables, ctxt)
 		indexResultLoc = cp.That()
-		for i, pair := range initSig {
+		if cp.P.ErrorsExist() {
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		for i, pair := range indexSig {
 			_, exists := newEnv.getVar(pair.VarName)
 			if exists {
 				cp.P.Throw("comp/for/index/exists", node.Initializer.GetToken())
@@ -575,11 +587,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			}
 			cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
 			if pair.VarType == "*default*" {
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, typesAtIndex(indexVariableTypes, i), tok)
+				types := typesAtIndex(indexVariableTypes, i)
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
+				indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
 			} else {
 				sigTypes := cp.TypeNameToTypeList[pair.VarType]
 				overlap := sigTypes.intersect(typesAtIndex(indexVariableTypes, i))
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, overlap, tok)
+				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, overlap, tok)
+				indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, overlap})
 			}
 		}
 		// Then this will emit the type checks and pour the boundResultLoc into the variables we just created.
@@ -593,28 +608,45 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	// Typechecking happens here:
 
 	if hasBoundVariables {
-		cp.emitTypeChecks(boundResultLoc, boundVariableTypes, newEnv, boundSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_BOUND_VARIABLE))
+		cp.cm("Typechecking bound variable result and putting it into bound variables.", tok)
+		cp.emitTypeChecks(boundResultLoc, boundVariableTypes, newEnv, boundCpSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_BOUND_VARIABLE))
 	}
 	if flavor == TRIPARTITE {
-		cp.emitTypeChecks(indexResultLoc, indexVariableTypes, newEnv, initSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_INDEX_VARIABLE))
+		cp.cm("Typechecking index variable result and putting it into index variables.", tok)
+		cp.emitTypeChecks(indexResultLoc, indexVariableTypes, newEnv, indexCpSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_INDEX_VARIABLE))
 
 	}
 	// The conditional for ending the loop, according to the flavor of the loop.
 	if flavor == TRIPARTITE || flavor == WHILE {
+		cp.cm("Compiling conditional.", tok)
 		cp.CompileNode(node.ConditionOrRange, newContext)
-		conditionalFails = cp.vmConditionalEarlyReturn(Qtru, cp.That())
+		println("node.ConditionOrRange is", node.ConditionOrRange.String())
+		if cp.P.ErrorsExist() {
+			return altType(values.COMPILE_TIME_ERROR)
+		}
+		conditionalFails = cp.vmConditionalEarlyReturn(Qfls, cp.That())
 	}
 	// Now we get to emit the loop body, which is the same whatever the flavor of loop.
+	cp.cm("Compiling loop body.", tok)
 	rtnTypes, _ := cp.CompileNode(node.Body, newContext)
+	if cp.P.ErrorsExist() {
+		return altType(values.COMPILE_TIME_ERROR)
+	}
 	cp.Emit(Asgm, boundResultLoc, cp.That())
 	// And then the iterator, which again differs according to the flavor.
 	if flavor == TRIPARTITE {
+		cp.cm("Compiling iterator for loop with tripartite header.", tok)
 		cp.CompileNode(node.Update, newContext)
+		if cp.P.ErrorsExist() {
+			return altType(values.COMPILE_TIME_ERROR)
+		}
 		cp.Emit(Asgm, indexResultLoc, cp.That())
 	}
 	// And we jump to the start of the loop.
+	cp.cm("Jumping to start of loop again.", tok)
 	cp.Emit(Jmp, startOfForLoop)
 	// When we break out of the loop, we just need to put the result (in the bound variables) on top of memory.
+	cp.cm("Putting result on top of memory.", tok)
 	cp.put(Asgm, boundResultLoc)
 	cp.vmComeFrom(conditionalFails)
 
@@ -635,7 +667,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	for _, pair := range sig {
 		params.Add(pair.VarName)
 		if pair.VarType == "single?" {
-			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY})
+			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
 			checkNeeded = true
 			LF.Model.sig = append(LF.Model.sig, cp.TypeNameToTypeList[pair.VarType].ToAbstractType())
