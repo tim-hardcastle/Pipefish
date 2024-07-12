@@ -600,7 +600,11 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 		// Then this will emit the type checks and pour the boundResultLoc into the variables we just created.
 
 	} else { // Else we're in case (ii) or (iii), and we should first find out which.
+		if node.ConditionOrRange.GetToken().Type == token.ASSIGN { // Then we may have a 'range' expression, which we can deconstruct.
 
+		} else {
+			flavor = WHILE
+		}
 	}
 	conditionalFails := bkEarlyReturn(DUMMY)
 	startOfForLoop := cp.CodeTop()
@@ -620,11 +624,10 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	if flavor == TRIPARTITE || flavor == WHILE {
 		cp.cm("Compiling conditional.", tok)
 		cp.CompileNode(node.ConditionOrRange, newContext)
-		println("node.ConditionOrRange is", node.ConditionOrRange.String())
 		if cp.P.ErrorsExist() {
 			return altType(values.COMPILE_TIME_ERROR)
 		}
-		conditionalFails = cp.vmConditionalEarlyReturn(Qfls, cp.That())
+		conditionalFails = cp.vmConditionalEarlyReturn(Qfls, cp.That(), boundResultLoc)
 	}
 	// Now we get to emit the loop body, which is the same whatever the flavor of loop.
 	cp.cm("Compiling loop body.", tok)

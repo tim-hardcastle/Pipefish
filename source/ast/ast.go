@@ -97,7 +97,7 @@ type ForExpression struct {
 }
 
 func (fe *ForExpression) Children() []Node {
-	return []Node{fe.BoundVariables, fe.Initializer, fe.ConditionOrRange, fe.Update}
+	return []Node{fe.BoundVariables, fe.Initializer, fe.ConditionOrRange, fe.Update, fe.Body}
 }
 func (fe *ForExpression) GetToken() *token.Token { return &fe.Token }
 func (fe *ForExpression) String() string {
@@ -563,6 +563,8 @@ func GetPrefixes(n Node) dtypes.Set[string] {
 func ExtractAllNames(node Node) dtypes.Set[string] {
 	result := dtypes.Set[string]{}
 	switch n := node.(type) {
+	case nil:
+		return result
 	case *PrefixExpression:
 		for _, v := range n.Children() {
 			result.AddSet(ExtractAllNames(v))
