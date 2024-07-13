@@ -75,6 +75,21 @@ func (node *setNode) shallowClone() *setNode {
 	}
 }
 
+func (pm Set) AsSlice() []Value {
+	return pm.root.toSlice()
+}
+
+func (node *setNode) toSlice() []Value {
+	if node == nil {
+		return []Value{}
+	}
+	lhs := node.left.toSlice()
+	lhs = append(lhs, node.element)
+	rhs := node.right.toSlice()
+	lhs = append(lhs, rhs...)
+	return lhs
+}
+
 func (node *setNode) forEach(f func(element Value)) {
 	if node == nil {
 		return

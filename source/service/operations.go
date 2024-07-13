@@ -147,6 +147,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	InxT: {"inxT", operands{dst, mem, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
+	Itgk: {"itgk", operands{dst, mem}},
+	Itkv: {"itgv", operands{dst, dst, mem}},
+	Itgv: {"itgv", operands{dst, mem}},
 	Itor: {"itor", operands{dst, mem}},
 	IxXx: {"ixXx", operands{dst, mem, mem, tok}},
 	Jmp:  {"jmp", operands{loc}},
@@ -166,6 +169,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Logy: {"logy", operands{}},
 	Mker: {"mker", operands{dst, mem, tok}},
 	Mkfn: {"mkfn", operands{dst, lfc}},
+	Mkit: {"mkit", operands{dst, mem, num, tok}}, // the num is 0 or 1 according to whether the iterator doesn't or does only return keys.
 	Mkmp: {"mkmp", operands{dst, mem, tok}},
 	Mkpr: {"mkpr", operands{dst, mem, mem}},
 	MkSn: {"mkSn", operands{dst, sfc}},
@@ -182,6 +186,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Psnp: {"psnp", operands{dst, mem}},
 	Qabt: {"qabt", operands{mem, tup, loc}},
 	Qfls: {"qfls", operands{mem, loc}},
+	Qitr: {"qitr", operands{mem, loc}},
 	QleT: {"qleT", operands{mem, num, loc}},
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
@@ -203,6 +208,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Ret:  {"ret", operands{}},
 	Rpop: {"rpop", operands{}},
 	Rpsh: {"rpsh", operands{num, num}},
+	Rsit: {"rsit", operands{dst}},
 	SliL: {"sliL", operands{dst, mem, mem, tok}},
 	Slis: {"slis", operands{dst, mem, mem, tok}},
 	SliT: {"sliT", operands{dst, mem, mem, tok}},
@@ -294,6 +300,7 @@ const (
 	Idxs
 	Idxt
 	IdxT
+
 	Inpt
 	InxL
 	InxS
@@ -301,6 +308,9 @@ const (
 	InxT
 	Ints
 	Intf
+	Itgk
+	Itkv
+	Itgv
 	Itor
 	IxTn
 	IxXx
@@ -323,6 +333,7 @@ const (
 	Logy
 	Mker
 	Mkfn
+	Mkit
 	Mkmp
 	Mkpr
 	Mkst
@@ -339,6 +350,7 @@ const (
 	Psnp
 	Qabt
 	Qfls
+	Qitr
 	QleT
 	QlnT
 	Qlog
@@ -360,6 +372,7 @@ const (
 	Ret
 	Rpop
 	Rpsh
+	Rsit
 	SliL
 	Slis
 	SliT

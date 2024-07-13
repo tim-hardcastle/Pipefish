@@ -120,7 +120,7 @@ var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U
 // Type names in upper case are things the user should never see.
 var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
 	"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
-	"BREAK", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
+	"BREAK", "ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label"}
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
@@ -527,6 +527,12 @@ loop:
 					vm.Mem[args[0]] = values.Value{values.BOOL, true}
 				}
 			}
+		case Itgk:
+			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Iterator).GetKey()
+		case Itkv:
+			vm.Mem[args[0]], vm.Mem[args[1]] = vm.Mem[args[1]].V.(values.Iterator).GetKeyValuePair()
+		case Itgv:
+			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Iterator).GetValue()
 		case Itor:
 			vm.Mem[args[0]] = values.Value{values.RUNE, rune(vm.Mem[args[1]].V.(int))}
 		case IxTn:
@@ -647,7 +653,7 @@ loop:
 				}
 				typ := abTyp.Types[0]
 				if !vm.concreteTypes[typ].isEnum() {
-					vm.Mem[args[0]] = vm.makeError("vm/index/n", args[3])
+					vm.Mem[args[0]] = vm.makeError("vm/index/o", args[3])
 					break
 				}
 				ix := index.V.(int)
@@ -655,10 +661,10 @@ loop:
 				if ok {
 					vm.Mem[args[0]] = values.Value{typ, ix}
 				} else {
-					vm.Mem[args[0]] = vm.makeError("vm/index/o", args[3])
+					vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3])
 				}
 			default:
-				vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3], vm.DescribeType(vm.Mem[args[1]].T))
+				vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T))
 			}
 		case IxZl:
 			typeInfo := vm.concreteTypes[vm.Mem[args[1]].T].(structType)
@@ -732,6 +738,8 @@ loop:
 				newLambda.captures[i] = val
 			}
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
+		case Mkit:
+			vm.Mem[args[0]] = vm.NewIterator(vm.Mem[args[1]], args[2] == 1, args[3])
 		case Mkmp:
 			result := &values.Map{}
 			for _, p := range vm.Mem[args[1]].V.([]values.Value) {
@@ -860,6 +868,13 @@ loop:
 				loc = args[1]
 			} else {
 				loc = loc + 1
+			}
+			continue
+		case Qitr:
+			if vm.Mem[args[0]].V.(values.Iterator).Unfinished() {
+				loc = loc + 1
+			} else {
+				loc = args[1]
 			}
 			continue
 		case QleT:
@@ -1029,6 +1044,8 @@ loop:
 			memToSave := make([]values.Value, highLoc-lowLoc)
 			copy(memToSave, vm.Mem[lowLoc:highLoc])
 			vm.recursionStack = append(vm.recursionStack, recursionData{memToSave, lowLoc})
+		case Rsit:
+			vm.Mem[args[0]].V.(values.Iterator).Reset()
 		case SliL:
 			vec := vm.Mem[args[1]].V.(vector.Vector)
 			ix := vm.Mem[args[2]].V.([]values.Value)
@@ -1648,6 +1665,9 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 		} else {
 			return values.Value{values.ITERATOR, values.ListIterator{VecIt: container.V.(vector.Vector).Iterator()}}
 		}
+	case values.MAP:
+		mapAsSlice := container.V.(*values.Map).AsSlice()
+		return values.Value{values.ITERATOR, values.MapIterator{KVPairs: mapAsSlice, Len: len(mapAsSlice)}}
 	case values.PAIR:
 		pair := container.V.([]values.Value)
 		left := pair[0]
@@ -1658,15 +1678,39 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 		leftV := left.V.(int)
 		rightV := right.V.(int)
 		if leftV <= rightV {
-			return values.Value{values.ITERATOR, values.IncIterator{Max: rightV, Pos: leftV}}
+			return values.Value{values.ITERATOR, values.IncIterator{MaxVal: rightV, Pos: leftV}}
 		} else {
-			return values.Value{values.ITERATOR, values.DecIterator{Min: rightV, Pos: leftV - 1}}
+			return values.Value{values.ITERATOR, values.DecIterator{MinVal: rightV, Pos: leftV - 1}}
 		}
+	case values.SET:
+		setAsSlice := container.V.(values.Set).AsSlice()
+		return values.Value{values.ITERATOR, values.SetIterator{Elements: setAsSlice, Len: len(setAsSlice)}}
 	case values.STRING:
 		if keysOnly {
 			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(container.V.(string))}}
 		} else {
 			return values.Value{values.ITERATOR, values.StringIterator{Str: container.V.(string)}}
+		}
+	case values.TUPLE:
+		tupleElements := container.V.([]values.Value)
+		if keysOnly {
+			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(tupleElements)}}
+		} else {
+			return values.Value{values.ITERATOR, values.TupleIterator{Elements: tupleElements, Len: len(tupleElements)}}
+		}
+	case values.TYPE:
+		abTyp := container.V.(values.AbstractType)
+		if len(abTyp.Types) != 1 {
+			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc)}
+		}
+		typ := abTyp.Types[0]
+		if !vm.concreteTypes[typ].isEnum() {
+			return values.Value{values.ERROR, vm.makeError("vm/for/type/b", tokLoc)}
+		}
+		if keysOnly {
+			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
+		} else {
+			return values.Value{values.ITERATOR, values.EnumIterator{Type: typ, Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
 		}
 	default:
 		return values.Value{values.ERROR, vm.makeError("vm/for/type", tokLoc)}

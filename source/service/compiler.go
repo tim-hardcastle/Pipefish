@@ -494,6 +494,11 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	// The 'flavor' flag allows us to keep track of what we're doing
 	flavor := UNDEFINED_LOOP_FLAVOR
 	hasBoundVariables := false
+	var keysOnly, valuesOnly bool // Only applies to range-style loops.
+	rangeKeyLoc := uint32(DUMMY)  //          "
+	rangeValLoc := uint32(DUMMY)  //          "
+	iteratorLoc := uint32(DUMMY)
+	rangeOver := bkEarlyReturn(DUMMY)
 
 	// The parser so far has only broken the header up into its parts, but has not validated
 	// that they're in the proper form.
@@ -597,8 +602,6 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, overlap})
 			}
 		}
-		// Then this will emit the type checks and pour the boundResultLoc into the variables we just created.
-
 	} else { // Else we're in case (ii) or (iii), and we should first find out which.
 		if node.ConditionOrRange.GetToken().Type == token.ASSIGN { // Then we may have a 'range' expression, which we can deconstruct.
 			pairOfIdentifiers := node.ConditionOrRange.(*ast.AssignmentExpression).Left
@@ -617,26 +620,55 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 					cp.P.Throw("comp/for/range/b", node.Initializer.GetToken())
 					return altType(values.COMPILE_TIME_ERROR)
 				}
+				keysOnly := rightName == "_"
+				valuesOnly := leftName == "_"
+				if keysOnly && valuesOnly {
+					cp.P.Throw("comp/for/range/discard", node.Initializer.GetToken())
+					return altType(values.COMPILE_TIME_ERROR)
+				}
 				var rangeOver ast.Node
 				if rangeExpression, ok := rangeExpression.(*ast.PrefixExpression); ok && rangeExpression.Operator == "range" {
 					rangeOver = rangeExpression.Args[0]
 					rangeRollback := cp.getState()
 					rangeTypes, rangeConst := cp.CompileNode(rangeOver, ctxt.x())
+
 					if rangeTypes.isNoneOf(values.LIST, values.MAP, values.SET, values.STRING) {
 						cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
+						return altType(values.COMPILE_TIME_ERROR)
 					}
+					keysInt := uint32(0)
+					if keysOnly {
+						keysInt = 1
+					}
+					cp.put(Mkit, cp.That(), keysInt, cp.reserveToken(rangeOver.GetToken()))
 					if rangeConst {
+						cp.vm.Run(uint32(rangeRollback.code))
 						val := cp.vm.Mem[cp.That()]
 						cp.rollback(rangeRollback, rangeOver.GetToken())
-						cp.Reserve(values.ITERATOR, cp.vm.NewIterator(val, cp.reserveToken(rangeOver.GetToken())), rangeOver.GetToken())
-					} else {
-						keyOnly := 0
-						if rightName == "_" {
-							keyOnly = 1
-						}
-						cp.put(Mkit, cp.That(), keyOnly, cp.reserveToken(rangeOver.GetToken()))
+						cp.Reserve(values.ITERATOR, val.V, rangeOver.GetToken())
+						cp.Emit(Rsit, cp.That())
 					}
-					iteratorLoc := cp.That()
+					iteratorLoc = cp.That()
+					if !valuesOnly {
+						cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
+						rangeKeyLoc = cp.That()
+						_, exists := newEnv.getVar(leftName)
+						if exists {
+							cp.P.Throw("comp/for/exists/key", node.Initializer.GetToken())
+							return altType(values.COMPILE_TIME_ERROR)
+						}
+						cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], node.ConditionOrRange.GetToken()) // TODO --- narrow down.
+					}
+					if !keysOnly {
+						cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
+						rangeValLoc = cp.That()
+						_, exists := newEnv.getVar(rightName)
+						if exists {
+							cp.P.Throw("comp/for/exists/value", node.Initializer.GetToken())
+							return altType(values.COMPILE_TIME_ERROR)
+						}
+						cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], node.ConditionOrRange.GetToken())
+					}
 				}
 			} else {
 				cp.P.Throw("comp/for/range/c", node.Initializer.GetToken())
@@ -669,6 +701,17 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 		}
 		conditionalFails = cp.vmConditionalEarlyReturn(Qfls, cp.That(), boundResultLoc)
 	}
+	if flavor == RANGE {
+		rangeOver = cp.vmConditionalEarlyReturn(Qitr, iteratorLoc, boundResultLoc)
+	}
+	switch {
+	case keysOnly:
+		cp.Emit(Itgk, rangeKeyLoc, iteratorLoc)
+	case valuesOnly:
+		cp.Emit(Itgv, rangeValLoc, iteratorLoc)
+	default:
+		cp.Emit(Itkv, rangeKeyLoc, rangeValLoc, iteratorLoc)
+	}
 	// Now we get to emit the loop body, which is the same whatever the flavor of loop.
 	cp.cm("Compiling loop body.", tok)
 	rtnTypes, _ := cp.CompileNode(node.Body, newContext)
@@ -691,7 +734,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	// When we break out of the loop, we just need to put the result (in the bound variables) on top of memory.
 	cp.cm("Putting result on top of memory.", tok)
 	cp.put(Asgm, boundResultLoc)
-	cp.vmComeFrom(conditionalFails)
+	cp.vmComeFrom(conditionalFails, rangeOver)
 
 	return rtnTypes
 }

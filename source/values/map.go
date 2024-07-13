@@ -33,6 +33,11 @@ func (node *mapNode) shallowClone() *mapNode {
 	}
 }
 
+type MapPair struct {
+	key Value
+	val Value
+}
+
 // Range calls f sequentially in ascending key order for all entries in the map.
 func (pm *Map) Range(f func(key, value Value)) {
 	pm.root.forEach(func(k, v Value) {
@@ -61,6 +66,22 @@ func (node *mapNode) getVector() vector.Vector {
 		new = new.Conj(v)
 	}
 	return new
+}
+
+func (pm *Map) AsSlice() []MapPair {
+	return pm.root.asSlice()
+}
+
+func (node *mapNode) asSlice() []MapPair {
+	if node == nil {
+		return []MapPair{}
+	}
+	lhs := node.left.asSlice()
+	el := MapPair{node.key, node.value}
+	rhs := node.right.asSlice()
+	lhs = append(lhs, el)
+	lhs = append(lhs, rhs...)
+	return lhs
 }
 
 // It is assumed that we know the map is keyed by strings.
