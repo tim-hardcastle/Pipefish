@@ -18,6 +18,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	UNSATISFIED_CONDITIONAL                  // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
 	REF                                      // A reference variable. This is always dereferenced when used, so the type is invisible.
 	BREAK                                    // The value of the `break` statement.
+	ITERATOR                                 // V is an Iterator interface as defined in iterator.go in this folder.
 
 	// The SUCCESSFUL_VALUE is visible to the user only in the REPL, it's not first-class.
 

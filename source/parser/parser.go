@@ -90,6 +90,7 @@ var precedences = map[token.TokenType]int{
 	token.GLOBAL:     FPREFIX,
 	token.EVAL:       FPREFIX,
 	token.XCALL:      FPREFIX,
+	token.RANGE:      FPREFIX,
 	// FMIDFIX
 	token.DOTDOTDOT: FENDFIX,
 	token.COMMA:     COMMA,
@@ -304,6 +305,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parsePrelogExpression()
 	case token.STRING:
 		leftExp = p.parseStringLiteral()
+	case token.RANGE:
+		leftExp = p.parseNativePrefixExpression()
 	case token.RUNE:
 		leftExp = p.parseRuneLiteral()
 	case token.TRUE:

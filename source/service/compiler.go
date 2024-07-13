@@ -601,7 +601,47 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 
 	} else { // Else we're in case (ii) or (iii), and we should first find out which.
 		if node.ConditionOrRange.GetToken().Type == token.ASSIGN { // Then we may have a 'range' expression, which we can deconstruct.
-
+			pairOfIdentifiers := node.ConditionOrRange.(*ast.AssignmentExpression).Left
+			rangeExpression := node.ConditionOrRange.(*ast.AssignmentExpression).Right
+			if pairOfIdentifiers, ok := pairOfIdentifiers.(*ast.InfixExpression); ok && pairOfIdentifiers.Operator == "::" {
+				var leftName, rightName string
+				if leftId, ok := pairOfIdentifiers.Args[0].(*ast.Identifier); ok {
+					leftName = leftId.Value
+				} else {
+					cp.P.Throw("comp/for/range/a", node.Initializer.GetToken())
+					return altType(values.COMPILE_TIME_ERROR)
+				}
+				if rightId, ok := pairOfIdentifiers.Args[0].(*ast.Identifier); ok {
+					rightName = rightId.Value
+				} else {
+					cp.P.Throw("comp/for/range/b", node.Initializer.GetToken())
+					return altType(values.COMPILE_TIME_ERROR)
+				}
+				var rangeOver ast.Node
+				if rangeExpression, ok := rangeExpression.(*ast.PrefixExpression); ok && rangeExpression.Operator == "range" {
+					rangeOver = rangeExpression.Args[0]
+					rangeRollback := cp.getState()
+					rangeTypes, rangeConst := cp.CompileNode(rangeOver, ctxt.x())
+					if rangeTypes.isNoneOf(values.LIST, values.MAP, values.SET, values.STRING) {
+						cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
+					}
+					if rangeConst {
+						val := cp.vm.Mem[cp.That()]
+						cp.rollback(rangeRollback, rangeOver.GetToken())
+						cp.Reserve(values.ITERATOR, cp.vm.NewIterator(val, cp.reserveToken(rangeOver.GetToken())), rangeOver.GetToken())
+					} else {
+						keyOnly := 0
+						if rightName == "_" {
+							keyOnly = 1
+						}
+						cp.put(Mkit, cp.That(), keyOnly, cp.reserveToken(rangeOver.GetToken()))
+					}
+					iteratorLoc := cp.That()
+				}
+			} else {
+				cp.P.Throw("comp/for/range/c", node.Initializer.GetToken())
+				return altType(values.COMPILE_TIME_ERROR)
+			}
 		} else {
 			flavor = WHILE
 		}

@@ -1637,3 +1637,38 @@ func (t structType) resolve(labelNumber int) int {
 	}
 	return -1
 }
+
+func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) values.Value {
+	switch container.T {
+	case values.INT:
+		return values.Value{values.ITERATOR, values.KeyIncIterator{Max: container.V.(int)}}
+	case values.LIST:
+		if keysOnly {
+			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: container.V.(vector.Vector).Len()}}
+		} else {
+			return values.Value{values.ITERATOR, values.ListIterator{VecIt: container.V.(vector.Vector).Iterator()}}
+		}
+	case values.PAIR:
+		pair := container.V.([]values.Value)
+		left := pair[0]
+		right := pair[1]
+		if left.T != values.INT || right.T != values.INT {
+			return values.Value{values.ERROR, vm.makeError("vm/for/pair", tokLoc)}
+		}
+		leftV := left.V.(int)
+		rightV := right.V.(int)
+		if leftV <= rightV {
+			return values.Value{values.ITERATOR, values.IncIterator{Max: rightV, Pos: leftV}}
+		} else {
+			return values.Value{values.ITERATOR, values.DecIterator{Min: rightV, Pos: leftV - 1}}
+		}
+	case values.STRING:
+		if keysOnly {
+			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(container.V.(string))}}
+		} else {
+			return values.Value{values.ITERATOR, values.StringIterator{Str: container.V.(string)}}
+		}
+	default:
+		return values.Value{values.ERROR, vm.makeError("vm/for/type", tokLoc)}
+	}
+}
