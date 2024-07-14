@@ -91,6 +91,8 @@ var precedences = map[token.TokenType]int{
 	token.EVAL:       FPREFIX,
 	token.XCALL:      FPREFIX,
 	token.RANGE:      FPREFIX,
+	token.CONTINUE:   FPREFIX,
+	token.BREAK:      FPREFIX,
 	// FMIDFIX
 	token.DOTDOTDOT: FENDFIX,
 	token.COMMA:     COMMA,
@@ -279,7 +281,10 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parsePrefixExpression()
 
 	// Remaining prefix-position token types are in alphabetical order.
-
+	case token.BREAK:
+		leftExp = p.parseBreak()
+	case token.CONTINUE:
+		leftExp = p.parseContinue()
 	case token.ELSE:
 		leftExp = p.parseElse()
 	case token.FALSE:
@@ -1019,9 +1024,16 @@ func (p *Parser) parseBoolean() ast.Node {
 	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
 }
 
-// in Charm else is in fact syntactic sugar for true
 func (p *Parser) parseElse() ast.Node {
 	return &ast.BooleanLiteral{Token: p.curToken, Value: true}
+}
+
+func (p *Parser) parseBreak() ast.Node {
+	return nil
+}
+
+func (p *Parser) parseContinue() ast.Node {
+	return &ast.Identifier{Token: p.curToken, Value: "continue"}
 }
 
 func (p *Parser) parseGroupedExpression() ast.Node {

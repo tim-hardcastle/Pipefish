@@ -27,7 +27,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.pipefish",
-				"match": "\\b(and|break|else|false|for|given|global|gocode|loop|not|or|raw|ref|true)\\b"
+				"match": "\\b(and|break|continue|else|false|for|given|global|gocode|not|or|raw|ref|true)\\b"
 			}]
 		},
 		"headwords": {

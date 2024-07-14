@@ -530,7 +530,7 @@ loop:
 		case Itgk:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Iterator).GetKey()
 		case Itkv:
-			vm.Mem[args[0]], vm.Mem[args[1]] = vm.Mem[args[1]].V.(values.Iterator).GetKeyValuePair()
+			vm.Mem[args[0]], vm.Mem[args[1]] = vm.Mem[args[2]].V.(values.Iterator).GetKeyValuePair()
 		case Itgv:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Iterator).GetValue()
 		case Itor:
@@ -872,9 +872,10 @@ loop:
 			continue
 		case Qitr:
 			if vm.Mem[args[0]].V.(values.Iterator).Unfinished() {
-				loc = loc + 1
-			} else {
 				loc = args[1]
+			} else {
+				loc = loc + 1
+
 			}
 			continue
 		case QleT:
@@ -1658,16 +1659,16 @@ func (t structType) resolve(labelNumber int) int {
 func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) values.Value {
 	switch container.T {
 	case values.INT:
-		return values.Value{values.ITERATOR, values.KeyIncIterator{Max: container.V.(int)}}
+		return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: container.V.(int)}}
 	case values.LIST:
 		if keysOnly {
-			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: container.V.(vector.Vector).Len()}}
+			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: container.V.(vector.Vector).Len()}}
 		} else {
-			return values.Value{values.ITERATOR, values.ListIterator{VecIt: container.V.(vector.Vector).Iterator()}}
+			return values.Value{values.ITERATOR, &values.ListIterator{VecIt: container.V.(vector.Vector).Iterator()}}
 		}
 	case values.MAP:
 		mapAsSlice := container.V.(*values.Map).AsSlice()
-		return values.Value{values.ITERATOR, values.MapIterator{KVPairs: mapAsSlice, Len: len(mapAsSlice)}}
+		return values.Value{values.ITERATOR, &values.MapIterator{KVPairs: mapAsSlice, Len: len(mapAsSlice)}}
 	case values.PAIR:
 		pair := container.V.([]values.Value)
 		left := pair[0]
@@ -1678,25 +1679,25 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 		leftV := left.V.(int)
 		rightV := right.V.(int)
 		if leftV <= rightV {
-			return values.Value{values.ITERATOR, values.IncIterator{MaxVal: rightV, Pos: leftV}}
+			return values.Value{values.ITERATOR, &values.IncIterator{StartVal: leftV, MaxVal: rightV, Val: leftV}}
 		} else {
-			return values.Value{values.ITERATOR, values.DecIterator{MinVal: rightV, Pos: leftV - 1}}
+			return values.Value{values.ITERATOR, &values.DecIterator{MinVal: rightV, StartVal: leftV - 1, Val: leftV - 1}}
 		}
 	case values.SET:
 		setAsSlice := container.V.(values.Set).AsSlice()
-		return values.Value{values.ITERATOR, values.SetIterator{Elements: setAsSlice, Len: len(setAsSlice)}}
+		return values.Value{values.ITERATOR, &values.SetIterator{Elements: setAsSlice, Len: len(setAsSlice)}}
 	case values.STRING:
 		if keysOnly {
-			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(container.V.(string))}}
+			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(container.V.(string))}}
 		} else {
-			return values.Value{values.ITERATOR, values.StringIterator{Str: container.V.(string)}}
+			return values.Value{values.ITERATOR, &values.StringIterator{Str: container.V.(string)}}
 		}
 	case values.TUPLE:
 		tupleElements := container.V.([]values.Value)
 		if keysOnly {
-			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(tupleElements)}}
+			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(tupleElements)}}
 		} else {
-			return values.Value{values.ITERATOR, values.TupleIterator{Elements: tupleElements, Len: len(tupleElements)}}
+			return values.Value{values.ITERATOR, &values.TupleIterator{Elements: tupleElements, Len: len(tupleElements)}}
 		}
 	case values.TYPE:
 		abTyp := container.V.(values.AbstractType)
@@ -1708,9 +1709,9 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 			return values.Value{values.ERROR, vm.makeError("vm/for/type/b", tokLoc)}
 		}
 		if keysOnly {
-			return values.Value{values.ITERATOR, values.KeyIncIterator{Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
+			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
 		} else {
-			return values.Value{values.ITERATOR, values.EnumIterator{Type: typ, Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
+			return values.Value{values.ITERATOR, &values.EnumIterator{Type: typ, Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
 		}
 	default:
 		return values.Value{values.ERROR, vm.makeError("vm/for/type", tokLoc)}

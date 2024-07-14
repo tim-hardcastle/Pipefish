@@ -1,6 +1,18 @@
+newtype
+
+Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
+
 def
 
-foo(n int) :
-    first from a, b = 0, 1 for i = 0; i <= n; i + 1 :
-        b, a + b
+zort(x) :
+    from L = [] for k::v = range x :
+        L + [k::v]
+
+evens(x) :
+    from L = [] for k::v = range x :
+        k % 2 == 0 :
+            L + [v]
+        else :
+            continue
+
 

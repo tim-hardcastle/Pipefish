@@ -14,9 +14,9 @@ type Iterator interface {
 
 type DecIterator struct { // For an 'x::y' range, going down.
 	StartVal int
-	MinVal   int
-	Pos      int
 	Val      int
+	MinVal   int
+	pos      int
 }
 
 func (it *DecIterator) Unfinished() bool {
@@ -24,29 +24,29 @@ func (it *DecIterator) Unfinished() bool {
 }
 
 func (it *DecIterator) GetKey() Value {
-	keyResult := Value{INT, it.Pos}
-	it.Pos++
+	keyResult := Value{INT, it.pos}
+	it.pos++
 	it.Val--
 	return keyResult
 }
 
 func (it *DecIterator) GetValue() Value {
 	valResult := Value{INT, it.Val}
-	it.Pos++
+	it.pos++
 	it.Val--
 	return valResult
 }
 
 func (it *DecIterator) GetKeyValuePair() (Value, Value) {
-	keyResult := Value{INT, it.Pos}
+	keyResult := Value{INT, it.pos}
 	valResult := Value{INT, it.Val}
-	it.Pos++
+	it.pos++
 	it.Val--
 	return keyResult, valResult
 }
 
 func (it *DecIterator) Reset() {
-	it.Pos = 0
+	it.pos = 0
 	it.Val = it.StartVal
 }
 
@@ -87,37 +87,37 @@ type IncIterator struct { // For an 'x::y' range, going up.
 	StartVal int
 	Val      int
 	MaxVal   int
-	Pos      int
+	pos      int
 }
 
 func (it *IncIterator) Unfinished() bool {
-	return it.Pos < it.MaxVal
+	return it.Val < it.MaxVal
 }
 
 func (it *IncIterator) GetKey() Value {
-	keyResult := Value{INT, it.Pos}
-	it.Pos++
+	keyResult := Value{INT, it.pos}
+	it.pos++
 	it.Val++
 	return keyResult
 }
 
 func (it *IncIterator) GetValue() Value {
 	valResult := Value{INT, it.Val}
-	it.Pos++
+	it.pos++
 	it.Val++
 	return valResult
 }
 
 func (it *IncIterator) GetKeyValuePair() (Value, Value) {
-	keyResult := Value{INT, it.Pos}
+	keyResult := Value{INT, it.pos}
 	valResult := Value{INT, it.Val}
-	it.Pos++
+	it.pos++
 	it.Val++
 	return keyResult, valResult
 }
 
 func (it *IncIterator) Reset() {
-	it.Pos = 0
+	it.pos = 0
 	it.Val = it.StartVal
 }
 
@@ -266,14 +266,14 @@ func (it *StringIterator) GetKey() Value {
 }
 
 func (it *StringIterator) GetValue() Value {
-	valResult := Value{RUNE, it.Str[it.pos]}
+	valResult := Value{RUNE, int32(it.Str[it.pos])}
 	it.pos++
 	return valResult
 }
 
 func (it *StringIterator) GetKeyValuePair() (Value, Value) {
 	keyResult := Value{INT, it.pos}
-	valResult := Value{RUNE, it.Str[it.pos]}
+	valResult := Value{RUNE, int32(it.Str[it.pos])}
 	it.pos++
 	return keyResult, valResult
 }

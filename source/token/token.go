@@ -4,17 +4,19 @@ type TokenType string
 
 const (
 	// Keywords
-	ELSE   = "else"
-	EVAL   = "eval"
-	FOR    = "for"
-	GIVEN  = "given"
-	GLOBAL = "global"
-	GOCODE = "gocode"
-	LOOP   = "loop"
-	RANGE  = "range"
-	TRY    = "try"
-	UNWRAP = "unwrap"
-	VALID  = "valid"
+	BREAK    = "break"
+	CONTINUE = "continue"
+	ELSE     = "else"
+	EVAL     = "eval"
+	FOR      = "for"
+	GIVEN    = "given"
+	GLOBAL   = "global"
+	GOCODE   = "gocode"
+	LOOP     = "loop"
+	RANGE    = "range"
+	TRY      = "try"
+	UNWRAP   = "unwrap"
+	VALID    = "valid"
 
 	// Headwords
 	IMPORT  = "import"
@@ -97,17 +99,19 @@ type Token struct {
 
 var keywords = map[string]TokenType{
 	// Keywords.
-	"else":   ELSE,
-	"eval":   EVAL,
-	"for":    FOR,
-	"given":  GIVEN,
-	"gocode": GOCODE,
-	"global": GLOBAL,
-	"loop":   LOOP,
-	"range":  RANGE,
-	"try":    TRY,
-	"unwrap": UNWRAP,
-	"valid":  VALID,
+	"break":    BREAK,
+	"continue": CONTINUE,
+	"else":     ELSE,
+	"eval":     EVAL,
+	"for":      FOR,
+	"given":    GIVEN,
+	"gocode":   GOCODE,
+	"global":   GLOBAL,
+	"loop":     LOOP,
+	"range":    RANGE,
+	"try":      TRY,
+	"unwrap":   UNWRAP,
+	"valid":    VALID,
 
 	// Headwords.
 	"cmd":      CMD,

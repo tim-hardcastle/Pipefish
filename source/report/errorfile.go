@@ -240,6 +240,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/for/exists/key": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "reassigning to variable " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The index variables of a 'for' loop cannot have already been declared in the scope."
+		},
+	},
+
+	"comp/for/exists/value": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "reassigning to variable " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The index variables of a 'for' loop cannot have already been declared in the scope."
+		},
+	},
+
 	"comp/global/global": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "identifier " + emph(tok.Literal) + " doesn't identify a global variable"
@@ -2194,7 +2212,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/map/pair": {
 		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("can't use value of type %v as a key-value pair.", emphStr(args[0]))
+			return fmt.Sprintf("can't use value of type %v as a key-value pair", emph(args[0]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("A map is constructed from a tuple of key-value pairs.")
@@ -2203,7 +2221,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/map/key": {
 		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("can't use value of type %v as the key in a key-value pair.", emphStr(args[0]))
+			return fmt.Sprintf("can't use value of type %v as the key in a key-value pair.", emph(args[0]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("To be the key of a key-value pair in a map, a value must have a type which is not a struct.")
