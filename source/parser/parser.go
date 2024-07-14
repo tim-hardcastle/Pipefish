@@ -1029,7 +1029,10 @@ func (p *Parser) parseElse() ast.Node {
 }
 
 func (p *Parser) parseBreak() ast.Node {
-	return nil
+	if p.positionallyFunctional() {
+		return p.parsePrefixExpression()
+	}
+	return &ast.Identifier{Token: p.curToken, Value: "break"}
 }
 
 func (p *Parser) parseContinue() ast.Node {

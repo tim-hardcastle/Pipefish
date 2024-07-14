@@ -65,18 +65,14 @@ func (cp *Compiler) pushNewForData() {
 
 // Takes the continues out of the top of the for stack and resolves them, leaves the breaks.
 func (cp *Compiler) resolveContinues() {
-	newForData := []any{}
 	for _, item := range cp.forData[len(cp.forData)-1] {
-		if item, ok := item.(bkGoto); ok {
+		if item, ok := item.(bkContinue); ok {
 			cp.vmComeFrom(item)
-		} else {
-			newForData = append(newForData, item)
 		}
 	}
-	cp.forData[len(cp.forData)-1] = newForData
 }
 
-func (cp *Compiler) resolveBreaks() {
+func (cp *Compiler) resolveBreaksWithoutValue() {
 	cp.vmComeFrom(cp.forData[len(cp.forData)-1]...)
 	cp.forData = cp.forData[:len(cp.forData)-1]
 }
@@ -86,7 +82,15 @@ func (cp *Compiler) emitContinue(tok *token.Token) {
 		cp.P.Throw("comp/for/continue", tok)
 		return
 	}
-	cp.addToForData(cp.vmGoTo())
+	cp.addToForData(cp.vmContinue())
+}
+
+func (cp *Compiler) emitBreakWithoutValue(tok *token.Token) {
+	if len(cp.forData) == 0 {
+		cp.P.Throw("comp/break/continue", tok)
+		return
+	}
+	cp.addToForData(cp.vmBreakWithoutValue())
 }
 
 func (cp *Compiler) addToForData(x any) {
@@ -782,6 +786,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	cp.Emit(Jmp, startOfForLoop)
 	// When we break out of the loop, we just need to put the result (in the bound variables) on top of memory.
 	cp.cm("Putting result on top of memory.", tok)
+	cp.resolveBreaksWithoutValue()
 	cp.put(Asgm, boundResultLoc)
 	cp.vmComeFrom(conditionalFails, rangeOver)
 
@@ -912,9 +917,25 @@ func (cp *Compiler) vmIf(oc Opcode, args ...uint32) bkIf {
 
 type bkGoto int
 
+type bkContinue int
+
+type bkBreakWithValue int
+
+type bkBreakWithoutValue int
+
 func (cp *Compiler) vmGoTo() bkGoto {
 	cp.Emit(Jmp, DUMMY)
 	return bkGoto(cp.CodeTop() - 1)
+}
+
+func (cp *Compiler) vmContinue() bkContinue {
+	cp.Emit(Jmp, DUMMY)
+	return bkContinue(cp.CodeTop() - 1)
+}
+
+func (cp *Compiler) vmBreakWithoutValue() bkBreakWithoutValue {
+	cp.Emit(Jmp, DUMMY)
+	return bkBreakWithoutValue(cp.CodeTop() - 1)
 }
 
 type bkEarlyReturn int
@@ -934,6 +955,16 @@ func (cp *Compiler) vmConditionalEarlyReturn(oc Opcode, args ...uint32) bkEarlyR
 func (cp *Compiler) vmComeFrom(items ...any) {
 	for _, item := range items {
 		switch item := item.(type) {
+		case bkBreakWithoutValue:
+			if uint32(item) == DUMMY {
+				continue
+			}
+			cp.vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
+		case bkContinue:
+			if uint32(item) == DUMMY {
+				continue
+			}
+			cp.vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
 		case bkGoto:
 			if uint32(item) == DUMMY {
 				continue
@@ -1078,6 +1109,11 @@ NodeTypeSwitch:
 	case *ast.Identifier:
 		if node.Value == "continue" {
 			cp.emitContinue(&node.Token)
+			rtnTypes, rtnConst = AltType(), false
+			break
+		}
+		if node.Value == "break" {
+			cp.emitBreakWithoutValue(&node.Token)
 			rtnTypes, rtnConst = AltType(), false
 			break
 		}
