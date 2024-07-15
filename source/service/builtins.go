@@ -312,7 +312,7 @@ func (cp *Compiler) btSingleInSet(tok *token.Token, dest uint32, args []uint32) 
 }
 
 func (cp *Compiler) btSingleInTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(InxT, dest, args[0], args[1])
+	cp.Emit(InxT, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSingleInType(tok *token.Token, dest uint32, args []uint32) {

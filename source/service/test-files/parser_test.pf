@@ -3,3 +3,8 @@ def
 (x) zort : 
     x
 
+const
+
+X tuple = tuple "a"::1, "b"::2, "c"::3
+
+TEST_MAP = map(X)
