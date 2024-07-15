@@ -85,10 +85,10 @@ type Initializer struct {
 	fnIndex map[fnSource]*ast.PrsrFunction // We need to number the functions after we sort them into the function tree, in order of compilation. This keeps track of where they are.
 }
 
-func NewInitializer(source, sourceCode string) *Initializer {
+func NewInitializer(source, sourceCode, dir string) *Initializer {
 	uP := &Initializer{
 		rl:      *lexer.NewRelexer(source, sourceCode),
-		Parser:  parser.New(),
+		Parser:  parser.New(dir),
 		Sources: make(map[string][]string),
 		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 	}
@@ -109,6 +109,9 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 func (uP *Initializer) GetSource(source string) {
 	if source == "" || len(source) >= 5 && source[0:5] == "http:" {
 		return
+	}
+	if len(source) >= 4 && source[0:4] == "rsc/" {
+		source = uP.Parser.Directory + source
 	}
 	file, err := os.Open(source)
 	if err != nil {

@@ -28,9 +28,9 @@ type VmMaker struct {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
+func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
 	mc := BlankVm(db, hubServices)
-	cp, uP := initializeFromFilepath(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	result := &VmService{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
@@ -39,28 +39,31 @@ func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*VmS
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
-func initializeFromFilepath(mc *Vm, scriptFilepath string) (*Compiler, *Initializer) {
+func initializeFromFilepath(mc *Vm, scriptFilepath, dir string) (*Compiler, *Initializer) {
+	if len(scriptFilepath) >= 4 && (scriptFilepath[0:4] == "lib/" || scriptFilepath[0:4] == "rsc/") {
+		scriptFilepath = dir + scriptFilepath
+	}
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		sourcebytes, err := os.ReadFile(scriptFilepath)
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode)
+			uP := NewInitializer(scriptFilepath, sourcecode, dir)
 			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
 	}
-	return initializeFromSourcecode(mc, scriptFilepath, sourcecode)
+	return initializeFromSourcecode(mc, scriptFilepath, sourcecode, dir)
 }
 
-func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode string) (*Compiler, *Initializer) {
-	vmm := newVmMaker(scriptFilepath, sourcecode, mc)
+func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string) (*Compiler, *Initializer) {
+	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc)
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) {
 		file, err := os.Stat(scriptFilepath)
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode)
+			uP := NewInitializer(scriptFilepath, sourcecode, dir)
 			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
@@ -69,8 +72,8 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode string) (*Compi
 	return vmm.cp, vmm.uP
 }
 
-func newVmMaker(scriptFilepath, sourcecode string, mc *Vm) *VmMaker {
-	uP := NewInitializer(scriptFilepath, sourcecode)
+func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm) *VmMaker {
+	uP := NewInitializer(scriptFilepath, sourcecode, dir)
 	vmm := &VmMaker{
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
@@ -248,7 +251,10 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath)
+		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory)
+		if len(scriptFilepath) >= 4 && (scriptFilepath[0:4] == "lib/" || scriptFilepath[0:4] == "rsc/") {
+			scriptFilepath = uP.Parser.Directory + scriptFilepath
+		}
 		newUP.GetSource(scriptFilepath)
 		if newUP.ErrorsExist() {
 			uP.Parser.GetErrorsFrom(newUP.Parser)
@@ -502,7 +508,7 @@ func (vmm *VmMaker) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService, newUP := StartService(path, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
+		newService, newUP := StartService(path, vmm.cp.P.Directory, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
 		// We return the Intializer newUP because if errors have been thrown that's where they are.
 		if newUP.ErrorsExist() {
 			vmm.uP.Parser.GetErrorsFrom(newUP.Parser)
@@ -530,7 +536,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	vmm.cp.vm.ExternalCallHandlers = append(vmm.cp.vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode)
+	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode, vmm.cp.P.Directory)
 	if newUp.ErrorsExist() {
 		vmm.cp.P.GetErrorsFrom(newUp.Parser)
 		return

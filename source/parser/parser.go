@@ -168,11 +168,12 @@ type Parser struct {
 	GoImports       map[string][]string
 	NamespaceBranch map[string]*ParserData
 	NamespacePath   string
+	Directory       string
 	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
-func New() *Parser {
+func New(dir string) *Parser {
 	p := &Parser{
 		Errors:            []*report.Error{},
 		Logging:           true,
@@ -201,6 +202,7 @@ func New() *Parser {
 		GoImports:        make(map[string][]string),
 		NamespaceBranch:  make(map[string]*ParserData),
 		ExternalParsers:  make(map[string]*Parser),
+		Directory:        dir,
 	}
 
 	for k := range p.TypeSystem {

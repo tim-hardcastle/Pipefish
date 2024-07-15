@@ -42,7 +42,7 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	gh.StructNames = make(map[string]dtypes.Set[string])
 	gh.TypeDeclarations = make(map[string]string)
 
-	file, err := os.Open("rsc/go/gotimes.dat")
+	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't open file 'rsc/go/gotimes.dat'.")
 	}
@@ -78,7 +78,7 @@ func (gh *GoHandler) CleanUp() {
 	}
 
 	// And then write out the list of times to the .dat file.
-	f, err := os.Create("rsc/go/gotimes.dat")
+	f, err := os.Create(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't create file rsc/go/gotimes.dat")
 	}
@@ -116,7 +116,7 @@ func (gh *GoHandler) BuildGoMods() {
 		lastChange, ok := gh.timeMap[source]
 		if ok {
 			if modifiedTime == int64(lastChange) {
-				soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
+				soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.Plugins[source], err = plugin.Open(soFile)
 				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
 					continue
@@ -139,11 +139,11 @@ func (gh *GoHandler) BuildGoMods() {
 
 		// You can't reuse the names of shared object files.
 		counter++
-		soFile := "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
+		soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
 		if lastChange != 0 {
-			os.Remove("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
+			os.Remove(gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
 		}
-		goFile := "gocode " + strconv.Itoa(counter) + ".go"
+		goFile := gh.Prsr.Directory + "gocode " + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
 		file.Close()
