@@ -133,7 +133,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	if rl.nexTok.Type == token.BEGIN &&
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.PRELOG || rl.curTok.Type == token.COLON ||
 			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON)) ||
-				(rl.preTok.Type == token.GIVEN)) || (rl.preTok.Type == token.LOOP) || rl.curTok.Type == token.GOCODE) {
+				(rl.preTok.Type == token.GIVEN)) || rl.curTok.Type == token.GOCODE) {
 		rl.Throw("relex/indent", rl.curTok)
 	}
 
@@ -168,7 +168,6 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			rl.preTok.Type == token.PRELOG ||
 			rl.nexTok.Type == token.GIVEN || // Because 'given' is really an infix.
 			rl.preTok.Type == token.GIVEN ||
-			rl.preTok.Type == token.LOOP ||
 			token.TokenTypeIsHeadword(rl.preTok.Type) ||
 			rl.preTok.Type == token.PRIVATE ||
 			rl.preTok.Type == token.COLON ||
@@ -202,7 +201,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 				}
 			}
 		}
-		if rl.preTok.Type == token.GIVEN || rl.preTok.Type == token.LOOP {
+		if rl.preTok.Type == token.GIVEN {
 			return rl.burnToken()
 		}
 	case token.BEGIN:

@@ -984,8 +984,6 @@ func (vmm *VmMaker) initializeBuiltInConstants() {
 	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL), &token.Token{Source: "Builtin constant"})
 	vmm.cp.Reserve(values.SUCCESSFUL_VALUE, nil, &token.Token{Source: "Builtin constant"})
 	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "OK", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE), &token.Token{Source: "Builtin constant"})
-	vmm.cp.Reserve(values.BREAK, nil, &token.Token{Source: "Builtin constant"})
-	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "break", GLOBAL_CONSTANT_PUBLIC, altType(values.BREAK), &token.Token{Source: "Builtin constant"})
 	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 }
 

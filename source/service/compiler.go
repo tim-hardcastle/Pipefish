@@ -1456,7 +1456,7 @@ NodeTypeSwitch:
 			}
 			// We may be executing a command.
 			cmdRet := lTypes.IsLegalCmdReturn()
-			if (cmdRet && lTypes.isOnly(values.BREAK)) || (!cmdRet && !lTypes.Contains(values.UNSATISFIED_CONDITIONAL)) {
+			if !cmdRet && !lTypes.Contains(values.UNSATISFIED_CONDITIONAL) {
 				// TODO --- implement warnings.
 				// cp.p.Throw("comp/unreachable", node.GetToken())
 				// break
@@ -1464,12 +1464,8 @@ NodeTypeSwitch:
 			var rTypes AlternateType
 			var rcst bool
 			if cmdRet { // It could be error, break, OK, or an unsatisfied conditional.
-				ifBreak := bkEarlyReturn(DUMMY)
 				ifError := bkEarlyReturn(DUMMY)
 				ifCouldBeUnsatButIsnt := bkEarlyReturn(DUMMY)
-				if lTypes.Contains(values.BREAK) {
-					ifBreak = cp.vmConditionalEarlyReturn(Qtyp, leftRg, uint32(values.BREAK), values.C_BREAK)
-				}
 				if lTypes.Contains(values.ERROR) {
 					ifError = cp.vmConditionalEarlyReturn(Qtyp, leftRg, uint32(values.ERROR), leftRg)
 				}
@@ -1477,7 +1473,7 @@ NodeTypeSwitch:
 					ifCouldBeUnsatButIsnt = cp.vmConditionalEarlyReturn(Qntp, leftRg, uint32(values.UNSATISFIED_CONDITIONAL), leftRg)
 				}
 				rTypes, _ = cp.CompileNode(node.Right, ctxt) // In a cmd we wish rConst to remain false to avoid folding.
-				cp.vmComeFrom(ifBreak, ifError, ifCouldBeUnsatButIsnt)
+				cp.vmComeFrom(ifError, ifCouldBeUnsatButIsnt)
 				rtnTypes, rtnConst = lTypes.Union(rTypes), lcst && rcst
 
 				break
@@ -1539,37 +1535,7 @@ NodeTypeSwitch:
 		}
 		cp.vmComeFrom(ifRuntimeError)
 		break
-	case *ast.LoopExpression:
-		rtnConst = false
-		loopStart := cp.CodeTop()
-		bodyTypes, _ := cp.CompileNode(node.Code, ctxt.x())
-		if cp.P.ErrorsExist() {
-			break
-		}
-		result := cp.That()
-		if !bodyTypes.isLegalReturnFromLoopBody() {
-			cp.P.Throw("comp/loop/body", node.GetToken())
-			break
-		}
-		if bodyTypes.isNoneOf(values.BREAK, values.ERROR) {
-			cp.P.Throw("comp/loop/infinite", node.GetToken())
-			break
-		}
-		cp.Emit(Qntp, result, uint32(values.SUCCESSFUL_VALUE), loopStart)
-		if bodyTypes.isOnly(values.ERROR) {
-			rtnTypes = AltType(values.ERROR)
-			break
-		}
-		if bodyTypes.isOnly(values.BREAK) {
-			cp.put(Asgm, values.C_OK)
-			rtnTypes = AltType(values.SUCCESSFUL_VALUE)
-			break
-		}
-		ifError := cp.vmConditionalEarlyReturn(Qtyp, result, uint32(values.ERROR), result)
-		cp.put(Asgm, values.C_OK)
-		cp.vmComeFrom(ifError)
-		rtnTypes = AltType(values.SUCCESSFUL_VALUE, values.ERROR)
-		break
+
 	case *ast.Nothing:
 		cp.put(Asgm, values.C_EMPTY_TUPLE)
 		rtnTypes, rtnConst = AlternateType{finiteTupleType{}}, true

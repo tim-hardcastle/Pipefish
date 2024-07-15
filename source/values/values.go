@@ -17,7 +17,6 @@ const ( // Cross-reference with typeNames in BlankVm()
 	BLING                                    // Values representing e.g. the `troz` in `foo (x) troz (y)`.
 	UNSATISFIED_CONDITIONAL                  // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
 	REF                                      // A reference variable. This is always dereferenced when used, so the type is invisible.
-	BREAK                                    // The value of the `break` statement.
 	ITERATOR                                 // V is an Iterator interface as defined in iterator.go in this folder.
 
 	// The SUCCESSFUL_VALUE is visible to the user only in the REPL, it's not first-class.
@@ -85,7 +84,6 @@ var (
 	ONE   = Value{INT, 1}
 	BLNG  = Value{BLING, "bling"}
 	OK    = Value{SUCCESSFUL_VALUE, nil}
-	BRK   = Value{BREAK, nil}
 	EMPTY = Value{TUPLE, []Value{}}
 )
 
@@ -97,7 +95,6 @@ const (
 	C_ONE
 	C_BLING
 	C_OK
-	C_BREAK
 	C_EMPTY_TUPLE
 )
 

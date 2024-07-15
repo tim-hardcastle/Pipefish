@@ -69,8 +69,6 @@ func (vm *Vm) Describe(v values.Value) string {
 		} else {
 			return "false"
 		}
-	case values.BREAK:
-		return "break"
 	case values.ERROR:
 		ob := v.V.(*report.Error)
 		if ob.ErrorId != "eval/user" {

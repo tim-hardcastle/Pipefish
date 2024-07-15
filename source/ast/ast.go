@@ -282,23 +282,6 @@ func (le *LogExpression) String() string {
 	return out.String()
 }
 
-type LoopExpression struct {
-	Token token.Token
-	Code  Node
-}
-
-func (le *LoopExpression) Children() []Node       { return []Node{le.Code} }
-func (le *LoopExpression) GetToken() *token.Token { return &le.Token }
-func (le *LoopExpression) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("loop (")
-	out.WriteString(le.Code.String())
-	out.WriteString(")")
-
-	return out.String()
-}
-
 type Nothing struct {
 	Token token.Token
 }

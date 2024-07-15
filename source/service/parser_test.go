@@ -58,7 +58,7 @@ func TestParserErrors(t *testing.T) {
 		{`len 1,`, `parse/prefix`},
 		{`len(`, `parse/prefix`},
 		{`len(1`, `parse/line`},
-		{`nonexistentNamespace.foo`, `parse/namespace/exist`}, // TODO --- something weird going on here that makes the subsequent tests give the same error code despite clearing the errors.
+		{`troz.foo`, `parse/namespace/exist`},
 		{`2 "aardvark"`, `parse/before/a`},
 		{`func(x) wut`, `parse/colon`},
 		{`from 1`, `parse/from`},

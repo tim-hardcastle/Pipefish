@@ -12,7 +12,6 @@ const (
 	GIVEN    = "given"
 	GLOBAL   = "global"
 	GOCODE   = "gocode"
-	LOOP     = "loop"
 	RANGE    = "range"
 	TRY      = "try"
 	UNWRAP   = "unwrap"
@@ -107,7 +106,6 @@ var keywords = map[string]TokenType{
 	"given":    GIVEN,
 	"gocode":   GOCODE,
 	"global":   GLOBAL,
-	"loop":     LOOP,
 	"range":    RANGE,
 	"try":      TRY,
 	"unwrap":   UNWRAP,

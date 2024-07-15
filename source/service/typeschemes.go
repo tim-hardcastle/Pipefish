@@ -326,7 +326,7 @@ func (aT AlternateType) hasSideEffects() bool {
 	for _, u := range aT {
 		switch u := u.(type) {
 		case simpleType:
-			if u == simpleType(values.SUCCESSFUL_VALUE) || u == simpleType(values.BREAK) {
+			if u == simpleType(values.SUCCESSFUL_VALUE) {
 				return true
 			}
 		}
@@ -339,7 +339,7 @@ func (aT AlternateType) IsLegalCmdReturn() bool {
 		switch u := u.(type) {
 		case simpleType:
 			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) &&
-				u != simpleType(values.BREAK) && u != simpleType(values.UNSATISFIED_CONDITIONAL) {
+				u != simpleType(values.COMPILE_TIME_ERROR) && u != simpleType(values.UNSATISFIED_CONDITIONAL) {
 				return false
 			}
 		default:
@@ -354,7 +354,7 @@ func (aT AlternateType) isLegalReturnFromLoopBody() bool {
 		switch u := u.(type) {
 		case simpleType:
 			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) &&
-				u != simpleType(values.BREAK) {
+				u != simpleType(values.COMPILE_TIME_ERROR) {
 				return false
 			}
 		default:
