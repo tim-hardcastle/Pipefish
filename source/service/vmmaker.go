@@ -28,7 +28,7 @@ type VmMaker struct {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
+func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
 	mc := BlankVm(db, hubServices)
 	cp, uP := initializeFromFilepath(mc, scriptFilepath) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	result := &VmService{Mc: mc, Cp: cp}
@@ -502,12 +502,7 @@ func (vmm *VmMaker) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		sourcecode, err := os.ReadFile(path)
-		if err != nil {
-			vmm.uP.Throw("init/external/source", *declaration.GetToken(), path)
-			continue
-		}
-		newService, newUP := StartService(path, string(sourcecode), vmm.cp.vm.Database, vmm.cp.vm.HubServices)
+		newService, newUP := StartService(path, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
 		// We return the Intializer newUP because if errors have been thrown that's where they are.
 		if newUP.ErrorsExist() {
 			vmm.uP.Parser.GetErrorsFrom(newUP.Parser)

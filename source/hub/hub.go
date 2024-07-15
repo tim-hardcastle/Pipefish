@@ -901,12 +901,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		newService *service.VmService
 		init       *service.Initializer
 	)
-	if scriptFilepath == "" {
-		newService, init = service.StartService("", "", hub.Db, hub.services)
-	} else {
-		sourcecode, _ := os.ReadFile(scriptFilepath)
-		newService, init = service.StartService(scriptFilepath, string(sourcecode), hub.Db, hub.services)
-	}
+	newService, init = service.StartService(scriptFilepath, hub.Db, hub.services)
 	hub.services[name] = newService
 	hub.Sources = init.Sources
 
