@@ -73,7 +73,19 @@ func (cp *Compiler) resolveContinues() {
 }
 
 func (cp *Compiler) resolveBreaksWithoutValue() {
-	cp.vmComeFrom(cp.forData[len(cp.forData)-1]...)
+	for _, item := range cp.forData[len(cp.forData)-1] {
+		if item, ok := item.(bkBreakWithoutValue); ok {
+			cp.vmComeFrom(item)
+		}
+	}
+}
+
+func (cp *Compiler) resolveBreaksWithValue() {
+	for _, item := range cp.forData[len(cp.forData)-1] {
+		if item, ok := item.(bkBreakWithValue); ok {
+			cp.vmComeFrom(item)
+		}
+	}
 	cp.forData = cp.forData[:len(cp.forData)-1]
 }
 
@@ -491,6 +503,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 			}
 		}
 	}
+	cp.cm("Typechecking and inserting result into local variables.", node.GetToken())
 	cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
 	if thisExists {
 		ctxt.env.data["this"] = *oldThis
@@ -579,7 +592,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.cm("Finding intitial values of bound variables", tok)
-		boundVariableTypes, isConst := cp.CompileNode(rhsOfBoundVariables, ctxt)
+		var isConst bool
+		boundVariableTypes, isConst = cp.CompileNode(rhsOfBoundVariables, ctxt)
 		if isConst { // Then we still need to initialize the index variables when we start the loop.
 			cp.put(Asgm, cp.That())
 		}
@@ -625,7 +639,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.cm("Finding intitial values of index variables", tok)
-		indexVariableTypes, isConst := cp.CompileNode(rhsOfInitVariables, ctxt)
+		var isConst bool
+		indexVariableTypes, isConst = cp.CompileNode(rhsOfInitVariables, ctxt)
 		if isConst { // Then we still need to initialize the index variables when we start the loop.
 			cp.put(Asgm, cp.That())
 		}
@@ -740,7 +755,6 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	if flavor == TRIPARTITE {
 		cp.cm("Typechecking index variable result and putting it into index variables.", tok)
 		cp.emitTypeChecks(indexResultLoc, indexVariableTypes, newEnv, indexCpSig, ctxt.ac, tok, typeCheckFlavor(FOR_LOOP_INDEX_VARIABLE))
-
 	}
 	// The conditional for ending the loop, according to the flavor of the loop.
 	if flavor == TRIPARTITE || flavor == WHILE {
@@ -788,6 +802,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	cp.cm("Putting result on top of memory.", tok)
 	cp.resolveBreaksWithoutValue()
 	cp.put(Asgm, boundResultLoc)
+	cp.resolveBreaksWithValue()
 	cp.vmComeFrom(conditionalFails, rangeOver)
 
 	return rtnTypes
@@ -886,6 +901,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	types, _ := cp.CompileNode(fnNode.Body, newContext)
 	LF.Model.resultLocation = cp.That()
 	if fnNode.Rets != nil {
+		cp.cm("Typechecking returns from lambda.", fnNode.GetToken())
 		cp.emitTypeChecks(LF.Model.resultLocation, types, env, fnNode.Rets, LAMBDA, tok, CHECK_RETURN_TYPES)
 	}
 	cp.Emit(Ret)
@@ -938,6 +954,12 @@ func (cp *Compiler) vmBreakWithoutValue() bkBreakWithoutValue {
 	return bkBreakWithoutValue(cp.CodeTop() - 1)
 }
 
+func (cp *Compiler) vmBreakWithValue(mLoc uint32) bkBreakWithValue {
+	cp.Emit(Asgm, DUMMY, mLoc)
+	cp.Emit(Jmp, DUMMY)
+	return bkBreakWithValue(cp.CodeTop() - 2)
+}
+
 type bkEarlyReturn int
 
 func (cp *Compiler) vmEarlyReturn(mLoc uint32) bkEarlyReturn {
@@ -955,6 +977,12 @@ func (cp *Compiler) vmConditionalEarlyReturn(oc Opcode, args ...uint32) bkEarlyR
 func (cp *Compiler) vmComeFrom(items ...any) {
 	for _, item := range items {
 		switch item := item.(type) {
+		case bkBreakWithValue:
+			if uint32(item) == DUMMY {
+				continue
+			}
+			cp.vm.Code[uint32(item)].Args[0] = cp.That()
+			cp.vm.Code[uint32(item)+1].MakeLastArg(cp.CodeTop())
 		case bkBreakWithoutValue:
 			if uint32(item) == DUMMY {
 				continue
@@ -1082,6 +1110,7 @@ NodeTypeSwitch:
 				}
 			}
 		}
+		cp.cm("Typechecking and inserting result into variables.", node.GetToken())
 		typeCheckFailed := cp.emitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), flavor)
 		cp.put(Asgm, values.C_OK)
 		cp.vmComeFrom(rhsIsError, typeCheckFailed)
@@ -1604,6 +1633,15 @@ NodeTypeSwitch:
 				}
 			}
 			rtnTypes, rtnConst = AltType(values.SUCCESSFUL_VALUE), false
+			break
+		}
+		if node.Token.Type == token.BREAK {
+			if !cp.forDataExists() { // Then we're not in a 'for' loop.
+				cp.P.Throw("comp/break", node.GetToken())
+				break NodeTypeSwitch
+			}
+			rtnTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt)
+			cp.addToForData(cp.vmBreakWithValue(cp.That()))
 			break
 		}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
