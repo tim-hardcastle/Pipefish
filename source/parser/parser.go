@@ -1508,12 +1508,22 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstS
 			}
 			middle := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
 			return append(append(LHS, middle), RHS...), nil
-		case typednode.Token.Type == token.COMMA || typednode.Token.Type == token.WEAK_COMMA:
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
+		case typednode.Token.Type == token.COMMA:
+			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			if err != nil {
 				return nil, err
 			}
+			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], RHS.GetVarType(0).(string))
+			if err != nil {
+				return nil, err
+			}
+			return append(LHS, RHS...), nil
+		case typednode.Token.Type == token.WEAK_COMMA:
 			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
+			if err != nil {
+				return nil, err
+			}
+			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
 			if err != nil {
 				return nil, err
 			}
@@ -1537,9 +1547,8 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstS
 		}
 	case *ast.SuffixExpression:
 		switch {
-		case TypeExists(typednode.Operator, p.TypeSystem) ||
-			typednode.Operator == "ast" || typednode.Operator == "ident":
-			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
+		case TypeExists(typednode.Operator, p.TypeSystem):
+			LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
 			if err != nil {
 				return nil, err
 			}

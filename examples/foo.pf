@@ -1,29 +1,6 @@
-newtype
-
-Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
-
 def
 
-evens(x) :
-    from L = [] for k::v = range x :
-        k % 2 == 0 :
-            L + [v]
-        else :
-            continue
-
-find(x, C) :
-    from a = -1 for i::y = range C :
-        x == y :
-            break i 
-        else :
-            continue
-
-collatz(n) :
-    from i = n for :
-        i == 1 :
-            break 
-        i % 2 == 0 :
-            i / 2
-        else :
-            3 * i + 1
+foo(n int) :
+    first from a, b = 0, 1 for i = 0; i < n; i + 1 :
+        b, a + b
 
