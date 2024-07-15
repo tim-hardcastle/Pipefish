@@ -1425,7 +1425,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/before": {
+	"parse/before/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't put " + text.DescribeTok(tok) + " before " + text.DescribeTok(args[0].(*token.Token))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This error occurs when you put one thing after another where they just make no sense in " +
+				"sequence, e.g. '8 8' or 'false \"Wombat\"' or '0.5 ('."
+		},
+	},
+
+	"parse/before/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't put " + text.DescribeTok(tok) + " before " + text.DescribeTok(args[0].(*token.Token))
 		},
@@ -1505,6 +1515,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This error occurs when something which only makes sense as a prefix, such as 'not', is " +
 				"then not followed by anything."
+		},
+	},
+
+	"parse/from": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "Prefix " + emph("from") + " without " + emph("for")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When " + emph("from") + " appears in prefix position, Pipefish expects it to be binding variable to a succeeding " + emph("for") + " loop, and it can't find one in this case."
 		},
 	},
 

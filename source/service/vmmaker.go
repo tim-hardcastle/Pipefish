@@ -88,9 +88,6 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	if !settings.OMIT_BUILTINS {
 		vmm.uP.AddToNameSpace(settings.MandatoryImports)
 	}
-	if settings.USE_TEST {
-		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/test.pf"})
-	}
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {

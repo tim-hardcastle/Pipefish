@@ -98,7 +98,12 @@ func NewInitializer(source, sourceCode, dir string) *Initializer {
 
 func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
-		libDat, _ := os.ReadFile(fname)
+		fname = init.Parser.Directory + fname
+		libDat, err := os.ReadFile(fname)
+		if err != nil {
+			println("Here's your problem.")
+			init.Throw("init/import/found", token.Token{})
+		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))
 		init.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.

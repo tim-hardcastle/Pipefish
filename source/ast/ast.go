@@ -37,12 +37,7 @@ func (ae *AssignmentExpression) String() string {
 
 	out.WriteString("(")
 	out.WriteString(ae.Left.String())
-	out.WriteString(")")
-	if ae.Token.Type == token.GVN_ASSIGN {
-		out.WriteString(" {gvn}")
-	}
 	out.WriteString(" = ")
-	out.WriteString("(")
 	out.WriteString(ae.Right.String())
 	out.WriteString(")")
 
@@ -199,16 +194,10 @@ func (ie *InfixExpression) String() string {
 
 	out.WriteString("(")
 	for i, v := range ie.Args {
-		if reflect.TypeOf(v) == reflect.TypeOf(&Bling{}) {
-			out.WriteString(")")
-		}
 		out.WriteString(v.String())
 		if i < (len(ie.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
 			!(reflect.TypeOf(ie.Args[i+1]) == reflect.TypeOf(&Bling{})) {
 			out.WriteString(",")
-		}
-		if reflect.TypeOf(v) == reflect.TypeOf(&Bling{}) {
-			out.WriteString("(")
 		}
 		if i < (len(ie.Args) - 1) {
 			out.WriteString(" ")
@@ -421,8 +410,9 @@ func (se *SuffixExpression) String() string {
 			out.WriteString(" ")
 		}
 	}
-	out.WriteString(") ")
+	out.WriteString(" ")
 	out.WriteString(se.Operator)
+	out.WriteString(")")
 	return out.String()
 }
 

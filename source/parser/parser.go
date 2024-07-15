@@ -248,7 +248,7 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 }
 
 func (p *Parser) prefixSuffixError() {
-	p.Throw("parse/before", &p.curToken, &p.peekToken)
+
 }
 
 func (p *Parser) ParseTokenizedChunk() ast.Node {
@@ -271,7 +271,7 @@ var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, toke
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
 	if literals.Contains(p.curToken.Type) && literalsAndLParen.Contains(p.peekToken.Type) {
-		p.prefixSuffixError()
+		p.Throw("parse/before/a", &p.curToken, &p.peekToken)
 	}
 	var leftExp ast.Node
 	noNativePrefix := false
@@ -390,7 +390,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	for precedence < p.peekPrecedence() {
 		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH || p.peekToken.Type == token.DOTDOTDOT {
 			if p.curToken.Type == token.NOT || p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
-				p.prefixSuffixError()
+				p.Throw("parse/before/b", &p.curToken, &p.peekToken)
 				return nil
 			}
 			p.NextToken()
@@ -440,7 +440,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			p.Throw("parse/line", &p.curToken)
 			return nil
 		}
-		if p.curToken.Literal == "<-|" || p.curToken.Literal == ")" ||
+		if p.curToken.Literal == "<-|" || p.curToken.Literal == ")" || // TODO --- it's not clear this or the following error can ever actually be thrown.
 			p.curToken.Literal == "]" || p.curToken.Literal == "}" {
 			p.Throw("parse/close", &p.curToken)
 			return nil
@@ -621,28 +621,16 @@ func (p *Parser) parseUnfixExpression() ast.Node {
 	return &ast.UnfixExpression{Token: p.curToken, Operator: p.curToken.Literal}
 }
 
+// The fact that it is a valid integer has been checked by the lexer.
 func (p *Parser) parseIntegerLiteral() ast.Node {
-	lit := &ast.IntegerLiteral{Token: p.curToken}
-	value, e := strconv.Atoi(p.curToken.Literal)
-	if e != nil {
-		p.Throw("parse/int", &p.curToken)
-		return nil
-	}
-
-	lit.Value = value
-	return lit
+	iVal, _ := strconv.Atoi(p.curToken.Literal)
+	return &ast.IntegerLiteral{Token: p.curToken, Value: iVal}
 }
 
+// The fact that it is a valid float has been checked by the lexer.
 func (p *Parser) parseFloatLiteral() ast.Node {
-	lit := &ast.FloatLiteral{Token: p.curToken}
-	value, e := strconv.ParseFloat(p.curToken.Literal, 64)
-	if e != nil {
-		p.Throw("parse/float64", &p.curToken)
-		return nil
-	}
-
-	lit.Value = value
-	return lit
+	fVal, _ := strconv.ParseFloat(p.curToken.Literal, 64)
+	return &ast.FloatLiteral{Token: p.curToken, Value: fVal}
 }
 
 func (p *Parser) parseStringLiteral() ast.Node {
@@ -781,7 +769,7 @@ func (p *Parser) parseBuiltInExpression() ast.Node {
 	if p.curToken.Type == token.STRING {
 		expression.Name = p.curToken.Literal
 	} else {
-		p.Throw("parse/builtin", &p.curToken)
+		panic("Expecting a string after 'builtin'.")
 	}
 	p.NextToken()
 	return expression

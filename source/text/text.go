@@ -346,3 +346,13 @@ func GetTextWithBarsAsList(text string) ([]string, bool) {
 	strList = append(strList, word)
 	return strList, true
 }
+
+// Removes the last two folders in a filepath. TODO --- is there a more principled way of doing this?
+func Trim(path string) string {
+	lastFS := strings.LastIndex(path, "/")
+	path = path[:lastFS]
+	lastFS = strings.LastIndex(path, "/")
+	path = path[:lastFS]
+	path = path + "/"
+	return path
+}
