@@ -537,6 +537,7 @@ const (
 	TRIPARTITE
 	WHILE
 	RANGE
+	INFINITE_LOOP
 )
 
 func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) AlternateType {
@@ -545,7 +546,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	// We have three cases.
 	// (i) The 'for' loop has a C-like tripartite header.
 	// (ii) The 'for' loop is acting as a 'while' loop and so just has a conditional.
-	// (iii) The 'for' loop is of the form x::y = range z
+	// (iii) It doesn't even have a conditional, and can be exited only with break.
+	// (iv) The 'for' loop is of the form x::y = range z
 
 	// The 'flavor' flag allows us to keep track of what we're doing
 	flavor := UNDEFINED_LOOP_FLAVOR
@@ -622,8 +624,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	}
 
 	// Now the variables for the header, if any.
-
-	if node.Initializer != nil { // Then we have a C-like tripartite header.
+	switch {
+	case node.Initializer != nil: // Then we have a C-like tripartite header.
 		flavor = TRIPARTITE
 		// For the initializer we have to do something very un-DRYly like what we just did with the bound variables; TODO ---
 		// is there any way to DRY it up that doesn't obfuscate the code?
@@ -666,83 +668,84 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, overlap})
 			}
 		}
-	} else { // Else we're in case (ii) or (iii), and we should first find out which.
-		if node.ConditionOrRange.GetToken().Type == token.ASSIGN { // Then we should have a 'range' expression, which we can deconstruct.
-			flavor = RANGE
-			pairOfIdentifiers := node.ConditionOrRange.(*ast.AssignmentExpression).Left
-			rangeExpression := node.ConditionOrRange.(*ast.AssignmentExpression).Right
-			if pairOfIdentifiers, ok := pairOfIdentifiers.(*ast.InfixExpression); ok && pairOfIdentifiers.Operator == "::" {
-				var leftName, rightName string
-				if leftId, ok := pairOfIdentifiers.Args[0].(*ast.Identifier); ok {
-					leftName = leftId.Value
-				} else {
-					cp.P.Throw("comp/for/range/a", node.Initializer.GetToken())
-					return altType(values.COMPILE_TIME_ERROR)
-				}
-				if rightId, ok := pairOfIdentifiers.Args[2].(*ast.Identifier); ok {
-					rightName = rightId.Value
-				} else {
-					cp.P.Throw("comp/for/range/b", node.Initializer.GetToken())
-					return altType(values.COMPILE_TIME_ERROR)
-				}
-				keysOnly := rightName == "_"
-				valuesOnly := leftName == "_"
-				if keysOnly && valuesOnly {
-					cp.P.Throw("comp/for/range/discard", node.Initializer.GetToken())
-					return altType(values.COMPILE_TIME_ERROR)
-				}
-				var rangeOver ast.Node
-				if rangeExpression, ok := rangeExpression.(*ast.PrefixExpression); ok && rangeExpression.Operator == "range" {
-					rangeOver = rangeExpression.Args[0]
-					rangeRollback := cp.getState()
-					rangeTypes, rangeConst := cp.CompileNode(rangeOver, ctxt.x())
-
-					if rangeTypes.isNoneOf(values.LIST, values.MAP, values.PAIR, values.SET, values.STRING, values.TUPLE, values.TYPE) {
-						cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
-						return altType(values.COMPILE_TIME_ERROR)
-					}
-					keysInt := uint32(0)
-					if keysOnly {
-						keysInt = 1
-					}
-					cp.put(Mkit, cp.That(), keysInt, cp.reserveToken(rangeOver.GetToken()))
-					if rangeConst {
-						cp.vm.Run(uint32(rangeRollback.code))
-						val := cp.vm.Mem[cp.That()]
-						cp.rollback(rangeRollback, rangeOver.GetToken())
-						cp.Reserve(values.ITERATOR, val.V, rangeOver.GetToken())
-						cp.Emit(Rsit, cp.That())
-					}
-					iteratorLoc = cp.That()
-					if !valuesOnly {
-						cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
-						rangeKeyLoc = cp.That()
-						_, exists := newEnv.getVar(leftName)
-						if exists {
-							cp.P.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
-							return altType(values.COMPILE_TIME_ERROR)
-						}
-						cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], rangeOver.GetToken()) // TODO --- narrow down.
-					}
-					if !keysOnly {
-						cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
-						rangeValLoc = cp.That()
-						_, exists := newEnv.getVar(rightName)
-						if exists {
-							cp.P.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
-							return altType(values.COMPILE_TIME_ERROR)
-						}
-						cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], rangeOver.GetToken())
-					}
-				}
+	case node.ConditionOrRange == nil:
+		flavor = INFINITE_LOOP
+	case node.ConditionOrRange.GetToken().Type == token.ASSIGN: // Then we should have a 'range' expression, which we can deconstruct.
+		flavor = RANGE
+		pairOfIdentifiers := node.ConditionOrRange.(*ast.AssignmentExpression).Left
+		rangeExpression := node.ConditionOrRange.(*ast.AssignmentExpression).Right
+		if pairOfIdentifiers, ok := pairOfIdentifiers.(*ast.InfixExpression); ok && pairOfIdentifiers.Operator == "::" {
+			var leftName, rightName string
+			if leftId, ok := pairOfIdentifiers.Args[0].(*ast.Identifier); ok {
+				leftName = leftId.Value
 			} else {
-				cp.P.Throw("comp/for/range/c", node.Initializer.GetToken())
+				cp.P.Throw("comp/for/range/a", node.Initializer.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
+			if rightId, ok := pairOfIdentifiers.Args[2].(*ast.Identifier); ok {
+				rightName = rightId.Value
+			} else {
+				cp.P.Throw("comp/for/range/b", node.Initializer.GetToken())
+				return altType(values.COMPILE_TIME_ERROR)
+			}
+			keysOnly := rightName == "_"
+			valuesOnly := leftName == "_"
+			if keysOnly && valuesOnly {
+				cp.P.Throw("comp/for/range/discard", node.Initializer.GetToken())
+				return altType(values.COMPILE_TIME_ERROR)
+			}
+			var rangeOver ast.Node
+			if rangeExpression, ok := rangeExpression.(*ast.PrefixExpression); ok && rangeExpression.Operator == "range" {
+				rangeOver = rangeExpression.Args[0]
+				rangeRollback := cp.getState()
+				rangeTypes, rangeConst := cp.CompileNode(rangeOver, ctxt.x())
+
+				if rangeTypes.isNoneOf(values.LIST, values.MAP, values.PAIR, values.SET, values.STRING, values.TUPLE, values.TYPE) {
+					cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
+					return altType(values.COMPILE_TIME_ERROR)
+				}
+				keysInt := uint32(0)
+				if keysOnly {
+					keysInt = 1
+				}
+				cp.put(Mkit, cp.That(), keysInt, cp.reserveToken(rangeOver.GetToken()))
+				if rangeConst {
+					cp.vm.Run(uint32(rangeRollback.code))
+					val := cp.vm.Mem[cp.That()]
+					cp.rollback(rangeRollback, rangeOver.GetToken())
+					cp.Reserve(values.ITERATOR, val.V, rangeOver.GetToken())
+					cp.Emit(Rsit, cp.That())
+				}
+				iteratorLoc = cp.That()
+				if !valuesOnly {
+					cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
+					rangeKeyLoc = cp.That()
+					_, exists := newEnv.getVar(leftName)
+					if exists {
+						cp.P.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
+						return altType(values.COMPILE_TIME_ERROR)
+					}
+					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], rangeOver.GetToken()) // TODO --- narrow down.
+				}
+				if !keysOnly {
+					cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
+					rangeValLoc = cp.That()
+					_, exists := newEnv.getVar(rightName)
+					if exists {
+						cp.P.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
+						return altType(values.COMPILE_TIME_ERROR)
+					}
+					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], rangeOver.GetToken())
+				}
+			}
 		} else {
-			flavor = WHILE
+			cp.P.Throw("comp/for/range/c", node.Initializer.GetToken())
+			return altType(values.COMPILE_TIME_ERROR)
 		}
-	}
+	default:
+		flavor = WHILE
+	} // end of switch
+
 	conditionalFails := bkEarlyReturn(DUMMY)
 	startOfForLoop := cp.CodeTop()
 

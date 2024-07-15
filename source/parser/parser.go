@@ -703,6 +703,16 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 		Token: p.curToken,
 	}
 	p.NextToken()
+	// We handle the 'for :' as "while true" case.
+	if p.curToken.Type == token.COLON {
+		p.NextToken()
+		expression.Body = p.parseExpression(COLON)
+		if p.ErrorsExist() {
+			return nil
+		}
+		return expression
+	}
+
 	pieces := p.parseExpression(GIVEN)
 	if p.ErrorsExist() {
 		return nil

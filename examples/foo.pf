@@ -18,8 +18,12 @@ find(x, C) :
         else :
             continue
 
-fib(n) :
-    first from a, b = 0, 1 for i = 0; i < n; i + 1 :
-        b, a + b
-
+collatz(n) :
+    from i = n for :
+        i == 1 :
+            break 
+        i % 2 == 0 :
+            i / 2
+        else :
+            3 * i + 1
 
