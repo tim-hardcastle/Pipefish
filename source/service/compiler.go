@@ -610,16 +610,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
+			var types AlternateType
 			if pair.VarType == "*default*" {
-				types := typesAtIndex(boundVariableTypes, i)
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
-				boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
+				types = typesAtIndex(boundVariableTypes, i)
 			} else {
-				sigTypes := cp.TypeNameToTypeList[pair.VarType]
-				overlap := sigTypes.intersect(typesAtIndex(boundVariableTypes, i))
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, overlap, tok)
-				boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, overlap})
+				types = cp.TypeNameToTypeList[pair.VarType]
 			}
+			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
+			boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
 		}
 	}
 
@@ -657,16 +655,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
+			var types AlternateType
 			if pair.VarType == "*default*" {
-				types := typesAtIndex(indexVariableTypes, i)
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
-				indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
+				types = typesAtIndex(indexVariableTypes, i)
 			} else {
-				sigTypes := cp.TypeNameToTypeList[pair.VarType]
-				overlap := sigTypes.intersect(typesAtIndex(indexVariableTypes, i))
-				cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, overlap, tok)
-				indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, overlap})
+				types = cp.TypeNameToTypeList[pair.VarType]
 			}
+			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
+			indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
 		}
 	case node.ConditionOrRange == nil:
 		flavor = INFINITE_LOOP
