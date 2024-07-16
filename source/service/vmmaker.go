@@ -903,7 +903,9 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		if isVarargs {
 			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{vmm.cp.TypeNameToTypeList[pair.VarType]}}, node.GetToken())
 		} else {
-			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType], node.GetToken())
+			if pair.VarType != "bling" {
+				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList[pair.VarType], node.GetToken())
+			}
 		}
 	}
 	cpF.HiReg = vmm.cp.MemTop()
