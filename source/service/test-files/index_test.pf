@@ -24,7 +24,17 @@ myType = Color
 
 myMap = map ("a"::[1, 2], "b"::[3, 4], "c"::[5, 6])
 
+myIndex = "a"
+
 myList = [[1, 2], [3, 4], [5, 6]]
+
+myPair = "foo"::"bar"
+
+myIntPair = 0::2
+
+myNumber = 2
+
+myWord = "Angela"
 
 def // Indexing when we don't know the types in advance is a different compilation from when we know one or both.
 

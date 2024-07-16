@@ -95,7 +95,36 @@ func TestBuiltins(t *testing.T) {
 	}
 	runTest(t, "", tests, testValues)
 }
-
+func TestIndexing(t *testing.T) {
+	tests := []testItem{
+		{`Color[4]`, `BLUE`},
+		{`myType[5]`, `PURPLE`},
+		{`DARK_BLUE[shade]`, `DARK`},
+		{`myColor[shade]`, `LIGHT`},
+		{`DARK_BLUE[KEY]`, `DARK`},
+		{`myColor[KEY]`, `LIGHT`},
+		{`DARK_BLUE[key]`, `DARK`},
+		{`myColor[key]`, `LIGHT`},
+		{`"Angela"[3]`, `'e'`},
+		{`"Angela"[2::5]`, `"gel"`},
+		{`myWord[2::5]`, `"gel"`},
+		{`myList[2]`, `[5, 6]`},
+		{`myList[myNumber]`, `[5, 6]`},
+		{`Color[myNumber]`, `YELLOW`},
+		{`myType[myNumber]`, `YELLOW`},
+		{`myList[0::2]`, `[[1, 2], [3, 4]]`},
+		{`myList[myIntPair]`, `[[1, 2], [3, 4]]`},
+		{`"Angela"[myIntPair]`, `"An"`},
+		{`myWord[myIntPair]`, `"An"`},
+		{`myPair[0]`, `"foo"`},
+		{`myMap["a"]`, `[1, 2]`},
+		{`foo myType, myNumber`, `YELLOW`},
+		{`foo myMap, myIndex`, `[1, 2]`},
+		{`foo myList, myNumber`, `[5, 6]`},
+		{`foo myColor, key`, `LIGHT`},
+	}
+	runTest(t, "index_test.pf", tests, testValues)
+}
 func TestFunctionSyntaxCalls(t *testing.T) {
 	tests := []testItem{
 		{`foo "bing"`, `"foo bing"`},

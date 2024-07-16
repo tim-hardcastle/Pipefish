@@ -603,9 +603,11 @@ loop:
 				} else {
 					vm.Mem[args[0]] = result
 				}
+				break
 			}
 			if index.T != values.INT {
 				vm.Mem[args[0]] = vm.makeError("vm/index/i", args[3], vm.DescribeType(vm.Mem[args[1]].T), vm.DescribeType(vm.Mem[args[2]].T), args[1], args[2])
+				break
 			}
 			switch container.T {
 			case values.LIST:
@@ -617,6 +619,7 @@ loop:
 				} else {
 					vm.Mem[args[0]] = val.(values.Value)
 				}
+				break Switch
 			case values.PAIR:
 				pair := container.V.([]values.Value)
 				ix := index.V.(int)
@@ -626,6 +629,7 @@ loop:
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/k", args[3], ix)
 				}
+				break Switch
 			case values.STRING:
 				str := container.V.(string)
 				ix := index.V.(int)
@@ -636,6 +640,7 @@ loop:
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/l", args[3], ix, len(str), args[1], args[2])
 				}
+				break Switch
 			case values.TUPLE:
 				tuple := container.V.([]values.Value)
 				ix := index.V.(int)
@@ -645,6 +650,7 @@ loop:
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/m", args[3], ix, len(tuple), args[1], args[2])
 				}
+				break Switch
 			case values.TYPE:
 				abTyp := container.V.(values.AbstractType)
 				if len(abTyp.Types) != 1 {
@@ -663,6 +669,7 @@ loop:
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3])
 				}
+				break Switch
 			default:
 				vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T))
 			}
@@ -749,7 +756,7 @@ loop:
 				}
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
-				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.concreteTypes[v.T].isEnum()) {
+				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.concreteTypes[v.T].isEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T))
 					break Switch
 				}

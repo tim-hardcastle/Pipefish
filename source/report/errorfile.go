@@ -2258,7 +2258,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/map/key": {
 		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("can't use value of type %v as the key in a key-value pair.", emph(args[0]))
+			return fmt.Sprintf("can't use value of type %v as the key in a key-value pair", emph(args[0]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("To be the key of a key-value pair in a map, a value must have a type which is not a struct.")

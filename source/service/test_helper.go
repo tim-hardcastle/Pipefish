@@ -2,6 +2,7 @@ package service
 
 import (
 	"os"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"testing"
 )
@@ -40,6 +41,9 @@ func testCompilerErrors(cp *Compiler, s string) string {
 func runTest(t *testing.T, filename string, tests []testItem, F func(cp *Compiler, s string) string) {
 	wd, _ := os.Getwd() // The working directory is the directory containing the package being tested.
 	for _, test := range tests {
+		if settings.SHOW_TESTS {
+			println(text.BULLET + "Running test " + text.Emph(test.input))
+		}
 		mc := BlankVm(nil, nil)
 		var cp *Compiler
 		var uP *Initializer
