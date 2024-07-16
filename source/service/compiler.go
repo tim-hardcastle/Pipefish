@@ -160,6 +160,14 @@ func (cs cpSig) Len() int {
 	return len(cs)
 }
 
+func getVarNames(sig signature) string {
+	names := []string{}
+	for i := 0; i < sig.Len(); i++ {
+		names = append(names, sig.GetVarName(i))
+	}
+	return strings.Join(names, ", ")
+}
+
 type NameAlternateTypePair struct {
 	VarName string
 	VarType AlternateType
@@ -1051,6 +1059,7 @@ NodeTypeSwitch:
 			cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
 			break NodeTypeSwitch
 		}
+		cp.cm("Assignment signature is "+text.Emph(sig.String()), &node.Token)
 		rhsIsError := bkEarlyReturn(DUMMY) // TODO --- since assigning an error would violate a type check, which we also perform, is this necessary?
 		rTypes, _ := cp.CompileNode(node.Right, ctxt.x())
 		rhsResult := cp.That()
@@ -1068,13 +1077,18 @@ NodeTypeSwitch:
 		for i, pair := range sig {
 			v, ok := env.getVar(pair.VarName)
 			if ok {
+				cp.cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
 					if !Equals(v.types, cp.TypeNameToTypeList[sig[i].VarType]) {
 						cp.P.Throw("comp/assign/redefine/b", node.GetToken())
 						break NodeTypeSwitch
 					}
 				}
-				newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
+				if v.access != REFERENCE_VARIABLE { // TODO --- THere's probably a more elgant way of dealing with the reference variable thing if I think about it, but as I intend to type them anyway and this will get refactored away it's not a big deal.
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
+				} else {
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.TypeNameToTypeList["single?"]})
+				}
 				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
 					cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
@@ -1091,7 +1105,8 @@ NodeTypeSwitch:
 				if v.access == GLOBAL_VARIABLE_PUBLIC {
 					flavor = CHECK_GLOBAL_ASSIGNMENTS
 				}
-			} else { // Then we create a local variable.
+			} else { // The variable doesn't already exist.
+				cp.cm("Assignment creating local variable "+text.Emph(sig.String())+".", &node.Token)
 				if ac == REPL {
 					cp.P.Throw("comp/assign/error", node.Left.GetToken())
 					break NodeTypeSwitch
@@ -2211,13 +2226,13 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				varargsSlurpingTupleTypeCheck = cp.emitVarargsTypeComparisonOfTupleFromTypeName(typeName, b.valLocs[b.argNo], b.index)
 			}
 		case len(overlap):
-			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
+			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo], b.tok)
 		default:
 			cp.Emit(Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
-			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo])
+			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo], b.tok)
 			cp.Emit(Jmp, cp.CodeTop()+3)
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			elementOfTupleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, cp.That())
+			elementOfTupleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, cp.That(), b.tok)
 		}
 	}
 	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
@@ -2293,7 +2308,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		cp.vmComeFrom(skipElse)
 	}
 	cp.cmP("We return from generateBranch.", b.tok)
-	cp.cmP("Types from going down are"+typesFromGoingDown.describe(cp.vm), b.tok)
+	cp.cmP("Types from going down are "+typesFromGoingDown.describe(cp.vm), b.tok)
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
@@ -2312,12 +2327,12 @@ var TYPE_COMPARISONS = map[string]Opcode{
 // extra burden of this conversion and the subsequent check for whether it is a built-in abstract type is  more than my conscience could
 // reasonably bear. Hence a mass of pernickety little interfaces and functions try to conceal the fact that, again, I have like three-and-
 // a-half ways to represent types, in the parser, in the compiler, and in the VM.
-func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32) bkGoto {
+func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *token.Token) bkGoto {
 	switch typeRepresentation := typeRepresentation.(type) {
 	case string:
-		return cp.emitTypeComparisonFromTypeName(typeRepresentation, mem)
+		return cp.emitTypeComparisonFromTypeName(typeRepresentation, mem, tok)
 	case AlternateType:
-		return cp.emitTypeComparisonFromAltType(typeRepresentation, mem)
+		return cp.emitTypeComparisonFromAltType(typeRepresentation, mem, tok)
 	}
 	panic("Now this was not meant to happen.")
 }
@@ -2337,7 +2352,8 @@ func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString st
 	return bkGoto(cp.CodeTop() - 1)
 }
 
-func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32) bkGoto {
+func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32, tok *token.Token) bkGoto {
+	cp.cm("Emitting type comparison from typename "+text.Emph(typeAsString), tok)
 	// We may have a 'varchar'.
 	if len(typeAsString) >= 8 && typeAsString[0:8] == "varchar(" {
 		if typeAsString[len(typeAsString)-1] == '?' {
@@ -2387,7 +2403,8 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	panic("Unknown type: " + typeAsString)
 }
 
-func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32) bkGoto { // TODO --- more of this.
+func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
+	cp.cm("Emitting type comparison from alternate type "+text.Emph(typeAsAlt.describe(cp.vm)), tok)
 	if len(typeAsAlt) == 1 {
 		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
@@ -2638,7 +2655,8 @@ const (
 // If the sig is of an assignment in a command or a given block, then this is in fact all that needs to be done. If it's a
 // lambda, then the rest of the code in the lambda can then return an error if passed one.
 func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac cpAccess, tok *token.Token, flavor typeCheckFlavor) bkEarlyReturn {
-	cp.cm("Emit type checks", tok)
+	cp.cm("Emitting type checks.", tok)
+	cp.cm("Sig names are "+text.Emph(getVarNames(sig))+".", tok)
 	// The insert variable says whether we're just doing a typecheck against the sig or whether we're inserting values into variables.
 	insert := (flavor != CHECK_RETURN_TYPES)
 	// The earlyReturnOnFailure variable does what it sounds like. In the case when we are typechecking the arguments of a lambda or an assignment involving a global
@@ -2675,7 +2693,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 		}
 	}
 	if len(acceptedSingles) != len(singles) {
-		checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc)
+		checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc, tok)
 	}
 	if insert {
 		vData, _ := env.getVar(sig.GetVarName(0)) // It is assumed that we've already made it exist.
@@ -2752,7 +2770,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 				elementLoc = cp.Reserve(values.UNDEFINED_VALUE, nil, tok)
 			}
 			cp.Emit(IxTn, elementLoc, loc, uint32(i))
-			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), elementLoc)
+			typeCheck := cp.emitTypeComparison(sig.GetVarType(i), elementLoc, tok)
 			typeChecks = append(typeChecks, typeCheck)
 		}
 
@@ -2966,7 +2984,16 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 }
 
 func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, isFilter bool, ac cpAccess) (AlternateType, bool) {
-	var isConst bool
+	tok := rhs.GetToken()
+	if isFilter {
+		cp.cm("Compiling filter.", tok)
+	} else {
+		cp.cm("Compiling mapping.", tok)
+	}
+	cp.cm("rhs is "+text.Emph(rhs.String()), tok)
+	cp.cm("lhsTypes is "+text.Emph(lhsTypes.describe(cp.vm)), tok)
+	println()
+	var rhsConst bool
 	var isAttemptedFunc bool
 	var v *variable
 	inputElement := uint32(DUMMY)
@@ -2981,13 +3008,14 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	switch rhs := rhs.(type) {
 	case *ast.Identifier:
 		if rhs.GetToken().Literal != "that" {
-			v, ok := env.getVar(rhs.Value)
+			var ok bool
+			v, ok = env.getVar(rhs.Value)
 			if !ok {
 				cp.P.Throw("comp/pipe/mf/ident", rhs.GetToken())
 				return AltType(values.ERROR), true
 			}
 			isAttemptedFunc = true
-			isConst = ALL_CONSTANT_ACCESS.Contains(v.access)
+			rhsConst = ALL_CONSTANT_ACCESS.Contains(v.access)
 			if !v.types.Contains(values.FUNC) {
 				cp.P.Throw("comp/pipe/mf/func", rhs.GetToken())
 			}
@@ -2999,6 +3027,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		}
 	}
 	if !isAttemptedFunc {
+		rhsConst = true
 		thatLoc = cp.Reserve(values.UNDEFINED_VALUE, DUMMY, rhs.GetToken())
 		envWithThat = &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.TypeNameToTypeList["single?"]}}, Ext: env}
 	}
@@ -3006,23 +3035,28 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
 	cp.put(LenL, sourceList)
 	length := cp.That()
-
+	cp.cm("Start of loop.", tok)
 	loopStart := cp.CodeTop()
+	cp.cm("Check if the list is finished.", tok)
 	cp.put(Gthi, length, counter)
-	filterCheck := cp.vmIf(Qtru, cp.That())
+	listFinished := cp.vmIf(Qtru, cp.That())
+	cp.cm("Emit the body of the loop.", tok)
 	if isAttemptedFunc {
+		cp.cm("The rhs is a variable containing a function.", tok)
 		cp.put(IdxL, sourceList, counter, DUMMY)
 		inputElement = cp.That()
 		cp.put(Dofn, v.mLoc, cp.That())
 		types = AltType(values.ERROR).Union(cp.TypeNameToTypeList["single?"]) // Very much TODO. Normally the function is constant and so we know its return types.
 	} else {
+		cp.cm("The rhs is an expression presumably containing 'that'.", tok)
 		cp.Emit(IdxL, thatLoc, sourceList, counter, DUMMY)
 		inputElement = thatLoc
 		newContext := context{envWithThat, ac, nil, DUMMY} // TODO --- get mapping from outer context.
-		types, isConst = cp.CompileNode(rhs, newContext)
+		types, _ = cp.CompileNode(rhs, newContext)
 	}
 	resultElement := cp.That()
 	if types.Contains(values.ERROR) {
+		cp.cm("If the result of the function's 'that' expression might be an error, we test for that and early-return the error if so.", tok)
 		cp.Emit(Qtyp, resultElement, uint32(values.ERROR), cp.CodeTop()+3)
 		resultIsError = cp.vmEarlyReturn(cp.That())
 	}
@@ -3031,25 +3065,31 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 			cp.P.Throw("comp/pipe/filter/bool", rhs.GetToken())
 		}
 		if !types.isOnly(values.BOOL) {
+			cp.cm("The function we're filtering on might return something other than a boolean so we emit a check.", tok)
 			cp.reserveError("vm/pipe/filter/bool", rhs.GetToken())
-			cp.Emit(Qntp, resultElement, uint32(values.BOOL), cp.CodeTop()+2)
+			cp.Emit(Qntp, resultElement, uint32(values.BOOL), cp.CodeTop()+3)
 			resultIsNotBool = cp.vmEarlyReturn(cp.That())
 		}
+		cp.cm("We see if the result of the filter function is true and if so, we add it to the accumulator tuple.", tok)
 		cp.Emit(Qtru, resultElement, cp.CodeTop()+2)
 		cp.Emit(CcT1, accumulator, accumulator, inputElement)
-	} else {
+	} else { // It's a map.
+		cp.cm("We add the result of the mapping function to the accumulator tuple.", tok)
 		cp.Emit(CcT1, accumulator, accumulator, resultElement)
 	}
+	cp.cm("We increment the counter and jump to the top of the loop.", tok) // TODO --- don't we have an increment opcode? Shouldn't we make one?
 	cp.Emit(Addi, counter, counter, values.C_ONE)
 	cp.Emit(Jmp, loopStart)
-	cp.vmComeFrom(filterCheck)
+	cp.vmComeFrom(listFinished)
+	cp.cm("We turn the accumulator tuple into a list and leave the result on top of memory.", tok)
 	cp.put(List, accumulator)
 	cp.vmComeFrom(typeIsNotFunc, resultIsError, resultIsNotBool)
+	cp.cm("We've finished compiling the mapping/filter operator.", tok)
 
 	if types.Contains(values.ERROR) {
-		return AltType(values.ERROR, values.LIST), isConst
+		return AltType(values.ERROR, values.LIST), lhsConst && rhsConst
 	}
-	return AltType(values.LIST), isConst
+	return AltType(values.LIST), lhsConst && rhsConst
 }
 
 func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac cpAccess) *SnippetBindle {

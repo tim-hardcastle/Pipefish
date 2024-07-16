@@ -847,6 +847,7 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 	}
 }
 
+// For compiling a top-level function.
 func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
 	cpF := CpFunc{}
 	var ac cpAccess

@@ -97,7 +97,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Adsr: {"adds", operands{dst, mem, mem}},
 	Adtk: {"adtk", operands{dst, mem, tok}},
 	Andb: {"andb", operands{dst, mem, mem}},
-	Aref: {"aref", operands{dst, mem, mem}},
+	Aref: {"aref", operands{dst, mem}},
 	Asgm: {"asgm", operands{dst, mem}},
 	Bcon: {"bcon", operands{dst, mem}},
 	Bsql: {"bsql", operands{dst, mem}},

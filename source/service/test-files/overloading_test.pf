@@ -1,0 +1,13 @@
+def 
+
+foo(x int) :
+    "int"
+
+foo(x string) :
+    "string"
+
+foo(x single?, y bool) :
+    "single?, bool"
+
+foo(x bool, y bool) :
+    "bool, bool"

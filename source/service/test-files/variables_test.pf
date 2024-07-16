@@ -1,0 +1,41 @@
+const
+
+A = 42
+
+private
+
+B = 99
+
+var
+
+v, w = true, 42
+
+x = 42
+
+y int? = 99
+
+private 
+
+z = "aardvark"
+
+def 
+
+getB :
+    secretB 
+
+private 
+
+secretB :
+    B
+
+cmd 
+
+changeZ :
+    secretZ
+
+private 
+
+secretZ :
+    global z
+    z = "zebra"
+    post z

@@ -163,3 +163,25 @@ func TestTypeAccessErrors(t *testing.T) {
 	}
 	runTest(t, "user_types_test.pf", tests, testCompilerErrors)
 }
+
+func TestOverloading(t *testing.T) {
+	tests := []testItem{
+		{`foo 42`, `"int"`},
+		{`foo "zort"`, `"string"`},
+		{`foo 42, true`, `"single?, bool"`},
+		{`foo 42.0, true`, `"single?, bool"`},
+		{`foo true, true`, `"bool, bool"`},
+	}
+	runTest(t, "overloading_test.pf", tests, testValues)
+}
+
+func TestPiping(t *testing.T) {
+	tests := []testItem{
+		{`["fee", "fie", "fo", "fum"] -> len`, `4`},
+		{`["fee", "fie", "fo", "fum"] >> len`, `[3, 3, 2, 3]`},
+		{`["fee", "fie", "fo", "fum"] -> that + ["foo"]`, `[fee, fie, fo, fum, foo]`},
+		{`["fee", "fie", "fo", "fum"] >> that + "!"`, `[fee!, fie!, fo!, fum!]`},
+		{`[1, 2, 3, 4] ?> that % 2 == 0`, `[2, 4]`},
+	}
+	runTest(t, "", tests, testValues)
+}
