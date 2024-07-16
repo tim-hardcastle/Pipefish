@@ -42,12 +42,22 @@ func TestParser(t *testing.T) {
 		{`len(x), y`, `((len x) , y)`},
 		{`x in Y, Z`, `(x in Y, Z)`},
 		{`v + w :: x + y`, `((v + w) :: (x + y))`},
-		{`1 + 2 zort`, `(1 + (2 zort))`},
+		{`x in int`, `(x in int)`},
+		{`x -> y`, `(x -> y)`},
 	}
-	runTest(t, "parser_test.pf", tests,
-		func(cp *Compiler, s string) string {
-			return cp.P.ParseLine("test", s).String()
-		})
+	runTest(t, "", tests, testParserOutput)
+}
+
+func TestFunctionSyntax(t *testing.T) {
+	tests := []testItem{
+		{`foo x`, `(foo x)`},
+		{`x zort`, `(x zort)`},
+		{`x troz y`, `(x troz y)`},
+		{`moo x goo`, `(moo x goo)`},
+		{`flerp x blerp y`, `(flerp x blerp y)`},
+		{`qux`, `(qux)`},
+	}
+	runTest(t, "function_syntax_test.pf", tests, testParserOutput)
 }
 
 func TestParserErrors(t *testing.T) {
@@ -64,13 +74,5 @@ func TestParserErrors(t *testing.T) {
 		{`from 1`, `parse/from`},
 		{`(1))`, `parse/expected`},
 	}
-	runTest(t, "parser_test.pf", tests,
-		func(cp *Compiler, s string) string {
-			cp.P.ParseLine("test", s)
-			if !cp.P.ErrorsExist() {
-				return "unexpected successful parsing"
-			} else {
-				return cp.P.Errors[0].ErrorId
-			}
-		})
+	runTest(t, "", tests, testParserErrors)
 }

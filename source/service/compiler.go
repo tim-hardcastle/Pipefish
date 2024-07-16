@@ -1080,8 +1080,12 @@ NodeTypeSwitch:
 					cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
 					break NodeTypeSwitch
 				}
-				if ac == REPL && (v.access != GLOBAL_VARIABLE_PUBLIC) {
+				if ac == REPL && (ALL_PRIVATE_ACCESS.Contains(v.access)) {
 					cp.P.Throw("comp/assign/private", node.Left.GetToken())
+					break NodeTypeSwitch
+				}
+				if ac == REPL && (ALL_CONSTANT_ACCESS.Contains(v.access)) {
+					cp.P.Throw("comp/assign/const", node.Left.GetToken())
 					break NodeTypeSwitch
 				}
 				if v.access == GLOBAL_VARIABLE_PUBLIC {
@@ -1191,7 +1195,7 @@ NodeTypeSwitch:
 			cp.put(Asgm, v.mLoc)
 			rtnTypes = v.types
 		}
-		rtnConst = ALL_CONST_ACCESS.Contains(v.access)
+		rtnConst = ALL_CONSTANT_ACCESS.Contains(v.access)
 		break
 	case *ast.IndexExpression:
 		containerType, ctrConst := cp.CompileNode(node.Left, ctxt.x())
@@ -2952,7 +2956,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 	}
 	if isAttemptedFunc {
 		cp.put(Dofn, v.mLoc, lhs)
-		rtnTypes, rtnConst = cp.AnyTypeScheme, ALL_CONST_ACCESS.Contains(v.access)
+		rtnTypes, rtnConst = cp.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.access)
 	} else {
 		newContext := context{envWithThat, ac, nil, DUMMY} // TODO --- must get value from outer context.
 		rtnTypes, rtnConst = cp.CompileNode(rhs, newContext)
@@ -2983,7 +2987,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 				return AltType(values.ERROR), true
 			}
 			isAttemptedFunc = true
-			isConst = ALL_CONST_ACCESS.Contains(v.access)
+			isConst = ALL_CONSTANT_ACCESS.Contains(v.access)
 			if !v.types.Contains(values.FUNC) {
 				cp.P.Throw("comp/pipe/mf/func", rhs.GetToken())
 			}

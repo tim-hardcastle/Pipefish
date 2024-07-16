@@ -34,6 +34,24 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/assign": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed assignment"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish assumes this is an assignment because it contains an " + emph("=") + " but is having a hard time making sense of it."
+		},
+	},
+
+	"comp/assign/const": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "assigning to constant"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When an identifier has been declared constant in the " + emph("const") + " section of your script, it can't be redefined later: that's what it means to be constant."
+		},
+	},
+
 	"comp/assign/ident": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "Pipefish was expecting an identifier, not " + emph(tok.Literal)
@@ -43,12 +61,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/assign": {
+	"comp/assign/private": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed assignment"
+			return "assigning to private variable"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish assumes this is an assignment because it contains an " + emph("=") + " but is having a hard time making sense of it."
+			return "When a variable has been declared private, it can be accessed from commands in your script but not directly from the REPL: this is what private means. For more information see " + emph(`hub help "private"`) + "."
 		},
 	},
 
