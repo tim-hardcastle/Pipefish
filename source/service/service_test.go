@@ -234,3 +234,12 @@ func TestForLoops(t *testing.T) {
 	}
 	runTest(t, "for_loop_test.pf", tests, testValues)
 }
+
+func TestInnerFunctionsAndVariables(t *testing.T) {
+	tests := []testItem{
+		{`foo 42`, `42`},
+		{`zort 3, 5`, `(25, 15)`},
+		{`troz 2`, `2200`},
+	}
+	runTest(t, "inner_test.pf", tests, testValues)
+}

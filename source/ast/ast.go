@@ -587,7 +587,7 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 		lhs2, rhs2 := ExtractNamesFromLhsAndRhsOfGivenBlock(n.Right)
 		lhs1.AddSet(lhs2)
 		rhs1.AddSet(rhs2)
-		return lhs1, lhs2
+		return lhs1, rhs1
 	default:
 		return dtypes.Set[string]{}, dtypes.Set[string]{}
 	}

@@ -1,2 +1,3 @@
 FOO, examples/foo.pf
 hub, /Users/tim/Charm/rsc/pipefish/hub.pf
+INNER, source/service/test-files/inner_test.pf
