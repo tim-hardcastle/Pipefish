@@ -7,6 +7,7 @@ import (
 func TestLiterals(t *testing.T) {
 	tests := []testItem{
 		{`"foo"`, `"foo"`},
+		{`"foo"`, `"foo"`},
 		{`'q'`, `'q'`},
 		{`true`, `true`},
 		{`false`, `false`},
