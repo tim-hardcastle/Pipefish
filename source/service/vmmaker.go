@@ -81,6 +81,7 @@ func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm) *VmMaker {
 	vmm.cp.ScriptFilepath = scriptFilepath
 	vmm.cp.vm = mc
 	vmm.uP.GetSource(scriptFilepath)
+	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 	return vmm
 }
 
@@ -979,15 +980,6 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		vmm.cp.P.Throw("comp/return/cmd", node.GetToken())
 	}
 	return &cpF
-}
-
-// We add various global constants.
-func (vmm *VmMaker) initializeBuiltInConstants() {
-	vmm.cp.Reserve(values.NULL, nil, &token.Token{Source: "Builtin constant"})
-	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "NULL", GLOBAL_CONSTANT_PUBLIC, altType(values.NULL), &token.Token{Source: "Builtin constant"})
-	vmm.cp.Reserve(values.SUCCESSFUL_VALUE, nil, &token.Token{Source: "Builtin constant"})
-	vmm.cp.AddVariable(vmm.cp.GlobalConsts, "OK", GLOBAL_CONSTANT_PUBLIC, altType(values.SUCCESSFUL_VALUE), &token.Token{Source: "Builtin constant"})
-	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 }
 
 func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType, v int) {

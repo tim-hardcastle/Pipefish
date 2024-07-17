@@ -15,6 +15,8 @@ func TestLiterals(t *testing.T) {
 		{`0b101010`, `42`},
 		{`0o52`, `42`},
 		{`0x2A`, `42`},
+		{`NULL`, `NULL`},
+		{`OK`, `OK`},
 	}
 	runTest(t, "", tests, testValues)
 }
@@ -144,6 +146,7 @@ func TestVariablesAndConsts(t *testing.T) {
 		{`changeZ`, `OK`},
 		{`v`, `true`},
 		{`w`, `42`},
+		{`y = NULL`, "OK"},
 	}
 	runTest(t, "variables_test.pf", tests, testValues)
 }

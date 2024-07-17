@@ -1154,15 +1154,21 @@ NodeTypeSwitch:
 		rtnConst = false
 		break // Things that return functions and snippets are not folded, even if they are constant.
 	case *ast.Identifier:
-		if node.Value == "continue" {
+		switch node.Value {
+		case "continue":
 			cp.emitContinue(&node.Token)
 			rtnTypes, rtnConst = AltType(), false
-			break
-		}
-		if node.Value == "break" {
+			break NodeTypeSwitch
+		case "break":
 			cp.emitBreakWithoutValue(&node.Token)
 			rtnTypes, rtnConst = AltType(), false
-			break
+			break NodeTypeSwitch
+		case "NULL":
+			cp.Reserve(values.NULL, nil, &node.Token)
+			break NodeTypeSwitch
+		case "OK":
+			cp.Reserve(values.SUCCESSFUL_VALUE, nil, &node.Token)
+			break NodeTypeSwitch
 		}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		cp.P.GetErrorsFrom(resolvingCompiler.P)
