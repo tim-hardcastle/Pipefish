@@ -215,31 +215,6 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		namespace := ""
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
-		case *ast.StringLiteral:
-			scriptFilepath = imp.Value
-			namespace = text.ExtractFileName(scriptFilepath)
-		case *ast.InfixExpression:
-			if imp.GetToken().Literal != "::" {
-				uP.Throw("init/import/infix", imp.Token)
-			}
-			lhs := imp.Args[0]
-			rhs := imp.Args[2]
-			switch rhs := rhs.(type) {
-			case *ast.StringLiteral:
-				scriptFilepath = rhs.Value
-				switch lhs := lhs.(type) {
-				case *ast.Identifier:
-					if lhs.Value != "NULL" {
-						namespace = lhs.Value
-					} else {
-						namespace = ""
-					}
-				default:
-					uP.Throw("init/import/ident", *lhs.GetToken())
-				}
-			default:
-				uP.Throw("init/import/string", *lhs.GetToken())
-			}
 		case *ast.GolangExpression:
 			uP.Parser.GoImports[imp.Token.Source] = append(uP.Parser.GoImports[imp.Token.Source], imp.Token.Literal)
 			continue
@@ -250,8 +225,14 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
 		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory)
-		if len(scriptFilepath) >= 4 && (scriptFilepath[0:4] == "lib/" || scriptFilepath[0:4] == "rsc/") {
+		if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
 			scriptFilepath = uP.Parser.Directory + scriptFilepath
+		}
+		if settings.StandardLibraries.Contains(scriptFilepath) {
+			scriptFilepath = uP.Parser.Directory + "lib/" + scriptFilepath
+		}
+		if len(scriptFilepath) < 3 || scriptFilepath[len(scriptFilepath)-3:] != ".pf" {
+			scriptFilepath = scriptFilepath + ".pf"
 		}
 		newUP.GetSource(scriptFilepath)
 		if newUP.ErrorsExist() {

@@ -319,6 +319,12 @@ func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	switch imp := (imp).(type) {
 	case *ast.StringLiteral:
 		scriptFilepath = imp.Value
+		if settings.StandardLibraries.Contains(scriptFilepath) {
+			namespace = scriptFilepath
+			scriptFilepath = uP.Parser.Directory + "lib/" + scriptFilepath + ".pf"
+		} else {
+			namespace = text.ExtractFileName(scriptFilepath)
+		}
 		namespace = text.ExtractFileName(scriptFilepath)
 		return namespace, scriptFilepath
 	case *ast.Identifier:
@@ -333,6 +339,10 @@ func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 		switch rhs := rhs.(type) {
 		case *ast.StringLiteral:
 			scriptFilepath = rhs.Value
+			if settings.StandardLibraries.Contains(scriptFilepath) {
+				namespace = scriptFilepath
+				scriptFilepath = uP.Parser.Directory + "lib/" + scriptFilepath + ".pf"
+			}
 			switch lhs := lhs.(type) {
 			case *ast.Identifier:
 				if lhs.Value != "NULL" {
