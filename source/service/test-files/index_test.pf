@@ -34,6 +34,8 @@ myIntPair = 0::2
 
 myNumber = 2
 
+myOtherNumber = 1
+
 myWord = "Angela"
 
 def // Indexing when we don't know the types in advance is a different compilation from when we know one or both.

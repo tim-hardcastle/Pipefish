@@ -27,6 +27,10 @@ func TestHardwiredOps(t *testing.T) {
 		{`5.0 != 2.0`, `true`},
 		{`5 == 2`, `false`},
 		{`5 != 2`, `true`},
+		{`true != false`, `true`},
+		{`"foo" == "foo"`, `true`},
+		{`int == int`, `true`},
+		{`struct == struct`, `true`},
 		{`not true`, `false`},
 		{`not false`, `true`},
 		{`false and false`, `false`},
@@ -37,6 +41,7 @@ func TestHardwiredOps(t *testing.T) {
 		{`true or false`, `true`},
 		{`false or true`, `true`},
 		{`true or true`, `true`},
+		{`1, (2, 3)`, `(1, 2, 3)`},
 	}
 	runTest(t, "", tests, testValues)
 }
@@ -45,6 +50,7 @@ func TestBuiltins(t *testing.T) {
 		{`5.0 + 2.0`, `7.00000000`},
 		{`5 + 2`, `7`},
 		{`[1, 2] + [3, 4]`, `[1, 2, 3, 4]`},
+		{`len(set(1, 2) + set(3, 4))`, `4`}, // We don't necessarily know which order the set will be serialized in.
 		{`'h' + 'i'`, `"hi"`},
 		{`'j' + "ello"`, `"jello"`},
 		{`"jell" + 'o'`, `"jello"`},
@@ -70,6 +76,7 @@ func TestBuiltins(t *testing.T) {
 		{`int/string`, `int/string`},
 
 		{`codepoint 'A'`, `65`},
+		{`first (tuple 1, 2, 3, 4, 5)`, `1`},
 		{`float 5`, `5.00000000`},
 		{`float "5"`, `5.00000000`},
 		{`5 in [1, 2, 3]`, `false`},
@@ -82,6 +89,9 @@ func TestBuiltins(t *testing.T) {
 		{`5 in struct`, `false`},
 		{`5 in int`, `true`},
 		{`5 in int?`, `true`},
+		{`int 5.2`, `5`},
+		{`int "5"`, `5`},
+		{`last (tuple 1, 2, 3, 4, 5)`, `5`},
 		{`len [1, 2, 3]`, `3`},
 		{`len (map "a"::1, "b"::2, "c"::3)`, `3`},
 		{`len set 1, 2, 3`, `3`},
@@ -92,6 +102,7 @@ func TestBuiltins(t *testing.T) {
 		{`set 1, 2, 3`, `set(1, 2, 3)`},
 		{`string 4.0`, `"4.00000000"`},
 		{`string 4`, `"4"`},
+		{`tuple 1`, `tuple(1)`},
 		{`type true`, `bool`},
 		{`type bool`, `type`},
 		{`varchar(32)`, `varchar(32)`},
@@ -117,6 +128,8 @@ func TestIndexing(t *testing.T) {
 		{`myType[myNumber]`, `YELLOW`},
 		{`myList[0::2]`, `[[1, 2], [3, 4]]`},
 		{`myList[myIntPair]`, `[[1, 2], [3, 4]]`},
+		{`("a", "b", "c", "d")[2]`, `"c"`},
+		{`("a", "b", "c", "d")[myIntPair]`, `(a, b)`}, // TODO --- something else that will fail once literals work properly.
 		{`"Angela"[myIntPair]`, `"An"`},
 		{`myWord[myIntPair]`, `"An"`},
 		{`myPair[0]`, `"foo"`},
@@ -125,6 +138,8 @@ func TestIndexing(t *testing.T) {
 		{`foo myMap, myIndex`, `[1, 2]`},
 		{`foo myList, myNumber`, `[5, 6]`},
 		{`foo myColor, key`, `LIGHT`},
+		{`foo myPair, myOtherNumber`, `"bar"`},
+		{`foo myWord, myNumber`, `'g'`},
 	}
 	runTest(t, "index_test.pf", tests, testValues)
 }
@@ -243,4 +258,13 @@ func TestInnerFunctionsAndVariables(t *testing.T) {
 		{`troz 2`, `2200`},
 	}
 	runTest(t, "inner_test.pf", tests, testValues)
+}
+
+func TestRecursion(t *testing.T) {
+	tests := []testItem{
+		{`fac 5`, `120`},
+		{`power 3, 4`, `81`},
+		{`inFac 5`, `120`},
+	}
+	runTest(t, "recursion_test.pf", tests, testValues)
 }

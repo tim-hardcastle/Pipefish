@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"pipefish/source/ast"
-	"pipefish/source/dtypes"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/report"
@@ -450,35 +449,6 @@ func (uP *Initializer) ParseEverything() {
 
 func (uP *Initializer) SetRelexer(rl lexer.Relexer) {
 	uP.rl = rl
-}
-
-func (uP *Initializer) ImportsExist() bool {
-	return len(uP.Parser.TokenizedDeclarations[importDeclaration]) > 0
-}
-
-func (uP *Initializer) ReturnOrderOfAssignments(declarations int) []int {
-	D := dtypes.Digraph[int]{}
-	// I build the map and the dtypes.
-	for i := range uP.Parser.TokenizedDeclarations[declarations] {
-		D.AddSafe(i, []int{})
-		// Then for each constant assignment i we slurp out the variables used on the RHS into a set.Set[string]
-		uP.Parser.TokenizedDeclarations[declarations][i].ToStart()
-		_, RHS := uP.Parser.ExtractVariables(uP.Parser.TokenizedDeclarations[declarations][i])
-		for j := range uP.Parser.TokenizedDeclarations[declarations] {
-			// And then the same for the left hand side of each assignment j.
-			uP.Parser.TokenizedDeclarations[declarations][j].ToStart()
-			LHS, _ := uP.Parser.ExtractVariables(uP.Parser.TokenizedDeclarations[declarations][j])
-			// If the RHS of i refers to variables on the LHS of j, then assignment j
-			// must be performed before assignment i, and we represent this by adding an arrow
-			// from i to j in the digraph with transitive closure.
-			if RHS.OverlapsWith(LHS) {
-				D.AddTransitiveArrow(i, j)
-			}
-		}
-	}
-	// And then we use the topological sort method of the digraph and return the result of the sort:
-	result, _ := dtypes.Ordering(D)
-	return result
 }
 
 func (uP *Initializer) isPrivate(x, y int) bool {
