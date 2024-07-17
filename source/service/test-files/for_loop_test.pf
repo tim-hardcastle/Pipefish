@@ -1,0 +1,58 @@
+newtype
+
+Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
+
+var
+
+myMap = map ("a"::RED, "b"::YELLOW, "c"::GREEN)
+
+myList = [PURPLE, BLUE, GREEN, YELLOW, ORANGE, RED]
+
+mySet = set "a", "e", "i", "o", "u"
+
+def
+
+fib(n int) :
+    first from a, b = 0, 1 for i = 0; i < n; i + 1 :
+        b, a + b
+
+collatzA(n) :
+    from i = n for :
+        i == 1 :
+            break 
+        i % 2 == 0 :
+            i / 2
+        else :
+            3 * i + 1
+
+collatzB(n) :
+    from i = n for i != 1 :
+        i % 2 == 0 :
+            i / 2
+        else :
+            3 * i + 1
+
+evens(x) :
+    from L = [] for k::v = range x :
+        k % 2 == 0 :
+            L + [v]
+        else :
+            continue
+
+find(x, C) :
+    from a = -1 for i::y = range C :
+        x == y :
+            break i 
+        else :
+            continue
+
+allKeys(x) :
+    from L = [] for k:: _ = range x :
+        L + [k]
+
+allValues(x) :
+    from L = [] for _::v = range x :
+        L + [v]
+
+
+

@@ -214,3 +214,20 @@ func TestPiping(t *testing.T) {
 	}
 	runTest(t, "", tests, testValues)
 }
+func TestForLoops(t *testing.T) {
+	tests := []testItem{
+		{`fib 8`, `21`},
+		{`collatzA 42`, `1`},
+		{`collatzB 42`, `1`},
+		{`evens Color`, `[RED, YELLOW, BLUE]`},
+		{`evens "Angela"`, `[A, g, l]`}, // TODO --- will break when you fix literals.
+		{`evens myList`, `[PURPLE, GREEN, ORANGE]`},
+		{`find GREEN, Color`, `3`},
+		{`find GREEN, myList`, `2`},
+		{`find GREEN, myMap`, `"c"`},
+		{`allKeys myList`, `[0, 1, 2, 3, 4, 5]`},
+		{`allKeys "Angela"`, `[0, 1, 2, 3, 4, 5]`},
+		{`allValues myList`, `[PURPLE, BLUE, GREEN, YELLOW, ORANGE, RED]`},
+	}
+	runTest(t, "for_loop_test.pf", tests, testValues)
+}

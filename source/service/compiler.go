@@ -692,8 +692,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				cp.P.Throw("comp/for/range/b", node.Initializer.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
-			keysOnly := rightName == "_"
-			valuesOnly := leftName == "_"
+			keysOnly = rightName == "_"
+			valuesOnly = leftName == "_"
 			if keysOnly && valuesOnly {
 				cp.P.Throw("comp/for/range/discard", node.Initializer.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)

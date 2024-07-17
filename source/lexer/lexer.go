@@ -666,7 +666,7 @@ func isSymbol(ch rune) bool {
 }
 
 func isLegalStart(ch rune) bool {
-	return !(isProtectedPunctuationOrWhitespace(ch) || isDigit(ch) || isPeriod(ch) || isUnderscore(ch))
+	return !(isProtectedPunctuationOrWhitespace(ch) || isDigit(ch) || isPeriod(ch))
 }
 
 // FInds if we're at the end of an identifier.
