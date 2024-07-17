@@ -246,10 +246,6 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 	return false
 }
 
-func (p *Parser) prefixSuffixError() {
-
-}
-
 func (p *Parser) ParseTokenizedChunk() ast.Node {
 	p.nesting = *dtypes.NewStack[token.Token]()
 	p.SafeNextToken()

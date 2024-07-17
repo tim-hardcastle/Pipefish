@@ -349,21 +349,6 @@ func (aT AlternateType) IsLegalCmdReturn() bool {
 	return true
 }
 
-func (aT AlternateType) isLegalReturnFromLoopBody() bool {
-	for _, u := range aT {
-		switch u := u.(type) {
-		case simpleType:
-			if u != simpleType(values.SUCCESSFUL_VALUE) && u != simpleType(values.ERROR) &&
-				u != simpleType(values.COMPILE_TIME_ERROR) {
-				return false
-			}
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 func (aT AlternateType) IsLegalDefReturn() bool {
 	for _, u := range aT {
 		switch u := u.(type) {

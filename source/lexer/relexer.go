@@ -266,11 +266,6 @@ func (rl *Relexer) burnNextToken() token.Token {
 	return rl.NextSemanticToken()
 }
 
-func (rl *Relexer) insertTokenBeforeCurrentToken(token token.Token) token.Token {
-	rl.preTok = token
-	return rl.preTok
-}
-
 func (rl *Relexer) PeekToken() token.Token {
 	return rl.curTok
 }

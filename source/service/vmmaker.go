@@ -380,9 +380,8 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
-			for _, dec := range namesToDeclarations[nameToDeclare] {
-				groupOfDeclarations = append(groupOfDeclarations, dec)
-			}
+			groupOfDeclarations = append(groupOfDeclarations, namesToDeclarations[nameToDeclare]...)
+
 		}
 		// If the declaration type is constant or variable it must be the only member of its Tarjan partion and there must only be one thing of that name.
 		if groupOfDeclarations[0].decType == constantDeclaration || groupOfDeclarations[0].decType == variableDeclaration {

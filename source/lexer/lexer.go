@@ -251,14 +251,6 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	return l.Throw("lex/wsp", describeWhitespace(whitespace))
 }
 
-func dW(s string) string {
-	result := ""
-	for _, ch := range s {
-		result = result + strconv.Itoa(int(ch)) + " "
-	}
-	return result
-}
-
 var whitespaceDescriptions = map[rune]string{' ': "space", '\n': "newline", '\t': "tab"}
 
 func describeWhitespace(s string) string {
@@ -632,10 +624,6 @@ func isPeriod(ch rune) bool {
 	return ch == '.'
 }
 
-func isUnderscore(ch rune) bool {
-	return ch == '_'
-}
-
 func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9'
 }
@@ -655,10 +643,6 @@ func isHexDigit(ch rune) bool {
 func isProtectedPunctuationOrWhitespace(ch rune) bool {
 	return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' || ch == ' ' || ch == ',' ||
 		ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == 0
-}
-
-func isWhitespace(ch rune) bool {
-	return ch == 0 || ch == ' ' || ch == '\n' || ch == '\t'
 }
 
 func isSymbol(ch rune) bool {
