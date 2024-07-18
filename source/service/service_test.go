@@ -279,6 +279,7 @@ func TestGocode(t *testing.T) {
 		{`foo 4.2`, `4.20000000`},
 		{`ioo 42`, `84`},
 		{`noo()`, `NULL`},
+		{`roo 42`, `42`},
 		{`soo "aardvark"`, `"aardvark"`},
 		{`constructPerson "Doug", 42`, `Person with (name::Doug, age::42)`}, // Usual comment about literals applies.
 		{`deconstructPerson Person "Doug", 42`, `(Doug, 42)`},               //             "

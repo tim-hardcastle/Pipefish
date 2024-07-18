@@ -875,18 +875,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"golang/type/a": {
+	"golang/type": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't pass value of type " + emph(args[0]) + " to Go as raw value"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This is because the author of Pipefish hasn't gotten around to it yet."
-		},
-	},
-
-	"golang/type/b": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "can't pass value of type " + emph(args[0]) + " to Go"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This is because the author of Pipefish hasn't gotten around to it yet."

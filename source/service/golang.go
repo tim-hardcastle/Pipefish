@@ -187,20 +187,16 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 		ok := false
 		if golang.Raw[i] {
 			gh.rawHappened = true
-			ty = ".(value.Value)"
-			if !ok {
-				gh.Prsr.Throw("golang/type/a", golang.GetToken(), v.VarType)
-				return
-			}
+			ty = ".(values.Value)"
 		} else {
 			ty, ok = gh.doTypeConversion(source, v.VarType)
 			if !ok {
-				gh.Prsr.Throw("golang/type/b", golang.GetToken(), v.VarType)
+				gh.Prsr.Throw("golang/type", golang.GetToken(), v.VarType)
 				return
 			}
 		}
 		kludge := ""
-		if v.VarType == "int" {
+		if v.VarType == "int" && !golang.Raw[i] {
 			ty = ty + ")"
 			kludge = "int("
 		}
