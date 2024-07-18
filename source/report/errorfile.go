@@ -2159,7 +2159,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/index/i": {
 		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("can't index value of type %v by value of type %v", emph(args[0]))
+			return fmt.Sprintf("can't index value of type %v by value of type %v", emph(args[0]), emph(args[1]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("The %v, %v, %v, and %v types can be indexed by integers; the %v type by its field labels, and a %v by any of its keys. This fits none of those cases.", emph("list"), emph("pair"), emph("string"), emph("tuple"), emph("struct"), emph("map"))
@@ -2486,7 +2486,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("trying to index a map with a value of type %v in %v expression", emph(args[0]), emph("with"))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("A map can only be indexed by things of type %v, %v, %v, %v, %v or %v", emph("bool"), emph("enum"), emph("float"), emph("int"), emph("label"), emph("rune"), emph("string"))
+			return fmt.Sprintf("A map can only be indexed by things of type %v, %v, %v, %v, %v, %v or %v", emph("bool"), emph("enum"), emph("float"), emph("int"), emph("label"), emph("rune"), emph("string"))
 		},
 	},
 
@@ -2495,7 +2495,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("type %v found indexing struct in %v expression where %v was expected", emph(args[0]), emph("with"), emph("label"))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("A lstruct must be indexed by one of the field labels given in its definition.")
+			return fmt.Sprintf("A struct must be indexed by one of the field labels given in its definition.")
 		},
 	},
 

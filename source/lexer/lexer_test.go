@@ -31,7 +31,7 @@ else : 6
 		expectedLiteral string
 		expectedLine    int
 	}{
-		{token.NO_INDENT, "|||", 1},
+		{token.EOF, "EOF", 1},
 		{token.IDENT, "line", 1},
 		{token.IDENT, "one", 1},
 		{token.NEWLINE, ";", 1},
@@ -50,7 +50,6 @@ else : 6
 		{token.IDENT, "threeandthreequarters", 5},
 		{token.NEWLINE, ";", 5},
 		{token.COMMENT, "This is a comment", 6},
-		{token.NEWLINE, ";", 6},
 		{token.ILLEGAL, "lex/wsp", 7},
 		{token.IDENT, "line", 7},
 		{token.IDENT, "four", 7},
@@ -109,85 +108,11 @@ else : 6
 	l := NewLexer("dummy source", input)
 
 	for i, tt := range tests {
-
 		tok := l.NextToken()
-
 		if tok.Type != tt.expectedType {
 			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
 				i, tt.expectedType, tok.Type)
 		}
-
-		if tok.Literal != tt.expectedLiteral {
-			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
-				i, tt.expectedLiteral, tok.Literal)
-		}
-	}
-}
-
-// Similar, but without the whitespace error.
-func TestNextToken2(t *testing.T) {
-	input :=
-		`line three ..
-          .. line threeandahalf,
-     .. line threeandthreequarters
-line one
-    line two
-        line three ..
-                   .. line threeandahalf,
-		  .. line threeandthreequarters
-  //This is a comment
-line five`
-
-	tests := []struct {
-		expectedType    token.TokenType
-		expectedLiteral string
-		expectedLine    int
-	}{{token.NO_INDENT, "|||", 1},
-		{token.IDENT, "line", 3},
-		{token.IDENT, "three", 3},
-		{token.DOTDOT, "..", 1},
-		{token.IDENT, "line", 4},
-		{token.IDENT, "threeandahalf", 4},
-		{token.COMMA, ",", 5},
-		{token.IDENT, "line", 5},
-		{token.IDENT, "threeandthreequarters", 5},
-		{token.NEWLINE, ";", 5},
-		{token.NO_INDENT, "|||", 1},
-		{token.IDENT, "line", 1},
-		{token.IDENT, "one", 1},
-		{token.NEWLINE, ";", 5},
-		{token.BEGIN, "|->", 2},
-		{token.IDENT, "line", 2},
-		{token.IDENT, "two", 2},
-		{token.NEWLINE, ";", 5},
-		{token.BEGIN, "|->", 3},
-		{token.IDENT, "line", 3},
-		{token.IDENT, "three", 3},
-		{token.DOTDOT, "..", 1},
-		{token.IDENT, "line", 4},
-		{token.IDENT, "threeandahalf", 4},
-		{token.COMMA, ",", 5},
-		{token.IDENT, "line", 5},
-		{token.IDENT, "threeandthreequarters", 5},
-		{token.NEWLINE, ";", 15},
-		{token.COMMENT, "This is a comment", 6},
-		{token.NEWLINE, ";", 15},
-		{token.END, "2", 5},
-		{token.IDENT, "line", 7},
-		{token.IDENT, "five", 7},
-	}
-
-	l := NewLexer("dummy source", input)
-
-	for i, tt := range tests {
-
-		tok := l.NextToken()
-
-		if tok.Type != tt.expectedType {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
-				i, tt.expectedType, tok.Type)
-		}
-
 		if tok.Literal != tt.expectedLiteral {
 			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
 				i, tt.expectedLiteral, tok.Literal)

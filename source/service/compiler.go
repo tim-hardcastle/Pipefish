@@ -12,6 +12,7 @@ import (
 	"pipefish/source/values"
 	"reflect"
 	"strings"
+	"testing"
 
 	"fmt"
 	"strconv"
@@ -1042,7 +1043,7 @@ func (ctxt context) x() context {
 func (cp *Compiler) CompileNode(node ast.Node, ctxt context) (AlternateType, bool) {
 	cp.cm("Compiling node of type "+(reflect.TypeOf(node).String())[5:]+" with literal "+text.Emph(node.GetToken().Literal)+".", node.GetToken())
 	cp.cm("Node is "+node.String(), node.GetToken())
-	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source))
+	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source)) || testing.Testing()
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := cp.getState()
 	cT := cp.CodeTop()
@@ -2611,7 +2612,10 @@ func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 func (cp *Compiler) Emit(opcode Opcode, args ...uint32) {
 	cp.vm.Code = append(cp.vm.Code, MakeOp(opcode, args...))
 	if cp.showCompile {
-		println(cp.vm.DescribeCode(cp.CodeTop() - 1))
+		description := cp.vm.DescribeCode(cp.CodeTop() - 1)
+		if !testing.Testing() {
+			println(description)
+		}
 	}
 }
 

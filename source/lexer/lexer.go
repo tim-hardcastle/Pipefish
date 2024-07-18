@@ -651,7 +651,7 @@ func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 }
 
 func (l *Lexer) Throw(errorID string, args ...any) token.Token {
-	tok := l.NewToken(token.ILLEGAL, errorID)
+	tok := l.MakeToken(token.ILLEGAL, errorID)
 	l.Ers = report.Throw(errorID, l.Ers, &tok, args...)
 	return tok
 }
