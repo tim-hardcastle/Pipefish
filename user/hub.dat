@@ -1,5 +1,2 @@
-INNER, source/service/test-files/inner_test.pf
-RECUR, source/service/test-files/recursion_test.pf
-IMPORT, source/service/test-files/import_test.pf
-FOO, examples/foo.pf
-hub, /Users/tim/Charm/rsc/pipefish/hub.pf
+hub, rsc/pipefish/hub.pf
+GOCODE, source/service/test-files/gocode_test.pf

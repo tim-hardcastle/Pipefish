@@ -57,7 +57,7 @@ type Hub struct {
 
 // Most initialization is done in the Open method.
 func New(in io.Reader, out io.Writer) *Hub {
-	cwd, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	hub := Hub{
 		services:           make(map[string]*service.VmService),
 		currentServiceName: "",
@@ -65,7 +65,7 @@ func New(in io.Reader, out io.Writer) *Hub {
 		out:                out,
 		lastRun:            []string{},
 		hot:                true,
-		directory:          cwd + "/"}
+		directory:          appDir + "/"}
 	return &hub
 }
 

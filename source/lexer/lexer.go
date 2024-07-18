@@ -194,6 +194,7 @@ func (l *Lexer) NextToken() token.Token {
 		switch tType {
 		case token.GOCODE:
 			text := l.readGolang()
+			l.readChar()
 			return l.NewToken(tType, text)
 		case token.EMDASH:
 			return l.MakeToken(tType, l.readSnippet())
@@ -308,6 +309,7 @@ func (l *Lexer) skipWhitespaceAfterPotentialContinuation() bool {
 }
 
 func (l *Lexer) readChar() {
+
 	l.char++
 	if l.ch == '\n' {
 		l.line++
@@ -449,7 +451,7 @@ func (l *Lexer) readGolang() string {
 	for l.peekChar() == ' ' || l.peekChar() == '\t' { // Get rid of the whitespace between 'gocode' and whatever follows it.
 		l.readChar()
 	}
-	// We expect a brace or quotes after the gocode keyword.
+	// We expect a brace or quotes after the gocode keyword. (The quotes if it's in the import section, import gocode "foo".)
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
 		l.Throw("lex/gocode", l.NewToken(token.ILLEGAL, "lex/gocode"))
 		return ""
@@ -470,39 +472,15 @@ func (l *Lexer) readGolang() string {
 		}
 		return s
 	}
-	// So now we look for the closing brace, ignoring those inside strings
-	l.readChar() // TODO --- this is unecessarily complex, we could just do it lexically looking for a '}' on the far left.
-	braces := 1
-	escaped := false
-	quote := ' '
-	for braces > 0 {
+
+	l.readChar() // Skips over the opening brace.
+
+	// We just have to look for a closing brace on the left of a line.
+	for !(l.ch == 0) && !(l.ch == '\n' && l.peekChar() == '}') {
 		l.readChar()
-		if l.ch == 0 {
-			break
-		}
-		if !escaped {
-			if l.ch == '"' || l.ch == '`' || l.ch == '\'' {
-				if quote == ' ' {
-					quote = l.ch
-				} else {
-					if quote == l.ch {
-						quote = ' '
-					}
-				}
-			}
-			if l.ch == '\\' {
-				escaped = true
-			}
-			if l.ch == '{' && quote == ' ' {
-				braces++
-			}
-			if l.ch == '}' && quote == ' ' {
-				braces--
-			}
-		}
 		result = result + string(l.ch)
 	}
-	return result
+	return result + "}"
 }
 
 func (l *Lexer) readRune() (string, bool) {
@@ -667,7 +645,7 @@ func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
 
 func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 	if settings.SHOW_LEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(l.source)) {
-		fmt.Println(tokenType, st)
+		fmt.Println(tokenType, st, l.line, l.tstart)
 	}
 	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.line, ChStart: l.tstart, ChEnd: l.char}
 }

@@ -16,7 +16,6 @@
 package service
 
 import (
-	"bufio"
 	"os"
 	"strings"
 
@@ -91,43 +90,21 @@ func NewInitializer(source, sourceCode, dir string) *Initializer {
 		Sources: make(map[string][]string),
 		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 	}
-	uP.GetSource(source)
+	uP.Sources[source] = strings.Split(sourceCode, "\n")
 	return uP
 }
 
 func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
-		fname = init.Parser.Directory + fname
-		libDat, err := os.ReadFile(fname)
+		doctoredName := makeFilepath(fname, init.Parser.Directory)
+		libDat, err := os.ReadFile(doctoredName)
 		if err != nil {
-			println("Here's your problem.")
 			init.Throw("init/import/found", token.Token{})
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))
 		init.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.
-		init.GetSource(fname)
-	}
-}
-
-func (uP *Initializer) GetSource(source string) {
-	if source == "" || len(source) >= 5 && source[0:5] == "http:" {
-		return
-	}
-	if len(source) >= 4 && source[0:4] == "rsc/" {
-		source = uP.Parser.Directory + source
-	}
-	file, err := os.Open(source)
-	if err != nil {
-		uP.Throw("init/source/c", token.Token{}, source)
-	}
-	defer file.Close()
-
-	uP.Sources[source] = []string{}
-
-	scanner := bufio.NewScanner(file) // TODO --- is there any reason this is line by line? Also why do we need the sources in the uP at this stage anyway?
-	for scanner.Scan() {
-		uP.Sources[source] = append(uP.Sources[source], scanner.Text())
+		init.Sources[fname] = strings.Split(stdImp, "\n")
 	}
 }
 
@@ -296,9 +273,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		}
 		line.Append(tok)
 	}
-	if lastTokenWasColon {
-		uP.Throw("init/unfinished", tok)
-	}
+
 	uP.Parser.Errors = report.MergeErrors(uP.rl.GetErrors(), uP.Parser.Errors)
 }
 
@@ -503,7 +478,7 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 						sig[i].VarType = v.VarType[:len(v.VarType)-4]
 					}
 				}
-				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression))
+				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), uP.Parser.Directory)
 				if uP.Parser.ErrorsExist() {
 					return nil
 				}

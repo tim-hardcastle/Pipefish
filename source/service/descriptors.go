@@ -70,6 +70,9 @@ func (vm *Vm) Describe(v values.Value) string {
 			return "false"
 		}
 	case values.ERROR:
+		if v.V == nil { // Can happen when we're running a test and the compiler throws an error. Really should always be the special compiler error type --- TODO.
+			return "nil error"
+		}
 		ob := v.V.(*report.Error)
 		if ob.ErrorId != "eval/user" {
 			ob = report.CreateErr(ob.ErrorId, ob.Token, ob.Args...)

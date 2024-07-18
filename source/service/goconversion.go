@@ -23,14 +23,14 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 		return converter(uint32(v.T), gVals)
 	}
 	switch v.T {
-	case values.INT:
-		return v.V.(int)
+	case values.BOOL:
+		return v.V.(bool)
 	case values.FLOAT:
+		return v.V.(float64)
+	case values.INT:
 		return v.V.(int)
 	case values.STRING:
 		return v.V.(string)
-	case values.BOOL:
-		return v.V.(bool)
 	default:
 		panic("Can't convert Pipefish value.")
 	}
@@ -40,7 +40,7 @@ func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) val
 	switch v := v.(type) {
 	case *values.GoReturn:
 		result := make([]values.Value, 0, len(v.Elements))
-		for el := range v.Elements {
+		for _, el := range v.Elements {
 			result = append(result, vm.goToPipefish(el, converter))
 		}
 		return values.Value{values.TUPLE, result}

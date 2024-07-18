@@ -1,0 +1,39 @@
+newtype
+
+Person = struct(name string, age int)
+
+def
+
+boo(x bool) : gocode {
+    return !x
+}
+
+foo(x float) : gocode {
+    return x
+}
+
+ioo(x int) : gocode {
+    return double(x)
+}
+
+noo() : gocode {
+    return nil
+}
+
+soo(x string) : gocode {
+    return x
+}
+
+constructPerson(aName string, anAge int) -> Person : gocode {
+    return Person{name: aName, age: anAge}
+}
+
+deconstructPerson(aPerson Person) -> string, int : gocode {
+    return aPerson.name, aPerson.age
+}
+
+gocode {
+    func double(x int) int {
+        return 2 * x
+    }
+}

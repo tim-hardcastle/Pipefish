@@ -67,16 +67,14 @@ func (gh *GoHandler) CleanUp() {
 	// We add the newly compiled modules to the list of times.
 
 	for k := range gh.Modules {
-		file, err := os.Stat(k)
-
+		filepath := makeFilepath(k, gh.Prsr.Directory)
+		file, err := os.Stat(filepath)
 		if err != nil {
-			panic("Something weird has happened!")
+			panic("Gohandler cleanup: " + err.Error())
 		}
-
 		modifiedTime := file.ModTime().UnixMilli()
 		gh.timeMap[k] = int(modifiedTime)
 	}
-
 	// And then write out the list of times to the .dat file.
 	f, err := os.Create(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
@@ -108,7 +106,7 @@ func (gh *GoHandler) BuildGoMods() {
 	for source, functionBodies := range gh.Modules {
 
 		var modifiedTime int64
-		f, err := os.Stat(source)
+		f, err := os.Stat(makeFilepath(source, gh.Prsr.Directory))
 		if err == nil {
 			modifiedTime = f.ModTime().UnixMilli()
 		}
@@ -163,7 +161,7 @@ func (gh *GoHandler) BuildGoMods() {
 	}
 }
 
-func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang *ast.GolangExpression) {
+func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang *ast.GolangExpression, pfDir string) {
 
 	source := golang.GetToken().Source
 
@@ -173,10 +171,12 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 
 	// We check to see whether the source code has been modified.
 
-	_, err := os.Stat(source)
+	doctoredFilename := makeFilepath(source, pfDir)
+
+	_, err := os.Stat(doctoredFilename)
 
 	if err != nil {
-		panic("Something weird has happened!")
+		panic("GoHandler MakeFunction " + err.Error())
 	}
 
 	// If the source has been modified, we proceed ...

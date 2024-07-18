@@ -36,19 +36,30 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	return result, uP
 }
 
+func makeFilepath(scriptFilepath, dir string) string {
+	doctoredFilepath := strings.Clone(scriptFilepath)
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
+		doctoredFilepath = dir + scriptFilepath
+	}
+	if settings.StandardLibraries.Contains(scriptFilepath) {
+		doctoredFilepath = dir + "lib/" + scriptFilepath
+	}
+	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" {
+		doctoredFilepath = doctoredFilepath + ".pf"
+	}
+	return doctoredFilepath
+}
+
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
 func initializeFromFilepath(mc *Vm, scriptFilepath, dir string) (*Compiler, *Initializer) {
-	if len(scriptFilepath) >= 4 && (scriptFilepath[0:4] == "lib/" || scriptFilepath[0:4] == "rsc/") {
-		scriptFilepath = dir + scriptFilepath
-	}
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
-		sourcebytes, err := os.ReadFile(scriptFilepath)
+		sourcebytes, err := os.ReadFile(makeFilepath(scriptFilepath, dir))
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode, dir)
+			uP := NewInitializer(scriptFilepath, sourcecode, dir) // Just because it's expecting to find errors in the uP.
 			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
@@ -61,12 +72,13 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string) (*
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) {
-		file, err := os.Stat(scriptFilepath)
+		file, err := os.Stat(makeFilepath(scriptFilepath, dir))
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode, dir)
 			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
+		vmm.uP.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
 		vmm.cp.Timestamp = file.ModTime().UnixMilli()
 	}
 	return vmm.cp, vmm.uP
@@ -80,7 +92,6 @@ func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm) *VmMaker {
 	}
 	vmm.cp.ScriptFilepath = scriptFilepath
 	vmm.cp.vm = mc
-	vmm.uP.GetSource(scriptFilepath)
 	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 	return vmm
 }
@@ -225,16 +236,6 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
 		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory)
-		if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
-			scriptFilepath = uP.Parser.Directory + scriptFilepath
-		}
-		if settings.StandardLibraries.Contains(scriptFilepath) {
-			scriptFilepath = uP.Parser.Directory + "lib/" + scriptFilepath
-		}
-		if len(scriptFilepath) < 3 || scriptFilepath[len(scriptFilepath)-3:] != ".pf" {
-			scriptFilepath = scriptFilepath + ".pf"
-		}
-		newUP.GetSource(scriptFilepath)
 		if newUP.ErrorsExist() {
 			uP.Parser.GetErrorsFrom(newUP.Parser)
 			vmm.cp.Services[namespace] = &VmService{vmm.cp.vm, newCp, true, false}

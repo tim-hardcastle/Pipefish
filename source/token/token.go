@@ -57,7 +57,7 @@ const (
 	RBRACE              = "}"
 	RBRACK              = "]"
 	RPAREN              = ")"
-	SEMICOLON           = ";"
+	SEMICOLON           = "SEMICOLON"
 
 	// Literals, comments, and identifiers.
 	COMMENT = "COMMENT"

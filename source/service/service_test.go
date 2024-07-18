@@ -1,13 +1,17 @@
 package service
 
 import (
+	"os"
+	"path/filepath"
+	"pipefish/source/text"
+	"strconv"
 	"testing"
 )
 
 func TestLiterals(t *testing.T) {
 	tests := []testItem{
 		{`"foo"`, `"foo"`},
-		{`"foo"`, `"foo"`},
+		{"`foo`", `"foo"`},
 		{`'q'`, `'q'`},
 		{`true`, `true`},
 		{`false`, `false`},
@@ -267,4 +271,26 @@ func TestRecursion(t *testing.T) {
 		{`inFac 5`, `120`},
 	}
 	runTest(t, "recursion_test.pf", tests, testValues)
+}
+
+func TestGocode(t *testing.T) {
+	tests := []testItem{
+		{`boo true`, `false`},
+		{`foo 4.2`, `4.20000000`},
+		{`ioo 42`, `84`},
+		{`noo()`, `NULL`},
+		{`soo "aardvark"`, `"aardvark"`},
+		{`constructPerson "Doug", 42`, `Person with (name::Doug, age::42)`}, // Usual comment about literals applies.
+		{`deconstructPerson Person "Doug", 42`, `(Doug, 42)`},               //             "
+	}
+	runTest(t, "gocode_test.pf", tests, testValues)
+	// Tear down the .so file.
+	nameOfTestFile := "gocode_test.pf"
+	currentDirectory, _ := os.Getwd()
+	absolutePathToGoTestFile, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
+	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
+	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)
+	timestamp := file.ModTime().UnixMilli()
+	goTestFile := absolutePathToGoTestFile + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
+	os.Remove(goTestFile)
 }
