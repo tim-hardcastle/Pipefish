@@ -806,7 +806,7 @@ loop:
 		case Outp:
 			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
 		case Outt:
-			fmt.Println(vm.Describe(vm.Mem[args[0]]))
+			fmt.Println(vm.Literal(vm.Mem[args[0]]))
 		case Psnp:
 			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
 			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.

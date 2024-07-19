@@ -58,6 +58,8 @@ len(x map) : builtin "len_map"
 len(x set) : builtin "len_set"
 len(x string) : builtin "len_string"
 len(x tuple) : builtin "len_tuple"
+literal(x single?) : builtin "literal"
+literal(x tuple) : builtin "literal"
 map(x ... pair) : makeMap(x)
 makeMap(x tuple) : builtin "make_map"
 rune(x int) : builtin "rune"

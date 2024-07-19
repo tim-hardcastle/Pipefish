@@ -69,7 +69,7 @@ func TestBuiltins(t *testing.T) {
 		{`5.0 <= 2.0`, `false`},
 		{`5 < 2`, `false`},
 		{`5 <= 2`, `false`},
-		{`"foo"::2`, `foo::2`}, // TODO --- this will need changing to "foo"::2 when you improve the Literal function.
+		{`"foo"::2`, `"foo"::2`},
 		{`5 % 2`, `1`},
 		{`5.0 * 2.0`, `10.00000000`},
 		{`5 * 2`, `10`},
@@ -101,8 +101,11 @@ func TestBuiltins(t *testing.T) {
 		{`len set 1, 2, 3`, `3`},
 		{`len "Angela"`, `6`},
 		{`len tuple 1, 2, 3`, `3`},
+		{`literal 3`, `"3"`},
+		{`literal "foo"`, `"\"foo\""`},
+		{`literal 'q'`, `"'q'"`},
 		{`rune 65`, `'A'`},
-		{`map "a"::1, "b"::2`, `map(a::1, b::2)`},
+		{`map "a"::1, "b"::2`, `map("a"::1, "b"::2)`},
 		{`set 1, 2, 3`, `set(1, 2, 3)`},
 		{`string 4.0`, `"4.00000000"`},
 		{`string 4`, `"4"`},
@@ -133,7 +136,7 @@ func TestIndexing(t *testing.T) {
 		{`myList[0::2]`, `[[1, 2], [3, 4]]`},
 		{`myList[myIntPair]`, `[[1, 2], [3, 4]]`},
 		{`("a", "b", "c", "d")[2]`, `"c"`},
-		{`("a", "b", "c", "d")[myIntPair]`, `(a, b)`}, // TODO --- something else that will fail once literals work properly.
+		{`("a", "b", "c", "d")[myIntPair]`, `("a", "b")`},
 		{`"Angela"[myIntPair]`, `"An"`},
 		{`myWord[myIntPair]`, `"An"`},
 		{`myPair[0]`, `"foo"`},
@@ -231,8 +234,8 @@ func TestPiping(t *testing.T) {
 	tests := []testItem{
 		{`["fee", "fie", "fo", "fum"] -> len`, `4`},
 		{`["fee", "fie", "fo", "fum"] >> len`, `[3, 3, 2, 3]`},
-		{`["fee", "fie", "fo", "fum"] -> that + ["foo"]`, `[fee, fie, fo, fum, foo]`},
-		{`["fee", "fie", "fo", "fum"] >> that + "!"`, `[fee!, fie!, fo!, fum!]`},
+		{`["fee", "fie", "fo", "fum"] -> that + ["foo"]`, `["fee", "fie", "fo", "fum", "foo"]`},
+		{`["fee", "fie", "fo", "fum"] >> that + "!"`, `["fee!", "fie!", "fo!", "fum!"]`},
 		{`[1, 2, 3, 4] ?> that % 2 == 0`, `[2, 4]`},
 	}
 	runTest(t, "", tests, testValues)
@@ -243,7 +246,7 @@ func TestForLoops(t *testing.T) {
 		{`collatzA 42`, `1`},
 		{`collatzB 42`, `1`},
 		{`evens Color`, `[RED, YELLOW, BLUE]`},
-		{`evens "Angela"`, `[A, g, l]`}, // TODO --- will break when you fix literals.
+		{`evens "Angela"`, `['A', 'g', 'l']`},
 		{`evens myList`, `[PURPLE, GREEN, ORANGE]`},
 		{`find GREEN, Color`, `3`},
 		{`find GREEN, myList`, `2`},
@@ -281,8 +284,8 @@ func TestGocode(t *testing.T) {
 		{`noo()`, `NULL`},
 		{`roo 42`, `42`},
 		{`soo "aardvark"`, `"aardvark"`},
-		{`constructPerson "Doug", 42`, `Person with (name::Doug, age::42)`}, // Usual comment about literals applies.
-		{`deconstructPerson Person "Doug", 42`, `(Doug, 42)`},               //             "
+		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
+		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
 	}
 	runTest(t, "gocode_test.pf", tests, testValues)
 	// Tear down the .so file.

@@ -42,7 +42,14 @@ func (vm *Vm) DescribeType(t values.ValueType) string {
 	return vm.concreteTypes[t].getName()
 }
 
-func (vm *Vm) Describe(v values.Value) string {
+type descriptionFlavor int
+
+const (
+	DEFAULT descriptionFlavor = iota
+	LITERAL
+)
+
+func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	typeInfo := vm.concreteTypes[v.T]
 	if typeInfo.isStruct() {
 		var buf strings.Builder
@@ -51,7 +58,7 @@ func (vm *Vm) Describe(v values.Value) string {
 		var sep string
 		vals := v.V.([]values.Value)
 		for i, lb := range typeInfo.(structType).labelNumbers { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
-			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.Describe(vals[i]))
+			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.toString(vals[i], flavor))
 			sep = ", "
 		}
 		buf.WriteByte(')')
@@ -102,7 +109,7 @@ func (vm *Vm) Describe(v values.Value) string {
 		var sep string
 		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
 			el, _ := v.V.(vector.Vector).Index(i)
-			fmt.Fprintf(&buf, "%s%s", sep, vm.Describe(el.(values.Value)))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.toString(el.(values.Value), flavor))
 			sep = ", "
 		}
 		buf.WriteByte(']')
@@ -112,7 +119,7 @@ func (vm *Vm) Describe(v values.Value) string {
 		buf.WriteString("map(")
 		var sep string
 		(v.V.(*values.Map)).Range(func(k, v values.Value) {
-			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.Describe(k), vm.Describe(v))
+			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.toString(k, flavor), vm.toString(v, flavor))
 			sep = ", "
 		})
 		buf.WriteByte(')')
@@ -121,23 +128,39 @@ func (vm *Vm) Describe(v values.Value) string {
 		return "NULL"
 	case values.PAIR:
 		vals := v.V.([]values.Value)
-		return vm.Describe(vals[0]) + "::" + vm.Describe(vals[1])
+		return vm.toString(vals[0], flavor) + "::" + vm.toString(vals[1], flavor)
 	case values.RUNE:
-		return fmt.Sprintf("%c", v.V.(rune))
+		if flavor == DEFAULT {
+			return fmt.Sprintf("%c", v.V.(rune))
+		}
+		if flavor == LITERAL {
+			return fmt.Sprintf("'%c'", v.V.(rune))
+		}
 	case values.SET:
 		var buf strings.Builder
 		buf.WriteString("set(")
 		var sep string
 		v.V.(values.Set).Range(func(k values.Value) {
-			fmt.Fprintf(&buf, "%s%s", sep, vm.Describe(k))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.toString(k, flavor))
 			sep = ", "
 		})
 		buf.WriteByte(')')
 		return buf.String()
 	case values.STRING:
-		return v.V.(string)
+		if flavor == DEFAULT {
+			return v.V.(string)
+		}
+		if flavor == LITERAL {
+			return strconv.Quote(v.V.(string))
+		}
 	case values.SUCCESSFUL_VALUE:
-		return text.GREEN + "OK" + text.RESET
+		if flavor == DEFAULT {
+			return text.GREEN + "OK" + text.RESET
+		}
+		if flavor == LITERAL {
+			return "OK"
+		}
+
 	case values.THUNK:
 		if v.V == nil {
 			return "nil"
@@ -146,7 +169,7 @@ func (vm *Vm) Describe(v values.Value) string {
 	case values.TUPLE:
 		result := make([]string, len(v.V.([]values.Value)))
 		for i, v := range v.V.([]values.Value) {
-			result[i] = vm.Describe(v)
+			result[i] = vm.toString(v, flavor)
 		}
 		prefix := "("
 		if len(result) == 1 {
@@ -210,17 +233,12 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
 	return strings.Join(result, "/")
 }
 
+func (vm *Vm) Describe(v values.Value) string {
+	return vm.toString(v, DEFAULT)
+}
+
 func (vm *Vm) Literal(v values.Value) string {
-	switch v.T {
-	case values.STRING:
-		return "\"" + v.V.(string) + "\""
-	case values.RUNE:
-		return fmt.Sprintf("'%c'", v.V.(rune))
-	case values.SUCCESSFUL_VALUE:
-		return "OK"
-	default:
-		return vm.Describe(v) // TODO: this won't work, you need a single recursive function with being literal as a parameter.
-	}
+	return vm.toString(v, LITERAL)
 }
 
 // To make an error, we need the error code, the number of the token to be attached to it,
