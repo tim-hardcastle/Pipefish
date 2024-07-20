@@ -228,7 +228,7 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 				buf.WriteString("newtype\n\n")
 			}
 			buf.WriteString(parts[1])
-			buf.WriteString(" = ")
+			buf.WriteString(" = abstract ")
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), "/"))
 			lineNo++
 		case "COMMAND":

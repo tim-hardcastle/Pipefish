@@ -66,7 +66,6 @@ var tokenTypeToSection = map[token.TokenType]Section{
 	token.VAR:     VarSection,
 	token.CMD:     CmdSection,
 	token.DEF:     DefSection,
-	token.LANG:    LanguagesSection,
 	token.NEWTYPE: TypesSection,
 	token.CONST:   ConstSection,
 }
@@ -113,13 +112,24 @@ func (uP *Initializer) addTokenizedDeclaration(decType declarationType, line *to
 	uP.Parser.TokenizedDeclarations[decType] = append(uP.Parser.TokenizedDeclarations[decType], line)
 }
 
+type definableType int
+
+const (
+	tyNONE definableType = iota
+	tySTRUCT
+	tyENUM
+	tySNIPPET
+	tyABSTRACT
+)
+
+var typeMap = map[string]definableType{"struct": tySTRUCT, "enum": tyENUM, "snippet": tySNIPPET, "abstract": tyABSTRACT}
+
 func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	currentSection := UndefinedSection
 	beginCount := 0
 	indentCount := 0
 	lastTokenWasColon := false
-	expressionIsStruct := false
-	expressionIsEnum := false
+	typeDefined := tyNONE
 	isPrivate := false
 	var (
 		tok token.Token
@@ -165,11 +175,9 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			continue
 		}
 		if currentSection == TypesSection && tok.Type == token.IDENT {
-			if tok.Literal == "struct" {
-				expressionIsStruct = true
-			}
-			if tok.Literal == "enum" {
-				expressionIsEnum = true
+			tD, ok := typeMap[tok.Literal]
+			if ok {
+				typeDefined = tD
 			}
 		}
 		if tok.Type == token.LPAREN {
@@ -192,8 +200,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			if beginCount != 0 {
 				uP.Throw("init/close", tok)
 				beginCount = 0 // Prevents error storm.
-				expressionIsStruct = false
-				expressionIsEnum = false
+				typeDefined = tyNONE
 				colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 				continue
 			}
@@ -243,20 +250,23 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					uP.addTokenizedDeclaration(constantDeclaration, line, isPrivate)
 				}
 			case TypesSection:
-				switch {
-				case expressionIsStruct:
+				switch typeDefined {
+				case tySTRUCT:
 					uP.addTokenizedDeclaration(structDeclaration, line, isPrivate)
-				case expressionIsEnum:
+				case tyENUM:
 					uP.addTokenizedDeclaration(enumDeclaration, line, isPrivate)
-				default:
+				case tySNIPPET:
+					uP.addTokenizedDeclaration(snippetDeclaration, line, isPrivate)
+				case tyABSTRACT:
 					uP.addTokenizedDeclaration(abstractDeclaration, line, isPrivate)
+				default:
+					uP.Throw("init/type/form", tok)
 				}
 			default:
 				panic("Unhandled section type.")
 			}
 			line = token.NewCodeChunk()
-			expressionIsStruct = false
-			expressionIsEnum = false
+			typeDefined = tyNONE
 			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}

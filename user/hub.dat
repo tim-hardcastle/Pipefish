@@ -1,2 +1,2 @@
 hub, rsc/pipefish/hub.pf
-GOCODE, source/service/test-files/gocode_test.pf
+IMPORT, source/service/test-files/import_test.pf

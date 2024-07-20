@@ -50,6 +50,10 @@ type Compiler struct {
 	ScriptFilepath                      string
 	structDeclarationNumberToTypeNumber map[int]values.ValueType
 
+	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
+	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
+	declarationMap map[decKey]any
+
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
 	// Temporary state.
@@ -246,7 +250,45 @@ func NewCompiler(p *parser.Parser) *Compiler {
 	newC.AnyTypeScheme = newC.AnyTypeScheme.Union(AltType(values.ERROR))
 	newC.AnyTypeScheme = append(newC.AnyTypeScheme, TypedTupleType{newC.TypeNameToTypeList["single?"]})
 	newC.AnyTuple = AlternateType{TypedTupleType{newC.TypeNameToTypeList["single?"]}}
+	newC.declarationMap = make(map[decKey]any)
 	return newC
+}
+
+type declarationOf int
+
+const (
+	decSTRUCT declarationOf = iota
+	decLABEL
+)
+
+type labelInfo struct {
+	loc     uint32 // The location in the VM where we store a value {LABEL, n}.
+	private bool
+}
+
+type structInfo struct {
+	structNumber values.ValueType
+	private      bool
+}
+
+type decKey struct {
+	dOf declarationOf // A struct, a label, a function ...
+	src string
+	lNo int
+	ix  int
+}
+
+func (cp *Compiler) makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
+	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, ix: ix}
+}
+
+func (cp *Compiler) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {
+	result, ok := cp.declarationMap[cp.makeKey(dOf, tok, ix)]
+	return result, ok
+}
+
+func (cp *Compiler) setDeclaration(dOf declarationOf, tok *token.Token, ix int, v any) {
+	cp.declarationMap[cp.makeKey(dOf, tok, ix)] = v
 }
 
 func (cp *Compiler) NeedsUpdate() (bool, error) {

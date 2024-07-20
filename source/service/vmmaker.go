@@ -1,7 +1,10 @@
 package service
 
 import (
+	"database/sql"
+	"maps"
 	"os"
+
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
 	"pipefish/source/lexer"
@@ -11,8 +14,6 @@ import (
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"strings"
-
-	"database/sql"
 
 	"github.com/lmorg/readline"
 )
@@ -241,6 +242,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 			vmm.cp.Services[namespace] = &VmService{vmm.cp.vm, newCp, true, false}
 		} else {
 			vmm.cp.Services[namespace] = &VmService{vmm.cp.vm, newCp, false, false}
+			maps.Copy(vmm.cp.declarationMap, newCp.declarationMap)
 			vmm.cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
 			newUP.Parser.Private = vmm.uP.isPrivate(int(importDeclaration), i)
 		}
@@ -572,8 +574,13 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
-		// We make the type itself exist.
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
+		typeInfo, typeExists := vmm.cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
+		if typeExists { // We see if it's already been declared.
+			typeNo = typeInfo.(structInfo).structNumber
+		} else {
+			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(structDeclaration), i)})
+		}
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["struct"] = vmm.cp.TypeNameToTypeList["struct"].Union(altType(typeNo))
@@ -595,43 +602,51 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn) // TODO --- give them their own ast type?
 		vmm.uP.fnIndex[fnSource{structDeclaration, i}] = fn
-		// We make the labels exist.
-
-		labelsForStruct := make([]int, 0, len(sig))
-
-		for _, labelNameAndType := range sig {
-			labelName := labelNameAndType.VarName
-			labelLocation, alreadyExists := vmm.cp.FieldLabelsInMem[labelName]
-			if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice..
-				labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
-			} else {
-				vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), node.GetToken())
-				labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
-				vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
+		// We make the labels exist, unless they already do.
+		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
+			vmm.cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
+			for j, labelNameAndType := range sig {
+				labelName := labelNameAndType.VarName
+				lI, _ := vmm.cp.getDeclaration(decLABEL, node.GetToken(), j)
+				vmm.cp.FieldLabelsInMem[labelName] = lI.(labelInfo).loc
+				vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
 			}
+		} else { // Else we need to add the labels to the vm and vmm.
+			labelsForStruct := make([]int, 0, len(sig))
+			for j, labelNameAndType := range sig {
+				labelName := labelNameAndType.VarName
+				labelLocation, alreadyExists := vmm.cp.FieldLabelsInMem[labelName]
+				if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
+					labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
+					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
+				} else {
+					vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), node.GetToken())
+					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{vmm.cp.That(), true})
+					labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
+					vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
+					vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
+				}
+			}
+			vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
+			stT := structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)}
+			stT = stT.addLabels(labelsForStruct)
+			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, stT)
 		}
+	}
 
-		vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
-		stT := structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)}
-		stT = stT.addLabels(labelsForStruct)
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, stT)
-	}
-	// A label is private iff it is *only* used by struct types that were declared private.
-	// So we set them all private and then weed them out by iterating over the struct definitions.
-	for i := 0; i < len(vmm.cp.FieldLabelsInMem); i++ {
-		vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
-	}
-	i := -1
-	for _, info := range vmm.cp.vm.concreteTypes {
-		if !info.isStruct() {
-			continue
-		}
-		i++
+	for i := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		if vmm.uP.isPrivate(int(structDeclaration), i) {
 			continue
 		}
-		for _, lab := range info.(structType).labelNumbers {
-			vmm.cp.LabelIsPrivate[lab] = false
+		tok := vmm.uP.Parser.ParsedDeclarations[structDeclaration][i].GetToken()
+		sI, _ := vmm.cp.getDeclaration(decSTRUCT, tok, DUMMY)
+		sT := vmm.cp.vm.concreteTypes[sI.(structInfo).structNumber]
+		for i := range sT.(structType).labelNumbers {
+			dec, _ := vmm.cp.getDeclaration(decLABEL, tok, i)
+			decLabel := dec.(labelInfo)
+			decLabel.private = false
+			vmm.cp.setDeclaration(decLABEL, tok, i, decLabel)
+			vmm.cp.LabelIsPrivate[vmm.cp.vm.Mem[decLabel.loc].V.(int)] = false
 		}
 	}
 }
@@ -641,7 +656,8 @@ func (vmm *VmMaker) defineAbstractTypes() {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		newTypename := nameTok.Literal
-		tcc.NextToken()
+		tcc.NextToken() // The equals sign.
+		tcc.NextToken() // The 'abstract' identifier.
 		typeNames := []string{}
 		for {
 			typeTok := tcc.NextToken()
@@ -824,8 +840,10 @@ var nativeAbstractTypes = []string{"single", "struct", "snippet"}
 
 // The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
 func (vmm *VmMaker) addAbstractTypesToVm() {
-	for _, t := range nativeAbstractTypes {
-		vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.NameAbstractTypePair{t, vmm.cp.TypeNameToTypeList[t].ToAbstractType()})
+	if len(vmm.cp.vm.AbstractTypes) == 0 { // Otherwise we're doing an import and this has already happened.
+		for _, t := range nativeAbstractTypes {
+			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.NameAbstractTypePair{t, vmm.cp.TypeNameToTypeList[t].ToAbstractType()})
+		}
 	}
 }
 

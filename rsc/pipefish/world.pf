@@ -6,11 +6,6 @@ gocode "os"
 gocode "time"
 gocode "errors"
 
-lang
-
-SQL
-HTML
-
 newtype
 
 Clock = struct()
@@ -21,6 +16,9 @@ Output = struct()
 Random = struct(params int)
 RandomSeed = struct()
 Terminal = struct()
+
+SQL = snippet
+HTML = snippet
 
 cmd
 

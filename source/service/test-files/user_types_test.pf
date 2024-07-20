@@ -6,7 +6,7 @@ Shade = enum LIGHT, MEDIUM, DARK
 
 Tone = struct(shade Shade, color Color)
 
-MyType = Shade/Color/Tone
+MyType = abstract Shade/Color/Tone
 
 private 
 
