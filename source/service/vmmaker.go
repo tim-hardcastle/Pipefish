@@ -37,20 +37,6 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	return result, uP
 }
 
-func makeFilepath(scriptFilepath, dir string) string {
-	doctoredFilepath := strings.Clone(scriptFilepath)
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
-		doctoredFilepath = dir + scriptFilepath
-	}
-	if settings.StandardLibraries.Contains(scriptFilepath) {
-		doctoredFilepath = dir + "lib/" + scriptFilepath
-	}
-	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" {
-		doctoredFilepath = doctoredFilepath + ".pf"
-	}
-	return doctoredFilepath
-}
-
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
@@ -533,9 +519,16 @@ func (vmm *VmMaker) createEnums() {
 	for i, tokens := range vmm.uP.Parser.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
-		tokens.NextToken()
+		var typeNo values.ValueType
+		info, typeExists := vmm.cp.getDeclaration(decENUM, &tok1, DUMMY)
+		if typeExists {
+			typeNo = info.(values.ValueType)
+		} else {
+			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
+			vmm.cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
+		}
+
 		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
-		typeNo := values.FIRST_DEFINED_TYPE + values.ValueType(i)
 		vmm.cp.TypeNameToTypeList["single"] = vmm.cp.TypeNameToTypeList["single"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList["single?"] = vmm.cp.TypeNameToTypeList["single?"].Union(altType(typeNo))
 		vmm.cp.TypeNameToTypeList[tok1.Literal] = altType(typeNo)
@@ -545,7 +538,12 @@ func (vmm *VmMaker) createEnums() {
 		lastType := vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1].(TypedTupleType)
 		vmm.cp.AnyTypeScheme[len(vmm.cp.AnyTypeScheme)-1] = TypedTupleType{(lastType.T).Union(altType(typeNo))}
 
-		tokens.NextToken() // This says "enum" or we wouldn't be here.
+		if typeExists {
+			continue
+		}
+
+		tokens.NextToken() // Skip over the '='.
+		tokens.NextToken() // This says 'enum' or we wouldn't be here.
 		elementNameList := []string{}
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
@@ -556,7 +554,7 @@ func (vmm *VmMaker) createEnums() {
 				vmm.uP.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(values.ValueType(i)+values.FIRST_DEFINED_TYPE, len(elementNameList), &tok)
+			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(typeNo, len(elementNameList), &tok)
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
@@ -682,7 +680,11 @@ func (vmm *VmMaker) defineAbstractTypes() {
 				break
 			}
 		}
-		vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.NameAbstractTypePair{newTypename, vmm.cp.TypeNameToTypeList[newTypename].ToAbstractType()})
+		_, typeExists := vmm.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
+		if !typeExists {
+			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.NameAbstractTypePair{newTypename, vmm.cp.TypeNameToTypeList[newTypename].ToAbstractType()})
+			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
+		}
 		vmm.uP.Parser.Suffixes.Add(newTypename)
 		if !vmm.cp.TypeNameToTypeList[newTypename].Contains(values.NULL) {
 			for _, tname := range typeNames {
@@ -849,6 +851,9 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 
 // For compiling a top-level function.
 func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
+	if info, functionExists := vmm.cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
+		return info.(*CpFunc)
+	}
 	cpF := CpFunc{}
 	var ac cpAccess
 	if dec == functionDeclaration {
@@ -978,6 +983,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	if ac == CMD && !cpF.Types.IsLegalCmdReturn() {
 		vmm.cp.P.Throw("comp/return/cmd", node.GetToken())
 	}
+	vmm.cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
 	return &cpF
 }
 
@@ -1071,6 +1077,20 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 	}
 }
 
-func altType(t ...values.ValueType) AlternateType { // TODO --- Why!?!
+func altType(t ...values.ValueType) AlternateType {
 	return AltType(t...)
+}
+
+func makeFilepath(scriptFilepath, dir string) string {
+	doctoredFilepath := strings.Clone(scriptFilepath)
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
+		doctoredFilepath = dir + scriptFilepath
+	}
+	if settings.StandardLibraries.Contains(scriptFilepath) {
+		doctoredFilepath = dir + "lib/" + scriptFilepath
+	}
+	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" {
+		doctoredFilepath = doctoredFilepath + ".pf"
+	}
+	return doctoredFilepath
 }

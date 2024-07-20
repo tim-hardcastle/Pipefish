@@ -259,6 +259,9 @@ type declarationOf int
 const (
 	decSTRUCT declarationOf = iota
 	decLABEL
+	decENUM
+	decABSTRACT
+	decFUNCTION
 )
 
 type labelInfo struct {
