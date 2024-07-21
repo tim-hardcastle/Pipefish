@@ -1,0 +1,16 @@
+def
+
+square(x int) :
+    x * x
+
+newtype
+
+Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
+
+Shade = enum LIGHT, MEDIUM, DARK
+
+Tone = struct(shade Shade, color Color)
+
+MyType = abstract Shade/Color/Tone
+
+Person = struct(name string, age int)

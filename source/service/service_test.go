@@ -288,13 +288,28 @@ func TestGocode(t *testing.T) {
 		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
 	}
 	runTest(t, "gocode_test.pf", tests, testValues)
-	// Tear down the .so file.
+	// Tear down the .go and .so files.
 	nameOfTestFile := "gocode_test.pf"
 	currentDirectory, _ := os.Getwd()
+	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../gocode 1.go")
+	os.Remove(locationOfGocode)
 	absolutePathToGoTestFile, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
 	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
 	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)
 	timestamp := file.ModTime().UnixMilli()
 	goTestFile := absolutePathToGoTestFile + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
 	os.Remove(goTestFile)
+}
+
+func TestImports(t *testing.T) {
+	tests := []testItem{
+		{`qux.square 5`, `25`},
+		{`type qux.Color`, `type`},
+		{`qux.RED`, `RED`}, // TODO --- this will break on improving literals.
+		{`qux.Color[4]`, `BLUE`},
+		{`qux.Person "John", 22`, `Person with (name::"John", age::22)`},
+		{`qux.Color[4]`, `BLUE`},
+		{`qux.Tone LIGHT, BLUE`, `Tone with (shade::LIGHT, color::BLUE)`},
+	}
+	runTest(t, "import_test.pf", tests, testValues)
 }

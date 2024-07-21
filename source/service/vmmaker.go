@@ -852,6 +852,7 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 // For compiling a top-level function.
 func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
 	if info, functionExists := vmm.cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
+		vmm.cp.Fns = append(vmm.cp.Fns, info.(*CpFunc))
 		return info.(*CpFunc)
 	}
 	cpF := CpFunc{}

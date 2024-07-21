@@ -1,0 +1,13 @@
+// Exists to be imported by the import_test.pf file.
+
+import
+
+"/Users/Tim/Charm/source/service/test-files/zort.pf"
+
+def 
+
+double(x int) :
+    2 * x
+
+sumOfSquares(x, y int) :
+    zort.square(x) + zort.square(y)
