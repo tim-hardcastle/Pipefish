@@ -41,9 +41,7 @@ type Compiler struct {
 	GlobalConsts                        *Environment
 	GlobalVars                          *Environment
 	Fns                                 []*CpFunc
-	TypeNameToTypeList                  map[string]AlternateType
-	AnyTypeScheme                       AlternateType // Sometimes, like if someone doesn't specify a return type from their Go function, then the compiler needs to be able to say "whatevs".
-	AnyTuple                            AlternateType
+	typeNameToTypeList                  map[string]AlternateType
 	Services                            map[string]*VmService // Both true internal services, and stubs that call the externals.
 	CallHandlerNumbersByName            map[string]uint32     // Map from the names of external services to their index as stored in the vm.
 	Timestamp                           int64
@@ -211,7 +209,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Fns:                      []*CpFunc{},
 		Services:                 make(map[string]*VmService),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
-		TypeNameToTypeList: map[string]AlternateType{
+		typeNameToTypeList: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
 			"string":   AltType(values.STRING),
@@ -238,18 +236,8 @@ func NewCompiler(p *parser.Parser) *Compiler {
 			"label?":   AltType(values.NULL, values.LABEL),
 			"func?":    AltType(values.NULL, values.FUNC),
 			"null":     AltType(values.NULL),
-			"single":   AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"struct":   AltType(),
-			"struct?":  AltType(values.NULL),
-			"snippet":  AltType(),
-			"snippet?": AltType(values.NULL),
 		},
 	}
-	copy(newC.AnyTypeScheme, newC.TypeNameToTypeList["single?"])
-	newC.AnyTypeScheme = newC.AnyTypeScheme.Union(AltType(values.ERROR))
-	newC.AnyTypeScheme = append(newC.AnyTypeScheme, TypedTupleType{newC.TypeNameToTypeList["single?"]})
-	newC.AnyTuple = AlternateType{TypedTupleType{newC.TypeNameToTypeList["single?"]}}
 	newC.declarationMap = make(map[decKey]any)
 	return newC
 }
@@ -515,7 +503,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 		}
 		var typeToUse AlternateType // TODO: we can extract more meaningful information about the tuple from the types.
 		if pair.VarType == "tuple" {
-			typeToUse = cp.AnyTuple
+			typeToUse = cp.vm.AnyTuple
 		} else {
 			typeToUse = typesAtIndex(types, i)
 		}
@@ -668,7 +656,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			if pair.VarType == "*default*" {
 				types = typesAtIndex(boundVariableTypes, i)
 			} else {
-				types = cp.TypeNameToTypeList[pair.VarType]
+				types = cp.TypeNameToTypeList(pair.VarType)
 			}
 			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
 			boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
@@ -713,7 +701,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			if pair.VarType == "*default*" {
 				types = typesAtIndex(indexVariableTypes, i)
 			} else {
-				types = cp.TypeNameToTypeList[pair.VarType]
+				types = cp.TypeNameToTypeList(pair.VarType)
 			}
 			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
 			indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
@@ -775,7 +763,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 						cp.P.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], rangeOver.GetToken()) // TODO --- narrow down.
+					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList("single?"), rangeOver.GetToken()) // TODO --- narrow down.
 				}
 				if !keysOnly {
 					cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
@@ -785,7 +773,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 						cp.P.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList["single?"], rangeOver.GetToken())
+					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList("single?"), rangeOver.GetToken())
 				}
 			}
 		} else {
@@ -878,7 +866,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
 			checkNeeded = true
-			LF.Model.sig = append(LF.Model.sig, cp.TypeNameToTypeList[pair.VarType].ToAbstractType())
+			LF.Model.sig = append(LF.Model.sig, cp.TypeNameToTypeList(pair.VarType).ToAbstractType())
 		}
 	}
 	if checkNeeded {
@@ -919,11 +907,7 @@ func (cp *Compiler) compileLambda(env *Environment, fnNode *ast.FuncExpression, 
 	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
 		cp.cm("Adding parameter to lambda.", fnNode.GetToken())
-		if pair.VarType[:3] == "..." {
-			cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{cp.TypeNameToTypeList[pair.VarType[3:]]}}, fnNode.GetToken())
-		} else {
-			cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList[pair.VarType], fnNode.GetToken())
-		}
+		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), fnNode.GetToken())
 	}
 
 	LF.Model.parametersEnd = cp.MemTop()
@@ -1125,7 +1109,7 @@ NodeTypeSwitch:
 			if ok {
 				cp.cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
-					if !Equals(v.types, cp.TypeNameToTypeList[sig[i].VarType]) {
+					if !Equals(v.types, cp.TypeNameToTypeList(sig[i].VarType)) {
 						cp.P.Throw("comp/assign/redefine/b", node.GetToken())
 						break NodeTypeSwitch
 					}
@@ -1133,7 +1117,7 @@ NodeTypeSwitch:
 				if v.access != REFERENCE_VARIABLE { // TODO --- THere's probably a more elgant way of dealing with the reference variable thing if I think about it, but as I intend to type them anyway and this will get refactored away it's not a big deal.
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
 				} else {
-					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.TypeNameToTypeList["single?"]})
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.TypeNameToTypeList("single?")})
 				}
 				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
@@ -1160,7 +1144,7 @@ NodeTypeSwitch:
 				cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
 				if pair.VarType == "tuple" {
 					cp.cm("Adding variable in ASSIGN, 1", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.AnyTuple, node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.vm.AnyTuple, node.GetToken())
 					newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
 				} else {
 					typesAtIndex := typesAtIndex(types, i)
@@ -1257,7 +1241,7 @@ NodeTypeSwitch:
 		}
 		if v.access == REFERENCE_VARIABLE {
 			cp.put(Dref, v.mLoc)
-			rtnTypes = cp.TypeNameToTypeList["single?"]
+			rtnTypes = cp.TypeNameToTypeList("single?")
 		} else {
 			cp.put(Asgm, v.mLoc)
 			rtnTypes = v.types
@@ -1293,7 +1277,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/index/list", node.GetToken())
 				break
 			}
-			rtnTypes = cp.TypeNameToTypeList["single?"].Union(AltType(values.ERROR))
+			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnly(values.STRING) {
 			if indexType.isOnly(values.INT) {
@@ -1325,7 +1309,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
-			rtnTypes = cp.TypeNameToTypeList["single?"].Union(AltType(values.ERROR))
+			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnly(values.PAIR) {
 			if indexType.isOnly(values.INT) {
@@ -1336,7 +1320,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/index/pair", node.GetToken())
 				break
 			}
-			rtnTypes = cp.TypeNameToTypeList["single?"].Union(AltType(values.ERROR))
+			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnly(values.TYPE) {
 			if indexType.isOnly(values.INT) {
@@ -1424,9 +1408,9 @@ NodeTypeSwitch:
 		// If we can't infer anything else about the types we can emit a catchall indexing operation.
 		cp.put(IxXx, container, index, errTok)
 		if containerType.Contains(values.TUPLE) {
-			rtnTypes = cp.AnyTypeScheme
+			rtnTypes = cp.vm.AnyTypeScheme
 		} else {
-			rtnTypes = cp.TypeNameToTypeList["single?"]
+			rtnTypes = cp.TypeNameToTypeList("single?")
 		}
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
@@ -1650,7 +1634,7 @@ NodeTypeSwitch:
 			_, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
 			errTok := cp.reserveToken(node.GetToken())
 			cp.put(Uwrp, cp.That(), errTok)
-			rtnTypes = AltType(values.ERROR).Union(cp.TypeNameToTypeList["Error"])
+			rtnTypes = AltType(values.ERROR).Union(cp.TypeNameToTypeList("Error"))
 			break
 		}
 		if node.Token.Type == token.GLOBAL { // This is in effect a compiler directive, it doesn't need to emit any code besides `ok`, it just mutates the environment.
@@ -1719,7 +1703,7 @@ NodeTypeSwitch:
 				}
 			} // TODO --- what if not?
 			rtnConst = false
-			rtnTypes = cp.AnyTypeScheme
+			rtnTypes = cp.vm.AnyTypeScheme
 			break
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
@@ -1801,7 +1785,7 @@ NodeTypeSwitch:
 		case typeName == "string?":
 			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}, node.GetToken())
 		default:
-			abType := resolvingCompiler.TypeNameToTypeList[typeName].ToAbstractType()
+			abType := resolvingCompiler.TypeNameToTypeList(typeName).ToAbstractType()
 			if (ac == REPL || resolvingCompiler != cp) && cp.vm.isPrivate(abType) {
 				cp.P.Throw("comp/private/type", node.GetToken())
 			}
@@ -2053,12 +2037,12 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_VALUE, nil, node.GetToken())
-					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.TypeNameToTypeList["single?"]}
+					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.TypeNameToTypeList("single?")}
 					env.data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
-			b.types[i] = cp.TypeNameToTypeList["single?"]
+			b.types[i] = cp.TypeNameToTypeList("single?")
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(Asgm, v.mLoc)
@@ -2080,7 +2064,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == simpleType(values.TUPLE) {
-				b.types[i] = AlternateType{cp.AnyTuple}
+				b.types[i] = AlternateType{cp.vm.AnyTuple}
 			}
 			cst = cst && cstI
 			b.valLocs[i] = cp.That()
@@ -2224,12 +2208,12 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	switch {
 	case isVarchar:
 		if typeName[len(typeName)-1] == '?' {
-			acceptedTypes = cp.TypeNameToTypeList["string?"]
+			acceptedTypes = cp.TypeNameToTypeList("string?")
 		} else {
-			acceptedTypes = cp.TypeNameToTypeList["string"]
+			acceptedTypes = cp.TypeNameToTypeList("string")
 		}
 	default:
-		acceptedTypes = cp.TypeNameToTypeList[typeName]
+		acceptedTypes = cp.TypeNameToTypeList(typeName)
 	}
 	cp.cmP("Accepted types are "+acceptedTypes.describe(cp.vm), b.tok)
 	cp.cmP("Target list is "+b.targetList.describe(cp.vm), b.tok)
@@ -2390,17 +2374,13 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 }
 
 func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString string, mem uint32, index int) bkGoto { // TODO --- more of this.
-	ty, ok := cp.TypeNameToTypeList[typeAsString]
-	if ok {
-		args := []uint32{mem, uint32(index)}
-		for _, t := range ty {
-			args = append(args, uint32(t.(simpleType)))
-		}
-		args = append(args, DUMMY)
-		cp.Emit(Qtpt, args...)
-	} else {
-		panic("Unhandled type " + text.Emph(typeAsString))
+	ty := cp.TypeNameToTypeList(typeAsString)
+	args := []uint32{mem, uint32(index)}
+	for _, t := range ty {
+		args = append(args, uint32(t.(simpleType)))
 	}
+	args = append(args, DUMMY)
+	cp.Emit(Qtpt, args...)
 	return bkGoto(cp.CodeTop() - 1)
 }
 
@@ -2419,7 +2399,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		}
 	}
 	// It may be a plain old concrete type.
-	ty := cp.TypeNameToTypeList[typeAsString]
+	ty := cp.TypeNameToTypeList(typeAsString)
 	if len(ty) == 1 {
 		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
@@ -2536,7 +2516,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 				cp.Emit(Rpop)
 				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
-				return cp.AnyTypeScheme        // Or what type.
+				return cp.vm.AnyTypeScheme     // Or what type.
 			}
 			F := cp.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
@@ -2551,7 +2531,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.cmP("Emitting builtin.", b.tok)
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_sql":
-					functionAndType.T = cp.AnyTypeScheme
+					functionAndType.T = cp.vm.AnyTypeScheme
 				case "first_in_tuple":
 					if len(b.types) == 0 {
 						functionAndType.T = altType(values.COMPILE_TIME_ERROR)
@@ -2569,9 +2549,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				case "tuple_of_tuple":
 					functionAndType.T = b.doneList
 				case "type_with":
-					functionAndType.T = AlternateType{cp.TypeNameToTypeList["struct"]}.Union(AltType(values.ERROR))
+					functionAndType.T = AlternateType{cp.TypeNameToTypeList("struct")}.Union(AltType(values.ERROR))
 				case "struct_with":
-					functionAndType.T = AlternateType{cp.TypeNameToTypeList["struct"]}.Union(AltType(values.ERROR))
+					functionAndType.T = AlternateType{cp.TypeNameToTypeList("struct")}.Union(AltType(values.ERROR))
 				}
 				functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.T
@@ -2593,16 +2573,16 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					if F.Command {
 						return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
 					} else {
-						return cp.AnyTypeScheme
+						return cp.vm.AnyTypeScheme
 					}
 				}
 				if len(branch.Node.Fn.Rets) == 1 {
-					return cp.TypeNameToTypeList[branch.Node.Fn.Rets[0].VarType]
+					return cp.TypeNameToTypeList(branch.Node.Fn.Rets[0].VarType)
 				}
 				// Otherwise it's a tuple.
 				tt := make(AlternateType, 0, len(branch.Node.Fn.Rets))
 				for _, v := range branch.Node.Fn.Rets {
-					tt = append(tt, cp.TypeNameToTypeList[v.VarType])
+					tt = append(tt, cp.TypeNameToTypeList(v.VarType))
 				}
 				return AlternateType{finiteTupleType{tt}}
 			}
@@ -2883,7 +2863,7 @@ func (cp *Compiler) getTypes(s signature, i int) AlternateType {
 	typeRep := s.GetVarType(i)
 	switch typeRep := typeRep.(type) {
 	case string:
-		return cp.TypeNameToTypeList[typeRep]
+		return cp.TypeNameToTypeList(typeRep)
 	case AlternateType:
 		return typeRep
 	default:
@@ -3029,7 +3009,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 	}
 	if isAttemptedFunc {
 		cp.put(Dofn, v.mLoc, lhs)
-		rtnTypes, rtnConst = cp.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.access)
+		rtnTypes, rtnConst = cp.vm.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.access)
 	} else {
 		newContext := context{envWithThat, ac, nil, DUMMY} // TODO --- must get value from outer context.
 		rtnTypes, rtnConst = cp.CompileNode(rhs, newContext)
@@ -3084,7 +3064,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	if !isAttemptedFunc {
 		rhsConst = true
 		thatLoc = cp.Reserve(values.UNDEFINED_VALUE, DUMMY, rhs.GetToken())
-		envWithThat = &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.TypeNameToTypeList["single?"]}}, Ext: env}
+		envWithThat = &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.TypeNameToTypeList("single?")}}, Ext: env}
 	}
 	counter := cp.Reserve(values.INT, 0, rhs.GetToken())
 	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
@@ -3101,7 +3081,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		cp.put(IdxL, sourceList, counter, DUMMY)
 		inputElement = cp.That()
 		cp.put(Dofn, v.mLoc, cp.That())
-		types = AltType(values.ERROR).Union(cp.TypeNameToTypeList["single?"]) // Very much TODO. Normally the function is constant and so we know its return types.
+		types = AltType(values.ERROR).Union(cp.TypeNameToTypeList("single?")) // Very much TODO. Normally the function is constant and so we know its return types.
 	} else {
 		cp.cm("The rhs is an expression presumably containing 'that'.", tok)
 		cp.Emit(IdxL, thatLoc, sourceList, counter, DUMMY)
@@ -3302,7 +3282,7 @@ func (cp *Compiler) returnSigToAlternateType(sig ast.AstSig) finiteTupleType {
 	}
 	ftt := finiteTupleType{}
 	for _, pair := range sig {
-		ftt = append(ftt, cp.TypeNameToTypeList[pair.VarType])
+		ftt = append(ftt, cp.TypeNameToTypeList(pair.VarType))
 	}
 	return ftt
 }
@@ -3354,4 +3334,26 @@ func (cp *Compiler) popLambdaStart() {
 
 func (cp *Compiler) getLambdaStart() uint32 {
 	return cp.lambdaMemStarts[len(cp.lambdaMemStarts)-1]
+}
+
+func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
+	varargs := len(typename) >= 3 && typename[:3] == "..."
+	if varargs {
+		typename = typename[3:]
+	}
+	result, ok := cp.typeNameToTypeList[typename]
+	if ok {
+		if varargs {
+			return AlternateType{TypedTupleType{result}}
+		}
+		return result
+	}
+	result, ok = cp.vm.sharedTypenameToTypeList[typename]
+	if ok {
+		if varargs {
+			return AlternateType{TypedTupleType{result}}
+		}
+		return result
+	}
+	return AlternateType{}
 }

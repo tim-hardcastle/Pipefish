@@ -161,7 +161,6 @@ func TestFunctionSyntaxCalls(t *testing.T) {
 	}
 	runTest(t, "function_syntax_test.pf", tests, testValues)
 }
-
 func TestVariablesAndConsts(t *testing.T) {
 	tests := []testItem{
 		{`A`, `42`},
@@ -173,7 +172,6 @@ func TestVariablesAndConsts(t *testing.T) {
 	}
 	runTest(t, "variables_test.pf", tests, testValues)
 }
-
 func TestVariableAccessErrors(t *testing.T) {
 	tests := []testItem{
 		{`B`, `comp/ident/private`},
@@ -184,7 +182,6 @@ func TestVariableAccessErrors(t *testing.T) {
 	}
 	runTest(t, "variables_test.pf", tests, testCompilerErrors)
 }
-
 func TestUserDefinedTypes(t *testing.T) {
 	tests := []testItem{
 		{`Color[4]`, `BLUE`},
@@ -208,7 +205,6 @@ func TestUserDefinedTypes(t *testing.T) {
 	}
 	runTest(t, "user_types_test.pf", tests, testValues)
 }
-
 func TestTypeAccessErrors(t *testing.T) {
 	tests := []testItem{
 		{`Pair 1, 2`, `comp/private`},
@@ -218,7 +214,6 @@ func TestTypeAccessErrors(t *testing.T) {
 	}
 	runTest(t, "user_types_test.pf", tests, testCompilerErrors)
 }
-
 func TestOverloading(t *testing.T) {
 	tests := []testItem{
 		{`foo 42`, `"int"`},
@@ -229,7 +224,6 @@ func TestOverloading(t *testing.T) {
 	}
 	runTest(t, "overloading_test.pf", tests, testValues)
 }
-
 func TestPiping(t *testing.T) {
 	tests := []testItem{
 		{`["fee", "fie", "fo", "fum"] -> len`, `4`},
@@ -257,7 +251,6 @@ func TestForLoops(t *testing.T) {
 	}
 	runTest(t, "for_loop_test.pf", tests, testValues)
 }
-
 func TestInnerFunctionsAndVariables(t *testing.T) {
 	tests := []testItem{
 		{`foo 42`, `42`},
@@ -266,7 +259,6 @@ func TestInnerFunctionsAndVariables(t *testing.T) {
 	}
 	runTest(t, "inner_test.pf", tests, testValues)
 }
-
 func TestRecursion(t *testing.T) {
 	tests := []testItem{
 		{`fac 5`, `120`},
@@ -275,7 +267,6 @@ func TestRecursion(t *testing.T) {
 	}
 	runTest(t, "recursion_test.pf", tests, testValues)
 }
-
 func TestGocode(t *testing.T) {
 	tests := []testItem{
 		{`boo true`, `false`},
@@ -300,7 +291,6 @@ func TestGocode(t *testing.T) {
 	goTestFile := absolutePathToGoTestFile + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
 	os.Remove(goTestFile)
 }
-
 func TestImports(t *testing.T) {
 	tests := []testItem{
 		{`qux.square 5`, `25`},

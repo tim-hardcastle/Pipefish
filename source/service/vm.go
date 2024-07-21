@@ -28,21 +28,39 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	concreteTypes        []typeInformation
-	Labels               []string // Array from the number of a field label to its name.
-	Tokens               []*token.Token
-	LambdaFactories      []*LambdaFactory
-	SnippetFactories     []*SnippetFactory
-	GoFns                []GoFn
-	IoHandle             IoHandler
-	Database             *sql.DB
-	AbstractTypes        []values.NameAbstractTypePair
-	OwnService           *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
-	HubServices          map[string]*VmService // The same map that the hub has.
-	ExternalCallHandlers []externalCallHandler // The services declared external, whether on the same hub or a different one.
+	concreteTypes              []typeInformation
+	Labels                     []string // Array from the number of a field label to its name.
+	Tokens                     []*token.Token
+	LambdaFactories            []*LambdaFactory
+	SnippetFactories           []*SnippetFactory
+	GoFns                      []GoFn
+	IoHandle                   IoHandler
+	Database                   *sql.DB
+	AbstractTypes              []values.NameAbstractTypePair
+	OwnService                 *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	HubServices                map[string]*VmService // The same map that the hub has.
+	ExternalCallHandlers       []externalCallHandler // The services declared external, whether on the same hub or a different one.
+	typeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
+
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
-	codeGeneratingTypes        dtypes.Set[values.ValueType]
-	typeNumberOfUnwrappedError values.ValueType // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
+	codeGeneratingTypes dtypes.Set[values.ValueType]
+	// These also may not belong in the VM, but it is shared state among all the compilers for the various modules, and there's nothing else
+	// tying them together but the vm.
+	sharedTypenameToTypeList map[string]AlternateType
+	AnyTypeScheme            AlternateType
+	AnyTuple                 AlternateType
+}
+
+func (vm *Vm) AddTypeNumberToAbstractTypes(typeNo values.ValueType, abTypes ...string) {
+	abTypes = append(abTypes, "single")
+	for _, ty := range abTypes {
+		vm.sharedTypenameToTypeList[ty] = vm.sharedTypenameToTypeList[ty].Union(altType(typeNo))
+		vm.sharedTypenameToTypeList[ty+"?"] = vm.sharedTypenameToTypeList[ty+"?"].Union(altType(typeNo))
+	}
+	vm.AnyTuple = AlternateType{TypedTupleType{vm.sharedTypenameToTypeList["single?"]}}
+	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(altType(typeNo))
+	vm.AnyTypeScheme[len(vm.AnyTypeScheme)-1] = vm.AnyTuple
+	vm.sharedTypenameToTypeList["tuple"] = vm.AnyTuple
 }
 
 // This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
@@ -124,16 +142,34 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"pair", "list", "map", "set", "label"}
 
 func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
-	newVm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
+	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
 		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
-		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC)}
-	copy(newVm.Mem, CONSTANTS)
-	for _, name := range nativeTypeNames {
-		newVm.concreteTypes = append(newVm.concreteTypes, builtinType(name))
+		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
+		sharedTypenameToTypeList: map[string]AlternateType{
+			"single":   AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"enum":     AltType(),
+			"enum?":    AltType(values.NULL),
+			"struct":   AltType(),
+			"struct?":  AltType(values.NULL),
+			"snippet":  AltType(),
+			"snippet?": AltType(values.NULL),
+		},
+		AnyTypeScheme: AlternateType{},
+		AnyTuple:      AlternateType{},
 	}
-	newVm.typeNumberOfUnwrappedError = DUMMY
-	newVm.Mem = append(newVm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil})
-	return newVm
+	copy(vm.Mem, CONSTANTS)
+	for _, name := range nativeTypeNames {
+		vm.concreteTypes = append(vm.concreteTypes, builtinType(name))
+	}
+	vm.typeNumberOfUnwrappedError = DUMMY
+	vm.Mem = append(vm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil}) // TODO --- why?
+	vm.AnyTuple = AlternateType{TypedTupleType{vm.sharedTypenameToTypeList["single?"]}}
+	vm.AnyTypeScheme = make(AlternateType, len(vm.sharedTypenameToTypeList["single?"]), 1+len(vm.sharedTypenameToTypeList["single?"]))
+	copy(vm.AnyTypeScheme, vm.sharedTypenameToTypeList["single?"])
+	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(vm.AnyTuple)
+	vm.sharedTypenameToTypeList["tuple"] = vm.AnyTuple
+	return vm
 }
 
 func (vm *Vm) Run(loc uint32) {
