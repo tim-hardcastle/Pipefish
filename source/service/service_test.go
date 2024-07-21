@@ -248,6 +248,12 @@ func TestForLoops(t *testing.T) {
 		{`allKeys myList`, `[0, 1, 2, 3, 4, 5]`},
 		{`allKeys "Angela"`, `[0, 1, 2, 3, 4, 5]`},
 		{`allValues myList`, `[PURPLE, BLUE, GREEN, YELLOW, ORANGE, RED]`},
+		{`showRange 3, 8`, `[0::3, 1::4, 2::5, 3::6, 4::7]`},
+		{`showRangeKeys 3, 8`, `[0, 1, 2, 3, 4]`},
+		{`showRangeValues 3, 8`, `[3, 4, 5, 6, 7]`},
+		{`showRange 8, 3`, `[0::7, 1::6, 2::5, 3::4, 4::3]`},
+		{`showRangeKeys 8, 3`, `[0, 1, 2, 3, 4]`},
+		{`showRangeValues 8, 3 `, `[7, 6, 5, 4, 3]`},
 	}
 	runTest(t, "for_loop_test.pf", tests, testValues)
 }

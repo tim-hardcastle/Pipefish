@@ -54,5 +54,14 @@ allValues(x) :
     from L = [] for _::v = range x :
         L + [v]
 
+showRange(x, y int) :
+    from L = [] for k::v = range x::y :
+        L + [k::v] 
 
+showRangeKeys(x, y int) :
+    from L = [] for k::_ = range x::y :
+        L + [k] 
 
+showRangeValues(x, y int) :
+    from L = [] for _::v = range x::y :
+        L + [v] 
