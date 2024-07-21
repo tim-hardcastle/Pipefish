@@ -591,7 +591,6 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 				labelName := labelNameAndType.VarName
 				lI, _ := vmm.cp.getDeclaration(decLABEL, node.GetToken(), j)
 				vmm.cp.FieldLabelsInMem[labelName] = lI.(labelInfo).loc
-				vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
 			}
 		} else { // Else we need to add the labels to the vm and vmm.
 			labelsForStruct := make([]int, 0, len(sig))
@@ -606,7 +605,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{vmm.cp.That(), true})
 					labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
 					vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
-					vmm.cp.LabelIsPrivate = append(vmm.cp.LabelIsPrivate, true)
+					vmm.cp.vm.LabelIsPrivate = append(vmm.cp.vm.LabelIsPrivate, true)
 				}
 			}
 			vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
@@ -628,7 +627,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 			decLabel := dec.(labelInfo)
 			decLabel.private = false
 			vmm.cp.setDeclaration(decLABEL, tok, i, decLabel)
-			vmm.cp.LabelIsPrivate[vmm.cp.vm.Mem[decLabel.loc].V.(int)] = false
+			vmm.cp.vm.LabelIsPrivate[vmm.cp.vm.Mem[decLabel.loc].V.(int)] = false
 		}
 	}
 }
@@ -787,6 +786,7 @@ func (vmm *VmMaker) addStructLabelsToVm(name string, typeNo values.ValueType, si
 			vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), tok)
 			labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
 			vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
+			vmm.cp.vm.LabelIsPrivate = append(vmm.cp.vm.LabelIsPrivate, true)
 		}
 	}
 	typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)

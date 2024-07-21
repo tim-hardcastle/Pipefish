@@ -295,7 +295,9 @@ func TestImports(t *testing.T) {
 	tests := []testItem{
 		{`qux.square 5`, `25`},
 		{`type qux.Color`, `type`},
-		{`qux.RED`, `RED`}, // TODO --- this will break on improving literals.
+		{`qux.RED`, `RED`},        // TODO --- this will break on improving literals.
+		{`type qux.RED`, `Color`}, //                "
+		{`qux.RED in qux.Color`, `true`},
 		{`qux.Color[4]`, `BLUE`},
 		{`qux.Person "John", 22`, `Person with (name::"John", age::22)`},
 		{`qux.Color[4]`, `BLUE`},

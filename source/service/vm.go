@@ -49,6 +49,7 @@ type Vm struct {
 	sharedTypenameToTypeList map[string]AlternateType
 	AnyTypeScheme            AlternateType
 	AnyTuple                 AlternateType
+	LabelIsPrivate           []bool
 }
 
 func (vm *Vm) AddTypeNumberToAbstractTypes(typeNo values.ValueType, abTypes ...string) {

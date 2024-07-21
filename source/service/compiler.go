@@ -32,11 +32,11 @@ type ThunkValue struct {
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	vm                                  *Vm // The vm we're compiling to.
-	P                                   *parser.Parser
-	EnumElements                        map[string]uint32
-	FieldLabelsInMem                    map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
-	LabelIsPrivate                      []bool
+	vm               *Vm // The vm we're compiling to.
+	P                *parser.Parser
+	EnumElements     map[string]uint32
+	FieldLabelsInMem map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+
 	StructNameToTypeNumber              map[string]values.ValueType
 	GlobalConsts                        *Environment
 	GlobalVars                          *Environment
@@ -1214,7 +1214,7 @@ NodeTypeSwitch:
 		}
 		labelNumberLocation, ok := resolvingCompiler.FieldLabelsInMem[node.Value]
 		if ok {
-			if (cp != resolvingCompiler || ac == REPL) && resolvingCompiler.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
+			if (cp != resolvingCompiler || ac == REPL) && resolvingCompiler.vm.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
 				cp.P.Throw("comp/private/label", node.GetToken())
 				break
 			}
