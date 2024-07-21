@@ -302,6 +302,13 @@ func TestImports(t *testing.T) {
 		{`qux.Person "John", 22`, `Person with (name::"John", age::22)`},
 		{`qux.Color[4]`, `BLUE`},
 		{`qux.Tone LIGHT, BLUE`, `Tone with (shade::LIGHT, color::BLUE)`},
+		{`troz.sumOfSquares 3, 4`, `25`},
 	}
 	runTest(t, "import_test.pf", tests, testValues)
+}
+func TestRef(t *testing.T) {
+	tests := []testItem{
+		{`x ++`, `OK`},
+	}
+	runTest(t, "ref_test.pf", tests, testValues)
 }

@@ -1,0 +1,12 @@
+var 
+
+x = 42
+
+cmd 
+
+(x ref) ++ :
+    x = x + 1
+    x == 42 :
+        error "Well that didn't work."
+    else :
+        post "Success!"
