@@ -11,6 +11,7 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 
 	"pipefish/source/dtypes"
+	"pipefish/source/parser"
 	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/text"
@@ -147,17 +148,19 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 		sharedTypenameToTypeList: map[string]AlternateType{
-			"single":   AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"single?":  AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"enum":     AltType(),
-			"enum?":    AltType(values.NULL),
-			"struct":   AltType(),
-			"struct?":  AltType(values.NULL),
-			"snippet":  AltType(),
-			"snippet?": AltType(values.NULL),
+			"single":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"single?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 		},
 		AnyTypeScheme: AlternateType{},
 		AnyTuple:      AlternateType{},
+	}
+	for _, name := range parser.AbstractTypesOtherThanSingle {
+		vm.sharedTypenameToTypeList[name] = AltType()
+		vm.sharedTypenameToTypeList[name+"?"] = AltType(values.NULL)
+	}
+	for name, ty := range parser.ClonableTypes {
+		vm.sharedTypenameToTypeList[name] = AltType(ty)
+		vm.sharedTypenameToTypeList[name+"?"] = AltType(values.NULL, ty)
 	}
 	copy(vm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
@@ -1647,6 +1650,31 @@ func (t enumType) isSnippet() bool {
 }
 
 func (t enumType) isPrivate() bool {
+	return t.private
+}
+
+type cloneType struct {
+	name    string
+	private bool
+}
+
+func (t cloneType) getName() string {
+	return t.name
+}
+
+func (t cloneType) isEnum() bool {
+	return false
+}
+
+func (t cloneType) isStruct() bool {
+	return false
+}
+
+func (t cloneType) isSnippet() bool {
+	return false
+}
+
+func (t cloneType) isPrivate() bool {
 	return t.private
 }
 

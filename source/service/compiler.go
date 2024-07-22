@@ -248,6 +248,7 @@ const (
 	decSTRUCT declarationOf = iota
 	decLABEL
 	decENUM
+	decCLONE
 	decABSTRACT
 	decFUNCTION
 )

@@ -118,6 +118,11 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	vmm.createClones()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
 	vmm.uP.MakeSnippets()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -555,6 +560,65 @@ func (vmm *VmMaker) createEnums() {
 			tok = tokens.NextToken()
 		}
 		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, elementNames: elementNameList, private: vmm.uP.isPrivate(int(enumDeclaration), i)})
+	}
+}
+
+func (vmm *VmMaker) createClones() {
+	for i, tokens := range vmm.uP.Parser.TokenizedDeclarations[cloneDeclaration] {
+		tokens.ToStart()
+		tok1 := tokens.NextToken()
+		name := tok1.Literal
+		tokens.NextToken() // Skip over the '='.
+		tokens.NextToken() // This says 'clone' or we wouldn't be here.
+		typeToken := tokens.NextToken()
+		typeToClone := typeToken.Literal
+		if _, ok := parser.ClonableTypes[typeToClone]; !ok {
+			vmm.uP.Throw("init/clone/type", typeToken)
+			return
+		}
+		abType := typeToClone + "like"
+		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(name, abType)
+		var typeNo values.ValueType
+		info, typeExists := vmm.cp.getDeclaration(decCLONE, &tok1, DUMMY)
+		if typeExists {
+			typeNo = info.(values.ValueType)
+		} else {
+			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
+			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
+			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, abType)
+		}
+
+		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
+		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
+
+		if typeExists {
+			continue
+		}
+
+		colonOrEof := tokens.NextToken()
+		if colonOrEof.Type != token.EOF {
+			if colonOrEof.Literal != "using" {
+				vmm.uP.Throw("init/clone/using", colonOrEof)
+				return
+			}
+			var opList []string
+			for {
+				op := tokens.NextToken()
+				sep := tokens.NextToken()
+				opList = append(opList, op.Literal)
+				if sep.Type == token.EOF {
+					break
+				}
+				if sep.Type != token.COMMA {
+					vmm.uP.Throw("init/clone/comma", colonOrEof)
+					break
+				}
+			}
+		}
+		if vmm.cp.P.ErrorsExist() {
+			return
+		}
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
 	}
 }
 

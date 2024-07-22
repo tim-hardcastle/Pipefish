@@ -5,6 +5,7 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
+	"pipefish/source/values"
 )
 
 type TypeSystem = dtypes.Digraph[string]
@@ -26,6 +27,11 @@ func NewTypeSystem() TypeSystem {
 	}
 	for _, t := range AbstractTypesOtherThanSingle {
 		AddType(T, t)
+	}
+	for t := range ClonableTypes {
+		abType := t + "like"
+		AddType(T, abType)
+		T.AddTransitiveArrow(t, abType)
 	}
 
 	// Kludges.
@@ -58,6 +64,8 @@ func AddType(T TypeSystem, t string, supertypes ...string) {
 
 var BaseTypesOtherThanNull = []string{"int", "float", "bool", "string", "rune", "error", "type", "list", "label",
 	"pair", "set", "map", "func", "struct", "label"}
+
+var ClonableTypes = map[string]values.ValueType{"int": values.INT, "string": values.STRING, "float": values.FLOAT, "pair": values.PAIR, "map": values.MAP, "list": values.LIST, "set": values.SET}
 
 var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 

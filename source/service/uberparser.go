@@ -52,6 +52,7 @@ const (
 	structDeclaration                   //
 	snippetDeclaration                  //
 	abstractDeclaration                 //
+	cloneDeclaration                    //
 	constantDeclaration                 //
 	variableDeclaration                 //
 	functionDeclaration                 //
@@ -120,9 +121,10 @@ const (
 	tyENUM
 	tySNIPPET
 	tyABSTRACT
+	tyCLONE
 )
 
-var typeMap = map[string]definableType{"struct": tySTRUCT, "enum": tyENUM, "snippet": tySNIPPET, "abstract": tyABSTRACT}
+var typeMap = map[string]definableType{"struct": tySTRUCT, "enum": tyENUM, "snippet": tySNIPPET, "abstract": tyABSTRACT, "clone": tyCLONE}
 
 func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	currentSection := UndefinedSection
@@ -259,6 +261,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					uP.addTokenizedDeclaration(snippetDeclaration, line, isPrivate)
 				case tyABSTRACT:
 					uP.addTokenizedDeclaration(abstractDeclaration, line, isPrivate)
+				case tyCLONE:
+					uP.addTokenizedDeclaration(cloneDeclaration, line, isPrivate)
 				default:
 					uP.Throw("init/type/form", tok)
 				}
