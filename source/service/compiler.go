@@ -48,6 +48,7 @@ type Compiler struct {
 	Timestamp                           int64
 	ScriptFilepath                      string
 	structDeclarationNumberToTypeNumber map[int]values.ValueType
+	typeToCloneGroup                    map[values.ValueType]AlternateType // For convenience, a map from any clonable or clone type to an alt type containing the parent type and its clones.
 
 	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
 	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
@@ -2534,6 +2535,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "tuplify_list", "get_from_sql":
 					functionAndType.T = cp.vm.AnyTypeScheme
+				case "cast":
+					functionAndType.T = altType(values.ERROR)
+					for _, ty := range typesAtIndex(b.types[0], 0) {
+						st := values.ValueType(ty.(simpleType))
+						functionAndType.T = functionAndType.T.Union(cp.typeToCloneGroup[st])
+					}
 				case "first_in_tuple":
 					if len(b.types) == 0 {
 						functionAndType.T = altType(values.COMPILE_TIME_ERROR)
@@ -3363,4 +3370,8 @@ func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
 		return result
 	}
 	return AlternateType{}
+}
+
+func (cp *Compiler) getCloneGroup(ty values.ValueType) uint32 {
+	return cp.lambdaMemStarts[len(cp.lambdaMemStarts)-1]
 }

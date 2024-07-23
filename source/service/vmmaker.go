@@ -628,6 +628,13 @@ func (vmm *VmMaker) createClones() {
 			return
 		}
 	}
+	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry if they don't.)
+	for typename := range parser.ClonableTypes {
+		cloneGroup := vmm.cp.vm.sharedTypenameToTypeList[typename+"like"]
+		for _, cloneTypeNo := range cloneGroup {
+			vmm.cp.typeToCloneGroup[values.ValueType(cloneTypeNo.(simpleType))] = cloneGroup
+		}
+	}
 }
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.

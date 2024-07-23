@@ -300,6 +300,35 @@ loop:
 			continue
 		case Cast:
 			vm.Mem[args[0]] = values.Value{values.ValueType(args[2]), vm.Mem[args[1]].V}
+		case Casx:
+			castToAbstract := vm.Mem[args[2]].V.(values.AbstractType)
+			if len(castToAbstract.Types) != 1 {
+				vm.Mem[args[0]] = vm.makeError("vm/cast/a", args[3], args[1], args[2])
+				continue
+			}
+			targetType := castToAbstract.Types[0]
+			currentType := vm.Mem[args[1]].T
+			if targetType == currentType {
+				vm.Mem[args[0]] = vm.Mem[args[1]]
+				continue
+			}
+			if cloneInfoForCurrentType, ok := vm.concreteTypes[currentType].(cloneType); ok {
+				if cloneInfoForCurrentType.parent == targetType {
+					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
+					continue
+				}
+				if cloneInfoForTargetType, ok := vm.concreteTypes[currentType].(cloneType); ok && cloneInfoForTargetType.parent == cloneInfoForCurrentType.parent {
+					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
+					continue
+				}
+			}
+			// Otherwise by elimination the current type is the parent and the target type is a clone, or we have an error.
+			if cloneInfoForTargetType, ok := vm.concreteTypes[currentType].(cloneType); ok && cloneInfoForTargetType.parent == currentType {
+				vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
+				continue
+			}
+			vm.Mem[args[0]] = vm.makeError("vm/cast/b", args[3], args[1], args[2])
+			continue
 		case Cc11:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 		case Cc1T:

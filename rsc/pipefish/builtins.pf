@@ -38,6 +38,7 @@ def
 
 // Ordinary functions are in order of their function name.
 
+cast(x single, y type) : builtin "cast"
 codepoint(x rune) : builtin "codepoint"   
 error(x string) : builtin "make_error"
 float(x int) : builtin "float_of_int"

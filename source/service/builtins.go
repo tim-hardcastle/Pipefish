@@ -19,10 +19,11 @@ var BUILTINS = map[string]functionAndReturnType{
 	"add_sets":           {(*Compiler).btAddSets, AltType(values.SET)},
 	"add_string_to_rune": {(*Compiler).btAddStringToRune, AltType(values.STRING)},
 	"add_strings":        {(*Compiler).btAddStrings, AltType(values.STRING)},
+	"cast":               {(*Compiler).btCast, AltType()}, // Types have to be figured out at call site.
 	"codepoint":          {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":      {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":    {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
-	"first_in_tuple":     {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller..
+	"first_in_tuple":     {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller.
 	"float_of_int":       {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":    {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
 	"get_from_external":  {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
@@ -113,6 +114,10 @@ func (cp *Compiler) btAddStrings(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btAddStringToRune(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Adsr, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btCast(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Casx, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btCodepoint(tok *token.Token, dest uint32, args []uint32) {
