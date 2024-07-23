@@ -117,7 +117,7 @@ func (cp *Compiler) btAddStringToRune(tok *token.Token, dest uint32, args []uint
 }
 
 func (cp *Compiler) btCast(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Casx, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(Casx, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btCodepoint(tok *token.Token, dest uint32, args []uint32) {

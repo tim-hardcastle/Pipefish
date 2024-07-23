@@ -628,9 +628,10 @@ func (vmm *VmMaker) createClones() {
 			return
 		}
 	}
-	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry if they don't.)
+	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry in the map if they're uncloneable).
 	for typename := range parser.ClonableTypes {
-		cloneGroup := vmm.cp.vm.sharedTypenameToTypeList[typename+"like"]
+		abType := typename + "like"
+		cloneGroup := vmm.cp.vm.sharedTypenameToTypeList[abType]
 		for _, cloneTypeNo := range cloneGroup {
 			vmm.cp.typeToCloneGroup[values.ValueType(cloneTypeNo.(simpleType))] = cloneGroup
 		}

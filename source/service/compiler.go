@@ -212,6 +212,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Fns:                      []*CpFunc{},
 		Services:                 make(map[string]*VmService),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
+		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		typeNameToTypeList: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
@@ -2536,9 +2537,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				case "tuplify_list", "get_from_sql":
 					functionAndType.T = cp.vm.AnyTypeScheme
 				case "cast":
+					cp.cm("Builtin is cast", b.tok)
 					functionAndType.T = altType(values.ERROR)
 					for _, ty := range typesAtIndex(b.types[0], 0) {
 						st := values.ValueType(ty.(simpleType))
+						cp.cm("Simple type is "+cp.vm.DescribeType(values.ValueType(st)), b.tok)
+						cp.cm("Clone group is "+cp.typeToCloneGroup[st].describe(cp.vm), b.tok)
 						functionAndType.T = functionAndType.T.Union(cp.typeToCloneGroup[st])
 					}
 				case "first_in_tuple":

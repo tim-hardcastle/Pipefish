@@ -159,8 +159,8 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 		vm.sharedTypenameToTypeList[name+"?"] = AltType(values.NULL)
 	}
 	for name, ty := range parser.ClonableTypes {
-		vm.sharedTypenameToTypeList[name] = AltType(ty)
-		vm.sharedTypenameToTypeList[name+"?"] = AltType(values.NULL, ty)
+		vm.sharedTypenameToTypeList[name+"like"] = AltType(ty)
+		vm.sharedTypenameToTypeList[name+"like?"] = AltType(values.NULL, ty)
 	}
 	copy(vm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
@@ -304,31 +304,30 @@ loop:
 			castToAbstract := vm.Mem[args[2]].V.(values.AbstractType)
 			if len(castToAbstract.Types) != 1 {
 				vm.Mem[args[0]] = vm.makeError("vm/cast/a", args[3], args[1], args[2])
-				continue
+				break Switch
 			}
 			targetType := castToAbstract.Types[0]
 			currentType := vm.Mem[args[1]].T
 			if targetType == currentType {
 				vm.Mem[args[0]] = vm.Mem[args[1]]
-				continue
+				break Switch
 			}
 			if cloneInfoForCurrentType, ok := vm.concreteTypes[currentType].(cloneType); ok {
 				if cloneInfoForCurrentType.parent == targetType {
 					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
-					continue
+					break Switch
 				}
 				if cloneInfoForTargetType, ok := vm.concreteTypes[currentType].(cloneType); ok && cloneInfoForTargetType.parent == cloneInfoForCurrentType.parent {
 					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
-					continue
+					break Switch
 				}
 			}
 			// Otherwise by elimination the current type is the parent and the target type is a clone, or we have an error.
-			if cloneInfoForTargetType, ok := vm.concreteTypes[currentType].(cloneType); ok && cloneInfoForTargetType.parent == currentType {
+			if cloneInfoForTargetType, ok := vm.concreteTypes[targetType].(cloneType); ok && cloneInfoForTargetType.parent == currentType {
 				vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
-				continue
+				break Switch
 			}
 			vm.Mem[args[0]] = vm.makeError("vm/cast/b", args[3], args[1], args[2])
-			continue
 		case Cc11:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 		case Cc1T:
