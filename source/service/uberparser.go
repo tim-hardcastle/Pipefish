@@ -355,8 +355,8 @@ var correspondingAbstractType = map[declarationType]string{enumDeclaration: "enu
 
 // We need to declare all the types as suffixes for all the user-defined types, and add at least their existence to the parser's type system,
 // so that the parser will be able to parse the struct definitions.
-func (uP *Initializer) addTypesToParser() {
-	for kindOfType := enumDeclaration; kindOfType <= abstractDeclaration; kindOfType++ {
+func (uP *Initializer) addTypesToParser() { /// TODO --- some of this seems to replicate boilerplate in the parsing functions, so you should be able to remove the latter.
+	for kindOfType := enumDeclaration; kindOfType <= cloneDeclaration; kindOfType++ {
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[kindOfType]); chunk++ {
 			// Each of them should begin with the name of the type being declared, and then followed by an = unless it's a snippet declaration.
 			uP.Parser.TokenizedDeclarations[kindOfType][chunk].ToStart()

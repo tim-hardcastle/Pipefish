@@ -67,6 +67,14 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	if typeInfo.isEnum() {
 		return vm.concreteTypes[v.T].(enumType).elementNames[v.V.(int)]
 	}
+	if typeInfo.isClone() {
+		var buf strings.Builder
+		buf.WriteString(vm.concreteTypes[v.T].getName())
+		buf.WriteString("(")
+		buf.WriteString(vm.toString(values.Value{vm.concreteTypes[v.T].(cloneType).parent, v.V}, flavor))
+		buf.WriteByte(')')
+		return buf.String()
+	}
 	switch v.T {
 	case values.BLING:
 		return v.V.(string)

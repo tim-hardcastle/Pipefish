@@ -298,6 +298,8 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
+		case Cast:
+			vm.Mem[args[0]] = values.Value{values.ValueType(args[2]), vm.Mem[args[1]].V}
 		case Cc11:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 		case Cc1T:
@@ -1602,6 +1604,7 @@ type typeInformation interface {
 	isEnum() bool
 	isStruct() bool
 	isSnippet() bool
+	isClone() bool
 	isPrivate() bool
 }
 
@@ -1620,6 +1623,10 @@ func (t builtinType) isStruct() bool {
 }
 
 func (t builtinType) isSnippet() bool {
+	return false
+}
+
+func (t builtinType) isClone() bool {
 	return false
 }
 
@@ -1653,8 +1660,13 @@ func (t enumType) isPrivate() bool {
 	return t.private
 }
 
+func (t enumType) isClone() bool {
+	return false
+}
+
 type cloneType struct {
 	name    string
+	parent  values.ValueType
 	private bool
 }
 
@@ -1676,6 +1688,10 @@ func (t cloneType) isSnippet() bool {
 
 func (t cloneType) isPrivate() bool {
 	return t.private
+}
+
+func (t cloneType) isClone() bool {
+	return true
 }
 
 type structType struct {
@@ -1706,6 +1722,10 @@ func (t structType) isSnippet() bool {
 
 func (t structType) isPrivate() bool {
 	return t.private
+}
+
+func (t structType) isClone() bool {
+	return false
 }
 
 func (t structType) addLabels(labels []int) structType {

@@ -195,7 +195,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// We add in constructors for the structs, languages, and externals.
+	// We add in constructors for the structs, snippets, and clones.
 	vmm.compileConstructors()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -572,7 +572,8 @@ func (vmm *VmMaker) createClones() {
 		tokens.NextToken() // This says 'clone' or we wouldn't be here.
 		typeToken := tokens.NextToken()
 		typeToClone := typeToken.Literal
-		if _, ok := parser.ClonableTypes[typeToClone]; !ok {
+		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
+		if !ok {
 			vmm.uP.Throw("init/clone/type", typeToken)
 			return
 		}
@@ -586,15 +587,23 @@ func (vmm *VmMaker) createClones() {
 			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
 			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
 			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, abType)
+			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, parent: parentTypeNo, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
 		}
-
+		vmm.cp.CloneNameToTypeNumber[name] = typeNo
 		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
 		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
-
-		if typeExists {
-			continue
+		vmm.cp.P.AllFunctionIdents.Add(name)
+		vmm.cp.P.Functions.Add(name)
+		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
+		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn)
+		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}] = fn
+		if typeToClone == "int" || typeToClone == "float" {
+			//sufFn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Position: SUFFIX}
+			//vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, sufFn)
 		}
 
+		// We get the requested builtins.
 		colonOrEof := tokens.NextToken()
 		if colonOrEof.Type != token.EOF {
 			if colonOrEof.Literal != "using" {
@@ -618,7 +627,6 @@ func (vmm *VmMaker) createClones() {
 		if vmm.cp.P.ErrorsExist() {
 			return
 		}
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
 	}
 }
 
@@ -644,6 +652,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		}
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
+		vmm.cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn) // TODO --- give them their own ast type?
@@ -860,22 +869,33 @@ func (vmm *VmMaker) addStructLabelsToVm(name string, typeNo values.ValueType, si
 }
 
 func (vmm *VmMaker) compileConstructors() {
+	// Struct declarations.
 	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		vmm.uP.fnIndex[fnSource{structDeclaration, i}].Number = uint32(len(vmm.cp.Fns))
-		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig, node.GetToken()))
+		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileStructConstructor(name, sig, node.GetToken()))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(structDeclaration), i)
 	}
+	// Snippets.
 	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
 	for i, name := range vmm.cp.P.Snippets {
 		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}].Number = uint32(len(vmm.cp.Fns))
-		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileConstructor(name, sig, vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken()))
+		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileStructConstructor(name, sig, vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken()))
 		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(snippetDeclaration), i)
+	}
+	// Clones
+	for i, dec := range vmm.uP.Parser.TokenizedDeclarations[cloneDeclaration] {
+		dec.ToStart()
+		nameTok := dec.NextToken()
+		name := nameTok.Literal
+		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}].Number = uint32(len(vmm.cp.Fns))
+		vmm.cp.Fns = append(vmm.cp.Fns, vmm.compileCloneConstructor(name, &nameTok))
+		vmm.cp.Fns[len(vmm.cp.Fns)-1].Private = vmm.uP.isPrivate(int(cloneDeclaration), i)
 	}
 }
 
-func (vmm *VmMaker) compileConstructor(name string, sig ast.AstSig, tok *token.Token) *CpFunc {
+func (vmm *VmMaker) compileStructConstructor(name string, sig ast.AstSig, tok *token.Token) *CpFunc {
 	typeNo := vmm.cp.StructNameToTypeNumber[name]
 	cpF := &CpFunc{Types: altType(typeNo), Builtin: name}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
@@ -883,6 +903,17 @@ func (vmm *VmMaker) compileConstructor(name string, sig ast.AstSig, tok *token.T
 	for _, pair := range sig {
 		vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList(pair.VarType), tok)
 	}
+	cpF.HiReg = vmm.cp.MemTop()
+	return cpF
+}
+
+func (vmm *VmMaker) compileCloneConstructor(name string, tok *token.Token) *CpFunc {
+	println("Compiling clone constructor.")
+	typeNo := vmm.cp.CloneNameToTypeNumber[name]
+	cpF := &CpFunc{Types: altType(typeNo), Builtin: name, locOfTupleAndVarargData: DUMMY}
+	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
+	cpF.LoReg = vmm.cp.MemTop()
+	vmm.cp.AddVariable(fnenv, "x", FUNCTION_ARGUMENT, altType(vmm.cp.vm.concreteTypes[typeNo].(cloneType).parent), tok)
 	cpF.HiReg = vmm.cp.MemTop()
 	return cpF
 }

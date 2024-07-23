@@ -38,6 +38,7 @@ type Compiler struct {
 	FieldLabelsInMem map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 
 	StructNameToTypeNumber              map[string]values.ValueType
+	CloneNameToTypeNumber               map[string]values.ValueType
 	GlobalConsts                        *Environment
 	GlobalVars                          *Environment
 	Fns                                 []*CpFunc
@@ -203,6 +204,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		EnumElements:             make(map[string]uint32),
 		FieldLabelsInMem:         make(map[string]uint32),
 		StructNameToTypeNumber:   make(map[string]values.ValueType),
+		CloneNameToTypeNumber:    make(map[string]values.ValueType),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
 		ThunkList:                []ThunkData{},
@@ -2000,7 +2002,6 @@ func (t AlternateType) mustBeSingleOrTuple() (bool, bool) {
 // The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
 // use them to look up the function.
 func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable, ctxt context, libcall bool) (AlternateType, bool) {
-	cp.cmP("Called createFunctionCall", node.GetToken())
 	args := node.GetArgs()
 	env := ctxt.env
 	ac := ctxt.ac
@@ -2557,13 +2558,18 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.T
 			}
-			// It might be a short-form constructor.
-			structNumber, ok := cp.StructNameToTypeNumber[builtinTag]
-			if ok {
+			// It might be a short-form struct constructor.
+			if structNumber, ok := cp.StructNameToTypeNumber[builtinTag]; ok {
 				cp.cmP("Emitting short form constructor.", b.tok)
 				args := append([]uint32{b.outLoc, uint32(structNumber)}, b.valLocs...)
 				cp.Emit(Strc, args...)
 				return AltType(structNumber)
+			}
+			// It might be a clone type constructor.
+			if cloneNumber, ok := cp.CloneNameToTypeNumber[builtinTag]; ok {
+				cp.cmP("Emitting clone constructor.", b.tok)
+				cp.Emit(Cast, b.outLoc, b.valLocs[0], uint32(cloneNumber))
+				return AltType(cloneNumber)
 			}
 			// It could have a Golang body.
 			if F.HasGo {
