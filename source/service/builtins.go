@@ -20,6 +20,13 @@ var BUILTINS = map[string]functionAndReturnType{
 	"add_string_to_rune": {(*Compiler).btAddStringToRune, AltType(values.STRING)},
 	"add_strings":        {(*Compiler).btAddStrings, AltType(values.STRING)},
 	"cast":               {(*Compiler).btCast, AltType()}, // Types have to be figured out at call site.
+	"cast_to_float":      {(*Compiler).btCastToFloat, AltType(values.FLOAT)},
+	"cast_to_int":        {(*Compiler).btCastToInt, AltType(values.INT)},
+	"cast_to_list":       {(*Compiler).btCastToList, AltType(values.LIST)},
+	"cast_to_map":        {(*Compiler).btCastToMap, AltType(values.MAP)},
+	"cast_to_pair":       {(*Compiler).btCastToPair, AltType(values.PAIR)},
+	"cast_to_set":        {(*Compiler).btCastToSet, AltType(values.SET)},
+	"cast_to_string":     {(*Compiler).btCastToString, AltType(values.STRING)},
 	"codepoint":          {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":      {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":    {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
@@ -118,6 +125,34 @@ func (cp *Compiler) btAddStringToRune(tok *token.Token, dest uint32, args []uint
 
 func (cp *Compiler) btCast(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Casx, dest, args[0], args[1], cp.reserveToken(tok))
+}
+
+func (cp *Compiler) btCastToFloat(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.FLOAT))
+}
+
+func (cp *Compiler) btCastToInt(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.INT))
+}
+
+func (cp *Compiler) btCastToList(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.LIST))
+}
+
+func (cp *Compiler) btCastToMap(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.MAP))
+}
+
+func (cp *Compiler) btCastToPair(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.PAIR))
+}
+
+func (cp *Compiler) btCastToSet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.SET))
+}
+
+func (cp *Compiler) btCastToString(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Cast, dest, args[0], uint32(values.STRING))
 }
 
 func (cp *Compiler) btCodepoint(tok *token.Token, dest uint32, args []uint32) {
