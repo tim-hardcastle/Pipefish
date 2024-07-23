@@ -916,7 +916,6 @@ func (vmm *VmMaker) compileStructConstructor(name string, sig ast.AstSig, tok *t
 }
 
 func (vmm *VmMaker) compileCloneConstructor(name string, tok *token.Token) *CpFunc {
-	println("Compiling clone constructor.")
 	typeNo := vmm.cp.CloneNameToTypeNumber[name]
 	cpF := &CpFunc{Types: altType(typeNo), Builtin: name, locOfTupleAndVarargData: DUMMY}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
