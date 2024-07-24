@@ -465,10 +465,16 @@ func (t finiteTupleType) compare(u typeScheme) int {
 
 func (fT finiteTupleType) describe(mc *Vm) string {
 	var buf strings.Builder
-	var sep string
-	for _, v := range fT {
-		fmt.Fprintf(&buf, "%s%s", sep, v.describe(mc))
-		sep = ", "
+	lastWasBling := true // Which is a lie, but stops us from putting a comma right at the start.
+	for i, v := range fT {
+		_, thisIsBling := v.(blingType)
+		if !(lastWasBling || thisIsBling) {
+			fmt.Fprintf(&buf, ",")
+		}
+		if i > 0 {
+			fmt.Fprintf(&buf, " ")
+		}
+		fmt.Fprintf(&buf, v.describe(mc))
 	}
 	return buf.String()
 }

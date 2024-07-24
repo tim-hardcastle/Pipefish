@@ -1198,7 +1198,8 @@ func (p *Parser) ParseDump(source, input string) {
 }
 
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
-	p.Errors = report.Throw(errorID, p.Errors, tok, args...)
+	c := *tok
+	p.Errors = report.Throw(errorID, p.Errors, &c, args...)
 }
 
 func (p *Parser) ErrorsExist() bool {

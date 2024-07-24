@@ -193,9 +193,9 @@ loop:
 	Switch:
 		switch vm.Code[loc].Opcode {
 		case Addf:
-			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) + vm.Mem[args[2]].V.(float64)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) + vm.Mem[args[2]].V.(float64)}
 		case Addi:
-			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) + vm.Mem[args[2]].V.(int)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) + vm.Mem[args[2]].V.(int)}
 		case AddL:
 			result := vm.Mem[args[1]].V.(vector.Vector)
 			rhs := vm.Mem[args[2]].V.(vector.Vector)
@@ -210,9 +210,9 @@ loop:
 		case AddS:
 			result := vm.Mem[args[1]].V.(values.Set)
 			result.Union(vm.Mem[args[2]].V.(values.Set))
-			vm.Mem[args[0]] = values.Value{values.SET, result}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case Adds:
-			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + vm.Mem[args[2]].V.(string)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(string) + vm.Mem[args[2]].V.(string)}
 		case Adrr:
 			vm.Mem[args[0]] = values.Value{values.STRING, string(vm.Mem[args[1]].V.(rune)) + string(vm.Mem[args[2]].V.(rune))}
 		case Adrs:
@@ -365,14 +365,14 @@ loop:
 			if divisor == 0 {
 				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
 			} else {
-				vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / divisor}
+				vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) / divisor}
 			}
 		case Divi:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {
 				vm.Mem[args[0]] = vm.makeError("vm/div/int", args[3])
 			} else {
-				vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
+				vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
 			}
 		case Dofn:
 			lhs := vm.Mem[args[1]].V.(Lambda)
@@ -859,16 +859,16 @@ loop:
 			if divisor == 0 {
 				vm.Mem[args[0]] = vm.makeError("vm/mod/int", args[3])
 			} else {
-				vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
+				vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
 			}
 		case Mulf:
-			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) * vm.Mem[args[2]].V.(float64)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) * vm.Mem[args[2]].V.(float64)}
 		case Muli:
-			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) * vm.Mem[args[2]].V.(int)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) * vm.Mem[args[2]].V.(int)}
 		case Negf:
-			vm.Mem[args[0]] = values.Value{values.FLOAT, -vm.Mem[args[1]].V.(float64)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, -vm.Mem[args[1]].V.(float64)}
 		case Negi:
-			vm.Mem[args[0]] = values.Value{values.INT, -vm.Mem[args[1]].V.(int)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, -vm.Mem[args[1]].V.(int)}
 		case Notb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, !vm.Mem[args[1]].V.(bool)}
 		case Orb:
@@ -1203,9 +1203,9 @@ loop:
 		case Strx:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Describe(vm.Mem[args[1]])}
 		case Subf:
-			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) - vm.Mem[args[2]].V.(float64)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) - vm.Mem[args[2]].V.(float64)}
 		case Subi:
-			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
 		case Thnk:
 			vm.Mem[args[0]] = values.Value{values.THUNK, ThunkValue{args[1], args[2]}}
 		case Tplf:
@@ -1311,7 +1311,7 @@ loop:
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			result := values.Value{values.LIST, vm.Mem[args[1]].V.(vector.Vector)}
+			result := values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(vector.Vector)}
 			for _, pair := range pairs {
 				if pair.T != values.PAIR {
 					vm.Mem[args[0]] = vm.makeError("vm/with/list/a", args[3], vm.DescribeType(pair.T), args[1], args[2])
@@ -1348,7 +1348,7 @@ loop:
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			result := values.Value{values.MAP, vm.Mem[args[1]].V.(*values.Map)}
+			result := values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(*values.Map)}
 			for _, pair := range pairs {
 				if pair.T != values.PAIR {
 					vm.Mem[args[0]] = vm.makeError("vm/with/map/a", args[3])
@@ -1492,7 +1492,7 @@ loop:
 				}
 				mp = (*mp).Delete(key)
 			}
-			vm.Mem[args[0]] = values.Value{values.MAP, mp}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, mp}
 		default:
 			panic("Unhandled opcode '" + OPERANDS[vm.Code[loc].Opcode].oc + "'")
 		}

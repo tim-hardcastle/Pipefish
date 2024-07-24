@@ -425,6 +425,9 @@ func (uP *Initializer) MakeSnippets() {
 
 func (uP *Initializer) ParseEverything() {
 	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
+		if declarations == cloneDeclaration { // TODO --- yeah, yeah, I am filled with shame.
+			continue
+		}
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[declarations]); chunk++ {
 			uP.Parser.TokenizedCode = uP.Parser.TokenizedDeclarations[declarations][chunk]
 			uP.Parser.TokenizedDeclarations[declarations][chunk].ToStart()
