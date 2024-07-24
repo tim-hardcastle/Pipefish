@@ -42,6 +42,7 @@ type Vm struct {
 	HubServices                map[string]*VmService // The same map that the hub has.
 	ExternalCallHandlers       []externalCallHandler // The services declared external, whether on the same hub or a different one.
 	typeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
+	Stringify                  *CpFunc
 
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
 	codeGeneratingTypes dtypes.Set[values.ValueType]
@@ -665,7 +666,7 @@ loop:
 				ix := vm.Mem[args[2]]
 				result, ok := mp.Get(ix)
 				if !ok {
-					vm.Mem[args[0]] = vm.makeError("vm/index/h", args[3], vm.Describe(vm.Mem[args[2]]), args[1], args[2])
+					vm.Mem[args[0]] = vm.makeError("vm/index/h", args[3], vm.DefaultDescription(vm.Mem[args[2]]), args[1], args[2])
 				} else {
 					vm.Mem[args[0]] = result
 				}
@@ -1201,7 +1202,7 @@ loop:
 			}
 			vm.Mem[args[0]] = values.Value{values.ValueType(args[1]), fields}
 		case Strx:
-			vm.Mem[args[0]] = values.Value{values.STRING, vm.Describe(vm.Mem[args[1]])}
+			vm.Mem[args[0]] = values.Value{values.STRING, vm.DefaultDescription(vm.Mem[args[1]])}
 		case Subf:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) - vm.Mem[args[2]].V.(float64)}
 		case Subi:
@@ -1410,11 +1411,11 @@ loop:
 				}
 				keyNumber := typeInfo.resolve(key.V.(int))
 				if keyNumber == -1 {
-					vm.Mem[args[0]] = vm.makeError("vm/with/type/e", args[3], vm.Describe(key), vm.DescribeType(typ))
+					vm.Mem[args[0]] = vm.makeError("vm/with/type/e", args[3], vm.DefaultDescription(key), vm.DescribeType(typ))
 					break Switch
 				}
 				if outVals[keyNumber].T != values.UNDEFINED_VALUE {
-					vm.Mem[args[0]] = vm.makeError("vm/with/type/f", args[3], vm.Describe(key))
+					vm.Mem[args[0]] = vm.makeError("vm/with/type/f", args[3], vm.DefaultDescription(key))
 					break Switch
 				}
 				outVals[keyNumber] = val
@@ -1605,7 +1606,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		}
 		fieldNumber := typeInfo.resolve(key.V.(int))
 		if fieldNumber == -1 {
-			return vm.makeError("vm/with/e", errTok, vm.Describe(key), vm.DescribeType(container.T))
+			return vm.makeError("vm/with/e", errTok, vm.DefaultDescription(key), vm.DescribeType(container.T))
 		}
 		if len(keys) >= 1 {
 			val = vm.with(fields[fieldNumber], keys[1:], val, errTok)

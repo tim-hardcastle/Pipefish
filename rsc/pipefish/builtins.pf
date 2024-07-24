@@ -87,3 +87,8 @@ varchar(x int) : builtin "varchar"
 (x struct) with (y ... single?) : builtin "struct_with"
 (x type) with (y ... single?) : builtin "type_with"        
 (x map) without (y ... single?) : builtin "map_without"
+
+// This supplies us with a single code address to call which will dispatch on the
+// type of x to the relevant instance of the 'string' function.
+stringify(x single?) :
+    string x

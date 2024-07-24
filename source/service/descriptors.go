@@ -35,7 +35,7 @@ func (vm *Vm) DescribeOperandValues(addr uint32) string {
 }
 
 func (vm *Vm) DescribeTypeAndValue(v values.Value) string {
-	return vm.DescribeType(v.T) + "::" + vm.Describe(v)
+	return vm.DescribeType(v.T) + "::" + vm.DefaultDescription(v)
 }
 
 func (vm *Vm) DescribeType(t values.ValueType) string {
@@ -58,7 +58,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		var sep string
 		vals := v.V.([]values.Value)
 		for i, lb := range typeInfo.(structType).labelNumbers { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
-			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.toString(vals[i], flavor))
+			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.StringifyValue(vals[i], flavor))
 			sep = ", "
 		}
 		buf.WriteByte(')')
@@ -71,7 +71,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		var buf strings.Builder
 		buf.WriteString(vm.concreteTypes[v.T].getName())
 		buf.WriteString("(")
-		buf.WriteString(vm.toString(values.Value{vm.concreteTypes[v.T].(cloneType).parent, v.V}, flavor))
+		buf.WriteString(vm.StringifyValue(values.Value{vm.concreteTypes[v.T].(cloneType).parent, v.V}, flavor))
 		buf.WriteByte(')')
 		return buf.String()
 	}
@@ -117,7 +117,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		var sep string
 		for i := 0; i < v.V.(vector.Vector).Len(); i++ {
 			el, _ := v.V.(vector.Vector).Index(i)
-			fmt.Fprintf(&buf, "%s%s", sep, vm.toString(el.(values.Value), flavor))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(el.(values.Value), flavor))
 			sep = ", "
 		}
 		buf.WriteByte(']')
@@ -127,7 +127,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		buf.WriteString("map(")
 		var sep string
 		(v.V.(*values.Map)).Range(func(k, v values.Value) {
-			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.toString(k, flavor), vm.toString(v, flavor))
+			fmt.Fprintf(&buf, "%s%v::%v", sep, vm.StringifyValue(k, flavor), vm.StringifyValue(v, flavor))
 			sep = ", "
 		})
 		buf.WriteByte(')')
@@ -136,7 +136,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		return "NULL"
 	case values.PAIR:
 		vals := v.V.([]values.Value)
-		return vm.toString(vals[0], flavor) + "::" + vm.toString(vals[1], flavor)
+		return vm.StringifyValue(vals[0], flavor) + "::" + vm.StringifyValue(vals[1], flavor)
 	case values.RUNE:
 		if flavor == DEFAULT {
 			return fmt.Sprintf("%c", v.V.(rune))
@@ -149,7 +149,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		buf.WriteString("set(")
 		var sep string
 		v.V.(values.Set).Range(func(k values.Value) {
-			fmt.Fprintf(&buf, "%s%s", sep, vm.toString(k, flavor))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))
 			sep = ", "
 		})
 		buf.WriteByte(')')
@@ -177,7 +177,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	case values.TUPLE:
 		result := make([]string, len(v.V.([]values.Value)))
 		for i, v := range v.V.([]values.Value) {
-			result[i] = vm.toString(v, flavor)
+			result[i] = vm.StringifyValue(v, flavor)
 		}
 		prefix := "("
 		if len(result) == 1 {
@@ -241,12 +241,24 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
 	return strings.Join(result, "/")
 }
 
-func (vm *Vm) Describe(v values.Value) string {
+func (vm *Vm) DefaultDescription(v values.Value) string {
 	return vm.toString(v, DEFAULT)
 }
 
 func (vm *Vm) Literal(v values.Value) string {
 	return vm.toString(v, LITERAL)
+}
+
+func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
+	if flavor == LITERAL {
+		return vm.toString(v, LITERAL)
+	}
+	if v.T == values.TUPLE {
+		return vm.toString(v, DEFAULT)
+	}
+	vm.Mem[vm.Stringify.LoReg] = v
+	vm.Run(vm.Stringify.CallTo)
+	return vm.Mem[vm.Stringify.OutReg].V.(string)
 }
 
 // To make an error, we need the error code, the number of the token to be attached to it,

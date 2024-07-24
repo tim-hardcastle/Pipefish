@@ -49,7 +49,7 @@ func (oH *standardOutHandler) Out(vals []values.Value, vm *Vm) {
 
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, vm.Describe(e))
+		elements = append(elements, vm.DefaultDescription(e))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteRune('\n')
@@ -91,7 +91,7 @@ func (oH *snapOutHandler) Out(vals []values.Value, vm *Vm) {
 
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, vm.Describe(e))
+		elements = append(elements, vm.DefaultDescription(e))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteRune('\n')

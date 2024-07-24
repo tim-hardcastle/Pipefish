@@ -1149,6 +1149,13 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		vmm.cp.P.Throw("comp/return/cmd", node.GetToken())
 	}
 	vmm.cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
+
+	// We capture the 'stringify' function for use by the VM.
+
+	if functionName == "stringify" {
+		vmm.cp.vm.Stringify = &cpF
+	}
+
 	return &cpF
 }
 

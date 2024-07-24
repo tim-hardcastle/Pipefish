@@ -1,0 +1,25 @@
+newtype
+
+apples = clone int using +, -
+oranges = clone int using +, -
+
+fruit = abstract apples/oranges
+
+FruitSalad = struct(qApples apples, qOranges oranges)
+
+vector = clone list
+
+def
+
+string(x fruit) :
+    string(int x) + " " + string(type x)
+
+v(x ... int) :
+    vector([x])
+
+// (v vector) + (w vector) :
+//     len v != len w :
+//         error "can't add vectors of different lengths"
+//     vector from L = [] for i::el = range v :
+//         L + [el + w[i]]
+

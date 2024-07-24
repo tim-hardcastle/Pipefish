@@ -73,7 +73,7 @@ func (es externalHttpCallHandler) evaluate(mc *Vm, line string) values.Value {
 	}
 	val := mc.OwnService.Cp.Do(exValAsString)
 	if settings.SHOW_XCALLS {
-		println("Value is", mc.Describe(val))
+		println("Value is", mc.DefaultDescription(val))
 	}
 	return val
 }

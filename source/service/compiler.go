@@ -2427,8 +2427,12 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 			break
 		}
 	}
+	// It may be a clone group:
+	if group, ok := cp.vm.sharedTypenameToTypeList[typeAsString]; ok {
+		abType = group.ToAbstractType()
+	}
 	if abType.Types != nil {
-		args := []uint32{DUMMY, abType.Varchar}
+		args := []uint32{mem, DUMMY, abType.Varchar}
 		for _, t := range abType.Types {
 			args = append(args, uint32(t))
 		}

@@ -199,7 +199,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
-		out := serviceToUse.Mc.Literal(val)
+		out := serviceToUse.Mc.StringifyValue(val, service.DEFAULT)
 		hub.WriteString(out)
 		if hub.currentServiceName == "#snap" {
 			hub.snap.AddOutput(out)
@@ -1204,7 +1204,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 func valToString(srv *service.VmService, val values.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
-	return srv.Mc.Describe(val)
+	return srv.Mc.StringifyValue(val, service.LITERAL)
 }
 
 func (h *Hub) StartHttp(path, port string) {
