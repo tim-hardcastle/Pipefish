@@ -743,7 +743,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				rangeRollback := cp.getState()
 				rangeTypes, rangeConst := cp.CompileNode(rangeOver, ctxt.x())
 
-				if rangeTypes.isNoneOf(values.LIST, values.MAP, values.PAIR, values.SET, values.STRING, values.TUPLE, values.TYPE) {
+				if len(rangeTypes.intersect(cp.vm.IsRangeable)) == 0 {
 					cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
 					return altType(values.COMPILE_TIME_ERROR)
 				}
@@ -1269,14 +1269,15 @@ NodeTypeSwitch:
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
 
-		if containerType.isOnly(values.LIST) {
+		if len(containerType.intersect(cp.vm.sharedTypenameToTypeList["listlike"])) == len(containerType) {
 			if indexType.isOnly(values.INT) {
 				cp.put(IdxL, container, index, errTok)
+				rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 				break
 			}
 			if indexType.isOnly(values.PAIR) {
 				cp.put(SliL, container, index, errTok)
-				break
+				rtnTypes = containerType
 			}
 			if indexType.isNoneOf(values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/list", node.GetToken())
@@ -1284,7 +1285,7 @@ NodeTypeSwitch:
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
-		if containerType.isOnly(values.STRING) {
+		if len(containerType.intersect(cp.vm.sharedTypenameToTypeList["stringlike"])) == len(containerType) {
 			if indexType.isOnly(values.INT) {
 				cp.put(Idxs, container, index, errTok)
 				rtnTypes = AltType(values.ERROR, values.RUNE)

@@ -52,6 +52,7 @@ type Vm struct {
 	AnyTypeScheme            AlternateType
 	AnyTuple                 AlternateType
 	LabelIsPrivate           []bool
+	IsRangeable              AlternateType
 }
 
 func (vm *Vm) AddTypeNumberToAbstractTypes(typeNo values.ValueType, abTypes ...string) {
@@ -174,6 +175,7 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	copy(vm.AnyTypeScheme, vm.sharedTypenameToTypeList["single?"])
 	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(vm.AnyTuple)
 	vm.sharedTypenameToTypeList["tuple"] = vm.AnyTuple
+	vm.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET)
 	return vm
 }
 
@@ -676,7 +678,11 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/index/i", args[3], vm.DescribeType(vm.Mem[args[1]].T), vm.DescribeType(vm.Mem[args[2]].T), args[1], args[2])
 				break
 			}
-			switch container.T {
+			ty := container.T
+			if cloneInfo, ok := vm.concreteTypes[container.T].(cloneType); ok {
+				ty = cloneInfo.parent
+			}
+			switch ty {
 			case values.LIST:
 				vec := container.V.(vector.Vector)
 				ix := index.V.(int)
@@ -739,6 +745,7 @@ loop:
 				break Switch
 			default:
 				vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T))
+				break Switch
 			}
 		case IxZl:
 			typeInfo := vm.concreteTypes[vm.Mem[args[1]].T].(structType)
@@ -1774,7 +1781,11 @@ func (t structType) resolve(labelNumber int) int {
 }
 
 func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) values.Value {
-	switch container.T {
+	ty := container.T
+	if cloneInfo, ok := vm.concreteTypes[ty].(cloneType); ok {
+		ty = cloneInfo.parent
+	}
+	switch ty {
 	case values.INT:
 		return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: container.V.(int)}}
 	case values.LIST:

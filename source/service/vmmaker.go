@@ -589,6 +589,9 @@ func (vmm *VmMaker) createClones() {
 			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
 			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, abType)
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, parent: parentTypeNo, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
+			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
+				vmm.cp.vm.IsRangeable = vmm.cp.vm.IsRangeable.Union(altType(typeNo))
+			}
 		}
 		vmm.cp.CloneNameToTypeNumber[name] = typeNo
 		vmm.cp.typeNameToTypeList[name] = altType(typeNo)

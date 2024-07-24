@@ -341,7 +341,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseBuiltInExpression()
 				return leftExp
 			}
-			// Here we step in and deal with things that are functions and objects, like the type conversion
+			// Here we step in and deal with things that are functions and values, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
 			if !resolvingParser.positionallyFunctional() {
@@ -477,8 +477,28 @@ func (p *Parser) positionallyFunctional() bool {
 	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {
 		return true
 	}
-	if p.Functions.Contains(p.curToken.Literal) && !TypeExists(p.curToken.Literal, p.TypeSystem) &&
-		p.peekToken.Type != token.EOF {
+	if p.Functions.Contains(p.curToken.Literal) && TypeExists(p.curToken.Literal, p.TypeSystem) {
+		if literalsAndLParen.Contains(p.peekToken.Type) {
+			return true
+		}
+		if p.peekToken.Literal == "from" {
+			return true
+		}
+		if p.Infixes.Contains(p.peekToken.Literal) {
+			return false
+		}
+		if p.Midfixes.Contains(p.peekToken.Literal) {
+			return false
+		}
+		if p.Functions.Contains(p.peekToken.Literal) && p.peekToken.Type != token.EOF {
+			return true
+		}
+		if p.Prefixes.Contains(p.peekToken.Literal) {
+			return p.peekToken.Type != token.EOF
+		}
+	}
+
+	if p.Functions.Contains(p.curToken.Literal) && p.peekToken.Type != token.EOF {
 		return true
 	}
 	if p.Prefixes.Contains(p.curToken.Literal) {
