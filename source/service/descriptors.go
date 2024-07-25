@@ -28,18 +28,18 @@ func (vm *Vm) DescribeOperandValues(addr uint32) string {
 	result := ""
 	for i, operandType := range operandTypes {
 		if operandType == mem {
-			result = result + text.BULLET + "m" + strconv.Itoa(int(operands[i])) + " = " + vm.DescribeTypeAndValue(vm.Mem[operands[i]]) + "\n"
+			result = result + text.BULLET + "m" + strconv.Itoa(int(operands[i])) + " = " + vm.DescribeTypeAndValue(vm.Mem[operands[i]], LITERAL) + "\n"
 		}
 	}
 	return text.PURPLE + result + text.RESET
 }
 
-func (vm *Vm) DescribeTypeAndValue(v values.Value) string {
-	return vm.DescribeType(v.T) + "::" + vm.DefaultDescription(v)
+func (vm *Vm) DescribeTypeAndValue(v values.Value, flavor descriptionFlavor) string {
+	return vm.DescribeType(v.T, flavor) + "::" + vm.DefaultDescription(v)
 }
 
-func (vm *Vm) DescribeType(t values.ValueType) string {
-	return vm.concreteTypes[t].getName()
+func (vm *Vm) DescribeType(t values.ValueType, flavor descriptionFlavor) string {
+	return vm.concreteTypes[t].getName(flavor)
 }
 
 type descriptionFlavor int
@@ -53,7 +53,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	typeInfo := vm.concreteTypes[v.T]
 	if typeInfo.isStruct() {
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypes[v.T].getName())
+		buf.WriteString(vm.concreteTypes[v.T].getName(flavor))
 		buf.WriteString(" with (")
 		var sep string
 		vals := v.V.([]values.Value)
@@ -65,12 +65,21 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		return buf.String()
 	}
 	if typeInfo.isEnum() {
-		return vm.concreteTypes[v.T].(enumType).elementNames[v.V.(int)]
+		var buf strings.Builder
+		if flavor == LITERAL {
+			buf.WriteString(vm.concreteTypes[v.T].(enumType).path)
+		}
+		buf.WriteString(vm.concreteTypes[v.T].(enumType).elementNames[v.V.(int)])
+		return buf.String()
+
 	}
 	if typeInfo.isClone() {
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypes[v.T].getName())
+		buf.WriteString(vm.concreteTypes[v.T].getName(flavor))
 		buf.WriteString("(")
+		if flavor == LITERAL {
+			buf.WriteString(vm.concreteTypes[v.T].(cloneType).path)
+		}
 		buf.WriteString(vm.StringifyValue(values.Value{vm.concreteTypes[v.T].(cloneType).parent, v.V}, flavor))
 		buf.WriteByte(')')
 		return buf.String()
@@ -185,7 +194,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		}
 		return prefix + strings.Join(result, ", ") + ")"
 	case values.TYPE:
-		return vm.DescribeAbstractType(v.V.(values.AbstractType))
+		return vm.DescribeAbstractType(v.V.(values.AbstractType), flavor)
 	case values.UNDEFINED_VALUE:
 		return "UNDEFINED VALUE!"
 	case values.UNSATISFIED_CONDITIONAL:
@@ -195,7 +204,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	panic("can't describe value")
 }
 
-func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
+func (vm *Vm) DescribeAbstractType(aT values.AbstractType, flavor descriptionFlavor) string {
 	result := []string{}
 	T := aT
 	// First we greedily remove the abstract types.
@@ -213,7 +222,11 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
 		if sizeOfBiggestType == 0 {
 			break
 		}
-		result = append(result, vm.AbstractTypes[biggestType].Name)
+		if flavor == LITERAL {
+			result = append(result, vm.AbstractTypes[biggestType].Path+vm.AbstractTypes[biggestType].Name)
+		} else {
+			result = append(result, vm.AbstractTypes[biggestType].Name)
+		}
 		T = T.Without(vm.AbstractTypes[biggestType].AT)
 	}
 
@@ -226,7 +239,7 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType) string {
 			if t == values.STRING && T.Varchar < DUMMY {
 				result = append(result, "varchar("+strconv.Itoa(int(T.Varchar))+")")
 			} else {
-				result = append(result, vm.DescribeType(t))
+				result = append(result, vm.DescribeType(t, flavor))
 			}
 		}
 	}

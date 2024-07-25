@@ -301,13 +301,14 @@ func TestImports(t *testing.T) {
 	tests := []testItem{
 		{`qux.square 5`, `25`},
 		{`type qux.Color`, `type`},
-		{`qux.RED`, `RED`},        // TODO --- this will break on improving literals.
-		{`type qux.RED`, `Color`}, //                "
+		{`qux.RED`, `qux.RED`},        // TODO --- this will break on improving literals.
+		{`type qux.RED`, `qux.Color`}, //                "
 		{`qux.RED in qux.Color`, `true`},
-		{`qux.Color[4]`, `BLUE`},
-		{`qux.Person "John", 22`, `Person with (name::"John", age::22)`},
-		{`qux.Color[4]`, `BLUE`},
-		{`qux.Tone LIGHT, BLUE`, `Tone with (shade::LIGHT, color::BLUE)`},
+		{`qux.Color[4]`, `qux.BLUE`},
+		{`qux.Person "John", 22`, `qux.Person with (name::"John", age::22)`},
+		{`qux.Color[4]`, `qux.BLUE`},
+		{`qux.Tone LIGHT, BLUE`, `qux.Tone with (shade::qux.LIGHT, color::qux.BLUE)`},
+		{`qux.Time`, `Time`},
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
 	runTest(t, "import_test.pf", tests, testValues)
@@ -315,6 +316,13 @@ func TestImports(t *testing.T) {
 func TestRef(t *testing.T) {
 	tests := []testItem{
 		{`x ++`, `OK`},
+	}
+	runTest(t, "ref_test.pf", tests, testValues)
+}
+
+func TestClones(t *testing.T) {
+	tests := []testItem{
+		{`5 apples + 3 apples`, `apples(8)`},
 	}
 	runTest(t, "ref_test.pf", tests, testValues)
 }

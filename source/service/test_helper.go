@@ -48,9 +48,9 @@ func runTest(t *testing.T, filename string, tests []testItem, F func(cp *Compile
 		var cp *Compiler
 		var uP *Initializer
 		if filename == "" {
-			cp, uP = initializeFromFilepath(mc, "", text.Trim(wd))
+			cp, uP = initializeFromFilepath(mc, "", text.Trim(wd), "")
 		} else {
-			cp, uP = initializeFromFilepath(mc, wd+"/test-files/"+filename, text.Trim(wd))
+			cp, uP = initializeFromFilepath(mc, wd+"/test-files/"+filename, text.Trim(wd), "")
 		}
 		if uP.Parser.ErrorsExist() {
 			println("There were errors initializing the service : \n" + uP.Parser.ReturnErrors() + "\n")

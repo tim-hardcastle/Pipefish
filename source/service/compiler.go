@@ -350,7 +350,7 @@ func (cp *Compiler) Describe(v values.Value) string {
 
 func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 {
 	if t < values.ValueType(len(cp.vm.concreteTypes)) {
-		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" with initial type "+cp.vm.DescribeType(t)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
+		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" with initial type "+cp.vm.DescribeType(t, LITERAL)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
 	} else {
 		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" for initial lype not yet named.", tok)
 	}
@@ -1210,7 +1210,7 @@ NodeTypeSwitch:
 		enumElement, ok := resolvingCompiler.EnumElements[node.Value]
 		if ok {
 			if cp.vm.concreteTypes[cp.vm.Mem[enumElement].T].isPrivate() {
-				cp.P.Throw("comp/private/enum", node.GetToken(), cp.vm.DescribeType(cp.vm.Mem[enumElement].T))
+				cp.P.Throw("comp/private/enum", node.GetToken(), cp.vm.DescribeType(cp.vm.Mem[enumElement].T, LITERAL))
 				break
 			}
 			cp.put(Asgm, enumElement)
@@ -1359,7 +1359,7 @@ NodeTypeSwitch:
 					labelName := cp.vm.Labels[indexNumber]
 					fieldNumber := structInfo.resolve(indexNumber)
 					if fieldNumber == -1 {
-						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.vm.DescribeType(structT))
+						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.vm.DescribeType(structT, LITERAL))
 						break
 					}
 					cp.put(IxZn, container, uint32(fieldNumber))
@@ -2546,7 +2546,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					functionAndType.T = altType(values.ERROR)
 					for _, ty := range typesAtIndex(b.types[0], 0) {
 						st := values.ValueType(ty.(simpleType))
-						cp.cm("Simple type is "+cp.vm.DescribeType(values.ValueType(st)), b.tok)
+						cp.cm("Simple type is "+cp.vm.DescribeType(values.ValueType(st), LITERAL), b.tok)
 						cp.cm("Clone group is "+cp.typeToCloneGroup[st].describe(cp.vm), b.tok)
 						functionAndType.T = functionAndType.T.Union(cp.typeToCloneGroup[st])
 					}
@@ -3175,7 +3175,7 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 				if len(typeNumbers) == 1 && cp.vm.concreteTypes[typeNumbers[0]].isStruct() {
 					sig, ok := cp.vm.getSqlSig(typeNumbers[0])
 					if !ok {
-						cp.P.Throw("comp/snippet/sig", tok, cp.vm.DescribeType(typeNumbers[0]))
+						cp.P.Throw("comp/snippet/sig", tok, cp.vm.DescribeType(typeNumbers[0], LITERAL))
 					}
 					buf.WriteString(sig)
 					continue // ... the for loop.

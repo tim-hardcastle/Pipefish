@@ -172,7 +172,7 @@ type Parser struct {
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
-func New(dir string) *Parser {
+func New(dir, namespacePath string) *Parser {
 	p := &Parser{
 		Errors:            []*report.Error{},
 		Logging:           true,
@@ -202,6 +202,7 @@ func New(dir string) *Parser {
 		NamespaceBranch:  make(map[string]*ParserData),
 		ExternalParsers:  make(map[string]*Parser),
 		Directory:        dir,
+		NamespacePath:    namespacePath,
 	}
 
 	for k := range p.TypeSystem {
@@ -485,6 +486,9 @@ func (p *Parser) positionallyFunctional() bool {
 			return true
 		}
 		if p.Infixes.Contains(p.peekToken.Literal) {
+			return false
+		}
+		if p.nativeInfixes.Contains(p.peekToken.Type) {
 			return false
 		}
 		if p.Midfixes.Contains(p.peekToken.Literal) {

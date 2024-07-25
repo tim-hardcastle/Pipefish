@@ -31,7 +31,7 @@ type VmMaker struct {
 // The base case: we start off with a blank vm.
 func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
 	mc := BlankVm(db, hubServices)
-	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	result := &VmService{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
@@ -40,28 +40,28 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
-func initializeFromFilepath(mc *Vm, scriptFilepath, dir string) (*Compiler, *Initializer) {
+func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath string) (*Compiler, *Initializer) {
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		sourcebytes, err := os.ReadFile(makeFilepath(scriptFilepath, dir))
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode, dir) // Just because it's expecting to find errors in the uP.
+			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to find errors in the uP.
 			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
 	}
-	return initializeFromSourcecode(mc, scriptFilepath, sourcecode, dir)
+	return initializeFromSourcecode(mc, scriptFilepath, sourcecode, dir, namespacePath)
 }
 
-func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string) (*Compiler, *Initializer) {
-	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc)
+func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, namespacePath string) (*Compiler, *Initializer) {
+	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc, namespacePath)
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) {
 		file, err := os.Stat(makeFilepath(scriptFilepath, dir))
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode, dir)
+			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)
 			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
@@ -71,8 +71,8 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string) (*
 	return vmm.cp, vmm.uP
 }
 
-func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm) *VmMaker {
-	uP := NewInitializer(scriptFilepath, sourcecode, dir)
+func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *VmMaker {
+	uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)
 	vmm := &VmMaker{
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
@@ -225,7 +225,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory)
+		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath)
 		if newUP.ErrorsExist() {
 			uP.Parser.GetErrorsFrom(newUP.Parser)
 			vmm.cp.Services[namespace] = &VmService{vmm.cp.vm, newCp, true, false}
@@ -506,7 +506,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	vmm.cp.vm.ExternalCallHandlers = append(vmm.cp.vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode, vmm.cp.P.Directory)
+	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath)
 	if newUp.ErrorsExist() {
 		vmm.cp.P.GetErrorsFrom(newUp.Parser)
 		return
@@ -526,6 +526,9 @@ func (vmm *VmMaker) createEnums() {
 		info, typeExists := vmm.cp.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
+			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(enumType)
+			typeInfo.path = vmm.cp.P.NamespacePath
+			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
 			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
 			vmm.cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
@@ -559,7 +562,7 @@ func (vmm *VmMaker) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, elementNames: elementNameList, private: vmm.uP.isPrivate(int(enumDeclaration), i)})
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, path: vmm.cp.P.NamespacePath, elementNames: elementNameList, private: vmm.uP.isPrivate(int(enumDeclaration), i)})
 	}
 }
 
@@ -584,11 +587,14 @@ func (vmm *VmMaker) createClones() {
 		info, typeExists := vmm.cp.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
+			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+			typeInfo.path = vmm.cp.P.NamespacePath
+			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
 			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
 			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
 			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, abType)
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, parent: parentTypeNo, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
+			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, path: vmm.cp.P.NamespacePath, parent: parentTypeNo, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				vmm.cp.vm.IsRangeable = vmm.cp.vm.IsRangeable.Union(altType(typeNo))
 			}
@@ -739,6 +745,9 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		typeInfo, typeExists := vmm.cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
+			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
+			typeInfo.path = vmm.cp.P.NamespacePath
+			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
 			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(structDeclaration), i)})
 		}
@@ -781,7 +790,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 				}
 			}
 			vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
-			stT := structType{name: name, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)}
+			stT := structType{name: name, path: vmm.cp.P.NamespacePath, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)}
 			stT = stT.addLabels(labelsForStruct)
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, stT)
 		}
@@ -837,7 +846,7 @@ func (vmm *VmMaker) defineAbstractTypes() {
 		}
 		_, typeExists := vmm.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
-			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.NameAbstractTypePair{newTypename, vmm.cp.typeNameToTypeList[newTypename].ToAbstractType()})
+			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{newTypename, vmm.cp.P.NamespacePath, vmm.cp.typeNameToTypeList[newTypename].ToAbstractType()})
 			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
 		vmm.uP.Parser.Suffixes.Add(newTypename)
@@ -901,9 +910,12 @@ func (vmm *VmMaker) createSnippetTypes() {
 		typeInfo, typeExists := vmm.cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
+			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
+			typeInfo.path = vmm.cp.P.NamespacePath
+			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
 			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(snippetDeclaration), i)})
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, "struct", "snippet")
 			vmm.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
@@ -928,7 +940,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 		if !vmm.cp.vm.concreteTypes[typeNumber].isPrivate() {
 			for _, ty := range vmm.cp.vm.concreteTypes[typeNumber].(structType).abstractStructFields {
 				if vmm.cp.vm.isPrivate(ty) {
-					vmm.uP.Throw("init/private/struct", token.Token{}, vmm.cp.vm.concreteTypes[typeNumber], vmm.cp.vm.DescribeAbstractType(ty))
+					vmm.uP.Throw("init/private/struct", token.Token{}, vmm.cp.vm.concreteTypes[typeNumber], vmm.cp.vm.DescribeAbstractType(ty, LITERAL))
 				}
 			}
 		}
@@ -987,7 +999,7 @@ func (vmm *VmMaker) compileConstructors() {
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := vmm.cp.CloneNameToTypeNumber[name]
-		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: vmm.cp.vm.concreteTypes[vmm.cp.vm.concreteTypes[typeNo].(cloneType).parent].getName()}}
+		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: vmm.cp.vm.concreteTypes[vmm.cp.vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
 		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.isPrivate(int(cloneDeclaration), i), &nameTok)
 	}
 }
@@ -1011,7 +1023,7 @@ var nativeAbstractTypes = []string{"single", "struct", "snippet"}
 func (vmm *VmMaker) addAbstractTypesToVm() {
 	if len(vmm.cp.vm.AbstractTypes) == 0 { // Otherwise we're doing an import and this has already happened.
 		for _, t := range nativeAbstractTypes {
-			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.NameAbstractTypePair{t, vmm.cp.TypeNameToTypeList(t).ToAbstractType()})
+			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{t, vmm.cp.P.NamespacePath, vmm.cp.TypeNameToTypeList(t).ToAbstractType()})
 		}
 	}
 }

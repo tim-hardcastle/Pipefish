@@ -83,10 +83,10 @@ type Initializer struct {
 	fnIndex map[fnSource]*ast.PrsrFunction // We need to number the functions after we sort them into the function tree, in order of compilation. This keeps track of where they are.
 }
 
-func NewInitializer(source, sourceCode, dir string) *Initializer {
+func NewInitializer(source, sourceCode, dir string, namespacePath string) *Initializer {
 	uP := &Initializer{
 		rl:      *lexer.NewRelexer(source, sourceCode),
-		Parser:  parser.New(dir),
+		Parser:  parser.New(dir, namespacePath),
 		Sources: make(map[string][]string),
 		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 	}

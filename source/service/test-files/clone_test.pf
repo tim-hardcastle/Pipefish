@@ -26,3 +26,10 @@ string(x vector) :
     else :
         vector from L = [] for i::el = range x :
             L + [el + y[i]]
+
+newtype
+
+Person = struct(name, occupation string)
+
+
+

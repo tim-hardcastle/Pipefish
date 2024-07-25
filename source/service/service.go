@@ -96,7 +96,7 @@ func (service VmService) SerializeApi() string {
 		enumOrdinal := i - int(values.FIRST_DEFINED_TYPE)
 		if !service.Mc.concreteTypes[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
-			buf.WriteString(service.Mc.concreteTypes[i].getName())
+			buf.WriteString(service.Mc.concreteTypes[i].getName(DEFAULT))
 			for _, el := range service.Mc.concreteTypes[i].(enumType).elementNames {
 				buf.WriteString(" | ")
 				buf.WriteString(el)
@@ -108,7 +108,7 @@ func (service VmService) SerializeApi() string {
 	for declarationNumber, ty := range service.Cp.structDeclarationNumberToTypeNumber {
 		if !service.Mc.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
 			buf.WriteString("STRUCT | ")
-			buf.WriteString(service.Mc.concreteTypes[ty].getName())
+			buf.WriteString(service.Mc.concreteTypes[ty].getName(DEFAULT))
 			labels := service.Mc.concreteTypes[ty].(structType).labelNumbers
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
@@ -318,7 +318,7 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 }
 
 func (service *VmService) serializeAbstractType(ty values.AbstractType) string {
-	return strings.ReplaceAll(service.Mc.DescribeAbstractType(ty), "/", " ")
+	return strings.ReplaceAll(service.Mc.DescribeAbstractType(ty, LITERAL), "/", " ")
 }
 
 // The compiler infers more about the return types of a function than is expressed in the code or
@@ -327,7 +327,7 @@ func (service *VmService) serializeAbstractType(ty values.AbstractType) string {
 func (service *VmService) serializeTypescheme(t typeScheme) string {
 	switch t := t.(type) {
 	case simpleType:
-		return service.Mc.concreteTypes[t].getName()
+		return service.Mc.concreteTypes[t].getName(DEFAULT)
 	case TypedTupleType:
 		acc := ""
 		for _, u := range t.T {

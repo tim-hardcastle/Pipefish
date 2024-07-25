@@ -122,7 +122,7 @@ func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 	}
 	tNo := aT.Types[0]
 	if cp.vm.concreteTypes[tNo].isEnum() || cp.vm.concreteTypes[tNo].isStruct() {
-		return text.Flatten(cp.vm.concreteTypes[tNo].getName())
+		return text.Flatten(cp.vm.concreteTypes[tNo].getName(LITERAL))
 	}
 	if convStr, ok := fConvert[tNo]; ok {
 		return convStr

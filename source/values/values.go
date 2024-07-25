@@ -179,7 +179,8 @@ func (a AbstractType) Without(b AbstractType) AbstractType {
 	return AbstractType{rTypes, a.Varchar}
 }
 
-type NameAbstractTypePair struct {
+type AbstractTypeInfo struct {
 	Name string
+	Path string
 	AT   AbstractType
 }
