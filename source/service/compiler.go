@@ -32,10 +32,9 @@ type ThunkValue struct {
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	vm               *Vm // The vm we're compiling to.
-	P                *parser.Parser
-	EnumElements     map[string]uint32
-	FieldLabelsInMem map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	vm           *Vm // The vm we're compiling to.
+	P            *parser.Parser
+	EnumElements map[string]uint32
 
 	StructNameToTypeNumber              map[string]values.ValueType
 	CloneNameToTypeNumber               map[string]values.ValueType
@@ -204,7 +203,6 @@ func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
 		P:                        p,
 		EnumElements:             make(map[string]uint32),
-		FieldLabelsInMem:         make(map[string]uint32),
 		StructNameToTypeNumber:   make(map[string]values.ValueType),
 		CloneNameToTypeNumber:    make(map[string]values.ValueType),
 		GlobalConsts:             NewEnvironment(),
@@ -1236,9 +1234,9 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = AltType(cp.vm.Mem[enumElement].T), true
 			break
 		}
-		labelNumberLocation, ok := cp.topRCompiler().FieldLabelsInMem[node.Value]
+		labelNumberLocation, ok := cp.vm.FieldLabelsInMem[node.Value]
 		if ok {
-			if (cp != cp.topRCompiler() || ac == REPL) && cp.topRCompiler().vm.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
+			if ac == REPL && cp.vm.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
 				cp.P.Throw("comp/private/label", node.GetToken())
 				break
 			}

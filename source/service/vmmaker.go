@@ -768,21 +768,16 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
 			vmm.cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
-			for j, labelNameAndType := range sig {
-				labelName := labelNameAndType.VarName
-				lI, _ := vmm.cp.getDeclaration(decLABEL, node.GetToken(), j)
-				vmm.cp.FieldLabelsInMem[labelName] = lI.(labelInfo).loc
-			}
 		} else { // Else we need to add the labels to the vm and vmm.
 			labelsForStruct := make([]int, 0, len(sig))
 			for j, labelNameAndType := range sig {
 				labelName := labelNameAndType.VarName
-				labelLocation, alreadyExists := vmm.cp.FieldLabelsInMem[labelName]
+				labelLocation, alreadyExists := vmm.cp.vm.FieldLabelsInMem[labelName]
 				if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
 					labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
 					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
 				} else {
-					vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), node.GetToken())
+					vmm.cp.vm.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), node.GetToken())
 					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{vmm.cp.That(), true})
 					labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
 					vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
@@ -963,11 +958,11 @@ func (vmm *VmMaker) addStructLabelsToVm(name string, typeNo values.ValueType, si
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
-		labelLocation, alreadyExists := vmm.cp.FieldLabelsInMem[labelName]
+		labelLocation, alreadyExists := vmm.cp.vm.FieldLabelsInMem[labelName]
 		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
 			labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
 		} else {
-			vmm.cp.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), tok)
+			vmm.cp.vm.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), tok)
 			labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
 			vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
 			vmm.cp.vm.LabelIsPrivate = append(vmm.cp.vm.LabelIsPrivate, true)

@@ -47,12 +47,13 @@ type Vm struct {
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
 	codeGeneratingTypes dtypes.Set[values.ValueType]
 	// These also may not belong in the VM, but it is shared state among all the compilers for the various modules, and there's nothing else
-	// tying them together but the vm.
+	// tying them together but the vm. TODO --- make some common bindle for them so I'm not doing this.
 	sharedTypenameToTypeList map[string]AlternateType
 	AnyTypeScheme            AlternateType
 	AnyTuple                 AlternateType
 	LabelIsPrivate           []bool
 	IsRangeable              AlternateType
+	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 }
 
 func (vm *Vm) AddTypeNumberToAbstractTypes(typeNo values.ValueType, abTypes ...string) {
@@ -176,6 +177,7 @@ func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
 	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(vm.AnyTuple)
 	vm.sharedTypenameToTypeList["tuple"] = vm.AnyTuple
 	vm.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET)
+	vm.FieldLabelsInMem = make(map[string]uint32)
 	return vm
 }
 
@@ -771,7 +773,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
 		case Lbls:
 			stringToConvert := vm.Mem[args[1]].V.(string)
-			labelNo, ok := vm.OwnService.Cp.FieldLabelsInMem[stringToConvert]
+			labelNo, ok := vm.FieldLabelsInMem[stringToConvert]
 			if ok {
 				vm.Mem[args[0]] = vm.Mem[labelNo]
 			} else {
