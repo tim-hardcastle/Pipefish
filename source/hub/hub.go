@@ -160,7 +160,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
 	// They may be sitting around so the end-user can do 'hub why', but we can get rid of them now.
-	serviceToUse.Cp.GetParser().ClearErrors()
+	serviceToUse.Cp.GetParser().ResetAfterError()
 
 	hub.Sources["REPL input"] = []string{line}
 

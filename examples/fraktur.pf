@@ -1,0 +1,13 @@
+def
+
+string(s string) :
+    from result = "" for _::ch = range s :
+        result + rune fraktur codepoint ch
+given :
+    fraktur(cp int) :
+        cp >= 65 and cp < 91 :
+            cp + 120107
+        cp >= 97 and cp < 123 :
+            cp + 120101
+        else :
+            cp

@@ -1205,7 +1205,7 @@ func checkConsistency(left, right token.Token) bool {
 }
 
 func (p *Parser) ParseLine(source, input string) ast.Node {
-	p.ClearErrors()
+	p.ResetAfterError()
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
 	result := p.ParseTokenizedChunk()
@@ -1234,8 +1234,9 @@ func (p *Parser) ReturnErrors() string {
 	return report.GetList(p.Errors)
 }
 
-func (p *Parser) ClearErrors() {
+func (p *Parser) ResetAfterError() {
 	p.Errors = []*report.Error{}
+	p.CurrentNamespace = []string{}
 }
 
 func (p *Parser) GetErrorsFrom(q *Parser) {
