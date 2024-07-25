@@ -139,6 +139,10 @@ type Parser struct {
 	ParsedDeclarations    [13]ParsedCodeChunks    // since they're no use after the uberparser has finished with them.
 	CurrentNamespace      []string
 
+	// When we call a function in a namespace, we wish to parse it so that bling, labels, and enum elements are looked for
+	// in that namespace without being namespaced. This parser will do this for us.
+	enumResolvingParsers []*Parser
+
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
 
@@ -218,7 +222,21 @@ func New(dir, namespacePath string) *Parser {
 
 	p.StructSig = make(map[string]ast.AstSig)
 
+	p.pushRParser(p)
+
 	return p
+}
+
+func (p *Parser) pushRParser(q *Parser) {
+	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
+}
+
+func (p *Parser) topRParser() *Parser {
+	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
+}
+
+func (p *Parser) popRParser() {
+	p.enumResolvingParsers = p.enumResolvingParsers[1:]
 }
 
 func (p *Parser) NextToken() {
@@ -351,7 +369,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
 					leftExp = p.parseUnfixExpression()
-				case resolvingParser.Bling.Contains(p.curToken.Literal):
+				case p.topRParser().Bling.Contains(p.curToken.Literal):
 					leftExp = &ast.Bling{Token: p.curToken, Value: p.curToken.Literal}
 				default:
 					leftExp = p.parseIdentifier()
@@ -371,9 +389,13 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				}
 				switch {
 				case resolvingParser.Prefixes.Contains(p.curToken.Literal) || resolvingParser.Forefixes.Contains(p.curToken.Literal):
+					p.pushRParser(resolvingParser)
 					leftExp = p.parsePrefixExpression()
+					p.popRParser()
 				default:
+					p.pushRParser(resolvingParser)
 					leftExp = p.parseFunctionExpression() // That, at least, is what it is syntactictally.
+					p.popRParser()
 				}
 			}
 		} else {
@@ -388,7 +410,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				return nil
 			}
 			p.NextToken()
+			p.pushRParser(resolvingParser)
 			leftExp = p.parseSuffixExpression(leftExp)
+			p.popRParser()
 		}
 
 		if p.peekToken.Type == token.LOG {
@@ -425,7 +449,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			case p.curToken.Type == token.FOR:
 				leftExp = p.parseForAsInfix(leftExp) // For the (usual) case where the 'for' is inside a 'from' and the leftExp is, or should be, the bound variables of the loop.
 			default:
+				p.pushRParser(resolvingParser)
 				leftExp = p.parseInfixExpression(leftExp)
+				p.popRParser()
 			}
 		}
 	}
@@ -859,6 +885,7 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
+	p.CurrentNamespace = nil
 	if assignmentTokens.Contains(p.curToken.Type) {
 		return p.parseAssignmentExpression(left)
 	}
@@ -1237,6 +1264,7 @@ func (p *Parser) ReturnErrors() string {
 func (p *Parser) ResetAfterError() {
 	p.Errors = []*report.Error{}
 	p.CurrentNamespace = []string{}
+	p.enumResolvingParsers = []*Parser{p}
 }
 
 func (p *Parser) GetErrorsFrom(q *Parser) {
