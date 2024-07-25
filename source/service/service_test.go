@@ -324,5 +324,5 @@ func TestClones(t *testing.T) {
 	tests := []testItem{
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
-	runTest(t, "ref_test.pf", tests, testValues)
+	runTest(t, "clone_test.pf", tests, testValues)
 }
