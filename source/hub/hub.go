@@ -199,7 +199,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
-		out := serviceToUse.Mc.StringifyValue(val, service.DEFAULT)
+		out := serviceToUse.Mc.StringifyValue(val, service.LITERAL)
 		hub.WriteString(out)
 		if hub.currentServiceName == "#snap" {
 			hub.snap.AddOutput(out)

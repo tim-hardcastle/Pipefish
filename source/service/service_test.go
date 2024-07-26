@@ -326,3 +326,13 @@ func TestClones(t *testing.T) {
 	}
 	runTest(t, "clone_test.pf", tests, testValues)
 }
+
+func TestWith(t *testing.T) {
+	tests := []testItem{
+		{`john with name::"Jo"`, `Person with (name::"Jo", age::22)`},
+		{`["a", "b", "c", "d"] with 2::"k"`, `["a", "b", "k", "d"]`},
+		{`len(testMap with 99::"z") == 5`, `true`},
+		{`len(testMap without "a") == 3`, `true`},
+	}
+	runTest(t, "with_test.pf", tests, testValues)
+}

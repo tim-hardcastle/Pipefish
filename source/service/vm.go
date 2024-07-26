@@ -1618,7 +1618,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		if fieldNumber == -1 {
 			return vm.makeError("vm/with/e", errTok, vm.DefaultDescription(key), vm.DescribeType(container.T, LITERAL))
 		}
-		if len(keys) >= 1 {
+		if len(keys) > 1 {
 			val = vm.with(fields[fieldNumber], keys[1:], val, errTok)
 		}
 		if !vm.concreteTypes[container.T].(structType).abstractStructFields[fieldNumber].Contains(val.T) {
