@@ -1274,7 +1274,16 @@ NodeTypeSwitch:
 	case *ast.IndexExpression:
 		containerType, ctrConst := cp.CompileNode(node.Left, ctxt.x())
 		container := cp.That()
-		indexType, idxConst := cp.CompileNode(node.Index, ctxt.x())
+		var whatAccess varAccess
+		if ctrConst {
+			whatAccess = VERY_LOCAL_CONSTANT
+		} else {
+			whatAccess = VERY_LOCAL_VARIABLE
+		}
+		envWithThat := &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: whatAccess, types: containerType}}, Ext: env}
+		newContext := ctxt.x()
+		newContext.env = envWithThat
+		indexType, idxConst := cp.CompileNode(node.Index, newContext)
 		index := cp.That()
 		rtnConst = ctrConst && idxConst
 		errTok := cp.reserveToken(node.GetToken())
