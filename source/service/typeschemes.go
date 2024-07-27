@@ -295,6 +295,33 @@ func (aT AlternateType) isOnly(vt values.ValueType) bool {
 	return false
 }
 
+func (aT AlternateType) isOnlyCloneOf(vm *Vm, vts ...values.ValueType) bool {
+	targetAltType := AlternateType{}
+	for _, vt := range vts {
+		targetAltType = targetAltType.Union(vm.sharedTypenameToTypeList[vm.concreteTypes[vt].getName(LITERAL)])
+	}
+	for _, el := range aT {
+		switch el := el.(type) {
+		case simpleType:
+			if !targetAltType.Contains(values.ValueType(el)) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (aT AlternateType) cannotBeACloneOf(vm *Vm, vts ...values.ValueType) bool {
+	targetAltType := AlternateType{}
+	for _, vt := range vts {
+		targetAltType = targetAltType.Union(vm.sharedTypenameToTypeList[vm.concreteTypes[vt].getName(LITERAL)])
+	}
+	singles, _ := aT.splitSinglesAndTuples()
+	return !(len(targetAltType.intersect(singles)) == 0)
+}
+
 func (aT AlternateType) isPrivate(mc *Vm) bool {
 	for _, el := range aT {
 		if el.isPrivate(mc) {

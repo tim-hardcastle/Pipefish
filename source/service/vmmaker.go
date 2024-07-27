@@ -685,6 +685,18 @@ func (vmm *VmMaker) createClones() {
 				case "with":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
 					vmm.makeCloneFunction("+", sig, "list_with", altType(typeNo), private, i, &tok1)
+				case "?>":
+					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData.isFilterable = true
+					vmm.cp.vm.concreteTypes[typeNo] = cloneData
+				case ">>":
+					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData.isMappable = true
+					vmm.cp.vm.concreteTypes[typeNo] = cloneData
+				case "slice":
+					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData.isSliceable = true
+					vmm.cp.vm.concreteTypes[typeNo] = cloneData
 				default:
 					vmm.uP.Throw("init/request/list", usingOrEof, op)
 				}
@@ -714,6 +726,10 @@ func (vmm *VmMaker) createClones() {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
 					vmm.makeCloneFunction("+", sig, "add_strings", altType(typeNo), private, i, &tok1)
+				case "slice":
+					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData.isSliceable = true
+					vmm.cp.vm.concreteTypes[typeNo] = cloneData
 				default:
 					vmm.uP.Throw("init/request/string", usingOrEof, op)
 				}

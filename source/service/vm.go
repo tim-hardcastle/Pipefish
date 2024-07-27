@@ -601,7 +601,15 @@ loop:
 		case IxXx:
 			container := vm.Mem[args[1]]
 			index := vm.Mem[args[2]]
-			if index.T == values.PAIR { // Then we're slicing.
+			indexType := index.T
+			if cloneInfo, ok := vm.concreteTypes[indexType].(cloneType); ok {
+				indexType = cloneInfo.parent
+			}
+			if indexType == values.PAIR { // Then we're slicing.
+				containerType := container.T
+				if cloneInfo, ok := vm.concreteTypes[containerType].(cloneType); ok && cloneInfo.isSliceable {
+					containerType = cloneInfo.parent
+				}
 				ix := vm.Mem[args[2]].V.([]values.Value)
 				if ix[0].T != values.INT {
 					vm.Mem[args[0]] = vm.makeError("vm/index/a", args[3], vm.DescribeType(ix[0].T, LITERAL))
@@ -627,7 +635,7 @@ loop:
 						vm.Mem[args[0]] = vm.makeError("vm/index/e", args[3], ix[1], vec.Len(), args[1], args[2])
 						break Switch
 					}
-					vm.Mem[args[0]] = values.Value{values.LIST, vec.SubVector(ix[0].V.(int), ix[1].V.(int))}
+					vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vec.SubVector(ix[0].V.(int), ix[1].V.(int))}
 				case values.STRING:
 					str := container.V.(string)
 					ix := index.V.([]values.Value)
@@ -635,7 +643,7 @@ loop:
 						vm.Mem[args[0]] = vm.makeError("vm/index/f", args[3], ix[1], len(str), args[1], args[2])
 						break Switch
 					}
-					vm.Mem[args[0]] = values.Value{values.STRING, str[ix[0].V.(int):ix[1].V.(int)]}
+					vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, str[ix[0].V.(int):ix[1].V.(int)]}
 				case values.TUPLE:
 					tup := container.V.([]values.Value)
 					if ix[1].V.(int) > len(tup) {
@@ -649,13 +657,17 @@ loop:
 				}
 			} else {
 				// Otherwise it's not a slice. We switch on the type of the lhs.
-				typeInfo := vm.concreteTypes[container.T]
+				containerType := container.T
+				if cloneInfo, ok := vm.concreteTypes[containerType].(cloneType); ok {
+					containerType = cloneInfo.parent
+				}
+				typeInfo := vm.concreteTypes[containerType]
 				if typeInfo.isStruct() {
 					ix := typeInfo.(structType).resolve(vm.Mem[args[2]].V.(int))
 					vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 					break
 				}
-				if container.T == values.MAP {
+				if containerType == values.MAP {
 					mp := container.V.(*values.Map)
 					ix := vm.Mem[args[2]]
 					result, ok := mp.Get(ix)
@@ -666,7 +678,7 @@ loop:
 					}
 					break
 				}
-				if index.T != values.INT {
+				if indexType != values.INT {
 					vm.Mem[args[0]] = vm.makeError("vm/index/i", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DescribeType(vm.Mem[args[2]].T, LITERAL), args[1], args[2])
 					break
 				}
@@ -1703,10 +1715,13 @@ func (t enumType) getPath() string {
 }
 
 type cloneType struct {
-	name    string
-	path    string
-	parent  values.ValueType
-	private bool
+	name         string
+	path         string
+	parent       values.ValueType
+	private      bool
+	isSliceable  bool
+	isFilterable bool
+	isMappable   bool
 }
 
 func (t cloneType) getName(flavor descriptionFlavor) string {

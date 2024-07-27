@@ -1269,70 +1269,70 @@ NodeTypeSwitch:
 		// Structs, by a label, preferably an appropriate one.
 
 		if len(containerType.intersect(cp.vm.sharedTypenameToTypeList["listlike"])) == len(containerType) {
-			if indexType.isOnly(values.INT) {
+			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
 				cp.put(IdxL, container, index, errTok)
 				rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 				break
 			}
-			if indexType.isOnly(values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.vm, values.PAIR) {
 				cp.put(SliL, container, index, errTok)
 				rtnTypes = containerType
 			}
-			if indexType.isNoneOf(values.INT, values.PAIR) {
+			if indexType.cannotBeACloneOf(cp.vm, values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/list", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
 		if len(containerType.intersect(cp.vm.sharedTypenameToTypeList["stringlike"])) == len(containerType) {
-			if indexType.isOnly(values.INT) {
+			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
 				cp.put(Idxs, container, index, errTok)
 				rtnTypes = AltType(values.ERROR, values.RUNE)
 				break
 			}
-			if indexType.isOnly(values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.vm, values.PAIR) {
 				cp.put(Slis, container, index, errTok)
 				rtnTypes = AltType(values.ERROR, values.STRING)
 				break
 			}
-			if indexType.isNoneOf(values.INT, values.PAIR) {
+			if indexType.cannotBeACloneOf(cp.vm, values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/string", node.GetToken())
 				break
 			}
 
 		}
 		if containerType.containsOnlyTuples() {
-			if indexType.isOnly(values.INT) {
+			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
 				cp.put(IdxT, container, index, errTok)
 				break
 			}
-			if indexType.isOnly(values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.vm, values.PAIR) {
 				cp.put(SliT, container, index, errTok)
 				break
 			}
-			if indexType.isNoneOf(values.INT, values.PAIR) {
+			if indexType.cannotBeACloneOf(cp.vm, values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
-		if containerType.isOnly(values.PAIR) {
-			if indexType.isOnly(values.INT) {
+		if containerType.isOnlyCloneOf(cp.vm, values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
 				cp.put(Idxp, container, index, errTok)
 				break
 			}
-			if indexType.isNoneOf(values.INT) {
+			if indexType.cannotBeACloneOf(cp.vm, values.INT) {
 				cp.P.Throw("comp/index/pair", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnly(values.TYPE) {
-			if indexType.isOnly(values.INT) {
+			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
 				cp.put(Idxt, container, index, errTok)
 				break
 			}
-			if indexType.isNoneOf(values.INT) {
+			if indexType.cannotBeACloneOf(cp.vm, values.INT) {
 				cp.P.Throw("comp/index/type", node.GetToken())
 				break
 			}
@@ -2436,7 +2436,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		abType = group.ToAbstractType()
 	}
 	if abType.Types != nil {
-		args := []uint32{mem, DUMMY, abType.Varchar}
+		args := []uint32{mem, abType.Varchar}
 		for _, t := range abType.Types {
 			args = append(args, uint32(t))
 		}
@@ -3053,7 +3053,6 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	}
 	cp.cm("rhs is "+text.Emph(rhs.String()), tok)
 	cp.cm("lhsTypes is "+text.Emph(lhsTypes.describe(cp.vm)), tok)
-	println()
 	var rhsConst bool
 	var isAttemptedFunc bool
 	var v *variable
@@ -3061,10 +3060,32 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	typeIsNotFunc := bkEarlyReturn(DUMMY)
 	resultIsError := bkEarlyReturn(DUMMY)
 	resultIsNotBool := bkEarlyReturn(DUMMY)
+	lhsIsNotListlike := bkEarlyReturn(DUMMY)
 	var types AlternateType
 	sourceList := cp.That()
 	envWithThat := &Environment{}
 	thatLoc := uint32(DUMMY)
+
+	overlap := lhsTypes.intersect(cp.vm.sharedTypenameToTypeList["listlike"])
+	if len(overlap) == 0 {
+		cp.P.Throw("comp/pipe/mf/list", rhs.GetToken())
+		return AltType(values.ERROR), true
+	}
+	if len(overlap) < len(lhsTypes) {
+		err := cp.reserveError("vm/mf/lhs", rhs.GetToken())
+		if len(overlap) == 1 {
+			lhsIsNotListlike = cp.vmConditionalEarlyReturn(Qtyp, sourceList, uint32(overlap[0].(simpleType)), err)
+		} else {
+			args := []uint32{sourceList}
+			for _, t := range overlap {
+				args = append(args, uint32(t.(simpleType)))
+			}
+			args = append(args, err)
+			lhsIsNotListlike = cp.vmConditionalEarlyReturn(Qabt, args...)
+		}
+
+	}
+
 	// If we have a single identifier, we wish it to contain a function ...
 	switch rhs := rhs.(type) {
 	case *ast.Identifier:
@@ -3144,7 +3165,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	cp.vmComeFrom(listFinished)
 	cp.cm("We turn the accumulator tuple into a list and leave the result on top of memory.", tok)
 	cp.put(List, accumulator)
-	cp.vmComeFrom(typeIsNotFunc, resultIsError, resultIsNotBool)
+	cp.vmComeFrom(typeIsNotFunc, resultIsError, resultIsNotBool, lhsIsNotListlike)
 	cp.cm("We've finished compiling the mapping/filter operator.", tok)
 
 	if types.Contains(values.ERROR) {
