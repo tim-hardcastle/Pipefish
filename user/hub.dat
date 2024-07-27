@@ -1,4 +1,2 @@
-WITH, source/service/test-files/with_test.pf
-CLONE, source/service/test-files/clone_test.pf
-IMPORT, source/service/test-files/import_test.pf
+SNIPPETS, source/service/test-files/snippets_test.pf
 hub, rsc/pipefish/hub.pf

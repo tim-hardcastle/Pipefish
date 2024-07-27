@@ -383,52 +383,24 @@ func (cp *Compiler) reserveToken(tok *token.Token) uint32 {
 type compiledSnippetKind int
 
 const (
-	UNCOMPILED_SNIPPET compiledSnippetKind = iota
+	VANILLA_SNIPPET compiledSnippetKind = iota
 	SQL_SNIPPET
 	HTML_SNIPPET
 )
 
 func (cp *Compiler) reserveSnippetFactory(t string, env *Environment, fnNode *ast.SuffixExpression, ac cpAccess) uint32 {
-	sEnv := NewEnvironment() // The source environment is used to build the env field of the snippet. NOTE: if we never reference this field, as we often won't, we can remove this as an optimization.
-	sEnv = flattenEnv(env, sEnv)
-	snF := &SnippetFactory{snippetType: cp.StructNameToTypeNumber[t], sourceString: fnNode.Token.Literal, sourceEnv: sEnv}
-	csk := UNCOMPILED_SNIPPET
+	cp.cm("Reserving snippet factory.", &fnNode.Token)
+	snF := &SnippetFactory{snippetType: cp.StructNameToTypeNumber[t], sourceString: fnNode.Token.Literal}
+	csk := VANILLA_SNIPPET
 	switch {
 	case t == "SQL":
 		csk = SQL_SNIPPET
 	case t == "HTML":
 		csk = HTML_SNIPPET
 	}
-	varLocsStart := cp.MemTop()
-	if csk != UNCOMPILED_SNIPPET { // Then it's HTML, or SQL, and we should compile some code.
-		cEnv := NewEnvironment() // The compliation environment is used to compile against.
-		sourceLocs := []uint32{}
-		for k, v := range sEnv.data {
-			where := cp.Reserve(values.UNDEFINED_VALUE, nil, fnNode.GetToken())
-			w := v
-			w.mLoc = where
-			sourceLocs = append(sourceLocs, v.mLoc)
-			cEnv.data[k] = w
-		}
-		// We can now compile against the cEnv.
-		snF.bindle = cp.compileInjectableSnippet(fnNode.GetToken(), cEnv, csk, snF.sourceString, ac)
-		snF.bindle.varLocsStart = varLocsStart
-		snF.bindle.sourceLocs = sourceLocs
-		snF.bindle.compiledSnippetKind = csk
-	} // End of handling special snippets.
+	snF.bindle = cp.compileSnippet(fnNode.GetToken(), env, csk, snF.sourceString, ac)
 	cp.vm.SnippetFactories = append(cp.vm.SnippetFactories, snF)
 	return uint32(len(cp.vm.SnippetFactories) - 1)
-}
-
-func flattenEnv(env *Environment, target *Environment) *Environment {
-	// TODO --- variables captured should be restricted by access.
-	if env.Ext != nil {
-		flattenEnv(env.Ext, target)
-	}
-	for k, v := range env.data {
-		target.data[k] = v
-	}
-	return target
 }
 
 func (cp *Compiler) compileGivenBlock(given ast.Node, ctxt context) {
@@ -1765,9 +1737,7 @@ NodeTypeSwitch:
 		if node.GetToken().Type == token.EMDASH {
 			switch t := node.Args[0].(type) {
 			case *ast.TypeLiteral:
-				skipOverCompiledSnippet := cp.vmGoTo()
 				snF := cp.reserveSnippetFactory(t.Value, env, node, ac)
-				cp.vmComeFrom(skipOverCompiledSnippet)
 				cp.put(MkSn, snF)
 				rtnTypes, rtnConst = AltType(cp.StructNameToTypeNumber[t.Value]), false
 				break NodeTypeSwitch
@@ -3183,9 +3153,9 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	return AltType(values.LIST), lhsConst && rhsConst
 }
 
-func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac cpAccess) *SnippetBindle {
-	cp.cm("Compile injectable snippet", tok)
-	bindle := SnippetBindle{}
+func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk compiledSnippetKind, sText string, ac cpAccess) *SnippetBindle {
+	cp.cm("Compile snippet", tok)
+	bindle := SnippetBindle{compiledSnippetKind: csk}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
 		cp.P.Throw("comp/snippet/form/b", tok)
@@ -3195,14 +3165,13 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 	bindle.codeLoc = cp.CodeTop()
 	c := 0
 	for _, bit := range bits {
-		if len(bit) == 0 {
-			continue
-		}
-		if bit[0] == '|' {
+		if len(bit) > 0 && bit[0] == '|' {
 			node := cp.P.ParseLine(tok.Source, bit[1:len(bit)-1])
-			newContext := context{newEnv, ac, nil, DUMMY} // TODO --- must get lowMem from outer context.
+			newContext := context{newEnv, ac, nil, DUMMY} // TODO --- must get lowMem from outer context. TODO2, find out what this means.
 			types, cst := cp.CompileNode(node, newContext)
 			val := cp.That()
+
+			// Special sauce for the SQL snippets.
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
 				typeNumbers := cp.vm.Mem[cp.That()].V.(values.AbstractType).Types
 				if len(typeNumbers) == 1 && cp.vm.concreteTypes[typeNumbers[0]].isStruct() {
@@ -3239,21 +3208,23 @@ func (cp *Compiler) compileInjectableSnippet(tok *token.Token, newEnv *Environme
 					c++
 					buf.WriteString(strconv.Itoa(c)) // The injection sites in SQL go $1 , $2 , $3 ...
 				case HTML_SNIPPET:
-
 					buf.WriteString("{{index .Data ")
 					buf.WriteString(strconv.Itoa(c)) // The injection sites in HTML go {{index .Data 0}} , {{index .Data 1}} ...
 					buf.WriteString("}}")
 					c++
+				case VANILLA_SNIPPET:
+					buf.WriteString("%v") // We produce a Go format string.
 				}
 				sep = ", "
 			}
 		} else {
+			cp.Reserve(values.STRING, bit, tok)
+			bindle.valueLocs = append(bindle.valueLocs, cp.That())
 			buf.WriteString(bit)
 		}
 	}
 	cp.Reserve(values.STRING, buf.String(), tok)
 	bindle.objectStringLoc = cp.That()
-	cp.Emit(Ret)
 	return &bindle
 }
 

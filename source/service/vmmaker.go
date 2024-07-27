@@ -898,7 +898,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
-		sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
+		sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
 		vmm.cp.P.TokenizedDeclarations[snippetDeclaration][i].ToStart()
 		decTok := vmm.cp.P.TokenizedDeclarations[snippetDeclaration][i].NextToken()
@@ -982,8 +982,8 @@ func (vmm *VmMaker) compileConstructors() {
 		typeNo := vmm.cp.StructNameToTypeNumber[name]
 		vmm.uP.fnIndex[fnSource{structDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.isPrivate(int(structDeclaration), i), node.GetToken())
 	}
-	// Snippets.
-	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "env", VarType: "map"}}
+	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
+	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range vmm.cp.P.Snippets {
 		typeNo := vmm.cp.StructNameToTypeNumber[name]
 		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.isPrivate(int(snippetDeclaration), i), vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken())

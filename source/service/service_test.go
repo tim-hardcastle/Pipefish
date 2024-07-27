@@ -319,20 +319,16 @@ func TestRef(t *testing.T) {
 	}
 	runTest(t, "ref_test.pf", tests, testValues)
 }
-
 func TestClones(t *testing.T) {
 	tests := []testItem{
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
 	runTest(t, "clone_test.pf", tests, testValues)
 }
-
-func TestWith(t *testing.T) {
+func TestSnippet(t *testing.T) {
 	tests := []testItem{
-		{`john with name::"Jo"`, `Person with (name::"Jo", age::22)`},
-		{`["a", "b", "c", "d"] with 2::"k"`, `["a", "b", "k", "d"]`},
-		{`len(testMap with 99::"z") == 5`, `true`},
-		{`len(testMap without "a") == 3`, `true`},
+		{`makeSn 42`, `Foo with (text::"zort |x| troz", data::["zort ", 42, " troz"])`},
+		{`post HTML --- zort |2 + 2| troz`, `OK`},
 	}
-	runTest(t, "with_test.pf", tests, testValues)
+	runTest(t, "snippets_test.pf", tests, testValues)
 }

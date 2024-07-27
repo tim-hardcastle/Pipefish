@@ -105,7 +105,6 @@ type LambdaFactory struct {
 // All the information we need to make a snippet at a particular point in the code.
 type SnippetFactory struct {
 	snippetType  values.ValueType // The type of the snippet, adoy.
-	sourceEnv    *Environment     // A flattened map of strings to memory locations of variables, used to compute the env field of the snippet at runtime.
 	sourceString string           // The plain text of the snippet before processing.
 	bindle       *SnippetBindle   // Points to the structure defined below.
 }
@@ -113,8 +112,6 @@ type SnippetFactory struct {
 // A grouping of all the things a snippet from a given snippet factory have in common.
 type SnippetBindle struct {
 	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, an external service, SQL, or HTML.
-	varLocsStart        uint32              // Destination of the environment slice.
-	sourceLocs          []uint32            // Locations of the environment slice.
 	codeLoc             uint32              // Where to find the code to compute the object string and the values.
 	objectStringLoc     uint32              // Where to find the object string.
 	valueLocs           []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
@@ -123,13 +120,6 @@ type SnippetBindle struct {
 type recursionData struct {
 	mems []values.Value
 	loc  uint32
-}
-
-// Then the SnippetData consists of that and the environment slice, which we can't insert into memory until call
-// time because another snippet of the same type might be called first.
-type SnippetData struct {
-	EnvironmentSlice []values.Value // For similar reasons --- the values referenced may change between making and using the snippet --- we must pass these as values and not locations.
-	Bindle           *SnippetBindle
 }
 
 // Used for injecting data into HTML.
@@ -854,17 +844,12 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.SET, result}
 		case MkSn:
 			sFac := vm.SnippetFactories[args[1]]
-			result := &values.Map{}
-			slice := make([]values.Value, 0, len(sFac.bindle.sourceLocs))
-			for _, mLoc := range sFac.bindle.sourceLocs {
-				slice = append(slice, vm.Mem[mLoc])
-			}
-			for k, v := range sFac.sourceEnv.data { // TODO --- check access.
-				result = result.Set(values.Value{values.STRING, k}, vm.Mem[v.mLoc])
+			vals := vector.Empty
+			for _, v := range sFac.bindle.valueLocs {
+				vals = vals.Conj(vm.Mem[v])
 			}
 			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.snippetType),
-				[]values.Value{values.Value{values.STRING, sFac.sourceString}, values.Value{values.MAP, result},
-					values.Value{values.SNIPPET_DATA, SnippetData{slice, sFac.bindle}}}}
+				[]values.Value{{values.STRING, sFac.sourceString}, {values.LIST, vals}, {values.SNIPPET_DATA, sFac.bindle}}}
 		case Modi:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {
@@ -888,17 +873,10 @@ loop:
 			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
 		case Outt:
 			fmt.Println(vm.Literal(vm.Mem[args[0]]))
-		case Psnp:
+		case Psnp: // Only for if you 'post HTML' or 'post SQL'.
 			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
 			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.
-			sData := vm.Mem[args[1]].V.([]values.Value)[2].V.(SnippetData)
-			vals := sData.EnvironmentSlice
-			bindle := sData.Bindle
-			for i := 0; i < len(vals); i++ {
-				vm.Mem[i+int(bindle.varLocsStart)] = vals[i]
-			}
-			vm.callstack = append(vm.callstack, loc)
-			vm.Run(bindle.codeLoc)
+			bindle := vm.Mem[args[1]].V.([]values.Value)[2].V.(*SnippetBindle)
 			objectString := vm.Mem[bindle.objectStringLoc].V.(string)
 			// What we do at that point depends on what kind of snippet it is, which is also recorded in the snippet data:
 			switch bindle.compiledSnippetKind {
@@ -911,7 +889,8 @@ loop:
 				}
 				var buf strings.Builder
 				injector := HTMLInjector{make([]any, 0, len(bindle.valueLocs))}
-				for _, mLoc := range bindle.valueLocs {
+				for i := 1; i < len(bindle.valueLocs); i = i + 2 {
+					mLoc := bindle.valueLocs[i]
 					v := vm.Mem[mLoc]
 					switch v.T {
 					case values.STRING:
@@ -931,7 +910,8 @@ loop:
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 			case SQL_SNIPPET:
 				injector := make([]values.Value, 0, len(bindle.valueLocs))
-				for _, mLoc := range bindle.valueLocs {
+				for i := 1; i < len(bindle.valueLocs); i = i + 2 {
+					mLoc := bindle.valueLocs[i]
 					injector = append(injector, vm.Mem[mLoc])
 				}
 				vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
