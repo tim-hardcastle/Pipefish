@@ -1,6 +1,7 @@
 newtype
 
 HubResponse = struct(responseName string, vals list)
+DbInfo = struct(dbType, dbName, dbAddress string, port int, username, password string)
 
 def
 

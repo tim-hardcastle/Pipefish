@@ -1,5 +1,5 @@
 //
-// Charm version 0.4.1
+// Pipefish version 0.4.9
 //
 // Acknowledgments
 //
@@ -13,8 +13,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"pipefish/source/hub"
 	"pipefish/source/text"
@@ -22,24 +24,46 @@ import (
 
 func main() {
 
+	if len(os.Args) == 1 {
+		showhelp()
+		return
+	}
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "-h", "--help":
+			showhelp()
+			return
+		case "-v", "--version":
+			os.Stdout.WriteString("\nPipefish version " + text.VERSION + ".\n\n")
+			return
+		case "tui": // Left blank to avoid the default.
+		default:
+			os.Stdout.WriteString("\nPipefish doesn't recognize the command " + text.Emph(os.Args[1]) + ".\n")
+			println()
+			showhelp()
+			os.Exit(1)
+		}
+	}
+
 	fmt.Print(text.Logo())
 
-	hb := hub.New(os.Stdin, os.Stdout)
-	hb.Open()
-	argString := ""
-	if len(os.Args) > 1 {
-		for _, v := range os.Args[1:] {
-			argString = argString + v + " "
-		}
+	h := hub.New(os.Stdin, os.Stdout)
+	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	f, err := os.Open(appDir + "/user/hubloc.dat")
+	if err != nil {
+		h.WriteError(err.Error())
+		panic("That's all folks!")
 	}
-	quit := false
-	if argString != "" {
-		verb, args := hb.ParseHubCommand(argString)
-		if verb != "error" {
-			quit = hb.DoHubCommand("", "", verb, args)
-		}
-	}
-	if len(os.Args) == 1 || !quit {
-		hub.StartHub(hb, os.Stdin, os.Stdout)
-	}
+	scanner := bufio.NewScanner(f)
+	scanner.Scan()
+	scanner.Scan()
+	scanner.Scan()
+	line := scanner.Text()
+	fname := line[8 : len(line)-1]
+	h.OpenHubFile(fname)
+	hub.StartHub(h, os.Stdin, os.Stdout)
+}
+
+func showhelp() {
+	os.Stdout.WriteString(text.HELP)
 }

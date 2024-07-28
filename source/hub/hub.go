@@ -55,7 +55,6 @@ type Hub struct {
 	directory              string
 }
 
-// Most initialization is done in the Open method.
 func New(in io.Reader, out io.Writer) *Hub {
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	hub := Hub{
@@ -70,8 +69,8 @@ func New(in io.Reader, out io.Writer) *Hub {
 }
 
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
-// as an instruction to the os if it begins with 'os,
-// and as an expression to be passed to the current service if none of the above hold.
+// as an instruction to the os if it begins with 'os', and as an expression to be passed to
+// the current service if none of the above hold.
 func (hub *Hub) Do(line, username, password, passedServiceName string) (string, bool) {
 
 	if match, _ := regexp.MatchString(`^\s*(|\/\/.*)$`, line); match {
@@ -199,13 +198,17 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
-		out := serviceToUse.Mc.StringifyValue(val, service.LITERAL)
+		var out string
+		if hub.services["hub"].GetVariable("$literal").V.(bool) || hub.currentServiceName == "#snap" {
+			out = serviceToUse.Mc.StringifyValue(val, service.LITERAL)
+		} else {
+			out = serviceToUse.Mc.StringifyValue(val, service.DEFAULT)
+		}
 		hub.WriteString(out)
 		if hub.currentServiceName == "#snap" {
 			hub.snap.AddOutput(out)
 		}
 	}
-
 	return passedServiceName, false
 }
 
@@ -789,7 +792,7 @@ func (hub *Hub) help() {
 }
 
 func (hub *Hub) WritePretty(s string) {
-	hub.WriteString(text.Pretty(s, 0, MARGIN))
+	hub.WriteString(text.Pretty(s, 0, hub.services["hub"].GetVariable("$width").V.(int)))
 }
 
 func (hub *Hub) isAdministered() bool {
@@ -971,11 +974,32 @@ func isAnonymous(serviceName string) bool {
 	return serviceName[0] == '#' && err == nil
 }
 
+func (hub *Hub) OpenHubFile(scriptFilepath string) {
+	scriptFilepath = service.MakeFilepath(scriptFilepath, hub.directory)
+	hub.Start("", "hub", scriptFilepath)
+	hubService := hub.services["hub"]
+	hub.createService("", "")
+	services := hubService.GetVariable("$services").V.(*values.Map).AsSlice()
+	for _, pair := range services {
+		serviceName := pair.Key.V.(string)
+		serviceFilepath := pair.Val.V.(string)
+		hub.Start("", serviceName, serviceFilepath)
+	}
+	currentService := hubService.GetVariable("$currentService")
+	if currentService.T == values.NULL {
+		hub.currentServiceName = ""
+	} else {
+		hub.currentServiceName = currentService.V.(string)
+	}
+	hub.list()
+}
+
 func (hub *Hub) Open() {
 
 	f, err := os.Open(hub.directory + "user/hub.dat")
 	if err != nil {
 		hub.WriteError("w/ " + strings.TrimSpace(err.Error()))
+		return
 	}
 	defer f.Close()
 

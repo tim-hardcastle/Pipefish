@@ -1,0 +1,9 @@
+var
+
+$services = map("hub"::"rsc/hub/hub.hub")
+$currentService string? = NULL
+$db DbInfo? = NULL
+$live = true
+$literal = true
+$width = 92
+

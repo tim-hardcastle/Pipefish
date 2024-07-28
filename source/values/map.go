@@ -34,8 +34,8 @@ func (node *mapNode) shallowClone() *mapNode {
 }
 
 type MapPair struct {
-	key Value
-	val Value
+	Key Value
+	Val Value
 }
 
 // Range calls f sequentially in ascending key order for all entries in the map.

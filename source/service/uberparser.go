@@ -96,7 +96,7 @@ func NewInitializer(source, sourceCode, dir string, namespacePath string) *Initi
 
 func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
-		doctoredName := makeFilepath(fname, init.Parser.Directory)
+		doctoredName := MakeFilepath(fname, init.Parser.Directory)
 		libDat, err := os.ReadFile(doctoredName)
 		if err != nil {
 			init.Throw("init/import/found", token.Token{})

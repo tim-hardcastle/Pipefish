@@ -43,7 +43,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath string) (*Compiler, *Initializer) {
 	sourcecode := ""
 	if scriptFilepath != "" { // In which case we're making a blank VM.
-		sourcebytes, err := os.ReadFile(makeFilepath(scriptFilepath, dir))
+		sourcebytes, err := os.ReadFile(MakeFilepath(scriptFilepath, dir))
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to find errors in the uP.
@@ -59,7 +59,7 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, na
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) {
-		file, err := os.Stat(makeFilepath(scriptFilepath, dir))
+		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)
 			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
@@ -86,6 +86,9 @@ func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath st
 func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	if !settings.OMIT_BUILTINS {
 		vmm.uP.AddToNameSpace(settings.MandatoryImports)
+	}
+	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
+		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
 	}
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
 	vmm.uP.MakeParserAndTokenizedProgram()
@@ -1279,7 +1282,7 @@ func altType(t ...values.ValueType) AlternateType {
 	return AltType(t...)
 }
 
-func makeFilepath(scriptFilepath, dir string) string {
+func MakeFilepath(scriptFilepath, dir string) string {
 	doctoredFilepath := strings.Clone(scriptFilepath)
 	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
 		doctoredFilepath = dir + scriptFilepath
@@ -1287,7 +1290,7 @@ func makeFilepath(scriptFilepath, dir string) string {
 	if settings.StandardLibraries.Contains(scriptFilepath) {
 		doctoredFilepath = dir + "lib/" + scriptFilepath
 	}
-	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" {
+	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" && len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] != ".hub" {
 		doctoredFilepath = doctoredFilepath + ".pf"
 	}
 	return doctoredFilepath

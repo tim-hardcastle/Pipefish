@@ -23,6 +23,11 @@ func (service *VmService) NeedsUpdate() (bool, error) {
 	return service.Cp.NeedsUpdate()
 }
 
+func (service *VmService) GetVariable(vname string) values.Value {
+	v, _ := service.Cp.GlobalVars.getVar(vname)
+	return service.Mc.Mem[v.mLoc]
+}
+
 // We have two types of external service, defined below: one for services on the same hub, one for services on
 // a different hub. Eventually we will need a third class of things on a different hub of the same instance of
 // Pipefish, but we haven't implemented that in general yet.

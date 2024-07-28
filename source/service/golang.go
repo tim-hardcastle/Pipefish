@@ -67,7 +67,7 @@ func (gh *GoHandler) CleanUp() {
 	// We add the newly compiled modules to the list of times.
 
 	for k := range gh.Modules {
-		filepath := makeFilepath(k, gh.Prsr.Directory)
+		filepath := MakeFilepath(k, gh.Prsr.Directory)
 		file, err := os.Stat(filepath)
 		if err != nil {
 			panic("Gohandler cleanup: " + err.Error())
@@ -106,7 +106,7 @@ func (gh *GoHandler) BuildGoMods() {
 	for source, functionBodies := range gh.Modules {
 
 		var modifiedTime int64
-		f, err := os.Stat(makeFilepath(source, gh.Prsr.Directory))
+		f, err := os.Stat(MakeFilepath(source, gh.Prsr.Directory))
 		if err == nil {
 			modifiedTime = f.ModTime().UnixMilli()
 		}
@@ -171,7 +171,7 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 
 	// We check to see whether the source code has been modified.
 
-	doctoredFilename := makeFilepath(source, pfDir)
+	doctoredFilename := MakeFilepath(source, pfDir)
 
 	_, err := os.Stat(doctoredFilename)
 

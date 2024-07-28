@@ -195,20 +195,20 @@ func (it *MapIterator) Unfinished() bool {
 }
 
 func (it *MapIterator) GetKey() Value {
-	keyResult := it.KVPairs[it.pos].key
+	keyResult := it.KVPairs[it.pos].Key
 	it.pos++
 	return keyResult
 }
 
 func (it *MapIterator) GetValue() Value {
-	valResult := it.KVPairs[it.pos].val
+	valResult := it.KVPairs[it.pos].Val
 	it.pos++
 	return valResult
 }
 
 func (it *MapIterator) GetKeyValuePair() (Value, Value) {
-	keyResult := it.KVPairs[it.pos].key
-	valResult := it.KVPairs[it.pos].val
+	keyResult := it.KVPairs[it.pos].Key
+	valResult := it.KVPairs[it.pos].Val
 	it.pos++
 	return keyResult, valResult
 }
