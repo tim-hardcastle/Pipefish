@@ -42,8 +42,8 @@ type Compiler struct {
 	GlobalVars                          *Environment
 	Fns                                 []*CpFunc
 	typeNameToTypeList                  map[string]AlternateType
-	Services                            map[string]*VmService // Both true internal services, and stubs that call the externals.
-	CallHandlerNumbersByName            map[string]uint32     // Map from the names of external services to their index as stored in the vm.
+	Services                            map[string]*Service // Both true internal services, and stubs that call the externals.
+	CallHandlerNumbersByName            map[string]uint32   // Map from the names of external services to their index as stored in the vm.
 	Timestamp                           int64
 	ScriptFilepath                      string
 	structDeclarationNumberToTypeNumber map[int]values.ValueType
@@ -209,7 +209,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		GlobalVars:               NewEnvironment(),
 		ThunkList:                []ThunkData{},
 		Fns:                      []*CpFunc{},
-		Services:                 make(map[string]*VmService),
+		Services:                 make(map[string]*Service),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		typeNameToTypeList: map[string]AlternateType{

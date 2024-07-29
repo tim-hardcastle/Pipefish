@@ -29,10 +29,10 @@ type VmMaker struct {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*VmService) (*VmService, *Initializer) {
+func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service) (*Service, *Initializer) {
 	mc := BlankVm(db, hubServices)
 	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	result := &VmService{Mc: mc, Cp: cp}
+	result := &Service{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
 }
@@ -231,9 +231,9 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath)
 		if newUP.ErrorsExist() {
 			uP.Parser.GetErrorsFrom(newUP.Parser)
-			vmm.cp.Services[namespace] = &VmService{vmm.cp.vm, newCp, true, false}
+			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, true, false}
 		} else {
-			vmm.cp.Services[namespace] = &VmService{vmm.cp.vm, newCp, false, false}
+			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, false, false}
 			maps.Copy(vmm.cp.declarationMap, newCp.declarationMap)
 			vmm.cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
 			newUP.Parser.Private = vmm.uP.isPrivate(int(importDeclaration), i)
@@ -516,7 +516,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	}
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = vmm.uP.isPrivate(int(externalDeclaration), int(externalServiceOrdinal))
-	vmm.cp.Services[name] = &VmService{vmm.cp.vm, newCp, false, false}
+	vmm.cp.Services[name] = &Service{vmm.cp.vm, newCp, false, false}
 }
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.

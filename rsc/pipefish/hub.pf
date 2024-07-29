@@ -1,12 +1,13 @@
 newtype
 
 HubResponse = struct(responseName string, vals list)
-DbInfo = struct(dbType, dbName, dbAddress string, port int, username, password string)
+Database = struct(driver, name, path string, port int, username, password string)
+Admin = struct(username, password string)
 
 def
 
 // Verb are in alphabetical order:
-// add, config, create, do, edit, errors, halt, help, hot let, listen, log, my, peek, quit, register, replay, run, services, snap,
+// add, config, create, do, edit, errors, halt, help, let, listen, live, log, my, peek, quit, register, replay, run, services, snap,
 // test, trace, where, why, values
 
 add(usr string) to (grp string) :
@@ -48,12 +49,6 @@ help :
 help(topic string) :
     HubResponse("help", [topic])
 
-hot on :
-    HubResponse("hot-on", [])
-
-hot off :
-    HubResponse("hot-off", [])
-
 let(usr string) own (grp string) :
     HubResponse("let-own", [usr, grp])
 
@@ -62,6 +57,12 @@ let(grp string) use (srv string) :
 
 listen(path string, port int) :
     HubResponse("listen", [path, string port])
+
+live on :
+    HubResponse("live-on", [])
+
+live off :
+    HubResponse("live-off", [])
 
 log on :
     HubResponse("log-on", [])
@@ -171,3 +172,12 @@ where(errorNo int) :
 why(errorNo int) :
     HubResponse("why", [string errorNo])
 
+cmd
+
+serial on :
+    global asLiteral
+    asLiteral = true
+
+serial off :
+    global asLiteral
+    asLiteral = false

@@ -266,8 +266,8 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 	if flavor == LITERAL {
 		return vm.toString(v, LITERAL)
 	}
-	if v.T == values.TUPLE {
-		return vm.toString(v, DEFAULT)
+	if v.T == values.TUPLE || v.T == values.SUCCESSFUL_VALUE {
+		return vm.toString(v, flavor)
 	}
 	vm.Mem[vm.Stringify.LoReg] = v
 	vm.Run(vm.Stringify.CallTo)

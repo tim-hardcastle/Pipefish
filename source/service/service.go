@@ -12,20 +12,24 @@ import (
 )
 
 // This is what initialization constructs: a vm and a compiler that between them can evaluate a line of Pipefish.
-type VmService struct {
+type Service struct {
 	Mc      *Vm
 	Cp      *Compiler // This also contains all the metadata about the top-level source code.
 	Broken  bool
 	Visited bool
 }
 
-func (service *VmService) NeedsUpdate() (bool, error) {
+func (service *Service) NeedsUpdate() (bool, error) {
 	return service.Cp.NeedsUpdate()
 }
 
-func (service *VmService) GetVariable(vname string) values.Value {
+func (service *Service) GetVariable(vname string) values.Value {
 	v, _ := service.Cp.GlobalVars.getVar(vname)
 	return service.Mc.Mem[v.mLoc]
+}
+
+func (service *Service) SetVariable(name string, ty values.ValueType, v any) {
+	service.Mc.Mem[service.Cp.GlobalVars.data[name].mLoc] = values.Value{ty, v}
 }
 
 // We have two types of external service, defined below: one for services on the same hub, one for services on
@@ -39,7 +43,7 @@ type externalCallHandler interface {
 }
 
 type externalCallToHubHandler struct {
-	externalService *VmService
+	externalService *Service
 }
 
 // There is a somewhat faster way of doing this when the services are on the same hub, since we would just need
@@ -92,7 +96,7 @@ func (es externalHttpCallHandler) getAPI() string {
 }
 
 // For a description of the file format, see README-api-serialization.md
-func (service VmService) SerializeApi() string {
+func (service Service) SerializeApi() string {
 	var buf strings.Builder
 	for i := int(values.FIRST_DEFINED_TYPE); i < len(service.Mc.concreteTypes); i++ {
 		if !service.Mc.concreteTypes[i].isEnum() {
@@ -171,11 +175,11 @@ func (service VmService) SerializeApi() string {
 	return buf.String()
 }
 
-func (service *VmService) isMandatoryImport(dec declarationType, ordinal int) bool {
+func (service *Service) isMandatoryImport(dec declarationType, ordinal int) bool {
 	return settings.MandatoryImportSet.Contains(service.Cp.P.ParsedDeclarations[dec][ordinal].GetToken().Source)
 }
 
-func (service *VmService) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
+func (service *Service) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
 	for _, w := range a.Types {
 		if service.Mc.concreteTypes[w].isPrivate() {
 			return true
@@ -322,14 +326,14 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 	return buf.String()
 }
 
-func (service *VmService) serializeAbstractType(ty values.AbstractType) string {
+func (service *Service) serializeAbstractType(ty values.AbstractType) string {
 	return strings.ReplaceAll(service.Mc.DescribeAbstractType(ty, LITERAL), "/", " ")
 }
 
 // The compiler infers more about the return types of a function than is expressed in the code or
 // indeed expressible in Pipefish. We will turn the typescheme into a serialized description in Reverse
 // Polish notation.
-func (service *VmService) serializeTypescheme(t typeScheme) string {
+func (service *Service) serializeTypescheme(t typeScheme) string {
 	switch t := t.(type) {
 	case simpleType:
 		return service.Mc.concreteTypes[t].getName(DEFAULT)

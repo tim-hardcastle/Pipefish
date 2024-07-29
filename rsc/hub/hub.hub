@@ -1,9 +1,10 @@
 var
 
-$services = map("hub"::"rsc/hub/hub.hub")
-$currentService string? = NULL
-$db DbInfo? = NULL
-$live = true
-$literal = true
-$width = 92
+allServices = map("hub"::"rsc/hub/hub.hub")
+currentService string? = NULL
 
+isLive = true
+asLiteral = true
+width = 92
+
+database Database? = Database("Postgres", "postgres", "localhost", 5432, "tim", "spong")

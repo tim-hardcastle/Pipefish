@@ -56,7 +56,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 			continue
 		}
 
-		_, quitCharm := hub.Do(line, hub.Username, hub.Password, hub.GetCurrentServiceName())
+		_, quitCharm := hub.Do(line, hub.Username, hub.Password, hub.currentServiceName())
 		if quitCharm {
 			break
 		}
@@ -64,10 +64,10 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 }
 
 func makePrompt(hub *Hub) string {
-	if hub.GetCurrentServiceName() == "" {
+	if hub.currentServiceName() == "" {
 		return text.PROMPT
 	}
-	promptText := hub.GetCurrentServiceName() + " " + text.PROMPT
+	promptText := hub.currentServiceName() + " " + text.PROMPT
 	if hub.CurrentServiceIsBroken() {
 		promptText = text.Red(promptText)
 	}

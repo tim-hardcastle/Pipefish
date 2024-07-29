@@ -31,10 +31,10 @@ var (
 		"Oracle": "oracle", "Postgres": "postgres", "SQLite": "sqlite"}
 )
 
-func GetdB(driver, host, port, db, user, password string) (*sql.DB, error) {
+func GetdB(driver, name, host string, port int, user, password string) (*sql.DB, error) {
 
 	connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
-		host, port, db, user, password)
+		host, port, name, user, password)
 
 	sqlObj, connectionError := sql.Open(drivers[driver], connectionString)
 	if connectionError != nil {

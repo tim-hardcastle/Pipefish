@@ -38,8 +38,8 @@ type Vm struct {
 	IoHandle                   IoHandler
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
-	OwnService                 *VmService            // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
-	HubServices                map[string]*VmService // The same map that the hub has.
+	OwnService                 *Service              // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
+	HubServices                map[string]*Service   // The same map that the hub has.
 	ExternalCallHandlers       []externalCallHandler // The services declared external, whether on the same hub or a different one.
 	typeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	Stringify                  *CpFunc
@@ -136,7 +136,7 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label"}
 
-func BlankVm(db *sql.DB, hubServices map[string]*VmService) *Vm {
+func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
 		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
