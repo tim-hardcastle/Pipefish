@@ -33,6 +33,7 @@ var (
 )
 
 type Hub struct {
+	hubFilepath            string
 	services               map[string]*service.Service
 	ers                    report.Errors
 	peek                   bool
@@ -842,6 +843,10 @@ func (hub *Hub) help() {
 }
 
 func (hub *Hub) WritePretty(s string) {
+	if hub.services["hub"].Broken {
+		hub.WriteString(text.Pretty(s, 0, 92))
+		return
+	}
 	hub.WriteString(text.Pretty(s, 0, hub.getSV("width").V.(int)))
 }
 
@@ -964,7 +969,13 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 	if init.ErrorsExist() {
 		newService.Broken = true
+		if name == "hub" {
+			fmt.Println("Pipefish: unable to compile hub.")
+		}
 		hub.GetAndReportErrors(init.Parser)
+		if name == "hub" {
+			os.Exit(2)
+		}
 		return false
 	}
 
@@ -981,29 +992,47 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 }
 
 func (hub *Hub) save() string {
-	f, err := os.Create(hub.directory + "user/hub.dat")
+	var buf strings.Builder
+	buf.WriteString("var\n\n")
+	buf.WriteString("allServices = ")
+	// We use the hub.go's map of services as the single source of truth.
+	pfMap := &values.Map{}
+	for k, v := range hub.services {
+		if k != "" && k[0] != '#' {
+			pfMap = pfMap.Set(values.Value{values.STRING, k}, values.Value{values.STRING, v.Cp.ScriptFilepath})
+		}
+	}
+	buf.WriteString(hub.services["hub"].Mc.Literal(values.Value{values.MAP, pfMap}))
+	buf.WriteString("\n")
+	buf.WriteString("currentService string? = ")
+	cs := hub.services["hub"].Mc.Literal(hub.getSV("currentService"))
+	if len(cs) > 0 && cs[0] == '#' {
+		buf.WriteString("NULL")
+	} else {
+		buf.WriteString(cs)
+	}
+	buf.WriteString("\n\n")
+	buf.WriteString("isLive = ")
+	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("isLive")))
+	buf.WriteString("\n")
+	buf.WriteString("asLiteral = ")
+	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("asLiteral")))
+	buf.WriteString("\n")
+	buf.WriteString("width = ")
+	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("width")))
+	buf.WriteString("\n\n")
+	buf.WriteString("database Database? = ")
+	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("database")))
+	buf.WriteString("\n")
+
+	fname := service.MakeFilepath(hub.hubFilepath, hub.directory)
+
+	f, err := os.Create(fname)
 	if err != nil {
 		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
 	defer f.Close()
-	for k := range hub.services {
-		if !isAnonymous(k) && k != "#snap" && k != "#test" {
-			_, err := f.WriteString(k + ", " + hub.services[k].Cp.ScriptFilepath + "\n")
-			if err != nil {
-				return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
-			}
-		}
-	}
-	f, err = os.Create(hub.directory + "user/current.dat")
-	if err != nil {
-		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
-	}
-
-	if isAnonymous(hub.currentServiceName()) {
-		_, err = f.WriteString("")
-	} else {
-		_, err = f.WriteString(hub.currentServiceName())
-	}
+	f.WriteString(buf.String())
 	if err != nil {
 		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
@@ -1012,18 +1041,10 @@ func (hub *Hub) save() string {
 
 }
 
-func isAnonymous(serviceName string) bool {
-	if serviceName == "" {
-		return true
-	}
-	_, err := strconv.Atoi(serviceName[1:])
-	return serviceName[0] == '#' && err == nil
-}
-
-func (hub *Hub) OpenHubFile(scriptFilepath string) {
-	scriptFilepath = service.MakeFilepath(scriptFilepath, hub.directory)
-	hub.createService("hub", scriptFilepath)
+func (hub *Hub) OpenHubFile(hubFilepath string) {
+	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
+	hub.hubFilepath = service.MakeFilepath(hubFilepath, hub.directory)
 	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
 	for _, pair := range services {
 		serviceName := pair.Key.V.(string)
@@ -1033,67 +1054,6 @@ func (hub *Hub) OpenHubFile(scriptFilepath string) {
 	hub.createService("", "")
 
 	hub.list()
-}
-
-func (hub *Hub) Open() {
-
-	f, err := os.Open(hub.directory + "user/hub.dat")
-	if err != nil {
-		hub.WriteError("w/ " + strings.TrimSpace(err.Error()))
-		return
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		params := strings.Split(scanner.Text(), ", ")
-		hub.StartAndMakeCurrent("", params[0], params[1])
-	}
-
-	hub.createService("", "")
-
-	hub.list()
-
-	f, err = os.Open(hub.directory + "user/current.dat")
-	if err != nil {
-		hub.WriteError("x/ " + strings.TrimSpace(err.Error()))
-	}
-
-	scanner = bufio.NewScanner(f)
-	scanner.Scan()
-	hub.setServiceName(scanner.Text())
-	_, ok := hub.services[hub.currentServiceName()]
-	if !ok {
-		hub.makeEmptyServiceCurrent()
-	}
-
-	_, err = os.Stat(hub.directory + "user/admin.dat")
-	hub.administered = (err == nil)
-	if hub.administered {
-		hub.makeEmptyServiceCurrent()
-	}
-
-	if hub.hasDatabase() {
-		driver, dbName, dbPath, dbPort, dbUsername, dbPassword := hub.getDB()
-		hub.Db, err = database.GetdB(driver, dbName, dbPath, dbPort, dbUsername, dbPassword)
-		for _, v := range hub.services {
-			if !v.Broken {
-				v.Mc.Database = hub.Db
-			}
-		}
-
-		if err != nil {
-			hub.WriteError("z/" + err.Error())
-			return
-		}
-		if hub.administered && !hub.listeningToHttp {
-			hub.WritePretty("This is an administered hub and you aren't logged on. Please enter either " +
-				"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
-				"with this hub.\n\n")
-			return
-		}
-		hub.tryMain()
-	}
 }
 
 func (hub *Hub) list() {

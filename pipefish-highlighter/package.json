@@ -13,7 +13,7 @@
         "languages": [{
             "id": "pipefish",
             "aliases": ["Pipefish", "pipefish"],
-            "extensions": [".pf",".pfish"],
+            "extensions": [".pf",".hub"],
             "configuration": "./language-configuration.json"
         }],
         "grammars": [{

@@ -202,6 +202,7 @@ func TestUserDefinedTypes(t *testing.T) {
 		{`Tone(LIGHT, GREEN) != DARK_BLUE`, `true`},
 		{`troz DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 		{`foo 3, 5`, `8`},
+		{`Tone with (shade::LIGHT, color::RED)`, `Tone with (shade::LIGHT, color::RED)`},
 	}
 	runTest(t, "user_types_test.pf", tests, testValues)
 }

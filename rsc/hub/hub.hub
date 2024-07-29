@@ -7,4 +7,4 @@ isLive = true
 asLiteral = true
 width = 92
 
-database Database? = Database("Postgres", "postgres", "localhost", 5432, "tim", "spong")
+database Database? = Database with (driver::"Postgres", name::"postgres", path::"localhost", port::5432, username::"tim", password::"spong")

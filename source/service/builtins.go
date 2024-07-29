@@ -396,7 +396,7 @@ func (cp *Compiler) btTypeUnion(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btTypeWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Wtht, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(Wtht, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btVarchar(tok *token.Token, dest uint32, args []uint32) {

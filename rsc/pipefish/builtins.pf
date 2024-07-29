@@ -85,7 +85,8 @@ varchar(x int) : builtin "varchar"
 (x list) with (y ... single?) : builtin "list_with"
 (x map) with (y ... single?) : builtin "map_with"
 (x struct) with (y ... single?) : builtin "struct_with"
-(x type) with (y ... single?) : builtin "type_with"        
+(x type) with (y ... single?) : typeWithMaker(x, y)
+typeWithMaker(x type, y tuple) : builtin "type_with"        
 (x map) without (y ... single?) : builtin "map_without"
 
 // This supplies us with a single code address to call which will dispatch on the
