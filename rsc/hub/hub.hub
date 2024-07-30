@@ -1,7 +1,8 @@
 newtype
 
 TextDisplayMode = enum LITERAL, STRING
-DatabaseDrivers = enum FIREBIRD_SQL, MARIA_DB, MY_SQL, ORACLE, POSTGRES, SQLITE
+DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
+                    .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
 
@@ -16,7 +17,7 @@ isLive = true
 display = STRING
 width = 92
 
-database Database? = Database with (driver::POSTGRES,
+database Database? = Database with (driver::POSTGRESQL,
                                  .. name::"postgres",
                                  .. host::"localhost",
                                  .. port::5432,

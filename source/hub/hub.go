@@ -999,7 +999,8 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 var prefix = `newtype
 
 TextDisplayMode = enum LITERAL, STRING
-DatabaseDrivers = enum FIREBIRD_SQL, MARIA_DB, MY_SQL, ORACLE, POSTGRES, SQLITE
+DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
+                    .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -17,21 +18,19 @@ import (
 
 	// SQL drivers
 
-	_ "github.com/go-sql-driver/mysql"  // MariaDB & MySQL
-	_ "github.com/lib/pq"               // Postgres
-	_ "github.com/nakagami/firebirdsql" // Firebird
-	_ "github.com/sijms/go-ora"         // Oracle
-	_ "modernc.org/sqlite"              // SQLite
+	_ "github.com/databricks/databricks-sql-go" // Databricks
+	_ "github.com/go-sql-driver/mysql"          // MariaDB, MySQL, TiDB
+	_ "github.com/lib/pq"                       // PostgreSQL, CockroachDB
+	_ "github.com/microsoft/go-mssqldb"         // Microsoft SQL Server
+	_ "github.com/nakagami/firebirdsql"         // Firebird
+	_ "github.com/sijms/go-ora"                 // Oracle
+	_ "modernc.org/sqlite"                      // SQLite
 )
 
 // List of SQL drivers for when I want to import more: https://zchee.github.io/golang-wiki/SQLDrivers/
 
-var ( // Ironically this would be a lot simpler and less brittle if I had a relation type.
-	pipefishEnumFromDisplayName = map[string]string{"Firebird SQL": "FIREBIRD_SQL", "MariaDB": "MARIA_DB", "MySQL": "MY_SQL",
-		"Oracle": "ORACLE", "Postgres": "POSTGRES", "SQLite": "SQLITE"}
-	driversFromPipefishEnum = map[string]string{"FIREBIRD_SQL": "firebirdsql", "MARIA_DB": "mysql", "MY_SQL": "mysql",
-		"ORACLE": "oracle", "POSTGRES": "postgres", "SQLITE": "sqlite"}
-)
+var driversFromPipefishEnum = map[string]string{"COCKROACHDB": "postgres", "FIREBIRD_SQL": "firebirdsql", "MARIADB": "mysql", "MICROSOFT_SQL_SERVER": "sqlserver", "MYSQL": "mysql",
+	"ORACLE": "oracle", "POSTGRESQL": "postgres", "SNOWFLAKE": "snowflake", "SQLITE": "sqlite", "TIDB": "mysql"}
 
 func GetdB(driverAsPipefishEnum, name, host string, port int, user, password string) (*sql.DB, error) {
 
@@ -61,13 +60,21 @@ func GetDriverOptions() string {
 	return result
 }
 
-func GetSortedDrivers() []string {
+func GetSortedDrivers() []string { // TODO --- could be done once on initialization.
 	dr := []string{}
-	for _, v := range pipefishEnumFromDisplayName {
-		dr = append(dr, v)
+	for k := range driversFromPipefishEnum {
+		dr = append(dr, enumToEnglish(k))
 	}
 	sort.Strings(dr)
 	return dr
+}
+
+func enumToEnglish(s string) string {
+	s = strings.ReplaceAll(s, "_", " ")
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, "sql", "SQL")
+	s = strings.ReplaceAll(s, "db", "DB")
+	return strings.Title(s)
 }
 
 func AddAdmin(db *sql.DB, username, firstName, lastName, email, password, serviceName, dir string) error {
