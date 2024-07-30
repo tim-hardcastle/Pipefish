@@ -8,7 +8,6 @@ The `docs` folder contains supplementary information about the Pipefish programm
 
 * [Pipefish: a high-level view](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/-a-high-level-view.md). This explains the goals and design principles of the language.
 * [Style guide](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/style-guide.md). This gives best practices for the style in which one should write Pipefish code.
-* [Writing an adventure game in Pipefish](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/writing-an-adventure-game-in-.md). A tutorial.
 * [Functional core, imperative shell](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/functional-core-imperative-shell.md). A synopsis of the language paradigm.
 * [The type system in theory](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/the-type-system-in-theory.md)
 * [Tokenization rules](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/) The exact rules of what makes a well-formed identifier. You probably don't need to read this.
