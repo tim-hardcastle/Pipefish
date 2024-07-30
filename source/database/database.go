@@ -26,17 +26,19 @@ import (
 
 // List of SQL drivers for when I want to import more: https://zchee.github.io/golang-wiki/SQLDrivers/
 
-var (
-	drivers = map[string]string{"Firebird SQL": "firebirdsql", "MariaDB": "mysql", "MySQL": "mysql",
-		"Oracle": "oracle", "Postgres": "postgres", "SQLite": "sqlite"}
+var ( // Ironically this would be a lot simpler and less brittle if I had a relation type.
+	pipefishEnumFromDisplayName = map[string]string{"Firebird SQL": "FIREBIRD_SQL", "MariaDB": "MARIA_DB", "MySQL": "MY_SQL",
+		"Oracle": "ORACLE", "Postgres": "POSTGRES", "SQLite": "SQLITE"}
+	driversFromPipefishEnum = map[string]string{"FIREBIRD_SQL": "firebirdsql", "MARIA_DB": "mysql", "MY_SQL": "mysql",
+		"ORACLE": "oracle", "POSTGRES": "postgres", "SQLITE": "sqlite"}
 )
 
-func GetdB(driver, name, host string, port int, user, password string) (*sql.DB, error) {
+func GetdB(driverAsPipefishEnum, name, host string, port int, user, password string) (*sql.DB, error) {
 
 	connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
 		host, port, name, user, password)
 
-	sqlObj, connectionError := sql.Open(drivers[driver], connectionString)
+	sqlObj, connectionError := sql.Open(driversFromPipefishEnum[driverAsPipefishEnum], connectionString)
 	if connectionError != nil {
 		return nil, connectionError
 	}
@@ -61,8 +63,8 @@ func GetDriverOptions() string {
 
 func GetSortedDrivers() []string {
 	dr := []string{}
-	for k := range drivers {
-		dr = append(dr, k)
+	for _, v := range pipefishEnumFromDisplayName {
+		dr = append(dr, v)
 	}
 	sort.Strings(dr)
 	return dr

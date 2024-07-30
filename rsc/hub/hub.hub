@@ -1,10 +1,24 @@
+newtype
+
+TextDisplayMode = enum STRING, LITERAL
+DatabaseDrivers = enum FIREBIRD_SQL, MARIA_DB, MY_SQL, ORACLE, POSTGRES, SQLITE
+
+Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
+
 var
 
-allServices = map("hub"::"rsc/hub/hub.hub")
-currentService string? = NULL
+allServices = map("hub"::"rsc/hub/hub.hub",
+               .. "foo"::"examples/foo.pf")
+
+currentService string? = "foo"
 
 isLive = true
 asLiteral = true
 width = 92
 
-database Database? = Database with (driver::"Postgres", name::"postgres", path::"localhost", port::5432, username::"tim", password::"spong")
+database Database? = Database with (driver::POSTGRES,
+                                 .. name::"postgres",
+                                 .. host::"localhost",
+                                 .. port::5432,
+                                 .. username::"tim",
+                                 .. password::"spong")

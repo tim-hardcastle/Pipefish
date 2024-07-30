@@ -48,10 +48,11 @@ type Hub struct {
 	Db                     *sql.DB
 	administered           bool
 	listeningToHttp        bool
+	port, path             string
 	Username               string
 	Password               string
-	path, port             string
-	directory              string
+
+	directory string
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
@@ -80,12 +81,15 @@ func (hub *Hub) hasDatabase() bool {
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
 	dbStruct := hub.getSV("database").V.([]values.Value)
-	return dbStruct[0].V.(string), dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
+	driver := hub.services["hub"].Mc.Literal(dbStruct[0])
+	return driver, dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
 }
 
 func (hub *Hub) setDB(driver, name, path string, port int, username, password string) {
-	structType := hub.getSV("Database").T
-	hub.setSV("database", structType, []values.Value{{values.STRING, driver}, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
+	hubService := hub.services["hub"]
+	driverAsEnumValue := hubService.Mc.Mem[hubService.Cp.EnumElements[driver]]
+	structType := hubService.Cp.StructNameToTypeNumber["Database"]
+	hub.setSV("database", structType, []values.Value{driverAsEnumValue, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
 }
 
 func (hub *Hub) isLive() bool {
@@ -104,16 +108,12 @@ func (hub *Hub) makeEmptyServiceCurrent() {
 	hub.setSV("currentService", values.NULL, nil)
 }
 
-func (hub *Hub) getSV(sv string) values.Value { // A bit baroque, but it means that the Pipefish hub service serves as the SSoT.
+func (hub *Hub) getSV(sv string) values.Value {
 	return hub.services["hub"].GetVariable(sv)
 }
 
 func (hub *Hub) setSV(sv string, ty values.ValueType, v any) {
 	hub.services["hub"].SetVariable(sv, ty, v)
-}
-
-func (hub *Hub) getStructTypeNumber(s string) values.ValueType {
-	return hub.services["hub"].Cp.StructNameToTypeNumber[s]
 }
 
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
@@ -828,7 +828,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 }
 
 func (hub *Hub) quit() {
-	hub.save()
+	hub.saveHubFile()
 	hub.WriteString(text.OK + "\n" + text.Logo() + "Thank you for using Pipefish. Have a nice day!\n\n")
 }
 
@@ -991,21 +991,41 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 	return hub.services[hub.currentServiceName()].Broken
 }
 
-func (hub *Hub) save() string {
+var prefix = `newtype
+
+TextDisplayMode = enum STRING, LITERAL
+DatabaseDrivers = enum FIREBIRD_SQL, MARIA_DB, MY_SQL, ORACLE, POSTGRES, SQLITE
+
+Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
+
+var
+
+`
+
+func (hub *Hub) saveHubFile() string {
+	hubService := hub.services["hub"]
 	var buf strings.Builder
-	buf.WriteString("var\n\n")
-	buf.WriteString("allServices = ")
-	// We use the hub.go's map of services as the single source of truth.
-	pfMap := &values.Map{}
-	for k, v := range hub.services {
+	buf.WriteString(prefix)
+	buf.WriteString("allServices = map(")
+	serviceList := []string{}
+	for k := range hub.services {
 		if k != "" && k[0] != '#' {
-			pfMap = pfMap.Set(values.Value{values.STRING, k}, values.Value{values.STRING, v.Cp.ScriptFilepath})
+			serviceList = append(serviceList, k)
 		}
 	}
-	buf.WriteString(hub.services["hub"].Mc.Literal(values.Value{values.MAP, pfMap}))
-	buf.WriteString("\n")
+	for i, v := range serviceList {
+		buf.WriteString("\"")
+		buf.WriteString(v)
+		buf.WriteString("\"::\"")
+		buf.WriteString(hub.services[v].Cp.ScriptFilepath)
+		buf.WriteString("\"")
+		if i < len(serviceList)-1 {
+			buf.WriteString(",\n               .. ")
+		}
+	}
+	buf.WriteString(")\n\n")
 	buf.WriteString("currentService string? = ")
-	cs := hub.services["hub"].Mc.Literal(hub.getSV("currentService"))
+	cs := hubService.Mc.Literal(hub.getSV("currentService"))
 	if len(cs) > 0 && cs[0] == '#' {
 		buf.WriteString("NULL")
 	} else {
@@ -1013,17 +1033,39 @@ func (hub *Hub) save() string {
 	}
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")
-	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("isLive")))
+	buf.WriteString(hubService.Mc.Literal(hub.getSV("isLive")))
 	buf.WriteString("\n")
 	buf.WriteString("asLiteral = ")
-	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("asLiteral")))
+	buf.WriteString(hubService.Mc.Literal(hub.getSV("asLiteral")))
 	buf.WriteString("\n")
 	buf.WriteString("width = ")
-	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("width")))
+	buf.WriteString(hubService.Mc.Literal(hub.getSV("width")))
 	buf.WriteString("\n\n")
 	buf.WriteString("database Database? = ")
-	buf.WriteString(hub.services["hub"].Mc.Literal(hub.getSV("database")))
-	buf.WriteString("\n")
+	dbVal := hub.getSV("database")
+	if dbVal.T == values.NULL {
+		buf.WriteString("NULL\n")
+	} else {
+		args := dbVal.V.([]values.Value)
+		buf.WriteString("Database with (driver::")
+		buf.WriteString(hubService.Mc.Literal(args[0]))
+		buf.WriteString(",\n")
+		buf.WriteString("                                 .. name::")
+		buf.WriteString(hubService.Mc.Literal(args[1]))
+		buf.WriteString(",\n")
+		buf.WriteString("                                 .. host::")
+		buf.WriteString(hubService.Mc.Literal(args[2]))
+		buf.WriteString(",\n")
+		buf.WriteString("                                 .. port::")
+		buf.WriteString(hubService.Mc.Literal(args[3]))
+		buf.WriteString(",\n")
+		buf.WriteString("                                 .. username::")
+		buf.WriteString(hubService.Mc.Literal(args[4]))
+		buf.WriteString(",\n")
+		buf.WriteString("                                 .. password::")
+		buf.WriteString(hubService.Mc.Literal(args[5]))
+		buf.WriteString(")\n")
+	}
 
 	fname := service.MakeFilepath(hub.hubFilepath, hub.directory)
 
@@ -1033,10 +1075,6 @@ func (hub *Hub) save() string {
 	}
 	defer f.Close()
 	f.WriteString(buf.String())
-	if err != nil {
-		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
-	}
-
 	return text.OK
 
 }
@@ -1046,6 +1084,15 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hubService := hub.services["hub"]
 	hub.hubFilepath = service.MakeFilepath(hubFilepath, hub.directory)
 	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
+
+	var driver, name, host, username, password string
+	var port int
+
+	if hub.hasDatabase() {
+		driver, name, host, port, username, password = hub.getDB()
+	}
+	hub.Db, _ = database.GetdB(driver, host, name, port, username, password)
+
 	for _, pair := range services {
 		serviceName := pair.Key.V.(string)
 		serviceFilepath := pair.Val.V.(string)
@@ -1414,9 +1461,11 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 		h.WriteError("hub/db/config/b: " + err.Error())
 		return
 	}
-	h.Db, err = database.GetdB(database.GetSortedDrivers()[number], f.Result["Host"], f.Result["Database name"], port,
+	DbDriverAsPfEnum := database.GetSortedDrivers()[number]
+	h.Db, err = database.GetdB(DbDriverAsPfEnum, f.Result["Host"], f.Result["Database name"], port,
 		f.Result["Username for database access"], f.Result["*Password for database access"])
-
+	h.setDB(DbDriverAsPfEnum, f.Result["Host"], f.Result["Database name"], port,
+		f.Result["Username for database access"], f.Result["*Password for database access"])
 	if err != nil {
 		h.WriteError("hub/db/config/c: " + err.Error())
 		return
@@ -1425,25 +1474,6 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	for _, v := range h.services {
 		v.Mc.Database = h.Db
 	}
-
-	fi, err := os.Create(h.directory + "user/database.dat")
-	if err != nil {
-		h.WriteError("L/ " + err.Error())
-		return
-	}
-	portNo, err := strconv.Atoi(f.Result["Port"])
-	if err != nil {
-		h.WriteError(err.Error())
-		return
-	}
-	h.setDB(database.GetSortedDrivers()[number], f.Result["Database"], f.Result["Host"], portNo, f.Result["Username for database access"], f.Result["*Password for database access"])
-
-	fi.WriteString(database.GetSortedDrivers()[number] + "\n")
-	fi.WriteString(f.Result["Host"] + "\n")
-	fi.WriteString(f.Result["Port"] + "\n")
-	fi.WriteString(f.Result["Database"] + "\n")
-	fi.WriteString(f.Result["Username for database access"] + "\n")
-	fi.WriteString(f.Result["*Password for database access"] + "\n")
 
 	h.WriteString(text.OK + "\n")
 }

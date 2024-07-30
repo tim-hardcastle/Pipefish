@@ -1,7 +1,6 @@
 newtype
 
 HubResponse = struct(responseName string, vals list)
-Database = struct(driver, name, path string, port int, username, password string)
 Admin = struct(username, password string)
 
 def
