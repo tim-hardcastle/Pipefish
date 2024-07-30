@@ -8,8 +8,7 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map("hub"::"rsc/hub/hub.hub",
-               .. "foo"::"examples/foo.pf")
+allServices = map("hub"::"rsc/hub/hub.hub")
 
 currentService string? = "foo"
 
@@ -17,9 +16,4 @@ isLive = true
 display = STRING
 width = 92
 
-database Database? = Database with (driver::POSTGRESQL,
-                                 .. name::"postgres",
-                                 .. host::"localhost",
-                                 .. port::5432,
-                                 .. username::"tim",
-                                 .. password::"spong")
+database Database? = NULL
