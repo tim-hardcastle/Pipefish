@@ -26,9 +26,12 @@ greet :
 def    // A pure function.
 
 factorial(n) :
-    n == 0 : 1
-    n > 0 : n * factorial n - 1
-    else : error "can't take the factorial of a negative number"
+    n == 0 :
+        1
+    n > 0 :
+        n * factorial n - 1
+    else :
+        error "can't take the factorial of a negative number"
 ```
 
 ## Distinguishing features
