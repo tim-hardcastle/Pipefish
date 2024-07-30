@@ -2,13 +2,15 @@
 
 ## Welcome to Pipefish!
 
-Welcome to Pipefish, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. There are [batteries included](https://github.com/tim-hardcastle/Pipefish/wiki/Imports-and-libraries#libraries); there is [tooling](https://github.com/tim-hardcastle/Pipefish/wiki/Developing-in-Pipefish).; there are plenty of features including some you've never heard or thought of.
+Welcome to Pipefish, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. (Note: at time of writing, July 30th, I have just changed the main branch from the prototype treewalker to the compiler/vm implementation. It is therefore probably rather flaky and needs me to test it hard for a couple of weeks.)
+
+There are [batteries included](https://github.com/tim-hardcastle/Pipefish/wiki/Imports-and-libraries#libraries); there is [tooling](https://github.com/tim-hardcastle/Pipefish/wiki/Developing-in-Pipefish).; there are plenty of features including some you've never heard or thought of.
 
 Pipefish aims to be a delightful general-purpose language particularly suitable for rapid development of CRUD apps. With the semantics of a functional language, with syntax borrowed from mainstream productivity languages (specifically Python and Go), and with [inspiration mainly from SQL and Excel](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/pipefish-a-high-level-view.md) — Pipefish is not *quite* like anything you've ever seen. But it is also a very practical language that exists to solve some very ordinary "white-collar" problems.
 
 It is my hope either that Pipefish itself will one day be used in production, or (given my amateur status and lack of time) that this project will get enough attention that my ideas will be copied by people with more money and personnel and expertise. To this end, please add a star to the repo! Thank you!
 
-Instructions for installing Pipefish can be found [here](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish), as part of [a general manual/tutorial wiki](https://github.com/tim-hardcastle/Pipefish/wiki) that tells you everything you need to know to code in Pipefish. There are [lots of other supporting documents](https://github.com/tim-hardcastle/Pipefish/tree/main/docs), and people who want to just dive in headfirst might want to look at the tutorial document [Writing an adventure game in Pipefish](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/writing-an-adventure-game-in-pipefish.md).
+Instructions for installing Pipefish can be found [here](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish), as part of [a general manual/tutorial wiki](https://github.com/tim-hardcastle/Pipefish/wiki) that tells you everything you need to know to code in Pipefish. There are [lots of other supporting documents](https://github.com/tim-hardcastle/Pipefish/tree/main/docs).
 
 ## A little Pipefish
 
