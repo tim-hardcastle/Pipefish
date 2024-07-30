@@ -174,9 +174,9 @@ why(errorNo int) :
 cmd
 
 serial on :
-    global asLiteral
-    asLiteral = true
+    global display
+    display = LITERAL
 
 serial off :
-    global asLiteral
-    asLiteral = false
+    global display
+    display = STRING

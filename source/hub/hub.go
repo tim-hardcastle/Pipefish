@@ -247,7 +247,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 	} else {
 		var out string
-		if hub.services["hub"].GetVariable("asLiteral").V.(bool) || hub.currentServiceName() == "#snap" {
+		if hub.services["hub"].GetVariable("display").V.(int) == 0 || hub.currentServiceName() == "#snap" {
 			out = serviceToUse.Mc.StringifyValue(val, service.LITERAL)
 		} else {
 			out = serviceToUse.Mc.StringifyValue(val, service.DEFAULT)
@@ -283,6 +283,11 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return verb, args
 	}
 	if hubReturn.T == values.SUCCESSFUL_VALUE {
+		if hub.getSV("display").V.(int) == 0 {
+			hub.WriteString("OK" + "\n")
+		} else {
+			hub.WriteString(text.OK + "\n")
+		}
 		return "OK", nil
 	}
 
@@ -993,7 +998,7 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 
 var prefix = `newtype
 
-TextDisplayMode = enum STRING, LITERAL
+TextDisplayMode = enum LITERAL, STRING
 DatabaseDrivers = enum FIREBIRD_SQL, MARIA_DB, MY_SQL, ORACLE, POSTGRES, SQLITE
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
@@ -1035,8 +1040,8 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString("isLive = ")
 	buf.WriteString(hubService.Mc.Literal(hub.getSV("isLive")))
 	buf.WriteString("\n")
-	buf.WriteString("asLiteral = ")
-	buf.WriteString(hubService.Mc.Literal(hub.getSV("asLiteral")))
+	buf.WriteString("display = ")
+	buf.WriteString(hubService.Mc.Literal(hub.getSV("display")))
 	buf.WriteString("\n")
 	buf.WriteString("width = ")
 	buf.WriteString(hubService.Mc.Literal(hub.getSV("width")))

@@ -1,6 +1,6 @@
 newtype
 
-TextDisplayMode = enum STRING, LITERAL
+TextDisplayMode = enum LITERAL, STRING
 DatabaseDrivers = enum FIREBIRD_SQL, MARIA_DB, MY_SQL, ORACLE, POSTGRES, SQLITE
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
@@ -13,7 +13,7 @@ allServices = map("hub"::"rsc/hub/hub.hub",
 currentService string? = "foo"
 
 isLive = true
-asLiteral = true
+display = STRING
 width = 92
 
 database Database? = Database with (driver::POSTGRES,
