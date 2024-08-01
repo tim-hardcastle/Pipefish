@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"maps"
 	"os"
 
 	"pipefish/source/ast"
@@ -234,7 +233,9 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, true, false}
 		} else {
 			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, false, false}
-			maps.Copy(vmm.cp.declarationMap, newCp.declarationMap)
+			for k, v := range newCp.declarationMap {
+				vmm.cp.declarationMap[k] = v
+			}
 			vmm.cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
 			newUP.Parser.Private = vmm.uP.isPrivate(int(importDeclaration), i)
 		}
