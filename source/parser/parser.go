@@ -139,7 +139,7 @@ type Parser struct {
 	ParsedDeclarations    [13]ParsedCodeChunks    // since they're no use after the uberparser has finished with them.
 	CurrentNamespace      []string
 
-	// When we call a function in a namespace, we wish to parse it so that bling, labels, and enum elements are looked for
+	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
 	// in that namespace without being namespaced. This parser will do this for us.
 	enumResolvingParsers []*Parser
 
@@ -161,7 +161,7 @@ type Parser struct {
 	nativeInfixes dtypes.Set[token.TokenType]
 	lazyInfixes   dtypes.Set[token.TokenType]
 
-	FunctionTable    FunctionTable
+	FunctionTable    FunctionTable // TODO --- this and the following clearly belong in the uberparser.
 	FunctionGroupMap map[string]*ast.FunctionGroup
 	TypeSystem       TypeSystem
 	Structs          dtypes.Set[string]    // TODO --- remove: this has nothing to do that can't be done by the presence of a key
@@ -1410,7 +1410,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				varName = arg.Operator
 				varType = "bling"
 			} else {
-				// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
+				// We may be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 				// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 				// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 				// name under those circumstances. This tends to make the whole thing stupid, we should have

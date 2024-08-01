@@ -7,26 +7,13 @@ import (
 	"testing"
 )
 
-type testItem struct {
-	input string
-	want  string
+type TestItem struct {
+	Input string
+	Want  string
 }
 
 func testValues(cp *Compiler, s string) string {
 	return cp.Describe(cp.Do(s))
-}
-
-func testParserOutput(cp *Compiler, s string) string {
-	return cp.P.ParseLine("test", s).String()
-}
-
-func testParserErrors(cp *Compiler, s string) string {
-	cp.P.ParseLine("test", s)
-	if !cp.P.ErrorsExist() {
-		return "unexpected successful parsing"
-	} else {
-		return cp.P.Errors[0].ErrorId
-	}
 }
 
 func testCompilerErrors(cp *Compiler, s string) string {
@@ -38,11 +25,11 @@ func testCompilerErrors(cp *Compiler, s string) string {
 	}
 }
 
-func runTest(t *testing.T, filename string, tests []testItem, F func(cp *Compiler, s string) string) {
+func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compiler, s string) string) {
 	wd, _ := os.Getwd() // The working directory is the directory containing the package being tested.
 	for _, test := range tests {
 		if settings.SHOW_TESTS {
-			println(text.BULLET + "Running test " + text.Emph(test.input))
+			println(text.BULLET + "Running test " + text.Emph(test.Input))
 		}
 		mc := BlankVm(nil, nil)
 		var cp *Compiler
@@ -55,12 +42,12 @@ func runTest(t *testing.T, filename string, tests []testItem, F func(cp *Compile
 		if uP.Parser.ErrorsExist() {
 			println("There were errors initializing the service : \n" + uP.Parser.ReturnErrors() + "\n")
 		}
-		got := F(cp, test.input)
-		if !(test.want == got) {
+		got := F(cp, test.Input)
+		if !(test.Want == got) {
 			if uP.Parser.ErrorsExist() {
 				println("There were errors parsing the line: \n" + uP.Parser.ReturnErrors() + "\n")
 			}
-			t.Fatalf(`Test failed with input %s | Wanted : %s | Got : %s.`, test.input, test.want, got)
+			t.Fatalf(`Test failed with input %s | Wanted : %s | Got : %s.`, test.Input, test.Want, got)
 		}
 	}
 }

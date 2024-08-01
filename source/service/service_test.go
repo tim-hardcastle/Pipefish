@@ -9,7 +9,7 @@ import (
 )
 
 func TestLiterals(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`"foo"`, `"foo"`},
 		{"`foo`", `"foo"`},
 		{`'q'`, `'q'`},
@@ -23,10 +23,10 @@ func TestLiterals(t *testing.T) {
 		{`NULL`, `NULL`},
 		{`OK`, `OK`},
 	}
-	runTest(t, "", tests, testValues)
+	RunTest(t, "", tests, testValues)
 }
 func TestHardwiredOps(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`5.0 == 2.0`, `false`},
 		{`5.0 != 2.0`, `true`},
 		{`5 == 2`, `false`},
@@ -47,10 +47,10 @@ func TestHardwiredOps(t *testing.T) {
 		{`true or true`, `true`},
 		{`1, (2, 3)`, `(1, 2, 3)`},
 	}
-	runTest(t, "", tests, testValues)
+	RunTest(t, "", tests, testValues)
 }
 func TestBuiltins(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`5.0 + 2.0`, `7.00000000`},
 		{`5 + 2`, `7`},
 		{`[1, 2] + [3, 4]`, `[1, 2, 3, 4]`},
@@ -115,10 +115,10 @@ func TestBuiltins(t *testing.T) {
 		{`type bool`, `type`},
 		{`varchar(32)`, `varchar(32)`},
 	}
-	runTest(t, "", tests, testValues)
+	RunTest(t, "", tests, testValues)
 }
 func TestIndexing(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`Color[4]`, `BLUE`},
 		{`myType[5]`, `PURPLE`},
 		{`DARK_BLUE[shade]`, `DARK`},
@@ -149,10 +149,10 @@ func TestIndexing(t *testing.T) {
 		{`foo myPair, myOtherNumber`, `"bar"`},
 		{`foo myWord, myNumber`, `'g'`},
 	}
-	runTest(t, "index_test.pf", tests, testValues)
+	RunTest(t, "index_test.pf", tests, testValues)
 }
 func TestFunctionSyntaxCalls(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`foo "bing"`, `"foo bing"`},
 		{`"bing" zort`, `"bing zort"`},
 		{`"bing" troz "bong"`, `"bing troz bong"`},
@@ -160,10 +160,10 @@ func TestFunctionSyntaxCalls(t *testing.T) {
 		{`flerp "bing" blerp "bong"`, `"flerp bing blerp bong"`},
 		{`qux`, `"qux"`},
 	}
-	runTest(t, "function_syntax_test.pf", tests, testValues)
+	RunTest(t, "function_call_test.pf", tests, testValues)
 }
 func TestVariablesAndConsts(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`A`, `42`},
 		{`getB`, `99`},
 		{`changeZ`, `OK`},
@@ -171,20 +171,20 @@ func TestVariablesAndConsts(t *testing.T) {
 		{`w`, `42`},
 		{`y = NULL`, "OK"},
 	}
-	runTest(t, "variables_test.pf", tests, testValues)
+	RunTest(t, "variables_test.pf", tests, testValues)
 }
 func TestVariableAccessErrors(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`B`, `comp/ident/private`},
 		{`A = 43`, `comp/assign/const`},
 		{`z`, `comp/ident/private`},
 		{`secretB`, `comp/private`},
 		{`secretZ`, `comp/private`},
 	}
-	runTest(t, "variables_test.pf", tests, testCompilerErrors)
+	RunTest(t, "variables_test.pf", tests, testCompilerErrors)
 }
 func TestUserDefinedTypes(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`Color[4]`, `BLUE`},
 		{`DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 		{`type DARK_BLUE`, `Tone`},
@@ -205,39 +205,39 @@ func TestUserDefinedTypes(t *testing.T) {
 		{`foo 3, 5`, `8`},
 		{`Tone with (shade::LIGHT, color::RED)`, `Tone with (shade::LIGHT, color::RED)`},
 	}
-	runTest(t, "user_types_test.pf", tests, testValues)
+	RunTest(t, "user_types_test.pf", tests, testValues)
 }
 func TestTypeAccessErrors(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`Pair 1, 2`, `comp/private`},
 		{`Suit`, `comp/private/type`},
 		{`HEARTS`, `comp/private/enum`},
 		{`one`, `comp/private/label`},
 	}
-	runTest(t, "user_types_test.pf", tests, testCompilerErrors)
+	RunTest(t, "user_types_test.pf", tests, testCompilerErrors)
 }
 func TestOverloading(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`foo 42`, `"int"`},
 		{`foo "zort"`, `"string"`},
 		{`foo 42, true`, `"single?, bool"`},
 		{`foo 42.0, true`, `"single?, bool"`},
 		{`foo true, true`, `"bool, bool"`},
 	}
-	runTest(t, "overloading_test.pf", tests, testValues)
+	RunTest(t, "overloading_test.pf", tests, testValues)
 }
 func TestPiping(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`["fee", "fie", "fo", "fum"] -> len`, `4`},
 		{`["fee", "fie", "fo", "fum"] >> len`, `[3, 3, 2, 3]`},
 		{`["fee", "fie", "fo", "fum"] -> that + ["foo"]`, `["fee", "fie", "fo", "fum", "foo"]`},
 		{`["fee", "fie", "fo", "fum"] >> that + "!"`, `["fee!", "fie!", "fo!", "fum!"]`},
 		{`[1, 2, 3, 4] ?> that % 2 == 0`, `[2, 4]`},
 	}
-	runTest(t, "", tests, testValues)
+	RunTest(t, "", tests, testValues)
 }
 func TestForLoops(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`fib 8`, `21`},
 		{`collatzA 42`, `1`},
 		{`collatzB 42`, `1`},
@@ -257,26 +257,26 @@ func TestForLoops(t *testing.T) {
 		{`showRangeKeys 8, 3`, `[0, 1, 2, 3, 4]`},
 		{`showRangeValues 8, 3 `, `[7, 6, 5, 4, 3]`},
 	}
-	runTest(t, "for_loop_test.pf", tests, testValues)
+	RunTest(t, "for_loop_test.pf", tests, testValues)
 }
 func TestInnerFunctionsAndVariables(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`foo 42`, `42`},
 		{`zort 3, 5`, `(25, 15)`},
 		{`troz 2`, `2200`},
 	}
-	runTest(t, "inner_test.pf", tests, testValues)
+	RunTest(t, "inner_test.pf", tests, testValues)
 }
 func TestRecursion(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`fac 5`, `120`},
 		{`power 3, 4`, `81`},
 		{`inFac 5`, `120`},
 	}
-	runTest(t, "recursion_test.pf", tests, testValues)
+	RunTest(t, "recursion_test.pf", tests, testValues)
 }
 func TestGocode(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`boo true`, `false`},
 		{`foo 4.2`, `4.20000000`},
 		{`ioo 42`, `84`},
@@ -286,7 +286,7 @@ func TestGocode(t *testing.T) {
 		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
 		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
 	}
-	runTest(t, "gocode_test.pf", tests, testValues)
+	RunTest(t, "gocode_test.pf", tests, testValues)
 	// Tear down the .go and .so files.
 	nameOfTestFile := "gocode_test.pf"
 	currentDirectory, _ := os.Getwd()
@@ -300,7 +300,7 @@ func TestGocode(t *testing.T) {
 	os.Remove(goTestFile)
 }
 func TestImports(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`qux.square 5`, `25`},
 		{`type qux.Color`, `type`},
 		{`qux.RED`, `qux.RED`},        // TODO --- this will break on improving literals.
@@ -313,24 +313,24 @@ func TestImports(t *testing.T) {
 		{`qux.Time`, `Time`},
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
-	runTest(t, "import_test.pf", tests, testValues)
+	RunTest(t, "import_test.pf", tests, testValues)
 }
 func TestRef(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`x ++`, `OK`},
 	}
-	runTest(t, "ref_test.pf", tests, testValues)
+	RunTest(t, "ref_test.pf", tests, testValues)
 }
 func TestClones(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
-	runTest(t, "clone_test.pf", tests, testValues)
+	RunTest(t, "clone_test.pf", tests, testValues)
 }
 func TestSnippet(t *testing.T) {
-	tests := []testItem{
+	tests := []TestItem{
 		{`makeSn 42`, `Foo with (text::"zort |x| troz", data::["zort ", 42, " troz"])`},
 		{`post HTML --- zort |2 + 2| troz`, `OK`},
 	}
-	runTest(t, "snippets_test.pf", tests, testValues)
+	RunTest(t, "snippets_test.pf", tests, testValues)
 }
