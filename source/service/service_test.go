@@ -78,6 +78,7 @@ func TestBuiltins(t *testing.T) {
 		{`5.0 - 2.0`, `3.00000000`},
 		{`5 - 2`, `3`},
 		{`int/string`, `int/string`},
+		{`[1, 2, 3] ...`, `(1, 2, 3)`},
 
 		{`codepoint 'A'`, `65`},
 		{`first (tuple 1, 2, 3, 4, 5)`, `1`},

@@ -1225,6 +1225,19 @@ loop:
 				break Switch
 			}
 			vm.Mem[args[0]] = tup[len(tup)-1]
+		case TuLx:
+			vector, ok := vm.Mem[args[1]].V.(vector.Vector)
+			if !ok {
+				vm.Mem[args[0]] = vm.makeError("vm/splat/type", args[2], args[1])
+				break Switch
+			}
+			length := vector.Len()
+			slice := make([]values.Value, length)
+			for i := 0; i < length; i++ {
+				element, _ := vector.Index(i)
+				slice[i] = element.(values.Value)
+			}
+			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
 		case TupL:
 			vector := vm.Mem[args[1]].V.(vector.Vector)
 			length := vector.Len()

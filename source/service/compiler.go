@@ -1747,7 +1747,26 @@ NodeTypeSwitch:
 			}
 		}
 		if node.GetToken().Type == token.DOTDOTDOT {
-			cp.P.Throw("comp/varargs", node.GetToken())
+			if len(node.Args) != 1 {
+				cp.P.Throw("comp/splat/args", node.GetToken())
+				break NodeTypeSwitch
+			}
+			var leftTypes AlternateType
+			leftTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
+			overlap := leftTypes.intersect(cp.vm.sharedTypenameToTypeList["listlike"])
+			if len(overlap) == 0 {
+				cp.P.Throw("comp/splat/types", node.GetToken(), leftTypes)
+				rtnTypes = altType(values.COMPILE_TIME_ERROR)
+				break NodeTypeSwitch
+			}
+			if len(leftTypes) == len(overlap) {
+				cp.put(TupL, cp.That())
+				rtnTypes = altType(values.TUPLE)
+				break NodeTypeSwitch
+			}
+			cp.put(TuLx, cp.That(), cp.reserveToken(node.Args[0].GetToken()))
+			rtnTypes = altType(values.ERROR, values.TUPLE)
+			break NodeTypeSwitch
 		}
 		if resolvingCompiler.P.Suffixes.Contains(node.Operator) {
 			cp.pushRCompiler(resolvingCompiler)
@@ -2542,7 +2561,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			if ok {
 				cp.cmP("Emitting builtin.", b.tok)
 				switch builtinTag { // Then for these we need to special-case their return types.
-				case "tuplify_list", "get_from_sql":
+				case "get_from_sql":
 					functionAndType.T = cp.vm.AnyTypeScheme
 				case "cast":
 					cp.cm("Builtin is cast", b.tok)
