@@ -1,0 +1,149 @@
+import
+
+gocode "io/ioutil"
+gocode "math/rand"
+gocode "os"
+gocode "time"
+gocode "errors"
+
+newtype
+
+Clock = struct()
+File = struct(filepath string)
+FileExists = struct(filepath string)
+Input = struct(prompt string)
+Output = struct()
+Random = struct(params int)
+RandomSeed = struct()
+Terminal = struct()
+
+SQL = snippet
+HTML = snippet
+
+cmd
+
+posttooutputmaker(x single) : builtin "post_to_output"
+post (x single) to (o Output): posttooutputmaker(x)
+post (x single) : builtin "post_to_output"
+// post (x tuple) to (o Output): posttooutputmaker(x)
+
+posttoterminalmaker(x single) : builtin "post_to_terminal"
+post (x single) to (t Terminal): posttoterminalmaker(x)
+
+get (x ref) from (i Input) : builtin "get_from_input"
+
+def
+
+goGetClock() -> Time : gocode {
+    goNow := time.Now()
+    return Time{goNow.Year(), int(goNow.Month()), goNow.Day(), goNow.Hour(), goNow.Minute(), goNow.Second(), goNow.Nanosecond(), goNow.Location().String()}
+}
+
+goFileExists(fname string) : gocode {
+     _, err := os.Stat(fname)
+     return err == nil
+}
+
+cmd
+
+goRandomize(i int) : gocode {
+    rand.Seed(int64(i))
+    return values.Value{values.SUCCESSFUL_VALUE, nil}
+}
+
+put (seed int) into (randomizer RandomSeed) :
+    goRandomize(seed)
+
+get (x ref) from (c Clock) :
+    x = goGetClock() 
+
+def
+
+goRandomInt(i int) : gocode {
+    return rand.Intn(i)
+}
+
+// randomFunctionOf(random Random) :
+//     42
+// //     type r == int : 
+// //         r <= 0 :
+// //             error "range of Random object cannot be <= 0"
+// //         else :
+// //             goRandomInt(r)
+// //     // type r == list :
+// //     //     r == [] :
+// //     //         error "can't take random element of empty list"
+// //     //     else :
+// //     //         r[goRandomInt(len r)]
+// //     else :
+// //         error "can't randomize things of type " + string(type r)
+// // given :
+// //     r = random[params]
+
+// cmd
+
+// get (x ref) from (random Random) :
+//      x = randomFunctionOf(random)  
+
+
+def
+
+goGetFile(fname string) : gocode {
+    fileContent, err := ioutil.ReadFile(fname)
+    if err != nil {
+        return errors.New("can't find file '" + fname + "'")
+    }
+    return string(fileContent)
+}
+
+cmd
+
+goDeleteFile(fname string) : gocode {
+    err := os.Remove(fname) 
+    if err != nil {
+        return errors.New("can't delete file '" + fname + "'")
+    } else {
+        return values.SUCCESSFUL_VALUE
+    }
+}
+
+goPutStringInFile(output string, fname string) : gocode {
+    f, err := os.Create(fname)
+    if err != nil {
+        return errors.New("can't access file '" + fname + "'")
+    }
+    defer f.Close()
+    _, err2 := f.WriteString(output)
+
+    if err2 != nil {
+        return errors.New("can't write to file '" + fname + "'")
+    }
+    return values.SUCCESSFUL_VALUE
+}
+
+get (contents ref) from (fileAccess File) : 
+    contents = "" // goGetFile(fileAccess[filepath])
+
+get (x ref) from (fileAccess FileExists) :
+    x = false // goFileExists(fileAccess[filepath])
+
+put (s string) into (fileAccess File) : 
+    goPutStringInFile(s, fileAccess[filepath])
+
+delete (fileAccess File) :
+    goDeleteFile(fileAccess[filepath])
+
+post(x SQL) : builtin "post_sql"
+put(x SQL) : builtin "post_sql"
+delete(x SQL) : builtin "post_sql"
+get(x ref) from (y SQL) : builtin "get_from_SQL"
+
+post(x HTML) : builtin "post_html"
+
+// This is strictly speaking not part of the "world" at all but it has to go somewhere and for reasons
+// beyond me (TODO) I can no longer define ordinary functions in builtins.pf, just the builtin hooks.
+
+def
+
+(x type) ? :
+    x/null
