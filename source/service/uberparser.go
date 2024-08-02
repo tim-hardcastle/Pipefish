@@ -16,6 +16,7 @@
 package service
 
 import (
+	"embed"
 	"os"
 	"strings"
 
@@ -94,12 +95,20 @@ func NewInitializer(source, sourceCode, dir string, namespacePath string) *Initi
 	return uP
 }
 
+//go:embed rsc/pipefish/*
+var folder embed.FS
+
 func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
-		doctoredName := MakeFilepath(fname, init.Parser.Directory)
-		libDat, err := os.ReadFile(doctoredName)
+		var libDat []byte
+		var err error
+		if len(fname) >= 13 && fname[:13] == "rsc/pipefish/" {
+			libDat, err = folder.ReadFile(fname)
+		} else {
+			libDat, err = os.ReadFile(MakeFilepath(fname, init.Parser.Directory))
+		}
 		if err != nil {
-			init.Throw("init/import/found", token.Token{}, doctoredName)
+			init.Throw("init/import/found", token.Token{})
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))
