@@ -99,7 +99,7 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 		doctoredName := MakeFilepath(fname, init.Parser.Directory)
 		libDat, err := os.ReadFile(doctoredName)
 		if err != nil {
-			init.Throw("init/import/found", token.Token{})
+			init.Throw("init/import/found", token.Token{}, doctoredName)
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))

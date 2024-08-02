@@ -1038,6 +1038,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/import/found": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't find file " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "What it says. Pipefish is trying to import something from the given filepath and can't find it."
+		},
+	},
+
 	"init/import/ident": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "identifier expected"
