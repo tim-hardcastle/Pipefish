@@ -49,7 +49,7 @@ func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath st
 	var sourcebytes []byte
 	var err error
 	if scriptFilepath != "" { // In which case we're making a blank VM.
-		if testing.Testing() && len(scriptFilepath) >= 11 && scriptFilepath[:11] == "" {
+		if testing.Testing() && len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
 			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
 		} else {
 			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath, dir))
