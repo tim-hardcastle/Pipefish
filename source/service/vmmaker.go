@@ -53,7 +53,6 @@ func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath st
 			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
 		} else {
 			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath, dir))
-			println("Freal. Error is", err)
 		}
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
