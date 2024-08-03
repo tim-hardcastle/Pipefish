@@ -26,3 +26,11 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        
