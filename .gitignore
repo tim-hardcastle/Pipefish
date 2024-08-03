@@ -2,7 +2,6 @@
 pipefish
 .DS_
 pytool
-rsc/go
 rsc/hub
 user
 rsc/.DS_Store
