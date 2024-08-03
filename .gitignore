@@ -1,4 +1,5 @@
 .vscode
+pipefish
 .DS_
 pytool
 rsc/go
