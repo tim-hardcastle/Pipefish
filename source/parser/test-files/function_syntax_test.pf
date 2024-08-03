@@ -18,4 +18,8 @@ flerp (x string) blerp (y string) :
 qux :
     "qux"
 
-
+merp(x, y) :
+    blerp x 
+given :
+    blerp(x) :
+        x

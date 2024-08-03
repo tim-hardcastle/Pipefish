@@ -43,6 +43,14 @@ func TestParser(t *testing.T) {
 		{`x in int`, `(x in int)`},
 		{`x -> y`, `(x -> y)`},
 		{`[1, 2, 3]`, `[((1 , 2) , 3) ]`},
+		{`'q'`, `'q'`},
+		{`0.42`, `0.42`},
+		{`valid(x)`, `(valid x)`},
+		{`unwrap(x)`, `(unwrap x)`},
+		{`break`, `break`},
+		{`break 42`, `(break 42)`},
+		{`continue`, `continue`},
+		{`true : 42 ; else : "moo!"`, `((true : 42) ; (else : "moo!"))`},
 	}
 	service.RunTest(t, "", tests, testParserOutput)
 }

@@ -349,7 +349,7 @@ type RuneLiteral struct {
 
 func (rl *RuneLiteral) Children() []Node       { return []Node{} }
 func (rl *RuneLiteral) GetToken() *token.Token { return &rl.Token }
-func (rl *RuneLiteral) String() string         { return "'" + strconv.QuoteRune(rl.Value) + "'" }
+func (rl *RuneLiteral) String() string         { return strconv.QuoteRune(rl.Value) }
 
 type StringLiteral struct {
 	Token token.Token
