@@ -2,7 +2,7 @@
 
 import
 
-zort::"/Users/Tim/Charm/source/service/test-files/zort.pf"
+zort::"test-files/zort.pf"
 
 def 
 
