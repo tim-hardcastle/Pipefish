@@ -1,5 +1,9 @@
 # 🧿 Pipefish
 
+<a href="https://opensource.org/license/mit">
+    <img src="https://img.shields.io/badge/license-MIT-blue">
+</a>
+
 ## Welcome to Pipefish!
 
 Welcome to Pipefish, a new programming language. This is version 0.4, [a working prototype](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. (Note: at time of writing, July 30th, I have just changed the main branch from the prototype treewalker to the compiler/vm implementation. It is therefore probably rather flaky and needs me to test it hard for a couple of weeks.)
