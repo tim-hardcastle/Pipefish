@@ -18,8 +18,13 @@ flerp (x string) blerp (y string) :
 qux :
     "qux"
 
+cmd
+
 merp(x, y) :
-    blerp x 
+    try :
+        post (blerp x)
+    else :
+        post "foo"
 given :
     blerp(x) :
         x
