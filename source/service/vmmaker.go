@@ -2,7 +2,9 @@ package service
 
 import (
 	"database/sql"
+	"embed"
 	"os"
+	"testing"
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
@@ -36,13 +38,23 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	return result, uP
 }
 
+//go:embed test-files/*
+var testFolder embed.FS
+
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
 func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath string) (*Compiler, *Initializer) {
 	sourcecode := ""
+	var sourcebytes []byte
+	var err error
 	if scriptFilepath != "" { // In which case we're making a blank VM.
-		sourcebytes, err := os.ReadFile(MakeFilepath(scriptFilepath, dir))
+		if testing.Testing() && len(scriptFilepath) >= 11 && scriptFilepath[:11] == "" {
+			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
+		} else {
+			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath, dir))
+			println("Freal. Error is", err)
+		}
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to find errors in the uP.
@@ -57,7 +69,7 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, na
 	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc, namespacePath)
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
-	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) {
+	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && !testing.Testing() {
 		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)

@@ -40,7 +40,9 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 			cp, uP = initializeFromFilepath(mc, wd+"/test-files/"+filename, text.Trim(wd), "")
 		}
 		if uP.Parser.ErrorsExist() {
-			println("There were errors initializing the service : \n" + uP.Parser.ReturnErrors() + "\n")
+			println(uP.Parser.Errors[0].ErrorId)
+			println("There were errors initializing the service : \n" + uP.Parser.ReturnErrors())
+
 		}
 		got := F(cp, test.Input)
 		if !(test.Want == got) {
