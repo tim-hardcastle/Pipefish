@@ -9,6 +9,7 @@ import (
 	"plugin"
 	"strconv"
 	"strings"
+	"testing"
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
@@ -113,7 +114,7 @@ func (gh *GoHandler) BuildGoMods() {
 
 		lastChange, ok := gh.timeMap[source]
 		if ok {
-			if modifiedTime == int64(lastChange) {
+			if modifiedTime == int64(lastChange) || testing.Testing() {
 				soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.Plugins[source], err = plugin.Open(soFile)
 				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
