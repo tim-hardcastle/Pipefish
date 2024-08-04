@@ -1,8 +1,21 @@
 # 🧿 Pipefish
 
 <a href="https://opensource.org/license/mit">
-    <img src="https://img.shields.io/badge/license-MIT-blue">
+    <img src="https://img.shields.io/badge/License-MIT-blue">
 </a>
+
+<a href="https://go.dev/doc/install">
+    <img src="https://img.shields.io/badge/Requires-Go_v._1.22.5+-cyan">
+</a>
+
+<a href="https://github.com/tim-hardcastle/Pipefish/actions?query=workflow%3A%22Go%22">
+    <img src="https://github.com/tim-hardcastle/Pipefish/workflows/Go/badge.svg?branch=main">
+</a>
+
+<a href="https://dune.fandom.com/wiki/Butlerian_Jihad">
+    <img src="https://img.shields.io/badge/🚫_No_AI-Handbuilt_from_`if`_statements-purple">
+</a>
+
 
 ## Welcome to Pipefish!
 
