@@ -13,7 +13,7 @@
 </a>
 
 <a href="https://dune.fandom.com/wiki/Butlerian_Jihad">
-    <img src="https://img.shields.io/badge/🚫_No_AI-Handbuilt_from_`if`_statements-purple">
+    <img src="https://img.shields.io/badge/🚫_No_AI-Handbuilt_from_`if`_statements-blue">
 </a>
 
 
