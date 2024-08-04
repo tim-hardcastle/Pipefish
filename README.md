@@ -8,8 +8,8 @@
     <img src="https://img.shields.io/badge/Requires-Go_v._1.22.5+-cyan">
 </a>
 
-<a href="https://github.com/tim-hardcastle/Pipefish/actions?query=workflow%3A%22Go%22">
-    <img src="https://github.com/tim-hardcastle/Pipefish/workflows/Go/badge.svg?branch=main">
+<a href="https://github.com/tim-hardcastle/Pipefish/actions?query=workflow%3A%22Tests%22">
+    <img src="https://github.com/tim-hardcastle/Pipefish/workflows/Tests/badge.svg?branch=main">
 </a>
 
 <a href="https://dune.fandom.com/wiki/Butlerian_Jihad">
