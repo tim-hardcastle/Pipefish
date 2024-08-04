@@ -10,8 +10,7 @@ var
 
 allServices = map("hub"::"rsc/hub/hub.hub")
 
-currentService string? = "foo"
-
+currentService string? = NULL
 isLive = true
 display = STRING
 width = 92
