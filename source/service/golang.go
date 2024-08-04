@@ -116,6 +116,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if ok {
 			if modifiedTime == int64(lastChange) || testing.Testing() {
 				soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
+				println("Opening existing .so file", soFile)
 				gh.Plugins[source], err = plugin.Open(soFile)
 				if err == nil { // If there is an error, it can usually be fixed by rebuilding the file, so we can fall through.
 					continue
@@ -152,6 +153,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if err != nil {
 			gh.Prsr.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
 		}
+		println("Opening freshly-built .so file", soFile)
 		gh.Plugins[source], err = plugin.Open(soFile)
 		if err != nil {
 			gh.Prsr.Throw("golang/open", &token.Token{}, err.Error())

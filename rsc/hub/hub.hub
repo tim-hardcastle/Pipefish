@@ -8,8 +8,8 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map("foo"::"examples/foo.pf",
-               .. "hub"::"rsc/hub/hub.hub")
+allServices = map("hub"::"rsc/hub/hub.hub",
+               .. "foo"::"examples/foo.pf")
 
 currentService string? = "foo"
 
