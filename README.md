@@ -9,13 +9,12 @@
 </a>
 
 <a href="https://github.com/tim-hardcastle/Pipefish/actions?query=workflow%3A%22Tests%22">
-    <img src="https://github.com/tim-hardcastle/Pipefish/workflows/Tests/badge.svg?branch=main">
+    <img src="https://github.com/tim-hardcastle/Pipefish/actions/workflows/Tests.yml/badge.svg?branch=main">
 </a>
 
 <a href="https://dune.fandom.com/wiki/Butlerian_Jihad">
-    <img src="https://img.shields.io/badge/🚫_No_AI-Handbuilt_from_`if`_statements-blue">
+    <img src="https://img.shields.io/badge/🚫_No_AI-Handbuilt_from_'if'_statements-blue">
 </a>
-
 
 ## Welcome to Pipefish!
 
