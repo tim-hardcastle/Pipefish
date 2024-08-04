@@ -14,6 +14,7 @@ import (
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
 	"pipefish/source/parser"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
 )
@@ -114,7 +115,7 @@ func (gh *GoHandler) BuildGoMods() {
 
 		lastChange, ok := gh.timeMap[source]
 		if ok {
-			if modifiedTime == int64(lastChange) || testing.Testing() {
+			if modifiedTime == int64(lastChange) || (testing.Testing() && settings.MandatoryImportSet.Contains(source)) {
 				soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(lastChange) + ".so"
 				gh.Plugins[source], err = plugin.Open(soFile)
 				if err == nil {
