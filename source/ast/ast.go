@@ -21,6 +21,11 @@ type Callable interface {
 	GetArgs() []Node
 }
 
+func IsBling(node Node) bool {
+	_, ok := node.(*Bling)
+	return ok
+}
+
 // Nodes in alphabetical order. Other structures and functions are in a separate section at the bottom.
 
 func (ae *AssignmentExpression) Children() []Node { return []Node{ae.Left, ae.Right} }

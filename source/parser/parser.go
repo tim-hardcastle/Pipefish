@@ -559,84 +559,73 @@ func (p *Parser) positionallyFunctional() bool {
 }
 
 func (p *Parser) peekPrecedence() int {
-	if p, ok := precedences[p.peekToken.Type]; ok {
+	return p.rightPrecedence(p.peekToken)
+}
+
+func (p *Parser) rightPrecedence(tok token.Token) int {
+	if p, ok := precedences[tok.Type]; ok {
 		return p
 	}
-	if p.Suffixes.Contains(p.peekToken.Literal) {
+	if p.Suffixes.Contains(tok.Literal) {
 		return FSUFFIX
 	}
-	if p.Infixes.Contains(p.peekToken.Literal) {
-		if p.peekToken.Literal == "+" || p.peekToken.Literal == "-" {
-			return SUM
+	if p.Infixes.Contains(tok.Literal) {
+		if tok.Literal == "with" || tok.Literal == "without" {
+			return WITH
 		}
-		if p.peekToken.Literal == "*" || p.peekToken.Literal == "/" || p.peekToken.Literal == "%" {
-			return PRODUCT
-		}
-		if p.peekToken.Literal == "<" || p.peekToken.Literal == "<=" || p.peekToken.Literal == ">" || p.peekToken.Literal == ">=" {
-			return LESSGREATER
-		}
-		if p.peekToken.Literal == "in" {
-			return EQUALS
-		}
-		if p.peekToken.Literal == "with" || p.peekToken.Literal == "without" { // Note, this is the one assymmetry in the system of precedence.
-			return WITH // When not peeking ahead, `with` has precedence just *below* a comma.
-		}
-		return FINFIX
 	}
-	if p.Prefixes.Contains(p.peekToken.Literal) || p.Functions.Contains(p.peekToken.Literal) {
-		if p.peekToken.Literal == "func" {
+	if !p.Infixes.Contains(tok.Literal) && (p.Prefixes.Contains(tok.Literal) || p.Functions.Contains(tok.Literal)) {
+		if tok.Literal == "func" {
 			return FUNC
 		}
 		return FPREFIX
 	}
-	if p.Midfixes.Contains(p.peekToken.Literal) || p.Forefixes.Contains(p.peekToken.Literal) {
-		return FMIDFIX
-	}
-	if p.Endfixes.Contains(p.peekToken.Literal) {
-		return FENDFIX
-	}
-	return LOWEST
+	return p.leftPrecedence(tok)
 }
 
 func (p *Parser) curPrecedence() int {
-	if p.curToken.Type == token.NAMESPACE_SEPARATOR {
+	return p.leftPrecedence(p.curToken)
+}
+
+func (p *Parser) leftPrecedence(tok token.Token) int {
+	if tok.Type == token.NAMESPACE_SEPARATOR {
 		return BELOW_NAMESPACE
 	}
-	if p, ok := precedences[p.curToken.Type]; ok {
+	if p, ok := precedences[tok.Type]; ok {
 		return p
 	}
-	if p.curToken.Type == token.IDENT {
-		if p.Infixes.Contains(p.curToken.Literal) {
-			if p.curToken.Literal == "+" || p.curToken.Literal == "-" {
+	if tok.Type == token.IDENT {
+		if p.Infixes.Contains(tok.Literal) {
+			if tok.Literal == "+" || tok.Literal == "-" {
 				return SUM
 			}
-			if p.curToken.Literal == "*" || p.curToken.Literal == "/" || p.curToken.Literal == "%" {
+			if tok.Literal == "*" || tok.Literal == "/" || tok.Literal == "%" {
 				return PRODUCT
 			}
-			if p.curToken.Literal == "<" || p.curToken.Literal == "<=" || p.curToken.Literal == ">" || p.curToken.Literal == ">=" {
+			if tok.Literal == "<" || tok.Literal == "<=" || tok.Literal == ">" || tok.Literal == ">=" {
 				return LESSGREATER
 			}
-			if p.curToken.Literal == "in" {
+			if tok.Literal == "in" {
 				return EQUALS
 			}
-			if p.curToken.Literal == "with" || p.curToken.Literal == "without" {
+			if tok.Literal == "with" || tok.Literal == "without" {
 				return FMIDFIX
 			}
 			return FINFIX
 		}
-		if p.Prefixes.Contains(p.curToken.Literal) || p.Functions.Contains(p.curToken.Literal) {
-			if p.curToken.Literal == "func" {
+		if p.Prefixes.Contains(tok.Literal) || p.Functions.Contains(tok.Literal) {
+			if tok.Literal == "func" {
 				return LOWEST
 			}
 			return FPREFIX
 		}
-		if p.Midfixes.Contains(p.curToken.Literal) || p.Forefixes.Contains(p.peekToken.Literal) {
+		if p.Midfixes.Contains(tok.Literal) || p.Forefixes.Contains(p.peekToken.Literal) {
 			return FMIDFIX
 		}
-		if p.Endfixes.Contains(p.curToken.Literal) {
+		if p.Endfixes.Contains(tok.Literal) {
 			return FENDFIX
 		}
-		if p.Suffixes.Contains(p.curToken.Literal) {
+		if p.Suffixes.Contains(tok.Literal) {
 			return FSUFFIX
 		}
 	}
