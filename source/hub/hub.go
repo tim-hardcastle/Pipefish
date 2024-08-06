@@ -76,7 +76,7 @@ func (hub *Hub) currentServiceName() string {
 }
 
 func (hub *Hub) hasDatabase() bool {
-	return hub.getSV("database").T == values.NULL
+	return hub.getSV("database").T != values.NULL
 }
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
@@ -1096,8 +1096,8 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 
 	if hub.hasDatabase() {
 		driver, name, host, port, username, password = hub.getDB()
+		hub.Db, _ = database.GetdB(driver, host, name, port, username, password)
 	}
-	hub.Db, _ = database.GetdB(driver, host, name, port, username, password)
 
 	for _, pair := range services {
 		serviceName := pair.Key.V.(string)
