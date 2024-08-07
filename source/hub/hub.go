@@ -968,7 +968,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		newService *service.Service
 		init       *service.Initializer
 	)
-	newService, init = service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
+	newService, init = service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services, service.LF_NONE)
 	hub.services[name] = newService
 	hub.Sources = init.Sources
 
