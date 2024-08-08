@@ -286,18 +286,26 @@ func TestGocode(t *testing.T) {
 		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
 		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
 	}
+	currentDirectory, _ := os.Getwd()
+	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
+	locationOfGoTimes := absolutePathToRscGo + "/gotimes.dat"
+	temp, err := os.ReadFile(locationOfGoTimes)
+	if err != nil {
+		println("Couldn't read gotimes")
+		println("Error was", err.Error())
+		panic("That's all folks!")
+	}
 	RunTest(t, "gocode_test.pf", tests, testValues)
 	// Tear down the .go and .so files.
 	nameOfTestFile := "gocode_test.pf"
-	currentDirectory, _ := os.Getwd()
 	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../gocode 1.go")
 	os.Remove(locationOfGocode)
-	absolutePathToGoTestFile, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
 	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
 	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)
 	timestamp := file.ModTime().UnixMilli()
-	goTestFile := absolutePathToGoTestFile + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
+	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
 	os.Remove(goTestFile)
+	os.WriteFile(locationOfGoTimes, temp, 0644)
 }
 func TestImports(t *testing.T) {
 	tests := []TestItem{

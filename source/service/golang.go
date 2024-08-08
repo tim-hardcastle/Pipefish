@@ -62,7 +62,7 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	return &gh
 }
 
-func (gh *GoHandler) CleanUp() {
+func (gh *GoHandler) RecordGoTimes() {
 
 	// We add the newly compiled modules to the list of times.
 
@@ -76,6 +76,7 @@ func (gh *GoHandler) CleanUp() {
 		gh.timeMap[k] = int(modifiedTime)
 	}
 	// And then write out the list of times to the .dat file.
+
 	f, err := os.Create(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't create file rsc/go/gotimes.dat")

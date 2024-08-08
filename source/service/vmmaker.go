@@ -283,7 +283,7 @@ func (vmm *VmMaker) MakeGoMods(goHandler *GoHandler) {
 			}
 		}
 	}
-	goHandler.CleanUp()
+	goHandler.RecordGoTimes()
 }
 
 type labeledParsedCodeChunk struct {
@@ -392,9 +392,9 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case functionDeclaration:
-				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalConsts, functionDeclaration, vmm.cp.logFlavor)
+				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalConsts, functionDeclaration)
 			case commandDeclaration:
-				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration, vmm.cp.logFlavor)
+				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
 			}
 			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(vmm.cp.Fns) - 1)
 		}
@@ -1057,7 +1057,8 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 }
 
 // For compiling a top-level function.
-func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType, logFlavor LogFlavor) *CpFunc {
+func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
+	logFlavor := vmm.cp.logFlavor
 	if info, functionExists := vmm.cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
 		vmm.cp.Fns = append(vmm.cp.Fns, info.(*CpFunc))
 		return info.(*CpFunc)
