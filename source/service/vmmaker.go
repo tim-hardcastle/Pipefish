@@ -292,6 +292,17 @@ type labeledParsedCodeChunk struct {
 	decNumber int
 }
 
+type serviceVariableData struct {
+	ty          AlternateType
+	deflt       values.Value
+	mustBeConst bool
+	vAcc        varAccess
+}
+
+var serviceVariables = map[string]serviceVariableData{
+	"$track": {altType(values.BOOL), values.Value{values.BOOL, false}, true, GLOBAL_CONSTANT_PUBLIC},
+}
+
 // Now we need to do a big topological sort on everything, according to the following rules:
 // A function, variable or constant can't depend on a command.
 // A constant can't depend on a variable.
@@ -333,6 +344,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
+	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
 	graph := dtypes.Digraph[string]{}
 	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
 		graph.Add(name, []string{})
@@ -361,6 +373,39 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 					graph.AddTransitiveArrow(name, rhsName)
 				}
 			}
+		}
+	}
+
+	for svName, svData := range serviceVariables {
+		rhs, ok := graph[svName]
+
+		if ok {
+			tok := namesToDeclarations[svName][0].chunk.GetToken()
+			decType := namesToDeclarations[svName][0].decType
+			decNumber := namesToDeclarations[svName][0].decNumber
+			if decType == variableDeclaration && svData.mustBeConst {
+				vmm.cp.P.Throw("init/service/const", tok)
+				return nil
+			}
+			if len(rhs) > 0 {
+				vmm.cp.P.Throw("init/service/depends", tok)
+				return nil
+			}
+			vmm.compileGlobalConstantOrVariable(decType, decNumber)
+			if !svData.ty.Contains(vmm.cp.vm.Mem[vmm.cp.That()].T) {
+				vmm.cp.P.Throw("init/service/type", tok)
+				return nil
+			}
+			delete(graph, svName)
+		} else {
+			dummyTok := token.Token{}
+			vAcc := svData.vAcc
+			envToAddTo := vmm.cp.GlobalVars
+			if vAcc == GLOBAL_CONSTANT_PUBLIC || vAcc == GLOBAL_CONSTANT_PRIVATE {
+				envToAddTo = vmm.cp.GlobalConsts
+			}
+			vmm.cp.Reserve(svData.deflt.T, svData.deflt.V, &dummyTok)
+			vmm.cp.AddVariable(envToAddTo, svName, vAcc, altType(svData.deflt.T), &dummyTok)
 		}
 	}
 
@@ -1224,23 +1269,8 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 	if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
 		vmm.cp.rollback(rollbackTo, dec.GetToken())
 	}
-	isPrivate := vmm.uP.isPrivate(int(declarations), v)
-	var vAcc varAccess
-	envToAddTo := vmm.cp.GlobalConsts
-	if declarations == constantDeclaration {
-		if isPrivate {
-			vAcc = GLOBAL_CONSTANT_PRIVATE
-		} else {
-			vAcc = GLOBAL_CONSTANT_PUBLIC
-		}
-	} else {
-		envToAddTo = vmm.cp.GlobalVars
-		if isPrivate {
-			vAcc = GLOBAL_VARIABLE_PRIVATE
-		} else {
-			vAcc = GLOBAL_VARIABLE_PUBLIC
-		}
-	}
+
+	envToAddTo, vAcc := vmm.getEnvAndAccessForConstOrVarDeclaration(declarations, v)
 
 	last := len(sig) - 1
 	lastIsTuple := sig[last].VarType == "tuple"
@@ -1291,6 +1321,27 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 			}
 		}
 	}
+}
+
+func (vmm *VmMaker) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*Environment, varAccess) {
+	isPrivate := vmm.uP.isPrivate(int(dT), i)
+	var vAcc varAccess
+	envToAddTo := vmm.cp.GlobalConsts
+	if dT == constantDeclaration {
+		if isPrivate {
+			vAcc = GLOBAL_CONSTANT_PRIVATE
+		} else {
+			vAcc = GLOBAL_CONSTANT_PUBLIC
+		}
+	} else {
+		envToAddTo = vmm.cp.GlobalVars
+		if isPrivate {
+			vAcc = GLOBAL_VARIABLE_PRIVATE
+		} else {
+			vAcc = GLOBAL_VARIABLE_PUBLIC
+		}
+	}
+	return envToAddTo, vAcc
 }
 
 func altType(t ...values.ValueType) AlternateType {
