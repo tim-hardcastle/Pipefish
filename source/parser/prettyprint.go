@@ -12,7 +12,7 @@ import (
 type printFlavor int
 
 const (
-	ppVANILLA printFlavor = iota
+	ppOUTER printFlavor = iota
 	ppINLINE
 )
 
@@ -23,7 +23,6 @@ type printContext struct {
 }
 
 var inlineCtxt = printContext{"", ppINLINE, false}
-
 var prefixCtxt = printContext{"", ppINLINE, true}
 
 func (ctxt printContext) in() printContext {
@@ -32,7 +31,7 @@ func (ctxt printContext) in() printContext {
 }
 
 func (p *Parser) PrettyPrint(node ast.Node) string {
-	return p.prettyPrint(node, printContext{})
+	return p.prettyPrint(node, printContext{"", ppOUTER, false})
 }
 
 func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
@@ -47,11 +46,11 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		out.WriteString(node.Value)
 	case *ast.BooleanLiteral:
 		out.WriteString(ctxt.indent)
-		out.WriteString(node.String())
+		out.WriteString(node.Token.Literal)
 	case *ast.BuiltInExpression:
-		panic("Found 'builtin' in prettyprinter")
+		panic("Found secret 'builtin' keyword in prettyprinter")
 	case *ast.FloatLiteral:
-		out.WriteString(node.String())
+		out.WriteString(node.Token.Literal)
 	case *ast.ForExpression:
 		if node.BoundVariables != nil {
 			out.WriteString("from ")
@@ -74,18 +73,17 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		}
 		out.WriteString(" : ")
 		switch ctxt.flavor {
-		case ppVANILLA:
+		case ppOUTER:
 			out.WriteString("\n")
-			out.WriteString(p.prettyPrint(node.Update, ctxt.in()))
+			out.WriteString(p.prettyPrint(node.Body, ctxt.in()))
 		case ppINLINE:
-			out.WriteString(p.prettyPrint(node.Update, inlineCtxt))
+			out.WriteString(p.prettyPrint(node.Body, inlineCtxt))
 		}
-		out.WriteString(node.Body.String())
 	case *ast.FuncExpression:
 		out.WriteString("func ")
 		out.WriteString(node.Sig.String() + " : ")
 		switch ctxt.flavor {
-		case ppVANILLA:
+		case ppOUTER:
 			out.WriteString("\n")
 			out.WriteString(p.prettyPrint(node.Body, ctxt.in()))
 		case ppINLINE:
@@ -93,7 +91,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		}
 		if node.Given != nil {
 			switch ctxt.flavor {
-			case ppVANILLA:
+			case ppOUTER:
 				out.WriteString("given :\n")
 				out.WriteString(p.prettyPrint(node.Body, ctxt.in()))
 				out.WriteString("\n")
@@ -102,7 +100,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 			}
 		}
 	case *ast.GolangExpression:
-		panic("Golang expression in prettyprint")
+		panic("Found golang expression in prettyprinter.")
 	case *ast.Identifier:
 		out.WriteString(node.Value)
 	case *ast.IndexExpression:
@@ -159,7 +157,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 			out.WriteString(")")
 		}
 	case *ast.IntegerLiteral:
-		out.WriteString(node.String())
+		out.WriteString(node.Token.Literal)
 	case *ast.LazyInfixExpression:
 		if node.Operator == "and" || node.Operator == "or" || ctxt.flavor == ppINLINE {
 			if p.hasLowerPrecedence(node.Left, node) && !isLeaf(node.Left) {
@@ -196,7 +194,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		out.WriteString(p.prettyPrint(node.List, inlineCtxt))
 		out.WriteString("]")
 	case *ast.LogExpression:
-		panic("Not prettyprinting log expressions yet.")
+		panic("Found log statement in prettyprinter.")
 	case *ast.Nothing:
 		out.WriteString("()")
 	case *ast.PipingExpression:
@@ -258,11 +256,11 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 			}
 		}
 	case *ast.RuneLiteral:
-		out.WriteString(node.String())
+		out.WriteString(strconv.QuoteRune(node.Value))
 	case *ast.StringLiteral:
 		out.WriteString(strconv.Quote(node.Value))
 	case *ast.StructExpression:
-		panic("Trying to prettyprint a struct definition.")
+		panic("Found struct definition in prettyprinter.")
 	case *ast.SuffixExpression:
 		if len(node.Args) > 1 || !isLeaf(node.Args[0]) {
 			out.WriteString("(")
@@ -280,7 +278,19 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		}
 		out.WriteString(node.Operator)
 	case *ast.TryExpression:
-		panic("Not done prettyprinting of try expressions yet.")
+		out.WriteString("try ")
+		if node.VarName != "" {
+			out.WriteString(node.VarName)
+			out.WriteString(" ")
+		}
+		out.WriteString(": ")
+		switch ctxt.flavor {
+		case ppOUTER:
+			out.WriteString("\n")
+			out.WriteString(p.prettyPrint(node.Right, ctxt.in()))
+		case ppINLINE:
+			out.WriteString(p.prettyPrint(node.Right, inlineCtxt))
+		}
 	case *ast.UnfixExpression:
 		out.WriteString(node.Operator)
 	default:
