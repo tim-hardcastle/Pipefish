@@ -45,7 +45,6 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 	case *ast.Bling:
 		out.WriteString(node.Value)
 	case *ast.BooleanLiteral:
-		out.WriteString(ctxt.indent)
 		out.WriteString(node.Token.Literal)
 	case *ast.BuiltInExpression:
 		panic("Found secret 'builtin' keyword in prettyprinter")

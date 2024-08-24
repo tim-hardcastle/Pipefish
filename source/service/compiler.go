@@ -49,7 +49,6 @@ type Compiler struct {
 	structDeclarationNumberToTypeNumber map[int]values.ValueType
 	typeToCloneGroup                    map[values.ValueType]AlternateType // A map from any clonable or clone type to an alt type containing the parent type and its clones.
 	labelResolvingCompilers             []*Compiler                        // We use this to resolve the meaning of labels and enums.
-	logFlavor                           LogFlavor                          // The initial log flavor passed from the hub to be put into the context when we call CompileNode.
 	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
 	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
 	declarationMap map[decKey]any
@@ -77,7 +76,8 @@ const (
 type context struct {
 	env       *Environment    // The association of variable names to variable locations.
 	ac        cpAccess        // Whether we are compiling the body of a command; of a function; something typed into the REPL, etc.
-	typecheck finiteTupleType // The type(s) for the compiler to check for going forward; nil if it shouldn't.
+	isReturn  bool            // Is the value of the node to be evaluated potentially a return value of the function being compiled?
+	typecheck finiteTupleType // The type(s) for the compiler to check for if isReturn is true; nil if no return types are defined.
 	lowMem    uint32          // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
 	logFlavor LogFlavor
 }
@@ -85,7 +85,7 @@ type context struct {
 // Unless we're going down a branch, we want the new context for each node compilation to have no forward type-checking.
 // This function concisely removes it.
 func (ctxt context) x() context {
-	ctxt.typecheck = nil
+	ctxt.isReturn = false
 	return ctxt
 }
 
@@ -368,7 +368,7 @@ func (cp *Compiler) Do(line string) values.Value {
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	ctxt := context{cp.GlobalVars, REPL, nil, DUMMY, LF_NONE}
+	ctxt := context{cp.GlobalVars, REPL, false, nil, DUMMY, LF_NONE}
 	cp.CompileNode(node, ctxt)
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
@@ -1859,10 +1859,21 @@ NodeTypeSwitch:
 	if cp.P.ErrorsExist() {
 		return AltType(values.COMPILE_TIME_ERROR), true
 	}
-	cp.checkInferredTypesAgainstContext(rtnTypes, ctxt.typecheck, node.GetToken())
+	if ctxt.isReturn {
+		cp.checkInferredTypesAgainstContext(rtnTypes, ctxt.typecheck, node.GetToken())
+	}
 	if cp.P.ErrorsExist() {
 		return AltType(values.COMPILE_TIME_ERROR), true
 	}
+
+	if ctxt.isReturn && ac == DEF && cp.trackingOn() {
+		_, isLazyInfix := node.(*ast.LazyInfixExpression)
+		if !isLazyInfix {
+			cp.track(trRETURN, node.GetToken(), cp.That())
+			return rtnTypes, false // 'false' because we don't want to fold away the tracking information.
+		}
+	}
+
 	if rtnConst && (!rtnTypes.hasSideEffects()) && cp.CodeTop() > cT {
 		cp.Emit(Ret)
 		cp.cm("Calling Run from end of CompileNode as part of routine constant folding.", node.GetToken())
@@ -3448,4 +3459,13 @@ func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
 
 func (cp *Compiler) getCloneGroup(ty values.ValueType) uint32 {
 	return cp.lambdaMemStarts[len(cp.lambdaMemStarts)-1]
+}
+
+func (cp *Compiler) trackingOn() bool {
+	return cp.getValueOfConstant("$track").(bool)
+}
+
+func (cp *Compiler) getValueOfConstant(s string) any {
+	varIs, _ := cp.GlobalConsts.getVar(s)
+	return cp.vm.Mem[varIs.mLoc].V
 }

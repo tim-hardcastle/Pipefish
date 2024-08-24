@@ -31,9 +31,9 @@ type VmMaker struct {
 }
 
 // The base case: we start off with a blank vm.
-func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service, logFlavor LogFlavor) (*Service, *Initializer) {
+func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service) (*Service, *Initializer) {
 	mc := BlankVm(db, hubServices)
-	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir, "", logFlavor) // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	result := &Service{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
@@ -45,7 +45,7 @@ var testFolder embed.FS
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
-func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath string, logFlavor LogFlavor) (*Compiler, *Initializer) {
+func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath string) (*Compiler, *Initializer) {
 	sourcecode := ""
 	var sourcebytes []byte
 	var err error
@@ -62,11 +62,11 @@ func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath st
 			return nil, uP
 		}
 	}
-	return initializeFromSourcecode(mc, scriptFilepath, sourcecode, dir, namespacePath, logFlavor)
+	return initializeFromSourcecode(mc, scriptFilepath, sourcecode, dir, namespacePath)
 }
 
-func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, namespacePath string, logFlavor LogFlavor) (*Compiler, *Initializer) {
-	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc, namespacePath, logFlavor)
+func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, namespacePath string) (*Compiler, *Initializer) {
+	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc, namespacePath)
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && !testing.Testing() {
@@ -82,13 +82,12 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, na
 	return vmm.cp, vmm.uP
 }
 
-func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string, logFlavor LogFlavor) *VmMaker {
+func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *VmMaker {
 	uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)
 	vmm := &VmMaker{
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
 	}
-	vmm.cp.logFlavor = logFlavor
 	vmm.cp.ScriptFilepath = scriptFilepath
 	vmm.cp.vm = mc
 	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
@@ -240,7 +239,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath, vmm.cp.logFlavor)
+		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath)
 		if newUP.ErrorsExist() {
 			uP.Parser.GetErrorsFrom(newUP.Parser)
 			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, true, false}
@@ -540,7 +539,7 @@ func (vmm *VmMaker) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService, newUP := StartService(path, vmm.cp.P.Directory, vmm.cp.vm.Database, vmm.cp.vm.HubServices, vmm.cp.logFlavor)
+		newService, newUP := StartService(path, vmm.cp.P.Directory, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
 		// We return the Intializer newUP because if errors have been thrown that's where they are.
 		if newUP.ErrorsExist() {
 			vmm.uP.Parser.GetErrorsFrom(newUP.Parser)
@@ -568,7 +567,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	vmm.cp.vm.ExternalCallHandlers = append(vmm.cp.vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath, vmm.cp.logFlavor)
+	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath)
 	if newUp.ErrorsExist() {
 		vmm.cp.P.GetErrorsFrom(newUp.Parser)
 		return
@@ -1103,7 +1102,6 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 
 // For compiling a top-level function.
 func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
-	logFlavor := vmm.cp.logFlavor
 	if info, functionExists := vmm.cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
 		vmm.cp.Fns = append(vmm.cp.Fns, info.(*CpFunc))
 		return info.(*CpFunc)
@@ -1208,9 +1206,13 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			vmm.goToPf[body.GetToken().Source], vmm.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
 	case token.XCALL:
 	default:
+		logFlavor := LF_NONE
+		if vmm.cp.trackingOn() {
+			logFlavor = LF_TRACK
+		}
 		if given != nil {
 			vmm.cp.ThunkList = []ThunkData{}
-			givenContext := context{fnenv, DEF, nil, cpF.LoReg, logFlavor}
+			givenContext := context{fnenv, DEF, false, nil, cpF.LoReg, logFlavor}
 			vmm.cp.compileGivenBlock(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			if len(vmm.cp.ThunkList) > 0 {
@@ -1220,7 +1222,13 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 				vmm.cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)
 			}
 		}
-		bodyContext := context{fnenv, ac, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
+		// Logging the function call, if we do it, goes here.
+		if logFlavor == LF_TRACK && (functionName != "stringify") { // 'stringify' is secret sauce, they're not meant to know it exists. TODO --- conceal it better.
+			vmm.cp.track(trFNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
+		}
+
+		// Now the main body of the function, just as a lagniappe.
+		bodyContext := context{fnenv, ac, true, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
 		cpF.Types, _ = vmm.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = vmm.cp.That()
 
@@ -1239,7 +1247,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 	vmm.cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
 
-	// We capture the 'stringify' function for use by the VM.
+	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
 
 	if functionName == "stringify" {
 		vmm.cp.vm.Stringify = &cpF
@@ -1257,7 +1265,7 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 		return
 	}
 	rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-	ctxt := context{vmm.cp.GlobalVars, INIT, nil, DUMMY, LF_INIT}
+	ctxt := context{vmm.cp.GlobalVars, INIT, false, nil, DUMMY, LF_INIT}
 	vmm.cp.CompileNode(rhs, ctxt)
 	if vmm.uP.ErrorsExist() {
 		return

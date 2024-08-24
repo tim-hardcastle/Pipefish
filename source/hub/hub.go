@@ -229,6 +229,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.snap.AddInput(line)
 	}
 
+	serviceToUse.Mc.LiveTracking = make([]service.TrackingData, 0)
+
 	// *** THIS IS THE BIT WHERE WE DO THE THING!
 	val := ServiceDo(serviceToUse, line)
 	// *** FROM ALL THAT LOGIC, WE EXTRACT ONE PIPEFISH VALUE !!!
@@ -720,6 +722,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString("\n")
 		return false
+	case "track":
+		hub.WritePretty(hub.services[hub.currentServiceName()].Mc.TrackingToString())
+		hub.WriteString("\n")
+		return false
 	case "users-of-group":
 		result, err := database.GetUsersOfGroup(hub.Db, args[0])
 		if err != nil {
@@ -968,7 +974,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		newService *service.Service
 		init       *service.Initializer
 	)
-	newService, init = service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services, service.LF_NONE)
+	newService, init = service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
 	hub.services[name] = newService
 	hub.Sources = init.Sources
 

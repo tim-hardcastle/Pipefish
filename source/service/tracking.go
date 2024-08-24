@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"pipefish/source/ast"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -17,6 +18,7 @@ type trackingFlavor = int
 
 const (
 	trFNCALL trackingFlavor = iota
+	trRETURN
 )
 
 // This contains the information we need to generate tracking reports at runtime.
@@ -29,6 +31,9 @@ type TrackingData struct {
 // Although the arguments of this function are the same as the shape of the trackingData struct, we don't just naively shove one into the other,
 // but may have to tamper with it for the greater convenience of the caller.
 func (cp *Compiler) track(tf trackingFlavor, tok *token.Token, args ...any) {
+	if settings.MandatoryImportSet.Contains(tok.Source) {
+		return
+	}
 	var newData TrackingData
 	switch tf {
 	case trFNCALL:
@@ -71,7 +76,20 @@ func (vm *Vm) TrackingToString() string {
 				}
 			}
 			out.WriteString("\n")
+		case trRETURN:
+			if args[0].(values.Value).T != values.UNSATISFIED_CONDITIONAL {
+				out.WriteString("At@line ")
+				out.WriteString(strconv.Itoa(td.tok.Line))
+				out.WriteString("@")
+				//out.WriteString("of ")
+				//out.WriteString(text.Emph(td.tok.Source))
+				//out.WriteString(" ")
+				out.WriteString("the function returned ")
+				out.WriteString(vm.Literal(args[0].(values.Value)))
+				out.WriteString("\n")
+			}
 		}
+
 	}
 	return out.String()
 }

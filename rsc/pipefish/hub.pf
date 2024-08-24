@@ -7,7 +7,7 @@ def
 
 // Verb are in alphabetical order:
 // add, config, create, do, edit, errors, halt, help, let, listen, live, log, my, peek, quit, register, replay, run, services, snap,
-// test, trace, where, why, values
+// test, trace, track, where, why, values
 
 add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
@@ -140,6 +140,9 @@ test(filename string) :
 
 trace :
     HubResponse("trace", [])
+
+track :
+    HubResponse("track", [])
 
 unadd(usr string) to (grp string) :
     HubResponse("unadd", [usr, grp])

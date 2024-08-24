@@ -22,6 +22,7 @@ const (
 	num
 	sfc
 	tok
+	trk
 	tup
 	typ
 )
@@ -63,6 +64,8 @@ func (op *Operation) ppOperand(i int) string {
 		return " %" + opVal
 	case sfc:
 		return " Σ" + opVal
+	case trk:
+		return " ~" + opVal
 	case tok:
 		return " TK" + opVal
 	case tup:
@@ -220,6 +223,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Thnk: {"thnk", operands{dst, mem, loc}},
 	Tplf: {"tupf", operands{dst, mem, tok}},
 	Tpll: {"tupl", operands{dst, mem, tok}},
+	Trak: {"trak", operands{trk}},
 	TupL: {"tupL", operands{dst, mem}},
 	TuLx: {"tuLx", operands{dst, mem, tok}},
 	Typu: {"typu", operands{dst, mem, mem}},
@@ -384,6 +388,7 @@ const (
 	Thnk
 	Tplf
 	Tpll
+	Trak
 	TupL
 	TuLx
 	Typu

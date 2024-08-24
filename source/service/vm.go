@@ -26,6 +26,7 @@ type Vm struct {
 	callstack      []uint32
 	recursionStack []recursionData
 	logging        bool
+	LiveTracking   []TrackingData // "Live" tracking data in which the uint32s in the permanent tracking data have been replaced by the corresponding memory registers.
 
 	// Permanent state: things established at compile time.
 
@@ -35,6 +36,7 @@ type Vm struct {
 	LambdaFactories            []*LambdaFactory
 	SnippetFactories           []*SnippetFactory
 	GoFns                      []GoFn
+	tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	IoHandle                   IoHandler
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
@@ -1225,6 +1227,16 @@ loop:
 				break Switch
 			}
 			vm.Mem[args[0]] = tup[len(tup)-1]
+		case Trak:
+			staticData := vm.tracking[args[0]]
+			newData := TrackingData{staticData.flavor, staticData.tok, make([]any, len(staticData.args))}
+			copy(newData.args, staticData.args)
+			for i, v := range newData.args {
+				if v, ok := v.(uint32); ok {
+					newData.args[i] = vm.Mem[v]
+				}
+			}
+			vm.LiveTracking = append(vm.LiveTracking, newData)
 		case TuLx:
 			vector, ok := vm.Mem[args[1]].V.(vector.Vector)
 			if !ok {

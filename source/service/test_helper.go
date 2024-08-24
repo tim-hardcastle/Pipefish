@@ -35,9 +35,9 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 		var cp *Compiler
 		var uP *Initializer
 		if filename == "" {
-			cp, uP = initializeFromFilepath(mc, "", text.Trim(wd), "", LF_NONE)
+			cp, uP = initializeFromFilepath(mc, "", text.Trim(wd), "")
 		} else {
-			cp, uP = initializeFromFilepath(mc, wd+"/test-files/"+filename, text.Trim(wd), "", LF_NONE)
+			cp, uP = initializeFromFilepath(mc, wd+"/test-files/"+filename, text.Trim(wd), "")
 		}
 		if uP.Parser.ErrorsExist() {
 			println(uP.Parser.Errors[0].ErrorId)
