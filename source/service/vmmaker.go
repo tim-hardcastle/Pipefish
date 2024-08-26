@@ -1212,7 +1212,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		}
 		if given != nil {
 			vmm.cp.ThunkList = []ThunkData{}
-			givenContext := context{fnenv, DEF, false, nil, cpF.LoReg, logFlavor}
+			givenContext := context{fnenv, functionName, DEF, false, nil, cpF.LoReg, logFlavor}
 			vmm.cp.compileGivenBlock(given, givenContext)
 			cpF.CallTo = vmm.cp.CodeTop()
 			if len(vmm.cp.ThunkList) > 0 {
@@ -1228,7 +1228,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		}
 
 		// Now the main body of the function, just as a lagniappe.
-		bodyContext := context{fnenv, ac, true, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
+		bodyContext := context{fnenv, functionName, ac, true, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
 		cpF.Types, _ = vmm.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = vmm.cp.That()
 
@@ -1265,7 +1265,7 @@ func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType
 		return
 	}
 	rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-	ctxt := context{vmm.cp.GlobalVars, INIT, false, nil, DUMMY, LF_INIT}
+	ctxt := context{env: vmm.cp.GlobalVars, ac: INIT, lowMem: DUMMY, logFlavor: LF_INIT}
 	vmm.cp.CompileNode(rhs, ctxt)
 	if vmm.uP.ErrorsExist() {
 		return

@@ -75,6 +75,7 @@ const (
 
 type context struct {
 	env       *Environment    // The association of variable names to variable locations.
+	fName     string          // If we're compiling a function, the name of the function we're compiling.
 	ac        cpAccess        // Whether we are compiling the body of a command; of a function; something typed into the REPL, etc.
 	isReturn  bool            // Is the value of the node to be evaluated potentially a return value of the function being compiled?
 	typecheck finiteTupleType // The type(s) for the compiler to check for if isReturn is true; nil if no return types are defined.
@@ -368,7 +369,7 @@ func (cp *Compiler) Do(line string) values.Value {
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
 	}
-	ctxt := context{cp.GlobalVars, REPL, false, nil, DUMMY, LF_NONE}
+	ctxt := context{env: cp.GlobalVars, ac: REPL, lowMem: DUMMY, logFlavor: LF_NONE}
 	cp.CompileNode(node, ctxt)
 	if cp.P.ErrorsExist() {
 		return values.Value{T: values.ERROR}
@@ -1869,7 +1870,7 @@ NodeTypeSwitch:
 	if ctxt.isReturn && ac == DEF && cp.trackingOn() {
 		_, isLazyInfix := node.(*ast.LazyInfixExpression)
 		if !isLazyInfix {
-			cp.track(trRETURN, node.GetToken(), cp.That())
+			cp.track(trRETURN, node.GetToken(), ctxt.fName, cp.That())
 			return rtnTypes, false // 'false' because we don't want to fold away the tracking information.
 		}
 	}

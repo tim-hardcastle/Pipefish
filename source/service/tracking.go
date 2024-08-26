@@ -61,12 +61,13 @@ func (vm *Vm) TrackingToString() string {
 		args := td.args
 		switch td.flavor {
 		case trFNCALL:
-			out.WriteString("At@line ")
-			out.WriteString(strconv.Itoa(td.tok.Line))
-			out.WriteString("@we called function ")
+			out.WriteString("We called function ")
 			out.WriteString(text.Emph(args[0].(string)))
+			out.WriteString(" — defined at@line ")
+			out.WriteString(strconv.Itoa(td.tok.Line))
+			out.WriteString("@—")
 			if len(args) > 1 {
-				out.WriteString(" with arguments:")
+				out.WriteString(" with args:")
 				for i := 1; i < len(args); i = i + 2 {
 					out.WriteString("\n")
 					out.WriteString(text.BULLET)
@@ -77,15 +78,18 @@ func (vm *Vm) TrackingToString() string {
 			}
 			out.WriteString("\n")
 		case trRETURN:
-			if args[0].(values.Value).T != values.UNSATISFIED_CONDITIONAL {
+			if args[1].(values.Value).T != values.UNSATISFIED_CONDITIONAL {
 				out.WriteString("At@line ")
 				out.WriteString(strconv.Itoa(td.tok.Line))
 				out.WriteString("@")
 				//out.WriteString("of ")
 				//out.WriteString(text.Emph(td.tok.Source))
 				//out.WriteString(" ")
-				out.WriteString("the function returned ")
-				out.WriteString(vm.Literal(args[0].(values.Value)))
+				out.WriteString("function ")
+				out.WriteString(text.Emph(args[0].(string)))
+				out.WriteString(" returned ")
+				out.WriteString(vm.Literal(args[1].(values.Value)))
+				out.WriteString(".")
 				out.WriteString("\n")
 			}
 		}
