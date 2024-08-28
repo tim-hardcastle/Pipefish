@@ -1,17 +1,13 @@
 const
 
-$track = true
+$LOGGING = $Logging $ALL
 
 def
 
-foo(i int) :
+foo(i int) :         
     i < 0 :
         "negative"
-    i == 0 :
+    i == 0 : 
         "zero"
-    else :
-        "positive"
-
-bar(i int) :
-    "spong"
-
+    else :             
+        "positive"   

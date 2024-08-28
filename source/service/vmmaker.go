@@ -299,7 +299,7 @@ type serviceVariableData struct {
 }
 
 var serviceVariables = map[string]serviceVariableData{
-	"$track": {altType(values.BOOL), values.Value{values.BOOL, false}, true, GLOBAL_CONSTANT_PUBLIC},
+	"$LOGGING": {altType(), values.Value{}, true, GLOBAL_CONSTANT_PUBLIC}, // The values have to be extracted from the compiler.
 }
 
 // Now we need to do a big topological sort on everything, according to the following rules:
@@ -374,6 +374,11 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
+
+	loggingOptionsType := values.ValueType(vmm.cp.typeNameToTypeList["$Logging"][0].(simpleType))
+	loggingScopeType := values.ValueType(vmm.cp.typeNameToTypeList["$LoggingScope"][0].(simpleType))
+	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
+	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
 
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
@@ -1207,7 +1212,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE
-		if vmm.cp.trackingOn() {
+		if vmm.cp.getLoggingScope() == 2 {
 			logFlavor = LF_TRACK
 		}
 		if given != nil {
@@ -1223,9 +1228,13 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			}
 		}
 		// Logging the function call, if we do it, goes here.
-		if logFlavor == LF_TRACK && (functionName != "stringify") { // 'stringify' is secret sauce, they're not meant to know it exists. TODO --- conceal it better.
+		// 'stringify' is secret sauce, users aren't meant to know it exists. TODO --- conceal it better.
+		// If the body starts with a 'PRELOG' then the user has put in a logging statement which should override the tracking.
+		if logFlavor == LF_TRACK && !(body.GetToken().Type == token.PRELOG) && (functionName != "stringify") {
 			vmm.cp.track(trFNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
 		}
+
+		println("Compiling function ", functionName)
 
 		// Now the main body of the function, just as a lagniappe.
 		bodyContext := context{fnenv, functionName, ac, true, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}

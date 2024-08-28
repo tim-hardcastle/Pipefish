@@ -4,6 +4,10 @@ newtype
 
 Error = struct(errorCode, errorText string)
 
+$LoggingScope = enum $NONE, $SELECTED, $ALL
+
+$Logging = struct(loggingScope $LoggingScope)
+
 def
 
 // Symbols are in alphabetical order of their hooks.

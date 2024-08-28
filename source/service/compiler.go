@@ -67,10 +67,11 @@ type Compiler struct {
 type LogFlavor int
 
 const (
-	LF_NONE LogFlavor = iota
-	LF_TRACK
-	LF_AUTO
-	LF_INIT
+	LF_NONE   LogFlavor = iota // No logging is taking place.
+	LF_INIT                    // We're still initializing the variables.
+	LF_TRACK                   // We're logging everything.
+	LF_AUTO                    // We're autologging a line.
+	LF_MANUAL                  // The user did a custom log statement other than an autolog.
 )
 
 type context struct {
@@ -80,7 +81,7 @@ type context struct {
 	isReturn  bool            // Is the value of the node to be evaluated potentially a return value of the function being compiled?
 	typecheck finiteTupleType // The type(s) for the compiler to check for if isReturn is true; nil if no return types are defined.
 	lowMem    uint32          // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
-	logFlavor LogFlavor
+	logFlavor LogFlavor       // Whether we should be logging something and if so what.
 }
 
 // Unless we're going down a branch, we want the new context for each node compilation to have no forward type-checking.
@@ -1505,8 +1506,16 @@ NodeTypeSwitch:
 		}
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
+				println("Try logging else")
+				if cp.loggingOn(ctxt) {
+					cp.track(trELSE, &node.Token)
+				}
 				rtnTypes, rtnConst = cp.CompileNode(node.Right, ctxt)
 				break
+			}
+			println("Try logging condition")
+			if cp.loggingOn(ctxt) {
+				cp.track(trCONDITION, &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) {
@@ -1514,6 +1523,10 @@ NodeTypeSwitch:
 				break
 			}
 			// TODO --- what if it's not *only* bool?
+			println("Try logging result")
+			if cp.loggingOn(ctxt) {
+				cp.track(trRESULT, &node.Token, cp.That())
+			}
 			leftRg := cp.That()
 			checkLhs := cp.vmIf(Qtru, leftRg)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt)
@@ -1589,29 +1602,36 @@ NodeTypeSwitch:
 		rtnTypes = AltType(values.LIST)
 		break
 	case *ast.LogExpression:
-		rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
-		initStr := cp.Reserve(values.STRING, "Log at line "+text.YELLOW+strconv.Itoa(node.GetToken().Line)+text.RESET+":\n    ", node.GetToken())
-		output := cp.Reserve(values.STRING, "", node.GetToken())
-		logCheck := cp.vmIf(Qlog)
-		cp.Emit(Logn)
-		cp.Emit(Asgm, output, initStr)
-		logMayHaveError := cp.compileLog(node, ctxt)
-		cp.Emit(Log, output)
-		cp.Emit(Logy)
+		newCtxt := ctxt
 		ifRuntimeError := bkEarlyReturn(DUMMY)
-		if logMayHaveError {
-			ifRuntimeError = cp.vmConditionalEarlyReturn(Qtyp, output, uint32(values.ERROR), output)
+		if cp.getLoggingScope() != 0 { // Test that the logging hasn't been silenced by setting '$LOGGING = $OFF'.
+			rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
+			// A a user-defined logging statement can contain arbitrary expressions in the |...| delimiters which we
+			// therefore need to compile like it was a snippet.
+			if node.Value == "" {
+				newCtxt.logFlavor = LF_AUTO
+			} else {
+				newCtxt.logFlavor = LF_MANUAL
+				logCheck := cp.vmIf(Qlog) // Skips over the logging if we are already in a logging statement, as explained below.
+				cp.Emit(Logn)             // 'logn' and 'logy' turn logging on and off respectively in the vm, to prevent us from logging the activities of functions called in compileLog and at worst facing an infinite regress.
+				outputLoc, logMayHaveError := cp.compileLog(node, ctxt)
+				cp.track(trLITERAL, &node.Token, outputLoc)
+				cp.Emit(Logy)
+				if logMayHaveError {
+					ifRuntimeError = cp.vmConditionalEarlyReturn(Qtyp, outputLoc, uint32(values.ERROR), cp.That())
+				}
+				cp.vmComeFrom(logCheck)
+			}
 		}
-		cp.vmComeFrom(logCheck)
 		// Syntactically a log expression is attached to a normal expression, which we must now compile.
 		switch node.GetToken().Type {
 		case token.IFLOG:
 			ifNode := &ast.LazyInfixExpression{Operator: ":", Token: *node.GetToken(), Left: node.Left, Right: node.Right}
-			rtnTypes, _ = cp.CompileNode(ifNode, ctxt)
+			rtnTypes, _ = cp.CompileNode(ifNode, newCtxt)
 		case token.PRELOG:
-			rtnTypes, _ = cp.CompileNode(node.Right, ctxt.x())
+			rtnTypes, _ = cp.CompileNode(node.Right, ctxt)
 		default: // I.e. token.LOG.
-			rtnTypes, _ = cp.CompileNode(node.Left, ctxt.x())
+			rtnTypes, _ = cp.CompileNode(node.Left, newCtxt)
 		}
 		cp.vmComeFrom(ifRuntimeError)
 		break
@@ -1867,7 +1887,8 @@ NodeTypeSwitch:
 		return AltType(values.COMPILE_TIME_ERROR), true
 	}
 
-	if ctxt.isReturn && ac == DEF && cp.trackingOn() {
+	println("Try logging return")
+	if cp.loggingOn(ctxt) && ac == DEF {
 		_, isLazyInfix := node.(*ast.LazyInfixExpression)
 		if !isLazyInfix {
 			cp.track(trRETURN, node.GetToken(), ctxt.fName, cp.That())
@@ -3000,16 +3021,13 @@ const (
 	UNFIX
 )
 
-func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt context) bool {
-	output := cp.That()
+func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt context) (uint32, bool) {
+	output := uint32(DUMMY)
 	logStr := node.Value
-	if logStr == "" {
-
-	}
-	strList, unclosed := text.GetTextWithBarsAsList(logStr)
-	if unclosed {
+	strList, ok := text.GetTextWithBarsAsList(logStr)
+	if !ok {
 		cp.P.Throw("comp/log/close", &node.Token)
-		return false
+		return uint32(DUMMY), false
 	}
 	// So at this point we have a strList consisting of things which either do or don't need parsing and compiling,
 	// depending on whether they are or aren't bracketed by | symbols.
@@ -3020,7 +3038,7 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt context) bool {
 			continue
 		}
 		if str[0] == '|' { // Then we must parse and compile.
-			parsedAst := cp.P.ParseLine("code snippet", str[1:len(str)-1])
+			parsedAst := cp.P.ParseLine("code snippet in log expression", str[1:len(str)-1])
 			sTypes, _ := cp.CompileNode(parsedAst, ctxt.x())
 			thingToAdd := cp.That()
 			if sTypes.Contains(values.ERROR) {
@@ -3028,17 +3046,25 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt context) bool {
 					cp.vmConditionalEarlyReturn(Qtyp, cp.That(), uint32(values.ERROR), cp.That()))
 			}
 			cp.put(Strx, thingToAdd)
-			cp.Emit(Adds, output, output, cp.That())
+			if output == DUMMY {
+				output = cp.That()
+			} else {
+				cp.Emit(Adds, output, output, cp.That())
+			}
 			continue
 		}
 		// Otherwise, we just add it on as a string.
 		cp.Reserve(values.STRING, str, node.GetToken())
-		cp.Emit(Adds, output, output, cp.That())
+		if output == DUMMY {
+			output = cp.That()
+		} else {
+			cp.Emit(Adds, output, output, cp.That())
+		}
 	}
 	for _, rtn := range errorReturns {
 		cp.vmComeFrom(rtn)
 	}
-	return len(errorReturns) > 0
+	return uint32(output), len(errorReturns) > 0
 }
 
 // The various 'piping operators'.
@@ -3458,12 +3484,23 @@ func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
 	return AlternateType{}
 }
 
-func (cp *Compiler) getCloneGroup(ty values.ValueType) uint32 {
-	return cp.lambdaMemStarts[len(cp.lambdaMemStarts)-1]
+func (cp *Compiler) loggingOn(ctxt context) bool {
+	if !ctxt.isReturn {
+		println("Context not return.")
+		return false
+	}
+
+	if (ctxt.logFlavor == LF_AUTO && cp.getLoggingScope() != 0) || (ctxt.logFlavor == LF_TRACK && cp.getLoggingScope() == 2) {
+		println("Returning true")
+		return true
+	}
+	println("Returning false", ctxt.logFlavor, cp.getLoggingScope())
+	return false
 }
 
-func (cp *Compiler) trackingOn() bool {
-	return cp.getValueOfConstant("$track").(bool)
+func (cp *Compiler) getLoggingScope() int {
+	fields := cp.getValueOfConstant("$LOGGING").([]values.Value)
+	return fields[0].V.(int)
 }
 
 func (cp *Compiler) getValueOfConstant(s string) any {

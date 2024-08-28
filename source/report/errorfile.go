@@ -242,7 +242,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/log/close": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unclosed " + emph("|") + " in logging expression."
+			return "unclosed " + emph("|") + " in logging expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish interprets " + emph("| <expression> |") + " in a logging expression as meaning that the expression should be evaluated and inserted into the string. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
