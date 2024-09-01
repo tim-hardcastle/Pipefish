@@ -4,10 +4,10 @@ $LOGGING = $Logging $ALL
 
 def
 
-foo(i int) :         
+foo(i int) :         \\ We're here!
     i < 0 :
         "negative"
-    i == 0 : 
+    i == 0 :         \\ Testing i == 0.
         "zero"
-    else :             
+    else :           \\ Doing the 'else' branch.
         "positive"   

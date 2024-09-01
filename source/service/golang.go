@@ -154,7 +154,6 @@ func (gh *GoHandler) BuildGoMods() {
 		if err != nil {
 			gh.Prsr.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
 		}
-		println("Opening freshly-built .so file", soFile)
 		gh.Plugins[source], err = plugin.Open(soFile)
 		if err != nil {
 			gh.Prsr.Throw("golang/open", &token.Token{}, err.Error())

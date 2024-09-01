@@ -1506,24 +1506,21 @@ NodeTypeSwitch:
 		}
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
-				println("Try logging else")
 				if cp.loggingOn(ctxt) {
 					cp.track(trELSE, &node.Token)
 				}
 				rtnTypes, rtnConst = cp.CompileNode(node.Right, ctxt)
 				break
 			}
-			println("Try logging condition")
 			if cp.loggingOn(ctxt) {
 				cp.track(trCONDITION, &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/bool/cond", node.GetToken())
+				cp.P.Throw("comp/bool/cond/a", node.GetToken())
 				break
 			}
 			// TODO --- what if it's not *only* bool?
-			println("Try logging result")
 			if cp.loggingOn(ctxt) {
 				cp.track(trRESULT, &node.Token, cp.That())
 			}
@@ -1626,8 +1623,27 @@ NodeTypeSwitch:
 		// Syntactically a log expression is attached to a normal expression, which we must now compile.
 		switch node.GetToken().Type {
 		case token.IFLOG:
-			ifNode := &ast.LazyInfixExpression{Operator: ":", Token: *node.GetToken(), Left: node.Left, Right: node.Right}
-			rtnTypes, _ = cp.CompileNode(ifNode, newCtxt)
+			// This unDRY-ly repeats a bunch of the logic for generating a conditiona. TODO? We could consider factoring it out but it would be messy to save only a few duplicated lines.
+			if node.Left.GetToken().Type == token.ELSE {
+				rtnTypes, _ = cp.CompileNode(node.Right, ctxt)
+				break
+			}
+
+			lTypes, _ := cp.CompileNode(node.Left, ctxt.x())
+			if !lTypes.Contains(values.BOOL) {
+				cp.P.Throw("comp/bool/cond/b", node.GetToken())
+				break
+			}
+			// TODO --- what if it's not *only* bool?
+			leftRg := cp.That()
+			checkLhs := cp.vmIf(Qtru, leftRg)
+			rTypes, _ := cp.CompileNode(node.Right, ctxt)
+			ifCondition := cp.vmEarlyReturn(cp.That())
+			cp.vmComeFrom(checkLhs)
+			cp.put(Asgm, values.C_U_OBJ)
+			cp.vmComeFrom(ifCondition)
+			rtnTypes = rTypes.Union(AltType(values.UNSATISFIED_CONDITIONAL))
+			break
 		case token.PRELOG:
 			rtnTypes, _ = cp.CompileNode(node.Right, ctxt)
 		default: // I.e. token.LOG.
@@ -1887,10 +1903,10 @@ NodeTypeSwitch:
 		return AltType(values.COMPILE_TIME_ERROR), true
 	}
 
-	println("Try logging return")
 	if cp.loggingOn(ctxt) && ac == DEF {
 		_, isLazyInfix := node.(*ast.LazyInfixExpression)
-		if !isLazyInfix {
+		_, isLoggingOperation := node.(*ast.LogExpression)
+		if !(isLazyInfix || isLoggingOperation) {
 			cp.track(trRETURN, node.GetToken(), ctxt.fName, cp.That())
 			return rtnTypes, false // 'false' because we don't want to fold away the tracking information.
 		}
@@ -3486,15 +3502,11 @@ func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
 
 func (cp *Compiler) loggingOn(ctxt context) bool {
 	if !ctxt.isReturn {
-		println("Context not return.")
 		return false
 	}
-
 	if (ctxt.logFlavor == LF_AUTO && cp.getLoggingScope() != 0) || (ctxt.logFlavor == LF_TRACK && cp.getLoggingScope() == 2) {
-		println("Returning true")
 		return true
 	}
-	println("Returning false", ctxt.logFlavor, cp.getLoggingScope())
 	return false
 }
 

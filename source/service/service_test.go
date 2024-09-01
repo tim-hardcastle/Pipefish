@@ -49,6 +49,16 @@ func TestHardwiredOps(t *testing.T) {
 	}
 	RunTest(t, "", tests, testValues)
 }
+
+func TestConditionals(t *testing.T) {
+	tests := []TestItem{
+		{`true : 5; else : 6`, `5`},
+		{`false : 5; else : 6`, `6`},
+		{`1 == 1 : 5; else : 6`, `5`},
+		{`1 == 2 : 5; else : 6`, `6`},
+	}
+	RunTest(t, "", tests, testValues)
+}
 func TestBuiltins(t *testing.T) {
 	tests := []TestItem{
 		{`5.0 + 2.0`, `7.00000000`},

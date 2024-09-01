@@ -1234,8 +1234,6 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			vmm.cp.track(trFNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
 		}
 
-		println("Compiling function ", functionName)
-
 		// Now the main body of the function, just as a lagniappe.
 		bodyContext := context{fnenv, functionName, ac, true, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
 		cpF.Types, _ = vmm.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
