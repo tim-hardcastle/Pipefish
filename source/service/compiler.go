@@ -1203,9 +1203,11 @@ NodeTypeSwitch:
 			break NodeTypeSwitch
 		case "NULL":
 			cp.Reserve(values.NULL, nil, &node.Token)
+			rtnTypes, rtnConst = altType(values.NULL), false // Yes it is a const but there's nothing to roll back so ...
 			break NodeTypeSwitch
 		case "OK":
 			cp.Reserve(values.SUCCESSFUL_VALUE, nil, &node.Token)
+			rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
 			break NodeTypeSwitch
 		}
 		var enumCompiler *Compiler

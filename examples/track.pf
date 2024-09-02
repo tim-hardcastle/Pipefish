@@ -1,3 +1,9 @@
+newtype 
+
+Fnurg = abstract int/string
+
+Qux = struct(fnurg Fnurg)
+
 const
 
 $LOGGING = $Logging $ALL
@@ -11,3 +17,9 @@ foo(i int) :         \\ We're here!
         "zero"
     else :           \\ Doing the 'else' branch.
         "positive"   
+
+zort(i null) :
+    i
+
+troz(i int) :
+    i 
