@@ -63,6 +63,9 @@ live on :
 live off :
     HubResponse("live-off", [])
 
+log :
+    HubResponse("log", [])
+
 log on :
     HubResponse("log-on", [])
 

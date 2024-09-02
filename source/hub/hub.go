@@ -467,6 +467,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "live-off":
 		hub.setLive(false)
 		return false
+	case "log":
+		hub.WritePretty(hub.services[hub.currentServiceName()].Mc.TrackingToString())
+		hub.WriteString("\n")
+		return false
 	case "log-on":
 		hub.getLogin()
 		return false
@@ -722,10 +726,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.WriteString("\n")
 		return false
-	case "track":
-		hub.WritePretty(hub.services[hub.currentServiceName()].Mc.TrackingToString())
-		hub.WriteString("\n")
-		return false
+
 	case "users-of-group":
 		result, err := database.GetUsersOfGroup(hub.Db, args[0])
 		if err != nil {
