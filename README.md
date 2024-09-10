@@ -62,7 +62,7 @@ Here are some of Pipefish's more distinctive features:
 * Abstraction is achieved by [overloading](https://github.com/tim-hardcastle/Pipefish/wiki/Function-signatures-and-overloading#overloading) and duck-typing. There is multiple dispatch.
 * Field names of [structs](https://github.com/tim-hardcastle/Pipefish/wiki/Structs) are first-class objects. Indexing structs and maps overloads the same operator.
 * While Pipefish is very dynamic (as illustrated in the previous two points) it is also very strongly typed, much more so than any mainstream dynamic language.
-* Pipefish is REPL-oriented, with [hotcoding](https://github.com/tim-hardcastle/Pipefish/wiki/Hotcoding) to make it easy to code and test incrementally.
+* Pipefish is REPL-oriented, with [livecoding](https://github.com/tim-hardcastle/Pipefish/wiki/Livecoding) to make it easy to code and test incrementally.
 * The REPL is also a [development environment](https://github.com/tim-hardcastle/Pipefish/wiki/Developing-in-Pipefish) and [framework](https://github.com/tim-hardcastle/Pipefish/wiki/Client-and-server). It lets you test your code, write permanent tests, ask for help, interact with error messages, configure your services, deploy them to the web and manage access to them.
 * It is intended that often a Pipefish service will act as its own front end (like e.g. a SQL database does) with the end-user talking to it via the Pipefish REPL. For this reason Pipefish has an unusually [flexible syntax](https://github.com/tim-hardcastle/Pipefish/wiki/Infixes,-postfixes,-etc) for creating DSLs.
 * Pipefish comes with [Go](https://github.com/tim-hardcastle/Pipefish/wiki/Golang-interop) and [SQL](https://github.com/tim-hardcastle/Pipefish/wiki/SQL-interop) interop for all your backend needs.
