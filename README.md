@@ -18,7 +18,7 @@
 
 ## Welcome to Pipefish!
 
-Welcome to Pipefish, a new programming language. This is version 0.4.9, [a working prototype](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/working-prototype.md); you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. (Note: at time of writing, July 30th, I have just changed the main branch from the prototype treewalker to the compiler/vm implementation. It is therefore probably rather flaky and needs me to test it hard for a couple of weeks.)
+Welcome to Pipefish, a new programming language. This is version 0.4.9; you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. (Note: at time of writing, September, I have just changed the main branch from the prototype treewalker to the compiler/vm implementation. It is therefore probably rather flaky and needs me to test it hard for a couple of weeks.)
 
 There are [batteries included](https://github.com/tim-hardcastle/Pipefish/wiki/Imports-and-libraries#libraries); there is [tooling](https://github.com/tim-hardcastle/Pipefish/wiki/Developing-in-Pipefish); there are plenty of features including some you've never heard or thought of.
 
