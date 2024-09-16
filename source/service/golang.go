@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"plugin"
 	"strconv"
 	"strings"
@@ -140,14 +141,16 @@ func (gh *GoHandler) BuildGoMods() {
 
 		// You can't reuse the names of shared object files.
 		counter++
-		soFile := gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"
+		soFile := filepath.Join(gh.Prsr.Directory, filepath.FromSlash("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"))
 		if lastChange != 0 {
-			os.Remove(gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
+			os.Remove(filepath.Join(gh.Prsr.Directory, filepath.FromSlash("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")))
 		}
-		goFile := gh.Prsr.Directory + "gocode_" + strconv.Itoa(counter) + ".go"
+		goFile := filepath.Join(gh.Prsr.Directory, "gocode_" + strconv.Itoa(counter) + ".go")
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
 		file.Close()
+		println("so file is", soFile)
+		println("go file is", goFile)
 		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 		output, err := cmd.Output()
