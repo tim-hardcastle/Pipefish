@@ -1164,7 +1164,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/source/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unable to get source " + emph(args[0])
+			return "unable to get source " + emph(args[0]) + " with error " + emph(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The initializer can't retrieve the source code for the given file. Check that it exists."

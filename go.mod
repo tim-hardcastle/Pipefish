@@ -1,6 +1,6 @@
 module pipefish
 
-go 1.22.5
+go 1.23
 
 require (
 	github.com/lmorg/readline v0.0.0-20210316231630-be4b7d79fc3a
@@ -77,6 +77,7 @@ require (
 	github.com/snowflakedb/gosnowflake v1.10.1 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b // indirect
+	golang.org/dl v0.0.0-20240905150950-a427666708fc // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/net v0.27.0 // indirect

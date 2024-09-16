@@ -1,5 +1,6 @@
 .vscode
 pipefish
+pipefish.exe
 .DS_
 pytool
 rsc/hub/*

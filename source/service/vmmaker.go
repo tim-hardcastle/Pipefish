@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"pipefish/source/ast"
@@ -58,7 +59,7 @@ func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath st
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
 			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to find errors in the uP.
-			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath)
+			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath, err.Error())
 			return nil, uP
 		}
 	}
@@ -1365,8 +1366,8 @@ func altType(t ...values.ValueType) AlternateType {
 
 func MakeFilepath(scriptFilepath, dir string) string {
 	doctoredFilepath := strings.Clone(scriptFilepath)
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
-		doctoredFilepath = dir + scriptFilepath
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" || scriptFilepath[0:4] == "hub/" {
+		doctoredFilepath = filepath.Join(dir, filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
 		doctoredFilepath = dir + "lib/" + scriptFilepath
