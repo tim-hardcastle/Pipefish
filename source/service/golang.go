@@ -144,7 +144,7 @@ func (gh *GoHandler) BuildGoMods() {
 		if lastChange != 0 {
 			os.Remove(gh.Prsr.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")
 		}
-		goFile := gh.Prsr.Directory + "gocode " + strconv.Itoa(counter) + ".go"
+		goFile := gh.Prsr.Directory + "gocode_" + strconv.Itoa(counter) + ".go"
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
 		file.Close()
