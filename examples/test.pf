@@ -1,0 +1,7 @@
+def
+
+foo(i int) :
+    from a = 0 for _::j = range 1::i+1 :
+        a + k
+    given :
+        k = j * j
