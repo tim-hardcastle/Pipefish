@@ -149,8 +149,6 @@ func (gh *GoHandler) BuildGoMods() {
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
 		file.Close()
-		println("so file is", soFile)
-		println("go file is", goFile)
 		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 		output, err := cmd.Output()
