@@ -687,7 +687,7 @@ func (vmm *VmMaker) createClones() {
 			for {
 				op := tokens.NextToken()
 				sep := tokens.NextToken()
-				opList = append(opList, op.Literal)
+				opList = append(opList, strings.Trim(op.Literal, "\n\r\t "))
 				if sep.Type == token.EOF {
 					break
 				}
@@ -742,7 +742,7 @@ func (vmm *VmMaker) createClones() {
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"%", "bling"}, ast.NameTypenamePair{"y", name}}
 					vmm.makeCloneFunction("+", sig, "modulo_integers", altType(typeNo), private, i, &tok1)
 				default:
-					vmm.uP.Throw("init/request/int", usingOrEof, op)
+					vmm.cp.P.Throw("init/request/int", &usingOrEof, op)
 				}
 			case values.LIST:
 				switch op {

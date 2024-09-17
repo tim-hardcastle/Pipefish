@@ -1039,7 +1039,7 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString(")\n\n")
 	buf.WriteString("currentService string? = ")
 	cs := hubService.Mc.Literal(hub.getSV("currentService"))
-	if len(cs) > 0 && cs[0] == '#' {
+	if len(cs) > 0 && cs[1] == '#' {
 		buf.WriteString("NULL")
 	} else {
 		buf.WriteString(cs)

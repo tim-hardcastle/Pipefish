@@ -1153,6 +1153,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/request/float": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of type " + emph("float") + " cannot request operation " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A clone of " + emph("int") + " can only request the native operations suitable to that type, i.e. " +
+			     emph("+") + ", " + emph("-") + ", " + emph("*") + ", and " + emph("/") + "."
+		},
+	},
+
+	"init/request/int": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of type " + emph("int") + " cannot request operation " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A clone of " + emph("int") + " can only request the native operations suitable to that type, i.e. " +
+			     emph("+") + ", " + emph("-") + ", " + emph("*") + ", " + emph("/") + ", and " + emph("%") + "."
+		},
+	},
+
 	"init/private/abstract": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "public abstract type " + emph(tok.Literal) + " cannot contain private type " + emph(args[0])
