@@ -7,7 +7,6 @@ package settings
 import "pipefish/source/dtypes"
 
 var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/timeStruct.pf"}
-
 var MandatoryImportSet = dtypes.MakeFromSlice(MandatoryImports)
 var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc/pipefish/hub.pf").Add("Builtin constant")
 

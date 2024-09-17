@@ -17,12 +17,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"pipefish/source/hub"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 )
 
 func main() {
+
+	if runtime.GOOS == "windows" { // This allows a cut-down version that doesn't require the plugins package.
+		settings.MandatoryImports = []string{"rsc/pipefish/builtins.pf"}
+	}
 
 	if len(os.Args) == 1 {
 		showhelp()
@@ -30,13 +36,13 @@ func main() {
 	}
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "-h", "--help":
+		case "-h", "--help", "help":
 			showhelp()
 			return
-		case "-v", "--version":
+		case "-v", "--version", "version":
 			os.Stdout.WriteString("\nPipefish version " + text.VERSION + ".\n\n")
 			return
-		case "tui": // Left blank to avoid the default.
+		case "-t", "--tui", "tui": // Left blank to avoid the default.
 		default:
 			os.Stdout.WriteString("\nPipefish doesn't recognize the command " + text.Emph(os.Args[1]) + ".\n")
 			println()
