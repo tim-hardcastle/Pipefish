@@ -94,10 +94,11 @@ type ForExpression struct {
 	ConditionOrRange Node
 	Update           Node
 	Body             Node
+	Given            Node
 }
 
 func (fe *ForExpression) Children() []Node {
-	return []Node{fe.BoundVariables, fe.Initializer, fe.ConditionOrRange, fe.Update, fe.Body}
+	return []Node{fe.BoundVariables, fe.Initializer, fe.ConditionOrRange, fe.Update, fe.Body, fe.Given}
 }
 func (fe *ForExpression) GetToken() *token.Token { return &fe.Token }
 func (fe *ForExpression) String() string {

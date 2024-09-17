@@ -705,9 +705,14 @@ func (p *Parser) parseFromExpression() ast.Node {
 	if p.ErrorsExist() {
 		return nil
 	}
-	_, ok := expression.(*ast.ForExpression)
-	if ok {
-		return expression
+	var givenBlock ast.Node
+	if expression.GetToken().Type == token.GIVEN {
+		givenBlock = expression.(*ast.InfixExpression).Args[2]
+		expression = expression.(*ast.InfixExpression).Args[0]
+	}
+	exp, ok := expression.(*ast.ForExpression); if ok {
+		exp.Given = givenBlock
+		return exp
 	}
 	p.Throw("parse/from", &fromToken)
 	return nil

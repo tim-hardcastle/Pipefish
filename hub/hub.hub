@@ -10,7 +10,7 @@ var
 
 allServices = map("hub"::"hub/hub.hub")
 
-currentService string? = "hub"
+currentService string? = NULL
 
 isLive = true
 display = STRING

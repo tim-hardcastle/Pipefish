@@ -1,4 +1,3 @@
-(((zort (x) int) : x) )given( ((foo) = (func (y int) : y) )given( (troz) = (func (z int) : z)))
 
 def
 

@@ -601,7 +601,7 @@ const (
 func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) AlternateType {
 	tok := &node.Token
 	cp.cm("Called compileForExpression", tok)
-	// We have three cases.
+	// We have four cases.
 	// (i) The 'for' loop has a C-like tripartite header.
 	// (ii) The 'for' loop is acting as a 'while' loop and so just has a conditional.
 	// (iii) It doesn't even have a conditional, and can be exited only with break.
@@ -800,6 +800,18 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 		flavor = WHILE
 	} // end of switch
 
+	saveThunkList := cp.ThunkList // TODO --- I really must stop doing that.
+	cp.ThunkList = []ThunkData{}
+
+	if node.Given == nil {
+		cp.cm("The 'given' block of the 'for' loop is nil.", tok)
+	} else {
+		jumpOverGiven := cp.vmGoTo() // The 'given' block needs to be compiled here but should of course only have parts executed on demand.
+		cp.cm("Compiling the 'given' block of the 'for' loop", tok)
+		cp.compileGivenBlock(node.Given, newContext) 
+		cp.vmComeFrom(jumpOverGiven)
+	}
+
 	conditionalFails := bkEarlyReturn(DUMMY)
 	startOfForLoop := cp.CodeTop()
 
@@ -836,6 +848,13 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	// Now we get to emit the loop body, which is the same whatever the flavor of loop.
 	cp.cm("Compiling loop body.", tok)
 	cp.pushNewForData()
+
+	cp.cm("Setting up thunks for the locals in the given block, if any.", tok)	
+	for _, thunk := range cp.ThunkList {
+		cp.Emit(Thnk, thunk.dest, thunk.value.MLoc, thunk.value.CAddr)
+	}
+	cp.ThunkList = saveThunkList
+
 	rtnTypes, _ := cp.CompileNode(node.Body, newContext)
 	if cp.P.ErrorsExist() {
 		return altType(values.COMPILE_TIME_ERROR)
@@ -936,8 +955,9 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 		newContext := ctxt
 		newContext.env = newEnv
 		newContext.ac = LAMBDA
-		cp.compileGivenBlock(fnNode.Given, newContext) // TODO --- must pass from outer context.
+		cp.compileGivenBlock(fnNode.Given, newContext) // TODO --- must pass from outer context. TODO 2 --- what the hell did I mean by that?
 	}
+
 	// Function starts here.
 	LF.Model.addressToCall = cp.CodeTop()
 
