@@ -313,6 +313,10 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 	result := [][]labeledParsedCodeChunk{}
 	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
 		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
+			if _, ok := dec.(*ast.AssignmentExpression); !ok {
+				vmm.cp.P.Throw("init/assign", dec.GetToken())
+				continue
+			}
 			names := vmm.cp.P.GetVariablesFromSig(dec.(*ast.AssignmentExpression).Left)
 			for _, name := range names {
 				existingName, alreadyExists := namesToDeclarations[name]

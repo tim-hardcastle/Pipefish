@@ -1062,7 +1062,10 @@ func (p *Parser) parseElse() ast.Node {
 
 func (p *Parser) parseBreak() ast.Node {
 	if p.positionallyFunctional() {
-		return p.parsePrefixExpression()
+		t := p.curToken
+		p.NextToken() // Skips the 'break' token
+		exp := p.parseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
+		return &ast.PrefixExpression{t, "break", []ast.Node{exp}, []string{}}
 	}
 	return &ast.Identifier{Token: p.curToken, Value: "break"}
 }
