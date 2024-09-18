@@ -118,7 +118,7 @@ func (cp *Compiler) resolveBreaksWithValue() {
 			cp.vmComeFrom(item)
 		}
 	}
-	cp.forData = cp.forData[:len(cp.forData)-1]
+	cp.forData = cp.forData[:len(cp.forData)-1] // As this is the last thing we do with the data for this particular 'for' loop, we finish by popping it off the stack.
 }
 
 func (cp *Compiler) emitContinue(tok *token.Token) {
@@ -751,8 +751,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			var rangeOver ast.Node
 			if rangeExpression, ok := rangeExpression.(*ast.PrefixExpression); ok && rangeExpression.Operator == "range" {
 				rangeOver = rangeExpression.Args[0]
-				rangeRollback := cp.getState()
-				rangeTypes, rangeConst := cp.CompileNode(rangeOver, ctxt.x())
+				rangeTypes, _ := cp.CompileNode(rangeOver, ctxt.x())
 
 				if len(rangeTypes.intersect(cp.vm.IsRangeable)) == 0 {
 					cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
@@ -762,14 +761,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				if keysOnly {
 					keysInt = 1
 				}
-				cp.put(Mkit, cp.That(), keysInt, cp.reserveToken(rangeOver.GetToken()))
-				if rangeConst {
-					cp.vm.Run(uint32(rangeRollback.code))
-					val := cp.vm.Mem[cp.That()]
-					cp.rollback(rangeRollback, rangeOver.GetToken())
-					cp.Reserve(values.ITERATOR, val.V, rangeOver.GetToken())
-					cp.Emit(Rsit, cp.That())
-				}
+				cp.put(Mkit, cp.That(), keysInt, cp.reserveToken(rangeOver.GetToken())) // TODO --- optimize constant case.
 				iteratorLoc = cp.That()
 				if !valuesOnly {
 					cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())

@@ -472,6 +472,9 @@ func GetVariablesFromLhsAndRhsOfAssignments(n Node) (dtypes.Set[string], dtypes.
 // We want to extract the variables used in a given node. However, the parameters of a lambda, or its locals, don't count as "used", only its captures.
 func GetVariableNames(n Node) dtypes.Set[string] {
 	result := dtypes.Set[string]{}
+	if n == nil {
+		return result
+	}
 	switch n := n.(type) {
 	case *Identifier:
 		return result.Add(n.Value)
