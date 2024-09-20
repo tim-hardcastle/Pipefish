@@ -141,7 +141,9 @@ func (cp *Compiler) addToForData(x any) {
 	cp.forData[len(cp.forData)-1] = append(cp.forData[len(cp.forData)-1], x)
 }
 
-func (cp *Compiler) forDataExists() bool {
+func (cp *Compiler) 
+
+forDataExists() bool {
 	return len(cp.forData) > 0
 }
 
