@@ -380,8 +380,8 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 
-	loggingOptionsType := values.ValueType(vmm.cp.typeNameToTypeList["$Logging"][0].(simpleType))
-	loggingScopeType := values.ValueType(vmm.cp.typeNameToTypeList["$LoggingScope"][0].(simpleType))
+	loggingOptionsType := values.ValueType(vmm.cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
+	loggingScopeType := values.ValueType(vmm.cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
 	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
 	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
 
@@ -587,6 +587,16 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	vmm.cp.Services[name] = &Service{vmm.cp.vm, newCp, false, false}
 }
 
+func (vmm *VmMaker) AddType(name, supertype string, typeNo values.ValueType) {
+	vmm.uP.Parser.TypeMap[name] = values.MakeAbstractType(typeNo)
+	vmm.uP.Parser.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
+	types := []string{supertype}
+	if supertype == "snippet" {
+		types = append(types, "struct")
+	}
+	vmm.cp.vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
+}
+
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
 func (vmm *VmMaker) createEnums() {
@@ -604,10 +614,9 @@ func (vmm *VmMaker) createEnums() {
 			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
 			vmm.cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
-		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(tok1.Literal, "enum")
-		vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, "enum")
-		vmm.cp.typeNameToTypeList[tok1.Literal] = altType(typeNo)
-		vmm.cp.typeNameToTypeList[tok1.Literal+"?"] = altType(values.NULL, typeNo)
+		vmm.AddType(tok1.Literal, "enum", typeNo)
+		vmm.cp.typeNameToTypeScheme[tok1.Literal] = altType(typeNo)
+		vmm.cp.typeNameToTypeScheme[tok1.Literal+"?"] = altType(values.NULL, typeNo)
 
 		if typeExists {
 			continue
@@ -653,7 +662,6 @@ func (vmm *VmMaker) createClones() {
 			return
 		}
 		abType := typeToClone + "like"
-		vmm.uP.Parser.TypeSystem.AddTransitiveArrow(name, abType)
 		var typeNo values.ValueType
 		info, typeExists := vmm.cp.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
@@ -664,20 +672,20 @@ func (vmm *VmMaker) createClones() {
 		} else {
 			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
 			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, abType)
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, path: vmm.cp.P.NamespacePath, parent: parentTypeNo, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				vmm.cp.vm.IsRangeable = vmm.cp.vm.IsRangeable.Union(altType(typeNo))
 			}
 		}
+		vmm.AddType(name, abType, typeNo)
 		vmm.cp.CloneNameToTypeNumber[name] = typeNo
-		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
-		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
+		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
+		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn)
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn)
 		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
 		// We get the requested builtins.
@@ -819,7 +827,7 @@ func (vmm *VmMaker) createClones() {
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, isPrivate bool, i int, tok *token.Token) {
 	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{builtinTag}, Number: vmm.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
-	vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, fnName, fn)
+	vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, fnName, fn)
 }
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
@@ -838,9 +846,9 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		} else {
 			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(structDeclaration), i)})
 		}
-		vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, "struct")
-		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
-		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
+		vmm.AddType(name, "struct", typeNo)
+		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
+		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
 		if name == "Error" {
 			vmm.cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
@@ -850,7 +858,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn) // TODO --- give them their own ast type?
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn) // TODO --- give them their own ast type?
 		vmm.uP.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
@@ -903,6 +911,7 @@ func (vmm *VmMaker) defineAbstractTypes() {
 		tcc.NextToken() // The equals sign.
 		tcc.NextToken() // The 'abstract' identifier.
 		typeNames := []string{}
+		vmm.cp.P.TypeMap[newTypename] = values.MakeAbstractType()
 		for {
 			typeTok := tcc.NextToken()
 			divTok := tcc.NextToken()
@@ -915,31 +924,31 @@ func (vmm *VmMaker) defineAbstractTypes() {
 				break
 			}
 			tname := typeTok.Literal
-			if !vmm.cp.P.TypeSystem.SetOfNodes().Contains(tname) {
+			abTypeToAdd, ok := vmm.cp.P.TypeMap[tname]
+			if !ok {
 				vmm.uP.Throw("init/type/known", typeTok)
 				break
 			}
-			vmm.cp.P.TypeSystem.AddTransitiveArrow(tname, newTypename)
+			vmm.cp.P.TypeMap[newTypename] = vmm.cp.P.TypeMap[newTypename].Union(abTypeToAdd)
 			typeNames = append(typeNames, tname)
-			vmm.cp.typeNameToTypeList[newTypename] = vmm.cp.typeNameToTypeList[newTypename].Union(vmm.cp.TypeNameToTypeList(tname))
+			vmm.cp.typeNameToTypeScheme[newTypename] = vmm.cp.typeNameToTypeScheme[newTypename].Union(vmm.cp.TypeNameToTypeList(tname))
 			if divTok.Type == token.EOF {
 				break
 			}
 		}
+		vmm.cp.P.TypeMap[newTypename+"?"] = vmm.cp.P.TypeMap[newTypename].Insert(values.NULL)
 		_, typeExists := vmm.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
-			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{newTypename, vmm.cp.P.NamespacePath, vmm.cp.typeNameToTypeList[newTypename].ToAbstractType()})
+			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{newTypename, vmm.cp.P.NamespacePath, vmm.cp.typeNameToTypeScheme[newTypename].ToAbstractType()})
 			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
 		vmm.uP.Parser.Suffixes.Add(newTypename)
-		if !vmm.cp.typeNameToTypeList[newTypename].Contains(values.NULL) {
+		if !vmm.cp.typeNameToTypeScheme[newTypename].Contains(values.NULL) {
 			for _, tname := range typeNames {
-				vmm.cp.P.TypeSystem.AddTransitiveArrow(tname, newTypename+"?")
-				vmm.cp.typeNameToTypeList[newTypename+"?"] = vmm.cp.typeNameToTypeList[newTypename+"?"].Union(vmm.cp.typeNameToTypeList[tname])
+				vmm.cp.typeNameToTypeScheme[newTypename+"?"] = vmm.cp.typeNameToTypeScheme[newTypename+"?"].Union(vmm.cp.typeNameToTypeScheme[tname])
 			}
-			vmm.cp.typeNameToTypeList[newTypename+"?"] = vmm.cp.typeNameToTypeList[newTypename+"?"].Union(altType(values.NULL))
+			vmm.cp.typeNameToTypeScheme[newTypename+"?"] = vmm.cp.typeNameToTypeScheme[newTypename+"?"].Union(altType(values.NULL))
 			vmm.uP.Parser.Suffixes.Add(newTypename + "?")
-			vmm.cp.P.TypeSystem.AddTransitiveArrow("null", newTypename+"?")
 		}
 	}
 }
@@ -998,18 +1007,18 @@ func (vmm *VmMaker) createSnippetTypes() {
 		} else {
 			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(snippetDeclaration), i)})
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
-			vmm.cp.vm.AddTypeNumberToAbstractTypes(typeNo, "struct", "snippet")
+			vmm.AddType(name, "snippet", typeNo)
 			vmm.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
 		}
-		vmm.cp.typeNameToTypeList[name] = altType(typeNo)
-		vmm.cp.typeNameToTypeList[name+"?"] = altType(values.NULL, typeNo)
+		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
+		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeSystem, name, fn)
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn)
 		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}
 }

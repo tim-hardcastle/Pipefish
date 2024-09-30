@@ -12,6 +12,7 @@ import (
 	"pipefish/source/lexer"
 	"pipefish/source/report"
 	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 // NOTE: it may seem weird that the semicolon/newline has a lower precedence than 'given' or the 'magic colon', since these are followed by blocks
@@ -125,6 +126,8 @@ type ParserData struct {
 	ScriptFilepath string
 }
 
+type TypeSys    map[string]values.AbstractType 
+
 type Parser struct {
 
 	// Temporary state: things that are used to parse one line.
@@ -163,7 +166,10 @@ type Parser struct {
 
 	FunctionTable    FunctionTable // TODO --- this and the following clearly belong in the uberparser.
 	FunctionGroupMap map[string]*ast.FunctionGroup
-	TypeSystem       TypeSystem
+	
+	TypeMap          TypeSys                        // Maps names to abstract types.
+	typeData         map[string][]string            // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated. 
+
 	Structs          dtypes.Set[string]    // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig        map[string]ast.AstSig // <--- in here.
 
@@ -200,7 +206,13 @@ func New(dir, namespacePath string) *Parser {
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
 		FunctionGroupMap: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
-		TypeSystem:       NewTypeSystem(),
+		TypeMap:          NewTypeMap(),
+		typeData:         map[string][]string{
+								"struct":[]string{"struct", "struct?", "single", "single?"},
+								"enum":[]string{"enum", "enum?", "single", "single?"},
+								"single":[]string{"single", "single?"},
+						  },
+		
 		Structs:          make(dtypes.Set[string]),
 		GoImports:        make(map[string][]string),
 		NamespaceBranch:  make(map[string]*ParserData),
@@ -209,7 +221,7 @@ func New(dir, namespacePath string) *Parser {
 		NamespacePath:    namespacePath,
 	}
 
-	for k := range p.TypeSystem {
+	for k := range p.TypeMap {
 		p.Suffixes.Add(k)
 	}
 
@@ -225,6 +237,44 @@ func New(dir, namespacePath string) *Parser {
 	p.pushRParser(p)
 
 	return p
+}
+
+func (p *Parser) TypeExists(name string) bool {
+	_, ok := p.typeNameToAbstractType(name)
+	return ok
+}
+
+func (t TypeSys) GetAbstractType(name string) values.AbstractType {
+	abType, _ := t.getAbstractType(name)
+	return abType
+}
+
+func (t TypeSys) getAbstractType(name string) (values.AbstractType, bool) {
+	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
+		result := values.MakeAbstractType(values.STRING)
+		if GetNullabilityFromType(name) {
+			result = result.Insert(values.NULL)		
+		}
+		result.Varchar = uint32(varCharValue)
+		return result, true
+	}
+	// ... or the result should just be in the parser's type map. 
+	result, ok := t[name]
+	return result, ok
+}
+
+func (p *Parser) typeNameToAbstractType(name string) (values.AbstractType, bool) {
+	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
+		result := values.MakeAbstractType(values.STRING)
+		if GetNullabilityFromType(name) {
+			result = result.Insert(values.NULL)		
+		}
+		result.Varchar = uint32(varCharValue)
+		return result, true
+	}
+	// ... or the result should just be in the parser's type map. 
+	result, ok := p.TypeMap.getAbstractType(name)
+	return result, ok
 }
 
 func (p *Parser) pushRParser(q *Parser) {
@@ -365,7 +415,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// be sure that they're not in such a position that they're being used as literals.
 			if !resolvingParser.positionallyFunctional() {
 				switch {
-				case TypeExists(p.curToken.Literal, resolvingParser.TypeSystem):
+				case resolvingParser.TypeExists(p.curToken.Literal):
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
 					leftExp = p.parseUnfixExpression()
@@ -501,10 +551,10 @@ func (p *Parser) positionallyFunctional() bool {
 		p.peekToken.Type == token.COMMA {
 		return false
 	}
-	if p.curToken.Literal == "type" && TypeExists(p.peekToken.Literal, p.TypeSystem) {
+	if p.curToken.Literal == "type" && p.TypeExists(p.peekToken.Literal) {
 		return true
 	}
-	if p.Functions.Contains(p.curToken.Literal) && TypeExists(p.curToken.Literal, p.TypeSystem) {
+	if p.Functions.Contains(p.curToken.Literal) && p.TypeExists(p.curToken.Literal) {
 		if p.peekToken.Type == token.EMDASH {
 			return false
 		}
@@ -1352,7 +1402,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 			if arg.Operator == "raw" { // TODO --- same for 'ref'?
 				switch inner := arg.Args[0].(type) {
 				case *ast.SuffixExpression:
-					if !TypeExists(inner.Operator, p.TypeSystem) {
+					if !p.TypeExists(inner.Operator) {
 						p.Throw("parse/suffix/type", inner.GetToken())
 						return nil
 					}
@@ -1372,7 +1422,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 					return nil
 				}
 			} else { // The suffix is not 'raw'.
-				if !TypeExists(arg.Operator, p.TypeSystem) {
+				if !p.TypeExists(arg.Operator) {
 					p.Throw("parse/sig/type/a", &arg.Token)
 					return nil
 				}
@@ -1416,7 +1466,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				case *ast.Identifier:
 					varName = arg.Operator
 					varType = inner.Value
-					if !(TypeExists(inner.Value, p.TypeSystem) ||
+					if !(p.TypeExists(inner.Value) ||
 						arg.Operator == "ast" || arg.Operator == "ident") {
 						p.Throw("parse/sig/type/b", arg.GetToken())
 						return nil
@@ -1575,7 +1625,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstS
 		}
 	case *ast.SuffixExpression:
 		switch {
-		case TypeExists(typednode.Operator, p.TypeSystem):
+		case p.TypeExists(typednode.Operator):
 			LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
 			if err != nil {
 				return nil, err
@@ -1689,7 +1739,7 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.S
 	for tok := T.NextToken(); tok.Type != token.EOF; tok = T.NextToken() {
 		if tok.Type == token.IDENT &&
 			!p.AllFunctionIdents.Contains(tok.Literal) &&
-			!TypeExists(tok.Literal, p.TypeSystem) {
+			!p.TypeExists(tok.Literal) {
 			if assignHasHappened {
 				RHS.Add(tok.Literal)
 			} else {
