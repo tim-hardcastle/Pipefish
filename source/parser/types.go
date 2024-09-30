@@ -8,6 +8,48 @@ import (
 	"pipefish/source/values"
 )
 
+var baseTypes = map[string]values.ValueType{
+	"ok":       values.SUCCESSFUL_VALUE,
+	"int":      values.INT,
+	"string":   values.STRING,
+	"rune":     values.RUNE,
+	"bool":     values.BOOL,
+	"float":    values.FLOAT,
+	"error":    values.ERROR,
+	"type":     values.TYPE,
+	"pair":     values.PAIR,
+	"list":     values.LIST,
+	"map":      values.MAP,
+	"set":      values.SET,
+	"label":    values.LABEL,
+	"func":     values.FUNC,
+	"null":     values.NULL,
+}
+
+func NewTypeMap() TypeSys {
+	result := TypeSys{}
+	single := values.MakeAbstractType()
+	for k, v := range(baseTypes) {
+		single = single.Insert(v)
+		result[k] = values.MakeAbstractType(v)
+		if v != values.SUCCESSFUL_VALUE && v != values.NULL {
+			result[k + "?"] = values.MakeAbstractType(values.NULL, v)
+		}
+	}
+	singleAndNull := single.Insert(values.NULL)
+	result["single"] = single
+	result["single?"] = singleAndNull
+	for _, abType := range []string{"enum", "struct", "snippet"} {
+		result[abType] = values.MakeAbstractType()
+		result[abType+"?"] = values.MakeAbstractType(values.NULL)
+	}
+	for name, baseType := range ClonableTypes {
+		result[name + "like"] = values.MakeAbstractType(baseType)
+		result[name + "like?"] = values.MakeAbstractType(values.NULL, baseType)
+	}
+	return result
+}
+
 type TypeSystem = dtypes.Digraph[string]
 
 func NewTypeSystem() TypeSystem {
@@ -41,10 +83,7 @@ func NewTypeSystem() TypeSystem {
 	return T
 }
 
-func TypeExists(s string, t TypeSystem) bool {
-	_, ok := t[s]
-	return ok
-}
+
 
 // Supertypes includes containing types other than 'single', 'single?', and 'any', which are taken for granted.
 func AddType(T TypeSystem, t string, supertypes ...string) {
@@ -69,7 +108,7 @@ var ClonableTypes = map[string]values.ValueType{"int": values.INT, "string": val
 
 var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 
-func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.AstSig) (result bool, ok bool) {
+func IsMoreSpecific(T TypeSys, sigA, sigB ast.AstSig) (result bool, ok bool) {
 	if len(sigB) == 0 {
 		result = true
 		ok = true
@@ -92,8 +131,13 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.AstSig) (result bool, 
 		if i >= len(sigB) || i >= len(sigA) {
 			return aIsMoreSpecific, true
 		}
-		asubb := typesystem.PointsTo(sigA[i].VarType, sigB[i].VarType)
-		bsuba := typesystem.PointsTo(sigB[i].VarType, sigA[i].VarType)
+		aType := T.GetAbstractType(sigA[i].VarType)
+		bType := T.GetAbstractType(sigB[i].VarType)
+		if aType.PartlyIntersects(bType) {
+			return false, false
+		}
+		asubb := aType.IsSubtypeOf(bType)
+		bsuba := bType.IsSubtypeOf(aType)
 		aIsMoreSpecific = aIsMoreSpecific || asubb
 		bIsMoreSpecific = bIsMoreSpecific || bsuba
 		if aIsMoreSpecific && bIsMoreSpecific {
@@ -116,7 +160,7 @@ func IsMoreSpecific(typesystem TypeSystem, sigA, sigB ast.AstSig) (result bool, 
 	return aIsMoreSpecific, true
 }
 
-func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
+func IsSameTypeOrSubtype(T TypeSys, maybeSub, maybeSuper string) bool {
 	subLen, ok := GetLengthFromType(maybeSub)
 	if ok {
 		if maybeSuper == "string" || maybeSuper == "single" || maybeSuper == "tuple" {
@@ -126,7 +170,7 @@ func IsSameTypeOrSubtype(T TypeSystem, maybeSub, maybeSuper string) bool {
 		return ok && subLen <= superLen
 	}
 
-	return maybeSub == maybeSuper || T.PointsTo(maybeSub, maybeSuper)
+	return maybeSub == maybeSuper || T.GetAbstractType(maybeSub).IsSubtypeOf(T.GetAbstractType(maybeSuper))
 }
 
 func GetLengthFromType(maybeVarchar string) (int, bool) {
@@ -165,7 +209,7 @@ func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.Pr
 	return a
 }
 
-func AddInOrder(T TypeSystem, S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, bool) {
+func AddInOrder(T TypeSys, S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, bool) {
 	for i := 0; i < len(S); i++ {
 		yes, ok := IsMoreSpecific(T, f.Sig, S[i].Sig)
 		if !ok {

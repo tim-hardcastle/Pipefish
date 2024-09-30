@@ -58,7 +58,7 @@ type Vm struct {
 	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 }
 
-func (vm *Vm) AddTypeNumberToAbstractTypes(typeNo values.ValueType, abTypes ...string) {
+func (vm *Vm) AddTypeNumberToSharedAlternateTypes(typeNo values.ValueType, abTypes ...string) {
 	abTypes = append(abTypes, "single")
 	for _, ty := range abTypes {
 		vm.sharedTypenameToTypeList[ty] = vm.sharedTypenameToTypeList[ty].Union(altType(typeNo))
@@ -1262,36 +1262,7 @@ loop:
 		case Typu:
 			lhs := vm.Mem[args[1]].V.(values.AbstractType)
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)
-			i := 0
-			j := 0
-			result := make([]values.ValueType, 0, len(lhs.Types)+len(rhs.Types))
-			for i < len(lhs.Types) || j < len(rhs.Types) {
-				switch {
-				case i == len(lhs.Types):
-					result = append(result, rhs.Types[j])
-					j++
-				case j == len(rhs.Types):
-					result = append(result, lhs.Types[i])
-					i++
-				case lhs.Types[i] == rhs.Types[j]:
-					result = append(result, lhs.Types[i])
-					i++
-					j++
-				case lhs.Types[i] < rhs.Types[j]:
-					result = append(result, lhs.Types[i])
-					i++
-				case rhs.Types[j] < lhs.Types[i]:
-					result = append(result, rhs.Types[j])
-					j++
-				}
-			}
-			maxVc := uint32(0)
-			if lhs.Varchar > rhs.Varchar {
-				maxVc = lhs.Varchar
-			} else {
-				maxVc = rhs.Varchar
-			}
-			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{result, maxVc}}
+			vm.Mem[args[0]] = values.Value{values.TYPE, lhs.Union(rhs)}
 		case Typx:
 			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, DUMMY}}
 		case UntE:

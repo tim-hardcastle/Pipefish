@@ -41,7 +41,7 @@ type Compiler struct {
 	GlobalConsts                        *Environment
 	GlobalVars                          *Environment
 	Fns                                 []*CpFunc
-	typeNameToTypeList                  map[string]AlternateType
+	typeNameToTypeScheme                map[string]AlternateType
 	Services                            map[string]*Service // Both true internal services, and stubs that call the externals.
 	CallHandlerNumbersByName            map[string]uint32   // Map from the names of external services to their index as stored in the vm.
 	Timestamp                           int64
@@ -141,9 +141,7 @@ func (cp *Compiler) addToForData(x any) {
 	cp.forData[len(cp.forData)-1] = append(cp.forData[len(cp.forData)-1], x)
 }
 
-func (cp *Compiler) 
-
-forDataExists() bool {
+func (cp *Compiler) forDataExists() bool {
 	return len(cp.forData) > 0
 }
 
@@ -241,7 +239,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Services:                 make(map[string]*Service),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
-		typeNameToTypeList: map[string]AlternateType{
+		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
 			"string":   AltType(values.STRING),
@@ -802,7 +800,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	} else {
 		jumpOverGiven := cp.vmGoTo() // The 'given' block needs to be compiled here but should of course only have parts executed on demand.
 		cp.cm("Compiling the 'given' block of the 'for' loop", tok)
-		cp.compileGivenBlock(node.Given, newContext) 
+		cp.compileGivenBlock(node.Given, newContext)
 		cp.vmComeFrom(jumpOverGiven)
 	}
 
@@ -843,7 +841,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	cp.cm("Compiling loop body.", tok)
 	cp.pushNewForData()
 
-	cp.cm("Setting up thunks for the locals in the given block, if any.", tok)	
+	cp.cm("Setting up thunks for the locals in the given block, if any.", tok)
 	for _, thunk := range cp.ThunkList {
 		cp.Emit(Thnk, thunk.dest, thunk.value.MLoc, thunk.value.CAddr)
 	}
@@ -3499,7 +3497,7 @@ func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
 	if varargs {
 		typename = typename[3:]
 	}
-	result, ok := cp.typeNameToTypeList[typename]
+	result, ok := cp.typeNameToTypeScheme[typename]
 	if ok {
 		if varargs {
 			return AlternateType{TypedTupleType{result}}

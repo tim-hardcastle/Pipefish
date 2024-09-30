@@ -98,10 +98,71 @@ const (
 	C_EMPTY_TUPLE
 )
 
-// AbstractTypes are constructed from the altTypes in the compiler and so are assumed to be ordered.
 type AbstractType struct {
 	Types   []ValueType
 	Varchar uint32 // A kludge. if this has the maximum value (DUMMY), and there's a string in the types, then it's a string; otherwise it's a varchar with that value.
+}
+
+func MakeAbstractType(args ... ValueType) AbstractType {
+	result := AbstractType{[]ValueType{}, 0}
+	for _, t := range(args) {
+		result = result.Insert(t)
+		if t == STRING {
+			result.Varchar = DUMMY
+		}
+	}
+	return result
+}
+
+func (lhs AbstractType) Union(rhs AbstractType) AbstractType {
+	i := 0
+	j := 0
+	result := make([]ValueType, 0, len(lhs.Types)+len(rhs.Types))
+	for i < len(lhs.Types) || j < len(rhs.Types) {
+		switch {
+		case i == len(lhs.Types):
+			result = append(result, rhs.Types[j])
+			j++
+		case j == len(rhs.Types):
+			result = append(result, lhs.Types[i])
+			i++
+		case lhs.Types[i] == rhs.Types[j]:
+			result = append(result, lhs.Types[i])
+			i++
+			j++
+		case lhs.Types[i] < rhs.Types[j]:
+			result = append(result, lhs.Types[i])
+			i++
+		case rhs.Types[j] < lhs.Types[i]:
+			result = append(result, rhs.Types[j])
+			j++
+		}
+	}
+	maxVc := uint32(0)
+	if lhs.Varchar > rhs.Varchar {
+		maxVc = lhs.Varchar
+	} else {
+		maxVc = rhs.Varchar
+	}
+	return AbstractType{result, maxVc}
+}
+
+func (a AbstractType) Insert(v ValueType) AbstractType {
+	result := a 
+	if len(result.Types) == 0 {
+		return AbstractType{[]ValueType{v}, a.Varchar}
+	}
+	for i, t := range result.Types {
+		if v == t {
+			return result
+		}
+		if v < t {
+			resultTypes := append(result.Types[:i], v)
+			resultTypes = append(resultTypes, result.Types[i:]...)
+			return AbstractType{resultTypes , a.Varchar}
+		}
+	}
+	return AbstractType{append(result.Types, v), a.Varchar}
 }
 
 // Because AbstractTypes are ordered we could use binary search for this and there is a threshold beyond which
@@ -155,6 +216,11 @@ func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 		}
 	}
 	return true
+}
+
+func (a AbstractType) PartlyIntersects (b AbstractType) bool {
+	intersectionSize := a.Without(b).Len()
+	return !(a.Len() == intersectionSize || intersectionSize == 0) 
 }
 
 func (a AbstractType) Without(b AbstractType) AbstractType {

@@ -376,26 +376,12 @@ func (uP *Initializer) addTypesToParser() { /// TODO --- some of this seems to r
 				continue
 			}
 			name := tok1.Literal
-			hasNull := (name[len(name)-1] == '?')
-			if hasNull && !(kindOfType == abstractDeclaration) {
-				uP.Throw("init/type/null", tok1)
-				continue
-			}
 			if uP.Parser.Suffixes.Contains(name) {
 				uP.Throw("init/type/exists", tok1)
 				continue
 			}
 			uP.Parser.Suffixes.Add(name)
-			supertype := correspondingAbstractType[kindOfType]
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, supertype)
-			if hasNull {
-				uP.Parser.TypeSystem.AddTransitiveArrow("null", name)
-				uP.Parser.TypeSystem.AddTransitiveArrow(name, supertype+"?")
-				continue
-			}
 			uP.Parser.Suffixes.Add(name + "?")
-			uP.Parser.TypeSystem.AddTransitiveArrow("null", name+"?")
-			uP.Parser.TypeSystem.AddTransitiveArrow(name, name+"?")
 		}
 	}
 }
@@ -490,7 +476,7 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: uP.isPrivate(int(j), i), Number: DUMMY}
 			uP.fnIndex[fnSource{j, i}] = &functionToAdd
-			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeSystem, functionName, &functionToAdd)
+			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeMap, functionName, &functionToAdd)
 			if !ok {
 				uP.Throw("init/overload", *body.GetToken(), functionName)
 				return nil
@@ -582,7 +568,7 @@ func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
 		}
 		for _, branch := range tree.Branch {
-			if parser.IsSameTypeOrSubtype(uP.Parser.TypeSystem, branch.TypeName, currentType) {
+			if parser.IsSameTypeOrSubtype(uP.Parser.TypeMap, branch.TypeName, currentType) {
 				branch.Node = uP.addSigToTree(branch.Node, fn, pos+1)
 				if currentType == "tuple" && !(branch.TypeName == "tuple") {
 					uP.addSigToTree(branch.Node, fn, pos)
