@@ -1,38 +1,8 @@
-
 def
 
-troz(s string) :
-    "Qux says: " + qux.blort(s) 
+foo(x bool) :
+    "bool"
 
-blurp (x varchar(10)) :
-    x + " is a tiny string"
-
-blurp (x varchar(20)) :
-    x + " is a longer string"
-
-blurp (x string) :
-    x + " is a much longer string"
-
-private
-
-fuzz(x string) :
-    "**" + x + "**"
-
-var 
-
-x = 42
-
-private 
-
-y = 43
-
-def
-
-bloop(x string) :
-    fuzz x
-
-const private
-
-PI = 3.141592
-
+foo(x single?) :
+    "single?"
 
