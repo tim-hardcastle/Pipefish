@@ -218,6 +218,25 @@ func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 	return true
 }
 
+func (a AbstractType) IsProperSubtypeOf(b AbstractType) bool {
+	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar || 
+			(len(a.Types) == len(b.Types) && a.Varchar >= b.Varchar) {
+		return false
+	}
+	i := 0
+	for _, t := range a.Types {
+		for ; i < len(b.Types) && b.Types[i] < t; i++ {
+		}
+		if i >= len(b.Types) {
+			return false
+		}
+		if t != b.Types[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (a AbstractType) PartlyIntersects (b AbstractType) bool {
 	intersectionSize := a.Without(b).Len()
 	return !(a.Len() == intersectionSize || intersectionSize == 0) 

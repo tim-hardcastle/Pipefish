@@ -35,7 +35,7 @@ func (vm *Vm) DescribeOperandValues(addr uint32) string {
 }
 
 func (vm *Vm) DescribeTypeAndValue(v values.Value, flavor descriptionFlavor) string {
-	return vm.DescribeType(v.T, flavor) + "::" + vm.DefaultDescription(v)
+	return vm.DescribeType(v.T, flavor) + "::" + vm.toString(v, flavor)
 }
 
 func (vm *Vm) DescribeType(t values.ValueType, flavor descriptionFlavor) string {

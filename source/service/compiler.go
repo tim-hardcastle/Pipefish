@@ -991,7 +991,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 }
 
 func (cp *Compiler) AddVariable(env *Environment, name string, acc varAccess, types AlternateType, tok *token.Token) {
-	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That())), tok)
+	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That())) + " with type " + types.describe(cp.vm), tok)
 	env.data[name] = variable{mLoc: cp.That(), access: acc, types: types}
 }
 
@@ -1899,7 +1899,7 @@ NodeTypeSwitch:
 		cp.P.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
 		break
 	default:
-		panic("Unimplemented node type.")
+		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
 	}
 	if !rtnTypes.IsLegalCmdReturn() && !rtnTypes.IsLegalDefReturn() && !rtnTypes.Contains(values.COMPILE_TIME_ERROR) {
 		cp.P.Throw("comp/sanity", node.GetToken())

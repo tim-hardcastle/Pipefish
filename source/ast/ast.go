@@ -69,13 +69,12 @@ func (b *BooleanLiteral) GetToken() *token.Token { return &b.Token }
 func (b *BooleanLiteral) String() string         { return b.Token.Literal }
 
 type BuiltInExpression struct {
+	token.Token
 	Name string
 }
 
 func (bi *BuiltInExpression) Children() []Node { return []Node{} }
-func (bi *BuiltInExpression) GetToken() *token.Token {
-	return &token.Token{Type: token.BUILTIN, Literal: bi.Name, Source: "rsc/pipefish/builtins.pf", Line: -1}
-}
+func (bi *BuiltInExpression) GetToken() *token.Token { return &bi.Token }
 func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
 
 type FloatLiteral struct {
@@ -606,11 +605,12 @@ type PrsrFunction struct {
 	Sig      AstSig // The signature of the function, represented in a form where the types are given as strings.
 	Rets     AstSig // The return types: nil if not supplied.
 	Body     Node   // The body of the function.
-	Given    Node   // The 'givein' block: nil if there isn't one.
+	Given    Node   // The 'given' block: nil if there isn't one.
 	Cmd      bool   // Whether it's a command or not.
-	Private  bool   // Whether it's a suffix or not.
+	Private  bool   // Whether it's private or not.
 	Number   uint32 // The order in which the function was compiled by the vmMaker. Initialized as DUMMY.
 	Position uint32 // PREFIX, INFIX, SUFFIX.
+	Tok      *token.Token // Where it was declared.
 }
 
 type FunctionGroup = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.
