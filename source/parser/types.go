@@ -47,6 +47,7 @@ func NewTypeMap() TypeSys {
 		result[name + "like"] = values.MakeAbstractType(baseType)
 		result[name + "like?"] = values.MakeAbstractType(values.NULL, baseType)
 	}
+	result["tuple"] = values.MakeAbstractType(values.TUPLE)
 	return result
 }
 
@@ -136,8 +137,8 @@ func IsMoreSpecific(T TypeSys, sigA, sigB ast.AstSig) (result bool, ok bool) {
 		if aType.PartlyIntersects(bType) {
 			return false, false
 		}
-		asubb := aType.IsSubtypeOf(bType)
-		bsuba := bType.IsSubtypeOf(aType)
+		asubb := aType.IsProperSubtypeOf(bType)
+		bsuba := bType.IsProperSubtypeOf(aType)
 		aIsMoreSpecific = aIsMoreSpecific || asubb
 		bIsMoreSpecific = bIsMoreSpecific || bsuba
 		if aIsMoreSpecific && bIsMoreSpecific {
@@ -209,17 +210,17 @@ func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.Pr
 	return a
 }
 
-func AddInOrder(T TypeSys, S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, bool) {
+func AddInOrder(T TypeSys, S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
 	for i := 0; i < len(S); i++ {
 		yes, ok := IsMoreSpecific(T, f.Sig, S[i].Sig)
 		if !ok {
-			return []*ast.PrsrFunction{}, false
+			return []*ast.PrsrFunction{}, S[i]
 		}
 		if yes {
 			S = insert(S, f, i)
-			return S, true
+			return S, nil
 		}
 	}
 	S = append(S, f)
-	return S, true
+	return S, nil
 }

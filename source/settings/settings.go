@@ -14,7 +14,7 @@ var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "re
 
 const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
-	IGNORE_BOILERPLATE = true  // Should usually be left true. Means that the first five flags below won't show instrumentation when compiling buitins.pf, world.pf, etc.
+	IGNORE_BOILERPLATE = false  // Should usually be left true. Means that the first five flags below won't show instrumentation when compiling buitins.pf, world.pf, etc.
 
 	FUNCTION_TO_PEEK = "" // Shows the ast, function table entry and function tree associated with the function named in the string, if non-empty.
 
@@ -22,6 +22,7 @@ const (
 	SHOW_LEXER             = false
 	SHOW_RELEXER           = false
 	SHOW_PARSER            = false // Note that this only applies to the REPL and not to code initialization. Use FUNCTION_TO_PEEK to look at the AST of a function.
+	SHOW_VMM               = false
 	SHOW_COMPILER          = false
 	SHOW_COMPILER_COMMENTS = false
 	SHOW_RUNTIME           = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.

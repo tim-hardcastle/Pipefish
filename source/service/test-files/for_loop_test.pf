@@ -40,7 +40,7 @@ evens(x) :
             continue
 
 find(x, C) :
-    from a = -1 for i::y = range C :
+    from a =  for i::y = range C :
         x == y :
             break i 
         else :

@@ -6,12 +6,12 @@ import (
 
 type FunctionTable map[string][]*ast.PrsrFunction
 
-func (ft FunctionTable) Add(T TypeSys, functionName string, f *ast.PrsrFunction) (ok bool) {
+func (ft FunctionTable) Add(T TypeSys, functionName string, f *ast.PrsrFunction) (*ast.PrsrFunction) {
 	if functions, ok := ft[functionName]; ok {
-		functions, ok = AddInOrder(T, functions, f)
+		functions, conflictingFunction := AddInOrder(T, functions, f)
 		ft[functionName] = functions
-		return ok
+		return conflictingFunction
 	}
 	ft[functionName] = []*ast.PrsrFunction{f}
-	return true
+	return nil
 }

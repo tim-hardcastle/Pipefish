@@ -1,6 +1,7 @@
 package report
 
 import (
+	"pipefish/source/ast"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -1101,7 +1102,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/overload": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "too much overloading of function '" + args[0].(string) + "'"
+			return "too much overloading: function '" + args[0].(string) + "' defined at@line " + strconv.Itoa(args[2].(*ast.PrsrFunction).Tok.Line) +"@conflicts with another version of the same function defined at"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish allows for multiple dispatch, i.e. you could write two functions like this and the result " +
@@ -1127,7 +1128,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "mismatching reference parameters in overloaded function"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "if you overload function with reference parameters, then they must have the same number of reference parameters, at the start of the parameter list, or you will see this error."
+			return "if you overload a function with reference parameters, then they must have the same number of reference parameters, at the start of the parameter list, or you will see this error."
 		},
 	},
 

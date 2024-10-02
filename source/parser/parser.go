@@ -407,6 +407,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	if noNativePrefix {
 		if p.curToken.Type == token.IDENT {
 			if p.curToken.Literal == "builtin" {
+				p.curToken.Type = token.BUILTIN
 				leftExp = p.parseBuiltInExpression()
 				return leftExp
 			}
@@ -846,6 +847,7 @@ func (p *Parser) parseStructExpression() ast.Node {
 // This is to allow me to use the initializer to pour builtins into the parser's function table.
 func (p *Parser) parseBuiltInExpression() ast.Node {
 	expression := &ast.BuiltInExpression{}
+	expression.Token = p.curToken
 	p.NextToken()
 	if p.curToken.Type == token.STRING {
 		expression.Name = p.curToken.Literal

@@ -95,96 +95,123 @@ func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath st
 	return vmm
 }
 
+func (vmm *VmMaker) cm(s string) {
+	if settings.SHOW_VMM {
+		println(text.UNDERLINE + s + text.RESET)
+	}
+}
+
 func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
+	vmm.cm("Starting makeall for script " + scriptFilepath + ".")
 	if !settings.OMIT_BUILTINS {
+		vmm.cm("Adding mandatory imports to namespace.")
 		vmm.uP.AddToNameSpace(settings.MandatoryImports)
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
+		vmm.cm("Adding hub.pf to hub namespace.")
 		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
 	}
+	vmm.cm("Making new relexer.")
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
+
+	vmm.cm("Making parser and tokenized program.")
 	vmm.uP.MakeParserAndTokenizedProgram()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Parsing import and exteral declarations.")
 	vmm.uP.ParseImportsAndExternals() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Initializing imports.")
 	unnamespacedImports := vmm.InitializeNamespacedImportsAndReturnUnnamespacedImports()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Adding unnamespaced imports to namespace.")
 	vmm.uP.AddToNameSpace(unnamespacedImports)
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Initializing external services.")
 	vmm.initializeExternals()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Creating enums.")
 	vmm.createEnums()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Creating clone types.")
 	vmm.createClones()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	vmm.uP.MakeSnippets()
+	vmm.cm("Creating snippet types, part 1.")
+	vmm.uP.createSnippetsPart1()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Adding types to parser.")
 	vmm.uP.addTypesToParser()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Adding constructors to parser, parsing struct declarations.")
 	vmm.uP.addConstructorsToParserAndParseStructDeclarations()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	// But not the constructors, which come later.
+	vmm.cm("Creating struct names and labels.")
 	vmm.createStructNamesAndLabels()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	vmm.defineAbstractTypes()
+	vmm.cm("Creating abstract types.")
+	vmm.createAbstractTypes()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Adding fields to structs.")
 	vmm.addFieldsToStructs()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	vmm.createSnippetTypes()
+	vmm.cm("Creating snippet types, part 2.")
+	vmm.createSnippetTypesPart2()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
 	// We want to ensure that no public type (whether a struct or abstract type) contains a private type.
+	vmm.cm("Checking types for consistency of encapsulation.")
 	vmm.checkTypesForConsistency()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Adding abstract types to the VM.")
 	vmm.addAbstractTypesToVm()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
+	vmm.cm("Parsing everything.")
 	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -192,12 +219,14 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
-	goHandler := vmm.uP.MakeFunctions()
+	vmm.cm("Making function table.")
+	goHandler := vmm.uP.MakeFunctionTable()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
 	// We build the Go files, if any.
+	vmm.cm("Building Go modules.")
 	vmm.MakeGoMods(goHandler)
 	if vmm.uP.ErrorsExist() {
 		return
@@ -205,18 +234,21 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 
 	// Now we turn this into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
+	vmm.cm("Making function trees.")
 	vmm.uP.MakeFunctionTrees()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
 	// We add in constructors for the structs, snippets, and clones.
+	vmm.cm("Compiling constructors.")
 	vmm.compileConstructors()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
 	// We do a topological sort on the commands, functions, variable and constant declarations and then declare them in the right order.
+	vmm.cm("Compiling everything.")
 	vmm.compileEverything()
 	if vmm.uP.ErrorsExist() {
 		return
@@ -308,6 +340,7 @@ var serviceVariables = map[string]serviceVariableData{
 // A constant can't depend on a variable.
 // A variable or constant can't depend on itself.
 func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
+	vmm.cm("Mapping variable names to the parsed code chunks in which they occur.")
 	vmm.cp.GlobalVars.Ext = vmm.cp.GlobalConsts
 	namesToDeclarations := map[string][]labeledParsedCodeChunk{}
 	result := [][]labeledParsedCodeChunk{}
@@ -328,6 +361,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
+	vmm.cm("Extracting variable names from functions.")
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
 			name, _, _, _, _, _ := vmm.cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
@@ -348,6 +382,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
+	vmm.cm("Building digraph of dependencies.")
 	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
 	graph := dtypes.Digraph[string]{}
 	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
@@ -385,6 +420,7 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
 	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
 
+	vmm.cm("Initiaizing service variables.")
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
 
@@ -418,9 +454,11 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 
+	vmm.cm("Performing sort on digraph.")
 	order := graph.Tarjan()
 
 	// We now have a list of lists of names to declare. We're off to the races!
+	vmm.cm("Compiling the variables/functions in the order give by the sort.")
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
@@ -684,7 +722,7 @@ func (vmm *VmMaker) createClones() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
+		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn)
 		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -826,7 +864,7 @@ func (vmm *VmMaker) createClones() {
 }
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, isPrivate bool, i int, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{builtinTag}, Number: vmm.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, fnName, fn)
 }
 
@@ -857,7 +895,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		vmm.uP.Parser.Functions.Add(name)
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY}
+		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: node.GetToken()}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn) // TODO --- give them their own ast type?
 		vmm.uP.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
@@ -903,7 +941,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 	}
 }
 
-func (vmm *VmMaker) defineAbstractTypes() {
+func (vmm *VmMaker) createAbstractTypes() {
 	for _, tcc := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
@@ -990,7 +1028,7 @@ func (vmm *VmMaker) addFieldsToStructs() {
 	}
 }
 
-func (vmm *VmMaker) createSnippetTypes() {
+func (vmm *VmMaker) createSnippetTypesPart2() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range vmm.cp.P.Snippets {
@@ -1017,7 +1055,7 @@ func (vmm *VmMaker) createSnippetTypes() {
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
-		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}}
+		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn)
 		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}
@@ -1096,6 +1134,7 @@ func (vmm *VmMaker) compileConstructors() {
 }
 
 func (vmm *VmMaker) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes AlternateType, private bool, tok *token.Token) uint32 {
+	vmm.cm("Adding '" + builtinTag + "' to builtins.")
 	cpF := &CpFunc{Types: returnTypes, Builtin: builtinTag}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = vmm.cp.MemTop()
@@ -1135,6 +1174,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
+	vmm.cm("Compiling function '" + functionName + "' with sig " + sig.String() + ".")
 
 	if settings.FUNCTION_TO_PEEK == functionName {
 		println(node.String() + "\n")
@@ -1146,9 +1186,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	if vmm.uP.Parser.ErrorsExist() {
 		return nil
 	}
-	if body.GetToken().Type == token.BUILTIN {
-		cpF.Builtin = body.(*ast.BuiltInExpression).Name
-	}
+
 	if body.GetToken().Type == token.XCALL {
 		Xargs := body.(*ast.PrefixExpression).Args
 		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value), FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
@@ -1218,6 +1256,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 				cpF.Types = altType(structNo)
 			}
 		}
+		cpF.Builtin = name
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(vmm.cp.vm.GoFns))
 		cpF.HasGo = true
@@ -1279,6 +1318,7 @@ func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Envir
 
 func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType, v int) {
 	dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
+	vmm.cm("Compiling assignment " + dec.String())
 	lhs := dec.(*ast.AssignmentExpression).Left
 	rhs := dec.(*ast.AssignmentExpression).Right
 	sig, _ := vmm.cp.P.RecursivelySlurpSignature(lhs, "*inferred*")

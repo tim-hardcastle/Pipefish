@@ -405,7 +405,7 @@ func (uP *Initializer) addConstructorsToParserAndParseStructDeclarations() {
 	}
 }
 
-func (uP *Initializer) MakeSnippets() {
+func (uP *Initializer) createSnippetsPart1() {
 	for _, v := range uP.Parser.TokenizedDeclarations[snippetDeclaration] {
 		v.ToStart()
 		// Note that the first tokens should already have been validated by the createTypeSuffixes method as IDENT.
@@ -457,7 +457,7 @@ func (uP *Initializer) isPrivate(x, y int) bool {
 // implementing overloading.
 //
 // We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (uP *Initializer) MakeFunctions() *GoHandler {
+func (uP *Initializer) MakeFunctionTable() *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
 	goHandler := NewGoHandler(uP.Parser)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
@@ -474,11 +474,11 @@ func (uP *Initializer) MakeFunctions() *GoHandler {
 				return nil
 			}
 			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: uP.isPrivate(int(j), i), Number: DUMMY}
+				Cmd: j == commandDeclaration, Private: uP.isPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			uP.fnIndex[fnSource{j, i}] = &functionToAdd
-			ok := uP.Parser.FunctionTable.Add(uP.Parser.TypeMap, functionName, &functionToAdd)
-			if !ok {
-				uP.Throw("init/overload", *body.GetToken(), functionName)
+			conflictingFunction := uP.Parser.FunctionTable.Add(uP.Parser.TypeMap, functionName, &functionToAdd)
+			if conflictingFunction != nil {
+				uP.Throw("init/overload", *body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
 				return nil
 			}
 			if body.GetToken().Type == token.GOCODE {
