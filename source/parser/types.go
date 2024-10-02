@@ -48,6 +48,7 @@ func NewTypeMap() TypeSys {
 		result[name + "like?"] = values.MakeAbstractType(values.NULL, baseType)
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)
+	result["ref"] = values.MakeAbstractType(values.REF)
 	return result
 }
 
