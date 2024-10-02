@@ -1,5 +1,7 @@
 package values
 
+import "strconv"
+
 type ValueType uint32
 
 const ( // Cross-reference with typeNames in BlankVm()
@@ -98,14 +100,25 @@ const (
 	C_EMPTY_TUPLE
 )
 
+func (a AbstractType) String() string {
+	result := "["
+	sep := ""
+	for _, t := range a.Types {
+		result = result + sep + strconv.Itoa(int(t))
+		sep = ", "
+	}
+	result = result + "]"
+	return result
+}
+
 type AbstractType struct {
 	Types   []ValueType
 	Varchar uint32 // A kludge. if this has the maximum value (DUMMY), and there's a string in the types, then it's a string; otherwise it's a varchar with that value.
 }
 
-func MakeAbstractType(args ... ValueType) AbstractType {
+func MakeAbstractType(args ...ValueType) AbstractType {
 	result := AbstractType{[]ValueType{}, 0}
-	for _, t := range(args) {
+	for _, t := range args {
 		result = result.Insert(t)
 		if t == STRING {
 			result.Varchar = DUMMY
@@ -148,21 +161,23 @@ func (lhs AbstractType) Union(rhs AbstractType) AbstractType {
 }
 
 func (a AbstractType) Insert(v ValueType) AbstractType {
-	result := a 
-	if len(result.Types) == 0 {
+	if len(a.Types) == 0 {
 		return AbstractType{[]ValueType{v}, a.Varchar}
 	}
-	for i, t := range result.Types {
+	for i, t := range a.Types {
 		if v == t {
-			return result
+			return a
 		}
 		if v < t {
-			resultTypes := append(result.Types[:i], v)
-			resultTypes = append(resultTypes, result.Types[i:]...)
-			return AbstractType{resultTypes , a.Varchar}
+			lhs := make([]ValueType, i)
+			rhs := make([]ValueType, len(a.Types)-i)
+			copy(lhs, a.Types[:i])
+			copy(rhs, a.Types[i:])
+			lhs = append(lhs, v)
+			return AbstractType{append(lhs, rhs...), a.Varchar}
 		}
 	}
-	return AbstractType{append(result.Types, v), a.Varchar}
+	return AbstractType{append(a.Types, v), a.Varchar}
 }
 
 // Because AbstractTypes are ordered we could use binary search for this and there is a threshold beyond which
@@ -219,8 +234,8 @@ func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 }
 
 func (a AbstractType) IsProperSubtypeOf(b AbstractType) bool {
-	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar || 
-			(len(a.Types) == len(b.Types) && a.Varchar >= b.Varchar) {
+	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar ||
+		(len(a.Types) == len(b.Types) && a.Varchar >= b.Varchar) {
 		return false
 	}
 	i := 0
@@ -237,9 +252,35 @@ func (a AbstractType) IsProperSubtypeOf(b AbstractType) bool {
 	return true
 }
 
-func (a AbstractType) PartlyIntersects (b AbstractType) bool {
-	intersectionSize := a.Without(b).Len()
-	return !(a.Len() == intersectionSize || intersectionSize == 0) 
+func (vL AbstractType) intersect(wL AbstractType) AbstractType {
+	result := AbstractType{[]ValueType{}, 0}
+	var vix, wix int
+	for vix < vL.Len() && wix < wL.Len() {
+		if vL.Types[vix] == wL.Types[wix] {
+			result.Types = append(result.Types, vL.Types[vix])
+			if vL.Types[vix] == STRING {
+				if vL.Varchar < wL.Varchar {
+					result.Varchar = vL.Varchar
+				} else {
+					result.Varchar = wL.Varchar
+				}
+			}
+			vix++
+			wix++
+			continue
+		}
+		if vL.Types[vix] < wL.Types[wix] {
+			vix++
+			continue
+		}
+		wix++
+	}
+	return result
+}
+
+func (a AbstractType) PartlyIntersects(b AbstractType) bool {
+	intersectionSize := a.intersect(b).Len()
+	return !(a.Len() == intersectionSize || b.Len() == intersectionSize || intersectionSize == 0)
 }
 
 func (a AbstractType) Without(b AbstractType) AbstractType {

@@ -30,9 +30,9 @@ func NewTypeMap() TypeSys {
 	result := TypeSys{}
 	single := values.MakeAbstractType()
 	for k, v := range(baseTypes) {
-		single = single.Insert(v)
 		result[k] = values.MakeAbstractType(v)
 		if v != values.SUCCESSFUL_VALUE && v != values.NULL {
+			single = single.Insert(v)
 			result[k + "?"] = values.MakeAbstractType(values.NULL, v)
 		}
 	}
