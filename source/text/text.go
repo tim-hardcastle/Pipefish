@@ -4,6 +4,7 @@ package text
 // help messages, error messages, etc.
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -357,10 +358,14 @@ func GetTextWithBarsAsList(text string) ([]string, bool) {
 
 // Removes the last two folders in a filepath. TODO --- is there a more principled way of doing this?
 func Trim(path string) string {
-	lastFS := strings.LastIndex(path, "/")
+	sep := "/"
+	if runtime.GOOS == "windows" {
+		sep = "\\"
+	}
+	lastFS := strings.LastIndex(path, sep)
 	path = path[:lastFS]
-	lastFS = strings.LastIndex(path, "/")
+	lastFS = strings.LastIndex(path, sep)
 	path = path[:lastFS]
-	path = path + "/"
+	path = path + sep
 	return path
 }
