@@ -31,7 +31,7 @@ type VmMaker struct {
 
 }
 
-// The base case: we start off with a blank vm.
+// The base case: we start off with a blank vm and common parser bindle.
 func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service) (*Service, *Initializer) {
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
@@ -634,6 +634,11 @@ func (vmm *VmMaker) AddType(name, supertype string, typeNo values.ValueType) {
 		types = append(types, "struct")
 	}
 	vmm.cp.vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
+	types = append(types, "single")
+	for _, sT := range(types) {
+		vmm.uP.Parser.Common.Types[sT] = vmm.uP.Parser.Common.Types[sT].Insert(typeNo)
+		vmm.uP.Parser.Common.Types[sT+"?"] = vmm.uP.Parser.Common.Types[sT+"?"].Insert(typeNo)
+	}
 }
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
