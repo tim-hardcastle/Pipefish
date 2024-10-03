@@ -1045,10 +1045,10 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 		} else {
 			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(snippetDeclaration), i)})
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
-			vmm.AddType(name, "snippet", typeNo)
 			vmm.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
 		}
+		vmm.AddType(name, "snippet", typeNo)
 		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
 		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
