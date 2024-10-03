@@ -2,7 +2,7 @@
 // It is largely separate from the main vmmaker for historical reason but it also adds some clarity
 // to group together aspects of the initialization process which don't need to touch the vm.
 
-// In opertation, it takes the tokens from the relexer and splits it up into code types according to the headword,
+// In operation, it takes the tokens from the relexer and splits it up into code types according to the headword,
 // which is discarded. It breaks these up into function declarations, variable intializations, etc.
 
 // As it does so it checks out the signatures of the functions and commands and decides
@@ -362,16 +362,15 @@ func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 
 var correspondingAbstractType = map[declarationType]string{enumDeclaration: "enum", structDeclaration: "struct", snippetDeclaration: "snippet", abstractDeclaration: "single"}
 
-// We need to declare all the types as suffixes for all the user-defined types, and add at least their existence to the parser's type system,
-// so that the parser will be able to parse the struct definitions.
+// We need to declare all the types as suffixes for all the user-defined types
 func (uP *Initializer) addTypesToParser() { /// TODO --- some of this seems to replicate boilerplate in the parsing functions, so you should be able to remove the latter.
 	for kindOfType := enumDeclaration; kindOfType <= cloneDeclaration; kindOfType++ {
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[kindOfType]); chunk++ {
-			// Each of them should begin with the name of the type being declared, and then followed by an = unless it's a snippet declaration.
+			// Each of them should begin with the name of the type being declared, and then followed by an =..
 			uP.Parser.TokenizedDeclarations[kindOfType][chunk].ToStart()
 			tok1 := uP.Parser.TokenizedDeclarations[kindOfType][chunk].NextToken()
 			tok2 := uP.Parser.TokenizedDeclarations[kindOfType][chunk].NextToken()
-			if tok1.Type != token.IDENT || (kindOfType != snippetDeclaration && tok2.Type != token.ASSIGN) {
+			if tok1.Type != token.IDENT || tok2.Type != token.ASSIGN {
 				uP.Throw("init/type/form/a", tok1)
 				continue
 			}
