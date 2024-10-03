@@ -9,31 +9,31 @@ import (
 )
 
 var baseTypes = map[string]values.ValueType{
-	"ok":       values.SUCCESSFUL_VALUE,
-	"int":      values.INT,
-	"string":   values.STRING,
-	"rune":     values.RUNE,
-	"bool":     values.BOOL,
-	"float":    values.FLOAT,
-	"error":    values.ERROR,
-	"type":     values.TYPE,
-	"pair":     values.PAIR,
-	"list":     values.LIST,
-	"map":      values.MAP,
-	"set":      values.SET,
-	"label":    values.LABEL,
-	"func":     values.FUNC,
-	"null":     values.NULL,
+	"ok":     values.SUCCESSFUL_VALUE,
+	"int":    values.INT,
+	"string": values.STRING,
+	"rune":   values.RUNE,
+	"bool":   values.BOOL,
+	"float":  values.FLOAT,
+	"error":  values.ERROR,
+	"type":   values.TYPE,
+	"pair":   values.PAIR,
+	"list":   values.LIST,
+	"map":    values.MAP,
+	"set":    values.SET,
+	"label":  values.LABEL,
+	"func":   values.FUNC,
+	"null":   values.NULL,
 }
 
-func NewTypeMap() TypeSys {
+func NewCommonTypeMap() TypeSys {
 	result := TypeSys{}
 	single := values.MakeAbstractType()
-	for k, v := range(baseTypes) {
+	for k, v := range baseTypes {
 		result[k] = values.MakeAbstractType(v)
 		if v != values.SUCCESSFUL_VALUE && v != values.NULL {
 			single = single.Insert(v)
-			result[k + "?"] = values.MakeAbstractType(values.NULL, v)
+			result[k+"?"] = values.MakeAbstractType(values.NULL, v)
 		}
 	}
 	singleAndNull := single.Insert(values.NULL)
@@ -44,8 +44,8 @@ func NewTypeMap() TypeSys {
 		result[abType+"?"] = values.MakeAbstractType(values.NULL)
 	}
 	for name, baseType := range ClonableTypes {
-		result[name + "like"] = values.MakeAbstractType(baseType)
-		result[name + "like?"] = values.MakeAbstractType(values.NULL, baseType)
+		result[name+"like"] = values.MakeAbstractType(baseType)
+		result[name+"like?"] = values.MakeAbstractType(values.NULL, baseType)
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)
 	result["ref"] = values.MakeAbstractType(values.REF)
@@ -84,8 +84,6 @@ func NewTypeSystem() TypeSystem {
 	T.AddTransitiveArrow("ok", "dummy value")
 	return T
 }
-
-
 
 // Supertypes includes containing types other than 'single', 'single?', and 'any', which are taken for granted.
 func AddType(T TypeSystem, t string, supertypes ...string) {

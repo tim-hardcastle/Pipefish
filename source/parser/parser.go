@@ -126,7 +126,7 @@ type ParserData struct {
 	ScriptFilepath string
 }
 
-type TypeSys    map[string]values.AbstractType 
+type TypeSys map[string]values.AbstractType
 
 // For data that needs to be shared by all parsers.
 type CommonParserBindle struct {
@@ -134,7 +134,7 @@ type CommonParserBindle struct {
 }
 
 func NewCommonBindle() *CommonParserBindle {
-	result := CommonParserBindle{Types: make(TypeSys)}
+	result := CommonParserBindle{Types: NewCommonTypeMap()}
 	return &result
 }
 
@@ -160,7 +160,7 @@ type Parser struct {
 	// then constant for the lifetime of the service.
 
 	// Things that need to be attached to every parser: common information about the type system, functions, etc.
-	Common            *CommonParserBindle
+	Common *CommonParserBindle
 
 	Functions         dtypes.Set[string]
 	Prefixes          dtypes.Set[string]
@@ -179,12 +179,12 @@ type Parser struct {
 
 	FunctionTable    FunctionTable // TODO --- this and the following clearly belong in the uberparser.
 	FunctionGroupMap map[string]*ast.FunctionGroup
-	
-	TypeMap          TypeSys                        // Maps names to abstract types.
-	typeData         map[string][]string            // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated. 
 
-	Structs          dtypes.Set[string]    // TODO --- remove: this has nothing to do that can't be done by the presence of a key
-	StructSig        map[string]ast.AstSig // <--- in here.
+	TypeMap  TypeSys             // Maps names to abstract types.
+	typeData map[string][]string // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
+
+	Structs   dtypes.Set[string]    // TODO --- remove: this has nothing to do that can't be done by the presence of a key
+	StructSig map[string]ast.AstSig // <--- in here.
 
 	Snippets        []string
 	GoImports       map[string][]string
@@ -219,23 +219,23 @@ func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:    make(FunctionTable),
 		FunctionGroupMap: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
-		TypeMap:          NewTypeMap(),
-		typeData:         map[string][]string{
-								"struct":[]string{"struct", "struct?", "single", "single?"},
-								"enum":[]string{"enum", "enum?", "single", "single?"},
-								"single":[]string{"single", "single?"},
-						  },
-		
-		Structs:          make(dtypes.Set[string]),
-		GoImports:        make(map[string][]string),
-		NamespaceBranch:  make(map[string]*ParserData),
-		ExternalParsers:  make(map[string]*Parser),
-		Directory:        dir,
-		NamespacePath:    namespacePath,
-		Common:           common,
+		TypeMap:          make(TypeSys),
+		typeData: map[string][]string{
+			"struct": []string{"struct", "struct?", "single", "single?"},
+			"enum":   []string{"enum", "enum?", "single", "single?"},
+			"single": []string{"single", "single?"},
+		},
+
+		Structs:         make(dtypes.Set[string]),
+		GoImports:       make(map[string][]string),
+		NamespaceBranch: make(map[string]*ParserData),
+		ExternalParsers: make(map[string]*Parser),
+		Directory:       dir,
+		NamespacePath:   namespacePath,
+		Common:          common,
 	}
 
-	for k := range p.TypeMap {
+	for k := range p.Common.Types {
 		p.Suffixes.Add(k)
 	}
 
@@ -267,7 +267,7 @@ func (p *Parser) getAbstractType(name string) (values.AbstractType, bool) {
 	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
 		result := values.MakeAbstractType(values.STRING)
 		if GetNullabilityFromType(name) {
-			result = result.Insert(values.NULL)		
+			result = result.Insert(values.NULL)
 		}
 		result.Varchar = uint32(varCharValue)
 		return result, true
@@ -276,12 +276,10 @@ func (p *Parser) getAbstractType(name string) (values.AbstractType, bool) {
 	if result, ok := p.Common.Types[name]; ok {
 		return result, true
 	}
-	// ... or the result should just be in the parser's own type map. 
+	// ... or the result should just be in the parser's own type map.
 	result, ok := p.TypeMap[name]
 	return result, ok
 }
-
-
 
 func (p *Parser) pushRParser(q *Parser) {
 	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
@@ -767,7 +765,8 @@ func (p *Parser) parseFromExpression() ast.Node {
 		givenBlock = expression.(*ast.InfixExpression).Args[2]
 		expression = expression.(*ast.InfixExpression).Args[0]
 	}
-	exp, ok := expression.(*ast.ForExpression); if ok {
+	exp, ok := expression.(*ast.ForExpression)
+	if ok {
 		exp.Given = givenBlock
 		return exp
 	}
@@ -1122,7 +1121,7 @@ func (p *Parser) parseElse() ast.Node {
 func (p *Parser) parseBreak() ast.Node {
 	if p.positionallyFunctional() {
 		t := p.curToken
-		p.NextToken() // Skips the 'break' token
+		p.NextToken()                  // Skips the 'break' token
 		exp := p.parseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
 		return &ast.PrefixExpression{t, "break", []ast.Node{exp}, []string{}}
 	}
