@@ -6,3 +6,6 @@ foo(x bool) :
 foo(x single?) :
     "single?"
 
+sum(L list) :
+    from a = "" for _, v = range L :
+        a + v
