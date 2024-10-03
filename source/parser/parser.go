@@ -765,6 +765,7 @@ func (p *Parser) parseFromExpression() ast.Node {
 		exp.Given = givenBlock
 		return exp
 	}
+	println("Expression is", reflect.TypeOf(expression).String())
 	p.Throw("parse/from", &fromToken)
 	return nil
 }
