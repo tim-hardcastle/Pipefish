@@ -34,7 +34,8 @@ type VmMaker struct {
 // The base case: we start off with a blank vm.
 func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service) (*Service, *Initializer) {
 	mc := BlankVm(db, hubServices)
-	cp, uP := initializeFromFilepath(mc, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	common := parser.NewCommonBindle()
+	cp, uP := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	result := &Service{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
@@ -46,7 +47,7 @@ var testFolder embed.FS
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
 // We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
-func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath string) (*Compiler, *Initializer) {
+func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, dir string, namespacePath string) (*Compiler, *Initializer) {
 	sourcecode := ""
 	var sourcebytes []byte
 	var err error
@@ -58,22 +59,22 @@ func initializeFromFilepath(mc *Vm, scriptFilepath, dir string, namespacePath st
 		}
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to find errors in the uP.
+			uP := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to find errors in the uP.
 			uP.Throw("init/source/a", token.Token{Source: "linking"}, scriptFilepath, err.Error())
 			return nil, uP
 		}
 	}
-	return initializeFromSourcecode(mc, scriptFilepath, sourcecode, dir, namespacePath)
+	return initializeFromSourcecode(mc, common, scriptFilepath, sourcecode, dir, namespacePath)
 }
 
-func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, namespacePath string) (*Compiler, *Initializer) {
-	vmm := newVmMaker(scriptFilepath, sourcecode, dir, mc, namespacePath)
+func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, namespacePath string) (*Compiler, *Initializer) {
+	vmm := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
 	vmm.makeAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && !testing.Testing() {
 		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
 		if err != nil {
-			uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)
+			uP := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
 			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
@@ -83,8 +84,8 @@ func initializeFromSourcecode(mc *Vm, scriptFilepath, sourcecode, dir string, na
 	return vmm.cp, vmm.uP
 }
 
-func newVmMaker(scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *VmMaker {
-	uP := NewInitializer(scriptFilepath, sourcecode, dir, namespacePath)
+func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *VmMaker {
+	uP := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
 	vmm := &VmMaker{
 		cp: NewCompiler(uP.Parser),
 		uP: uP,
@@ -272,7 +273,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp, newUP := initializeFromFilepath(vmm.cp.vm, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath)
+		newCp, newUP := initializeFromFilepath(vmm.cp.vm, uP.Parser.Common, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath)
 		if newUP.ErrorsExist() {
 			uP.Parser.GetErrorsFrom(newUP.Parser)
 			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, true, false}
@@ -615,7 +616,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	vmm.cp.vm.ExternalCallHandlers = append(vmm.cp.vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath)
+	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, vmm.cp.P.Common, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath)
 	if newUp.ErrorsExist() {
 		vmm.cp.P.GetErrorsFrom(newUp.Parser)
 		return
@@ -723,7 +724,7 @@ func (vmm *VmMaker) createClones() {
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn)
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
 		// We get the requested builtins.
@@ -865,7 +866,7 @@ func (vmm *VmMaker) createClones() {
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, isPrivate bool, i int, tok *token.Token) {
 	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
-	vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, fnName, fn)
+	vmm.cp.P.FunctionTable.Add(vmm.cp.P, fnName, fn)
 }
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
@@ -896,7 +897,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: node.GetToken()}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn) // TODO --- give them their own ast type?
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn) // TODO --- give them their own ast type?
 		vmm.uP.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
@@ -1045,10 +1046,10 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 		} else {
 			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(snippetDeclaration), i)})
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			vmm.AddType(name, "snippet", typeNo)
 			vmm.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
 		}
-		vmm.AddType(name, "snippet", typeNo)
 		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
 		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
@@ -1056,7 +1057,7 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P.TypeMap, name, fn)
+		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}
 }

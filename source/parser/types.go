@@ -110,7 +110,7 @@ var ClonableTypes = map[string]values.ValueType{"int": values.INT, "string": val
 
 var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 
-func IsMoreSpecific(T TypeSys, sigA, sigB ast.AstSig) (result bool, ok bool) {
+func (p *Parser) IsMoreSpecific(sigA, sigB ast.AstSig) (result bool, ok bool) {
 	if len(sigB) == 0 {
 		result = true
 		ok = true
@@ -133,8 +133,8 @@ func IsMoreSpecific(T TypeSys, sigA, sigB ast.AstSig) (result bool, ok bool) {
 		if i >= len(sigB) || i >= len(sigA) {
 			return aIsMoreSpecific, true
 		}
-		aType := T.GetAbstractType(sigA[i].VarType)
-		bType := T.GetAbstractType(sigB[i].VarType)
+		aType := p.GetAbstractType(sigA[i].VarType)
+		bType := p.GetAbstractType(sigB[i].VarType)
 		if aType.PartlyIntersects(bType) {
 			return false, false
 		}
@@ -162,7 +162,7 @@ func IsMoreSpecific(T TypeSys, sigA, sigB ast.AstSig) (result bool, ok bool) {
 	return aIsMoreSpecific, true
 }
 
-func IsSameTypeOrSubtype(T TypeSys, maybeSub, maybeSuper string) bool {
+func (p *Parser) IsSameTypeOrSubtype(maybeSub, maybeSuper string) bool {
 	subLen, ok := GetLengthFromType(maybeSub)
 	if ok {
 		if maybeSuper == "string" || maybeSuper == "single" || maybeSuper == "tuple" {
@@ -172,7 +172,7 @@ func IsSameTypeOrSubtype(T TypeSys, maybeSub, maybeSuper string) bool {
 		return ok && subLen <= superLen
 	}
 
-	return maybeSub == maybeSuper || T.GetAbstractType(maybeSub).IsSubtypeOf(T.GetAbstractType(maybeSuper))
+	return maybeSub == maybeSuper || p.GetAbstractType(maybeSub).IsSubtypeOf(p.GetAbstractType(maybeSuper))
 }
 
 func GetLengthFromType(maybeVarchar string) (int, bool) {
@@ -211,9 +211,9 @@ func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.Pr
 	return a
 }
 
-func AddInOrder(T TypeSys, S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
+func (p *Parser) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
 	for i := 0; i < len(S); i++ {
-		yes, ok := IsMoreSpecific(T, f.Sig, S[i].Sig)
+		yes, ok := p.IsMoreSpecific(f.Sig, S[i].Sig)
 		if !ok {
 			return []*ast.PrsrFunction{}, S[i]
 		}

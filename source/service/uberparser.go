@@ -84,10 +84,10 @@ type Initializer struct {
 	fnIndex map[fnSource]*ast.PrsrFunction // We need to number the functions after we sort them into the function tree, in order of compilation. This keeps track of where they are.
 }
 
-func NewInitializer(source, sourceCode, dir string, namespacePath string) *Initializer {
+func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir string, namespacePath string) *Initializer {
 	uP := &Initializer{
 		rl:      *lexer.NewRelexer(source, sourceCode),
-		Parser:  parser.New(dir, namespacePath),
+		Parser:  parser.New(common, dir, namespacePath),
 		Sources: make(map[string][]string),
 		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 	}
@@ -475,7 +475,7 @@ func (uP *Initializer) MakeFunctionTable() *GoHandler {
 			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: uP.isPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			uP.fnIndex[fnSource{j, i}] = &functionToAdd
-			conflictingFunction := uP.Parser.FunctionTable.Add(uP.Parser.TypeMap, functionName, &functionToAdd)
+			conflictingFunction := uP.Parser.FunctionTable.Add(uP.Parser, functionName, &functionToAdd)
 			if conflictingFunction != nil {
 				uP.Throw("init/overload", *body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
 				return nil
@@ -567,7 +567,7 @@ func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
 		}
 		for _, branch := range tree.Branch {
-			if parser.IsSameTypeOrSubtype(uP.Parser.TypeMap, branch.TypeName, currentType) {
+			if uP.Parser.IsSameTypeOrSubtype(branch.TypeName, currentType) {
 				branch.Node = uP.addSigToTree(branch.Node, fn, pos+1)
 				if currentType == "tuple" && !(branch.TypeName == "tuple") {
 					uP.addSigToTree(branch.Node, fn, pos)

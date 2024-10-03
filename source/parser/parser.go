@@ -128,6 +128,16 @@ type ParserData struct {
 
 type TypeSys    map[string]values.AbstractType 
 
+// For data that needs to be shared by all parsers.
+type CommonParserBindle struct {
+	Types TypeSys
+}
+
+func NewCommonBindle() *CommonParserBindle {
+	result := CommonParserBindle{Types: make(TypeSys)}
+	return &result
+}
+
 type Parser struct {
 
 	// Temporary state: things that are used to parse one line.
@@ -148,6 +158,9 @@ type Parser struct {
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
+
+	// Things that need to be attached to every parser: common information about the type system, functions, etc.
+	Common            *CommonParserBindle
 
 	Functions         dtypes.Set[string]
 	Prefixes          dtypes.Set[string]
@@ -182,7 +195,7 @@ type Parser struct {
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
-func New(dir, namespacePath string) *Parser {
+func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 	p := &Parser{
 		Errors:            []*report.Error{},
 		Logging:           true,
@@ -219,6 +232,7 @@ func New(dir, namespacePath string) *Parser {
 		ExternalParsers:  make(map[string]*Parser),
 		Directory:        dir,
 		NamespacePath:    namespacePath,
+		Common:           common,
 	}
 
 	for k := range p.TypeMap {
@@ -240,16 +254,16 @@ func New(dir, namespacePath string) *Parser {
 }
 
 func (p *Parser) TypeExists(name string) bool {
-	_, ok := p.typeNameToAbstractType(name)
+	_, ok := p.getAbstractType(name)
 	return ok
 }
 
-func (t TypeSys) GetAbstractType(name string) values.AbstractType {
-	abType, _ := t.getAbstractType(name)
+func (p *Parser) GetAbstractType(name string) values.AbstractType {
+	abType, _ := p.getAbstractType(name)
 	return abType
 }
 
-func (t TypeSys) getAbstractType(name string) (values.AbstractType, bool) {
+func (p *Parser) getAbstractType(name string) (values.AbstractType, bool) {
 	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
 		result := values.MakeAbstractType(values.STRING)
 		if GetNullabilityFromType(name) {
@@ -258,24 +272,16 @@ func (t TypeSys) getAbstractType(name string) (values.AbstractType, bool) {
 		result.Varchar = uint32(varCharValue)
 		return result, true
 	}
-	// ... or the result should just be in the parser's type map. 
-	result, ok := t[name]
+	// Check if it's a shared abstract type: 'int', 'struct', 'listlike', 'single?' etc.
+	if result, ok := p.Common.Types[name]; ok {
+		return result, true
+	}
+	// ... or the result should just be in the parser's own type map. 
+	result, ok := p.TypeMap[name]
 	return result, ok
 }
 
-func (p *Parser) typeNameToAbstractType(name string) (values.AbstractType, bool) {
-	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
-		result := values.MakeAbstractType(values.STRING)
-		if GetNullabilityFromType(name) {
-			result = result.Insert(values.NULL)		
-		}
-		result.Varchar = uint32(varCharValue)
-		return result, true
-	}
-	// ... or the result should just be in the parser's type map. 
-	result, ok := p.TypeMap.getAbstractType(name)
-	return result, ok
-}
+
 
 func (p *Parser) pushRParser(q *Parser) {
 	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
