@@ -446,7 +446,6 @@ func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
 	vmm.cm("Initiaizing service variables.")
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
-
 		if ok {
 			tok := namesToDeclarations[svName][0].chunk.GetToken()
 			decType := namesToDeclarations[svName][0].decType
@@ -681,9 +680,6 @@ func (vmm *VmMaker) createEnums() {
 			vmm.cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		vmm.AddType(tok1.Literal, "enum", typeNo)
-		vmm.cp.typeNameToTypeScheme[tok1.Literal] = altType(typeNo)
-		vmm.cp.typeNameToTypeScheme[tok1.Literal+"?"] = altType(values.NULL, typeNo)
-
 		if typeExists {
 			continue
 		}
@@ -745,8 +741,6 @@ func (vmm *VmMaker) createClones() {
 		}
 		vmm.AddType(name, abType, typeNo)
 		vmm.cp.CloneNameToTypeNumber[name] = typeNo
-		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
-		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
@@ -913,8 +907,6 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(structDeclaration), i)})
 		}
 		vmm.AddType(name, "struct", typeNo)
-		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
-		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
 		if name == "Error" {
 			vmm.cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
@@ -997,7 +989,6 @@ func (vmm *VmMaker) createAbstractTypes() {
 			}
 			vmm.cp.P.TypeMap[newTypename] = vmm.cp.P.TypeMap[newTypename].Union(abTypeToAdd)
 			typeNames = append(typeNames, tname)
-			vmm.cp.typeNameToTypeScheme[newTypename] = vmm.cp.typeNameToTypeScheme[newTypename].Union(vmm.cp.TypeNameToTypeList(tname))
 			if divTok.Type == token.EOF {
 				break
 			}
@@ -1009,13 +1000,7 @@ func (vmm *VmMaker) createAbstractTypes() {
 			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
 		vmm.uP.Parser.Suffixes.Add(newTypename)
-		if !vmm.cp.typeNameToTypeScheme[newTypename].Contains(values.NULL) {
-			for _, tname := range typeNames {
-				vmm.cp.typeNameToTypeScheme[newTypename+"?"] = vmm.cp.typeNameToTypeScheme[newTypename+"?"].Union(vmm.cp.typeNameToTypeScheme[tname])
-			}
-			vmm.cp.typeNameToTypeScheme[newTypename+"?"] = vmm.cp.typeNameToTypeScheme[newTypename+"?"].Union(altType(values.NULL))
-			vmm.uP.Parser.Suffixes.Add(newTypename + "?")
-		}
+		vmm.uP.Parser.Suffixes.Add(newTypename + "?")
 	}
 }
 
@@ -1077,8 +1062,6 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
 		}
 		vmm.AddType(name, "snippet", typeNo)
-		vmm.cp.typeNameToTypeScheme[name] = altType(typeNo)
-		vmm.cp.typeNameToTypeScheme[name+"?"] = altType(values.NULL, typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
 
 		// The parser needs to know about it too.
