@@ -26,9 +26,8 @@ import (
 type VmMaker struct {
 	cp     *Compiler
 	uP     *Initializer
-	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop
+	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop. TODO: can these noww go in the common parser bindle?
 	pfToGo map[string]func(uint32, []any) any         //           "
-
 }
 
 // The base case: we start off with a blank vm and common parser bindle.
@@ -1162,11 +1161,23 @@ var nativeAbstractTypes = []string{"single", "struct", "snippet"}
 
 // The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
 func (vmm *VmMaker) addAbstractTypesToVm() {
-	if len(vmm.cp.vm.AbstractTypes) == 0 { // Otherwise we're doing an import and this has already happened.
-		for _, t := range nativeAbstractTypes {
-			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{t, vmm.cp.P.NamespacePath, vmm.uP.Parser.GetAbstractType(t)})
+	for typeName, abType := range vmm.cp.P.TypeMap {
+		vmm.AddTypeToVm(values.AbstractTypeInfo{typeName, vmm.cp.P.NamespacePath, abType})
+	}
+	for typeName, abType := range vmm.cp.P.Common.Types {
+		vmm.AddTypeToVm(values.AbstractTypeInfo{typeName, vmm.cp.P.NamespacePath, abType})
+	}
+}
+
+// For reasons, it's a good idea to have the type info stored as an ordered list rather than a set or hashmap.
+// So we need to do insertion by hand to avoid duplication.
+func (vmm *VmMaker) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
+	for _, existingTypeInfo := range vmm.cp.vm.AbstractTypes {
+		if typeInfo.Name == existingTypeInfo.Name && typeInfo.Path == existingTypeInfo.Path {
+			return
 		}
 	}
+	vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, typeInfo)
 }
 
 // For compiling a top-level function.
