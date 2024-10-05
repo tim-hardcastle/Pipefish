@@ -206,6 +206,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	// The vm needs to know how to describe the abstract types in words, so it needs all this stuff too.
 	vmm.cm("Adding abstract types to the VM.")
 	vmm.addAbstractTypesToVm()
 	if vmm.uP.ErrorsExist() {
@@ -217,6 +218,11 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+
+	// The compiler uses a someone richer type reproesentation than the one used by the compiler and the
+	// runtime.
+	vmm.cm("Generating the alternate types from the abstract types.")
+	vmm.makeAlternateTypesFromAbstractTypes()
 
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
@@ -287,6 +293,22 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		}
 	}
 	return unnamespacedImports
+}
+
+// OTOH, we want the type information spread across the parsers and shared in the common parser bindle to
+// collectively be the single source of truth for our type system.
+// But it can't be the only *representation* of the truth, becase that would slow things down 'cos the compiler 
+// would have to keep converting abstract types to alternate types to build the type schemes with.
+// The solution is to build the alternate type schemes once and for all from the alternate types, after we've
+// entirely finished genrating the data in the parsers.
+func (vmm *VmMaker) makeAlternateTypesFromAbstractTypes() {
+	vmm.cp.typeNameToTypeScheme = make(map[string]AlternateType)
+	for typename, abType := range vmm.uP.Parser.TypeMap {
+		vmm.cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
+	}
+	for typename, abType := range vmm.uP.Parser.Common.Types {
+		vmm.cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
+	}
 }
 
 func (vmm *VmMaker) MakeGoMods(goHandler *GoHandler) {
@@ -1159,7 +1181,7 @@ var nativeAbstractTypes = []string{"single", "struct", "snippet"}
 func (vmm *VmMaker) addAbstractTypesToVm() {
 	if len(vmm.cp.vm.AbstractTypes) == 0 { // Otherwise we're doing an import and this has already happened.
 		for _, t := range nativeAbstractTypes {
-			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{t, vmm.cp.P.NamespacePath, vmm.cp.TypeNameToTypeList(t).ToAbstractType()})
+			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{t, vmm.cp.P.NamespacePath, vmm.uP.Parser.GetAbstractType(t)})
 		}
 	}
 }

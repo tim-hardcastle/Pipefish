@@ -200,8 +200,16 @@ func (t simpleType) isPrivate(mc *Vm) bool {
 
 type AlternateType []typeScheme
 
+func AbstractTypeToAlternateType(abType values.AbstractType) AlternateType {
+	result := AlternateType{}
+	for _, ty := range abType.Types {
+		result = append(result, simpleType(ty))
+	}
+	return result
+}
+
 // This assumes that the alternateType came from the typeNameToTypeList array and therefore contains only elements of
-// type simpleType.
+// type simpleType. TODO: this probably shouldn't exist. Truth is meant to flow from abstract types to alternate types.
 func (aT AlternateType) ToAbstractType() values.AbstractType {
 	result := make([]values.ValueType, 0, len(aT))
 	for _, v := range aT {
