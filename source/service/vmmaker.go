@@ -995,7 +995,6 @@ func (vmm *VmMaker) createAbstractTypes() {
 		vmm.cp.P.TypeMap[newTypename+"?"] = vmm.cp.P.TypeMap[newTypename].Insert(values.NULL)
 		_, typeExists := vmm.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
-			vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, values.AbstractTypeInfo{newTypename, vmm.cp.P.NamespacePath, vmm.cp.typeNameToTypeScheme[newTypename].ToAbstractType()})
 			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
 		vmm.uP.Parser.Suffixes.Add(newTypename)
@@ -1084,6 +1083,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 			}
 		}
 	}
+	// TODO URGENT --- this bit is broken by refactoring the type system.
 	for i := len(nativeAbstractTypes); i < len(vmm.cp.vm.AbstractTypes); i++ {
 		if vmm.uP.isPrivate(int(abstractDeclaration), i) {
 			continue
