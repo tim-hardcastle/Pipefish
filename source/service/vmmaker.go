@@ -1011,30 +1011,12 @@ func (vmm *VmMaker) addFieldsToStructs() {
 		typesForStruct := make([]AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
-			var abType values.AbstractType
 			typeName := labelNameAndType.VarType
-			switch {
-			case typeName == "string":
-				abType.Varchar = DUMMY
-				abType.Types = []values.ValueType{values.STRING}
-			case typeName == "string?":
-				abType.Varchar = DUMMY
-				abType.Types = []values.ValueType{values.NULL, values.STRING}
-			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] != '?'):
-				vc, _ := parser.GetLengthFromType(typeName)
-				abType.Varchar = uint32(vc)
-				abType.Types = []values.ValueType{values.STRING}
-			case len(typeName) >= 8 && typeName[0:8] == "varchar(" && !(typeName[len(typeName)-1] == '?'):
-				vc, _ := parser.GetLengthFromType(typeName)
-				abType.Varchar = uint32(vc)
-				abType.Types = []values.ValueType{values.NULL, values.STRING}
-			default:
-				abType = vmm.cp.TypeNameToTypeList(typeName).ToAbstractType()
-			}
+			abType := vmm.cp.P.GetAbstractType(typeName)
 			typesForStructForVm = append(typesForStructForVm, abType)
-			typesForStruct = append(typesForStruct, vmm.cp.TypeNameToTypeList(labelNameAndType.VarType))
+			typesForStruct = append(typesForStruct, AbstractTypeToAlternateType(abType))
 		}
-		structInfo.alternateStructFields = typesForStruct
+		structInfo.alternateStructFields = typesForStruct      // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
 		structInfo.abstractStructFields = typesForStructForVm
 		vmm.cp.vm.concreteTypes[structNumber] = structInfo
 	}
