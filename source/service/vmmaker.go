@@ -5,6 +5,7 @@ import (
 	"embed"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"pipefish/source/ast"
@@ -1161,11 +1162,17 @@ var nativeAbstractTypes = []string{"single", "struct", "snippet"}
 
 // The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
 func (vmm *VmMaker) addAbstractTypesToVm() {
-	for typeName, abType := range vmm.cp.P.TypeMap {
-		vmm.AddTypeToVm(values.AbstractTypeInfo{typeName, vmm.cp.P.NamespacePath, abType})
+	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
+	keys := []string{}
+	for typeName, _ := range vmm.cp.P.TypeMap {
+		keys = append(keys, typeName)
 	}
-	for typeName, abType := range vmm.cp.P.Common.Types {
-		vmm.AddTypeToVm(values.AbstractTypeInfo{typeName, vmm.cp.P.NamespacePath, abType})
+	for typeName, _ := range vmm.cp.P.Common.Types {
+		keys = append(keys, typeName)
+	}
+    sort.Slice(keys, func(i, j int) bool {return keys[i] < keys[j]})
+	for _, typeName  := range keys {
+		vmm.AddTypeToVm(values.AbstractTypeInfo{typeName, vmm.cp.P.NamespacePath, vmm.cp.P.GetAbstractType(typeName)})
 	}
 }
 
