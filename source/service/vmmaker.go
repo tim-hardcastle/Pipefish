@@ -24,8 +24,8 @@ import (
 // chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vmm.cp.vm.
 
 type VmMaker struct {
-	cp     *Compiler
-	uP     *Initializer
+	cp *Compiler
+	uP *Initializer
 }
 
 // The base case: we start off with a blank vm and common parser bindle.
@@ -33,14 +33,14 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
 	cp, uP := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	cp.makeTypeInformation()
+	cp.makeFunctionTableAndGoMods()
+	cp.makeFunctionTreesAndConstructors()
 	cp.compileEverything()
 	result := &Service{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
 }
 
-//go:embed test-files/*
 var testFolder embed.FS
 
 // Then we can recurse over this, passing it the same vm every time.
@@ -101,8 +101,8 @@ func (vmm *VmMaker) cm(s string) {
 	}
 }
 
-// This does everything up to compiling the actual code, which is then handed off by the 'StartService'
-// method
+// This does everything up to and including parsing the code chunks, and then hands back flow of control to the
+// StartService or RunTest method.
 func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 	vmm.cm("Starting makeall for script " + scriptFilepath + ".")
 
@@ -216,9 +216,9 @@ func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 	// We hand back flow of control to StartService or RunTest.
 }
 
-func (cp *Compiler) makeTypeInformation() {
+func (cp *Compiler) makeFunctionTableAndGoMods() {
 	for _, service := range cp.Services {
-		service.Cp.makeTypeInformation()
+		service.Cp.makeFunctionTableAndGoMods()
 	}
 	// The vm needs to know how to describe the abstract types in words.
 	cp.addAbstractTypesToVm()
@@ -226,7 +226,7 @@ func (cp *Compiler) makeTypeInformation() {
 		return
 	}
 
-	// The compiler uses a someone richer type representation than the one used by the compiler and the
+	// The compiler uses a somewhat richer type representation than the one used by the compiler and the
 	// runtime.
 	cp.makeAlternateTypesFromAbstractTypes()
 
@@ -239,10 +239,12 @@ func (cp *Compiler) makeTypeInformation() {
 
 	// We build the Go files, if any.
 	cp.MakeGoMods(goHandler)
-	if cp.P.ErrorsExist() {
-		return
-	}
+}
 
+func (cp *Compiler) makeFunctionTreesAndConstructors() {
+	for _, service := range cp.Services {
+		service.Cp.makeFunctionTreesAndConstructors()
+	}
 	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
 	cp.MakeFunctionTrees()
@@ -291,7 +293,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 
 // OTOH, we want the type information spread across the parsers and shared in the common parser bindle to
 // collectively be the single source of truth for our type system.
-// But it can't be the only *representation* of the truth, becase that would slow things down 'cos the compiler 
+// But it can't be the only *representation* of the truth, becase that would slow things down 'cos the compiler
 // would have to keep converting abstract types to alternate types to build the type schemes with.
 // The solution is to build the alternate type schemes once and for all from the alternate types, after we've
 // entirely finished genrating the data in the parsers.
@@ -409,8 +411,6 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 	return goHandler
 }
 
-
-
 // There are three possibilities. Either we have a namespace without a path, in which case we're looking for
 // a service with that name already running on the hub. Or we have a namespace and a filename, in which case
 // we're looking for a service with that name running on the hub, checking that it has the same filename,
@@ -521,7 +521,7 @@ func (vmm *VmMaker) AddType(name, supertype string, typeNo values.ValueType) {
 	}
 	vmm.cp.vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "single")
-	for _, sT := range(types) {
+	for _, sT := range types {
 		vmm.uP.Parser.Common.Types[sT] = vmm.uP.Parser.Common.Types[sT].Insert(typeNo)
 		vmm.uP.Parser.Common.Types[sT+"?"] = vmm.uP.Parser.Common.Types[sT+"?"].Insert(typeNo)
 	}
@@ -879,7 +879,7 @@ func (vmm *VmMaker) addFieldsToStructs() {
 			typesForStructForVm = append(typesForStructForVm, abType)
 			typesForStruct = append(typesForStruct, AbstractTypeToAlternateType(abType))
 		}
-		structInfo.alternateStructFields = typesForStruct      // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
+		structInfo.alternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
 		structInfo.abstractStructFields = typesForStructForVm
 		vmm.cp.vm.concreteTypes[structNumber] = structInfo
 	}
@@ -936,7 +936,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 		}
 		dec.ToStart()
 		tok := dec.NextToken()
-		name := tok.Literal 
+		name := tok.Literal
 		abType := vmm.cp.P.GetAbstractType(name)
 		for _, w := range abType.Types {
 			if vmm.cp.vm.concreteTypes[w].isPrivate() {
@@ -1017,8 +1017,8 @@ func (cp *Compiler) addAbstractTypesToVm() {
 	for typeName, _ := range cp.P.Common.Types {
 		keys = append(keys, typeName)
 	}
-    sort.Slice(keys, func(i, j int) bool {return keys[i] < keys[j]})
-	for _, typeName  := range keys {
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	for _, typeName := range keys {
 		cp.AddTypeToVm(values.AbstractTypeInfo{typeName, cp.P.NamespacePath, cp.P.GetAbstractType(typeName)})
 	}
 }

@@ -41,7 +41,8 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 		} else {
 			cp, uP = initializeFromFilepath(mc, common, wd+"/test-files/"+filename, text.Trim(wd), "")
 		}
-		cp.makeTypeInformation()
+		cp.makeFunctionTableAndGoMods()
+		cp.makeFunctionTreesAndConstructors()
 		cp.compileEverything()
 		if uP.Parser.ErrorsExist() {
 			println(uP.Parser.Errors[0].ErrorId)
