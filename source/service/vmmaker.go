@@ -67,7 +67,7 @@ func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFil
 
 func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, namespacePath string) (*Compiler, *Initializer) {
 	vmm := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
-	vmm.makeAll(scriptFilepath, sourcecode)
+	vmm.parseAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && !testing.Testing() {
 		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
@@ -100,7 +100,9 @@ func (vmm *VmMaker) cm(s string) {
 	}
 }
 
-func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
+// This does everything up to compiling the actual code, which is then handed off by the 'StartService'
+// method
+func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 	vmm.cm("Starting makeall for script " + scriptFilepath + ".")
 
 	if !settings.OMIT_BUILTINS {
@@ -205,15 +207,15 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// The vm needs to know how to describe the abstract types in words, so it needs all this stuff too.
-	vmm.cm("Adding abstract types to the VM.")
-	vmm.addAbstractTypesToVm()
+	vmm.cm("Parsing everything.")
+	vmm.uP.ParseEverything()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Parsing everything.")
-	vmm.uP.ParseEverything()
+	// The vm needs to know how to describe the abstract types in words, so it needs all this stuff too.
+	vmm.cm("Adding abstract types to the VM.")
+	vmm.addAbstractTypesToVm()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -252,10 +254,6 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
-
-	// We have now done everything except compile the actual code. This needs to be done
-	// in a separate recursive pass, called from StartService().
-
 }
 
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
