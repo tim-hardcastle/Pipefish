@@ -1163,14 +1163,18 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 // So we need to do insertion by hand to avoid duplication.
 func (vmm *VmMaker) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
 	for i, existingTypeInfo := range vmm.cp.vm.AbstractTypes {
-		if typeInfo.Name == existingTypeInfo.Name && typeInfo.Path == existingTypeInfo.Path {
+		if typeInfo.Name == existingTypeInfo.Name {
+			if typeInfo.Path == existingTypeInfo.Path {
+				return
+			}
 			if strings.Count(typeInfo.Path, ".") < strings.Count(existingTypeInfo.Path, ".") {
 				vmm.cp.vm.AbstractTypes[i] = typeInfo
+				return
 			}
 			if len(typeInfo.Path) < len(existingTypeInfo.Path) {
 				vmm.cp.vm.AbstractTypes[i] = typeInfo
+				return
 			}
-			return
 		}
 	}
 	vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, typeInfo)
