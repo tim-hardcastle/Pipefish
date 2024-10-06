@@ -454,13 +454,13 @@ func flatten(s string) string {
 // Having made the parsers FunctionTable, each function name is associated with an (partially) ordered list of
 // associated functions such that a more specific type signature comes before a less specific one.
 // We will now re-represent this as a tree.
-func (uP *Initializer) MakeFunctionTrees() {
-	uP.Parser.FunctionGroupMap = map[string]*ast.FunctionGroup{}
+func (cp *Compiler) MakeFunctionTrees() {
+	cp.P.FunctionGroupMap = map[string]*ast.FunctionGroup{}
 	rc := 0
-	for k, v := range uP.Parser.FunctionTable {
+	for k, v := range cp.P.FunctionTable {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
 		for i := range v {
-			tree = uP.addSigToTree(tree, v[i], 0)
+			tree = cp.addSigToTree(tree, v[i], 0)
 
 			refs := 0 // Overloaded functions must have the same number of reference variables, which go at the start.
 			for ; refs < len(v[i].Sig) && v[i].Sig[refs].VarType == "ref"; refs++ {
@@ -469,21 +469,21 @@ func (uP *Initializer) MakeFunctionTrees() {
 				rc = refs
 			} else {
 				if refs != rc {
-					uP.Throw("init/overload/ref", *v[i].Body.GetToken())
+					cp.P.Throw("init/overload/ref", v[i].Body.GetToken())
 					break
 				}
 			}
 		}
-		uP.Parser.FunctionGroupMap[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
+		cp.P.FunctionGroupMap[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
 		if settings.FUNCTION_TO_PEEK != "" && k == settings.FUNCTION_TO_PEEK {
 			println("Function tree for " + k)
-			println(uP.Parser.FunctionGroupMap[k].Tree.IndentString(""))
+			println(cp.P.FunctionGroupMap[k].Tree.IndentString(""))
 		}
 	}
 }
 
 // Note that the sigs have already been sorted on their specificity.
-func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
+func (cp *Compiler) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
 	sig := fn.Sig
 	if pos < len(sig) {
 		var currentType string
@@ -503,10 +503,10 @@ func (uP *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
 		}
 		for _, branch := range tree.Branch {
-			if uP.Parser.IsSameTypeOrSubtype(branch.TypeName, currentType) {
-				branch.Node = uP.addSigToTree(branch.Node, fn, pos+1)
+			if cp.P.IsSameTypeOrSubtype(branch.TypeName, currentType) {
+				branch.Node = cp.addSigToTree(branch.Node, fn, pos+1)
 				if currentType == "tuple" && !(branch.TypeName == "tuple") {
-					uP.addSigToTree(branch.Node, fn, pos)
+					cp.addSigToTree(branch.Node, fn, pos)
 				}
 			}
 		}

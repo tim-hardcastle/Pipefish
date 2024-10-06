@@ -33,6 +33,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
 	cp, uP := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	cp.makeTypeInformation()
 	cp.compileEverything()
 	result := &Service{Mc: mc, Cp: cp}
 	mc.OwnService = result
@@ -212,46 +213,46 @@ func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 	if vmm.uP.ErrorsExist() {
 		return
 	}
+	// We hand back flow of control to StartService or RunTest.
+}
 
-	// The vm needs to know how to describe the abstract types in words, so it needs all this stuff too.
-	vmm.cm("Adding abstract types to the VM.")
-	vmm.addAbstractTypesToVm()
-	if vmm.uP.ErrorsExist() {
+func (cp *Compiler) makeTypeInformation() {
+	for _, service := range cp.Services {
+		service.Cp.makeTypeInformation()
+	}
+	// The vm needs to know how to describe the abstract types in words.
+	cp.addAbstractTypesToVm()
+	if cp.P.ErrorsExist() {
 		return
 	}
 
 	// The compiler uses a someone richer type representation than the one used by the compiler and the
 	// runtime.
-	vmm.cm("Generating the alternate types from the abstract types.")
-	vmm.makeAlternateTypesFromAbstractTypes()
+	cp.makeAlternateTypesFromAbstractTypes()
 
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
-	vmm.cm("Making function table.")
-	goHandler := vmm.MakeFunctionTable()
-	if vmm.uP.ErrorsExist() {
+	goHandler := cp.MakeFunctionTable()
+	if cp.P.ErrorsExist() {
 		return
 	}
 
 	// We build the Go files, if any.
-	vmm.cm("Building Go modules.")
-	vmm.MakeGoMods(goHandler)
-	if vmm.uP.ErrorsExist() {
+	cp.MakeGoMods(goHandler)
+	if cp.P.ErrorsExist() {
 		return
 	}
 
-	// Now we turn this into a different data structure, a "function tree" with its branches labeled
+	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
-	vmm.cm("Making function trees.")
-	vmm.uP.MakeFunctionTrees()
-	if vmm.uP.ErrorsExist() {
+	cp.MakeFunctionTrees()
+	if cp.P.ErrorsExist() {
 		return
 	}
 
 	// We add in constructors for the structs, snippets, and clones.
-	vmm.cm("Compiling constructors.")
-	vmm.compileConstructors()
-	if vmm.uP.ErrorsExist() {
+	cp.compileConstructors()
+	if cp.P.ErrorsExist() {
 		return
 	}
 }
@@ -294,37 +295,36 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 // would have to keep converting abstract types to alternate types to build the type schemes with.
 // The solution is to build the alternate type schemes once and for all from the alternate types, after we've
 // entirely finished genrating the data in the parsers.
-func (vmm *VmMaker) makeAlternateTypesFromAbstractTypes() {
-	vmm.cp.typeNameToTypeScheme = make(map[string]AlternateType)
-	for typename, abType := range vmm.uP.Parser.TypeMap {
-		vmm.cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
+func (cp *Compiler) makeAlternateTypesFromAbstractTypes() {
+	cp.typeNameToTypeScheme = make(map[string]AlternateType)
+	for typename, abType := range cp.P.TypeMap {
+		cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
 	}
-	for typename, abType := range vmm.uP.Parser.Common.Types {
-		vmm.cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
+	for typename, abType := range cp.P.Common.Types {
+		cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
 	}
 }
 
-func (vmm *VmMaker) MakeGoMods(goHandler *GoHandler) {
-	uP := vmm.uP
+func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	for source := range goHandler.Modules {
-		goHandler.TypeDeclarations[source] = vmm.cp.MakeTypeDeclarationsForGo(goHandler, source)
-		if uP.Parser.ErrorsExist() {
+		goHandler.TypeDeclarations[source] = cp.MakeTypeDeclarationsForGo(goHandler, source)
+		if cp.P.ErrorsExist() {
 			return
 		}
 	}
 	goHandler.BuildGoMods()
-	if uP.Parser.ErrorsExist() {
+	if cp.P.ErrorsExist() {
 		return
 	}
-	vmm.cp.goToPf = map[string]func(any) (uint32, []any, bool){}
-	vmm.cp.pfToGo = map[string]func(uint32, []any) any{}
+	cp.goToPf = map[string]func(any) (uint32, []any, bool){}
+	cp.pfToGo = map[string]func(uint32, []any) any{}
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
-		vmm.cp.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		cp.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
-		vmm.cp.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
+		cp.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
 	}
-	for functionName, fns := range uP.Parser.FunctionTable { // TODO --- why are we doing it like this?
+	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
 				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
@@ -354,30 +354,28 @@ var serviceVariables = map[string]serviceVariableData{
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
-//
-// We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (vmm *VmMaker) MakeFunctionTable() *GoHandler {
+func (cp *Compiler) MakeFunctionTable() *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := NewGoHandler(vmm.uP.Parser)
+	goHandler := NewGoHandler(cp.P)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
-		for i := 0; i < len(vmm.uP.Parser.ParsedDeclarations[j]); i++ {
-			functionName, position, sig, rTypes, body, given := vmm.uP.Parser.ExtractPartsOfFunction(vmm.uP.Parser.ParsedDeclarations[j][i])
+		for i := 0; i < len(cp.P.ParsedDeclarations[j]); i++ {
+			functionName, position, sig, rTypes, body, given := cp.P.ExtractPartsOfFunction(cp.P.ParsedDeclarations[j][i])
 			if body == nil {
-				vmm.uP.Throw("init/func/body", *vmm.uP.Parser.ParsedDeclarations[j][i].GetToken())
+				cp.P.Throw("init/func/body", cp.P.ParsedDeclarations[j][i].GetToken())
 				return nil
 			}
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 			}
-			if vmm.uP.Parser.ErrorsExist() {
+			if cp.P.ErrorsExist() {
 				return nil
 			}
 			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: vmm.uP.Parser.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
-			vmm.cp.fnIndex[fnSource{j, i}] = &functionToAdd
-			conflictingFunction := vmm.uP.Parser.FunctionTable.Add(vmm.uP.Parser, functionName, &functionToAdd)
+				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
+			cp.fnIndex[fnSource{j, i}] = &functionToAdd
+			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, &functionToAdd)
 			if conflictingFunction != nil {
-				vmm.uP.Throw("init/overload", *body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
+				cp.P.Throw("init/overload", body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
 				return nil
 			}
 			if body.GetToken().Type == token.GOCODE {
@@ -389,8 +387,8 @@ func (vmm *VmMaker) MakeFunctionTable() *GoHandler {
 						sig[i].VarType = v.VarType[:len(v.VarType)-4]
 					}
 				}
-				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), vmm.uP.Parser.Directory)
-				if vmm.uP.Parser.ErrorsExist() {
+				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
+				if cp.P.ErrorsExist() {
 					return nil
 				}
 				body.(*ast.GolangExpression).Sig = sig
@@ -401,7 +399,7 @@ func (vmm *VmMaker) MakeFunctionTable() *GoHandler {
 
 	// We may also have pure Go declarations:
 
-	for _, gocode := range vmm.uP.Parser.TokenizedDeclarations[golangDeclaration] {
+	for _, gocode := range cp.P.TokenizedDeclarations[golangDeclaration] {
 		gocode.ToStart()
 		token := gocode.NextToken()
 		source := token.Source
@@ -753,7 +751,7 @@ func (vmm *VmMaker) createClones() {
 }
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, isPrivate bool, i int, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.FunctionTable.Add(vmm.cp.P, fnName, fn)
 }
 
@@ -969,82 +967,81 @@ func (vmm *VmMaker) addStructLabelsToVm(name string, typeNo values.ValueType, si
 	vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 }
 
-func (vmm *VmMaker) compileConstructors() {
+func (cp *Compiler) compileConstructors() {
 	// Struct declarations.
-	for i, node := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
+	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		typeNo := vmm.cp.StructNameToTypeNumber[name]
-		vmm.cp.fnIndex[fnSource{structDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.Parser.IsPrivate(int(structDeclaration), i), node.GetToken())
+		typeNo := cp.StructNameToTypeNumber[name]
+		cp.fnIndex[fnSource{structDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(structDeclaration), i), node.GetToken())
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-	for i, name := range vmm.cp.P.Snippets {
-		typeNo := vmm.cp.StructNameToTypeNumber[name]
-		vmm.cp.fnIndex[fnSource{snippetDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.Parser.IsPrivate(int(snippetDeclaration), i), vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken())
+	for i, name := range cp.P.Snippets {
+		typeNo := cp.StructNameToTypeNumber[name]
+		cp.fnIndex[fnSource{snippetDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(snippetDeclaration), i), cp.P.ParsedDeclarations[snippetDeclaration][i].GetToken())
 	}
 	// Clones
-	for i, dec := range vmm.uP.Parser.TokenizedDeclarations[cloneDeclaration] {
+	for i, dec := range cp.P.TokenizedDeclarations[cloneDeclaration] {
 		dec.ToStart()
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
-		typeNo := vmm.cp.CloneNameToTypeNumber[name]
-		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: vmm.cp.vm.concreteTypes[vmm.cp.vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
-		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.Parser.IsPrivate(int(cloneDeclaration), i), &nameTok)
+		typeNo := cp.CloneNameToTypeNumber[name]
+		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: cp.vm.concreteTypes[cp.vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
+		cp.fnIndex[fnSource{cloneDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(cloneDeclaration), i), &nameTok)
 	}
 }
 
-func (vmm *VmMaker) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes AlternateType, private bool, tok *token.Token) uint32 {
-	vmm.cm("Adding '" + builtinTag + "' to builtins.")
+func (cp *Compiler) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes AlternateType, private bool, tok *token.Token) uint32 {
 	cpF := &CpFunc{Types: returnTypes, Builtin: builtinTag}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
-	cpF.LoReg = vmm.cp.MemTop()
+	cpF.LoReg = cp.MemTop()
 	for _, pair := range sig {
-		vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList(pair.VarType), tok)
+		cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), tok)
 	}
-	cpF.HiReg = vmm.cp.MemTop()
+	cpF.HiReg = cp.MemTop()
 	cpF.Private = private
-	vmm.cp.Fns = append(vmm.cp.Fns, cpF)
-	return uint32(len(vmm.cp.Fns) - 1)
+	cp.Fns = append(cp.Fns, cpF)
+	return uint32(len(cp.Fns) - 1)
 }
 
 var nativeAbstractTypes = []string{"single", "struct", "snippet"}
 
 // The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
-func (vmm *VmMaker) addAbstractTypesToVm() {
+func (cp *Compiler) addAbstractTypesToVm() {
 	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
 	keys := []string{}
-	for typeName, _ := range vmm.cp.P.TypeMap {
+	for typeName, _ := range cp.P.TypeMap {
 		keys = append(keys, typeName)
 	}
-	for typeName, _ := range vmm.cp.P.Common.Types {
+	for typeName, _ := range cp.P.Common.Types {
 		keys = append(keys, typeName)
 	}
     sort.Slice(keys, func(i, j int) bool {return keys[i] < keys[j]})
 	for _, typeName  := range keys {
-		vmm.AddTypeToVm(values.AbstractTypeInfo{typeName, vmm.cp.P.NamespacePath, vmm.cp.P.GetAbstractType(typeName)})
+		cp.AddTypeToVm(values.AbstractTypeInfo{typeName, cp.P.NamespacePath, cp.P.GetAbstractType(typeName)})
 	}
 }
 
 // For reasons, it's a good idea to have the type info stored as an ordered list rather than a set or hashmap.
 // So we need to do insertion by hand to avoid duplication.
-func (vmm *VmMaker) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
-	for i, existingTypeInfo := range vmm.cp.vm.AbstractTypes {
+func (cp *Compiler) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
+	for i, existingTypeInfo := range cp.vm.AbstractTypes {
 		if typeInfo.Name == existingTypeInfo.Name {
 			if typeInfo.Path == existingTypeInfo.Path {
 				return
 			}
 			if strings.Count(typeInfo.Path, ".") < strings.Count(existingTypeInfo.Path, ".") {
-				vmm.cp.vm.AbstractTypes[i] = typeInfo
+				cp.vm.AbstractTypes[i] = typeInfo
 				return
 			}
 			if len(typeInfo.Path) < len(existingTypeInfo.Path) {
-				vmm.cp.vm.AbstractTypes[i] = typeInfo
+				cp.vm.AbstractTypes[i] = typeInfo
 				return
 			}
 		}
 	}
-	vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, typeInfo)
+	cp.vm.AbstractTypes = append(cp.vm.AbstractTypes, typeInfo)
 }
 
 func altType(t ...values.ValueType) AlternateType {
