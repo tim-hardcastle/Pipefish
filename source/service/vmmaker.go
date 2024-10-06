@@ -1162,8 +1162,14 @@ func (vmm *VmMaker) addAbstractTypesToVm() {
 // For reasons, it's a good idea to have the type info stored as an ordered list rather than a set or hashmap.
 // So we need to do insertion by hand to avoid duplication.
 func (vmm *VmMaker) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
-	for _, existingTypeInfo := range vmm.cp.vm.AbstractTypes {
+	for i, existingTypeInfo := range vmm.cp.vm.AbstractTypes {
 		if typeInfo.Name == existingTypeInfo.Name && typeInfo.Path == existingTypeInfo.Path {
+			if strings.Count(typeInfo.Path, ".") < strings.Count(existingTypeInfo.Path, ".") {
+				vmm.cp.vm.AbstractTypes[i] = typeInfo
+			}
+			if len(typeInfo.Path) < len(existingTypeInfo.Path) {
+				vmm.cp.vm.AbstractTypes[i] = typeInfo
+			}
 			return
 		}
 	}
