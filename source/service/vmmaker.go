@@ -219,7 +219,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// The compiler uses a someone richer type reproesentation than the one used by the compiler and the
+	// The compiler uses a someone richer type representation than the one used by the compiler and the
 	// runtime.
 	vmm.cm("Generating the alternate types from the abstract types.")
 	vmm.makeAlternateTypesFromAbstractTypes()
@@ -968,7 +968,6 @@ func (vmm *VmMaker) createAbstractTypes() {
 		newTypename := nameTok.Literal
 		tcc.NextToken() // The equals sign.
 		tcc.NextToken() // The 'abstract' identifier.
-		typeNames := []string{}
 		vmm.cp.P.TypeMap[newTypename] = values.MakeAbstractType()
 		for {
 			typeTok := tcc.NextToken()
@@ -988,7 +987,6 @@ func (vmm *VmMaker) createAbstractTypes() {
 				break
 			}
 			vmm.cp.P.TypeMap[newTypename] = vmm.cp.P.TypeMap[newTypename].Union(abTypeToAdd)
-			typeNames = append(typeNames, tname)
 			if divTok.Type == token.EOF {
 				break
 			}
@@ -1066,18 +1064,21 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 			}
 		}
 	}
-	// TODO URGENT --- this bit is broken by refactoring the type system.
-	for i := len(nativeAbstractTypes); i < len(vmm.cp.vm.AbstractTypes); i++ {
+
+	for i, dec := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
 		if vmm.uP.isPrivate(int(abstractDeclaration), i) {
 			continue
 		}
-		abTypeInfo := vmm.cp.vm.AbstractTypes[i]
-		for _, vT := range abTypeInfo.AT.Types {
-			if vmm.cp.vm.concreteTypes[vT].isPrivate() {
-				abDeclarationNo := i - len(nativeAbstractTypes)
-				vmm.uP.Throw("init/private/abstract", *vmm.uP.Parser.ParsedDeclarations[abstractDeclaration][abDeclarationNo].GetToken(), abTypeInfo.Name)
+		dec.ToStart()
+		tok := dec.NextToken()
+		name := tok.Literal 
+		abType := vmm.cp.P.GetAbstractType(name)
+		for _, w := range abType.Types {
+			if vmm.cp.vm.concreteTypes[w].isPrivate() {
+				vmm.uP.Throw("init/private/abstract", tok, name)
 			}
 		}
+
 	}
 }
 
