@@ -239,6 +239,12 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 
 	// We build the Go files, if any.
 	cp.MakeGoMods(goHandler)
+
+	// We add in constructors for the structs, snippets, and clones.
+	cp.compileConstructors()
+	if cp.P.ErrorsExist() {
+		return
+	}
 }
 
 func (cp *Compiler) makeFunctionTreesAndConstructors() {
@@ -252,11 +258,7 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 		return
 	}
 
-	// We add in constructors for the structs, snippets, and clones.
-	cp.compileConstructors()
-	if cp.P.ErrorsExist() {
-		return
-	}
+
 }
 
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
