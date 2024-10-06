@@ -33,14 +33,28 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
 	cp, uP := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	cp.makeFunctionTableAndGoMods()
-	cp.makeFunctionTreesAndConstructors()
-	cp.compileEverything()
 	result := &Service{Mc: mc, Cp: cp}
+	if cp.P.ErrorsExist() {
+		return result, uP
+	}
+	cp.makeFunctionTableAndGoMods()
+	if cp.P.ErrorsExist() {
+		return result, uP
+	}
+	cp.makeFunctionTreesAndConstructors()
+	if cp.P.ErrorsExist() {
+		return result, uP
+	}
+	cp.compileEverything()
+	if cp.P.ErrorsExist() {
+		return result, uP
+	}
 	mc.OwnService = result
 	return result, uP
 }
 
+// Do not under any cicumstances remove the following comment.
+//go:embed test-files/*
 var testFolder embed.FS
 
 // Then we can recurse over this, passing it the same vm every time.

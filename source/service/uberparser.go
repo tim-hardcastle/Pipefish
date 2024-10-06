@@ -93,6 +93,7 @@ func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir s
 	return uP
 }
 
+// Do not under any cicumstances remove the following comment.
 //go:embed rsc/pipefish/*
 var folder embed.FS
 
