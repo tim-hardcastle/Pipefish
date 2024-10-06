@@ -35,6 +35,9 @@ type Compiler struct {
 	vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
+	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop. 
+	pfToGo map[string]func(uint32, []any) any         //           "
+
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
 	CloneNameToTypeNumber               map[string]values.ValueType
@@ -54,6 +57,8 @@ type Compiler struct {
 	declarationMap map[decKey]any
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
+
+	fnIndex         map[fnSource]*ast.PrsrFunction
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -239,6 +244,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Services:                 make(map[string]*Service),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
+		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
@@ -347,6 +353,7 @@ func (cp *Compiler) NeedsUpdate() (bool, error) {
 	return false, nil
 }
 
+// TODO --- remove.
 func (cp *Compiler) GetParser() *parser.Parser {
 	return cp.P
 }
@@ -3532,4 +3539,454 @@ func (cp *Compiler) getLoggingScope() int {
 func (cp *Compiler) getValueOfConstant(s string) any {
 	varIs, _ := cp.GlobalConsts.getVar(s)
 	return cp.vm.Mem[varIs.mLoc].V
+}
+
+// This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
+// It is crude in that it will slurp other things too: type names, for example; bling; local true variables in cmds. We can live
+// with the false positives so long as there are no false negatives.
+func (cp *Compiler) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes.Set[string] {
+	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
+		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
+	}
+	_, _, sig, _, body, given := cp.P.ExtractPartsOfFunction(cp.P.ParsedDeclarations[dec.decType][dec.decNumber])
+	sigNames := dtypes.Set[string]{}
+	for _, pair := range sig {
+		if pair.VarType != "bling" {
+			sigNames = sigNames.Add(pair.VarName)
+		}
+	}
+	bodyNames := ast.ExtractAllNames(body)
+	lhsG, rhsG := ast.ExtractNamesFromLhsAndRhsOfGivenBlock(given)
+	bodyNames.AddSet(rhsG)
+	bodyNames = bodyNames.SubtractSet(lhsG)
+	return bodyNames.SubtractSet(sigNames)
+}
+
+// Now we need to do a big topological sort on everything, according to the following rules:
+// A function, variable or constant can't depend on a command.
+// A constant can't depend on a variable.
+// A variable or constant can't depend on itself.
+func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
+	// First of all, the recursion.
+	for _, service := range cp.Services {
+		service.Cp.compileEverything()
+	}
+	// And now we compile the module.
+	dummyTok := &token.Token{Source: "linking"}
+	cp.cm("Mapping variable names to the parsed code chunks in which they occur.", dummyTok)
+	cp.GlobalVars.Ext = cp.GlobalConsts
+	namesToDeclarations := map[string][]labeledParsedCodeChunk{}
+	result := [][]labeledParsedCodeChunk{}
+	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
+		for i, dec := range cp.P.ParsedDeclarations[dT] {
+			if _, ok := dec.(*ast.AssignmentExpression); !ok {
+				cp.P.Throw("init/assign", dec.GetToken())
+				continue
+			}
+			names := cp.P.GetVariablesFromSig(dec.(*ast.AssignmentExpression).Left)
+			for _, name := range names {
+				existingName, alreadyExists := namesToDeclarations[name]
+				if alreadyExists {
+					cp.P.Throw("init/name/exists/a", dec.GetToken(), cp.P.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
+					return nil
+				}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
+			}
+		}
+	}
+	cp.cm("Extracting variable names from functions.", dummyTok)
+	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
+		for i, dec := range cp.P.ParsedDeclarations[dT] {
+			name, _, _, _, _, _ := cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
+			_, alreadyExists := namesToDeclarations[name]
+			if alreadyExists {
+				names := namesToDeclarations[name]
+				for _, existingName := range names {
+					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
+						cp.P.Throw("init/name/exists/b", dec.GetToken(), cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+					}
+					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be a command or a function 'cos that would be weird.
+						cp.P.Throw("init/name/exists/c", dec.GetToken(), cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+					}
+				}
+				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i})
+			} else {
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
+			}
+		}
+	}
+	cp.cm("Building digraph of dependencies.", dummyTok)
+	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
+	graph := dtypes.Digraph[string]{}
+	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
+		graph.Add(name, []string{})
+		for _, dec := range decs {
+			rhsNames := 
+			cp.extractNamesFromCodeChunk(dec)
+			// IMPORTANT NOTE. 'extractNamesFromCodeChunk' will also slurp up a lot of cruft: type names, for example; bling; local true variables in cmds.
+			// So we do nothing to throw an error if a name doesn't exist. That will happen when we try to compile the function. What we're trying to
+			// do here is establish the relationship between the comds/defs/vars/consts that *do* exist.
+			for rhsName := range rhsNames {
+				rhsDecs, ok := namesToDeclarations[rhsName]
+				if ok { // Again, we don't care if 'ok' is 'false', just about the relationships between the declarations if it's true.
+					if dec.decType != commandDeclaration {
+						// We check for forbidden relationships.
+						for _, rhsDec := range rhsDecs {
+							if rhsDec.decType == commandDeclaration {
+								cp.P.Throw("init/depend/cmd", dec.chunk.GetToken())
+								return nil
+							}
+							if rhsDec.decType == variableDeclaration {
+								cp.P.Throw("init/depend/const/var", dec.chunk.GetToken())
+								return nil
+							}
+						}
+					}
+					// And if there are no forbidden relationships we can add the dependency to the graph.
+					graph.AddTransitiveArrow(name, rhsName)
+				}
+			}
+		}
+	}
+
+	loggingOptionsType := values.ValueType(cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
+	loggingScopeType := values.ValueType(cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
+	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
+	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
+
+	cp.cm("Initiaizing service variables.", dummyTok)
+	for svName, svData := range serviceVariables {
+		rhs, ok := graph[svName]
+		if ok {
+			tok := namesToDeclarations[svName][0].chunk.GetToken()
+			decType := namesToDeclarations[svName][0].decType
+			decNumber := namesToDeclarations[svName][0].decNumber
+			if decType == variableDeclaration && svData.mustBeConst {
+				cp.P.Throw("init/service/const", tok)
+				return nil
+			}
+			if len(rhs) > 0 {
+				cp.P.Throw("init/service/depends", tok)
+				return nil
+			}
+			cp.compileGlobalConstantOrVariable(decType, decNumber)
+			if !svData.ty.Contains(cp.vm.Mem[cp.That()].T) {
+				cp.P.Throw("init/service/type", tok)
+				return nil
+			}
+			delete(graph, svName)
+		} else {
+			dummyTok := token.Token{}
+			vAcc := svData.vAcc
+			envToAddTo := cp.GlobalVars
+			if vAcc == GLOBAL_CONSTANT_PUBLIC || vAcc == GLOBAL_CONSTANT_PRIVATE {
+				envToAddTo = cp.GlobalConsts
+			}
+			cp.Reserve(svData.deflt.T, svData.deflt.V, &dummyTok)
+			cp.AddVariable(envToAddTo, svName, vAcc, altType(svData.deflt.T), &dummyTok)
+		}
+	}
+
+	cp.cm("Performing sort on digraph.", dummyTok)
+	order := graph.Tarjan()
+
+	// We now have a list of lists of names to declare. We're off to the races!
+	cp.cm("Compiling the variables/functions in the order give by the sort.", dummyTok)
+	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
+		groupOfDeclarations := []labeledParsedCodeChunk{}
+		for _, nameToDeclare := range namesToDeclare {
+			groupOfDeclarations = append(groupOfDeclarations, namesToDeclarations[nameToDeclare]...)
+
+		}
+		// If the declaration type is constant or variable it must be the only member of its Tarjan partion and there must only be one thing of that name.
+		if groupOfDeclarations[0].decType == constantDeclaration || groupOfDeclarations[0].decType == variableDeclaration {
+			cp.compileGlobalConstantOrVariable(groupOfDeclarations[0].decType, groupOfDeclarations[0].decNumber)
+			continue
+		}
+		// So we have a group of functions/commands (but not both) which need to be declared together because either they have the same name or they
+		// have a recursive relationship, or both.
+		// We can't tell before we compile the group whether there is a recursive relationship in there, because we don't know how the dispatch is going to
+		// shake out. E.g. suppose we have a type 'Money = struct(dollars, cents int)' and we wish to implement '+'. We will of course do it using '+' for ints.
+		// This will not be recursion, but before we get that far we won't be able to tell whether it is or not.
+		cp.recursionStore = []bkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
+		fCount := uint32(len(cp.Fns))       // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
+		for _, dec := range groupOfDeclarations {
+			cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
+			fCount++
+		}
+		for _, dec := range groupOfDeclarations {
+			switch dec.decType {
+			case functionDeclaration:
+				cp.compileFunction(cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], cp.P.IsPrivate(int(dec.decType), dec.decNumber), cp.GlobalConsts, functionDeclaration)
+			case commandDeclaration:
+				cp.compileFunction(cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], cp.P.IsPrivate(int(dec.decType), dec.decNumber), cp.GlobalVars, commandDeclaration)
+			}
+			cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(cp.Fns) - 1)
+		}
+		// We've reached the end of the group and can go back and put the recursion in.
+		for _, rDat := range cp.recursionStore {
+			funcNumber := rDat.functionNumber
+			addr := rDat.address
+			cp.vm.Code[addr].Args[0] = cp.Fns[funcNumber].CallTo
+			cp.vm.Code[addr].Args[1] = cp.Fns[funcNumber].LoReg
+			cp.vm.Code[addr].Args[2] = cp.Fns[funcNumber].HiReg
+			cp.vm.Code[addr+2].Args[1] = cp.Fns[funcNumber].OutReg
+		}
+	}
+	return result
+}
+
+func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType, v int) {
+	dec := cp.P.ParsedDeclarations[declarations][v]
+	cp.cm("Compiling assignment " + dec.String(), dec.GetToken())
+	lhs := dec.(*ast.AssignmentExpression).Left
+	rhs := dec.(*ast.AssignmentExpression).Right
+	sig, _ := cp.P.RecursivelySlurpSignature(lhs, "*inferred*")
+	if cp.P.ErrorsExist() {
+		return
+	}
+	rollbackTo := cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
+	ctxt := context{env: cp.GlobalVars, ac: INIT, lowMem: DUMMY, logFlavor: LF_INIT}
+	cp.CompileNode(rhs, ctxt)
+	if cp.P.ErrorsExist() {
+		return
+	}
+	cp.Emit(Ret)
+	cp.cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
+	cp.vm.Run(uint32(rollbackTo.code))
+	result := cp.vm.Mem[cp.That()]
+	if !cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+		cp.rollback(rollbackTo, dec.GetToken())
+	}
+
+	envToAddTo, vAcc := cp.getEnvAndAccessForConstOrVarDeclaration(declarations, v)
+
+	last := len(sig) - 1
+	lastIsTuple := sig[last].VarType == "tuple"
+	rhsIsTuple := result.T == values.TUPLE
+	tupleLen := 1
+	if rhsIsTuple {
+		tupleLen = len(result.V.([]values.Value))
+	}
+	if !lastIsTuple && tupleLen != len(sig) {
+		cp.P.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
+		return
+	}
+	if lastIsTuple && tupleLen < len(sig)-1 {
+		cp.P.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
+		return
+	}
+	loopTop := len(sig)
+	head := []values.Value{result}
+	if lastIsTuple {
+		loopTop = last
+		if rhsIsTuple {
+			head = result.V.([]values.Value)[:last]
+			cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:], rhs.GetToken())
+		} else {
+			if tupleLen == len(sig)-1 {
+				cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
+			} else {
+				cp.Reserve(values.TUPLE, result.V, rhs.GetToken())
+			}
+		}
+		cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
+	} else {
+		if rhsIsTuple {
+			head = result.V.([]values.Value)
+		}
+	}
+	for i := 0; i < loopTop; i++ {
+		cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
+		if sig[i].VarType == "*inferred*" {
+			cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
+		} else {
+			allowedTypes := cp.TypeNameToTypeList(sig[i].VarType)
+			if allowedTypes.isNoneOf(head[i].T) {
+				cp.P.Throw("comp/assign/type", dec.GetToken())
+				return
+			} else {
+				cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
+			}
+		}
+	}
+}
+
+func (cp *Compiler) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*Environment, varAccess) {
+	isPrivate := cp.P.IsPrivate(int(dT), i)
+	var vAcc varAccess
+	envToAddTo := cp.GlobalConsts
+	if dT == constantDeclaration {
+		if isPrivate {
+			vAcc = GLOBAL_CONSTANT_PRIVATE
+		} else {
+			vAcc = GLOBAL_CONSTANT_PUBLIC
+		}
+	} else {
+		envToAddTo = cp.GlobalVars
+		if isPrivate {
+			vAcc = GLOBAL_VARIABLE_PRIVATE
+		} else {
+			vAcc = GLOBAL_VARIABLE_PUBLIC
+		}
+	}
+	return envToAddTo, vAcc
+}
+
+// For compiling a top-level function.
+func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
+	if info, functionExists := cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
+		cp.Fns = append(cp.Fns, info.(*CpFunc))
+		return info.(*CpFunc)
+	}
+	cpF := CpFunc{}
+	var ac cpAccess
+	if dec == functionDeclaration {
+		ac = DEF
+	} else {
+		ac = CMD
+		cpF.Command = true
+	}
+	cpF.Private = private
+	functionName, _, sig, rtnSig, body, given := cp.P.ExtractPartsOfFunction(node)
+	cp.cm("Compiling function '" + functionName + "' with sig " + sig.String() + ".", node.GetToken())
+
+	if settings.FUNCTION_TO_PEEK == functionName {
+		println(node.String() + "\n")
+	}
+
+	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
+		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
+	}
+	if cp.P.ErrorsExist() {
+		return nil
+	}
+
+	if body.GetToken().Type == token.XCALL {
+		Xargs := body.(*ast.PrefixExpression).Args
+		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value), FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
+		serializedTypescheme := Xargs[3].(*ast.StringLiteral).Value
+		cpF.Types = cp.deserializeTypescheme(serializedTypescheme)
+	}
+	fnenv := NewEnvironment()
+	fnenv.Ext = outerEnv
+	cpF.LoReg = cp.MemTop()
+	for _, pair := range sig {
+		cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
+		if pair.VarType == "ref" {
+			cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, cp.vm.AnyTypeScheme, node.GetToken())
+			continue
+		}
+		typeName := pair.VarType
+		isVarargs := len(typeName) >= 3 && typeName[:3] == "..."
+		if isVarargs {
+			typeName = typeName[3:]
+		}
+		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
+			if typeName[len(typeName)-1] == '?' {
+				typeName = "string?"
+			} else {
+				typeName = "string"
+			}
+		}
+		if isVarargs {
+			cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{cp.TypeNameToTypeList(pair.VarType)}}, node.GetToken())
+		} else {
+			if pair.VarType != "bling" {
+				cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), node.GetToken())
+			}
+		}
+	}
+	cpF.HiReg = cp.MemTop()
+	cpF.CallTo = cp.CodeTop()
+	tupleData := make([]uint32, 0, len(sig))
+	var foundTupleOrVarArgs bool
+	for _, param := range sig {
+		switch {
+		case len(param.VarType) >= 3 && param.VarType[:3] == "...":
+			tupleData = append(tupleData, 1)
+			foundTupleOrVarArgs = true
+		case param.VarType == "tuple":
+			tupleData = append(tupleData, 2)
+			foundTupleOrVarArgs = true
+		default:
+			tupleData = append(tupleData, 0)
+		}
+
+	}
+	if foundTupleOrVarArgs {
+		cpF.locOfTupleAndVarargData = cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
+	} else {
+		cpF.locOfTupleAndVarargData = DUMMY
+	}
+	switch body.GetToken().Type {
+	case token.BUILTIN:
+		name := body.(*ast.BuiltInExpression).Name
+		types, ok := BUILTINS[name]
+		if ok {
+			cpF.Types = types.T
+		} else {
+			structNo, ok := cp.StructNameToTypeNumber[name] // We treat the short struct constructors as builtins.
+			if ok {
+				cpF.Types = altType(structNo)
+			}
+		}
+		cpF.Builtin = name
+	case token.GOCODE:
+		cpF.GoNumber = uint32(len(cp.vm.GoFns))
+		cpF.HasGo = true
+		cp.vm.GoFns = append(cp.vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
+			cp.goToPf[body.GetToken().Source], cp.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
+	case token.XCALL:
+	default:
+		logFlavor := LF_NONE
+		if cp.getLoggingScope() == 2 {
+			logFlavor = LF_TRACK
+		}
+		if given != nil {
+			cp.ThunkList = []ThunkData{}
+			givenContext := context{fnenv, functionName, DEF, false, nil, cpF.LoReg, logFlavor}
+			cp.compileGivenBlock(given, givenContext)
+			cpF.CallTo = cp.CodeTop()
+			if len(cp.ThunkList) > 0 {
+				cp.cm("Initializing thunks for outer function.", body.GetToken())
+			}
+			for _, thunks := range cp.ThunkList {
+				cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)
+			}
+		}
+		// Logging the function call, if we do it, goes here.
+		// 'stringify' is secret sauce, users aren't meant to know it exists. TODO --- conceal it better.
+		// If the body starts with a 'PRELOG' then the user has put in a logging statement which should override the tracking.
+		if logFlavor == LF_TRACK && !(body.GetToken().Type == token.PRELOG) && (functionName != "stringify") {
+			cp.track(trFNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
+		}
+
+		// Now the main body of the function, just as a lagniappe.
+		bodyContext := context{fnenv, functionName, ac, true, cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
+		cpF.Types, _ = cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		cpF.OutReg = cp.That()
+
+		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
+			cp.emitTypeChecks(cpF.OutReg, cpF.Types, fnenv, rtnSig, ac, node.GetToken(), CHECK_RETURN_TYPES)
+		}
+
+		cp.Emit(Ret)
+	}
+	cp.Fns = append(cp.Fns, &cpF)
+	if ac == DEF && !cpF.Types.IsLegalDefReturn() {
+		cp.P.Throw("comp/return/def", node.GetToken())
+	}
+	if ac == CMD && !cpF.Types.IsLegalCmdReturn() {
+		cp.P.Throw("comp/return/cmd", node.GetToken())
+	}
+	cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
+
+	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
+
+	if functionName == "stringify" {
+		cp.vm.Stringify = &cpF
+	}
+
+	return &cpF
 }

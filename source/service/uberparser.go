@@ -81,7 +81,6 @@ type Initializer struct {
 	rl      lexer.Relexer
 	Parser  *parser.Parser
 	Sources map[string][]string
-	fnIndex map[fnSource]*ast.PrsrFunction // We need to number the functions after we sort them into the function tree, in order of compilation. This keeps track of where they are.
 }
 
 func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir string, namespacePath string) *Initializer {
@@ -89,7 +88,6 @@ func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir s
 		rl:      *lexer.NewRelexer(source, sourceCode),
 		Parser:  parser.New(common, dir, namespacePath),
 		Sources: make(map[string][]string),
-		fnIndex: make(map[fnSource]*ast.PrsrFunction),
 	}
 	uP.Sources[source] = strings.Split(sourceCode, "\n")
 	return uP
@@ -447,69 +445,7 @@ func (uP *Initializer) SetRelexer(rl lexer.Relexer) {
 	uP.rl = rl
 }
 
-func (uP *Initializer) isPrivate(x, y int) bool {
-	return uP.Parser.TokenizedDeclarations[x][y].Private
-}
 
-// At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
-// slice. We want to read their signatures and order them according to specificity for the purposes of
-// implementing overloading.
-//
-// We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
-func (uP *Initializer) MakeFunctionTable() *GoHandler {
-	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := NewGoHandler(uP.Parser)
-	for j := functionDeclaration; j <= commandDeclaration; j++ {
-		for i := 0; i < len(uP.Parser.ParsedDeclarations[j]); i++ {
-			functionName, position, sig, rTypes, body, given := uP.Parser.ExtractPartsOfFunction(uP.Parser.ParsedDeclarations[j][i])
-			if body == nil {
-				uP.Throw("init/func/body", *uP.Parser.ParsedDeclarations[j][i].GetToken())
-				return nil
-			}
-			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
-				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
-			}
-			if uP.Parser.ErrorsExist() {
-				return nil
-			}
-			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: uP.isPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
-			uP.fnIndex[fnSource{j, i}] = &functionToAdd
-			conflictingFunction := uP.Parser.FunctionTable.Add(uP.Parser, functionName, &functionToAdd)
-			if conflictingFunction != nil {
-				uP.Throw("init/overload", *body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
-				return nil
-			}
-			if body.GetToken().Type == token.GOCODE {
-				body.(*ast.GolangExpression).Raw = []bool{}
-				for i, v := range sig {
-					body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,
-						len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw")
-					if len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw" {
-						sig[i].VarType = v.VarType[:len(v.VarType)-4]
-					}
-				}
-				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), uP.Parser.Directory)
-				if uP.Parser.ErrorsExist() {
-					return nil
-				}
-				body.(*ast.GolangExpression).Sig = sig
-				body.(*ast.GolangExpression).ReturnTypes = rTypes
-			}
-		}
-	}
-
-	// We may also have pure Go declarations:
-
-	for _, gocode := range uP.Parser.TokenizedDeclarations[golangDeclaration] {
-		gocode.ToStart()
-		token := gocode.NextToken()
-		source := token.Source
-		code := token.Literal[:len(token.Literal)]
-		goHandler.AddPureGoBlock(source, code)
-	}
-	return goHandler
-}
 
 func flatten(s string) string {
 	return strings.ReplaceAll(s, ".", "_")

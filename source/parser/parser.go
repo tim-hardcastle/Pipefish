@@ -1767,3 +1767,8 @@ func newError(ident string, tok *token.Token, args ...any) *report.Error {
 	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
 }
+
+func (p *Parser) IsPrivate(x, y int) bool {
+	return p.TokenizedDeclarations[x][y].Private
+}
+

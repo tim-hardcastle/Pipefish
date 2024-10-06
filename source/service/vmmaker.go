@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"pipefish/source/ast"
-	"pipefish/source/dtypes"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/settings"
@@ -27,8 +26,6 @@ import (
 type VmMaker struct {
 	cp     *Compiler
 	uP     *Initializer
-	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop. TODO: can these noww go in the common parser bindle?
-	pfToGo map[string]func(uint32, []any) any         //           "
 }
 
 // The base case: we start off with a blank vm and common parser bindle.
@@ -36,6 +33,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
 	cp, uP := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	cp.compileEverything()
 	result := &Service{Mc: mc, Cp: cp}
 	mc.OwnService = result
 	return result, uP
@@ -104,6 +102,7 @@ func (vmm *VmMaker) cm(s string) {
 
 func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	vmm.cm("Starting makeall for script " + scriptFilepath + ".")
+
 	if !settings.OMIT_BUILTINS {
 		vmm.cm("Adding mandatory imports to namespace.")
 		vmm.uP.AddToNameSpace(settings.MandatoryImports)
@@ -227,7 +226,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
 	vmm.cm("Making function table.")
-	goHandler := vmm.uP.MakeFunctionTable()
+	goHandler := vmm.MakeFunctionTable()
 	if vmm.uP.ErrorsExist() {
 		return
 	}
@@ -254,12 +253,8 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	// We do a topological sort on the commands, functions, variable and constant declarations and then declare them in the right order.
-	vmm.cm("Compiling everything.")
-	vmm.compileEverything()
-	if vmm.uP.ErrorsExist() {
-		return
-	}
+	// We have now done everything except compile the actual code. This needs to be done
+	// in a separate recursive pass, called from StartService().
 
 }
 
@@ -289,7 +284,7 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 				vmm.cp.declarationMap[k] = v
 			}
 			vmm.cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
-			newUP.Parser.Private = vmm.uP.isPrivate(int(importDeclaration), i)
+			newUP.Parser.Private = vmm.uP.Parser.IsPrivate(int(importDeclaration), i)
 		}
 	}
 	return unnamespacedImports
@@ -323,13 +318,13 @@ func (vmm *VmMaker) MakeGoMods(goHandler *GoHandler) {
 	if uP.Parser.ErrorsExist() {
 		return
 	}
-	vmm.goToPf = map[string]func(any) (uint32, []any, bool){}
-	vmm.pfToGo = map[string]func(uint32, []any) any{}
+	vmm.cp.goToPf = map[string]func(any) (uint32, []any, bool){}
+	vmm.cp.pfToGo = map[string]func(uint32, []any) any{}
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
-		vmm.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		vmm.cp.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
-		vmm.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
+		vmm.cp.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
 	}
 	for functionName, fns := range uP.Parser.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
@@ -358,193 +353,67 @@ var serviceVariables = map[string]serviceVariableData{
 	"$LOGGING": {altType(), values.Value{}, true, GLOBAL_CONSTANT_PUBLIC}, // The values have to be extracted from the compiler.
 }
 
-// Now we need to do a big topological sort on everything, according to the following rules:
-// A function, variable or constant can't depend on a command.
-// A constant can't depend on a variable.
-// A variable or constant can't depend on itself.
-func (vmm *VmMaker) compileEverything() [][]labeledParsedCodeChunk {
-	vmm.cm("Mapping variable names to the parsed code chunks in which they occur.")
-	vmm.cp.GlobalVars.Ext = vmm.cp.GlobalConsts
-	namesToDeclarations := map[string][]labeledParsedCodeChunk{}
-	result := [][]labeledParsedCodeChunk{}
-	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
-		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
-			if _, ok := dec.(*ast.AssignmentExpression); !ok {
-				vmm.cp.P.Throw("init/assign", dec.GetToken())
-				continue
+// At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
+// slice. We want to read their signatures and order them according to specificity for the purposes of
+// implementing overloading.
+//
+// We return the GoHandler, because the VmMaker is going to need the VM to fully build the Go source.
+func (vmm *VmMaker) MakeFunctionTable() *GoHandler {
+	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
+	goHandler := NewGoHandler(vmm.uP.Parser)
+	for j := functionDeclaration; j <= commandDeclaration; j++ {
+		for i := 0; i < len(vmm.uP.Parser.ParsedDeclarations[j]); i++ {
+			functionName, position, sig, rTypes, body, given := vmm.uP.Parser.ExtractPartsOfFunction(vmm.uP.Parser.ParsedDeclarations[j][i])
+			if body == nil {
+				vmm.uP.Throw("init/func/body", *vmm.uP.Parser.ParsedDeclarations[j][i].GetToken())
+				return nil
 			}
-			names := vmm.cp.P.GetVariablesFromSig(dec.(*ast.AssignmentExpression).Left)
-			for _, name := range names {
-				existingName, alreadyExists := namesToDeclarations[name]
-				if alreadyExists {
-					vmm.cp.P.Throw("init/name/exists/a", dec.GetToken(), vmm.cp.P.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
+			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
+				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
+			}
+			if vmm.uP.Parser.ErrorsExist() {
+				return nil
+			}
+			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
+				Cmd: j == commandDeclaration, Private: vmm.uP.Parser.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
+			vmm.cp.fnIndex[fnSource{j, i}] = &functionToAdd
+			conflictingFunction := vmm.uP.Parser.FunctionTable.Add(vmm.uP.Parser, functionName, &functionToAdd)
+			if conflictingFunction != nil {
+				vmm.uP.Throw("init/overload", *body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
+				return nil
+			}
+			if body.GetToken().Type == token.GOCODE {
+				body.(*ast.GolangExpression).Raw = []bool{}
+				for i, v := range sig {
+					body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,
+						len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw")
+					if len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw" {
+						sig[i].VarType = v.VarType[:len(v.VarType)-4]
+					}
+				}
+				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), vmm.uP.Parser.Directory)
+				if vmm.uP.Parser.ErrorsExist() {
 					return nil
 				}
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
-			}
-		}
-	}
-	vmm.cm("Extracting variable names from functions.")
-	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
-		for i, dec := range vmm.cp.P.ParsedDeclarations[dT] {
-			name, _, _, _, _, _ := vmm.cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
-			_, alreadyExists := namesToDeclarations[name]
-			if alreadyExists {
-				names := namesToDeclarations[name]
-				for _, existingName := range names {
-					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
-						vmm.cp.P.Throw("init/name/exists/b", dec.GetToken(), vmm.cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
-					}
-					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be a command or a function 'cos that would be weird.
-						vmm.cp.P.Throw("init/name/exists/c", dec.GetToken(), vmm.cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
-					}
-				}
-				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i})
-			} else {
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
-			}
-		}
-	}
-	vmm.cm("Building digraph of dependencies.")
-	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
-	graph := dtypes.Digraph[string]{}
-	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
-		graph.Add(name, []string{})
-		for _, dec := range decs {
-			rhsNames := vmm.extractNamesFromCodeChunk(dec)
-			// IMPORTANT NOTE. 'extractNamesFromCodeChunk' will also slurp up a lot of cruft: type names, for example; bling; local true variables in cmds.
-			// So we do nothing to throw an error if a name doesn't exist. That will happen when we try to compile the function. What we're trying to
-			// do here is establish the relationship between the comds/defs/vars/consts that *do* exist.
-			for rhsName := range rhsNames {
-				rhsDecs, ok := namesToDeclarations[rhsName]
-				if ok { // Again, we don't care if 'ok' is 'false', just about the relationships between the declarations if it's true.
-					if dec.decType != commandDeclaration {
-						// We check for forbidden relationships.
-						for _, rhsDec := range rhsDecs {
-							if rhsDec.decType == commandDeclaration {
-								vmm.cp.P.Throw("init/depend/cmd", dec.chunk.GetToken())
-								return nil
-							}
-							if rhsDec.decType == variableDeclaration {
-								vmm.cp.P.Throw("init/depend/const/var", dec.chunk.GetToken())
-								return nil
-							}
-						}
-					}
-					// And if there are no forbidden relationships we can add the dependency to the graph.
-					graph.AddTransitiveArrow(name, rhsName)
-				}
+				body.(*ast.GolangExpression).Sig = sig
+				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}
 		}
 	}
 
-	loggingOptionsType := values.ValueType(vmm.cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
-	loggingScopeType := values.ValueType(vmm.cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
-	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
-	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
+	// We may also have pure Go declarations:
 
-	vmm.cm("Initiaizing service variables.")
-	for svName, svData := range serviceVariables {
-		rhs, ok := graph[svName]
-		if ok {
-			tok := namesToDeclarations[svName][0].chunk.GetToken()
-			decType := namesToDeclarations[svName][0].decType
-			decNumber := namesToDeclarations[svName][0].decNumber
-			if decType == variableDeclaration && svData.mustBeConst {
-				vmm.cp.P.Throw("init/service/const", tok)
-				return nil
-			}
-			if len(rhs) > 0 {
-				vmm.cp.P.Throw("init/service/depends", tok)
-				return nil
-			}
-			vmm.compileGlobalConstantOrVariable(decType, decNumber)
-			if !svData.ty.Contains(vmm.cp.vm.Mem[vmm.cp.That()].T) {
-				vmm.cp.P.Throw("init/service/type", tok)
-				return nil
-			}
-			delete(graph, svName)
-		} else {
-			dummyTok := token.Token{}
-			vAcc := svData.vAcc
-			envToAddTo := vmm.cp.GlobalVars
-			if vAcc == GLOBAL_CONSTANT_PUBLIC || vAcc == GLOBAL_CONSTANT_PRIVATE {
-				envToAddTo = vmm.cp.GlobalConsts
-			}
-			vmm.cp.Reserve(svData.deflt.T, svData.deflt.V, &dummyTok)
-			vmm.cp.AddVariable(envToAddTo, svName, vAcc, altType(svData.deflt.T), &dummyTok)
-		}
+	for _, gocode := range vmm.uP.Parser.TokenizedDeclarations[golangDeclaration] {
+		gocode.ToStart()
+		token := gocode.NextToken()
+		source := token.Source
+		code := token.Literal[:len(token.Literal)]
+		goHandler.AddPureGoBlock(source, code)
 	}
-
-	vmm.cm("Performing sort on digraph.")
-	order := graph.Tarjan()
-
-	// We now have a list of lists of names to declare. We're off to the races!
-	vmm.cm("Compiling the variables/functions in the order give by the sort.")
-	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
-		groupOfDeclarations := []labeledParsedCodeChunk{}
-		for _, nameToDeclare := range namesToDeclare {
-			groupOfDeclarations = append(groupOfDeclarations, namesToDeclarations[nameToDeclare]...)
-
-		}
-		// If the declaration type is constant or variable it must be the only member of its Tarjan partion and there must only be one thing of that name.
-		if groupOfDeclarations[0].decType == constantDeclaration || groupOfDeclarations[0].decType == variableDeclaration {
-			vmm.compileGlobalConstantOrVariable(groupOfDeclarations[0].decType, groupOfDeclarations[0].decNumber)
-			continue
-		}
-		// So we have a group of functions/commands (but not both) which need to be declared together because either they have the same name or they
-		// have a recursive relationship, or both.
-		// We can't tell before we compile the group whether there is a recursive relationship in there, because we don't know how the dispatch is going to
-		// shake out. E.g. suppose we have a type 'Money = struct(dollars, cents int)' and we wish to implement '+'. We will of course do it using '+' for ints.
-		// This will not be recursion, but before we get that far we won't be able to tell whether it is or not.
-		vmm.cp.recursionStore = []bkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
-		fCount := uint32(len(vmm.cp.Fns))       // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
-		for _, dec := range groupOfDeclarations {
-			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
-			fCount++
-		}
-		for _, dec := range groupOfDeclarations {
-			switch dec.decType {
-			case functionDeclaration:
-				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[functionDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalConsts, functionDeclaration)
-			case commandDeclaration:
-				vmm.compileFunction(vmm.cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], vmm.uP.isPrivate(int(dec.decType), dec.decNumber), vmm.cp.GlobalVars, commandDeclaration)
-			}
-			vmm.uP.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(vmm.cp.Fns) - 1)
-		}
-		// We've reached the end of the group and can go back and put the recursion in.
-		for _, rDat := range vmm.cp.recursionStore {
-			funcNumber := rDat.functionNumber
-			addr := rDat.address
-			vmm.cp.vm.Code[addr].Args[0] = vmm.cp.Fns[funcNumber].CallTo
-			vmm.cp.vm.Code[addr].Args[1] = vmm.cp.Fns[funcNumber].LoReg
-			vmm.cp.vm.Code[addr].Args[2] = vmm.cp.Fns[funcNumber].HiReg
-			vmm.cp.vm.Code[addr+2].Args[1] = vmm.cp.Fns[funcNumber].OutReg
-		}
-	}
-	return result
+	return goHandler
 }
 
-// This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
-// It is crude in that it will slurp other things too: type names, for example; bling; local true variables in cmds. We can live
-// with the false positives so long as there are no false negatives.
-func (vmm *VmMaker) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes.Set[string] {
-	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
-		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
-	}
-	_, _, sig, _, body, given := vmm.cp.P.ExtractPartsOfFunction(vmm.cp.P.ParsedDeclarations[dec.decType][dec.decNumber])
-	sigNames := dtypes.Set[string]{}
-	for _, pair := range sig {
-		if pair.VarType != "bling" {
-			sigNames = sigNames.Add(pair.VarName)
-		}
-	}
-	bodyNames := ast.ExtractAllNames(body)
-	lhsG, rhsG := ast.ExtractNamesFromLhsAndRhsOfGivenBlock(given)
-	bodyNames.AddSet(rhsG)
-	bodyNames = bodyNames.SubtractSet(lhsG)
-	return bodyNames.SubtractSet(sigNames)
-}
+
 
 // There are three possibilities. Either we have a namespace without a path, in which case we're looking for
 // a service with that name already running on the hub. Or we have a namespace and a filename, in which case
@@ -643,7 +512,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 		return
 	}
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
-	newCp.P.Private = vmm.uP.isPrivate(int(externalDeclaration), int(externalServiceOrdinal))
+	newCp.P.Private = vmm.uP.Parser.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	vmm.cp.Services[name] = &Service{vmm.cp.vm, newCp, false, false}
 }
 
@@ -704,13 +573,13 @@ func (vmm *VmMaker) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, path: vmm.cp.P.NamespacePath, elementNames: elementNameList, private: vmm.uP.isPrivate(int(enumDeclaration), i)})
+		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, path: vmm.cp.P.NamespacePath, elementNames: elementNameList, private: vmm.uP.Parser.IsPrivate(int(enumDeclaration), i)})
 	}
 }
 
 func (vmm *VmMaker) createClones() {
 	for i, tokens := range vmm.uP.Parser.TokenizedDeclarations[cloneDeclaration] {
-		private := vmm.uP.isPrivate(int(cloneDeclaration), i)
+		private := vmm.uP.Parser.IsPrivate(int(cloneDeclaration), i)
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		name := tok1.Literal
@@ -734,7 +603,7 @@ func (vmm *VmMaker) createClones() {
 		} else {
 			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
 			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, path: vmm.cp.P.NamespacePath, parent: parentTypeNo, private: vmm.uP.isPrivate(int(cloneDeclaration), i)})
+			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, path: vmm.cp.P.NamespacePath, parent: parentTypeNo, private: vmm.uP.Parser.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				vmm.cp.vm.IsRangeable = vmm.cp.vm.IsRangeable.Union(altType(typeNo))
 			}
@@ -746,7 +615,7 @@ func (vmm *VmMaker) createClones() {
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
-		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}] = fn
+		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
 		// We get the requested builtins.
 		var opList []string
@@ -904,7 +773,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 			typeInfo.path = vmm.cp.P.NamespacePath
 			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(structDeclaration), i)})
+			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.uP.Parser.IsPrivate(int(structDeclaration), i)})
 		}
 		vmm.AddType(name, "struct", typeNo)
 		vmm.cp.StructNameToTypeNumber[name] = typeNo
@@ -917,7 +786,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: node.GetToken()}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn) // TODO --- give them their own ast type?
-		vmm.uP.fnIndex[fnSource{structDeclaration, i}] = fn
+		vmm.cp.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
 			vmm.cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
@@ -938,14 +807,14 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 				}
 			}
 			vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
-			stT := structType{name: name, path: vmm.cp.P.NamespacePath, labelNumbers: labelsForStruct, private: vmm.uP.isPrivate(int(structDeclaration), i)}
+			stT := structType{name: name, path: vmm.cp.P.NamespacePath, labelNumbers: labelsForStruct, private: vmm.uP.Parser.IsPrivate(int(structDeclaration), i)}
 			stT = stT.addLabels(labelsForStruct)
 			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, stT)
 		}
 	}
 
 	for i := range vmm.uP.Parser.ParsedDeclarations[structDeclaration] {
-		if vmm.uP.isPrivate(int(structDeclaration), i) {
+		if vmm.uP.Parser.IsPrivate(int(structDeclaration), i) {
 			continue
 		}
 		tok := vmm.uP.Parser.ParsedDeclarations[structDeclaration][i].GetToken()
@@ -1035,8 +904,8 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 			typeInfo.path = vmm.cp.P.NamespacePath
 			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.uP.isPrivate(int(snippetDeclaration), i)})
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.uP.isPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.uP.Parser.IsPrivate(int(snippetDeclaration), i)})
+			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.uP.Parser.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 			vmm.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
 		}
@@ -1047,7 +916,7 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 		vmm.uP.Parser.Functions.Add(name)
 		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
-		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}] = fn
+		vmm.cp.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}
 }
 
@@ -1066,7 +935,7 @@ func (vmm *VmMaker) checkTypesForConsistency() {
 	}
 
 	for i, dec := range vmm.uP.Parser.TokenizedDeclarations[abstractDeclaration] {
-		if vmm.uP.isPrivate(int(abstractDeclaration), i) {
+		if vmm.uP.Parser.IsPrivate(int(abstractDeclaration), i) {
 			continue
 		}
 		dec.ToStart()
@@ -1108,13 +977,13 @@ func (vmm *VmMaker) compileConstructors() {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typeNo := vmm.cp.StructNameToTypeNumber[name]
-		vmm.uP.fnIndex[fnSource{structDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.isPrivate(int(structDeclaration), i), node.GetToken())
+		vmm.cp.fnIndex[fnSource{structDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.Parser.IsPrivate(int(structDeclaration), i), node.GetToken())
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range vmm.cp.P.Snippets {
 		typeNo := vmm.cp.StructNameToTypeNumber[name]
-		vmm.uP.fnIndex[fnSource{snippetDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.isPrivate(int(snippetDeclaration), i), vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken())
+		vmm.cp.fnIndex[fnSource{snippetDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.Parser.IsPrivate(int(snippetDeclaration), i), vmm.uP.Parser.ParsedDeclarations[snippetDeclaration][i].GetToken())
 	}
 	// Clones
 	for i, dec := range vmm.uP.Parser.TokenizedDeclarations[cloneDeclaration] {
@@ -1123,7 +992,7 @@ func (vmm *VmMaker) compileConstructors() {
 		name := nameTok.Literal
 		typeNo := vmm.cp.CloneNameToTypeNumber[name]
 		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: vmm.cp.vm.concreteTypes[vmm.cp.vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
-		vmm.uP.fnIndex[fnSource{cloneDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.isPrivate(int(cloneDeclaration), i), &nameTok)
+		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}].Number = vmm.addToBuiltins(sig, name, altType(typeNo), vmm.uP.Parser.IsPrivate(int(cloneDeclaration), i), &nameTok)
 	}
 }
 
@@ -1178,261 +1047,6 @@ func (vmm *VmMaker) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
 		}
 	}
 	vmm.cp.vm.AbstractTypes = append(vmm.cp.vm.AbstractTypes, typeInfo)
-}
-
-// For compiling a top-level function.
-func (vmm *VmMaker) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
-	if info, functionExists := vmm.cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
-		vmm.cp.Fns = append(vmm.cp.Fns, info.(*CpFunc))
-		return info.(*CpFunc)
-	}
-	cpF := CpFunc{}
-	var ac cpAccess
-	if dec == functionDeclaration {
-		ac = DEF
-	} else {
-		ac = CMD
-		cpF.Command = true
-	}
-	cpF.Private = private
-	functionName, _, sig, rtnSig, body, given := vmm.uP.Parser.ExtractPartsOfFunction(node)
-	vmm.cm("Compiling function '" + functionName + "' with sig " + sig.String() + ".")
-
-	if settings.FUNCTION_TO_PEEK == functionName {
-		println(node.String() + "\n")
-	}
-
-	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
-		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
-	}
-	if vmm.uP.Parser.ErrorsExist() {
-		return nil
-	}
-
-	if body.GetToken().Type == token.XCALL {
-		Xargs := body.(*ast.PrefixExpression).Args
-		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value), FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
-		serializedTypescheme := Xargs[3].(*ast.StringLiteral).Value
-		cpF.Types = vmm.cp.deserializeTypescheme(serializedTypescheme)
-	}
-	fnenv := NewEnvironment()
-	fnenv.Ext = outerEnv
-	cpF.LoReg = vmm.cp.MemTop()
-	for _, pair := range sig {
-		vmm.cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
-		if pair.VarType == "ref" {
-			vmm.cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, vmm.cp.vm.AnyTypeScheme, node.GetToken())
-			continue
-		}
-		typeName := pair.VarType
-		isVarargs := len(typeName) >= 3 && typeName[:3] == "..."
-		if isVarargs {
-			typeName = typeName[3:]
-		}
-		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
-			if typeName[len(typeName)-1] == '?' {
-				typeName = "string?"
-			} else {
-				typeName = "string"
-			}
-		}
-		if isVarargs {
-			vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{vmm.cp.TypeNameToTypeList(pair.VarType)}}, node.GetToken())
-		} else {
-			if pair.VarType != "bling" {
-				vmm.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, vmm.cp.TypeNameToTypeList(pair.VarType), node.GetToken())
-			}
-		}
-	}
-	cpF.HiReg = vmm.cp.MemTop()
-	cpF.CallTo = vmm.cp.CodeTop()
-	tupleData := make([]uint32, 0, len(sig))
-	var foundTupleOrVarArgs bool
-	for _, param := range sig {
-		switch {
-		case len(param.VarType) >= 3 && param.VarType[:3] == "...":
-			tupleData = append(tupleData, 1)
-			foundTupleOrVarArgs = true
-		case param.VarType == "tuple":
-			tupleData = append(tupleData, 2)
-			foundTupleOrVarArgs = true
-		default:
-			tupleData = append(tupleData, 0)
-		}
-
-	}
-	if foundTupleOrVarArgs {
-		cpF.locOfTupleAndVarargData = vmm.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
-	} else {
-		cpF.locOfTupleAndVarargData = DUMMY
-	}
-	switch body.GetToken().Type {
-	case token.BUILTIN:
-		name := body.(*ast.BuiltInExpression).Name
-		types, ok := BUILTINS[name]
-		if ok {
-			cpF.Types = types.T
-		} else {
-			structNo, ok := vmm.cp.StructNameToTypeNumber[name] // We treat the short struct constructors as builtins.
-			if ok {
-				cpF.Types = altType(structNo)
-			}
-		}
-		cpF.Builtin = name
-	case token.GOCODE:
-		cpF.GoNumber = uint32(len(vmm.cp.vm.GoFns))
-		cpF.HasGo = true
-		vmm.cp.vm.GoFns = append(vmm.cp.vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
-			vmm.goToPf[body.GetToken().Source], vmm.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
-	case token.XCALL:
-	default:
-		logFlavor := LF_NONE
-		if vmm.cp.getLoggingScope() == 2 {
-			logFlavor = LF_TRACK
-		}
-		if given != nil {
-			vmm.cp.ThunkList = []ThunkData{}
-			givenContext := context{fnenv, functionName, DEF, false, nil, cpF.LoReg, logFlavor}
-			vmm.cp.compileGivenBlock(given, givenContext)
-			cpF.CallTo = vmm.cp.CodeTop()
-			if len(vmm.cp.ThunkList) > 0 {
-				vmm.cp.cm("Initializing thunks for outer function.", body.GetToken())
-			}
-			for _, thunks := range vmm.cp.ThunkList {
-				vmm.cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)
-			}
-		}
-		// Logging the function call, if we do it, goes here.
-		// 'stringify' is secret sauce, users aren't meant to know it exists. TODO --- conceal it better.
-		// If the body starts with a 'PRELOG' then the user has put in a logging statement which should override the tracking.
-		if logFlavor == LF_TRACK && !(body.GetToken().Type == token.PRELOG) && (functionName != "stringify") {
-			vmm.cp.track(trFNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
-		}
-
-		// Now the main body of the function, just as a lagniappe.
-		bodyContext := context{fnenv, functionName, ac, true, vmm.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
-		cpF.Types, _ = vmm.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
-		cpF.OutReg = vmm.cp.That()
-
-		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
-			vmm.cp.emitTypeChecks(cpF.OutReg, cpF.Types, fnenv, rtnSig, ac, node.GetToken(), CHECK_RETURN_TYPES)
-		}
-
-		vmm.cp.Emit(Ret)
-	}
-	vmm.cp.Fns = append(vmm.cp.Fns, &cpF)
-	if ac == DEF && !cpF.Types.IsLegalDefReturn() {
-		vmm.cp.P.Throw("comp/return/def", node.GetToken())
-	}
-	if ac == CMD && !cpF.Types.IsLegalCmdReturn() {
-		vmm.cp.P.Throw("comp/return/cmd", node.GetToken())
-	}
-	vmm.cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
-
-	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
-
-	if functionName == "stringify" {
-		vmm.cp.vm.Stringify = &cpF
-	}
-
-	return &cpF
-}
-
-func (vmm *VmMaker) compileGlobalConstantOrVariable(declarations declarationType, v int) {
-	dec := vmm.uP.Parser.ParsedDeclarations[declarations][v]
-	vmm.cm("Compiling assignment " + dec.String())
-	lhs := dec.(*ast.AssignmentExpression).Left
-	rhs := dec.(*ast.AssignmentExpression).Right
-	sig, _ := vmm.cp.P.RecursivelySlurpSignature(lhs, "*inferred*")
-	if vmm.uP.ErrorsExist() {
-		return
-	}
-	rollbackTo := vmm.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-	ctxt := context{env: vmm.cp.GlobalVars, ac: INIT, lowMem: DUMMY, logFlavor: LF_INIT}
-	vmm.cp.CompileNode(rhs, ctxt)
-	if vmm.uP.ErrorsExist() {
-		return
-	}
-	vmm.cp.Emit(Ret)
-	vmm.cp.cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
-	vmm.cp.vm.Run(uint32(rollbackTo.code))
-	result := vmm.cp.vm.Mem[vmm.cp.That()]
-	if !vmm.cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
-		vmm.cp.rollback(rollbackTo, dec.GetToken())
-	}
-
-	envToAddTo, vAcc := vmm.getEnvAndAccessForConstOrVarDeclaration(declarations, v)
-
-	last := len(sig) - 1
-	lastIsTuple := sig[last].VarType == "tuple"
-	rhsIsTuple := result.T == values.TUPLE
-	tupleLen := 1
-	if rhsIsTuple {
-		tupleLen = len(result.V.([]values.Value))
-	}
-	if !lastIsTuple && tupleLen != len(sig) {
-		vmm.cp.P.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
-		return
-	}
-	if lastIsTuple && tupleLen < len(sig)-1 {
-		vmm.cp.P.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
-		return
-	}
-	loopTop := len(sig)
-	head := []values.Value{result}
-	if lastIsTuple {
-		loopTop = last
-		if rhsIsTuple {
-			head = result.V.([]values.Value)[:last]
-			vmm.cp.Reserve(values.TUPLE, result.V.([]values.Value)[last:], rhs.GetToken())
-		} else {
-			if tupleLen == len(sig)-1 {
-				vmm.cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
-			} else {
-				vmm.cp.Reserve(values.TUPLE, result.V, rhs.GetToken())
-			}
-		}
-		vmm.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
-	} else {
-		if rhsIsTuple {
-			head = result.V.([]values.Value)
-		}
-	}
-	for i := 0; i < loopTop; i++ {
-		vmm.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
-		if sig[i].VarType == "*inferred*" {
-			vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
-		} else {
-			allowedTypes := vmm.cp.TypeNameToTypeList(sig[i].VarType)
-			if allowedTypes.isNoneOf(head[i].T) {
-				vmm.cp.P.Throw("comp/assign/type", dec.GetToken())
-				return
-			} else {
-				vmm.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
-			}
-		}
-	}
-}
-
-func (vmm *VmMaker) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*Environment, varAccess) {
-	isPrivate := vmm.uP.isPrivate(int(dT), i)
-	var vAcc varAccess
-	envToAddTo := vmm.cp.GlobalConsts
-	if dT == constantDeclaration {
-		if isPrivate {
-			vAcc = GLOBAL_CONSTANT_PRIVATE
-		} else {
-			vAcc = GLOBAL_CONSTANT_PUBLIC
-		}
-	} else {
-		envToAddTo = vmm.cp.GlobalVars
-		if isPrivate {
-			vAcc = GLOBAL_VARIABLE_PRIVATE
-		} else {
-			vAcc = GLOBAL_VARIABLE_PUBLIC
-		}
-	}
-	return envToAddTo, vAcc
 }
 
 func altType(t ...values.ValueType) AlternateType {
