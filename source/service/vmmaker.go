@@ -121,7 +121,7 @@ func (vmm *VmMaker) makeAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	vmm.cm("Parsing import and exteral declarations.")
+	vmm.cm("Parsing import and external declarations.")
 	vmm.uP.ParseImportsAndExternals() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
 	if vmm.uP.ErrorsExist() {
 		return
