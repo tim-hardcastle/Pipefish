@@ -27,6 +27,7 @@ import (
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 type Section int
@@ -94,6 +95,7 @@ func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir s
 }
 
 // Do not under any cicumstances remove the following comment.
+//
 //go:embed rsc/pipefish/*
 var folder embed.FS
 
@@ -446,8 +448,6 @@ func (uP *Initializer) SetRelexer(rl lexer.Relexer) {
 	uP.rl = rl
 }
 
-
-
 func flatten(s string) string {
 	return strings.ReplaceAll(s, ".", "_")
 }
@@ -456,7 +456,7 @@ func flatten(s string) string {
 // associated functions such that a more specific type signature comes before a less specific one.
 // We will now re-represent this as a tree.
 func (cp *Compiler) MakeFunctionTrees() {
-	cp.P.FunctionGroupMap = map[string]*ast.FunctionGroup{}
+	cp.P.FunctionForest = map[string]*ast.FunctionGroup{}
 	rc := 0
 	for k, v := range cp.P.FunctionTable {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
@@ -464,7 +464,7 @@ func (cp *Compiler) MakeFunctionTrees() {
 			tree = cp.addSigToTree(tree, v[i], 0)
 
 			refs := 0 // Overloaded functions must have the same number of reference variables, which go at the start.
-			for ; refs < len(v[i].Sig) && v[i].Sig[refs].VarType == "ref"; refs++ {
+			for ; refs < len(v[i].NameSig) && v[i].NameSig[refs].VarType == "ref"; refs++ {
 			}
 			if i == 0 {
 				rc = refs
@@ -475,10 +475,10 @@ func (cp *Compiler) MakeFunctionTrees() {
 				}
 			}
 		}
-		cp.P.FunctionGroupMap[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
+		cp.P.FunctionForest[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
 		if settings.FUNCTION_TO_PEEK != "" && k == settings.FUNCTION_TO_PEEK {
 			println("Function tree for " + k)
-			println(cp.P.FunctionGroupMap[k].Tree.IndentString(""))
+			println(cp.P.FunctionForest[k].Tree.IndentString(""))
 		}
 	}
 }
@@ -486,40 +486,41 @@ func (cp *Compiler) MakeFunctionTrees() {
 // Note that the sigs have already been sorted on their specificity.
 func (cp *Compiler) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
 	sig := fn.Sig
+	nameSig := fn.NameSig
 	if pos < len(sig) {
-		var currentType string
-		if sig[pos].VarType == "bling" {
-			currentType = sig[pos].VarName
+		var currentTypeName string
+		currentAbstractType := sig[pos].VarType
+		if nameSig[pos].VarType == "bling" {
+			currentTypeName = nameSig[pos].VarName
 		} else {
-			currentType = sig[pos].VarType
+			currentTypeName = nameSig[pos].VarType
 		}
+		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
 		isPresent := false
 		for _, v := range tree.Branch {
-			if currentType == v.TypeName {
+			if currentAbstractType.Equals(v.Type) {
 				isPresent = true
 				break
 			}
 		}
 		if !isPresent {
-			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: currentType, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
+			tree.Branch = append(tree.Branch, &ast.TypeNodePair{Type: currentAbstractType, IsVararg: isVararg, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
 		}
 		for _, branch := range tree.Branch {
-			if cp.P.IsSameTypeOrSubtype(branch.TypeName, currentType) {
+			if branch.Type.IsSubtypeOf(currentAbstractType) {
 				branch.Node = cp.addSigToTree(branch.Node, fn, pos+1)
-				if currentType == "tuple" && !(branch.TypeName == "tuple") {
+				if currentTypeName == "tuple" && !(branch.Type.Contains(values.TUPLE)) {
 					cp.addSigToTree(branch.Node, fn, pos)
 				}
 			}
 		}
 	} else {
 		if tree.Fn == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
-			tree.Branch = append(tree.Branch, &ast.TypeNodePair{TypeName: "", Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}}})
+			tree.Branch = append(tree.Branch, &ast.TypeNodePair{Type: values.MakeAbstractType(), Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}}})
 		}
 	}
 	return tree
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
 
 // This extracts the words from a function definition and decides on their "grammatical" role:
 // are they prefixes, suffixes, bling?

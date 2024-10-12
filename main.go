@@ -1,5 +1,5 @@
 //
-// Pipefish version 0.4.9
+// Pipefish version 0.5.9
 //
 // Acknowledgments
 //

@@ -54,6 +54,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 }
 
 // Do not under any cicumstances remove the following comment.
+//
 //go:embed test-files/*
 var testFolder embed.FS
 
@@ -262,8 +263,19 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 }
 
 func (cp *Compiler) makeFunctionTreesAndConstructors() {
+	// First we recurse.
 	for _, service := range cp.Services {
 		service.Cp.makeFunctionTreesAndConstructors()
+	}
+	// Then we add in all the shareable functions to the function table.
+	for k, v := range cp.P.Common.Functions {
+		conflictingFunction := cp.P.FunctionTable.Add(cp.P, k.FunctionName, v)
+		if conflictingFunction != nil {
+			cp.P.Throw("init/overload/b", v.Tok, k.FunctionName, v.Sig, conflictingFunction)
+		}
+	}
+	if cp.P.ErrorsExist() {
+		return
 	}
 	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
@@ -271,8 +283,12 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 	if cp.P.ErrorsExist() {
 		return
 	}
-
-
+	println("Parser is", cp.P.NamespacePath)
+	println()
+	println(cp.P.FunctionForest["+"].Tree.IndentString(""))
+	println()
+	println(cp.P.FunctionForest["-"].Tree.IndentString(""))
+	println()
 }
 
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
@@ -377,9 +393,10 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 	goHandler := NewGoHandler(cp.P)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(cp.P.ParsedDeclarations[j]); i++ {
+			tok := cp.P.ParsedDeclarations[j][i].GetToken()
 			functionName, position, sig, rTypes, body, given := cp.P.ExtractPartsOfFunction(cp.P.ParsedDeclarations[j][i])
 			if body == nil {
-				cp.P.Throw("init/func/body", cp.P.ParsedDeclarations[j][i].GetToken())
+				cp.P.Throw("init/func/body", tok)
 				return nil
 			}
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
@@ -388,13 +405,17 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			if cp.P.ErrorsExist() {
 				return nil
 			}
-			functionToAdd := ast.PrsrFunction{Sig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
+			functionToAdd := ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = &functionToAdd
-			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, &functionToAdd)
-			if conflictingFunction != nil {
-				cp.P.Throw("init/overload", body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
-				return nil
+			if cp.shareable(&functionToAdd) {
+				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName}] = &functionToAdd
+			} else {
+				conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, &functionToAdd)
+				if conflictingFunction != nil {
+					cp.P.Throw("init/overload/a", body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
+					return nil
+				}
 			}
 			if body.GetToken().Type == token.GOCODE {
 				body.(*ast.GolangExpression).Raw = []bool{}
@@ -529,6 +550,7 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 }
 
 func (vmm *VmMaker) AddType(name, supertype string, typeNo values.ValueType) {
+	vmm.uP.Parser.LocalConcreteTypes = vmm.uP.Parser.LocalConcreteTypes.Add(typeNo)
 	vmm.uP.Parser.TypeMap[name] = values.MakeAbstractType(typeNo)
 	vmm.uP.Parser.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
 	types := []string{supertype}
@@ -625,7 +647,7 @@ func (vmm *VmMaker) createClones() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -767,7 +789,7 @@ func (vmm *VmMaker) createClones() {
 }
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, isPrivate bool, i int, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.FunctionTable.Add(vmm.cp.P, fnName, fn)
 }
 
@@ -793,10 +815,10 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 			vmm.cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
 		}
 		// The parser needs to know about it too.
-		vmm.uP.Parser.Functions.Add(name)
+		vmm.cp.P.Functions.Add(name)
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: node.GetToken()}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: node.GetToken()}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn) // TODO --- give them their own ast type?
 		vmm.cp.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
@@ -926,7 +948,7 @@ func (vmm *VmMaker) createSnippetTypesPart2() {
 
 		// The parser needs to know about it too.
 		vmm.uP.Parser.Functions.Add(name)
-		fn := &ast.PrsrFunction{Sig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.cp.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}

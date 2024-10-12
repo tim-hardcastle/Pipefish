@@ -35,7 +35,7 @@ type Compiler struct {
 	vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
-	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop. 
+	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
 	pfToGo map[string]func(uint32, []any) any         //           "
 
 	EnumElements                        map[string]uint32
@@ -58,7 +58,7 @@ type Compiler struct {
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 
-	fnIndex         map[fnSource]*ast.PrsrFunction
+	fnIndex map[fnSource]*ast.PrsrFunction
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -244,7 +244,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Services:                 make(map[string]*Service),
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
-		fnIndex: make(map[fnSource]*ast.PrsrFunction),
+		fnIndex:                  make(map[fnSource]*ast.PrsrFunction),
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
@@ -886,7 +886,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.FuncExpression, tok *token.Token) {
 	LF := &LambdaFactory{Model: &Lambda{}}
 	newEnv := NewEnvironment()
-	sig := fnNode.Sig
+	sig := fnNode.NameSig
 	skipLambdaCode := cp.vmGoTo()
 	LF.Model.capturesStart = cp.MemTop()
 	cp.pushLambdaStart()
@@ -998,7 +998,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 }
 
 func (cp *Compiler) AddVariable(env *Environment, name string, acc varAccess, types AlternateType, tok *token.Token) {
-	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That())) + " with type " + types.describe(cp.vm), tok)
+	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That()))+" with type "+types.describe(cp.vm), tok)
 	env.data[name] = variable{mLoc: cp.That(), access: acc, types: types}
 }
 
@@ -2124,7 +2124,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		}
 	}
 	b := &bindle{tok: node.GetToken(),
-		treePosition: cp.P.FunctionGroupMap[node.GetToken().Literal].Tree,
+		treePosition: cp.P.FunctionForest[node.GetToken().Literal].Tree,
 		outLoc:       cp.reserveError("vm/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
@@ -2138,7 +2138,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cst := true
 	for i, arg := range args {
 		backtrackList[i] = DUMMY
-		if i < cp.P.FunctionGroupMap[node.GetToken().Literal].RefCount { // It might be a reference variable
+		if i < cp.P.FunctionForest[node.GetToken().Literal].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
 				cp.P.Throw("comp/ref/ident", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
@@ -2261,7 +2261,7 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 		return cp.generateNewArgument(&newBindle)
 	}
 	// Case (4) : we have a reference.
-	if b.treePosition.Branch[b.branchNo].TypeName == "ref" {
+	if b.treePosition.Branch[b.branchNo].Type.Contains(values.REF) {
 		newBindle := *b
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.argNo++
@@ -2309,34 +2309,19 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		return AltType(values.ERROR)
 	}
 	branch := b.treePosition.Branch[b.branchNo]
-	var acceptedTypes AlternateType
-	typeName := branch.TypeName
-	cp.cmP("Typename is "+text.Emph(typeName)+".", b.tok)
-	isVarargs := b.varargsTime || len(typeName) >= 3 && typeName[:3] == "..."
-	if isVarargs {
-		cp.cmP("Parameter is a varargs.", b.tok)
-		typeName = typeName[3:]
-	}
-	isVarchar := len(typeName) >= 8 && typeName[:8] == "varchar("
-	acceptingTuple := typeName == "tuple" && b.index == 0
-	switch {
-	case isVarchar:
-		if typeName[len(typeName)-1] == '?' {
-			acceptedTypes = cp.TypeNameToTypeList("string?")
-		} else {
-			acceptedTypes = cp.TypeNameToTypeList("string")
-		}
-	default:
-		acceptedTypes = cp.TypeNameToTypeList(typeName)
-	}
-	cp.cmP("Accepted types are "+acceptedTypes.describe(cp.vm), b.tok)
+	acceptedTypes := branch.Type
+	acceptingTuple := acceptedTypes.Contains(values.TUPLE) && b.index == 0
+	isVarargs := b.varargsTime || branch.IsVararg
+	isVarchar := acceptedTypes.Contains(values.STRING) && acceptedTypes.Varchar < DUMMY
+
+	cp.cmP("Accepted types are "+acceptedTypes.String(), b.tok)
 	cp.cmP("Target list is "+b.targetList.describe(cp.vm), b.tok)
 	var overlap AlternateType
 	if acceptingTuple {
 		cp.cmP("Accepting tuple.", b.tok)
 		_, overlap = b.types[b.argNo].(AlternateType).splitSinglesAndTuples() // TODO --- it should in fact only be those types in the target list that we got from tuples.
 	} else {
-		overlap = acceptedTypes.intersect(b.targetList)
+		overlap = AbstractTypeToAlternateType(acceptedTypes).intersect(b.targetList)
 	}
 	if len(overlap) == 0 { // We drew a blank.
 		cp.cmP("No overlap. Calling generateNextBranchDown", b.tok)
@@ -2373,16 +2358,16 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		switch len(acceptedSingleTypes) {
 		case 0:
 			if isVarargs { // I think this has to be true at this point but it can do no harm to check.
-				varargsSlurpingTupleTypeCheck = cp.emitVarargsTypeComparisonOfTupleFromTypeName(typeName, b.valLocs[b.argNo], b.index)
+				varargsSlurpingTupleTypeCheck = cp.emitVarargsTypeComparisonOfTupleFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.index)
 			}
 		case len(overlap):
-			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo], b.tok)
+			singleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.tok)
 		default:
 			cp.Emit(Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
-			singleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, b.valLocs[b.argNo], b.tok)
+			singleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.tok)
 			cp.Emit(Jmp, cp.CodeTop()+3)
 			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
-			elementOfTupleTypeCheck = cp.emitTypeComparisonFromTypeName(typeName, cp.That(), b.tok)
+			elementOfTupleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, cp.That(), b.tok)
 		}
 	}
 	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
@@ -2404,16 +2389,16 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		switch len(acceptedSingleTypes) {
 		case 0:
 			cp.cmP("Nothing but tuples.", b.tok)
-			if typeName == "tuple" {
+			if acceptedSingleTypes.Contains(values.TUPLE) {
 				cp.cmP("Typename is tuple. Consuming tuple value.", b.tok)
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
-				cp.cmP("Typename is "+typeName+". Consuming one element of the tuple.", b.tok)
+				cp.cmP("Consuming one element of the tuple.", b.tok)
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 		case len(overlap):
 			cp.cmP("Nothing but single types", b.tok)
-			if typeName == "tuple" {
+			if acceptedSingleTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
 					cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
@@ -2428,8 +2413,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		default:
 			skipElse := bkGoto(DUMMY)
 			cp.cmP("Mix of single and tuple types.", b.tok)
-			if typeName == "tuple" {
-				cp.cmP("Typename is tuple. Generating branch to consume tuple.", b.tok)
+			if acceptedTypes.Contains(values.TUPLE) {
+				cp.cmP("Type is tuple. Generating branch to consume tuple.", b.tok)
 				typesFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
 				singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
@@ -2483,6 +2468,8 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 		return cp.emitTypeComparisonFromTypeName(typeRepresentation, mem, tok)
 	case AlternateType:
 		return cp.emitTypeComparisonFromAltType(typeRepresentation, mem, tok)
+	case values.AbstractType:
+		return cp.emitTypeComparisonFromAbstractType(typeRepresentation, mem, tok)
 	}
 	panic("Now this was not meant to happen.")
 }
@@ -2565,6 +2552,32 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 	}
 	args = append(args, DUMMY)
 	cp.Emit(Qabt, args...)
+	return bkGoto(cp.CodeTop() - 1)
+}
+
+func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
+	cp.cm("Emitting type comparison from alternate type "+text.Emph(abType.String()), tok)
+	if len(abType.Types) == 1 {
+		cp.Emit(Qtyp, mem, uint32(abType.Types[0]), DUMMY)
+		return bkGoto(cp.CodeTop() - 1)
+	}
+	args := []uint32{DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
+	for _, t := range abType.Types {
+		args = append(args, uint32(t))
+	}
+	args = append(args, DUMMY)
+	cp.Emit(Qabt, args...)
+	return bkGoto(cp.CodeTop() - 1)
+	// TODO --- this no longer special-cases things like "single" or "struct".
+}
+
+func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromAbstractType(abType values.AbstractType, mem uint32, index int) bkGoto {
+	args := []uint32{mem, uint32(index)}
+	for _, t := range abType.Types {
+		args = append(args, uint32(t))
+	}
+	args = append(args, DUMMY)
+	cp.Emit(Qtpt, args...)
 	return bkGoto(cp.CodeTop() - 1)
 }
 
@@ -2753,7 +2766,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 	cp.cmP("Called seekBling.", b.tok)
 	for i, branch := range b.treePosition.Branch {
-		if branch.TypeName == bling {
+		if branch.Type.Contains(values.BLING) {
 			newBindle := *b
 			newBindle.branchNo = i
 			newBindle.varargsTime = false
@@ -3621,8 +3634,8 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
 		graph.Add(name, []string{})
 		for _, dec := range decs {
-			rhsNames := 
-			cp.extractNamesFromCodeChunk(dec)
+			rhsNames :=
+				cp.extractNamesFromCodeChunk(dec)
 			// IMPORTANT NOTE. 'extractNamesFromCodeChunk' will also slurp up a lot of cruft: type names, for example; bling; local true variables in cmds.
 			// So we do nothing to throw an error if a name doesn't exist. That will happen when we try to compile the function. What we're trying to
 			// do here is establish the relationship between the comds/defs/vars/consts that *do* exist.
@@ -3738,7 +3751,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 
 func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType, v int) {
 	dec := cp.P.ParsedDeclarations[declarations][v]
-	cp.cm("Compiling assignment " + dec.String(), dec.GetToken())
+	cp.cm("Compiling assignment "+dec.String(), dec.GetToken())
 	lhs := dec.(*ast.AssignmentExpression).Left
 	rhs := dec.(*ast.AssignmentExpression).Right
 	sig, _ := cp.P.RecursivelySlurpSignature(lhs, "*inferred*")
@@ -3849,7 +3862,7 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := cp.P.ExtractPartsOfFunction(node)
-	cp.cm("Compiling function '" + functionName + "' with sig " + sig.String() + ".", node.GetToken())
+	cp.cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", node.GetToken())
 
 	if settings.FUNCTION_TO_PEEK == functionName {
 		println(node.String() + "\n")
@@ -3989,4 +4002,31 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	}
 
 	return &cpF
+}
+
+// A function is shareable if at least one of its parameters must be of a type declared in the same module.
+func (cp *Compiler) shareable(f *ast.PrsrFunction) bool {
+	for _, pair := range f.NameSig {
+		ty := pair.VarType
+		if ty == "bling" {
+			continue
+		}
+		if len(ty) >= 3 && ty[:3] == "..." {
+			ty = ty[3:]
+		}
+		if ty == "struct" || ty == "enum" {
+			continue
+		}
+		abType := cp.P.GetAbstractType(ty)
+		ok := true
+		for _, concType := range abType.Types {
+			if !cp.P.LocalConcreteTypes.Contains(concType) {
+				ok = false
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
 }

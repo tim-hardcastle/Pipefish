@@ -7,6 +7,7 @@ import (
 
 	"pipefish/source/dtypes"
 	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 // The base Node interface
@@ -73,9 +74,9 @@ type BuiltInExpression struct {
 	Name string
 }
 
-func (bi *BuiltInExpression) Children() []Node { return []Node{} }
+func (bi *BuiltInExpression) Children() []Node       { return []Node{} }
 func (bi *BuiltInExpression) GetToken() *token.Token { return &bi.Token }
-func (bi *BuiltInExpression) String() string { return "builtin \"" + bi.Name + "\"" }
+func (bi *BuiltInExpression) String() string         { return "builtin \"" + bi.Name + "\"" }
 
 type FloatLiteral struct {
 	Token token.Token
@@ -134,7 +135,7 @@ type FuncExpression struct {
 func (fe *FuncExpression) Children() []Node       { return []Node{fe.Body, fe.Given} }
 func (fe *FuncExpression) GetToken() *token.Token { return &fe.Token }
 func (fe *FuncExpression) String() string {
-	result := "func " + fe.Sig.String() + " : " + fe.Body.String()
+	result := "func " + fe.NameSig.String() + " : " + fe.Body.String()
 	if fe.Given != nil {
 		result = "(" + result + ")" + " given : " + "(" + fe.Given.String() + ")"
 	}
@@ -602,14 +603,15 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 }
 
 type PrsrFunction struct {
-	Sig      AstSig // The signature of the function, represented in a form where the types are given as strings.
-	Rets     AstSig // The return types: nil if not supplied.
-	Body     Node   // The body of the function.
-	Given    Node   // The 'given' block: nil if there isn't one.
-	Cmd      bool   // Whether it's a command or not.
-	Private  bool   // Whether it's private or not.
-	Number   uint32 // The order in which the function was compiled by the vmMaker. Initialized as DUMMY.
-	Position uint32 // PREFIX, INFIX, SUFFIX.
+	Sig      ParserSig    // The signature of the function, represented in a form where the types are given as abstract types.
+	NameSig  AstSig       // The same, but with names of types instead of abstract types.
+	Rets     AstSig       // The return types: nil if not supplied.
+	Body     Node         // The body of the function.
+	Given    Node         // The 'given' block: nil if there isn't one.
+	Cmd      bool         // Whether it's a command or not.
+	Private  bool         // Whether it's private or not.
+	Number   uint32       // The order in which the function was compiled by the vmMaker. Initialized as DUMMY.
+	Position uint32       // PREFIX, INFIX, SUFFIX.
 	Tok      *token.Token // Where it was declared.
 }
 
@@ -624,16 +626,17 @@ type FnTreeNode struct {
 }
 
 type TypeNodePair struct { // This exists because we need an *ordered* collection of type-node pairs.
-	TypeName string
+	Type     values.AbstractType
+	IsVararg bool
 	Node     *FnTreeNode
 }
 
 func (tree FnTreeNode) String() string {
 	result := "["
 	for i, v := range tree.Branch {
-		result = result + v.TypeName
+		result = result + v.Type.String()
 		if v.Node.Fn != nil {
-			result = result + "func " + v.Node.Fn.Sig.String()
+			result = result + "func " + v.Node.Fn.NameSig.String()
 		} else {
 			result = result + v.Node.String()
 		}
@@ -647,9 +650,9 @@ func (tree FnTreeNode) String() string {
 func (tree FnTreeNode) IndentString(indent string) string {
 	result := ""
 	for _, v := range tree.Branch {
-		result = result + "\n" + indent + v.TypeName
+		result = result + "\n" + indent + v.Type.String()
 		if v.Node.Fn != nil {
-			result = result + "func" + v.Node.Fn.Sig.String()
+			result = result + "func" + v.Node.Fn.NameSig.String()
 		} else {
 			result = result + v.Node.IndentString(indent+"    ")
 		}

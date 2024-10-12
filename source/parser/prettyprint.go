@@ -80,7 +80,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		}
 	case *ast.FuncExpression:
 		out.WriteString("func ")
-		out.WriteString(node.Sig.String() + " : ")
+		out.WriteString(node.NameSig.String() + " : ")
 		switch ctxt.flavor {
 		case ppOUTER:
 			out.WriteString("\n")

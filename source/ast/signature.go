@@ -2,6 +2,7 @@ package ast
 
 import (
 	"pipefish/source/dtypes"
+	"pipefish/source/values"
 )
 
 // This exists because we have too many ways of representing types. There I said it.
@@ -31,6 +32,33 @@ func (ntp NameTypenamePair) TypeOrBling() string {
 }
 
 type AstSig []NameTypenamePair
+
+
+type NameAbstractTypePair struct {
+	VarName string
+	VarType values.AbstractType
+}
+
+func (natp NameAbstractTypePair) GetName() string {
+	return natp.VarName
+}
+
+func (natp NameAbstractTypePair) GetType() any {
+	return natp.VarType
+}
+
+func (m NameAbstractTypePair) IsBling() bool {
+	return m.VarType.Equals(values.AbstractType{[]values.ValueType{values.BLING}, 0})
+}
+
+func (m NameAbstractTypePair) Matches(n NameAbstractTypePair) bool {
+	if m.IsBling() && n.IsBling() {
+		return n.VarName == m.VarName
+	}
+	return m.VarType.Equals(n.VarType)
+}
+
+type ParserSig []NameAbstractTypePair
 
 func (s AstSig) Len() int {
 	return len(s)

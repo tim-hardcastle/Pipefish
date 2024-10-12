@@ -49,6 +49,7 @@ func NewCommonTypeMap() TypeSys {
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)
 	result["ref"] = values.MakeAbstractType(values.REF)
+	result["bling"] = values.MakeAbstractType(values.BLING)
 	return result
 }
 
@@ -108,7 +109,7 @@ var ClonableTypes = map[string]values.ValueType{"int": values.INT, "string": val
 
 var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 
-func (p *Parser) IsMoreSpecific(sigA, sigB ast.AstSig) (result bool, ok bool) {
+func (p *Parser) IsMoreSpecific(sigA, sigB ast.ParserSig) (result bool, ok bool) {
 	if len(sigB) == 0 {
 		result = true
 		ok = true
@@ -125,14 +126,14 @@ func (p *Parser) IsMoreSpecific(sigA, sigB ast.AstSig) (result bool, ok bool) {
 		max = len(sigB)
 	}
 	for i := 0; i < max; i++ {
-		if i < len(sigA) && i < len(sigB) && sigA[i].VarType == "bling" && sigB[i].VarType == "bling" && sigA[i].VarName != sigB[i].VarName {
+		if i < len(sigA) && i < len(sigB) && sigA[i].IsBling() && sigB[i].IsBling() && sigA[i].VarName != sigB[i].VarName {
 			return aIsMoreSpecific, true
 		}
 		if i >= len(sigB) || i >= len(sigA) {
 			return aIsMoreSpecific, true
 		}
-		aType := p.GetAbstractType(sigA[i].VarType)
-		bType := p.GetAbstractType(sigB[i].VarType)
+		aType := sigA[i].VarType
+		bType := sigB[i].VarType
 		if aType.PartlyIntersects(bType) {
 			return false, false
 		}
@@ -143,14 +144,14 @@ func (p *Parser) IsMoreSpecific(sigA, sigB ast.AstSig) (result bool, ok bool) {
 		if aIsMoreSpecific && bIsMoreSpecific {
 			return false, false
 		}
-		if (i == len(sigA)-1) && (i == len(sigB)-1) && sigA[i].TypeOrBling() == sigB[i].TypeOrBling() {
+		if (i == len(sigA)-1) && (i == len(sigB)-1) && sigA[i].Matches(sigB[i]) {
 			if !(aIsMoreSpecific || bIsMoreSpecific) {
 				return false, false
 			} else {
 				return aIsMoreSpecific, true
 			}
 		}
-		if !(asubb || bsuba || sigA[i].VarType == sigB[i].VarType) {
+		if !(asubb || bsuba || sigA[i].VarType.Equals(sigB[i].VarType)) {
 			return false, true
 		}
 	}

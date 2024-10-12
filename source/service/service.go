@@ -160,7 +160,7 @@ func (service Service) SerializeApi() string {
 				buf.WriteString(name)
 				buf.WriteString(" | ")
 				buf.WriteString(strconv.Itoa(int(fn.Position)))
-				for _, ntp := range fn.Sig {
+				for _, ntp := range fn.NameSig {
 					buf.WriteString(" | ")
 					buf.WriteString(ntp.VarName)
 					buf.WriteString(" ")

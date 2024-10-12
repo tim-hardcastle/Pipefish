@@ -128,13 +128,20 @@ type ParserData struct {
 
 type TypeSys map[string]values.AbstractType
 
+type FuncSource struct { // For indexing the functions in the common function map, to prevent duplication.
+	Filename     string
+	LineNo       int
+	FunctionName string
+}
+
 // For data that needs to be shared by all parsers.
 type CommonParserBindle struct {
-	Types TypeSys
+	Types     TypeSys
+	Functions map[FuncSource]*ast.PrsrFunction
 }
 
 func NewCommonBindle() *CommonParserBindle {
-	result := CommonParserBindle{Types: NewCommonTypeMap()}
+	result := CommonParserBindle{Types: NewCommonTypeMap(), Functions: make(map[FuncSource]*ast.PrsrFunction)}
 	return &result
 }
 
@@ -177,11 +184,12 @@ type Parser struct {
 	nativeInfixes dtypes.Set[token.TokenType]
 	lazyInfixes   dtypes.Set[token.TokenType]
 
-	FunctionTable    FunctionTable // TODO --- this and the following clearly belong in the uberparser.
-	FunctionGroupMap map[string]*ast.FunctionGroup
+	FunctionTable  FunctionTable // TODO --- this and the following clearly belong in the uberparser.
+	FunctionForest map[string]*ast.FunctionGroup
 
-	TypeMap  TypeSys             // Maps names to abstract types.
-	typeData map[string][]string // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
+	TypeMap            TypeSys                      // Maps names to abstract types.
+	typeData           map[string][]string          // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
+	LocalConcreteTypes dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
 
 	Structs   dtypes.Set[string]    // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig map[string]ast.AstSig // <--- in here.
@@ -217,22 +225,22 @@ func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
-		FunctionTable:    make(FunctionTable),
-		FunctionGroupMap: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
-		TypeMap:          make(TypeSys),
+		FunctionTable:  make(FunctionTable),
+		FunctionForest: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
+		TypeMap:        make(TypeSys),
 		typeData: map[string][]string{
 			"struct": []string{"struct", "struct?", "single", "single?"},
 			"enum":   []string{"enum", "enum?", "single", "single?"},
 			"single": []string{"single", "single?"},
 		},
-
-		Structs:         make(dtypes.Set[string]),
-		GoImports:       make(map[string][]string),
-		NamespaceBranch: make(map[string]*ParserData),
-		ExternalParsers: make(map[string]*Parser),
-		Directory:       dir,
-		NamespacePath:   namespacePath,
-		Common:          common,
+		LocalConcreteTypes: make(dtypes.Set[values.ValueType]),
+		Structs:            make(dtypes.Set[string]),
+		GoImports:          make(map[string][]string),
+		NamespaceBranch:    make(map[string]*ParserData),
+		ExternalParsers:    make(map[string]*Parser),
+		Directory:          dir,
+		NamespacePath:      namespacePath,
+		Common:             common,
 	}
 
 	for k := range p.Common.Types {
@@ -964,13 +972,14 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			switch newLeft := left.Left.(type) {
 			case *ast.PrefixExpression:
 				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
-				fn.Sig, _ = p.getSigFromArgs(newLeft.Args, "single?")
+				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, "single?")
+				fn.Sig = p.Abstract(fn.NameSig) // TODO --- elsewhere.
 			default:
 				p.Throw("parse/inner/b", newLeft.GetToken())
 			}
 		case *ast.PrefixExpression:
 			expression.Left = &ast.Identifier{Token: *left.GetToken(), Value: left.GetToken().Literal}
-			fn.Sig, _ = p.getSigFromArgs(left.Args, "single?")
+			fn.NameSig, _ = p.getSigFromArgs(left.Args, "single?")
 		default:
 			p.Throw("parse/inner/c", left.GetToken())
 			return nil
@@ -983,7 +992,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		}
 		expression.Right = fn
 		if fn.Body.GetToken().Type == token.PRELOG && fn.Body.GetToken().Literal == "" {
-			fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.GetToken().Literal, &fn.Sig)
+			fn.Body.(*ast.LogExpression).Value = DescribeFunctionCall(left.GetToken().Literal, &fn.NameSig)
 		}
 		return expression
 	}
@@ -1165,10 +1174,11 @@ func (p *Parser) parseFuncExpression() ast.Node {
 		p.Throw("parse/colon", &p.curToken)
 		return nil
 	}
-	expression.Sig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, "single?")
+	expression.NameSig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, "single?")
 	if p.ErrorsExist() {
 		return nil
 	}
+	expression.Sig = p.Abstract(expression.NameSig) // TODO --- elsewhere.
 	bodyRoot := root.(*ast.LazyInfixExpression).Right
 	if bodyRoot.GetToken().Type == token.GIVEN {
 		expression.Body = bodyRoot.(*ast.InfixExpression).Args[0]
@@ -1772,3 +1782,10 @@ func (p *Parser) IsPrivate(x, y int) bool {
 	return p.TokenizedDeclarations[x][y].Private
 }
 
+func (p *Parser) Abstract(sig ast.AstSig) ast.ParserSig {
+	result := make(ast.ParserSig, sig.Len())
+	for i, pair := range sig {
+		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(pair.VarType)}
+	}
+	return result
+}

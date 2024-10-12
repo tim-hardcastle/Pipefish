@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	VERSION        = "0.4.9"
+	VERSION        = "0.5.9"
 	BULLET         = "  ▪ "
 	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
 	GOOD_BULLET    = "\033[32m  ▪ \033[0m"
