@@ -6,16 +6,15 @@ foo(x bool) :
 foo(x single?) :
     "single?"
 
+zort(x ... pair) :
+    x
 
+troz(x tuple) :
+    x
 
-(x) ⋏ (y) :
-    x > y :
-        x
-    else :
-        y
+var 
 
-(x) ⋎ (y) :
-    x < y :
-        x
-    else :
-        y
+qux tuple = 1, 2
+
+xuq tuple = tuple 1
+

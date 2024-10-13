@@ -2389,8 +2389,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		switch len(acceptedSingleTypes) {
 		case 0:
 			cp.cmP("Nothing but tuples.", b.tok)
-			if acceptedSingleTypes.Contains(values.TUPLE) {
-				cp.cmP("Typename is tuple. Consuming tuple value.", b.tok)
+			if acceptedTypes.Contains(values.TUPLE) {
+				cp.cmP("Type is tuple. Consuming tuple value.", b.tok)
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
 				cp.cmP("Consuming one element of the tuple.", b.tok)
@@ -2398,7 +2398,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			}
 		case len(overlap):
 			cp.cmP("Nothing but single types", b.tok)
-			if acceptedSingleTypes.Contains(values.TUPLE) {
+			if acceptedTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
 					cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
