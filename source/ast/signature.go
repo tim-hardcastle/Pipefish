@@ -60,6 +60,15 @@ func (m NameAbstractTypePair) Matches(n NameAbstractTypePair) bool {
 
 type ParserSig []NameAbstractTypePair
 
+func (p ParserSig) String() string {
+	result := ""
+	sep := ""
+	for _, pair := range p {
+		result = sep + result + pair.VarName + " " + pair.VarType.String()
+	}
+	return result + ")"
+}
+
 func (s AstSig) Len() int {
 	return len(s)
 }

@@ -1785,7 +1785,11 @@ func (p *Parser) IsPrivate(x, y int) bool {
 func (p *Parser) Abstract(sig ast.AstSig) ast.ParserSig {
 	result := make(ast.ParserSig, sig.Len())
 	for i, pair := range sig {
-		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(pair.VarType)}
+		typename := pair.VarType
+		if len(typename) >= 3 && typename[:3] == "..." {
+			typename = typename[3:]
+		}
+		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typename)}
 	}
 	return result
 }

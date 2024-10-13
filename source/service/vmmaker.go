@@ -283,12 +283,6 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 	if cp.P.ErrorsExist() {
 		return
 	}
-	println("Parser is", cp.P.NamespacePath)
-	println()
-	println(cp.P.FunctionForest["+"].Tree.IndentString(""))
-	println()
-	println(cp.P.FunctionForest["-"].Tree.IndentString(""))
-	println()
 }
 
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {

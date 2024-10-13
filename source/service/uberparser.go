@@ -496,6 +496,9 @@ func (cp *Compiler) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos
 			currentTypeName = nameSig[pos].VarType
 		}
 		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
+		if isVararg {
+			currentTypeName = currentTypeName[3:]
+		}
 		isPresent := false
 		for _, v := range tree.Branch {
 			if currentAbstractType.Equals(v.Type) {

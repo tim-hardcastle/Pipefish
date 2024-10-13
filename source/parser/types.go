@@ -126,8 +126,12 @@ func (p *Parser) IsMoreSpecific(sigA, sigB ast.ParserSig) (result bool, ok bool)
 		max = len(sigB)
 	}
 	for i := 0; i < max; i++ {
-		if i < len(sigA) && i < len(sigB) && sigA[i].IsBling() && sigB[i].IsBling() && sigA[i].VarName != sigB[i].VarName {
-			return aIsMoreSpecific, true
+		if i < len(sigA) && i < len(sigB) && sigA[i].IsBling() && sigB[i].IsBling() {
+			if sigA[i].VarName == sigB[i].VarName {
+				continue
+			} else {
+				return false, true
+			}
 		}
 		if i >= len(sigB) || i >= len(sigA) {
 			return aIsMoreSpecific, true
