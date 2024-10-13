@@ -2561,7 +2561,7 @@ func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractTyp
 		cp.Emit(Qtyp, mem, uint32(abType.Types[0]), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	args := []uint32{mem} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
+	args := []uint32{mem, DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
 	for _, t := range abType.Types {
 		args = append(args, uint32(t))
 	}

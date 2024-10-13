@@ -6,15 +6,6 @@ foo(x bool) :
 foo(x single?) :
     "single?"
 
-zort(x ... pair) :
-    x
-
-troz(x tuple) :
-    x
-
-var 
-
-qux tuple = 1, 2
-
-xuq tuple = tuple 1
+moo(s string) :
+    s
 
