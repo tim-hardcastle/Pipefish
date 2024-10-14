@@ -3954,9 +3954,6 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(cp.vm.GoFns))
 		cpF.HasGo = true
-		if body.(*ast.GolangExpression).ObjectCode == nil {
-			println("Object code for", functionName, "is nil.")
-		}
 		cp.vm.GoFns = append(cp.vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
 			cp.goToPf[body.GetToken().Source], cp.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
 	case token.XCALL:

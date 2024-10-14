@@ -355,7 +355,11 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
-				v.Body.(*ast.GolangExpression).ObjectCode = goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
+				result := goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
+				if result == nil {
+					println("Code for", functionName, "is nil.")
+				}
+				v.Body.(*ast.GolangExpression).ObjectCode = result
 			}
 		}
 	}
