@@ -20,10 +20,6 @@ noo() : gocode {
     return nil
 }
 
-roo(x int raw) : gocode {
-    return x
-}
-
 soo(x string) : gocode {
     return x
 }
