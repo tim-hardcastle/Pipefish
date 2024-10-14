@@ -3897,12 +3897,6 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			continue
 		}
 		typeName := pair.VarType
-		if len(typeName) >= 4 && typeName[len(typeName)-4:] == " raw" {
-			if body.GetToken().Type != token.GOCODE {
-				cp.P.Throw("comp/ref", body.GetToken())
-			}
-			typeName = typeName[:len(typeName)-4]
-		}
 		isVarargs := len(typeName) >= 3 && typeName[:3] == "..."
 		if isVarargs {
 			typeName = typeName[3:]

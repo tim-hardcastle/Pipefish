@@ -1789,6 +1789,9 @@ func (p *Parser) Abstract(sig ast.AstSig) ast.ParserSig {
 		if len(typename) >= 3 && typename[:3] == "..." {
 			typename = typename[3:]
 		}
+		if len(typename) >= 4 && typename[len(typename)-4:] == " raw" {
+			typename = typename[:len(typename)-4]
+		}
 		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typename)}
 	}
 	return result
