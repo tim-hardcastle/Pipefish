@@ -352,14 +352,19 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
 		cp.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
 	}
+	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
+	if cp.P.NamespacePath == "" {
+		for k, v := range cp.P.Common.Functions {
+			if v.Body.GetToken().Type == token.GOCODE {
+				result := goHandler.GetFn(text.Flatten(k.FunctionName), v.Body.GetToken())
+				v.Body.(*ast.GolangExpression).ObjectCode = result
+			}
+		}
+	}
 	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
 				result := goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
-				println("Making", functionName, ".")
-				if result == nil {
-					println("Code for", functionName, "is nil.")
-				}
 				v.Body.(*ast.GolangExpression).ObjectCode = result
 			}
 		}
