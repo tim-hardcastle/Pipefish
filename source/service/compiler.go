@@ -884,9 +884,10 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 }
 
 func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.FuncExpression, tok *token.Token) {
+	cp.cm("Compiling lambda", tok)
 	LF := &LambdaFactory{Model: &Lambda{}}
 	newEnv := NewEnvironment()
-	sig := fnNode.NameSig
+	nameSig := fnNode.NameSig
 	skipLambdaCode := cp.vmGoTo()
 	LF.Model.capturesStart = cp.MemTop()
 	cp.pushLambdaStart()
@@ -894,13 +895,13 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	// We get the function parameters. These shadow anything we might otherwise capture.
 	params := dtypes.Set[string]{}
 	checkNeeded := false
-	for _, pair := range sig {
-		params.Add(pair.VarName)
+	for _, pair := range nameSig {
+		params = params.Add(pair.VarName)
 		if pair.VarType == "single?" {
 			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
 			checkNeeded = true
-			LF.Model.sig = append(LF.Model.sig, cp.TypeNameToTypeList(pair.VarType).ToAbstractType())
+			LF.Model.sig = append(LF.Model.sig, cp.P.GetAbstractType(pair.VarType))
 		}
 	}
 	if checkNeeded {
@@ -910,8 +911,12 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	}
 	captures := ast.GetVariableNames(fnNode)
 	for k := range captures {
-		v, ok := env.getVar(k)
+		if params.Contains(k) {
+			continue
+		}
+		v, ok := env.getVar(k);
 		if !ok {
+			cp.cm("Throwing unknown identifier error", tok)
 			cp.P.Throw("comp/body/known", tok, k)
 			return
 		}
@@ -937,10 +942,11 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 		}
 	}
 
+	cp.cm("Adding function parameters", tok)
 	// Add the function parameters.
-	for _, pair := range sig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
+	for _, pair := range nameSig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
-		cp.cm("Adding parameter to lambda.", fnNode.GetToken())
+		cp.cm("Adding parameter '" + pair.VarName + "' to lambda.", fnNode.GetToken())
 		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), fnNode.GetToken())
 	}
 

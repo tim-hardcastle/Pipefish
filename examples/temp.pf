@@ -1,11 +1,8 @@
 def
 
-foo(x bool) :
-    "bool"
-
-foo(x single?) :
-    "single?"
-
-moo(s string) :
-    s
+zort(i) :
+    glerp i
+given :
+    glerp(x int) :
+        x
 
