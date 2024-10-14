@@ -356,6 +356,7 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
 				result := goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
+				println("Making", functionName, ".")
 				if result == nil {
 					println("Code for", functionName, "is nil.")
 				}
