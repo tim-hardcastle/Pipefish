@@ -1,8 +1,10 @@
+newtype
+
+Person = struct(name string, age int)
+
 def
 
-zort(i) :
-    glerp i
-given :
-    glerp(x int) :
-        x
+deconstructPerson(aPerson Person) -> string, int : 
+    aPerson[name], aPerson[age]
+
 
