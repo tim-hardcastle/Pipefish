@@ -1,10 +1,11 @@
-newtype
-
-Person = struct(name string, age int)
-
 def
 
-deconstructPerson(aPerson Person) -> string, int : 
-    aPerson[name], aPerson[age]
-
+unimodal(L list) :
+    first from result bool, min float? = true, NULL for i = 1; i < len L; i + 1 :
+        L[i] < L[i-1] and (min in null or L[i] < min) :
+            true, L[i] 
+        (not min in null) and L[i] > min :
+            break false, 0.0
+        else :
+            continue
 

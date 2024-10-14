@@ -478,13 +478,6 @@ loop:
 					goTpl = append(goTpl, vm.pipefishToGo(el, F.PfToGo))
 				}
 			}
-			if F.Code == nil {
-				println("F.Code is nil")
-			}
-			if F.GoToPf ==nil {
-				println("F.GoToPf is nil")
-			}
-			
 			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPf)
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
