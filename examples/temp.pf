@@ -1,37 +1,3 @@
 import
 
-"strings"
-
-const 
-
-INPUT = `func IsControl(r rune) bool
-func IsDigit(r rune) bool
-func IsGraphic(r rune) bool
-func IsLetter(r rune) bool
-func IsLower(r rune) bool
-func IsMark(r rune) bool
-func IsNumber(r rune) bool
-func IsPrint(r rune) bool
-func IsPunct(r rune) bool
-func IsSpace(r rune) bool
-func IsSymbol(r rune) bool
-func IsTitle(r rune) bool
-func IsUpper(r rune) bool
-func SimpleFold(r rune) rune
-func To(_case int, r rune) rune
-func ToLower(r rune) rune
-func ToTitle(r rune) rune
-func ToUpper(r rune) rune`
-
-def 
-
-process(text string) :
-    from s = "" for _::line = range lines :
-        s + lowerCaseMiddle + " -> "  + end + " : gocode {\n" + "\t" + middle + "\n}\n\n"
-    given :
-        middle = line[5::len(line)-5]
-        lowerCaseMiddle = strings.toLower(string(middle[0])) + middle[1::len(middle)]
-        end = line[len(line)-4::len(line)]
-given :
-    lines = strings.split(text, "\n")
-
+"unicode"

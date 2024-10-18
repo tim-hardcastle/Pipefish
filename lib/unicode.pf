@@ -22,7 +22,7 @@ func isGraphic(r rune) -> bool : gocode {
 
 func isIn(r rune, bounds ... pair) -> bool : 
 	from flag = false for _::bound = range bounds :
-		bound[0] <= codepoint(r) && codepoint(r) < bound[1] :
+		bound[0] <= codepoint(r) and codepoint(r) < bound[1] :
 			break true
 		else :
 			continue
