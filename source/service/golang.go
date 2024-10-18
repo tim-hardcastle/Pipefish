@@ -257,7 +257,7 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
 	if ok {
 		return goTy, true
 	}
-	// If it's not a native type, then it may be a struct, so it may be namespaced.
+	// If it's not a native type, then it may be a struct or an enum, so it may be namespaced.
 	bits := strings.Split(pTy, ".")
 	name := bits[len(bits)-1]
 	namespacePath := bits[0 : len(bits)-1]
@@ -274,6 +274,11 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
 		gh.StructNames[source].Add(pTy)
 		return ".(" + text.Flatten(pTy) + ")", true
 	}
+	abType := resolvingParser.GetAbstractType(name)
+	if abType.IsSubtypeOf(resolvingParser.Common.Types["enum"]) {
+		return ".(int)", true
+	}
+
 	return "", false
 }
 

@@ -22,6 +22,9 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 		}
 		return converter(uint32(v.T), gVals)
 	}
+	if typeInfo.isEnum() {
+		return v.V.(int)
+	}
 	switch v.T {
 	case values.BOOL:
 		return v.V.(bool)
