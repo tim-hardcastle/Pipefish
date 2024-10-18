@@ -2,87 +2,8 @@ import
 
 gocode "unicode"
 
-newtype
-
-Case = enum UPPER_CASE, LOWER_CASE, TITLE_CASE, MAX_CASE
-
 def
-
-isControl(r rune) -> bool : gocode {
-	return unicode.IsControl(r)
-}
 
 isDigit(r rune) -> bool : gocode {
 	return unicode.IsDigit(r)
-}
-
-isGraphic(r rune) -> bool : gocode {
-	return unicode.IsGraphic(r)
-}
-
-isIn(r rune, bounds ... pair) -> bool : 
-	from flag = false for _::bound = range bounds :
-		bound[0] <= codepoint(r) and codepoint(r) < bound[1] :
-			break true
-		else :
-			continue
-
-isLetter(r rune) -> bool : gocode {
-	return unicode.IsLetter(r)
-}
-
-isLower(r rune) -> bool : gocode {
-	return unicode.IsLower(r)
-}
-
-isMark(r rune) -> bool : gocode {
-	unicode.IsMark(r)
-}
-
-isNumber(r rune) -> bool : gocode {
-	return unicode.IsNumber(r)
-}
-
-isPrint(r rune) -> bool : gocode {
-	return unicode.IsPrint(r)
-}
-
-isPunct(r rune) -> bool : gocode {
-	return unicode.IsPunct(r)
-}
-
-isSpace(r rune) -> bool : gocode {
-	return unicode.IsSpace(r)
-}
-
-isSymbol(r rune) -> bool : gocode {
-	return unicode.IsSymbol(r)
-}
-
-isTitle(r rune) -> bool : gocode {
-	return unicode.IsTitle(r)
-}
-
-isUpper(r rune) -> bool : gocode {
-	return unicode.IsUpper(r)
-}
-
-simpleFold(r rune) -> rune : gocode {
-	return unicode.SimpleFold(r)
-}
-
-toCase(c Case, r rune) -> rune : gocode {
-	return unicode.To(c, r)
-}
-
-toLower(r rune) -> rune : gocode {
-	return unicode.ToLower(r)
-}
-
-toTitle(r rune) -> rune : gocode {
-	return unicode.ToTitle(r)
-}
-
-toUpper(r rune) -> rune : gocode {
-	return unicode.ToUpper(r)
 }
