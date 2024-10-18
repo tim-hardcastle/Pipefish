@@ -10,7 +10,7 @@ var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.
 var MandatoryImportSet = dtypes.MakeFromSlice(MandatoryImports)
 var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc/pipefish/hub.pf").Add("Builtin constant")
 
-var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time"})
+var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"})
 
 const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
