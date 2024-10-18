@@ -413,7 +413,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = &functionToAdd
 			if cp.shareable(&functionToAdd) {
-				println("Adding", functionName, "to common functions.")
+				cp.cm("Adding " + functionName + " to common functions.", tok)
 				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName}] = &functionToAdd
 			} else {
 				conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, &functionToAdd)
