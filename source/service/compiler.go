@@ -3624,7 +3624,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
 						cp.P.Throw("init/name/exists/b", dec.GetToken(), cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
 					}
-					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be a command or a function 'cos that would be weird.
+					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be both a command and a function 'cos that would be weird.
 						cp.P.Throw("init/name/exists/c", dec.GetToken(), cp.P.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
 					}
 				}
@@ -3640,8 +3640,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 	for name, decs := range namesToDeclarations { // The same name may be used for different overloaded functions.
 		graph.Add(name, []string{})
 		for _, dec := range decs {
-			rhsNames :=
-				cp.extractNamesFromCodeChunk(dec)
+			rhsNames := cp.extractNamesFromCodeChunk(dec)
 			// IMPORTANT NOTE. 'extractNamesFromCodeChunk' will also slurp up a lot of cruft: type names, for example; bling; local true variables in cmds.
 			// So we do nothing to throw an error if a name doesn't exist. That will happen when we try to compile the function. What we're trying to
 			// do here is establish the relationship between the comds/defs/vars/consts that *do* exist.

@@ -268,7 +268,7 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 		service.Cp.makeFunctionTreesAndConstructors()
 	}
 	// Then we add in all the shareable functions to the function table.
-	for k, v := range cp.P.Common.Functions {
+	for k, v := range cp.P.Common.Functions { // TODO --- it does no good to add in functions when the parser doesn't know their names, because it ccan never refer to them. Does it do any actual harm? It might at least clarify things duing debugging if we weed them out.
 		conflictingFunction := cp.P.FunctionTable.Add(cp.P, k.FunctionName, v)
 		if conflictingFunction != nil {
 			cp.P.Throw("init/overload/b", v.Tok, k.FunctionName, v.Sig, conflictingFunction)
@@ -413,6 +413,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = &functionToAdd
 			if cp.shareable(&functionToAdd) {
+				println("Adding", functionName, "to common functions.")
 				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName}] = &functionToAdd
 			} else {
 				conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, &functionToAdd)

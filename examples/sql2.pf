@@ -2,14 +2,8 @@ newtype
 
 Person = struct(name string, age int) 
 
-cmd // We wrap some commands around SQL.
-
-make : // Create the table on initialization if it isn't there.
+init : 
     put SQL --- CREATE TABLE IF NOT EXISTS People |Person|
-
-clear :
-    delete SQL --- DROP TABLE People
-    make
 
 add (name string, age int) :
     put SQL ---

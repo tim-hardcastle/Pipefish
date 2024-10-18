@@ -595,7 +595,7 @@ func isAlphanumeric(c rune) bool {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '$' || ch == '?'
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '^' || ch == '$' || ch == '?'
 }
 
 func isPeriod(ch rune) bool {
