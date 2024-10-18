@@ -29,6 +29,8 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 		return v.V.(float64)
 	case values.INT:
 		return v.V.(int)
+	case values.RUNE:
+		return v.V.(rune)
 	case values.STRING:
 		return v.V.(string)
 	default:
@@ -44,18 +46,20 @@ func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) val
 			result = append(result, vm.goToPipefish(el, converter))
 		}
 		return values.Value{values.TUPLE, result}
-	case int:
-		return values.Value{values.INT, v}
-	case float64:
-		return values.Value{values.FLOAT, v}
-	case string:
-		return values.Value{values.STRING, v}
 	case bool:
 		return values.Value{values.BOOL, v}
-	case nil:
-		return values.Value{values.NULL, v}
 	case error:
 		return values.Value{values.ERROR, report.Error{Message: v.Error()}}
+	case float64:
+		return values.Value{values.FLOAT, v}
+	case int:
+		return values.Value{values.INT, v}
+	case nil:
+		return values.Value{values.NULL, v}
+	case rune:
+		return values.Value{values.RUNE, v}
+	case string:
+		return values.Value{values.STRING, v}
 	case values.Value:
 		return v
 	}
