@@ -27,7 +27,7 @@ type GoHandler struct {
 	Plugins          map[string]*plugin.Plugin
 	rawHappened      bool
 	StructNames      map[string]dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
-	TypeDeclarations map[string]string             // A string to put the generated source code for declaring stucts in.
+	TypeDeclarations map[string]string             // A string to put the generated source code for declaring structs in.
 }
 
 func NewGoHandler(prsr *parser.Parser) *GoHandler {

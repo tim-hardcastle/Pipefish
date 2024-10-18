@@ -2,6 +2,10 @@ import
 
 gocode "unicode"
 
+newtype
+
+Case = enum UPPER_CASE, LOWER_CASE, TITLE_CASE, MAX_CASE
+
 def
 
 isControl(r rune) -> bool : gocode {
