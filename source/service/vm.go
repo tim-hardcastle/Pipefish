@@ -539,6 +539,8 @@ loop:
 			}
 		case Inpt:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.IoHandle.InHandle.Get(vm.Mem[args[1]].V.([]values.Value)[0].V.(string))}
+		case Inte:
+			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int)}
 		case Intf:
 			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(float64))}
 		case Ints:

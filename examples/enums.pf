@@ -1,4 +1,4 @@
-def
+newtype
 
 Suit = enum CLUBS, HEARTS, SPADES, DIAMONDS
 
@@ -7,7 +7,9 @@ Value = enum ACE, TWO, THREE, FOUR, FIVE, SIX, SEVEN,
 
 Card = struct(value Value, suit Suit)
 
-isBlack(suit Suit) : suit in {CLUBS, SPADES}
+def
+
+isBlack(suit Suit) : suit in set(CLUBS, SPADES)
 
 isBlack(card Card) : isBlack(card[suit])
 

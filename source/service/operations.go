@@ -148,6 +148,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	InxS: {"inxS", operands{dst, mem, mem}},
 	Inxt: {"inxt", operands{dst, mem, mem}},
 	InxT: {"inxT", operands{dst, mem, mem}},
+	Inte: {"inte", operands{dst, mem}},
 	Intf: {"intf", operands{dst, mem}},
 	Ints: {"ints", operands{dst, mem}},
 	Itgk: {"itgk", operands{dst, mem}},
@@ -310,8 +311,9 @@ const (
 	InxS
 	Inxt
 	InxT
-	Ints
+	Inte
 	Intf
+	Ints
 	Itgk
 	Itkv
 	Itgv

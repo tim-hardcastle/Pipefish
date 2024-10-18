@@ -64,7 +64,10 @@ simpleFold(r rune) -> rune : gocode {
 	return unicode.SimpleFold(r)
 }
 
-toCase(c Case, r rune) -> rune : gocode {
+toCase(c Case, r rune) -> rune : 
+	wrapToCase(int(c), r)
+
+wrapToCase(c int, r rune) -> rune : gocode {
 	return unicode.To(c, r)
 }
 
