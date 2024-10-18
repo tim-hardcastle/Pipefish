@@ -16,13 +16,6 @@ isGraphic(r rune) -> bool : gocode {
 	return unicode.IsGraphic(r)
 }
 
-isIn(r rune, bounds ... pair) -> bool : 
-	from flag = false for _::bound = range bounds :
-		bound[0] <= codepoint(r) and codepoint(r) < bound[1] :
-			break true
-		else :
-			continue
-
 isLetter(r rune) -> bool : gocode {
 	return unicode.IsLetter(r)
 }
@@ -32,7 +25,7 @@ isLower(r rune) -> bool : gocode {
 }
 
 isMark(r rune) -> bool : gocode {
-	unicode.IsMark(r)
+	return unicode.IsMark(r)
 }
 
 isNumber(r rune) -> bool : gocode {
