@@ -20,6 +20,13 @@ isGraphic(r rune) -> bool : gocode {
 	return unicode.IsGraphic(r)
 }
 
+isIn(r rune, bounds ... pair) : 
+	from flag = false for _::bound = range bounds :
+		bound[0] <= codepoint(r) and codepoint(r) < bound[1] :
+			true
+		else :
+			continue
+
 isLetter(r rune) -> bool : gocode {
 	return unicode.IsLetter(r)
 }

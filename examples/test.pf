@@ -1,7 +1,11 @@
 def
 
-foo(i int) :
-    from a = 0 for _::j = range 1::i+1 :
-        a + k
-    given :
-        k = j * j
+foo(r rune, bounds ... pair) :
+    bounds
+
+isIn(r rune, bounds ... pair) : 
+	from flag = false for _::bound = range bounds :
+		bound[0] <= codepoint(r) and codepoint(r) < bound[1] :
+			true
+		else :
+			continue

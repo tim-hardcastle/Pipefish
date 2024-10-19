@@ -740,19 +740,19 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 			if leftId, ok := pairOfIdentifiers.Args[0].(*ast.Identifier); ok {
 				leftName = leftId.Value
 			} else {
-				cp.P.Throw("comp/for/range/a", node.Initializer.GetToken())
+				cp.P.Throw("comp/for/range/a", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			if rightId, ok := pairOfIdentifiers.Args[2].(*ast.Identifier); ok {
 				rightName = rightId.Value
 			} else {
-				cp.P.Throw("comp/for/range/b", node.Initializer.GetToken())
+				cp.P.Throw("comp/for/range/b", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			keysOnly = rightName == "_"
 			valuesOnly = leftName == "_"
 			if keysOnly && valuesOnly {
-				cp.P.Throw("comp/for/range/discard", node.Initializer.GetToken())
+				cp.P.Throw("comp/for/range/discard", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			var rangeOver ast.Node
@@ -760,8 +760,9 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				rangeOver = rangeExpression.Args[0]
 				rangeTypes, _ := cp.CompileNode(rangeOver, ctxt.x())
 
-				if len(rangeTypes.intersect(cp.vm.IsRangeable)) == 0 {
-					cp.P.Throw("comp/for/range/types", node.Initializer.GetToken())
+				if len(rangeTypes.intersect(cp.vm.IsRangeable)) == 0 && !rangeTypes.Contains(values.TUPLE) { // Note that 'Contains' special-cases tuples.
+					println(rangeTypes.describe(cp.vm))
+					cp.P.Throw("comp/for/range/types", node.GetToken())
 					return altType(values.COMPILE_TIME_ERROR)
 				}
 				keysInt := uint32(0)

@@ -94,12 +94,13 @@ var precedences = map[token.TokenType]int{
 	token.CONTINUE:   FPREFIX,
 	token.BREAK:      FPREFIX,
 	// FMIDFIX
-	token.DOTDOTDOT: FENDFIX,
+	// FENDFIX,
 	token.COMMA:     COMMA,
 	// WITH
 	// FINFIX
 	// SUM
 	// PRODUCT
+	token.DOTDOTDOT: FSUFFIX,
 	token.EMDASH: FSUFFIX,
 	// MINUS     (as prefix)
 	token.LBRACK: INDEX,
@@ -1342,7 +1343,7 @@ func (p *Parser) GetErrorsFrom(q *Parser) {
 	p.Errors = append(p.Errors, q.Errors...)
 }
 
-// Slurps the signature of a function out of it. As the colon after a function definition has
+// Slurps the parts of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
 func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node) {
@@ -1453,9 +1454,12 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 						p.Throw("parse/sig/suffix/b", inner.GetToken())
 						return nil
 					}
-					if innerer, ok := inner.Args[0].(*ast.Identifier); ok {
+					switch innerer := inner.Args[0].(type) {
+					case *ast.Identifier :
 						varName = innerer.Value
 						varType = "..." + arg.Operator
+					default :
+						p.Throw("parse/sig/ident/d", innerer.GetToken())
 					}
 				default:
 					p.Throw("parse/sig/ident/a", inner.GetToken())

@@ -1781,6 +1781,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/sig/ident/d": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected identifier, found " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "At this point in the function declaration Pipefish was expecting the name of a parameter."
+		},
+	},
+
 	"parse/sig/infix": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok)
