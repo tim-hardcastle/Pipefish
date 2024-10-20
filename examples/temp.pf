@@ -1,7 +1,22 @@
 newtype 
 
-Qux = enum ZORT, TROZ
+Qux = enum ZORT, TROZ, BLERP, SPONG
+
+def
+
+foo(q Qux) -> int :
+    int q
+
+newtype
 
 Fooable = interface :
     foo(x self) -> int
+
+Addable = interface :
+    (x self) + (y self) -> self, int
+
+def
+
+doubleFoo(x Fooable) :
+    42
 

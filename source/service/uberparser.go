@@ -517,7 +517,6 @@ func (uP *Initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) 
 	currentChunk.ToStart()
 	for j := 0; j < currentChunk.Length(); j++ {
 		tok = currentChunk.NextToken()
-
 		if tok.Type == token.LPAREN {
 			hasParams = true
 			inParenthesis = true

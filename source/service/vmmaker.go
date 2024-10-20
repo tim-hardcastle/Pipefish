@@ -204,6 +204,12 @@ func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	vmm.cm("Creating (but not populating) interface types.")
+	vmm.createInterfaceTypes()
+	if vmm.uP.ErrorsExist() {
+		return
+	}
+
 	vmm.cm("Adding fields to structs.")
 	vmm.addFieldsToStructs()
 	if vmm.uP.ErrorsExist() {
@@ -903,6 +909,76 @@ func (vmm *VmMaker) createAbstractTypes() {
 		_, typeExists := vmm.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
 			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
+		}
+		vmm.uP.Parser.Suffixes.Add(newTypename)
+		vmm.uP.Parser.Suffixes.Add(newTypename + "?")
+	}
+}
+
+func (vmm *VmMaker) createInterfaceTypes() {
+	for _, tcc := range vmm.uP.Parser.TokenizedDeclarations[interfaceDeclaration] {
+		tcc.ToStart()
+		nameTok := tcc.NextToken()
+		newTypename := nameTok.Literal
+		tcc.NextToken() // The equals sign. We know this must be the case from the MakeParserAndTokenizedProgram method putting it here.
+		tcc.NextToken() // The 'interface' identifier. Ditto.
+		if shouldBeColon := tcc.NextToken(); shouldBeColon.Type != token.COLON {
+			vmm.cp.P.Throw("init/interface/colon", &shouldBeColon)
+			continue
+		}
+		// Now we get the signatures in the interface as a list of tokenized code chunks.
+		tokenizedSigs := []*token.TokenizedCodeChunk{}
+		// For consistency, an interface with just one signature can be declared as a one-liner, though you really shouldn't.
+		tok := tcc.NextToken()
+		beginHappened := tok.Type == token.LPAREN && tok.Literal == "|->" 
+		for {
+			newSig := token.NewCodeChunk()
+			if !beginHappened {
+				newSig.Append(tok)
+			}
+			for {
+				tok = tcc.NextToken()
+				if tok.Type == token.NEWLINE || tok.Type == token.SEMICOLON || tok.Type == token.RPAREN && tok.Literal == "<-|" || tok.Type == token.EOF {
+					break
+				}
+				newSig.Append(tok)
+			}
+			tokenizedSigs = append(tokenizedSigs, newSig)
+			if tok.Type == token.EOF ||  tok.Type == token.RPAREN && tok.Literal == "<-|" || tok.Type == token.NEWLINE && !beginHappened {
+				break
+			}
+		}
+		typeInfo := []fnSigInfo{}
+		for _, sig := range tokenizedSigs {
+			vmm.uP.Parser.TokenizedCode = sig
+			lhs := sig
+			astOfSig := vmm.uP.Parser.ParseTokenizedChunk()
+			var astSig, retSig ast.AstSig
+			var functionName string
+			if astOfSig.GetToken().Type == token.PIPE {
+				sig.ToStart()
+				lhs = token.NewCodeChunk()
+				for {
+					tok := sig.NextToken()
+					if tok.Type == token.PIPE {
+						break
+					}
+					lhs.Append(tok)
+				}
+				functionName, _, astSig = vmm.uP.Parser.GetPartsOfSig(astOfSig.(*ast.PipingExpression).Left)
+				retSig = vmm.uP.Parser.RecursivelySlurpReturnTypes(astOfSig.(*ast.PipingExpression).Right)
+			} else {
+				functionName, _, astSig = vmm.uP.Parser.GetPartsOfSig(astOfSig)
+			}
+			println("Added", functionName, astSig.String(), "->", retSig.String())
+			typeInfo = append(typeInfo, fnSigInfo{functionName, astSig, retSig})
+			vmm.uP.addWordsToParser(lhs)
+		}
+		vmm.cp.P.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parser everything.
+		vmm.cp.P.TypeMap[newTypename+"?"] = values.MakeAbstractType(values.NULL)
+		_, typeExists := vmm.cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+		if !typeExists {
+			vmm.cp.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
 		}
 		vmm.uP.Parser.Suffixes.Add(newTypename)
 		vmm.uP.Parser.Suffixes.Add(newTypename + "?")

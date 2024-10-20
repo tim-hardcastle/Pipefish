@@ -49,6 +49,7 @@ func NewCommonTypeMap() TypeSys {
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)
 	result["ref"] = values.MakeAbstractType(values.REF)
+	result["self"] = values.MakeAbstractType(values.UNDEFINED_VALUE)
 	result["bling"] = values.MakeAbstractType(values.BLING)
 	return result
 }
@@ -82,6 +83,7 @@ func NewTypeSystem() TypeSystem {
 	// Kludges.
 	T.AddTransitiveArrow("outer function", "func")
 	T.AddTransitiveArrow("ref", "dummy value")
+	T.AddTransitiveArrow("self", "dummy value")
 	T.AddTransitiveArrow("ok", "dummy value")
 	return T
 }

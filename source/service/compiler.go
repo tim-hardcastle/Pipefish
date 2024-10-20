@@ -299,6 +299,7 @@ const (
 	decENUM
 	decCLONE
 	decABSTRACT
+	decINTERFACE
 	decFUNCTION
 )
 
@@ -310,6 +311,16 @@ type labelInfo struct {
 type structInfo struct {
 	structNumber values.ValueType
 	private      bool
+}
+
+type fnSigInfo struct {
+	name string
+	sig ast.AstSig
+	rtnSig ast.AstSig
+} 
+
+type interfaceInfo struct {
+	sigs []fnSigInfo
 }
 
 type decKey struct {

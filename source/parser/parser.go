@@ -250,6 +250,7 @@ func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 
 	p.Suffixes.Add("raw")
 	p.Suffixes.Add("ref")
+	p.Suffixes.Add("self")
 
 	p.Infixes.Add("varchar")
 
@@ -1382,7 +1383,12 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.PipingExpression).Right)
 		start = start.(*ast.PipingExpression).Left
 	}
-	var pos uint32
+	functionName, pos, sig := prsr.GetPartsOfSig(start)
+	return functionName, pos, sig, rTypes, content, given
+}
+
+
+func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.AstSig) {
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
 		functionName = start.Operator
@@ -1401,10 +1407,10 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 		pos = 3
 		sig = ast.AstSig{}
 	default:
-		prsr.Throw("parse/sig/malformed/d", fn.GetToken())
-		return functionName, pos, sig, rTypes, content, given
+		prsr.Throw("parse/sig/malformed/d", start.GetToken())
+		return functionName, pos, sig
 	}
-	return functionName, pos, sig, rTypes, content, given
+	return functionName, pos, sig
 }
 
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
