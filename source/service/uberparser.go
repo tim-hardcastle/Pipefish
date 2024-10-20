@@ -124,26 +124,16 @@ func (uP *Initializer) addTokenizedDeclaration(decType declarationType, line *to
 	uP.Parser.TokenizedDeclarations[decType] = append(uP.Parser.TokenizedDeclarations[decType], line)
 }
 
-type definableType int
 
-const (
-	tyNONE definableType = iota
-	tySTRUCT
-	tyENUM
-	tySNIPPET
-	tyABSTRACT
-	tyCLONE
-	tyINTERFACE
-)
-
-var typeMap = map[string]definableType{"struct": tySTRUCT, "enum": tyENUM, "snippet": tySNIPPET, "abstract": tyABSTRACT, "clone": tyCLONE, "interface": tyINTERFACE}
+var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration, 
+                                         "abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
 
 func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	currentSection := UndefinedSection
 	beginCount := 0
 	indentCount := 0
 	lastTokenWasColon := false
-	typeDefined := tyNONE
+	typeDefined := declarationType(DUMMY)
 	isPrivate := false
 	var (
 		tok token.Token
@@ -214,7 +204,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 			if beginCount != 0 {
 				uP.Throw("init/close", tok)
 				beginCount = 0 // Prevents error storm.
-				typeDefined = tyNONE
+				typeDefined = declarationType(DUMMY)
 				colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 				continue
 			}
@@ -264,27 +254,16 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					uP.addTokenizedDeclaration(constantDeclaration, line, isPrivate)
 				}
 			case TypesSection:
-				switch typeDefined { // TODO --- put this logic in a map.
-				case tySTRUCT:
-					uP.addTokenizedDeclaration(structDeclaration, line, isPrivate)
-				case tyENUM:
-					uP.addTokenizedDeclaration(enumDeclaration, line, isPrivate)
-				case tySNIPPET:
-					uP.addTokenizedDeclaration(snippetDeclaration, line, isPrivate)
-				case tyABSTRACT:
-					uP.addTokenizedDeclaration(abstractDeclaration, line, isPrivate)
-				case tyINTERFACE:
-					uP.addTokenizedDeclaration(interfaceDeclaration, line, isPrivate)
-				case tyCLONE:
-					uP.addTokenizedDeclaration(cloneDeclaration, line, isPrivate)
-				default:
+				if typeDefined != declarationType(DUMMY) {
+					uP.addTokenizedDeclaration(typeDefined, line, isPrivate)
+				} else {
 					uP.Throw("init/type/form", tok)
 				}
 			default:
 				panic("Unhandled section type.")
 			}
 			line = token.NewCodeChunk()
-			typeDefined = tyNONE
+			typeDefined = declarationType(DUMMY)
 			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
@@ -323,10 +302,7 @@ func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	case *ast.StringLiteral:
 		scriptFilepath = imp.Value
 		if settings.StandardLibraries.Contains(scriptFilepath) {
-			namespace = scriptFilepath
 			scriptFilepath = uP.Parser.Directory + "lib/" + scriptFilepath + ".pf"
-		} else {
-			namespace = text.ExtractFileName(scriptFilepath)
 		}
 		namespace = text.ExtractFileName(scriptFilepath)
 		return namespace, scriptFilepath
@@ -364,8 +340,6 @@ func (uP *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	uP.Throw("init/import/weird", *imp.GetToken())
 	return "", ""
 }
-
-var correspondingAbstractType = map[declarationType]string{enumDeclaration: "enum", structDeclaration: "struct", snippetDeclaration: "snippet", abstractDeclaration: "single"}
 
 // We need to declare all the types as suffixes for all the user-defined types
 func (uP *Initializer) addTypesToParser() { /// TODO --- some of this seems to replicate boilerplate in the parsing functions, so you should be able to remove the latter.

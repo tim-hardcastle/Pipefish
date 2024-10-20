@@ -1,3 +1,7 @@
-import
+newtype 
 
-"unicode"
+Qux = enum ZORT, TROZ
+
+Fooable = interface :
+    foo(x self) -> int
+
