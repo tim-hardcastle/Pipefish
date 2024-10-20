@@ -54,6 +54,7 @@ const (
 	structDeclaration                   //
 	snippetDeclaration                  //
 	abstractDeclaration                 //
+	interfaceDeclaration                //
 	cloneDeclaration                    //
 	constantDeclaration                 //
 	variableDeclaration                 //
@@ -132,9 +133,10 @@ const (
 	tySNIPPET
 	tyABSTRACT
 	tyCLONE
+	tyINTERFACE
 )
 
-var typeMap = map[string]definableType{"struct": tySTRUCT, "enum": tyENUM, "snippet": tySNIPPET, "abstract": tyABSTRACT, "clone": tyCLONE}
+var typeMap = map[string]definableType{"struct": tySTRUCT, "enum": tyENUM, "snippet": tySNIPPET, "abstract": tyABSTRACT, "clone": tyCLONE, "interface": tyINTERFACE}
 
 func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	currentSection := UndefinedSection
@@ -262,7 +264,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					uP.addTokenizedDeclaration(constantDeclaration, line, isPrivate)
 				}
 			case TypesSection:
-				switch typeDefined {
+				switch typeDefined { // TODO --- put this logic in a map.
 				case tySTRUCT:
 					uP.addTokenizedDeclaration(structDeclaration, line, isPrivate)
 				case tyENUM:
@@ -271,6 +273,8 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 					uP.addTokenizedDeclaration(snippetDeclaration, line, isPrivate)
 				case tyABSTRACT:
 					uP.addTokenizedDeclaration(abstractDeclaration, line, isPrivate)
+				case tyINTERFACE:
+					uP.addTokenizedDeclaration(interfaceDeclaration, line, isPrivate)
 				case tyCLONE:
 					uP.addTokenizedDeclaration(cloneDeclaration, line, isPrivate)
 				default:

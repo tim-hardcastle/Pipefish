@@ -1844,6 +1844,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/sig/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + text.DescribeTok(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
+				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
+		},
+	},
+
 	"parse/sig/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok)
@@ -1855,16 +1865,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"parse/sig/c": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrence of " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
-				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
-		},
-	},
-
-	"parse/sig/d": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok)
 		},

@@ -1696,7 +1696,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstS
 			return ast.AstSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: dflt}}, nil
 		}
 	}
-	return nil, newError("parse/sig/d", node.GetToken())
+	return nil, newError("parse/sig/a", node.GetToken())
 }
 
 func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *report.Error) {
