@@ -2,21 +2,26 @@ newtype
 
 Qux = enum ZORT, TROZ, BLERP, SPONG
 
+Blerp = clone int using +
+
+Zerp = clone int using +, -
+
 def
 
 foo(q Qux) -> int :
     int q
 
+bar(q Qux) -> int :
+    int q
+
 newtype
 
-Fooable = interface :
+Foobarable = interface :
     foo(x self) -> int
+    bar(x self) -> int
 
 Addable = interface :
-    (x self) + (y self) -> self, int
+    (x self) + (y self)
 
-def
-
-doubleFoo(x Fooable) :
-    42
-
+Subtractable = interface :
+    (x self) - (y self)

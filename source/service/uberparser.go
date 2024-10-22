@@ -398,7 +398,7 @@ func (uP *Initializer) createSnippetsPart1() {
 
 func (uP *Initializer) ParseEverything() {
 	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
-		if declarations == cloneDeclaration { // TODO --- yeah, yeah, I am filled with shame.
+		if declarations == cloneDeclaration || declarations == interfaceDeclaration { // TODO --- yeah, yeah, I am filled with shame.
 			continue
 		}
 		for chunk := 0; chunk < len(uP.Parser.TokenizedDeclarations[declarations]); chunk++ {

@@ -1906,7 +1906,7 @@ NodeTypeSwitch:
 		case typeName == "string?":
 			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}, node.GetToken())
 		default:
-			abType := resolvingCompiler.TypeNameToTypeList(typeName).ToAbstractType()
+			abType := resolvingCompiler.P.GetAbstractType(typeName)
 			if (ac == REPL || resolvingCompiler != cp) && cp.vm.isPrivate(abType) {
 				cp.P.Throw("comp/private/type", node.GetToken())
 			}

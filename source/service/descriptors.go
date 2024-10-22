@@ -207,6 +207,16 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 func (vm *Vm) DescribeAbstractType(aT values.AbstractType, flavor descriptionFlavor) string {
 	result := []string{}
 	T := aT
+	if len(aT.Types) == 0 {
+		return "empty"
+	}
+	if len(aT.Types) == 1 {
+		if aT.Types[0] == values.STRING && T.Varchar < DUMMY {
+			return "varchar("+strconv.Itoa(int(T.Varchar))+")"
+		} else {
+			return vm.DescribeType(aT.Types[0], flavor)
+		}
+	}
 	// First we greedily remove the abstract types.
 	for {
 		var biggestType int

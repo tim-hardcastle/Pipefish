@@ -252,7 +252,7 @@ func (a AbstractType) IsProperSubtypeOf(b AbstractType) bool {
 	return true
 }
 
-func (vL AbstractType) intersect(wL AbstractType) AbstractType {
+func (vL AbstractType) Intersect(wL AbstractType) AbstractType {
 	result := AbstractType{[]ValueType{}, 0}
 	var vix, wix int
 	for vix < vL.Len() && wix < wL.Len() {
@@ -279,7 +279,7 @@ func (vL AbstractType) intersect(wL AbstractType) AbstractType {
 }
 
 func (a AbstractType) PartlyIntersects(b AbstractType) bool {
-	intersectionSize := a.intersect(b).Len()
+	intersectionSize := a.Intersect(b).Len()
 	return !(a.Len() == intersectionSize || b.Len() == intersectionSize || intersectionSize == 0)
 }
 
