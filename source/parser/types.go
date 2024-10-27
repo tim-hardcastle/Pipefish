@@ -220,7 +220,7 @@ func (p *Parser) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.
 	for i := 0; i < len(S); i++ {
 		yes, ok := p.IsMoreSpecific(f.Sig, S[i].Sig)
 		if !ok {
-			return []*ast.PrsrFunction{}, S[i]
+			return S, S[i]
 		}
 		if yes {
 			S = insert(S, f, i)

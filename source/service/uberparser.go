@@ -48,19 +48,19 @@ type declarationType int
 
 // The fact that these things come in this order is used in the code and should not be changed without a great deal of forethought.
 const (
-	importDeclaration   declarationType = iota
-	externalDeclaration                 //
-	enumDeclaration                     //
-	structDeclaration                   //
-	snippetDeclaration                  //
-	abstractDeclaration                 //
-	interfaceDeclaration                //
-	cloneDeclaration                    //
-	constantDeclaration                 //
-	variableDeclaration                 //
-	functionDeclaration                 //
-	commandDeclaration                  //
-	golangDeclaration                   // Pure golang in a block; the Charm functions with golang bodies don't go here but under function or command as they were declared.
+	importDeclaration    declarationType = iota
+	externalDeclaration                  //
+	enumDeclaration                      //
+	structDeclaration                    //
+	snippetDeclaration                   //
+	abstractDeclaration                  //
+	interfaceDeclaration                 //
+	cloneDeclaration                     //
+	constantDeclaration                  //
+	variableDeclaration                  //
+	functionDeclaration                  //
+	commandDeclaration                   //
+	golangDeclaration                    // Pure golang in a block; the Charm functions with golang bodies don't go here but under function or command as they were declared.
 
 )
 
@@ -124,9 +124,8 @@ func (uP *Initializer) addTokenizedDeclaration(decType declarationType, line *to
 	uP.Parser.TokenizedDeclarations[decType] = append(uP.Parser.TokenizedDeclarations[decType], line)
 }
 
-
-var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration, 
-                                         "abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
+var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration,
+	"abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
 
 func (uP *Initializer) MakeParserAndTokenizedProgram() {
 	currentSection := UndefinedSection
@@ -430,11 +429,11 @@ func flatten(s string) string {
 	return strings.ReplaceAll(s, ".", "_")
 }
 
-// Having made the parsers FunctionTable, each function name is associated with an (partially) ordered list of
+// Having made the parsers FunctionTable, each function name is associated with a (partially) ordered list of
 // associated functions such that a more specific type signature comes before a less specific one.
 // We will now re-represent this as a tree.
 func (cp *Compiler) MakeFunctionTrees() {
-	cp.P.FunctionForest = map[string]*ast.FunctionGroup{}
+	cp.P.FunctionForest = map[string]*ast.FunctionTree{}
 	rc := 0
 	for k, v := range cp.P.FunctionTable {
 		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
@@ -453,10 +452,10 @@ func (cp *Compiler) MakeFunctionTrees() {
 				}
 			}
 		}
-		cp.P.FunctionForest[k] = &ast.FunctionGroup{Tree: tree, RefCount: rc}
+		cp.P.FunctionForest[k] = &ast.FunctionTree{Tree: tree, RefCount: rc}
 		if settings.FUNCTION_TO_PEEK != "" && k == settings.FUNCTION_TO_PEEK {
 			println("Function tree for " + k)
-			println(cp.P.FunctionForest[k].Tree.IndentString(""))
+			println(cp.P.FunctionForest[k].Tree.IndentString("") + "\n")
 		}
 	}
 }

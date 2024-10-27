@@ -3881,10 +3881,6 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	functionName, _, sig, rtnSig, body, given := cp.P.ExtractPartsOfFunction(node)
 	cp.cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", node.GetToken())
 
-	if settings.FUNCTION_TO_PEEK == functionName {
-		println(node.String() + "\n")
-	}
-
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 	}

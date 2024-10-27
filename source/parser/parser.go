@@ -95,13 +95,13 @@ var precedences = map[token.TokenType]int{
 	token.BREAK:      FPREFIX,
 	// FMIDFIX
 	// FENDFIX,
-	token.COMMA:     COMMA,
+	token.COMMA: COMMA,
 	// WITH
 	// FINFIX
 	// SUM
 	// PRODUCT
 	token.DOTDOTDOT: FSUFFIX,
-	token.EMDASH: FSUFFIX,
+	token.EMDASH:    FSUFFIX,
 	// MINUS     (as prefix)
 	token.LBRACK: INDEX,
 	// BELOW_NAMESPACE
@@ -133,6 +133,7 @@ type FuncSource struct { // For indexing the functions in the common function ma
 	Filename     string
 	LineNo       int
 	FunctionName string
+	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
 }
 
 // For data that needs to be shared by all parsers.
@@ -186,7 +187,7 @@ type Parser struct {
 	lazyInfixes   dtypes.Set[token.TokenType]
 
 	FunctionTable  FunctionTable // TODO --- this and the following clearly belong in the uberparser.
-	FunctionForest map[string]*ast.FunctionGroup
+	FunctionForest map[string]*ast.FunctionTree
 
 	TypeMap            TypeSys                      // Maps names to abstract types.
 	typeData           map[string][]string          // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
@@ -227,7 +228,7 @@ func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:  make(FunctionTable),
-		FunctionForest: make(map[string]*ast.FunctionGroup), // The logger needs to be able to see service variables and this is the simplest way.
+		FunctionForest: make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:        make(TypeSys),
 		typeData: map[string][]string{
 			"struct": []string{"struct", "struct?", "single", "single?"},
@@ -1387,7 +1388,6 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 	return functionName, pos, sig, rTypes, content, given
 }
 
-
 func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.AstSig) {
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
@@ -1461,10 +1461,10 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 						return nil
 					}
 					switch innerer := inner.Args[0].(type) {
-					case *ast.Identifier :
+					case *ast.Identifier:
 						varName = innerer.Value
 						varType = "..." + arg.Operator
-					default :
+					default:
 						p.Throw("parse/sig/ident/d", innerer.GetToken())
 					}
 				default:

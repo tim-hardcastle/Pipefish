@@ -615,7 +615,7 @@ type PrsrFunction struct {
 	Tok      *token.Token // Where it was declared.
 }
 
-type FunctionGroup = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.
+type FunctionTree = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.
 	Tree     *FnTreeNode
 	RefCount int // For reasons, the reference variables in a function's sig must (a) come at the start (b) be of the same number for each of the overloaded variants of the function.
 }
