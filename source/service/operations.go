@@ -393,6 +393,7 @@ const (
 	Trak
 	TupL
 	TuLx
+	Typs
 	Typu
 	Typx
 	UntE

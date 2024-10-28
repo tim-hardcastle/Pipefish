@@ -71,7 +71,21 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 	case FLOAT:
 		return v.V.(float64) < w.V.(float64)
 	case TYPE:
-		return v.V.(ValueType) < w.V.(ValueType)
+		lhs := v.V.(AbstractType)
+		rhs := w.V.(AbstractType)
+		if len(lhs.Types) == len(rhs.Types) {
+			for i, ty := range(lhs.Types) {
+				if ty < rhs.Types[i] {
+					return true
+				}
+				if ty > rhs.Types[i] {
+					return false
+				}
+			}
+		} else {
+			return len(lhs.Types) < len(rhs.Types)
+		}
+		return lhs.Varchar < rhs.Varchar
 	}
 	// So we're going to assume that it's an enum and that this has been checked elsewhere.
 	return v.V.(int) < w.V.(int)

@@ -1261,6 +1261,16 @@ loop:
 				slice[i] = element.(values.Value)
 			}
 			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
+		case Typs:
+			result := values.Set{}
+			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
+				concType := values.AbstractType{[]values.ValueType{v}, DUMMY}
+				if v == values.STRING {
+					concType.Varchar = vm.Mem[args[1]].V.(values.AbstractType).Varchar
+				}
+				result = result.Add(values.Value{values.TYPE, concType})
+			}
+			vm.Mem[args[0]] = values.Value{values.SET, result}
 		case Typu:
 			lhs := vm.Mem[args[1]].V.(values.AbstractType)
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)
