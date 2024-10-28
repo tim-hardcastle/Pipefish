@@ -14,8 +14,8 @@ foo(q Qux) -> int :
 bar(q Qux) -> int :
     int q
 
-(p Qux) + (q Qux) :
-    ZORT
+(p Qux) + (q Qux) -> Qux :
+    Qux[(int(p) + int(q)) % 4]
 
 newtype
 
@@ -24,7 +24,13 @@ Foobarable = interface :
     bar(x self) -> int
 
 Addable = interface :
-    (x self) + (y self)
+    (x self) + (y self) -> self
+
+Comparable = interface :
+    (x self) < (y self) -> bool
+    (x self) <= (y self) -> bool
+    (x self) > (y self) -> bool
+    (x self) >= (y self) -> bool
 
 Subtractable = interface :
     (x self) - (y self)

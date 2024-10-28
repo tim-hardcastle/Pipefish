@@ -297,7 +297,7 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range cp.P.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
-					matches := cp.getMatches(sigToMatch, fnToTry)
+					matches := cp.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet.Contains(fnToTry.Tok.Source) {
 						for _, ty := range matches.Types {
@@ -347,10 +347,12 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 	}
 }
 
-func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction) values.AbstractType {
+func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
 	result := values.MakeAbstractType()
-	if sigToMatch.sig.Len() != len(fnToTry.Sig) ||
-		sigToMatch.rtnSig.Len() != len(fnToTry.Rets) && sigToMatch.rtnSig.Len() != 0 {
+	if sigToMatch.sig.Len() != len(fnToTry.Sig)  {
+		return result
+	}
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != fnToTry.Rets.Len() {
 		return result
 	}
 	foundSelf := false
@@ -366,7 +368,21 @@ func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction) 
 				result = fnToTry.Sig[i].VarType
 			}
 		} else {
-			if !(cp.P.TypeMap[sigToMatch.sig.GetVarType(i).(string)]).IsSubtypeOf(fnToTry.Sig[i].VarType) {
+			if !cp.P.GetAbstractType(sigToMatch.sig.GetVarType(i).(string)).IsSubtypeOf(fnToTry.Sig[i].VarType) || 
+			        sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != fnToTry.Sig[i].VarName{
+				return values.MakeAbstractType()
+			}
+		}
+	}
+	if !foundSelf {
+		cp.P.Throw("init/interface/self", tok)
+		return values.MakeAbstractType()
+	}
+	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
+		if sigToMatch.rtnSig[i].VarType == "self" {
+			result = result.Intersect(cp.P.GetAbstractType(fnToTry.Rets[i].VarType))
+		} else {
+			if !cp.P.GetAbstractType(fnToTry.Rets[i].VarType).IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}
@@ -741,7 +757,7 @@ func (vmm *VmMaker) createClones() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Rets: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -771,23 +787,24 @@ func (vmm *VmMaker) createClones() {
 		}
 		// And add them to the common functions.
 		for _, op := range opList {
+			rtnSig :=  ast.AstSig{{"*dummy*", name}}
 			switch parentTypeNo {
 			case values.FLOAT:
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_floats", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "-":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 					sig = ast.AstSig{ast.NameTypenamePair{"x", name}}
-					vmm.makeCloneFunction("-", sig, "negate_float", altType(typeNo), private, PREFIX, &tok1)
+					vmm.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, PREFIX, &tok1)
 				case "*":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "/":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
 					vmm.uP.Throw("init/request/float", usingOrEof, op)
 				}
@@ -795,21 +812,21 @@ func (vmm *VmMaker) createClones() {
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_integers", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "-":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 					sig = ast.AstSig{ast.NameTypenamePair{"x", name}}
-					vmm.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), private, PREFIX, &tok1)
+					vmm.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, PREFIX, &tok1)
 				case "*":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "/":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "%":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"%", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
 					vmm.cp.P.Throw("init/request/int", &usingOrEof, op)
 				}
@@ -817,10 +834,10 @@ func (vmm *VmMaker) createClones() {
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_lists", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "with":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
-					vmm.makeCloneFunction("with", sig, "list_with", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "?>":
 					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isFilterable = true
@@ -840,10 +857,10 @@ func (vmm *VmMaker) createClones() {
 				switch op {
 				case "with":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
-					vmm.makeCloneFunction("with", sig, "map_with", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "without":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"without", "bling"}, ast.NameTypenamePair{"y", "...single?"}}
-					vmm.makeCloneFunction("without", sig, "map_without", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
 					vmm.uP.Throw("init/request/map", usingOrEof, op)
 				}
@@ -853,7 +870,7 @@ func (vmm *VmMaker) createClones() {
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_sets", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
 					vmm.uP.Throw("init/request/set", usingOrEof, op)
 				}
@@ -861,7 +878,7 @@ func (vmm *VmMaker) createClones() {
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_strings", altType(typeNo), private, INFIX, &tok1)
+					vmm.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "slice":
 					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isSliceable = true
@@ -882,8 +899,8 @@ func (vmm *VmMaker) createClones() {
 	}
 }
 
-func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, isPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.AstSig, isPrivate bool, pos uint32, tok *token.Token) {
+	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, Rets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
