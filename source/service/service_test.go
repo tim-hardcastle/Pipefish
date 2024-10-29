@@ -349,3 +349,16 @@ func TestSnippet(t *testing.T) {
 	}
 	RunTest(t, "snippets_test.pf", tests, testValues)
 }
+
+func TestInterface(t *testing.T) {
+	tests := []TestItem{
+		{`BLERP in Addable`, `true`},
+		{`Fnug(5) in Addable`, `true`},
+		{`ZORT in Foobarable`, `true`},
+		{`true in Addable`, `false`},
+		{`Fnug(5) in Foobarable`, `false`},
+
+	}
+	RunTest(t, "interface_test.pf", tests, testValues)
+}
+

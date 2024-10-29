@@ -1,0 +1,45 @@
+newtype 
+
+Addable = interface :
+    (x self) + (y self) -> self
+
+Foobarable = interface :
+    foo(x self) -> int
+    bar(x self) -> int
+
+Qux = enum ZORT, TROZ, BLERP, SPONG
+
+Fnug = clone int using +, -
+
+def
+
+foo(q Qux) -> int :
+    int q
+
+bar(q Qux) -> int :
+    int q
+
+(p Qux) + (q Qux) -> Qux :
+    Qux[(int(p) + int(q)) % 4]
+
+
+
+
+
+
+
+newtype
+
+
+
+Subtractable = interface :
+    (x self) - (y self)
+
+Multipliable = interface :
+    (x self) * (y self)
+
+Comparable = interface :
+    (x self) < (y self) -> bool
+    (x self) <= (y self) -> bool
+    (x self) > (y self) -> bool
+    (x self) >= (y self) -> bool
