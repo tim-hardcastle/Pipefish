@@ -1,5 +1,5 @@
 import
 
-"source/service/test-files/troz.pf"
-qux::"source/service/test-files/zort.pf"
+"test-files/troz.pf"
+qux::"test-files/zort.pf"
 

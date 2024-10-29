@@ -66,7 +66,7 @@ func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFil
 	var sourcebytes []byte
 	var err error
 	if scriptFilepath != "" { // In which case we're making a blank VM.
-		if testing.Testing() && len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
+		if len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
 			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
 		} else {
 			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath, dir))
@@ -85,16 +85,17 @@ func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptF
 	vmm := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
 	vmm.parseAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
-	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && !testing.Testing() {
+	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && 
+				!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
 		if err != nil {
 			uP := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
 			uP.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil, uP
 		}
-		vmm.uP.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
 		vmm.cp.Timestamp = file.ModTime().UnixMilli()
 	}
+	vmm.uP.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
 	return vmm.cp, vmm.uP
 }
 
