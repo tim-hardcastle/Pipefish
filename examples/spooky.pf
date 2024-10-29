@@ -1,6 +1,9 @@
 def
 
 string(s string) :
+    "\e[0;91m" + gothic(s) + "\e[0m"
+
+gothic(s string) :
     from result = "" for _::ch = range s :
         result + rune gothicLetter codepoint ch
 given :
@@ -11,3 +14,4 @@ given :
             cp + 120101
         else :
             cp
+
