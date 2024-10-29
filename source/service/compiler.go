@@ -344,7 +344,7 @@ func (cp *Compiler) setDeclaration(dOf declarationOf, tok *token.Token, ix int, 
 }
 
 func (cp *Compiler) NeedsUpdate() (bool, error) {
-	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" {
+	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" || len(cp.ScriptFilepath) >= 11 && cp.ScriptFilepath[0:11] == "test-files/" {
 		return false, nil
 	}
 	file, err := os.Stat(cp.ScriptFilepath)

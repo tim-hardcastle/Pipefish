@@ -324,7 +324,6 @@ func TestImports(t *testing.T) {
 		{`qux.RED in qux.Color`, `true`},
 		{`qux.Color[4]`, `qux.BLUE`},
 		{`qux.Person "John", 22`, `qux.Person with (name::"John", age::22)`},
-		{`qux.Color[4]`, `qux.BLUE`},
 		{`qux.Tone LIGHT, BLUE`, `qux.Tone with (shade::qux.LIGHT, color::qux.BLUE)`},
 		{`qux.Time`, `Time`},
 		{`troz.sumOfSquares 3, 4`, `25`},
