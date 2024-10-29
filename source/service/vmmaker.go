@@ -279,8 +279,8 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 	for k, v := range cp.P.Common.Functions {
 		if  settings.MandatoryImportSet.Contains(v.Tok.Source) { 
 			conflictingFunction := cp.P.FunctionTable.Add(cp.P, k.FunctionName, v)
-			if conflictingFunction != nil {
-				cp.P.Throw("init/overload/b", v.Tok, k.FunctionName, v.Sig, conflictingFunction)
+			if conflictingFunction != nil && conflictingFunction != v {
+				cp.P.Throw("init/overload/c", v.Tok, k.FunctionName, v.Sig, conflictingFunction)
 			}
 		}
 	}
@@ -326,7 +326,7 @@ func (cp *Compiler) makeFunctionTreesAndConstructors() {
 			for _, fn := range funcsToAdd[ty] {
 				conflictingFunction := cp.P.FunctionTable.Add(cp.P, fn.name, fn.pFunc)
 				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
-					cp.P.Throw("init/overload/b", fn.pFunc.Tok, fn.name, fn.pFunc.Sig, conflictingFunction)
+					cp.P.Throw("init/overload/d", fn.pFunc.Tok, fn.name, fn.pFunc.Sig, conflictingFunction)
 				}
 			}
 		}
@@ -514,18 +514,17 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			if cp.P.ErrorsExist() {
 				return nil
 			}
-			functionToAdd := ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
+			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
-			cp.fnIndex[fnSource{j, i}] = &functionToAdd
-			if cp.shareable(&functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
+			cp.fnIndex[fnSource{j, i}] = functionToAdd
+			if cp.shareable(functionToAdd) {
 				cp.cm("Adding " + functionName + " to common functions.", tok)
-				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = &functionToAdd
-			} else {
-				conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, &functionToAdd)
-				if conflictingFunction != nil {
-					cp.P.Throw("init/overload/a", body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
-					return nil
-				}
+				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
+			}
+			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, functionToAdd)
+			if conflictingFunction != nil && conflictingFunction != functionToAdd {
+				cp.P.Throw("init/overload/a", body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
+				return nil
 			}
 			if body.GetToken().Type == token.GOCODE {
 				body.(*ast.GolangExpression).Raw = []bool{}
@@ -905,10 +904,10 @@ func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag 
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
 	}
-	// conflictingFunction := vmm.cp.P.FunctionTable.Add(vmm.cp.P, fnName, fn)
-	// if conflictingFunction != nil {
-	// 	vmm.cp.P.Throw("init/overload/b", tok, fnName, fn.Sig, conflictingFunction)
-	// }
+	conflictingFunction := vmm.cp.P.FunctionTable.Add(vmm.cp.P, fnName, fn)
+	if conflictingFunction != nil && conflictingFunction != fn {
+		vmm.cp.P.Throw("init/overload/b", tok, fnName, fn.Sig, conflictingFunction)
+	}
 }
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
