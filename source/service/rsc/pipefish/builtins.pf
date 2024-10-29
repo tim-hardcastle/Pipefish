@@ -77,7 +77,7 @@ rune(x int) -> rune : builtin "rune"
 set(x setlike) -> set : builtin "cast_to_set"
 set(x ... single?) -> set : makeSet(x)
 makeSet(x tuple) -> set : builtin "make_set"   
-string(x stringlike) -> string : builtin "cast_to_string"        
+// string(x stringlike) -> string : builtin "cast_to_string"        
 string(x single?) -> string : builtin "string"
 tuple(x tuple) -> tuple : builtin "tuple_of_tuple"
 tuple(x ... single?) -> tuple : builtin "tuple_of_varargs"

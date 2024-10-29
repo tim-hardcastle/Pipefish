@@ -2,9 +2,9 @@ def
 
 string(s string) :
     from result = "" for _::ch = range s :
-        result + rune fraktur codepoint ch
+        result + rune gothicLetter codepoint ch
 given :
-    fraktur(cp int) :
+    gothicLetter(cp int) :
         cp >= 65 and cp < 91 :
             cp + 120107
         cp >= 97 and cp < 123 :

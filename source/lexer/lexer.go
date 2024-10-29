@@ -491,7 +491,7 @@ func (l *Lexer) readRune() (string, bool) {
 		if (l.ch == '\'' && !escape) || l.ch == 0 || l.ch == 13 || l.ch == 10 {
 			break
 		}
-		if l.ch == '\\' {
+		if l.ch == '\\' && !escape {
 			escape = true
 			continue
 		}
