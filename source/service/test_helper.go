@@ -55,6 +55,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 		if cp.P.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
+		println(text.Red(test.Input))
 		got := F(cp, test.Input)
 		if !(test.Want == got) {
 			if cp.P.ErrorsExist() {
