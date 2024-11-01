@@ -393,7 +393,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			if cp.P.ErrorsExist() {
 				return nil
 			}
-			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
+			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, NameRets: rTypes, RetsSig: cp.P.Abstract(rTypes), Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
@@ -452,6 +452,7 @@ func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		typename := nameTok.Literal
+		println("Making abstract type", typename)
 		typeInfo, _ := cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		types := values.MakeAbstractType()
 		funcsToAdd := map[values.ValueType][]funcWithName{}
@@ -459,6 +460,7 @@ func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range cp.P.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
+					println("Trying to match", key.FunctionName, sigToMatch.sig.String(), "with", fnToTry.NameSig.String())
 					matches := cp.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet.Contains(fnToTry.Tok.Source) {
@@ -514,7 +516,7 @@ func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, 
 	if sigToMatch.sig.Len() != len(fnToTry.Sig) {
 		return result
 	}
-	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != fnToTry.Rets.Len() {
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.RetsSig) {
 		return result
 	}
 	foundSelf := false
@@ -542,9 +544,9 @@ func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, 
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
 		if sigToMatch.rtnSig[i].VarType == "self" {
-			result = result.Intersect(cp.P.GetAbstractType(fnToTry.Rets[i].VarType))
+			result = result.Intersect(fnToTry.RetsSig[i].VarType)
 		} else {
-			if !cp.P.GetAbstractType(fnToTry.Rets[i].VarType).IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+			if !fnToTry.RetsSig[i].VarType.IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}
@@ -746,12 +748,13 @@ func (vmm *VmMaker) createClones() {
 				vmm.cp.vm.IsRangeable = vmm.cp.vm.IsRangeable.Union(altType(typeNo))
 			}
 		}
+		// We make the conversion fuction.
 		vmm.AddType(name, abType, typeNo)
 		vmm.cp.CloneNameToTypeNumber[name] = typeNo
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Rets: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RetsSig: vmm.cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -894,7 +897,7 @@ func (vmm *VmMaker) createClones() {
 }
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.AstSig, isPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, Rets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RetsSig: vmm.cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())

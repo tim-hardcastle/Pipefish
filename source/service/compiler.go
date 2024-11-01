@@ -314,10 +314,10 @@ type structInfo struct {
 }
 
 type fnSigInfo struct {
-	name string
-	sig ast.AstSig
+	name   string
+	sig    ast.AstSig
 	rtnSig ast.AstSig
-} 
+}
 
 type interfaceInfo struct {
 	sigs []fnSigInfo
@@ -926,7 +926,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 		if params.Contains(k) {
 			continue
 		}
-		v, ok := env.getVar(k);
+		v, ok := env.getVar(k)
 		if !ok {
 			cp.cm("Throwing unknown identifier error", tok)
 			cp.P.Throw("comp/body/known", tok, k)
@@ -958,7 +958,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	// Add the function parameters.
 	for _, pair := range nameSig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
-		cp.cm("Adding parameter '" + pair.VarName + "' to lambda.", fnNode.GetToken())
+		cp.cm("Adding parameter '"+pair.VarName+"' to lambda.", fnNode.GetToken())
 		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), fnNode.GetToken())
 	}
 
@@ -988,7 +988,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 		}
 		cp.ThunkList = saveThunkList
 	}
-	newRets := cp.returnSigToAlternateType(fnNode.Rets)
+	newRets := cp.returnSigToAlternateType(fnNode.NameRets)
 	newContext := ctxt
 	newContext.env = newEnv
 	newContext.ac = LAMBDA
@@ -996,9 +996,9 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	// Compile the main body of the lambda.
 	types, _ := cp.CompileNode(fnNode.Body, newContext)
 	LF.Model.resultLocation = cp.That()
-	if fnNode.Rets != nil {
+	if fnNode.NameRets != nil {
 		cp.cm("Typechecking returns from lambda.", fnNode.GetToken())
-		cp.emitTypeChecks(LF.Model.resultLocation, types, env, fnNode.Rets, LAMBDA, tok, CHECK_RETURN_TYPES)
+		cp.emitTypeChecks(LF.Model.resultLocation, types, env, fnNode.NameRets, LAMBDA, tok, CHECK_RETURN_TYPES)
 	}
 	cp.Emit(Ret)
 	cp.popLambdaStart()
@@ -2732,19 +2732,19 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.cmP("Emitting Go function call.", b.tok)
 				args := append([]uint32{b.outLoc, F.GoNumber}, b.valLocs...)
 				cp.Emit(Gofn, args...)
-				if len(branch.Node.Fn.Rets) == 0 {
+				if len(branch.Node.Fn.NameRets) == 0 {
 					if F.Command {
 						return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
 					} else {
 						return cp.vm.AnyTypeScheme
 					}
 				}
-				if len(branch.Node.Fn.Rets) == 1 {
-					return cp.TypeNameToTypeList(branch.Node.Fn.Rets[0].VarType)
+				if len(branch.Node.Fn.NameRets) == 1 {
+					return cp.TypeNameToTypeList(branch.Node.Fn.NameRets[0].VarType)
 				}
 				// Otherwise it's a tuple.
-				tt := make(AlternateType, 0, len(branch.Node.Fn.Rets))
-				for _, v := range branch.Node.Fn.Rets {
+				tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
+				for _, v := range branch.Node.Fn.NameRets {
 					tt = append(tt, cp.TypeNameToTypeList(v.VarType))
 				}
 				return AlternateType{finiteTupleType{tt}}

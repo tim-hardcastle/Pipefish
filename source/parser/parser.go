@@ -971,7 +971,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			if left.GetToken().Literal != "->" {
 				p.Throw("parse/inner/a", left.GetToken())
 			}
-			fn.Rets = p.RecursivelySlurpReturnTypes(left.Right)
+			fn.NameRets = p.RecursivelySlurpReturnTypes(left.Right)
 			switch newLeft := left.Left.(type) {
 			case *ast.PrefixExpression:
 				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
