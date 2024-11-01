@@ -47,7 +47,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 		if cp.P.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		cp.makeFunctionTreesAndConstructors()
+		cp.populateAbstractTypesAndMakeFunctionTrees()
 		if cp.P.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}

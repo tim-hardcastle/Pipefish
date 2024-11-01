@@ -23,23 +23,3 @@ bar(q Qux) -> int :
     Qux[(int(p) + int(q)) % 4]
 
 
-
-
-
-
-
-newtype
-
-
-
-Subtractable = interface :
-    (x self) - (y self)
-
-Multipliable = interface :
-    (x self) * (y self)
-
-Comparable = interface :
-    (x self) < (y self) -> bool
-    (x self) <= (y self) -> bool
-    (x self) > (y self) -> bool
-    (x self) >= (y self) -> bool

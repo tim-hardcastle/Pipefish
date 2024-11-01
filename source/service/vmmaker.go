@@ -41,7 +41,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	if cp.P.ErrorsExist() {
 		return result, uP
 	}
-	cp.makeFunctionTreesAndConstructors()
+	cp.populateAbstractTypesAndMakeFunctionTrees()
 	if cp.P.ErrorsExist() {
 		return result, uP
 	}
@@ -85,8 +85,8 @@ func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptF
 	vmm := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
 	vmm.parseAll(scriptFilepath, sourcecode)
 	vmm.cp.ScriptFilepath = scriptFilepath
-	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) && 
-				!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
+	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
+		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
 		if err != nil {
 			uP := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
@@ -269,128 +269,6 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 	}
 }
 
-type funcWithName struct{name string; pFunc *ast.PrsrFunction}
-
-func (cp *Compiler) makeFunctionTreesAndConstructors() {
-	// First we recurse.
-	for _, service := range cp.Services {
-		service.Cp.makeFunctionTreesAndConstructors()
-	}
-	// Then we add in all the built-in functions to the function table.
-	for k, v := range cp.P.Common.Functions {
-		if  settings.MandatoryImportSet.Contains(v.Tok.Source) { 
-			conflictingFunction := cp.P.FunctionTable.Add(cp.P, k.FunctionName, v)
-			if conflictingFunction != nil && conflictingFunction != v {
-				cp.P.Throw("init/overload/c", v.Tok, k.FunctionName, v.Sig, conflictingFunction)
-			}
-		}
-	}
-
-	// Now we pull in all the shared functions that fulfill the interface types, populating the types as we go.
-	for _, tcc := range cp.P.TokenizedDeclarations[interfaceDeclaration] {
-		tcc.ToStart()
-		nameTok := tcc.NextToken()
-		typename := nameTok.Literal
-		typeInfo, _ := cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
-		types := values.MakeAbstractType()
-		funcsToAdd := map[values.ValueType][]funcWithName{}
-		for i, sigToMatch := range(typeInfo.(interfaceInfo).sigs) {
-			typesMatched := values.MakeAbstractType()
-			for key, fnToTry := range cp.P.Common.Functions {
-				if key.FunctionName == sigToMatch.name {
-					matches := cp.getMatches(sigToMatch, fnToTry, &nameTok)
-					typesMatched = typesMatched.Union(matches)
-					if !settings.MandatoryImportSet.Contains(fnToTry.Tok.Source) {
-						for _, ty := range matches.Types {
-							if _, ok := funcsToAdd[ty]; ok {
-								funcsToAdd[ty] = append(funcsToAdd[ty], funcWithName{key.FunctionName, fnToTry})
-							} else {
-								funcsToAdd[ty] = []funcWithName{funcWithName{key.FunctionName, fnToTry}}
-							}
-						}
-					}
-				}
-			}
-			if i == 0 {
-				types = typesMatched
-			} else {
-				types = types.Intersect(typesMatched)
-			}
-		}
-		// We have created an abstract type from our interface! We put it in the type map.
-		cp.P.TypeMap[typename] = types
-		typesWithNull := types.Insert(values.NULL)
-		cp.P.TypeMap[typename+"?"] = typesWithNull
-		cp.AddTypeToVm(values.AbstractTypeInfo{typename, cp.P.NamespacePath, types})
-		// And we add all the implicated functions to the function table.
-		for _, ty := range types.Types {
-			for _, fn := range funcsToAdd[ty] {
-				conflictingFunction := cp.P.FunctionTable.Add(cp.P, fn.name, fn.pFunc)
-				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
-					cp.P.Throw("init/overload/d", fn.pFunc.Tok, fn.name, fn.pFunc.Sig, conflictingFunction)
-				}
-			}
-		}
-	}
-
-	if settings.FUNCTION_TO_PEEK != "" {
-		println(cp.P.FunctionTable.Describe(cp.P, settings.FUNCTION_TO_PEEK))
-	}
-
-	if cp.P.ErrorsExist() {
-		return
-	}
-	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
-	// with types. Following it tells us which version of an overloaded function to use.
-	cp.MakeFunctionTrees()
-	if cp.P.ErrorsExist() {
-		return
-	}
-}
-
-func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
-	result := values.MakeAbstractType()
-	if sigToMatch.sig.Len() != len(fnToTry.Sig)  {
-		return result
-	}
-	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != fnToTry.Rets.Len() {
-		return result
-	}
-	foundSelf := false
-	for i := 0; i < len(sigToMatch.sig); i++ {
-		if sigToMatch.sig.GetVarType(i).(string) == "self" {
-			if foundSelf {
-				result = result.Intersect(fnToTry.Sig[i].VarType)
-				if len(result.Types) == 0 {
-					break
-				}
-			} else {
-				foundSelf = true
-				result = fnToTry.Sig[i].VarType
-			}
-		} else {
-			if !cp.P.GetAbstractType(sigToMatch.sig.GetVarType(i).(string)).IsSubtypeOf(fnToTry.Sig[i].VarType) || 
-			        sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != fnToTry.Sig[i].VarName{
-				return values.MakeAbstractType()
-			}
-		}
-	}
-	if !foundSelf {
-		cp.P.Throw("init/interface/self", tok)
-		return values.MakeAbstractType()
-	}
-	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
-		if sigToMatch.rtnSig[i].VarType == "self" {
-			result = result.Intersect(cp.P.GetAbstractType(fnToTry.Rets[i].VarType))
-		} else {
-			if !cp.P.GetAbstractType(fnToTry.Rets[i].VarType).IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
-				return values.MakeAbstractType()
-			}
-		}
-	}
-	return result
-}
-
 func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
 	uP := vmm.uP
 	unnamespacedImports := []string{}
@@ -518,8 +396,8 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, Rets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
-			if cp.shareable(functionToAdd) {
-				cp.cm("Adding " + functionName + " to common functions.", tok)
+			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
+				cp.cm("Adding "+functionName+" to common functions.", tok)
 				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
 			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, functionToAdd)
@@ -556,6 +434,122 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 		goHandler.AddPureGoBlock(source, code)
 	}
 	return goHandler
+}
+
+type funcWithName struct {
+	name  string
+	pFunc *ast.PrsrFunction
+}
+
+func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
+	// First we recurse.
+	for _, service := range cp.Services {
+		service.Cp.populateAbstractTypesAndMakeFunctionTrees()
+	}
+
+	// Now we pull in all the shared functions that fulfill the interface types, populating the types as we go.
+	for _, tcc := range cp.P.TokenizedDeclarations[interfaceDeclaration] {
+		tcc.ToStart()
+		nameTok := tcc.NextToken()
+		typename := nameTok.Literal
+		typeInfo, _ := cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+		types := values.MakeAbstractType()
+		funcsToAdd := map[values.ValueType][]funcWithName{}
+		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
+			typesMatched := values.MakeAbstractType()
+			for key, fnToTry := range cp.P.Common.Functions {
+				if key.FunctionName == sigToMatch.name {
+					matches := cp.getMatches(sigToMatch, fnToTry, &nameTok)
+					typesMatched = typesMatched.Union(matches)
+					if !settings.MandatoryImportSet.Contains(fnToTry.Tok.Source) {
+						for _, ty := range matches.Types {
+							if _, ok := funcsToAdd[ty]; ok {
+								funcsToAdd[ty] = append(funcsToAdd[ty], funcWithName{key.FunctionName, fnToTry})
+							} else {
+								funcsToAdd[ty] = []funcWithName{funcWithName{key.FunctionName, fnToTry}}
+							}
+						}
+					}
+				}
+			}
+			if i == 0 {
+				types = typesMatched
+			} else {
+				types = types.Intersect(typesMatched)
+			}
+		}
+		// We have created an abstract type from our interface! We put it in the type map.
+		cp.P.TypeMap[typename] = types
+		typesWithNull := types.Insert(values.NULL)
+		cp.P.TypeMap[typename+"?"] = typesWithNull
+		cp.AddTypeToVm(values.AbstractTypeInfo{typename, cp.P.NamespacePath, types})
+		// And we add all the implicated functions to the function table.
+		for _, ty := range types.Types {
+			for _, fn := range funcsToAdd[ty] {
+				conflictingFunction := cp.P.FunctionTable.Add(cp.P, fn.name, fn.pFunc)
+				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
+					cp.P.Throw("init/overload/d", fn.pFunc.Tok, fn.name, fn.pFunc.Sig, conflictingFunction)
+				}
+			}
+		}
+	}
+
+	if settings.FUNCTION_TO_PEEK != "" {
+		println(cp.P.FunctionTable.Describe(cp.P, settings.FUNCTION_TO_PEEK))
+	}
+
+	if cp.P.ErrorsExist() {
+		return
+	}
+	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
+	// with types. Following it tells us which version of an overloaded function to use.
+	cp.MakeFunctionTrees()
+	if cp.P.ErrorsExist() {
+		return
+	}
+}
+
+func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
+	result := values.MakeAbstractType()
+	if sigToMatch.sig.Len() != len(fnToTry.Sig) {
+		return result
+	}
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != fnToTry.Rets.Len() {
+		return result
+	}
+	foundSelf := false
+	for i := 0; i < len(sigToMatch.sig); i++ {
+		if sigToMatch.sig.GetVarType(i).(string) == "self" {
+			if foundSelf {
+				result = result.Intersect(fnToTry.Sig[i].VarType)
+				if len(result.Types) == 0 {
+					break
+				}
+			} else {
+				foundSelf = true
+				result = fnToTry.Sig[i].VarType
+			}
+		} else {
+			if !cp.P.GetAbstractType(sigToMatch.sig.GetVarType(i).(string)).IsSubtypeOf(fnToTry.Sig[i].VarType) ||
+				sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != fnToTry.Sig[i].VarName {
+				return values.MakeAbstractType()
+			}
+		}
+	}
+	if !foundSelf {
+		cp.P.Throw("init/interface/self", tok)
+		return values.MakeAbstractType()
+	}
+	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
+		if sigToMatch.rtnSig[i].VarType == "self" {
+			result = result.Intersect(cp.P.GetAbstractType(fnToTry.Rets[i].VarType))
+		} else {
+			if !cp.P.GetAbstractType(fnToTry.Rets[i].VarType).IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+				return values.MakeAbstractType()
+			}
+		}
+	}
+	return result
 }
 
 // There are three possibilities. Either we have a namespace without a path, in which case we're looking for
@@ -787,7 +781,7 @@ func (vmm *VmMaker) createClones() {
 		}
 		// And add them to the common functions.
 		for _, op := range opList {
-			rtnSig :=  ast.AstSig{{"*dummy*", name}}
+			rtnSig := ast.AstSig{{"*dummy*", name}}
 			switch parentTypeNo {
 			case values.FLOAT:
 				switch op {
@@ -1037,7 +1031,7 @@ func (vmm *VmMaker) createInterfaceTypes() {
 		tokenizedSigs := []*token.TokenizedCodeChunk{}
 		// For consistency, an interface with just one signature can be declared as a one-liner, though you really shouldn't.
 		tok := tcc.NextToken()
-		beginHappened := tok.Type == token.LPAREN && tok.Literal == "|->" 
+		beginHappened := tok.Type == token.LPAREN && tok.Literal == "|->"
 		newSig := token.NewCodeChunk()
 		if !beginHappened {
 			newSig.Append(tok)
@@ -1051,7 +1045,7 @@ func (vmm *VmMaker) createInterfaceTypes() {
 				newSig.Append(tok)
 			}
 			tokenizedSigs = append(tokenizedSigs, newSig)
-			if tok.Type == token.EOF ||  tok.Type == token.RPAREN && tok.Literal == "<-|" || tok.Type == token.NEWLINE && !beginHappened {
+			if tok.Type == token.EOF || tok.Type == token.RPAREN && tok.Literal == "<-|" || tok.Type == token.NEWLINE && !beginHappened {
 				break
 			}
 			newSig = token.NewCodeChunk()
