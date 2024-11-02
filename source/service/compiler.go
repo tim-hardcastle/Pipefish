@@ -2656,6 +2656,10 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	cp.cmP("Called seekFunctionCall.", b.tok)
 	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
+			resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
+			if resolvingCompiler != cp {
+				panic("Oopsie-doopsie!")
+			}
 			fNo := branch.Node.Fn.Number
 			if fNo >= uint32(len(cp.Fns)) {
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -3742,6 +3746,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 		fCount := uint32(len(cp.Fns))       // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
 		for _, dec := range groupOfDeclarations {
 			cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
+			cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Compiler = cp
 			fCount++
 		}
 		for _, dec := range groupOfDeclarations {
@@ -3751,7 +3756,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 			case commandDeclaration:
 				cp.compileFunction(cp.P.ParsedDeclarations[commandDeclaration][dec.decNumber], cp.P.IsPrivate(int(dec.decType), dec.decNumber), cp.GlobalVars, commandDeclaration)
 			}
-			cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(cp.Fns) - 1)
+			cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
 		for _, rDat := range cp.recursionStore {

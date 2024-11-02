@@ -394,7 +394,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 				return nil
 			}
 			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, NameRets: rTypes, RetsSig: cp.P.Abstract(rTypes), Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Tok: body.GetToken()}
+				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
 				cp.cm("Adding "+functionName+" to common functions.", tok)
@@ -754,7 +754,7 @@ func (vmm *VmMaker) createClones() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RetsSig: vmm.cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: &tok1}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RetsSig: vmm.cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: vmm.cp, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -897,7 +897,7 @@ func (vmm *VmMaker) createClones() {
 }
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.AstSig, isPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RetsSig: vmm.cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RetsSig: vmm.cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: vmm.cp, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
@@ -933,7 +933,7 @@ func (vmm *VmMaker) createStructNamesAndLabels() {
 		vmm.cp.P.Functions.Add(name)
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Tok: node.GetToken()}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: vmm.cp, Tok: node.GetToken()}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn) // TODO --- give them their own ast type?
 		vmm.cp.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
@@ -1197,12 +1197,14 @@ func (cp *Compiler) compileConstructors() {
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typeNo := cp.StructNameToTypeNumber[name]
 		cp.fnIndex[fnSource{structDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(structDeclaration), i), node.GetToken())
+		cp.fnIndex[fnSource{structDeclaration, i}].Compiler = cp
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range cp.P.Snippets {
 		typeNo := cp.StructNameToTypeNumber[name]
 		cp.fnIndex[fnSource{snippetDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(snippetDeclaration), i), cp.P.ParsedDeclarations[snippetDeclaration][i].GetToken())
+		cp.fnIndex[fnSource{snippetDeclaration, i}].Compiler = cp
 	}
 	// Clones
 	for i, dec := range cp.P.TokenizedDeclarations[cloneDeclaration] {
@@ -1212,6 +1214,7 @@ func (cp *Compiler) compileConstructors() {
 		typeNo := cp.CloneNameToTypeNumber[name]
 		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: cp.vm.concreteTypes[cp.vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(cloneDeclaration), i), &nameTok)
+		cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = cp
 	}
 }
 
