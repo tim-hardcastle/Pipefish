@@ -2213,7 +2213,6 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			}
 		}
 	}
-	b.cst = cst
 	// Having gotten the arguments, we create the function call itself.
 	cp.cmP("Prepared bindle, making initial call into generateNewArgument.", b.tok)
 	returnTypes := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
@@ -2232,7 +2231,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		cp.Emit(Adtk, cp.That(), cp.That(), cp.reserveToken(b.tok))
 	}
 	cp.cmP("Returning from createFunctionCall.", b.tok)
-	return returnTypes, cst
+	return returnTypes, cst && !b.override
 }
 
 type bindle struct {
@@ -2251,7 +2250,7 @@ type bindle struct {
 	varargsTime  bool            // Once we've taken a varArgs path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
 	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
-	cst          bool            // Whether the arguments are constant.
+	override     bool            // A kludgy flag to pass back whether we have a forward declaration that would prevent constant folding.
 	libcall      bool            // Are we in a namespace?
 	lowMem       uint32          // The lowest point in memory that the function uses. Hence the lowest point from which we could need to copy when putting memory on the recursionStack.
 }
@@ -2657,11 +2656,15 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	for _, branch := range b.treePosition.Branch {
 		if branch.Node.Fn != nil {
 			resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
-			if resolvingCompiler != cp {
+			fNo := branch.Node.Fn.Number
+			if resolvingCompiler == nil {
+				cp.cmP("Undefined compiler. We must be getting a function from a module that hasn't compiled yet, because it satisfies an interface", b.tok)
 				panic("Oopsie-doopsie!")
 			}
-			fNo := branch.Node.Fn.Number
 			if fNo >= uint32(len(cp.Fns)) {
+				if resolvingCompiler != cp { 
+					panic("Oopsie-doopsie!")
+				}
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
 				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
 				cp.recursionStore = append(cp.recursionStore, bkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
@@ -2669,9 +2672,10 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 				cp.Emit(Rpop)
 				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
+				b.override = true // We can't do constant folding on a dummy function call.
 				return cp.vm.AnyTypeScheme     // Or what type.
 			}
-			F := cp.Fns[fNo]
+			F := resolvingCompiler.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
 				cp.cmP("REPL trying to access private function. Returning error.", b.tok)
 				cp.P.Throw("comp/private", b.tok)
@@ -2769,7 +2773,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			}
 			// Otherwise it's a regular old function call, which we do like this:
 			cp.cmP("Emitting call opcode.", b.tok)
-			cp.emitCallOpcode(fNo, b.valLocs)
+			resolvingCompiler.emitCallOpcode(fNo, b.valLocs)
 			cp.Emit(Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
 			return F.Types                    // TODO : Is there a reason why this should be so?
 		}

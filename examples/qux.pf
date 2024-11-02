@@ -1,9 +1,8 @@
-def
+newtype
 
-zort (s string) :
-    "~~" + s + "~~"
+Qux = clone int 
 
-private 
+def 
 
-moo (i int) :
-    2 * i
+foo(q Qux) -> int :
+    int q

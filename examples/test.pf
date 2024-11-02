@@ -1,11 +1,8 @@
-def
+import
 
-foo(r rune, bounds ... pair) :
-    bounds
+"examples/qux.pf"
 
-isIn(r rune, bounds ... pair) : 
-	from flag = false for _::bound = range bounds :
-		bound[0] <= codepoint(r) and codepoint(r) < bound[1] :
-			true
-		else :
-			continue
+newtype 
+
+Fooable = interface :
+	foo(x self) -> int
