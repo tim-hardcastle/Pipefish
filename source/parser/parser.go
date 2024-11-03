@@ -138,12 +138,16 @@ type FuncSource struct { // For indexing the functions in the common function ma
 
 // For data that needs to be shared by all parsers.
 type CommonParserBindle struct {
-	Types     TypeSys
-	Functions map[FuncSource]*ast.PrsrFunction
+	Types               TypeSys
+	Functions           map[FuncSource]*ast.PrsrFunction
+	InterfaceBacktracks []BkInterface
 }
 
 func NewCommonBindle() *CommonParserBindle {
-	result := CommonParserBindle{Types: NewCommonTypeMap(), Functions: make(map[FuncSource]*ast.PrsrFunction)}
+	result := CommonParserBindle{Types: NewCommonTypeMap(),
+		Functions:           make(map[FuncSource]*ast.PrsrFunction),
+		InterfaceBacktracks: []BkInterface{},
+	}
 	return &result
 }
 
@@ -186,7 +190,7 @@ type Parser struct {
 	nativeInfixes dtypes.Set[token.TokenType]
 	lazyInfixes   dtypes.Set[token.TokenType]
 
-	FunctionTable  FunctionTable // TODO --- this and the following clearly belong in the uberparser.
+	FunctionTable  FunctionTable
 	FunctionForest map[string]*ast.FunctionTree
 
 	TypeMap            TypeSys                      // Maps names to abstract types.
@@ -203,6 +207,13 @@ type Parser struct {
 	Directory       string
 	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
+}
+
+// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we haven't compiled it yet, tis keeps track of where we backtrack to.
+// TODO --- it is here rather than with the other backtrackers in the compiler, rather than in the compiler where it belongs, because we do have a common parser bindle and we don't have a common compiler bindle.
+type BkInterface struct {
+	Fn   *ast.PrsrFunction
+	Addr uint32
 }
 
 func New(common *CommonParserBindle, dir, namespacePath string) *Parser {

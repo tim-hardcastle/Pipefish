@@ -49,6 +49,9 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	if cp.P.ErrorsExist() {
 		return result, uP
 	}
+
+	cp.ResolveInterfaceBacktracks()
+
 	mc.OwnService = result
 	return result, uP
 }
@@ -393,7 +396,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			if cp.P.ErrorsExist() {
 				return nil
 			}
-			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, NameRets: rTypes, RetsSig: cp.P.Abstract(rTypes), Body: body, Given: given,
+			functionToAdd := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: cp.P.Abstract(rTypes), Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
@@ -516,7 +519,7 @@ func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, 
 	if sigToMatch.sig.Len() != len(fnToTry.Sig) {
 		return result
 	}
-	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.RetsSig) {
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.RtnSig) {
 		return result
 	}
 	foundSelf := false
@@ -544,9 +547,9 @@ func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, 
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
 		if sigToMatch.rtnSig[i].VarType == "self" {
-			result = result.Intersect(fnToTry.RetsSig[i].VarType)
+			result = result.Intersect(fnToTry.RtnSig[i].VarType)
 		} else {
-			if !fnToTry.RetsSig[i].VarType.IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+			if !fnToTry.RtnSig[i].VarType.IsSubtypeOf(cp.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}
@@ -754,7 +757,7 @@ func (vmm *VmMaker) createClones() {
 		vmm.cp.P.AllFunctionIdents.Add(name)
 		vmm.cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RetsSig: vmm.cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: vmm.cp, Tok: &tok1}
+		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RtnSig: vmm.cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: vmm.cp, Tok: &tok1}
 		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
 		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -897,7 +900,7 @@ func (vmm *VmMaker) createClones() {
 }
 
 func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.AstSig, isPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RetsSig: vmm.cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: vmm.cp, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: vmm.cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: vmm.cp, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	vmm.cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
@@ -1219,7 +1222,7 @@ func (cp *Compiler) compileConstructors() {
 }
 
 func (cp *Compiler) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes AlternateType, private bool, tok *token.Token) uint32 {
-	cpF := &CpFunc{Types: returnTypes, Builtin: builtinTag}
+	cpF := &CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = cp.MemTop()
 	for _, pair := range sig {

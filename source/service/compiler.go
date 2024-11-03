@@ -158,7 +158,7 @@ type CpFunc struct { // The compiler's representation of a function after the fu
 	HiReg                   uint32
 	OutReg                  uint32
 	locOfTupleAndVarargData uint32
-	Types                   AlternateType
+	RtnTypes                AlternateType
 	Builtin                 string   // The name of a builtin or constructor, or an empty string if it's neither.
 	Xcall                   *XBindle // Information for making an external call, if non-nil.
 	Private                 bool     // True if it's private.
@@ -2658,11 +2658,16 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
 			fNo := branch.Node.Fn.Number
 			if resolvingCompiler == nil {
-				cp.cmP("Undefined compiler. We must be getting a function from a module that hasn't compiled yet, because it satisfies an interface", b.tok)
-				panic("Oopsie-doopsie!")
+				cp.cmP("Undefined compiler. Emitting interface backtracks", b.tok)
+				cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
+				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
+				args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
+				cp.Emit(Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
+				b.override = true
+				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
 			}
 			if fNo >= uint32(len(cp.Fns)) {
-				if resolvingCompiler != cp { 
+				if resolvingCompiler != cp {
 					panic("Oopsie-doopsie!")
 				}
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -2672,8 +2677,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 				cp.Emit(Rpop)
 				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
-				b.override = true // We can't do constant folding on a dummy function call.
-				return cp.vm.AnyTypeScheme     // Or what type.
+				b.override = true              // We can't do constant folding on a dummy function call.
+				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
 			}
 			F := resolvingCompiler.Fns[fNo]
 			if (b.access == REPL || b.libcall) && F.Private {
@@ -2769,13 +2774,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				vmArgs = append(vmArgs, cp.That())
 				vmArgs = append(vmArgs, b.valLocs...)
 				cp.Emit(Extn, vmArgs...)
-				return F.Types
+				return F.RtnTypes
 			}
 			// Otherwise it's a regular old function call, which we do like this:
 			cp.cmP("Emitting call opcode.", b.tok)
 			resolvingCompiler.emitCallOpcode(fNo, b.valLocs)
 			cp.Emit(Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
-			return F.Types                    // TODO : Is there a reason why this should be so?
+			return F.RtnTypes
 		}
 	}
 	cp.cmP("Returning error.", b.tok)
@@ -2787,6 +2792,20 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	cp.Emit(UntE, cp.That())
 	cp.Emit(Asgm, b.outLoc, cp.That())
 	return AltType(values.ERROR)
+}
+
+func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.ParserSig) AlternateType {
+	if len(rtnSig) == 0 {
+		return cp.vm.AnyTypeScheme
+	}
+	if len(rtnSig) == 1 {
+		return AbstractTypeToAlternateType(rtnSig[0].VarType)
+	}
+	tup := finiteTupleType{}
+	for _, v := range rtnSig {
+		tup = append(tup, AbstractTypeToAlternateType(v.VarType))
+	}
+	return AlternateType{tup}
 }
 
 func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
@@ -3901,7 +3920,7 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		Xargs := body.(*ast.PrefixExpression).Args
 		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value), FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
 		serializedTypescheme := Xargs[3].(*ast.StringLiteral).Value
-		cpF.Types = cp.deserializeTypescheme(serializedTypescheme)
+		cpF.RtnTypes = cp.deserializeTypescheme(serializedTypescheme)
 	}
 	fnenv := NewEnvironment()
 	fnenv.Ext = outerEnv
@@ -3959,11 +3978,11 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		name := body.(*ast.BuiltInExpression).Name
 		types, ok := BUILTINS[name]
 		if ok {
-			cpF.Types = types.T
+			cpF.RtnTypes = types.T
 		} else {
 			structNo, ok := cp.StructNameToTypeNumber[name] // We treat the short struct constructors as builtins.
 			if ok {
-				cpF.Types = altType(structNo)
+				cpF.RtnTypes = altType(structNo)
 			}
 		}
 		cpF.Builtin = name
@@ -3999,20 +4018,20 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 
 		// Now the main body of the function, just as a lagniappe.
 		bodyContext := context{fnenv, functionName, ac, true, cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
-		cpF.Types, _ = cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		cpF.RtnTypes, _ = cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = cp.That()
 
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
-			cp.emitTypeChecks(cpF.OutReg, cpF.Types, fnenv, rtnSig, ac, node.GetToken(), CHECK_RETURN_TYPES)
+			cp.emitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), CHECK_RETURN_TYPES)
 		}
 
 		cp.Emit(Ret)
 	}
 	cp.Fns = append(cp.Fns, &cpF)
-	if ac == DEF && !cpF.Types.IsLegalDefReturn() {
+	if ac == DEF && !cpF.RtnTypes.IsLegalDefReturn() {
 		cp.P.Throw("comp/return/def", node.GetToken())
 	}
-	if ac == CMD && !cpF.Types.IsLegalCmdReturn() {
+	if ac == CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
 		cp.P.Throw("comp/return/cmd", node.GetToken())
 	}
 	cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
@@ -4051,4 +4070,17 @@ func (cp *Compiler) shareable(f *ast.PrsrFunction) bool {
 		}
 	}
 	return false
+}
+
+func (cp *Compiler) ResolveInterfaceBacktracks() {
+	for _, rDat := range cp.P.Common.InterfaceBacktracks {
+		prsrFunction := rDat.Fn
+		resolvingCompiler := prsrFunction.Compiler.(*Compiler)
+		cpFunction := resolvingCompiler.Fns[prsrFunction.Number]
+		addr := rDat.Addr
+		cp.vm.Code[addr].Args[0] = cpFunction.CallTo
+		cp.vm.Code[addr].Args[1] = cpFunction.LoReg
+		cp.vm.Code[addr].Args[2] = cpFunction.HiReg
+		cp.vm.Code[addr+1].Args[1] = cpFunction.OutReg
+	}
 }

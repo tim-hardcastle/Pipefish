@@ -167,7 +167,7 @@ func (service Service) SerializeApi() string {
 					buf.WriteString(ntp.VarType)
 				}
 				buf.WriteString(" | ")
-				buf.WriteString(service.serializeTypescheme(service.Cp.Fns[fn.Number].Types))
+				buf.WriteString(service.serializeTypescheme(service.Cp.Fns[fn.Number].RtnTypes))
 				buf.WriteString("\n")
 			}
 		}
