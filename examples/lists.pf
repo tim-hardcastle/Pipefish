@@ -1,8 +1,5 @@
 newtype
 
-Addable = interface :
-    (x self) + (y self) -> self
-
 Rotatable = interface :
     rotate(x self) -> self
 

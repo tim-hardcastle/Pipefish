@@ -1,0 +1,26 @@
+newtype
+
+Addable = interface :
+    (x self) + (y self) -> self
+
+Comparable = interface :
+    (x self) < (y self) -> bool
+    (x self) <= (y self) -> bool
+    (x self) > (y self) -> bool
+    (x self) >= (y self) -> bool
+
+Dividable = interface :
+    (x self) / (y self) -> self
+
+Lennable = interface :
+    len(x self) -> int 
+
+Multipliable = interface :
+    (x self) * (y self) -> self
+
+Negatable = interface :
+    -(x self) -> self 
+
+Subtractable = interface :
+    (x self) - (y self) -> self
+
