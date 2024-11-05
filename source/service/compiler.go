@@ -772,7 +772,6 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				rangeTypes, _ := cp.CompileNode(rangeOver, ctxt.x())
 
 				if len(rangeTypes.intersect(cp.vm.IsRangeable)) == 0 && !rangeTypes.Contains(values.TUPLE) { // Note that 'Contains' special-cases tuples.
-					println(rangeTypes.describe(cp.vm))
 					cp.P.Throw("comp/for/range/types", node.GetToken())
 					return altType(values.COMPILE_TIME_ERROR)
 				}
@@ -2657,19 +2656,17 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 		if branch.Node.Fn != nil {
 			resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
 			fNo := branch.Node.Fn.Number
-			if resolvingCompiler == nil {
-				cp.cmP("Undefined compiler. Emitting interface backtracks", b.tok)
+			if resolvingCompiler != cp && fNo == DUMMY {
+				cp.cmP("Emitting interface backtracks", b.tok)
 				cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
 				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
 				args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
 				cp.Emit(Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
+				cp.Emit(Asgm, b.outLoc, DUMMY)
 				b.override = true
 				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
 			}
-			if fNo >= uint32(len(cp.Fns)) {
-				if resolvingCompiler != cp {
-					panic("Oopsie-doopsie!")
-				}
+			if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
 				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
 				cp.recursionStore = append(cp.recursionStore, bkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.

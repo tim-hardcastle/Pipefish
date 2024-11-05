@@ -455,7 +455,6 @@ func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		typename := nameTok.Literal
-		println("Making abstract type", typename)
 		typeInfo, _ := cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		types := values.MakeAbstractType()
 		funcsToAdd := map[values.ValueType][]funcWithName{}
@@ -463,7 +462,6 @@ func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range cp.P.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
-					println("Trying to match", key.FunctionName, sigToMatch.sig.String(), "with", fnToTry.NameSig.String())
 					matches := cp.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet.Contains(fnToTry.Tok.Source) {

@@ -1,8 +1,16 @@
-import
+import 
 
-"examples/qux.pf"
+"examples/lists.pf"
 
-newtype 
+newtype
 
-Fooable = interface :
-	foo(x self) -> int
+C = struct(real, imaginary int)
+
+def
+
+(w C) + (z C) -> C :
+    C(w[real] + z[real], w[imaginary] + z[imaginary])
+
+rotate(z C) -> C :
+    C(-z[imaginary], z[real])
+
