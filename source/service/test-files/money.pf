@@ -1,0 +1,15 @@
+def
+
+USD = struct(dollars, cents int)
+
+ONE_DOLLAR = USD(1, 0)
+TREE_FIDDY = USD(3, 50)
+
+(m USD) + (n USD) :
+    m[cents] + n[cents] >= 100 :
+        USD(m[dollars] + n[dollars] + 1, m[cents] + n[cents] - 100)
+    else :
+        USD(m[dollars] + n[dollars], m[cents] + n[cents])
+
+
+

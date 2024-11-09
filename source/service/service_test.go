@@ -319,8 +319,8 @@ func TestImports(t *testing.T) {
 	tests := []TestItem{ 
 		{`qux.square 5`, `25`},
 		{`type qux.Color`, `type`},
-		{`qux.RED`, `qux.RED`},        // TODO --- this will break on improving literals.
-		{`type qux.RED`, `qux.Color`}, //                "
+		{`qux.RED`, `qux.RED`},
+		{`type qux.RED`, `qux.Color`},
 		{`qux.RED in qux.Color`, `true`},
 		{`qux.Color[4]`, `qux.BLUE`},
 		{`qux.Person "John", 22`, `qux.Person with (name::"John", age::22)`},
@@ -362,3 +362,13 @@ func TestInterface(t *testing.T) {
 	RunTest(t, "interface_test.pf", tests, testValues)
 }
 
+func TestFunctionSharing(t *testing.T) {
+	tests := []TestItem{
+		{`C(1, 2) in Addable`, `true`},
+		{`C(1, 2) in summer.Addable`, `true`},
+		{`C(1, 2) in summer.Rotatable`, `true`},
+		{`summer.sum [C(1, 2), C(3, 4), C(5, 6)]`, `C with (real::9, imaginary::12)`},
+		{`summer.rotAll [C(1, 2), C(3, 4)]`, `[C with (real::-2, imaginary::1), C with (real::-4, imaginary::3)]`},
+	}
+	RunTest(t, "function_sharing_test.pf", tests, testValues)
+}
