@@ -1,0 +1,6 @@
+def 
+
+sum(L list) :
+    from a = L[0] for _::v = range L[1::len(L)] :
+        a + v
+
