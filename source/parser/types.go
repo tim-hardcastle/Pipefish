@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"pipefish/source/ast"
-	"pipefish/source/dtypes"
 	"pipefish/source/values"
 )
 
@@ -52,56 +51,6 @@ func NewCommonTypeMap() TypeSys {
 	result["self"] = values.MakeAbstractType(values.UNDEFINED_VALUE)
 	result["bling"] = values.MakeAbstractType(values.BLING)
 	return result
-}
-
-type TypeSystem = dtypes.Digraph[string]
-
-func NewTypeSystem() TypeSystem {
-	T := make(dtypes.Digraph[string])
-	// We put in the top and bottom of our type system by hand.
-	T.AddTransitiveArrow("single", "single?")
-	T.AddTransitiveArrow("single", "...single")
-	T.AddTransitiveArrow("single?", "...single?")
-	T.AddTransitiveArrow("null", "...null")
-	T.AddTransitiveArrow("null", "single?")
-	T.AddTransitiveArrow("single?", "any")
-	T.AddTransitiveArrow("tuple", "any")
-
-	// Then for the other built-in concrete and abstract types there is generic stuff we can do.
-	for _, t := range BaseTypesOtherThanNull {
-		AddType(T, t)
-	}
-	for _, t := range AbstractTypesOtherThanSingle {
-		AddType(T, t)
-	}
-	for t := range ClonableTypes {
-		abType := t + "like"
-		AddType(T, abType)
-		T.AddTransitiveArrow(t, abType)
-	}
-
-	// Kludges.
-	T.AddTransitiveArrow("outer function", "func")
-	T.AddTransitiveArrow("ref", "dummy value")
-	T.AddTransitiveArrow("self", "dummy value")
-	T.AddTransitiveArrow("ok", "dummy value")
-	return T
-}
-
-// Supertypes includes containing types other than 'single', 'single?', and 'any', which are taken for granted.
-func AddType(T TypeSystem, t string, supertypes ...string) {
-	T.AddTransitiveArrow(t, t+"?")
-	T.AddTransitiveArrow("null", t+"?")
-	T.AddTransitiveArrow(t, "..."+t)
-	// It may seem weird that 'tuple' is more specific than any varargs, given that the varargs can be typed and the tuple can't. But 'tuple' *is* a type,
-	// whereas '...<type>' isn't, not even an abstract one. And we need 'foo(x tuple)' to take precedence over 'foo(x ...myType)' because the latter would in
-	// fact succeed when passed a tuple of 'myType', since it would autosplat, and so the variant of the function with 'x tuple' wouldn't be called.
-	T.AddTransitiveArrow("tuple", "..."+t)
-	supertypes = append(supertypes, "single")
-	for _, st := range supertypes {
-		T.AddTransitiveArrow(t, st)
-		T.AddTransitiveArrow("..."+t, "..."+st)
-	}
 }
 
 var BaseTypesOtherThanNull = []string{"int", "float", "bool", "string", "rune", "error", "type", "list", "label",

@@ -1,31 +1,5 @@
 package dtypes
 
-// We have a digraph given in the form of a map associating each node with the set
-// of nodes it points to. We want to list all the nodes of the graph in such a way that
-// no node X ever precedes a node Y in the list if there is a route from X to Y, or, if this
-// is not possible given the map, our function should notice this and say so.
-
-// (This is possible only if the graph is acyclic, i.e. a forest.)
-
-// We can do this like this:
-
-// while there are leaf nodes in the graph :
-// add all the leaf nodes to the end of the list
-// remove the leaf nodes from the graph
-// if there are still nodes in the graph :
-// complain that the graph is cyclic
-// otherwise :
-// return the list
-
-// Proof : if the graph is a forest, this process must terminate with an empty
-// graph, by induction or by "well duh". The way in which the nodes are added to the
-// graph guarantees that they will fulfill the constraint. But if the graph
-// contains a cycle then when we run out of leaf nodes the graph is non-empty,
-// since no member of the cycle is a leaf node.
-
-// In this implementation I will return as parameters the list and a cycle from
-// the digraph: if the cycle is of length zero then the list is valid.
-
 import (
 	"fmt"
 )
