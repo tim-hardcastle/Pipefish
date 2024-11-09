@@ -160,7 +160,7 @@ func (gh *GoHandler) BuildGoMods() {
 			gh.Prsr.Throw("golang/open", &token.Token{}, err.Error())
 		}
 		if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
-			os.Remove("gocode " + strconv.Itoa(counter) + ".go")
+			os.Remove("gocode_" + strconv.Itoa(counter) + ".go")
 		}
 	}
 }
