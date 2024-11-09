@@ -1280,7 +1280,7 @@ func MakeFilepath(scriptFilepath, dir string) string {
 	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" || len(scriptFilepath) >= 12 {
 		doctoredFilepath = filepath.Join(dir, filepath.FromSlash(scriptFilepath))
 	}
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:3] == "rsc/" {
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
 		doctoredFilepath = filepath.Join(dir, "source", "service", filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
