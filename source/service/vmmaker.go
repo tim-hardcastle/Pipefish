@@ -131,7 +131,7 @@ func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
 		vmm.cm("Adding hub.pf to hub namespace.")
-		vmm.uP.AddToNameSpace([]string{"service/rsc/pipefish/hub.pf"})
+		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
 	}
 	vmm.cm("Making new relexer.")
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
@@ -1277,8 +1277,11 @@ func altType(t ...values.ValueType) AlternateType {
 
 func MakeFilepath(scriptFilepath, dir string) string {
 	doctoredFilepath := strings.Clone(scriptFilepath)
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" || len(scriptFilepath) >= 12 && scriptFilepath[0:12] == "service/rsc/" {
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" || len(scriptFilepath) >= 12 {
 		doctoredFilepath = filepath.Join(dir, filepath.FromSlash(scriptFilepath))
+	}
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:3] == "rsc/" {
+		doctoredFilepath = filepath.Join(dir, "source", "service", filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
 		doctoredFilepath = dir + "lib/" + scriptFilepath

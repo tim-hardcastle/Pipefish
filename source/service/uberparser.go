@@ -104,8 +104,8 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
 		var libDat []byte
 		var err error
-		if len(fname) >= 21 && fname[:21] == "service/rsc/pipefish/" {
-			libDat, err = folder.ReadFile(fname[8:])
+		if len(fname) >= 13 && fname[:13] == "rsc/pipefish/" {
+			libDat, err = folder.ReadFile(fname)
 		} else {
 			libDat, err = os.ReadFile(MakeFilepath(fname, init.Parser.Directory))
 		}
