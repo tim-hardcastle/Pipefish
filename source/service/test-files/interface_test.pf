@@ -1,8 +1,5 @@
 newtype 
 
-Addable = interface :
-    (x self) + (y self) -> self
-
 Foobarable = interface :
     foo(x self) -> int
     bar(x self) -> int
