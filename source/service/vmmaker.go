@@ -1277,7 +1277,7 @@ func altType(t ...values.ValueType) AlternateType {
 
 func MakeFilepath(scriptFilepath, dir string) string {
 	doctoredFilepath := strings.Clone(scriptFilepath)
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" || scriptFilepath[0:4] == "hub/" {
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" || len(scriptFilepath) >= 12 && scriptFilepath[0:12] == "service/rsc/" {
 		doctoredFilepath = filepath.Join(dir, filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
