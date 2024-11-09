@@ -131,7 +131,7 @@ func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
 		vmm.cm("Adding hub.pf to hub namespace.")
-		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
+		vmm.uP.AddToNameSpace([]string{"service/rsc/pipefish/hub.pf"})
 	}
 	vmm.cm("Making new relexer.")
 	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))

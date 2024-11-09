@@ -7,9 +7,9 @@ package settings
 import "pipefish/source/dtypes"
 
 // Note that this set will be reduced by the 'main' function if we're running under WinOS. 
-var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/interfaces.pf"}
+var MandatoryImports = []string{"service/rsc/pipefish/builtins.pf", "service/rsc/pipefish/world.pf", "service/rsc/pipefish/interfaces.pf"}
 var MandatoryImportSet = dtypes.MakeFromSlice(MandatoryImports)
-var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc/pipefish/hub.pf").Add("Builtin constant")
+var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("service/rsc/pipefish/hub.pf").Add("Builtin constant")
 
 var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"})
 
