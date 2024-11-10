@@ -149,8 +149,8 @@ func NewCommonBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
 		Functions:           make(map[FuncSource]*ast.PrsrFunction),
 		InterfaceBacktracks: []BkInterface{},
-		Errors: []*report.Error{},
-		Sources: make(map[string][]string),
+		Errors:              []*report.Error{},
+		Sources:             make(map[string][]string),
 	}
 	return &result
 }
@@ -244,9 +244,9 @@ func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePa
 		FunctionForest: make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:        make(TypeSys),
 		typeData: map[string][]string{
-			"struct": []string{"struct", "struct?", "single", "single?"},
-			"enum":   []string{"enum", "enum?", "single", "single?"},
-			"single": []string{"single", "single?"},
+			"struct": []string{"struct", "struct?", "any", "any?"},
+			"enum":   []string{"enum", "enum?", "any", "any?"},
+			"any":    []string{"any", "any?"},
 		},
 		LocalConcreteTypes: make(dtypes.Set[values.ValueType]),
 		Structs:            make(dtypes.Set[string]),
@@ -298,7 +298,7 @@ func (p *Parser) getAbstractType(name string) (values.AbstractType, bool) {
 		result.Varchar = uint32(varCharValue)
 		return result, true
 	}
-	// Check if it's a shared abstract type: 'int', 'struct', 'listlike', 'single?' etc.
+	// Check if it's a shared abstract type: 'int', 'struct', 'listlike', 'any?' etc.
 	if result, ok := p.Common.Types[name]; ok {
 		return result, true
 	}
@@ -754,7 +754,7 @@ func (p *Parser) parseStringLiteral() ast.Node {
 }
 
 func (p *Parser) parseRuneLiteral() ast.Node {
-	r, _ := utf8.DecodeRune([]byte(p.curToken.Literal)) // We have already checked that the literal is a single rune at the lexing stage.
+	r, _ := utf8.DecodeRune([]byte(p.curToken.Literal)) // We have already checked that the literal is a any rune at the lexing stage.
 	return &ast.RuneLiteral{Token: p.curToken, Value: r}
 }
 
@@ -990,14 +990,14 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			switch newLeft := left.Left.(type) {
 			case *ast.PrefixExpression:
 				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
-				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, "single?")
+				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, "any?")
 				fn.Sig = p.Abstract(fn.NameSig) // TODO --- elsewhere.
 			default:
 				p.Throw("parse/inner/b", newLeft.GetToken())
 			}
 		case *ast.PrefixExpression:
 			expression.Left = &ast.Identifier{Token: *left.GetToken(), Value: left.GetToken().Literal}
-			fn.NameSig, _ = p.getSigFromArgs(left.Args, "single?")
+			fn.NameSig, _ = p.getSigFromArgs(left.Args, "any?")
 		default:
 			p.Throw("parse/inner/c", left.GetToken())
 			return nil
@@ -1192,7 +1192,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 		p.Throw("parse/colon", &p.curToken)
 		return nil
 	}
-	expression.NameSig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, "single?")
+	expression.NameSig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, "any?")
 	if p.ErrorsExist() {
 		return nil
 	}
@@ -1449,7 +1449,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 					}
 				case *ast.Identifier:
 					varName = inner.Value
-					varType = "single? " + arg.Operator
+					varType = "any? " + arg.Operator
 				default:
 					p.Throw("parse/sig/suffix/a", arg.GetToken())
 					return nil
@@ -1543,9 +1543,9 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 		}
 		if j == len(args)-1 && varType == "*" {
 			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = "single?"
+				sig[i].VarType = "any?"
 			}
-			varType = "single?"
+			varType = "any?"
 		}
 		if !(varType == "bling" || varType == "*") {
 			for i := backTrackTo; i < len(sig); i++ {
@@ -1556,7 +1556,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 		if varType == "bling" {
 			if len(sig) > 0 && sig[len(sig)-1].VarType == "*" {
 				for i := backTrackTo; i < len(sig); i++ {
-					sig[i].VarType = "single?"
+					sig[i].VarType = "any?"
 				}
 			}
 		}
@@ -1571,7 +1571,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 	return sig
 }
 
-// TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a single function.
+// TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
 func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.AstSig, *report.Error) {
 	sig := ast.AstSig{}
 	for _, arg := range args {

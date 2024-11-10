@@ -39,7 +39,7 @@
 		"strings": {
 			"patterns": [
 				{
-				"name":"string.quoted.single.pipefish",
+				"name":"string.quoted.any.pipefish",
 				"begin": "`",
 				"end": "`"
 				},

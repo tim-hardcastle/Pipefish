@@ -59,12 +59,12 @@ type Vm struct {
 }
 
 func (vm *Vm) AddTypeNumberToSharedAlternateTypes(typeNo values.ValueType, abTypes ...string) {
-	abTypes = append(abTypes, "single")
+	abTypes = append(abTypes, "any")
 	for _, ty := range abTypes {
 		vm.sharedTypenameToTypeList[ty] = vm.sharedTypenameToTypeList[ty].Union(altType(typeNo))
 		vm.sharedTypenameToTypeList[ty+"?"] = vm.sharedTypenameToTypeList[ty+"?"].Union(altType(typeNo))
 	}
-	vm.AnyTuple = AlternateType{TypedTupleType{vm.sharedTypenameToTypeList["single?"]}}
+	vm.AnyTuple = AlternateType{TypedTupleType{vm.sharedTypenameToTypeList["any?"]}}
 	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(altType(typeNo))
 	vm.AnyTypeScheme[len(vm.AnyTypeScheme)-1] = vm.AnyTuple
 	vm.sharedTypenameToTypeList["tuple"] = vm.AnyTuple
@@ -94,7 +94,7 @@ type Lambda struct {
 	resultLocation uint32
 	addressToCall  uint32
 	captures       []values.Value
-	sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'single?'
+	sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'any?'
 	tok            *token.Token
 }
 
@@ -143,8 +143,8 @@ func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
 		codeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 		sharedTypenameToTypeList: map[string]AlternateType{
-			"single":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"single?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 		},
 		AnyTypeScheme: AlternateType{},
 		AnyTuple:      AlternateType{},
@@ -163,9 +163,9 @@ func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 	}
 	vm.typeNumberOfUnwrappedError = DUMMY
 	vm.Mem = append(vm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil}) // TODO --- why?
-	vm.AnyTuple = AlternateType{TypedTupleType{vm.sharedTypenameToTypeList["single?"]}}
-	vm.AnyTypeScheme = make(AlternateType, len(vm.sharedTypenameToTypeList["single?"]), 1+len(vm.sharedTypenameToTypeList["single?"]))
-	copy(vm.AnyTypeScheme, vm.sharedTypenameToTypeList["single?"])
+	vm.AnyTuple = AlternateType{TypedTupleType{vm.sharedTypenameToTypeList["any?"]}}
+	vm.AnyTypeScheme = make(AlternateType, len(vm.sharedTypenameToTypeList["any?"]), 1+len(vm.sharedTypenameToTypeList["any?"]))
+	copy(vm.AnyTypeScheme, vm.sharedTypenameToTypeList["any?"])
 	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(vm.AnyTuple)
 	vm.sharedTypenameToTypeList["tuple"] = vm.AnyTuple
 	vm.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET)

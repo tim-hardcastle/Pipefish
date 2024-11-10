@@ -8,7 +8,7 @@ twice(b bool) :
     b : "That's as true as things get!"
     else : "That's as false as things get!"
 
-twice(t single) :
+twice(t any) :
     error "I don't know how to double that!"
 
 twice(t tuple) :

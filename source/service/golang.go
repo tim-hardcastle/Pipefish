@@ -141,11 +141,11 @@ func (gh *GoHandler) BuildGoMods() {
 
 		// You can't reuse the names of shared object files.
 		counter++
-		soFile := filepath.Join(gh.Prsr.Directory, filepath.FromSlash("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(modifiedTime)) + ".so"))
+		soFile := filepath.Join(gh.Prsr.Directory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(modifiedTime))+".so"))
 		if lastChange != 0 {
-			os.Remove(filepath.Join(gh.Prsr.Directory, filepath.FromSlash("rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(lastChange)) + ".so")))
+			os.Remove(filepath.Join(gh.Prsr.Directory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(lastChange))+".so")))
 		}
-		goFile := filepath.Join(gh.Prsr.Directory, "gocode_" + strconv.Itoa(counter) + ".go")
+		goFile := filepath.Join(gh.Prsr.Directory, "gocode_"+strconv.Itoa(counter)+".go")
 		file, _ := os.Create(goFile)
 		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
 		file.Close()
@@ -246,7 +246,7 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"pair":   ".([]any)",
 	"rune":   ".(rune)",
 	"set":    ".([]any)",
-	"single": "",
+	"any":    "",
 	"string": ".(string)",
 	"tuple":  ".([]any)",
 	"type":   ".(string)",

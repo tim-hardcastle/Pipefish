@@ -33,7 +33,7 @@ func TestParser(t *testing.T) {
 		{`2 + 2 == 4 and true`, `(((2 + 2) == 4) and true)`},
 		{`1 + 2 < 3 + 4`, `((1 + 2) < (3 + 4))`},
 		{`1 * 2 > 3 % 4`, `((1 * 2) > (3 % 4))`},
-		{`x = func(y) : y * y`, `(x = func (y single?) : (y * y))`},
+		{`x = func(y) : y * y`, `(x = func (y any?) : (y * y))`},
 		{`from a for i = 1; i < n; i + 1 : a + i`, `from a for (i = 1); (i < n); (i + 1) : (a + i)`},
 		{`len x`, `(len x)`},
 		{`len x, y`, `(len x, y)`},

@@ -28,7 +28,7 @@ Dragon = struct(name string, color Color, valueOfHoard int)
 
 These are not types that a value can actually have. Rather they are a filter on what can be stored in a variable, or the field of a struct, or passed to a function.
 
-Pipefish suppplies you with a few built-in abstract types: `single`, which includes evrything but the `null` type ad the `tuple` type; `struct`, which includes all structs; and a "nullable twin" of each type, containing that type and null: `int?`, `string?`, etc. User-defined types and other abstrct types also have nullable twins: `Dragon?`, `struct?`, etc.
+Pipefish suppplies you with a few built-in abstract types: `any`, which includes evrything but the `null` type ad the `tuple` type; `struct`, which includes all structs; and a "nullable twin" of each type, containing that type and null: `int?`, `string?`, etc. User-defined types and other abstrct types also have nullable twins: `Dragon?`, `struct?`, etc.
 
 Abstract types can be user-defined. In this example we define an abstract type `Monster` which contains the concrete types `Orc`, `Troll`, and `Dragon`, and which does not contain the type `Person`; and we write two functions which dispatch on whether something is a `Monster` or a `Person`.
 
@@ -69,13 +69,13 @@ We can now talk about why Pipefish doesn't have generic types like `list<list<in
 
 ### The semantic problems
 
-First, implementing this raises some question about semantics the answers to which would inevitably cause surprise under some circumstances. For example, suppose we try to add `x` of type `list<string>` and `y` of type `list<single>`. Should the result be:
+First, implementing this raises some question about semantics the answers to which would inevitably cause surprise under some circumstances. For example, suppose we try to add `x` of type `list<string>` and `y` of type `list<any>`. Should the result be:
 
 (a) A type error? (In which case it's hardly behaving like a dynamic language any more — even if we delay the type error until runtime.)
 
-(b) A `list<single>` even if `y` happens to contain only strings.
+(b) A `list<any>` even if `y` happens to contain only strings.
 
-(c) The runtime checks the types of everything in `y` (at O(n) cost, natch) and returns a `list<string>` if everything in it is a string but otherwise returns a `list<single>`.
+(c) The runtime checks the types of everything in `y` (at O(n) cost, natch) and returns a `list<string>` if everything in it is a string but otherwise returns a `list<any>`.
 
 (d) The runtime checks the types of everything in `y`, and returns a `list<string>` if everything in it is a string but otherwise returns a runtime error.
 

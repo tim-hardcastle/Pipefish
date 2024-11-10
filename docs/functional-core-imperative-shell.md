@@ -18,7 +18,7 @@ The result of all this is expressed in the following table:
 | ------------- | ------------- |
 | The `def` section of a Pipefish script | The `cmd` section of a Pipefish script |
 | Has functions : | Has commands : |
-| (a) where the body is a single expression | (a) where the body is one or more instructions |
+| (a) where the body is a any expression | (a) where the body is one or more instructions |
 | (b) which is evaluated | (b) which are executed |
 | (c) returning a value | (c) returning only success or an error |
 | (d) which can only call functions | (d) which can call both functions and commands |

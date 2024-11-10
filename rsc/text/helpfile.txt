@@ -179,7 +179,7 @@ foo(x) :
 
 This does what you would think it does: returns twice what is passed to it. (Or throws a runtime error if addition is not defined on the type of the parameter.)
 
-In a function where the body is a single line, it is permitted to write it in one line with the definition:
+In a function where the body is a any line, it is permitted to write it in one line with the definition:
 
 |-----------------------------------------------
 
@@ -370,7 +370,7 @@ var
 
 foo = "bananas"
 
-zort single = "bananas"
+zort any = "bananas"
 
 troz tuple = "bananas"
 
@@ -403,7 +403,7 @@ var
 
 foo = "bananas"
 
-zort single = "bananas"
+zort any = "bananas"
 
 troz tuple = "bananas"
 

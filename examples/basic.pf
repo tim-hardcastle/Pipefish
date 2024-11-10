@@ -62,7 +62,7 @@ given :
 
 ValueType = enum STR_VAL, INT_VAL, BOOL_VAL, OK_VAL, ARGS_VAL
 
-Value = struct(valueType ValueType, value single)
+Value = struct(valueType ValueType, value any)
 
 BUILTINS = map("SQR"::(func(x) : x * x) ,
             .. "LEN"::(func(x) : len x) ,
@@ -187,7 +187,7 @@ given :
     varName = equalsNode[branches][0][token][tokenLiteral]
     rhs, _ = evaluate(equalsNode[branches][1], state)
 
-makeVal(charmVal single) :
+makeVal(charmVal any) :
     type charmVal == int : Value(INT_VAL, charmVal)
     type charmVal == string : Value(STR_VAL, charmVal)
     type charmVal == bool : Value(BOOL_VAL, charmVal)
@@ -268,7 +268,7 @@ TokenType = enum STRING, INTEGER, BOOLEAN, PLUS, MINUS, MULTIPLY, DIVIDE, IF, TH
                 .. NOT, GOTO, PRINT, BUILTIN, IDENTIFIER, EQUALS, LET, L_PAREN, R_PAREN, EOL, EMPTY, LIST,
                 .. LT, GT, LEQ, GEQ, NEQ, RUN, MOD, NEWLINE
 
-Token = struct(tokenType TokenType, tokenLiteral single)
+Token = struct(tokenType TokenType, tokenLiteral any)
 
 KEYWORD_MAP = map("+"::PLUS, "-"::MINUS, "*"::MULTIPLY, "/"::DIVIDE, "="::EQUALS, "IF"::IF,
                 .. "THEN"::THEN, ","::COMMA, "AND"::AND, "OR"::OR, "NOT"::NOT, "GOTO"::GOTO, 

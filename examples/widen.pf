@@ -1,5 +1,5 @@
 var
 
-w single = "lobster"
+w any = "lobster"
 x int? = 42
 y int? = NULL

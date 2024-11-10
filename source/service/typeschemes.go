@@ -523,7 +523,7 @@ func (fT finiteTupleType) isPrivate(mc *Vm) bool {
 	return false
 }
 
-type TypedTupleType struct { // We don't know how long it is but we know what its elements are (or we can say 'single?' if we don't.)
+type TypedTupleType struct { // We don't know how long it is but we know what its elements are (or we can say 'any?' if we don't.)
 	T AlternateType
 }
 

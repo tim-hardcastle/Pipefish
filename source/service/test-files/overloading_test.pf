@@ -6,8 +6,8 @@ foo(x int) :
 foo(x string) :
     "string"
 
-foo(x single?, y bool) :
-    "single?, bool"
+foo(x any?, y bool) :
+    "any?, bool"
 
 foo(x bool, y bool) :
     "bool, bool"

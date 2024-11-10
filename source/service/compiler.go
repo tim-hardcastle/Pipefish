@@ -508,7 +508,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 
 	cp.cm("Compiling one 'given' block assignment.", node.GetToken())
 
-	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "single?")
+	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "any?")
 	if err != nil {
 		cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
 		return
@@ -789,7 +789,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 						cp.P.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList("single?"), rangeOver.GetToken()) // TODO --- narrow down.
+					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList("any?"), rangeOver.GetToken()) // TODO --- narrow down.
 				}
 				if !keysOnly {
 					cp.Reserve(values.UNDEFINED_VALUE, nil, rangeOver.GetToken())
@@ -799,7 +799,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 						cp.P.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList("single?"), rangeOver.GetToken())
+					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.TypeNameToTypeList("any?"), rangeOver.GetToken())
 				}
 			}
 		} else {
@@ -908,7 +908,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	checkNeeded := false
 	for _, pair := range nameSig {
 		params = params.Add(pair.VarName)
-		if pair.VarType == "single?" {
+		if pair.VarType == "any?" {
 			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
 			checkNeeded = true
@@ -1161,7 +1161,7 @@ NodeTypeSwitch:
 				if v.access != REFERENCE_VARIABLE { // TODO --- THere's probably a more elgant way of dealing with the reference variable thing if I think about it, but as I intend to type them anyway and this will get refactored away it's not a big deal.
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
 				} else {
-					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.TypeNameToTypeList("single?")})
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.TypeNameToTypeList("any?")})
 				}
 				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
@@ -1292,7 +1292,7 @@ NodeTypeSwitch:
 		}
 		if v.access == REFERENCE_VARIABLE {
 			cp.put(Dref, v.mLoc)
-			rtnTypes = cp.TypeNameToTypeList("single?")
+			rtnTypes = cp.TypeNameToTypeList("any?")
 		} else {
 			cp.put(Asgm, v.mLoc)
 			rtnTypes = v.types
@@ -1327,7 +1327,7 @@ NodeTypeSwitch:
 		if len(containerType.intersect(cp.Vm.sharedTypenameToTypeList["listlike"])) == len(containerType) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(IdxL, container, index, errTok)
-				rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
+				rtnTypes = cp.TypeNameToTypeList("any?").Union(AltType(values.ERROR))
 				break
 			}
 			if indexType.isOnlyCloneOf(cp.Vm, values.PAIR) {
@@ -1338,7 +1338,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/index/list", node.GetToken())
 				break
 			}
-			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
+			rtnTypes = cp.TypeNameToTypeList("any?").Union(AltType(values.ERROR))
 		}
 		if len(containerType.intersect(cp.Vm.sharedTypenameToTypeList["stringlike"])) == len(containerType) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -1370,7 +1370,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
-			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
+			rtnTypes = cp.TypeNameToTypeList("any?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnlyCloneOf(cp.Vm, values.PAIR) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -1381,7 +1381,7 @@ NodeTypeSwitch:
 				cp.P.Throw("comp/index/pair", node.GetToken())
 				break
 			}
-			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
+			rtnTypes = cp.TypeNameToTypeList("any?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnly(values.TYPE) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -1471,7 +1471,7 @@ NodeTypeSwitch:
 		if containerType.Contains(values.TUPLE) {
 			rtnTypes = cp.Vm.AnyTypeScheme
 		} else {
-			rtnTypes = cp.TypeNameToTypeList("single?")
+			rtnTypes = cp.TypeNameToTypeList("any?")
 		}
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
@@ -2163,12 +2163,12 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_VALUE, nil, node.GetToken())
-					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.TypeNameToTypeList("single?")}
+					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.TypeNameToTypeList("any?")}
 					env.data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
-			b.types[i] = cp.TypeNameToTypeList("single?")
+			b.types[i] = cp.TypeNameToTypeList("any?")
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(Asgm, v.mLoc)
@@ -2341,14 +2341,14 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// If we've got this far, the current branch accepts at least some of our types.
 	newBindle := *b
 	newBindle.doneList = newBindle.doneList.Union(overlap)
-	// Now we need to do conditionals based on whether this is some or all, and on whether we're looking at a mix of single values and of 0th elements of tuples, or one, or the other.
+	// Now we need to do conditionals based on whether this is some or all, and on whether we're looking at a mix of any values and of 0th elements of tuples, or one, or the other.
 
 	acceptedSingleTypes := make(AlternateType, 0)
-	if newBindle.index == 0 { // Otherwise we *must* be looking at the index-dx position of a tuple, and there are no single values to inspect.
+	if newBindle.index == 0 { // Otherwise we *must* be looking at the index-dx position of a tuple, and there are no any values to inspect.
 		acceptedSingleTypes, _ = b.types[b.argNo].(AlternateType).splitSinglesAndTuples()
 	}
 
-	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve single values,
+	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve any values,
 	// whereas the length of doneList tells us whether we need to recurse on the next branch or not.
 
 	// We may have found a match because any string is a match for a varchar at this point. In that case we do need to do a type check on the length and
@@ -2363,9 +2363,9 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	varargsSlurpingTupleTypeCheck := bkGoto(DUMMY)
 	if needsLowerBranch && !acceptingTuple {
 		cp.cmP("Overlap is partial: "+overlap.describe(cp.Vm), b.tok)
-		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.Vm), b.tok)
-		cp.cmP("Emitting type comparisons for single types.", b.tok)
-		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
+		cp.cmP("Accepted any types are "+acceptedSingleTypes.describe(cp.Vm), b.tok)
+		cp.cmP("Emitting type comparisons for any types.", b.tok)
+		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a any, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
 			if isVarargs { // I think this has to be true at this point but it can do no harm to check.
@@ -2385,7 +2385,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// a type match, or we're inside a conditional that has checked for one.
 
 	// Now we can recurse along the branch.
-	// If we know whether we're looking at a single or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
+	// If we know whether we're looking at a any or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
 	var typesFromGoingAcross, typesFromGoingDown AlternateType
 
 	if isVarargs { // Then we don't want to move along the branch of the function tree, just get a new argument and continue.
@@ -2408,7 +2408,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 		case len(overlap):
-			cp.cmP("Nothing but single types", b.tok)
+			cp.cmP("Nothing but any types", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
@@ -2419,17 +2419,17 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.Emit(Asgm, b.outLoc, cp.That())
 				return AltType(values.ERROR)
 			}
-			cp.cmP("Going across branch consuming single value.", b.tok)
+			cp.cmP("Going across branch consuming any value.", b.tok)
 			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 		default:
 			skipElse := bkGoto(DUMMY)
-			cp.cmP("Mix of single and tuple types.", b.tok)
+			cp.cmP("Mix of any and tuple types.", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.cmP("Type is tuple. Generating branch to consume tuple.", b.tok)
 				typesFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
 				singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
-				cp.cmP("Generating branch to check out single values.", b.tok)
+				cp.cmP("Generating branch to check out any values.", b.tok)
 				typesFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 				skipElse = cp.vmGoTo()
 				cp.vmComeFrom(singleCheck)
@@ -2461,8 +2461,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 var TYPE_COMPARISONS = map[string]Opcode{
 	"snippet":  Qspt,
 	"snippet?": Qspq,
-	"single":   Qsng,
-	"single?":  Qsnq,
+	"any":      Qsng,
+	"any?":     Qsnq,
 	"struct":   Qstr,
 	"struct?":  Qstq,
 }
@@ -2579,7 +2579,7 @@ func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractTyp
 	args = append(args, DUMMY)
 	cp.Emit(Qabt, args...)
 	return bkGoto(cp.CodeTop() - 1)
-	// TODO --- this no longer special-cases things like "single" or "struct".
+	// TODO --- this no longer special-cases things like "any" or "struct".
 }
 
 func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromAbstractType(abType values.AbstractType, mem uint32, index int) bkGoto {
@@ -2862,7 +2862,7 @@ const (
 	CHECK_GLOBAL_ASSIGNMENTS    // variable on the left makes it global.
 )
 
-// We take (a location of) a single or tuple, the type as an AlternateType, a signature, an environment, a token, and a
+// We take (a location of) a any or tuple, the type as an AlternateType, a signature, an environment, a token, and a
 // 'flavor' which says what exactly we're doing and in particular whether the sig contains names we should be inserting the tuple
 // elements into or is just a return type signature in which case there will be no names and we can leave them as they are.
 // We generate code which emits as much type-checking as is necessary given the fit of the signature to the AlternateType,
@@ -3163,7 +3163,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 	var rtnTypes AlternateType
 	var rtnConst bool
 	lhs := cp.That()
-	// If we have a single identifier, we wish it to contain a function ...
+	// If we have a any identifier, we wish it to contain a function ...
 	switch rhs := rhs.(type) {
 	case *ast.Identifier:
 		v, ok := env.getVar(rhs.Value)
@@ -3248,7 +3248,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 
 	}
 
-	// If we have a single identifier, we wish it to contain a function ...
+	// If we have a any identifier, we wish it to contain a function ...
 	switch rhs := rhs.(type) {
 	case *ast.Identifier:
 		if rhs.GetToken().Literal != "that" {
@@ -3273,7 +3273,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	if !isAttemptedFunc {
 		rhsConst = true
 		thatLoc = cp.Reserve(values.UNDEFINED_VALUE, DUMMY, rhs.GetToken())
-		envWithThat = &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.TypeNameToTypeList("single?")}}, Ext: env}
+		envWithThat = &Environment{data: map[string]variable{"that": {mLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.TypeNameToTypeList("any?")}}, Ext: env}
 	}
 	counter := cp.Reserve(values.INT, 0, rhs.GetToken())
 	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
@@ -3290,7 +3290,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		cp.put(IdxL, sourceList, counter, DUMMY)
 		inputElement = cp.That()
 		cp.put(Dofn, v.mLoc, cp.That())
-		types = AltType(values.ERROR).Union(cp.TypeNameToTypeList("single?")) // Very much TODO. Normally the function is constant and so we know its return types.
+		types = AltType(values.ERROR).Union(cp.TypeNameToTypeList("any?")) // Very much TODO. Normally the function is constant and so we know its return types.
 	} else {
 		cp.cm("The rhs is an expression presumably containing 'that'.", tok)
 		cp.Emit(IdxL, thatLoc, sourceList, counter, DUMMY)
@@ -3371,7 +3371,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk co
 			}
 			// If it's a tuple of fixed length, we can split it and inject the values separately.
 			// If it's of indeterminate length then we need to throw an error.
-			numberOfInjectionSites := 1 // Default, if the type is single.
+			numberOfInjectionSites := 1 // Default, if the type is any.
 			if types.Contains(values.TUPLE) {
 				lengths := lengths(types)
 				if lengths.Contains(-1) || len(lengths) > 1 { // ... then we can't infer the length and must throw an error.
@@ -3382,7 +3382,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk co
 					cp.put(IxTn, val, uint32(i))
 					bindle.valueLocs = append(bindle.valueLocs, cp.That())
 				}
-			} else { // We have a single element so we add it to the injectable values.
+			} else { // We have a any element so we add it to the injectable values.
 				bindle.valueLocs = append(bindle.valueLocs, val)
 			}
 			sep := ""

@@ -3,7 +3,7 @@ def
 etDemo :
     "No parameters"
 
-etDemo(s single) :
+etDemo(s any) :
     "Single: " + string s
 
 etDemo(x bool) :

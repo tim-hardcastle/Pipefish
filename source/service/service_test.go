@@ -229,8 +229,8 @@ func TestOverloading(t *testing.T) {
 	tests := []TestItem{
 		{`foo 42`, `"int"`},
 		{`foo "zort"`, `"string"`},
-		{`foo 42, true`, `"single?, bool"`},
-		{`foo 42.0, true`, `"single?, bool"`},
+		{`foo 42, true`, `"any?, bool"`},
+		{`foo 42.0, true`, `"any?, bool"`},
 		{`foo true, true`, `"bool, bool"`},
 	}
 	RunTest(t, "overloading_test.pf", tests, testValues)
@@ -316,7 +316,7 @@ func TestGocode(t *testing.T) {
 	os.WriteFile(locationOfGoTimes, temp, 0644)
 }
 func TestImports(t *testing.T) {
-	tests := []TestItem{ 
+	tests := []TestItem{
 		{`qux.square 5`, `25`},
 		{`type qux.Color`, `type`},
 		{`qux.RED`, `qux.RED`},
@@ -357,7 +357,6 @@ func TestInterface(t *testing.T) {
 		{`ZORT in Foobarable`, `true`},
 		{`true in Addable`, `false`},
 		{`Fnug(5) in Foobarable`, `false`},
-
 	}
 	RunTest(t, "interface_test.pf", tests, testValues)
 }

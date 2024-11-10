@@ -287,7 +287,7 @@ func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 }
 
 // OTOH, we want the type information spread across the parsers and shared in the common parser bindle to
-// collectively be the single source of truth for our type system.
+// collectively be the any source of truth for our type system.
 // But it can't be the only *representation* of the truth, becase that would slow things down 'cos the compiler
 // would have to keep converting abstract types to alternate types to build the type schemes with.
 // The solution is to build the alternate type schemes once and for all from the alternate types, after we've
@@ -638,7 +638,7 @@ func (cp *Compiler) AddType(name, supertype string, typeNo values.ValueType) {
 		types = append(types, "struct")
 	}
 	cp.Vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
-	types = append(types, "single")
+	types = append(types, "any")
 	for _, sT := range types {
 		cp.P.Common.Types[sT] = cp.P.Common.Types[sT].Insert(typeNo)
 		cp.P.Common.Types[sT+"?"] = cp.P.Common.Types[sT+"?"].Insert(typeNo)
@@ -830,7 +830,7 @@ func (cp *Compiler) createClones() {
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
 					cp.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "without":
-					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"without", "bling"}, ast.NameTypenamePair{"y", "...single?"}}
+					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"without", "bling"}, ast.NameTypenamePair{"y", "...any?"}}
 					cp.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
 					cp.Throw("init/request/map", usingOrEof, op)
@@ -1205,7 +1205,7 @@ func (cp *Compiler) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes
 	return uint32(len(cp.Fns) - 1)
 }
 
-var nativeAbstractTypes = []string{"single", "struct", "snippet"}
+var nativeAbstractTypes = []string{"any", "struct", "snippet"}
 
 // The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
 func (cp *Compiler) addAbstractTypesToVm() {

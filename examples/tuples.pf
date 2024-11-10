@@ -21,10 +21,10 @@ rotate(d Direction, t tuple) :
 zort :
     "No parameters"
 
-zort(s single) :
+zort(s any) :
     "Single"
 
-zort(x single, y tuple) :
+zort(x any, y tuple) :
     "Single, then tuple"
 
 zort(t tuple) :

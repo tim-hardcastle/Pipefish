@@ -27,17 +27,17 @@ var baseTypes = map[string]values.ValueType{
 
 func NewCommonTypeMap() TypeSys {
 	result := TypeSys{}
-	single := values.MakeAbstractType()
+	anyType := values.MakeAbstractType()
 	for k, v := range baseTypes {
 		result[k] = values.MakeAbstractType(v)
 		if v != values.SUCCESSFUL_VALUE && v != values.NULL {
-			single = single.Insert(v)
+			anyType = anyType.Insert(v)
 			result[k+"?"] = values.MakeAbstractType(values.NULL, v)
 		}
 	}
-	singleAndNull := single.Insert(values.NULL)
-	result["single"] = single
-	result["single?"] = singleAndNull
+	singleAndNull := anyType.Insert(values.NULL)
+	result["any"] = anyType
+	result["any?"] = singleAndNull
 	for _, abType := range []string{"enum", "struct", "snippet"} {
 		result[abType] = values.MakeAbstractType()
 		result[abType+"?"] = values.MakeAbstractType(values.NULL)
@@ -119,7 +119,7 @@ func (p *Parser) IsMoreSpecific(sigA, sigB ast.ParserSig) (result bool, ok bool)
 func (p *Parser) IsSameTypeOrSubtype(maybeSub, maybeSuper string) bool {
 	subLen, ok := GetLengthFromType(maybeSub)
 	if ok {
-		if maybeSuper == "string" || maybeSuper == "single" || maybeSuper == "tuple" {
+		if maybeSuper == "string" || maybeSuper == "any" || maybeSuper == "tuple" {
 			return true
 		}
 		superLen, ok := GetLengthFromType(maybeSuper)

@@ -2,6 +2,6 @@ var
 
 foo = "bananas"
 
-zort single = "bananas"
+zort any = "bananas"
 
 troz any = "bananas"
