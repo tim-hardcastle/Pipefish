@@ -20,12 +20,10 @@ import (
 	"github.com/lmorg/readline"
 )
 
-// Just as the initializer directs the tokenizer and the parser in the construction of the parsed code
-// chunks from the tokens, so the vmMaker directs the initializer and compiler in the construction of the vmm.cp.vm.
-
-type VmMaker struct {
-	cp *Compiler
-}
+// Do not under any cicumstances remove the following comment.
+//
+//go:embed test-files/*
+var testFolder embed.FS
 
 // The base case: we start off with a blank vm and common parser bindle.
 func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service) *Service {
@@ -55,10 +53,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	return result
 }
 
-// Do not under any cicumstances remove the following comment.
-//
-//go:embed test-files/*
-var testFolder embed.FS
+
 
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
@@ -84,34 +79,32 @@ func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFil
 }
 
 func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, namespacePath string) *Compiler {
-	vmm := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
-	vmm.parseAll(scriptFilepath, sourcecode)
-	vmm.cp.ScriptFilepath = scriptFilepath
+	cp := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
+	cp.parseAll(scriptFilepath, sourcecode)
+	cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
 		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
 		if err != nil {
-			vmm.cp.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
+			cp.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil
 		}
-		vmm.cp.Timestamp = file.ModTime().UnixMilli()
+		cp.Timestamp = file.ModTime().UnixMilli()
 	}
-	vmm.cp.P.Common.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
-	return vmm.cp
+	cp.P.Common.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
+	return cp
 }
 
-func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *VmMaker {
+func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *Compiler {
 	p := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
-	vmm := &VmMaker{
-		cp: NewCompiler(p),
-	}
-	vmm.cp.ScriptFilepath = scriptFilepath
-	vmm.cp.vm = mc
-	vmm.cp.TupleType = vmm.cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
-	return vmm
+	cp := NewCompiler(p)
+	cp.ScriptFilepath = scriptFilepath
+	cp.vm = mc
+	cp.TupleType = cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
+	return cp
 }
 
-func (vmm *VmMaker) cm(s string) {
+func (cp *Compiler) cmI(s string) {
 	if settings.SHOW_VMM {
 		println(text.UNDERLINE + s + text.RESET)
 	}
@@ -119,120 +112,120 @@ func (vmm *VmMaker) cm(s string) {
 
 // This does everything up to and including parsing the code chunks, and then hands back flow of control to the
 // StartService or RunTest method.
-func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
-	vmm.cm("Starting makeall for script " + scriptFilepath + ".")
+func (cp *Compiler) parseAll(scriptFilepath, sourcecode string) {
+	cp.cmI("Starting makeall for script " + scriptFilepath + ".")
 
 	if !settings.OMIT_BUILTINS {
-		vmm.cm("Adding mandatory imports to namespace.")
-		vmm.cp.AddToNameSpace(settings.MandatoryImports)
+		cp.cmI("Adding mandatory imports to namespace.")
+		cp.AddToNameSpace(settings.MandatoryImports)
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
-		vmm.cm("Adding hub.pf to hub namespace.")
-		vmm.cp.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
+		cp.cmI("Adding hub.pf to hub namespace.")
+		cp.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
 	}
-	vmm.cm("Making new relexer.")
-	vmm.cp.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
+	cp.cmI("Making new relexer.")
+	cp.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
 
-	vmm.cm("Making parser and tokenized program.")
-	vmm.cp.MakeParserAndTokenizedProgram()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Making parser and tokenized program.")
+	cp.MakeParserAndTokenizedProgram()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Parsing import and external declarations.")
-	vmm.cp.ParseImportsAndExternals() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Parsing import and external declarations.")
+	cp.ParseImportsAndExternals() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Initializing imports.")
-	unnamespacedImports := vmm.InitializeNamespacedImportsAndReturnUnnamespacedImports()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Initializing imports.")
+	unnamespacedImports := cp.InitializeNamespacedImportsAndReturnUnnamespacedImports()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Adding unnamespaced imports to namespace.")
-	vmm.cp.AddToNameSpace(unnamespacedImports)
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Adding unnamespaced imports to namespace.")
+	cp.AddToNameSpace(unnamespacedImports)
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Initializing external services.")
-	vmm.initializeExternals()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Initializing external services.")
+	cp.initializeExternals()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating enums.")
-	vmm.createEnums()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating enums.")
+	cp.createEnums()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating clone types.")
-	vmm.createClones()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating clone types.")
+	cp.createClones()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating snippet types, part 1.")
-	vmm.cp.createSnippetsPart1()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating snippet types, part 1.")
+	cp.createSnippetsPart1()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Adding types to parser.")
-	vmm.cp.addTypesToParser()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Adding types to parser.")
+	cp.addTypesToParser()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Adding constructors to parser, parsing struct declarations.")
-	vmm.cp.addConstructorsToParserAndParseStructDeclarations()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Adding constructors to parser, parsing struct declarations.")
+	cp.addConstructorsToParserAndParseStructDeclarations()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating struct names and labels.")
-	vmm.createStructNamesAndLabels()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating struct names and labels.")
+	cp.createStructNamesAndLabels()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating abstract types.")
-	vmm.createAbstractTypes()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating abstract types.")
+	cp.createAbstractTypes()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating (but not populating) interface types.")
-	vmm.createInterfaceTypes()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating (but not populating) interface types.")
+	cp.createInterfaceTypes()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Adding fields to structs.")
-	vmm.addFieldsToStructs()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Adding fields to structs.")
+	cp.addFieldsToStructs()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Creating snippet types, part 2.")
-	vmm.createSnippetTypesPart2()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Creating snippet types, part 2.")
+	cp.createSnippetTypesPart2()
+	if cp.ErrorsExist() {
 		return
 	}
 
 	// We want to ensure that no public type (whether a struct or abstract type) contains a private type.
-	vmm.cm("Checking types for consistency of encapsulation.")
-	vmm.checkTypesForConsistency()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Checking types for consistency of encapsulation.")
+	cp.checkTypesForConsistency()
+	if cp.ErrorsExist() {
 		return
 	}
 
-	vmm.cm("Parsing everything.")
-	vmm.cp.ParseEverything()
-	if vmm.cp.ErrorsExist() {
+	cp.cmI("Parsing everything.")
+	cp.ParseEverything()
+	if cp.ErrorsExist() {
 		return
 	}
 	// We hand back flow of control to StartService or RunTest.
@@ -269,28 +262,28 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 	}
 }
 
-func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
+func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
-	for i, imp := range vmm.cp.P.ParsedDeclarations[importDeclaration] {
+	for i, imp := range cp.P.ParsedDeclarations[importDeclaration] {
 		namespace := ""
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
 		case *ast.GolangExpression:
-			vmm.cp.P.GoImports[imp.Token.Source] = append(vmm.cp.P.GoImports[imp.Token.Source], imp.Token.Literal)
+			cp.P.GoImports[imp.Token.Source] = append(cp.P.GoImports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
-			namespace, scriptFilepath = vmm.cp.getPartsOfImportOrExternalDeclaration(imp)
+			namespace, scriptFilepath = cp.getPartsOfImportOrExternalDeclaration(imp)
 		}
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp := initializeFromFilepath(vmm.cp.vm, vmm.cp.P.Common, scriptFilepath, vmm.cp.P.Directory, namespace+"."+vmm.cp.P.NamespacePath)
-		vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, newCp.ErrorsExist(), false}
+		newCp := initializeFromFilepath(cp.vm, cp.P.Common, scriptFilepath, cp.P.Directory, namespace+"."+cp.P.NamespacePath)
+		cp.Services[namespace] = &Service{cp.vm, newCp, newCp.ErrorsExist(), false}
 			for k, v := range newCp.declarationMap {
-				vmm.cp.declarationMap[k] = v
+				cp.declarationMap[k] = v
 			}
-			vmm.cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
-			newCp.P.Private = vmm.cp.P.IsPrivate(int(importDeclaration), i)
+			cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
+			newCp.P.Private = cp.P.IsPrivate(int(importDeclaration), i)
 	}
 	return unnamespacedImports
 }
@@ -391,7 +384,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
-				cp.cm("Adding "+functionName+" to common functions.", tok)
+				cp.cmI("Adding "+functionName+" to common functions.")
 				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
 			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, functionToAdd)
@@ -560,29 +553,29 @@ func (cp *Compiler) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, 
 // Either way, we then need to extract a stub of the external service's public functions, types, etc.
 //
 // Details of the external services are kept in the vm, because it will have to make the external calls.
-func (vmm *VmMaker) initializeExternals() {
-	for _, declaration := range vmm.cp.P.ParsedDeclarations[externalDeclaration] {
-		name, path := vmm.cp.getPartsOfImportOrExternalDeclaration(declaration)
+func (cp *Compiler) initializeExternals() {
+	for _, declaration := range cp.P.ParsedDeclarations[externalDeclaration] {
+		name, path := cp.getPartsOfImportOrExternalDeclaration(declaration)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
-			service, ok := vmm.cp.vm.HubServices[name]
+			service, ok := cp.vm.HubServices[name]
 			if !ok {
-				vmm.cp.Throw("init/external/exist/a", *declaration.GetToken())
+				cp.Throw("init/external/exist/a", *declaration.GetToken())
 				continue
 			}
-			vmm.addExternalOnSameHub(service.Cp.ScriptFilepath, name)
+			cp.addExternalOnSameHub(service.Cp.ScriptFilepath, name)
 			continue
 		}
 		if len(path) >= 5 && path[0:5] == "http:" {
 			pos := strings.LastIndex(path, "/")
 			if pos == -1 {
-				vmm.cp.Throw("init/external/path/a", *declaration.GetToken())
+				cp.Throw("init/external/path/a", *declaration.GetToken())
 				continue
 			}
 			hostpath := path[0:pos]
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
 			if pos == -1 {
-				vmm.cp.Throw("init/external/path/b", *declaration.GetToken())
+				cp.Throw("init/external/path/b", *declaration.GetToken())
 				continue
 			}
 			hostname := hostpath[pos+1:]
@@ -594,84 +587,84 @@ func (vmm *VmMaker) initializeExternals() {
 			rline.SetPrompt("Password: ")
 			rline.PasswordMask = '▪'
 			password, _ := rline.Readline()
-			vmm.addHttpService(hostpath, serviceName, username, password)
+			cp.addHttpService(hostpath, serviceName, username, password)
 			continue
 		}
 
 		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
-		hubService, ok := vmm.cp.vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
+		hubService, ok := cp.vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubService.Cp.ScriptFilepath != path {
-				vmm.cp.Throw("init/external/exist/b", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
+				cp.Throw("init/external/exist/b", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
 			} else {
-				vmm.addExternalOnSameHub(path, name)
+				cp.addExternalOnSameHub(path, name)
 			}
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService := StartService(path, vmm.cp.P.Directory, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
-		vmm.cp.vm.HubServices[name] = newService
-		vmm.addExternalOnSameHub(path, name)
+		newService := StartService(path, cp.P.Directory, cp.vm.Database, cp.vm.HubServices)
+		cp.vm.HubServices[name] = newService
+		cp.addExternalOnSameHub(path, name)
 	}
 }
 
-func (vmm *VmMaker) addExternalOnSameHub(path, name string) {
-	hubService := vmm.cp.vm.HubServices[name]
+func (cp *Compiler) addExternalOnSameHub(path, name string) {
+	hubService := cp.vm.HubServices[name]
 	serviceToAdd := externalCallToHubHandler{hubService}
-	vmm.addAnyExternalService(serviceToAdd, path, name)
+	cp.addAnyExternalService(serviceToAdd, path, name)
 }
 
-func (vmm *VmMaker) addHttpService(path, name, username, password string) {
+func (cp *Compiler) addHttpService(path, name, username, password string) {
 	serviceToAdd := externalHttpCallHandler{path, name, username, password}
-	vmm.addAnyExternalService(serviceToAdd, path, name)
+	cp.addAnyExternalService(serviceToAdd, path, name)
 }
 
-func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler, path, name string) {
-	externalServiceOrdinal := uint32(len(vmm.cp.vm.ExternalCallHandlers))
-	vmm.cp.CallHandlerNumbersByName[name] = externalServiceOrdinal
-	vmm.cp.vm.ExternalCallHandlers = append(vmm.cp.vm.ExternalCallHandlers, handlerForService)
+func (cp *Compiler) addAnyExternalService(handlerForService externalCallHandler, path, name string) {
+	externalServiceOrdinal := uint32(len(cp.vm.ExternalCallHandlers))
+	cp.CallHandlerNumbersByName[name] = externalServiceOrdinal
+	cp.vm.ExternalCallHandlers = append(cp.vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp := initializeFromSourcecode(vmm.cp.vm, vmm.cp.P.Common, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.cp.P.NamespacePath)
-	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
-	newCp.P.Private = vmm.cp.P.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
-	vmm.cp.Services[name] = &Service{vmm.cp.vm, newCp, newCp.P.ErrorsExist(), false}
+	newCp := initializeFromSourcecode(cp.vm, cp.P.Common, path, sourcecode, cp.P.Directory, name+"."+cp.P.NamespacePath)
+	cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
+	newCp.P.Private = cp.P.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
+	cp.Services[name] = &Service{cp.vm, newCp, newCp.P.ErrorsExist(), false}
 }
 
-func (vmm *VmMaker) AddType(name, supertype string, typeNo values.ValueType) {
-	vmm.cp.P.LocalConcreteTypes = vmm.cp.P.LocalConcreteTypes.Add(typeNo)
-	vmm.cp.P.TypeMap[name] = values.MakeAbstractType(typeNo)
-	vmm.cp.P.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
+func (cp *Compiler) AddType(name, supertype string, typeNo values.ValueType) {
+	cp.P.LocalConcreteTypes = cp.P.LocalConcreteTypes.Add(typeNo)
+	cp.P.TypeMap[name] = values.MakeAbstractType(typeNo)
+	cp.P.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
 	types := []string{supertype}
 	if supertype == "snippet" {
 		types = append(types, "struct")
 	}
-	vmm.cp.vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
+	cp.vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "single")
 	for _, sT := range types {
-		vmm.cp.P.Common.Types[sT] = vmm.cp.P.Common.Types[sT].Insert(typeNo)
-		vmm.cp.P.Common.Types[sT+"?"] = vmm.cp.P.Common.Types[sT+"?"].Insert(typeNo)
+		cp.P.Common.Types[sT] = cp.P.Common.Types[sT].Insert(typeNo)
+		cp.P.Common.Types[sT+"?"] = cp.P.Common.Types[sT+"?"].Insert(typeNo)
 	}
 }
 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
-func (vmm *VmMaker) createEnums() {
-	for i, tokens := range vmm.cp.P.TokenizedDeclarations[enumDeclaration] {
+func (cp *Compiler) createEnums() {
+	for i, tokens := range cp.P.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		var typeNo values.ValueType
-		info, typeExists := vmm.cp.getDeclaration(decENUM, &tok1, DUMMY)
+		info, typeExists := cp.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(enumType)
-			typeInfo.path = vmm.cp.P.NamespacePath
-			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
+			typeInfo := cp.vm.concreteTypes[typeNo].(enumType)
+			typeInfo.path = cp.P.NamespacePath
+			cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
-			vmm.cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
+			typeNo = values.ValueType(len(cp.vm.concreteTypes))
+			cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
-		vmm.AddType(tok1.Literal, "enum", typeNo)
+		cp.AddType(tok1.Literal, "enum", typeNo)
 		if typeExists {
 			continue
 		}
@@ -681,28 +674,28 @@ func (vmm *VmMaker) createEnums() {
 		elementNameList := []string{}
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
-				vmm.cp.Throw("init/enum/ident", tok)
+				cp.Throw("init/enum/ident", tok)
 			}
-			_, alreadyExists := vmm.cp.EnumElements[tok.Literal]
+			_, alreadyExists := cp.EnumElements[tok.Literal]
 			if alreadyExists { // Enums in the same namespace can't have overlapping elements or we wouldn't know their type.
-				vmm.cp.Throw("init/enum/element", tok)
+				cp.Throw("init/enum/element", tok)
 			}
 
-			vmm.cp.EnumElements[tok.Literal] = vmm.cp.Reserve(typeNo, len(elementNameList), &tok)
+			cp.EnumElements[tok.Literal] = cp.Reserve(typeNo, len(elementNameList), &tok)
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
-				vmm.cp.Throw("init/enum/comma", tok)
+				cp.Throw("init/enum/comma", tok)
 			}
 			tok = tokens.NextToken()
 		}
-		vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, enumType{name: tok1.Literal, path: vmm.cp.P.NamespacePath, elementNames: elementNameList, private: vmm.cp.P.IsPrivate(int(enumDeclaration), i)})
+		cp.vm.concreteTypes = append(cp.vm.concreteTypes, enumType{name: tok1.Literal, path: cp.P.NamespacePath, elementNames: elementNameList, private: cp.P.IsPrivate(int(enumDeclaration), i)})
 	}
 }
 
-func (vmm *VmMaker) createClones() {
-	for i, tokens := range vmm.cp.P.TokenizedDeclarations[cloneDeclaration] {
-		private := vmm.cp.P.IsPrivate(int(cloneDeclaration), i)
+func (cp *Compiler) createClones() {
+	for i, tokens := range cp.P.TokenizedDeclarations[cloneDeclaration] {
+		private := cp.P.IsPrivate(int(cloneDeclaration), i)
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		name := tok1.Literal
@@ -712,41 +705,41 @@ func (vmm *VmMaker) createClones() {
 		typeToClone := typeToken.Literal
 		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 		if !ok {
-			vmm.cp.Throw("init/clone/type", typeToken)
+			cp.Throw("init/clone/type", typeToken)
 			return
 		}
 		abType := typeToClone + "like"
 		var typeNo values.ValueType
-		info, typeExists := vmm.cp.getDeclaration(decCLONE, &tok1, DUMMY)
+		info, typeExists := cp.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
-			typeInfo.path = vmm.cp.P.NamespacePath
-			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
+			typeInfo := cp.vm.concreteTypes[typeNo].(cloneType)
+			typeInfo.path = cp.P.NamespacePath
+			cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(vmm.cp.vm.concreteTypes))
-			vmm.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, cloneType{name: name, path: vmm.cp.P.NamespacePath, parent: parentTypeNo, private: vmm.cp.P.IsPrivate(int(cloneDeclaration), i)})
+			typeNo = values.ValueType(len(cp.vm.concreteTypes))
+			cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
+			cp.vm.concreteTypes = append(cp.vm.concreteTypes, cloneType{name: name, path: cp.P.NamespacePath, parent: parentTypeNo, private: cp.P.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
-				vmm.cp.vm.IsRangeable = vmm.cp.vm.IsRangeable.Union(altType(typeNo))
+				cp.vm.IsRangeable = cp.vm.IsRangeable.Union(altType(typeNo))
 			}
 		}
 		// We make the conversion fuction.
-		vmm.AddType(name, abType, typeNo)
-		vmm.cp.CloneNameToTypeNumber[name] = typeNo
-		vmm.cp.P.AllFunctionIdents.Add(name)
-		vmm.cp.P.Functions.Add(name)
+		cp.AddType(name, abType, typeNo)
+		cp.CloneNameToTypeNumber[name] = typeNo
+		cp.P.AllFunctionIdents.Add(name)
+		cp.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypenamePair{"x", typeToClone}}
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RtnSig: vmm.cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: vmm.cp, Tok: &tok1}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
-		vmm.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
+		fn := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, NameRets: sig, RtnSig: cp.P.Abstract(sig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: cp, Tok: &tok1}
+		cp.P.FunctionTable.Add(cp.P, name, fn)
+		cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
 		// We get the requested builtins.
 		var opList []string
 		usingOrEof := tokens.NextToken()
 		if usingOrEof.Type != token.EOF {
 			if usingOrEof.Literal != "using" {
-				vmm.cp.Throw("init/clone/using", usingOrEof)
+				cp.Throw("init/clone/using", usingOrEof)
 				return
 			}
 			for {
@@ -757,12 +750,12 @@ func (vmm *VmMaker) createClones() {
 					break
 				}
 				if sep.Type != token.COMMA {
-					vmm.cp.Throw("init/clone/comma", usingOrEof)
+					cp.Throw("init/clone/comma", usingOrEof)
 					break
 				}
 			}
 		}
-		if vmm.cp.P.ErrorsExist() {
+		if cp.P.ErrorsExist() {
 			return
 		}
 		// And add them to the common functions.
@@ -773,98 +766,98 @@ func (vmm *VmMaker) createClones() {
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "-":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 					sig = ast.AstSig{ast.NameTypenamePair{"x", name}}
-					vmm.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, PREFIX, &tok1)
+					cp.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, PREFIX, &tok1)
 				case "*":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "/":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
-					vmm.cp.Throw("init/request/float", usingOrEof, op)
+					cp.Throw("init/request/float", usingOrEof, op)
 				}
 			case values.INT:
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "-":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 					sig = ast.AstSig{ast.NameTypenamePair{"x", name}}
-					vmm.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, PREFIX, &tok1)
+					cp.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, PREFIX, &tok1)
 				case "*":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "/":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "%":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"%", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
-					vmm.cp.P.Throw("init/request/int", &usingOrEof, op)
+					cp.P.Throw("init/request/int", &usingOrEof, op)
 				}
 			case values.LIST:
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "with":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
-					vmm.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "?>":
-					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isFilterable = true
-					vmm.cp.vm.concreteTypes[typeNo] = cloneData
+					cp.vm.concreteTypes[typeNo] = cloneData
 				case ">>":
-					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isMappable = true
-					vmm.cp.vm.concreteTypes[typeNo] = cloneData
+					cp.vm.concreteTypes[typeNo] = cloneData
 				case "slice":
-					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isSliceable = true
-					vmm.cp.vm.concreteTypes[typeNo] = cloneData
+					cp.vm.concreteTypes[typeNo] = cloneData
 				default:
-					vmm.cp.Throw("init/request/list", usingOrEof, op)
+					cp.Throw("init/request/list", usingOrEof, op)
 				}
 			case values.MAP:
 				switch op {
 				case "with":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
-					vmm.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "without":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"without", "bling"}, ast.NameTypenamePair{"y", "...single?"}}
-					vmm.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
-					vmm.cp.Throw("init/request/map", usingOrEof, op)
+					cp.Throw("init/request/map", usingOrEof, op)
 				}
 			case values.PAIR:
-				vmm.cp.Throw("init/request/pair", usingOrEof, op)
+				cp.Throw("init/request/pair", usingOrEof, op)
 			case values.SET:
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				default:
-					vmm.cp.Throw("init/request/set", usingOrEof, op)
+					cp.Throw("init/request/set", usingOrEof, op)
 				}
 			case values.STRING:
 				switch op {
 				case "+":
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					vmm.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					cp.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "slice":
-					cloneData := vmm.cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isSliceable = true
-					vmm.cp.vm.concreteTypes[typeNo] = cloneData
+					cp.vm.concreteTypes[typeNo] = cloneData
 				default:
-					vmm.cp.Throw("init/request/string", usingOrEof, op)
+					cp.Throw("init/request/string", usingOrEof, op)
 				}
 			}
 		}
@@ -872,145 +865,145 @@ func (vmm *VmMaker) createClones() {
 	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry in the map if they're uncloneable).
 	for typename := range parser.ClonableTypes {
 		abType := typename + "like"
-		cloneGroup := vmm.cp.vm.sharedTypenameToTypeList[abType]
+		cloneGroup := cp.vm.sharedTypenameToTypeList[abType]
 		for _, cloneTypeNo := range cloneGroup {
-			vmm.cp.typeToCloneGroup[values.ValueType(cloneTypeNo.(simpleType))] = cloneGroup
+			cp.typeToCloneGroup[values.ValueType(cloneTypeNo.(simpleType))] = cloneGroup
 		}
 	}
 }
 
-func (vmm *VmMaker) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.AstSig, isPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: vmm.cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: vmm.cp, Number: vmm.cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
-	vmm.cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
+func (cp *Compiler) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.AstSig, isPrivate bool, pos uint32, tok *token.Token) {
+	fn := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: cp.P.Abstract(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: cp, Number: cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
+	cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
 	}
-	conflictingFunction := vmm.cp.P.FunctionTable.Add(vmm.cp.P, fnName, fn)
+	conflictingFunction := cp.P.FunctionTable.Add(cp.P, fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
-		vmm.cp.P.Throw("init/overload/b", tok, fnName, fn.Sig, conflictingFunction)
+		cp.P.Throw("init/overload/b", tok, fnName, fn.Sig, conflictingFunction)
 	}
 }
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
-func (vmm *VmMaker) createStructNamesAndLabels() {
-	vmm.cp.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
-	for i, node := range vmm.cp.P.ParsedDeclarations[structDeclaration] {
+func (cp *Compiler) createStructNamesAndLabels() {
+	cp.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
+	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
-		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		typeInfo, typeExists := vmm.cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
+		typeNo := values.ValueType(len(cp.vm.concreteTypes))
+		typeInfo, typeExists := cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
-			typeInfo.path = vmm.cp.P.NamespacePath
-			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
+			typeInfo := cp.vm.concreteTypes[typeNo].(structType)
+			typeInfo.path = cp.P.NamespacePath
+			cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			vmm.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, vmm.cp.P.IsPrivate(int(structDeclaration), i)})
+			cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(structDeclaration), i)})
 		}
-		vmm.AddType(name, "struct", typeNo)
-		vmm.cp.StructNameToTypeNumber[name] = typeNo
+		cp.AddType(name, "struct", typeNo)
+		cp.StructNameToTypeNumber[name] = typeNo
 		if name == "Error" {
-			vmm.cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
+			cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
 		}
 		// The parser needs to know about it too.
-		vmm.cp.P.Functions.Add(name)
-		vmm.cp.P.AllFunctionIdents.Add(name)
+		cp.P.Functions.Add(name)
+		cp.P.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: vmm.cp, Tok: node.GetToken()}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn) // TODO --- give them their own ast type?
-		vmm.cp.fnIndex[fnSource{structDeclaration, i}] = fn
+		fn := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: cp, Tok: node.GetToken()}
+		cp.P.FunctionTable.Add(cp.P, name, fn) // TODO --- give them their own ast type?
+		cp.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
-			vmm.cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
-		} else { // Else we need to add the labels to the vm and vmm.
+			cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
+		} else { // Else we need to add the labels to the vm and cp.
 			labelsForStruct := make([]int, 0, len(sig))
 			for j, labelNameAndType := range sig {
 				labelName := labelNameAndType.VarName
-				labelLocation, alreadyExists := vmm.cp.vm.FieldLabelsInMem[labelName]
+				labelLocation, alreadyExists := cp.vm.FieldLabelsInMem[labelName]
 				if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-					labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
-					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
+					labelsForStruct = append(labelsForStruct, cp.vm.Mem[labelLocation].V.(int))
+					cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
 				} else {
-					vmm.cp.vm.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), node.GetToken())
-					vmm.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{vmm.cp.That(), true})
-					labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
-					vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
-					vmm.cp.vm.LabelIsPrivate = append(vmm.cp.vm.LabelIsPrivate, true)
+					cp.vm.FieldLabelsInMem[labelName] = cp.Reserve(values.LABEL, len(cp.vm.Labels), node.GetToken())
+					cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{cp.That(), true})
+					labelsForStruct = append(labelsForStruct, len(cp.vm.Labels))
+					cp.vm.Labels = append(cp.vm.Labels, labelName)
+					cp.vm.LabelIsPrivate = append(cp.vm.LabelIsPrivate, true)
 				}
 			}
-			vmm.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(vmm.cp.vm.concreteTypes))
-			stT := structType{name: name, path: vmm.cp.P.NamespacePath, labelNumbers: labelsForStruct, private: vmm.cp.P.IsPrivate(int(structDeclaration), i)}
+			cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(cp.vm.concreteTypes))
+			stT := structType{name: name, path: cp.P.NamespacePath, labelNumbers: labelsForStruct, private: cp.P.IsPrivate(int(structDeclaration), i)}
 			stT = stT.addLabels(labelsForStruct)
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, stT)
+			cp.vm.concreteTypes = append(cp.vm.concreteTypes, stT)
 		}
 	}
 
-	for i := range vmm.cp.P.ParsedDeclarations[structDeclaration] {
-		if vmm.cp.P.IsPrivate(int(structDeclaration), i) {
+	for i := range cp.P.ParsedDeclarations[structDeclaration] {
+		if cp.P.IsPrivate(int(structDeclaration), i) {
 			continue
 		}
-		tok := vmm.cp.P.ParsedDeclarations[structDeclaration][i].GetToken()
-		sI, _ := vmm.cp.getDeclaration(decSTRUCT, tok, DUMMY)
-		sT := vmm.cp.vm.concreteTypes[sI.(structInfo).structNumber]
+		tok := cp.P.ParsedDeclarations[structDeclaration][i].GetToken()
+		sI, _ := cp.getDeclaration(decSTRUCT, tok, DUMMY)
+		sT := cp.vm.concreteTypes[sI.(structInfo).structNumber]
 		for i := range sT.(structType).labelNumbers {
-			dec, _ := vmm.cp.getDeclaration(decLABEL, tok, i)
+			dec, _ := cp.getDeclaration(decLABEL, tok, i)
 			decLabel := dec.(labelInfo)
 			decLabel.private = false
-			vmm.cp.setDeclaration(decLABEL, tok, i, decLabel)
-			vmm.cp.vm.LabelIsPrivate[vmm.cp.vm.Mem[decLabel.loc].V.(int)] = false
+			cp.setDeclaration(decLABEL, tok, i, decLabel)
+			cp.vm.LabelIsPrivate[cp.vm.Mem[decLabel.loc].V.(int)] = false
 		}
 	}
 }
 
-func (vmm *VmMaker) createAbstractTypes() {
-	for _, tcc := range vmm.cp.P.TokenizedDeclarations[abstractDeclaration] {
+func (cp *Compiler) createAbstractTypes() {
+	for _, tcc := range cp.P.TokenizedDeclarations[abstractDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		newTypename := nameTok.Literal
 		tcc.NextToken() // The equals sign.
 		tcc.NextToken() // The 'abstract' identifier.
-		vmm.cp.P.TypeMap[newTypename] = values.MakeAbstractType()
+		cp.P.TypeMap[newTypename] = values.MakeAbstractType()
 		for {
 			typeTok := tcc.NextToken()
 			divTok := tcc.NextToken()
 			if typeTok.Type != token.IDENT {
-				vmm.cp.Throw("init/type/form/b", typeTok)
+				cp.Throw("init/type/form/b", typeTok)
 				break
 			}
 			if divTok.Type != token.EOF && !(divTok.Type == token.IDENT && divTok.Literal == "/") {
-				vmm.cp.Throw("init/type/form/c", typeTok)
+				cp.Throw("init/type/form/c", typeTok)
 				break
 			}
 			tname := typeTok.Literal
-			abTypeToAdd, ok := vmm.cp.P.TypeMap[tname]
+			abTypeToAdd, ok := cp.P.TypeMap[tname]
 			if !ok {
-				vmm.cp.Throw("init/type/known", typeTok)
+				cp.Throw("init/type/known", typeTok)
 				break
 			}
-			vmm.cp.P.TypeMap[newTypename] = vmm.cp.P.TypeMap[newTypename].Union(abTypeToAdd)
+			cp.P.TypeMap[newTypename] = cp.P.TypeMap[newTypename].Union(abTypeToAdd)
 			if divTok.Type == token.EOF {
 				break
 			}
 		}
-		vmm.cp.P.TypeMap[newTypename+"?"] = vmm.cp.P.TypeMap[newTypename].Insert(values.NULL)
-		_, typeExists := vmm.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
+		cp.P.TypeMap[newTypename+"?"] = cp.P.TypeMap[newTypename].Insert(values.NULL)
+		_, typeExists := cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
-			vmm.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
+			cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
-		vmm.cp.P.Suffixes.Add(newTypename)
-		vmm.cp.P.Suffixes.Add(newTypename + "?")
+		cp.P.Suffixes.Add(newTypename)
+		cp.P.Suffixes.Add(newTypename + "?")
 	}
 }
 
-func (vmm *VmMaker) createInterfaceTypes() {
-	for _, tcc := range vmm.cp.P.TokenizedDeclarations[interfaceDeclaration] {
+func (cp *Compiler) createInterfaceTypes() {
+	for _, tcc := range cp.P.TokenizedDeclarations[interfaceDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		newTypename := nameTok.Literal
 		tcc.NextToken() // The equals sign. We know this must be the case from the MakeParserAndTokenizedProgram method putting it here.
 		tcc.NextToken() // The 'interface' identifier. Ditto.
 		if shouldBeColon := tcc.NextToken(); shouldBeColon.Type != token.COLON {
-			vmm.cp.P.Throw("init/interface/colon", &shouldBeColon)
+			cp.P.Throw("init/interface/colon", &shouldBeColon)
 			continue
 		}
 		// Now we get the signatures in the interface as a list of tokenized code chunks.
@@ -1038,9 +1031,9 @@ func (vmm *VmMaker) createInterfaceTypes() {
 		}
 		typeInfo := []fnSigInfo{}
 		for _, sig := range tokenizedSigs {
-			vmm.cp.P.TokenizedCode = sig
+			cp.P.TokenizedCode = sig
 			lhs := sig
-			astOfSig := vmm.cp.P.ParseTokenizedChunk()
+			astOfSig := cp.P.ParseTokenizedChunk()
 			var astSig, retSig ast.AstSig
 			var functionName string
 			if astOfSig.GetToken().Type == token.PIPE {
@@ -1053,124 +1046,124 @@ func (vmm *VmMaker) createInterfaceTypes() {
 					}
 					lhs.Append(tok)
 				}
-				functionName, _, astSig = vmm.cp.P.GetPartsOfSig(astOfSig.(*ast.PipingExpression).Left)
-				retSig = vmm.cp.P.RecursivelySlurpReturnTypes(astOfSig.(*ast.PipingExpression).Right)
+				functionName, _, astSig = cp.P.GetPartsOfSig(astOfSig.(*ast.PipingExpression).Left)
+				retSig = cp.P.RecursivelySlurpReturnTypes(astOfSig.(*ast.PipingExpression).Right)
 			} else {
-				functionName, _, astSig = vmm.cp.P.GetPartsOfSig(astOfSig)
+				functionName, _, astSig = cp.P.GetPartsOfSig(astOfSig)
 			}
 			typeInfo = append(typeInfo, fnSigInfo{functionName, astSig, retSig})
-			vmm.cp.addWordsToParser(lhs)
+			cp.addWordsToParser(lhs)
 		}
-		vmm.cp.P.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
-		vmm.cp.P.TypeMap[newTypename+"?"] = values.MakeAbstractType(values.NULL)
-		_, typeExists := vmm.cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+		cp.P.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
+		cp.P.TypeMap[newTypename+"?"] = values.MakeAbstractType(values.NULL)
+		_, typeExists := cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		if !typeExists {
-			vmm.cp.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
+			cp.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
 		}
-		vmm.cp.P.Suffixes.Add(newTypename)
-		vmm.cp.P.Suffixes.Add(newTypename + "?")
+		cp.P.Suffixes.Add(newTypename)
+		cp.P.Suffixes.Add(newTypename + "?")
 	}
 }
 
-func (vmm *VmMaker) addFieldsToStructs() {
-	for i, node := range vmm.cp.P.ParsedDeclarations[structDeclaration] {
-		structNumber := vmm.cp.structDeclarationNumberToTypeNumber[i]
-		structInfo := vmm.cp.vm.concreteTypes[structNumber].(structType)
+func (cp *Compiler) addFieldsToStructs() {
+	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
+		structNumber := cp.structDeclarationNumberToTypeNumber[i]
+		structInfo := cp.vm.concreteTypes[structNumber].(structType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typesForStruct := make([]AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
 			typeName := labelNameAndType.VarType
-			abType := vmm.cp.P.GetAbstractType(typeName)
+			abType := cp.P.GetAbstractType(typeName)
 			typesForStructForVm = append(typesForStructForVm, abType)
 			typesForStruct = append(typesForStruct, AbstractTypeToAlternateType(abType))
 		}
 		structInfo.alternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
 		structInfo.abstractStructFields = typesForStructForVm
-		vmm.cp.vm.concreteTypes[structNumber] = structInfo
+		cp.vm.concreteTypes[structNumber] = structInfo
 	}
 }
 
-func (vmm *VmMaker) createSnippetTypesPart2() {
+func (cp *Compiler) createSnippetTypesPart2() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
-	for i, name := range vmm.cp.P.Snippets {
+	for i, name := range cp.P.Snippets {
 		sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-		typeNo := values.ValueType(len(vmm.cp.vm.concreteTypes))
-		vmm.cp.P.TokenizedDeclarations[snippetDeclaration][i].ToStart()
-		decTok := vmm.cp.P.TokenizedDeclarations[snippetDeclaration][i].NextToken()
-		typeInfo, typeExists := vmm.cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
+		typeNo := values.ValueType(len(cp.vm.concreteTypes))
+		cp.P.TokenizedDeclarations[snippetDeclaration][i].ToStart()
+		decTok := cp.P.TokenizedDeclarations[snippetDeclaration][i].NextToken()
+		typeInfo, typeExists := cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
-			typeInfo.path = vmm.cp.P.NamespacePath
-			vmm.cp.vm.concreteTypes[typeNo] = typeInfo
+			typeInfo := cp.vm.concreteTypes[typeNo].(structType)
+			typeInfo.path = cp.P.NamespacePath
+			cp.vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			vmm.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, vmm.cp.P.IsPrivate(int(snippetDeclaration), i)})
-			vmm.cp.vm.concreteTypes = append(vmm.cp.vm.concreteTypes, structType{name: name, path: vmm.cp.P.NamespacePath, snippet: true, private: vmm.cp.P.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
-			vmm.addStructLabelsToVm(name, typeNo, sig, &decTok)
-			vmm.cp.vm.codeGeneratingTypes.Add(typeNo)
+			cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(snippetDeclaration), i)})
+			cp.vm.concreteTypes = append(cp.vm.concreteTypes, structType{name: name, path: cp.P.NamespacePath, snippet: true, private: cp.P.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			cp.addStructLabelsToVm(name, typeNo, sig, &decTok)
+			cp.vm.codeGeneratingTypes.Add(typeNo)
 		}
-		vmm.AddType(name, "snippet", typeNo)
-		vmm.cp.StructNameToTypeNumber[name] = typeNo
+		cp.AddType(name, "snippet", typeNo)
+		cp.StructNameToTypeNumber[name] = typeNo
 
 		// The parser needs to know about it too.
-		vmm.cp.P.Functions.Add(name)
-		fn := &ast.PrsrFunction{Sig: vmm.cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
-		vmm.cp.P.FunctionTable.Add(vmm.cp.P, name, fn)
-		vmm.cp.fnIndex[fnSource{snippetDeclaration, i}] = fn
+		cp.P.Functions.Add(name)
+		fn := &ast.PrsrFunction{Sig: cp.P.Abstract(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
+		cp.P.FunctionTable.Add(cp.P, name, fn)
+		cp.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}
 }
 
-func (vmm *VmMaker) checkTypesForConsistency() {
-	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(vmm.cp.vm.concreteTypes); typeNumber++ {
-		if !vmm.cp.vm.concreteTypes[typeNumber].isStruct() {
+func (cp *Compiler) checkTypesForConsistency() {
+	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(cp.vm.concreteTypes); typeNumber++ {
+		if !cp.vm.concreteTypes[typeNumber].isStruct() {
 			continue
 		}
-		if !vmm.cp.vm.concreteTypes[typeNumber].isPrivate() {
-			for _, ty := range vmm.cp.vm.concreteTypes[typeNumber].(structType).abstractStructFields {
-				if vmm.cp.vm.isPrivate(ty) {
-					vmm.cp.Throw("init/private/struct", token.Token{}, vmm.cp.vm.concreteTypes[typeNumber], vmm.cp.vm.DescribeAbstractType(ty, LITERAL))
+		if !cp.vm.concreteTypes[typeNumber].isPrivate() {
+			for _, ty := range cp.vm.concreteTypes[typeNumber].(structType).abstractStructFields {
+				if cp.vm.isPrivate(ty) {
+					cp.Throw("init/private/struct", token.Token{}, cp.vm.concreteTypes[typeNumber], cp.vm.DescribeAbstractType(ty, LITERAL))
 				}
 			}
 		}
 	}
 
-	for i, dec := range vmm.cp.P.TokenizedDeclarations[abstractDeclaration] {
-		if vmm.cp.P.IsPrivate(int(abstractDeclaration), i) {
+	for i, dec := range cp.P.TokenizedDeclarations[abstractDeclaration] {
+		if cp.P.IsPrivate(int(abstractDeclaration), i) {
 			continue
 		}
 		dec.ToStart()
 		tok := dec.NextToken()
 		name := tok.Literal
-		abType := vmm.cp.P.GetAbstractType(name)
+		abType := cp.P.GetAbstractType(name)
 		for _, w := range abType.Types {
-			if vmm.cp.vm.concreteTypes[w].isPrivate() {
-				vmm.cp.Throw("init/private/abstract", tok, name)
+			if cp.vm.concreteTypes[w].isPrivate() {
+				cp.Throw("init/private/abstract", tok, name)
 			}
 		}
 
 	}
 }
 
-func (vmm *VmMaker) addStructLabelsToVm(name string, typeNo values.ValueType, sig ast.AstSig, tok *token.Token) { // TODO --- seems like we're only using this for snippets and not regular structs?
+func (cp *Compiler) addStructLabelsToVm(name string, typeNo values.ValueType, sig ast.AstSig, tok *token.Token) { // TODO --- seems like we're only using this for snippets and not regular structs?
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
-		labelLocation, alreadyExists := vmm.cp.vm.FieldLabelsInMem[labelName]
+		labelLocation, alreadyExists := cp.vm.FieldLabelsInMem[labelName]
 		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-			labelsForStruct = append(labelsForStruct, vmm.cp.vm.Mem[labelLocation].V.(int))
+			labelsForStruct = append(labelsForStruct, cp.vm.Mem[labelLocation].V.(int))
 		} else {
-			vmm.cp.vm.FieldLabelsInMem[labelName] = vmm.cp.Reserve(values.LABEL, len(vmm.cp.vm.Labels), tok)
-			labelsForStruct = append(labelsForStruct, len(vmm.cp.vm.Labels))
-			vmm.cp.vm.Labels = append(vmm.cp.vm.Labels, labelName)
-			vmm.cp.vm.LabelIsPrivate = append(vmm.cp.vm.LabelIsPrivate, true)
+			cp.vm.FieldLabelsInMem[labelName] = cp.Reserve(values.LABEL, len(cp.vm.Labels), tok)
+			labelsForStruct = append(labelsForStruct, len(cp.vm.Labels))
+			cp.vm.Labels = append(cp.vm.Labels, labelName)
+			cp.vm.LabelIsPrivate = append(cp.vm.LabelIsPrivate, true)
 		}
 	}
-	typeInfo := vmm.cp.vm.concreteTypes[typeNo].(structType)
+	typeInfo := cp.vm.concreteTypes[typeNo].(structType)
 	typeInfo.labelNumbers = labelsForStruct
 	typeInfo = typeInfo.addLabels(labelsForStruct)
-	vmm.cp.vm.concreteTypes[typeNo] = typeInfo
+	cp.vm.concreteTypes[typeNo] = typeInfo
 }
 
 func (cp *Compiler) compileConstructors() {
