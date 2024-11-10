@@ -142,6 +142,7 @@ type CommonParserBindle struct {
 	Functions           map[FuncSource]*ast.PrsrFunction
 	InterfaceBacktracks []BkInterface
 	Errors              []*report.Error
+	Sources             map[string][]string
 }
 
 func NewCommonBindle() *CommonParserBindle {
@@ -149,6 +150,7 @@ func NewCommonBindle() *CommonParserBindle {
 		Functions:           make(map[FuncSource]*ast.PrsrFunction),
 		InterfaceBacktracks: []BkInterface{},
 		Errors: []*report.Error{},
+		Sources: make(map[string][]string),
 	}
 	return &result
 }

@@ -82,16 +82,15 @@ type fnSource struct {
 type Initializer struct {
 	rl      lexer.Relexer
 	Parser  *parser.Parser
-	Sources map[string][]string
+	
 }
 
 func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir string, namespacePath string) *Initializer {
 	uP := &Initializer{
 		rl:      *lexer.NewRelexer(source, sourceCode),
 		Parser:  parser.New(common, dir, namespacePath),
-		Sources: make(map[string][]string),
 	}
-	uP.Sources[source] = strings.Split(sourceCode, "\n")
+	uP.Parser.Common.Sources[source] = strings.Split(sourceCode, "\n")
 	return uP
 }
 
@@ -115,7 +114,7 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))
 		init.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.
-		init.Sources[fname] = strings.Split(stdImp, "\n")
+		init.Parser.Common.Sources[fname] = strings.Split(stdImp, "\n")
 	}
 }
 

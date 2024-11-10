@@ -98,7 +98,7 @@ func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptF
 		}
 		vmm.cp.Timestamp = file.ModTime().UnixMilli()
 	}
-	vmm.uP.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
+	vmm.cp.P.Common.Sources[scriptFilepath] = strings.Split(sourcecode, "\n")
 	return vmm.cp, vmm.uP
 }
 

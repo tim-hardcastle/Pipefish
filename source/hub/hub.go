@@ -977,7 +977,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	)
 	newService, init = service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
 	hub.services[name] = newService
-	hub.Sources = init.Sources
+	hub.Sources = newService.Cp.P.Common.Sources
 
 	if init.ErrorsExist() {
 		newService.Broken = true
