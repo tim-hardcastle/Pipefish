@@ -971,20 +971,17 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	if !needsRebuild {
 		return false
 	}
-	var (
-		newService *service.Service
-		init       *service.Initializer
-	)
-	newService, init = service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
+	
+	newService := service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
 	hub.services[name] = newService
 	hub.Sources = newService.Cp.P.Common.Sources
 
-	if init.ErrorsExist() {
+	if newService.Cp.P.ErrorsExist() {
 		newService.Broken = true
 		if name == "hub" {
 			fmt.Println("Pipefish: unable to compile hub.")
 		}
-		hub.GetAndReportErrors(init.Parser)
+		hub.GetAndReportErrors(newService.Cp.P)
 		if name == "hub" {
 			os.Exit(2)
 		}
