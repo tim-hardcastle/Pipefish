@@ -181,15 +181,15 @@ func (cp *Compiler) btFloatOfString(tok *token.Token, dest uint32, args []uint32
 }
 
 func (cp *Compiler) btGetFromSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gsnp, cp.vm.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(Qtyp, cp.vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
-	cp.Emit(Asgm, dest, cp.vm.Mem[args[0]].V.(uint32))
+	cp.Emit(Gsnp, cp.Vm.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(Qtyp, cp.Vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
+	cp.Emit(Asgm, dest, cp.Vm.Mem[args[0]].V.(uint32))
 	cp.Emit(Jmp, cp.CodeTop()+2)
 	cp.Emit(Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Inpt, cp.vm.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(Inpt, cp.Vm.Mem[args[0]].V.(uint32), args[2])
 	cp.Emit(Asgm, dest, values.C_OK)
 }
 

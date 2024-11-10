@@ -13,9 +13,7 @@ import (
 
 // This is what initialization constructs: a vm and a compiler that between them can evaluate a line of Pipefish.
 type Service struct {
-	Mc      *Vm
 	Cp      *Compiler // This also contains all the metadata about the top-level source code.
-	Broken  bool
 	Visited bool
 }
 
@@ -25,11 +23,11 @@ func (service *Service) NeedsUpdate() (bool, error) {
 
 func (service *Service) GetVariable(vname string) values.Value {
 	v, _ := service.Cp.GlobalVars.getVar(vname)
-	return service.Mc.Mem[v.mLoc]
+	return service.Cp.Vm.Mem[v.mLoc]
 }
 
 func (service *Service) SetVariable(name string, ty values.ValueType, v any) {
-	service.Mc.Mem[service.Cp.GlobalVars.data[name].mLoc] = values.Value{ty, v}
+	service.Cp.Vm.Mem[service.Cp.GlobalVars.data[name].mLoc] = values.Value{ty, v}
 }
 
 // We have two types of external service, defined below: one for services on the same hub, one for services on
@@ -50,12 +48,12 @@ type externalCallToHubHandler struct {
 // to change the type numbers. TODO. Until then, this serves as a good test bed for the external services on other hubs.
 func (ex externalCallToHubHandler) evaluate(mc *Vm, line string) values.Value {
 	exVal := ex.externalService.Cp.Do(line)
-	serialize := ex.externalService.Mc.Literal(exVal)
+	serialize := ex.externalService.Cp.Vm.Literal(exVal)
 	return mc.OwnService.Cp.Do(serialize)
 }
 
 func (es externalCallToHubHandler) problem() *report.Error {
-	if es.externalService.Broken {
+	if es.externalService.Cp.P.ErrorsExist() {
 		return report.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
 	}
 	return nil
@@ -98,15 +96,15 @@ func (es externalHttpCallHandler) getAPI() string {
 // For a description of the file format, see README-api-serialization.md
 func (service Service) SerializeApi() string {
 	var buf strings.Builder
-	for i := int(values.FIRST_DEFINED_TYPE); i < len(service.Mc.concreteTypes); i++ {
-		if !service.Mc.concreteTypes[i].isEnum() {
+	for i := int(values.FIRST_DEFINED_TYPE); i < len(service.Cp.Vm.concreteTypes); i++ {
+		if !service.Cp.Vm.concreteTypes[i].isEnum() {
 			continue
 		}
 		enumOrdinal := i - int(values.FIRST_DEFINED_TYPE)
-		if !service.Mc.concreteTypes[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+		if !service.Cp.Vm.concreteTypes[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
-			buf.WriteString(service.Mc.concreteTypes[i].getName(DEFAULT))
-			for _, el := range service.Mc.concreteTypes[i].(enumType).elementNames {
+			buf.WriteString(service.Cp.Vm.concreteTypes[i].getName(DEFAULT))
+			for _, el := range service.Cp.Vm.concreteTypes[i].(enumType).elementNames {
 				buf.WriteString(" | ")
 				buf.WriteString(el)
 			}
@@ -115,22 +113,22 @@ func (service Service) SerializeApi() string {
 	}
 
 	for declarationNumber, ty := range service.Cp.structDeclarationNumberToTypeNumber {
-		if !service.Mc.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
+		if !service.Cp.Vm.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
 			buf.WriteString("STRUCT | ")
-			buf.WriteString(service.Mc.concreteTypes[ty].getName(DEFAULT))
-			labels := service.Mc.concreteTypes[ty].(structType).labelNumbers
+			buf.WriteString(service.Cp.Vm.concreteTypes[ty].getName(DEFAULT))
+			labels := service.Cp.Vm.concreteTypes[ty].(structType).labelNumbers
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
-				buf.WriteString(service.Mc.Labels[lb])
+				buf.WriteString(service.Cp.Vm.Labels[lb])
 				buf.WriteString(" ")
-				buf.WriteString(service.serializeAbstractType(service.Mc.concreteTypes[ty].(structType).abstractStructFields[i]))
+				buf.WriteString(service.serializeAbstractType(service.Cp.Vm.concreteTypes[ty].(structType).abstractStructFields[i]))
 			}
 			buf.WriteString("\n")
 		}
 	}
 
-	for i := len(nativeAbstractTypes); i < len(service.Mc.AbstractTypes); i++ {
-		ty := service.Mc.AbstractTypes[i]
+	for i := len(nativeAbstractTypes); i < len(service.Cp.Vm.AbstractTypes); i++ {
+		ty := service.Cp.Vm.AbstractTypes[i]
 		if !(service.isPrivate(ty.AT)) && !service.isMandatoryImport(abstractDeclaration, i) {
 			buf.WriteString("ABSTRACT | ")
 			buf.WriteString(ty.Name)
@@ -181,7 +179,7 @@ func (service *Service) isMandatoryImport(dec declarationType, ordinal int) bool
 
 func (service *Service) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
 	for _, w := range a.Types {
-		if service.Mc.concreteTypes[w].isPrivate() {
+		if service.Cp.Vm.concreteTypes[w].isPrivate() {
 			return true
 		}
 	}
@@ -327,7 +325,7 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 }
 
 func (service *Service) serializeAbstractType(ty values.AbstractType) string {
-	return strings.ReplaceAll(service.Mc.DescribeAbstractType(ty, LITERAL), "/", " ")
+	return strings.ReplaceAll(service.Cp.Vm.DescribeAbstractType(ty, LITERAL), "/", " ")
 }
 
 // The compiler infers more about the return types of a function than is expressed in the code or
@@ -336,7 +334,7 @@ func (service *Service) serializeAbstractType(ty values.AbstractType) string {
 func (service *Service) serializeTypescheme(t typeScheme) string {
 	switch t := t.(type) {
 	case simpleType:
-		return service.Mc.concreteTypes[t].getName(DEFAULT)
+		return service.Cp.Vm.concreteTypes[t].getName(DEFAULT)
 	case TypedTupleType:
 		acc := ""
 		for _, u := range t.T {

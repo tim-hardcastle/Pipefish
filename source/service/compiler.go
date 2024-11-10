@@ -32,7 +32,7 @@ type ThunkValue struct {
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	vm *Vm // The vm we're compiling to.
+	Vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
 	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
@@ -395,33 +395,33 @@ func (cp *Compiler) Do(line string) values.Value {
 	}
 	cp.Emit(Ret)
 	cp.cm("Calling Run from Do.", node.GetToken())
-	cp.vm.Run(cT)
-	result := cp.vm.Mem[cp.That()]
+	cp.Vm.Run(cT)
+	result := cp.Vm.Mem[cp.That()]
 	cp.rollback(state, node.GetToken())
 	return result
 }
 
 func (cp *Compiler) Describe(v values.Value) string {
-	return cp.vm.Literal(v)
+	return cp.Vm.Literal(v)
 }
 
 func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 {
-	if t < values.ValueType(len(cp.vm.concreteTypes)) {
-		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" with initial type "+cp.vm.DescribeType(t, LITERAL)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
+	if t < values.ValueType(len(cp.Vm.concreteTypes)) {
+		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" with initial type "+cp.Vm.DescribeType(t, LITERAL)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
 	} else {
-		cp.cm("Reserving m"+strconv.Itoa(len(cp.vm.Mem))+" for initial lype not yet named.", tok)
+		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" for initial lype not yet named.", tok)
 	}
-	cp.vm.Mem = append(cp.vm.Mem, values.Value{T: t, V: v})
-	return uint32(len(cp.vm.Mem) - 1)
+	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: t, V: v})
+	return uint32(len(cp.Vm.Mem) - 1)
 }
 
 func (cp *Compiler) reserveError(ec string, tok *token.Token, args ...any) uint32 {
-	cp.vm.Mem = append(cp.vm.Mem, values.Value{T: values.ERROR, V: &report.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}})
+	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: values.ERROR, V: &report.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}})
 	return cp.That()
 }
 
 func (cp *Compiler) reserveToken(tok *token.Token) uint32 {
-	cp.vm.Tokens = append(cp.vm.Tokens, tok)
+	cp.Vm.Tokens = append(cp.Vm.Tokens, tok)
 	return cp.ThatToken()
 }
 
@@ -444,8 +444,8 @@ func (cp *Compiler) reserveSnippetFactory(t string, env *Environment, fnNode *as
 		csk = HTML_SNIPPET
 	}
 	snF.bindle = cp.compileSnippet(fnNode.GetToken(), env, csk, snF.sourceString, ctxt)
-	cp.vm.SnippetFactories = append(cp.vm.SnippetFactories, snF)
-	return uint32(len(cp.vm.SnippetFactories) - 1)
+	cp.Vm.SnippetFactories = append(cp.Vm.SnippetFactories, snF)
+	return uint32(len(cp.Vm.SnippetFactories) - 1)
 }
 
 func (cp *Compiler) compileGivenBlock(given ast.Node, ctxt context) {
@@ -528,7 +528,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 		v, alreadyExists := ctxt.env.getVar(pair.VarName) // In that case we (should) have an inner function declaration and the sig will have length 1.
 		// We check that it isn't just the user redefining a variable.
 		if alreadyExists {
-			if v.access == LOCAL_FUNCTION_THUNK && cp.vm.Mem[v.mLoc].V == nil || v.access == LOCAL_FUNCTION_CONSTANT && cp.vm.Mem[v.mLoc].V == nil {
+			if v.access == LOCAL_FUNCTION_THUNK && cp.Vm.Mem[v.mLoc].V == nil || v.access == LOCAL_FUNCTION_CONSTANT && cp.Vm.Mem[v.mLoc].V == nil {
 				ctxt.env.data["this"] = *v
 			} else {
 				cp.P.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
@@ -537,12 +537,12 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 		}
 		var typeToUse AlternateType // TODO: we can extract more meaningful information about the tuple from the types.
 		if pair.VarType == "tuple" {
-			typeToUse = cp.vm.AnyTuple
+			typeToUse = cp.Vm.AnyTuple
 		} else {
 			typeToUse = typesAtIndex(types, i)
 		}
 		if cst {
-			if !types.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
+			if !types.containsAnyOf(cp.Vm.codeGeneratingTypes.ToSlice()...) {
 				cp.cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
 				cp.AddVariable(ctxt.env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 				cp.emitTypeChecks(resultLocation, types, ctxt.env, sig, ctxt.ac, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
@@ -551,8 +551,8 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 					return
 				}
 				cp.cm("Calling Run from compileOneGivenChunk to fold constant.", node.GetToken())
-				cp.vm.Run(uint32(rollbackTo.code))
-				v := cp.vm.Mem[resultLocation]
+				cp.Vm.Run(uint32(rollbackTo.code))
+				v := cp.Vm.Mem[resultLocation]
 				cp.rollback(rollbackTo, node.GetToken())
 				cp.Reserve(v.T, v.V, node.GetToken())
 				continue
@@ -565,11 +565,11 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt co
 				switch { // The case where neither of these is true has been checked for above.
 				case v.access == LOCAL_FUNCTION_THUNK:
 					cp.cm("Reassigning local function thunk "+text.Emph(pair.VarName)+" from dummy value.", node.GetToken())
-					cp.vm.Mem[v.mLoc] = values.Value{values.THUNK, ThunkValue{cp.That(), thunkStart}}
+					cp.Vm.Mem[v.mLoc] = values.Value{values.THUNK, ThunkValue{cp.That(), thunkStart}}
 					cp.ThunkList = append(cp.ThunkList, ThunkData{v.mLoc, ThunkValue{cp.That(), thunkStart}})
 				case v.access == LOCAL_FUNCTION_CONSTANT:
 					cp.cm("Reassigning local function constant "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
-					cp.vm.Mem[v.mLoc] = cp.vm.Mem[cp.That()]
+					cp.Vm.Mem[v.mLoc] = cp.Vm.Mem[cp.That()]
 				}
 			} else {
 				cp.cm("Reserving local thunk in compileOneGivenChunk.", node.GetToken())
@@ -771,7 +771,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 				rangeOver = rangeExpression.Args[0]
 				rangeTypes, _ := cp.CompileNode(rangeOver, ctxt.x())
 
-				if len(rangeTypes.intersect(cp.vm.IsRangeable)) == 0 && !rangeTypes.Contains(values.TUPLE) { // Note that 'Contains' special-cases tuples.
+				if len(rangeTypes.intersect(cp.Vm.IsRangeable)) == 0 && !rangeTypes.Contains(values.TUPLE) { // Note that 'Contains' special-cases tuples.
 					cp.P.Throw("comp/for/range/types", node.GetToken())
 					return altType(values.COMPILE_TIME_ERROR)
 				}
@@ -1010,12 +1010,12 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 		cp.Reserve(values.FUNC, *LF.Model, fnNode.GetToken())
 		return
 	}
-	cp.vm.LambdaFactories = append(cp.vm.LambdaFactories, LF)
-	cp.put(Mkfn, uint32(len(cp.vm.LambdaFactories)-1))
+	cp.Vm.LambdaFactories = append(cp.Vm.LambdaFactories, LF)
+	cp.put(Mkfn, uint32(len(cp.Vm.LambdaFactories)-1))
 }
 
 func (cp *Compiler) AddVariable(env *Environment, name string, acc varAccess, types AlternateType, tok *token.Token) {
-	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That()))+" with type "+types.describe(cp.vm), tok)
+	cp.cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That()))+" with type "+types.describe(cp.Vm), tok)
 	env.data[name] = variable{mLoc: cp.That(), access: acc, types: types}
 }
 
@@ -1076,34 +1076,34 @@ func (cp *Compiler) vmComeFrom(items ...any) {
 			if uint32(item) == DUMMY {
 				continue
 			}
-			cp.vm.Code[uint32(item)].Args[0] = cp.That()
-			cp.vm.Code[uint32(item)+1].MakeLastArg(cp.CodeTop())
+			cp.Vm.Code[uint32(item)].Args[0] = cp.That()
+			cp.Vm.Code[uint32(item)+1].MakeLastArg(cp.CodeTop())
 		case bkBreakWithoutValue:
 			if uint32(item) == DUMMY {
 				continue
 			}
-			cp.vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
+			cp.Vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
 		case bkContinue:
 			if uint32(item) == DUMMY {
 				continue
 			}
-			cp.vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
+			cp.Vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
 		case bkGoto:
 			if uint32(item) == DUMMY {
 				continue
 			}
-			cp.vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
+			cp.Vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
 		case bkIf:
 			if uint32(item) == DUMMY {
 				continue
 			}
-			cp.vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
+			cp.Vm.Code[uint32(item)].MakeLastArg(cp.CodeTop())
 		case bkEarlyReturn:
 			if uint32(item) == DUMMY {
 				continue
 			}
-			cp.vm.Code[uint32(item)].Args[0] = cp.That()
-			cp.vm.Code[uint32(item)+1].MakeLastArg(cp.CodeTop())
+			cp.Vm.Code[uint32(item)].Args[0] = cp.That()
+			cp.Vm.Code[uint32(item)+1].MakeLastArg(cp.CodeTop())
 		default:
 			panic("Can't ComeFrom that!")
 		}
@@ -1188,7 +1188,7 @@ NodeTypeSwitch:
 				cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
 				if pair.VarType == "tuple" {
 					cp.cm("Adding variable in ASSIGN, 1", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.vm.AnyTuple, node.GetToken())
+					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Vm.AnyTuple, node.GetToken())
 					newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
 				} else {
 					typesAtIndex := typesAtIndex(types, i)
@@ -1254,17 +1254,17 @@ NodeTypeSwitch:
 		}
 		enumElement, ok := enumCompiler.EnumElements[node.Value]
 		if ok {
-			if cp.vm.concreteTypes[cp.vm.Mem[enumElement].T].isPrivate() {
-				cp.P.Throw("comp/private/enum", node.GetToken(), cp.vm.DescribeType(cp.vm.Mem[enumElement].T, LITERAL))
+			if cp.Vm.concreteTypes[cp.Vm.Mem[enumElement].T].isPrivate() {
+				cp.P.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(cp.Vm.Mem[enumElement].T, LITERAL))
 				break
 			}
 			cp.put(Asgm, enumElement)
-			rtnTypes, rtnConst = AltType(cp.vm.Mem[enumElement].T), true
+			rtnTypes, rtnConst = AltType(cp.Vm.Mem[enumElement].T), true
 			break
 		}
-		labelNumberLocation, ok := cp.vm.FieldLabelsInMem[node.Value]
+		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
 		if ok {
-			if ac == REPL && cp.vm.LabelIsPrivate[cp.vm.Mem[labelNumberLocation].V.(int)] {
+			if ac == REPL && cp.Vm.LabelIsPrivate[cp.Vm.Mem[labelNumberLocation].V.(int)] {
 				cp.P.Throw("comp/private/label", node.GetToken())
 				break
 			}
@@ -1324,106 +1324,106 @@ NodeTypeSwitch:
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
 
-		if len(containerType.intersect(cp.vm.sharedTypenameToTypeList["listlike"])) == len(containerType) {
-			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
+		if len(containerType.intersect(cp.Vm.sharedTypenameToTypeList["listlike"])) == len(containerType) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(IdxL, container, index, errTok)
 				rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 				break
 			}
-			if indexType.isOnlyCloneOf(cp.vm, values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.PAIR) {
 				cp.put(SliL, container, index, errTok)
 				rtnTypes = containerType
 			}
-			if indexType.cannotBeACloneOf(cp.vm, values.INT, values.PAIR) {
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/list", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
-		if len(containerType.intersect(cp.vm.sharedTypenameToTypeList["stringlike"])) == len(containerType) {
-			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
+		if len(containerType.intersect(cp.Vm.sharedTypenameToTypeList["stringlike"])) == len(containerType) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(Idxs, container, index, errTok)
 				rtnTypes = AltType(values.ERROR, values.RUNE)
 				break
 			}
-			if indexType.isOnlyCloneOf(cp.vm, values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.PAIR) {
 				cp.put(Slis, container, index, errTok)
 				rtnTypes = AltType(values.ERROR, values.STRING)
 				break
 			}
-			if indexType.cannotBeACloneOf(cp.vm, values.INT, values.PAIR) {
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/string", node.GetToken())
 				break
 			}
 
 		}
 		if containerType.containsOnlyTuples() {
-			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(IdxT, container, index, errTok)
 				break
 			}
-			if indexType.isOnlyCloneOf(cp.vm, values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.PAIR) {
 				cp.put(SliT, container, index, errTok)
 				break
 			}
-			if indexType.cannotBeACloneOf(cp.vm, values.INT, values.PAIR) {
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT, values.PAIR) {
 				cp.P.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
-		if containerType.isOnlyCloneOf(cp.vm, values.PAIR) {
-			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
+		if containerType.isOnlyCloneOf(cp.Vm, values.PAIR) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(Idxp, container, index, errTok)
 				break
 			}
-			if indexType.cannotBeACloneOf(cp.vm, values.INT) {
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
 				cp.P.Throw("comp/index/pair", node.GetToken())
 				break
 			}
 			rtnTypes = cp.TypeNameToTypeList("single?").Union(AltType(values.ERROR))
 		}
 		if containerType.isOnly(values.TYPE) {
-			if indexType.isOnlyCloneOf(cp.vm, values.INT) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(Idxt, container, index, errTok)
 				break
 			}
-			if indexType.cannotBeACloneOf(cp.vm, values.INT) {
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
 				cp.P.Throw("comp/index/type", node.GetToken())
 				break
 			}
 			if ctrConst {
-				rtnTypes = AltType(values.ERROR, cp.vm.Mem[container].T)
+				rtnTypes = AltType(values.ERROR, cp.Vm.Mem[container].T)
 			} else {
 				allEnums := AlternateType{} // TODO --- you only need to calculate this once.
 				allEnums = append(allEnums, simpleType(values.ERROR))
-				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.vm.concreteTypes); i++ {
-					if cp.vm.concreteTypes[i].isEnum() {
+				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.concreteTypes); i++ {
+					if cp.Vm.concreteTypes[i].isEnum() {
 						allEnums = append(allEnums, simpleType(i))
 					}
 				}
 				rtnTypes = allEnums
 			}
 		}
-		structT, ok := isOnlyStruct(cp.vm, containerType)
+		structT, ok := isOnlyStruct(cp.Vm, containerType)
 		if ok {
-			structInfo := cp.vm.concreteTypes[structT].(structType)
+			structInfo := cp.Vm.concreteTypes[structT].(structType)
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
-					indexNumber := cp.vm.Mem[index].V.(int)
-					labelName := cp.vm.Labels[indexNumber]
+					indexNumber := cp.Vm.Mem[index].V.(int)
+					labelName := cp.Vm.Labels[indexNumber]
 					fieldNumber := structInfo.resolve(indexNumber)
 					if fieldNumber == -1 {
-						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.vm.DescribeType(structT, LITERAL))
+						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.Vm.DescribeType(structT, LITERAL))
 						break
 					}
 					cp.put(IxZn, container, uint32(fieldNumber))
-					rtnTypes = cp.vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber]
+					rtnTypes = cp.Vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber]
 					break
 				}
 				cp.put(IxZl, container, index, errTok)
 				rtnTypes = AltType()
-				for _, t := range cp.vm.concreteTypes[structT].(structType).alternateStructFields {
+				for _, t := range cp.Vm.concreteTypes[structT].(structType).alternateStructFields {
 					rtnTypes = rtnTypes.Union(t)
 				}
 				rtnTypes = rtnTypes.Union(AltType(values.ERROR))
@@ -1434,7 +1434,7 @@ NodeTypeSwitch:
 				break
 			}
 		}
-		if isOnlyAssortedStructs(cp.vm, containerType) {
+		if isOnlyAssortedStructs(cp.Vm, containerType) {
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					labelIsPossible := false
@@ -1442,12 +1442,12 @@ NodeTypeSwitch:
 					rtnTypes = AltType()
 					for _, structTypeAsSimpleType := range containerType {
 						structT := values.ValueType(structTypeAsSimpleType.(simpleType))
-						structInfo := cp.vm.concreteTypes[structT].(structType)
-						indexNumber := cp.vm.Mem[index].V.(int)
+						structInfo := cp.Vm.concreteTypes[structT].(structType)
+						indexNumber := cp.Vm.Mem[index].V.(int)
 						fieldNumber := structInfo.resolve(indexNumber)
 						if fieldNumber != -1 {
 							labelIsPossible = true
-							rtnTypes = rtnTypes.Union(cp.vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber])
+							rtnTypes = rtnTypes.Union(cp.Vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber])
 						} else {
 							labelIsCertain = false
 						}
@@ -1469,7 +1469,7 @@ NodeTypeSwitch:
 		// If we can't infer anything else about the types we can emit a catchall indexing operation.
 		cp.put(IxXx, container, index, errTok)
 		if containerType.Contains(values.TUPLE) {
-			rtnTypes = cp.vm.AnyTypeScheme
+			rtnTypes = cp.Vm.AnyTypeScheme
 		} else {
 			rtnTypes = cp.TypeNameToTypeList("single?")
 		}
@@ -1776,7 +1776,7 @@ NodeTypeSwitch:
 		}
 		recursion := false
 		if ok && (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
-			if cp.vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
+			if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
 				cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
 				recursion = true
 			}
@@ -1800,7 +1800,7 @@ NodeTypeSwitch:
 				}
 			} // TODO --- what if not?
 			rtnConst = false
-			rtnTypes = cp.vm.AnyTypeScheme
+			rtnTypes = cp.Vm.AnyTypeScheme
 			break
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
@@ -1842,7 +1842,7 @@ NodeTypeSwitch:
 			}
 			var leftTypes AlternateType
 			leftTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
-			overlap := leftTypes.intersect(cp.vm.sharedTypenameToTypeList["listlike"])
+			overlap := leftTypes.intersect(cp.Vm.sharedTypenameToTypeList["listlike"])
 			if len(overlap) == 0 {
 				cp.P.Throw("comp/splat/types", node.GetToken(), leftTypes)
 				rtnTypes = altType(values.COMPILE_TIME_ERROR)
@@ -1902,7 +1902,7 @@ NodeTypeSwitch:
 			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}, node.GetToken())
 		default:
 			abType := resolvingCompiler.P.GetAbstractType(typeName)
-			if (ac == REPL || resolvingCompiler != cp) && cp.vm.isPrivate(abType) {
+			if (ac == REPL || resolvingCompiler != cp) && cp.Vm.isPrivate(abType) {
 				cp.P.Throw("comp/private/type", node.GetToken())
 			}
 			cp.Reserve(values.TYPE, abType, node.GetToken())
@@ -1948,8 +1948,8 @@ NodeTypeSwitch:
 	if rtnConst && (!rtnTypes.hasSideEffects()) && cp.CodeTop() > cT {
 		cp.Emit(Ret)
 		cp.cm("Calling Run from end of CompileNode as part of routine constant folding.", node.GetToken())
-		cp.vm.Run(cT)
-		result := cp.vm.Mem[cp.That()]
+		cp.Vm.Run(cT)
+		result := cp.Vm.Mem[cp.That()]
 		if result.T == values.TUPLE {
 			tType := finiteTupleType{}
 			for _, v := range result.V.([]values.Value) {
@@ -1959,7 +1959,7 @@ NodeTypeSwitch:
 		} else {
 			rtnTypes = AltType(result.T)
 		}
-		if !rtnTypes.containsAnyOf(cp.vm.codeGeneratingTypes.ToSlice()...) {
+		if !rtnTypes.containsAnyOf(cp.Vm.codeGeneratingTypes.ToSlice()...) {
 			cp.rollback(state, node.GetToken())
 			cp.Reserve(result.T, result.V, node.GetToken())
 		}
@@ -2190,7 +2190,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == simpleType(values.TUPLE) {
-				b.types[i] = AlternateType{cp.vm.AnyTuple}
+				b.types[i] = AlternateType{cp.Vm.AnyTuple}
 			}
 			cst = cst && cstI
 			b.valLocs[i] = cp.That()
@@ -2213,11 +2213,11 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.put(Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.P.Throw("comp/types", b.tok, b.types.describe(cp.vm))
+		cp.P.Throw("comp/types", b.tok, b.types.describe(cp.Vm))
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
-			cp.vm.Code[v].Args[0] = cp.That()
+			cp.Vm.Code[v].Args[0] = cp.That()
 		}
 	}
 	if returnTypes.Contains(values.ERROR) {
@@ -2291,7 +2291,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 	newBindle := *b
 	newBindle.branchNo = 0
 	newBindle.targetList = typesAtIndex(b.types[b.argNo], b.index)
-	cp.cmP("Function generateFromTopBranchDown @ arg "+strconv.Itoa(b.argNo)+" , index "+strconv.Itoa(b.index)+" made new target list "+newBindle.targetList.describe(cp.vm), newBindle.tok)
+	cp.cmP("Function generateFromTopBranchDown @ arg "+strconv.Itoa(b.argNo)+" , index "+strconv.Itoa(b.index)+" made new target list "+newBindle.targetList.describe(cp.Vm), newBindle.tok)
 	newBindle.doneList = make(AlternateType, 0, len(b.targetList))
 	if newBindle.index == 0 {
 		newBindle.lengths = lengths(b.types[b.argNo])
@@ -2312,7 +2312,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
 		cp.reserveError("vm/types/a", b.tok)
 		for _, loc := range b.valLocs {
-			cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+			cp.Vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 		}
 		cp.cmP("Unthunking error "+text.Emph("vm/types/a")+".", b.tok)
 		cp.Emit(UntE, cp.That())
@@ -2326,7 +2326,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	isVarchar := acceptedTypes.Contains(values.STRING) && acceptedTypes.Varchar < DUMMY
 
 	cp.cmP("Accepted types are "+acceptedTypes.String(), b.tok)
-	cp.cmP("Target list is "+b.targetList.describe(cp.vm), b.tok)
+	cp.cmP("Target list is "+b.targetList.describe(cp.Vm), b.tok)
 	var overlap AlternateType
 	if acceptingTuple {
 		cp.cmP("Accepting tuple.", b.tok)
@@ -2362,8 +2362,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	elementOfTupleTypeCheck := bkGoto(DUMMY)
 	varargsSlurpingTupleTypeCheck := bkGoto(DUMMY)
 	if needsLowerBranch && !acceptingTuple {
-		cp.cmP("Overlap is partial: "+overlap.describe(cp.vm), b.tok)
-		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.vm), b.tok)
+		cp.cmP("Overlap is partial: "+overlap.describe(cp.Vm), b.tok)
+		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.Vm), b.tok)
 		cp.cmP("Emitting type comparisons for single types.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a single, a tuple, or both.
 		switch len(acceptedSingleTypes) {
@@ -2412,7 +2412,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
-					cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+					cp.Vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 				}
 				cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
 				cp.Emit(UntE, cp.That())
@@ -2442,7 +2442,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		}
 	}
 
-	cp.cmP("Types from going across are "+typesFromGoingAcross.describe(cp.vm), b.tok)
+	cp.cmP("Types from going across are "+typesFromGoingAcross.describe(cp.Vm), b.tok)
 
 	// And now we need to do the 'else' branch if there is one.
 	if needsLowerBranch && !acceptingTuple {
@@ -2454,7 +2454,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		cp.vmComeFrom(skipElse)
 	}
 	cp.cmP("We return from generateBranch.", b.tok)
-	cp.cmP("Types from going down are "+typesFromGoingDown.describe(cp.vm), b.tok)
+	cp.cmP("Types from going down are "+typesFromGoingDown.describe(cp.Vm), b.tok)
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
@@ -2529,14 +2529,14 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	}
 	// It may be a user-defined abstract type.
 	var abType values.AbstractType
-	for _, aT := range cp.vm.AbstractTypes { // TODO --- the lookup here and in the VM could be much faster, this by a map, that by a slice of booleans.
+	for _, aT := range cp.Vm.AbstractTypes { // TODO --- the lookup here and in the VM could be much faster, this by a map, that by a slice of booleans.
 		if aT.Name == typeAsString {
 			abType = aT.AT
 			break
 		}
 	}
 	// It may be a clone group:
-	if group, ok := cp.vm.sharedTypenameToTypeList[typeAsString]; ok {
+	if group, ok := cp.Vm.sharedTypenameToTypeList[typeAsString]; ok {
 		abType = group.ToAbstractType()
 	}
 	if abType.Types != nil {
@@ -2552,7 +2552,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 }
 
 func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
-	cp.cm("Emitting type comparison from alternate type "+text.Emph(typeAsAlt.describe(cp.vm)), tok)
+	cp.cm("Emitting type comparison from alternate type "+text.Emph(typeAsAlt.describe(cp.Vm)), tok)
 	if len(typeAsAlt) == 1 {
 		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
@@ -2685,14 +2685,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.cmP("Emitting builtin.", b.tok)
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "get_from_sql":
-					functionAndType.T = cp.vm.AnyTypeScheme
+					functionAndType.T = cp.Vm.AnyTypeScheme
 				case "cast":
 					cp.cm("Builtin is cast", b.tok)
 					functionAndType.T = altType(values.ERROR)
 					for _, ty := range typesAtIndex(b.types[0], 0) {
 						st := values.ValueType(ty.(simpleType))
-						cp.cm("Simple type is "+cp.vm.DescribeType(values.ValueType(st), LITERAL), b.tok)
-						cp.cm("Clone group is "+cp.typeToCloneGroup[st].describe(cp.vm), b.tok)
+						cp.cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), LITERAL), b.tok)
+						cp.cm("Clone group is "+cp.typeToCloneGroup[st].describe(cp.Vm), b.tok)
 						functionAndType.T = functionAndType.T.Union(cp.typeToCloneGroup[st])
 					}
 				case "first_in_tuple":
@@ -2741,7 +2741,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					if F.Command {
 						return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
 					} else {
-						return cp.vm.AnyTypeScheme
+						return cp.Vm.AnyTypeScheme
 					}
 				}
 				if len(branch.Node.Fn.NameRets) == 1 {
@@ -2778,7 +2778,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	cp.cmP("Returning error.", b.tok)
 	cp.reserveError("vm/types/c", b.tok)
 	for _, loc := range b.valLocs {
-		cp.vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+		cp.Vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*report.Error).Args, loc)
 	}
 	cp.cmP("Unthunking error "+text.Emph("vm/types/c")+".", b.tok)
 	cp.Emit(UntE, cp.That())
@@ -2788,7 +2788,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 
 func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.ParserSig) AlternateType {
 	if len(rtnSig) == 0 {
-		return cp.vm.AnyTypeScheme
+		return cp.Vm.AnyTypeScheme
 	}
 	if len(rtnSig) == 1 {
 		return AbstractTypeToAlternateType(rtnSig[0].VarType)
@@ -2817,9 +2817,9 @@ func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 // We have two different ways of emiting an opcode: 'Emit' does it the regular way, 'put' ensures that
 // the destination is the next free memory address.
 func (cp *Compiler) Emit(opcode Opcode, args ...uint32) {
-	cp.vm.Code = append(cp.vm.Code, MakeOp(opcode, args...))
+	cp.Vm.Code = append(cp.Vm.Code, MakeOp(opcode, args...))
 	if cp.showCompile {
-		description := cp.vm.DescribeCode(cp.CodeTop() - 1)
+		description := cp.Vm.DescribeCode(cp.CodeTop() - 1)
 		if !testing.Testing() {
 			println(description)
 		}
@@ -2829,7 +2829,7 @@ func (cp *Compiler) Emit(opcode Opcode, args ...uint32) {
 func (cp *Compiler) put(opcode Opcode, args ...uint32) {
 	args = append([]uint32{cp.MemTop()}, args...)
 	cp.Emit(opcode, args...)
-	cp.vm.Mem = append(cp.vm.Mem, values.Value{})
+	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{})
 }
 
 func (cp *Compiler) emitCallOpcode(funcNumber uint32, valLocs []uint32) {
@@ -3196,7 +3196,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 	}
 	if isAttemptedFunc {
 		cp.put(Dofn, v.mLoc, lhs)
-		rtnTypes, rtnConst = cp.vm.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.access)
+		rtnTypes, rtnConst = cp.Vm.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.access)
 	} else {
 		newContext := ctxt
 		newContext.env = envWithThat
@@ -3214,7 +3214,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		cp.cm("Compiling mapping.", tok)
 	}
 	cp.cm("rhs is "+text.Emph(rhs.String()), tok)
-	cp.cm("lhsTypes is "+text.Emph(lhsTypes.describe(cp.vm)), tok)
+	cp.cm("lhsTypes is "+text.Emph(lhsTypes.describe(cp.Vm)), tok)
 	var rhsConst bool
 	var isAttemptedFunc bool
 	var v *variable
@@ -3228,7 +3228,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	envWithThat := &Environment{}
 	thatLoc := uint32(DUMMY)
 
-	overlap := lhsTypes.intersect(cp.vm.sharedTypenameToTypeList["listlike"])
+	overlap := lhsTypes.intersect(cp.Vm.sharedTypenameToTypeList["listlike"])
 	if len(overlap) == 0 {
 		cp.P.Throw("comp/pipe/mf/list", rhs.GetToken())
 		return AltType(values.ERROR), true
@@ -3359,11 +3359,11 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk co
 
 			// Special sauce for the SQL snippets.
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
-				typeNumbers := cp.vm.Mem[cp.That()].V.(values.AbstractType).Types
-				if len(typeNumbers) == 1 && cp.vm.concreteTypes[typeNumbers[0]].isStruct() {
-					sig, ok := cp.vm.getSqlSig(typeNumbers[0])
+				typeNumbers := cp.Vm.Mem[cp.That()].V.(values.AbstractType).Types
+				if len(typeNumbers) == 1 && cp.Vm.concreteTypes[typeNumbers[0]].isStruct() {
+					sig, ok := cp.Vm.getSqlSig(typeNumbers[0])
 					if !ok {
-						cp.P.Throw("comp/snippet/sig", tok, cp.vm.DescribeType(typeNumbers[0], LITERAL))
+						cp.P.Throw("comp/snippet/sig", tok, cp.Vm.DescribeType(typeNumbers[0], LITERAL))
 					}
 					buf.WriteString(sig)
 					continue // ... the for loop.
@@ -3415,46 +3415,46 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk co
 }
 
 func (cp *Compiler) MemTop() uint32 {
-	return uint32(len(cp.vm.Mem))
+	return uint32(len(cp.Vm.Mem))
 }
 
 func (cp *Compiler) That() uint32 {
-	return uint32(len(cp.vm.Mem) - 1)
+	return uint32(len(cp.Vm.Mem) - 1)
 }
 
 func (cp *Compiler) ThatToken() uint32 {
-	return uint32(len(cp.vm.Tokens) - 1)
+	return uint32(len(cp.Vm.Tokens) - 1)
 }
 
 func (cp *Compiler) CodeTop() uint32 {
-	return uint32(len(cp.vm.Code))
+	return uint32(len(cp.Vm.Code))
 }
 
 func (cp *Compiler) TokenTop() uint32 {
-	return uint32(len(cp.vm.Tokens))
+	return uint32(len(cp.Vm.Tokens))
 }
 
 func (cp *Compiler) LfTop() uint32 {
-	return uint32(len(cp.vm.LambdaFactories))
+	return uint32(len(cp.Vm.LambdaFactories))
 }
 
 func (cp *Compiler) Next() uint32 {
-	return uint32(len(cp.vm.Code))
+	return uint32(len(cp.Vm.Code))
 }
 
 // This captures the record.
 func (cp *Compiler) getState() vmState {
-	return vmState{len(cp.vm.Mem), len(cp.vm.Code), len(cp.vm.Tokens), len(cp.vm.LambdaFactories), len(cp.vm.SnippetFactories)}
+	return vmState{len(cp.Vm.Mem), len(cp.Vm.Code), len(cp.Vm.Tokens), len(cp.Vm.LambdaFactories), len(cp.Vm.SnippetFactories)}
 }
 
 // And this rolls back the machine. The token is just there so that the .cm method can decide whether it should comment on the rollback or whether it's just boilerplate.
 func (cp *Compiler) rollback(vms vmState, tok *token.Token) {
 	cp.cm("Rolling back to address "+strconv.Itoa(vms.code)+" and location "+strconv.Itoa(vms.mem)+".", tok)
-	cp.vm.Code = cp.vm.Code[:vms.code]
-	cp.vm.Mem = cp.vm.Mem[:vms.mem]
-	cp.vm.Tokens = cp.vm.Tokens[:vms.tokens]
-	cp.vm.LambdaFactories = cp.vm.LambdaFactories[:vms.lambdaFactories]
-	cp.vm.SnippetFactories = cp.vm.SnippetFactories[:vms.snippetFactories]
+	cp.Vm.Code = cp.Vm.Code[:vms.code]
+	cp.Vm.Mem = cp.Vm.Mem[:vms.mem]
+	cp.Vm.Tokens = cp.Vm.Tokens[:vms.tokens]
+	cp.Vm.LambdaFactories = cp.Vm.LambdaFactories[:vms.lambdaFactories]
+	cp.Vm.SnippetFactories = cp.Vm.SnippetFactories[:vms.snippetFactories]
 }
 
 func isStruct(mc *Vm, sT simpleType) bool {
@@ -3506,13 +3506,13 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 	}
 	typeLengths := lengths(rtnTypes)
 	if !(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck))) {
-		cp.P.Throw("comp/return/length", tok, rtnTypes.describe(cp.vm), typecheck.describe(cp.vm))
+		cp.P.Throw("comp/return/length", tok, rtnTypes.describe(cp.Vm), typecheck.describe(cp.Vm))
 		return
 	}
 	for i, ty := range typecheck {
 		intersection := ty.(AlternateType).intersect(typesAtIndex(rtnTypes, i))
 		if len(intersection) == 0 {
-			cp.P.Throw("comp/return/types", tok, rtnTypes.without(simpleType(values.ERROR)).describe(cp.vm), typecheck.describe(cp.vm))
+			cp.P.Throw("comp/return/types", tok, rtnTypes.without(simpleType(values.ERROR)).describe(cp.Vm), typecheck.describe(cp.Vm))
 		}
 	}
 }
@@ -3561,7 +3561,7 @@ func (cp *Compiler) TypeNameToTypeList(typename string) AlternateType {
 		}
 		return result
 	}
-	result, ok = cp.vm.sharedTypenameToTypeList[typename]
+	result, ok = cp.Vm.sharedTypenameToTypeList[typename]
 	if ok {
 		if varargs {
 			return AlternateType{TypedTupleType{result}}
@@ -3588,7 +3588,7 @@ func (cp *Compiler) getLoggingScope() int {
 
 func (cp *Compiler) getValueOfConstant(s string) any {
 	varIs, _ := cp.GlobalConsts.getVar(s)
-	return cp.vm.Mem[varIs.mLoc].V
+	return cp.Vm.Mem[varIs.mLoc].V
 }
 
 // This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
@@ -3719,7 +3719,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 				return nil
 			}
 			cp.compileGlobalConstantOrVariable(decType, decNumber)
-			if !svData.ty.Contains(cp.vm.Mem[cp.That()].T) {
+			if !svData.ty.Contains(cp.Vm.Mem[cp.That()].T) {
 				cp.P.Throw("init/service/type", tok)
 				return nil
 			}
@@ -3777,10 +3777,10 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 		for _, rDat := range cp.recursionStore {
 			funcNumber := rDat.functionNumber
 			addr := rDat.address
-			cp.vm.Code[addr].Args[0] = cp.Fns[funcNumber].CallTo
-			cp.vm.Code[addr].Args[1] = cp.Fns[funcNumber].LoReg
-			cp.vm.Code[addr].Args[2] = cp.Fns[funcNumber].HiReg
-			cp.vm.Code[addr+2].Args[1] = cp.Fns[funcNumber].OutReg
+			cp.Vm.Code[addr].Args[0] = cp.Fns[funcNumber].CallTo
+			cp.Vm.Code[addr].Args[1] = cp.Fns[funcNumber].LoReg
+			cp.Vm.Code[addr].Args[2] = cp.Fns[funcNumber].HiReg
+			cp.Vm.Code[addr+2].Args[1] = cp.Fns[funcNumber].OutReg
 		}
 	}
 	return result
@@ -3803,9 +3803,9 @@ func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType
 	}
 	cp.Emit(Ret)
 	cp.cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
-	cp.vm.Run(uint32(rollbackTo.code))
-	result := cp.vm.Mem[cp.That()]
-	if !cp.vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+	cp.Vm.Run(uint32(rollbackTo.code))
+	result := cp.Vm.Mem[cp.That()]
+	if !cp.Vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
 		cp.rollback(rollbackTo, dec.GetToken())
 	}
 
@@ -3920,7 +3920,7 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	for _, pair := range sig {
 		cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
 		if pair.VarType == "ref" {
-			cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, cp.vm.AnyTypeScheme, node.GetToken())
+			cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, cp.Vm.AnyTypeScheme, node.GetToken())
 			continue
 		}
 		typeName := pair.VarType
@@ -3979,9 +3979,9 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		}
 		cpF.Builtin = name
 	case token.GOCODE:
-		cpF.GoNumber = uint32(len(cp.vm.GoFns))
+		cpF.GoNumber = uint32(len(cp.Vm.GoFns))
 		cpF.HasGo = true
-		cp.vm.GoFns = append(cp.vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
+		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
 			cp.goToPf[body.GetToken().Source], cp.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
 	case token.XCALL:
 	default:
@@ -4031,7 +4031,7 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
 
 	if functionName == "stringify" {
-		cp.vm.Stringify = &cpF
+		cp.Vm.Stringify = &cpF
 	}
 
 	return &cpF
@@ -4070,9 +4070,9 @@ func (cp *Compiler) ResolveInterfaceBacktracks() {
 		resolvingCompiler := prsrFunction.Compiler.(*Compiler)
 		cpFunction := resolvingCompiler.Fns[prsrFunction.Number]
 		addr := rDat.Addr
-		cp.vm.Code[addr].Args[0] = cpFunction.CallTo
-		cp.vm.Code[addr].Args[1] = cpFunction.LoReg
-		cp.vm.Code[addr].Args[2] = cpFunction.HiReg
-		cp.vm.Code[addr+1].Args[1] = cpFunction.OutReg
+		cp.Vm.Code[addr].Args[0] = cpFunction.CallTo
+		cp.Vm.Code[addr].Args[1] = cpFunction.LoReg
+		cp.Vm.Code[addr].Args[2] = cpFunction.HiReg
+		cp.Vm.Code[addr+1].Args[1] = cpFunction.OutReg
 	}
 }

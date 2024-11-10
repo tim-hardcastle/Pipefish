@@ -81,13 +81,13 @@ func (hub *Hub) hasDatabase() bool {
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
 	dbStruct := hub.getSV("database").V.([]values.Value)
-	driver := hub.services["hub"].Mc.Literal(dbStruct[0])
+	driver := hub.services["hub"].Cp.Vm.Literal(dbStruct[0])
 	return driver, dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
 }
 
 func (hub *Hub) setDB(driver, name, path string, port int, username, password string) {
 	hubService := hub.services["hub"]
-	driverAsEnumValue := hubService.Mc.Mem[hubService.Cp.EnumElements[driver]]
+	driverAsEnumValue := hubService.Cp.Vm.Mem[hubService.Cp.EnumElements[driver]]
 	structType := hubService.Cp.StructNameToTypeNumber["Database"]
 	hub.setSV("database", structType, []values.Value{driverAsEnumValue, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
 }
@@ -194,7 +194,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	// The service may be broken, in which case we'll let the empty service handle the input.
 
-	if serviceToUse.Broken {
+	if serviceToUse.Cp.ErrorsExist() {
 		serviceToUse = hub.services[""]
 	}
 
@@ -220,7 +220,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if hub.isLive() && needsUpdate {
 		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), hub.services[hub.currentServiceName()].Cp.ScriptFilepath)
 		serviceToUse = hub.services[hub.currentServiceName()]
-		if serviceToUse.Broken {
+		if serviceToUse.Cp.ErrorsExist() {
 			return passedServiceName, false
 		}
 	}
@@ -229,7 +229,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.snap.AddInput(line)
 	}
 
-	serviceToUse.Mc.LiveTracking = make([]service.TrackingData, 0)
+	serviceToUse.Cp.Vm.LiveTracking = make([]service.TrackingData, 0)
 
 	// *** THIS IS THE BIT WHERE WE DO THE THING!
 	val := ServiceDo(serviceToUse, line)
@@ -250,9 +250,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	} else {
 		var out string
 		if hub.services["hub"].GetVariable("display").V.(int) == 0 || hub.currentServiceName() == "#snap" {
-			out = serviceToUse.Mc.StringifyValue(val, service.LITERAL)
+			out = serviceToUse.Cp.Vm.StringifyValue(val, service.LITERAL)
 		} else {
-			out = serviceToUse.Mc.StringifyValue(val, service.DEFAULT)
+			out = serviceToUse.Cp.Vm.StringifyValue(val, service.DEFAULT)
 		}
 		hub.WriteString(out)
 		if hub.currentServiceName() == "#snap" {
@@ -468,7 +468,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.setLive(false)
 		return false
 	case "log":
-		hub.WritePretty(hub.services[hub.currentServiceName()].Mc.TrackingToString())
+		hub.WritePretty(hub.services[hub.currentServiceName()].Cp.Vm.TrackingToString())
 		hub.WriteString("\n")
 		return false
 	case "log-on":
@@ -614,7 +614,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			ServiceDo((*hub).services["#snap"], "$view = \"\"")
 			hub.WriteString("Serialization is ON.\n")
-			hub.services[hub.currentServiceName()].Mc.IoHandle =
+			hub.services[hub.currentServiceName()].Cp.Vm.IoHandle =
 				service.MakeSnapIoHandler(hub.out, hub.snap)
 		}
 
@@ -763,9 +763,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		for _, v := range hub.ers[0].Values {
 			if v.T == values.BLING {
-				hub.WritePretty(text.BULLET_SPACING + hub.services[hub.currentServiceName()].Mc.Literal(v))
+				hub.WritePretty(text.BULLET_SPACING + hub.services[hub.currentServiceName()].Cp.Vm.Literal(v))
 			} else {
-				hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName()].Mc.Literal(v))
+				hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName()].Cp.Vm.Literal(v))
 			}
 		}
 		hub.WriteString("\n")
@@ -855,7 +855,7 @@ func (hub *Hub) help() {
 }
 
 func (hub *Hub) WritePretty(s string) {
-	if hub.services["hub"].Broken {
+	if hub.services["hub"].Cp.ErrorsExist() {
 		hub.WriteString(text.Pretty(s, 0, 92))
 		return
 	}
@@ -936,7 +936,7 @@ func (hub *Hub) StartAndMakeCurrent(username, serviceName, scriptFilepath string
 }
 
 func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
-	if !hub.services[hub.currentServiceName()].Broken && hub.services[hub.currentServiceName()].Cp.GetParser().Unfixes.Contains("main") {
+	if !hub.services[hub.currentServiceName()].Cp.ErrorsExist() && hub.services[hub.currentServiceName()].Cp.GetParser().Unfixes.Contains("main") {
 		val := ServiceDo(hub.services[hub.currentServiceName()], "main")
 		hub.lastRun = []string{hub.currentServiceName()}
 		hub.services[hub.currentServiceName()].Visited = true
@@ -977,7 +977,6 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	hub.Sources = newService.Cp.P.Common.Sources
 
 	if newService.Cp.P.ErrorsExist() {
-		newService.Broken = true
 		if name == "hub" {
 			fmt.Println("Pipefish: unable to compile hub.")
 		}
@@ -997,7 +996,7 @@ func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
 }
 
 func (hub *Hub) CurrentServiceIsBroken() bool {
-	return hub.services[hub.currentServiceName()].Broken
+	return hub.services[hub.currentServiceName()].Cp.ErrorsExist()
 }
 
 var prefix = `newtype
@@ -1035,7 +1034,7 @@ func (hub *Hub) saveHubFile() string {
 	}
 	buf.WriteString(")\n\n")
 	buf.WriteString("currentService string? = ")
-	cs := hubService.Mc.Literal(hub.getSV("currentService"))
+	cs := hubService.Cp.Vm.Literal(hub.getSV("currentService"))
 	if len(cs) > 0 && cs[1] == '#' {
 		buf.WriteString("NULL")
 	} else {
@@ -1043,13 +1042,13 @@ func (hub *Hub) saveHubFile() string {
 	}
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")
-	buf.WriteString(hubService.Mc.Literal(hub.getSV("isLive")))
+	buf.WriteString(hubService.Cp.Vm.Literal(hub.getSV("isLive")))
 	buf.WriteString("\n")
 	buf.WriteString("display = ")
-	buf.WriteString(hubService.Mc.Literal(hub.getSV("display")))
+	buf.WriteString(hubService.Cp.Vm.Literal(hub.getSV("display")))
 	buf.WriteString("\n")
 	buf.WriteString("width = ")
-	buf.WriteString(hubService.Mc.Literal(hub.getSV("width")))
+	buf.WriteString(hubService.Cp.Vm.Literal(hub.getSV("width")))
 	buf.WriteString("\n\n")
 	buf.WriteString("database Database? = ")
 	dbVal := hub.getSV("database")
@@ -1058,22 +1057,22 @@ func (hub *Hub) saveHubFile() string {
 	} else {
 		args := dbVal.V.([]values.Value)
 		buf.WriteString("Database with (driver::")
-		buf.WriteString(hubService.Mc.Literal(args[0]))
+		buf.WriteString(hubService.Cp.Vm.Literal(args[0]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. name::")
-		buf.WriteString(hubService.Mc.Literal(args[1]))
+		buf.WriteString(hubService.Cp.Vm.Literal(args[1]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. host::")
-		buf.WriteString(hubService.Mc.Literal(args[2]))
+		buf.WriteString(hubService.Cp.Vm.Literal(args[2]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. port::")
-		buf.WriteString(hubService.Mc.Literal(args[3]))
+		buf.WriteString(hubService.Cp.Vm.Literal(args[3]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. username::")
-		buf.WriteString(hubService.Mc.Literal(args[4]))
+		buf.WriteString(hubService.Cp.Vm.Literal(args[4]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. password::")
-		buf.WriteString(hubService.Mc.Literal(args[5]))
+		buf.WriteString(hubService.Cp.Vm.Literal(args[5]))
 		buf.WriteString(")\n")
 	}
 
@@ -1122,7 +1121,7 @@ func (hub *Hub) list() {
 		if k == "" || k == "hub" {
 			continue
 		}
-		if hub.services[k].Broken {
+		if hub.services[k].Cp.ErrorsExist() {
 			hub.WriteString(text.BROKEN)
 			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].Cp.ScriptFilepath) + "'.")
 		} else {
@@ -1174,7 +1173,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 		hub.WriteError("Can't initialize script " + text.Emph(scriptFilepath))
 		return
 	}
-	hub.services["#test"].Mc.IoHandle =
+	hub.services["#test"].Cp.Vm.IoHandle =
 		service.MakeTestIoHandler(hub.out, scanner, testOutputType)
 	if testOutputType == service.ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
@@ -1198,11 +1197,11 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 		lineOut := scanner.Text()
 		nonIoError := valToString(testService, result) != lineOut
 		newError := nonIoError ||
-			testService.Mc.IoHandle.InHandle.(*service.TestInHandler).Fail ||
-			testService.Mc.IoHandle.OutHandle.(*service.TestOutHandler).Fail
+			testService.Cp.Vm.IoHandle.InHandle.(*service.TestInHandler).Fail ||
+			testService.Cp.Vm.IoHandle.OutHandle.(*service.TestOutHandler).Fail
 		if newError {
-			testService.Mc.IoHandle.InHandle.(*service.TestInHandler).Fail = false
-			testService.Mc.IoHandle.OutHandle.(*service.TestOutHandler).Fail = false
+			testService.Cp.Vm.IoHandle.InHandle.(*service.TestInHandler).Fail = false
+			testService.Cp.Vm.IoHandle.OutHandle.(*service.TestOutHandler).Fail = false
 			executionMatchesTest = false
 			if testOutputType == service.SHOW_DIFF && nonIoError {
 				hub.WriteString("-> " + lineIn + "\n" + text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
@@ -1248,7 +1247,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	ServiceDo((*hub).services["#test"], "$view = \"\"")
 	testService := (*hub).services["#test"]
-	testService.Mc.IoHandle = service.MakeTestIoHandler(hub.out, scanner, service.SHOW_ALL)
+	testService.Cp.Vm.IoHandle = service.MakeTestIoHandler(hub.out, scanner, service.SHOW_ALL)
 	_ = scanner.Scan() // eats the newline
 	for scanner.Scan() {
 		lineIn := scanner.Text()[3:]
@@ -1273,7 +1272,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 func valToString(srv *service.Service, val values.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
-	return srv.Mc.StringifyValue(val, service.LITERAL)
+	return srv.Cp.Vm.StringifyValue(val, service.LITERAL)
 }
 
 func (h *Hub) StartHttp(path, port string) {
@@ -1482,7 +1481,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	}
 
 	for _, v := range h.services {
-		v.Mc.Database = h.Db
+		v.Cp.Vm.Database = h.Db
 	}
 
 	h.WriteString(text.OK + "\n")

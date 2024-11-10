@@ -51,9 +51,9 @@ func (cp *Compiler) track(tf trackingFlavor, tok *token.Token, args ...any) {
 	default:
 		newData = TrackingData{tf, tok, args}
 	}
-	cp.cm(staticTrackingToString(len(cp.vm.tracking), newData), tok)
-	cp.Emit(Trak, uint32(len(cp.vm.tracking)))
-	cp.vm.tracking = append(cp.vm.tracking, newData)
+	cp.cm(staticTrackingToString(len(cp.Vm.tracking), newData), tok)
+	cp.Emit(Trak, uint32(len(cp.Vm.tracking)))
+	cp.Vm.tracking = append(cp.Vm.tracking, newData)
 }
 
 func staticTrackingToString(i int, td TrackingData) string { // For the use of cp.cm.

@@ -95,8 +95,8 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		structTypeNumber := resolvingCompiler.StructNameToTypeNumber[name]
 		// We add the definition of the struct.
 		typeDefStr := "\ntype " + goStructName + " struct {\n"
-		for i, lN := range cp.vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
-			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.vm.concreteTypes[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
+		for i, lN := range cp.Vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
+			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.Vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
@@ -104,15 +104,15 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
 		convGoTypeToPfType = convGoTypeToPfType + ", []any{"
 		sep := ""
-		for _, lN := range cp.vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
-			convGoTypeToPfType = convGoTypeToPfType + sep + "v.(" + goStructName + ")." + text.Flatten(cp.vm.Labels[lN])
+		for _, lN := range cp.Vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
+			convGoTypeToPfType = convGoTypeToPfType + sep + "v.(" + goStructName + ")." + text.Flatten(cp.Vm.Labels[lN])
 			sep = ", "
 		}
 		convGoTypeToPfType = convGoTypeToPfType + "}, true\n"
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
 		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + goStructName + "{"
 		sep = ""
-		for i, ty := range cp.vm.concreteTypes[structTypeNumber].(structType).abstractStructFields {
+		for i, ty := range cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields {
 			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(ty) + ")"
 			sep = ", "
 		}
@@ -128,8 +128,8 @@ func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 		cp.P.Throw("golang/conv/b", &token.Token{Source: "golang conversion function"})
 	}
 	tNo := aT.Types[0]
-	if cp.vm.concreteTypes[tNo].isEnum() || cp.vm.concreteTypes[tNo].isStruct() {
-		return text.Flatten(cp.vm.concreteTypes[tNo].getName(LITERAL))
+	if cp.Vm.concreteTypes[tNo].isEnum() || cp.Vm.concreteTypes[tNo].isStruct() {
+		return text.Flatten(cp.Vm.concreteTypes[tNo].getName(LITERAL))
 	}
 	if convStr, ok := fConvert[tNo]; ok {
 		return convStr

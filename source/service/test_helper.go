@@ -20,7 +20,7 @@ func testValues(cp *Compiler, s string) string {
 func testCompilerErrors(cp *Compiler, s string) string {
 	val := cp.Do(s)
 	if !cp.P.ErrorsExist() {
-		return "unexpected successful evaluation returned " + text.Emph(cp.vm.DefaultDescription(val))
+		return "unexpected successful evaluation returned " + text.Emph(cp.Vm.DefaultDescription(val))
 	} else {
 		return cp.P.Common.Errors[0].ErrorId
 	}

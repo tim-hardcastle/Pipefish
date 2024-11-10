@@ -30,7 +30,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
 	cp := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
-	result := &Service{Mc: mc, Cp: cp}
+	result := &Service{Cp: cp}
 	if cp.P.ErrorsExist() {
 		return result
 	}
@@ -52,8 +52,6 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 	mc.OwnService = result
 	return result
 }
-
-
 
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and initializer and mutates the vm.
@@ -99,7 +97,7 @@ func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode, d
 	p := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
 	cp := NewCompiler(p)
 	cp.ScriptFilepath = scriptFilepath
-	cp.vm = mc
+	cp.Vm = mc
 	cp.TupleType = cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 	return cp
 }
@@ -277,13 +275,13 @@ func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp := initializeFromFilepath(cp.vm, cp.P.Common, scriptFilepath, cp.P.Directory, namespace+"."+cp.P.NamespacePath)
-		cp.Services[namespace] = &Service{cp.vm, newCp, newCp.ErrorsExist(), false}
-			for k, v := range newCp.declarationMap {
-				cp.declarationMap[k] = v
-			}
-			cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
-			newCp.P.Private = cp.P.IsPrivate(int(importDeclaration), i)
+		newCp := initializeFromFilepath(cp.Vm, cp.P.Common, scriptFilepath, cp.P.Directory, namespace+"."+cp.P.NamespacePath)
+		cp.Services[namespace] = &Service{newCp, false}
+		for k, v := range newCp.declarationMap {
+			cp.declarationMap[k] = v
+		}
+		cp.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
+		newCp.P.Private = cp.P.IsPrivate(int(importDeclaration), i)
 	}
 	return unnamespacedImports
 }
@@ -384,7 +382,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
-				cp.cmI("Adding "+functionName+" to common functions.")
+				cp.cmI("Adding " + functionName + " to common functions.")
 				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
 			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, functionToAdd)
@@ -557,7 +555,7 @@ func (cp *Compiler) initializeExternals() {
 	for _, declaration := range cp.P.ParsedDeclarations[externalDeclaration] {
 		name, path := cp.getPartsOfImportOrExternalDeclaration(declaration)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
-			service, ok := cp.vm.HubServices[name]
+			service, ok := cp.Vm.HubServices[name]
 			if !ok {
 				cp.Throw("init/external/exist/a", *declaration.GetToken())
 				continue
@@ -592,7 +590,7 @@ func (cp *Compiler) initializeExternals() {
 		}
 
 		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
-		hubService, ok := cp.vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
+		hubService, ok := cp.Vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubService.Cp.ScriptFilepath != path {
 				cp.Throw("init/external/exist/b", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
@@ -602,14 +600,14 @@ func (cp *Compiler) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService := StartService(path, cp.P.Directory, cp.vm.Database, cp.vm.HubServices)
-		cp.vm.HubServices[name] = newService
+		newService := StartService(path, cp.P.Directory, cp.Vm.Database, cp.Vm.HubServices)
+		cp.Vm.HubServices[name] = newService
 		cp.addExternalOnSameHub(path, name)
 	}
 }
 
 func (cp *Compiler) addExternalOnSameHub(path, name string) {
-	hubService := cp.vm.HubServices[name]
+	hubService := cp.Vm.HubServices[name]
 	serviceToAdd := externalCallToHubHandler{hubService}
 	cp.addAnyExternalService(serviceToAdd, path, name)
 }
@@ -620,15 +618,15 @@ func (cp *Compiler) addHttpService(path, name, username, password string) {
 }
 
 func (cp *Compiler) addAnyExternalService(handlerForService externalCallHandler, path, name string) {
-	externalServiceOrdinal := uint32(len(cp.vm.ExternalCallHandlers))
+	externalServiceOrdinal := uint32(len(cp.Vm.ExternalCallHandlers))
 	cp.CallHandlerNumbersByName[name] = externalServiceOrdinal
-	cp.vm.ExternalCallHandlers = append(cp.vm.ExternalCallHandlers, handlerForService)
+	cp.Vm.ExternalCallHandlers = append(cp.Vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp := initializeFromSourcecode(cp.vm, cp.P.Common, path, sourcecode, cp.P.Directory, name+"."+cp.P.NamespacePath)
+	newCp := initializeFromSourcecode(cp.Vm, cp.P.Common, path, sourcecode, cp.P.Directory, name+"."+cp.P.NamespacePath)
 	cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = cp.P.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
-	cp.Services[name] = &Service{cp.vm, newCp, newCp.P.ErrorsExist(), false}
+	cp.Services[name] = &Service{newCp, false}
 }
 
 func (cp *Compiler) AddType(name, supertype string, typeNo values.ValueType) {
@@ -639,7 +637,7 @@ func (cp *Compiler) AddType(name, supertype string, typeNo values.ValueType) {
 	if supertype == "snippet" {
 		types = append(types, "struct")
 	}
-	cp.vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
+	cp.Vm.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "single")
 	for _, sT := range types {
 		cp.P.Common.Types[sT] = cp.P.Common.Types[sT].Insert(typeNo)
@@ -657,11 +655,11 @@ func (cp *Compiler) createEnums() {
 		info, typeExists := cp.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := cp.vm.concreteTypes[typeNo].(enumType)
+			typeInfo := cp.Vm.concreteTypes[typeNo].(enumType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(cp.vm.concreteTypes))
+			typeNo = values.ValueType(len(cp.Vm.concreteTypes))
 			cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		cp.AddType(tok1.Literal, "enum", typeNo)
@@ -689,7 +687,7 @@ func (cp *Compiler) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		cp.vm.concreteTypes = append(cp.vm.concreteTypes, enumType{name: tok1.Literal, path: cp.P.NamespacePath, elementNames: elementNameList, private: cp.P.IsPrivate(int(enumDeclaration), i)})
+		cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, enumType{name: tok1.Literal, path: cp.P.NamespacePath, elementNames: elementNameList, private: cp.P.IsPrivate(int(enumDeclaration), i)})
 	}
 }
 
@@ -713,15 +711,15 @@ func (cp *Compiler) createClones() {
 		info, typeExists := cp.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := cp.vm.concreteTypes[typeNo].(cloneType)
+			typeInfo := cp.Vm.concreteTypes[typeNo].(cloneType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypes[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(cp.vm.concreteTypes))
+			typeNo = values.ValueType(len(cp.Vm.concreteTypes))
 			cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			cp.vm.concreteTypes = append(cp.vm.concreteTypes, cloneType{name: name, path: cp.P.NamespacePath, parent: parentTypeNo, private: cp.P.IsPrivate(int(cloneDeclaration), i)})
+			cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, cloneType{name: name, path: cp.P.NamespacePath, parent: parentTypeNo, private: cp.P.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
-				cp.vm.IsRangeable = cp.vm.IsRangeable.Union(altType(typeNo))
+				cp.Vm.IsRangeable = cp.Vm.IsRangeable.Union(altType(typeNo))
 			}
 		}
 		// We make the conversion fuction.
@@ -812,17 +810,17 @@ func (cp *Compiler) createClones() {
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
 					cp.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "?>":
-					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isFilterable = true
-					cp.vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypes[typeNo] = cloneData
 				case ">>":
-					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isMappable = true
-					cp.vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypes[typeNo] = cloneData
 				case "slice":
-					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isSliceable = true
-					cp.vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypes[typeNo] = cloneData
 				default:
 					cp.Throw("init/request/list", usingOrEof, op)
 				}
@@ -853,9 +851,9 @@ func (cp *Compiler) createClones() {
 					sig := ast.AstSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
 					cp.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "slice":
-					cloneData := cp.vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
 					cloneData.isSliceable = true
-					cp.vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypes[typeNo] = cloneData
 				default:
 					cp.Throw("init/request/string", usingOrEof, op)
 				}
@@ -865,7 +863,7 @@ func (cp *Compiler) createClones() {
 	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry in the map if they're uncloneable).
 	for typename := range parser.ClonableTypes {
 		abType := typename + "like"
-		cloneGroup := cp.vm.sharedTypenameToTypeList[abType]
+		cloneGroup := cp.Vm.sharedTypenameToTypeList[abType]
 		for _, cloneTypeNo := range cloneGroup {
 			cp.typeToCloneGroup[values.ValueType(cloneTypeNo.(simpleType))] = cloneGroup
 		}
@@ -890,20 +888,20 @@ func (cp *Compiler) createStructNamesAndLabels() {
 	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
-		typeNo := values.ValueType(len(cp.vm.concreteTypes))
+		typeNo := values.ValueType(len(cp.Vm.concreteTypes))
 		typeInfo, typeExists := cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := cp.vm.concreteTypes[typeNo].(structType)
+			typeInfo := cp.Vm.concreteTypes[typeNo].(structType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypes[typeNo] = typeInfo
 		} else {
 			cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(structDeclaration), i)})
 		}
 		cp.AddType(name, "struct", typeNo)
 		cp.StructNameToTypeNumber[name] = typeNo
 		if name == "Error" {
-			cp.vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
+			cp.Vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
 		}
 		// The parser needs to know about it too.
 		cp.P.Functions.Add(name)
@@ -919,22 +917,22 @@ func (cp *Compiler) createStructNamesAndLabels() {
 			labelsForStruct := make([]int, 0, len(sig))
 			for j, labelNameAndType := range sig {
 				labelName := labelNameAndType.VarName
-				labelLocation, alreadyExists := cp.vm.FieldLabelsInMem[labelName]
+				labelLocation, alreadyExists := cp.Vm.FieldLabelsInMem[labelName]
 				if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-					labelsForStruct = append(labelsForStruct, cp.vm.Mem[labelLocation].V.(int))
+					labelsForStruct = append(labelsForStruct, cp.Vm.Mem[labelLocation].V.(int))
 					cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
 				} else {
-					cp.vm.FieldLabelsInMem[labelName] = cp.Reserve(values.LABEL, len(cp.vm.Labels), node.GetToken())
+					cp.Vm.FieldLabelsInMem[labelName] = cp.Reserve(values.LABEL, len(cp.Vm.Labels), node.GetToken())
 					cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{cp.That(), true})
-					labelsForStruct = append(labelsForStruct, len(cp.vm.Labels))
-					cp.vm.Labels = append(cp.vm.Labels, labelName)
-					cp.vm.LabelIsPrivate = append(cp.vm.LabelIsPrivate, true)
+					labelsForStruct = append(labelsForStruct, len(cp.Vm.Labels))
+					cp.Vm.Labels = append(cp.Vm.Labels, labelName)
+					cp.Vm.LabelIsPrivate = append(cp.Vm.LabelIsPrivate, true)
 				}
 			}
-			cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(cp.vm.concreteTypes))
+			cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(cp.Vm.concreteTypes))
 			stT := structType{name: name, path: cp.P.NamespacePath, labelNumbers: labelsForStruct, private: cp.P.IsPrivate(int(structDeclaration), i)}
 			stT = stT.addLabels(labelsForStruct)
-			cp.vm.concreteTypes = append(cp.vm.concreteTypes, stT)
+			cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, stT)
 		}
 	}
 
@@ -944,13 +942,13 @@ func (cp *Compiler) createStructNamesAndLabels() {
 		}
 		tok := cp.P.ParsedDeclarations[structDeclaration][i].GetToken()
 		sI, _ := cp.getDeclaration(decSTRUCT, tok, DUMMY)
-		sT := cp.vm.concreteTypes[sI.(structInfo).structNumber]
+		sT := cp.Vm.concreteTypes[sI.(structInfo).structNumber]
 		for i := range sT.(structType).labelNumbers {
 			dec, _ := cp.getDeclaration(decLABEL, tok, i)
 			decLabel := dec.(labelInfo)
 			decLabel.private = false
 			cp.setDeclaration(decLABEL, tok, i, decLabel)
-			cp.vm.LabelIsPrivate[cp.vm.Mem[decLabel.loc].V.(int)] = false
+			cp.Vm.LabelIsPrivate[cp.Vm.Mem[decLabel.loc].V.(int)] = false
 		}
 	}
 }
@@ -1068,7 +1066,7 @@ func (cp *Compiler) createInterfaceTypes() {
 func (cp *Compiler) addFieldsToStructs() {
 	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		structNumber := cp.structDeclarationNumberToTypeNumber[i]
-		structInfo := cp.vm.concreteTypes[structNumber].(structType)
+		structInfo := cp.Vm.concreteTypes[structNumber].(structType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typesForStruct := make([]AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
@@ -1080,7 +1078,7 @@ func (cp *Compiler) addFieldsToStructs() {
 		}
 		structInfo.alternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
 		structInfo.abstractStructFields = typesForStructForVm
-		cp.vm.concreteTypes[structNumber] = structInfo
+		cp.Vm.concreteTypes[structNumber] = structInfo
 	}
 }
 
@@ -1089,20 +1087,20 @@ func (cp *Compiler) createSnippetTypesPart2() {
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range cp.P.Snippets {
 		sig := ast.AstSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-		typeNo := values.ValueType(len(cp.vm.concreteTypes))
+		typeNo := values.ValueType(len(cp.Vm.concreteTypes))
 		cp.P.TokenizedDeclarations[snippetDeclaration][i].ToStart()
 		decTok := cp.P.TokenizedDeclarations[snippetDeclaration][i].NextToken()
 		typeInfo, typeExists := cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := cp.vm.concreteTypes[typeNo].(structType)
+			typeInfo := cp.Vm.concreteTypes[typeNo].(structType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypes[typeNo] = typeInfo
 		} else {
 			cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(snippetDeclaration), i)})
-			cp.vm.concreteTypes = append(cp.vm.concreteTypes, structType{name: name, path: cp.P.NamespacePath, snippet: true, private: cp.P.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, structType{name: name, path: cp.P.NamespacePath, snippet: true, private: cp.P.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 			cp.addStructLabelsToVm(name, typeNo, sig, &decTok)
-			cp.vm.codeGeneratingTypes.Add(typeNo)
+			cp.Vm.codeGeneratingTypes.Add(typeNo)
 		}
 		cp.AddType(name, "snippet", typeNo)
 		cp.StructNameToTypeNumber[name] = typeNo
@@ -1116,14 +1114,14 @@ func (cp *Compiler) createSnippetTypesPart2() {
 }
 
 func (cp *Compiler) checkTypesForConsistency() {
-	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(cp.vm.concreteTypes); typeNumber++ {
-		if !cp.vm.concreteTypes[typeNumber].isStruct() {
+	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(cp.Vm.concreteTypes); typeNumber++ {
+		if !cp.Vm.concreteTypes[typeNumber].isStruct() {
 			continue
 		}
-		if !cp.vm.concreteTypes[typeNumber].isPrivate() {
-			for _, ty := range cp.vm.concreteTypes[typeNumber].(structType).abstractStructFields {
-				if cp.vm.isPrivate(ty) {
-					cp.Throw("init/private/struct", token.Token{}, cp.vm.concreteTypes[typeNumber], cp.vm.DescribeAbstractType(ty, LITERAL))
+		if !cp.Vm.concreteTypes[typeNumber].isPrivate() {
+			for _, ty := range cp.Vm.concreteTypes[typeNumber].(structType).abstractStructFields {
+				if cp.Vm.isPrivate(ty) {
+					cp.Throw("init/private/struct", token.Token{}, cp.Vm.concreteTypes[typeNumber], cp.Vm.DescribeAbstractType(ty, LITERAL))
 				}
 			}
 		}
@@ -1138,7 +1136,7 @@ func (cp *Compiler) checkTypesForConsistency() {
 		name := tok.Literal
 		abType := cp.P.GetAbstractType(name)
 		for _, w := range abType.Types {
-			if cp.vm.concreteTypes[w].isPrivate() {
+			if cp.Vm.concreteTypes[w].isPrivate() {
 				cp.Throw("init/private/abstract", tok, name)
 			}
 		}
@@ -1150,20 +1148,20 @@ func (cp *Compiler) addStructLabelsToVm(name string, typeNo values.ValueType, si
 	labelsForStruct := make([]int, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
-		labelLocation, alreadyExists := cp.vm.FieldLabelsInMem[labelName]
+		labelLocation, alreadyExists := cp.Vm.FieldLabelsInMem[labelName]
 		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-			labelsForStruct = append(labelsForStruct, cp.vm.Mem[labelLocation].V.(int))
+			labelsForStruct = append(labelsForStruct, cp.Vm.Mem[labelLocation].V.(int))
 		} else {
-			cp.vm.FieldLabelsInMem[labelName] = cp.Reserve(values.LABEL, len(cp.vm.Labels), tok)
-			labelsForStruct = append(labelsForStruct, len(cp.vm.Labels))
-			cp.vm.Labels = append(cp.vm.Labels, labelName)
-			cp.vm.LabelIsPrivate = append(cp.vm.LabelIsPrivate, true)
+			cp.Vm.FieldLabelsInMem[labelName] = cp.Reserve(values.LABEL, len(cp.Vm.Labels), tok)
+			labelsForStruct = append(labelsForStruct, len(cp.Vm.Labels))
+			cp.Vm.Labels = append(cp.Vm.Labels, labelName)
+			cp.Vm.LabelIsPrivate = append(cp.Vm.LabelIsPrivate, true)
 		}
 	}
-	typeInfo := cp.vm.concreteTypes[typeNo].(structType)
+	typeInfo := cp.Vm.concreteTypes[typeNo].(structType)
 	typeInfo.labelNumbers = labelsForStruct
 	typeInfo = typeInfo.addLabels(labelsForStruct)
-	cp.vm.concreteTypes[typeNo] = typeInfo
+	cp.Vm.concreteTypes[typeNo] = typeInfo
 }
 
 func (cp *Compiler) compileConstructors() {
@@ -1188,7 +1186,7 @@ func (cp *Compiler) compileConstructors() {
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := cp.CloneNameToTypeNumber[name]
-		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: cp.vm.concreteTypes[cp.vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
+		sig := ast.AstSig{ast.NameTypenamePair{VarName: "x", VarType: cp.Vm.concreteTypes[cp.Vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = cp
 	}
@@ -1228,22 +1226,22 @@ func (cp *Compiler) addAbstractTypesToVm() {
 // For reasons, it's a good idea to have the type info stored as an ordered list rather than a set or hashmap.
 // So we need to do insertion by hand to avoid duplication.
 func (cp *Compiler) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
-	for i, existingTypeInfo := range cp.vm.AbstractTypes {
+	for i, existingTypeInfo := range cp.Vm.AbstractTypes {
 		if typeInfo.Name == existingTypeInfo.Name {
 			if typeInfo.Path == existingTypeInfo.Path {
 				return
 			}
 			if strings.Count(typeInfo.Path, ".") < strings.Count(existingTypeInfo.Path, ".") {
-				cp.vm.AbstractTypes[i] = typeInfo
+				cp.Vm.AbstractTypes[i] = typeInfo
 				return
 			}
 			if len(typeInfo.Path) < len(existingTypeInfo.Path) {
-				cp.vm.AbstractTypes[i] = typeInfo
+				cp.Vm.AbstractTypes[i] = typeInfo
 				return
 			}
 		}
 	}
-	cp.vm.AbstractTypes = append(cp.vm.AbstractTypes, typeInfo)
+	cp.Vm.AbstractTypes = append(cp.Vm.AbstractTypes, typeInfo)
 }
 
 func altType(t ...values.ValueType) AlternateType {
