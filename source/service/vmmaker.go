@@ -134,7 +134,7 @@ func (vmm *VmMaker) parseAll(scriptFilepath, sourcecode string) {
 		vmm.uP.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
 	}
 	vmm.cm("Making new relexer.")
-	vmm.uP.SetRelexer(*lexer.NewRelexer(scriptFilepath, sourcecode))
+	vmm.uP.Parser.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
 
 	vmm.cm("Making parser and tokenized program.")
 	vmm.uP.MakeParserAndTokenizedProgram()

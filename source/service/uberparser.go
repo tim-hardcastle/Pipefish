@@ -80,17 +80,16 @@ type fnSource struct {
 }
 
 type Initializer struct {
-	rl      lexer.Relexer
 	Parser  *parser.Parser
 	
 }
 
 func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir string, namespacePath string) *Initializer {
 	uP := &Initializer{
-		rl:      *lexer.NewRelexer(source, sourceCode),
 		Parser:  parser.New(common, dir, namespacePath),
 	}
 	uP.Parser.Common.Sources[source] = strings.Split(sourceCode, "\n")
+	uP.Parser.TokenizedCode = lexer.NewRelexer(source, sourceCode)
 	return uP
 }
 
@@ -112,7 +111,7 @@ func (init *Initializer) AddToNameSpace(thingsToImport []string) {
 			init.Throw("init/import/found", token.Token{})
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
-		init.SetRelexer(*lexer.NewRelexer(fname, stdImp))
+		init.Parser.TokenizedCode = lexer.NewRelexer(fname, stdImp)
 		init.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.
 		init.Parser.Common.Sources[fname] = strings.Split(stdImp, "\n")
 	}
@@ -137,7 +136,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		tok token.Token
 	)
 
-	tok = uP.rl.NextToken() // note that we've already removed leading newlines.
+	tok = uP.Parser.TokenizedCode.NextToken() // note that we've already removed leading newlines.
 	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(tok.Type, tok.Literal)
 	}
@@ -155,7 +154,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 
 	line := token.NewCodeChunk()
 
-	for tok = uP.rl.NextToken(); tok.Type != token.EOF; tok = uP.rl.NextToken() {
+	for tok = uP.Parser.TokenizedCode.NextToken(); tok.Type != token.EOF; tok = uP.Parser.TokenizedCode.NextToken() {
 		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 			println(tok.Type, tok.Literal)
 		}
@@ -279,7 +278,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		line.Append(tok)
 	}
 
-	uP.Parser.Common.Errors = report.MergeErrors(uP.rl.GetErrors(), uP.Parser.Common.Errors)
+	uP.Parser.Common.Errors = report.MergeErrors(uP.Parser.TokenizedCode.(*lexer.Relexer).GetErrors(), uP.Parser.Common.Errors)
 }
 
 func (uP *Initializer) ParseImportsAndExternals() {
@@ -418,10 +417,6 @@ func (uP *Initializer) ParseEverything() {
 	uP.Parser.Bling.AddSet(uP.Parser.Forefixes)
 	uP.Parser.Bling.AddSet(uP.Parser.Midfixes)
 	uP.Parser.Bling.AddSet(uP.Parser.Endfixes)
-}
-
-func (uP *Initializer) SetRelexer(rl lexer.Relexer) {
-	uP.rl = rl
 }
 
 func flatten(s string) string {
