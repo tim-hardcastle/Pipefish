@@ -995,7 +995,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 }
 
 func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
-	hub.ers = p.Errors
+	hub.ers = p.Common.Errors
 	hub.WritePretty(report.GetList(hub.ers))
 }
 

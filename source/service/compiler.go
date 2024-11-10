@@ -1252,7 +1252,6 @@ NodeTypeSwitch:
 		} else {
 			enumCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
 		}
-		cp.P.GetErrorsFrom(enumCompiler.P)
 		enumElement, ok := enumCompiler.EnumElements[node.Value]
 		if ok {
 			if cp.vm.concreteTypes[cp.vm.Mem[enumElement].T].isPrivate() {
@@ -1480,7 +1479,6 @@ NodeTypeSwitch:
 			cp.pushRCompiler(resolvingCompiler)
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.popRCompiler()
-			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		if node.Operator == "," {
@@ -1809,7 +1807,6 @@ NodeTypeSwitch:
 			cp.pushRCompiler(resolvingCompiler)
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.popRCompiler()
-			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		cp.P.Throw("comp/known/prefix", node.GetToken())
@@ -1864,7 +1861,6 @@ NodeTypeSwitch:
 			cp.pushRCompiler(resolvingCompiler)
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.popRCompiler()
-			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		cp.P.Throw("comp/known/suffix", node.GetToken())
@@ -1917,7 +1913,6 @@ NodeTypeSwitch:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler.P.Unfixes.Contains(node.Operator) {
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(resolvingCompiler, node, ctxt.x(), len(node.Namespace) > 0)
-			cp.P.GetErrorsFrom(resolvingCompiler.P)
 			break
 		}
 		cp.P.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?

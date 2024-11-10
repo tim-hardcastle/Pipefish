@@ -280,7 +280,7 @@ func (uP *Initializer) MakeParserAndTokenizedProgram() {
 		line.Append(tok)
 	}
 
-	uP.Parser.Errors = report.MergeErrors(uP.rl.GetErrors(), uP.Parser.Errors)
+	uP.Parser.Common.Errors = report.MergeErrors(uP.rl.GetErrors(), uP.Parser.Common.Errors)
 }
 
 func (uP *Initializer) ParseImportsAndExternals() {
@@ -593,7 +593,7 @@ func (uP *Initializer) Throw(errorID string, tok token.Token, args ...any) {
 }
 
 func (uP *Initializer) ErrorsExist() bool {
-	return len(uP.Parser.Errors) > 0
+	return len(uP.Parser.Common.Errors) > 0
 }
 
 func (uP *Initializer) ReturnErrors() string {

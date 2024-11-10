@@ -290,7 +290,6 @@ func (vmm *VmMaker) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		}
 		newCp, newUP := initializeFromFilepath(vmm.cp.vm, uP.Parser.Common, scriptFilepath, vmm.cp.P.Directory, namespace+"."+uP.Parser.NamespacePath)
 		if newUP.ErrorsExist() {
-			uP.Parser.GetErrorsFrom(newUP.Parser)
 			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, true, false}
 		} else {
 			vmm.cp.Services[namespace] = &Service{vmm.cp.vm, newCp, false, false}
@@ -618,12 +617,7 @@ func (vmm *VmMaker) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService, newUP := StartService(path, vmm.cp.P.Directory, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
-		// We return the Intializer newUP because if errors have been thrown that's where they are.
-		if newUP.ErrorsExist() {
-			vmm.uP.Parser.GetErrorsFrom(newUP.Parser)
-			continue
-		}
+		newService, _ := StartService(path, vmm.cp.P.Directory, vmm.cp.vm.Database, vmm.cp.vm.HubServices)
 		vmm.cp.vm.HubServices[name] = newService
 		vmm.addExternalOnSameHub(path, name)
 	}
@@ -646,14 +640,10 @@ func (vmm *VmMaker) addAnyExternalService(handlerForService externalCallHandler,
 	vmm.cp.vm.ExternalCallHandlers = append(vmm.cp.vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp, newUp := initializeFromSourcecode(vmm.cp.vm, vmm.cp.P.Common, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath)
-	if newUp.ErrorsExist() {
-		vmm.cp.P.GetErrorsFrom(newUp.Parser)
-		return
-	}
+	newCp, _ := initializeFromSourcecode(vmm.cp.vm, vmm.cp.P.Common, path, sourcecode, vmm.cp.P.Directory, name+"."+vmm.uP.Parser.NamespacePath)
 	vmm.cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = vmm.uP.Parser.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
-	vmm.cp.Services[name] = &Service{vmm.cp.vm, newCp, false, false}
+	vmm.cp.Services[name] = &Service{vmm.cp.vm, newCp, newCp.P.ErrorsExist(), false}
 }
 
 func (vmm *VmMaker) AddType(name, supertype string, typeNo values.ValueType) {

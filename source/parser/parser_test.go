@@ -96,7 +96,7 @@ func testParserErrors(cp *service.Compiler, s string) string {
 	if !cp.P.ErrorsExist() {
 		return "unexpected successful parsing"
 	} else {
-		return cp.P.Errors[0].ErrorId
+		return cp.P.Common.Errors[0].ErrorId
 	}
 }
 

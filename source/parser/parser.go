@@ -141,12 +141,14 @@ type CommonParserBindle struct {
 	Types               TypeSys
 	Functions           map[FuncSource]*ast.PrsrFunction
 	InterfaceBacktracks []BkInterface
+	Errors              []*report.Error
 }
 
 func NewCommonBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
 		Functions:           make(map[FuncSource]*ast.PrsrFunction),
 		InterfaceBacktracks: []BkInterface{},
+		Errors: []*report.Error{},
 	}
 	return &result
 }
@@ -156,7 +158,6 @@ type Parser struct {
 	// Temporary state: things that are used to parse one line.
 
 	TokenizedCode         TokenSupplier
-	Errors                report.Errors
 	nesting               dtypes.Stack[token.Token]
 	curToken              token.Token
 	peekToken             token.Token
@@ -218,7 +219,6 @@ type BkInterface struct {
 
 func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 	p := &Parser{
-		Errors:            []*report.Error{},
 		Logging:           true,
 		nesting:           *dtypes.NewStack[token.Token](),
 		Functions:         make(dtypes.Set[string]),
@@ -1318,7 +1318,7 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
 	result := p.ParseTokenizedChunk()
-	p.Errors = append(rl.GetErrors(), p.Errors...)
+	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
 	return result
 }
 
@@ -1332,28 +1332,21 @@ func (p *Parser) ParseDump(source, input string) {
 
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 	c := *tok
-	p.Errors = report.Throw(errorID, p.Errors, &c, args...)
+	p.Common.Errors = report.Throw(errorID, p.Common.Errors, &c, args...)
 }
 
 func (p *Parser) ErrorsExist() bool {
-	return len(p.Errors) > 0
+	return len(p.Common.Errors) > 0
 }
 
 func (p *Parser) ReturnErrors() string {
-	return report.GetList(p.Errors)
+	return report.GetList(p.Common.Errors)
 }
 
 func (p *Parser) ResetAfterError() {
-	p.Errors = []*report.Error{}
+	p.Common.Errors = []*report.Error{}
 	p.CurrentNamespace = []string{}
 	p.enumResolvingParsers = []*Parser{p}
-}
-
-func (p *Parser) GetErrorsFrom(q *Parser) {
-	if p == q { // This can happen if for example we call getResolvingCompiler and we aren't in a namespace. At this point we don't want to double the list of our errors.
-		return
-	}
-	p.Errors = append(p.Errors, q.Errors...)
 }
 
 // Slurps the parts of a function out of it. As the colon after a function definition has

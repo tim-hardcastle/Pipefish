@@ -22,7 +22,7 @@ func testCompilerErrors(cp *Compiler, s string) string {
 	if !cp.P.ErrorsExist() {
 		return "unexpected successful evaluation returned " + text.Emph(cp.vm.DefaultDescription(val))
 	} else {
-		return cp.P.Errors[0].ErrorId
+		return cp.P.Common.Errors[0].ErrorId
 	}
 }
 
