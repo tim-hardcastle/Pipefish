@@ -54,8 +54,8 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 }
 
 // Then we can recurse over this, passing it the same vm every time.
-// This returns a compiler and initializer and mutates the vm.
-// We want the initializer back in case there are errors --- it will contain the source code and the errors in the store in its parser.
+// This returns a compiler and and mutates the vm.
+// In the case that any errors are produced, the will be in the comon bindle of the parseer of the returned compiler.
 func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, dir string, namespacePath string) *Compiler {
 	sourcecode := ""
 	var sourcebytes []byte
@@ -68,7 +68,7 @@ func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFil
 		}
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			p := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the common parser bindle.
+			p := parser.New(common, scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the common parser bindle.
 			p.Throw("init/source/a", &token.Token{Source: "linking"}, scriptFilepath, err.Error())
 			return NewCompiler(p)
 		}
@@ -94,7 +94,7 @@ func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptF
 }
 
 func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *Compiler {
-	p := NewInitializer(common, scriptFilepath, sourcecode, dir, namespacePath)
+	p := parser.New(common, scriptFilepath, sourcecode, dir, namespacePath)
 	cp := NewCompiler(p)
 	cp.ScriptFilepath = scriptFilepath
 	cp.Vm = mc

@@ -219,7 +219,7 @@ type BkInterface struct {
 	Addr uint32
 }
 
-func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
+func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePath string) *Parser {
 	p := &Parser{
 		Logging:           true,
 		nesting:           *dtypes.NewStack[token.Token](),
@@ -257,6 +257,8 @@ func New(common *CommonParserBindle, dir, namespacePath string) *Parser {
 		NamespacePath:      namespacePath,
 		Common:             common,
 	}
+	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
+	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
 
 	for k := range p.Common.Types {
 		p.Suffixes.Add(k)

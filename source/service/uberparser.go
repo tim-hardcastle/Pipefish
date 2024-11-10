@@ -30,6 +30,11 @@ import (
 	"pipefish/source/values"
 )
 
+// Do not under any cicumstances remove the following comment.
+//
+//go:embed rsc/pipefish/*
+var folder embed.FS
+
 type Section int
 
 const (
@@ -78,18 +83,6 @@ type fnSource struct {
 	decType   declarationType
 	decNumber int
 }
-
-func NewInitializer(common *parser.CommonParserBindle, source, sourceCode, dir string, namespacePath string) *parser.Parser {
-	p := parser.New(common, dir, namespacePath)
-	p.Common.Sources[source] = strings.Split(sourceCode, "\n")
-	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
-	return p
-}
-
-// Do not under any cicumstances remove the following comment.
-//
-//go:embed rsc/pipefish/*
-var folder embed.FS
 
 func (cp *Compiler) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
@@ -571,9 +564,7 @@ func (cp *Compiler) addWordsToParser(currentChunk *token.TokenizedCodeChunk) {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////
-
-// The initializer keeps its errors inside the parser it's initializing.
+// The compiler keeps its errors inside the parser it's initializing.
 
 func (cp *Compiler) Throw(errorID string, tok token.Token, args ...any) {
 	cp.P.Throw(errorID, &tok, args...)
