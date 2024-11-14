@@ -18,10 +18,11 @@ The result of all this is expressed in the following table:
 | ------------- | ------------- |
 | The `def` section of a Pipefish script | The `cmd` section of a Pipefish script |
 | Has functions : | Has commands : |
-| (a) where the body is a any expression | (a) where the body is one or more instructions |
+| (a) where the body is any expression | (a) where the body is one or more instructions |
 | (b) which is evaluated | (b) which are executed |
-| (c) returning a value | (c) returning only success or an error |
-| (d) which can only call functions | (d) which can call both functions and commands |
+| (c) which are inherently parallel | which are inherently serial |
+| (d) returning a value | (d) returning only success or an error |
+| (e) which can only call functions | (e) which can call both functions and commands |
 | All local values are constant | All local values are mutable |
 | Effectless | Exists only to perform side-effects |
 | Is pure | Can access global variables, the file system, the database ... |
