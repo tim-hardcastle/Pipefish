@@ -1,6 +1,7 @@
 import
 
 gocode "io/ioutil"
+gocode "filepath"
 gocode "math/rand"
 gocode "os"
 gocode "time"
@@ -163,7 +164,7 @@ get (L ref) from (directoryNames DirectoryNames) :
 
 def
 
-goGetDirectoryNames(directoryNames) : gocode {
+goGetDirectoryNames(directoryNames DirectoryNames) : gocode {
     resultList := []string{}
     if directoryNames.fileSearchMode == 0 {
         return resultList
