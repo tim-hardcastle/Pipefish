@@ -163,7 +163,7 @@ get (L ref) from (directoryNames DirectoryNames) :
 
 def
 
-goGetDirectoryNames(directoryNames) : golang {
+goGetDirectoryNames(directoryNames) : gocode {
     resultList := []string{}
     if directoryNames.fileSearchMode == 0 {
         return resultList
