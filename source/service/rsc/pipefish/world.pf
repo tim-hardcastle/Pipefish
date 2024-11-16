@@ -148,7 +148,9 @@ def
 (x type) ? :
     x/null
 
-enum FileSearchMode = NONRECURSIVE, RECURSIVE
+newtype
+
+FileSearchMode = enum NONRECURSIVE, RECURSIVE
 
 FileNames = struct(directory string, fileSearchMode FileSearchMode) 
 
