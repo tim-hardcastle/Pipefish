@@ -161,6 +161,8 @@ cmd
 get (L ref) from (directoryNames DirectoryNames) : 
     L = goGetDirectoryNames(directoryNames)
 
+def
+
 goGetDirectoryNames(directoryNames) : golang {
     resultList := []string{}
     if directoryNames.fileSearchMode == 0 {
@@ -170,7 +172,7 @@ goGetDirectoryNames(directoryNames) : golang {
         if err != nil {
             return err
         }
-	    if info.IsDir() {
+        if info.IsDir() {
             resultList = append(resultList, info.Name())
         } 
     })
