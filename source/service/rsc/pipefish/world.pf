@@ -175,7 +175,11 @@ goGetDirectoryNames(directoryNames DirectoryNames) : gocode {
         }
         if info.IsDir() {
             resultList = append(resultList, info.Name())
-        } 
+        }
+		return nil
     })
+	if err != nil {
+		return err
+	}
     return resultList
 }
