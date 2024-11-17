@@ -100,7 +100,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 			continue
 		}
 		concType := abType.Types[0]
-		convGoEnumToPfEnum = convGoEnumToPfEnum + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.(name))"
+		convGoEnumToPfEnum = convGoEnumToPfEnum + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.("+name+"))"
 		firstEnumElement := cp.Vm.concreteTypes[concType].(enumType).elementNames[0]
 		decs = decs + "type " + name + " int\n\n const (\n    " + firstEnumElement + " " + name + " = iota\n"
 		for _, element := range cp.Vm.concreteTypes[concType].(enumType).elementNames[1:] {
