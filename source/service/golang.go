@@ -294,7 +294,7 @@ func doctorReturns(body string) string {
 	output := ""
 	for ix := strings.Index(body, "return "); ix != -1; ix = strings.Index(body, "return ") {
 
-		output = output + body[:ix] + "return tuplify("
+		output = output + body[:ix]
 
 		body = body[ix+7:]
 
@@ -305,7 +305,7 @@ func doctorReturns(body string) string {
 			if lineEnd == -1 {
 				panic("Tim, you goofed. Lines are meant to have endings.")
 			}
-			newLine := strings.TrimRight(body[:lineEnd], "\n\r \t")
+			newLine := strings.Trim(body[:lineEnd], "\n\r \t")
 			if returnBody != "" {
 				returnBody = returnBody + "\n"
 			}
@@ -321,8 +321,11 @@ func doctorReturns(body string) string {
 
 		}
 		body = body[ix:]
-		output = output + returnBody + ")"
-
+		if len(returnBody) >= 7 && returnBody[:7] == "gocode" {
+			output = output + "return " + returnBody
+		} else {
+			output = output + "return tuplify(" + returnBody + ")"
+		}
 	}
 
 	return output + body
