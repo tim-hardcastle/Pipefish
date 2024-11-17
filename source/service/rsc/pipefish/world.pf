@@ -60,6 +60,10 @@ get (x ref) from (c Clock) :
 
 def
 
+goReturnFileSearchMode(fsm FileSearchMode) : gocode {
+    return fsm
+}
+
 goRandomInt(i int) : gocode {
     return rand.Intn(i)
 }
@@ -176,7 +180,7 @@ goGetDirectoryNames(directoryNames DirectoryNames) : gocode {
         if info.IsDir() {
             resultList = append(resultList, info.Name())
         }
-		return gocode nil
+        return gocode nil
     })
 	if err != nil {
 		return err
