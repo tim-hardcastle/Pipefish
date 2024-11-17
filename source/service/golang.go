@@ -254,6 +254,8 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool)
 	if ok {
 		if pTy == "int" { // TODO --- I forget why I have to do this and should find ut if I can stop.
 			return "int(", goTy, true
+		} else {
+			return "", goTy, true
 		}
 	}
 	// If it's not a native type, then it may be a struct or an enum, so it may be namespaced.
@@ -278,7 +280,7 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool)
 		gh.EnumNames[source].Add(pTy)
 		return name + "(", ".(int))", true
 	}
-	
+
 	return "", "", false
 }
 
