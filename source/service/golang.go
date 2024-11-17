@@ -208,16 +208,28 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 	}
 
 	for _, v := range rTypes {
-		_, _, ok := gh.doTypeConversion(source, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
-		if !ok {
-			gh.Prsr.Throw("golang/type/c", golang.GetToken(), v.VarType)
-			return
-		}
+		name, resolvingParser := gh.getName(v.VarType)
+		gh.addEnumOrStructTypes(name, source, resolvingParser)
 	}
 
 	fnString = fnString + doctorReturns(golang.Token.Literal) + "\n\n"
 
 	gh.Modules[source] = gh.Modules[source] + fnString
+}
+
+func (gh *GoHandler) addEnumOrStructTypes(name, source string, resolvingParser *parser.Parser) {
+	if resolvingParser.Structs.Contains(name) {
+		gh.StructNames[source].Add(name)
+		for _, v := range resolvingParser.StructSig[name] {
+			gh.addEnumOrStructTypes(v.VarType, source, resolvingParser)
+		}
+		return
+	}
+	abType := resolvingParser.GetAbstractType(name)
+	if abType.IsSubtypeOf(resolvingParser.Common.Types["enum"]) {
+		gh.EnumNames[source].Add(name)
+	}
+	// If it's neither an enum nor a struct there's no need for an error, we can just return.
 }
 
 func (gh *GoHandler) AddPureGoBlock(source, code string) {
@@ -255,13 +267,28 @@ var typeConv = map[string]string{"bling": ".(string)",
 func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool) {
 	goTy, ok := typeConv[pTy]
 	if ok {
-		if pTy == "int" { // TODO --- I forget why I have to do this and should find ut if I can stop.
+		if pTy == "int" { // TODO --- I forget why I have to do this and should find out if I can stop.
 			return "int(", goTy, true
 		} else {
 			return "", goTy, true
 		}
 	}
 	// If it's not a native type, then it may be a struct or an enum, so it may be namespaced.
+
+	name, resolvingParser := gh.getName(pTy)
+
+	if resolvingParser.Structs.Contains(name) {
+		return "", ".(" + text.Flatten(pTy) + ")", true
+	}
+	abType := resolvingParser.GetAbstractType(name)
+	if abType.IsSubtypeOf(resolvingParser.Common.Types["enum"]) {
+		return name + "(", ".(int))", true
+	}
+
+	return "", "", false
+}
+
+func (gh *GoHandler) getName(pTy string) (string, *parser.Parser) {
 	bits := strings.Split(pTy, ".")
 	name := bits[len(bits)-1]
 	namespacePath := bits[0 : len(bits)-1]
@@ -273,19 +300,8 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool)
 		}
 		resolvingParser = s.Parser
 	}
-
-	if resolvingParser.Structs.Contains(name) {
-		gh.StructNames[source].Add(pTy)
-		return "", ".(" + text.Flatten(pTy) + ")", true
-	}
-	abType := resolvingParser.GetAbstractType(name)
-	if abType.IsSubtypeOf(resolvingParser.Common.Types["enum"]) {
-		gh.EnumNames[source].Add(pTy)
-		return name + "(", ".(int))", true
-	}
-
-	return "", "", false
-}
+	return name, resolvingParser
+} 
 
 func capitalize(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
