@@ -1,7 +1,7 @@
 import
 
 gocode "io/ioutil"
-gocode "filepath"
+gocode "path/filepath"
 gocode "math/rand"
 gocode "os"
 gocode "time"
