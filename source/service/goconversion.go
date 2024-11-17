@@ -108,7 +108,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		}
 		decs = decs + ")\n\n"
 	}	
-	convGoEnumToPfEnum = convGoEnumToPfEnum + "\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
+	convGoEnumToPfEnum = convGoEnumToPfEnum + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
 
 	// Now the struct convertors.
 	convGoStructToPfStruct := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
