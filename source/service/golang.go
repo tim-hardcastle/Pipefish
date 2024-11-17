@@ -35,13 +35,13 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
 		Prsr:        prsr,
-		StructNames: map[string]dtypes.Set[string]{},
 	}
 
 	gh.timeMap = make(map[string]int)
 	gh.Modules = make(map[string]string)
 	gh.Plugins = make(map[string]*plugin.Plugin)
 	gh.StructNames = make(map[string]dtypes.Set[string])
+	gh.EnumNames = make(map[string]dtypes.Set[string])
 	gh.TypeDeclarations = make(map[string]string)
 
 	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
@@ -172,6 +172,9 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 
 	if gh.StructNames[source] == nil { 
 		gh.StructNames[source] = make(dtypes.Set[string])
+	}
+	if gh.EnumNames[source] == nil { 
+		gh.EnumNames[source] = make(dtypes.Set[string])
 	}
 
 	// We check to see whether the source code has been modified.
