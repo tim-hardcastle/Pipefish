@@ -3983,7 +3983,8 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		cpF.GoNumber = uint32(len(cp.Vm.GoFns))
 		cpF.HasGo = true
 		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
-			cp.goToPf[body.GetToken().Source], cp.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
+			cp.goToPf[body.GetToken().Source], cp.goToPfEnum[body.GetToken().Source],
+			cp.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE

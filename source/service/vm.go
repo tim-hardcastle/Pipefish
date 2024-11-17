@@ -83,6 +83,7 @@ type vmState struct {
 type GoFn struct {
 	Code   func(args ...any) any
 	GoToPf func(v any) (uint32, []any, bool)
+	GoToPfEnum func(v any) (uint32, int)
 	PfToGo func(T uint32, args []any) any
 	Raw    []bool
 }
@@ -478,7 +479,7 @@ loop:
 					goTpl = append(goTpl, vm.pipefishToGo(el, F.PfToGo))
 				}
 			}
-			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPf)
+			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPf, F.GoToPfEnum)
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
 		case Gtei:
