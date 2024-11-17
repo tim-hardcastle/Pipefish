@@ -37,6 +37,7 @@ type Compiler struct {
 
 	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
 	pfToGo map[string]func(uint32, []any) any         //           "
+	goToPfEnum map[string]func(any) (uint32, int)
 
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType

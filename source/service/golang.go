@@ -26,6 +26,7 @@ type GoHandler struct {
 	Modules          map[string]string
 	Plugins          map[string]*plugin.Plugin
 	rawHappened      bool
+	EnumNames        map[string]dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
 	StructNames      map[string]dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
 	TypeDeclarations map[string]string             // A string to put the generated source code for declaring structs in.
 }
@@ -169,7 +170,7 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 
 	source := golang.GetToken().Source
 
-	if gh.StructNames[source] == nil {
+	if gh.StructNames[source] == nil { 
 		gh.StructNames[source] = make(dtypes.Set[string])
 	}
 
@@ -187,28 +188,24 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 
 	fnString := "func " + capitalize(keyword) + "(args ...any) any {\n\n"
 	for i, v := range sig {
-		ty := ""
+		preconv := ""
+		postconv := ""
 		ok := false
 		if golang.Raw[i] {
 			gh.rawHappened = true
-			ty = ".(values.Value)"
+			postconv = ".(values.Value)"
 		} else {
-			ty, ok = gh.doTypeConversion(source, v.VarType)
+			preconv, postconv, ok = gh.doTypeConversion(source, v.VarType)
 			if !ok {
 				gh.Prsr.Throw("golang/type", golang.GetToken(), v.VarType)
 				return
 			}
 		}
-		kludge := ""
-		if v.VarType == "int" && !golang.Raw[i] {
-			ty = ty + ")"
-			kludge = "int("
-		}
-		fnString = fnString + "    " + v.VarName + " := " + kludge + "args[" + strconv.Itoa(i) + "]" + ty + "\n"
+		fnString = fnString + "    " + v.VarName + " := " + preconv + "args[" + strconv.Itoa(i) + "]" + postconv + "\n"
 	}
 
 	for _, v := range rTypes {
-		_, ok := gh.doTypeConversion(source, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
+		_, _, ok := gh.doTypeConversion(source, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
 		if !ok {
 			gh.Prsr.Throw("golang/type/c", golang.GetToken(), v.VarType)
 			return
@@ -240,7 +237,7 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"error":  ".(error)",
 	"float":  ".(float64)",
 	"func":   ".(func(args ...any) any)",
-	"int":    ".(int)",
+	"int":    ".(int))",   // Extra parenthesis matches the kludge below.
 	"label":  ".(string)",
 	"list":   ".([]any)",
 	"pair":   ".([]any)",
@@ -252,10 +249,12 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"type":   ".(string)",
 }
 
-func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
+func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool) {
 	goTy, ok := typeConv[pTy]
 	if ok {
-		return goTy, true
+		if pTy == "int" { // TODO --- I forget why I have to do this and should find ut if I can stop.
+			return "int(", goTy, true
+		}
 	}
 	// If it's not a native type, then it may be a struct or an enum, so it may be namespaced.
 	bits := strings.Split(pTy, ".")
@@ -272,21 +271,22 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, bool) {
 
 	if resolvingParser.Structs.Contains(name) {
 		gh.StructNames[source].Add(pTy)
-		return ".(" + text.Flatten(pTy) + ")", true
+		return "", ".(" + text.Flatten(pTy) + ")", true
 	}
 	abType := resolvingParser.GetAbstractType(name)
 	if abType.IsSubtypeOf(resolvingParser.Common.Types["enum"]) {
-		return ".(int)", true
+		gh.EnumNames[source].Add(pTy)
+		return name + "(", ".(int))", true
 	}
-
-	return "", false
+	
+	return "", "", false
 }
 
 func capitalize(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
 }
 
-// Note to self --- this would also pick out "return" in quotes, comments,
+// TODO --- this would also pick out "return" in quotes, comments,
 // you need to do a better one.
 func doctorReturns(body string) string {
 	output := ""

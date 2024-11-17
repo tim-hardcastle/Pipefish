@@ -316,10 +316,12 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	cp.goToPf = map[string]func(any) (uint32, []any, bool){}
 	cp.pfToGo = map[string]func(uint32, []any) any{}
 	for source := range goHandler.Modules {
-		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
+		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
 		cp.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
 		cp.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
+		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
 	}
 	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
 	if cp.P.NamespacePath == "" {

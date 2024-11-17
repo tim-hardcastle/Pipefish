@@ -41,12 +41,12 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 	}
 }
 
-func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) values.Value {
+func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool), enumConverter func(any) (uint32, int)) values.Value {
 	switch v := v.(type) {
 	case *values.GoReturn:
 		result := make([]values.Value, 0, len(v.Elements))
 		for _, el := range v.Elements {
-			result = append(result, vm.goToPipefish(el, converter))
+			result = append(result, vm.goToPipefish(el, structConverter, enumConverter))
 		}
 		return values.Value{values.TUPLE, result}
 	case bool:
@@ -66,24 +66,52 @@ func (vm *Vm) goToPipefish(v any, converter func(any) (uint32, []any, bool)) val
 	case values.Value:
 		return v
 	}
-	structType, gVals, ok := converter(v)
+	structType, gVals, ok := structConverter(v)
 	if ok {
 		pVals := make([]values.Value, 0, len(gVals))
 		for _, gVal := range gVals {
-			pVals = append(pVals, vm.goToPipefish(gVal, converter))
+			pVals = append(pVals, vm.goToPipefish(gVal, structConverter, enumConverter))
 		}
 		return values.Value{values.ValueType(structType), pVals}
 	}
+	enumType, val := enumConverter(v)
+	if enumType != 0 { // Which is never used for anything, and so as may well be a sentinel.
+		return values.Value{values.ValueType(enumType), val}
+	}
 
-	return values.Value{values.ERROR, &report.Error{ErrorId: "vm/golang/conv/a", Token: &token.Token{Source: "golang conversion function"}}}
+	return values.Value{values.ERROR, &report.Error{ErrorId: "golang/conv/a", Token: &token.Token{Source: "golang conversion function"}}}
 }
 
 // In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
 // a function which can convert the Go structs back into Pipefish structs. This function prepares this as a
 // snippet of text which can be added to the Go source code we're compiling.
 func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source string) string {
+	convGoEnumToPfEnum := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
 	decs := "\n" // The type declarations.
-	convGoTypeToPfType := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
+	// We do the enum converters.
+	for eType := range goHandler.EnumNames[source] {
+		bits := strings.Split(eType, ".")
+		name := bits[len(bits)-1]
+		namespacePath := bits[0 : len(bits)-1]
+		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
+		abType := resolvingCompiler.P.GetAbstractType(name)
+		if abType.Len() != 1 {
+			cp.Throw("golang/type/concrete", token.Token{Source: "function making structs for Go"}, name)
+			continue
+		}
+		concType := abType.Types[0]
+		convGoEnumToPfEnum = "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.(name))"
+		firstEnumElement := cp.Vm.concreteTypes[concType].(enumType).elementNames[0]
+		decs = decs + "type " + name + " int\n\n const (" + firstEnumElement + " " + name + " = iota\n"
+		for _, element := range cp.Vm.concreteTypes[concType].(enumType).elementNames[1:] {
+			decs = decs + "    " + element + "\n"
+		}
+		decs = decs + ")\n\n"
+	}	
+	convGoEnumToPfEnum = convGoEnumToPfEnum + "\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
+
+	// Now the struct convertors.
+	convGoStructToPfStruct := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
 	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"
 	// The conversion function.
 	for el := range goHandler.StructNames[source] {
@@ -101,14 +129,14 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
 		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
-		convGoTypeToPfType = convGoTypeToPfType + ", []any{"
+		convGoStructToPfStruct = convGoStructToPfStruct + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
+		convGoStructToPfStruct = convGoStructToPfStruct + ", []any{"
 		sep := ""
 		for _, lN := range cp.Vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
-			convGoTypeToPfType = convGoTypeToPfType + sep + "v.(" + goStructName + ")." + text.Flatten(cp.Vm.Labels[lN])
+			convGoStructToPfStruct = convGoStructToPfStruct + sep + "v.(" + goStructName + ")." + text.Flatten(cp.Vm.Labels[lN])
 			sep = ", "
 		}
-		convGoTypeToPfType = convGoTypeToPfType + "}, true\n"
+		convGoStructToPfStruct = convGoStructToPfStruct + "}, true\n"
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
 		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + goStructName + "{"
 		sep = ""
@@ -118,9 +146,9 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		}
 		makeGoStruct = makeGoStruct + "}\n"
 	}
-	convGoTypeToPfType = convGoTypeToPfType + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
+	convGoStructToPfStruct = convGoStructToPfStruct + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
 	makeGoStruct = makeGoStruct + "\tdefault:\n\t\tpanic(\"I'm not sure if this error can arise.\")\n\t}\n}\n\n"
-	return decs + convGoTypeToPfType + makeGoStruct
+	return decs + convGoEnumToPfEnum + convGoStructToPfStruct + makeGoStruct
 }
 
 func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
