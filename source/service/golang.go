@@ -321,7 +321,7 @@ func doctorReturns(body string) string {
 
 		}
 		body = body[ix:]
-		if len(returnBody) >= 7 && returnBody[:7] == "gocode" {
+		if len(returnBody) >= 7 && returnBody[:7] == "gocode " {
 			output = output + "return " + returnBody
 		} else {
 			output = output + "return tuplify(" + returnBody + ")"
