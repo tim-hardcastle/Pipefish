@@ -7,22 +7,32 @@ import
 NULL::"math"
 "fmt"
 
-const PI = 3.141592
+const π = 3.141592
 
 def 
 
+
 solveFor(rT, rB, h float, n int) :
-    fmt.sprintf("dT is %f, dB is %f, and q is %f", dT, dB, q)
+    dT, dB, q
 given :
     dT = circumscribingLength(rT, n)
     dB = circumscribingLength(rB, n)
-    S = sqrt(h squared + (rB-rT) squared)
-    q = sqrt(S squared - ((dB-dT)/2.0) squared)
-
-(x float) squared :
-    x * x 
+    S = √(h² + (rB-rT)²)
+    q = √(S² - ((dB-dT)/2)²)
 
 circumscribingLength(r float, n int) :
-    2.0 * r * tan(PI/float(n))
+    2*r*tan(π/n)
+
+
+
+
+√(x float) :
+    sqrt(x)
+
+
+(x float)² :
+    x*x 
+
+
 
 

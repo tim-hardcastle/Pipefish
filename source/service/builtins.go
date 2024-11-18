@@ -29,7 +29,9 @@ var BUILTINS = map[string]functionAndReturnType{
 	"cast_to_string":     {(*Compiler).btCastToString, AltType(values.STRING)},
 	"codepoint":          {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":      {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
+	"divide_float_by_integer":      {(*Compiler).btDivideFloatByInteger, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":    {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
+	"divide_integer_by_float":      {(*Compiler).btDivideIntegerByFloat, AltType(values.ERROR, values.FLOAT)},
 	"first_in_tuple":     {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller.
 	"float_of_int":       {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":    {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
@@ -66,7 +68,9 @@ var BUILTINS = map[string]functionAndReturnType{
 	"map_without":        {(*Compiler).btMapWithout, AltType(values.MAP)},
 	"modulo_integers":    {(*Compiler).btModuloIntegers, AltType(values.ERROR, values.INT)},
 	"multiply_floats":    {(*Compiler).btMultiplyFloats, AltType(values.FLOAT)},
+	"multiply_float_by_integer":    {(*Compiler).btMultiplyFloatByInteger, AltType(values.FLOAT)},
 	"multiply_integers":  {(*Compiler).btMultiplyIntegers, AltType(values.INT)},
+	"multiply_integer_by_float":  {(*Compiler).btMultiplyIntegerByFloat, AltType(values.FLOAT)},
 	"negate_float":       {(*Compiler).btNegateFloat, AltType(values.FLOAT)},
 	"negate_integer":     {(*Compiler).btNegateInteger, AltType(values.INT)},
 	"post_html":          {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
@@ -164,8 +168,16 @@ func (cp *Compiler) btDivideFloats(tok *token.Token, dest uint32, args []uint32)
 	cp.Emit(Divf, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
+func (cp *Compiler) btDivideFloatByInteger(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Dvfi, dest, args[0], args[2], cp.reserveToken(tok))
+}
+
 func (cp *Compiler) btDivideIntegers(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Divi, dest, args[0], args[2], cp.reserveToken(tok))
+}
+
+func (cp *Compiler) btDivideIntegerByFloat(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Dvif, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btFirstInTuple(tok *token.Token, dest uint32, args []uint32) {
@@ -309,8 +321,16 @@ func (cp *Compiler) btModuloIntegers(tok *token.Token, dest uint32, args []uint3
 	cp.Emit(Modi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
+func (cp *Compiler) btMultiplyFloatByInteger(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mlfi, dest, args[0], args[2])
+}
+
 func (cp *Compiler) btMultiplyFloats(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(Mulf, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btMultiplyIntegerByFloat(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(Mlfi, dest, args[2], args[0])
 }
 
 func (cp *Compiler) btMultiplyIntegers(tok *token.Token, dest uint32, args []uint32) {

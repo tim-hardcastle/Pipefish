@@ -363,14 +363,28 @@ loop:
 			if divisor == 0 {
 				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
 			} else {
-				vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) / divisor}
+				vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / divisor}
 			}
 		case Divi:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {
 				vm.Mem[args[0]] = vm.makeError("vm/div/int", args[3])
 			} else {
-				vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
+				vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
+			}
+		case Dvfi:
+			divisor := vm.Mem[args[2]].V.(int)
+			if divisor == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+			} else {
+				vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / float64(divisor)}
+			}
+		case Dvif:
+			divisor := vm.Mem[args[2]].V.(float64)
+			if divisor == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+			} else {
+				vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int)) / divisor}
 			}
 		case Dofn:
 			lhs := vm.Mem[args[1]].V.(Lambda)
@@ -867,6 +881,8 @@ loop:
 			}
 			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.snippetType),
 				[]values.Value{{values.STRING, sFac.sourceString}, {values.LIST, vals}, {values.SNIPPET_DATA, sFac.bindle}}}
+		case Mlfi:
+			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) * float64(vm.Mem[args[2]].V.(int))}
 		case Modi:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {

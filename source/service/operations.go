@@ -285,6 +285,8 @@ const (
 	Divi
 	Dofn // For lambdas, as opposed to call for outer functions.
 	Dref
+	Dvfi
+	Dvif
 	Equb
 	Equf
 	Equi
@@ -344,6 +346,7 @@ const (
 	Mkpr
 	Mkst
 	MkSn
+	Mlfi
 	Modi
 	Mulf
 	Muli
