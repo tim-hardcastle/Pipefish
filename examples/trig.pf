@@ -12,10 +12,14 @@ const PI = 3.141592
 cmd 
 
 main :
-    get rT from Input("What is the radius of the top of the cone? ")
-    get rB from Input("What is the radius of the bottom of the cone? ")
-    get h from Input("What is the vertical height of the cone? ")
-    get n from Input("How many sides should the truncated pyramid have? ")
+    get answer from Input("What is the radius of the top of the cone? ")
+    rT = float(answer)
+    get answer from Input("What is the radius of the bottom of the cone? ")
+    rB = float(answer)
+    get answer from Input("What is the vertical height of the cone? ")
+    h = float(answer)
+    get answer from Input("How many sides should the truncated pyramid have? ")
+    n = int(answer)
     post fmt.printf("dT is %f, dB is %f, and q is %f", dT, dB, q)
 given :
     dT = circumscribingLength(rT, n)
@@ -26,10 +30,10 @@ given :
 
 def 
 
-(x) squared :
+(x float) squared :
     x * x 
 
-circumscribingLength(r, n) :
+circumscribingLength(r float, n int) :
     2 * r * tan(PI/2)
 
 
