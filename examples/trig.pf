@@ -34,6 +34,6 @@ def
     x * x 
 
 circumscribingLength(r float, n int) :
-    2 * r * tan(PI/2)
+    2.0 * r * tan(PI/float(n))
 
 
