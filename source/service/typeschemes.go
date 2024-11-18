@@ -510,6 +510,45 @@ func (fT finiteTupleType) describe(mc *Vm) string {
 			fmt.Fprintf(&buf, " ")
 		}
 		fmt.Fprintf(&buf, v.describe(mc))
+		lastWasBling = thisIsBling
+	}
+	return buf.String()
+}
+
+// The 'infix' field will usually be "" but if it is populated then it will single that piece of bling out for
+// special treatment.
+// The sole use of this is to produce good error essages from bad function calls.
+func (fT finiteTupleType) describeWithPotentialInfix(mc *Vm, infix string) string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "'")
+	specialBlingHasHappened := false
+	specialBlingJustHappened := false
+	lastWasBling := true // Which is a lie, but stops us from putting a comma right at the start.
+	for i, u := range fT {
+		v := u.(AlternateType) // This is horrible, but because of the way we got this we know it's true.
+		var bling blingType
+		var thisIsBling bool
+		if len(v) == 1 {
+			bling, thisIsBling = v[0].(blingType)
+		}
+		if !(lastWasBling || thisIsBling) {
+			fmt.Fprintf(&buf, ",")
+		}
+		if thisIsBling && bling.tag == infix {
+			specialBlingHasHappened = true
+			fmt.Fprintf(&buf, "' on the left of it and '") // The ' characters will sneakily interact with emph in the errorfile.
+		} else {
+			if i > 0 && !specialBlingJustHappened {
+				fmt.Fprintf(&buf, " ")
+			}
+			fmt.Fprintf(&buf, v.describe(mc))
+		}
+		lastWasBling = thisIsBling
+		specialBlingJustHappened = thisIsBling && bling.tag == infix
+	}
+	fmt.Fprintf(&buf, "'")
+	if specialBlingHasHappened {
+		fmt.Fprintf(&buf, " on the right")
 	}
 	return buf.String()
 }

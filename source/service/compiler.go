@@ -2214,7 +2214,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.put(Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.P.Throw("comp/types", b.tok, b.types.describe(cp.Vm))
+		cp.P.Throw("comp/types", b.tok, b.tok.Literal , b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
