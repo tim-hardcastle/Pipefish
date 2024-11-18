@@ -253,6 +253,9 @@ var typeConv = map[string]string{"bling": ".(string)",
 }
 
 func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool) {
+	if len(pTy) >= 3 && pTy[:3] == "..." { 
+		return "", ".([]any)", true   // Since whatever the type is, it turns into a tuple which is converted to a slice before being pssed to the Go function.
+	}                                 // TODO --- we should flag unconvertable types at sopie time but for now it's their own silly fault.
 	goTy, ok := typeConv[pTy]
 	if ok {
 		if pTy == "int" { // TODO --- I forget why I have to do this and should find ut if I can stop.
@@ -269,7 +272,8 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool)
 	for _, namespace := range namespacePath {
 		s, ok := resolvingParser.NamespaceBranch[namespace]
 		if !ok {
-			gh.Prsr.Throw("golang/namespace", &token.Token{Source: "function doing type conversion for Golang"}, namespace) // ToDp
+			gh.Prsr.Throw("golang/namespace", &token.Token{Source: "function doing type conversion for Golang"}, namespace) 
+			return "", "", false
 		}
 		resolvingParser = s.Parser
 	}
