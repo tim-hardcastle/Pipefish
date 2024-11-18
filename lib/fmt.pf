@@ -4,18 +4,18 @@ gocode "fmt"
 
 def
 
-errorf(format string, a tuple) : gocode {
+errorf(format string, a ... any?) : gocode {
     return fmt.Errorf(format, a...)
 }
 
-sprint(a tuple) : gocode {
+sprint(a ... any?) : gocode {
     return fmt.Sprint(a...)
 }
 
-sprintf(format string, a tuple) : gocode {
+sprintf(format string, a ... any?) : gocode {
     return fmt.Sprintf(format, a...)
 }
 
-sprintln(a tuple) : gocode {
+sprintln(a ... any?) : gocode {
     return fmt.Sprintln(a...)
 }
