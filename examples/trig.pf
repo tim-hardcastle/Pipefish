@@ -1,0 +1,33 @@
+import NULL::"math"
+import "fmt"
+
+const PI = 3.141592
+
+// We wish to calculate the top (dT), bottom (dB), and height q of a symmetric
+// parallelogram such that n of them will exactly circumscribe a symmetric truncated 
+// cone having top radius rT, bottom radius rB, and height h.
+
+cmd 
+
+main :
+    get rT from Input("What is the radius of the top of the cone? ")
+    get rB from Input("What is the radius of the bottom of the cone? ")
+    get h from Input("What is the vertical height of the cone? ")
+    get n from Input("How many sides should the truncated pyramid have? ")
+    post fmt.printf("dT is %f, dB is %f, and q is %f", dT, dB, q)
+given :
+    dT = circumscribingLength(rT, n)
+    dB = circumscribingLength(rB, n)
+    S = sqrt(h squared - (rB-rT) squared)
+    q = sqrt(S squared - ((dB-dT)/2) squared)
+
+
+def 
+
+(x) squared :
+    x * x 
+
+circumscribingLength(r, n) :
+    2 * r * tan(PI/2)
+
+
