@@ -1,5 +1,7 @@
-import NULL::"math"
-import "fmt"
+import
+
+NULL::"math"
+"fmt"
 
 const PI = 3.141592
 
