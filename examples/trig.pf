@@ -17,7 +17,7 @@ given :
     dT = circumscribingLength(rT, n)
     dB = circumscribingLength(rB, n)
     S = sqrt(h squared - (rB-rT) squared)
-    q = sqrt(S squared - ((dB-dT)/2) squared)
+    q = sqrt(S squared - ((dB-dT)/2.0) squared)
 
 (x float) squared :
     x * x 
