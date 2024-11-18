@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"pipefish/source/dtypes"
@@ -595,7 +596,7 @@ func isAlphanumeric(c rune) bool {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '^' || ch == '$' || ch == '?'
+	return unicode.IsLetter(ch) || ch == '_' || ch == '^' || ch == '$' || ch == '?'
 }
 
 func isPeriod(ch rune) bool {
