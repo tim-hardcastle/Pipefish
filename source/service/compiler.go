@@ -410,7 +410,7 @@ func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 
 	if t < values.ValueType(len(cp.Vm.concreteTypes)) {
 		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" with initial type "+cp.Vm.DescribeType(t, LITERAL)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
 	} else {
-		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" for initial lype not yet named.", tok)
+		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" for initial type not yet named.", tok)
 	}
 	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: t, V: v})
 	return uint32(len(cp.Vm.Mem) - 1)

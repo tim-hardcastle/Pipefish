@@ -473,7 +473,7 @@ loop:
 			goTpl := make([]any, 0, len(args))
 			for i, v := range args[2:] {
 				el := vm.Mem[v]
-				if F.Raw[i] {
+				if i < len(F.Raw) && F.Raw[i] { // We may not have a Raw value for every argument, if we're receiving a tuple.
 					goTpl = append(goTpl, el)
 				} else {
 					goTpl = append(goTpl, vm.pipefishToGo(el, F.PfToGo))
