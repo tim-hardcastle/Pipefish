@@ -1195,7 +1195,7 @@ NodeTypeSwitch:
 					typesAtIndex := typesAtIndex(types, i)
 					cp.cm("Adding variable in ASSIGN, 2", node.GetToken())
 					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
-					if sig[i].VarName == "*inferred*" {
+					if sig[i].VarType == "*inferred*" {
 						newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
 					} else {
 						newSig = append(newSig, ast.NameTypenamePair{pair.VarName, sig[i].VarType})
