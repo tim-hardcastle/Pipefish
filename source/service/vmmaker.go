@@ -309,7 +309,7 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 			return
 		}
 	}
-	goHandler.BuildGoMods()
+	goHandler.buildGoMods()
 	if cp.P.ErrorsExist() {
 		return
 	}
@@ -328,7 +328,7 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	if cp.P.NamespacePath == "" {
 		for k, v := range cp.P.Common.Functions {
 			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.GetFn(text.Flatten(k.FunctionName), v.Body.GetToken())
+				result := goHandler.getFn(text.Flatten(k.FunctionName), v.Body.GetToken())
 				v.Body.(*ast.GolangExpression).ObjectCode = result
 			}
 		}
@@ -336,12 +336,12 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.GetFn(text.Flatten(functionName), v.Body.GetToken())
+				result := goHandler.getFn(text.Flatten(functionName), v.Body.GetToken())
 				v.Body.(*ast.GolangExpression).ObjectCode = result
 			}
 		}
 	}
-	goHandler.RecordGoTimes()
+	goHandler.recordGoTimes()
 }
 
 type labeledParsedCodeChunk struct {
@@ -366,7 +366,7 @@ var serviceVariables = map[string]serviceVariableData{
 // implementing overloading.
 func (cp *Compiler) MakeFunctionTable() *GoHandler {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := NewGoHandler(cp.P)
+	goHandler := newGoHandler(cp.P)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(cp.P.ParsedDeclarations[j]); i++ {
 			tok := cp.P.ParsedDeclarations[j][i].GetToken()

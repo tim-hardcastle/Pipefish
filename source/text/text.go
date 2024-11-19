@@ -369,3 +369,8 @@ func Trim(path string) string {
 	path = path + sep
 	return path
 }
+
+// What it says.
+func Capitalize(s string) string {
+	return strings.ToUpper(s[0:1]) + s[1:]
+}

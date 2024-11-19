@@ -1,7 +1,5 @@
 package service
 
-// Code for compiling the embedded golang.
-
 import (
 	"bufio"
 	"os"
@@ -11,12 +9,23 @@ import (
 	"strconv"
 	"strings"
 
-	"pipefish/source/ast"
 	"pipefish/source/dtypes"
 	"pipefish/source/parser"
 	"pipefish/source/text"
 	"pipefish/source/token"
 )
+
+// The Gohandler stores information gathered during compilation to generate code from which Go plugins
+// are then compiled, and then builds the plugins from the generated code. The actual code generation is
+// kept in the gogen file in this same package.
+
+// This file is in effect in chronological order of how the various bits are used, i.e. it contains:
+
+// * The declaration of the type.
+// * The newGoHandler function.
+// * The recordGoTimes function.
+// * The buildGoMods function.
+// * The getFn function.
 
 var counter int
 
@@ -32,18 +41,18 @@ type GoHandler struct {
 	TypeDeclarations map[string]string         // A string to put the generated source code for declaring things in.
 }
 
-func NewGoHandler(prsr *parser.Parser) *GoHandler {
+func newGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
-		Prsr: prsr,
-		timeMap: make(map[string]int),
-		Modules: make(map[string]string),
-		Plugins: make(map[string]*plugin.Plugin),
-		CloneNames: make(dtypes.Set[string]),
-		EnumNames: make(dtypes.Set[string]),
+		Prsr:        prsr,
+		timeMap:     make(map[string]int),
+		Modules:     make(map[string]string),
+		Plugins:     make(map[string]*plugin.Plugin),
+		CloneNames:  make(dtypes.Set[string]),
+		EnumNames:   make(dtypes.Set[string]),
 		StructNames: make(dtypes.Set[string]),
 	}
-	
+
 	gh.TypeDeclarations = make(map[string]string)
 
 	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
@@ -66,7 +75,7 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	return &gh
 }
 
-func (gh *GoHandler) RecordGoTimes() {
+func (gh *GoHandler) recordGoTimes() {
 
 	// We add the newly compiled modules to the list of times.
 
@@ -92,7 +101,7 @@ func (gh *GoHandler) RecordGoTimes() {
 	}
 }
 
-func (gh *GoHandler) BuildGoMods() {
+func (gh *GoHandler) buildGoMods() {
 
 	// 'tuplify' ensures that just one thing of type any is returned, since this is all the definition of
 	// golang functions can cope with.
@@ -168,59 +177,8 @@ func (gh *GoHandler) BuildGoMods() {
 	}
 }
 
-func (cp *Compiler) MakeFunction(gh *GoHandler, keyword string, sig, rTypes ast.StringSig, golang *ast.GolangExpression, pfDir string) {
-
-	source := golang.GetToken().Source
-
-	// We check to see whether the source code has been modified.
-
-	doctoredFilename := MakeFilepath(source, pfDir)
-
-	_, err := os.Stat(doctoredFilename)
-
-	if err != nil {
-		panic("GoHandler MakeFunction " + err.Error())
-	}
-
-	// If the source has been modified, we proceed ...
-
-	fnString := "func " + capitalize(keyword) + "(args ...any) any {\n\n"
-	for i, v := range sig {
-		preconv := ""
-		postconv := ""
-		ok := false
-		if golang.Raw[i] {
-			gh.rawHappened = true
-			postconv = ".(values.Value)"
-		} else {
-			preconv, postconv, ok = cp.doTypeConversion(gh, v.VarType)
-			if !ok {
-				cp.P.Throw("golang/type", golang.GetToken(), v.VarType)
-				return
-			}
-		}
-		fnString = fnString + "    " + v.VarName + " := " + preconv + "args[" + strconv.Itoa(i) + "]" + postconv + "\n"
-	}
-
-	for _, v := range rTypes {
-		_, _, ok := cp.doTypeConversion(gh, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
-		if !ok {
-			gh.Prsr.Throw("golang/type/c", golang.GetToken(), v.VarType)
-			return
-		}
-	}
-
-	fnString = fnString + doctorReturns(golang.Token.Literal) + "\n\n"
-
-	gh.Modules[source] = gh.Modules[source] + fnString
-}
-
-func (gh *GoHandler) AddPureGoBlock(source, code string) {
-	gh.Modules[source] = gh.Modules[source] + "\n" + code[:len(code)-2] + "\n\n"
-}
-
-func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) any {
-	name := capitalize(fnName)
+func (gh *GoHandler) getFn(fnName string, tok *token.Token) func(args ...any) any {
+	name := text.Capitalize(fnName)
 	fn, err := gh.Plugins[tok.Source].Lookup(name)
 	if err != nil {
 		gh.Prsr.Throw("golang/found", tok, name)
@@ -228,97 +186,4 @@ func (gh *GoHandler) GetFn(fnName string, tok *token.Token) func(args ...any) an
 	}
 	fnToReturn := fn.(func(args ...any) any)
 	return fnToReturn
-}
-
-var typeConv = map[string]string{"bling": ".(string)",
-	"bool":   ".(bool)",
-	"error":  ".(error)",
-	"float":  ".(float64)",
-	"func":   ".(func(args ...any) any)",
-	"int":    ".(int))", // Extra parenthesis matches the kludge below.
-	"label":  ".(string)",
-	"list":   ".([]any)",
-	"pair":   ".([]any)",
-	"rune":   ".(rune)",
-	"set":    ".([]any)",
-	"any":    "",
-	"string": ".(string)",
-	"tuple":  ".([]any)",
-	"type":   ".(string)",
-}
-
-
-
-func (cp *Compiler) doTypeConversion(gh *GoHandler, pTy string) (string, string, bool) {
-	if len(pTy) >= 3 && pTy[:3] == "..." {
-		return "", ".([]any)", true // Since whatever the type is, it turns into a tuple which is converted to a slice before being pssed to the Go function.
-	} // TODO --- we should flag unconvertable types at compile time but for now it's their own silly fault.
-	goTy, ok := typeConv[pTy]
-	if ok {
-		if pTy == "int" { // TODO --- I forget why I have to do this and should find out if I can stop.
-			return "int(", goTy, true
-		} else {
-			return "", goTy, true
-		}
-	}
-
-	if gh.Prsr.Structs.Contains(pTy) {
-		gh.StructNames.Add(pTy)
-		return "", ".(" + pTy + ")", true
-	}
-	abType := gh.Prsr.GetAbstractType(pTy)
-	if abType.IsSubtypeOf(gh.Prsr.Common.Types["enum"]) {
-		gh.EnumNames.Add(pTy)
-		return pTy + "(", ".(int))", true
-	}
-
-	return "", "", false
-}
-
-func capitalize(s string) string {
-	return strings.ToUpper(s[0:1]) + s[1:]
-}
-
-// TODO --- this would also pick out "return" in quotes, comments,
-// you need to do a better one.
-func doctorReturns(body string) string {
-	output := ""
-	for ix := strings.Index(body, "return "); ix != -1; ix = strings.Index(body, "return ") {
-
-		output = output + body[:ix]
-
-		body = body[ix+7:]
-
-		returnBody := ""
-		for {
-			lineEnd := strings.IndexAny(body, "\n\r")
-			ix = lineEnd
-			if lineEnd == -1 {
-				panic("Tim, you goofed. Lines are meant to have endings.")
-			}
-			newLine := strings.Trim(body[:lineEnd], "\n\r \t")
-			if returnBody != "" {
-				returnBody = returnBody + "\n"
-			}
-			returnBody = returnBody + newLine
-			// This also is hacky but will work until I can do a simple Go lexer to do it all properly.
-			// Or there's probably a library ... ?
-			if lastChar := newLine[len(newLine)-1]; !(lastChar == '{' || lastChar == '(' ||
-				lastChar == '|' || lastChar == '&' || lastChar == '+' || lastChar == '-' || lastChar == '*' ||
-				lastChar == '/' || lastChar == ',' || lastChar == '=' || lastChar == '!' || lastChar == '<' ||
-				lastChar == '>' || lastChar == '.') {
-				break
-			}
-
-		}
-		body = body[ix:]
-		if len(returnBody) >= 7 && returnBody[:7] == "golang " {
-			output = output + "return " + returnBody[7:]
-		} else {
-			output = output + "return tuplify(" + returnBody + ")"
-		}
-	}
-
-	return output + body
-
 }
