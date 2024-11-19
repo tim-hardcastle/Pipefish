@@ -3,13 +3,14 @@ package service
 // Converts values from Pipefish to Go and back for the vm.
 
 import (
+	"pipefish/source/dtypes"
 	"pipefish/source/report"
-	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"strconv"
 )
 
+// How the vm performs conversion at runtime.
 func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) any {
 	typeInfo := vm.concreteTypes[v.T]
 	if typeInfo.isStruct() {
@@ -39,6 +40,7 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 	}
 }
 
+// How the VM performs conversio at runtime.
 func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool), enumConverter func(any) (uint32, int)) values.Value {
 	switch v := v.(type) {
 	case *values.GoReturn:
@@ -80,17 +82,49 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 	return values.Value{values.ERROR, &report.Error{ErrorId: "golang/conv/a", Token: &token.Token{Source: "golang conversion function"}}}
 }
 
-// In order for the Golang interop to work with structs, each go file must declare the structs it needs plus
-// a function which can convert the Go structs back into Pipefish structs. This function prepares this as a
-// snippet of text which can be added to the Go source code we're compiling.
+func (cp *Compiler) CloseTypeDeclarations(goHandler *GoHandler) {
+	structsToCheck := goHandler.StructNames
+	for newStructsToCheck := make(dtypes.Set[string]) ; len(structsToCheck) > 0; {
+		for structName := range structsToCheck {
+			structTypeNumber := cp.StructNameToTypeNumber[structName]
+			for _, fieldType := range cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields {
+				if fieldType.Len() != 1 {
+					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
+				}
+				typeOfField := fieldType.Types[0]
+				switch fieldData := cp.Vm.concreteTypes[typeOfField].(type) {
+				case enumType :
+					goHandler.EnumNames.Add(fieldData.name)
+				case structType :
+					if !goHandler.StructNames.Contains(fieldData.name) {
+						newStructsToCheck.Add(fieldData.name)
+						goHandler.StructNames.Add(fieldData.name)
+					}
+				default :
+					// As other type-checking needs to be done for things that are not in structs anyway,
+					// it would be superfluous to do it here.	
+				}
+			}
+		}
+	}
+}
+
+// In order for the Golang interop to work with structs, each Go file must declare the structs and enums it 
+// needs plus functions which can at least partially turn the Go structs and enums back into Pipefish structs,
+// and enums. (Because it can perform reflecton on its own type system whereas the calling VM can know 
+// nothing about this.)
+// So this prepares this Go code as a snippet of text which can be added to the Go source code we're compiling.
 func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source string) string {
+	// First let's make sure we really do have all the types we need by recursing thorugh the structs:
+	cp.CloseTypeDeclarations(goHandler)
+
 	convGoEnumToPfEnum := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
 	decs := "\n" // The type declarations.
 	// We do the enum converters.
 	for name := range goHandler.EnumNames {
 		abType := goHandler.Prsr.GetAbstractType(name)
 		if abType.Len() != 1 {
-			cp.Throw("golang/type/concrete", token.Token{Source: "function making structs for Go"}, name)
+			cp.Throw("golang/type/concrete/b", token.Token{Source: "golang interop"}, name)
 			continue
 		}
 		concType := abType.Types[0]
@@ -113,7 +147,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 		// We add the definition of the struct.
 		typeDefStr := "\ntype " + name + " struct {\n"
 		for i, lN := range cp.Vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
-			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.Vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
+			typeDefStr = typeDefStr + "\t" + (cp.Vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
@@ -140,13 +174,15 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 	return decs + convGoEnumToPfEnum + convGoStructToPfStruct + makeGoStruct
 }
 
+// Auxilliary to the function above. It produces the names of the types in the structs declarations 
+// generated for the Go code.
 func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 	if aT.Len() > 1 {
-		cp.P.Throw("golang/conv/b", &token.Token{Source: "golang conversion function"})
+		cp.P.Throw("golang/concrete/c", &token.Token{Source: "golang interop"})
 	}
 	tNo := aT.Types[0]
 	if cp.Vm.concreteTypes[tNo].isEnum() || cp.Vm.concreteTypes[tNo].isStruct() {
-		return text.Flatten(cp.Vm.concreteTypes[tNo].getName(LITERAL))
+		return cp.Vm.concreteTypes[tNo].getName(DEFAULT)
 	}
 	if convStr, ok := fConvert[tNo]; ok {
 		return convStr
@@ -155,6 +191,7 @@ func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 	return ""
 }
 
+// Used by the previous function.
 var fConvert = map[values.ValueType]string{
 	values.INT:    "int",
 	values.FLOAT:  "float64",
@@ -168,5 +205,4 @@ var fConvert = map[values.ValueType]string{
 	values.SET:    "[]any",
 	values.TUPLE:  "[]any",
 	values.BOOL:   "bool",
-	values.ERROR:  "error",
 }
