@@ -1,10 +1,11 @@
-package report
+package err
 
 import (
 	"strconv"
 
 	"pipefish/source/text"
 	"pipefish/source/token"
+	"pipefish/source/values"
 )
 
 // This handles the creation of errors, their messages, and their explanations, and the maintainance
@@ -12,6 +13,20 @@ import (
 //
 // The logic to create a specific error given its error identifier and the relevant parameters
 // is in errorfile.go.
+
+// The 'error' type.
+type Error struct {
+	ErrorId string
+	Message string
+	Args    []any
+	Values  []values.Value
+	Trace   []*token.Token
+	Token   *token.Token
+}
+
+func (e *Error) AddToTrace(tok *token.Token) {
+	e.Trace = append(e.Trace, tok)
+}
 
 type Errors = []*Error
 
