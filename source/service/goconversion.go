@@ -3,13 +3,11 @@ package service
 // Converts values from Pipefish to Go and back for the vm.
 
 import (
-	"pipefish/source/ast"
 	"pipefish/source/report"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
 	"strconv"
-	"strings"
 )
 
 func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) any {
@@ -89,12 +87,8 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 	convGoEnumToPfEnum := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
 	decs := "\n" // The type declarations.
 	// We do the enum converters.
-	for eType := range goHandler.EnumNames[source] {
-		bits := strings.Split(eType, ".")
-		name := bits[len(bits)-1]
-		namespacePath := bits[0 : len(bits)-1]
-		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
-		abType := resolvingCompiler.P.GetAbstractType(name)
+	for name := range goHandler.EnumNames {
+		abType := goHandler.Prsr.GetAbstractType(name)
 		if abType.Len() != 1 {
 			cp.Throw("golang/type/concrete", token.Token{Source: "function making structs for Go"}, name)
 			continue
@@ -114,31 +108,26 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 	convGoStructToPfStruct := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
 	makeGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"
 	// The conversion function.
-	for el := range goHandler.StructNames[source] {
-		bits := strings.Split(el, ".")
-		name := bits[len(bits)-1]
-		goStructName := text.Flatten(el)
-		namespacePath := bits[0 : len(bits)-1]
-		resolvingCompiler := cp.getResolvingCompiler(&ast.TypeLiteral{Value: name, Token: token.Token{Source: "function making structs for Go"}}, namespacePath, DEF) // DEF could be anything but REPL, we're not passing it on, we're just checking for encapsulation.
-		structTypeNumber := resolvingCompiler.StructNameToTypeNumber[name]
+	for name := range goHandler.StructNames {
+		structTypeNumber := cp.StructNameToTypeNumber[name]
 		// We add the definition of the struct.
-		typeDefStr := "\ntype " + goStructName + " struct {\n"
+		typeDefStr := "\ntype " + name + " struct {\n"
 		for i, lN := range cp.Vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
 			typeDefStr = typeDefStr + "\t" + text.Flatten(cp.Vm.Labels[lN]) + " " + cp.ConvertFieldType(cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
 		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		convGoStructToPfStruct = convGoStructToPfStruct + "\n\tcase " + goStructName + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
+		convGoStructToPfStruct = convGoStructToPfStruct + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
 		convGoStructToPfStruct = convGoStructToPfStruct + ", []any{"
 		sep := ""
 		for _, lN := range cp.Vm.concreteTypes[structTypeNumber].(structType).labelNumbers {
-			convGoStructToPfStruct = convGoStructToPfStruct + sep + "v.(" + goStructName + ")." + text.Flatten(cp.Vm.Labels[lN])
+			convGoStructToPfStruct = convGoStructToPfStruct + sep + "v.(" + name + ")." + cp.Vm.Labels[lN]
 			sep = ", "
 		}
 		convGoStructToPfStruct = convGoStructToPfStruct + "}, true\n"
 		// We add part of a type switch that helps convert a Pipefish struct to Go.
-		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + goStructName + "{"
+		makeGoStruct = makeGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + name + "{"
 		sep = ""
 		for i, ty := range cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields {
 			makeGoStruct = makeGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.ConvertFieldType(ty) + ")"

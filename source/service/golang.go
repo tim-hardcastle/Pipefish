@@ -26,8 +26,8 @@ type GoHandler struct {
 	Modules          map[string]string
 	Plugins          map[string]*plugin.Plugin
 	rawHappened      bool
-	EnumNames        map[string]dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
-	StructNames      map[string]dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
+	EnumNames        dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
+	StructNames      dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
 	TypeDeclarations map[string]string             // A string to put the generated source code for declaring structs in.
 }
 
@@ -40,8 +40,8 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 	gh.timeMap = make(map[string]int)
 	gh.Modules = make(map[string]string)
 	gh.Plugins = make(map[string]*plugin.Plugin)
-	gh.StructNames = make(map[string]dtypes.Set[string])
-	gh.EnumNames = make(map[string]dtypes.Set[string])
+	gh.StructNames = make(dtypes.Set[string])
+	gh.EnumNames = make(dtypes.Set[string])
 	gh.TypeDeclarations = make(map[string]string)
 
 	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
@@ -170,13 +170,6 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 
 	source := golang.GetToken().Source
 
-	if gh.StructNames[source] == nil { 
-		gh.StructNames[source] = make(dtypes.Set[string])
-	}
-	if gh.EnumNames[source] == nil { 
-		gh.EnumNames[source] = make(dtypes.Set[string])
-	}
-
 	// We check to see whether the source code has been modified.
 
 	doctoredFilename := MakeFilepath(source, pfDir)
@@ -258,34 +251,21 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool)
 	}                                 // TODO --- we should flag unconvertable types at sopie time but for now it's their own silly fault.
 	goTy, ok := typeConv[pTy]
 	if ok {
-		if pTy == "int" { // TODO --- I forget why I have to do this and should find ut if I can stop.
+		if pTy == "int" { // TODO --- I forget why I have to do this and should find out if I can stop.
 			return "int(", goTy, true
 		} else {
 			return "", goTy, true
 		}
 	}
-	// If it's not a native type, then it may be a struct or an enum, so it may be namespaced.
-	bits := strings.Split(pTy, ".")
-	name := bits[len(bits)-1]
-	namespacePath := bits[0 : len(bits)-1]
-	resolvingParser := gh.Prsr
-	for _, namespace := range namespacePath {
-		s, ok := resolvingParser.NamespaceBranch[namespace]
-		if !ok {
-			gh.Prsr.Throw("golang/namespace", &token.Token{Source: "function doing type conversion for Golang"}, namespace) 
-			return "", "", false
-		}
-		resolvingParser = s.Parser
-	}
 
-	if resolvingParser.Structs.Contains(name) {
-		gh.StructNames[source].Add(pTy)
-		return "", ".(" + text.Flatten(pTy) + ")", true
+	if gh.Prsr.Structs.Contains(pTy) {
+		gh.StructNames.Add(pTy)
+		return "", ".(" + pTy + ")", true
 	}
-	abType := resolvingParser.GetAbstractType(name)
-	if abType.IsSubtypeOf(resolvingParser.Common.Types["enum"]) {
-		gh.EnumNames[source].Add(pTy)
-		return name + "(", ".(int))", true
+	abType := gh.Prsr.GetAbstractType(pTy)
+	if abType.IsSubtypeOf(gh.Prsr.Common.Types["enum"]) {
+		gh.EnumNames.Add(pTy)
+		return pTy + "(", ".(int))", true
 	}
 
 	return "", "", false
