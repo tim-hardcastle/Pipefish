@@ -3,7 +3,6 @@ package service
 // Converts values from Pipefish to Go and back for the vm.
 
 import (
-	"pipefish/source/dtypes"
 	"pipefish/source/err"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -81,32 +80,4 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 	return values.Value{values.ERROR, &err.Error{ErrorId: "golang/conv/a", Token: &token.Token{Source: "golang conversion function"}}}
 }
 
-func (cp *Compiler) CloseTypeDeclarations(goHandler *GoHandler) {
-	structsToCheck := goHandler.StructNames
-	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
-		for structName := range structsToCheck {
-			structTypeNumber := cp.StructNameToTypeNumber[structName]
-			for _, fieldType := range cp.Vm.concreteTypes[structTypeNumber].(structType).abstractStructFields {
-				if fieldType.Len() != 1 {
-					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
-				}
-				typeOfField := fieldType.Types[0]
-				switch fieldData := cp.Vm.concreteTypes[typeOfField].(type) {
-				case cloneType:
-					goHandler.CloneNames.Add(fieldData.name)
-				case enumType:
-					goHandler.EnumNames.Add(fieldData.name)
-				case structType:
-					if !goHandler.StructNames.Contains(fieldData.name) {
-						newStructsToCheck.Add(fieldData.name)
-						goHandler.StructNames.Add(fieldData.name)
-					}
-				default:
-					// As other type-checking needs to be done for things that are not in structs anyway,
-					// it would be superfluous to do it here.
-				}
-			}
-		}
-		structsToCheck = newStructsToCheck
-	}
-}
+

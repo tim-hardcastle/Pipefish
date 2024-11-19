@@ -304,7 +304,7 @@ func (cp *Compiler) makeAlternateTypesFromAbstractTypes() {
 
 func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	for source := range goHandler.Modules {
-		goHandler.TypeDeclarations[source] = cp.MakeTypeDeclarationsForGo(goHandler, source)
+		goHandler.TypeDeclarations[source] = cp.generateDeclarationAndConversionCode(goHandler)
 		if cp.P.ErrorsExist() {
 			return
 		}
@@ -402,7 +402,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 						sig[i].VarType = v.VarType[:len(v.VarType)-4]
 					}
 				}
-				cp.MakeFunction(goHandler, flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
+				cp.generateGoFunctionCode(goHandler, flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
 				if cp.P.ErrorsExist() {
 					return nil
 				}
@@ -419,7 +419,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 		token := golang.NextToken()
 		source := token.Source
 		code := token.Literal[:len(token.Literal)]
-		goHandler.AddPureGoBlock(source, code)
+		goHandler.addPureGoBlock(source, code)
 	}
 	return goHandler
 }
