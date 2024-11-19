@@ -60,10 +60,6 @@ get (x ref) from (c Clock) :
 
 def
 
-goReturnFileSearchMode(fsm FileSearchMode) : gocode {
-    return fsm
-}
-
 goRandomInt(i int) : gocode {
     return rand.Intn(i)
 }
