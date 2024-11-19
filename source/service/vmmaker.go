@@ -390,7 +390,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			}
 			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
-				cp.P.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok.Line)
+				cp.P.Throw("init/overload/a", body.GetToken(), functionName, functionToAdd.Sig, conflictingFunction)
 				return nil
 			}
 			if body.GetToken().Type == token.GOCODE {
@@ -476,7 +476,7 @@ func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
 			for _, fn := range funcsToAdd[ty] {
 				conflictingFunction := cp.P.FunctionTable.Add(cp.P, fn.name, fn.pFunc)
 				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
-					cp.P.Throw("init/overload.c", fn.pFunc.Tok, fn.name, conflictingFunction.Tok.Line)
+					cp.P.Throw("init/overload/d", fn.pFunc.Tok, fn.name, fn.pFunc.Sig, conflictingFunction)
 				}
 			}
 		}
@@ -881,7 +881,7 @@ func (cp *Compiler) makeCloneFunction(fnName string, sig ast.StringSig, builtinT
 	}
 	conflictingFunction := cp.P.FunctionTable.Add(cp.P, fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
-		cp.P.Throw("init/overload/b", tok, fnName, fn.Sig, conflictingFunction.Tok.Line)
+		cp.P.Throw("init/overload/b", tok, fnName, fn.Sig, conflictingFunction)
 	}
 }
 
