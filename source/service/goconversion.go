@@ -124,8 +124,8 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 
 	decs := "\n" // The type declarations. These will be shoved into one big chunk of code for all the types. This is where we keep it.
 	// Then we hve another string in which we'll store a single function to convert Go clones to Piefish.
-	convGoCloneToPfClone := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
-	
+	// convGoCloneToPfClone := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
+
 
 	convGoEnumToPfEnum := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
 	
