@@ -40,7 +40,7 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) an
 	}
 }
 
-// How the VM performs conversio at runtime.
+// How the VM performs conversion at runtime.
 func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool), enumConverter func(any) (uint32, int)) values.Value {
 	switch v := v.(type) {
 	case *values.GoReturn:
@@ -106,6 +106,7 @@ func (cp *Compiler) CloseTypeDeclarations(goHandler *GoHandler) {
 				}
 			}
 		}
+		structsToCheck = newStructsToCheck
 	}
 }
 
