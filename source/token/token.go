@@ -11,7 +11,7 @@ const (
 	FOR      = "for"
 	GIVEN    = "given"
 	GLOBAL   = "global"
-	GOCODE   = "gocode"
+	GOCODE   = "golang"
 	RANGE    = "range"
 	TRY      = "try"
 	UNWRAP   = "unwrap"
@@ -103,7 +103,7 @@ var keywords = map[string]TokenType{
 	"eval":     EVAL,
 	"for":      FOR,
 	"given":    GIVEN,
-	"gocode":   GOCODE,
+	"golang":   GOCODE,
 	"global":   GLOBAL,
 	"range":    RANGE,
 	"try":      TRY,

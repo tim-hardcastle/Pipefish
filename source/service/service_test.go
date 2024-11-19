@@ -306,7 +306,7 @@ func TestGocode(t *testing.T) {
 	RunTest(t, "gocode_test.pf", tests, testValues)
 	// Tear down the .go and .so files.
 	nameOfTestFile := "gocode_test.pf"
-	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../gocode 1.go")
+	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../golang 1.go")
 	os.Remove(locationOfGocode)
 	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
 	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)

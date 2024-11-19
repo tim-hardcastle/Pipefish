@@ -1,15 +1,15 @@
 import
 
-gocode "errors"
-gocode "strings"
+golang "errors"
+golang "strings"
 
 def
 
-fancy (s string) : gocode {
+fancy (s string) : golang {
     return "**" + s + "**"
 }
 
-head (L list raw) : gocode {
+head (L list raw) : golang {
     if len(L.Elements) == 0 {
         return errors.New("list has no members")
     } else {
@@ -17,11 +17,11 @@ head (L list raw) : gocode {
     }
 }
 
-contains(haystack, needle string) : gocode {
+contains(haystack, needle string) : golang {
     return strings.Contains(haystack, needle)
 }
 
-fib(n int) : gocode {
+fib(n int) : golang {
 	var a, b int
 	b = 1
 	for i := 0; i < n; i++ {

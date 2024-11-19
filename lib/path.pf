@@ -1,31 +1,31 @@
 import
 
-gocode "path"
-gocode "errors"
+golang "path"
+golang "errors"
 
 def
 
-base(p string) : gocode {
+base(p string) : golang {
     return path.Base(p)
 }
 
-clean(p string) : gocode {
+clean(p string) : golang {
     return path.Clean(p)
 }
 
-dir(p string)  : gocode {
+dir(p string)  : golang {
     return path.Dir(p)
 }
 
-ext(p string)  : gocode {
+ext(p string)  : golang {
     return path.Ext(p)
 }
 
-isAbs(p string)  : gocode {
+isAbs(p string)  : golang {
     return path.IsAbs(p)
 }
 
-join(t tuple)  : gocode {
+join(t tuple)  : golang {
     strings := []string{}
     for _, v := range(t) {
         switch v := v.(type) {
@@ -38,7 +38,7 @@ join(t tuple)  : gocode {
     return path.Join(strings...)
 }
 
-match(pattern, name string)  : gocode {
+match(pattern, name string)  : golang {
     m, err := path.Match(pattern, name)
     if err != nil {
         return err
@@ -46,6 +46,6 @@ match(pattern, name string)  : gocode {
     return m
 }
 
-split(p string)  : gocode {
+split(p string)  : golang {
     return path.Split(p)
 }

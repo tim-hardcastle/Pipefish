@@ -28,13 +28,13 @@ type GoHandler struct {
 	rawHappened      bool
 	EnumNames        dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
 	StructNames      dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
-	TypeDeclarations map[string]string             // A string to put the generated source code for declaring structs in.
+	TypeDeclarations map[string]string  // A string to put the generated source code for declaring structs in.
 }
 
 func NewGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
-		Prsr:        prsr,
+		Prsr: prsr,
 	}
 
 	gh.timeMap = make(map[string]int)
@@ -233,7 +233,7 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"error":  ".(error)",
 	"float":  ".(float64)",
 	"func":   ".(func(args ...any) any)",
-	"int":    ".(int))",   // Extra parenthesis matches the kludge below.
+	"int":    ".(int))", // Extra parenthesis matches the kludge below.
 	"label":  ".(string)",
 	"list":   ".([]any)",
 	"pair":   ".([]any)",
@@ -246,9 +246,9 @@ var typeConv = map[string]string{"bling": ".(string)",
 }
 
 func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool) {
-	if len(pTy) >= 3 && pTy[:3] == "..." { 
-		return "", ".([]any)", true   // Since whatever the type is, it turns into a tuple which is converted to a slice before being pssed to the Go function.
-	}                                 // TODO --- we should flag unconvertable types at sopie time but for now it's their own silly fault.
+	if len(pTy) >= 3 && pTy[:3] == "..." {
+		return "", ".([]any)", true // Since whatever the type is, it turns into a tuple which is converted to a slice before being pssed to the Go function.
+	} // TODO --- we should flag unconvertable types at sopie time but for now it's their own silly fault.
 	goTy, ok := typeConv[pTy]
 	if ok {
 		if pTy == "int" { // TODO --- I forget why I have to do this and should find out if I can stop.
@@ -308,7 +308,7 @@ func doctorReturns(body string) string {
 
 		}
 		body = body[ix:]
-		if len(returnBody) >= 7 && returnBody[:7] == "gocode " {
+		if len(returnBody) >= 7 && returnBody[:7] == "golang " {
 			output = output + "return " + returnBody[7:]
 		} else {
 			output = output + "return tuplify(" + returnBody + ")"

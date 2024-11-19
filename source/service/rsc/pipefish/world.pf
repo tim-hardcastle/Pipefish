@@ -1,11 +1,11 @@
 import
 
-gocode "io/ioutil"
-gocode "path/filepath"
-gocode "math/rand"
-gocode "os"
-gocode "time"
-gocode "errors"
+golang "io/ioutil"
+golang "path/filepath"
+golang "math/rand"
+golang "os"
+golang "time"
+golang "errors"
 
 newtype
 
@@ -35,19 +35,19 @@ get (x ref) from (i Input) : builtin "get_from_input"
 
 def
 
-goGetClock() -> Time : gocode {
+goGetClock() -> Time : golang {
     goNow := time.Now()
     return Time{goNow.Year(), int(goNow.Month()), goNow.Day(), goNow.Hour(), goNow.Minute(), goNow.Second(), goNow.Nanosecond(), goNow.Location().String()}
 }
 
-goFileExists(fname string) : gocode {
+goFileExists(fname string) : golang {
      _, err := os.Stat(fname)
      return err == nil
 }
 
 cmd
 
-goRandomize(i int) : gocode {
+goRandomize(i int) : golang {
     rand.Seed(int64(i))
     return values.Value{values.SUCCESSFUL_VALUE, nil}
 }
@@ -60,7 +60,7 @@ get (x ref) from (c Clock) :
 
 def
 
-goRandomInt(i int) : gocode {
+goRandomInt(i int) : golang {
     return rand.Intn(i)
 }
 
@@ -89,7 +89,7 @@ goRandomInt(i int) : gocode {
 
 def
 
-goGetFile(fname string) : gocode {
+goGetFile(fname string) : golang {
     fileContent, err := ioutil.ReadFile(fname)
     if err != nil {
         return errors.New("can't find file '" + fname + "'")
@@ -99,7 +99,7 @@ goGetFile(fname string) : gocode {
 
 cmd
 
-goDeleteFile(fname string) : gocode {
+goDeleteFile(fname string) : golang {
     err := os.Remove(fname) 
     if err != nil {
         return errors.New("can't delete file '" + fname + "'")
@@ -108,7 +108,7 @@ goDeleteFile(fname string) : gocode {
     }
 }
 
-goPutStringInFile(output string, fname string) : gocode {
+goPutStringInFile(output string, fname string) : golang {
     f, err := os.Create(fname)
     if err != nil {
         return errors.New("can't access file '" + fname + "'")
@@ -164,19 +164,19 @@ get (L ref) from (directoryNames DirectoryNames) :
 
 def
 
-goGetDirectoryNames(directoryNames DirectoryNames) : gocode {
+goGetDirectoryNames(directoryNames DirectoryNames) : golang {
     resultList := []string{}
     if directoryNames.fileSearchMode == 0 {
         return resultList
     }
     err := filepath.Walk(directoryNames.directory, func(path string, info os.FileInfo, err error) error {
         if err != nil {
-            return gocode err
+            return golang err
         }
         if info.IsDir() {
             resultList = append(resultList, info.Name())
         }
-        return gocode nil
+        return golang nil
     })
 	if err != nil {
 		return err

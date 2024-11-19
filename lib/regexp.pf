@@ -1,10 +1,10 @@
 import
 
-gocode "regexp"
+golang "regexp"
 
 def
 
-match(pattern, text string) : gocode {
+match(pattern, text string) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
@@ -12,7 +12,7 @@ match(pattern, text string) : gocode {
 	return regObj.MatchString(text)
 }
 
-find(pattern, text string) : gocode {
+find(pattern, text string) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
@@ -20,7 +20,7 @@ find(pattern, text string) : gocode {
 	return regObj.FindString(text)
 }
 
-findAll(pattern, text string) : gocode {
+findAll(pattern, text string) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ findAll(pattern, text string) : gocode {
 	return regObj.FindAllString(text, -1)
 }
 
-findAllIndex(pattern, text string) : gocode {
+findAllIndex(pattern, text string) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err

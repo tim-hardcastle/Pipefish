@@ -4,35 +4,35 @@ Person = struct(name string, age int)
 
 def
 
-boo(x bool) : gocode {
+boo(x bool) : golang {
     return !x
 }
 
-foo(x float) : gocode {
+foo(x float) : golang {
     return x
 }
 
-ioo(x int) : gocode {
+ioo(x int) : golang {
     return double(x)
 }
 
-noo() : gocode {
+noo() : golang {
     return nil
 }
 
-soo(x string) : gocode {
+soo(x string) : golang {
     return x
 }
 
-constructPerson(aName string, anAge int) -> Person : gocode {
+constructPerson(aName string, anAge int) -> Person : golang {
     return Person{name: aName, age: anAge}
 }
 
-deconstructPerson(aPerson Person) -> string, int : gocode {
+deconstructPerson(aPerson Person) -> string, int : golang {
     return aPerson.name, aPerson.age
 }
 
-gocode {
+golang {
     func double(x int) int {
         return 2 * x
     }

@@ -1,21 +1,21 @@
 import
 
-gocode "fmt"
+golang "fmt"
 
 def
 
-errorf(format string, a ... any?) : gocode {
+errorf(format string, a ... any?) : golang {
     return fmt.Errorf(format, a...)
 }
 
-sprint(a ... any?) : gocode {
+sprint(a ... any?) : golang {
     return fmt.Sprint(a...)
 }
 
-sprintf(format string, a ... any?) : gocode {
+sprintf(format string, a ... any?) : golang {
     return fmt.Sprintf(format, a...)
 }
 
-sprintln(a ... any?) : gocode {
+sprintln(a ... any?) : golang {
     return fmt.Sprintln(a...)
 }

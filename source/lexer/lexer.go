@@ -188,7 +188,7 @@ func (l *Lexer) NextToken() token.Token {
 		return l.Throw("lex/num", numString)
 	}
 
-	// We may have an identifier, a gocode block, or a snippet.
+	// We may have an identifier, a golang block, or a snippet.
 	if isLegalStart(l.ch) {
 		lit := l.readIdentifier()
 		tType := token.LookupIdent(lit)
@@ -449,12 +449,12 @@ func (l *Lexer) readSnippet() string {
 
 func (l *Lexer) readGolang() string {
 	result := ""
-	for l.peekChar() == ' ' || l.peekChar() == '\t' { // Get rid of the whitespace between 'gocode' and whatever follows it.
+	for l.peekChar() == ' ' || l.peekChar() == '\t' { // Get rid of the whitespace between 'golang' and whatever follows it.
 		l.readChar()
 	}
-	// We expect a brace or quotes after the gocode keyword. (The quotes if it's in the import section, import gocode "foo".)
+	// We expect a brace or quotes after the golang keyword. (The quotes if it's in the import section, import golang "foo".)
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
-		l.Throw("lex/gocode", l.NewToken(token.ILLEGAL, "lex/gocode"))
+		l.Throw("lex/golang", l.NewToken(token.ILLEGAL, "lex/golang"))
 		return ""
 	}
 	if l.peekChar() == '"' {

@@ -1,7 +1,7 @@
 import
 
-gocode "time"
-gocode "fmt"
+golang "time"
+golang "fmt"
 
 def
 
@@ -15,7 +15,7 @@ components(t Time) :
 add (t Time, duration int) :
     Time(goAdd(components(t), i))
 
-goAdd(year, month, day, hour, min, sec, nsec int, loc string, d int) : gocode {
+goAdd(year, month, day, hour, min, sec, nsec int, loc string, d int) : golang {
     newTime := (goTime(year, month, day, hour, min, sec, nsec, loc)).Add(time.Duration(d))
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -23,7 +23,7 @@ goAdd(year, month, day, hour, min, sec, nsec int, loc string, d int) : gocode {
 addDate(t Time, years, months, days int) : 
     Time(goAddDate(components(t), years, months, days))
 
-goAddDate(year, month, day, hour, min, sec, nsec int, loc string, years, months, days int) : gocode {
+goAddDate(year, month, day, hour, min, sec, nsec int, loc string, years, months, days int) : golang {
     newTime := goTime(year, month, day, hour, min, sec, nsec, loc).AddDate(years, months, days)
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -31,63 +31,63 @@ goAddDate(year, month, day, hour, min, sec, nsec int, loc string, years, months,
 after(t, u Time) :
     goAfter(components(t), components(u))
 
-goAfter(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : gocode {
+goAfter(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).After(goTime(uyear, umonth, uday, uhour, umin, usec, unsec, uloc))
 }
 
 before(t, u Time) :
     goBefore(components(t), components(u))
 
-goBefore(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : gocode {
+goBefore(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).Before(goTime(uyear, umonth, uday, uhour, umin, usec, unsec, uloc))
 }
 
 compare(t, u Time) :
     goCompare(components(t), components(u))
 
-goCompare(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : gocode {
+goCompare(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).Compare(goTime(uyear, umonth, uday, uhour, umin, usec, unsec, uloc))
 }
 
 equal(t, u Time) :
     goEqual(components(t), components(u))
 
-goEqual(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : gocode {
+goEqual(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).Equal(goTime(uyear, umonth, uday, uhour, umin, usec, unsec, uloc))
 }
 
 format(t Time, layout string) :
     goFormat(components(t), layout)
 
-goFormat(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, layout string) : gocode {
+goFormat(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, layout string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).Format(layout)
 }
 
 isDst(t Time) :
     goIsDST(components(t))
 
-goIsDST(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goIsDST(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).IsDST()
 }
 
 isoWeek(t Time) :
     goIsoWeek(components(t))
 
-goIsoWeek(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goIsoWeek(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).ISOWeek()
 }
 
 isZero(t Time) :
     goIsZero(components(t))
 
-goIsZero(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goIsZero(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).IsZero()
 }
 
 local(t Time) :
     Time(goLocal(components(t)))
 
-goLocal(year, month, day, hour, min, sec, nsec int, loc string) : gocode {
+goLocal(year, month, day, hour, min, sec, nsec int, loc string) : golang {
     newTime := (goTime(year, month, day, hour, min, sec, nsec, loc)).Local()
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -95,7 +95,7 @@ goLocal(year, month, day, hour, min, sec, nsec int, loc string) : gocode {
 parse(layout, value string) :
     Time(goParse(layout, value))
 
-goParse(layout, value string) : gocode {
+goParse(layout, value string) : golang {
     newTime, err := time.Parse(layout, value)
     if err != nil {
         return err
@@ -103,7 +103,7 @@ goParse(layout, value string) : gocode {
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
 
-parseDuration(s string) : gocode {
+parseDuration(s string) : golang {
     dur, err := time.ParseDuration(s)
     if err != nil {
         return err
@@ -114,7 +114,7 @@ parseDuration(s string) : gocode {
 round(t Time, duration int) :
     Time(goRound(components(t), duration))
 
-goRound(year, month, day, hour, min, sec, nsec int, loc string, d int) : gocode {
+goRound(year, month, day, hour, min, sec, nsec int, loc string, d int) : golang {
     newTime := (goTime(year, month, day, hour, min, sec, nsec, loc)).Round(time.Duration(d))
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -122,14 +122,14 @@ goRound(year, month, day, hour, min, sec, nsec int, loc string, d int) : gocode 
 sub(t, u Time) :
     goSub(components(t), components(u))
 
-goSub(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : gocode {
+goSub(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string, uyear, umonth, uday, uhour, umin, usec, unsec int, uloc string) : golang {
     return int(goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).Sub(goTime(uyear, umonth, uday, uhour, umin, usec, unsec, uloc)))
 }
 
 timeIn(t Time, location string) :
     Time(goIn(components(t), location))
 
-goIn(year, month, day, hour, min, sec, nsec int, loc string, location string) : gocode {
+goIn(year, month, day, hour, min, sec, nsec int, loc string, location string) : golang {
     newLoc, err := time.LoadLocation(location)
     if err != nil {
         return err
@@ -141,35 +141,35 @@ goIn(year, month, day, hour, min, sec, nsec int, loc string, location string) : 
 timeToUnix(t Time) :
     goTimeToUnix(components(t))
 
-goTimeToUnix(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goTimeToUnix(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).Unix()
 }
 
 timeToUnixMicro(t Time) :
     goTimeToUnixMicro(components(t))
 
-goTimeToUnixMicro(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goTimeToUnixMicro(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).UnixMicro()
 }
 
 timeToUnixMilli(t Time) :
     goTimeToUnixMilli(components(t))
 
-goTimeToUnixMilli(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goTimeToUnixMilli(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).UnixMilli()
 }
 
 timeToUnixNano(t Time) :
     goTimeToUnixNano(components(t))
 
-goTimeToUnixNano(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goTimeToUnixNano(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).UnixNano()
 }
 
 truncate(t Time, duration int) :
     Time(goTruncate(components(t), duration))
 
-goTruncate(year, month, day, hour, min, sec, nsec int, loc string, d int) : gocode {
+goTruncate(year, month, day, hour, min, sec, nsec int, loc string, d int) : golang {
     newTime := (goTime(year, month, day, hour, min, sec, nsec, loc)).Truncate(time.Duration(d))
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -177,7 +177,7 @@ goTruncate(year, month, day, hour, min, sec, nsec int, loc string, d int) : goco
 unixToTime(sec, usec int) :
     Time(goUnixToTime(sec, usec))
 
-goUnixToTime(sec, usec int) : gocode {
+goUnixToTime(sec, usec int) : golang {
     newTime := time.Unix(int64(sec), int64(usec))
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -185,7 +185,7 @@ goUnixToTime(sec, usec int) : gocode {
 unixMicroToTime(usec int) :
     Time(goUnixMicroToTime(usec))
 
-goUnixMicroToTime(usec int) : gocode {
+goUnixMicroToTime(usec int) : golang {
     newTime := time.UnixMicro(int64(usec))
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -193,7 +193,7 @@ goUnixMicroToTime(usec int) : gocode {
 unixMilliToTime(msec int) :
     Time(goUnixMilliToTime(msec))
 
-goUnixMilliToTime(msec int) : gocode {
+goUnixMilliToTime(msec int) : golang {
     newTime := time.UnixMilli(int64(msec))
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -201,7 +201,7 @@ goUnixMilliToTime(msec int) : gocode {
 utc(t Time) :
     Time(goLocal(components(t)))
 
-goUtc(year, month, day, hour, min, sec, nsec int, loc string) : gocode {
+goUtc(year, month, day, hour, min, sec, nsec int, loc string) : golang {
     newTime := (goTime(year, month, day, hour, min, sec, nsec, loc)).UTC()
     return newTime.Year(), charmMonth(newTime.Month()), newTime.Day(), newTime.Hour(), newTime.Minute(), newTime.Second(), newTime.Nanosecond(), newTime.Location().String()
 }
@@ -209,18 +209,18 @@ goUtc(year, month, day, hour, min, sec, nsec int, loc string) : gocode {
 weekday(t Time) :
     Weekday[goWeekday(components(t))]
 
-goWeekday(year, month, day, hour, min, sec, nsec int, loc string) : gocode {
+goWeekday(year, month, day, hour, min, sec, nsec int, loc string) : golang {
     return int(goTime(year, month, day, hour, min, sec, nsec, loc).Weekday())
 }
 
 yearDay(t Time) :
     goYearDay(components(t))
 
-goYearDay(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : gocode {
+goYearDay(tyear, tmonth, tday, thour, tmin, tsec, tnsec int, tloc string) : golang {
     return goTime(tyear, tmonth, tday, thour, tmin, tsec, tnsec, tloc).YearDay()
 }
 
-gocode {
+golang {
 
     func charmMonth(m time.Month) int {
         return int(m)

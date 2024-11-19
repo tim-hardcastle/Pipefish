@@ -414,9 +414,9 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 
 	// We may also have pure Go declarations:
 
-	for _, gocode := range cp.P.TokenizedDeclarations[golangDeclaration] {
-		gocode.ToStart()
-		token := gocode.NextToken()
+	for _, golang := range cp.P.TokenizedDeclarations[golangDeclaration] {
+		golang.ToStart()
+		token := golang.NextToken()
 		source := token.Source
 		code := token.Literal[:len(token.Literal)]
 		goHandler.AddPureGoBlock(source, code)

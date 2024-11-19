@@ -1388,12 +1388,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"lex/gocode": {
+	"lex/golang": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "no '{' after 'gocode"
+			return "no '{' after 'golang"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish expects the 'gocode' token to be followed by '{' to introduce the Go code, to be terminated by a matching '}'."
+			return "Pipefish expects the 'golang' token to be followed by '{' to introduce the Go code, to be terminated by a matching '}'."
 		},
 	},
 

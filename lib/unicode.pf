@@ -1,6 +1,6 @@
 import
 
-gocode "unicode"
+golang "unicode"
 
 newtype
 
@@ -8,15 +8,15 @@ Case = enum UPPER_CASE, LOWER_CASE, TITLE_CASE, MAX_CASE
 
 def
 
-isControl(r rune) -> bool : gocode {
+isControl(r rune) -> bool : golang {
 	return unicode.IsControl(r)
 }
 
-isDigit(r rune) -> bool : gocode {
+isDigit(r rune) -> bool : golang {
 	return unicode.IsDigit(r)
 }
 
-isGraphic(r rune) -> bool : gocode {
+isGraphic(r rune) -> bool : golang {
 	return unicode.IsGraphic(r)
 }
 
@@ -27,65 +27,65 @@ isIn(r rune, bounds ... pair) :
 		else :
 			continue
 
-isLetter(r rune) -> bool : gocode {
+isLetter(r rune) -> bool : golang {
 	return unicode.IsLetter(r)
 }
 
-isLower(r rune) -> bool : gocode {
+isLower(r rune) -> bool : golang {
 	return unicode.IsLower(r)
 }
 
-isMark(r rune) -> bool : gocode {
+isMark(r rune) -> bool : golang {
 	return unicode.IsMark(r)
 }
 
-isNumber(r rune) -> bool : gocode {
+isNumber(r rune) -> bool : golang {
 	return unicode.IsNumber(r)
 }
 
-isPrint(r rune) -> bool : gocode {
+isPrint(r rune) -> bool : golang {
 	return unicode.IsPrint(r)
 }
 
-isPunct(r rune) -> bool : gocode {
+isPunct(r rune) -> bool : golang {
 	return unicode.IsPunct(r)
 }
 
-isSpace(r rune) -> bool : gocode {
+isSpace(r rune) -> bool : golang {
 	return unicode.IsSpace(r)
 }
 
-isSymbol(r rune) -> bool : gocode {
+isSymbol(r rune) -> bool : golang {
 	return unicode.IsSymbol(r)
 }
 
-isTitle(r rune) -> bool : gocode {
+isTitle(r rune) -> bool : golang {
 	return unicode.IsTitle(r)
 }
 
-isUpper(r rune) -> bool : gocode {
+isUpper(r rune) -> bool : golang {
 	return unicode.IsUpper(r)
 }
 
-simpleFold(r rune) -> rune : gocode {
+simpleFold(r rune) -> rune : golang {
 	return unicode.SimpleFold(r)
 }
 
 toCase(c Case, r rune) -> rune : 
 	wrapToCase(int(c), r)
 
-wrapToCase(c int, r rune) -> rune : gocode {
+wrapToCase(c int, r rune) -> rune : golang {
 	return unicode.To(c, r)
 }
 
-toLower(r rune) -> rune : gocode {
+toLower(r rune) -> rune : golang {
 	return unicode.ToLower(r)
 }
 
-toTitle(r rune) -> rune : gocode {
+toTitle(r rune) -> rune : golang {
 	return unicode.ToTitle(r)
 }
 
-toUpper(r rune) -> rune : gocode {
+toUpper(r rune) -> rune : golang {
 	return unicode.ToUpper(r)
 }
