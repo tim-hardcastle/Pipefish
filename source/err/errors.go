@@ -1,4 +1,4 @@
-package report
+package err
 
 import (
 	"strconv"
@@ -87,7 +87,7 @@ func MergeErrors(a, b Errors) Errors {
 		if a[i].Token.Line == b[j].Token.Line && a[i].Token.ChStart == b[j].Token.ChStart {
 			result = append(result, a[i])
 			i++
-			j++ // By policy we don't report two errors in the same place
+			j++ // By policy we don't err two errors in the same place
 			continue
 		}
 		if a[i].Token.Line < b[j].Token.Line ||

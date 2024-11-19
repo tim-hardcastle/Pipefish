@@ -1,4 +1,4 @@
-package report
+package err
 
 import (
 	"pipefish/source/token"

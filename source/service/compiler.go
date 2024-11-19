@@ -4,8 +4,8 @@ import (
 	"os"
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
+	"pipefish/source/err"
 	"pipefish/source/parser"
-	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -417,7 +417,7 @@ func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 
 }
 
 func (cp *Compiler) reserveError(ec string, tok *token.Token, args ...any) uint32 {
-	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: values.ERROR, V: &report.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}})
+	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: values.ERROR, V: &err.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}})
 	return cp.That()
 }
 
@@ -2313,7 +2313,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
 		cp.reserveError("vm/types/a", b.tok)
 		for _, loc := range b.valLocs {
-			cp.Vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+			cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 		}
 		cp.cmP("Unthunking error "+text.Emph("vm/types/a")+".", b.tok)
 		cp.Emit(UntE, cp.That())
@@ -2413,7 +2413,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
-					cp.Vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+					cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 				}
 				cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
 				cp.Emit(UntE, cp.That())
@@ -2779,7 +2779,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	cp.cmP("Returning error.", b.tok)
 	cp.reserveError("vm/types/c", b.tok)
 	for _, loc := range b.valLocs {
-		cp.Vm.Mem[cp.That()].V.(*report.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*report.Error).Args, loc)
+		cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 	}
 	cp.cmP("Unthunking error "+text.Emph("vm/types/c")+".", b.tok)
 	cp.Emit(UntE, cp.That())

@@ -1,4 +1,4 @@
-package report
+package err
 
 import (
 	"pipefish/source/ast"
@@ -864,7 +864,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish's system for handling functions written in Go has broken down.\n\n" +
 				"There are no circumstances under which you should actually see this error: if you ever " +
-				"do, please report it to the author of Pipefish as an issue."
+				"do, please err it to the author of Pipefish as an issue."
 		},
 	},
 

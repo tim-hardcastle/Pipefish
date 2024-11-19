@@ -14,7 +14,7 @@ package lexer
 
 import (
 	"pipefish/source/dtypes"
-	"pipefish/source/report"
+	"pipefish/source/err"
 	"pipefish/source/token"
 
 	"fmt"
@@ -41,7 +41,7 @@ type Relexer struct {
 	preTok, curTok, nexTok token.Token
 	ifLogHappened          bool
 	nestingLevel           int
-	Errors                 report.Errors
+	Errors                 err.Errors
 	funcDef                bool
 	structDef              bool
 }
@@ -55,7 +55,7 @@ func NewRelexer(source, input string) *Relexer {
 		nexTok:    l.NextNonCommentToken(),
 		funcDef:   false,
 		structDef: false,
-		Errors:    []*report.Error{},
+		Errors:    []*err.Error{},
 		stack:     dtypes.NewStack[keepTrack](),
 	}
 	return rl
@@ -280,10 +280,10 @@ func RelexDump(input string) {
 }
 
 func (rl *Relexer) Throw(errorID string, tok token.Token, args ...any) {
-	rl.Errors = report.Throw(errorID, rl.Errors, &tok, args...)
+	rl.Errors = err.Throw(errorID, rl.Errors, &tok, args...)
 }
 
-func (rl *Relexer) GetErrors() report.Errors {
-	rl.Errors = report.MergeErrors(rl.lexer.Ers, rl.Errors)
+func (rl *Relexer) GetErrors() err.Errors {
+	rl.Errors = err.MergeErrors(rl.lexer.Ers, rl.Errors)
 	return rl.Errors
 }

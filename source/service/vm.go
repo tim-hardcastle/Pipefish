@@ -11,8 +11,8 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 
 	"pipefish/source/dtypes"
+	"pipefish/source/err"
 	"pipefish/source/parser"
-	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -81,11 +81,11 @@ type vmState struct {
 }
 
 type GoFn struct {
-	Code   func(args ...any) any
-	GoToPf func(v any) (uint32, []any, bool)
+	Code       func(args ...any) any
+	GoToPf     func(v any) (uint32, []any, bool)
 	GoToPfEnum func(v any) (uint32, int)
-	PfToGo func(T uint32, args []any) any
-	Raw    []bool
+	PfToGo     func(T uint32, args []any) any
+	Raw        []bool
 }
 
 type Lambda struct {
@@ -219,7 +219,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Mem[args[1]].V.(string) + string(vm.Mem[args[2]].V.(rune))}
 		case Adtk:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
-			vm.Mem[args[0]].V.(*report.Error).AddToTrace(vm.Tokens[args[2]])
+			vm.Mem[args[0]].V.(*err.Error).AddToTrace(vm.Tokens[args[2]])
 		case Andb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(bool) && vm.Mem[args[2]].V.(bool)}
 		case Aref:
@@ -412,7 +412,7 @@ loop:
 						}
 					}
 					if !success {
-						vm.Mem[args[0]] = values.Value{values.ERROR, report.CreateErr("vm/func/types", lhs.tok)}
+						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/types", lhs.tok)}
 						break
 					}
 				}
@@ -829,7 +829,7 @@ loop:
 		case Logy:
 			vm.logging = true
 		case Mker:
-			vm.Mem[args[0]] = values.Value{values.ERROR, &report.Error{ErrorId: "eval/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
+			vm.Mem[args[0]] = values.Value{values.ERROR, &err.Error{ErrorId: "eval/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
 		case Mkfn:
 			lf := vm.LambdaFactories[args[1]]
 			newLambda := *lf.Model
@@ -1295,7 +1295,7 @@ loop:
 		case Typx:
 			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, DUMMY}}
 		case UntE:
-			err := vm.Mem[args[0]].V.(*report.Error)
+			err := vm.Mem[args[0]].V.(*err.Error)
 			newArgs := []any{}
 			newVals := []values.Value{}
 			for _, arg := range err.Args {
@@ -1317,8 +1317,8 @@ loop:
 			}
 		case Uwrp:
 			if vm.Mem[args[1]].T == values.ERROR {
-				err := vm.Mem[args[1]].V.(*report.Error)
-				errWithMessage := report.CreateErr(err.ErrorId, err.Token, err.Args...)
+				wrappedErr := vm.Mem[args[1]].V.(*err.Error)
+				errWithMessage := err.CreateErr(wrappedErr.ErrorId, wrappedErr.Token, wrappedErr.Args...)
 				vm.Mem[args[0]] = values.Value{vm.typeNumberOfUnwrappedError, []values.Value{{values.STRING, errWithMessage.ErrorId}, {values.STRING, errWithMessage.Message}}}
 			} else {
 				vm.Mem[args[0]] = vm.makeError("vm/unwrap", args[2], vm.DescribeType(vm.Mem[args[1]].T, LITERAL))

@@ -18,9 +18,9 @@ import (
 	"strings"
 
 	"pipefish/source/database"
+	"pipefish/source/err"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
-	"pipefish/source/report"
 	"pipefish/source/service"
 	"pipefish/source/text"
 	"pipefish/source/values"
@@ -35,7 +35,7 @@ var (
 type Hub struct {
 	hubFilepath            string
 	services               map[string]*service.Service
-	ers                    report.Errors
+	ers                    err.Errors
 	peek                   bool
 	in                     io.Reader
 	out                    io.Writer
@@ -243,8 +243,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if val.T == values.ERROR {
 		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
-		hub.ers = []*report.Error{val.V.(*report.Error)}
-		if len(val.V.(*report.Error).Values) > 0 {
+		hub.ers = []*err.Error{val.V.(*err.Error)}
+		if len(val.V.(*err.Error).Values) > 0 {
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
@@ -270,8 +270,8 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return "error", []string{}
 	}
 	if hubReturn.T == values.ERROR {
-		hub.WriteError(hubReturn.V.(*report.Error).Message)
-		return "error", []string{hubReturn.V.(*report.Error).Message}
+		hub.WriteError(hubReturn.V.(*err.Error).Message)
+		return "error", []string{hubReturn.V.(*err.Error).Message}
 	}
 
 	if hubReturn.T == hubService.Cp.StructNameToTypeNumber["HubResponse"] {
@@ -393,7 +393,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("There are no recent errors.")
 			return false
 		}
-		hub.WritePretty(report.GetList(hub.ers))
+		hub.WritePretty(err.GetList(hub.ers))
 		return false
 	case "groups-of-user":
 		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
@@ -800,13 +800,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(text.Red(strings.Repeat("▔", lenUnderline)))
 		return false
 	case "why":
-		num, err := strconv.Atoi(args[0])
-		if err != nil {
+		num, e := strconv.Atoi(args[0])
+		if e != nil {
 			hub.WriteError("the 'why' keyword takes the number of an error as a parameter.")
 			return false
 		}
 		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
-			".\n\n" + report.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Args...) + "\n")
+			".\n\n" + err.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Args...) + "\n")
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
@@ -943,7 +943,7 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 		if val.T == values.ERROR {
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName()], val))
 			hub.WriteString("\n")
-			hub.ers = []*report.Error{val.V.(*report.Error)}
+			hub.ers = []*err.Error{val.V.(*err.Error)}
 		} else {
 			hub.WriteString(valToString(hub.services[hub.currentServiceName()], val))
 		}
@@ -971,7 +971,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	if !needsRebuild {
 		return false
 	}
-	
+
 	newService := service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
 	hub.services[name] = newService
 	hub.Sources = newService.Cp.P.Common.Sources
@@ -992,7 +992,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
 	hub.ers = p.Common.Errors
-	hub.WritePretty(report.GetList(hub.ers))
+	hub.WritePretty(err.GetList(hub.ers))
 }
 
 func (hub *Hub) CurrentServiceIsBroken() bool {

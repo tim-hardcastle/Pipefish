@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 
 	"pipefish/source/dtypes"
-	"pipefish/source/report"
+	"pipefish/source/err"
 	"pipefish/source/settings"
 	"pipefish/source/token"
 )
@@ -23,7 +23,7 @@ type Lexer struct {
 	newline           bool                 // whether we are at the start of a line and so should be treating whitespace syntactically
 	afterWhitespace   bool                 // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
 	whitespaceStack   dtypes.Stack[string] // levels of whitespace to unindent to
-	Ers               report.Errors
+	Ers               err.Errors
 	source            string
 	snippetWhitespace string
 	afterSnippet      bool
@@ -38,7 +38,7 @@ func NewLexer(source, input string) *Lexer {
 		line:            1,
 		char:            -1,
 		whitespaceStack: *stack,
-		Ers:             []*report.Error{},
+		Ers:             []*err.Error{},
 		source:          source,
 	}
 	return l
@@ -653,7 +653,7 @@ func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 
 func (l *Lexer) Throw(errorID string, args ...any) token.Token {
 	tok := l.MakeToken(token.ILLEGAL, errorID)
-	l.Ers = report.Throw(errorID, l.Ers, &tok, args...)
+	l.Ers = err.Throw(errorID, l.Ers, &tok, args...)
 	return tok
 }
 

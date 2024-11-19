@@ -21,9 +21,9 @@ import (
 	"strings"
 
 	"pipefish/source/ast"
+	"pipefish/source/err"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
-	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -264,7 +264,7 @@ func (cp *Compiler) MakeParserAndTokenizedProgram() {
 		line.Append(tok)
 	}
 
-	cp.P.Common.Errors = report.MergeErrors(cp.P.TokenizedCode.(*lexer.Relexer).GetErrors(), cp.P.Common.Errors)
+	cp.P.Common.Errors = err.MergeErrors(cp.P.TokenizedCode.(*lexer.Relexer).GetErrors(), cp.P.Common.Errors)
 }
 
 func (cp *Compiler) ParseImportsAndExternals() {

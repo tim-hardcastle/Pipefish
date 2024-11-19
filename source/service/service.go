@@ -2,8 +2,8 @@ package service
 
 import (
 	"pipefish/source/dtypes"
+	"pipefish/source/err"
 	"pipefish/source/p2p"
-	"pipefish/source/report"
 	"pipefish/source/settings"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -36,7 +36,7 @@ func (service *Service) SetVariable(name string, ty values.ValueType, v any) {
 type externalCallHandler interface {
 	evaluate(mc *Vm, line string) values.Value
 
-	problem() *report.Error
+	problem() *err.Error
 	getAPI() string
 }
 
@@ -52,9 +52,9 @@ func (ex externalCallToHubHandler) evaluate(mc *Vm, line string) values.Value {
 	return mc.OwnService.Cp.Do(serialize)
 }
 
-func (es externalCallToHubHandler) problem() *report.Error {
+func (es externalCallToHubHandler) problem() *err.Error {
 	if es.externalService.Cp.P.ErrorsExist() {
-		return report.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
+		return err.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
 	}
 	return nil
 }
@@ -85,7 +85,7 @@ func (es externalHttpCallHandler) evaluate(mc *Vm, line string) values.Value {
 	return val
 }
 
-func (es externalHttpCallHandler) problem() *report.Error {
+func (es externalHttpCallHandler) problem() *err.Error {
 	return nil
 }
 

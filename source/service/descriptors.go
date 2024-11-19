@@ -3,7 +3,7 @@ package service
 // Used by the vm to describe Pipefish values and types, and also to describe bytecode for debugging purposes.
 
 import (
-	"pipefish/source/report"
+	"pipefish/source/err"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -97,9 +97,9 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if v.V == nil { // Can happen when we're running a test and the compiler throws an error. Really should always be the special compiler error type --- TODO.
 			return "nil error"
 		}
-		ob := v.V.(*report.Error)
+		ob := v.V.(*err.Error)
 		if ob.ErrorId != "eval/user" {
-			ob = report.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
+			ob = err.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
 		}
 		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
 	case values.FLOAT:
@@ -212,7 +212,7 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType, flavor descriptionFla
 	}
 	if len(aT.Types) == 1 {
 		if aT.Types[0] == values.STRING && T.Varchar < DUMMY {
-			return "varchar("+strconv.Itoa(int(T.Varchar))+")"
+			return "varchar(" + strconv.Itoa(int(T.Varchar)) + ")"
 		} else {
 			return vm.DescribeType(aT.Types[0], flavor)
 		}
@@ -290,7 +290,7 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 // Args field. The memory locations and miscellania are passed indifferently to the args field of the
 // makeError function, and it is assumed that anything of type uint32 represents a location.
 func (vm *Vm) makeError(errCode string, tokenOrdinal uint32, args ...any) values.Value {
-	result := &report.Error{ErrorId: errCode, Token: vm.Tokens[tokenOrdinal], Trace: []*token.Token{vm.Tokens[tokenOrdinal]}}
+	result := &err.Error{ErrorId: errCode, Token: vm.Tokens[tokenOrdinal], Trace: []*token.Token{vm.Tokens[tokenOrdinal]}}
 	for _, arg := range args {
 		switch arg := arg.(type) {
 		case uint32:

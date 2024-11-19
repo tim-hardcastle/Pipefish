@@ -9,8 +9,8 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
+	"pipefish/source/err"
 	"pipefish/source/lexer"
-	"pipefish/source/report"
 	"pipefish/source/token"
 	"pipefish/source/values"
 )
@@ -141,7 +141,7 @@ type CommonParserBindle struct {
 	Types               TypeSys
 	Functions           map[FuncSource]*ast.PrsrFunction
 	InterfaceBacktracks []BkInterface
-	Errors              []*report.Error
+	Errors              []*err.Error
 	Sources             map[string][]string
 }
 
@@ -149,7 +149,7 @@ func NewCommonBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
 		Functions:           make(map[FuncSource]*ast.PrsrFunction),
 		InterfaceBacktracks: []BkInterface{},
-		Errors:              []*report.Error{},
+		Errors:              []*err.Error{},
 		Sources:             make(map[string][]string),
 	}
 	return &result
@@ -1336,7 +1336,7 @@ func (p *Parser) ParseDump(source, input string) {
 
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 	c := *tok
-	p.Common.Errors = report.Throw(errorID, p.Common.Errors, &c, args...)
+	p.Common.Errors = err.Throw(errorID, p.Common.Errors, &c, args...)
 }
 
 func (p *Parser) ErrorsExist() bool {
@@ -1344,11 +1344,11 @@ func (p *Parser) ErrorsExist() bool {
 }
 
 func (p *Parser) ReturnErrors() string {
-	return report.GetList(p.Common.Errors)
+	return err.GetList(p.Common.Errors)
 }
 
 func (p *Parser) ResetAfterError() {
-	p.Common.Errors = []*report.Error{}
+	p.Common.Errors = []*err.Error{}
 	p.CurrentNamespace = []string{}
 	p.enumResolvingParsers = []*Parser{p}
 }
@@ -1572,7 +1572,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
 }
 
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
-func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *report.Error) {
+func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *err.Error) {
 	sig := ast.StringSig{}
 	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
@@ -1607,7 +1607,7 @@ func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 // assignment until it reaches the equals sign, by which time it's already turned the relevant tokens into an AST. Rather than kludge
 // my way out of that, I kludged my way around it by writing this thing which extracts the signature from an AST, and which has grown steadily
 // more complex with the language.
-func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.StringSig, *report.Error) {
+func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.StringSig, *err.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -1713,7 +1713,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Stri
 	return nil, newError("parse/sig/a", node.GetToken())
 }
 
-func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *report.Error) {
+func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *err.Error) {
 	if len(root.Args) != 3 {
 		return "", newError("parse/sig.namespace/a", root.Args[1].GetToken())
 	}
@@ -1722,7 +1722,7 @@ func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *report.Error
 	}
 	LHS := ""
 	RHS := ""
-	var err *report.Error
+	var err *err.Error
 	switch leftNode := root.Args[0].(type) {
 	case *ast.Identifier:
 		LHS = leftNode.Value
@@ -1790,8 +1790,8 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.S
 	return LHS, RHS
 }
 
-func newError(ident string, tok *token.Token, args ...any) *report.Error {
-	errorToReturn := report.CreateErr(ident, tok, args...)
+func newError(ident string, tok *token.Token, args ...any) *err.Error {
+	errorToReturn := err.CreateErr(ident, tok, args...)
 	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
 }
