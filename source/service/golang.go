@@ -20,15 +20,17 @@ import (
 
 var counter int
 
+
 type GoHandler struct {
-	Prsr             *parser.Parser
-	timeMap          map[string]int
-	Modules          map[string]string
-	Plugins          map[string]*plugin.Plugin
-	rawHappened      bool
-	EnumNames        dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
-	StructNames      dtypes.Set[string] // Set of Pipefish structs appearing in the sigs of the functions.
-	TypeDeclarations map[string]string  // A string to put the generated source code for declaring structs in.
+	Prsr             *parser.Parser            // The parser, to tell the GoHandler what the types mean. 
+	Modules          map[string]string         // Where the source files are.
+	timeMap          map[string]int            // When the source code was constructed.
+	Plugins          map[string]*plugin.Plugin // Knows where the plugins live after they've been generated.
+	rawHappened      bool                      // Very minor and temporry piece of state which should be somewhere else. TODO.
+	CloneNames       dtypes.Set[string]        // Set of Pipefish clone types appearing in the sigs of the functions.
+	EnumNames        dtypes.Set[string]        // Set of Pipefish struct types appearing in the sigs of the functions.
+	StructNames      dtypes.Set[string]        // Set of Pipefish enum types appearing in the sigs of the functions.
+	TypeDeclarations map[string]string         // A string to put the generated source code for declaring things in.
 }
 
 func NewGoHandler(prsr *parser.Parser) *GoHandler {
@@ -166,7 +168,7 @@ func (gh *GoHandler) BuildGoMods() {
 	}
 }
 
-func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang *ast.GolangExpression, pfDir string) {
+func (cp *Compiler) MakeFunction(gh *GoHandler, keyword string, sig, rTypes ast.AstSig, golang *ast.GolangExpression, pfDir string) {
 
 	source := golang.GetToken().Source
 
@@ -191,9 +193,9 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 			gh.rawHappened = true
 			postconv = ".(values.Value)"
 		} else {
-			preconv, postconv, ok = gh.doTypeConversion(source, v.VarType)
+			preconv, postconv, ok = cp.doTypeConversion(gh, v.VarType)
 			if !ok {
-				gh.Prsr.Throw("golang/type", golang.GetToken(), v.VarType)
+				cp.P.Throw("golang/type", golang.GetToken(), v.VarType)
 				return
 			}
 		}
@@ -201,7 +203,7 @@ func (gh *GoHandler) MakeFunction(keyword string, sig, rTypes ast.AstSig, golang
 	}
 
 	for _, v := range rTypes {
-		_, _, ok := gh.doTypeConversion(source, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
+		_, _, ok := cp.doTypeConversion(gh, v.VarType) // Note that this will add struct types to the GoHandler's list of them.
 		if !ok {
 			gh.Prsr.Throw("golang/type/c", golang.GetToken(), v.VarType)
 			return
@@ -245,10 +247,10 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"type":   ".(string)",
 }
 
-func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool) {
+func (cp *Compiler) doTypeConversion(gh *GoHandler, pTy string) (string, string, bool) {
 	if len(pTy) >= 3 && pTy[:3] == "..." {
 		return "", ".([]any)", true // Since whatever the type is, it turns into a tuple which is converted to a slice before being pssed to the Go function.
-	} // TODO --- we should flag unconvertable types at sopie time but for now it's their own silly fault.
+	} // TODO --- we should flag unconvertable types at compile time but for now it's their own silly fault.
 	goTy, ok := typeConv[pTy]
 	if ok {
 		if pTy == "int" { // TODO --- I forget why I have to do this and should find out if I can stop.
@@ -257,7 +259,7 @@ func (gh *GoHandler) doTypeConversion(source, pTy string) (string, string, bool)
 			return "", goTy, true
 		}
 	}
-
+	
 	if gh.Prsr.Structs.Contains(pTy) {
 		gh.StructNames.Add(pTy)
 		return "", ".(" + pTy + ")", true

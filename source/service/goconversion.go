@@ -93,6 +93,8 @@ func (cp *Compiler) CloseTypeDeclarations(goHandler *GoHandler) {
 				}
 				typeOfField := fieldType.Types[0]
 				switch fieldData := cp.Vm.concreteTypes[typeOfField].(type) {
+				case cloneType : 
+					goHandler.CloneNames.Add(fieldData.name)
 				case enumType :
 					goHandler.EnumNames.Add(fieldData.name)
 				case structType :
@@ -110,17 +112,23 @@ func (cp *Compiler) CloseTypeDeclarations(goHandler *GoHandler) {
 	}
 }
 
-// In order for the Golang interop to work with structs, each Go file must declare the structs and enums it 
-// needs plus functions which can at least partially turn the Go structs and enums back into Pipefish structs,
-// and enums. (Because it can perform reflecton on its own type system whereas the calling VM can know 
-// nothing about this.)
+// In order for the Golang interop to work with structs, each Go file must declare the structs and enums and
+// clone types but also functions which can at least partially turn the Go structs and enums back into 
+// Pipefish structs, and enums. (Because it can perform reflecton on its own type system whereas the calling VM
+// can know nothing about this.)
+
 // So this prepares this Go code as a snippet of text which can be added to the Go source code we're compiling.
 func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source string) string {
 	// First let's make sure we really do have all the types we need by recursing thorugh the structs:
 	cp.CloseTypeDeclarations(goHandler)
 
+	decs := "\n" // The type declarations. These will be shoved into one big chunk of code for all the types. This is where we keep it.
+	// Then we hve another string in which we'll store a single function to convert Go clones to Piefish.
+	convGoCloneToPfClone := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
+	
+
 	convGoEnumToPfEnum := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
-	decs := "\n" // The type declarations.
+	
 	// We do the enum converters.
 	for name := range goHandler.EnumNames {
 		abType := goHandler.Prsr.GetAbstractType(name)

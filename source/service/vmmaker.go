@@ -291,7 +291,7 @@ func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 // But it can't be the only *representation* of the truth, becase that would slow things down 'cos the compiler
 // would have to keep converting abstract types to alternate types to build the type schemes with.
 // The solution is to build the alternate type schemes once and for all from the alternate types, after we've
-// entirely finished genrating the data in the parsers.
+// entirely finished generating the data in the parsers.
 func (cp *Compiler) makeAlternateTypesFromAbstractTypes() {
 	cp.typeNameToTypeScheme = make(map[string]AlternateType)
 	for typename, abType := range cp.P.TypeMap {
@@ -402,7 +402,7 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 						sig[i].VarType = v.VarType[:len(v.VarType)-4]
 					}
 				}
-				goHandler.MakeFunction(flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
+				cp.MakeFunction(goHandler, flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
 				if cp.P.ErrorsExist() {
 					return nil
 				}
