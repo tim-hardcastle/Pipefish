@@ -42,7 +42,7 @@ func (cp *Compiler) track(tf trackingFlavor, tok *token.Token, args ...any) {
 	switch tf {
 	case trFNCALL:
 		newData = TrackingData{trFNCALL, tok, []any{args[0]}}
-		sig := args[1].(ast.AstSig)
+		sig := args[1].(ast.StringSig)
 		loReg := args[2].(uint32)
 		for i, pair := range sig {
 			newData.args = append(newData.args, pair.VarName)

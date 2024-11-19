@@ -35,8 +35,8 @@ type Compiler struct {
 	Vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
-	goToPf map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
-	pfToGo map[string]func(uint32, []any) any         //           "
+	goToPf     map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
+	pfToGo     map[string]func(uint32, []any) any         //           "
 	goToPfEnum map[string]func(any) (uint32, int)
 
 	EnumElements                        map[string]uint32
@@ -316,8 +316,8 @@ type structInfo struct {
 
 type fnSigInfo struct {
 	name   string
-	sig    ast.AstSig
-	rtnSig ast.AstSig
+	sig    ast.StringSig
+	rtnSig ast.StringSig
 }
 
 type interfaceInfo struct {
@@ -2214,7 +2214,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.put(Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.P.Throw("comp/types", b.tok, b.tok.Literal , b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
+		cp.P.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
@@ -2787,7 +2787,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	return AltType(values.ERROR)
 }
 
-func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.ParserSig) AlternateType {
+func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.AbstractSig) AlternateType {
 	if len(rtnSig) == 0 {
 		return cp.Vm.AnyTypeScheme
 	}
@@ -2892,12 +2892,12 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	acceptedSingles := AlternateType{}
 	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
 	switch {
-	case lastIsTuple :
+	case lastIsTuple:
 		cp.cm("Sig ends in tuple", tok)
-	case sig.Len() == 0 :
+	case sig.Len() == 0:
 		cp.cm("Sig has length zero", tok)
-	default :
-		cp.cm("Sig ends in " + cp.getTypes(sig, sig.Len()-1).describe(cp.Vm), tok)
+	default:
+		cp.cm("Sig ends in "+cp.getTypes(sig, sig.Len()-1).describe(cp.Vm), tok)
 	}
 	if types.isOnly(values.ERROR) {
 		cp.P.Throw("comp/typecheck/a", tok)
@@ -3498,7 +3498,7 @@ func isOnlyAssortedStructs(mc *Vm, aT AlternateType) bool {
 	return true
 }
 
-func (cp *Compiler) returnSigToAlternateType(sig ast.AstSig) finiteTupleType {
+func (cp *Compiler) returnSigToAlternateType(sig ast.StringSig) finiteTupleType {
 	if sig == nil {
 		return nil
 	}

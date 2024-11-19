@@ -31,8 +31,7 @@ func (ntp NameTypenamePair) TypeOrBling() string {
 	return ntp.VarType
 }
 
-type AstSig []NameTypenamePair
-
+type StringSig []NameTypenamePair
 
 type NameAbstractTypePair struct {
 	VarName string
@@ -58,9 +57,9 @@ func (m NameAbstractTypePair) Matches(n NameAbstractTypePair) bool {
 	return m.VarType.Equals(n.VarType)
 }
 
-type ParserSig []NameAbstractTypePair
+type AbstractSig []NameAbstractTypePair
 
-func (p ParserSig) String() string {
+func (p AbstractSig) String() string {
 	result := ""
 	sep := ""
 	for _, pair := range p {
@@ -69,19 +68,19 @@ func (p ParserSig) String() string {
 	return result + ")"
 }
 
-func (s AstSig) Len() int {
+func (s StringSig) Len() int {
 	return len(s)
 }
 
-func (s AstSig) GetVarType(i int) any {
+func (s StringSig) GetVarType(i int) any {
 	return s[i].GetType()
 }
 
-func (s AstSig) GetVarName(i int) string {
+func (s StringSig) GetVarName(i int) string {
 	return s[i].VarName
 }
 
-func (ns AstSig) String() (result string) {
+func (ns StringSig) String() (result string) {
 	for _, v := range ns {
 		if result != "" {
 			result = result + ", "
@@ -92,7 +91,7 @@ func (ns AstSig) String() (result string) {
 	return
 }
 
-func (ns AstSig) NameSet() (result dtypes.Set[string]) {
+func (ns StringSig) NameSet() (result dtypes.Set[string]) {
 	for _, v := range ns {
 		result.Add(v.VarName)
 	}

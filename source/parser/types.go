@@ -60,7 +60,7 @@ var ClonableTypes = map[string]values.ValueType{"int": values.INT, "string": val
 
 var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 
-func (p *Parser) IsMoreSpecific(sigA, sigB ast.ParserSig) (result bool, ok bool) {
+func (p *Parser) IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 	if len(sigB) == 0 {
 		result = true
 		ok = true

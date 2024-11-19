@@ -200,8 +200,8 @@ type Parser struct {
 	typeData           map[string][]string          // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
 	LocalConcreteTypes dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
 
-	Structs   dtypes.Set[string]    // TODO --- remove: this has nothing to do that can't be done by the presence of a key
-	StructSig map[string]ast.AstSig // <--- in here.
+	Structs   dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
+	StructSig map[string]ast.StringSig // <--- in here.
 
 	Snippets        []string
 	GoImports       map[string][]string
@@ -272,7 +272,7 @@ func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePa
 
 	p.Functions.AddSet(dtypes.MakeFromSlice([]string{"builtin"}))
 
-	p.StructSig = make(map[string]ast.AstSig)
+	p.StructSig = make(map[string]ast.StringSig)
 
 	p.pushRParser(p)
 
@@ -280,16 +280,16 @@ func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePa
 }
 
 func (p *Parser) TypeExists(name string) bool {
-	_, ok := p.getAbstractType(name)
+	_, ok := p.SafeGetAbstractType(name)
 	return ok
 }
 
 func (p *Parser) GetAbstractType(name string) values.AbstractType {
-	abType, _ := p.getAbstractType(name)
+	abType, _ := p.SafeGetAbstractType(name)
 	return abType
 }
 
-func (p *Parser) getAbstractType(name string) (values.AbstractType, bool) {
+func (p *Parser) SafeGetAbstractType(name string) (values.AbstractType, bool) {
 	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
 		result := values.MakeAbstractType(values.STRING)
 		if GetNullabilityFromType(name) {
@@ -991,7 +991,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			case *ast.PrefixExpression:
 				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
 				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, "any?")
-				fn.Sig = p.Abstract(fn.NameSig) // TODO --- elsewhere.
+				fn.Sig = p.MakeAbstractSigFromStringSig(fn.NameSig) // TODO --- elsewhere.
 			default:
 				p.Throw("parse/inner/b", newLeft.GetToken())
 			}
@@ -1072,7 +1072,7 @@ func (p *Parser) parsePrelogExpression() ast.Node {
 	return expression
 }
 
-func DescribeFunctionCall(name string, sig *ast.AstSig) string {
+func DescribeFunctionCall(name string, sig *ast.StringSig) string {
 	result := "Called '" + name + "'"
 	vars := []string{}
 	for _, pair := range *sig {
@@ -1196,7 +1196,7 @@ func (p *Parser) parseFuncExpression() ast.Node {
 	if p.ErrorsExist() {
 		return nil
 	}
-	expression.Sig = p.Abstract(expression.NameSig) // TODO --- elsewhere.
+	expression.Sig = p.MakeAbstractSigFromStringSig(expression.NameSig) // TODO --- elsewhere.
 	bodyRoot := root.(*ast.LazyInfixExpression).Right
 	if bodyRoot.GetToken().Type == token.GIVEN {
 		expression.Body = bodyRoot.(*ast.InfixExpression).Args[0]
@@ -1356,11 +1356,11 @@ func (p *Parser) ResetAfterError() {
 // Slurps the parts of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node) {
+func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.StringSig, ast.StringSig, ast.Node, ast.Node) {
 	var (
 		functionName          string
-		sig                   ast.AstSig
-		rTypes                ast.AstSig
+		sig                   ast.StringSig
+		rTypes                ast.StringSig
 		start, content, given ast.Node
 	)
 	if fn.GetToken().Type == token.GIVEN {
@@ -1396,7 +1396,7 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Ast
 	return functionName, pos, sig, rTypes, content, given
 }
 
-func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.AstSig) {
+func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.StringSig) {
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
 		functionName = start.Operator
@@ -1413,7 +1413,7 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 	case *ast.UnfixExpression:
 		functionName = start.Operator
 		pos = 3
-		sig = ast.AstSig{}
+		sig = ast.StringSig{}
 	default:
 		prsr.Throw("parse/sig/malformed/d", start.GetToken())
 		return functionName, pos, sig
@@ -1421,8 +1421,8 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 	return functionName, pos, sig
 }
 
-func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
-	sig := ast.AstSig{}
+func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
+	sig := ast.StringSig{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
 		return sig
 	}
@@ -1572,8 +1572,8 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 }
 
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
-func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.AstSig, *report.Error) {
-	sig := ast.AstSig{}
+func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *report.Error) {
+	sig := ast.StringSig{}
 	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
 			sig = append(sig, ast.NameTypenamePair{VarName: arg.GetToken().Literal, VarType: "bling"})
@@ -1607,7 +1607,7 @@ func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 // assignment until it reaches the equals sign, by which time it's already turned the relevant tokens into an AST. Rather than kludge
 // my way out of that, I kludged my way around it by writing this thing which extracts the signature from an AST, and which has grown steadily
 // more complex with the language.
-func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstSig, *report.Error) {
+func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.StringSig, *report.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -1655,7 +1655,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstS
 			if err != nil {
 				return nil, err
 			}
-			return ast.AstSig{ast.NameTypenamePair{VarName: namespacedIdent, VarType: dflt}}, nil
+			return ast.StringSig{ast.NameTypenamePair{VarName: namespacedIdent, VarType: dflt}}, nil
 		default:
 			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
@@ -1691,23 +1691,23 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.AstS
 		}
 	case *ast.Identifier:
 		if p.Endfixes.Contains(typednode.Value) {
-			return ast.AstSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: "bling"}}, nil
+			return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: "bling"}}, nil
 		}
-		return ast.AstSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: dflt}}, nil
+		return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {
 			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
 			if err != nil {
 				return nil, err
 			}
-			front := ast.AstSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}}
+			front := ast.StringSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}}
 			return append(front, RHS...), nil
 		} else {
 			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 			// name under those circumstances.
-			return ast.AstSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: dflt}}, nil
+			return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: dflt}}, nil
 		}
 	}
 	return nil, newError("parse/sig/a", node.GetToken())
@@ -1748,7 +1748,7 @@ func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *report.Error
 	return LHS + "." + RHS, nil
 }
 
-func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
+func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.StringSig {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -1760,7 +1760,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
-		return ast.AstSig{ast.NameTypenamePair{VarName: "*dummy*", VarType: typednode.Value}}
+		return ast.StringSig{ast.NameTypenamePair{VarName: "*dummy*", VarType: typednode.Value}}
 	default:
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}
@@ -1800,8 +1800,8 @@ func (p *Parser) IsPrivate(x, y int) bool {
 	return p.TokenizedDeclarations[x][y].Private
 }
 
-func (p *Parser) Abstract(sig ast.AstSig) ast.ParserSig {
-	result := make(ast.ParserSig, sig.Len())
+func (p *Parser) MakeAbstractSigFromStringSig(sig ast.StringSig) ast.AbstractSig {
+	result := make(ast.AbstractSig, sig.Len())
 	for i, pair := range sig {
 		typename := pair.VarType
 		if len(typename) >= 3 && typename[:3] == "..." {

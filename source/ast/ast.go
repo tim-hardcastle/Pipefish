@@ -147,8 +147,8 @@ type GolangExpression struct {
 	Token       token.Token
 	ObjectCode  func(args ...any) any
 	Raw         []bool
-	Sig         AstSig
-	ReturnTypes AstSig
+	Sig         StringSig
+	ReturnTypes StringSig
 }
 
 func (ge *GolangExpression) Children() []Node       { return []Node{} }
@@ -368,7 +368,7 @@ func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Litera
 
 type StructExpression struct {
 	Token token.Token
-	Sig   AstSig
+	Sig   StringSig
 }
 
 func (st *StructExpression) Children() []Node       { return []Node{} }
@@ -603,10 +603,10 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 }
 
 type PrsrFunction struct {
-	Sig      ParserSig    // The signature of the function, represented in a form where the types are given as abstract types.
-	NameSig  AstSig       // The same, but with names of types instead of abstract types.
-	RtnSig   ParserSig    // The return types: nil if not supplied.
-	NameRets AstSig       // The same, but with names of types instead of abstract types.
+	Sig      AbstractSig  // The signature of the function, represented in a form where the types are given as abstract types.
+	NameSig  StringSig    // The same, but with names of types instead of abstract types.
+	RtnSig   AbstractSig  // The return types: nil if not supplied.
+	NameRets StringSig    // The same, but with names of types instead of abstract types.
 	Body     Node         // The body of the function.
 	Given    Node         // The 'given' block: nil if there isn't one.
 	Cmd      bool         // Whether it's a command or not.

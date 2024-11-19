@@ -20,9 +20,8 @@ import (
 
 var counter int
 
-
 type GoHandler struct {
-	Prsr             *parser.Parser            // The parser, to tell the GoHandler what the types mean. 
+	Prsr             *parser.Parser            // The parser, to tell the GoHandler what the types mean.
 	Modules          map[string]string         // Where the source files are.
 	timeMap          map[string]int            // When the source code was constructed.
 	Plugins          map[string]*plugin.Plugin // Knows where the plugins live after they've been generated.
@@ -168,7 +167,7 @@ func (gh *GoHandler) BuildGoMods() {
 	}
 }
 
-func (cp *Compiler) MakeFunction(gh *GoHandler, keyword string, sig, rTypes ast.AstSig, golang *ast.GolangExpression, pfDir string) {
+func (cp *Compiler) MakeFunction(gh *GoHandler, keyword string, sig, rTypes ast.StringSig, golang *ast.GolangExpression, pfDir string) {
 
 	source := golang.GetToken().Source
 
@@ -259,7 +258,7 @@ func (cp *Compiler) doTypeConversion(gh *GoHandler, pTy string) (string, string,
 			return "", goTy, true
 		}
 	}
-	
+
 	if gh.Prsr.Structs.Contains(pTy) {
 		gh.StructNames.Add(pTy)
 		return "", ".(" + pTy + ")", true
