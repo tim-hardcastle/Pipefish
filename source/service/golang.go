@@ -36,13 +36,14 @@ func NewGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
 		Prsr: prsr,
+		timeMap: make(map[string]int),
+		Modules: make(map[string]string),
+		Plugins: make(map[string]*plugin.Plugin),
+		CloneNames: make(dtypes.Set[string]),
+		EnumNames: make(dtypes.Set[string]),
+		StructNames: make(dtypes.Set[string]),
 	}
-
-	gh.timeMap = make(map[string]int)
-	gh.Modules = make(map[string]string)
-	gh.Plugins = make(map[string]*plugin.Plugin)
-	gh.StructNames = make(dtypes.Set[string])
-	gh.EnumNames = make(dtypes.Set[string])
+	
 	gh.TypeDeclarations = make(map[string]string)
 
 	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
@@ -245,6 +246,8 @@ var typeConv = map[string]string{"bling": ".(string)",
 	"tuple":  ".([]any)",
 	"type":   ".(string)",
 }
+
+
 
 func (cp *Compiler) doTypeConversion(gh *GoHandler, pTy string) (string, string, bool) {
 	if len(pTy) >= 3 && pTy[:3] == "..." {

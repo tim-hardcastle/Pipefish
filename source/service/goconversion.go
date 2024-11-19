@@ -131,12 +131,11 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 	
 	// We do the enum converters.
 	for name := range goHandler.EnumNames {
-		abType := goHandler.Prsr.GetAbstractType(name)
-		if abType.Len() != 1 {
+		concType, ok := cp.getConcreteType(name)
+		if !ok {
 			cp.Throw("golang/type/concrete/b", token.Token{Source: "golang interop"}, name)
 			continue
 		}
-		concType := abType.Types[0]
 		convGoEnumToPfEnum = convGoEnumToPfEnum + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.("+name+"))"
 		firstEnumElement := cp.Vm.concreteTypes[concType].(enumType).elementNames[0]
 		decs = decs + "type " + name + " int\n\n const (\n    " + firstEnumElement + " " + name + " = iota\n"
@@ -183,7 +182,7 @@ func (cp *Compiler) MakeTypeDeclarationsForGo(goHandler *GoHandler, source strin
 	return decs + convGoEnumToPfEnum + convGoStructToPfStruct + makeGoStruct
 }
 
-// Auxilliary to the function above. It produces the names of the types in the structs declarations 
+// Auxilliary to the function above. It produces the names of the types in the struct declarations 
 // generated for the Go code.
 func (cp *Compiler) ConvertFieldType(aT values.AbstractType) string {
 	if aT.Len() > 1 {
