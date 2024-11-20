@@ -316,6 +316,7 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	cp.goToPfStruct = map[string]func(any) (uint32, []any, bool){}
 	cp.pfToGoStruct = map[string]func(uint32, []any) any{}
 	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
+	cp.goToPfClone = map[string](func(any) (uint32, any)){}
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
 		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
