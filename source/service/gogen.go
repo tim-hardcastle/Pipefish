@@ -30,7 +30,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 
 	// We will use this string to put the convertor into. We initialize it with the start of
 	// a function and a switch on the type of a Go value.
-	convGoCloneToPf := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
+	convGoCloneToPf := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, any) {\n\tswitch v.(type) {\n"
 	for name := range goHandler.CloneNames {
 		// As usual in Golang interop only concrete types are allowed. We check.
 		concType, ok := cp.getConcreteType(name)
