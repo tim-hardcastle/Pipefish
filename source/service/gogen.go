@@ -57,7 +57,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 
 	// Next do the enum declarations and converters.
 
-	convGoTypeToPfType := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
+	convGoEnumToPf := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v.(type) {\n"
 
 	for name := range goHandler.EnumNames {
 		// As usual in Golang interop only concrete types are allowed. We check.
@@ -76,10 +76,10 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 
 		// We add one line to the convertor we're going to generate which says which Pipefish type number goes with the
 		// type that we're generating.
-		convGoTypeToPfType = convGoTypeToPfType + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.(" + name + "))"
+		convGoEnumToPf = convGoEnumToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.(" + name + "))"
 	}
 	// We finish off the enum conversion function.
-	convGoTypeToPfType = convGoTypeToPfType + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
+	convGoEnumToPf = convGoEnumToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
 
 	// Again we need a convertor to get a struct from Go to Pipefish, which we start off like this ..
 	convGoStructToPfStruct := "\nfunc ConvertGoStructHalfwayToPipefish(v any) (uint32, []any, bool) {\n\tswitch v.(type) {"
@@ -117,7 +117,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	convGoStructToPfStruct = convGoStructToPfStruct + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
 	convPfStructToGoStruct = convPfStructToGoStruct + "\tdefault:\n\t\tpanic(\"I'm not sure if this error can arise.\")\n\t}\n}\n\n"
 	// And then slap them all together as one block of code and send them on their way rejoicing.
-	return decs + convGoTypeToPfType + convGoStructToPfStruct + convPfStructToGoStruct + convPfStructToGoStruct
+	return decs + convGoEnumToPf + convGoCloneToPf + convGoStructToPfStruct + convPfStructToGoStruct
 }
 
 var cloneConv = map[values.ValueType]string{
