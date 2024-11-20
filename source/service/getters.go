@@ -21,7 +21,7 @@ func (cp *Compiler) getTypeInformation(name string) (typeInformation, bool) {
 	if !ok {
 		return nil, false
 	}
-	return cp.Vm.concreteTypes[concreteType], true
+	return cp.Vm.concreteTypeInfo[concreteType], true
 }
 
 func (cp *Compiler) isEnum(name string) bool {

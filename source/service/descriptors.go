@@ -39,7 +39,7 @@ func (vm *Vm) DescribeTypeAndValue(v values.Value, flavor descriptionFlavor) str
 }
 
 func (vm *Vm) DescribeType(t values.ValueType, flavor descriptionFlavor) string {
-	return vm.concreteTypes[t].getName(flavor)
+	return vm.concreteTypeInfo[t].getName(flavor)
 }
 
 type descriptionFlavor int
@@ -50,10 +50,10 @@ const (
 )
 
 func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
-	typeInfo := vm.concreteTypes[v.T]
+	typeInfo := vm.concreteTypeInfo[v.T]
 	if typeInfo.isStruct() {
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypes[v.T].getName(flavor))
+		buf.WriteString(vm.concreteTypeInfo[v.T].getName(flavor))
 		buf.WriteString(" with (")
 		var sep string
 		vals := v.V.([]values.Value)
@@ -67,20 +67,20 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	if typeInfo.isEnum() {
 		var buf strings.Builder
 		if flavor == LITERAL {
-			buf.WriteString(vm.concreteTypes[v.T].(enumType).path)
+			buf.WriteString(vm.concreteTypeInfo[v.T].(enumType).path)
 		}
-		buf.WriteString(vm.concreteTypes[v.T].(enumType).elementNames[v.V.(int)])
+		buf.WriteString(vm.concreteTypeInfo[v.T].(enumType).elementNames[v.V.(int)])
 		return buf.String()
 
 	}
 	if typeInfo.isClone() {
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypes[v.T].getName(flavor))
+		buf.WriteString(vm.concreteTypeInfo[v.T].getName(flavor))
 		buf.WriteString("(")
 		if flavor == LITERAL {
-			buf.WriteString(vm.concreteTypes[v.T].(cloneType).path)
+			buf.WriteString(vm.concreteTypeInfo[v.T].(cloneType).path)
 		}
-		buf.WriteString(vm.StringifyValue(values.Value{vm.concreteTypes[v.T].(cloneType).parent, v.V}, flavor))
+		buf.WriteString(vm.StringifyValue(values.Value{vm.concreteTypeInfo[v.T].(cloneType).parent, v.V}, flavor))
 		buf.WriteByte(')')
 		return buf.String()
 	}

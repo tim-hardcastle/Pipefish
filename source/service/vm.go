@@ -30,7 +30,7 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	concreteTypes              []typeInformation
+	concreteTypeInfo           []typeInformation
 	Labels                     []string // Array from the number of a field label to its name.
 	Tokens                     []*token.Token
 	LambdaFactories            []*LambdaFactory
@@ -81,11 +81,12 @@ type vmState struct {
 }
 
 type GoFn struct {
-	Code       func(args ...any) any
-	GoToPf     func(v any) (uint32, []any, bool)
-	GoToPfEnum func(v any) (uint32, int)
-	PfToGo     func(T uint32, args []any) any
-	Raw        []bool
+	Code         func(args ...any) any
+	GoToPfStruct func(v any) (uint32, []any, bool)
+	GoToPfEnum   func(v any) (uint32, int)
+	GoToPfClone  func(v any) (uint32, any)
+	PfToGoStruct func(T uint32, args []any) any
+	Raw          []bool
 }
 
 type Lambda struct {
@@ -160,7 +161,7 @@ func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 	}
 	copy(vm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
-		vm.concreteTypes = append(vm.concreteTypes, builtinType{name: name})
+		vm.concreteTypeInfo = append(vm.concreteTypeInfo, builtinType{name: name})
 	}
 	vm.typeNumberOfUnwrappedError = DUMMY
 	vm.Mem = append(vm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil}) // TODO --- why?
@@ -310,18 +311,18 @@ loop:
 				vm.Mem[args[0]] = vm.Mem[args[1]]
 				break Switch
 			}
-			if cloneInfoForCurrentType, ok := vm.concreteTypes[currentType].(cloneType); ok {
+			if cloneInfoForCurrentType, ok := vm.concreteTypeInfo[currentType].(cloneType); ok {
 				if cloneInfoForCurrentType.parent == targetType {
 					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
 					break Switch
 				}
-				if cloneInfoForTargetType, ok := vm.concreteTypes[currentType].(cloneType); ok && cloneInfoForTargetType.parent == cloneInfoForCurrentType.parent {
+				if cloneInfoForTargetType, ok := vm.concreteTypeInfo[currentType].(cloneType); ok && cloneInfoForTargetType.parent == cloneInfoForCurrentType.parent {
 					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
 					break Switch
 				}
 			}
 			// Otherwise by elimination the current type is the parent and the target type is a clone, or we have an error.
-			if cloneInfoForTargetType, ok := vm.concreteTypes[targetType].(cloneType); ok && cloneInfoForTargetType.parent == currentType {
+			if cloneInfoForTargetType, ok := vm.concreteTypeInfo[targetType].(cloneType); ok && cloneInfoForTargetType.parent == currentType {
 				vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
 				break Switch
 			}
@@ -483,17 +484,22 @@ loop:
 				vm.Mem[args[0]] = values.Value{values.FLOAT, i}
 			}
 		case Gofn:
-			F := vm.GoFns[args[1]]
+			F := vm.GoFns[args[2]]
 			goTpl := make([]any, 0, len(args))
-			for i, v := range args[2:] {
+			for i, v := range args[3:] {
 				el := vm.Mem[v]
 				if i < len(F.Raw) && F.Raw[i] { // We may not have a Raw value for every argument, if we're receiving a tuple.
 					goTpl = append(goTpl, el)
 				} else {
-					goTpl = append(goTpl, vm.pipefishToGo(el, F.PfToGo))
+					goVal, ok := vm.pipefishToGo(el, F.PfToGoStruct)
+					if !ok {
+						vm.Mem[args[0]] = vm.Mem[args[1]] // Where we keep the error.
+						break
+					}
+					goTpl = append(goTpl, goVal)
 				}
 			}
-			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPf, F.GoToPfEnum)
+			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
 		case Gtei:
@@ -532,12 +538,12 @@ loop:
 			}
 		case Idxt:
 			typ := (vm.Mem[args[1]].V.(values.AbstractType)).Types[0]
-			if !vm.concreteTypes[typ].isEnum() {
+			if !vm.concreteTypeInfo[typ].isEnum() {
 				vm.Mem[args[0]] = vm.makeError("vm/index/type/a", args[3], vm.DescribeType(typ, LITERAL))
 				break
 			}
 			ix := vm.Mem[args[2]].V.(int)
-			ok := 0 <= ix && ix < len(vm.concreteTypes[typ].(enumType).elementNames)
+			ok := 0 <= ix && ix < len(vm.concreteTypeInfo[typ].(enumType).elementNames)
 			if ok {
 				vm.Mem[args[0]] = values.Value{typ, ix}
 			} else {
@@ -621,12 +627,12 @@ loop:
 			container := vm.Mem[args[1]]
 			index := vm.Mem[args[2]]
 			indexType := index.T
-			if cloneInfo, ok := vm.concreteTypes[indexType].(cloneType); ok {
+			if cloneInfo, ok := vm.concreteTypeInfo[indexType].(cloneType); ok {
 				indexType = cloneInfo.parent
 			}
 			if indexType == values.PAIR { // Then we're slicing.
 				containerType := container.T
-				if cloneInfo, ok := vm.concreteTypes[containerType].(cloneType); ok && cloneInfo.isSliceable {
+				if cloneInfo, ok := vm.concreteTypeInfo[containerType].(cloneType); ok && cloneInfo.isSliceable {
 					containerType = cloneInfo.parent
 				}
 				ix := vm.Mem[args[2]].V.([]values.Value)
@@ -677,10 +683,10 @@ loop:
 			} else {
 				// Otherwise it's not a slice. We switch on the type of the lhs.
 				containerType := container.T
-				if cloneInfo, ok := vm.concreteTypes[containerType].(cloneType); ok {
+				if cloneInfo, ok := vm.concreteTypeInfo[containerType].(cloneType); ok {
 					containerType = cloneInfo.parent
 				}
-				typeInfo := vm.concreteTypes[containerType]
+				typeInfo := vm.concreteTypeInfo[containerType]
 				if typeInfo.isStruct() {
 					ix := typeInfo.(structType).resolve(vm.Mem[args[2]].V.(int))
 					vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
@@ -702,7 +708,7 @@ loop:
 					break
 				}
 				ty := container.T
-				if cloneInfo, ok := vm.concreteTypes[container.T].(cloneType); ok {
+				if cloneInfo, ok := vm.concreteTypeInfo[container.T].(cloneType); ok {
 					ty = cloneInfo.parent
 				}
 				switch ty {
@@ -754,12 +760,12 @@ loop:
 						break
 					}
 					typ := abTyp.Types[0]
-					if !vm.concreteTypes[typ].isEnum() {
+					if !vm.concreteTypeInfo[typ].isEnum() {
 						vm.Mem[args[0]] = vm.makeError("vm/index/o", args[3])
 						break
 					}
 					ix := index.V.(int)
-					ok := 0 <= ix && ix < len(vm.concreteTypes[typ].(enumType).elementNames)
+					ok := 0 <= ix && ix < len(vm.concreteTypeInfo[typ].(enumType).elementNames)
 					if ok {
 						vm.Mem[args[0]] = values.Value{typ, ix}
 					} else {
@@ -772,7 +778,7 @@ loop:
 				}
 			}
 		case IxZl:
-			typeInfo := vm.concreteTypes[vm.Mem[args[1]].T].(structType)
+			typeInfo := vm.concreteTypeInfo[vm.Mem[args[1]].T].(structType)
 			ix := typeInfo.resolve(vm.Mem[args[2]].V.(int))
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
@@ -788,7 +794,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, vm.Mem[args[1]].V.(*values.Map).AsVector()}
 		case KeyZ:
 			result := vector.Empty
-			for _, labelNumber := range vm.concreteTypes[vm.Mem[args[1]].T].(structType).labelNumbers {
+			for _, labelNumber := range vm.concreteTypeInfo[vm.Mem[args[1]].T].(structType).labelNumbers {
 				result = result.Conj(values.Value{values.LABEL, labelNumber})
 			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
@@ -854,7 +860,7 @@ loop:
 				}
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
-				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.concreteTypes[v.T].isEnum()) {
+				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.concreteTypeInfo[v.T].isEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T, LITERAL))
 					break Switch
 				}
@@ -866,7 +872,7 @@ loop:
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
-				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.concreteTypes[v.T].isEnum()) {
+				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.concreteTypeInfo[v.T].isEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/set", args[2], v, vm.DescribeType(v.T, LITERAL))
 					break Switch
 				}
@@ -935,7 +941,7 @@ loop:
 					case values.FLOAT:
 						injector.Data = append(injector.Data, v.V.(float64))
 					default:
-						panic("Unhandled case:" + vm.concreteTypes[v.T].getName(LITERAL))
+						panic("Unhandled case:" + vm.concreteTypeInfo[v.T].getName(LITERAL))
 					}
 				}
 				t.Execute(&buf, injector)
@@ -1039,7 +1045,7 @@ loop:
 			}
 			continue
 		case Qspt:
-			switch ty := vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			switch ty := vm.concreteTypeInfo[vm.Mem[args[0]].T].(type) {
 			case structType:
 				if ty.snippet {
 					loc = loc + 1
@@ -1053,7 +1059,7 @@ loop:
 				loc = loc + 1
 				continue
 			}
-			switch ty := vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			switch ty := vm.concreteTypeInfo[vm.Mem[args[0]].T].(type) {
 			case structType:
 				if ty.snippet {
 					loc = loc + 1
@@ -1063,7 +1069,7 @@ loop:
 			loc = args[1]
 			continue
 		case Qstr:
-			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			switch vm.concreteTypeInfo[vm.Mem[args[0]].T].(type) {
 			case structType:
 				loc = loc + 1
 			default:
@@ -1075,7 +1081,7 @@ loop:
 				loc = loc + 1
 				continue
 			}
-			switch vm.concreteTypes[vm.Mem[args[0]].T].(type) {
+			switch vm.concreteTypeInfo[vm.Mem[args[0]].T].(type) {
 			case structType:
 				loc = loc + 1
 			default:
@@ -1413,18 +1419,18 @@ loop:
 				break Switch
 			}
 			typ := typL.Types[0]
-			if !vm.concreteTypes[typ].isStruct() {
+			if !vm.concreteTypeInfo[typ].isStruct() {
 				vm.Mem[args[0]] = vm.makeError("vm/with/type/b", args[3], vm.DescribeType(typ, LITERAL))
 				break Switch
 			}
-			typeInfo := vm.concreteTypes[typ].(structType)
+			typeInfo := vm.concreteTypeInfo[typ].(structType)
 			var pairs []values.Value
 			if (vm.Mem[args[2]].T) == values.PAIR {
 				pairs = []values.Value{vm.Mem[args[0]]}
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			outVals := make([]values.Value, len(vm.concreteTypes[typ].(structType).labelNumbers))
+			outVals := make([]values.Value, len(vm.concreteTypeInfo[typ].(structType).labelNumbers))
 			for _, pair := range pairs {
 				if pair.T != values.PAIR {
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/c", args[3], vm.DescribeType(pair.T, LITERAL))
@@ -1449,18 +1455,18 @@ loop:
 			}
 			for i, v := range outVals {
 				if v.T == values.UNDEFINED_VALUE {
-					if vm.concreteTypes[typ].(structType).abstractStructFields[i].Contains(values.NULL) {
+					if vm.concreteTypeInfo[typ].(structType).abstractStructFields[i].Contains(values.NULL) {
 						outVals[i] = values.Value{values.NULL, nil}
 						break Switch
 					} else {
-						labName := vm.Labels[vm.concreteTypes[typ].(structType).labelNumbers[i]]
+						labName := vm.Labels[vm.concreteTypeInfo[typ].(structType).labelNumbers[i]]
 						vm.Mem[args[0]] = vm.makeError("vm/with/type/g", args[3], labName)
 						break Switch
 					}
 				}
-				if !vm.concreteTypes[typ].(structType).abstractStructFields[i].Contains(v.T) {
-					labName := vm.Labels[vm.concreteTypes[typ].(structType).labelNumbers[i]]
-					vm.Mem[args[0]] = vm.makeError("vm/with/type/h", args[3], vm.DescribeType(v.T, LITERAL), labName, vm.DescribeType(typ, LITERAL), vm.DescribeAbstractType(vm.concreteTypes[typ].(structType).abstractStructFields[i], LITERAL))
+				if !vm.concreteTypeInfo[typ].(structType).abstractStructFields[i].Contains(v.T) {
+					labName := vm.Labels[vm.concreteTypeInfo[typ].(structType).labelNumbers[i]]
+					vm.Mem[args[0]] = vm.makeError("vm/with/type/h", args[3], vm.DescribeType(v.T, LITERAL), labName, vm.DescribeType(typ, LITERAL), vm.DescribeAbstractType(vm.concreteTypeInfo[typ].(structType).abstractStructFields[i], LITERAL))
 					break Switch
 				}
 			}
@@ -1473,7 +1479,7 @@ loop:
 			} else {
 				pairs = vm.Mem[args[2]].V.([]values.Value)
 			}
-			outVals := make([]values.Value, len(vm.concreteTypes[typ].(structType).labelNumbers))
+			outVals := make([]values.Value, len(vm.concreteTypeInfo[typ].(structType).labelNumbers))
 			copy(outVals, vm.Mem[args[1]].V.([]values.Value))
 			result := values.Value{typ, outVals}
 			for _, pair := range pairs {
@@ -1514,7 +1520,7 @@ loop:
 			}
 			mp := vm.Mem[args[1]].V.(*values.Map)
 			for _, key := range items {
-				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || vm.concreteTypes[key.T].isEnum()) { // Check that the key is orderable.
+				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || vm.concreteTypeInfo[key.T].isEnum()) { // Check that the key is orderable.
 					vm.Mem[args[0]] = vm.makeError("vm/without", args[3], vm.DescribeType(key.T, LITERAL))
 					break Switch
 				}
@@ -1578,10 +1584,10 @@ func (mc Vm) equals(v, w values.Value) bool {
 	case values.FUNC:
 		return false
 	}
-	if mc.concreteTypes[v.T].isEnum() {
+	if mc.concreteTypeInfo[v.T].isEnum() {
 		return v.V.(int) == w.V.(int)
 	}
-	if mc.concreteTypes[v.T].isStruct() {
+	if mc.concreteTypeInfo[v.T].isStruct() {
 		for i, v := range v.V.([]values.Value) {
 			if !mc.equals(v, w.V.([]values.Value)[i]) {
 				return false
@@ -1613,7 +1619,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		return container
 	case values.MAP:
 		mp := container.V.(*values.Map)
-		if ((key.T < values.NULL) || (key.T >= values.FUNC && key.T < values.LABEL)) && !vm.concreteTypes[key.T].isEnum() { // Check that the key is orderable.
+		if ((key.T < values.NULL) || (key.T >= values.FUNC && key.T < values.LABEL)) && !vm.concreteTypeInfo[key.T].isEnum() { // Check that the key is orderable.
 			return vm.makeError("vm/with/c", errTok, vm.DescribeType(key.T, LITERAL))
 		}
 		if len(keys) == 1 {
@@ -1627,7 +1633,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		fields := make([]values.Value, len(container.V.([]values.Value)))
 		clone := values.Value{container.T, fields}
 		copy(fields, container.V.([]values.Value))
-		typeInfo := vm.concreteTypes[container.T].(structType)
+		typeInfo := vm.concreteTypeInfo[container.T].(structType)
 		if key.T != values.LABEL {
 			return vm.makeError("vm/with/d", errTok, vm.DescribeType(key.T, LITERAL))
 		}
@@ -1638,9 +1644,9 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		if len(keys) > 1 {
 			val = vm.with(fields[fieldNumber], keys[1:], val, errTok)
 		}
-		if !vm.concreteTypes[container.T].(structType).abstractStructFields[fieldNumber].Contains(val.T) {
+		if !vm.concreteTypeInfo[container.T].(structType).abstractStructFields[fieldNumber].Contains(val.T) {
 			labName := vm.Labels[key.V.(int)]
-			return vm.makeError("vm/with/f", errTok, vm.DescribeType(val.T, LITERAL), labName, vm.DescribeType(container.T, LITERAL), vm.DescribeAbstractType(vm.concreteTypes[container.T].(structType).abstractStructFields[fieldNumber], LITERAL))
+			return vm.makeError("vm/with/f", errTok, vm.DescribeType(val.T, LITERAL), labName, vm.DescribeType(container.T, LITERAL), vm.DescribeAbstractType(vm.concreteTypeInfo[container.T].(structType).abstractStructFields[fieldNumber], LITERAL))
 		}
 		fields[fieldNumber] = val
 		return clone
@@ -1840,7 +1846,7 @@ func (t structType) resolve(labelNumber int) int {
 
 func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) values.Value {
 	ty := container.T
-	if cloneInfo, ok := vm.concreteTypes[ty].(cloneType); ok {
+	if cloneInfo, ok := vm.concreteTypeInfo[ty].(cloneType); ok {
 		ty = cloneInfo.parent
 	}
 	switch ty {
@@ -1891,13 +1897,13 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc)}
 		}
 		typ := abTyp.Types[0]
-		if !vm.concreteTypes[typ].isEnum() {
+		if !vm.concreteTypeInfo[typ].isEnum() {
 			return values.Value{values.ERROR, vm.makeError("vm/for/type/b", tokLoc)}
 		}
 		if keysOnly {
-			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
+			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(vm.concreteTypeInfo[typ].(enumType).elementNames)}}
 		} else {
-			return values.Value{values.ITERATOR, &values.EnumIterator{Type: typ, Max: len(vm.concreteTypes[typ].(enumType).elementNames)}}
+			return values.Value{values.ITERATOR, &values.EnumIterator{Type: typ, Max: len(vm.concreteTypeInfo[typ].(enumType).elementNames)}}
 		}
 	default:
 		return values.Value{values.ERROR, vm.makeError("vm/for/type", tokLoc)}

@@ -96,15 +96,15 @@ func (es externalHttpCallHandler) getAPI() string {
 // For a description of the file format, see README-api-serialization.md
 func (service Service) SerializeApi() string {
 	var buf strings.Builder
-	for i := int(values.FIRST_DEFINED_TYPE); i < len(service.Cp.Vm.concreteTypes); i++ {
-		if !service.Cp.Vm.concreteTypes[i].isEnum() {
+	for i := int(values.FIRST_DEFINED_TYPE); i < len(service.Cp.Vm.concreteTypeInfo); i++ {
+		if !service.Cp.Vm.concreteTypeInfo[i].isEnum() {
 			continue
 		}
 		enumOrdinal := i - int(values.FIRST_DEFINED_TYPE)
-		if !service.Cp.Vm.concreteTypes[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+		if !service.Cp.Vm.concreteTypeInfo[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
 			buf.WriteString("ENUM | ")
-			buf.WriteString(service.Cp.Vm.concreteTypes[i].getName(DEFAULT))
-			for _, el := range service.Cp.Vm.concreteTypes[i].(enumType).elementNames {
+			buf.WriteString(service.Cp.Vm.concreteTypeInfo[i].getName(DEFAULT))
+			for _, el := range service.Cp.Vm.concreteTypeInfo[i].(enumType).elementNames {
 				buf.WriteString(" | ")
 				buf.WriteString(el)
 			}
@@ -113,15 +113,15 @@ func (service Service) SerializeApi() string {
 	}
 
 	for declarationNumber, ty := range service.Cp.structDeclarationNumberToTypeNumber {
-		if !service.Cp.Vm.concreteTypes[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
+		if !service.Cp.Vm.concreteTypeInfo[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
 			buf.WriteString("STRUCT | ")
-			buf.WriteString(service.Cp.Vm.concreteTypes[ty].getName(DEFAULT))
-			labels := service.Cp.Vm.concreteTypes[ty].(structType).labelNumbers
+			buf.WriteString(service.Cp.Vm.concreteTypeInfo[ty].getName(DEFAULT))
+			labels := service.Cp.Vm.concreteTypeInfo[ty].(structType).labelNumbers
 			for i, lb := range labels { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 				buf.WriteString(" | ")
 				buf.WriteString(service.Cp.Vm.Labels[lb])
 				buf.WriteString(" ")
-				buf.WriteString(service.serializeAbstractType(service.Cp.Vm.concreteTypes[ty].(structType).abstractStructFields[i]))
+				buf.WriteString(service.serializeAbstractType(service.Cp.Vm.concreteTypeInfo[ty].(structType).abstractStructFields[i]))
 			}
 			buf.WriteString("\n")
 		}
@@ -179,7 +179,7 @@ func (service *Service) isMandatoryImport(dec declarationType, ordinal int) bool
 
 func (service *Service) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
 	for _, w := range a.Types {
-		if service.Cp.Vm.concreteTypes[w].isPrivate() {
+		if service.Cp.Vm.concreteTypeInfo[w].isPrivate() {
 			return true
 		}
 	}
@@ -334,7 +334,7 @@ func (service *Service) serializeAbstractType(ty values.AbstractType) string {
 func (service *Service) serializeTypescheme(t typeScheme) string {
 	switch t := t.(type) {
 	case simpleType:
-		return service.Cp.Vm.concreteTypes[t].getName(DEFAULT)
+		return service.Cp.Vm.concreteTypeInfo[t].getName(DEFAULT)
 	case TypedTupleType:
 		acc := ""
 		for _, u := range t.T {

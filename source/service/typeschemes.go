@@ -195,7 +195,7 @@ func (t simpleType) describe(mc *Vm) string {
 }
 
 func (t simpleType) isPrivate(mc *Vm) bool {
-	return mc.concreteTypes[t].isPrivate()
+	return mc.concreteTypeInfo[t].isPrivate()
 }
 
 type AlternateType []typeScheme
@@ -306,7 +306,7 @@ func (aT AlternateType) isOnly(vt values.ValueType) bool {
 func (aT AlternateType) isOnlyCloneOf(vm *Vm, vts ...values.ValueType) bool {
 	targetAltType := AlternateType{}
 	for _, vt := range vts {
-		targetAltType = targetAltType.Union(vm.sharedTypenameToTypeList[vm.concreteTypes[vt].getName(LITERAL)])
+		targetAltType = targetAltType.Union(vm.sharedTypenameToTypeList[vm.concreteTypeInfo[vt].getName(LITERAL)])
 	}
 	for _, el := range aT {
 		switch el := el.(type) {
@@ -324,7 +324,7 @@ func (aT AlternateType) isOnlyCloneOf(vm *Vm, vts ...values.ValueType) bool {
 func (aT AlternateType) cannotBeACloneOf(vm *Vm, vts ...values.ValueType) bool {
 	targetAltType := AlternateType{}
 	for _, vt := range vts {
-		targetAltType = targetAltType.Union(vm.sharedTypenameToTypeList[vm.concreteTypes[vt].getName(LITERAL)])
+		targetAltType = targetAltType.Union(vm.sharedTypenameToTypeList[vm.concreteTypeInfo[vt].getName(LITERAL)])
 	}
 	singles, _ := aT.splitSinglesAndTuples()
 	return !(len(targetAltType.intersect(singles)) == 0)

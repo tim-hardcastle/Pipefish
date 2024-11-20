@@ -35,9 +35,10 @@ type Compiler struct {
 	Vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
-	goToPf     map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
-	pfToGo     map[string]func(uint32, []any) any         //           "
-	goToPfEnum map[string]func(any) (uint32, int)
+	goToPfStruct map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
+	pfToGoStruct map[string]func(uint32, []any) any         //           "
+	goToPfEnum   map[string]func(any) (uint32, int)
+	goToPfClone  map[string]func(any) (uint32, any)
 
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
@@ -372,7 +373,7 @@ func (cp *Compiler) GetParser() *parser.Parser {
 
 func (mc *Vm) isPrivate(a values.AbstractType) bool {
 	for _, w := range a.Types {
-		if mc.concreteTypes[w].isPrivate() {
+		if mc.concreteTypeInfo[w].isPrivate() {
 			return true
 		}
 	}
@@ -407,7 +408,7 @@ func (cp *Compiler) Describe(v values.Value) string {
 }
 
 func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 {
-	if t < values.ValueType(len(cp.Vm.concreteTypes)) {
+	if t < values.ValueType(len(cp.Vm.concreteTypeInfo)) {
 		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" with initial type "+cp.Vm.DescribeType(t, LITERAL)+".", tok) // E.g. the members of enums get created before their type. TODO --- is there a reason for this?
 	} else {
 		cp.cm("Reserving m"+strconv.Itoa(len(cp.Vm.Mem))+" for initial type not yet named.", tok)
@@ -1255,7 +1256,7 @@ NodeTypeSwitch:
 		}
 		enumElement, ok := enumCompiler.EnumElements[node.Value]
 		if ok {
-			if cp.Vm.concreteTypes[cp.Vm.Mem[enumElement].T].isPrivate() {
+			if cp.Vm.concreteTypeInfo[cp.Vm.Mem[enumElement].T].isPrivate() {
 				cp.P.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(cp.Vm.Mem[enumElement].T, LITERAL))
 				break
 			}
@@ -1398,8 +1399,8 @@ NodeTypeSwitch:
 			} else {
 				allEnums := AlternateType{} // TODO --- you only need to calculate this once.
 				allEnums = append(allEnums, simpleType(values.ERROR))
-				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.concreteTypes); i++ {
-					if cp.Vm.concreteTypes[i].isEnum() {
+				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.concreteTypeInfo); i++ {
+					if cp.Vm.concreteTypeInfo[i].isEnum() {
 						allEnums = append(allEnums, simpleType(i))
 					}
 				}
@@ -1408,7 +1409,7 @@ NodeTypeSwitch:
 		}
 		structT, ok := isOnlyStruct(cp.Vm, containerType)
 		if ok {
-			structInfo := cp.Vm.concreteTypes[structT].(structType)
+			structInfo := cp.Vm.concreteTypeInfo[structT].(structType)
 			if indexType.isOnly(values.LABEL) {
 				if idxConst { // Then we can find the field number of the struct at compile time and throw away the computed label.
 					indexNumber := cp.Vm.Mem[index].V.(int)
@@ -1419,12 +1420,12 @@ NodeTypeSwitch:
 						break
 					}
 					cp.put(IxZn, container, uint32(fieldNumber))
-					rtnTypes = cp.Vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber]
+					rtnTypes = cp.Vm.concreteTypeInfo[structT].(structType).alternateStructFields[fieldNumber]
 					break
 				}
 				cp.put(IxZl, container, index, errTok)
 				rtnTypes = AltType()
-				for _, t := range cp.Vm.concreteTypes[structT].(structType).alternateStructFields {
+				for _, t := range cp.Vm.concreteTypeInfo[structT].(structType).alternateStructFields {
 					rtnTypes = rtnTypes.Union(t)
 				}
 				rtnTypes = rtnTypes.Union(AltType(values.ERROR))
@@ -1443,12 +1444,12 @@ NodeTypeSwitch:
 					rtnTypes = AltType()
 					for _, structTypeAsSimpleType := range containerType {
 						structT := values.ValueType(structTypeAsSimpleType.(simpleType))
-						structInfo := cp.Vm.concreteTypes[structT].(structType)
+						structInfo := cp.Vm.concreteTypeInfo[structT].(structType)
 						indexNumber := cp.Vm.Mem[index].V.(int)
 						fieldNumber := structInfo.resolve(indexNumber)
 						if fieldNumber != -1 {
 							labelIsPossible = true
-							rtnTypes = rtnTypes.Union(cp.Vm.concreteTypes[structT].(structType).alternateStructFields[fieldNumber])
+							rtnTypes = rtnTypes.Union(cp.Vm.concreteTypeInfo[structT].(structType).alternateStructFields[fieldNumber])
 						} else {
 							labelIsCertain = false
 						}
@@ -2736,7 +2737,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			// It could have a Golang body.
 			if F.HasGo {
 				cp.cmP("Emitting Go function call.", b.tok)
-				args := append([]uint32{b.outLoc, F.GoNumber}, b.valLocs...)
+				convErrorLoc := cp.reserveError("go/conv/x", b.tok)
+				args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
 				cp.Emit(Gofn, args...)
 				if len(branch.Node.Fn.NameRets) == 0 {
 					if F.Command {
@@ -3369,7 +3371,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk co
 			// Special sauce for the SQL snippets.
 			if types.isOnly(values.TYPE) && cst && csk == SQL_SNIPPET {
 				typeNumbers := cp.Vm.Mem[cp.That()].V.(values.AbstractType).Types
-				if len(typeNumbers) == 1 && cp.Vm.concreteTypes[typeNumbers[0]].isStruct() {
+				if len(typeNumbers) == 1 && cp.Vm.concreteTypeInfo[typeNumbers[0]].isStruct() {
 					sig, ok := cp.Vm.getSqlSig(typeNumbers[0])
 					if !ok {
 						cp.P.Throw("comp/snippet/sig", tok, cp.Vm.DescribeType(typeNumbers[0], LITERAL))
@@ -3467,7 +3469,7 @@ func (cp *Compiler) rollback(vms vmState, tok *token.Token) {
 }
 
 func isStruct(mc *Vm, sT simpleType) bool {
-	return mc.concreteTypes[sT].isStruct()
+	return mc.concreteTypeInfo[sT].isStruct()
 }
 
 func isOnlyStruct(mc *Vm, aT AlternateType) (values.ValueType, bool) {
@@ -3990,9 +3992,9 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(cp.Vm.GoFns))
 		cpF.HasGo = true
-		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{body.(*ast.GolangExpression).ObjectCode,
-			cp.goToPf[body.GetToken().Source], cp.goToPfEnum[body.GetToken().Source],
-			cp.pfToGo[body.GetToken().Source], body.(*ast.GolangExpression).Raw})
+		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).ObjectCode,
+			GoToPfStruct: cp.goToPfStruct[body.GetToken().Source], GoToPfEnum: cp.goToPfEnum[body.GetToken().Source],
+			PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source], Raw: body.(*ast.GolangExpression).Raw})
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE

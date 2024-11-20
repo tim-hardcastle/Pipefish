@@ -4,6 +4,8 @@ import (
 	"math/rand"
 )
 
+// The empty set, i.e. Set{}, is ready to use as, in fact, the empty set.
+
 type Set struct {
 	root *setNode
 }

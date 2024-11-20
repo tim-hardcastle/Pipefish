@@ -313,16 +313,18 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	if cp.P.ErrorsExist() {
 		return
 	}
-	cp.goToPf = map[string]func(any) (uint32, []any, bool){}
-	cp.pfToGo = map[string]func(uint32, []any) any{}
+	cp.goToPfStruct = map[string]func(any) (uint32, []any, bool){}
+	cp.pfToGoStruct = map[string]func(uint32, []any) any{}
 	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
-		cp.goToPf[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
-		cp.pfToGo[source] = fnSymbol.(func(uint32, []any) any)
+		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
 		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoCloneToPipefish")
+		cp.goToPfClone[source] = fnSymbol.(func(any) (uint32, any))
 	}
 	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
 	if cp.P.NamespacePath == "" {
@@ -658,11 +660,11 @@ func (cp *Compiler) createEnums() {
 		info, typeExists := cp.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := cp.Vm.concreteTypes[typeNo].(enumType)
+			typeInfo := cp.Vm.concreteTypeInfo[typeNo].(enumType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.Vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(cp.Vm.concreteTypes))
+			typeNo = values.ValueType(len(cp.Vm.concreteTypeInfo))
 			cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		cp.AddType(tok1.Literal, "enum", typeNo)
@@ -690,7 +692,7 @@ func (cp *Compiler) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, enumType{name: tok1.Literal, path: cp.P.NamespacePath, elementNames: elementNameList, private: cp.P.IsPrivate(int(enumDeclaration), i)})
+		cp.Vm.concreteTypeInfo = append(cp.Vm.concreteTypeInfo, enumType{name: tok1.Literal, path: cp.P.NamespacePath, elementNames: elementNameList, private: cp.P.IsPrivate(int(enumDeclaration), i)})
 	}
 }
 
@@ -714,13 +716,13 @@ func (cp *Compiler) createClones() {
 		info, typeExists := cp.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := cp.Vm.concreteTypes[typeNo].(cloneType)
+			typeInfo := cp.Vm.concreteTypeInfo[typeNo].(cloneType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.Vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(cp.Vm.concreteTypes))
+			typeNo = values.ValueType(len(cp.Vm.concreteTypeInfo))
 			cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, cloneType{name: name, path: cp.P.NamespacePath, parent: parentTypeNo, private: cp.P.IsPrivate(int(cloneDeclaration), i)})
+			cp.Vm.concreteTypeInfo = append(cp.Vm.concreteTypeInfo, cloneType{name: name, path: cp.P.NamespacePath, parent: parentTypeNo, private: cp.P.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				cp.Vm.IsRangeable = cp.Vm.IsRangeable.Union(altType(typeNo))
 			}
@@ -813,17 +815,17 @@ func (cp *Compiler) createClones() {
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
 					cp.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "?>":
-					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypeInfo[typeNo].(cloneType)
 					cloneData.isFilterable = true
-					cp.Vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypeInfo[typeNo] = cloneData
 				case ">>":
-					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypeInfo[typeNo].(cloneType)
 					cloneData.isMappable = true
-					cp.Vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypeInfo[typeNo] = cloneData
 				case "slice":
-					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypeInfo[typeNo].(cloneType)
 					cloneData.isSliceable = true
-					cp.Vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypeInfo[typeNo] = cloneData
 				default:
 					cp.Throw("init/request/list", usingOrEof, op)
 				}
@@ -854,9 +856,9 @@ func (cp *Compiler) createClones() {
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
 					cp.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, INFIX, &tok1)
 				case "slice":
-					cloneData := cp.Vm.concreteTypes[typeNo].(cloneType)
+					cloneData := cp.Vm.concreteTypeInfo[typeNo].(cloneType)
 					cloneData.isSliceable = true
-					cp.Vm.concreteTypes[typeNo] = cloneData
+					cp.Vm.concreteTypeInfo[typeNo] = cloneData
 				default:
 					cp.Throw("init/request/string", usingOrEof, op)
 				}
@@ -891,13 +893,13 @@ func (cp *Compiler) createStructNamesAndLabels() {
 	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
-		typeNo := values.ValueType(len(cp.Vm.concreteTypes))
+		typeNo := values.ValueType(len(cp.Vm.concreteTypeInfo))
 		typeInfo, typeExists := cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := cp.Vm.concreteTypes[typeNo].(structType)
+			typeInfo := cp.Vm.concreteTypeInfo[typeNo].(structType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.Vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
 			cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(structDeclaration), i)})
 		}
@@ -932,10 +934,10 @@ func (cp *Compiler) createStructNamesAndLabels() {
 					cp.Vm.LabelIsPrivate = append(cp.Vm.LabelIsPrivate, true)
 				}
 			}
-			cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(cp.Vm.concreteTypes))
+			cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(cp.Vm.concreteTypeInfo))
 			stT := structType{name: name, path: cp.P.NamespacePath, labelNumbers: labelsForStruct, private: cp.P.IsPrivate(int(structDeclaration), i)}
 			stT = stT.addLabels(labelsForStruct)
-			cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, stT)
+			cp.Vm.concreteTypeInfo = append(cp.Vm.concreteTypeInfo, stT)
 		}
 	}
 
@@ -945,7 +947,7 @@ func (cp *Compiler) createStructNamesAndLabels() {
 		}
 		tok := cp.P.ParsedDeclarations[structDeclaration][i].GetToken()
 		sI, _ := cp.getDeclaration(decSTRUCT, tok, DUMMY)
-		sT := cp.Vm.concreteTypes[sI.(structInfo).structNumber]
+		sT := cp.Vm.concreteTypeInfo[sI.(structInfo).structNumber]
 		for i := range sT.(structType).labelNumbers {
 			dec, _ := cp.getDeclaration(decLABEL, tok, i)
 			decLabel := dec.(labelInfo)
@@ -1069,7 +1071,7 @@ func (cp *Compiler) createInterfaceTypes() {
 func (cp *Compiler) addFieldsToStructs() {
 	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		structNumber := cp.structDeclarationNumberToTypeNumber[i]
-		structInfo := cp.Vm.concreteTypes[structNumber].(structType)
+		structInfo := cp.Vm.concreteTypeInfo[structNumber].(structType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		typesForStruct := make([]AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
@@ -1081,7 +1083,7 @@ func (cp *Compiler) addFieldsToStructs() {
 		}
 		structInfo.alternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
 		structInfo.abstractStructFields = typesForStructForVm
-		cp.Vm.concreteTypes[structNumber] = structInfo
+		cp.Vm.concreteTypeInfo[structNumber] = structInfo
 	}
 }
 
@@ -1090,18 +1092,18 @@ func (cp *Compiler) createSnippetTypesPart2() {
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range cp.P.Snippets {
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-		typeNo := values.ValueType(len(cp.Vm.concreteTypes))
+		typeNo := values.ValueType(len(cp.Vm.concreteTypeInfo))
 		cp.P.TokenizedDeclarations[snippetDeclaration][i].ToStart()
 		decTok := cp.P.TokenizedDeclarations[snippetDeclaration][i].NextToken()
 		typeInfo, typeExists := cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := cp.Vm.concreteTypes[typeNo].(structType)
+			typeInfo := cp.Vm.concreteTypeInfo[typeNo].(structType)
 			typeInfo.path = cp.P.NamespacePath
-			cp.Vm.concreteTypes[typeNo] = typeInfo
+			cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
 			cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(snippetDeclaration), i)})
-			cp.Vm.concreteTypes = append(cp.Vm.concreteTypes, structType{name: name, path: cp.P.NamespacePath, snippet: true, private: cp.P.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			cp.Vm.concreteTypeInfo = append(cp.Vm.concreteTypeInfo, structType{name: name, path: cp.P.NamespacePath, snippet: true, private: cp.P.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 			cp.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			cp.Vm.codeGeneratingTypes.Add(typeNo)
 		}
@@ -1117,14 +1119,14 @@ func (cp *Compiler) createSnippetTypesPart2() {
 }
 
 func (cp *Compiler) checkTypesForConsistency() {
-	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(cp.Vm.concreteTypes); typeNumber++ {
-		if !cp.Vm.concreteTypes[typeNumber].isStruct() {
+	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(cp.Vm.concreteTypeInfo); typeNumber++ {
+		if !cp.Vm.concreteTypeInfo[typeNumber].isStruct() {
 			continue
 		}
-		if !cp.Vm.concreteTypes[typeNumber].isPrivate() {
-			for _, ty := range cp.Vm.concreteTypes[typeNumber].(structType).abstractStructFields {
+		if !cp.Vm.concreteTypeInfo[typeNumber].isPrivate() {
+			for _, ty := range cp.Vm.concreteTypeInfo[typeNumber].(structType).abstractStructFields {
 				if cp.Vm.isPrivate(ty) {
-					cp.Throw("init/private/struct", token.Token{}, cp.Vm.concreteTypes[typeNumber], cp.Vm.DescribeAbstractType(ty, LITERAL))
+					cp.Throw("init/private/struct", token.Token{}, cp.Vm.concreteTypeInfo[typeNumber], cp.Vm.DescribeAbstractType(ty, LITERAL))
 				}
 			}
 		}
@@ -1139,7 +1141,7 @@ func (cp *Compiler) checkTypesForConsistency() {
 		name := tok.Literal
 		abType := cp.P.GetAbstractType(name)
 		for _, w := range abType.Types {
-			if cp.Vm.concreteTypes[w].isPrivate() {
+			if cp.Vm.concreteTypeInfo[w].isPrivate() {
 				cp.Throw("init/private/abstract", tok, name)
 			}
 		}
@@ -1161,10 +1163,10 @@ func (cp *Compiler) addStructLabelsToVm(name string, typeNo values.ValueType, si
 			cp.Vm.LabelIsPrivate = append(cp.Vm.LabelIsPrivate, true)
 		}
 	}
-	typeInfo := cp.Vm.concreteTypes[typeNo].(structType)
+	typeInfo := cp.Vm.concreteTypeInfo[typeNo].(structType)
 	typeInfo.labelNumbers = labelsForStruct
 	typeInfo = typeInfo.addLabels(labelsForStruct)
-	cp.Vm.concreteTypes[typeNo] = typeInfo
+	cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 }
 
 func (cp *Compiler) compileConstructors() {
@@ -1189,7 +1191,7 @@ func (cp *Compiler) compileConstructors() {
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := cp.CloneNameToTypeNumber[name]
-		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: cp.Vm.concreteTypes[cp.Vm.concreteTypes[typeNo].(cloneType).parent].getName(DEFAULT)}}
+		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: cp.Vm.concreteTypeInfo[cp.Vm.concreteTypeInfo[typeNo].(cloneType).parent].getName(DEFAULT)}}
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = cp
 	}
