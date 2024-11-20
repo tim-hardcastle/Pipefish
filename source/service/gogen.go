@@ -53,7 +53,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		convGoCloneToPf = convGoCloneToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v.(" + name + "))"
 	}
 	// We finish off the clone conversion function.
-	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\treturn uint32(0), nil\n\t}\n}\n\n"
+	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
 
 	// Next do the enum declarations and converters.
 
