@@ -500,7 +500,8 @@ loop:
 			}
 			val := vm.goToPipefish((F.Code).Call(goTpl), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
 			if val.T == 0 {
-				println("Undefined value is", val.V, "with type", reflect.TypeOf(val.V).String())
+				problem := val.V.(conversionProblem)
+				println("Undefined value is", problem.goValue, "with type", reflect.TypeOf(problem.goValue).String(), "assigned type", vm.concreteTypeInfo[problem.presumedType].getName(DEFAULT))
 			}
 			vm.Mem[args[0]] = val
 		case Gtef:
