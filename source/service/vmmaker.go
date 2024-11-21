@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"pipefish/source/ast"
+	"pipefish/source/dtypes"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/settings"
@@ -304,12 +305,14 @@ func (cp *Compiler) makeAlternateTypesFromAbstractTypes() {
 
 func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	for source := range goHandler.Modules {
+		// We make sure we really do have all the types we need by recursing thorugh the structs:
+		cp.transitivelyCloseTypeDeclarations(goHandler)
 		goHandler.TypeDeclarations[source] = cp.generateDeclarationAndConversionCode(goHandler)
 		if cp.P.ErrorsExist() {
 			return
 		}
 	}
-	goHandler.buildGoMods()
+	goHandler.buildGoModules()
 	if cp.P.ErrorsExist() {
 		return
 	}
@@ -318,7 +321,7 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
 	cp.goToPfClone = map[string](func(any) (uint32, any)){}
 	for source := range goHandler.Modules {
-		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructHalfwayToPipefish")
+		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
 		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
 		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
@@ -345,6 +348,39 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 		}
 	}
 	goHandler.recordGoTimes()
+}
+
+// Auxilliary to the function above. It makes sure that if  we're generating declarations for a struct type,
+// we're also generating declarations for the types of its fields if need be, and so on recursively. We do
+// a traditional non-recursive breadth-first search.
+func (cp *Compiler) transitivelyCloseTypeDeclarations(goHandler *GoHandler) {
+	structsToCheck := goHandler.StructNames
+	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
+		for structName := range structsToCheck {
+			structTypeNumber := cp.StructNameToTypeNumber[structName]
+			for _, fieldType := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields {
+				if fieldType.Len() != 1 {
+					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
+				}
+				typeOfField := fieldType.Types[0]
+				switch fieldData := cp.Vm.concreteTypeInfo[typeOfField].(type) {
+				case cloneType:
+					goHandler.CloneNames.Add(fieldData.name)
+				case enumType:
+					goHandler.EnumNames.Add(fieldData.name)
+				case structType:
+					if !goHandler.StructNames.Contains(fieldData.name) {
+						newStructsToCheck.Add(fieldData.name)
+						goHandler.StructNames.Add(fieldData.name)
+					}
+				default:
+					// As other type-checking needs to be done for things that are not in structs anyway,
+					// it would be superfluous to do it here.
+				}
+			}
+		}
+		structsToCheck = newStructsToCheck
+	}
 }
 
 type labeledParsedCodeChunk struct {

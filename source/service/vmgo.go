@@ -176,4 +176,3 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 	return convError(values.UNDEFINED_VALUE, v)
 }
 
-

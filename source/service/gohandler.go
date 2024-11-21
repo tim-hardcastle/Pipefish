@@ -101,7 +101,7 @@ func (gh *GoHandler) recordGoTimes() {
 	}
 }
 
-func (gh *GoHandler) buildGoMods() {
+func (gh *GoHandler) buildGoModules() {
 
 	// 'tuplify' ensures that just one thing of type any is returned, since this is all the definition of
 	// golang functions can cope with.
