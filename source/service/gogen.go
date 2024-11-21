@@ -26,8 +26,11 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	decs := "\n"
 
 	// We initialize the converter functions.
-	// convPfCloneToGo := "\nfunc ConvertPipefishCloneToGo(v any) (uint32, any) any {\n\tswitch v.(type) {"
-	convGoCloneToPf := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, any) {\n\tswitch v := v.(type) {"
+	kludge := ""
+	if len(goHandler.CloneNames) > 0 {
+		kludge = "v := "
+	}
+	convGoCloneToPf := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, any) {\n\tswitch " + kludge + "v.(type) {"
 	for name := range goHandler.CloneNames {
 		// As usual in Golang interop only concrete types are allowed. We check.
 		concType, ok := cp.getConcreteType(name)
@@ -53,6 +56,10 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
 
 	// Next do the enum declarations and converters. We intitialize the converter code.
+	kludge = ""
+	if len(goHandler.EnumNames) > 0 {
+		kludge = "v := "
+	}
 	convPfEnumToGo := "\nfunc ConvertPipefishEnumToGo(typeNo uint32, index int) any {\n\tswitch typeNo {"
 	convGoEnumToPf := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v := v.(type) {"
 	// And then each enum needs one declaration; and one case in each converter.
@@ -79,7 +86,11 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	convPfEnumToGo = convPfEnumToGo + "\n\tdefault:\n\t\tpanic(\"We ran out of enums!\")\n\t}\n}\n\n"
 	convGoEnumToPf = convGoEnumToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
 
-	// Initialize converters.
+	// And finally the structs. Initialize converters.
+	kludge = ""
+	if len(goHandler.StructNames) > 0 {
+		kludge = "v := "
+	}
 	convGoStructToPfStruct := "\nfunc ConvertGoStructToPipefish(v any) (uint32, []any, bool) {\n\tswitch v := v.(type) {"
 	convPfStructToGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"
 	// And then we iterate over the structs.
