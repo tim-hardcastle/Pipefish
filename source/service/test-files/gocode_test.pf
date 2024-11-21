@@ -8,12 +8,12 @@ Qux = clone int
 
 def
 
-foo(x float) : golang {
-    return x
-}
-
 boo(x bool) : golang {
     return !x
+}
+
+foo(x float) : golang {
+    return x
 }
 
 ioo(x int) : golang {

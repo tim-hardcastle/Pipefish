@@ -498,11 +498,23 @@ loop:
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
-			val := vm.goToPipefish((F.Code).Call(goTpl), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
-			if val.T == 0 {
-				problem := val.V.(conversionProblem)
-				println("Undefined value is", problem.goValue, "with type", reflect.TypeOf(problem.goValue).String(), "assigned type", vm.concreteTypeInfo[problem.presumedType].getName(DEFAULT))
+			goResultValues := F.Code.Call(goTpl)
+			var doctoredValues any
+			if len(goResultValues) == 1 {
+				doctoredValues = goResultValues[0].Interface()
+			} else {
+				elements := make([]any, 0, len(goResultValues))
+				for _, v := range goResultValues {
+					elements = append(elements, v.Interface)
+				}
+				doctoredValues = goTuple(elements)
 			}
+			
+			val := vm.goToPipefish(doctoredValues, F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
+			// if val.T == 0 {
+			// 	problem := val.V.(conversionProblem)
+			// 	panic("Undefined value is", problem.goValue, "with type", reflect.TypeOf(problem.goValue).String(), "assigned type", vm.concreteTypeInfo[problem.presumedType].getName(DEFAULT))
+			// }
 			vm.Mem[args[0]] = val
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
