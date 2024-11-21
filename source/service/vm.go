@@ -86,7 +86,6 @@ type GoFn struct {
 	GoToPfEnum   func(v any) (uint32, int)
 	GoToPfClone  func(v any) (uint32, any)
 	PfToGoStruct func(T uint32, args []any) any
-	Raw          []bool
 }
 
 type Lambda struct {
@@ -486,18 +485,14 @@ loop:
 		case Gofn:
 			F := vm.GoFns[args[2]]
 			goTpl := make([]any, 0, len(args))
-			for i, v := range args[3:] {
+			for _, v := range args[3:] {
 				el := vm.Mem[v]
-				if i < len(F.Raw) && F.Raw[i] { // We may not have a Raw value for every argument, if we're receiving a tuple.
-					goTpl = append(goTpl, el)
-				} else {
-					goVal, ok := vm.pipefishToGo(el, F.PfToGoStruct)
-					if !ok {
-						vm.Mem[args[0]] = vm.Mem[args[1]] // Where we keep the error.
-						break
-					}
-					goTpl = append(goTpl, goVal)
+				goVal, ok := vm.pipefishToGo(el, F.PfToGoStruct)
+				if !ok {
+					vm.Mem[args[0]] = vm.Mem[args[1]] // Where we keep the error.
+					break
 				}
+				goTpl = append(goTpl, goVal)
 			}
 			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
 		case Gtef:

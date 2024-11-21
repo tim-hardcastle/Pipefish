@@ -146,7 +146,6 @@ func (fe *FuncExpression) String() string {
 type GolangExpression struct {
 	Token       token.Token
 	ObjectCode  func(args ...any) any
-	Raw         []bool
 	Sig         StringSig
 	ReturnTypes StringSig
 }

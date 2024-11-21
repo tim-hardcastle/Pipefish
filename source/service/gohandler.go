@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"pipefish/source/ast"
 	"pipefish/source/dtypes"
 	"pipefish/source/parser"
 	"pipefish/source/text"
@@ -23,8 +24,12 @@ import (
 
 // * The declaration of the type.
 // * The newGoHandler function.
+// * The populateTypeLists function.
+// * The addPureGoBlock function.
+// * The getGoFunctions function.
+// * The transitivelyCloseTypes function.
+// * The buildGoModule function.
 // * The recordGoTimes function.
-// * The buildGoMods function.
 // * The getFn function.
 
 var counter int
@@ -34,7 +39,6 @@ type GoHandler struct {
 	Modules          map[string]string         // Where the source files are.
 	timeMap          map[string]int            // When the source code was constructed.
 	Plugins          map[string]*plugin.Plugin // Knows where the plugins live after they've been generated.
-	rawHappened      bool                      // Very minor and temporry piece of state which should be somewhere else. TODO.
 	CloneNames       dtypes.Set[string]        // Set of Pipefish clone types appearing in the sigs of the functions.
 	EnumNames        dtypes.Set[string]        // Set of Pipefish struct types appearing in the sigs of the functions.
 	StructNames      dtypes.Set[string]        // Set of Pipefish enum types appearing in the sigs of the functions.
@@ -75,47 +79,104 @@ func newGoHandler(prsr *parser.Parser) *GoHandler {
 	return &gh
 }
 
-func (gh *GoHandler) recordGoTimes() {
+// Takes a type name (fro a sig) and puts it where it needs to go.
+func (cp *Compiler) populateTypeLists (gh *GoHandler, pfType string) {
+	typeInfo, _ := cp.getTypeInformation(pfType)
+	switch typeInfo.(type) {
+	case structType:
+		gh.StructNames.Add(pfType)
+	case enumType:
+		gh.EnumNames.Add(pfType)
+	case cloneType:
+		gh.CloneNames.Add(pfType)
+	}
+}
 
-	// We add the newly compiled modules to the list of times.
+// This is called directly from the initializer to shove the pure Go blocks into the code.
+func (gh *GoHandler) addPureGoBlock(source, code string) {
+	gh.Modules[source] = gh.Modules[source] + "\n" + code[:len(code)-2] + "\n\n"
+}
 
-	for k := range gh.Modules {
-		filepath := MakeFilepath(k, gh.Prsr.Directory)
-		file, err := os.Stat(filepath)
-		if err != nil {
-			panic("Gohandler cleanup: " + err.Error())
+func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
+	for source := range goHandler.Modules {
+		cp.transitivelyCloseTypes(goHandler)
+		goHandler.TypeDeclarations[source] = cp.generateDeclarationAndConversionCode(goHandler)
+		if cp.P.ErrorsExist() {
+			return
 		}
-		modifiedTime := file.ModTime().UnixMilli()
-		gh.timeMap[k] = int(modifiedTime)
 	}
-	// And then write out the list of times to the .dat file.
+	goHandler.buildGoModules()
+	if cp.P.ErrorsExist() {
+		return
+	}
+	cp.goToPfStruct = map[string]func(any) (uint32, []any, bool){}
+	cp.pfToGoStruct = map[string]func(uint32, []any) any{}
+	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
+	cp.goToPfClone = map[string](func(any) (uint32, any)){}
+	for source := range goHandler.Modules {
+		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
+		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
+		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
+		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoCloneToPipefish")
+		cp.goToPfClone[source] = fnSymbol.(func(any) (uint32, any))
+	}
+	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
+	if cp.P.NamespacePath == "" {
+		for k, v := range cp.P.Common.Functions {
+			if v.Body.GetToken().Type == token.GOCODE {
+				result := goHandler.getFn(text.Flatten(k.FunctionName), v.Body.GetToken())
+				v.Body.(*ast.GolangExpression).ObjectCode = result
+			}
+		}
+	}
+	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
+		for _, v := range fns {
+			if v.Body.GetToken().Type == token.GOCODE {
+				result := goHandler.getFn(text.Flatten(functionName), v.Body.GetToken())
+				v.Body.(*ast.GolangExpression).ObjectCode = result
+			}
+		}
+	}
+	goHandler.recordGoTimes()
+}
 
-	f, err := os.Create(gh.Prsr.Directory + "rsc/go/gotimes.dat")
-	if err != nil {
-		panic("Can't create file rsc/go/gotimes.dat")
-	}
-	defer f.Close()
-	for k, v := range gh.timeMap {
-		f.WriteString(k + "\n")
-		f.WriteString(strconv.Itoa(v) + "\n")
+// This makes sure that if  we're generating declarations for a struct type,
+// we're also generating declarations for the types of its fields if need be, and so on recursively. We do
+// a traditional non-recursive breadth-first search.
+func (cp *Compiler) transitivelyCloseTypes(goHandler *GoHandler) {
+	structsToCheck := goHandler.StructNames
+	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
+		for structName := range structsToCheck {
+			structTypeNumber := cp.StructNameToTypeNumber[structName]
+			for _, fieldType := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields {
+				if fieldType.Len() != 1 {
+					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
+				}
+				typeOfField := fieldType.Types[0]
+				switch fieldData := cp.Vm.concreteTypeInfo[typeOfField].(type) {
+				case cloneType:
+					goHandler.CloneNames.Add(fieldData.name)
+				case enumType:
+					goHandler.EnumNames.Add(fieldData.name)
+				case structType:
+					if !goHandler.StructNames.Contains(fieldData.name) {
+						newStructsToCheck.Add(fieldData.name)
+						goHandler.StructNames.Add(fieldData.name)
+					}
+				default:
+					// As other type-checking needs to be done for things that are not in structs anyway,
+					// it would be superfluous to do it here.
+				}
+			}
+		}
+		structsToCheck = newStructsToCheck
 	}
 }
 
 func (gh *GoHandler) buildGoModules() {
-
-	// 'tuplify' ensures that just one thing of type any is returned, since this is all the definition of
-	// golang functions can cope with.
-
-	appendix := `func tuplify(args ...any) any {
-	if len(args) == 1 {
-		return args[0]
-	}
-	result := &values.GoReturn{Elements: []any{}}
-	for _, v := range(args) {
-		result.Elements = append(result.Elements, v)
-	}
-	return result
-}`
 
 	for source, functionBodies := range gh.Modules {
 
@@ -141,8 +202,6 @@ func (gh *GoHandler) buildGoModules() {
 
 		preface := "package main\n\n"
 
-		gh.Prsr.GoImports[source] = append(gh.Prsr.GoImports[source], "pipefish/source/values")
-
 		if len(gh.Prsr.GoImports[source]) > 0 {
 			preface = preface + "import (\n"
 			for _, v := range gh.Prsr.GoImports[source] {
@@ -159,7 +218,7 @@ func (gh *GoHandler) buildGoModules() {
 		}
 		goFile := filepath.Join(gh.Prsr.Directory, "gocode_"+strconv.Itoa(counter)+".go")
 		file, _ := os.Create(goFile)
-		file.WriteString(preface + functionBodies + appendix + gh.TypeDeclarations[source])
+		file.WriteString(preface +  gh.TypeDeclarations[source] + functionBodies)
 		file.Close()
 		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
@@ -174,6 +233,32 @@ func (gh *GoHandler) buildGoModules() {
 		if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
 			os.Remove("gocode_" + strconv.Itoa(counter) + ".go")
 		}
+	}
+}
+
+func (gh *GoHandler) recordGoTimes() {
+
+	// We add the newly compiled modules to the list of times.
+
+	for k := range gh.Modules {
+		filepath := MakeFilepath(k, gh.Prsr.Directory)
+		file, err := os.Stat(filepath)
+		if err != nil {
+			panic("Gohandler cleanup: " + err.Error())
+		}
+		modifiedTime := file.ModTime().UnixMilli()
+		gh.timeMap[k] = int(modifiedTime)
+	}
+	// And then write out the list of times to the .dat file.
+
+	f, err := os.Create(gh.Prsr.Directory + "rsc/go/gotimes.dat")
+	if err != nil {
+		panic("Can't create file rsc/go/gotimes.dat")
+	}
+	defer f.Close()
+	for k, v := range gh.timeMap {
+		f.WriteString(k + "\n")
+		f.WriteString(strconv.Itoa(v) + "\n")
 	}
 }
 

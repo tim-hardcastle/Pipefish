@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"pipefish/source/ast"
-	"pipefish/source/dtypes"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/settings"
@@ -252,7 +251,7 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 	}
 
 	// We build the Go files, if any.
-	cp.MakeGoMods(goHandler)
+	cp.getGoFunctions(goHandler)
 
 	// We add in constructors for the structs, snippets, and clones.
 	cp.compileConstructors()
@@ -300,86 +299,6 @@ func (cp *Compiler) makeAlternateTypesFromAbstractTypes() {
 	}
 	for typename, abType := range cp.P.Common.Types {
 		cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
-	}
-}
-
-func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
-	for source := range goHandler.Modules {
-		// We make sure we really do have all the types we need by recursing thorugh the structs:
-		cp.transitivelyCloseTypeDeclarations(goHandler)
-		goHandler.TypeDeclarations[source] = cp.generateDeclarationAndConversionCode(goHandler)
-		if cp.P.ErrorsExist() {
-			return
-		}
-	}
-	goHandler.buildGoModules()
-	if cp.P.ErrorsExist() {
-		return
-	}
-	cp.goToPfStruct = map[string]func(any) (uint32, []any, bool){}
-	cp.pfToGoStruct = map[string]func(uint32, []any) any{}
-	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
-	cp.goToPfClone = map[string](func(any) (uint32, any)){}
-	for source := range goHandler.Modules {
-		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
-		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
-		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
-		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoCloneToPipefish")
-		cp.goToPfClone[source] = fnSymbol.(func(any) (uint32, any))
-	}
-	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
-	if cp.P.NamespacePath == "" {
-		for k, v := range cp.P.Common.Functions {
-			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.getFn(text.Flatten(k.FunctionName), v.Body.GetToken())
-				v.Body.(*ast.GolangExpression).ObjectCode = result
-			}
-		}
-	}
-	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
-		for _, v := range fns {
-			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.getFn(text.Flatten(functionName), v.Body.GetToken())
-				v.Body.(*ast.GolangExpression).ObjectCode = result
-			}
-		}
-	}
-	goHandler.recordGoTimes()
-}
-
-// Auxilliary to the function above. It makes sure that if  we're generating declarations for a struct type,
-// we're also generating declarations for the types of its fields if need be, and so on recursively. We do
-// a traditional non-recursive breadth-first search.
-func (cp *Compiler) transitivelyCloseTypeDeclarations(goHandler *GoHandler) {
-	structsToCheck := goHandler.StructNames
-	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
-		for structName := range structsToCheck {
-			structTypeNumber := cp.StructNameToTypeNumber[structName]
-			for _, fieldType := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields {
-				if fieldType.Len() != 1 {
-					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
-				}
-				typeOfField := fieldType.Types[0]
-				switch fieldData := cp.Vm.concreteTypeInfo[typeOfField].(type) {
-				case cloneType:
-					goHandler.CloneNames.Add(fieldData.name)
-				case enumType:
-					goHandler.EnumNames.Add(fieldData.name)
-				case structType:
-					if !goHandler.StructNames.Contains(fieldData.name) {
-						newStructsToCheck.Add(fieldData.name)
-						goHandler.StructNames.Add(fieldData.name)
-					}
-				default:
-					// As other type-checking needs to be done for things that are not in structs anyway,
-					// it would be superfluous to do it here.
-				}
-			}
-		}
-		structsToCheck = newStructsToCheck
 	}
 }
 
@@ -433,13 +352,11 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 				return nil
 			}
 			if body.GetToken().Type == token.GOCODE {
-				body.(*ast.GolangExpression).Raw = []bool{}
-				for i, v := range sig {
-					body.(*ast.GolangExpression).Raw = append(body.(*ast.GolangExpression).Raw,
-						len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw")
-					if len(v.VarType) > 4 && v.VarType[len(v.VarType)-4:] == " raw" {
-						sig[i].VarType = v.VarType[:len(v.VarType)-4]
-					}
+				for _, v := range sig {
+					cp.populateTypeLists(goHandler, v.VarType)
+				}
+				for _, v := range rTypes {
+					cp.populateTypeLists(goHandler, v.VarType)
 				}
 				cp.generateGoFunctionCode(goHandler, flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
 				if cp.P.ErrorsExist() {
@@ -800,7 +717,7 @@ func (cp *Compiler) createClones() {
 		}
 		// And add them to the common functions.
 		for _, op := range opList {
-			rtnSig := ast.StringSig{{"*dummy*", name}}
+			rtnSig := ast.StringSig{{"", name}}
 			switch parentTypeNo {
 			case values.FLOAT:
 				switch op {

@@ -1590,7 +1590,7 @@ func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *e
 
 func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 	result := []string{}
-	sig, e := p.RecursivelySlurpSignature(node, "*dummy*")
+	sig, e := p.RecursivelySlurpSignature(node, "")
 	if e != nil {
 		return result
 	}
@@ -1760,7 +1760,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.StringSig {
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
-		return ast.StringSig{ast.NameTypenamePair{VarName: "*dummy*", VarType: typednode.Value}}
+		return ast.StringSig{ast.NameTypenamePair{VarName: "", VarType: typednode.Value}}
 	default:
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}

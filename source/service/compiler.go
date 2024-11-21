@@ -3994,7 +3994,7 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 		cpF.HasGo = true
 		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).ObjectCode,
 			GoToPfStruct: cp.goToPfStruct[body.GetToken().Source], GoToPfEnum: cp.goToPfEnum[body.GetToken().Source],
-			GoToPfClone: cp.goToPfClone[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source], Raw: body.(*ast.GolangExpression).Raw})
+			GoToPfClone: cp.goToPfClone[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source]})
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE
