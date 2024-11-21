@@ -131,6 +131,10 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 	//         or if they are, they may not be allowed to be elements of sets.
     //     (c) If it's a pair, then besides the usual problem it may not be two elements long.
 
+	if cloneConverter == nil {
+		println("Well there's your problem.")
+	}
+
 	cType, val := cloneConverter(v)
 	if cType != 0 { // The sentinel value.
 		switch vm.concreteTypeInfo[cType].(cloneType).parent {
