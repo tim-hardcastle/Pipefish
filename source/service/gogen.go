@@ -257,7 +257,7 @@ func (cp *Compiler) generateTypeConversionSyntax(gh *GoHandler, pfType string) (
 		gh.EnumNames.Add(pfType)
 		return pfType + "(", ".(int))", true
 	case cloneType:
-		gh.EnumNames.Add(pfType)
+		gh.CloneNames.Add(pfType)
 		return pfType + "(", ".(" + cloneConv[typeInfo.parent] + "))", true
 	}
 	return "", "", false
