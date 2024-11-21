@@ -110,10 +110,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	if cp.P.ErrorsExist() {
 		return
 	}
-	cp.goToPfStruct = map[string]func(any) (uint32, []any, bool){}
-	cp.pfToGoStruct = map[string]func(uint32, []any) any{}
-	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
-	cp.goToPfClone = map[string](func(any) (uint32, any)){}
+	
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertPipefishCloneToGo")
 		cp.pfToGoClone[source] = fnSymbol.(func(uint32, any) (any))

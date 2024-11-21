@@ -39,7 +39,6 @@ type Compiler struct {
 	goToPfClone  map[string]func(any) (uint32, any)
 	pfToGoEnum   map[string]func(uint32, int) any
 	goToPfEnum   map[string]func(any) (uint32, int)
-	
 	pfToGoStruct map[string]func(uint32, []any) any  
 	goToPfStruct map[string]func(any) (uint32, []any, bool) 
 
@@ -250,6 +249,14 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		fnIndex:                  make(map[fnSource]*ast.PrsrFunction),
+
+		pfToGoClone: map[string]func(uint32, any) any{},
+		goToPfClone: map[string](func(any) (uint32, any)){},
+		pfToGoEnum: map[string]func(uint32, int) any{},
+		goToPfEnum: map[string](func(any) (uint32, int)){},
+		pfToGoStruct: map[string]func(uint32, []any) any{},
+		goToPfStruct: map[string]func(any) (uint32, []any, bool){},
+
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
 			"int":      AltType(values.INT),
