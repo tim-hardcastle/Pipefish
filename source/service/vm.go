@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -81,10 +82,13 @@ type vmState struct {
 }
 
 type GoFn struct {
-	Code         func(args ...any) any
-	GoToPfStruct func(v any) (uint32, []any, bool)
-	GoToPfEnum   func(v any) (uint32, int)
+	Code         reflect.Value
 	GoToPfClone  func(v any) (uint32, any)
+	GoToPfEnum   func(v any) (uint32, int)
+	GoToPfStruct func(v any) (uint32, []any, bool)
+	
+	PfToGoClone func(T uint32, v any) any
+	PfToGoEnum func(T uint32, i int) any
 	PfToGoStruct func(T uint32, args []any) any
 }
 
@@ -484,17 +488,17 @@ loop:
 			}
 		case Gofn:
 			F := vm.GoFns[args[2]]
-			goTpl := make([]any, 0, len(args))
+			goTpl := make([]reflect.Value, 0, len(args))
 			for _, v := range args[3:] {
 				el := vm.Mem[v]
-				goVal, ok := vm.pipefishToGo(el, F.PfToGoStruct)
+				goVal, ok := vm.pipefishToGo(el, F.PfToGoClone, F.PfToGoEnum, F.PfToGoStruct)
 				if !ok {
 					vm.Mem[args[0]] = vm.Mem[args[1]] // Where we keep the error.
 					break
 				}
-				goTpl = append(goTpl, goVal)
+				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
-			vm.Mem[args[0]] = vm.goToPipefish(F.Code(goTpl...), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
+			vm.Mem[args[0]] = vm.goToPipefish((F.Code).Call(goTpl), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
 		case Gtei:

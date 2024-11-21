@@ -145,7 +145,7 @@ func (fe *FuncExpression) String() string {
 
 type GolangExpression struct {
 	Token       token.Token
-	ObjectCode  func(args ...any) any
+	GoFunction  reflect.Value
 	Sig         StringSig
 	ReturnTypes StringSig
 }

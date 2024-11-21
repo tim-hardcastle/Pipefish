@@ -12,7 +12,7 @@ import (
 
 
 // How the vm performs conversion at runtime.
-func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) (any, bool) {
+func (vm *Vm) pipefishToGo(v values.Value, cloneConverter (func(uint32, any) any), enumConverter (func(uint32, int) any), structConverter (func(uint32, []any) any)) (any, bool) {
 	switch v.T {
 	case values.BOOL:
 		return v.V.(bool), true
@@ -26,32 +26,22 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) (a
 		return v.V.(string), true
 	}
 	typeInfo := vm.concreteTypeInfo[v.T]
-	switch typeInfo := typeInfo.(type) {
+	switch typeInfo.(type) {
 	case structType :
 		pVals := v.V.([]values.Value)
 		gVals := make([]any, 0, len(pVals))
 		for _, v := range pVals {
-			newGVal , ok := vm.pipefishToGo(v, converter)
+			newGVal , ok := vm.pipefishToGo(v, cloneConverter, enumConverter, structConverter)
 			if !ok {
 				return newGVal, false     // 'false' meaning, this is the culprit.
 			}
 			gVals = append(gVals, newGVal)
 		}
-		return converter(uint32(v.T), gVals), true // 'true' meaning, this is the result.
-	
+		return structConverter(uint32(v.T), gVals), true
 	case enumType :
-		return v.V.(int), true
+		return enumConverter(uint32(v.T), v.V.(int)), true
 	case cloneType :
-		switch typeInfo.parent {
-		case values.FLOAT:
-			return v.V.(float64), true
-		case values.INT:
-			return v.V.(int), true
-		case values.RUNE:
-			return v.V.(rune), true
-		case values.STRING:
-			return v.V.(string), true
-		}
+		return cloneConverter(uint32(v.T), v.V), true
 	}
 	return nil, false
 }
@@ -66,7 +56,6 @@ func convError(t values.ValueType, v any) values.Value {
 	return values.Value{values.UNDEFINED_VALUE, conversionProblem{t, v}}
 }
 
-// How the VM performs conversion at runtime.
 func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool), 
 								  enumConverter func(any) (uint32, int),
 								  cloneConverter func(any) (uint32, any),
@@ -95,9 +84,9 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 		return values.Value{values.STRING, v}
 	// (2) The return doctor has turned a multiple return from a Go function into a single Pipefish value
 	// of the GoReturn type, which we can now unpack recursively.
-	case *values.GoReturn:
-		result := make([]values.Value, 0, len(v.Elements))
-		for _, el := range v.Elements {
+	case goTuple:
+		result := make([]values.Value, 0, len(v))
+		for _, el := range v {
 			result = append(result, vm.goToPipefish(el, structConverter, enumConverter, cloneConverter, errorLoc))
 		}
 		return values.Value{values.TUPLE, result}
@@ -176,3 +165,15 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 	return convError(values.UNDEFINED_VALUE, v)
 }
 
+// Because the above function will be applied recursively, we apply the goTuple type to the values
+// we first get back from Go so as to distinguish a tuple from a list.
+
+type goTuple []any 
+
+func tuplify(x ... any) any {
+	if len(x) == 1 {
+		return x
+	} else {
+		return goTuple(x)
+	}
+}

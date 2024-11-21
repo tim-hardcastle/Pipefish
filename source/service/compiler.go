@@ -35,10 +35,13 @@ type Compiler struct {
 	Vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
-	goToPfStruct map[string]func(any) (uint32, []any, bool) // Used for Golang interop.
-	pfToGoStruct map[string]func(uint32, []any) any         //           "
-	goToPfEnum   map[string]func(any) (uint32, int)
+	pfToGoClone  map[string]func(uint32, any) any
 	goToPfClone  map[string]func(any) (uint32, any)
+	pfToGoEnum   map[string]func(uint32, int) any
+	goToPfEnum   map[string]func(any) (uint32, int)
+	
+	pfToGoStruct map[string]func(uint32, []any) any  
+	goToPfStruct map[string]func(any) (uint32, []any, bool) 
 
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
@@ -3992,9 +3995,10 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(cp.Vm.GoFns))
 		cpF.HasGo = true
-		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).ObjectCode,
+		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).GoFunction,
 			GoToPfStruct: cp.goToPfStruct[body.GetToken().Source], GoToPfEnum: cp.goToPfEnum[body.GetToken().Source],
-			GoToPfClone: cp.goToPfClone[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source]})
+			GoToPfClone: cp.goToPfClone[body.GetToken().Source], PfToGoClone: cp.pfToGoClone[body.GetToken().Source],
+			PfToGoEnum: cp.pfToGoEnum[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source]})
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE

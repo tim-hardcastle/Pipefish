@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"plugin"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -80,7 +81,7 @@ func newGoHandler(prsr *parser.Parser) *GoHandler {
 }
 
 // Takes a type name (fro a sig) and puts it where it needs to go.
-func (cp *Compiler) populateTypeLists (gh *GoHandler, pfType string) {
+func (cp *Compiler) populateTypeLists(gh *GoHandler, pfType string) {
 	typeInfo, _ := cp.getTypeInformation(pfType)
 	switch typeInfo.(type) {
 	case structType:
@@ -114,21 +115,29 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	cp.goToPfEnum = map[string](func(any) (uint32, int)){}
 	cp.goToPfClone = map[string](func(any) (uint32, any)){}
 	for source := range goHandler.Modules {
-		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
-		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
-		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
-		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
+		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertPipefishCloneToGo")
+		cp.pfToGoClone[source] = fnSymbol.(func(uint32, any) (any))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoCloneToPipefish")
 		cp.goToPfClone[source] = fnSymbol.(func(any) (uint32, any))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishEnumToGo")
+		cp.pfToGoEnum[source] = fnSymbol.(func(uint32, int) (any))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
+		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
+		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
+		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		
+		
+
+		
 	}
 	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
 	if cp.P.NamespacePath == "" {
 		for k, v := range cp.P.Common.Functions {
 			if v.Body.GetToken().Type == token.GOCODE {
 				result := goHandler.getFn(text.Flatten(k.FunctionName), v.Body.GetToken())
-				v.Body.(*ast.GolangExpression).ObjectCode = result
+				v.Body.(*ast.GolangExpression).GoFunction = reflect.Value(result)
 			}
 		}
 	}
@@ -136,7 +145,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
 				result := goHandler.getFn(text.Flatten(functionName), v.Body.GetToken())
-				v.Body.(*ast.GolangExpression).ObjectCode = result
+				v.Body.(*ast.GolangExpression).GoFunction = reflect.Value(result)
 			}
 		}
 	}
@@ -218,7 +227,7 @@ func (gh *GoHandler) buildGoModules() {
 		}
 		goFile := filepath.Join(gh.Prsr.Directory, "gocode_"+strconv.Itoa(counter)+".go")
 		file, _ := os.Create(goFile)
-		file.WriteString(preface +  gh.TypeDeclarations[source] + functionBodies)
+		file.WriteString(preface + gh.TypeDeclarations[source] + functionBodies)
 		file.Close()
 		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
 		// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
@@ -262,13 +271,8 @@ func (gh *GoHandler) recordGoTimes() {
 	}
 }
 
-func (gh *GoHandler) getFn(fnName string, tok *token.Token) func(args ...any) any {
+func (gh *GoHandler) getFn(fnName string, tok *token.Token) reflect.Value {
 	name := text.Capitalize(fnName)
-	fn, err := gh.Plugins[tok.Source].Lookup(name)
-	if err != nil {
-		gh.Prsr.Throw("golang/found", tok, name)
-		return nil
-	}
-	fnToReturn := fn.(func(args ...any) any)
-	return fnToReturn
+	fn, _ := gh.Plugins[tok.Source].Lookup(name)
+	return reflect.ValueOf(fn)
 }
