@@ -374,10 +374,3 @@ func Trim(path string) string {
 func Capitalize(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
 }
-
-func Head(s, substr string) bool {
-	if len(s) < len(substr) {
-		return(false)
-	} 
-	return s[:len(substr)] == substr
-}
