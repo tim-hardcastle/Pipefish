@@ -13,22 +13,6 @@ import (
 
 // How the vm performs conversion at runtime.
 func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) (any, bool) {
-	typeInfo := vm.concreteTypeInfo[v.T]
-	if typeInfo.isStruct() {
-		pVals := v.V.([]values.Value)
-		gVals := make([]any, 0, len(pVals))
-		for _, v := range pVals {
-			newGVal , ok := vm.pipefishToGo(v, converter)
-			if !ok {
-				return newGVal, false     // 'false' meaning, this is the culprit.
-			}
-			gVals = append(gVals, newGVal)
-		}
-		return converter(uint32(v.T), gVals), true // 'true' meaning, this is the result.
-	}
-	if typeInfo.isEnum() {
-		return v.V.(int), true
-	}
 	switch v.T {
 	case values.BOOL:
 		return v.V.(bool), true
@@ -40,9 +24,36 @@ func (vm *Vm) pipefishToGo(v values.Value, converter func(uint32, []any) any) (a
 		return v.V.(rune), true
 	case values.STRING:
 		return v.V.(string), true
-	default:
-		return nil, false
 	}
+	typeInfo := vm.concreteTypeInfo[v.T]
+	switch typeInfo := typeInfo.(type) {
+	case structType :
+		pVals := v.V.([]values.Value)
+		gVals := make([]any, 0, len(pVals))
+		for _, v := range pVals {
+			newGVal , ok := vm.pipefishToGo(v, converter)
+			if !ok {
+				return newGVal, false     // 'false' meaning, this is the culprit.
+			}
+			gVals = append(gVals, newGVal)
+		}
+		return converter(uint32(v.T), gVals), true // 'true' meaning, this is the result.
+	
+	case enumType :
+		return v.V.(int), true
+	case cloneType :
+		switch typeInfo.parent {
+		case values.FLOAT:
+			return v.V.(float64), true
+		case values.INT:
+			return v.V.(int), true
+		case values.RUNE:
+			return v.V.(rune), true
+		case values.STRING:
+			return v.V.(string), true
+		}
+	}
+	return nil, false
 }
 
 // We will pass this as the value of an UNDEFINED_VALUE because it seems appropriate.
