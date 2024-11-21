@@ -40,8 +40,6 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 			continue
 		}
 		// Now we add the type declaration.
-		decs = decs + "type " + name + " "
-
 		typeInfo, _ := cp.getTypeInformation(name)
 		cloneInfo := typeInfo.(cloneType)
 		goType, ok := cloneConv[cloneInfo.parent]
@@ -49,14 +47,14 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 			cp.Throw("golang/ungoable/a", token.Token{Source: "golang interop"})
 			continue
 		}
-		decs = decs + goType + "\n"
+		decs = decs + "type " + name + " " + goType + "\n\n"
 		// And the converter functions each need a case in their switch statements.
 		convPfCloneToGo = convPfCloneToGo + "\n\tcase " + strconv.Itoa(int(concType)) + " : \n\t\treturn " + name + "(v.(" + goType + "))"
 		convGoCloneToPf = convGoCloneToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), " + goType + "(v)"
 	}
 	// We finish off the clone conversion function.
-	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\tpanic(\"Oh no, we ran out of clones!\")\n\t}\n}\n\n"
-	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
+	convPfCloneToGo = convPfCloneToGo + "\n\tdefault:\n\t\tpanic(\"Oh no, we ran out of clones!\")\n\t}\n}\n"
+	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n"
 
 	// Next do the enum declarations and converters. We intitialize the converter code.
 	kludge = ""
@@ -79,23 +77,22 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		for _, element := range cp.Vm.concreteTypeInfo[concType].(enumType).elementNames[1:] {
 			decs = decs + "    " + element + "\n"
 		}
-		decs = decs + ")\n\n"
-
+		decs = decs + ")\n"
 		// We add one line to the switch case of each converter.
 		convPfEnumToGo = convPfEnumToGo + "\n\tcase " + strconv.Itoa(int(concType)) + " : \n\t\treturn " + name + "(index)"
 		convGoEnumToPf = convGoEnumToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), int(v)"
 	}
 	// We finish off the conversion functions.
-	convPfEnumToGo = convPfEnumToGo + "\n\tdefault:\n\t\tpanic(\"We ran out of enums!\")\n\t}\n}\n\n"
-	convGoEnumToPf = convGoEnumToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
+	convPfEnumToGo = convPfEnumToGo + "\n\tdefault:\n\t\tpanic(\"Oh no, we ran out of enums!\")\n\t}\n}\n"
+	convGoEnumToPf = convGoEnumToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n"
 
 	// And finally the structs. Initialize converters.
 	kludge = ""
 	if len(goHandler.StructNames) > 0 {
 		kludge = "v := "
 	}
-	convGoStructToPfStruct := "\nfunc ConvertGoStructToPipefish(v any) (uint32, []any, bool) {\n\tswitch v := v.(type) {"
-	convPfStructToGoStruct := "\nfunc ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
+	convGoStructToPf := "\nfunc ConvertGoStructToPipefish(v any) (uint32, []any, bool) {\n\tswitch v := v.(type) {"
+	convPfStructToGo := "\nfunc ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
 	// And then we iterate over the structs.
 	for name := range goHandler.StructNames {
 		structTypeNumber := cp.StructNameToTypeNumber[name]
@@ -107,28 +104,28 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		typeDefStr = typeDefStr + "}\n"
 		decs = decs + typeDefStr
 		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		convGoStructToPfStruct = convGoStructToPfStruct + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
-		convGoStructToPfStruct = convGoStructToPfStruct + ", []any{"
+		convGoStructToPf = convGoStructToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
+		convGoStructToPf = convGoStructToPf + ", []any{"
 		sep := ""
 		for _, lN := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).labelNumbers {
-			convGoStructToPfStruct = convGoStructToPfStruct + sep + "v." + cp.Vm.Labels[lN]
+			convGoStructToPf = convGoStructToPf + sep + "v." + cp.Vm.Labels[lN]
 			sep = ", "
 		}
-		convGoStructToPfStruct = convGoStructToPfStruct + "}, true\n"
+		convGoStructToPf = convGoStructToPf + "}, true\n"
 		// We add part of a switch that helps convert a Pipefish struct to Go.
-		convPfStructToGoStruct = convPfStructToGoStruct + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + name + "{"
+		convPfStructToGo = convPfStructToGo + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + name + "{"
 		sep = ""
 		for i, ty := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields {
-			convPfStructToGoStruct = convPfStructToGoStruct + sep + "args[" + strconv.Itoa(i) + "].(" + cp.convertFieldTypeFromPfToGo(ty) + ")"
+			convPfStructToGo = convPfStructToGo + sep + "args[" + strconv.Itoa(i) + "].(" + cp.convertFieldTypeFromPfToGo(ty) + ")"
 			sep = ", "
 		}
-		convPfStructToGoStruct = convPfStructToGoStruct + "}\n"
+		convPfStructToGo = convPfStructToGo + "}\n"
 	} // And we're done iterating over the structs.
 	// We add the ends of the two convertor functions.
-	convGoStructToPfStruct = convGoStructToPfStruct + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
-	convPfStructToGoStruct = convPfStructToGoStruct + "\tdefault:\n\t\tpanic(\"Oh no, we've run out of structs!\")\n\t}\n}\n\n"
+	convGoStructToPf = convGoStructToPf + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n"
+	convPfStructToGo = convPfStructToGo + "\tdefault:\n\t\tpanic(\"Oh no, we ran out of structs!\")\n\t}\n}\n"
 	// And then slap them all together as one block of code and send them on their way rejoicing.
-	return decs + convGoEnumToPf + convPfEnumToGo + convGoCloneToPf + convGoStructToPfStruct + convPfStructToGoStruct
+	return decs + convPfEnumToGo + convGoEnumToPf + convPfCloneToGo + convGoCloneToPf + convPfStructToGo + convGoStructToPf 
 }
 
 var cloneConv = map[values.ValueType]string{
