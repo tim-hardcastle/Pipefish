@@ -171,12 +171,12 @@ goGetDirectoryNames(directoryNames DirectoryNames) : golang {
     }
     err := filepath.Walk(directoryNames.directory, func(path string, info os.FileInfo, err error) error {
         if err != nil {
-            return golang err
+            return err
         }
         if info.IsDir() {
             resultList = append(resultList, info.Name())
         }
-        return golang nil
+        return nil
     })
 	if err != nil {
 		return err
