@@ -21,10 +21,8 @@ import (
 
 // So this prepares this Go code as a snippet of text which can be added to the Go source code we're compiling.
 func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) string {
-
 	// This is the string which will store all the generated type declarations.
 	decs := "\n"
-
 	// We initialize the converter functions.
 	kludge := ""
 	if len(goHandler.CloneNames) > 0 {
@@ -33,13 +31,8 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	convPfCloneToGo := "\nfunc ConvertPipefishCloneToGo(typeNo uint32, v any) any {\n\tswitch typeNo {"
 	convGoCloneToPf := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, any) {\n\tswitch " + kludge + "v.(type) {"
 	for name := range goHandler.CloneNames {
-		// As usual in Golang interop only concrete types are allowed. We check.
-		concType, ok := cp.getConcreteType(name)
-		if !ok {
-			cp.Throw("golang/type/concrete/b", token.Token{Source: "golang interop"}, name)
-			continue
-		}
-		// Now we add the type declaration.
+		// We add the type declaration.
+		concType, _ := cp.getConcreteType(name)
 		typeInfo, _ := cp.getTypeInformation(name)
 		cloneInfo := typeInfo.(cloneType)
 		goType, ok := cloneConv[cloneInfo.parent]
@@ -65,16 +58,12 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	convGoEnumToPf := "\nfunc ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v := v.(type) {"
 	// And then each enum needs one declaration; and one case in each converter.
 	for name := range goHandler.EnumNames {
-		// As usual in Golang interop only concrete types are allowed. We check.
-		concType, ok := cp.getConcreteType(name)
-		if !ok {
-			cp.Throw("golang/type/concrete/b", token.Token{Source: "golang interop"}, name)
-			continue
-		}
 		// Now we add the type declaration, in Golang's usual const-iota format.
-		firstEnumElement := cp.Vm.concreteTypeInfo[concType].(enumType).elementNames[0]
+		concType, _ := cp.getConcreteType(name)
+		typeInfo, _ := cp.getTypeInformation(name)
+		firstEnumElement := typeInfo.(enumType).elementNames[0]
 		decs = decs + "type " + name + " int\n\n const (\n    " + firstEnumElement + " " + name + " = iota\n"
-		for _, element := range cp.Vm.concreteTypeInfo[concType].(enumType).elementNames[1:] {
+		for _, element := range typeInfo.(enumType).elementNames[1:] {
 			decs = decs + "    " + element + "\n"
 		}
 		decs = decs + ")\n"
@@ -167,7 +156,6 @@ var fConvert = map[values.ValueType]string{
 	values.LIST:   "[]any",
 	values.PAIR:   "[]any",
 	values.SET:    "[]any",
-	values.TUPLE:  "[]any",
 	values.BOOL:   "bool",
 }
 
