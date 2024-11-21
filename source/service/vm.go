@@ -505,7 +505,7 @@ loop:
 			} else {
 				elements := make([]any, 0, len(goResultValues))
 				for _, v := range goResultValues {
-					elements = append(elements, v.Interface)
+					elements = append(elements, v.Interface())
 				}
 				doctoredValues = goTuple(elements)
 			}

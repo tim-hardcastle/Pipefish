@@ -169,11 +169,3 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 // we first get back from Go so as to distinguish a tuple from a list.
 
 type goTuple []any 
-
-func tuplify(x ... any) any {
-	if len(x) == 1 {
-		return x
-	} else {
-		return goTuple(x)
-	}
-}
