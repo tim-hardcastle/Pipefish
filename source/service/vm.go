@@ -498,7 +498,11 @@ loop:
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
-			vm.Mem[args[0]] = vm.goToPipefish((F.Code).Call(goTpl), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
+			val := vm.goToPipefish((F.Code).Call(goTpl), F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
+			if val.T == 0 {
+				println("Undefined value is", val.V, "with type", reflect.TypeOf(val.V).String())
+			}
+			vm.Mem[args[0]] = val
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
 		case Gtei:
