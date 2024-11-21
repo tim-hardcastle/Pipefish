@@ -29,11 +29,11 @@ soo(x string) : golang {
 }
 
 coo(x Color) : golang {
-    x
+    return x
 }
 
 qoo(x Qux) : golang {
-    x
+    return x
 }
 
 constructPerson(aName string, anAge int) -> Person : golang {
