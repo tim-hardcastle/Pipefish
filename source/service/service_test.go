@@ -291,6 +291,8 @@ func TestGocode(t *testing.T) {
 		{`ioo 42`, `84`},
 		{`noo()`, `NULL`},
 		{`soo "aardvark"`, `"aardvark"`},
+		{`coo BLUE`, `BLUE`},
+		{`qoo Qux 5`, `Qux(5)`},
 		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
 		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
 	}

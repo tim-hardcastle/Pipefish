@@ -2,6 +2,10 @@ newtype
 
 Person = struct(name string, age int)
 
+Color = enum RED, GREEN, BLUE
+
+Qux = clone int
+
 def
 
 boo(x bool) : golang {
@@ -22,6 +26,14 @@ noo() : golang {
 
 soo(x string) : golang {
     return x
+}
+
+coo(x Color) : golang {
+    x
+}
+
+qoo(x Qux) : golang {
+    x
 }
 
 constructPerson(aName string, anAge int) -> Person : golang {
