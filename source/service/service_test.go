@@ -286,8 +286,8 @@ func TestRecursion(t *testing.T) {
 }
 func TestGocode(t *testing.T) {
 	tests := []TestItem{
-		{`boo true`, `false`},
 		{`foo 4.2`, `4.20000000`},
+		{`boo true`, `false`},
 		{`ioo 42`, `84`},
 		{`noo()`, `NULL`},
 		{`soo "aardvark"`, `"aardvark"`},
