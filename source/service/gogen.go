@@ -21,7 +21,7 @@ import (
 
 // So this prepares this Go code as a snippet of text which can be added to the Go source code we're compiling.
 func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) string {
-	
+
 	// This is the string which will store all the generated type declarations.
 	decs := "\n"
 
@@ -30,6 +30,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	if len(goHandler.CloneNames) > 0 {
 		kludge = "v := "
 	}
+	convPfCloneToGo := "\nfunc ConvertPipefishCloneToGo(typeNo uint32, v any) any {\n\tswitch typeNo {"
 	convGoCloneToPf := "\nfunc ConvertGoCloneToPipefish(v any) (uint32, any) {\n\tswitch " + kludge + "v.(type) {"
 	for name := range goHandler.CloneNames {
 		// As usual in Golang interop only concrete types are allowed. We check.
@@ -49,10 +50,12 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 			continue
 		}
 		decs = decs + goType + "\n"
-		// And the converter function needs a case in its switch statement.
+		// And the converter functions each need a case in their switch statements.
+		convPfCloneToGo = convPfCloneToGo + "\n\tcase " + strconv.Itoa(int(concType)) + " : \n\t\treturn " + name + "(v.(" + goType + "))"
 		convGoCloneToPf = convGoCloneToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + "), " + goType + "(v)"
 	}
 	// We finish off the clone conversion function.
+	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\tpanic(\"Oh no, we ran out of clones!\")\n\t}\n}\n\n"
 	convGoCloneToPf = convGoCloneToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
 
 	// Next do the enum declarations and converters. We intitialize the converter code.
@@ -92,7 +95,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		kludge = "v := "
 	}
 	convGoStructToPfStruct := "\nfunc ConvertGoStructToPipefish(v any) (uint32, []any, bool) {\n\tswitch v := v.(type) {"
-	convPfStructToGoStruct := "\nfunc ConvertPipefishStructToGoStruct(T uint32, args []any) any {\n\tswitch T {"
+	convPfStructToGoStruct := "\nfunc ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
 	// And then we iterate over the structs.
 	for name := range goHandler.StructNames {
 		structTypeNumber := cp.StructNameToTypeNumber[name]
@@ -123,7 +126,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	} // And we're done iterating over the structs.
 	// We add the ends of the two convertor functions.
 	convGoStructToPfStruct = convGoStructToPfStruct + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
-	convPfStructToGoStruct = convPfStructToGoStruct + "\tdefault:\n\t\tpanic(\"I'm not sure if this error can arise.\")\n\t}\n}\n\n"
+	convPfStructToGoStruct = convPfStructToGoStruct + "\tdefault:\n\t\tpanic(\"Oh no, we've run out of structs!\")\n\t}\n}\n\n"
 	// And then slap them all together as one block of code and send them on their way rejoicing.
 	return decs + convGoEnumToPf + convPfEnumToGo + convGoCloneToPf + convGoStructToPfStruct + convPfStructToGoStruct
 }

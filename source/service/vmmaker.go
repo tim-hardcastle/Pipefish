@@ -323,7 +323,7 @@ func (cp *Compiler) MakeGoMods(goHandler *GoHandler) {
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
 		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGoStruct")
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
 		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
 		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, int))
