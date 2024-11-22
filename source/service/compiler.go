@@ -36,11 +36,9 @@ type Compiler struct {
 	P  *parser.Parser
 
 	pfToGoClone  map[string]func(uint32, any) any
-	goToPfClone  map[string]func(any) (uint32, any)
 	pfToGoEnum   map[string]func(uint32, int) any
-	goToPfEnum   map[string]func(any) (uint32, any)
-	pfToGoStruct map[string]func(uint32, []any) any  
-	goToPfStruct map[string]func(any) (uint32, any) 
+	pfToGoStruct map[string]func(uint32, []any) any   
+	goToPf  map[string]func(any) (uint32, any)
 
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
@@ -251,11 +249,9 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		fnIndex:                  make(map[fnSource]*ast.PrsrFunction),
 
 		pfToGoClone: map[string]func(uint32, any) any{},
-		goToPfClone: map[string](func(any) (uint32, any)){},
 		pfToGoEnum: map[string]func(uint32, int) any{},
-		goToPfEnum: map[string](func(any) (uint32, any)){},
 		pfToGoStruct: map[string]func(uint32, []any) any{},
-		goToPfStruct: map[string]func(any) (uint32, any){},
+		goToPf: map[string](func(any) (uint32, any)){},
 
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
@@ -4002,10 +3998,9 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(cp.Vm.GoFns))
 		cpF.HasGo = true
-		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).GoFunction,
-			GoToPfStruct: cp.goToPfStruct[body.GetToken().Source], GoToPfEnum: cp.goToPfEnum[body.GetToken().Source],
-			GoToPfClone: cp.goToPfClone[body.GetToken().Source], PfToGoClone: cp.pfToGoClone[body.GetToken().Source],
-			PfToGoEnum: cp.pfToGoEnum[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source]})
+		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).GoFunction, PfToGoClone: cp.pfToGoClone[body.GetToken().Source],
+			PfToGoEnum: cp.pfToGoEnum[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source],
+			GoToPfConverter: cp.goToPf[body.GetToken().Source]})
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE

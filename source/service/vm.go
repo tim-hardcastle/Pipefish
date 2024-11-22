@@ -82,11 +82,8 @@ type vmState struct {
 }
 
 type GoFn struct {
-	Code         reflect.Value
-	GoToPfClone  func(v any) (uint32, any)
-	GoToPfEnum   func(v any) (uint32, any)
-	GoToPfStruct func(v any) (uint32, any)
-	
+	Code             reflect.Value
+	GoToPfConverter  func(v any) (uint32, any)
 	PfToGoClone func(T uint32, v any) any
 	PfToGoEnum func(T uint32, i int) any
 	PfToGoStruct func(T uint32, args []any) any
@@ -511,11 +508,10 @@ loop:
 				}
 				doctoredValues = goTuple(elements)
 			}
-			val := vm.goToPipefish(doctoredValues, F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
+			val := vm.goToPipefish(doctoredValues, F.GoToPfConverter, args[1])
 			if val.T == 0 {
-				problem := val.V.(conversionProblem)
-				newError := err.CreateErr("vm/golang/return", vm.Mem[args[1]].V.(*err.Error).Token,
-					reflect.TypeOf(problem.goValue).String(), vm.concreteTypeInfo[problem.presumedType].getName(DEFAULT))
+				payload := val.V.([]any)
+				newError := err.CreateErr(payload[0].(string), vm.Mem[args[1]].V.(*err.Error).Token, payload[1:]...)
 				vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
 				break
 				}

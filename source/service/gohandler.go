@@ -114,16 +114,12 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	for source := range goHandler.Modules {
 		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertPipefishCloneToGo")
 		cp.pfToGoClone[source] = fnSymbol.(func(uint32, any) (any))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoCloneToPipefish")
-		cp.goToPfClone[source] = fnSymbol.(func(any) (uint32, any))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishEnumToGo")
 		cp.pfToGoEnum[source] = fnSymbol.(func(uint32, int) (any))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoEnumToPipefish")
-		cp.goToPfEnum[source] = fnSymbol.(func(any) (uint32, any))
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
 		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
-		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, any))
+		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoToPipefish")
+		cp.goToPf[source] = fnSymbol.(func(any) (uint32, any))
 	}
 	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
 	if cp.P.NamespacePath == "" {
