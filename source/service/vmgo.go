@@ -95,8 +95,8 @@ func (vm *Vm) goToPipefish(v any, structConverter, enumConverter, cloneConverter
 	// (4) The struct converter recognizes it as one of Pipefish's own struct types which we Go-ified.
 	// It returns the struct type and the field values which we can then turn recursively into Pipefish values.
 	structType, fVals := structConverter(v)
-	gVals := fVals.([]any)
 	if structType != 0 {
+		gVals := fVals.([]any)
 		pVals := make([]values.Value, 0, len(gVals))
 		for _, gVal := range gVals {
 			pVals = append(pVals, vm.goToPipefish(gVal, structConverter, enumConverter, cloneConverter, errorLoc))
