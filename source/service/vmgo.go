@@ -56,7 +56,7 @@ func convError(t values.ValueType, v any) values.Value {
 	return values.Value{values.UNDEFINED_VALUE, conversionProblem{t, v}}
 }
 
-func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool), 
+func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any), 
 								  enumConverter func(any) (uint32, int),
 								  cloneConverter func(any) (uint32, any),
 								  errorLoc uint32,
@@ -98,8 +98,8 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any, bool
 	}
 	// (4) The struct converter recognizes it as one of Pipefish's own struct types which we Go-ified.
 	// It returns the struct type and the field values which we can then turn recursively into Pipefish values.
-	structType, gVals, ok := structConverter(v)
-	if ok {
+	structType, gVals := structConverter(v)
+	if structType != 0 {
 		pVals := make([]values.Value, 0, len(gVals))
 		for _, gVal := range gVals {
 			pVals = append(pVals, vm.goToPipefish(gVal, structConverter, enumConverter, cloneConverter, errorLoc))

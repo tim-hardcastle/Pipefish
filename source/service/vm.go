@@ -85,7 +85,7 @@ type GoFn struct {
 	Code         reflect.Value
 	GoToPfClone  func(v any) (uint32, any)
 	GoToPfEnum   func(v any) (uint32, int)
-	GoToPfStruct func(v any) (uint32, []any, bool)
+	GoToPfStruct func(v any) (uint32, []any)
 	
 	PfToGoClone func(T uint32, v any) any
 	PfToGoEnum func(T uint32, i int) any
@@ -493,7 +493,9 @@ loop:
 				el := vm.Mem[v]
 				goVal, ok := vm.pipefishToGo(el, F.PfToGoClone, F.PfToGoEnum, F.PfToGoStruct)
 				if !ok {
-					vm.Mem[args[0]] = vm.Mem[args[1]] // Where we keep the error.
+					newError := err.CreateErr("vm/golang/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
+					newError.Values = []values.Value{el}
+					vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
 					break
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
@@ -509,12 +511,14 @@ loop:
 				}
 				doctoredValues = goTuple(elements)
 			}
-			
 			val := vm.goToPipefish(doctoredValues, F.GoToPfStruct, F.GoToPfEnum, F.GoToPfClone, args[1])
-			// if val.T == 0 {
-			// 	problem := val.V.(conversionProblem)
-			// 	panic("Undefined value is", problem.goValue, "with type", reflect.TypeOf(problem.goValue).String(), "assigned type", vm.concreteTypeInfo[problem.presumedType].getName(DEFAULT))
-			// }
+			if val.T == 0 {
+				problem := val.V.(conversionProblem)
+				newError := err.CreateErr("vm/golang/return", vm.Mem[args[1]].V.(*err.Error).Token,
+					reflect.TypeOf(problem.goValue).String(), vm.concreteTypeInfo[problem.presumedType].getName(DEFAULT))
+				vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
+				break
+				}
 			vm.Mem[args[0]] = val
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}

@@ -40,7 +40,7 @@ type Compiler struct {
 	pfToGoEnum   map[string]func(uint32, int) any
 	goToPfEnum   map[string]func(any) (uint32, int)
 	pfToGoStruct map[string]func(uint32, []any) any  
-	goToPfStruct map[string]func(any) (uint32, []any, bool) 
+	goToPfStruct map[string]func(any) (uint32, []any) 
 
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
@@ -255,7 +255,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		pfToGoEnum: map[string]func(uint32, int) any{},
 		goToPfEnum: map[string](func(any) (uint32, int)){},
 		pfToGoStruct: map[string]func(uint32, []any) any{},
-		goToPfStruct: map[string]func(any) (uint32, []any, bool){},
+		goToPfStruct: map[string]func(any) (uint32, []any){},
 
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),

@@ -123,7 +123,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
 		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
 		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoStructToPipefish")
-		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any, bool))
+		cp.goToPfStruct[source] = fnSymbol.(func(any) (uint32, []any))
 		
 		
 

@@ -81,7 +81,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	if len(goHandler.StructNames) > 0 {
 		kludge = "v := "
 	}
-	convGoStructToPf := "func ConvertGoStructToPipefish(v any) (uint32, []any, bool) {\n\tswitch v := v.(type) {"
+	convGoStructToPf := "func ConvertGoStructToPipefish(v any) (uint32, []any) {\n\tswitch v := v.(type) {"
 	convPfStructToGo := "func ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
 	// And then we iterate over the structs.
 	for name := range goHandler.StructNames {
@@ -101,7 +101,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 			convGoStructToPf = convGoStructToPf + sep + "v." + cp.Vm.Labels[lN]
 			sep = ", "
 		}
-		convGoStructToPf = convGoStructToPf + "}, true\n"
+		convGoStructToPf = convGoStructToPf + "}\n"
 		// We add part of a switch that helps convert a Pipefish struct to Go.
 		convPfStructToGo = convPfStructToGo + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + name + "{"
 		sep = ""
@@ -112,7 +112,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		convPfStructToGo = convPfStructToGo + "}\n"
 	} // And we're done iterating over the structs.
 	// We add the ends of the two convertor functions.
-	convGoStructToPf = convGoStructToPf + "\tdefault:\n\t\treturn uint32(0), []any{}, false\n\t}\n}\n\n"
+	convGoStructToPf = convGoStructToPf + "\tdefault:\n\t\treturn uint32(0), []any{}\n\t}\n}\n\n"
 	convPfStructToGo = convPfStructToGo + "\tdefault:\n\t\tpanic(\"Oh no, we ran out of structs!\")\n\t}\n}\n\n"
 	// And then slap them all together as one block of code and send them on their way rejoicing.
 	return decs + convPfEnumToGo + convGoEnumToPf + convPfCloneToGo + convGoCloneToPf + convPfStructToGo + convGoStructToPf 
