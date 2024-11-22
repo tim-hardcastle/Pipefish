@@ -70,27 +70,28 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	// And finally the structs. Initialize the converter.
 	convPfStructToGo := "func ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
 	for name := range goHandler.StructNames {
-		structTypeNumber := cp.StructNameToTypeNumber[name]
+		concType, _ := cp.getConcreteType(name)
+		typeInfo, _ := cp.getTypeInformation(name)
 		// We add the definition of the struct.
 		typeDefStr := "type " + name + " struct {\n"
-		for i, lN := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).labelNumbers {
-			typeDefStr = typeDefStr + "\t" + (cp.Vm.Labels[lN]) + " " + cp.convertFieldTypeFromPfToGo(cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields[i]) + "\n"
+		for i, lN := range typeInfo.(structType).labelNumbers {
+			typeDefStr = typeDefStr + "\t" + (cp.Vm.Labels[lN]) + " " + cp.convertFieldTypeFromPfToGo(typeInfo.(structType).abstractStructFields[i]) + "\n"
 		}
 		typeDefStr = typeDefStr + "}\n\n"
 		decs = decs + typeDefStr
 		// We add part of a type switch that helps convert a Go struct to Pipefish.
-		goToPf = goToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(structTypeNumber)) + ")"
+		goToPf = goToPf + "\n\tcase " + name + " : \n\t\treturn uint32(" + strconv.Itoa(int(concType)) + ")"
 		goToPf = goToPf + ", []any{"
 		sep := ""
-		for _, lN := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).labelNumbers {
+		for _, lN := range typeInfo.(structType).labelNumbers {
 			goToPf = goToPf + sep + "v." + cp.Vm.Labels[lN]
 			sep = ", "
 		}
 		goToPf = goToPf + "}\n"
 		// We add part of a switch that helps convert a Pipefish struct to Go.
-		convPfStructToGo = convPfStructToGo + "\n\tcase " + strconv.Itoa(int(structTypeNumber)) + " : \n\t\treturn " + name + "{"
+		convPfStructToGo = convPfStructToGo + "\n\tcase " + strconv.Itoa(int(concType)) + " : \n\t\treturn " + name + "{"
 		sep = ""
-		for i, ty := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields {
+		for i, ty := range typeInfo.(structType).abstractStructFields {
 			convPfStructToGo = convPfStructToGo + sep + "args[" + strconv.Itoa(i) + "].(" + cp.convertFieldTypeFromPfToGo(ty) + ")"
 			sep = ", "
 		}

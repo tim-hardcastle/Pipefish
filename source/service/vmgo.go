@@ -12,6 +12,7 @@ import (
 
 // How the vm performs conversion at runtime.
 func (vm *Vm) pipefishToGo(v values.Value, cloneConverter (func(uint32, any) any), enumConverter (func(uint32, int) any), structConverter (func(uint32, []any) any)) (any, bool) {
+	println("Converting value", vm.DefaultDescription(v), "with type number", v.T, "to Go.")
 	switch v.T {
 	case values.BOOL:
 		return v.V.(bool), true
@@ -27,8 +28,10 @@ func (vm *Vm) pipefishToGo(v values.Value, cloneConverter (func(uint32, any) any
 	typeInfo := vm.concreteTypeInfo[v.T]
 	switch typeInfo.(type) {
 	case enumType :
+		println("Making enum.")
 		return enumConverter(uint32(v.T), v.V.(int)), true
 	case structType :
+		println("Making struct.")
 		pVals := v.V.([]values.Value)
 		gVals := make([]any, 0, len(pVals))
 		for _, v := range pVals {
@@ -40,13 +43,14 @@ func (vm *Vm) pipefishToGo(v values.Value, cloneConverter (func(uint32, any) any
 		}
 		return structConverter(uint32(v.T), gVals), true
 	case cloneType :
+		println("Making clone.")
 		return cloneConverter(uint32(v.T), v.V), true
 	}
 	return nil, false
 }
 
 func (vm *Vm) goToPipefish(goValue any, goToPipefishConverter func(any) (uint32, any), errorLoc uint32) values.Value {
-	
+	println("Converting Go value to Pipefish.")
 	switch goValue := goValue.(type) {
 
 	// So one of several things may be happening.
@@ -78,8 +82,8 @@ func (vm *Vm) goToPipefish(goValue any, goToPipefishConverter func(any) (uint32,
 	}
 	// (3) We have been returned one of the user-defined Pipefish types that the Go code has access to.
 	uint32Type, someValue := goToPipefishConverter(goValue)
-	if uint32Type != 0 { // Then the jig is up. We return the goValue so that the VM can return an error.
-		
+	println("Converter says it has type number", uint32Type, "i.e.", vm.DescribeType(values.ValueType(uint32Type), 0))
+	if uint32Type != 0 { 
 		switch typeInfo := vm.concreteTypeInfo[uint32Type].(type) {
 		case enumType:
 			return values.Value{values.ValueType(uint32Type), someValue.(int)}
