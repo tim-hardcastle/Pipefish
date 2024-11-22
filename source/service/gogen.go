@@ -56,7 +56,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		kludge = "v := "
 	}
 	convPfEnumToGo := "func ConvertPipefishEnumToGo(typeNo uint32, index int) any {\n\tswitch typeNo {"
-	convGoEnumToPf := "func ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch v := v.(type) {"
+	convGoEnumToPf := "func ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch " + kludge + "v.(type) {"
 	// And then each enum needs one declaration; and one case in each converter.
 	for name := range goHandler.EnumNames {
 		// Now we add the type declaration, in Golang's usual const-iota format.
@@ -81,7 +81,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	if len(goHandler.StructNames) > 0 {
 		kludge = "v := "
 	}
-	convGoStructToPf := "func ConvertGoStructToPipefish(v any) (uint32, []any) {\n\tswitch v := v.(type) {"
+	convGoStructToPf := "func ConvertGoStructToPipefish(v any) (uint32, []any) {\n\tswitch "+ kludge + "v.(type) {"
 	convPfStructToGo := "func ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
 	// And then we iterate over the structs.
 	for name := range goHandler.StructNames {
