@@ -84,8 +84,8 @@ type vmState struct {
 type GoFn struct {
 	Code         reflect.Value
 	GoToPfClone  func(v any) (uint32, any)
-	GoToPfEnum   func(v any) (uint32, int)
-	GoToPfStruct func(v any) (uint32, []any)
+	GoToPfEnum   func(v any) (uint32, any)
+	GoToPfStruct func(v any) (uint32, any)
 	
 	PfToGoClone func(T uint32, v any) any
 	PfToGoEnum func(T uint32, i int) any

@@ -38,9 +38,9 @@ type Compiler struct {
 	pfToGoClone  map[string]func(uint32, any) any
 	goToPfClone  map[string]func(any) (uint32, any)
 	pfToGoEnum   map[string]func(uint32, int) any
-	goToPfEnum   map[string]func(any) (uint32, int)
+	goToPfEnum   map[string]func(any) (uint32, any)
 	pfToGoStruct map[string]func(uint32, []any) any  
-	goToPfStruct map[string]func(any) (uint32, []any) 
+	goToPfStruct map[string]func(any) (uint32, any) 
 
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
@@ -253,9 +253,9 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		pfToGoClone: map[string]func(uint32, any) any{},
 		goToPfClone: map[string](func(any) (uint32, any)){},
 		pfToGoEnum: map[string]func(uint32, int) any{},
-		goToPfEnum: map[string](func(any) (uint32, int)){},
+		goToPfEnum: map[string](func(any) (uint32, any)){},
 		pfToGoStruct: map[string]func(uint32, []any) any{},
-		goToPfStruct: map[string]func(any) (uint32, []any){},
+		goToPfStruct: map[string]func(any) (uint32, any){},
 
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),

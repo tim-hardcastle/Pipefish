@@ -56,7 +56,7 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		kludge = "v := "
 	}
 	convPfEnumToGo := "func ConvertPipefishEnumToGo(typeNo uint32, index int) any {\n\tswitch typeNo {"
-	convGoEnumToPf := "func ConvertGoEnumToPipefish(v any) (uint32, int) {\n\tswitch " + kludge + "v.(type) {"
+	convGoEnumToPf := "func ConvertGoEnumToPipefish(v any) (uint32, any) {\n\tswitch " + kludge + "v.(type) {"
 	// And then each enum needs one declaration; and one case in each converter.
 	for name := range goHandler.EnumNames {
 		// Now we add the type declaration, in Golang's usual const-iota format.
@@ -74,15 +74,15 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 	}
 	// We finish off the conversion functions.
 	convPfEnumToGo = convPfEnumToGo + "\n\tdefault:\n\t\tpanic(\"Oh no, we ran out of enums!\")\n\t}\n}\n\n"
-	convGoEnumToPf = convGoEnumToPf + "\n\tdefault:\n\t\treturn uint32(0), 0\n\t}\n}\n\n"
+	convGoEnumToPf = convGoEnumToPf + "\n\tdefault:\n\t\treturn uint32(0), nil\n\t}\n}\n\n"
 
 	// And finally the structs. Initialize converters.
 	kludge = ""
 	if len(goHandler.StructNames) > 0 {
 		kludge = "v := "
 	}
-	convGoStructToPf := "func ConvertGoStructToPipefish(v any) (uint32, []any) {\n\tswitch "+ kludge + "v.(type) {"
 	convPfStructToGo := "func ConvertPipefishStructToGo(T uint32, args []any) any {\n\tswitch T {"
+	convGoStructToPf := "func ConvertGoStructToPipefish(v any) (uint32, any) {\n\tswitch "+ kludge + "v.(type) {"
 	// And then we iterate over the structs.
 	for name := range goHandler.StructNames {
 		structTypeNumber := cp.StructNameToTypeNumber[name]
@@ -112,8 +112,8 @@ func (cp *Compiler) generateDeclarationAndConversionCode(goHandler *GoHandler) s
 		convPfStructToGo = convPfStructToGo + "}\n"
 	} // And we're done iterating over the structs.
 	// We add the ends of the two convertor functions.
-	convGoStructToPf = convGoStructToPf + "\tdefault:\n\t\treturn uint32(0), []any{}\n\t}\n}\n\n"
 	convPfStructToGo = convPfStructToGo + "\tdefault:\n\t\tpanic(\"Oh no, we ran out of structs!\")\n\t}\n}\n\n"
+	convGoStructToPf = convGoStructToPf + "\tdefault:\n\t\treturn uint32(0), nil\n\t}\n}\n\n"
 	// And then slap them all together as one block of code and send them on their way rejoicing.
 	return decs + convPfEnumToGo + convGoEnumToPf + convPfCloneToGo + convGoCloneToPf + convPfStructToGo + convGoStructToPf 
 }

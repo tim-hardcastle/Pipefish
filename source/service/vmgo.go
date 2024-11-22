@@ -56,11 +56,7 @@ func convError(t values.ValueType, v any) values.Value {
 	return values.Value{values.UNDEFINED_VALUE, conversionProblem{t, v}}
 }
 
-func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any), 
-								  enumConverter func(any) (uint32, int),
-								  cloneConverter func(any) (uint32, any),
-								  errorLoc uint32,
-						   ) values.Value {
+func (vm *Vm) goToPipefish(v any, structConverter, enumConverter, cloneConverter func(any) (uint32, any), errorLoc uint32) values.Value {
 	
 	switch v := v.(type) {
 
@@ -98,7 +94,8 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any),
 	}
 	// (4) The struct converter recognizes it as one of Pipefish's own struct types which we Go-ified.
 	// It returns the struct type and the field values which we can then turn recursively into Pipefish values.
-	structType, gVals := structConverter(v)
+	structType, fVals := structConverter(v)
+	gVals := fVals.([]any)
 	if structType != 0 {
 		pVals := make([]values.Value, 0, len(gVals))
 		for _, gVal := range gVals {
@@ -110,7 +107,7 @@ func (vm *Vm) goToPipefish(v any, structConverter func(any) (uint32, []any),
 	// the index of the element, so we produce the value and send it on its way.,
 	eType, num := enumConverter(v)
 	if eType != 0 { // Which is never used for anything, and so as may well be a sentinel.
-		return values.Value{values.ValueType(eType), num}
+		return values.Value{values.ValueType(eType), num.(int)}
 	}
 	// (6) The clone converter recognizes the goification of a clone and returns the clone's type 
 	// and its contents. If it's a float, integer or string clone then this is no problem. But:
