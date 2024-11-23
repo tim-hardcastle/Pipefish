@@ -166,10 +166,10 @@ def
 
 goGetDirectoryNames(directoryNames DirectoryNames) : golang {
     resultList := []string{}
-    if directoryNames.fileSearchMode == 0 {
+    if directoryNames.FileSearchMode == 0 {
         return resultList
     }
-    err := filepath.Walk(directoryNames.directory, func(path string, info os.FileInfo, err error) error {
+    err := filepath.Walk(directoryNames.Directory, func(path string, info os.FileInfo, err error) error {
         if err != nil {
             return err
         }
