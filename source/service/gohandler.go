@@ -102,8 +102,8 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 			typeNumber := cp.concreteTypeNow(typeName)
 			cp.Vm.concreteTypeInfo[typeNumber].setGoConverter(constructor)
 		}
-		valueConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_FUNCTION_CONVERTER")
-		valueConverter := valueConverterSymbol.(map[string]any)
+		valueConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_VALUE_CONVERTER")
+		valueConverter := *valueConverterSymbol.(*map[string]any)
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
 			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.concreteTypeNow(typeName)
