@@ -2116,6 +2116,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/golang/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't convert Pipefish value of type " + emph(args[0]) + " to Go"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
 	"vm/index/list": {
 		Message: func(tok *token.Token, args ...any) string {
 			return fmt.Sprintf("index %v is out of range 0::%v", emph(args[0]), args[1])
