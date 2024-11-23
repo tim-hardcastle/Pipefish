@@ -491,7 +491,7 @@ loop:
 					newError := err.CreateErr("vm/golang/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
 					newError.Values = []values.Value{el}
 					vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
-					break
+					break Switch
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
