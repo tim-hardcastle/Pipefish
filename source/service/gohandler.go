@@ -96,7 +96,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	
 	for source := range goHandler.Modules {
 		functionConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_FUNCTION_CONVERTER")
-		functionConverter := functionConverterSymbol.(map[string](func(t uint32, v any) any))
+		functionConverter := *functionConverterSymbol.(*map[string](func(t uint32, v any) any))
 		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
 		for typeName, constructor := range functionConverter {
 			typeNumber := cp.concreteTypeNow(typeName)
