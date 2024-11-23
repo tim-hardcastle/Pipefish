@@ -353,10 +353,10 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			}
 			if body.GetToken().Type == token.GOCODE {
 				for _, v := range sig {
-					cp.populateTypeLists(goHandler, v.VarType)
+					goHandler.UserDefinedTypes.Add(v.VarType)
 				}
 				for _, v := range rTypes {
-					cp.populateTypeLists(goHandler, v.VarType)
+					goHandler.UserDefinedTypes.Add(v.VarType)
 				}
 				cp.generateGoFunctionCode(goHandler, flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
 				if cp.P.ErrorsExist() {

@@ -46,6 +46,7 @@ type Vm struct {
 	ExternalCallHandlers       []externalCallHandler // The services declared external, whether on the same hub or a different one.
 	typeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	Stringify                  *CpFunc
+	goToPipefishTypes          map[reflect.Type]values.ValueType
 
 	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
 	codeGeneratingTypes dtypes.Set[values.ValueType]
@@ -83,10 +84,6 @@ type vmState struct {
 
 type GoFn struct {
 	Code             reflect.Value
-	GoToPfConverter  func(v any) (uint32, any)
-	PfToGoClone func(T uint32, v any) any
-	PfToGoEnum func(T uint32, i int) any
-	PfToGoStruct func(T uint32, args []any) any
 }
 
 type Lambda struct {
@@ -150,6 +147,7 @@ func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 		},
 		AnyTypeScheme: AlternateType{},
 		AnyTuple:      AlternateType{},
+		goToPipefishTypes :          map[reflect.Type]values.ValueType{},
 	}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
 		vm.sharedTypenameToTypeList[name] = AltType()
@@ -488,7 +486,7 @@ loop:
 			goTpl := make([]reflect.Value, 0, len(args))
 			for _, v := range args[3:] {
 				el := vm.Mem[v]
-				goVal, ok := vm.pipefishToGo(el, F.PfToGoClone, F.PfToGoEnum, F.PfToGoStruct)
+				goVal, ok := vm.pipefishToGo(el)
 				if !ok {
 					newError := err.CreateErr("vm/golang/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
 					newError.Values = []values.Value{el}
@@ -508,7 +506,7 @@ loop:
 				}
 				doctoredValues = goTuple(elements)
 			}
-			val := vm.goToPipefish(doctoredValues, F.GoToPfConverter, args[1])
+			val := vm.goToPipefish(reflect.ValueOf(doctoredValues))
 			if val.T == 0 {
 				payload := val.V.([]any)
 				newError := err.CreateErr(payload[0].(string), vm.Mem[args[1]].V.(*err.Error).Token, payload[1:]...)
@@ -1685,11 +1683,14 @@ type typeInformation interface {
 	isSnippet() bool
 	isClone() bool
 	isPrivate() bool
+	getGoConverter() (func(t uint32, v any) any)
+	setGoConverter((func(t uint32, v any) any))
 }
 
 type builtinType struct {
 	name string
 	path string
+	goConverter (func(t uint32, v any) any)
 }
 
 func (t builtinType) getName(flavor descriptionFlavor) string {
@@ -1723,11 +1724,20 @@ func (t builtinType) getPath() string {
 	return t.path
 }
 
+func (t builtinType) getGoConverter() (func(t uint32, v any) any) {
+	return t.goConverter
+}
+
+func(t builtinType) setGoConverter(c (func(t uint32, v any) any)) {
+	t.goConverter = c
+}
+
 type enumType struct {
 	name         string
 	path         string
 	elementNames []string
 	private      bool
+	goConverter (func(t uint32, v any) any)
 }
 
 func (t enumType) getName(flavor descriptionFlavor) string {
@@ -1761,6 +1771,14 @@ func (t enumType) getPath() string {
 	return t.path
 }
 
+func (t enumType) getGoConverter() (func(t uint32, v any) any) {
+	return t.goConverter
+}
+
+func(t enumType) setGoConverter(c (func(t uint32, v any) any)) {
+	t.goConverter = c
+}
+
 type cloneType struct {
 	name         string
 	path         string
@@ -1769,6 +1787,7 @@ type cloneType struct {
 	isSliceable  bool
 	isFilterable bool
 	isMappable   bool
+	goConverter (func(t uint32, v any) any)
 }
 
 func (t cloneType) getName(flavor descriptionFlavor) string {
@@ -1802,6 +1821,14 @@ func (t cloneType) getPath() string {
 	return t.path
 }
 
+func (t cloneType) getGoConverter() (func(t uint32, v any) any) {
+	return t.goConverter
+}
+
+func(t cloneType) setGoConverter(c (func(t uint32, v any) any)) {
+	t.goConverter = c
+}
+
 type structType struct {
 	name                  string
 	path                  string
@@ -1811,6 +1838,7 @@ type structType struct {
 	abstractStructFields  []values.AbstractType
 	alternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
 	resolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
+	goConverter (func(t uint32, v any) any)
 }
 
 func (t structType) getName(flavor descriptionFlavor) string {
@@ -1840,8 +1868,20 @@ func (t structType) isClone() bool {
 	return false
 }
 
+func(t structType) setGoConverter(c (func(t uint32, v any) any)) {
+	t.goConverter = c
+}
+
+func (t structType) len() int {
+	return len(t.labelNumbers)
+}
+
 func (t structType) getPath() string {
 	return t.path
+}
+
+func (t structType) getGoConverter() (func(t uint32, v any) any) {
+	return t.goConverter
 }
 
 func (t structType) addLabels(labels []int) structType {

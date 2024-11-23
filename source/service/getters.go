@@ -8,12 +8,26 @@ func (cp *Compiler) getAbstractType(name string) (values.AbstractType, bool) {
 	return cp.P.SafeGetAbstractType(name)
 }
 
+func(cp *Compiler) getTypeNameFromNumber(typeNumber values.ValueType) string {
+	return cp.Vm.concreteTypeInfo[typeNumber].getName(DEFAULT)
+}
+
 func (cp *Compiler) getConcreteType(name string) (values.ValueType, bool) {
 	abstractType, ok := cp.getAbstractType(name)
 	if !ok || abstractType.Len() != 1 {
 		return values.UNDEFINED_VALUE, false
 	}
 	return abstractType.Types[0], true
+}
+
+func (cp *Compiler) concreteTypeNow(name string) (values.ValueType) {
+	abstractType, _ := cp.getAbstractType(name)
+	return abstractType.Types[0]
+}
+
+func (cp *Compiler) typeInfoNow(name string) (typeInformation) {
+	concreteType, _ := cp.getConcreteType(name)
+	return cp.Vm.concreteTypeInfo[concreteType]
 }
 
 func (cp *Compiler) getTypeInformation(name string) (typeInformation, bool) {

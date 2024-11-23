@@ -35,11 +35,6 @@ type Compiler struct {
 	Vm *Vm // The vm we're compiling to.
 	P  *parser.Parser
 
-	pfToGoClone  map[string]func(uint32, any) any
-	pfToGoEnum   map[string]func(uint32, int) any
-	pfToGoStruct map[string]func(uint32, []any) any   
-	goToPf  map[string]func(any) (uint32, any)
-
 	EnumElements                        map[string]uint32
 	StructNameToTypeNumber              map[string]values.ValueType
 	CloneNameToTypeNumber               map[string]values.ValueType
@@ -247,11 +242,6 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		CallHandlerNumbersByName: make(map[string]uint32), // A map from the identifier of the external service to its ordinal in the vm's externalServices list.
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		fnIndex:                  make(map[fnSource]*ast.PrsrFunction),
-
-		pfToGoClone: map[string]func(uint32, any) any{},
-		pfToGoEnum: map[string]func(uint32, int) any{},
-		pfToGoStruct: map[string]func(uint32, []any) any{},
-		goToPf: map[string](func(any) (uint32, any)){},
 
 		typeNameToTypeScheme: map[string]AlternateType{
 			"ok":       AltType(values.SUCCESSFUL_VALUE),
@@ -3998,9 +3988,7 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(cp.Vm.GoFns))
 		cpF.HasGo = true
-		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).GoFunction, PfToGoClone: cp.pfToGoClone[body.GetToken().Source],
-			PfToGoEnum: cp.pfToGoEnum[body.GetToken().Source], PfToGoStruct: cp.pfToGoStruct[body.GetToken().Source],
-			GoToPfConverter: cp.goToPf[body.GetToken().Source]})
+		cp.Vm.GoFns = append(cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).GoFunction})
 	case token.XCALL:
 	default:
 		logFlavor := LF_NONE

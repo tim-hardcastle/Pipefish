@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,25 +41,20 @@ type GoHandler struct {
 	Modules          map[string]string         // Where the source files are.
 	timeMap          map[string]int            // When the source code was constructed.
 	Plugins          map[string]*plugin.Plugin // Knows where the plugins live after they've been generated.
-	CloneNames       dtypes.Set[string]        // Set of Pipefish clone types appearing in the sigs of the functions.
-	EnumNames        dtypes.Set[string]        // Set of Pipefish struct types appearing in the sigs of the functions.
-	StructNames      dtypes.Set[string]        // Set of Pipefish enum types appearing in the sigs of the functions.
+	UserDefinedTypes dtypes.Set[string]        // Set of Pipefish clone/enum/struct types appearing explicitly or implicitly in the sigs of the functions.
 	TypeDeclarations map[string]string         // A string to put the generated source code for declaring things in.
 }
 
 func newGoHandler(prsr *parser.Parser) *GoHandler {
 
 	gh := GoHandler{
-		Prsr:        prsr,
-		timeMap:     make(map[string]int),
-		Modules:     make(map[string]string),
-		Plugins:     make(map[string]*plugin.Plugin),
-		CloneNames:  make(dtypes.Set[string]),
-		EnumNames:   make(dtypes.Set[string]),
-		StructNames: make(dtypes.Set[string]),
+		Prsr:              prsr,
+		timeMap:           make(map[string]int),
+		Modules:           make(map[string]string),
+		Plugins:     	   make(map[string]*plugin.Plugin),
+		UserDefinedTypes:  make(dtypes.Set[string]),
+		TypeDeclarations:  make(map[string]string),
 	}
-
-	gh.TypeDeclarations = make(map[string]string)
 
 	file, err := os.Open(gh.Prsr.Directory + "rsc/go/gotimes.dat")
 	if err != nil {
@@ -80,19 +76,6 @@ func newGoHandler(prsr *parser.Parser) *GoHandler {
 	return &gh
 }
 
-// Takes a type name (fro a sig) and puts it where it needs to go.
-func (cp *Compiler) populateTypeLists(gh *GoHandler, pfType string) {
-	typeInfo, _ := cp.getTypeInformation(pfType)
-	switch typeInfo.(type) {
-	case structType:
-		gh.StructNames.Add(pfType)
-	case enumType:
-		gh.EnumNames.Add(pfType)
-	case cloneType:
-		gh.CloneNames.Add(pfType)
-	}
-}
-
 // This is called directly from the initializer to shove the pure Go blocks into the code.
 func (gh *GoHandler) addPureGoBlock(source, code string) {
 	gh.Modules[source] = gh.Modules[source] + "\n" + code[:len(code)-2] + "\n\n"
@@ -101,7 +84,7 @@ func (gh *GoHandler) addPureGoBlock(source, code string) {
 func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	for source := range goHandler.Modules {
 		cp.transitivelyCloseTypes(goHandler)
-		goHandler.TypeDeclarations[source] = cp.generateDeclarationAndConversionCode(goHandler)
+		goHandler.TypeDeclarations[source] = cp.generateDeclarations(goHandler)
 		if cp.P.ErrorsExist() {
 			return
 		}
@@ -112,20 +95,26 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	}
 	
 	for source := range goHandler.Modules {
-		fnSymbol, _ := goHandler.Plugins[source].Lookup("ConvertPipefishCloneToGo")
-		cp.pfToGoClone[source] = fnSymbol.(func(uint32, any) (any))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishEnumToGo")
-		cp.pfToGoEnum[source] = fnSymbol.(func(uint32, int) (any))
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertPipefishStructToGo")
-		cp.pfToGoStruct[source] = fnSymbol.(func(uint32, []any) any)
-		fnSymbol, _ = goHandler.Plugins[source].Lookup("ConvertGoToPipefish")
-		cp.goToPf[source] = fnSymbol.(func(any) (uint32, any))
+		functionConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_FUNCTION_CONVERTER")
+		functionConverter := functionConverterSymbol.(map[string](func(t uint32, v any) any))
+		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
+		for typeName, constructor := range functionConverter {
+			typeNumber := cp.concreteTypeNow(typeName)
+			cp.Vm.concreteTypeInfo[typeNumber].setGoConverter(constructor)
+		}
+		valueConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_FUNCTION_CONVERTER")
+		valueConverter := valueConverterSymbol.(map[string]any)
+		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
+		for typeName, goValue := range valueConverter {
+			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.concreteTypeNow(typeName)
+		}
 	}
+	
 	// TODO --- see if this plays nicely with function sharing and modules or if it needs more work.
 	if cp.P.NamespacePath == "" {
 		for k, v := range cp.P.Common.Functions {
 			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.getFn(text.Flatten(k.FunctionName), v.Body.GetToken())
+				result := goHandler.getFn(k.FunctionName, v.Body.GetToken())
 				v.Body.(*ast.GolangExpression).GoFunction = reflect.Value(result)
 			}
 		}
@@ -133,7 +122,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.getFn(text.Flatten(functionName), v.Body.GetToken())
+				result := goHandler.getFn(functionName, v.Body.GetToken())
 				v.Body.(*ast.GolangExpression).GoFunction = reflect.Value(result)
 			}
 		}
@@ -141,32 +130,49 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	goHandler.recordGoTimes()
 }
 
+var BUILTIN_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){
+    "bool": func(t uint32, v any) any {return v.(bool)},
+    "float": func(t uint32, v any) any {return v.(float64)},
+    "int": func(t uint32, v any) any {return v.(int)},
+    "rune": func(t uint32, v any) any {return v.(rune)},
+    "string": func(t uint32, v any) any {return v.(string)},
+}
+
+var BUILTIN_VALUE_CONVERTER = map[string]any{
+    "bool": (*bool)(nil),
+    "float":  (*float64)(nil),
+    "int":  (*int)(nil),
+    "rune":  (*rune)(nil),
+    "string":  (*string)(nil),
+}
+
 // This makes sure that if  we're generating declarations for a struct type,
 // we're also generating declarations for the types of its fields if need be, and so on recursively. We do
 // a traditional non-recursive breadth-first search.
 func (cp *Compiler) transitivelyCloseTypes(goHandler *GoHandler) {
-	structsToCheck := goHandler.StructNames
+	structsToCheck := dtypes.Set[string]{} 
+	for name := range goHandler.UserDefinedTypes {
+		if cp.isStruct(name) {
+			structsToCheck.Add(name)
+		}
+	}
 	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
 		for structName := range structsToCheck {
-			structTypeNumber := cp.StructNameToTypeNumber[structName]
-			for _, fieldType := range cp.Vm.concreteTypeInfo[structTypeNumber].(structType).abstractStructFields {
+			for _, fieldType := range cp.typeInfoNow(structName).(structType).abstractStructFields {
 				if fieldType.Len() != 1 {
 					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
 				}
-				typeOfField := fieldType.Types[0]
-				switch fieldData := cp.Vm.concreteTypeInfo[typeOfField].(type) {
+				typeOfField := cp.getTypeNameFromNumber(fieldType.Types[0])
+				switch fieldData := cp.typeInfoNow(typeOfField).(type) {
 				case cloneType:
-					goHandler.CloneNames.Add(fieldData.name)
+					goHandler.UserDefinedTypes.Add(fieldData.getName(DEFAULT))
 				case enumType:
-					goHandler.EnumNames.Add(fieldData.name)
+					goHandler.UserDefinedTypes.Add(fieldData.getName(DEFAULT))
 				case structType:
-					if !goHandler.StructNames.Contains(fieldData.name) {
+					if !goHandler.UserDefinedTypes.Contains(fieldData.name) {
 						newStructsToCheck.Add(fieldData.name)
-						goHandler.StructNames.Add(fieldData.name)
+						goHandler.UserDefinedTypes.Add(fieldData.name)
 					}
-				default:
-					// As other type-checking needs to be done for things that are not in structs anyway,
-					// it would be superfluous to do it here.
 				}
 			}
 		}
