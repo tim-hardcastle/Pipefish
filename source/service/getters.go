@@ -38,6 +38,16 @@ func (cp *Compiler) getTypeInformation(name string) (typeInformation, bool) {
 	return cp.Vm.concreteTypeInfo[concreteType], true
 }
 
+func (cp *Compiler) isBuiltin(name string) bool {
+	typeInfo, ok := cp.getTypeInformation(name)
+	if !ok {
+		return false
+	} else {
+		_, ok := typeInfo.(builtinType)
+		return ok
+	}
+}
+
 func (cp *Compiler) isEnum(name string) bool {
 	typeInfo, ok := cp.getTypeInformation(name)
 	if !ok {
