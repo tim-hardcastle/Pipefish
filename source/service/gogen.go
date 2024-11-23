@@ -51,7 +51,7 @@ func (cp *Compiler) generateDeclarations(goHandler *GoHandler) string {
 		case structType : 
 			fmt.Fprint(&sb, "type ", name, " struct {\n")
 			for i, lN := range typeInfo.labelNumbers {
-				fmt.Fprint(&sb, "\t", (cp.Vm.Labels[lN]), " ", cp.convertFieldTypeFromPfToGo(typeInfo.abstractStructFields[i]), "\n")
+				fmt.Fprint(&sb, "\t", (text.Capitalize(cp.Vm.Labels[lN])), " ", cp.convertFieldTypeFromPfToGo(typeInfo.abstractStructFields[i]), "\n")
 			}
 			fmt.Fprint(&sb, "}\n\n")
 		}
