@@ -40,7 +40,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
-	someValue := goValue.Interface()
+	someGoDatum := goValue.Interface()
 	uint32Type, ok := vm.goToPipefishTypes[goValue.Type()]
 	if ok {
 		pipefishType := values.ValueType(uint32Type)
@@ -48,31 +48,39 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		case builtinType :
 			switch pipefishType {
 			case values.BOOL:
-				return values.Value{values.BOOL, someValue.(bool)}
+				return values.Value{values.BOOL, someGoDatum.(bool)}
 			case values.FLOAT:
-				return values.Value{values.FLOAT, someValue.(float64)}
+				return values.Value{values.FLOAT, someGoDatum.(float64)}
 			case values.INT:
-				return values.Value{values.INT, someValue.(int)}
+				return values.Value{values.INT, someGoDatum.(int)}
 			case values.RUNE:
-				return values.Value{values.RUNE, someValue.(rune)}
+				return values.Value{values.RUNE, someGoDatum.(rune)}
 			case values.STRING:
-				return values.Value{values.BOOL, someValue.(string)}
+				return values.Value{values.BOOL, someGoDatum.(string)}
 			}
 		case enumType :
-			return values.Value{pipefishType, someValue.(int)}
+			return values.Value{pipefishType, someGoDatum.(int)}
 		case structType :
-			goValues := someValue.([]any)
-			pipefishValues := make([]values.Value, 0, len(goValues))
-			for _, goElement := range goValues {
-				pipefishValues = append(pipefishValues, vm.goToPipefish(reflect.ValueOf(goElement)))
+			// At this point someValue must contain a struct of type Foo where uint32
+			goValue := reflect.ValueOf(someGoDatum)
+			pipefishValues := make([]values.Value, 0, goValue.NumField())
+			for i := 0; i < goValue.NumField(); i++ {
+				pipefishValues = append(pipefishValues, vm.goToPipefish(goValue.FieldByIndex([]int{i})))
 			}
+			return values.Value{values.ValueType(uint32Type), someGoDatum}
 		case cloneType :
 		switch typeInfo.parent {
-		case values.INT, values.FLOAT, values.STRING :
-			return values.Value{values.ValueType(uint32Type), someValue}
+		case values.INT :
+			return values.Value{values.ValueType(uint32Type), someGoDatum.(int)}
+		case values.FLOAT :
+			return values.Value{values.ValueType(uint32Type), someGoDatum.(float64)}
+		case values.STRING :
+			return values.Value{values.ValueType(uint32Type), someGoDatum.(string)}
+		case values.RUNE :
+			return values.Value{values.ValueType(uint32Type), someGoDatum.(rune)}
 		case values.LIST:
 			vec := vector.Empty
-			for _, goElement := range someValue.([]any) {
+			for _, goElement := range someGoDatum.([]any) {
 				pipefishElement := vm.goToPipefish(reflect.ValueOf(goElement))
 				if pipefishElement.T == values.UNDEFINED_VALUE {
 					return pipefishElement
@@ -81,7 +89,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			}
 			return values.Value{values.ValueType(uint32Type), vec}
 		case values.PAIR :
-			goPair := someValue.([]any)
+			goPair := someGoDatum.([]any)
 			if len(goPair) != 2 {
 				return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/pair", uint32Type, len(goPair)}}
 			}
@@ -96,7 +104,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			return values.Value{values.ValueType(uint32Type), []any{leftEl, rightEl}}
 		case values.SET :
 			pfSet := values.Set{}
-			for _, el := range someValue.([]any) {
+			for _, el := range someGoDatum.([]any) {
 				pfEl := vm.goToPipefish(reflect.ValueOf(el))
 				if pfEl.T == values.UNDEFINED_VALUE {
 					return pfEl
@@ -107,7 +115,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		}
 	}
 	}
-	switch someValue := someValue.(type) {
+	switch someValue := someGoDatum.(type) {
 	case error:
 		return values.Value{values.ERROR, err.Error{ErrorId: "vm/go/runtime", Message: someValue.Error()}}
 	case goTuple:
