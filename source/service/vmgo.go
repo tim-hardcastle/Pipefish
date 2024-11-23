@@ -14,27 +14,29 @@ import (
 func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 	typeInfo := vm.concreteTypeInfo[v.T]
 	constructor := typeInfo.getGoConverter()
-	switch typeInfo.(type) {
-	case builtinType :
-		return constructor(uint32(v.T), v.V), true
-	case enumType :
-		println("Making enum.")
-		return constructor(uint32(v.T), v.V.(int)), true
-	case structType :
-		println("Making struct.")
-		pVals := v.V.([]values.Value)
-		gVals := make([]any, 0, len(pVals))
-		for _, w := range pVals {
-			newGVal, ok := vm.pipefishToGo(w)
-			if !ok {
-				return newGVal, false     // 'false' meaning, this is the culprit.
+	if constructor != nil {
+		switch typeInfo.(type) {
+		case builtinType :
+			return constructor(uint32(v.T), v.V), true
+		case enumType :
+			println("Making enum.")
+			return constructor(uint32(v.T), v.V.(int)), true
+		case structType :
+			println("Making struct.")
+			pVals := v.V.([]values.Value)
+			gVals := make([]any, 0, len(pVals))
+			for _, w := range pVals {
+				newGVal, ok := vm.pipefishToGo(w)
+				if !ok {
+					return newGVal, false     // 'false' meaning, this is the culprit.
+				}
+				gVals = append(gVals, newGVal)
 			}
-			gVals = append(gVals, newGVal)
+			return constructor(uint32(v.T), gVals), true
+		case cloneType :
+			println("Making clone.")
+			return constructor(uint32(v.T), v.V), true
 		}
-		return constructor(uint32(v.T), gVals), true
-	case cloneType :
-		println("Making clone.")
-		return constructor(uint32(v.T), v.V), true
 	}
 	return v, false  // So if it comes back false, we know which Pipefish value was the culprit.
 }
