@@ -37,11 +37,11 @@ qoo(x Qux) : golang {
 }
 
 constructPerson(aName string, anAge int) -> Person : golang {
-    return Person{name: aName, age: anAge}
+    return Person{Name: aName, Age: anAge}
 }
 
 deconstructPerson(aPerson Person) -> string, int : golang {
-    return aPerson.name, aPerson.age
+    return aPerson.Name, aPerson.Age
 }
 
 golang {
