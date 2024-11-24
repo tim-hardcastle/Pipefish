@@ -51,7 +51,8 @@ type Compiler struct {
 	labelResolvingCompilers             []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
 	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
-	declarationMap map[decKey]any
+	declarationMap map[decKey]any           // TODO --- make common parser bindle.
+	goHandler      *GoHandler
 
 	TupleType uint32 // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 

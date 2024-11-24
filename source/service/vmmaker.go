@@ -245,13 +245,13 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
-	goHandler := cp.MakeFunctionTable()
+	cp.MakeFunctionTable()
 	if cp.P.ErrorsExist() {
 		return
 	}
 
 	// We build the Go files, if any.
-	cp.getGoFunctions(goHandler)
+	cp.getGoFunctions()
 
 	// We add in constructors for the structs, snippets, and clones.
 	cp.compileConstructors()
@@ -322,22 +322,22 @@ var serviceVariables = map[string]serviceVariableData{
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
-func (cp *Compiler) MakeFunctionTable() *GoHandler {
+func (cp *Compiler) MakeFunctionTable() {
 	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	goHandler := newGoHandler(cp.P)
+	cp.goHandler = newGoHandler(cp.P)
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(cp.P.ParsedDeclarations[j]); i++ {
 			tok := cp.P.ParsedDeclarations[j][i].GetToken()
 			functionName, position, sig, rTypes, body, given := cp.P.ExtractPartsOfFunction(cp.P.ParsedDeclarations[j][i])
 			if body == nil {
 				cp.P.Throw("init/func/body", tok)
-				return nil
+				return
 			}
 			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 			}
 			if cp.P.ErrorsExist() {
-				return nil
+				return
 			}
 			functionToAdd := &ast.PrsrFunction{Sig: cp.P.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: cp.P.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
@@ -349,22 +349,22 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 			conflictingFunction := cp.P.FunctionTable.Add(cp.P, functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
 				cp.P.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok.Line)
-				return nil
+				return
 			}
 			if body.GetToken().Type == token.GOCODE {
 				for _, v := range sig {
 					if !cp.isBuiltin(v.VarType) {
-						goHandler.UserDefinedTypes.Add(v.VarType)
+						cp.goHandler.UserDefinedTypes.Add(v.VarType)
 					}
 				}
 				for _, v := range rTypes {
 					if !cp.isBuiltin(v.VarType) {
-						goHandler.UserDefinedTypes.Add(v.VarType)
+						cp.goHandler.UserDefinedTypes.Add(v.VarType)
 					}
 				}
-				cp.generateGoFunctionCode(goHandler, flatten(functionName), sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
+				cp.generateGoFunctionCode(functionName, sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
 				if cp.P.ErrorsExist() {
-					return nil
+					return
 				}
 				body.(*ast.GolangExpression).Sig = sig
 				body.(*ast.GolangExpression).ReturnTypes = rTypes
@@ -379,9 +379,9 @@ func (cp *Compiler) MakeFunctionTable() *GoHandler {
 		token := golang.NextToken()
 		source := token.Source
 		code := token.Literal[:len(token.Literal)]
-		goHandler.addPureGoBlock(source, code)
+		cp.goHandler.addPureGoBlock(source, code)
 	}
-	return goHandler
+	return
 }
 
 type funcWithName struct {

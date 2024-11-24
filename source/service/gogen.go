@@ -28,11 +28,11 @@ import (
 	"pipefish/source/values"
 )
 
-func (cp *Compiler) generateDeclarations(goHandler *GoHandler) string {
+func (cp *Compiler) generateDeclarations() string {
 
 	var sb strings.Builder
 	
-	for name := range goHandler.UserDefinedTypes {
+	for name := range cp.goHandler.UserDefinedTypes {
 		switch typeInfo := cp.typeInfoNow(name).(type) {
 		case cloneType :
 			goType, ok := cloneConv[typeInfo.parent]
@@ -65,7 +65,7 @@ func (cp *Compiler) generateDeclarations(goHandler *GoHandler) string {
 // 	    "Dragon": func(t uint32, v any) any {return Dragon{v.([]any)[0], V.([]any)[1], V.([]any)[2]}},
 // }
 	fmt.Fprint(&sb, "var PIPEFISH_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){\n")
-	for name := range goHandler.UserDefinedTypes {
+	for name := range cp.goHandler.UserDefinedTypes {
 		fmt.Fprint(&sb, "    \"", name, "\": func(t uint32, v any) any {return ", name)
 		switch typeInfo := cp.typeInfoNow(name).(type) {
 		case cloneType :
@@ -85,7 +85,7 @@ func (cp *Compiler) generateDeclarations(goHandler *GoHandler) string {
 	fmt.Fprint(&sb, "}\n\n")
 
 	fmt.Fprint(&sb, "var PIPEFISH_VALUE_CONVERTER = map[string]any{\n")
-	for name := range goHandler.UserDefinedTypes {
+	for name := range cp.goHandler.UserDefinedTypes {
 		fmt.Fprint(&sb, "    \"", name, "\": (*", name, ")(nil),\n")
 	}
 	fmt.Fprint(&sb, "}\n\n")
@@ -121,11 +121,11 @@ func (cp *Compiler) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
 }
 
 // Since the signatures of each function is written in Pipefish, we must give each one a signature in Go.
-func (cp *Compiler) generateGoFunctionCode(gh *GoHandler, fnName string, sig, retSig ast.StringSig, golang *ast.GolangExpression, pfDir string) {
+func (cp *Compiler) generateGoFunctionCode(fnName string, sig, retSig ast.StringSig, golang *ast.GolangExpression, pfDir string) {
 	source := golang.GetToken().Source
 	var sb strings.Builder
-	(cp).generateDeclarations(gh)
-	fmt.Fprint(&sb, gh.TypeDeclarations[source])
+	(cp).generateDeclarations()
+	fmt.Fprint(&sb, cp.goHandler.TypeDeclarations[source])
     fmt.Fprint(&sb, "func ", text.Capitalize(fnName))
 	cp.printSig(&sb, sig, golang.Token)
 	switch len(retSig) {
@@ -137,7 +137,7 @@ func (cp *Compiler) generateGoFunctionCode(gh *GoHandler, fnName string, sig, re
 		cp.printSig(&sb, retSig, golang.Token)
 	}
 	fmt.Fprint(&sb, "{", golang.Token.Literal, "\n\n")
-	gh.Modules[source] = gh.Modules[source] + sb.String()
+	cp.goHandler.Modules[source] = cp.goHandler.Modules[source] + sb.String()
 }
 
 func (cp *Compiler) printSig(fn *strings.Builder, sig ast.StringSig, tok token.Token) {

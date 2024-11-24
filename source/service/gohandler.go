@@ -81,22 +81,22 @@ func (gh *GoHandler) addPureGoBlock(source, code string) {
 	gh.Modules[source] = gh.Modules[source] + "\n" + code[:len(code)-2] + "\n\n"
 }
 
-func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
-	for source := range goHandler.Modules {
-		cp.transitivelyCloseTypes(goHandler)
-		goHandler.TypeDeclarations[source] = cp.generateDeclarations(goHandler)
+func (cp *Compiler) getGoFunctions() {
+	for source := range cp.goHandler.Modules {
+		cp.transitivelyCloseTypes()
+		cp.goHandler.TypeDeclarations[source] = cp.generateDeclarations()
 		if cp.P.ErrorsExist() {
 			return
 		}
 	}
-	goHandler.buildGoModules()
+	cp.goHandler.buildGoModules()
 	if cp.P.ErrorsExist() {
 		return
 	}
 	newGoConverter := make([](func(t uint32, v any) any), len(cp.Vm.concreteTypeInfo))
 	copy(newGoConverter, cp.Vm.goConverter)
-	for source := range goHandler.Modules {
-		functionConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_FUNCTION_CONVERTER")
+	for source := range cp.goHandler.Modules {
+		functionConverterSymbol, _ := cp.goHandler.Plugins[source].Lookup("PIPEFISH_FUNCTION_CONVERTER")
 		functionConverter := *functionConverterSymbol.(*map[string](func(t uint32, v any) any))
 		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
 		for typeName, constructor := range functionConverter {
@@ -104,7 +104,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 			newGoConverter[typeNumber] = constructor
 		}
 		cp.Vm.goConverter = newGoConverter
-		valueConverterSymbol, _ := goHandler.Plugins[source].Lookup("PIPEFISH_VALUE_CONVERTER")
+		valueConverterSymbol, _ := cp.goHandler.Plugins[source].Lookup("PIPEFISH_VALUE_CONVERTER")
 		valueConverter := *valueConverterSymbol.(*map[string]any)
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
@@ -116,7 +116,7 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	if cp.P.NamespacePath == "" {
 		for k, v := range cp.P.Common.Functions {
 			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.getFn(k.FunctionName, v.Body.GetToken())
+				result := cp.goHandler.getFn(k.FunctionName, v.Body.GetToken())
 				v.Body.(*ast.GolangExpression).GoFunction = reflect.Value(result)
 			}
 		}
@@ -124,12 +124,12 @@ func (cp *Compiler) getGoFunctions(goHandler *GoHandler) {
 	for functionName, fns := range cp.P.FunctionTable { // TODO --- why are we doing it like this?
 		for _, v := range fns {
 			if v.Body.GetToken().Type == token.GOCODE {
-				result := goHandler.getFn(functionName, v.Body.GetToken())
+				result := cp.goHandler.getFn(functionName, v.Body.GetToken())
 				v.Body.(*ast.GolangExpression).GoFunction = reflect.Value(result)
 			}
 		}
 	}
-	goHandler.recordGoTimes()
+	cp.goHandler.recordGoTimes()
 }
 
 var BUILTIN_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){
@@ -151,9 +151,9 @@ var BUILTIN_VALUE_CONVERTER = map[string]any{
 // This makes sure that if  we're generating declarations for a struct type,
 // we're also generating declarations for the types of its fields if need be, and so on recursively. We do
 // a traditional non-recursive breadth-first search.
-func (cp *Compiler) transitivelyCloseTypes(goHandler *GoHandler) {
+func (cp *Compiler) transitivelyCloseTypes() {
 	structsToCheck := dtypes.Set[string]{} 
-	for name := range goHandler.UserDefinedTypes {
+	for name := range cp.goHandler.UserDefinedTypes {
 		if cp.isStruct(name) {
 			structsToCheck.Add(name)
 		}
@@ -167,13 +167,13 @@ func (cp *Compiler) transitivelyCloseTypes(goHandler *GoHandler) {
 				typeOfField := cp.getTypeNameFromNumber(fieldType.Types[0])
 				switch fieldData := cp.typeInfoNow(typeOfField).(type) {
 				case cloneType:
-					goHandler.UserDefinedTypes.Add(fieldData.getName(DEFAULT))
+					cp.goHandler.UserDefinedTypes.Add(fieldData.getName(DEFAULT))
 				case enumType:
-					goHandler.UserDefinedTypes.Add(fieldData.getName(DEFAULT))
+					cp.goHandler.UserDefinedTypes.Add(fieldData.getName(DEFAULT))
 				case structType:
-					if !goHandler.UserDefinedTypes.Contains(fieldData.name) {
+					if !cp.goHandler.UserDefinedTypes.Contains(fieldData.name) {
 						newStructsToCheck.Add(fieldData.name)
-						goHandler.UserDefinedTypes.Add(fieldData.name)
+						cp.goHandler.UserDefinedTypes.Add(fieldData.name)
 					}
 				}
 			}
