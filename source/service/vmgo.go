@@ -61,7 +61,8 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				return values.Value{values.STRING, someGoDatum.(string)}
 			}
 		case enumType :
-			return values.Value{pipefishType, someGoDatum.(int)}
+			
+			return values.Value{pipefishType, reflect.ValueOf(someGoDatum).Int()}
 		case structType :
 			// At this point someValue must contain a struct of type Foo where uint32
 			goValue := reflect.ValueOf(someGoDatum)
@@ -73,13 +74,13 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		case cloneType :
 		switch typeInfo.parent {
 		case values.INT :
-			return values.Value{values.ValueType(uint32Type), someGoDatum.(int)}
+			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Int()}
 		case values.FLOAT :
-			return values.Value{values.ValueType(uint32Type), someGoDatum.(float64)}
+			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Float()}
 		case values.STRING :
-			return values.Value{values.ValueType(uint32Type), someGoDatum.(string)}
+			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).String()}
 		case values.RUNE :
-			return values.Value{values.ValueType(uint32Type), someGoDatum.(rune)}
+			return values.Value{values.ValueType(uint32Type), rune(reflect.ValueOf(someGoDatum).Int())}
 		case values.LIST:
 			vec := vector.Empty
 			for _, goElement := range someGoDatum.([]any) {
