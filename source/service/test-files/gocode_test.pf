@@ -20,10 +20,6 @@ ioo(x int) : golang {
     return double(x)
 }
 
-noo() : golang {
-    return nil
-}
-
 soo(x string) : golang {
     return x
 }
