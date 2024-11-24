@@ -19,10 +19,8 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 		case builtinType :
 			return constructor(uint32(v.T), v.V), true
 		case enumType :
-			println("Making enum.")
 			return constructor(uint32(v.T), v.V.(int)), true
 		case structType :
-			println("Making struct.")
 			pVals := v.V.([]values.Value)
 			gVals := make([]any, 0, len(pVals))
 			for _, w := range pVals {
@@ -34,7 +32,6 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 			}
 			return constructor(uint32(v.T), gVals), true
 		case cloneType :
-			println("Making clone.")
 			return constructor(uint32(v.T), v.V), true
 		}
 	}
@@ -61,8 +58,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				return values.Value{values.STRING, someGoDatum.(string)}
 			}
 		case enumType :
-			
-			return values.Value{pipefishType, reflect.ValueOf(someGoDatum).Int()}
+			return values.Value{pipefishType, int(reflect.ValueOf(someGoDatum).Int())}
 		case structType :
 			// At this point someValue must contain a struct of type Foo where uint32
 			goValue := reflect.ValueOf(someGoDatum)
