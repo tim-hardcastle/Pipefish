@@ -497,9 +497,6 @@ loop:
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
-			if F.Code.IsZero() {
-				panic("well there's your problem")
-			}
 			goResultValues := F.Code.Call(goTpl)
 			var doctoredValues any
 			if len(goResultValues) == 1 {

@@ -94,9 +94,8 @@ func (cp *Compiler) compileGo() {
 			soFile := cp.P.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
-				println("Error using existing .so file")
-				println("Error was", err.Error())
-				panic("That's all folks.")
+				cp.P.Throw("golang/open/b", &token.Token{}, err.Error())
+				return
 			}
 		}
 
@@ -123,7 +122,7 @@ func (cp *Compiler) compileGo() {
 		// in the common parser bindle. I.e. we are returning our result by mutating the
 		// functions.
 		for _, function := range cp.goBucket.functions[source] {
-			goFunction, _ := plugins.Lookup(text.Capitalize(function.Tok.Literal))
+			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 		}
 	}
@@ -193,16 +192,12 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	output, err := cmd.Output()
 	if err != nil {
 		cp.P.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
-		println("Error building .go file")
-				println("Error was", err.Error())
-				panic("That's all folks.")
+		return nil
 	}
 	plugins, err := plugin.Open(soFile)
 	if err != nil {
-		cp.P.Throw("golang/open", &token.Token{}, err.Error())
-		println("Error building .so file")
-				println("Error was", err.Error())
-				panic("That's all folks.")
+		cp.P.Throw("golang/open/a", &token.Token{}, err.Error())
+		return nil
 	}
 	if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
 		os.Remove("gocode_" + strconv.Itoa(counter) + ".go")
