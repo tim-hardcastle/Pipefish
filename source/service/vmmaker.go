@@ -250,8 +250,9 @@ func (cp *Compiler) makeFunctionTableAndGoMods() {
 		return
 	}
 
-	// We build the Go files, if any.
-	cp.getGoFunctions()
+	// We slurp the functions and converters out of the .so files, if necessary building or rebuilding
+	// the .so files first.
+	cp.compileGo()
 
 	// We add in constructors for the structs, snippets, and clones.
 	cp.compileConstructors()
@@ -267,7 +268,7 @@ func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
 		case *ast.GolangExpression:
-			cp.goHandler.GoImports = append(cp.goHandler.GoImports, imp.Token.Literal)
+			cp.goBucket.imports[imp.Token.Source] = append(cp.goBucket.imports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
 			namespace, scriptFilepath = cp.getPartsOfImportOrExternalDeclaration(imp)
@@ -337,7 +338,7 @@ func (cp *Compiler) MakeFunctionTable() {
 			if cp.P.ErrorsExist() {
 				return
 			}
-			functionToAdd := &ast.PrsrFunction{Sig: cp.P.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: cp.P.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
+			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: cp.P.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: cp.P.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
@@ -350,38 +351,13 @@ func (cp *Compiler) MakeFunctionTable() {
 				return
 			}
 			if body.GetToken().Type == token.GOCODE {
-				cp.goHandler.sources.Add(body.GetToken().Source)
-				for _, v := range sig {
-					if !cp.isBuiltin(v.VarType) {
-						cp.goHandler.UserDefinedTypes.Add(v.VarType)
-					}
-				}
-				for _, v := range rTypes {
-					if !cp.isBuiltin(v.VarType) {
-						cp.goHandler.UserDefinedTypes.Add(v.VarType)
-					}
-				}
-				cp.generateGoFunctionCode(functionName, sig, rTypes, body.(*ast.GolangExpression), cp.P.Directory)
-				if cp.P.ErrorsExist() {
-					return
-				}
+				cp.goBucket.sources.Add(body.GetToken().Source)
+				cp.goBucket.functions[body.GetToken().Source] = append(cp.goBucket.functions[body.GetToken().Source], functionToAdd)
 				body.(*ast.GolangExpression).Sig = sig
 				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}
 		}
 	}
-
-
-	// We may also have pure Go declarations:
-
-	for _, golang := range cp.P.TokenizedDeclarations[golangDeclaration] {
-		golang.ToStart()
-		token := golang.NextToken()
-		cp.goHandler.sources.Add(token.Source)
-		code := token.Literal[:len(token.Literal)]
-		cp.goHandler.addPureGoBlock(code)
-	}
-	return
 }
 
 type funcWithName struct {

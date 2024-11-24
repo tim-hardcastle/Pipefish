@@ -602,6 +602,7 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 }
 
 type PrsrFunction struct {
+	FName    string       // The name of the function.
 	Sig      AbstractSig  // The signature of the function, represented in a form where the types are given as abstract types.
 	NameSig  StringSig    // The same, but with names of types instead of abstract types.
 	RtnSig   AbstractSig  // The return types: nil if not supplied.
