@@ -66,7 +66,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			for i := 0; i < goValue.NumField(); i++ {
 				pipefishValues = append(pipefishValues, vm.goToPipefish(goValue.FieldByIndex([]int{i})))
 			}
-			return values.Value{values.ValueType(uint32Type), someGoDatum}
+			return values.Value{values.ValueType(uint32Type), pipefishValues}
 		case cloneType :
 		switch typeInfo.parent {
 		case values.INT :
