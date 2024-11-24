@@ -58,6 +58,7 @@ type Vm struct {
 	LabelIsPrivate           []bool
 	IsRangeable              AlternateType
 	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	goConverter              [](func(t uint32, v any) any)
 }
 
 func (vm *Vm) AddTypeNumberToSharedAlternateTypes(typeNo values.ValueType, abTypes ...string) {
@@ -148,6 +149,7 @@ func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 		AnyTypeScheme: AlternateType{},
 		AnyTuple:      AlternateType{},
 		goToPipefishTypes :          map[reflect.Type]values.ValueType{},
+		goConverter: [](func(t uint32, v any) any){},
 	}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
 		vm.sharedTypenameToTypeList[name] = AltType()
@@ -491,7 +493,7 @@ loop:
 					newError := err.CreateErr("vm/golang/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
 					newError.Values = []values.Value{el}
 					vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
-					break Switch
+					break
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
@@ -1683,14 +1685,11 @@ type typeInformation interface {
 	isSnippet() bool
 	isClone() bool
 	isPrivate() bool
-	getGoConverter() (func(t uint32, v any) any)
-	setGoConverter((func(t uint32, v any) any))
 }
 
 type builtinType struct {
 	name string
 	path string
-	goConverter (func(t uint32, v any) any)
 }
 
 func (t builtinType) getName(flavor descriptionFlavor) string {
@@ -1724,20 +1723,11 @@ func (t builtinType) getPath() string {
 	return t.path
 }
 
-func (t builtinType) getGoConverter() (func(t uint32, v any) any) {
-	return t.goConverter
-}
-
-func(t builtinType) setGoConverter(c (func(t uint32, v any) any)) {
-	t.goConverter = c
-}
-
 type enumType struct {
 	name         string
 	path         string
 	elementNames []string
 	private      bool
-	goConverter (func(t uint32, v any) any)
 }
 
 func (t enumType) getName(flavor descriptionFlavor) string {
@@ -1771,14 +1761,6 @@ func (t enumType) getPath() string {
 	return t.path
 }
 
-func (t enumType) getGoConverter() (func(t uint32, v any) any) {
-	return t.goConverter
-}
-
-func(t enumType) setGoConverter(c (func(t uint32, v any) any)) {
-	t.goConverter = c
-}
-
 type cloneType struct {
 	name         string
 	path         string
@@ -1787,7 +1769,6 @@ type cloneType struct {
 	isSliceable  bool
 	isFilterable bool
 	isMappable   bool
-	goConverter (func(t uint32, v any) any)
 }
 
 func (t cloneType) getName(flavor descriptionFlavor) string {
@@ -1821,14 +1802,6 @@ func (t cloneType) getPath() string {
 	return t.path
 }
 
-func (t cloneType) getGoConverter() (func(t uint32, v any) any) {
-	return t.goConverter
-}
-
-func(t cloneType) setGoConverter(c (func(t uint32, v any) any)) {
-	t.goConverter = c
-}
-
 type structType struct {
 	name                  string
 	path                  string
@@ -1838,7 +1811,6 @@ type structType struct {
 	abstractStructFields  []values.AbstractType
 	alternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
 	resolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
-	goConverter (func(t uint32, v any) any)
 }
 
 func (t structType) getName(flavor descriptionFlavor) string {
@@ -1868,20 +1840,12 @@ func (t structType) isClone() bool {
 	return false
 }
 
-func(t structType) setGoConverter(c (func(t uint32, v any) any)) {
-	t.goConverter = c
-}
-
 func (t structType) len() int {
 	return len(t.labelNumbers)
 }
 
 func (t structType) getPath() string {
 	return t.path
-}
-
-func (t structType) getGoConverter() (func(t uint32, v any) any) {
-	return t.goConverter
 }
 
 func (t structType) addLabels(labels []int) structType {

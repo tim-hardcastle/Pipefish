@@ -12,9 +12,9 @@ import (
 
 // How the vm performs conversion at runtime.
 func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
-	typeInfo := vm.concreteTypeInfo[v.T]
-	constructor := typeInfo.getGoConverter()
+	constructor := vm.goConverter[v.T]
 	if constructor != nil {
+		typeInfo := vm.concreteTypeInfo[v.T]
 		switch typeInfo.(type) {
 		case builtinType :
 			return constructor(uint32(v.T), v.V), true
@@ -129,10 +129,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 	}
 	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(goValue).String()}}
 }
-	
-	
 
 // Because the above function will be applied recursively, we apply the goTuple type to the values
 // we first get back from Go so as to distinguish a tuple from a list.
-
 type goTuple []any 
