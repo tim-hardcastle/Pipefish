@@ -74,7 +74,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		case cloneType :
 		switch typeInfo.parent {
 		case values.INT :
-			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Int()}
+			return values.Value{values.ValueType(uint32Type), int(reflect.ValueOf(someGoDatum).Int())}
 		case values.FLOAT :
 			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Float()}
 		case values.STRING :
