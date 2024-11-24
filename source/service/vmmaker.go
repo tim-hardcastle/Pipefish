@@ -323,7 +323,6 @@ var serviceVariables = map[string]serviceVariableData{
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
 func (cp *Compiler) MakeFunctionTable() {
-	cp.newGoHandler()
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(cp.P.ParsedDeclarations[j]); i++ {
 			tok := cp.P.ParsedDeclarations[j][i].GetToken()

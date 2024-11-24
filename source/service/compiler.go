@@ -275,6 +275,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 	}
 	newC.declarationMap = make(map[decKey]any)
 	newC.pushRCompiler(newC)
+	newC.newGoHandler()
 	return newC
 }
 
