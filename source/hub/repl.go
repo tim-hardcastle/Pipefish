@@ -52,10 +52,6 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 
 		line = strings.TrimSpace(line)
 
-		if line == "" {
-			continue
-		}
-
 		_, quitCharm := hub.Do(line, hub.Username, hub.Password, hub.currentServiceName())
 		if quitCharm {
 			break

@@ -121,11 +121,6 @@ func (hub *Hub) setSV(sv string, ty values.ValueType, v any) {
 // the current service if none of the above hold.
 func (hub *Hub) Do(line, username, password, passedServiceName string) (string, bool) {
 
-	if match, _ := regexp.MatchString(`^\s*(|\/\/.*)$`, line); match {
-		hub.WriteString("")
-		return passedServiceName, false
-	}
-
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
 		!(line == "hub register" || line == "hub log on" || line == "hub quit") {
 		hub.WriteError("this is an administered hub and you aren't logged on. Please enter either " +
@@ -137,7 +132,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	// We may be talking to the hub itself.
 
 	hubWords := strings.Fields(line)
-	if hubWords[0] == "hub" {
+	if len(hubWords) > 0 && hubWords[0] == "hub" {
 		if len(line) == 3 {
 			hub.WriteError("you need to say what you want the hub to do.")
 			return passedServiceName, false
@@ -160,7 +155,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	// We may be talking to the os
 
-	if hubWords[0] == "os" {
+	if len(hubWords) > 0 && hubWords[0] == "os" {
 		if hub.isAdministered() {
 			hub.WriteError("for reasons of safety and sanity, the 'os' prefix doesn't work in administered hubs.")
 			return passedServiceName, false
@@ -223,6 +218,11 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		if serviceToUse.Cp.ErrorsExist() {
 			return passedServiceName, false
 		}
+	}
+
+	if match, _ := regexp.MatchString(`^\s*(|\/\/.*)$`, line); match {
+		hub.WriteString("")
+		return passedServiceName, false
 	}
 
 	if hub.currentServiceName() == "#snap" {

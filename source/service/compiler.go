@@ -3792,7 +3792,22 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 			cp.Vm.Code[addr+2].Args[1] = cp.Fns[funcNumber].OutReg
 		}
 	}
+	cp.cm("Calling 'init' if it exists.", dummyTok)
+	cp.callIfExists("init")
 	return result
+}
+
+// For calling `init` or `main`.
+func (cp *Compiler) callIfExists(name string) {
+	tree, ok := cp.P.FunctionForest[name]
+	if !ok { 
+		return
+	}
+	for _, t := range tree.Tree.Branch {
+		if t.Type.Len() == 0 && t.Node.Fn != nil {
+			cp.Vm.Run(cp.Fns[t.Node.Fn.Number].CallTo)
+		}
+	}
 }
 
 func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType, v int) {

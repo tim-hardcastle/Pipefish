@@ -1,4 +1,15 @@
-def 
+var 
 
-iota(x) :
-    x
+x = 42
+y = "foo"
+
+cmd 
+
+init :
+    global x
+    x = 99 
+
+main :
+    global y
+    y = "qux"
+
