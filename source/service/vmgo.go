@@ -58,7 +58,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			case values.RUNE:
 				return values.Value{values.RUNE, someGoDatum.(rune)}
 			case values.STRING:
-				return values.Value{values.BOOL, someGoDatum.(string)}
+				return values.Value{values.STRING, someGoDatum.(string)}
 			}
 		case enumType :
 			return values.Value{pipefishType, someGoDatum.(int)}
