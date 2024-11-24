@@ -53,6 +53,7 @@ func (cp *Compiler) newGoHandler() {
 		timeMap:           make(map[string]int),
 		UserDefinedTypes:  make(dtypes.Set[string]),
 		sources:		   make(dtypes.Set[string]),
+		GoImports:		   make([]string, 0),
 	}
 
 	file, err := os.Open(cp.P.Directory + "rsc/go/gotimes.dat")
