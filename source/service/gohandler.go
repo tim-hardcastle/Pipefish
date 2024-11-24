@@ -94,7 +94,7 @@ func (cp *Compiler) compileGo() {
 			soFile := cp.P.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
-				println("Error building/using .so file")
+				println("Error using existing .so file")
 				println("Error was", err.Error())
 				panic("That's all folks.")
 			}
@@ -193,10 +193,16 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	output, err := cmd.Output()
 	if err != nil {
 		cp.P.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
+		println("Error building .go file")
+				println("Error was", err.Error())
+				panic("That's all folks.")
 	}
 	plugins, err := plugin.Open(soFile)
 	if err != nil {
 		cp.P.Throw("golang/open", &token.Token{}, err.Error())
+		println("Error building .so file")
+				println("Error was", err.Error())
+				panic("That's all folks.")
 	}
 	if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
 		os.Remove("gocode_" + strconv.Itoa(counter) + ".go")
