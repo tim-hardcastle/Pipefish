@@ -142,6 +142,7 @@ type CommonParserBindle struct {
 	Functions           map[FuncSource]*ast.PrsrFunction
 	InterfaceBacktracks []BkInterface
 	Errors              []*err.Error
+	IsBroken            bool
 	Sources             map[string][]string
 }
 

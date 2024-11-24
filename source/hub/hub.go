@@ -194,7 +194,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 
 	// The service may be broken, in which case we'll let the empty service handle the input.
 
-	if serviceToUse.Cp.ErrorsExist() {
+	if serviceToUse.IsBroken() {
 		serviceToUse = hub.services[""]
 	}
 
@@ -973,6 +973,9 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	}
 
 	newService := service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
+	if len(newService.Cp.P.Common.Errors) > 0 {
+		newService.Cp.P.Common.IsBroken = true
+	}
 	hub.services[name] = newService
 	hub.Sources = newService.Cp.P.Common.Sources
 

@@ -21,6 +21,10 @@ func (service *Service) NeedsUpdate() (bool, error) {
 	return service.Cp.NeedsUpdate()
 }
 
+func (service *Service) IsBroken() bool {
+	return service.Cp.P.Common.IsBroken
+}
+
 func (service *Service) GetVariable(vname string) values.Value {
 	v, _ := service.Cp.GlobalVars.getVar(vname)
 	return service.Cp.Vm.Mem[v.mLoc]

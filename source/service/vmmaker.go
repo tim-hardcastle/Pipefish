@@ -540,6 +540,9 @@ func (cp *Compiler) initializeExternals() {
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
 		newService := StartService(path, cp.P.Directory, cp.Vm.Database, cp.Vm.HubServices)
+		if len(newService.Cp.P.Common.Errors) > 0 {
+			newService.Cp.P.Common.IsBroken = true
+		}
 		cp.Vm.HubServices[name] = newService
 		cp.addExternalOnSameHub(path, name)
 	}
