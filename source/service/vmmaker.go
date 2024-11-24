@@ -267,7 +267,7 @@ func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
 		case *ast.GolangExpression:
-			cp.P.GoImports[imp.Token.Source] = append(cp.P.GoImports[imp.Token.Source], imp.Token.Literal)
+			cp.goHandler.GoImports = append(cp.goHandler.GoImports, imp.Token.Literal)
 			continue
 		default:
 			namespace, scriptFilepath = cp.getPartsOfImportOrExternalDeclaration(imp)
@@ -323,8 +323,7 @@ var serviceVariables = map[string]serviceVariableData{
 // slice. We want to read their signatures and order them according to specificity for the purposes of
 // implementing overloading.
 func (cp *Compiler) MakeFunctionTable() {
-	// Some of our functions may be written in Go, so we have a GoHandler standing by just in case.
-	cp.goHandler = newGoHandler(cp.P)
+	cp.newGoHandler()
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(cp.P.ParsedDeclarations[j]); i++ {
 			tok := cp.P.ParsedDeclarations[j][i].GetToken()
@@ -352,6 +351,7 @@ func (cp *Compiler) MakeFunctionTable() {
 				return
 			}
 			if body.GetToken().Type == token.GOCODE {
+				cp.goHandler.sources.Add(body.GetToken().Source)
 				for _, v := range sig {
 					if !cp.isBuiltin(v.VarType) {
 						cp.goHandler.UserDefinedTypes.Add(v.VarType)
@@ -372,14 +372,15 @@ func (cp *Compiler) MakeFunctionTable() {
 		}
 	}
 
+
 	// We may also have pure Go declarations:
 
 	for _, golang := range cp.P.TokenizedDeclarations[golangDeclaration] {
 		golang.ToStart()
 		token := golang.NextToken()
-		source := token.Source
+		cp.goHandler.sources.Add(token.Source)
 		code := token.Literal[:len(token.Literal)]
-		cp.goHandler.addPureGoBlock(source, code)
+		cp.goHandler.addPureGoBlock(code)
 	}
 	return
 }

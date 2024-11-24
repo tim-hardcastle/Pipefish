@@ -122,10 +122,7 @@ func (cp *Compiler) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
 
 // Since the signatures of each function is written in Pipefish, we must give each one a signature in Go.
 func (cp *Compiler) generateGoFunctionCode(fnName string, sig, retSig ast.StringSig, golang *ast.GolangExpression, pfDir string) {
-	source := golang.GetToken().Source
 	var sb strings.Builder
-	(cp).generateDeclarations()
-	fmt.Fprint(&sb, cp.goHandler.TypeDeclarations[source])
     fmt.Fprint(&sb, "func ", text.Capitalize(fnName))
 	cp.printSig(&sb, sig, golang.Token)
 	switch len(retSig) {
@@ -137,7 +134,7 @@ func (cp *Compiler) generateGoFunctionCode(fnName string, sig, retSig ast.String
 		cp.printSig(&sb, retSig, golang.Token)
 	}
 	fmt.Fprint(&sb, "{", golang.Token.Literal, "\n\n")
-	cp.goHandler.Modules[source] = cp.goHandler.Modules[source] + sb.String()
+	cp.goHandler.output = cp.goHandler.output + sb.String()
 }
 
 func (cp *Compiler) printSig(fn *strings.Builder, sig ast.StringSig, tok token.Token) {

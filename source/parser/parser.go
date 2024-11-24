@@ -204,7 +204,6 @@ type Parser struct {
 	StructSig map[string]ast.StringSig // <--- in here.
 
 	Snippets        []string
-	GoImports       map[string][]string
 	NamespaceBranch map[string]*ParserData
 	NamespacePath   string
 	Directory       string
@@ -250,7 +249,6 @@ func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePa
 		},
 		LocalConcreteTypes: make(dtypes.Set[values.ValueType]),
 		Structs:            make(dtypes.Set[string]),
-		GoImports:          make(map[string][]string),
 		NamespaceBranch:    make(map[string]*ParserData),
 		ExternalParsers:    make(map[string]*Parser),
 		Directory:          dir,
