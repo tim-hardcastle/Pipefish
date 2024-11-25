@@ -995,9 +995,9 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 }
 
 func StartServiceFromCli() {
-	dir := os.Args[0]
+	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	filename := os.Args[2]
-	newService := service.StartService(filename, dir, nil, make(map[string]*service.Service))
+	newService := service.StartService(filename, appDir + "\n", nil, make(map[string]*service.Service))
 	if len(newService.Cp.P.Common.Errors) > 0 {
 		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
 		s := err.GetList(newService.Cp.P.Common.Errors)
