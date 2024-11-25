@@ -1,0 +1,4 @@
+cmd
+
+main :
+    post "Hello " + $CLI_ARGUMENTS[0] + "!"
