@@ -3714,13 +3714,15 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
 	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
 	cliArgs := vector.Empty
-	firstArg := 2
-	if os.Args[1] == "run" {
-		firstArg = 3
-	}
-	if len(os.Args) > firstArg {
-		for _, v := range os.Args[firstArg:] {
-			cliArgs = cliArgs.Conj(values.Value{values.STRING, v})
+	if len(os.Args) >=2 {
+		firstArg := 2
+		if os.Args[1] == "run" {
+			firstArg = 3
+		}
+		if len(os.Args) > firstArg {
+			for _, v := range os.Args[firstArg:] {
+				cliArgs = cliArgs.Conj(values.Value{values.STRING, v})
+			}
 		}
 	}
 	cliArgsData := serviceVariables["$CLI_ARGUMENTS"]

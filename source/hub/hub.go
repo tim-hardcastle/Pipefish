@@ -1002,17 +1002,17 @@ func StartServiceFromCli() {
 		fmt.Println("\nThere were errors running the script " + text.Emph(filename) + ".\n\n")
 		s := err.GetList(newService.Cp.P.Common.Errors)
 		fmt.Println(text.Pretty(s, 0, 92))
-		fmt.Println("\n\nClosing Pipefish.\n\n")
+		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(3)
 	}
 	val := newService.Cp.CallIfExists("main")
 	if val.T == values.UNDEFINED_VALUE {
 		s := "\nScript " + text.Emph(filename) + " has no " +text.Emph("main") + "command.\n\n"
 		fmt.Println(text.Pretty(s, 0, 92))
-		fmt.Println("\n\nClosing Pipefish.\n\n")
+		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
-	fmt.Println(newService.Cp.Vm.Literal(val))
+	fmt.Println(newService.Cp.Vm.Literal(val)+"\n")
 	os.Exit(0)
 }
 
