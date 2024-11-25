@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/lmorg/readline"
+	"src.elv.sh/pkg/persistent/vector"
 )
 
 // Do not under any cicumstances remove the following comment.
@@ -317,7 +318,9 @@ type serviceVariableData struct {
 }
 
 var serviceVariables = map[string]serviceVariableData{
-	"$LOGGING": {altType(), values.Value{}, true, GLOBAL_CONSTANT_PUBLIC}, // The values have to be extracted from the compiler.
+	"$LOGGING": {altType(), values.Value{}, true, GLOBAL_CONSTANT_PRIVATE}, // The values have to be extracted from the compiler.
+	"$CLI_DIRECTORY": {altType(values.STRING), values.Value{values.STRING, os.Args[0]}, true, GLOBAL_CONSTANT_PUBLIC},
+	"$CLI_ARGUMENTS": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, GLOBAL_CONSTANT_PUBLIC},
 }
 
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)

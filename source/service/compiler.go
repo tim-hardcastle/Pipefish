@@ -10,12 +10,14 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
+
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
-	"fmt"
-	"strconv"
+	"src.elv.sh/pkg/persistent/vector"
 )
 
 // This contains what the compiler needs to emit the 'thnk' operations at the start of a function.
@@ -3706,12 +3708,18 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
-
+	cp.cm("Initializing service variables.", dummyTok)
 	loggingOptionsType := values.ValueType(cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
 	loggingScopeType := values.ValueType(cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
 	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
 	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
-
+	cliArgs := vector.Empty
+	for _, v := range os.Args[2:] {
+		cliArgs = cliArgs.Conj(values.Value{values.STRING, v})
+	}
+	cliArgsData := serviceVariables["$CLI_ARGUMENTS"]
+	cliArgsData.deflt = values.Value{values.LIST, cliArgs}
+	serviceVariables["$CLI_ARGUMENTS"] = cliArgsData
 	cp.cm("Initiaizing service variables.", dummyTok)
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
@@ -3793,21 +3801,23 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 	cp.cm("Calling 'init' if it exists.", dummyTok)
-	cp.callIfExists("init")
+	cp.CallIfExists("init")
 	return result
 }
 
 // For calling `init` or `main`.
-func (cp *Compiler) callIfExists(name string) {
+func (cp *Compiler) CallIfExists(name string) values.Value {
 	tree, ok := cp.P.FunctionForest[name]
 	if !ok { 
-		return
+		return values.UNDEF
 	}
 	for _, t := range tree.Tree.Branch {
 		if t.Type.Len() == 0 && t.Node.Fn != nil {
 			cp.Vm.Run(cp.Fns[t.Node.Fn.Number].CallTo)
+			return cp.Vm.Mem[cp.Fns[t.Node.Fn.Number].OutReg]
 		}
 	}
+	return values.UNDEF
 }
 
 func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType, v int) {

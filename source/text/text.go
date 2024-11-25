@@ -106,8 +106,7 @@ const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
 	"                <command> [args]\n\n" +
 	"Commands are:\n\n" +
 	"  tui           Starts the Pipfish TUI (text user interface).\n" +
-	"  run <file>    Runs a Pipefish script if it has a 'main' command, or offers to open it\n" +
-	"                in the TUI if it doesn't.\n\n"
+	"  run <file>    Runs a Pipefish script if it has a 'main' command.\n\n"
 
 func DescribePos(token *token.Token) string {
 	prettySource := token.Source

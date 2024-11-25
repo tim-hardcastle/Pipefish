@@ -42,6 +42,8 @@ func main() {
 		case "-v", "--version", "version":
 			os.Stdout.WriteString("\nPipefish version " + text.VERSION + ".\n\n")
 			return
+		case "-r", "--run", "run":
+			// hub.StartServiceFromCli()
 		case "-t", "--tui", "tui": // Left blank to avoid the default.
 		default:
 			os.Stdout.WriteString("\nPipefish doesn't recognize the command " + text.Emph(os.Args[1]) + ".\n")

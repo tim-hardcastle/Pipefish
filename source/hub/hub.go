@@ -936,15 +936,17 @@ func (hub *Hub) StartAndMakeCurrent(username, serviceName, scriptFilepath string
 }
 
 func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
-	if !hub.services[hub.currentServiceName()].Cp.ErrorsExist() && hub.services[hub.currentServiceName()].Cp.GetParser().Unfixes.Contains("main") {
-		val := ServiceDo(hub.services[hub.currentServiceName()], "main")
+	if !hub.services[hub.currentServiceName()].IsBroken() {
+		val := hub.services[hub.currentServiceName()].Cp.CallIfExists("main")
 		hub.lastRun = []string{hub.currentServiceName()}
 		hub.services[hub.currentServiceName()].Visited = true
-		if val.T == values.ERROR {
+		switch val.T {
+		case values.ERROR :
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName()], val))
 			hub.WriteString("\n")
 			hub.ers = []*err.Error{val.V.(*err.Error)}
-		} else {
+		case values.UNDEFINED_VALUE :           // Which is what we get back if there is no `main` command.
+		default:
 			hub.WriteString(valToString(hub.services[hub.currentServiceName()], val))
 		}
 	}
