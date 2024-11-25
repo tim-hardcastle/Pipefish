@@ -996,18 +996,18 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 func StartServiceFromCli() {
 	dir := os.Args[0]
-	filename := os.Args[1]
+	filename := os.Args[2]
 	newService := service.StartService(filename, dir, nil, make(map[string]*service.Service))
 	if len(newService.Cp.P.Common.Errors) > 0 {
-		fmt.Println("\nThere were errors running the script " + text.Emph(filename) + ".\n\n")
+		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
 		s := err.GetList(newService.Cp.P.Common.Errors)
 		fmt.Println(text.Pretty(s, 0, 92))
-		fmt.Print("\n\nClosing Pipefish.\n\n")
+		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
 	}
 	val := newService.Cp.CallIfExists("main")
 	if val.T == values.UNDEFINED_VALUE {
-		s := "\nScript " + text.Emph(filename) + " has no " +text.Emph("main") + "command.\n\n"
+		s := "\nScript " + text.CYAN + text.Emph(filename) + text.RESET + " has no "  + text.CYAN + text.Emph("main") + text.RESET + " command.\n\n"
 		fmt.Println(text.Pretty(s, 0, 92))
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
