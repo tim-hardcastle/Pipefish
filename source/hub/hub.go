@@ -991,8 +991,29 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		}
 		return false
 	}
-
 	return true
+}
+
+func StartServiceFromCli() {
+	dir := os.Args[0]
+	filename := os.Args[1]
+	newService := service.StartService(filename, dir, nil, make(map[string]*service.Service))
+	if len(newService.Cp.P.Common.Errors) > 0 {
+		fmt.Println("\nThere were errors running the script " + text.Emph(filename) + ".\n\n")
+		s := err.GetList(newService.Cp.P.Common.Errors)
+		fmt.Println(text.Pretty(s, 0, 92))
+		fmt.Println("\n\nClosing Pipefish.\n\n")
+		os.Exit(3)
+	}
+	val := newService.Cp.CallIfExists("main")
+	if val.T == values.UNDEFINED_VALUE {
+		s := "\nScript " + text.Emph(filename) + " has no " +text.Emph("main") + "command.\n\n"
+		fmt.Println(text.Pretty(s, 0, 92))
+		fmt.Println("\n\nClosing Pipefish.\n\n")
+		os.Exit(4)
+	}
+	fmt.Println(newService.Cp.Vm.Literal(val))
+	os.Exit(0)
 }
 
 func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
