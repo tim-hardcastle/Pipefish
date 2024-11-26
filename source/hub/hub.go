@@ -22,6 +22,7 @@ import (
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/service"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/values"
 
@@ -51,18 +52,16 @@ type Hub struct {
 	port, path             string
 	Username               string
 	Password               string
-
-	directory string
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
-	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	
 	hub := Hub{
 		services:  make(map[string]*service.Service),
 		in:        in,
 		out:       out,
 		lastRun:   []string{},
-		directory: appDir + "/"}
+	}
 	return &hub
 }
 
@@ -863,7 +862,7 @@ func (hub *Hub) WritePretty(s string) {
 }
 
 func (hub *Hub) isAdministered() bool {
-	_, err := os.Stat(hub.directory + "user/admin.dat")
+	_, err := os.Stat(settings.PipefishHomeDirectory + "user/admin.dat")
 	return !errors.Is(err, os.ErrNotExist)
 }
 
@@ -974,7 +973,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 
-	newService := service.StartService(scriptFilepath, hub.directory, hub.Db, hub.services)
+	newService := service.StartService(scriptFilepath, settings.PipefishHomeDirectory, hub.Db, hub.services)
 	if len(newService.Cp.P.Common.Errors) > 0 {
 		newService.Cp.P.Common.IsBroken = true
 	}
@@ -1102,7 +1101,7 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString(")\n")
 	}
 
-	fname := service.MakeFilepath(hub.hubFilepath, hub.directory)
+	fname := service.MakeFilepath(hub.hubFilepath, settings.PipefishHomeDirectory)
 
 	f, err := os.Create(fname)
 	if err != nil {
@@ -1117,7 +1116,7 @@ func (hub *Hub) saveHubFile() string {
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
-	hub.hubFilepath = service.MakeFilepath(hubFilepath, hub.directory)
+	hub.hubFilepath = service.MakeFilepath(hubFilepath, settings.PipefishHomeDirectory)
 	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
 
 	var driver, name, host, username, password string
@@ -1393,7 +1392,7 @@ func (h *Hub) addUserAsGuest() {
 
 func (h *Hub) handleConfigUserForm(f *Form) {
 	h.CurrentForm = nil
-	_, err := os.Stat(h.directory + "user/admin.dat")
+	_, err := os.Stat(settings.PipefishHomeDirectory + "user/admin.dat")
 	if errors.Is(err, os.ErrNotExist) {
 		h.WriteError("this Charm hub doesn't have administered " +
 			"access: there is nothing to join.")
@@ -1441,7 +1440,7 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 		return
 	}
 	err := database.AddAdmin(h.Db, f.Result["Username"], f.Result["First name"],
-		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], h.currentServiceName(), h.directory)
+		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], h.currentServiceName(), settings.PipefishHomeDirectory)
 	if err != nil {
 		h.WriteError("H/ " + err.Error())
 		return

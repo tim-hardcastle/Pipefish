@@ -4,7 +4,12 @@
 
 package settings
 
-import "pipefish/source/dtypes"
+import(
+	"path/filepath"
+	"os"
+
+	"pipefish/source/dtypes"
+)
 
 // Note the first of these will be set equal to the second by the 'main' function if we're running under WinOS. 
 var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/interfaces.pf"}
@@ -37,3 +42,10 @@ const (
 
 	SHOW_TESTS = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
 )
+
+var PipefishHomeDirectory string
+
+func init() {
+	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	PipefishHomeDirectory = appDir + "/"
+}
