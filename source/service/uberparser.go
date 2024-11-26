@@ -285,7 +285,7 @@ func (cp *Compiler) getPartsOfImportOrExternalDeclaration(imp ast.Node) (string,
 	case *ast.StringLiteral:
 		scriptFilepath = imp.Value
 		if settings.StandardLibraries.Contains(scriptFilepath) {
-			scriptFilepath = cp.P.Directory + "lib/" + scriptFilepath + ".pf"
+			scriptFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath + ".pf"
 		}
 		namespace = text.ExtractFileName(scriptFilepath)
 		return namespace, scriptFilepath
@@ -303,7 +303,7 @@ func (cp *Compiler) getPartsOfImportOrExternalDeclaration(imp ast.Node) (string,
 			scriptFilepath = rhs.Value
 			if settings.StandardLibraries.Contains(scriptFilepath) {
 				namespace = scriptFilepath
-				scriptFilepath = cp.P.Directory + "lib/" + scriptFilepath + ".pf"
+				scriptFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath + ".pf"
 			}
 			switch lhs := lhs.(type) {
 			case *ast.Identifier:

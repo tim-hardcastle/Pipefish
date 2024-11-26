@@ -14,14 +14,15 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
+	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
 )
 
-// This allows the compiler to extract functions and converter data from the relevant `.so` files, 
+// This allows the compiler to extract functions and converter data from the relevant `.so` files,
 // rebuilding them if necessary.
 //
-//The code for generating the .go source code when a build/rebuild is necessary is kept in the 
+//The code for generating the .go source code when a build/rebuild is necessary is kept in the
 // `gogen.go` file in this same `service` package. This file is mainly devoted to housekeeping.
 //
 // When multiple sources are NULL-imported into a module, we must still treat each source with Go
@@ -91,7 +92,7 @@ func (cp *Compiler) compileGo() {
 		if !ok || sourceCodeModified != int64(objectCodeModified) {
 			plugins = cp.makeNewSoFile(source, sourceCodeModified)
 		} else {
-			soFile := cp.P.Directory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
+			soFile := settings.PipefishHomeDirectory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
 				cp.P.Throw("golang/open/b", &token.Token{}, err.Error())
@@ -178,12 +179,12 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	}
 
 	counter++ // The number of the gocode_<counter>.go source file we're going to write.
-	soFile := filepath.Join(cp.P.Directory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(newTime))+".so"))
+	soFile := filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(newTime))+".so"))
 	timeMap := cp.getGoTimes()
 	if oldTime, ok := timeMap[source]; ok {
-		os.Remove(filepath.Join(cp.P.Directory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
+		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
 	}
-	goFile := filepath.Join(cp.P.Directory, "gocode_"+strconv.Itoa(counter)+".go")
+	goFile := filepath.Join(settings.PipefishHomeDirectory, "gocode_"+strconv.Itoa(counter)+".go")
 	file, _ := os.Create(goFile)
 	file.WriteString(sb.String())
 	file.Close()
@@ -258,7 +259,7 @@ func (cp *Compiler) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) 
 }
 
 func (cp *Compiler) recordGoTimes(timeMap map[string]int64) {
-	f, err := os.Create(cp.P.Directory + "rsc/go/gotimes.dat")
+	f, err := os.Create(settings.PipefishHomeDirectory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't create file rsc/go/gotimes.dat")
 	}
@@ -270,7 +271,7 @@ func (cp *Compiler) recordGoTimes(timeMap map[string]int64) {
 }
 
 func (cp *Compiler) getGoTimes() map[string]int64 {
-	file, err := os.Open(cp.P.Directory + "rsc/go/gotimes.dat")
+	file, err := os.Open(settings.PipefishHomeDirectory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't open file 'rsc/go/gotimes.dat'.")
 	}

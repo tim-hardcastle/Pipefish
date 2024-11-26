@@ -4,14 +4,15 @@
 
 package settings
 
-import(
-	"path/filepath"
+import (
 	"os"
+	"path/filepath"
+	"testing"
 
 	"pipefish/source/dtypes"
 )
 
-// Note the first of these will be set equal to the second by the 'main' function if we're running under WinOS. 
+// Note the first of these will be set equal to the second by the 'main' function if we're running under WinOS.
 var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/interfaces.pf"}
 var MandatoryImportsForWindows = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/worldlite.pf", "rsc/pipefish/interfaces.pf"}
 // And so the result of this function is OS-dependent.
@@ -46,6 +47,12 @@ const (
 var PipefishHomeDirectory string
 
 func init() {
-	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	PipefishHomeDirectory = appDir + "/"
+	if testing.Testing() {
+		currentDirectory, _ := os.Getwd()
+		absolutePath, _ := filepath.Abs(currentDirectory + "/../../")
+		PipefishHomeDirectory = absolutePath + "/"
+	} else {
+		appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+		PipefishHomeDirectory = appDir + "/"
+	}
 }
