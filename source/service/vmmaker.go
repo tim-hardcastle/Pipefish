@@ -344,7 +344,7 @@ func (cp *Compiler) MakeFunctionTable() {
 			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: cp.P.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: cp.P.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: cp.P.IsPrivate(int(j), i), Number: DUMMY, Compiler: cp, Tok: body.GetToken()}
 			cp.fnIndex[fnSource{j, i}] = functionToAdd
-			if cp.shareable(functionToAdd) || settings.MandatoryImportSet.Contains(tok.Source) {
+			if cp.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
 				cp.cmI("Adding " + functionName + " to common functions.")
 				cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
@@ -388,7 +388,7 @@ func (cp *Compiler) populateAbstractTypesAndMakeFunctionTrees() {
 				if key.FunctionName == sigToMatch.name {
 					matches := cp.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
-					if !settings.MandatoryImportSet.Contains(fnToTry.Tok.Source) {
+					if !settings.MandatoryImportSet().Contains(fnToTry.Tok.Source) {
 						for _, ty := range matches.Types {
 							if _, ok := funcsToAdd[ty]; ok {
 								funcsToAdd[ty] = append(funcsToAdd[ty], funcWithName{key.FunctionName, fnToTry})

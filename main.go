@@ -27,7 +27,7 @@ import (
 func main() {
 
 	if runtime.GOOS == "windows" { // This allows a cut-down version that doesn't require the plugins package.
-		settings.MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/interfaces.pf"}
+		settings.MandatoryImports = settings.MandatoryImportsForWindows
 	}
 
 	if len(os.Args) == 1 {

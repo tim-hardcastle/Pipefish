@@ -35,7 +35,7 @@ type TrackingData struct {
 // Although the arguments of this function are the same as the shape of the trackingData struct, we don't just naively shove one into the other,
 // but may have to tamper with it for the greater convenience of the caller.
 func (cp *Compiler) track(tf trackingFlavor, tok *token.Token, args ...any) {
-	if settings.MandatoryImportSet.Contains(tok.Source) {
+	if settings.MandatoryImportSet().Contains(tok.Source) {
 		return
 	}
 	var newData TrackingData

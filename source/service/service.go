@@ -145,7 +145,7 @@ func (service Service) SerializeApi() string {
 	for name, fns := range service.Cp.P.FunctionTable {
 		for defOrCmd := 0; defOrCmd < 2; defOrCmd++ { // In the function table the commands and functions are all jumbled up. But we want the commands first, for neatness, so we'll do two passes.
 			for _, fn := range fns {
-				if fn.Private || settings.MandatoryImportSet.Contains(fn.Body.GetToken().Source) {
+				if fn.Private || settings.MandatoryImportSet().Contains(fn.Body.GetToken().Source) {
 					continue
 				}
 				if fn.Cmd {
@@ -178,7 +178,7 @@ func (service Service) SerializeApi() string {
 }
 
 func (service *Service) isMandatoryImport(dec declarationType, ordinal int) bool {
-	return settings.MandatoryImportSet.Contains(service.Cp.P.ParsedDeclarations[dec][ordinal].GetToken().Source)
+	return settings.MandatoryImportSet().Contains(service.Cp.P.ParsedDeclarations[dec][ordinal].GetToken().Source)
 }
 
 func (service *Service) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.
