@@ -219,7 +219,7 @@ type BkInterface struct {
 	Addr uint32
 }
 
-func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePath string) *Parser {
+func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
 	p := &Parser{
 		Logging:           true,
 		nesting:           *dtypes.NewStack[token.Token](),
@@ -252,7 +252,6 @@ func New(common *CommonParserBindle, source, sourceCode, dir string, namespacePa
 		Structs:            make(dtypes.Set[string]),
 		NamespaceBranch:    make(map[string]*ParserData),
 		ExternalParsers:    make(map[string]*Parser),
-		Directory:          dir,
 		NamespacePath:      namespacePath,
 		Common:             common,
 	}

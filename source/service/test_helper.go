@@ -36,9 +36,9 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 		common := parser.NewCommonBindle()
 		var cp *Compiler
 		if filename == "" {
-			cp = initializeFromFilepath(mc, common, "", text.Trim(wd), "")
+			cp = initializeFromFilepath(mc, common, "", "")
 		} else {
-			cp = initializeFromFilepath(mc, common, wd+"/test-files/"+filename, text.Trim(wd), "")
+			cp = initializeFromFilepath(mc, common, wd+"/test-files/"+filename, "")
 		}
 		if cp.P.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())

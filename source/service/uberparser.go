@@ -91,7 +91,7 @@ func (cp *Compiler) AddToNameSpace(thingsToImport []string) {
 		if len(fname) >= 13 && fname[:13] == "rsc/pipefish/" {
 			libDat, err = folder.ReadFile(fname)
 		} else {
-			libDat, err = os.ReadFile(MakeFilepath(fname, cp.P.Directory))
+			libDat, err = os.ReadFile(MakeFilepath(fname))
 		}
 		if err != nil {
 			cp.P.Throw("init/import/found", &token.Token{})

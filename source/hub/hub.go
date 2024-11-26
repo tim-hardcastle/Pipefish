@@ -973,7 +973,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 
-	newService := service.StartService(scriptFilepath, settings.PipefishHomeDirectory, hub.Db, hub.services)
+	newService := service.StartService(scriptFilepath, hub.Db, hub.services)
 	if len(newService.Cp.P.Common.Errors) > 0 {
 		newService.Cp.P.Common.IsBroken = true
 	}
@@ -994,9 +994,8 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 }
 
 func StartServiceFromCli() {
-	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	filename := os.Args[2]
-	newService := service.StartService(filename, appDir + "/", nil, make(map[string]*service.Service))
+	newService := service.StartService(filename, nil, make(map[string]*service.Service))
 	if len(newService.Cp.P.Common.Errors) > 0 {
 		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
 		s := err.GetList(newService.Cp.P.Common.Errors)
@@ -1101,7 +1100,7 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString(")\n")
 	}
 
-	fname := service.MakeFilepath(hub.hubFilepath, settings.PipefishHomeDirectory)
+	fname := service.MakeFilepath(hub.hubFilepath)
 
 	f, err := os.Create(fname)
 	if err != nil {
@@ -1116,7 +1115,7 @@ func (hub *Hub) saveHubFile() string {
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
-	hub.hubFilepath = service.MakeFilepath(hubFilepath, settings.PipefishHomeDirectory)
+	hub.hubFilepath = service.MakeFilepath(hubFilepath)
 	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
 
 	var driver, name, host, username, password string

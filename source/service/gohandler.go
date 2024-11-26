@@ -80,7 +80,7 @@ func (cp *Compiler) compileGo() {
 	timeMap := cp.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
 
 	for source := range cp.goBucket.sources {
-		f, err := os.Stat(MakeFilepath(source, cp.P.Directory))
+		f, err := os.Stat(MakeFilepath(source))
 		if err != nil {
 			cp.Throw("go/file", token.Token{Source: "linking Golang"}, err.Error())
 			break

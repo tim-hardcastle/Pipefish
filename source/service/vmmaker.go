@@ -27,10 +27,10 @@ import (
 var testFolder embed.FS
 
 // The base case: we start off with a blank vm and common parser bindle.
-func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string]*Service) *Service {
+func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*Service) *Service {
 	mc := BlankVm(db, hubServices)
 	common := parser.NewCommonBindle()
-	cp := initializeFromFilepath(mc, common, scriptFilepath, dir, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
+	cp := initializeFromFilepath(mc, common, scriptFilepath, "") // We pass back the uP bcause it contains the sources and/or errors (in the parser).
 	result := &Service{Cp: cp}
 	if cp.P.ErrorsExist() {
 		return result
@@ -57,7 +57,7 @@ func StartService(scriptFilepath, dir string, db *sql.DB, hubServices map[string
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and and mutates the vm.
 // In the case that any errors are produced, the will be in the comon bindle of the parseer of the returned compiler.
-func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, dir string, namespacePath string) *Compiler {
+func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, namespacePath string) *Compiler {
 	sourcecode := ""
 	var sourcebytes []byte
 	var err error
@@ -65,25 +65,25 @@ func initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFil
 		if len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
 			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
 		} else {
-			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath, dir))
+			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath))
 		}
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			p := parser.New(common, scriptFilepath, sourcecode, dir, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the common parser bindle.
+			p := parser.New(common, scriptFilepath, sourcecode, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the common parser bindle.
 			p.Throw("init/source/a", &token.Token{Source: "linking"}, scriptFilepath, err.Error())
 			return NewCompiler(p)
 		}
 	}
-	return initializeFromSourcecode(mc, common, scriptFilepath, sourcecode, dir, namespacePath)
+	return initializeFromSourcecode(mc, common, scriptFilepath, sourcecode, namespacePath)
 }
 
-func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, namespacePath string) *Compiler {
-	cp := newVmMaker(common, scriptFilepath, sourcecode, dir, mc, namespacePath)
+func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *Compiler {
+	cp := newVmMaker(common, scriptFilepath, sourcecode, mc, namespacePath)
 	cp.parseAll(scriptFilepath, sourcecode)
 	cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
 		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
-		file, err := os.Stat(MakeFilepath(scriptFilepath, dir))
+		file, err := os.Stat(MakeFilepath(scriptFilepath))
 		if err != nil {
 			cp.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
 			return nil
@@ -94,8 +94,8 @@ func initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptF
 	return cp
 }
 
-func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode, dir string, mc *Vm, namespacePath string) *Compiler {
-	p := parser.New(common, scriptFilepath, sourcecode, dir, namespacePath)
+func newVmMaker(common *parser.CommonParserBindle, scriptFilepath, sourcecode string, mc *Vm, namespacePath string) *Compiler {
+	p := parser.New(common, scriptFilepath, sourcecode, namespacePath)
 	cp := NewCompiler(p)
 	cp.ScriptFilepath = scriptFilepath
 	cp.Vm = mc
@@ -277,7 +277,7 @@ func (cp *Compiler) InitializeNamespacedImportsAndReturnUnnamespacedImports() []
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newCp := initializeFromFilepath(cp.Vm, cp.P.Common, scriptFilepath, cp.P.Directory, namespace+"."+cp.P.NamespacePath)
+		newCp := initializeFromFilepath(cp.Vm, cp.P.Common, scriptFilepath, namespace+"."+cp.P.NamespacePath)
 		cp.Services[namespace] = &Service{newCp, false}
 		for k, v := range newCp.declarationMap {
 			cp.declarationMap[k] = v
@@ -542,7 +542,7 @@ func (cp *Compiler) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService := StartService(path, cp.P.Directory, cp.Vm.Database, cp.Vm.HubServices)
+		newService := StartService(path, cp.Vm.Database, cp.Vm.HubServices)
 		if len(newService.Cp.P.Common.Errors) > 0 {
 			newService.Cp.P.Common.IsBroken = true
 		}
@@ -568,7 +568,7 @@ func (cp *Compiler) addAnyExternalService(handlerForService externalCallHandler,
 	cp.Vm.ExternalCallHandlers = append(cp.Vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.getAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal)
-	newCp := initializeFromSourcecode(cp.Vm, cp.P.Common, path, sourcecode, cp.P.Directory, name+"."+cp.P.NamespacePath)
+	newCp := initializeFromSourcecode(cp.Vm, cp.P.Common, path, sourcecode, name+"."+cp.P.NamespacePath)
 	cp.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = cp.P.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	cp.Services[name] = &Service{newCp, false}
@@ -1193,16 +1193,16 @@ func altType(t ...values.ValueType) AlternateType {
 	return AltType(t...)
 }
 
-func MakeFilepath(scriptFilepath, dir string) string {
+func MakeFilepath(scriptFilepath string) string {
 	doctoredFilepath := strings.Clone(scriptFilepath)
 	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" {
-		doctoredFilepath = filepath.Join(dir, filepath.FromSlash(scriptFilepath))
+		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash(scriptFilepath))
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
-		doctoredFilepath = filepath.Join(dir, "source", "service", filepath.FromSlash(scriptFilepath))
+		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, "source", "service", filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
-		doctoredFilepath = dir + "lib/" + scriptFilepath
+		doctoredFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath
 	}
 	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" && len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] != ".hub" {
 		doctoredFilepath = doctoredFilepath + ".pf"
