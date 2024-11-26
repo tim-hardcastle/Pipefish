@@ -17,18 +17,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"pipefish/source/hub"
-	"pipefish/source/settings"
 	"pipefish/source/text"
 )
 
 func main() {
-
-	if runtime.GOOS == "windows" { // This allows a cut-down version that doesn't require the plugins package.
-		settings.MandatoryImports = settings.MandatoryImportsForWindows
-	}
 
 	if len(os.Args) == 1 {
 		showhelp()

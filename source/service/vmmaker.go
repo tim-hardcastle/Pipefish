@@ -319,7 +319,7 @@ type serviceVariableData struct {
 
 var serviceVariables = map[string]serviceVariableData{
 	"$LOGGING": {altType(), values.Value{}, true, GLOBAL_CONSTANT_PRIVATE}, // The values have to be extracted from the compiler.
-	"$CLI_DIRECTORY": {altType(values.STRING), values.Value{values.STRING, os.Args[0]}, true, GLOBAL_CONSTANT_PUBLIC},
+	"$CLI_DIRECTORY": {altType(values.STRING), values.Value{values.STRING, ""}, true, GLOBAL_CONSTANT_PUBLIC},
 	"$CLI_ARGUMENTS": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, GLOBAL_CONSTANT_PUBLIC},
 }
 

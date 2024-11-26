@@ -7,6 +7,7 @@ package settings
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"pipefish/source/dtypes"
@@ -14,7 +15,6 @@ import (
 
 // Note the first of these will be set equal to the second by the 'main' function if we're running under WinOS.
 var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/interfaces.pf"}
-var MandatoryImportsForWindows = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/worldlite.pf", "rsc/pipefish/interfaces.pf"}
 // And so the result of this function is OS-dependent.
 func MandatoryImportSet() dtypes.Set[string] {
 	return dtypes.MakeFromSlice(MandatoryImports)
@@ -54,5 +54,8 @@ func init() {
 	} else {
 		appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 		PipefishHomeDirectory = appDir + "/"
+	}
+	if runtime.GOOS == "windows" { // This allows a cut-down version that doesn't require the plugins package.
+		MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/worldlite.pf", "rsc/pipefish/interfaces.pf"}
 	}
 }

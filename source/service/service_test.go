@@ -3,9 +3,11 @@ package service
 import (
 	"os"
 	"path/filepath"
-	"pipefish/source/text"
+	"runtime"
 	"strconv"
 	"testing"
+
+	"pipefish/source/text"
 )
 
 func TestLiterals(t *testing.T) {
@@ -285,6 +287,9 @@ func TestRecursion(t *testing.T) {
 	RunTest(t, "recursion_test.pf", tests, testValues)
 }
 func TestGocode(t *testing.T) {
+	if runtime.GOOS == "windows" { // WIndows can't use the plugin package.
+		return
+	}
 	tests := []TestItem{
 		{`boo true`, `false`},
 		{`foo 4.2`, `4.20000000`},

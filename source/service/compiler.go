@@ -3709,10 +3709,17 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 	cp.cm("Initializing service variables.", dummyTok)
+	// $LOGGING
 	loggingOptionsType := values.ValueType(cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
 	loggingScopeType := values.ValueType(cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
 	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
 	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
+	// $CLI_DIRECTORY
+	cliDirData := serviceVariables["$CLI_DIRECTORY"]
+	dir, _ := os.Getwd()
+	cliDirData.deflt = values.Value{values.STRING, dir}
+	serviceVariables["$CLI_DIRECTORY"] = cliDirData
+	// $CLI_ARGUMENTS
 	cliArgs := vector.Empty
 	if len(os.Args) >=2 {
 		firstArg := 2
@@ -3728,7 +3735,8 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 	cliArgsData := serviceVariables["$CLI_ARGUMENTS"]
 	cliArgsData.deflt = values.Value{values.LIST, cliArgs}
 	serviceVariables["$CLI_ARGUMENTS"] = cliArgsData
-	cp.cm("Initiaizing service variables.", dummyTok)
+
+	// Add variables to environment.
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
 		if ok {
