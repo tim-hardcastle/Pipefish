@@ -119,6 +119,7 @@ func (cp *Compiler) compileGo() {
 			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.concreteTypeNow(typeName)
 			if typeName == "string" {
 				println("string added to types")
+				if reflect.TypeOf(goValue).Elem().String() == "string" {println("With the right thing pointing at it")}
 			}
 		}
 		//We attach the compiled functions to the (pointers to) the functions, which are
