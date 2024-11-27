@@ -251,7 +251,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		}
 		return values.Value{values.TUPLE, result}
 	}
-	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(goValue).String()}}
+	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
 }
 
 // Because the above function will be applied recursively, we apply the goTuple type to the values
