@@ -117,6 +117,9 @@ func (cp *Compiler) compileGo() {
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
 			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.concreteTypeNow(typeName)
+			if typeName == "string" {
+				println("string added to types")
+			}
 		}
 		//We attach the compiled functions to the (pointers to) the functions, which are
 		// also pointed to by the compiler's function table and by the list of common functions
@@ -127,6 +130,23 @@ func (cp *Compiler) compileGo() {
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 		}
 	}
+}
+
+// But list, set, pair, and map can't go in here because of the recursion.
+var BUILTIN_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){
+	"bool":   func(t uint32, v any) any { return v.(bool) },
+	"float":  func(t uint32, v any) any { return v.(float64) },
+	"int":    func(t uint32, v any) any { return v.(int) },
+	"rune":   func(t uint32, v any) any { return v.(rune) },
+	"string": func(t uint32, v any) any { return v.(string) },
+}
+
+var BUILTIN_VALUE_CONVERTER = map[string]any{
+	"bool":   (*bool)(nil),
+	"float":  (*float64)(nil),
+	"int":    (*int)(nil),
+	"rune":   (*rune)(nil),
+	"string": (*string)(nil),
 }
 
 // This makes a new .so file, opens it, and returns the plugins.
@@ -206,23 +226,6 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	timeMap[source] = newTime
 	cp.recordGoTimes(timeMap)
 	return plugins
-}
-
-// But list, set, pair, and map can't go in here because of the recursion.
-var BUILTIN_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){
-	"bool":   func(t uint32, v any) any { return v.(bool) },
-	"float":  func(t uint32, v any) any { return v.(float64) },
-	"int":    func(t uint32, v any) any { return v.(int) },
-	"rune":   func(t uint32, v any) any { return v.(rune) },
-	"string": func(t uint32, v any) any { return v.(string) },
-}
-
-var BUILTIN_VALUE_CONVERTER = map[string]any{
-	"bool":   (*bool)(nil),
-	"float":  (*float64)(nil),
-	"int":    (*int)(nil),
-	"rune":   (*rune)(nil),
-	"string": (*string)(nil),
 }
 
 // This makes sure that if  we're generating declarations for a struct type,
