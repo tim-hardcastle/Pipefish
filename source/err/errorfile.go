@@ -1146,7 +1146,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-"init/overload/c": {
+	"init/overload/c": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "too much overloading: function '" + args[0].(string) + "' defined at@line " + strconv.Itoa(args[2].(int)) + "@conflicts with another version of the same function defined at"
 		},
@@ -2116,12 +2116,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/golang/type": {
+	"vm/go/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't convert Go value of type " + emph(args[0]) + " to Pipefish"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Not every Go value can or should be converted into Pipefish."
+		},
+	},
+
+	"vm/pipefish/type": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't convert Pipefish value of type " + emph(args[0]) + " to Go"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+			return "Not every Pipefish value can or should be converted into Go."
 		},
 	},
 

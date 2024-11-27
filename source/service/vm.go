@@ -84,7 +84,7 @@ type vmState struct {
 }
 
 type GoFn struct {
-	Code             reflect.Value
+	Code reflect.Value
 }
 
 type Lambda struct {
@@ -146,10 +146,10 @@ func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
 			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 		},
-		AnyTypeScheme: AlternateType{},
-		AnyTuple:      AlternateType{},
-		goToPipefishTypes :          map[reflect.Type]values.ValueType{},
-		goConverter: [](func(t uint32, v any) any){},
+		AnyTypeScheme:     AlternateType{},
+		AnyTuple:          AlternateType{},
+		goToPipefishTypes: map[reflect.Type]values.ValueType{},
+		goConverter:       [](func(t uint32, v any) any){},
 	}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
 		vm.sharedTypenameToTypeList[name] = AltType()
@@ -490,9 +490,9 @@ loop:
 				el := vm.Mem[v]
 				goVal, ok := vm.pipefishToGo(el)
 				if !ok {
-					newError := err.CreateErr("vm/golang/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
+					newError := err.CreateErr("vm/pipefish/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
 					newError.Values = []values.Value{el}
-					vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
+					vm.Mem[args[0]] = values.Value{values.ERROR, newError}
 					break
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
@@ -512,9 +512,9 @@ loop:
 			if val.T == 0 {
 				payload := val.V.([]any)
 				newError := err.CreateErr(payload[0].(string), vm.Mem[args[1]].V.(*err.Error).Token, payload[1:]...)
-				vm.Mem[args[0]] =  values.Value{values.ERROR, newError}
+				vm.Mem[args[0]] = values.Value{values.ERROR, newError}
 				break
-				}
+			}
 			vm.Mem[args[0]] = val
 		case Gtef:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) >= vm.Mem[args[2]].V.(float64)}
