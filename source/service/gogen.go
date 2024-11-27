@@ -83,6 +83,8 @@ func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes d
 	}
 	fmt.Fprint(sb, "}\n\n")
 
+	// The reason we use the `(*name)(nil)` formula instead of just passing the Type
+	// is that then we'd have to import the `reflect` package into everything.
 	fmt.Fprint(sb, "var PIPEFISH_VALUE_CONVERTER = map[string]any{\n")
 	for name := range userDefinedTypes {
 		fmt.Fprint(sb, "    \"", name, "\": (*", name, ")(nil),\n")

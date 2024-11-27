@@ -12,6 +12,67 @@ import (
 
 // How the vm performs conversion at runtime.
 func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
+	switch v.T {
+	case values.LIST:
+		result := []any{}
+		for it := v.V.(vector.Vector).Iterator(); it.HasElem(); it.Next() {
+			pfEl := it.Elem()
+			goEl, ok := vm.pipefishToGo(pfEl.(values.Value))
+			if !ok {
+				return goEl, false
+			}
+			result = append(result, goEl)
+		}
+		return result, true
+	case values.MAP:
+		result := map[any]any{}
+		mapAsSlice := v.V.(*values.Map).AsSlice()
+		for _, pair := range mapAsSlice {
+			goKey, ok := vm.pipefishToGo(pair.Key)
+			if !ok {
+				return goKey, false
+			}
+			goVal, ok := vm.pipefishToGo(pair.Val)
+			if !ok {
+				return goVal, false
+			}
+			result[goKey] = goVal
+		}
+		return result, true
+	case values.PAIR:
+		leftPf := v.V.([]any)[0].(values.Value)
+		leftGo, ok := vm.pipefishToGo(leftPf)
+		if !ok {
+			return leftGo, false
+		}
+		rightPf := v.V.([]any)[1].(values.Value)
+		rightGo, ok := vm.pipefishToGo(rightPf)
+		if !ok {
+			return rightGo, false
+		}
+		return [2]any{leftGo, rightGo}, true
+	case values.SET:
+		result := map[any]struct{}{}
+		setAsSlice := v.V.(values.Set).AsSlice()
+		for _, pfEl := range setAsSlice {
+			goEl, ok := vm.pipefishToGo(pfEl)
+			if !ok {
+				return goEl, false
+			}
+			result[goEl] = struct{}{}
+		}
+		return result, true
+	case values.TUPLE:
+		result := []any{}
+		for _, pfEl := range v.V.([]values.Value) {
+			goEl, ok := vm.pipefishToGo(pfEl)
+			if !ok {
+				return goEl, false
+			}
+			result = append(result, goEl)
+		}
+		return result, true
+	}
 	constructor := vm.goConverter[v.T]
 	if constructor != nil {
 		typeInfo := vm.concreteTypeInfo[v.T]
@@ -68,51 +129,117 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			}
 			return values.Value{values.ValueType(uint32Type), pipefishValues}
 		case cloneType :
-		switch typeInfo.parent {
-		case values.INT :
-			return values.Value{values.ValueType(uint32Type), int(reflect.ValueOf(someGoDatum).Int())}
-		case values.FLOAT :
-			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Float()}
-		case values.STRING :
-			return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).String()}
-		case values.RUNE :
-			return values.Value{values.ValueType(uint32Type), rune(reflect.ValueOf(someGoDatum).Int())}
-		case values.LIST:
-			vec := vector.Empty
-			for _, goElement := range someGoDatum.([]any) {
-				pipefishElement := vm.goToPipefish(reflect.ValueOf(goElement))
-				if pipefishElement.T == values.UNDEFINED_VALUE {
-					return pipefishElement
+			switch typeInfo.parent {
+			case values.INT :
+				return values.Value{values.ValueType(uint32Type), int(reflect.ValueOf(someGoDatum).Int())}
+			case values.FLOAT :
+				return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Float()}
+			case values.STRING :
+				return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).String()}
+			case values.RUNE :
+				return values.Value{values.ValueType(uint32Type), rune(reflect.ValueOf(someGoDatum).Int())}
+			case values.LIST:
+				vec := vector.Empty
+				for _, goElement := range someGoDatum.([]any) {
+					pipefishElement := vm.goToPipefish(reflect.ValueOf(goElement))
+					if pipefishElement.T == values.UNDEFINED_VALUE {
+						return pipefishElement
+					}
+					vec = vec.Conj(pipefishElement)
 				}
-				vec = vec.Conj(pipefishElement)
+				return values.Value{values.ValueType(uint32Type), vec}
+			case values.PAIR :
+				goPair := someGoDatum.([]any)
+				if len(goPair) != 2 {
+					return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/pair/b", uint32Type, len(goPair)}}
+				}
+				leftEl := vm.goToPipefish(reflect.ValueOf(goPair[0]))
+				if leftEl.T == values.UNDEFINED_VALUE {
+					return leftEl
+				}
+				rightEl := vm.goToPipefish(reflect.ValueOf(goPair[1]))
+				if rightEl.T == values.UNDEFINED_VALUE {
+					return rightEl
+				}
+				return values.Value{values.ValueType(uint32Type), []values.Value{leftEl, rightEl}}
+			case values.SET :
+				pfSet := values.Set{}
+				for _, el := range someGoDatum.([]any) {
+					pfEl := vm.goToPipefish(reflect.ValueOf(el))
+					if pfEl.T == values.UNDEFINED_VALUE {
+						return pfEl
+					}
+					pfSet = pfSet.Add(pfEl)
+				}
+				return values.Value{values.ValueType(uint32Type), pfSet}
 			}
-			return values.Value{values.ValueType(uint32Type), vec}
-		case values.PAIR :
-			goPair := someGoDatum.([]any)
-			if len(goPair) != 2 {
-				return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/pair", uint32Type, len(goPair)}}
+		}
+	}
+	switch  {
+	case goValue.Kind() == reflect.Slice || goValue.Kind() == reflect.Array && goValue.Len() != 2 : // 2 is pairs.
+		vec := vector.Empty
+		for i := 0; i < goValue.Len(); i++ {
+			goElement := goValue.Index(i)
+			pfElement := vm.goToPipefish(goElement)
+			if pfElement.T == values.UNDEFINED_VALUE {
+				return pfElement
 			}
-			leftEl := vm.goToPipefish(reflect.ValueOf(goPair[0]))
-			if leftEl.T == values.UNDEFINED_VALUE {
-				return leftEl
+			vec = vec.Conj(pfElement)
+		}
+		return values.Value{values.LIST, vec}
+	case goValue.Kind() == reflect.Array && goValue.Len() == 2 :
+		pair := []values.Value{}
+		for i := 0; i < goValue.Len(); i++ {
+			goElement := goValue.Index(i)
+			pfElement := vm.goToPipefish(goElement)
+			if pfElement.T == values.UNDEFINED_VALUE {
+				return pfElement
 			}
-			rightEl := vm.goToPipefish(reflect.ValueOf(goPair[1]))
-			if rightEl.T == values.UNDEFINED_VALUE {
-				return rightEl
-			}
-			return values.Value{values.ValueType(uint32Type), []any{leftEl, rightEl}}
-		case values.SET :
+			pair = append(pair, pfElement)
+		}
+		return values.Value{values.PAIR, pair}
+	case goValue.Kind() == reflect.Map :
+		rangeType := goValue.Type().Elem()
+		if rangeType.Kind() == reflect.Struct && rangeType.NumField() == 0 { // Then we have a set.
+			iterator := goValue.MapRange()
 			pfSet := values.Set{}
-			for _, el := range someGoDatum.([]any) {
-				pfEl := vm.goToPipefish(reflect.ValueOf(el))
+			for iterator.Next() {
+				goEl := iterator.Key()
+				pfEl := vm.goToPipefish(goEl)
 				if pfEl.T == values.UNDEFINED_VALUE {
 					return pfEl
 				}
 				pfSet = pfSet.Add(pfEl)
 			}
-			return values.Value{values.ValueType(uint32Type), pfSet}
+			return values.Value{values.SET, pfSet}
+		} else { // We have a map.
+			iterator := goValue.MapRange()
+			pfMap := &values.Map{}
+			for iterator.Next() {
+				goKey := iterator.Key()
+				pfKey := vm.goToPipefish(goKey)
+				if pfKey.T == values.UNDEFINED_VALUE {
+					return pfKey
+				}
+				goEl := iterator.Value()
+				pfEl := vm.goToPipefish(goEl)
+				if pfEl.T == values.UNDEFINED_VALUE {
+					return pfEl
+				}
+				pfMap = pfMap.Set(pfKey, pfEl)
+			}
+			return values.Value{values.MAP, pfMap}
 		}
-	}
+	case goValue.Kind() == reflect.Struct :
+		if goValue.NumField() == 0 { // We use struct{}{} to represent OK.
+			return values.OK
+		}
+	case goValue.CanFloat() :
+		return values.Value{values.FLOAT, goValue.Float()}
+	case goValue.CanInt() :
+		return values.Value{values.INT, int(goValue.Int())}
+	case goValue.CanUint() :
+		return values.Value{values.INT, int(goValue.Uint())}
 	}
 	switch someValue := someGoDatum.(type) {
 	case error:

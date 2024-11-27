@@ -208,6 +208,7 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	return plugins
 }
 
+// But list, set, pair, and map can't go in here because of the recursion.
 var BUILTIN_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){
 	"bool":   func(t uint32, v any) any { return v.(bool) },
 	"float":  func(t uint32, v any) any { return v.(float64) },
