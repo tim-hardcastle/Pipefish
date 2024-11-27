@@ -125,6 +125,15 @@ func (cp *Compiler) compileGo() {
 		for _, function := range cp.goBucket.functions[source] {
 			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
+			for i, pair := range function.NameSig {
+				if text.Head(pair.VarType, "...") {
+					if i < function.NameSig.Len() - 1{
+						cp.Throw("go/variadic", *function.Tok)
+					} else {
+						function.Body.(*ast.GolangExpression).Variadic = true
+					}
+				}
+			}
 		}
 	}
 }

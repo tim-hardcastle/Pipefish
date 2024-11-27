@@ -85,6 +85,7 @@ type vmState struct {
 
 type GoFn struct {
 	Code reflect.Value
+	Variadic bool
 }
 
 type Lambda struct {
@@ -497,7 +498,12 @@ loop:
 				}
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
-			goResultValues := F.Code.Call(goTpl)
+			var goResultValues []reflect.Value
+			if F.Variadic {
+				goResultValues = F.Code.CallSlice(goTpl)
+			} else {
+				goResultValues = F.Code.Call(goTpl)
+			}
 			var doctoredValues any
 			if len(goResultValues) == 1 {
 				doctoredValues = goResultValues[0].Interface()
