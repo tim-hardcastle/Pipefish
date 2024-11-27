@@ -117,10 +117,6 @@ func (cp *Compiler) compileGo() {
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
 			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.concreteTypeNow(typeName)
-			if typeName == "string" {
-				println("string added to types")
-				if reflect.TypeOf(goValue).Elem().String() == "string" {println("With the right thing pointing at it")}
-			}
 		}
 		//We attach the compiled functions to the (pointers to) the functions, which are
 		// also pointed to by the compiler's function table and by the list of common functions

@@ -175,6 +175,16 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			}
 		}
 	}
+	switch someValue := someGoDatum.(type) {
+	case error:
+		return values.Value{values.ERROR, err.Error{ErrorId: "vm/go/runtime", Message: someValue.Error()}}
+	case goTuple:
+		result := make([]values.Value, 0, len(someValue))
+		for _, el := range someValue {
+			result = append(result, vm.goToPipefish(reflect.ValueOf(el)))
+		}
+		return values.Value{values.TUPLE, result}
+	}
 	switch  {
 	case goValue.Kind() == reflect.Slice || goValue.Kind() == reflect.Array && goValue.Len() != 2 : // 2 is pairs.
 		vec := vector.Empty
@@ -240,16 +250,6 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		return values.Value{values.INT, int(goValue.Int())}
 	case goValue.CanUint() :
 		return values.Value{values.INT, int(goValue.Uint())}
-	}
-	switch someValue := someGoDatum.(type) {
-	case error:
-		return values.Value{values.ERROR, err.Error{ErrorId: "vm/go/runtime", Message: someValue.Error()}}
-	case goTuple:
-		result := make([]values.Value, 0, len(someValue))
-		for _, el := range someValue {
-			result = append(result, vm.goToPipefish(reflect.ValueOf(el)))
-		}
-		return values.Value{values.TUPLE, result}
 	}
 	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
 }
