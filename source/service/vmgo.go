@@ -39,12 +39,12 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 		}
 		return result, true
 	case values.PAIR:
-		leftPf := v.V.([]any)[0].(values.Value)
+		leftPf := v.V.([]values.Value)[0]
 		leftGo, ok := vm.pipefishToGo(leftPf)
 		if !ok {
 			return leftGo, false
 		}
-		rightPf := v.V.([]any)[1].(values.Value)
+		rightPf := v.V.([]values.Value)[1]
 		rightGo, ok := vm.pipefishToGo(rightPf)
 		if !ok {
 			return rightGo, false
@@ -122,12 +122,12 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 				}
 				return constructor(uint32(v.T), result), true
 			case values.PAIR :
-				leftPf := v.V.([]any)[0].(values.Value)
+				leftPf := v.V.([]values.Value)[0]
 				leftGo, ok := vm.pipefishToGo(leftPf)
 				if !ok {
 					return leftGo, false
 				}
-				rightPf := v.V.([]any)[1].(values.Value)
+				rightPf := v.V.([]values.Value)[1]
 				rightGo, ok := vm.pipefishToGo(rightPf)
 				if !ok {
 					return rightGo, false
