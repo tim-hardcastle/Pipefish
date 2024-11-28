@@ -1562,33 +1562,45 @@ loop:
 // Implements equality-by-value. Assumes that the two values have already been verified to have the same type.
 func (mc Vm) equals(v, w values.Value) bool {
 	switch v.T {
-	case values.NULL:
-		return true
-	case values.INT:
-		return v.V.(int) == w.V.(int)
 	case values.BOOL:
 		return v.V.(bool) == w.V.(bool)
-	case values.RUNE:
-		return v.V.(rune) == w.V.(rune)
-	case values.STRING:
-		return v.V.(string) == w.V.(string)
 	case values.FLOAT:
 		return v.V.(float64) == w.V.(float64)
-	case values.TYPE:
-		return v.V.(values.AbstractType).Equals(w.V.(values.AbstractType))
+	case values.FUNC:
+		return false
+	case values.INT:
+		return v.V.(int) == w.V.(int)
+	case values.LABEL:
+		return v.V.(int) == w.V.(int)
+	case values.LIST:
+		return mc.listsAreEqual(v, w)
+	case values.MAP:
+		return mc.mapsAreEqual(v, w)
+	case values.NULL:
+		return true
 	case values.PAIR:
 		return mc.equals(v.V.([]values.Value)[0], w.V.([]values.Value)[0]) &&
 			mc.equals(v.V.([]values.Value)[1], w.V.([]values.Value)[1])
-	case values.LIST:
-		return mc.listsAreEqual(v, w)
-	case values.LABEL:
-		return v.V.(int) == w.V.(int)
+	case values.RUNE:
+		return v.V.(rune) == w.V.(rune)
 	case values.SET:
 		return mc.setsAreEqual(v, w)
-	case values.MAP:
-		return mc.mapsAreEqual(v, w)
-	case values.FUNC:
-		return false
+	case values.STRING:
+		return v.V.(string) == w.V.(string)
+	case values.TUPLE:
+		vVals := v.V.([]values.Value)
+		wVals := w.V.([]values.Value)
+		if len(vVals) != len(wVals) {
+			return false
+		}
+		for i, val := range vVals {
+			if !mc.equals(val, wVals[i]) {
+				return false
+			}
+		}
+		return true
+	case values.TYPE:
+		return v.V.(values.AbstractType).Equals(w.V.(values.AbstractType))
 	}
 	switch typeInfo := mc.concreteTypeInfo[v.T].(type) {
 	case cloneType :

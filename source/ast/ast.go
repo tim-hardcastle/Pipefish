@@ -78,6 +78,28 @@ func (bi *BuiltInExpression) Children() []Node       { return []Node{} }
 func (bi *BuiltInExpression) GetToken() *token.Token { return &bi.Token }
 func (bi *BuiltInExpression) String() string         { return "builtin \"" + bi.Name + "\"" }
 
+type ComparisonExpression struct {
+	Token    token.Token
+	Left     Node
+	Operator string
+	Right    Node
+}
+
+// For `==` and `!=`.
+func (ce *ComparisonExpression) Children() []Node       { return []Node{ce.Left, ce.Right} }
+func (ce *ComparisonExpression) GetToken() *token.Token { return &ce.Token }
+func (ce *ComparisonExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(ce.Left.String())
+	out.WriteString(" " + ce.Operator + " ")
+	out.WriteString(ce.Right.String())
+	out.WriteString(")")
+
+	return out.String()
+}
+
 type FloatLiteral struct {
 	Token token.Token
 	Value float64

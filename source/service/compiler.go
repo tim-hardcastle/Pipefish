@@ -1216,6 +1216,16 @@ NodeTypeSwitch:
 		cp.Reserve(values.BOOL, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.BOOL), true
 		break
+	case *ast.ComparisonExpression:
+		if node.Operator == "==" {
+			rtnTypes, rtnConst = cp.emitEquals(node, ctxt.x())
+			break
+		}
+		if node.Operator == "!=" {
+			rtnTypes, rtnConst = cp.emitEquals(node, ctxt.x())
+			cp.put(Notb, cp.That())
+			break
+		}
 	case *ast.FloatLiteral:
 		cp.Reserve(values.FLOAT, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
@@ -1485,15 +1495,6 @@ NodeTypeSwitch:
 		}
 		if node.Operator == "," {
 			rtnTypes, rtnConst = cp.emitComma(node, ctxt.x())
-			break
-		}
-		if node.Operator == "==" {
-			rtnTypes, rtnConst = cp.emitEquals(node, ctxt.x())
-			break
-		}
-		if node.Operator == "!=" {
-			rtnTypes, rtnConst = cp.emitEquals(node, ctxt.x())
-			cp.put(Notb, cp.That())
 			break
 		}
 		cp.P.Throw("comp/known/infix", node.GetToken())
@@ -3064,14 +3065,14 @@ func (cp *Compiler) getTypes(s signature, i int) AlternateType {
 	}
 }
 
-func (cp *Compiler) emitEquals(node *ast.InfixExpression, ctxt context) (AlternateType, bool) {
-	lTypes, lcst := cp.CompileNode(node.Args[0], ctxt.x())
+func (cp *Compiler) emitEquals(node *ast.ComparisonExpression, ctxt context) (AlternateType, bool) {
+	lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 	if lTypes.isOnly(values.ERROR) {
 		cp.P.Throw("comp/error/eq/a", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	leftRg := cp.That()
-	rTypes, rcst := cp.CompileNode(node.Args[2], ctxt.x())
+	rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
 	if rTypes.isOnly(values.ERROR) {
 		cp.P.Throw("comp/error/eq/b", node.GetToken())
 		return AltType(values.ERROR), true

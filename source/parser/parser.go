@@ -526,6 +526,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseNamespaceExpression(leftExp)
 			case p.curToken.Type == token.FOR:
 				leftExp = p.parseForAsInfix(leftExp) // For the (usual) case where the 'for' is inside a 'from' and the leftExp is, or should be, the bound variables of the loop.
+			case p.curToken.Type == token.EQ || p.curToken.Type == token.NOT_EQ :
+				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				p.pushRParser(resolvingParser)
 				leftExp = p.parseInfixExpression(leftExp)
@@ -1120,10 +1122,20 @@ func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
 	return expression
 }
 
-// The only difference between this and parseInfixExpression is the return type,
-// which will later be used to help the evaluator.
 func (p *Parser) parseLazyInfixExpression(left ast.Node) ast.Node {
 	expression := &ast.LazyInfixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
+	return expression
+}
+
+func (p *Parser) parseComparisonExpression(left ast.Node) ast.Node {
+	expression := &ast.ComparisonExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
 		Left:     left,
