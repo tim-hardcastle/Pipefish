@@ -4,31 +4,66 @@ Person = struct(name string, age int)
 
 Color = enum RED, GREEN, BLUE
 
-Qux = clone int
+FloatClone = clone float 
+IntClone = clone int
+ListClone = clone list 
+MapClone = clone map 
+PairClone = clone pair 
+RuneClone = clone rune 
+SetClone = clone set 
+StringClone = clone string 
 
 def
 
-boo(x bool) : golang {
+boolTest(x bool) : golang {
     return !x
 }
 
-foo(x float) : golang {
+floatTest(x float) : golang {
     return x
 }
 
-ioo(x int) : golang {
+intTest(x int) : golang {
     return double(x)
 }
 
-soo(x string) : golang {
+stringTest(x string) : golang {
     return x
 }
 
-coo(x Color) : golang {
+enumTest(x Color) : golang {
     return x
 }
 
-qoo(x Qux) : golang {
+floatCloneTest(x FloatClone) : golang {
+    return x
+}
+
+intCloneTest(x IntClone) : golang {
+    return x
+}
+
+listCloneTest(x ListClone) : golang {
+    return x
+}
+
+mapCloneTest(x MapClone) : golang {
+    return x
+}
+
+pairCloneTest(x PairClone) : golang {
+    return x
+}
+
+runeCloneTest(x RuneClone) : golang {
+    return x
+}
+
+setCloneTest(x SetClone) : golang {
+    return x
+}
+
+stringCloneTest(x StringClone) : golang {
     return x
 }
 

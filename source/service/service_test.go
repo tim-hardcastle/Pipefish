@@ -307,14 +307,22 @@ func TestGocode(t *testing.T) {
 		return
 	}
 	tests := []TestItem{
-		{`boo true`, `false`},
-		{`foo 4.2`, `4.20000000`},
-		{`ioo 42`, `84`},
-		{`soo "aardvark"`, `"aardvark"`},
-		{`coo BLUE`, `BLUE`},
-		{`qoo Qux(5)`, `Qux(5)`},
+		{`boolTest true`, `false`},
+		{`float 4.2`, `4.20000000`},
+		{`intTest 42`, `84`},
+		{`stringTest "aardvark"`, `"aardvark"`},
+		{`enumTest BLUE`, `BLUE`},
+		{`intCloneTest IntClone(5)`, `IntClone(5)`},
 		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
 		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
+		{`floatCloneTest(FloatClone(4.2)) == FloatClone(4.2)`, `true`},
+		{`intCloneTest(IntClone(42)) == IntClone(42)`, `true`},
+		{`listCloneTest(ListClone([1, 2])) == ListClone([1, 2])`, `true`},
+		{`mapCloneTest(MapClone(map(1::2, 3::4))) == MapClone(map(1::2, 3::4))`, `true`},
+		{`pairCloneTest(PairClone(1::2)) == PairClone(1::2)`, `true`},
+		{`runeCloneTest(RuneClone('q')) == RuneClone('q')`, `true`},
+		{`setCloneTest(SetClone(set(1, 2))) == SetClone(set(1, 2))`, `true`},
+		{`stringCloneTest(StringClone("zort")) == StringClone("zort")`, `true`},
 	}
 	currentDirectory, _ := os.Getwd()
 	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
