@@ -362,7 +362,7 @@ func TestClones(t *testing.T) {
 	tests := []TestItem{
 		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
 		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
-		{`IntClone(42) == FloatClone(42)`, `true`},
+		{`IntClone(42) == IntClone(42)`, `true`},
 		{`IntClone(42) == IntClone(99)`, `false`},
 		{`ListClone([1, 2]) == ListClone([1, 2])`, `true`},
 		{`ListClone([1, 2]) == ListClone([1, 3])`, `false`},
@@ -378,10 +378,8 @@ func TestClones(t *testing.T) {
 		{`SetClone(1, 2) == SetClone(1, 2)`, `true`},
 		{`SetClone(1, 2) == SetClone(1, 3)`, `false`},
 		{`SetClone(1, 2) == SetClone(1, 2, 3)`, `false`},
-		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
-		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
-		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
-		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
+		{`StringClone("aardvark") == StringClone("aardvark")`, `true`},
+		{`StringClone("aardvark") == StringClone("zebra")`, `false`},
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
 	RunTest(t, "clone_test.pf", tests, testValues)
