@@ -10,7 +10,6 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 )
 
-// How the vm performs conversion at runtime.
 func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 	switch v.T {
 	case values.LIST:
@@ -76,7 +75,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 	constructor := vm.goConverter[v.T]
 	if constructor != nil {
 		typeInfo := vm.concreteTypeInfo[v.T]
-		switch typeInfo.(type) {
+		switch typeInfo := typeInfo.(type) {
 		case builtinType :
 			return constructor(uint32(v.T), v.V), true
 		case enumType :
@@ -93,7 +92,60 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 			}
 			return constructor(uint32(v.T), gVals), true
 		case cloneType :
-			return constructor(uint32(v.T), v.V), true
+			switch typeInfo.parent {
+			case values.FLOAT, values.INT, values.RUNE, values.STRING:
+				return constructor(uint32(v.T), v.V), true
+			case values.LIST:
+				result := []any{}
+				for it := v.V.(vector.Vector).Iterator(); it.HasElem(); it.Next() {
+					pfEl := it.Elem()
+					goEl, ok := vm.pipefishToGo(pfEl.(values.Value))
+					if !ok {
+						return goEl, false
+					}
+					result = append(result, goEl)
+				}
+				return constructor(uint32(v.T), result), true
+			case values.MAP :
+				result := map[any]any{}
+				mapAsSlice := v.V.(*values.Map).AsSlice()
+				for _, pair := range mapAsSlice {
+					goKey, ok := vm.pipefishToGo(pair.Key)
+					if !ok {
+						return goKey, false
+					}
+					goVal, ok := vm.pipefishToGo(pair.Val)
+					if !ok {
+						return goVal, false
+					}
+					result[goKey] = goVal
+				}
+				return constructor(uint32(v.T), result), true
+			case values.PAIR :
+				leftPf := v.V.([]any)[0].(values.Value)
+				leftGo, ok := vm.pipefishToGo(leftPf)
+				if !ok {
+					return leftGo, false
+				}
+				rightPf := v.V.([]any)[1].(values.Value)
+				rightGo, ok := vm.pipefishToGo(rightPf)
+				if !ok {
+					return rightGo, false
+				}
+				return constructor(uint32(v.T), [2]any{leftGo, rightGo}), true
+			case values.SET:
+				result := map[any]struct{}{}
+				setAsSlice := v.V.(values.Set).AsSlice()
+				for _, pfEl := range setAsSlice {
+					goEl, ok := vm.pipefishToGo(pfEl)
+					if !ok {
+						return goEl, false
+					}
+					result[goEl] = struct{}{}
+				}
+				return constructor(uint32(v.T), result), true
+			}
+
 		}
 	}
 	return v, false  // So if it comes back false, we know which Pipefish value was the culprit.
