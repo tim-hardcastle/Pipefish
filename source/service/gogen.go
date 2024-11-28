@@ -34,11 +34,7 @@ func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes d
 	for name := range userDefinedTypes {
 		switch typeInfo := cp.typeInfoNow(name).(type) {
 		case cloneType :
-			goType, ok := cloneConv[typeInfo.parent]
-			if !ok {
-				cp.Throw("golang/ungoable/a", token.Token{Source: "golang interop"})
-				continue
-			}
+			goType := cloneConv[typeInfo.parent]
 			fmt.Fprint(sb, "type ", name, " ", goType, "\n\n")
 		case enumType :
 			firstEnumElement := typeInfo.elementNames[0]
@@ -96,8 +92,10 @@ var cloneConv = map[values.ValueType]string{
 	values.FLOAT:  "float64",
 	values.INT:    "int",
 	values.LIST:   "[]any",
-	values.PAIR:   "[]any",
-	values.SET:    "[]any",
+	values.MAP:    "map[any]any",
+	values.PAIR:   "[2]any",
+	values.RUNE:   "rune",
+	values.SET:    "map[any]struct{}",
 	values.STRING: "string",
 }
 
