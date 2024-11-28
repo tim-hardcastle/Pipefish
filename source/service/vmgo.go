@@ -215,7 +215,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					}
 					pfMap = pfMap.Set(pfKey, pfEl)
 				}
-			return values.Value{values.MAP, pfMap}
+			return values.Value{values.ValueType(uint32Type), pfMap}
 			case values.PAIR :
 				goPair := goValue.Convert(reflect.TypeFor[[2]any]()).Interface().([2]any)
 				leftEl := vm.goToPipefish(reflect.ValueOf(goPair[0]))
