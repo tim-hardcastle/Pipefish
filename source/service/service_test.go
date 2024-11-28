@@ -360,6 +360,28 @@ func TestRef(t *testing.T) {
 }
 func TestClones(t *testing.T) {
 	tests := []TestItem{
+		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
+		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
+		{`IntClone(42) == FloatClone(42)`, `true`},
+		{`IntClone(42) == IntClone(99)`, `false`},
+		{`ListClone([1, 2]) == ListClone([1, 2])`, `true`},
+		{`ListClone([1, 2]) == ListClone([1, 3])`, `false`},
+		{`ListClone([1, 2]) == ListClone([1, 2, 3])`, `false`},
+		{`MapClone(map(1::2, 3::4)) == MapClone(map(3::4, 1::2))`, `true`},
+		{`MapClone(map(1::2, 3::4)) == MapClone(map(1::2, 3::5))`, `false`},
+		{`MapClone(map(1::2, 3::4)) == MapClone(map(1::2, 3::4, 5::6))`, `false`},
+		{`PairClone(1::2) == PairClone(1::2)`, `true`},
+		{`PairClone(1::2) == PairClone(2::2)`, `false`},
+		{`PairClone(1::2) == PairClone(1::1)`, `false`},
+		{`RuneClone('a') == RuneClone('a')`, `true`},
+		{`RuneClone('a') == RuneClone('z')`, `false`},
+		{`SetClone(1, 2) == SetClone(1, 2)`, `true`},
+		{`SetClone(1, 2) == SetClone(1, 3)`, `false`},
+		{`SetClone(1, 2) == SetClone(1, 2, 3)`, `false`},
+		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
+		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
+		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
+		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
 	RunTest(t, "clone_test.pf", tests, testValues)
