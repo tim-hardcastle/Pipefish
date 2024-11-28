@@ -1580,36 +1580,40 @@ func (mc Vm) equals(v, w values.Value) bool {
 		return mc.equals(v.V.([]values.Value)[0], w.V.([]values.Value)[0]) &&
 			mc.equals(v.V.([]values.Value)[1], w.V.([]values.Value)[1])
 	case values.LIST:
-		K := v.V.(vector.Vector)
-		L := w.V.(vector.Vector)
-		lth := K.Len()
-		if L.Len() != lth {
-			return false
-		}
-		for i := 0; i < lth; i++ {
-			kEl, _ := K.Index(i)
-			lEl, _ := L.Index(i)
-			if kEl.(values.Value).T != lEl.(values.Value).T {
-				return false
-			}
-			if !mc.equals(kEl.(values.Value), lEl.(values.Value)) {
-				return false
-			}
-		}
-		return true
+		return mc.listsAreEqual(v, w)
 	case values.LABEL:
 		return v.V.(int) == w.V.(int)
 	case values.SET:
-
+		return mc.setsAreEqual(v, w)
 	case values.MAP:
-
+		return mc.mapsAreEqual(v, w)
 	case values.FUNC:
 		return false
 	}
-	if mc.concreteTypeInfo[v.T].isEnum() {
+	switch typeInfo := mc.concreteTypeInfo[v.T].(type) {
+	case cloneType :
+		switch typeInfo.parent {
+		case values.FLOAT :
+			return v.V.(float64) == w.V.(float64)
+		case values.INT :
+			return v.V.(int) == w.V.(int)
+		case values.LIST :
+			return mc.listsAreEqual(v, w)
+		case values.MAP :
+			return mc.mapsAreEqual(v, w)
+		case values.PAIR :
+			return mc.equals(v.V.([]values.Value)[0], w.V.([]values.Value)[0]) &&
+			mc.equals(v.V.([]values.Value)[1], w.V.([]values.Value)[1])
+		case values.RUNE :
+			return v.V.(rune) == w.V.(rune)
+		case values.SET :
+			return mc.setsAreEqual(v, w)
+		case values.STRING :
+			return v.V.(string) == w.V.(string)
+		}
+	case enumType :
 		return v.V.(int) == w.V.(int)
-	}
-	if mc.concreteTypeInfo[v.T].isStruct() {
+	case structType :
 		for i, v := range v.V.([]values.Value) {
 			if !mc.equals(v, w.V.([]values.Value)[i]) {
 				return false
@@ -1618,6 +1622,56 @@ func (mc Vm) equals(v, w values.Value) bool {
 		return true
 	}
 	panic("Wut?")
+}
+
+func (vm *Vm) listsAreEqual(v, w values.Value) bool {
+	K := v.V.(vector.Vector)
+	L := w.V.(vector.Vector)
+	lth := K.Len()
+	if L.Len() != lth {
+		return false
+	}
+	for i := 0; i < lth; i++ {
+		kEl, _ := K.Index(i)
+		lEl, _ := L.Index(i)
+		if kEl.(values.Value).T != lEl.(values.Value).T {
+			return false
+		}
+		if !vm.equals(kEl.(values.Value), lEl.(values.Value)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (vm *Vm) mapsAreEqual(v, w values.Value) bool {
+	mapV := v.V.(*values.Map)
+	mapW := w.V.(*values.Map)
+	if mapV.Len() != mapW.Len() {
+		return false
+	}
+	sl := mapV.AsSlice()
+	for _, pair := range sl {
+		if val, ok := mapW.Get(pair.Key); !ok || pair.Val != val {
+			return false
+		}
+	}
+	return true
+}
+
+func (vm *Vm) setsAreEqual(v, w values.Value) bool {
+	setV := v.V.(values.Set)
+	setW := w.V.(values.Set)
+	if setV.Len() != setW.Len() {
+		return false
+	}
+	sl := setV.AsSlice()
+	for _, el := range sl {
+		if !setW.Contains(el) {
+			return false
+		}
+	}
+	return true
 }
 
 func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value, errTok uint32) values.Value {
