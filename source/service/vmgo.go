@@ -192,7 +192,8 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				return values.Value{values.ValueType(uint32Type), rune(reflect.ValueOf(someGoDatum).Int())}
 			case values.LIST:
 				vec := vector.Empty
-				for _, goElement := range someGoDatum.([]any) {
+				goList := goValue.Convert(reflect.TypeFor[[]any]()).Interface().([]any)
+				for _, goElement := range goList {
 					pipefishElement := vm.goToPipefish(reflect.ValueOf(goElement))
 					if pipefishElement.T == values.UNDEFINED_VALUE {
 						return pipefishElement
@@ -200,11 +201,23 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					vec = vec.Conj(pipefishElement)
 				}
 				return values.Value{values.ValueType(uint32Type), vec}
-			case values.PAIR :
-				goPair := someGoDatum.([]any)
-				if len(goPair) != 2 {
-					return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/pair/b", uint32Type, len(goPair)}}
+			case values.MAP :
+				goMap := goValue.Convert(reflect.TypeFor[map[any]any]()).Interface().(map[any]any)
+				pfMap := &values.Map{}
+				for goKey, goEl := range goMap {
+					pfKey := vm.goToPipefish(reflect.ValueOf(goKey))
+					if pfKey.T == values.UNDEFINED_VALUE {
+						return pfKey
+					}
+					pfEl := vm.goToPipefish(reflect.ValueOf(goEl))
+					if pfEl.T == values.UNDEFINED_VALUE {
+						return pfEl
+					}
+					pfMap = pfMap.Set(pfKey, pfEl)
 				}
+			return values.Value{values.MAP, pfMap}
+			case values.PAIR :
+				goPair := goValue.Convert(reflect.TypeFor[[2]any]()).Interface().([2]any)
 				leftEl := vm.goToPipefish(reflect.ValueOf(goPair[0]))
 				if leftEl.T == values.UNDEFINED_VALUE {
 					return leftEl
@@ -216,7 +229,8 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				return values.Value{values.ValueType(uint32Type), []values.Value{leftEl, rightEl}}
 			case values.SET :
 				pfSet := values.Set{}
-				for _, el := range someGoDatum.([]any) {
+				goSet := goValue.Convert(reflect.TypeFor[map[any]struct{}]()).Interface().(map[any]struct{})
+				for el := range goSet {
 					pfEl := vm.goToPipefish(reflect.ValueOf(el))
 					if pfEl.T == values.UNDEFINED_VALUE {
 						return pfEl
