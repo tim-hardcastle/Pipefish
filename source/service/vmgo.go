@@ -263,7 +263,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			goElement := goValue.Index(i)
 			pfElement := vm.goToPipefish(goElement)
 			if pfElement.T == values.UNDEFINED_VALUE || pfElement.T == values.ERROR {
-				println("Slice builder got error from", goElement)
+				println("Slice builder got error from element of type", goValue.Type().String())
 				return pfElement
 			}
 			vec = vec.Conj(pfElement)
