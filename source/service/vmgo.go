@@ -255,6 +255,8 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		return values.Value{values.TUPLE, result}
 	}
 	switch  {
+	case goValue.IsNil() :
+		return values.Value{values.NULL, nil}
 	case goValue.Kind() == reflect.Slice || goValue.Kind() == reflect.Array && goValue.Len() != 2 : // 2 is pairs.
 		vec := vector.Empty
 		for i := 0; i < goValue.Len(); i++ {
