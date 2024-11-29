@@ -151,7 +151,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
-	if goValue.IsNil() {
+	if goValue.Kind() == reflect.Pointer && goValue.IsNil() {
 		if goValue.Type() == reflect.TypeFor[error]() {
 			return values.Value{values.SUCCESSFUL_VALUE, nil}
 		}
