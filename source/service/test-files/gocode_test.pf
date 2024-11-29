@@ -15,6 +15,14 @@ StringClone = clone string
 
 def
 
+anyTest(x any) : golang {
+    return x
+}
+
+variadicAnyTest(x int, y ...any) : golang {
+    return y[x]
+}
+
 boolTest(x bool) : golang {
     return !x
 }
