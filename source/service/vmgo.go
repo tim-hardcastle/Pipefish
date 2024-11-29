@@ -153,7 +153,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 	someGoDatum := goValue.Interface()
-	println("Converting Go value of type", reflect.TypeOf(someGoDatum), someGoDatum)
+	println("Converting Go value of type", reflect.TypeOf(someGoDatum).String(), someGoDatum)
 	uint32Type, ok := vm.goToPipefishTypes[goValue.Type()]
 	if ok {
 		pipefishType := values.ValueType(uint32Type)
