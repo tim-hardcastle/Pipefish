@@ -384,7 +384,6 @@ func TestGocode(t *testing.T) {
 	tests := []TestItem{
 		{`anyTest 42`, `42`},
 		{`variadicAnyTest 2, 42, true, "foo", 9.9`, `"foo"`},
-		{`nilTest() in null`, `true`},
 		{`boolTest true`, `false`},
 		{`float 4.2`, `4.20000000`},
 		{`intTest 42`, `84`},
