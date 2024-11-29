@@ -123,7 +123,11 @@ func (cp *Compiler) generateGoFunctionCode(sb *strings.Builder, function *ast.Pr
 	cp.printSig(sb, function.NameSig, *function.Tok)
 	switch len(function.NameRets) {
 	case 0 :
-		fmt.Fprint(sb, "any ")
+		if function.Cmd {
+			fmt.Fprint(sb, "error ")
+		} else {
+			fmt.Fprint(sb, "any ")
+		}
 	case 1 :
 		fmt.Fprint(sb, function.NameRets[0].VarType, " ")
 	default :
