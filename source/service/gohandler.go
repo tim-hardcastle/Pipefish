@@ -176,10 +176,9 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	// We extract all the types we're going to need to declare.
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range cp.goBucket.functions[source] {
-
 		for _, v := range function.NameSig {
-			if !cp.isBuiltin(v.VarType) {
-				userDefinedTypes.Add(v.VarType)
+			if !cp.isBuiltin(text.WithoutDots(v.VarType)) {
+				userDefinedTypes.Add(text.WithoutDots(v.VarType))
 			}
 		}
 		for _, v := range function.NameRets {

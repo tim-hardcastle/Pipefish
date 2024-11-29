@@ -380,3 +380,11 @@ func Head(s, substr string) bool {
 	}
 	return s[:len(substr)] == substr
 }
+
+func WithoutDots(s string) string {
+	if Head(s, "...") {
+		return s[3:]
+	} else {
+		return s
+	}
+}
