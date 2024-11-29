@@ -99,7 +99,7 @@ var cloneConv = map[values.ValueType]string{
 	values.STRING: "string",
 }
 
-// This is also auxillary to 'generateDeclarations'. It produces the names of the
+// This is auxillary to 'generateDeclarations'. It produces the names of the
 // field types in the struct declarations generated for the Go code.
 // This produces the names of the field types in the struct declarations generated for the Go code.
 func (cp *Compiler) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
