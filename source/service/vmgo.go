@@ -155,6 +155,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		return values.Value{values.NULL, nil}
 	}
 	if goValue.Kind() == reflect.Interface && goValue.IsNil() {
+		println("so far so good")
 		if goValue.Type() == reflect.TypeFor[error]() {
 			return values.Value{values.SUCCESSFUL_VALUE, nil}
 		}
