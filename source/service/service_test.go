@@ -303,56 +303,6 @@ func TestRecursion(t *testing.T) {
 	RunTest(t, "recursion_test.pf", tests, testValues)
 }
 
-func TestGocode(t *testing.T) {
-	if runtime.GOOS == "windows" { // WIndows can't use the plugin package.
-		return
-	}
-	tests := []TestItem{
-		{`boolTest true`, `false`},
-		{`float 4.2`, `4.20000000`},
-		{`intTest 42`, `84`},
-		{`listTest([1, 2])`, `[1, 2]`},
-		{`mapTest(map(1::2, 3::4) == map(1::2, 3::4)`, `true`},
-		{`pairTest(1::2) == 1::2`, `true`},
-		{`runeTest('q') == 'q'`, `true`},
-		{`setTest(set(1, 2)) == set(1, 2)`, `true`},
-		{`stringTest "aardvark"`, `"aardvark"`},
-		{`tupleTest(tuple(1, 2)) == [1, 2]`, `true`},
-		{`variadicTest(2, "fee", "fie", "fo", "fum") == "fo"`, `true`},
-		{`enumTest BLUE`, `BLUE`},
-		{`intCloneTest IntClone(5)`, `IntClone(5)`},
-		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
-		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
-		{`floatCloneTest(FloatClone(4.2)) == FloatClone(4.2)`, `true`},
-		{`intCloneTest(IntClone(42)) == IntClone(42)`, `true`},
-		{`listCloneTest(ListClone([1, 2])) == ListClone([1, 2])`, `true`},
-		{`mapCloneTest(MapClone(map(1::2, 3::4))) == MapClone(map(1::2, 3::4))`, `true`},
-		{`pairCloneTest(PairClone(1::2)) == PairClone(1::2)`, `true`},
-		{`runeCloneTest(RuneClone('q')) == RuneClone('q')`, `true`},
-		{`setCloneTest(SetClone(set(1, 2))) == SetClone(set(1, 2))`, `true`},
-		{`stringCloneTest(StringClone("zort")) == StringClone("zort")`, `true`},
-	}
-	currentDirectory, _ := os.Getwd()
-	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
-	locationOfGoTimes := absolutePathToRscGo + "/gotimes.dat"
-	temp, err := os.ReadFile(locationOfGoTimes)
-	if err != nil {
-		println("Couldn't read gotimes")
-		println("Error was", err.Error())
-		panic("That's all folks!")
-	}
-	RunTest(t, "gocode_test.pf", tests, testValues)
-	// Tear down the .go and .so files.
-	nameOfTestFile := "gocode_test.pf"
-	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../golang 1.go")
-	os.Remove(locationOfGocode)
-	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
-	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)
-	timestamp := file.ModTime().UnixMilli()
-	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
-	os.Remove(goTestFile)
-	os.WriteFile(locationOfGoTimes, temp, 0644)
-}
 func TestImports(t *testing.T) {
 	tests := []TestItem{
 		{`qux.square 5`, `25`},
@@ -407,7 +357,6 @@ func TestSnippet(t *testing.T) {
 	}
 	RunTest(t, "snippets_test.pf", tests, testValues)
 }
-
 func TestInterface(t *testing.T) {
 	tests := []TestItem{
 		{`BLERP in Addable`, `true`},
@@ -418,7 +367,6 @@ func TestInterface(t *testing.T) {
 	}
 	RunTest(t, "interface_test.pf", tests, testValues)
 }
-
 func TestFunctionSharing(t *testing.T) {
 	tests := []TestItem{
 		{`C(1, 2) in Addable`, `true`},
@@ -428,4 +376,54 @@ func TestFunctionSharing(t *testing.T) {
 		{`summer.rotAll [C(1, 2), C(3, 4)]`, `[C with (real::-2, imaginary::1), C with (real::-4, imaginary::3)]`},
 	}
 	RunTest(t, "function_sharing_test.pf", tests, testValues)
+}
+func TestGocode(t *testing.T) {
+	if runtime.GOOS == "windows" { // WIndows can't use the plugin package.
+		return
+	}
+	tests := []TestItem{
+		{`boolTest true`, `false`},
+		{`float 4.2`, `4.20000000`},
+		{`intTest 42`, `84`},
+		{`listTest([1, 2])`, `[1, 2]`},
+		{`mapTest(map(1::2, 3::4) == map(1::2, 3::4)`, `true`},
+		{`pairTest(1::2) == 1::2`, `true`},
+		{`runeTest('q') == 'q'`, `true`},
+		{`setTest(set(1, 2)) == set(1, 2)`, `true`},
+		{`stringTest "aardvark"`, `"aardvark"`},
+		{`tupleTest(tuple(1, 2)) == [1, 2]`, `true`},
+		{`variadicTest(2, "fee", "fie", "fo", "fum") == "fo"`, `true`},
+		{`enumTest BLUE`, `BLUE`},
+		{`intCloneTest IntClone(5)`, `IntClone(5)`},
+		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
+		{`deconstructPerson Person "Doug", 42`, `("Doug", 42)`},
+		{`floatCloneTest(FloatClone(4.2)) == FloatClone(4.2)`, `true`},
+		{`intCloneTest(IntClone(42)) == IntClone(42)`, `true`},
+		{`listCloneTest(ListClone([1, 2])) == ListClone([1, 2])`, `true`},
+		{`mapCloneTest(MapClone(map(1::2, 3::4))) == MapClone(map(1::2, 3::4))`, `true`},
+		{`pairCloneTest(PairClone(1::2)) == PairClone(1::2)`, `true`},
+		{`runeCloneTest(RuneClone('q')) == RuneClone('q')`, `true`},
+		{`setCloneTest(SetClone(set(1, 2))) == SetClone(set(1, 2))`, `true`},
+		{`stringCloneTest(StringClone("zort")) == StringClone("zort")`, `true`},
+	}
+	currentDirectory, _ := os.Getwd()
+	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
+	locationOfGoTimes := absolutePathToRscGo + "/gotimes.dat"
+	temp, err := os.ReadFile(locationOfGoTimes)
+	if err != nil {
+		println("Couldn't read gotimes")
+		println("Error was", err.Error())
+		panic("That's all folks!")
+	}
+	RunTest(t, "gocode_test.pf", tests, testValues)
+	// Tear down the .go and .so files.
+	nameOfTestFile := "gocode_test.pf"
+	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../golang 1.go")
+	os.Remove(locationOfGocode)
+	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
+	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)
+	timestamp := file.ModTime().UnixMilli()
+	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
+	os.Remove(goTestFile)
+	os.WriteFile(locationOfGoTimes, temp, 0644)
 }
