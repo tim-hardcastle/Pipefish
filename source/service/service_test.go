@@ -302,6 +302,7 @@ func TestRecursion(t *testing.T) {
 	}
 	RunTest(t, "recursion_test.pf", tests, testValues)
 }
+
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // WIndows can't use the plugin package.
 		return
@@ -310,7 +311,14 @@ func TestGocode(t *testing.T) {
 		{`boolTest true`, `false`},
 		{`float 4.2`, `4.20000000`},
 		{`intTest 42`, `84`},
+		{`listTest([1, 2]) == [1, 2]`, `true`},
+		{`mapTest(map(1::2, 3::4) == map(1::2, 3::4)`, `true`},
+		{`pairTest(1::2) == 1::2`, `true`},
+		{`runeTest('q') == 'q'`, `true`},
+		{`setTest(set(1, 2)) == set(1, 2)`, `true`},
 		{`stringTest "aardvark"`, `"aardvark"`},
+		{`tupleTest(tuple(1, 2)) == [1, 2]`, `true`},
+		{`variadicTest(2, "fee", "fie", "fo", "fum") == "fo"`, `true`},
 		{`enumTest BLUE`, `BLUE`},
 		{`intCloneTest IntClone(5)`, `IntClone(5)`},
 		{`constructPerson "Doug", 42`, `Person with (name::"Doug", age::42)`},
