@@ -152,10 +152,12 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
+	println("Converting Go value of type", goValue.Type().String, goValue.Interface())
 	someGoDatum := goValue.Interface()
 	uint32Type, ok := vm.goToPipefishTypes[goValue.Type()]
 	if ok {
 		pipefishType := values.ValueType(uint32Type)
+		println("Found Pipefish type", vm.DescribeType(pipefishType, DEFAULT))
 		switch typeInfo := vm.concreteTypeInfo[uint32Type].(type) {
 		case builtinType :
 			switch pipefishType {
@@ -261,6 +263,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			goElement := goValue.Index(i)
 			pfElement := vm.goToPipefish(goElement)
 			if pfElement.T == values.UNDEFINED_VALUE || pfElement.T == values.ERROR {
+				println("Slice builder got error from", goElement)
 				return pfElement
 			}
 			vec = vec.Conj(pfElement)
