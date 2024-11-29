@@ -152,6 +152,12 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
+	if goValue.IsNil() {
+		if goValue.Type() == reflect.TypeFor[error]() {
+			return values.Value{values.SUCCESSFUL_VALUE, nil}
+		}
+		return values.Value{values.NULL, nil}
+	}
 	someGoDatum := goValue.Interface()
 	uint32Type, ok := vm.goToPipefishTypes[reflect.TypeOf(someGoDatum)]
 	if ok {
@@ -242,11 +248,6 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		}
 	}
 	switch someValue := someGoDatum.(type) {
-	case error:
-		if someValue == nil {
-			return values.Value{values.SUCCESSFUL_VALUE, nil}
-		}
-		return values.Value{values.ERROR, err.Error{ErrorId: "vm/go/runtime", Message: someValue.Error()}}
 	case goTuple:
 		result := make([]values.Value, 0, len(someValue))
 		for _, el := range someValue {
@@ -255,8 +256,6 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		return values.Value{values.TUPLE, result}
 	}
 	switch  {
-	case goValue.IsNil() :
-		return values.Value{values.NULL, nil}
 	case goValue.Kind() == reflect.Slice || goValue.Kind() == reflect.Array && goValue.Len() != 2 : // 2 is pairs.
 		vec := vector.Empty
 		for i := 0; i < goValue.Len(); i++ {
