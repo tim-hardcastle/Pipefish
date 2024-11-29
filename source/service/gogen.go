@@ -168,6 +168,7 @@ func getGoType(pfType string) (string, bool) {
 
 var goTypes = map[string]string{
 	"any": "any",
+	"any?": "any",
 	"float": "float64",
 	"label": "!",
 	"list": "[]any",

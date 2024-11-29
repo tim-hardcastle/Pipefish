@@ -176,7 +176,7 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range cp.goBucket.functions[source] {
 		for _, v := range function.NameSig {
-			if !cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" {
+			if !cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any"  && text.WithoutDots(v.VarType) != "any?" {
 				userDefinedTypes.Add(text.WithoutDots(v.VarType))
 			}
 		}
