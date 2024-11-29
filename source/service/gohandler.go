@@ -129,8 +129,6 @@ func (cp *Compiler) compileGo() {
 				if text.Head(pair.VarType, "...") {
 					if i < function.NameSig.Len() - 1{
 						cp.Throw("go/variadic", *function.Tok)
-					} else {
-						function.Body.(*ast.GolangExpression).Variadic = true
 					}
 				}
 			}

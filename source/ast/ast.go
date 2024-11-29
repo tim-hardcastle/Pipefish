@@ -168,7 +168,6 @@ func (fe *FuncExpression) String() string {
 type GolangExpression struct {
 	Token       token.Token
 	GoFunction  reflect.Value
-	Variadic    bool
 	Sig         StringSig // TODO --- there's no reason why this and the following should be in a runtime object.
 	ReturnTypes StringSig
 }

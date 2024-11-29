@@ -85,7 +85,6 @@ type vmState struct {
 
 type GoFn struct {
 	Code reflect.Value
-	Variadic bool
 }
 
 type Lambda struct {
@@ -487,7 +486,7 @@ loop:
 		case Gofn:
 			F := vm.GoFns[args[2]]
 			goTpl := make([]reflect.Value, 0, len(args))
-			for _, v := range args[3:] {
+			for _, v := range args[3:] { // TODO --- how can this be right? Surely they should be stored in a TUPLE.
 				el := vm.Mem[v]
 				goVal, ok := vm.pipefishToGo(el)
 				if !ok {
@@ -499,12 +498,7 @@ loop:
 				goTpl = append(goTpl, reflect.ValueOf(goVal))
 			}
 			var goResultValues []reflect.Value
-			if F.Variadic {
-				println("Go function has ", F.Code.Type().NumIn() , "parameters, was supplied with ", len(goTpl))
-				goResultValues = F.Code.CallSlice(goTpl)
-			} else {
-				goResultValues = F.Code.Call(goTpl)
-			}
+			goResultValues = F.Code.Call(goTpl)
 			var doctoredValues any
 			if len(goResultValues) == 1 {
 				doctoredValues = goResultValues[0].Interface()
