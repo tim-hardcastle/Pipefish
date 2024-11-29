@@ -386,7 +386,7 @@ func TestGocode(t *testing.T) {
 		{`float 4.2`, `4.20000000`},
 		{`intTest 42`, `84`},
 		{`listTest([1, 2])`, `[1, 2]`},
-		{`mapTest(map(1::2, 3::4) == map(1::2, 3::4)`, `true`},
+		{`mapTest(map(1::2, 3::4)) == map(1::2, 3::4)`, `true`},
 		{`pairTest(1::2) == 1::2`, `true`},
 		{`runeTest('q') == 'q'`, `true`},
 		{`setTest(set(1, 2)) == set(1, 2)`, `true`},
