@@ -166,14 +166,15 @@ func getGoType(pfType string) (string, bool) {
 	return dots + pfType, true
 }
 
-
 var goTypes = map[string]string{
+	"any": "any",
 	"float": "float64",
 	"label": "!",
-	"list": "any[]",
-	"pair": "any[]",
-	"set": "any[]",
-	"tuple": "any[]",
+	"list": "[]any",
+	"map": "map[any]any",
+	"pair": "[2]any",
+	"set": "map[any]struct{}",
+	"tuple": "[]any",
 	"type": "!",
 }
 
