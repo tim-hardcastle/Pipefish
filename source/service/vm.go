@@ -500,6 +500,7 @@ loop:
 			}
 			var goResultValues []reflect.Value
 			if F.Variadic {
+				println("Go function has ", F.Code.Type().NumIn() , "parameters, was supplied with ", len(goTpl))
 				goResultValues = F.Code.CallSlice(goTpl)
 			} else {
 				goResultValues = F.Code.Call(goTpl)
