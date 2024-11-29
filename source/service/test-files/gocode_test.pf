@@ -23,10 +23,6 @@ variadicAnyTest(x int, y ...any) : golang {
     return y[x]
 }
 
-nilTest() : golang {
-    return nil
-}
-
 boolTest(x bool) : golang {
     return !x
 }

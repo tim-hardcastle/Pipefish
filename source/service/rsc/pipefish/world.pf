@@ -49,7 +49,7 @@ cmd
 
 goRandomize(i int) : golang {
     rand.Seed(int64(i))
-    return nil
+    return struct{}{}
 }
 
 put (seed int) into (randomizer RandomSeed) :
@@ -104,7 +104,7 @@ goDeleteFile(fname string) : golang {
     if err != nil {
         return errors.New("can't delete file '" + fname + "'")
     } else {
-        return nil
+        return struct{}{}
     }
 }
 
@@ -119,7 +119,7 @@ goPutStringInFile(output string, fname string) : golang {
     if err2 != nil {
         return errors.New("can't write to file '" + fname + "'")
     }
-    return nil
+    return struct{}{}
 }
 
 get (contents ref) from (fileAccess File) : 

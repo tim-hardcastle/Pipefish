@@ -70,6 +70,8 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 			result = append(result, goEl)
 		}
 		return result, true
+	case values.NULL :
+		return nil, true
 	}
 	constructor := vm.goConverter[v.T]
 	if constructor != nil {
@@ -151,14 +153,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
-	if goValue.Kind() == reflect.Invalid {     // We returned 'nil' to 'any'.
-		return values.Value{values.NULL, nil}
-	}
-	if goValue.Kind() == reflect.Interface && goValue.IsNil() {
-		println("so far so good")
-		if goValue.Type() == reflect.TypeFor[error]() {
-			return values.Value{values.SUCCESSFUL_VALUE, nil}
-		}
+	if goValue.Kind() == reflect.Invalid {     // We returned 'nil'.
 		return values.Value{values.NULL, nil}
 	}
 	someGoDatum := goValue.Interface()
