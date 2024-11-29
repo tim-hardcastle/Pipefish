@@ -172,10 +172,11 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	}
 
 	// We extract all the types we're going to need to declare.
+	// TODO --- do we need guards here on the types?
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range cp.goBucket.functions[source] {
 		for _, v := range function.NameSig {
-			if !cp.isBuiltin(text.WithoutDots(v.VarType)) {
+			if !cp.isBuiltin(text.WithoutDots(v.VarType)) && v.VarType != "any" {
 				userDefinedTypes.Add(text.WithoutDots(v.VarType))
 			}
 		}
