@@ -70,8 +70,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 			result = append(result, goEl)
 		}
 		return result, true
-	case values.NULL :
-		return nil, true
+
 	}
 	constructor := vm.goConverter[v.T]
 	if constructor != nil {

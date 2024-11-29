@@ -15,7 +15,7 @@ StringClone = clone string
 
 def
 
-anyTest(x any?) : golang {
+anyTest(x any) : golang {
     return x
 }
 

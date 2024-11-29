@@ -408,7 +408,6 @@ func TestGocode(t *testing.T) {
 		{`setCloneTest(SetClone(set(1, 2))) == SetClone(set(1, 2))`, `true`},
 		{`stringCloneTest(StringClone("zort")) == StringClone("zort")`, `true`},
 		{`commandTest`, `OK`},
-		{`anyTest NULL`, `NULL`},
 	}
 	currentDirectory, _ := os.Getwd()
 	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
