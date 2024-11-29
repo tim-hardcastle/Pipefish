@@ -123,7 +123,8 @@ golang {
 
 cmd 
 
-commandTest :
-    post "A big hello from Go!"
+commandTest : golang {
+    println("A big hello from Go!")
     return nil
+}
 
