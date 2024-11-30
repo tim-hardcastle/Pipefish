@@ -376,6 +376,33 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		return values.Value{values.INT, int(goValue.Int())}
 	case goValue.CanUint() :
 		return values.Value{values.INT, int(goValue.Uint())}
+	case goValue.Kind() == reflect.Func :
+		sig := []values.AbstractType{}
+		for i := 0; i < goValue.Type().NumIn(); i++ {
+			goType := goValue.Type().In(i)
+			uint32Type, ok := vm.goToPipefishTypes[goType]
+			pfType := values.ValueType(uint32Type)
+			if !ok {
+				switch { 
+				case goType.Kind() == reflect.Array && goType.Len() == 2 :
+					pfType = values.PAIR
+				case goType.Kind() == reflect.Slice || goType.Kind() == reflect.Array : 
+					pfType = values.LIST
+				case goType.Kind() == reflect.Map: // TODO --- if you can't put this information i goTPipefishTypes you could put it in another map.
+					rangeType := goValue.Type().Elem()
+					if rangeType.Kind() == reflect.Struct && rangeType.NumField() == 0 {
+						pfType = values.SET
+					} else {
+						pfType = values.MAP
+					}
+				default :
+					return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
+				}
+			}
+			sig = append(sig, values.AbstractType{Types: []values.ValueType{pfType}})
+		}
+		pfLambda := Lambda{gocode : goValue, sig : sig}
+		return values.Value{values.FUNC, pfLambda}
 	}
 	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
 }

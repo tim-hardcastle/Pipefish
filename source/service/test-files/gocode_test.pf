@@ -19,6 +19,15 @@ applyFunction(i int, f func) : golang {
 	return (f(i))[0]
 }
 
+multiplyBy(i int) : golang {
+    return (func(n int) int {return i*n})
+}
+
+multiply(x, y) :
+    f(y)
+given :
+    f = multiplyBy(x)
+
 anyTest(x any) : golang {
     return x
 }
