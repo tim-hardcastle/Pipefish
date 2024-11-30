@@ -1,6 +1,6 @@
 cmd
 
 main :
-    post($CLI_DIRECTORY)
-    post("Hello " + $CLI_ARGUMENTS[0] + "!")
+    post($cliDirectory)
+    post("Hello " + $cliArguments[0] + "!")
     
