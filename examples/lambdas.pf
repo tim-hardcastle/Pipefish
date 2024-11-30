@@ -5,6 +5,22 @@ add = func(x, y) :
 
 g = addN(5)
 
+condition = func (x, y) : x > 0
+
+
+foo = func(x int) :
+    x
+
+zort = func(x, y int) :
+    x + y
+
+const 
+
+
+
+
+action = func (x, y int) : x - 1, y * 2
+
 def
 
 addN (n) :             //  Look, a closure!
@@ -20,13 +36,10 @@ while (p) do (f) to (x tuple) :
     p x : while p do f to f x
     else : x
 
-condition = func (x, y) : x > 0
-action = func (x, y) : x - 1, y * 2
-
 multiplyBy(i int) : 
     func(n int) : i * n
 
-multiply(x, y) :
+multiply(x, y int) :
     f(y)
 given :
     f = multiplyBy(x)

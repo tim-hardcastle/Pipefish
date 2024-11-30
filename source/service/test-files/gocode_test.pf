@@ -23,7 +23,7 @@ multiplyBy(i int) : golang {
     return (func(n int) int {return i*n})
 }
 
-multiply(x, y) :
+multiply(x, y int) :
     f(y)
 given :
     f = multiplyBy(x)
