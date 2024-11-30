@@ -896,6 +896,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	return rtnTypes
 }
 
+// TODO --- this is inside out, we should construct the factory if we need it rather than throwing it
+// away if we don't.
 func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.FuncExpression, tok *token.Token) {
 	cp.cm("Compiling lambda", tok)
 	LF := &LambdaFactory{Model: &Lambda{}}

@@ -15,6 +15,10 @@ StringClone = clone string
 
 def
 
+func applyFunction(i int, f func) : golang {
+	return (f(i))[0]
+}
+
 anyTest(x any) : golang {
     return x
 }
