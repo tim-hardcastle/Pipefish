@@ -390,9 +390,11 @@ loop:
 				vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int)) / divisor}
 			}
 		case Dofn: 
+		println("Called Dofn")
 			lambda := vm.Mem[args[1]].V.(Lambda)
 			// The case where the lambda is from a Go function.
 			if lambda.gocode != nil {
+				println("We have gocode!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 				goArgs := []reflect.Value{}
 				for _, pfMemLoc := range args[2:] {
 					pfArg := vm.Mem[pfMemLoc]
