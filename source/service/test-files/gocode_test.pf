@@ -15,7 +15,7 @@ StringClone = clone string
 
 def
 
-func applyFunction(i int, f func) : golang {
+applyFunction(i int, f func) : golang {
 	return (f(i))[0]
 }
 
