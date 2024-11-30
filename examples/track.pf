@@ -6,7 +6,7 @@ Qux = struct(fnurg Fnurg)
 
 const
 
-$LOGGING = $Logging $ALL
+$logging = $Logging $ALL
 
 def
 

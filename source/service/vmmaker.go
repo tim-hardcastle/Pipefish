@@ -318,9 +318,9 @@ type serviceVariableData struct {
 }
 
 var serviceVariables = map[string]serviceVariableData{
-	"$LOGGING": {altType(), values.Value{}, true, GLOBAL_CONSTANT_PRIVATE}, // The values have to be extracted from the compiler.
-	"$CLI_DIRECTORY": {altType(values.STRING), values.Value{values.STRING, ""}, true, GLOBAL_CONSTANT_PUBLIC},
-	"$CLI_ARGUMENTS": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, GLOBAL_CONSTANT_PUBLIC},
+	"$logging":      {altType(), values.Value{}, true, GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
+	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, GLOBAL_VARIABLE_PRIVATE},
+	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, GLOBAL_VARIABLE_PRIVATE},
 }
 
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)

@@ -1642,7 +1642,7 @@ NodeTypeSwitch:
 	case *ast.LogExpression:
 		newCtxt := ctxt
 		ifRuntimeError := bkEarlyReturn(DUMMY)
-		if cp.getLoggingScope() != 0 { // Test that the logging hasn't been silenced by setting '$LOGGING = $OFF'.
+		if cp.getLoggingScope() != 0 { // Test that the logging hasn't been silenced by setting '$logging = $OFF'.
 			rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
 			// A a user-defined logging statement can contain arbitrary expressions in the |...| delimiters which we
 			// therefore need to compile like it was a snippet.
@@ -3596,7 +3596,7 @@ func (cp *Compiler) loggingOn(ctxt context) bool {
 }
 
 func (cp *Compiler) getLoggingScope() int {
-	fields := cp.getValueOfConstant("$LOGGING").([]values.Value)
+	fields := cp.getValueOfConstant("$logging").([]values.Value)
 	return fields[0].V.(int)
 }
 
@@ -3712,19 +3712,19 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 	cp.cm("Initializing service variables.", dummyTok)
-	// $LOGGING
+	// $logging
 	loggingOptionsType := values.ValueType(cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
 	loggingScopeType := values.ValueType(cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
 	val := values.Value{loggingOptionsType, []values.Value{{loggingScopeType, 1}}}
-	serviceVariables["$LOGGING"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
-	// $CLI_DIRECTORY
-	cliDirData := serviceVariables["$CLI_DIRECTORY"]
+	serviceVariables["$logging"] = serviceVariableData{altType(loggingOptionsType), val, true, GLOBAL_CONSTANT_PRIVATE}
+	// $cliDirectory
+	cliDirData := serviceVariables["$cliDirectory"]
 	dir, _ := os.Getwd()
 	cliDirData.deflt = values.Value{values.STRING, dir}
-	serviceVariables["$CLI_DIRECTORY"] = cliDirData
-	// $CLI_ARGUMENTS
+	serviceVariables["$cliDirectory"] = cliDirData
+	// $cliArguments
 	cliArgs := vector.Empty
-	if len(os.Args) >=2 {
+	if len(os.Args) >= 2 {
 		firstArg := 2
 		if os.Args[1] == "run" {
 			firstArg = 3
@@ -3735,9 +3735,9 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
-	cliArgsData := serviceVariables["$CLI_ARGUMENTS"]
+	cliArgsData := serviceVariables["$cliArguments"]
 	cliArgsData.deflt = values.Value{values.LIST, cliArgs}
-	serviceVariables["$CLI_ARGUMENTS"] = cliArgsData
+	serviceVariables["$cliArguments"] = cliArgsData
 
 	// Add variables to environment.
 	for svName, svData := range serviceVariables {
@@ -3827,7 +3827,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 // For calling `init` or `main`.
 func (cp *Compiler) CallIfExists(name string) values.Value {
 	tree, ok := cp.P.FunctionForest[name]
-	if !ok { 
+	if !ok {
 		return values.UNDEF
 	}
 	for _, t := range tree.Tree.Branch {
