@@ -200,7 +200,9 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	case values.UNSATISFIED_CONDITIONAL:
 		return "UNSATIFIED CONDITIONAL!"
 	case values.ITERATOR:
-		return "Iterator"
+		return "ITERATOR"
+	case values.REF :
+		return "REFERENCE VARIABLE"
 	}
 	println("Undescribable value", v.T)
 	panic("can't describe value")
