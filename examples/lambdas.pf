@@ -11,6 +11,9 @@ condition = func (x, y) : x > 0
 foo = func(x int) :
     x
 
+troz = func(x) :
+    x
+
 zort = func(x, y int) :
     x + y
 

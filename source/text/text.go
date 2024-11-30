@@ -109,6 +109,9 @@ const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
 	"  run <file>    Runs a Pipefish script if it has a 'main' command.\n\n"
 
 func DescribePos(token *token.Token) string {
+	if token == nil {
+		return ""
+	}
 	prettySource := token.Source
 	if prettySource == "" {
 		return ""
