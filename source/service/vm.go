@@ -441,7 +441,7 @@ loop:
 			if lambda.sig != nil {
 				for i, abType := range lambda.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
 					success = false
-					if abType.Types == nil {
+					if abType.Types == nil { // Used for `any?`.
 						success = true
 						continue
 					} else {

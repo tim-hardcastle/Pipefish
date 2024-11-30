@@ -909,21 +909,15 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 
 	// We get the function parameters. These shadow anything we might otherwise capture.
 	params := dtypes.Set[string]{}
-	checkNeeded := false
 	for _, pair := range nameSig {
 		params = params.Add(pair.VarName)
 		if pair.VarType == "any?" {
 			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
-			checkNeeded = true
 			LF.Model.sig = append(LF.Model.sig, cp.P.GetAbstractType(pair.VarType))
 		}
 	}
-	if checkNeeded {
-		LF.Model.tok = &fnNode.Token
-	} else {
-		LF.Model.sig = nil
-	}
+	LF.Model.tok = &fnNode.Token
 	captures := ast.GetVariableNames(fnNode)
 	for k := range captures {
 		if params.Contains(k) {
