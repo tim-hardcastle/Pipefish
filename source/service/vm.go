@@ -422,7 +422,6 @@ loop:
 					vm.Mem[args[0]] = values.Value{values.ERROR, newError}
 					break
 				}
-				panic("Val has Pipefish type " + vm.DescribeType(val.T, DEFAULT) + " and Go type " + reflect.TypeOf(val.V).String())
 				vm.Mem[args[0]] = val
 				break Switch
 			}

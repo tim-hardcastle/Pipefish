@@ -23,3 +23,11 @@ while (p) do (f) to (x tuple) :
 condition = func (x, y) : x > 0
 action = func (x, y) : x - 1, y * 2
 
+multiplyBy(i int) : 
+    func(n int) : i * n
+
+multiply(x, y) :
+    f(y)
+given :
+    f = multiplyBy(x)
+
