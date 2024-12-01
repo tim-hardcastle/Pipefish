@@ -211,6 +211,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
+	println("Called goToPipefish.")
 	if goValue.Kind() == reflect.Invalid {     // We returned 'nil'.
 		return values.Value{values.NULL, nil}
 	}
@@ -377,6 +378,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 	case goValue.CanUint() :
 		return values.Value{values.INT, int(goValue.Uint())}
 	case goValue.Kind() == reflect.Func :
+		println("Found func")
 		sig := []values.AbstractType{}
 		for i := 0; i < goValue.Type().NumIn(); i++ {
 			goType := goValue.Type().In(i)
