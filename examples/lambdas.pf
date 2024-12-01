@@ -1,3 +1,4 @@
+def
 
 multiplyByGo(i int) : golang {
     return (func(n int) int {return i*n})
