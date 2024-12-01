@@ -2957,12 +2957,12 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			}
 		}
 	}
+	cp.vmComeFrom(checkSingleType)
+	isTuple := bkIf(DUMMY)
 	if len(tuples) == 0 {
 		successfulSingleCheck = cp.vmGoTo()
 	} else {
-		cp.vmComeFrom(checkSingleType)
-		// So if we've got this far the value must be a tuple and we can assume this going forward.
-
+		isTuple = cp.vmIf(Qtyp, loc, uint32(values.TUPLE))
 		lengths := lengths(tuples)
 		goodLengths := 0
 		badLengths := 0
@@ -2997,7 +2997,6 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			vr, _ := env.getVar(sig.GetVarName(sig.Len() - 1))
 			cp.Emit(SlTn, vr.mLoc, loc, uint32(lookTo)) // Gets the end of the slice. We can put anything in a tuple.
 		}
-
 		elementLoc := uint32(DUMMY)
 		// Now let's typecheck the other things.
 		for i := 0; i < sig.Len(); i++ {
@@ -3059,11 +3058,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	default:
 		cp.Emit(Asgm, loc, errorLocation)
 	}
-
-	if len(tuples) == 0 {
-		cp.vmComeFrom(successfulSingleCheck)
-	}
-	cp.vmComeFrom(jumpToEnd)
+	cp.vmComeFrom(successfulSingleCheck, jumpToEnd, isTuple)
 	return errorCheck
 }
 
