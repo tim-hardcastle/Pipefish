@@ -1785,6 +1785,7 @@ NodeTypeSwitch:
 			v, ok = env.getVar(node.Operator)
 		}
 		if ok { // Then it is a variable which may contain a function which may or may not be wrapped in a thunk.
+			cp.cm("Prefix is variable which may contain a lambda.", node.GetToken())
 			recursion := false
 			if (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
 				if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
@@ -1793,6 +1794,7 @@ NodeTypeSwitch:
 				}
 			}
 			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
+				cp.cm("Prefix variable is thunked. Unthunking.", node.GetToken())
 				cp.Emit(Untk, v.mLoc)
 			}
 			operands := []uint32{v.mLoc}
@@ -1805,11 +1807,13 @@ NodeTypeSwitch:
 			}
 			switch {
 			case v.types.isOnly(values.FUNC) :
+				cp.cm("Prefix variable can only be lambda.", node.GetToken())
 				cp.put(Dofn, operands...)
 				if recursion {
 					cp.Emit(Rpop)
 				}
 			case v.types.Contains(values.FUNC) :
+				cp.cm("Prefix variable might be lambda. Emitting type check.", node.GetToken())
 				funcTest := cp.vmIf(Qtyp, v.mLoc, uint32(values.FUNC))
 				cp.put(Dofn, operands...)
 				if recursion {
@@ -1819,6 +1823,7 @@ NodeTypeSwitch:
 				cp.vmComeFrom(funcTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/apply/func", node.GetToken()))
 			default :
+				cp.cm("Prefix variable cannot be lambda. Throwing error.", node.GetToken())
 				cp.P.Throw("comp/apply/func", node.GetToken())
 				break NodeTypeSwitch
 			} 
