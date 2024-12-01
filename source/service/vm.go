@@ -1038,7 +1038,7 @@ loop:
 			}
 			continue
 		case QleT:
-			if len(vm.Mem[args[0]].V.([]values.Value)) <= int(args[1]) {
+			if vm.Mem[args[0]].T == values.TUPLE && len(vm.Mem[args[0]].V.([]values.Value)) <= int(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]

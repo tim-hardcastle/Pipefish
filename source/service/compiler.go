@@ -2918,14 +2918,6 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	singles, tuples := types.splitSinglesAndTuples()
 	acceptedSingles := AlternateType{}
 	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
-	switch {
-	case lastIsTuple:
-		cp.cm("Sig ends in tuple", tok)
-	case sig.Len() == 0:
-		cp.cm("Sig has length zero", tok)
-	default:
-		cp.cm("Sig ends in "+cp.getTypes(sig, sig.Len()-1).describe(cp.Vm), tok)
-	}
 	if types.isOnly(values.ERROR) {
 		cp.P.Throw("comp/typecheck/a", tok)
 		return errorCheck
