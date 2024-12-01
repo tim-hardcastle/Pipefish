@@ -403,7 +403,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			}
 			sig = append(sig, values.AbstractType{Types: []values.ValueType{pfType}})
 		}
-		pfLambda := Lambda{gocode : goValue, sig : sig}
+		pfLambda := Lambda{gocode : &goValue, sig : sig}
 		return values.Value{values.FUNC, pfLambda}
 	}
 	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}

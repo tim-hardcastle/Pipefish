@@ -97,7 +97,7 @@ type Lambda struct {
 	sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'any?'
 	rtnSig         []values.AbstractType // The return signature. If empty means ok/error for a command, anything for a function.
 	tok            *token.Token
-	gocode         any                   // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
+	gocode         *reflect.Value        // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -403,9 +403,7 @@ loop:
 					}
 					goArgs = append(goArgs, reflect.ValueOf(goArg))
 				} 
-				gocodeValue := reflect.ValueOf(lambda.gocode)
-				println("Type of lambda.gocode is", reflect.TypeOf(lambda.gocode).String())
-				goResultValues := gocodeValue.Call(goArgs)
+				goResultValues := lambda.gocode.Call(goArgs)
 				var doctoredValues any
 				if len(goResultValues) == 1 {
 					doctoredValues = goResultValues[0].Interface()
