@@ -404,6 +404,7 @@ loop:
 					goArgs = append(goArgs, reflect.ValueOf(goArg))
 				} 
 				gocodeValue := reflect.ValueOf(lambda.gocode)
+				println("Type of lambda.gocode is", reflect.TypeOf(lambda.gocode).String())
 				goResultValues := gocodeValue.Call(goArgs)
 				var doctoredValues any
 				if len(goResultValues) == 1 {
