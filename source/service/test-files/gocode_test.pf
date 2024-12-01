@@ -32,22 +32,6 @@ multiply(x, y int) :
 getType(x int) :
     type(multiplyBy(x))
 
-multiplyC(x, y int) :
-    apply(multiplyByPf(x), y)
-
-multiplyD(x, y int) :
-    f(y)
-given :
-    f = multiplyByPf(x)
-
-
-
-
-multiplyByPf(x int) :
-    func(y int) : x * y
-
-
-
 anyTest(x any) : golang {
     return x
 }

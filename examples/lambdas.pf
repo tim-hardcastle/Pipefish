@@ -1,43 +1,9 @@
-const
 
-add = func(x, y) :
-    x + y
+multiplyByGo(i int) : golang {
+    return (func(n int) int {return i*n})
+}
 
-g = addN(5)
-
-condition = func (x, y) : x > 0
-
-zort = func(x, y int) :
-    x + y
-
-const 
-
-troz = func(x) :
-    x
-
-
-action = func (x, y int) : x - 1, y * 2
-
-def
-
-addN (n) :             //  Look, a closure!
-    func(x) : x + n
-
-apply (f) to (x tuple) :
-    f x
-
-apply (f) twice to (x tuple) :
-    f f x
-
-while (p) do (f) to (x tuple) :
-    p x : while p do f to f x
-    else : x
-
-multiplyBy(i int) : 
-    func(n int) : i * n
-
-multiply(x, y int) :
+mGo(x, y int) :
     f(y)
 given :
-    f = multiplyBy(x)
-
+    f = multiplyByGo(x)
