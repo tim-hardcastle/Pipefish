@@ -1720,7 +1720,7 @@ NodeTypeSwitch:
 			case allTypes.Contains(values.BOOL) :
 				boolTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
 				cp.put(Notb, cp.That())
-				cp.Emit(Jmp, cp.CodeTop() + 1)
+				cp.Emit(Jmp, cp.CodeTop() + 2)
 				cp.vmComeFrom(boolTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/not/bool", node.GetToken()))
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
@@ -1819,7 +1819,7 @@ NodeTypeSwitch:
 				if recursion {
 					cp.Emit(Rpop)
 				}
-				cp.Emit(Jmp, cp.CodeTop() + 1)
+				cp.Emit(Jmp, cp.CodeTop() + 2)
 				cp.vmComeFrom(funcTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/apply/func", node.GetToken()))
 			default :
