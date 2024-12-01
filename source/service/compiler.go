@@ -419,6 +419,7 @@ func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 
 
 func (cp *Compiler) reserveError(ec string, tok *token.Token, args ...any) uint32 {
 	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: values.ERROR, V: &err.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}})
+	cp.cm("Reserving error '" + ec + "' at m" + strconv.Itoa(int(cp.That()))+".", tok)
 	return cp.That()
 }
 
