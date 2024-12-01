@@ -1,4 +1,4 @@
-var
+const
 
 add = func(x, y) :
     x + y
@@ -6,10 +6,6 @@ add = func(x, y) :
 g = addN(5)
 
 condition = func (x, y) : x > 0
-
-
-foo = func(x int) :
-    x
 
 zort = func(x, y int) :
     x + y

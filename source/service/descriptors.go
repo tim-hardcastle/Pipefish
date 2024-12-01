@@ -280,7 +280,7 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 	if flavor == LITERAL {
 		return vm.toString(v, LITERAL)
 	}
-	if v.T == values.TUPLE || v.T == values.SUCCESSFUL_VALUE {
+	if v.T == values.TUPLE || v.T == values.SUCCESSFUL_VALUE || v.T == values.ERROR {
 		return vm.toString(v, flavor)
 	}
 	vm.Mem[vm.Stringify.LoReg] = v

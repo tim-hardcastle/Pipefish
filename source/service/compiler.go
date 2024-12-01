@@ -1005,9 +1005,11 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	// can just reserve it in memory.
 
 	if captures.IsEmpty() {
+		cp.cm("No captures. Emiting FUNC value.", fnNode.GetToken())
 		cp.Reserve(values.FUNC, *LF.Model, fnNode.GetToken())
 		return
 	}
+	cp.cm("Captures exist. Creating lambda factory.", fnNode.GetToken())
 	cp.Vm.LambdaFactories = append(cp.Vm.LambdaFactories, LF)
 	cp.put(Mkfn, uint32(len(cp.Vm.LambdaFactories)-1))
 }
@@ -1958,10 +1960,8 @@ NodeTypeSwitch:
 		} else {
 			rtnTypes = AltType(result.T)
 		}
-		if !rtnTypes.containsAnyOf(cp.Vm.codeGeneratingTypes.ToSlice()...) {
-			cp.rollback(state, node.GetToken())
-			cp.Reserve(result.T, result.V, node.GetToken())
-		}
+		cp.rollback(state, node.GetToken())
+		cp.Reserve(result.T, result.V, node.GetToken())
 	}
 	return rtnTypes, rtnConst
 }
