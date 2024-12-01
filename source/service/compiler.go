@@ -1791,7 +1791,7 @@ NodeTypeSwitch:
 				recursion = true
 			}
 		}
-		if ok && v.types.Contains(values.FUNC) {
+		if ok {
 			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 				cp.Emit(Untk, v.mLoc)
 			}
@@ -1819,12 +1819,12 @@ NodeTypeSwitch:
 				cp.vmComeFrom(funcTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/apply/func", node.GetToken()))
 			default :
-				cp.P.Throw("comp/break", node.GetToken())
+				cp.P.Throw("comp/apply/func", node.GetToken())
 				break NodeTypeSwitch
 			} 
 			rtnConst = false
 			rtnTypes = cp.Vm.AnyTypeScheme
-			break
+			break NodeTypeSwitch
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
 			cp.pushRCompiler(resolvingCompiler)
