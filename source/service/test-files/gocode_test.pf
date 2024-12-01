@@ -15,6 +15,23 @@ StringClone = clone string
 
 def
 
+applyFunction(i int, f func) : golang {
+	return (f(i))[0]
+}
+
+multiplyBy(i int) : golang {
+    return (func(n int) int {return i*n})
+}
+
+apply(f func, x) :
+    f(x)
+
+multiply(x, y int) :
+    apply(multiplyBy(x), y)
+
+getType(x int) :
+    type(multiplyBy(x))
+
 anyTest(x any) : golang {
     return x
 }
@@ -123,4 +140,5 @@ commandTest : golang {
     println("A big hello from Go!")
     return struct{}{}
 }
+
 

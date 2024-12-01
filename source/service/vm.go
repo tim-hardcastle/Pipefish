@@ -95,7 +95,9 @@ type Lambda struct {
 	addressToCall  uint32
 	captures       []values.Value
 	sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'any?'
+	rtnSig         []values.AbstractType // The return signature. If empty means ok/error for a command, anything for a function.
 	tok            *token.Token
+	gocode         *reflect.Value        // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -387,41 +389,78 @@ loop:
 			} else {
 				vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int)) / divisor}
 			}
-		case Dofn:
-			lhs := vm.Mem[args[1]].V.(Lambda)
-			for i := 0; i < int(lhs.capturesEnd-lhs.capturesStart); i++ {
-				vm.Mem[int(lhs.capturesStart)+i] = lhs.captures[i]
+		case Dofn: 
+			lambda := vm.Mem[args[1]].V.(Lambda)
+			// The case where the lambda is from a Go function.
+			if lambda.gocode != nil {
+				goArgs := []reflect.Value{}
+				for _, pfMemLoc := range args[2:] {
+					pfArg := vm.Mem[pfMemLoc]
+					goArg, ok := vm.pipefishToGo(pfArg)
+					if !ok {
+						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/go", lambda.tok, goArg)} // If the conversion failed, the goArg will be the Pipefish value it couldn't convert.
+						break Switch
+					}
+					goArgs = append(goArgs, reflect.ValueOf(goArg))
+				} 
+				goResultValues := lambda.gocode.Call(goArgs)
+				var doctoredValues any
+				if len(goResultValues) == 1 {
+					doctoredValues = goResultValues[0].Interface()
+				} else {
+					elements := make([]any, 0, len(goResultValues))
+					for _, v := range goResultValues {
+						elements = append(elements, v.Interface())
+					}
+					doctoredValues = goTuple(elements)
+				}
+				val := vm.goToPipefish(reflect.ValueOf(doctoredValues))
+				if val.T == 0 {
+					payload := val.V.([]any)
+					newError := err.CreateErr(payload[0].(string), vm.Mem[args[1]].V.(*err.Error).Token, payload[1:]...)
+					vm.Mem[args[0]] = values.Value{values.ERROR, newError}
+					break
+				}
+				vm.Mem[args[0]] = val
+				break Switch
 			}
-			for i := 0; i < int(lhs.parametersEnd-lhs.capturesEnd); i++ {
-				vm.Mem[int(lhs.capturesEnd)+i] = vm.Mem[args[2+i]]
+			// The normal case.
+			// The code here is repeated with a few twists in a very non-DRY in `vmgo` and any changes necessary here will probably need to be copied there.
+			if len(args) - 2 != len(lambda.sig) { // TODO: variadics.
+				vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/args", lambda.tok)}
+				break Switch
+			}
+			for i := 0; i < int(lambda.capturesEnd-lambda.capturesStart); i++ {
+				vm.Mem[int(lambda.capturesStart)+i] = lambda.captures[i]
+			}
+			for i := 0; i < int(lambda.parametersEnd-lambda.capturesEnd); i++ {
+				vm.Mem[int(lambda.capturesEnd)+i] = vm.Mem[args[2+i]]
 			}
 			success := true
-			if lhs.sig != nil {
-				for i, abType := range lhs.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
+			if lambda.sig != nil {
+				for i, abType := range lambda.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
 					success = false
-					if abType.Types == nil {
+					if abType.Types == nil { // Used for `any?`.
 						success = true
 						continue
 					} else {
 						for _, ty := range abType.Types {
-							if ty == vm.Mem[int(lhs.capturesEnd)+i].T {
+							if ty == vm.Mem[int(lambda.capturesEnd)+i].T {
 								success = true
-								if vm.Mem[int(lhs.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lhs.capturesEnd)+i].V.(string)) > abType.Len() {
+								if vm.Mem[int(lambda.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.capturesEnd)+i].V.(string)) > abType.Len() {
 									success = false
 								}
 							}
 						}
 					}
 					if !success {
-						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/types", lhs.tok)}
-						break
+						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/types", lambda.tok)}
+						break Switch
 					}
 				}
 			}
-			if success {
-				vm.Run(lhs.addressToCall)
-				vm.Mem[args[0]] = vm.Mem[lhs.resultLocation]
-			}
+			vm.Run(lambda.addressToCall)
+			vm.Mem[args[0]] = vm.Mem[lambda.resultLocation]
 		case Dref:
 			vm.Mem[args[0]] = vm.Mem[vm.Mem[args[1]].V.(uint32)]
 		case Equb:
@@ -999,7 +1038,7 @@ loop:
 			}
 			continue
 		case QleT:
-			if len(vm.Mem[args[0]].V.([]values.Value)) <= int(args[1]) {
+			if vm.Mem[args[0]].T == values.TUPLE && len(vm.Mem[args[0]].V.([]values.Value)) <= int(args[1]) {
 				loc = loc + 1
 			} else {
 				loc = args[2]

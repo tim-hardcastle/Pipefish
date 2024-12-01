@@ -419,6 +419,7 @@ func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 
 
 func (cp *Compiler) reserveError(ec string, tok *token.Token, args ...any) uint32 {
 	cp.Vm.Mem = append(cp.Vm.Mem, values.Value{T: values.ERROR, V: &err.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}})
+	cp.cm("Reserving error '" + ec + "' at m" + strconv.Itoa(int(cp.That()))+".", tok)
 	return cp.That()
 }
 
@@ -896,6 +897,8 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt context) 
 	return rtnTypes
 }
 
+// TODO --- this is inside out, we should construct the factory if we need it rather than throwing it
+// away if we don't.
 func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.FuncExpression, tok *token.Token) {
 	cp.cm("Compiling lambda", tok)
 	LF := &LambdaFactory{Model: &Lambda{}}
@@ -907,21 +910,15 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 
 	// We get the function parameters. These shadow anything we might otherwise capture.
 	params := dtypes.Set[string]{}
-	checkNeeded := false
 	for _, pair := range nameSig {
 		params = params.Add(pair.VarName)
 		if pair.VarType == "any?" {
 			LF.Model.sig = append(LF.Model.sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
-			checkNeeded = true
 			LF.Model.sig = append(LF.Model.sig, cp.P.GetAbstractType(pair.VarType))
 		}
 	}
-	if checkNeeded {
-		LF.Model.tok = &fnNode.Token
-	} else {
-		LF.Model.sig = nil
-	}
+	LF.Model.tok = &fnNode.Token
 	captures := ast.GetVariableNames(fnNode)
 	for k := range captures {
 		if params.Contains(k) {
@@ -1009,9 +1006,11 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt context, fnNode *ast.Fu
 	// can just reserve it in memory.
 
 	if captures.IsEmpty() {
+		cp.cm("No captures. Emiting FUNC value.", fnNode.GetToken())
 		cp.Reserve(values.FUNC, *LF.Model, fnNode.GetToken())
 		return
 	}
+	cp.cm("Captures exist. Creating lambda factory.", fnNode.GetToken())
 	cp.Vm.LambdaFactories = append(cp.Vm.LambdaFactories, LF)
 	cp.put(Mkfn, uint32(len(cp.Vm.LambdaFactories)-1))
 }
@@ -1714,14 +1713,23 @@ NodeTypeSwitch:
 	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin expressions already.
 		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(node.Args[0], ctxt.x())
-			if allTypes.isOnly(values.BOOL) { // TODO --- are you planning to handle this at any point you lazy swine?
+			switch {
+			case allTypes.isOnly(values.BOOL) :
 				cp.put(Notb, cp.That())
 				rtnTypes, rtnConst = AltType(values.BOOL), cst
-				break
-			}
-			if !allTypes.Contains(values.BOOL) {
+				break NodeTypeSwitch
+			case allTypes.Contains(values.BOOL) :
+				boolTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
+				cp.put(Notb, cp.That())
+				cp.Emit(Jmp, cp.CodeTop() + 2)
+				cp.vmComeFrom(boolTest)
+				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/not/bool", node.GetToken()))
+				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
+				break NodeTypeSwitch
+			default :
 				cp.P.Throw("comp/bool/not", node.GetToken())
-				break
+				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
+				break NodeTypeSwitch
 			}
 		}
 		if node.Token.Type == token.VALID {
@@ -1777,15 +1785,17 @@ NodeTypeSwitch:
 		} else {
 			v, ok = env.getVar(node.Operator)
 		}
-		recursion := false
-		if ok && (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
-			if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
-				cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
-				recursion = true
+		if ok { // Then it is a variable which may contain a function which may or may not be wrapped in a thunk.
+			cp.cm("Prefix is variable which may contain a lambda.", node.GetToken())
+			recursion := false
+			if (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
+				if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
+					cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
+					recursion = true
+				}
 			}
-		}
-		if ok && v.types.Contains(values.FUNC) {
 			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
+				cp.cm("Prefix variable is thunked. Unthunking.", node.GetToken())
 				cp.Emit(Untk, v.mLoc)
 			}
 			operands := []uint32{v.mLoc}
@@ -1794,17 +1804,34 @@ NodeTypeSwitch:
 				operands = append(operands, cp.That())
 			}
 			if cp.P.ErrorsExist() {
-				break
+				break NodeTypeSwitch
 			}
-			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
+			switch {
+			case v.types.isOnly(values.FUNC) :
+				cp.cm("Prefix variable can only be lambda.", node.GetToken())
 				cp.put(Dofn, operands...)
 				if recursion {
 					cp.Emit(Rpop)
 				}
-			} // TODO --- what if not?
+			case v.types.Contains(values.FUNC) :
+				errorLoc := cp.reserveError("vm/apply/func", node.GetToken())
+				cp.cm("Prefix variable might be lambda. Emitting type check.", node.GetToken())
+				funcTest := cp.vmIf(Qtyp, v.mLoc, uint32(values.FUNC))
+				cp.put(Dofn, operands...)
+				if recursion {
+					cp.Emit(Rpop)
+				}
+				cp.Emit(Jmp, cp.CodeTop() + 2)
+				cp.vmComeFrom(funcTest)
+				cp.Emit(Asgm, cp.That(), errorLoc)
+			default :
+				cp.cm("Prefix variable cannot be lambda. Throwing error.", node.GetToken())
+				cp.P.Throw("comp/apply/func", node.GetToken())
+				break NodeTypeSwitch
+			} 
 			rtnConst = false
 			rtnTypes = cp.Vm.AnyTypeScheme
-			break
+			break NodeTypeSwitch
 		}
 		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
 			cp.pushRCompiler(resolvingCompiler)
@@ -1962,10 +1989,8 @@ NodeTypeSwitch:
 		} else {
 			rtnTypes = AltType(result.T)
 		}
-		if !rtnTypes.containsAnyOf(cp.Vm.codeGeneratingTypes.ToSlice()...) {
-			cp.rollback(state, node.GetToken())
-			cp.Reserve(result.T, result.V, node.GetToken())
-		}
+		cp.rollback(state, node.GetToken())
+		cp.Reserve(result.T, result.V, node.GetToken())
 	}
 	return rtnTypes, rtnConst
 }
@@ -2894,14 +2919,6 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	singles, tuples := types.splitSinglesAndTuples()
 	acceptedSingles := AlternateType{}
 	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
-	switch {
-	case lastIsTuple:
-		cp.cm("Sig ends in tuple", tok)
-	case sig.Len() == 0:
-		cp.cm("Sig has length zero", tok)
-	default:
-		cp.cm("Sig ends in "+cp.getTypes(sig, sig.Len()-1).describe(cp.Vm), tok)
-	}
 	if types.isOnly(values.ERROR) {
 		cp.P.Throw("comp/typecheck/a", tok)
 		return errorCheck
@@ -2941,12 +2958,12 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			}
 		}
 	}
+	cp.vmComeFrom(checkSingleType)
+	isTuple := bkIf(DUMMY)
 	if len(tuples) == 0 {
 		successfulSingleCheck = cp.vmGoTo()
 	} else {
-		cp.vmComeFrom(checkSingleType)
-		// So if we've got this far the value must be a tuple and we can assume this going forward.
-
+		isTuple = cp.vmIf(Qtyp, loc, uint32(values.TUPLE))
 		lengths := lengths(tuples)
 		goodLengths := 0
 		badLengths := 0
@@ -2981,7 +2998,6 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 			vr, _ := env.getVar(sig.GetVarName(sig.Len() - 1))
 			cp.Emit(SlTn, vr.mLoc, loc, uint32(lookTo)) // Gets the end of the slice. We can put anything in a tuple.
 		}
-
 		elementLoc := uint32(DUMMY)
 		// Now let's typecheck the other things.
 		for i := 0; i < sig.Len(); i++ {
@@ -3043,11 +3059,7 @@ func (cp *Compiler) emitTypeChecks(loc uint32, types AlternateType, env *Environ
 	default:
 		cp.Emit(Asgm, loc, errorLocation)
 	}
-
-	if len(tuples) == 0 {
-		cp.vmComeFrom(successfulSingleCheck)
-	}
-	cp.vmComeFrom(jumpToEnd)
+	cp.vmComeFrom(successfulSingleCheck, jumpToEnd, isTuple)
 	return errorCheck
 }
 

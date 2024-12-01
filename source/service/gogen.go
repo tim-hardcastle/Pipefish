@@ -90,6 +90,7 @@ func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes d
 
 var cloneConv = map[values.ValueType]string{
 	values.FLOAT:  "float64",
+	values.FUNC:   "(func(...any)[]any)",
 	values.INT:    "int",
 	values.LIST:   "[]any",
 	values.MAP:    "map[any]any",
@@ -169,6 +170,7 @@ func getGoType(pfType string) (string, bool) {
 var goTypes = map[string]string{
 	"any": "any",
 	"float": "float64",
+	"func": "(func(...any)[]any)",
 	"label": "!",
 	"list": "[]any",
 	"map": "map[any]any",
