@@ -23,25 +23,14 @@ multiplyBy(i int) : golang {
     return (func(n int) int {return i*n})
 }
 
-multiply(x, y int) :
-    f(y)
-given :
-    f = multiplyBy(x)
-
 apply(f func, x) :
     f(x)
 
-multiplyB(x, y int) :
+multiply(x, y int) :
     apply(multiplyBy(x), y)
 
-getTypeA(x int) :
+getType(x int) :
     type(multiplyBy(x))
-
-getTypeB(x int) :
-    type(f)
-given :
-    f = multiplyBy(x)
-
 
 multiplyC(x, y int) :
     apply(multiplyByPf(x), y)
