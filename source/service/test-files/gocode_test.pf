@@ -141,14 +141,4 @@ commandTest : golang {
     return struct{}{}
 }
 
-const
-
-zort = multiplyBy(3)
-
-var
-
-troz = multiplyBy(3)
-
-foo = multiplyByPf(3)
-
 
