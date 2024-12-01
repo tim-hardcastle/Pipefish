@@ -409,6 +409,7 @@ func TestGocode(t *testing.T) {
 		{`stringCloneTest(StringClone("zort")) == StringClone("zort")`, `true`},
 		{`commandTest`, `OK`},
 		{`applyFunction(2, (func(i int) : 2 * i))`, `4`},
+		{`type(multiplyBy(3))`, `func`},
 		{`multiply 2, 3`, `6`},
 	}
 	currentDirectory, _ := os.Getwd()
