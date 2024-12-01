@@ -28,6 +28,14 @@ multiply(x, y int) :
 given :
     f = multiplyBy(x)
 
+getTypeA(x int) :
+    type(multiplyBy(x))
+
+getTypeB(x int) :
+    type(f)
+given :
+    f = multiplyBy(x)
+
 anyTest(x any) : golang {
     return x
 }
