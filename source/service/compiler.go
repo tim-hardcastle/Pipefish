@@ -1712,14 +1712,21 @@ NodeTypeSwitch:
 	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin expressions already.
 		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(node.Args[0], ctxt.x())
-			if allTypes.isOnly(values.BOOL) { // TODO --- are you planning to handle this at any point you lazy swine?
+			switch {
+			case allTypes.isOnly(values.BOOL) :
 				cp.put(Notb, cp.That())
 				rtnTypes, rtnConst = AltType(values.BOOL), cst
 				break
-			}
-			if !allTypes.Contains(values.BOOL) {
+			case allTypes.Contains(values.BOOL) :
+				boolTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
+				cp.put(Notb, cp.That())
+				cp.Emit(Jmp, cp.CodeTop() + 1)
+				cp.vmComeFrom(boolTest)
+				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/not/bool", node.GetToken()))
+				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
+			default :
 				cp.P.Throw("comp/bool/not", node.GetToken())
-				break
+				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
 			}
 		}
 		if node.Token.Type == token.VALID {
@@ -1794,12 +1801,25 @@ NodeTypeSwitch:
 			if cp.P.ErrorsExist() {
 				break
 			}
-			if v.types.isOnly(values.FUNC) { // Then no type checking for v.
+			switch {
+			case v.types.isOnly(values.FUNC) :
 				cp.put(Dofn, operands...)
 				if recursion {
 					cp.Emit(Rpop)
 				}
-			} // TODO --- what if not?
+			case v.types.Contains(values.FUNC) :
+				funcTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
+				cp.put(Dofn, operands...)
+				if recursion {
+					cp.Emit(Rpop)
+				}
+				cp.Emit(Jmp, cp.CodeTop() + 1)
+				cp.vmComeFrom(funcTest)
+				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/apply/func", node.GetToken()))
+			default :
+				cp.P.Throw("comp/break", node.GetToken())
+				break NodeTypeSwitch
+			} 
 			rtnConst = false
 			rtnTypes = cp.Vm.AnyTypeScheme
 			break
