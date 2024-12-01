@@ -1716,7 +1716,7 @@ NodeTypeSwitch:
 			case allTypes.isOnly(values.BOOL) :
 				cp.put(Notb, cp.That())
 				rtnTypes, rtnConst = AltType(values.BOOL), cst
-				break
+				break NodeTypeSwitch
 			case allTypes.Contains(values.BOOL) :
 				boolTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
 				cp.put(Notb, cp.That())
@@ -1724,11 +1724,11 @@ NodeTypeSwitch:
 				cp.vmComeFrom(boolTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/not/bool", node.GetToken()))
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
-				break
+				break NodeTypeSwitch
 			default :
 				cp.P.Throw("comp/bool/not", node.GetToken())
 				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
-				break
+				break NodeTypeSwitch
 			}
 		}
 		if node.Token.Type == token.VALID {
