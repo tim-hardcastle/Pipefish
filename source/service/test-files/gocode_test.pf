@@ -28,6 +28,12 @@ multiply(x, y int) :
 given :
     f = multiplyBy(x)
 
+apply(f func, x) :
+    f(x)
+
+multiplyB(x, y int) :
+    apply(multiplyBy(x), y)
+
 getTypeA(x int) :
     type(multiplyBy(x))
 
@@ -35,6 +41,23 @@ getTypeB(x int) :
     type(f)
 given :
     f = multiplyBy(x)
+
+
+multiplyC(x, y int) :
+    apply(multiplyByPf(x), y)
+
+multiplyD(x, y int) :
+    f(y)
+given :
+    f = multiplyByPf(x)
+
+
+
+
+multiplyByPf(x int) :
+    func(y int) : x * y
+
+
 
 anyTest(x any) : golang {
     return x
@@ -152,3 +175,7 @@ zort = multiplyBy(3)
 var
 
 troz = multiplyBy(3)
+
+foo = multiplyByPf(3)
+
+
