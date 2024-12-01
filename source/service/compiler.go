@@ -1814,6 +1814,7 @@ NodeTypeSwitch:
 					cp.Emit(Rpop)
 				}
 			case v.types.Contains(values.FUNC) :
+				errorLoc := cp.reserveError("vm/apply/func", node.GetToken())
 				cp.cm("Prefix variable might be lambda. Emitting type check.", node.GetToken())
 				funcTest := cp.vmIf(Qtyp, v.mLoc, uint32(values.FUNC))
 				cp.put(Dofn, operands...)
@@ -1822,7 +1823,7 @@ NodeTypeSwitch:
 				}
 				cp.Emit(Jmp, cp.CodeTop() + 2)
 				cp.vmComeFrom(funcTest)
-				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/apply/func", node.GetToken()))
+				cp.Emit(Asgm, cp.That(), errorLoc)
 			default :
 				cp.cm("Prefix variable cannot be lambda. Throwing error.", node.GetToken())
 				cp.P.Throw("comp/apply/func", node.GetToken())
