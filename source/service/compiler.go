@@ -1724,9 +1724,11 @@ NodeTypeSwitch:
 				cp.vmComeFrom(boolTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/not/bool", node.GetToken()))
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
+				break
 			default :
 				cp.P.Throw("comp/bool/not", node.GetToken())
 				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
+				break
 			}
 		}
 		if node.Token.Type == token.VALID {
