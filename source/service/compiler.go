@@ -1810,7 +1810,7 @@ NodeTypeSwitch:
 					cp.Emit(Rpop)
 				}
 			case v.types.Contains(values.FUNC) :
-				funcTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
+				funcTest := cp.vmIf(Qtyp, v.mLoc, uint32(values.FUNC))
 				cp.put(Dofn, operands...)
 				if recursion {
 					cp.Emit(Rpop)
