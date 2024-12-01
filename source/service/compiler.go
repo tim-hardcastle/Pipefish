@@ -1784,14 +1784,14 @@ NodeTypeSwitch:
 		} else {
 			v, ok = env.getVar(node.Operator)
 		}
-		recursion := false
-		if ok && (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
-			if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
-				cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
-				recursion = true
+		if ok { // Then it is a variable which may contain a function which may or may not be wrapped in a thunk.
+			recursion := false
+			if (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
+				if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
+					cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
+					recursion = true
+				}
 			}
-		}
-		if ok {
 			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
 				cp.Emit(Untk, v.mLoc)
 			}
@@ -1801,7 +1801,7 @@ NodeTypeSwitch:
 				operands = append(operands, cp.That())
 			}
 			if cp.P.ErrorsExist() {
-				break
+				break NodeTypeSwitch
 			}
 			switch {
 			case v.types.isOnly(values.FUNC) :
