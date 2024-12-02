@@ -1109,7 +1109,7 @@ func (cp *Compiler) compileConstructors() {
 	// Struct declarations.
 	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
-		typeNo := cp.concreteTypeNow(name)
+		typeNo := cp.ConcreteTypeNow(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		cp.fnIndex[fnSource{structDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(structDeclaration), i), node.GetToken())
 		cp.fnIndex[fnSource{structDeclaration, i}].Compiler = cp
@@ -1117,7 +1117,7 @@ func (cp *Compiler) compileConstructors() {
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range cp.P.Snippets {
-		typeNo := cp.concreteTypeNow(name)
+		typeNo := cp.ConcreteTypeNow(name)
 		cp.fnIndex[fnSource{snippetDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(snippetDeclaration), i), cp.P.ParsedDeclarations[snippetDeclaration][i].GetToken())
 		cp.fnIndex[fnSource{snippetDeclaration, i}].Compiler = cp
 	}
@@ -1126,7 +1126,7 @@ func (cp *Compiler) compileConstructors() {
 		dec.ToStart()
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
-		typeNo := cp.concreteTypeNow(name)
+		typeNo := cp.ConcreteTypeNow(name)
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: cp.Vm.concreteTypeInfo[cp.Vm.concreteTypeInfo[typeNo].(cloneType).parent].getName(DEFAULT)}}
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = cp

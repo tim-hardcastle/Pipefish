@@ -87,7 +87,7 @@ func (hub *Hub) getDB() (string, string, string, int, string, string) {
 func (hub *Hub) setDB(driver, name, path string, port int, username, password string) {
 	hubService := hub.services["hub"]
 	driverAsEnumValue := hubService.Cp.Vm.Mem[hubService.Cp.EnumElements[driver]]
-	structType := hubService.Cp.StructNameToTypeNumber["Database"]
+	structType := hubService.Cp.ConcreteTypeNow("Database")
 	hub.setSV("database", structType, []values.Value{driverAsEnumValue, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
 }
 
@@ -273,7 +273,7 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return "error", []string{hubReturn.V.(*err.Error).Message}
 	}
 
-	if hubReturn.T == hubService.Cp.StructNameToTypeNumber["HubResponse"] {
+	if hubReturn.T == hubService.Cp.ConcreteTypeNow("HubResponse") {
 		hR := hubReturn.V.([]values.Value)
 		verb := hR[0].V.(string)
 		args := []string{}

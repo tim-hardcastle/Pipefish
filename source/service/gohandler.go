@@ -40,7 +40,7 @@ import (
 
 var counter int // This variable is used to make a unique filename for each gocode_<counter>.go file.
 
-// This struct type is used to accumulate the various data encountered during parsing that we need to 
+// This struct type is used to accumulate the various data encountered during parsing that we need to
 // build a `.go` file or files. There is one per compiler. The "sources" are as given in the `Source`
 // field of any GOCODE token encountered. The sources may be plural because of NULL-imports.
 // The `imports`, `functions`, and `pureGo` maps are indexed by these sources.
@@ -108,7 +108,7 @@ func (cp *Compiler) compileGo() {
 		functionConverter := *functionConverterSymbol.(*map[string](func(t uint32, v any) any))
 		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
 		for typeName, constructor := range functionConverter {
-			typeNumber := cp.concreteTypeNow(typeName)
+			typeNumber := cp.ConcreteTypeNow(typeName)
 			newGoConverter[typeNumber] = constructor
 		}
 		cp.Vm.goConverter = newGoConverter
@@ -116,7 +116,7 @@ func (cp *Compiler) compileGo() {
 		valueConverter := *valueConverterSymbol.(*map[string]any)
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
-			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.concreteTypeNow(typeName)
+			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.ConcreteTypeNow(typeName)
 		}
 		//We attach the compiled functions to the (pointers to) the functions, which are
 		// also pointed to by the compiler's function table and by the list of common functions
@@ -127,7 +127,7 @@ func (cp *Compiler) compileGo() {
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 			for i, pair := range function.NameSig {
 				if text.Head(pair.VarType, "...") {
-					if i < function.NameSig.Len() - 1{
+					if i < function.NameSig.Len()-1 {
 						cp.Throw("go/variadic", *function.Tok)
 					}
 				}
@@ -176,7 +176,7 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range cp.goBucket.functions[source] {
 		for _, v := range function.NameSig {
-			if !cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any"  && text.WithoutDots(v.VarType) != "any?" {
+			if !cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" && text.WithoutDots(v.VarType) != "any?" {
 				userDefinedTypes.Add(text.WithoutDots(v.VarType))
 			}
 		}

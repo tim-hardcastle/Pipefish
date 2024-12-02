@@ -58,7 +58,7 @@ type Compiler struct {
 func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
 		P:                        p,
-		declarationMap:            make(map[decKey]any),
+		declarationMap:           make(map[decKey]any),
 		EnumElements:             make(map[string]uint32),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
@@ -733,19 +733,19 @@ NodeTypeSwitch:
 		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(node.Args[0], ctxt.x())
 			switch {
-			case allTypes.isOnly(values.BOOL) :
+			case allTypes.isOnly(values.BOOL):
 				cp.put(Notb, cp.That())
 				rtnTypes, rtnConst = AltType(values.BOOL), cst
 				break NodeTypeSwitch
-			case allTypes.Contains(values.BOOL) :
+			case allTypes.Contains(values.BOOL):
 				boolTest := cp.vmIf(Qtyp, cp.That(), uint32(values.FUNC))
 				cp.put(Notb, cp.That())
-				cp.Emit(Jmp, cp.CodeTop() + 2)
+				cp.Emit(Jmp, cp.CodeTop()+2)
 				cp.vmComeFrom(boolTest)
 				cp.Emit(Asgm, cp.That(), cp.reserveError("vm/not/bool", node.GetToken()))
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
 				break NodeTypeSwitch
-			default :
+			default:
 				cp.P.Throw("comp/bool/not", node.GetToken())
 				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
 				break NodeTypeSwitch
@@ -807,7 +807,7 @@ NodeTypeSwitch:
 		if ok { // Then it is a variable which may contain a function which may or may not be wrapped in a thunk.
 			cp.cm("Prefix is variable which may contain a lambda.", node.GetToken())
 			recursion := false
-			if (v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT) {
+			if v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT {
 				if cp.Vm.Mem[v.mLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
 					cp.Emit(Rpsh, cp.getLambdaStart(), cp.MemTop())
 					recursion = true
@@ -826,13 +826,13 @@ NodeTypeSwitch:
 				break NodeTypeSwitch
 			}
 			switch {
-			case v.types.isOnly(values.FUNC) :
+			case v.types.isOnly(values.FUNC):
 				cp.cm("Prefix variable can only be lambda.", node.GetToken())
 				cp.put(Dofn, operands...)
 				if recursion {
 					cp.Emit(Rpop)
 				}
-			case v.types.Contains(values.FUNC) :
+			case v.types.Contains(values.FUNC):
 				errorLoc := cp.reserveError("vm/apply/func", node.GetToken())
 				cp.cm("Prefix variable might be lambda. Emitting type check.", node.GetToken())
 				funcTest := cp.vmIf(Qtyp, v.mLoc, uint32(values.FUNC))
@@ -840,14 +840,14 @@ NodeTypeSwitch:
 				if recursion {
 					cp.Emit(Rpop)
 				}
-				cp.Emit(Jmp, cp.CodeTop() + 2)
+				cp.Emit(Jmp, cp.CodeTop()+2)
 				cp.vmComeFrom(funcTest)
 				cp.Emit(Asgm, cp.That(), errorLoc)
-			default :
+			default:
 				cp.cm("Prefix variable cannot be lambda. Throwing error.", node.GetToken())
 				cp.P.Throw("comp/apply/func", node.GetToken())
 				break NodeTypeSwitch
-			} 
+			}
 			rtnConst = false
 			rtnTypes = cp.Vm.AnyTypeScheme
 			break NodeTypeSwitch
@@ -1287,8 +1287,6 @@ func (mc *Vm) isPrivate(a values.AbstractType) bool {
 	return false
 }
 
-
-
 func (cp *Compiler) Describe(v values.Value) string {
 	return cp.Vm.Literal(v)
 }
@@ -1305,7 +1303,7 @@ func (cp *Compiler) Reserve(t values.ValueType, v any, tok *token.Token) uint32 
 
 func (cp *Compiler) reserveError(ec string, tok *token.Token, args ...any) uint32 {
 	cp.Vm.Mem = append(cp.Vm.Mem, val(values.ERROR, &err.Error{ErrorId: ec, Token: tok, Args: args, Trace: make([]*token.Token, 0, 10)}))
-	cp.cm("Reserving error '" + ec + "' at m" + strconv.Itoa(int(cp.That()))+".", tok)
+	cp.cm("Reserving error '"+ec+"' at m"+strconv.Itoa(int(cp.That()))+".", tok)
 	return cp.That()
 }
 
@@ -1324,7 +1322,7 @@ const (
 
 func (cp *Compiler) reserveSnippetFactory(t string, env *Environment, fnNode *ast.SuffixExpression, ctxt context) uint32 {
 	cp.cm("Reserving snippet factory.", &fnNode.Token)
-	snF := &SnippetFactory{snippetType: cp.concreteTypeNow(t), sourceString: fnNode.Token.Literal}
+	snF := &SnippetFactory{snippetType: cp.ConcreteTypeNow(t), sourceString: fnNode.Token.Literal}
 	csk := VANILLA_SNIPPET
 	switch {
 	case t == "SQL":
