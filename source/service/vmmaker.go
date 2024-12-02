@@ -669,7 +669,6 @@ func (cp *Compiler) createClones() {
 		}
 		// We make the conversion fuction.
 		cp.AddType(name, abType, typeNo)
-		cp.CloneNameToTypeNumber[name] = typeNo
 		cp.P.AllFunctionIdents.Add(name)
 		cp.P.Functions.Add(name)
 		sig := ast.StringSig{ast.NameTypenamePair{"x", typeToClone}}
@@ -844,7 +843,6 @@ func (cp *Compiler) createStructNamesAndLabels() {
 			cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, cp.P.IsPrivate(int(structDeclaration), i)})
 		}
 		cp.AddType(name, "struct", typeNo)
-		cp.StructNameToTypeNumber[name] = typeNo
 		if name == "Error" {
 			cp.Vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
 		}
@@ -1048,8 +1046,6 @@ func (cp *Compiler) createSnippetTypesPart2() {
 			cp.Vm.codeGeneratingTypes.Add(typeNo)
 		}
 		cp.AddType(name, "snippet", typeNo)
-		cp.StructNameToTypeNumber[name] = typeNo
-
 		// The parser needs to know about it too.
 		cp.P.Functions.Add(name)
 		fn := &ast.PrsrFunction{Sig: cp.P.MakeAbstractSigFromStringSig(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
@@ -1113,15 +1109,15 @@ func (cp *Compiler) compileConstructors() {
 	// Struct declarations.
 	for i, node := range cp.P.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
+		typeNo := cp.concreteTypeNow(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		typeNo := cp.StructNameToTypeNumber[name]
 		cp.fnIndex[fnSource{structDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(structDeclaration), i), node.GetToken())
 		cp.fnIndex[fnSource{structDeclaration, i}].Compiler = cp
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range cp.P.Snippets {
-		typeNo := cp.StructNameToTypeNumber[name]
+		typeNo := cp.concreteTypeNow(name)
 		cp.fnIndex[fnSource{snippetDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(snippetDeclaration), i), cp.P.ParsedDeclarations[snippetDeclaration][i].GetToken())
 		cp.fnIndex[fnSource{snippetDeclaration, i}].Compiler = cp
 	}
@@ -1130,7 +1126,7 @@ func (cp *Compiler) compileConstructors() {
 		dec.ToStart()
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
-		typeNo := cp.CloneNameToTypeNumber[name]
+		typeNo := cp.concreteTypeNow(name)
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: cp.Vm.concreteTypeInfo[cp.Vm.concreteTypeInfo[typeNo].(cloneType).parent].getName(DEFAULT)}}
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Number = cp.addToBuiltins(sig, name, altType(typeNo), cp.P.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = cp
