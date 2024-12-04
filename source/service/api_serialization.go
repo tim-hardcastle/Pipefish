@@ -1,7 +1,5 @@
 package service
 
-package service
-
 import (
 	"pipefish/source/dtypes"
 	"pipefish/source/err"
@@ -14,8 +12,7 @@ import (
 )
 
 // We have two types of external service, defined below: one for services on the same hub, one for services on
-// a different hub. Eventually we will need a third class of things on a different hub of the same instance of
-// Pipefish, but we haven't implemented that in general yet.
+// a different hub.
 type externalCallHandler interface {
 	evaluate(mc *Vm, line string) values.Value
 
