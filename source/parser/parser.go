@@ -216,7 +216,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	case token.ELSE:
 		leftExp = p.parseElse()
 	case token.FALSE:
-		leftExp = p.parseBoolean()
+		leftExp = p.parseBooleanLiteral()
 	case token.FLOAT:
 		leftExp = p.parseFloatLiteral()
 	case token.FOR:
@@ -241,7 +241,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	case token.RUNE:
 		leftExp = p.parseRuneLiteral()
 	case token.TRUE:
-		leftExp = p.parseBoolean()
+		leftExp = p.parseBooleanLiteral()
 	case token.TRY:
 		leftExp = p.parseTryExpression()
 	case token.UNWRAP:
@@ -386,35 +386,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	return leftExp
 }
 
-// Functions for keeping track of the `resolving parser`, i.e. the one that knows about the namespace we're in.
-func (p *Parser) pushRParser(q *Parser) {
-	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
-}
-func (p *Parser) topRParser() *Parser {
-	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
-}
-func (p *Parser) popRParser() {
-	p.enumResolvingParsers = p.enumResolvingParsers[1:]
-}
-// The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
-// to find which parser should resolve the symbol.
-func (p *Parser) getResolvingParser() *Parser {
-	lP := p
-	for _, name := range p.CurrentNamespace {
-		s, ok := lP.NamespaceBranch[name]
-		if ok {
-			lP = s.Parser
-			continue
-		}
-		p.Throw("parse/namespace/exist", &p.curToken, name)
-		return nil
-	}
-	// We don't need the resolving parser to parse anything but we *do* need to call positionallyFunctional,
-	// so it needs the following data to work.
-	lP.curToken = p.curToken
-	lP.peekToken = p.peekToken
-	return lP
-}
+// Now we have all the functions with names of the form `parseXxxxx`, arranged in alphabetical order.
 
 func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
 	expression := &ast.AssignmentExpression{
@@ -427,11 +399,7 @@ func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
 	return expression
 }
 
-func (p *Parser) parseAutoLog() ast.Node {
-	return &ast.StringLiteral{Token: p.curToken}
-}
-
-func (p *Parser) parseBoolean() ast.Node {
+func (p *Parser) parseBooleanLiteral() ast.Node {
 	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
 }
 
@@ -707,12 +675,10 @@ func DescribeFunctionCall(name string, sig *ast.StringSig) string {
 	return result + "."
 }
 
-// The fact that it is a valid integer has been checked by the lexer.
 func (p *Parser) parseIntegerLiteral() ast.Node {
 	iVal, _ := strconv.Atoi(p.curToken.Literal)
 	return &ast.IntegerLiteral{Token: p.curToken, Value: iVal}
 }
-
 
 func (p *Parser) parseLambdaExpression() ast.Node {
 	expression := &ast.FuncExpression{
@@ -974,6 +940,36 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 		}
 	}
 	return []ast.Node{start}
+}
+
+// Functions for keeping track of the `resolving parser`, i.e. the one that knows about the namespace we're in.
+func (p *Parser) pushRParser(q *Parser) {
+	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
+}
+func (p *Parser) topRParser() *Parser {
+	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
+}
+func (p *Parser) popRParser() {
+	p.enumResolvingParsers = p.enumResolvingParsers[1:]
+}
+// The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
+// to find which parser should resolve the symbol.
+func (p *Parser) getResolvingParser() *Parser {
+	lP := p
+	for _, name := range p.CurrentNamespace {
+		s, ok := lP.NamespaceBranch[name]
+		if ok {
+			lP = s.Parser
+			continue
+		}
+		p.Throw("parse/namespace/exist", &p.curToken, name)
+		return nil
+	}
+	// We don't need the resolving parser to parse anything but we *do* need to call positionallyFunctional,
+	// so it needs the following data to work.
+	lP.curToken = p.curToken
+	lP.peekToken = p.peekToken
+	return lP
 }
 
 // Some functions for getting tokens from the `TokenSupplier`
