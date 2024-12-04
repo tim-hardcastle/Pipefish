@@ -63,7 +63,7 @@ func (cp *Compiler) newGoBucket() {
 
 // This will if necessary compile or recompile the relevant .so files, and will extract from them
 // the functions and converter data needed by the compiler and vm and put it into its proper place.
-func (cp *Compiler) compileGo() {
+func (iz *initializer) compileGo() {
 
 	// The purpose of putting timestamps on the .so files is not that we ever read the timestamps
 	// from the filenames (we look either at the OS metadata of the file or at the 'gotimes' file),
@@ -71,64 +71,64 @@ func (cp *Compiler) compileGo() {
 	// we're looking up times anyway this is a reasonable way to achieve that.
 
 	// We get the blocks of pure Go, if any, and put them in the appropriate place in the goBucket.
-	for _, golang := range cp.P.TokenizedDeclarations[golangDeclaration] {
+	for _, golang := range iz.TokenizedDeclarations[golangDeclaration] {
 		golang.ToStart()
 		token := golang.NextToken()
-		cp.goBucket.sources.Add(token.Source)
-		cp.goBucket.pureGo[token.Source] = append(cp.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
+		iz.cp.goBucket.sources.Add(token.Source)
+		iz.cp.goBucket.pureGo[token.Source] = append(iz.cp.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
 	}
 
-	timeMap := cp.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
+	timeMap := iz.cp.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
 
-	for source := range cp.goBucket.sources {
+	for source := range iz.cp.goBucket.sources {
 		f, err := os.Stat(MakeFilepath(source))
 		if err != nil {
-			cp.Throw("go/file", token.Token{Source: "linking Golang"}, err.Error())
+			iz.Throw("go/file", token.Token{Source: "linking Golang"}, err.Error())
 			break
 		}
 		var plugins *plugin.Plugin
 		sourceCodeModified := f.ModTime().UnixMilli()
 		objectCodeModified, ok := timeMap[source]
 		if !ok || sourceCodeModified != int64(objectCodeModified) {
-			plugins = cp.makeNewSoFile(source, sourceCodeModified)
+			plugins = iz.cp.makeNewSoFile(source, sourceCodeModified)
 		} else {
 			soFile := settings.PipefishHomeDirectory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
-				cp.P.Throw("golang/open/b", &token.Token{}, err.Error())
+				iz.Throw("golang/open/b", token.Token{}, err.Error())
 				return
 			}
 		}
 
 		// We extract the conversion data from the object code, reformat it, and store the results
 		// in the vm.
-		newGoConverter := make([](func(t uint32, v any) any), len(cp.Vm.concreteTypeInfo))
-		copy(newGoConverter, cp.Vm.goConverter)
+		newGoConverter := make([](func(t uint32, v any) any), len(iz.cp.Vm.concreteTypeInfo))
+		copy(newGoConverter, iz.cp.Vm.goConverter)
 		functionConverterSymbol, _ := plugins.Lookup("PIPEFISH_FUNCTION_CONVERTER")
 		functionConverter := *functionConverterSymbol.(*map[string](func(t uint32, v any) any))
 		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
 		for typeName, constructor := range functionConverter {
-			typeNumber := cp.ConcreteTypeNow(typeName)
+			typeNumber := iz.cp.ConcreteTypeNow(typeName)
 			newGoConverter[typeNumber] = constructor
 		}
-		cp.Vm.goConverter = newGoConverter
+		iz.cp.Vm.goConverter = newGoConverter
 		valueConverterSymbol, _ := plugins.Lookup("PIPEFISH_VALUE_CONVERTER")
 		valueConverter := *valueConverterSymbol.(*map[string]any)
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
-			cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = cp.ConcreteTypeNow(typeName)
+			iz.cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = iz.cp.ConcreteTypeNow(typeName)
 		}
 		//We attach the compiled functions to the (pointers to) the functions, which are
 		// also pointed to by the compiler's function table and by the list of common functions
 		// in the common parser bindle. I.e. we are returning our result by mutating the
 		// functions.
-		for _, function := range cp.goBucket.functions[source] {
+		for _, function := range iz.cp.goBucket.functions[source] {
 			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 			for i, pair := range function.NameSig {
 				if text.Head(pair.VarType, "...") {
 					if i < function.NameSig.Len()-1 {
-						cp.Throw("go/variadic", *function.Tok)
+						iz.Throw("go/variadic", *function.Tok)
 					}
 				}
 			}

@@ -1791,6 +1791,7 @@ type typeInformation interface {
 	isSnippet() bool
 	isClone() bool
 	isPrivate() bool
+	isMandatoryImport() bool
 }
 
 type builtinType struct {
@@ -1829,11 +1830,16 @@ func (t builtinType) getPath() string {
 	return t.path
 }
 
+func (t builtinType) isMandatoryImport() bool {
+	return true
+}
+
 type enumType struct {
 	name         string
 	path         string
 	elementNames []string
 	private      bool
+	isMI         bool
 }
 
 func (t enumType) getName(flavor descriptionFlavor) string {
@@ -1867,6 +1873,10 @@ func (t enumType) getPath() string {
 	return t.path
 }
 
+func (t enumType) isMandatoryImport() bool {
+	return t.isMI
+}
+
 type cloneType struct {
 	name         string
 	path         string
@@ -1875,6 +1885,7 @@ type cloneType struct {
 	isSliceable  bool
 	isFilterable bool
 	isMappable   bool
+	isMI         bool
 }
 
 func (t cloneType) getName(flavor descriptionFlavor) string {
@@ -1908,6 +1919,10 @@ func (t cloneType) getPath() string {
 	return t.path
 }
 
+func (t cloneType) isMandatoryImport() bool {
+	return t.isMI
+}
+
 type structType struct {
 	name                  string
 	path                  string
@@ -1917,6 +1932,7 @@ type structType struct {
 	abstractStructFields  []values.AbstractType
 	alternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
 	resolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
+	isMI                  bool
 }
 
 func (t structType) getName(flavor descriptionFlavor) string {
@@ -1954,6 +1970,10 @@ func (t structType) getPath() string {
 	return t.path
 }
 
+func (t structType) isMandatoryImport() bool {
+	return t.isMI
+}
+
 func (t structType) addLabels(labels []int) structType {
 	t.resolvingMap = make(map[int]int)
 	for k, v := range labels {
@@ -1970,6 +1990,9 @@ func (t structType) resolve(labelNumber int) int {
 	return -1
 }
 
+// Produces a Value of the internal type ITERATOR for use in implementing `for` loops.
+// TODO --- since the only thing we're using the VM for is to look up the `concreteTypeInfo`,
+// this clearly belongs in the compiler.
 func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) values.Value {
 	ty := container.T
 	if cloneInfo, ok := vm.concreteTypeInfo[ty].(cloneType); ok {

@@ -23,8 +23,6 @@ type Parser struct {
 	curToken              token.Token
 	peekToken             token.Token
 	Logging               bool
-	TokenizedDeclarations [13]tokenizedCodeChunks // TODO --- neither this nor the thing below should be in the parser at all
-	ParsedDeclarations    [13]ParsedCodeChunks    // since they're no use after the uberparser has finished with them.
 	CurrentNamespace      []string
 
 	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
@@ -974,7 +972,7 @@ func (p *Parser) getResolvingParser() *Parser {
 	return lP
 }
 
-// Some functions for getting tokens from the `TokenSupplier`
+// Some functions for interacting with a `TokenSupplier`.
 
 // This interface allows the parser to get its supply of tokens either from the relexer directly or from
 // a `TokenizedCodeChunk`.
@@ -988,11 +986,6 @@ func String(t TokenSupplier) string {
 	}
 	return result
 }
-
-// Stores pretokenized chunks of code for later parsing.
-type tokenizedCodeChunks []*token.TokenizedCodeChunk
-
-// Functions for interacting with a `TokenSupplier`.
 
 func (p *Parser) NextToken() {
 	p.checkNesting()

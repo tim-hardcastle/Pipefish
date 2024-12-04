@@ -450,10 +450,6 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.S
 	return LHS, RHS
 }
 
-func (p *Parser) IsPrivate(x, y int) bool {
-	return p.TokenizedDeclarations[x][y].Private
-}
-
 func (p *Parser) MakeAbstractSigFromStringSig(sig ast.StringSig) ast.AbstractSig {
 	result := make(ast.AbstractSig, sig.Len())
 	for i, pair := range sig {

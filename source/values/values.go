@@ -323,4 +323,9 @@ type AbstractTypeInfo struct {
 	Name string
 	Path string
 	AT   AbstractType
+	IsMI bool
+}
+
+func (aT AbstractTypeInfo) IsMandatoryImport() bool {
+	return aT.IsMI
 }

@@ -80,8 +80,7 @@ func (service Service) SerializeApi() string {
 		if !service.Cp.Vm.concreteTypeInfo[i].isEnum() {
 			continue
 		}
-		enumOrdinal := i - int(values.FIRST_DEFINED_TYPE)
-		if !service.Cp.Vm.concreteTypeInfo[i].isPrivate() && !service.isMandatoryImport(enumDeclaration, int(enumOrdinal)) {
+		if !service.Cp.Vm.concreteTypeInfo[i].isPrivate() && !service.Cp.Vm.concreteTypeInfo[i].isMandatoryImport() {
 			buf.WriteString("ENUM | ")
 			buf.WriteString(service.Cp.Vm.concreteTypeInfo[i].getName(DEFAULT))
 			for _, el := range service.Cp.Vm.concreteTypeInfo[i].(enumType).elementNames {
@@ -92,8 +91,11 @@ func (service Service) SerializeApi() string {
 		}
 	}
 
-	for declarationNumber, ty := range service.Cp.structDeclarationNumberToTypeNumber {
-		if !service.Cp.Vm.concreteTypeInfo[ty].isPrivate() && !service.isMandatoryImport(structDeclaration, declarationNumber) {
+	for ty := int(values.FIRST_DEFINED_TYPE); ty < len(service.Cp.Vm.concreteTypeInfo); ty++ {
+		if !service.Cp.Vm.concreteTypeInfo[ty].isStruct() {
+			continue
+		}
+		if !service.Cp.Vm.concreteTypeInfo[ty].isPrivate() && !service.Cp.Vm.concreteTypeInfo[ty].isMandatoryImport() {
 			buf.WriteString("STRUCT | ")
 			buf.WriteString(service.Cp.Vm.concreteTypeInfo[ty].getName(DEFAULT))
 			labels := service.Cp.Vm.concreteTypeInfo[ty].(structType).labelNumbers
@@ -109,7 +111,7 @@ func (service Service) SerializeApi() string {
 
 	for i := len(nativeAbstractTypes); i < len(service.Cp.Vm.AbstractTypes); i++ {
 		ty := service.Cp.Vm.AbstractTypes[i]
-		if !(service.isPrivate(ty.AT)) && !service.isMandatoryImport(abstractDeclaration, i) {
+		if !(service.isPrivate(ty.AT)) && !ty.IsMandatoryImport() {
 			buf.WriteString("ABSTRACT | ")
 			buf.WriteString(ty.Name)
 			buf.WriteString(" | ")
@@ -151,10 +153,6 @@ func (service Service) SerializeApi() string {
 		}
 	}
 	return buf.String()
-}
-
-func (service *Service) isMandatoryImport(dec declarationType, ordinal int) bool {
-	return settings.MandatoryImportSet().Contains(service.Cp.P.ParsedDeclarations[dec][ordinal].GetToken().Source)
 }
 
 func (service *Service) isPrivate(a values.AbstractType) bool { // TODO --- obviously this only needs calculating once and sticking in the compiler.

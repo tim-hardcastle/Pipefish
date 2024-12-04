@@ -38,10 +38,12 @@ var testFolder embed.FS
 
 // Definition of the initializer type.
 type initializer struct {
-	cp     *Compiler
-	p      *parser.Parser
-	initializers map[string]*initializer // The child initializers of this one, to initialize imports and external stubs.
-	common *commonInitializerBindle      // The information all the initializers have in common.
+	cp     *Compiler            // The compiler for the module being intitialized.
+	p      *parser.Parser       // The parser for the module being initialized.
+	initializers map[string]*initializer               // The child initializers of this one, to initialize imports and external stubs.
+	TokenizedDeclarations [13]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
+	ParsedDeclarations    [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
+	common *commonInitializerBindle                    // The information all the initializers have in common.
 }
 
 func newInitializer() *initializer {
@@ -62,6 +64,8 @@ func newCommonInitializerBindle() *commonInitializerBindle {
 	return &b
 }
 
+// Stores pretokenized chunks of code for later parsing.
+type TokenizedCodeChunks []*token.TokenizedCodeChunk
 
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a 
 // `CommonInitializerBindle` for the initializers to share. These common bindles are then passed down to the
@@ -354,7 +358,7 @@ func (iz *initializer) AddToNameSpace(thingsToImport []string) {
 
 func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
 	line.Private = private
-	iz.p.TokenizedDeclarations[decType] = append(iz.p.TokenizedDeclarations[decType], line)
+	iz.TokenizedDeclarations[decType] = append(iz.TokenizedDeclarations[decType], line)
 }
 
 var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration,
@@ -529,11 +533,11 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 
 func (iz *initializer) ParseImportsAndExternals() {
 	for kindOfDeclarationToParse := importDeclaration; kindOfDeclarationToParse <= externalDeclaration; kindOfDeclarationToParse++ {
-		iz.p.ParsedDeclarations[kindOfDeclarationToParse] = parser.ParsedCodeChunks{}
-		for chunk := 0; chunk < len(iz.p.TokenizedDeclarations[kindOfDeclarationToParse]); chunk++ {
-			iz.p.TokenizedCode = iz.p.TokenizedDeclarations[kindOfDeclarationToParse][chunk]
-			iz.p.TokenizedDeclarations[kindOfDeclarationToParse][chunk].ToStart()
-			iz.p.ParsedDeclarations[kindOfDeclarationToParse] = append(iz.p.ParsedDeclarations[kindOfDeclarationToParse], iz.p.ParseTokenizedChunk())
+		iz.ParsedDeclarations[kindOfDeclarationToParse] = parser.ParsedCodeChunks{}
+		for chunk := 0; chunk < len(iz.TokenizedDeclarations[kindOfDeclarationToParse]); chunk++ {
+			iz.p.TokenizedCode = iz.TokenizedDeclarations[kindOfDeclarationToParse][chunk]
+			iz.TokenizedDeclarations[kindOfDeclarationToParse][chunk].ToStart()
+			iz.ParsedDeclarations[kindOfDeclarationToParse] = append(iz.ParsedDeclarations[kindOfDeclarationToParse], iz.p.ParseTokenizedChunk())
 		}
 	}
 }
@@ -587,11 +591,11 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 // We need to declare all the types as suffixes for all the user-defined types
 func (iz *initializer) addTypesToParser() { /// TODO --- some of this seems to replicate boilerplate in the parsing functions, so you should be able to remove the latter.
 	for kindOfType := enumDeclaration; kindOfType <= cloneDeclaration; kindOfType++ {
-		for chunk := 0; chunk < len(iz.p.TokenizedDeclarations[kindOfType]); chunk++ {
+		for chunk := 0; chunk < len(iz.TokenizedDeclarations[kindOfType]); chunk++ {
 			// Each of them should begin with the name of the type being declared, and then followed by an =..
-			iz.p.TokenizedDeclarations[kindOfType][chunk].ToStart()
-			tok1 := iz.p.TokenizedDeclarations[kindOfType][chunk].NextToken()
-			tok2 := iz.p.TokenizedDeclarations[kindOfType][chunk].NextToken()
+			iz.TokenizedDeclarations[kindOfType][chunk].ToStart()
+			tok1 := iz.TokenizedDeclarations[kindOfType][chunk].NextToken()
+			tok2 := iz.TokenizedDeclarations[kindOfType][chunk].NextToken()
 			if tok1.Type != token.IDENT || tok2.Type != token.ASSIGN {
 				iz.Throw("init/type/form/a", tok1)
 				continue
@@ -609,25 +613,25 @@ func (iz *initializer) addTypesToParser() { /// TODO --- some of this seems to r
 
 func (iz *initializer) addConstructorsToParserAndParseStructDeclarations() {
 	// First we need to make the struct types into types so the parser parses them properly.
-	for chunk := 0; chunk < len(iz.p.TokenizedDeclarations[structDeclaration]); chunk++ {
-		iz.p.TokenizedDeclarations[structDeclaration][chunk].ToStart()
+	for chunk := 0; chunk < len(iz.TokenizedDeclarations[structDeclaration]); chunk++ {
+		iz.TokenizedDeclarations[structDeclaration][chunk].ToStart()
 		// Note that the first two tokens should already have been validated by the createTypeSuffixes method as IDENT and ASSIGN respectively.
-		tok1 := iz.p.TokenizedDeclarations[structDeclaration][chunk].NextToken()
-		iz.p.TokenizedDeclarations[structDeclaration][chunk].NextToken() // We skip the = sign.
+		tok1 := iz.TokenizedDeclarations[structDeclaration][chunk].NextToken()
+		iz.TokenizedDeclarations[structDeclaration][chunk].NextToken() // We skip the = sign.
 		iz.p.AllFunctionIdents.Add(tok1.Literal)
 		iz.p.Functions.Add(tok1.Literal)
 		iz.p.Structs.Add(tok1.Literal)
 	}
 	// Now we can parse them.
-	for chunk := 0; chunk < len(iz.p.TokenizedDeclarations[structDeclaration]); chunk++ {
-		iz.p.TokenizedCode = iz.p.TokenizedDeclarations[structDeclaration][chunk]
-		iz.p.TokenizedDeclarations[structDeclaration][chunk].ToStart()
-		iz.p.ParsedDeclarations[structDeclaration] = append(iz.p.ParsedDeclarations[structDeclaration], iz.p.ParseTokenizedChunk())
+	for chunk := 0; chunk < len(iz.TokenizedDeclarations[structDeclaration]); chunk++ {
+		iz.p.TokenizedCode = iz.TokenizedDeclarations[structDeclaration][chunk]
+		iz.TokenizedDeclarations[structDeclaration][chunk].ToStart()
+		iz.ParsedDeclarations[structDeclaration] = append(iz.ParsedDeclarations[structDeclaration], iz.p.ParseTokenizedChunk())
 	}
 }
 
 func (iz *initializer) createSnippetsPart1() {
-	for _, v := range iz.p.TokenizedDeclarations[snippetDeclaration] {
+	for _, v := range iz.TokenizedDeclarations[snippetDeclaration] {
 		v.ToStart()
 		// Note that the first tokens should already have been validated by the createTypeSuffixes method as IDENT.
 		tok1 := v.NextToken()
@@ -644,10 +648,10 @@ func (iz *initializer) ParseEverything() {
 		if declarations == cloneDeclaration || declarations == interfaceDeclaration { // TODO --- yeah, yeah, I am filled with shame.
 			continue
 		}
-		for chunk := 0; chunk < len(iz.p.TokenizedDeclarations[declarations]); chunk++ {
-			iz.p.TokenizedCode = iz.p.TokenizedDeclarations[declarations][chunk]
-			iz.p.TokenizedDeclarations[declarations][chunk].ToStart()
-			iz.p.ParsedDeclarations[declarations] = append(iz.p.ParsedDeclarations[declarations], iz.p.ParseTokenizedChunk())
+		for chunk := 0; chunk < len(iz.TokenizedDeclarations[declarations]); chunk++ {
+			iz.p.TokenizedCode = iz.TokenizedDeclarations[declarations][chunk]
+			iz.TokenizedDeclarations[declarations][chunk].ToStart()
+			iz.ParsedDeclarations[declarations] = append(iz.ParsedDeclarations[declarations], iz.p.ParseTokenizedChunk())
 		}
 	}
 
@@ -845,7 +849,7 @@ func (iz *initializer) makeFunctionTableAndGoMods() {
 
 	// We slurp the functions and converters out of the .so files, if necessary building or rebuilding
 	// the .so files first.
-	iz.cp.compileGo()
+	iz.compileGo()
 
 	// We add in constructors for the structs, snippets, and clones.
 	iz.compileConstructors()
@@ -856,7 +860,7 @@ func (iz *initializer) makeFunctionTableAndGoMods() {
 
 func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
-	for i, imp := range iz.p.ParsedDeclarations[importDeclaration] {
+	for i, imp := range iz.ParsedDeclarations[importDeclaration] {
 		namespace := ""
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
@@ -878,7 +882,7 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 			iz.cp.declarationMap[k] = v
 		}
 		iz.p.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
-		newCp.P.Private = iz.p.IsPrivate(int(importDeclaration), i)
+		newCp.P.Private = iz.IsPrivate(int(importDeclaration), i)
 	}
 	return unnamespacedImports
 }
@@ -923,9 +927,9 @@ var serviceVariables = map[string]serviceVariableData{
 // implementing overloading.
 func (iz *initializer) MakeFunctionTable() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
-		for i := 0; i < len(iz.p.ParsedDeclarations[j]); i++ {
-			tok := iz.p.ParsedDeclarations[j][i].GetToken()
-			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.p.ParsedDeclarations[j][i])
+		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
+			tok := iz.ParsedDeclarations[j][i].GetToken()
+			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
 			if body == nil {
 				iz.p.Throw("init/func/body", tok)
 				return
@@ -937,7 +941,7 @@ func (iz *initializer) MakeFunctionTable() {
 				return
 			}
 			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: iz.p.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: iz.p.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
+				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			iz.cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
 				iz.cmI("Adding " + functionName + " to common functions.")
@@ -1118,7 +1122,7 @@ func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
 		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
 	}
-	_, _, sig, _, body, given := iz.p.ExtractPartsOfFunction(iz.p.ParsedDeclarations[dec.decType][dec.decNumber])
+	_, _, sig, _, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
 	sigNames := dtypes.Set[string]{}
 	for _, pair := range sig {
 		if pair.VarType != "bling" {
@@ -1147,7 +1151,7 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 	namesToDeclarations := map[string][]labeledParsedCodeChunk{}
 	result := [][]labeledParsedCodeChunk{}
 	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
-		for i, dec := range iz.p.ParsedDeclarations[dT] {
+		for i, dec := range iz.ParsedDeclarations[dT] {
 			if _, ok := dec.(*ast.AssignmentExpression); !ok {
 				iz.p.Throw("init/assign", dec.GetToken())
 				continue
@@ -1156,7 +1160,7 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 			for _, name := range names {
 				existingName, alreadyExists := namesToDeclarations[name]
 				if alreadyExists {
-					iz.p.Throw("init/name/exists/a", dec.GetToken(), iz.p.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
+					iz.p.Throw("init/name/exists/a", dec.GetToken(), iz.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
 					return nil
 				}
 				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
@@ -1165,17 +1169,17 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 	}
 	iz.cmI("Extracting variable names from functions.")
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
-		for i, dec := range iz.p.ParsedDeclarations[dT] {
+		for i, dec := range iz.ParsedDeclarations[dT] {
 			name, _, _, _, _, _ := iz.p.ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
 				names := namesToDeclarations[name]
 				for _, existingName := range names {
 					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
-						iz.p.Throw("init/name/exists/b", dec.GetToken(), iz.p.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+						iz.p.Throw("init/name/exists/b", dec.GetToken(), iz.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
 					}
 					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be both a command and a function 'cos that would be weird.
-						iz.p.Throw("init/name/exists/c", dec.GetToken(), iz.p.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+						iz.p.Throw("init/name/exists/c", dec.GetToken(), iz.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
 					}
 				}
 				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i})
@@ -1308,9 +1312,9 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case functionDeclaration:
-				iz.compileFunction(iz.p.ParsedDeclarations[functionDeclaration][dec.decNumber], iz.p.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
+				iz.compileFunction(iz.ParsedDeclarations[functionDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
 			case commandDeclaration:
-				iz.compileFunction(iz.p.ParsedDeclarations[commandDeclaration][dec.decNumber], iz.p.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
+				iz.compileFunction(iz.ParsedDeclarations[commandDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
 			}
 			iz.cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
@@ -1330,7 +1334,7 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 }
 
 func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationType, v int) {
-	dec := iz.p.ParsedDeclarations[declarations][v]
+	dec := iz.ParsedDeclarations[declarations][v]
 	iz.cp.cm("Compiling assignment "+dec.String(), dec.GetToken())
 	lhs := dec.(*ast.AssignmentExpression).Left
 	rhs := dec.(*ast.AssignmentExpression).Right
@@ -1406,7 +1410,7 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 }
 
 func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*Environment, varAccess) {
-	isPrivate := iz.p.IsPrivate(int(dT), i)
+	isPrivate := iz.IsPrivate(int(dT), i)
 	var vAcc varAccess
 	envToAddTo := iz.cp.GlobalConsts
 	if dT == constantDeclaration {
@@ -1478,7 +1482,7 @@ func (iz *initializer) populateAbstractTypesAndMakeFunctionTrees() {
 	}
 
 	// Now we pull in all the shared functions that fulfill the interface types, populating the types as we go.
-	for _, tcc := range iz.p.TokenizedDeclarations[interfaceDeclaration] {
+	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		typename := nameTok.Literal
@@ -1512,7 +1516,7 @@ func (iz *initializer) populateAbstractTypesAndMakeFunctionTrees() {
 		iz.p.TypeMap[typename] = types
 		typesWithNull := types.Insert(values.NULL)
 		iz.p.TypeMap[typename+"?"] = typesWithNull
-		iz.AddTypeToVm(values.AbstractTypeInfo{typename, iz.p.NamespacePath, types})
+		iz.AddTypeToVm(values.AbstractTypeInfo{typename, iz.p.NamespacePath, types, settings.MandatoryImportSet().Contains(nameTok.Source)})
 		// And we add all the implicated functions to the function table.
 		for _, ty := range types.Types {
 			for _, fn := range funcsToAdd[ty] {
@@ -1597,7 +1601,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 //
 // Details of the external services are kept in the vm, because it will have to make the external calls.
 func (iz *initializer) initializeExternals() {
-	for _, declaration := range iz.p.ParsedDeclarations[externalDeclaration] {
+	for _, declaration := range iz.ParsedDeclarations[externalDeclaration] {
 		name, path := iz.getPartsOfImportOrExternalDeclaration(declaration)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
 			service, ok := iz.cp.Vm.HubServices[name]
@@ -1676,7 +1680,7 @@ func (iz *initializer) addAnyExternalService(handlerForService externalCallHandl
 	iz.initializers[name] = newIz
 	newCp := newIz.initializeFromSourcecode(iz.cp.Vm, iz.p.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
-	newCp.P.Private = iz.p.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
+	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	iz.cp.Services[name] = &Service{newCp, false}
 }
 
@@ -1699,7 +1703,7 @@ func (iz *initializer) AddType(name, supertype string, typeNo values.ValueType) 
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
 func (iz *initializer) createEnums() {
-	for i, tokens := range iz.p.TokenizedDeclarations[enumDeclaration] {
+	for i, tokens := range iz.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		var typeNo values.ValueType
@@ -1738,13 +1742,13 @@ func (iz *initializer) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, enumType{name: tok1.Literal, path: iz.p.NamespacePath, elementNames: elementNameList, private: iz.p.IsPrivate(int(enumDeclaration), i)})
+		iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, enumType{name: tok1.Literal, path: iz.p.NamespacePath, elementNames: elementNameList, private: iz.IsPrivate(int(enumDeclaration), i)})
 	}
 }
 
 func (iz *initializer) createClones() {
-	for i, tokens := range iz.p.TokenizedDeclarations[cloneDeclaration] {
-		private := iz.p.IsPrivate(int(cloneDeclaration), i)
+	for i, tokens := range iz.TokenizedDeclarations[cloneDeclaration] {
+		private := iz.IsPrivate(int(cloneDeclaration), i)
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		name := tok1.Literal
@@ -1768,7 +1772,7 @@ func (iz *initializer) createClones() {
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
 			iz.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, cloneType{name: name, path: iz.p.NamespacePath, parent: parentTypeNo, private: iz.p.IsPrivate(int(cloneDeclaration), i)})
+			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, cloneType{name: name, path: iz.p.NamespacePath, parent: parentTypeNo, private: iz.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				iz.cp.Vm.IsRangeable = iz.cp.Vm.IsRangeable.Union(altType(typeNo))
 			}
@@ -1943,7 +1947,7 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, built
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
 func (iz *initializer) createStructNamesAndLabels() {
 	iz.cp.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
-	for i, node := range iz.p.ParsedDeclarations[structDeclaration] {
+	for i, node := range iz.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
 		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
@@ -1954,7 +1958,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 			typeInfo.path = iz.p.NamespacePath
 			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
-			iz.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, iz.p.IsPrivate(int(structDeclaration), i)})
+			iz.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i)})
 		}
 		iz.AddType(name, "struct", typeNo)
 		if name == "Error" {
@@ -1987,17 +1991,17 @@ func (iz *initializer) createStructNamesAndLabels() {
 				}
 			}
 			iz.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
-			stT := structType{name: name, path: iz.p.NamespacePath, labelNumbers: labelsForStruct, private: iz.p.IsPrivate(int(structDeclaration), i)}
+			stT := structType{name: name, path: iz.p.NamespacePath, labelNumbers: labelsForStruct, private: iz.IsPrivate(int(structDeclaration), i)}
 			stT = stT.addLabels(labelsForStruct)
 			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, stT)
 		}
 	}
 
-	for i := range iz.p.ParsedDeclarations[structDeclaration] {
-		if iz.p.IsPrivate(int(structDeclaration), i) {
+	for i := range iz.ParsedDeclarations[structDeclaration] {
+		if iz.IsPrivate(int(structDeclaration), i) {
 			continue
 		}
-		tok := iz.p.ParsedDeclarations[structDeclaration][i].GetToken()
+		tok := iz.ParsedDeclarations[structDeclaration][i].GetToken()
 		sI, _ := iz.cp.getDeclaration(decSTRUCT, tok, DUMMY)
 		sT := iz.cp.Vm.concreteTypeInfo[sI.(structInfo).structNumber]
 		for i := range sT.(structType).labelNumbers {
@@ -2011,7 +2015,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 }
 
 func (iz *initializer) createAbstractTypes() {
-	for _, tcc := range iz.p.TokenizedDeclarations[abstractDeclaration] {
+	for _, tcc := range iz.TokenizedDeclarations[abstractDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		newTypename := nameTok.Literal
@@ -2051,7 +2055,7 @@ func (iz *initializer) createAbstractTypes() {
 }
 
 func (iz *initializer) createInterfaceTypes() {
-	for _, tcc := range iz.p.TokenizedDeclarations[interfaceDeclaration] {
+	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		newTypename := nameTok.Literal
@@ -2121,7 +2125,7 @@ func (iz *initializer) createInterfaceTypes() {
 }
 
 func (iz *initializer) addFieldsToStructs() {
-	for i, node := range iz.p.ParsedDeclarations[structDeclaration] {
+	for i, node := range iz.ParsedDeclarations[structDeclaration] {
 		structNumber := iz.cp.structDeclarationNumberToTypeNumber[i]
 		structInfo := iz.cp.Vm.concreteTypeInfo[structNumber].(structType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
@@ -2145,8 +2149,8 @@ func (iz *initializer) createSnippetTypesPart2() {
 	for i, name := range iz.p.Snippets {
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
-		iz.p.TokenizedDeclarations[snippetDeclaration][i].ToStart()
-		decTok := iz.p.TokenizedDeclarations[snippetDeclaration][i].NextToken()
+		iz.TokenizedDeclarations[snippetDeclaration][i].ToStart()
+		decTok := iz.TokenizedDeclarations[snippetDeclaration][i].NextToken()
 		typeInfo, typeExists := iz.cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
@@ -2154,8 +2158,8 @@ func (iz *initializer) createSnippetTypesPart2() {
 			typeInfo.path = iz.p.NamespacePath
 			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
-			iz.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, iz.p.IsPrivate(int(snippetDeclaration), i)})
-			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, structType{name: name, path: iz.p.NamespacePath, snippet: true, private: iz.p.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			iz.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, iz.IsPrivate(int(snippetDeclaration), i)})
+			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, structType{name: name, path: iz.p.NamespacePath, snippet: true, private: iz.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 			iz.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			iz.cp.Vm.codeGeneratingTypes.Add(typeNo)
 		}
@@ -2182,8 +2186,8 @@ func (iz *initializer) checkTypesForConsistency() {
 		}
 	}
 
-	for i, dec := range iz.p.TokenizedDeclarations[abstractDeclaration] {
-		if iz.p.IsPrivate(int(abstractDeclaration), i) {
+	for i, dec := range iz.TokenizedDeclarations[abstractDeclaration] {
+		if iz.IsPrivate(int(abstractDeclaration), i) {
 			continue
 		}
 		dec.ToStart()
@@ -2221,28 +2225,28 @@ func (iz *initializer) addStructLabelsToVm(name string, typeNo values.ValueType,
 
 func (iz *initializer) compileConstructors() {
 	// Struct declarations.
-	for i, node := range iz.p.ParsedDeclarations[structDeclaration] {
+	for i, node := range iz.ParsedDeclarations[structDeclaration] {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		typeNo := iz.cp.ConcreteTypeNow(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		iz.cp.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.p.IsPrivate(int(structDeclaration), i), node.GetToken())
+		iz.cp.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
 		iz.cp.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range iz.p.Snippets {
 		typeNo := iz.cp.ConcreteTypeNow(name)
-		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.p.IsPrivate(int(snippetDeclaration), i), iz.p.ParsedDeclarations[snippetDeclaration][i].GetToken())
+		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
 		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
 	}
 	// Clones
-	for i, dec := range iz.p.TokenizedDeclarations[cloneDeclaration] {
+	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
 		dec.ToStart()
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := iz.cp.ConcreteTypeNow(name)
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.concreteTypeInfo[iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType).parent].getName(DEFAULT)}}
-		iz.cp.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.p.IsPrivate(int(cloneDeclaration), i), &nameTok)
+		iz.cp.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		iz.cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
 	}
 }
@@ -2274,7 +2278,7 @@ func (iz *initializer) addAbstractTypesToVm() {
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, typeName := range keys {
-		iz.AddTypeToVm(values.AbstractTypeInfo{typeName, iz.p.NamespacePath, iz.p.GetAbstractType(typeName)})
+		iz.AddTypeToVm(values.AbstractTypeInfo{typeName, iz.p.NamespacePath, iz.p.GetAbstractType(typeName), false}) // TODO --- this only happens to be false because you didn't define any.
 	}
 }
 
@@ -2301,6 +2305,10 @@ func (iz *initializer) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
 
 func altType(t ...values.ValueType) AlternateType {
 	return AltType(t...)
+}
+
+func (i initializer) IsPrivate(x, y int) bool {
+	return i.TokenizedDeclarations[x][y].Private
 }
 
 func MakeFilepath(scriptFilepath string) string {
