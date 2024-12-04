@@ -25,6 +25,17 @@ const (
 	trRETURN
 )
 
+// This keeps track of what we should be logging, and is passed around the compiler in the context struct.
+type LogFlavor int
+
+const (
+	LF_NONE   LogFlavor = iota // No logging is taking place.
+	LF_INIT                    // We're still initializing the variables.
+	LF_TRACK                   // We're logging everything.
+	LF_AUTO                    // We're autologging a line.
+	LF_MANUAL                  // The user did a custom log statement other than an autolog.
+)
+
 // This contains the information we need to generate tracking reports at runtime.
 type TrackingData struct {
 	flavor trackingFlavor
@@ -168,4 +179,24 @@ func (vm *Vm) trackingIs(i int, tf trackingFlavor) bool {
 		return false
 	}
 	return vm.LiveTracking[i].flavor == tf
+}
+
+func (cp *Compiler) loggingOn(ctxt context) bool {
+	if !ctxt.isReturn {
+		return false
+	}
+	if (ctxt.logFlavor == LF_AUTO && cp.getLoggingScope() != 0) || (ctxt.logFlavor == LF_TRACK && cp.getLoggingScope() == 2) {
+		return true
+	}
+	return false
+}
+
+func (cp *Compiler) getLoggingScope() int {
+	fields := cp.getValueOfConstant("$logging").([]values.Value)
+	return fields[0].V.(int)
+}
+
+func (cp *Compiler) getValueOfConstant(s string) any {
+	varIs, _ := cp.GlobalConsts.getVar(s)
+	return cp.Vm.Mem[varIs.mLoc].V
 }

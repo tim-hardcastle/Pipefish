@@ -12,13 +12,49 @@ import (
 	"pipefish/source/values"
 )
 
+// Generating a function call is an elaborate business because of the multiple dispatch. This needs
+// to be performed as much as we can at compile time with as much type inference as we can do, and
+// then anything we can't figure out at compile time needs to be lowered into the bytecode to be
+// dispatched at runtime.
+
+// We generate the necessary code by working our way along the "function tree" associated with the
+// name of the function.
+
+// To achieve this, we create a PODO called a "bindle", a miscellaneous collection of the data we need
+// to do the dispatch, some of which (e.g.) the token associated with the caller, are stable throughout
+// the construction of the function call, while others cahnge to keep track of where we are.
+type bindle struct {
+	treePosition *ast.FnTreeNode // Our position on the function tree.
+	branchNo     int             // The number of the branch in the function tree.
+	argNo        int             // The number of the argument we're looking at.
+	index        int             // The index we're looking at in the argument we're looking at.
+	lengths      dtypes.Set[int] // The possible arities of the values of the argument we're looking at.
+	maxLength    int             // The maximum of the 'lengths' set, or -1 if the set contains this.
+	targetList   AlternateType   // The possible types associated with this tree position.
+	doneList     AlternateType   // The types we've looked at up to and including those of the current branchNo.
+	valLocs      []uint32        // The locations of the values evaluated from the arguments.
+	types        finiteTupleType // The types of the values.
+	outLoc       uint32          // Where we're going to put the output.
+	env          *Environment    // Associates variable names with memory locations
+	varargsTime  bool            // Once we've taken a varArgs path, we can discard values 'til we reach bling or run out.
+	tok          *token.Token    // For generating errors.
+	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
+	override     bool            // A kludgy flag to pass back whether we have a forward declaration that would prevent constant folding.
+	libcall      bool            // Are we in a namespace?
+	lowMem       uint32          // The lowest point in memory that the function uses. Hence the lowest point from which we could need to copy when putting memory on the recursionStack.
+}
+
+// This is where we come in. The `createFunctionCall` method initializes the bindle and then makes a call
+// `returnTypes := cp.generateNewArgument(b)` where `b` is the bindle. This starts off the whole recursive chain
+// of creating a function call by getting the (potential) type information for the first argument.
+//
 // The compiler in the method receiver is where we look up the function name (the "resolving compiler").
 // The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
 // use them to look up the function.
 func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable, ctxt context, libcall bool) (AlternateType, bool) {
 	args := node.GetArgs()
 	env := ctxt.env
-	ac := ctxt.ac
+	ac := ctxt.access
 	if len(args) == 1 {
 		switch args[0].(type) {
 		case *ast.Nothing:
@@ -53,12 +89,12 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_VALUE, nil, node.GetToken())
-					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.TypeNameToTypeList("any?")}
+					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.getAlternateTypeFromTypeName("any?")}
 					env.data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
-			b.types[i] = cp.TypeNameToTypeList("any?")
+			b.types[i] = cp.getAlternateTypeFromTypeName("any?")
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(Asgm, v.mLoc)
@@ -118,27 +154,6 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	return returnTypes, cst && !b.override
 }
 
-type bindle struct {
-	treePosition *ast.FnTreeNode // Our position on the function tree.
-	branchNo     int             // The number of the branch in the function tree.
-	argNo        int             // The number of the argument we're looking at.
-	index        int             // The index we're looking at in the argument we're looking at.
-	lengths      dtypes.Set[int] // The possible arities of the values of the argument we're looking at.
-	maxLength    int             // The maximum of the 'lengths' set, or -1 if the set contains this.
-	targetList   AlternateType   // The possible types associated with this tree position.
-	doneList     AlternateType   // The types we've looked at up to and including those of the current branchNo.
-	valLocs      []uint32        // The locations of the values evaluated from the arguments.
-	types        finiteTupleType // The types of the values.
-	outLoc       uint32          // Where we're going to put the output.
-	env          *Environment    // Associates variable names with memory locations
-	varargsTime  bool            // Once we've taken a varArgs path, we can discard values 'til we reach bling or run out.
-	tok          *token.Token    // For generating errors.
-	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
-	override     bool            // A kludgy flag to pass back whether we have a forward declaration that would prevent constant folding.
-	libcall      bool            // Are we in a namespace?
-	lowMem       uint32          // The lowest point in memory that the function uses. Hence the lowest point from which we could need to copy when putting memory on the recursionStack.
-}
-
 func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 	cp.cmP("Called generateNewArgument.", b.tok)
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
@@ -174,6 +189,20 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 	newBindle.index = 0
 	cp.cmP("Found a new argument. Calling generateFromTopBranchDown.", b.tok)
 	return cp.generateFromTopBranchDown(&newBindle)
+}
+
+func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
+	cp.cmP("Called seekBling.", b.tok)
+	for i, branch := range b.treePosition.Branch {
+		if branch.Type.Contains(values.BLING) {
+			newBindle := *b
+			newBindle.branchNo = i
+			newBindle.varargsTime = false
+			cp.cmP("Function seekBling calling moveAlongBranchViaSingleValue.", b.tok)
+			return cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
+		}
+	}
+	return AltType(values.ERROR)
 }
 
 func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
@@ -376,7 +405,7 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 }
 
 func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString string, mem uint32, index int) bkGoto { // TODO --- more of this.
-	ty := cp.TypeNameToTypeList(typeAsString)
+	ty := cp.getAlternateTypeFromTypeName(typeAsString)
 	args := []uint32{mem, uint32(index)}
 	for _, t := range ty {
 		args = append(args, uint32(t.(simpleType)))
@@ -401,7 +430,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		}
 	}
 	// It may be a plain old concrete type.
-	ty := cp.TypeNameToTypeList(typeAsString)
+	ty := cp.getAlternateTypeFromTypeName(typeAsString)
 	if len(ty) == 1 {
 		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
@@ -602,9 +631,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				case "tuple_of_tuple":
 					functionAndType.T = b.doneList
 				case "type_with":
-					functionAndType.T = AlternateType{cp.TypeNameToTypeList("struct")}.Union(AltType(values.ERROR))
+					functionAndType.T = AlternateType{cp.getAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
 				case "struct_with":
-					functionAndType.T = AlternateType{cp.TypeNameToTypeList("struct")}.Union(AltType(values.ERROR))
+					functionAndType.T = AlternateType{cp.getAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
 				}
 				functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.T
@@ -637,12 +666,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					}
 				}
 				if len(branch.Node.Fn.NameRets) == 1 {
-					return cp.TypeNameToTypeList(branch.Node.Fn.NameRets[0].VarType)
+					return cp.getAlternateTypeFromTypeName(branch.Node.Fn.NameRets[0].VarType)
 				}
 				// Otherwise it's a tuple.
 				tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
 				for _, v := range branch.Node.Fn.NameRets {
-					tt = append(tt, cp.TypeNameToTypeList(v.VarType))
+					tt = append(tt, cp.getAlternateTypeFromTypeName(v.VarType))
 				}
 				return AlternateType{finiteTupleType{tt}}
 			}

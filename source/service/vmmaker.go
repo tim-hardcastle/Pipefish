@@ -417,10 +417,10 @@ func (cp *Compiler) compileFunction(node ast.Node, private bool, outerEnv *Envir
 			}
 		}
 		if isVarargs {
-			cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{cp.TypeNameToTypeList(pair.VarType)}}, node.GetToken())
+			cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{cp.getAlternateTypeFromTypeName(pair.VarType)}}, node.GetToken())
 		} else {
 			if pair.VarType != "bling" {
-				cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), node.GetToken())
+				cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, cp.getAlternateTypeFromTypeName(pair.VarType), node.GetToken())
 			}
 		}
 	}
@@ -573,7 +573,7 @@ func (cp *Compiler) compileEverything() [][]labeledParsedCodeChunk {
 	cp.cm("Extracting variable names from functions.", dummyTok)
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range cp.P.ParsedDeclarations[dT] {
-			name, _, _, _, _, _ := cp.GetParser().ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
+			name, _, _, _, _, _ := cp.P.ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
 				names := namesToDeclarations[name]
@@ -761,7 +761,7 @@ func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType
 		return
 	}
 	rollbackTo := cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-	ctxt := context{env: cp.GlobalVars, ac: INIT, lowMem: DUMMY, logFlavor: LF_INIT}
+	ctxt := context{env: cp.GlobalVars, access: INIT, lowMem: DUMMY, logFlavor: LF_INIT}
 	cp.CompileNode(rhs, ctxt)
 	if cp.P.ErrorsExist() {
 		return
@@ -816,7 +816,7 @@ func (cp *Compiler) compileGlobalConstantOrVariable(declarations declarationType
 		if sig[i].VarType == "*inferred*" {
 			cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 		} else {
-			allowedTypes := cp.TypeNameToTypeList(sig[i].VarType)
+			allowedTypes := cp.getAlternateTypeFromTypeName(sig[i].VarType)
 			if allowedTypes.isNoneOf(head[i].T) {
 				cp.P.Throw("comp/assign/type", dec.GetToken())
 				return
@@ -847,8 +847,6 @@ func (cp *Compiler) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, 
 	}
 	return envToAddTo, vAcc
 }
-
-
 
 // A function is shareable if at least one of its parameters must be of a type declared in the same module.
 func (cp *Compiler) shareable(f *ast.PrsrFunction) bool {
@@ -1341,6 +1339,13 @@ func (cp *Compiler) createClones() {
 	}
 }
 
+const (
+	PREFIX uint32 = iota
+	INFIX
+	SUFFIX
+	UNFIX
+)
+
 func (cp *Compiler) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.StringSig, isPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Sig: cp.P.MakeAbstractSigFromStringSig(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: cp.P.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: cp, Number: cp.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
 	cp.P.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
@@ -1588,7 +1593,7 @@ func (cp *Compiler) checkTypesForConsistency() {
 		}
 		if !cp.Vm.concreteTypeInfo[typeNumber].isPrivate() {
 			for _, ty := range cp.Vm.concreteTypeInfo[typeNumber].(structType).abstractStructFields {
-				if cp.Vm.isPrivate(ty) {
+				if cp.isPrivate(ty) {
 					cp.Throw("init/private/struct", token.Token{}, cp.Vm.concreteTypeInfo[typeNumber], cp.Vm.DescribeAbstractType(ty, LITERAL))
 				}
 			}
@@ -1665,7 +1670,7 @@ func (cp *Compiler) addToBuiltins(sig ast.StringSig, builtinTag string, returnTy
 	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = cp.MemTop()
 	for _, pair := range sig {
-		cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, cp.TypeNameToTypeList(pair.VarType), tok)
+		cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, cp.getAlternateTypeFromTypeName(pair.VarType), tok)
 	}
 	cpF.HiReg = cp.MemTop()
 	cpF.Private = private
@@ -1732,5 +1737,3 @@ func MakeFilepath(scriptFilepath string) string {
 	}
 	return doctoredFilepath
 }
-
-

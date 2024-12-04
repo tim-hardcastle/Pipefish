@@ -8,10 +8,51 @@ import (
 	"strings"
 )
 
+// The Pipefish compiler has a rather richer view of the type system than the Pipefish language and its
+// runtime, in that the compiler can to some extent keep track of the arity of tuples and/or the types of 
+// their individual elements. We refer to this information as a "typescheme" to distinguish it from the
+// types of the languge itself. In this file we declare the assorted typescheme structs and their 
+// supporting methods.
+
+
+// Typeschemes implement the `typeScheme` interface. Those typeschemes that contain other typeschemes can 
+// be ordered to speed things up, hence the `compare` method in the interface.
+
 type typeScheme interface {
 	compare(u typeScheme) int
 	describe(mc *Vm) string
 	isPrivate(mc *Vm) bool
+}
+
+// What every compiler starts off with. The `AlternateType` typescheme is the cannonical form for storing
+// them: it expresses a range of potential types which can of course be a singleton.
+var INITIAL_TYPE_SCHEMES = map[string]AlternateType{
+	"ok":       AltType(values.SUCCESSFUL_VALUE),
+	"int":      AltType(values.INT),
+	"string":   AltType(values.STRING),
+	"rune":     AltType(values.RUNE),
+	"bool":     AltType(values.BOOL),
+	"float":    AltType(values.FLOAT),
+	"error":    AltType(values.ERROR),
+	"type":     AltType(values.TYPE),
+	"pair":     AltType(values.PAIR),
+	"list":     AltType(values.LIST),
+	"map":      AltType(values.MAP),
+	"set":      AltType(values.SET),
+	"label":    AltType(values.LABEL),
+	"func":     AltType(values.FUNC),
+	"int?":     AltType(values.NULL, values.INT),
+	"string?":  AltType(values.NULL, values.STRING),
+	"bool?":    AltType(values.NULL, values.BOOL),
+	"float64?": AltType(values.NULL, values.FLOAT),
+	"type?":    AltType(values.NULL, values.TYPE),
+	"pair?":    AltType(values.NULL, values.PAIR),
+	"list?":    AltType(values.NULL, values.LIST),
+	"map?":     AltType(values.NULL, values.MAP),
+	"set?":     AltType(values.NULL, values.SET),
+	"label?":   AltType(values.NULL, values.LABEL),
+	"func?":    AltType(values.NULL, values.FUNC),
+	"null":     AltType(values.NULL),
 }
 
 // Finds all the possible lengths of tuples in a typeScheme. (Single values have length 1. Non-finite tuples have length -1.)
@@ -632,4 +673,45 @@ func AltType(t ...values.ValueType) AlternateType {
 
 func tp(t values.ValueType) simpleType {
 	return simpleType(t)
+}
+
+func getAllTypes(ts typeScheme) AlternateType {
+	result := AlternateType{}
+	switch ts := ts.(type) {
+	case AlternateType:
+		for _, v := range ts {
+			result = result.Union(getAllTypes(v))
+		}
+	case TypedTupleType:
+		result = ts.T
+	case finiteTupleType:
+		for _, v := range ts {
+			result = result.Union(getAllTypes(v))
+		}
+	case simpleType:
+		result = AlternateType{ts}
+	default:
+		panic("We shouldn't be here!")
+	}
+	return result
+}
+
+func (ts AlternateType) reduce() typeScheme { // Turns alternative types with only on option into their contents.
+	if len(ts) == 1 {
+		return ts[0]
+	}
+	return ts
+}
+
+func (t AlternateType) mustBeSingleOrTuple() (bool, bool) {
+	s, T := true, true
+	for _, v := range t {
+		switch v.(type) {
+		case simpleType:
+			T = false
+		default:
+			s = false
+		}
+	}
+	return s, T
 }
