@@ -122,7 +122,7 @@ func (iz *initializer) initializeFromFilepath(mc *Vm, common *parser.CommonParse
 
 func (iz *initializer) initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *Compiler {
 	iz.cp = newCompiler(common, scriptFilepath, sourcecode, mc, namespacePath)
-	iz.p  = iz.p
+	iz.p  = iz.cp.P
 	iz.parseAll(scriptFilepath, sourcecode)
 	iz.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
@@ -275,7 +275,7 @@ func (iz *initializer) parseAll(scriptFilepath, sourcecode string) {
 }
 
 func (iz *initializer) ErrorsExist() bool {
-	return iz.ErrorsExist()
+	return iz.p.ErrorsExist()
 }
 
 
