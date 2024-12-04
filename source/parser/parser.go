@@ -55,8 +55,7 @@ type Parser struct {
 
 	TypeMap            TypeSys                      // Maps names to abstract types.
 	typeData           map[string][]string          // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
-	LocalConcreteTypes dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
-
+	
 	Structs   dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
 	StructSig map[string]ast.StringSig // <--- in here.
 
@@ -96,7 +95,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 			"enum":   []string{"enum", "enum?", "any", "any?"},
 			"any":    []string{"any", "any?"},
 		},
-		LocalConcreteTypes: make(dtypes.Set[values.ValueType]),
 		Structs:            make(dtypes.Set[string]),
 		StructSig:          make(map[string]ast.StringSig),
 		NamespaceBranch:    make(map[string]*ParserData),

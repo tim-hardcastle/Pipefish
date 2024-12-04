@@ -43,6 +43,7 @@ type initializer struct {
 	initializers map[string]*initializer               // The child initializers of this one, to initialize imports and external stubs.
 	TokenizedDeclarations [13]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations    [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
+	localConcreteTypes dtypes.Set[values.ValueType]    // All the struct, enum, and clone types defined in a given module.
 	goBucket       *GoBucket                           // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	common *commonInitializerBindle                    // The information all the initializers have in common.
 }
@@ -50,6 +51,7 @@ type initializer struct {
 func newInitializer() *initializer {
 	iz := initializer{
 		initializers: make(map[string]*initializer),
+		localConcreteTypes: make(dtypes.Set[values.ValueType]),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -1448,7 +1450,7 @@ func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 		abType := iz.p.GetAbstractType(ty)
 		ok := true
 		for _, concType := range abType.Types {
-			if !iz.p.LocalConcreteTypes.Contains(concType) {
+			if !iz.localConcreteTypes.Contains(concType) {
 				ok = false
 			}
 		}
@@ -1687,7 +1689,7 @@ func (iz *initializer) addAnyExternalService(handlerForService externalCallHandl
 }
 
 func (iz *initializer) AddType(name, supertype string, typeNo values.ValueType) {
-	iz.p.LocalConcreteTypes = iz.p.LocalConcreteTypes.Add(typeNo)
+	iz.localConcreteTypes = iz.localConcreteTypes.Add(typeNo)
 	iz.p.TypeMap[name] = values.MakeAbstractType(typeNo)
 	iz.p.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
 	types := []string{supertype}
