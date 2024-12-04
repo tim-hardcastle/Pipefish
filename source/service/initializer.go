@@ -46,7 +46,7 @@ type initializer struct {
 
 func newInitializer() *initializer {
 	iz := initializer{
-
+		initializers: make(map[string]*initializer),
 	}
 	return &iz
 }
