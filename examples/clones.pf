@@ -1,0 +1,10 @@
+newtype 
+
+FloatClone = clone float 
+IntClone = clone int
+ListClone = clone list 
+MapClone = clone map 
+PairClone = clone pair 
+RuneClone = clone rune 
+SetClone = clone set 
+StringClone = clone string 

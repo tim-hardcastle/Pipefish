@@ -1,0 +1,15 @@
+newtype
+
+Dragon = struct(name string, color Color, temperature Temperature)
+Color = enum RED, GREEN, GOLD, BLACK
+Temperature = clone int
+
+def
+
+// Returns the color of the hottest dragon.
+dragonFight(x, y Dragon) -> Color : golang {
+	if x.Temperature >= y.Temperature {
+		return x.Color
+	}
+	return y.Color
+}

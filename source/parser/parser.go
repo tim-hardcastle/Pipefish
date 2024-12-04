@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -14,147 +13,6 @@ import (
 	"pipefish/source/token"
 	"pipefish/source/values"
 )
-
-// NOTE: it may seem weird that the semicolon/newline has a lower precedence than 'given' or the 'magic colon', since these are followed by blocks
-// of newline-concatenated expressions. However, these blocks are held together by the indent-outdent bracketing. If the semicolon/newline had
-// higher precedence, then something along the lines of:
-//
-// given :
-//     foo(x) :
-//         x
-//     a = 42
-//
-// would parse incorrectly because it would try and attach the assignment to the inner function.
-
-const (
-	_ int = iota
-	LOWEST
-	SEMICOLON // semantic newline or ;
-	FUNC
-	GIVEN           // 'given'
-	MAGIC_COLON     // The colon separating the parameters of an inner function from its body.
-	WEAK_COLON      // A vile kludge. TODO --- can we get rid of it now?
-	GVN_ASSIGN      //
-	LOGGING         //
-	COLON           // :
-	MAGIC_SEMICOLON // For use in headers of 'for' blocks.
-	ASSIGN          // =
-	PIPING          // ->, >>, ?>
-	OR              // or
-	AND             // and
-	NOT             // not
-	EQUALS          // == or !=
-	LESSGREATER     // > or < or <= or >=
-	WEAK_COMMA      // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
-	FPREFIX         // user-defined prefix or function
-	FMIDFIX         // user-defined midfix or forefix
-	FENDFIX         // user-defined endfix
-	COMMA           // ,
-	WITH            // with, but ONLY when peeking ahead, otherwise it's an FMIDFIX
-	FINFIX          // user-defined infix or ->
-	SUM             // + or -
-	PRODUCT         // * or / or %
-	FSUFFIX         // user-defined suffix, or type in type declaration
-	MINUS           //  - as a prefix
-	INDEX           // after [
-	BELOW_NAMESPACE
-	NAMESPACE // 'foo.bar'
-)
-
-var precedences = map[token.TokenType]int{
-	token.SEMICOLON: SEMICOLON,
-	token.NEWLINE:   SEMICOLON,
-	token.GIVEN:     GIVEN,
-	// WEAK_COLON
-	token.GVN_ASSIGN:      GVN_ASSIGN,
-	token.LOG:             LOGGING,
-	token.IFLOG:           LOGGING,
-	token.PRELOG:          LOGGING,
-	token.MAGIC_COLON:     COLON,
-	token.COLON:           COLON,
-	token.FOR:             GIVEN,
-	token.MAGIC_SEMICOLON: MAGIC_SEMICOLON,
-	token.ASSIGN:          ASSIGN,
-	token.PIPE:            PIPING,
-	token.MAPPING:         PIPING,
-	token.FILTER:          PIPING,
-	token.OR:              OR,
-	token.AND:             AND,
-	token.NOT:             NOT,
-	token.EQ:              EQUALS,
-	token.NOT_EQ:          EQUALS,
-	// LESSGREATER
-	token.WEAK_COMMA: WEAK_COMMA,
-	token.VALID:      FPREFIX,
-	token.UNWRAP:     FPREFIX,
-	token.GLOBAL:     FPREFIX,
-	token.EVAL:       FPREFIX,
-	token.XCALL:      FPREFIX,
-	token.RANGE:      FPREFIX,
-	token.CONTINUE:   FPREFIX,
-	token.BREAK:      FPREFIX,
-	// FMIDFIX
-	// FENDFIX,
-	token.COMMA: COMMA,
-	// WITH
-	// FINFIX
-	// SUM
-	// PRODUCT
-	token.DOTDOTDOT: FSUFFIX,
-	token.EMDASH:    FSUFFIX,
-	// MINUS     (as prefix)
-	token.LBRACK: INDEX,
-	// BELOW_NAMESPACE
-	token.NAMESPACE_SEPARATOR: NAMESPACE,
-}
-
-type TokenSupplier interface{ NextToken() token.Token }
-
-func String(t TokenSupplier) string {
-	result := ""
-	for tok := t.NextToken(); tok.Type != "EOF"; tok = t.NextToken() {
-		result = result + fmt.Sprintf("%+v\n", tok)
-	}
-	return result
-}
-
-type tokenizedCodeChunks []*token.TokenizedCodeChunk
-
-type ParsedCodeChunks []ast.Node
-
-type ParserData struct {
-	Parser         *Parser
-	ScriptFilepath string
-}
-
-type TypeSys map[string]values.AbstractType
-
-type FuncSource struct { // For indexing the functions in the common function map, to prevent duplication.
-	Filename     string
-	LineNo       int
-	FunctionName string
-	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
-}
-
-// For data that needs to be shared by all parsers.
-type CommonParserBindle struct {
-	Types               TypeSys
-	Functions           map[FuncSource]*ast.PrsrFunction
-	InterfaceBacktracks []BkInterface
-	Errors              []*err.Error
-	IsBroken            bool
-	Sources             map[string][]string
-}
-
-func NewCommonBindle() *CommonParserBindle {
-	result := CommonParserBindle{Types: NewCommonTypeMap(),
-		Functions:           make(map[FuncSource]*ast.PrsrFunction),
-		InterfaceBacktracks: []BkInterface{},
-		Errors:              []*err.Error{},
-		Sources:             make(map[string][]string),
-	}
-	return &result
-}
 
 type Parser struct {
 
@@ -211,13 +69,6 @@ type Parser struct {
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
-// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we haven't compiled it yet, tis keeps track of where we backtrack to.
-// TODO --- it is here rather than with the other backtrackers in the compiler, rather than in the compiler where it belongs, because we do have a common parser bindle and we don't have a common compiler bindle.
-type BkInterface struct {
-	Fn   *ast.PrsrFunction
-	Addr uint32
-}
-
 func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
 	p := &Parser{
 		Logging:           true,
@@ -249,6 +100,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		},
 		LocalConcreteTypes: make(dtypes.Set[values.ValueType]),
 		Structs:            make(dtypes.Set[string]),
+		StructSig:          make(map[string]ast.StringSig),
 		NamespaceBranch:    make(map[string]*ParserData),
 		ExternalParsers:    make(map[string]*Parser),
 		NamespacePath:      namespacePath,
@@ -260,104 +112,87 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	for k := range p.Common.Types {
 		p.Suffixes.Add(k)
 	}
-
-	p.Suffixes.Add("raw")
 	p.Suffixes.Add("ref")
 	p.Suffixes.Add("self")
 
 	p.Infixes.Add("varchar")
 
-	p.Functions.AddSet(dtypes.MakeFromSlice([]string{"builtin"}))
-
-	p.StructSig = make(map[string]ast.StringSig)
+	p.Functions.Add("builtin")
 
 	p.pushRParser(p)
 
 	return p
 }
 
-func (p *Parser) TypeExists(name string) bool {
-	_, ok := p.SafeGetAbstractType(name)
-	return ok
+// Parses one line of code supplied as a string.
+func (p *Parser) ParseLine(source, input string) ast.Node {
+	p.ResetAfterError()
+	rl := lexer.NewRelexer(source, input)
+	p.TokenizedCode = rl
+	result := p.ParseTokenizedChunk()
+	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
+	return result
 }
 
-func (p *Parser) GetAbstractType(name string) values.AbstractType {
-	abType, _ := p.SafeGetAbstractType(name)
-	return abType
-}
-
-func (p *Parser) SafeGetAbstractType(name string) (values.AbstractType, bool) {
-	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
-		result := values.MakeAbstractType(values.STRING)
-		if GetNullabilityFromType(name) {
-			result = result.Insert(values.NULL)
-		}
-		result.Varchar = uint32(varCharValue)
-		return result, true
+// Shows output of parser for debugging purposes.
+func (p *Parser) ParseDump(source, input string) {
+	parsedLine := p.ParseLine(source, input) 
+	if parsedLine == nil {
+		fmt.Printf("Parser returns: nil")
 	}
-	// Check if it's a shared abstract type: 'int', 'struct', 'listlike', 'any?' etc.
-	if result, ok := p.Common.Types[name]; ok {
-		return result, true
+	fmt.Printf("Parser returns: %v\n\n", (parsedLine).String())
+}
+
+// Some supporting types for the parser and their methods.
+
+// For data that needs to be shared by all parsers. It is initialized when we start initializing a service
+// and passed to the first parser, which then passes it down to its children.
+type CommonParserBindle struct {
+	Types               TypeSys
+	Functions           map[FuncSource]*ast.PrsrFunction
+	InterfaceBacktracks []BkInterface
+	Errors              []*err.Error
+	IsBroken            bool
+	Sources             map[string][]string
+}
+// Initializes the common parser bindle.
+func NewCommonBindle() *CommonParserBindle {
+	result := CommonParserBindle{Types: NewCommonTypeMap(),
+		Functions:           make(map[FuncSource]*ast.PrsrFunction),
+		InterfaceBacktracks: []BkInterface{},
+		Errors:              []*err.Error{},
+		Sources:             make(map[string][]string),
 	}
-	// ... or the result should just be in the parser's own type map.
-	result, ok := p.TypeMap[name]
-	return result, ok
+	return &result
 }
 
-func (p *Parser) pushRParser(q *Parser) {
-	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
+// Stores parse code chunks for subsequent tokenization.
+type ParsedCodeChunks []ast.Node
+
+// Stores information about the other parsers on the hub so they can be used as external services.
+type ParserData struct {
+	Parser         *Parser
+	ScriptFilepath string
 }
 
-func (p *Parser) topRParser() *Parser {
-	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
+// This is indeed the whole of the type system as the parser sees it, because one abstract type is a subtype
+// of another just if all the concrete types making up the former are found in the latter.
+type TypeSys map[string]values.AbstractType
+
+ // For indexing the functions in the common function map, to prevent duplication.
+type FuncSource struct {
+	Filename     string
+	LineNo       int
+	FunctionName string
+	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
 }
 
-func (p *Parser) popRParser() {
-	p.enumResolvingParsers = p.enumResolvingParsers[1:]
+// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we haven't compiled it yet, tis keeps track of where we backtrack to.
+// TODO --- it is here rather than with the other backtrackers in the compiler where it belongs, because we do have a common parser bindle and we don't have a common compiler bindle.
+type BkInterface struct {
+	Fn   *ast.PrsrFunction
+	Addr uint32
 }
-
-func (p *Parser) NextToken() {
-	p.checkNesting()
-	p.SafeNextToken()
-}
-
-func (p *Parser) SafeNextToken() {
-	p.curToken = p.peekToken
-	p.peekToken = p.TokenizedCode.NextToken()
-}
-
-func (p *Parser) curTokenIs(t token.TokenType) bool {
-	return p.curToken.Type == t
-}
-
-func (p *Parser) peekTokenIs(t token.TokenType) bool {
-	return p.peekToken.Type == t
-}
-
-func (p *Parser) expectPeek(t token.TokenType) bool {
-	if p.peekTokenIs(t) {
-		p.NextToken()
-		return true
-	}
-	return false
-}
-
-func (p *Parser) ParseTokenizedChunk() ast.Node {
-	p.nesting = *dtypes.NewStack[token.Token]()
-	p.SafeNextToken()
-	p.SafeNextToken()
-	expn := p.parseExpression(LOWEST)
-	p.NextToken()
-	if p.curToken.Type != token.EOF {
-		p.Throw("parse/expected", &p.curToken)
-	}
-	return expn
-}
-
-var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.RUNE, token.TRUE, token.FALSE, token.ELSE})
-var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.RUNE, token.TRUE, token.FALSE, token.ELSE,
-	token.LPAREN, token.LBRACE, token.EVAL})
-var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.GVN_ASSIGN})
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
@@ -441,7 +276,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// Here we step in and deal with things that are functions and values, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
-			if !resolvingParser.positionallyFunctional() {
+			if !resolvingParser.isPositionallyFunctional() {
 				switch {
 				case resolvingParser.TypeExists(p.curToken.Literal):
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
@@ -454,7 +289,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				}
 			} else {
 				if p.curToken.Literal == "func" {
-					leftExp = p.parseFuncExpression()
+					leftExp = p.parseLambdaExpression()
 					return leftExp
 				}
 				if p.curToken.Literal == "struct" {
@@ -551,6 +386,16 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	return leftExp
 }
 
+// Functions for keeping track of the `resolving parser`, i.e. the one that knows about the namespace we're in.
+func (p *Parser) pushRParser(q *Parser) {
+	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
+}
+func (p *Parser) topRParser() *Parser {
+	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
+}
+func (p *Parser) popRParser() {
+	p.enumResolvingParsers = p.enumResolvingParsers[1:]
+}
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
 // to find which parser should resolve the symbol.
 func (p *Parser) getResolvingParser() *Parser {
@@ -571,233 +416,73 @@ func (p *Parser) getResolvingParser() *Parser {
 	return lP
 }
 
-func (p *Parser) positionallyFunctional() bool {
-	if assignmentTokens.Contains(p.peekToken.Type) {
-		return false
+func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
+	expression := &ast.AssignmentExpression{
+		Token: p.curToken,
+		Left:  left,
 	}
-	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
-		p.peekToken.Type == token.MAPPING || p.peekToken.Type == token.FILTER ||
-		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON ||
-		p.peekToken.Type == token.COMMA {
-		return false
-	}
-	if p.curToken.Literal == "type" && p.TypeExists(p.peekToken.Literal) {
-		return true
-	}
-	if p.Functions.Contains(p.curToken.Literal) && p.TypeExists(p.curToken.Literal) {
-		if p.peekToken.Type == token.EMDASH {
-			return false
-		}
-		if literalsAndLParen.Contains(p.peekToken.Type) {
-			return true
-		}
-		if p.peekToken.Literal == "from" {
-			return true
-		}
-		if p.Infixes.Contains(p.peekToken.Literal) {
-			return false
-		}
-		if p.nativeInfixes.Contains(p.peekToken.Type) {
-			return false
-		}
-		if p.Midfixes.Contains(p.peekToken.Literal) {
-			return false
-		}
-		if p.Functions.Contains(p.peekToken.Literal) && p.peekToken.Type != token.EOF {
-			return true
-		}
-		if p.Prefixes.Contains(p.peekToken.Literal) {
-			return p.peekToken.Type != token.EOF
-		}
-	}
-
-	if p.Functions.Contains(p.curToken.Literal) && p.peekToken.Type != token.EOF {
-		return true
-	}
-	if p.Prefixes.Contains(p.curToken.Literal) {
-		return p.peekToken.Type != token.EOF
-	}
-	if literalsAndLParen.Contains(p.peekToken.Type) {
-		return true
-	}
-	if p.peekToken.Type != token.IDENT {
-		return false
-	}
-	if p.Infixes.Contains(p.peekToken.Literal) {
-		return false
-	}
-	if p.Midfixes.Contains(p.peekToken.Literal) {
-		return false
-	}
-	if p.Endfixes.Contains(p.peekToken.Literal) {
-		return false
-	}
-	if p.Suffixes.Contains(p.peekToken.Literal) {
-		return false
-	}
-	return true
-}
-
-func (p *Parser) peekPrecedence() int {
-	return p.rightPrecedence(p.peekToken)
-}
-
-func (p *Parser) rightPrecedence(tok token.Token) int {
-	if p, ok := precedences[tok.Type]; ok {
-		return p
-	}
-	if p.Suffixes.Contains(tok.Literal) {
-		return FSUFFIX
-	}
-	if p.Infixes.Contains(tok.Literal) {
-		if tok.Literal == "with" || tok.Literal == "without" {
-			return WITH
-		}
-	}
-	if !p.Infixes.Contains(tok.Literal) && (p.Prefixes.Contains(tok.Literal) || p.Functions.Contains(tok.Literal)) {
-		if tok.Literal == "func" {
-			return FUNC
-		}
-		return FPREFIX
-	}
-	return p.leftPrecedence(tok)
-}
-
-func (p *Parser) curPrecedence() int {
-	return p.leftPrecedence(p.curToken)
-}
-
-func (p *Parser) leftPrecedence(tok token.Token) int {
-	if tok.Type == token.NAMESPACE_SEPARATOR {
-		return BELOW_NAMESPACE
-	}
-	if p, ok := precedences[tok.Type]; ok {
-		return p
-	}
-	if tok.Type == token.IDENT {
-		if p.Infixes.Contains(tok.Literal) {
-			if tok.Literal == "+" || tok.Literal == "-" {
-				return SUM
-			}
-			if tok.Literal == "*" || tok.Literal == "/" || tok.Literal == "%" {
-				return PRODUCT
-			}
-			if tok.Literal == "<" || tok.Literal == "<=" || tok.Literal == ">" || tok.Literal == ">=" {
-				return LESSGREATER
-			}
-			if tok.Literal == "in" {
-				return EQUALS
-			}
-			if tok.Literal == "with" || tok.Literal == "without" {
-				return FMIDFIX
-			}
-			return FINFIX
-		}
-		if p.Prefixes.Contains(tok.Literal) || p.Functions.Contains(tok.Literal) {
-			if tok.Literal == "func" {
-				return LOWEST
-			}
-			return FPREFIX
-		}
-		if p.Midfixes.Contains(tok.Literal) || p.Forefixes.Contains(p.peekToken.Literal) {
-			return FMIDFIX
-		}
-		if p.Endfixes.Contains(tok.Literal) {
-			return FENDFIX
-		}
-		if p.Suffixes.Contains(tok.Literal) {
-			return FSUFFIX
-		}
-	}
-
-	return LOWEST
-}
-
-func (p *Parser) parseIndexExpression(left ast.Node) ast.Node {
-	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
-
+	precedence := p.curPrecedence()
 	p.NextToken()
-	exp.Index = p.parseExpression(LOWEST)
-
-	if !p.expectPeek(token.RBRACK) {
-		p.NextToken() // Forces emission of error
-		return nil
-	}
-	return exp
-}
-
-func (p *Parser) parseIdentifier() ast.Node {
-	p.CurrentNamespace = nil
-	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-}
-
-func (p *Parser) parseUnfixExpression() ast.Node {
-	p.CurrentNamespace = nil
-	return &ast.UnfixExpression{Token: p.curToken, Operator: p.curToken.Literal}
-}
-
-// The fact that it is a valid integer has been checked by the lexer.
-func (p *Parser) parseIntegerLiteral() ast.Node {
-	iVal, _ := strconv.Atoi(p.curToken.Literal)
-	return &ast.IntegerLiteral{Token: p.curToken, Value: iVal}
-}
-
-// The fact that it is a valid float has been checked by the lexer.
-func (p *Parser) parseFloatLiteral() ast.Node {
-	fVal, _ := strconv.ParseFloat(p.curToken.Literal, 64)
-	return &ast.FloatLiteral{Token: p.curToken, Value: fVal}
-}
-
-func (p *Parser) parseStringLiteral() ast.Node {
-	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
-}
-
-func (p *Parser) parseRuneLiteral() ast.Node {
-	r, _ := utf8.DecodeRune([]byte(p.curToken.Literal)) // We have already checked that the literal is a any rune at the lexing stage.
-	return &ast.RuneLiteral{Token: p.curToken, Value: r}
+	expression.Right = p.parseExpression(precedence)
+	return expression
 }
 
 func (p *Parser) parseAutoLog() ast.Node {
 	return &ast.StringLiteral{Token: p.curToken}
 }
 
-// For things like NOT, UNWRAP, VALID where we don't want to treat it as a function but to evaluate the RHS and then handle it.
-func (p *Parser) parseNativePrefixExpression() ast.Node {
-	expression := &ast.PrefixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
+func (p *Parser) parseBoolean() ast.Node {
+	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
+}
+
+func (p *Parser) parseBreak() ast.Node {
+	if p.isPositionallyFunctional() {
+		t := p.curToken
+		p.NextToken()                  // Skips the 'break' token
+		exp := p.parseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
+		return &ast.PrefixExpression{t, "break", []ast.Node{exp}, []string{}}
 	}
-	prefix := p.curToken
+	return &ast.Identifier{Token: p.curToken, Value: "break"}
+}
+
+// This is to allow me to use the initializer to pour builtins into the parser's function table.
+func (p *Parser) parseBuiltInExpression() ast.Node {
+	expression := &ast.BuiltInExpression{}
+	expression.Token = p.curToken
 	p.NextToken()
-	right := p.parseExpression(precedences[prefix.Type])
-	if right == nil {
-		p.Throw("parse/follow", &prefix)
+	if p.curToken.Type == token.STRING {
+		expression.Name = p.curToken.Literal
+	} else {
+		panic("Expecting a string after 'builtin'.")
 	}
-	expression.Args = []ast.Node{right}
+	p.NextToken()
 	return expression
 }
 
-func (p *Parser) parseFromExpression() ast.Node {
-	p.CurrentNamespace = nil
-	fromToken := p.curToken
+func (p *Parser) parseComparisonExpression(left ast.Node) ast.Node {
+	expression := &ast.ComparisonExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+	precedence := p.curPrecedence()
 	p.NextToken()
-	expression := p.parseExpression(LOWEST)
-	if p.ErrorsExist() {
-		return nil
-	}
-	var givenBlock ast.Node
-	if expression.GetToken().Type == token.GIVEN {
-		givenBlock = expression.(*ast.InfixExpression).Args[2]
-		expression = expression.(*ast.InfixExpression).Args[0]
-	}
-	exp, ok := expression.(*ast.ForExpression)
-	if ok {
-		exp.Given = givenBlock
-		return exp
-	}
-	println("Expression is", reflect.TypeOf(expression).String())
-	p.Throw("parse/from", &fromToken)
-	return nil
+	expression.Right = p.parseExpression(precedence)
+	return expression
+}
+
+func (p *Parser) parseContinue() ast.Node {
+	return &ast.Identifier{Token: p.curToken, Value: "continue"}
+}
+
+func (p *Parser) parseElse() ast.Node {
+	return &ast.BooleanLiteral{Token: p.curToken, Value: true}
+}
+
+// The fact that it is a valid float has been checked by the lexer.
+func (p *Parser) parseFloatLiteral() ast.Node {
+	fVal, _ := strconv.ParseFloat(p.curToken.Literal, 64)
+	return &ast.FloatLiteral{Token: p.curToken, Value: fVal}
 }
 
 func (p *Parser) parseForAsInfix(left ast.Node) *ast.ForExpression {
@@ -853,40 +538,26 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 	return expression
 }
 
-func (p *Parser) parsePrefixExpression() ast.Node {
+func (p *Parser) parseFromExpression() ast.Node {
 	p.CurrentNamespace = nil
-	expression := &ast.PrefixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
+	fromToken := p.curToken
+	p.NextToken()
+	expression := p.parseExpression(LOWEST)
+	if p.ErrorsExist() {
+		return nil
 	}
-	p.NextToken()
-	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
-	return expression
-}
-
-func (p *Parser) parseStructExpression() ast.Node {
-	expression := &ast.StructExpression{
-		Token: p.curToken,
+	var givenBlock ast.Node
+	if expression.GetToken().Type == token.GIVEN {
+		givenBlock = expression.(*ast.InfixExpression).Args[2]
+		expression = expression.(*ast.InfixExpression).Args[0]
 	}
-
-	p.NextToken()
-	sigtree := p.parseExpression(FPREFIX)
-	expression.Sig = p.extractSig(p.recursivelyListify(sigtree))
-	return expression
-}
-
-// This is to allow me to use the initializer to pour builtins into the parser's function table.
-func (p *Parser) parseBuiltInExpression() ast.Node {
-	expression := &ast.BuiltInExpression{}
-	expression.Token = p.curToken
-	p.NextToken()
-	if p.curToken.Type == token.STRING {
-		expression.Name = p.curToken.Literal
-	} else {
-		panic("Expecting a string after 'builtin'.")
+	exp, ok := expression.(*ast.ForExpression)
+	if ok {
+		exp.Given = givenBlock
+		return exp
 	}
-	p.NextToken()
-	return expression
+	p.Throw("parse/from", &fromToken)
+	return nil
 }
 
 func (p *Parser) parseFunctionExpression() ast.Node {
@@ -895,73 +566,64 @@ func (p *Parser) parseFunctionExpression() ast.Node {
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
 	}
-
 	p.NextToken()
-
 	var right ast.Node
 	if p.curToken.Type == token.LPAREN || expression.Operator == "-" {
 		right = p.parseExpression(MINUS)
 	} else {
 		right = p.parseExpression(FPREFIX)
 	}
-
 	expression.Args = p.recursivelyListify(right)
-
 	return expression
 }
 
-func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
-	p.CurrentNamespace = nil
-	expression := &ast.SuffixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Args:     p.recursivelyListify(left),
+func (p *Parser) parseGolangExpression() ast.Node {
+	expression := &ast.GolangExpression{
+		Token: p.curToken,
 	}
+	p.NextToken()
 	return expression
 }
 
-func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
+func (p *Parser) parseGroupedExpression() ast.Node {
+	p.NextToken()
+	if p.curToken.Type == token.RPAREN { // Then what we must have is an empty tuple.
+		return &ast.Nothing{Token: p.curToken}
+	}
+	exp := p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RPAREN) {
+		p.NextToken() // Forces emission of the error.
+		return nil
+	}
+	return exp
+}
 
+func (p *Parser) parseIdentifier() ast.Node {
+	p.CurrentNamespace = nil
+	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseIfLogExpression(left ast.Node) ast.Node {
 	expression := &ast.LogExpression{
 		Token: p.curToken,
 		Left:  left,
 		Value: p.curToken.Literal,
 	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
 	return expression
 }
 
-func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
+func (p *Parser) parseIndexExpression(left ast.Node) ast.Node {
+	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
 	p.NextToken()
-	if left.GetToken().Type != token.IDENT {
-		p.Throw("parse/namespace/lhs", left.GetToken())
+	exp.Index = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RBRACK) {
+		p.NextToken() // Forces emission of error
 		return nil
 	}
-	name := left.GetToken().Literal
-	p.CurrentNamespace = append(p.CurrentNamespace, name)
-	right := p.parseExpression(NAMESPACE)
-	if p.ErrorsExist() {
-		return nil
-	}
-	switch right := right.(type) {
-	case *ast.Bling:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.Identifier:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.InfixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.PrefixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.SuffixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.TypeLiteral:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.UnfixExpression:
-		right.Namespace = append(right.Namespace, name)
-	default:
-		p.Throw("parse/namespace/rhs", right.GetToken())
-	}
-
-	return right
+	return exp
 }
 
 func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
@@ -969,7 +631,6 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	if assignmentTokens.Contains(p.curToken.Type) {
 		return p.parseAssignmentExpression(left)
 	}
-
 	if p.curToken.Type == token.MAGIC_COLON {
 		// Then we will magically convert a function declaration into an assignment of a lambda to a
 		// constant.
@@ -1013,7 +674,6 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		}
 		return expression
 	}
-
 	expression := &ast.InfixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
@@ -1032,45 +692,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	return expression
 }
 
-// In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
-func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
-	expression := &ast.PipingExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Left:     left,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	expression.Right = p.recursivelyDesugarAst(expression.Right)
-	return expression
-}
-
-func (p *Parser) parseIfLogExpression(left ast.Node) ast.Node {
-
-	expression := &ast.LogExpression{
-		Token: p.curToken,
-		Left:  left,
-		Value: p.curToken.Literal,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	return expression
-}
-
-func (p *Parser) parsePrelogExpression() ast.Node {
-
-	expression := &ast.LogExpression{
-		Token: p.curToken,
-		Value: p.curToken.Literal,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	return expression
-}
-
+// Auxiliary fnction to the previous one for describing function calls for logging purposes.
 func DescribeFunctionCall(name string, sig *ast.StringSig) string {
 	result := "Called '" + name + "'"
 	vars := []string{}
@@ -1085,111 +707,14 @@ func DescribeFunctionCall(name string, sig *ast.StringSig) string {
 	return result + "."
 }
 
-func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { // Adds "that" after piping, works through namespaces
-	switch typedExp := exp.(type) {
-	case *ast.Identifier:
-		if p.Functions.Contains(exp.GetToken().Literal) {
-			exp = &ast.PrefixExpression{Token: *typedExp.GetToken(),
-				Operator: exp.GetToken().Literal,
-				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
-		}
-		if p.Suffixes.Contains(exp.GetToken().Literal) {
-			exp = &ast.SuffixExpression{Token: *typedExp.GetToken(),
-				Operator: exp.GetToken().Literal,
-				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
-		}
-	case *ast.InfixExpression:
-		if typedExp.GetToken().Type == token.NAMESPACE_SEPARATOR {
-			if typedExp.Args[0].GetToken().Type == token.IDENT {
-				service, ok := p.NamespaceBranch[typedExp.Args[0].(*ast.Identifier).Value]
-				if ok {
-					exp.(*ast.InfixExpression).Args[2] = service.Parser.recursivelyDesugarAst(typedExp.Args[2])
-				}
-			}
-		}
-	}
-	return exp
+// The fact that it is a valid integer has been checked by the lexer.
+func (p *Parser) parseIntegerLiteral() ast.Node {
+	iVal, _ := strconv.Atoi(p.curToken.Literal)
+	return &ast.IntegerLiteral{Token: p.curToken, Value: iVal}
 }
 
-func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
-	expression := &ast.AssignmentExpression{
-		Token: p.curToken,
-		Left:  left,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	return expression
-}
 
-func (p *Parser) parseLazyInfixExpression(left ast.Node) ast.Node {
-	expression := &ast.LazyInfixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Left:     left,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	return expression
-}
-
-func (p *Parser) parseComparisonExpression(left ast.Node) ast.Node {
-	expression := &ast.ComparisonExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Left:     left,
-	}
-	precedence := p.curPrecedence()
-	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
-	return expression
-}
-
-func (p *Parser) parseBoolean() ast.Node {
-	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
-}
-
-func (p *Parser) parseElse() ast.Node {
-	return &ast.BooleanLiteral{Token: p.curToken, Value: true}
-}
-
-func (p *Parser) parseBreak() ast.Node {
-	if p.positionallyFunctional() {
-		t := p.curToken
-		p.NextToken()                  // Skips the 'break' token
-		exp := p.parseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
-		return &ast.PrefixExpression{t, "break", []ast.Node{exp}, []string{}}
-	}
-	return &ast.Identifier{Token: p.curToken, Value: "break"}
-}
-
-func (p *Parser) parseContinue() ast.Node {
-	return &ast.Identifier{Token: p.curToken, Value: "continue"}
-}
-
-func (p *Parser) parseGroupedExpression() ast.Node {
-	p.NextToken()
-	if p.curToken.Type == token.RPAREN { // then what we must have is an empty tuple
-		return &ast.Nothing{Token: p.curToken}
-	}
-	exp := p.parseExpression(LOWEST)
-	if !p.expectPeek(token.RPAREN) {
-		p.NextToken() // Forces emission of the error
-		return nil
-	}
-	return exp
-}
-
-func (p *Parser) parseGolangExpression() ast.Node {
-	expression := &ast.GolangExpression{
-		Token: p.curToken,
-	}
-	p.NextToken()
-	return expression
-}
-
-func (p *Parser) parseFuncExpression() ast.Node {
+func (p *Parser) parseLambdaExpression() ast.Node {
 	expression := &ast.FuncExpression{
 		Token: p.curToken,
 	}
@@ -1216,6 +741,19 @@ func (p *Parser) parseFuncExpression() ast.Node {
 	return expression
 }
 
+// I.e `and`, `or`, `:`, and `;`.
+func (p *Parser) parseLazyInfixExpression(left ast.Node) ast.Node {
+	expression := &ast.LazyInfixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
+	return expression
+}
+
 func (p *Parser) parseListExpression() ast.Node {
 	p.NextToken()
 	if p.curToken.Type == token.RBRACK { // Deals with the case where the list is []
@@ -1227,6 +765,158 @@ func (p *Parser) parseListExpression() ast.Node {
 		return nil
 	}
 	expression := &ast.ListExpression{List: exp, Token: p.curToken}
+	return expression
+}
+
+func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
+	expression := &ast.LogExpression{
+		Token: p.curToken,
+		Left:  left,
+		Value: p.curToken.Literal,
+	}
+	return expression
+}
+
+func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
+	p.NextToken()
+	if left.GetToken().Type != token.IDENT {
+		p.Throw("parse/namespace/lhs", left.GetToken())
+		return nil
+	}
+	name := left.GetToken().Literal
+	p.CurrentNamespace = append(p.CurrentNamespace, name)
+	right := p.parseExpression(NAMESPACE)
+	if p.ErrorsExist() {
+		return nil
+	}
+	switch right := right.(type) {
+	case *ast.Bling:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.Identifier:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.InfixExpression:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.PrefixExpression:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.SuffixExpression:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.TypeLiteral:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.UnfixExpression:
+		right.Namespace = append(right.Namespace, name)
+	default:
+		p.Throw("parse/namespace/rhs", right.GetToken())
+	}
+	return right
+}
+
+// For things like NOT, UNWRAP, VALID where we don't want to treat it as a function but to evaluate the RHS and then handle it.
+func (p *Parser) parseNativePrefixExpression() ast.Node {
+	expression := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+	}
+	prefix := p.curToken
+	p.NextToken()
+	right := p.parseExpression(precedences[prefix.Type])
+	if right == nil {
+		p.Throw("parse/follow", &prefix)
+	}
+	expression.Args = []ast.Node{right}
+	return expression
+}
+
+func (p *Parser) parsePrefixExpression() ast.Node {
+	p.CurrentNamespace = nil
+	expression := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+	}
+	p.NextToken()
+	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
+	return expression
+}
+
+func (p *Parser) parsePrelogExpression() ast.Node {
+
+	expression := &ast.LogExpression{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
+	return expression
+}
+
+func (p *Parser) parseRuneLiteral() ast.Node {
+	r, _ := utf8.DecodeRune([]byte(p.curToken.Literal)) // We have already checked that the literal is a any rune at the lexing stage.
+	return &ast.RuneLiteral{Token: p.curToken, Value: r}
+}
+
+// In a streaming expression we need to desugar e.g. 'x -> foo' to 'x -> foo that', etc.
+func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
+	expression := &ast.PipingExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+	precedence := p.curPrecedence()
+	p.NextToken()
+	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.recursivelyDesugarAst(expression.Right)
+	return expression
+}
+
+// Function auxiliary to the previous one to get rid of syntactic sugar in streaming expressions.
+// Adds "that" after piping, works through namespaces.
+func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { 
+	switch typedExp := exp.(type) {
+	case *ast.Identifier:
+		if p.Functions.Contains(exp.GetToken().Literal) {
+			exp = &ast.PrefixExpression{Token: *typedExp.GetToken(),
+				Operator: exp.GetToken().Literal,
+				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
+		}
+		if p.Suffixes.Contains(exp.GetToken().Literal) {
+			exp = &ast.SuffixExpression{Token: *typedExp.GetToken(),
+				Operator: exp.GetToken().Literal,
+				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
+		}
+	case *ast.InfixExpression:
+		if typedExp.GetToken().Type == token.NAMESPACE_SEPARATOR {
+			if typedExp.Args[0].GetToken().Type == token.IDENT {
+				service, ok := p.NamespaceBranch[typedExp.Args[0].(*ast.Identifier).Value]
+				if ok {
+					exp.(*ast.InfixExpression).Args[2] = service.Parser.recursivelyDesugarAst(typedExp.Args[2])
+				}
+			}
+		}
+	}
+	return exp
+}
+
+func (p *Parser) parseStringLiteral() ast.Node {
+	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseStructExpression() ast.Node {
+	expression := &ast.StructExpression{
+		Token: p.curToken,
+	}
+	p.NextToken()
+	sigtree := p.parseExpression(FPREFIX)
+	expression.Sig = p.extractSig(p.recursivelyListify(sigtree))
+	return expression
+}
+
+func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
+	p.CurrentNamespace = nil
+	expression := &ast.SuffixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Args:     p.recursivelyListify(left),
+	}
 	return expression
 }
 
@@ -1252,7 +942,12 @@ func (p *Parser) parseTryExpression() ast.Node {
 	}
 }
 
-// This takes the arguments at the *call site* of a function and puts them
+func (p *Parser) parseUnfixExpression() ast.Node {
+	p.CurrentNamespace = nil
+	return &ast.UnfixExpression{Token: p.curToken, Operator: p.curToken.Literal}
+}
+
+// This takes the arguments at the call site of a function and puts them
 // into a list for us.
 func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 	switch start := start.(type) {
@@ -1281,8 +976,38 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 	return []ast.Node{start}
 }
 
+// Some functions for getting tokens from the `TokenSupplier`
+
+// This interface allows the parser to get its supply of tokens either from the relexer directly or from 
+// a `TokenizedCodeChunk`.
+type TokenSupplier interface{ NextToken() token.Token }
+
+// Dumps the contents of a `TokenSupplier` into a string.
+func String(t TokenSupplier) string {
+	result := ""
+	for tok := t.NextToken(); tok.Type != "EOF"; tok = t.NextToken() {
+		result = result + fmt.Sprintf("%+v\n", tok)
+	}
+	return result
+}
+
+// Stores pretokenized chunks of code for later parsing.
+type tokenizedCodeChunks []*token.TokenizedCodeChunk
+
+// Functions for interacting with a `TokenSupplier`.
+
+func (p *Parser) NextToken() {
+	p.checkNesting()
+	p.SafeNextToken()
+}
+
+func (p *Parser) SafeNextToken() {
+	p.curToken = p.peekToken
+	p.peekToken = p.TokenizedCode.NextToken()
+}
+
+// Function auxiliary to `NextToken` which will throw an error if the rules for nesting brackets are violated.
 func (p *Parser) checkNesting() {
-	// if p.curToken.Source != "builtin library" {fmt.Printf("Checking nesting %v\n", &p.curToken)}
 	if p.curToken.Type == token.LPAREN || p.curToken.Type == token.LBRACE ||
 		p.curToken.Type == token.LBRACK {
 		p.nesting.Push(p.curToken)
@@ -1305,10 +1030,8 @@ func (p *Parser) checkNesting() {
 	}
 }
 
+// A function auxiliary to the previous one to check whether a puported pair of brackets matches up.
 func checkConsistency(left, right token.Token) bool {
-	// if left.Source != "builtin library" {
-	//	fmt.Printf("Checking consistency: %v, %v\n", left, right)
-	// }
 	if left.Type == token.LPAREN && left.Literal == "(" &&
 		right.Type == token.RPAREN && right.Literal == ")" {
 		return true
@@ -1326,22 +1049,35 @@ func checkConsistency(left, right token.Token) bool {
 	return false
 }
 
-func (p *Parser) ParseLine(source, input string) ast.Node {
-	p.ResetAfterError()
-	rl := lexer.NewRelexer(source, input)
-	p.TokenizedCode = rl
-	result := p.ParseTokenizedChunk()
-	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
-	return result
+func (p *Parser) curTokenIs(t token.TokenType) bool {
+	return p.curToken.Type == t
 }
 
-func (p *Parser) ParseDump(source, input string) {
-	parsedLine := p.ParseLine(source, input) // TODO --- why do you have a pointer to an interface?
-	if parsedLine == nil {
-		fmt.Printf("Parser returns: nil")
-	}
-	fmt.Printf("Parser returns: %v\n\n", (parsedLine).String())
+func (p *Parser) peekTokenIs(t token.TokenType) bool {
+	return p.peekToken.Type == t
 }
+
+func (p *Parser) expectPeek(t token.TokenType) bool {
+	if p.peekTokenIs(t) {
+		p.NextToken()
+		return true
+	}
+	return false
+}
+
+func (p *Parser) ParseTokenizedChunk() ast.Node {
+	p.nesting = *dtypes.NewStack[token.Token]()
+	p.SafeNextToken()
+	p.SafeNextToken()
+	expn := p.parseExpression(LOWEST)
+	p.NextToken()
+	if p.curToken.Type != token.EOF {
+		p.Throw("parse/expected", &p.curToken)
+	}
+	return expn
+}
+
+// Functions for dealing with Pipefish errors.
 
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 	c := *tok
@@ -1362,464 +1098,8 @@ func (p *Parser) ResetAfterError() {
 	p.enumResolvingParsers = []*Parser{p}
 }
 
-// Slurps the parts of a function out of it. As the colon after a function definition has
-// extremely low precedence, we should find it at the root of the tree.
-// We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.StringSig, ast.StringSig, ast.Node, ast.Node) {
-	var (
-		functionName          string
-		sig                   ast.StringSig
-		rTypes                ast.StringSig
-		start, content, given ast.Node
-	)
-	if fn.GetToken().Type == token.GIVEN {
-		given = fn.(*ast.InfixExpression).Args[2]
-		fn = fn.(*ast.InfixExpression).Args[0]
-	}
-
-	switch fn := fn.(type) {
-	case *ast.LazyInfixExpression:
-		if !(fn.Token.Type == token.COLON) {
-			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given
-		}
-		start = fn.Left
-		content = fn.Right
-	case *ast.InfixExpression:
-		if fn.Token.Type != token.MAGIC_COLON {
-			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given
-		}
-		start = fn.Args[0]
-		content = fn.Args[2]
-	default:
-		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
-		return functionName, 0, sig, rTypes, content, given
-	}
-
-	if start.GetToken().Type == token.PIPE {
-		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.PipingExpression).Right)
-		start = start.(*ast.PipingExpression).Left
-	}
-	functionName, pos, sig := prsr.GetPartsOfSig(start)
-	return functionName, pos, sig, rTypes, content, given
-}
-
-func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.StringSig) {
-	switch start := start.(type) {
-	case *ast.PrefixExpression:
-		functionName = start.Operator
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.InfixExpression:
-		functionName = start.Operator
-		pos = 1
-		sig = prsr.extractSig(start.Args)
-	case *ast.SuffixExpression:
-		functionName = start.Operator
-		pos = 2
-		sig = prsr.extractSig(start.Args)
-	case *ast.UnfixExpression:
-		functionName = start.Operator
-		pos = 3
-		sig = ast.StringSig{}
-	default:
-		prsr.Throw("parse/sig/malformed/d", start.GetToken())
-		return functionName, pos, sig
-	}
-	return functionName, pos, sig
-}
-
-func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
-	sig := ast.StringSig{}
-	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
-		return sig
-	}
-	backTrackTo := 0
-	for j, arg := range args {
-		varName := ""
-		varType := "*"
-		switch arg := arg.(type) {
-		case *ast.SuffixExpression:
-			if arg.Operator == "raw" { // TODO --- same for 'ref'?
-				switch inner := arg.Args[0].(type) {
-				case *ast.SuffixExpression:
-					if !p.TypeExists(inner.Operator) {
-						p.Throw("parse/suffix/type", inner.GetToken())
-						return nil
-					}
-					switch inmost := inner.Args[0].(type) {
-					case *ast.Identifier:
-						varName = inmost.Value
-						varType = inner.Operator + " " + arg.Operator
-					default:
-						p.Throw("parse/suffix/ident", inmost.GetToken())
-						return nil
-					}
-				case *ast.Identifier:
-					varName = inner.Value
-					varType = "any? " + arg.Operator
-				default:
-					p.Throw("parse/sig/suffix/a", arg.GetToken())
-					return nil
-				}
-			} else { // The suffix is not 'raw'.
-				if !p.TypeExists(arg.Operator) {
-					p.Throw("parse/sig/type/a", &arg.Token)
-					return nil
-				}
-				switch inner := arg.Args[0].(type) {
-				case *ast.Identifier:
-					varName = inner.Value
-					varType = arg.Operator
-				case *ast.SuffixExpression:
-					if inner.Operator != "..." {
-						p.Throw("parse/sig/suffix/b", inner.GetToken())
-						return nil
-					}
-					switch innerer := inner.Args[0].(type) {
-					case *ast.Identifier:
-						varName = innerer.Value
-						varType = "..." + arg.Operator
-					default:
-						p.Throw("parse/sig/ident/d", innerer.GetToken())
-					}
-				default:
-					p.Throw("parse/sig/ident/a", inner.GetToken())
-					return nil
-				}
-			}
-		case *ast.Identifier:
-			if p.Endfixes.Contains(arg.Value) {
-				varName = arg.Value
-				varType = "bling"
-			} else {
-				varName = arg.Value
-				varType = "*"
-			}
-		case *ast.PrefixExpression:
-			if p.Forefixes.Contains(arg.Operator) {
-				varName = arg.Operator
-				varType = "bling"
-			} else {
-				// We may be declaring a parameter which will have the same name as a function --- e.g. 'f'.
-				// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-				// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
-				// name under those circumstances. This tends to make the whole thing stupid, we should have
-				// done all this before it got near the Pratt parser.
-				switch inner := arg.Args[0].(type) {
-				case *ast.Identifier:
-					varName = arg.Operator
-					varType = inner.Value
-					if !(p.TypeExists(inner.Value) ||
-						arg.Operator == "ast" || arg.Operator == "ident") {
-						p.Throw("parse/sig/type/b", arg.GetToken())
-						return nil
-					}
-				default:
-					p.Throw("parse/sig/ident/b", inner.GetToken())
-					return nil
-				}
-			}
-		case *ast.InfixExpression:
-			if arg.Operator == "varchar" {
-				switch potentialVariable := arg.Args[0].(type) {
-				case *ast.Identifier:
-					varName = potentialVariable.Value
-				default:
-					p.Throw("parse/sig/ident/c", potentialVariable.GetToken())
-					return nil
-				}
-				switch potentialInteger := arg.Args[2].(type) {
-				case *ast.IntegerLiteral:
-					varType = "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
-				default:
-					p.Throw("parse/sig/varchar/int/a", potentialInteger.GetToken())
-					return nil
-				}
-			} else {
-				if p.Midfixes.Contains(arg.Operator) {
-					varName = arg.Operator
-					varType = "bling"
-				} else {
-					p.Throw("parse/sig/infix", arg.GetToken())
-					return nil
-				}
-			}
-		case *ast.Bling:
-			varName = arg.Value
-			varType = "bling"
-		}
-		if j == len(args)-1 && varType == "*" {
-			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = "any?"
-			}
-			varType = "any?"
-		}
-		if !(varType == "bling" || varType == "*") {
-			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = varType
-			}
-
-		}
-		if varType == "bling" {
-			if len(sig) > 0 && sig[len(sig)-1].VarType == "*" {
-				for i := backTrackTo; i < len(sig); i++ {
-					sig[i].VarType = "any?"
-				}
-			}
-		}
-		sig = append(sig, ast.NameTypenamePair{VarName: varName, VarType: varType})
-		if !(varType == "*") {
-			backTrackTo = len(sig)
-		}
-		if varType == "bling" {
-			varType = "*"
-		}
-	}
-	return sig
-}
-
-// TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
-func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *err.Error) {
-	sig := ast.StringSig{}
-	for _, arg := range args {
-		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
-			sig = append(sig, ast.NameTypenamePair{VarName: arg.GetToken().Literal, VarType: "bling"})
-		} else {
-			partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
-			if err != nil {
-				return nil, err
-			}
-			sig = append(sig, partialSig...)
-		}
-	}
-	return sig, nil
-}
-
-func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
-	result := []string{}
-	sig, e := p.RecursivelySlurpSignature(node, "")
-	if e != nil {
-		return result
-	}
-	for _, pair := range sig {
-		result = append(result, pair.VarName)
-	}
-	return result
-}
-
-// TODO --- is there any sensible alternative to this?
-// This is all rather horrible and basically exists as a result of two reasons. First, since all the signatures whether of assignment
-// or function definition or struct definition or whatever fit into the same mold, we would like to be able to keep our code DRY by
-// extracting them all in the same way. However, as we don't have anything like a `let` command, the parser doesn't know that it's parsing an
-// assignment until it reaches the equals sign, by which time it's already turned the relevant tokens into an AST. Rather than kludge
-// my way out of that, I kludged my way around it by writing this thing which extracts the signature from an AST, and which has grown steadily
-// more complex with the language.
-func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.StringSig, *err.Error) {
-	switch typednode := node.(type) {
-	case *ast.InfixExpression:
-		switch {
-		case p.Midfixes.Contains(typednode.Operator):
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			if err != nil {
-				return nil, err
-			}
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			middle := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
-			return append(append(LHS, middle), RHS...), nil
-		case typednode.Token.Type == token.COMMA:
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], RHS.GetVarType(0).(string))
-			if err != nil {
-				return nil, err
-			}
-			return append(LHS, RHS...), nil
-		case typednode.Token.Type == token.WEAK_COMMA:
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			if err != nil {
-				return nil, err
-			}
-			return append(LHS, RHS...), nil
-		case typednode.Operator == "varchar":
-			switch potentialInteger := typednode.Args[2].(type) {
-			case *ast.IntegerLiteral:
-				varType := "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
-				return p.RecursivelySlurpSignature(typednode.Args[0], varType)
-			default:
-				return nil, newError("parse/sig/varchar/int/b", potentialInteger.GetToken())
-			}
-		case typednode.Operator == ".":
-			namespacedIdent, err := recursivelySlurpNamespace(typednode)
-			if err != nil {
-				return nil, err
-			}
-			return ast.StringSig{ast.NameTypenamePair{VarName: namespacedIdent, VarType: dflt}}, nil
-		default:
-			return nil, newError("parse/sig/b", typednode.GetToken())
-		}
-	case *ast.SuffixExpression:
-		switch {
-		case p.TypeExists(typednode.Operator):
-			LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
-			if err != nil {
-				return nil, err
-			}
-			for k := range LHS {
-				LHS[k].VarType = typednode.Operator
-			}
-			return LHS, nil
-		case typednode.Operator == "raw":
-			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			for k := range LHS {
-				LHS[k].VarType = LHS[k].VarType + " raw"
-			}
-			return LHS, nil
-		case p.Endfixes.Contains(typednode.Operator):
-			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			end := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
-			return append(LHS, end), nil
-		default:
-			return nil, newError("parse/sig/c", typednode.GetToken())
-		}
-	case *ast.Identifier:
-		if p.Endfixes.Contains(typednode.Value) {
-			return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: "bling"}}, nil
-		}
-		return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: dflt}}, nil
-	case *ast.PrefixExpression:
-		if p.Forefixes.Contains(typednode.Operator) {
-			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			front := ast.StringSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}}
-			return append(front, RHS...), nil
-		} else {
-			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
-			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
-			// name under those circumstances.
-			return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: dflt}}, nil
-		}
-	}
-	return nil, newError("parse/sig/a", node.GetToken())
-}
-
-func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *err.Error) {
-	if len(root.Args) != 3 {
-		return "", newError("parse/sig.namespace/a", root.Args[1].GetToken())
-	}
-	if root.Operator != "." {
-		return "", newError("parse/sig.namespace/b", root.Args[1].GetToken())
-	}
-	LHS := ""
-	RHS := ""
-	var err *err.Error
-	switch leftNode := root.Args[0].(type) {
-	case *ast.Identifier:
-		LHS = leftNode.Value
-	case *ast.InfixExpression:
-		LHS, err = recursivelySlurpNamespace(leftNode)
-		if err != nil {
-			return "", err
-		}
-	default:
-		return "", newError("parse/sig.namespace/c", root.Args[1].GetToken())
-	}
-	switch rightNode := root.Args[2].(type) {
-	case *ast.Identifier:
-		RHS = rightNode.Value
-	case *ast.InfixExpression:
-		RHS, err = recursivelySlurpNamespace(rightNode)
-		if err != nil {
-			return "", err
-		}
-	default:
-		return "", newError("parse/sig.namespace/d", root.Args[1].GetToken())
-	}
-	return LHS + "." + RHS, nil
-}
-
-func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.StringSig {
-	switch typednode := node.(type) {
-	case *ast.InfixExpression:
-		switch {
-		case typednode.Token.Type == token.COMMA:
-			LHS := p.RecursivelySlurpReturnTypes(typednode.Args[0])
-			RHS := p.RecursivelySlurpReturnTypes(typednode.Args[2])
-			return append(LHS, RHS...)
-		default:
-			p.Throw("parse/ret/a", typednode.GetToken())
-		}
-	case *ast.TypeLiteral:
-		return ast.StringSig{ast.NameTypenamePair{VarName: "", VarType: typednode.Value}}
-	default:
-		p.Throw("parse/ret/b", typednode.GetToken())
-	}
-	return nil
-}
-
-// Gets the variable from the lhs and rhs of an assignment when it's still in the form of tokens.
-func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.Set[string]) {
-	LHS := make(dtypes.Set[string])
-	RHS := make(dtypes.Set[string])
-	assignHasHappened := false
-	for tok := T.NextToken(); tok.Type != token.EOF; tok = T.NextToken() {
-		if tok.Type == token.IDENT &&
-			!p.AllFunctionIdents.Contains(tok.Literal) &&
-			!p.TypeExists(tok.Literal) {
-			if assignHasHappened {
-				RHS.Add(tok.Literal)
-			} else {
-				LHS.Add(tok.Literal)
-			}
-		}
-		if tok.Type == token.ASSIGN {
-			assignHasHappened = true
-		}
-
-	}
-	return LHS, RHS
-}
-
 func newError(ident string, tok *token.Token, args ...any) *err.Error {
 	errorToReturn := err.CreateErr(ident, tok, args...)
 	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
-}
-
-func (p *Parser) IsPrivate(x, y int) bool {
-	return p.TokenizedDeclarations[x][y].Private
-}
-
-func (p *Parser) MakeAbstractSigFromStringSig(sig ast.StringSig) ast.AbstractSig {
-	result := make(ast.AbstractSig, sig.Len())
-	for i, pair := range sig {
-		typename := pair.VarType
-		if len(typename) >= 3 && typename[:3] == "..." {
-			typename = typename[3:]
-		}
-		if len(typename) >= 4 && typename[len(typename)-4:] == " raw" {
-			typename = typename[:len(typename)-4]
-		}
-		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typename)}
-	}
-	return result
 }
