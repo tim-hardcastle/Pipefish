@@ -414,7 +414,7 @@ func (cp *Compiler) deserializeTypescheme(s string) AlternateType { // If it is 
 				return nil
 			}
 		} else { // Otherwise we have a word denoting a simpleType
-			aT := cp.TypeNameToTypeList(word) // TODO --- is this really the only way to convert a concrete type name to its type number?
+			aT := cp.getAlternateTypeFromTypeName(word) // TODO --- is this really the only way to convert a concrete type name to its type number?
 			if len(aT) != 1 {
 				cp.P.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
 				return nil

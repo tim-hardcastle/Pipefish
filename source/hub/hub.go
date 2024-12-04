@@ -87,7 +87,7 @@ func (hub *Hub) getDB() (string, string, string, int, string, string) {
 func (hub *Hub) setDB(driver, name, path string, port int, username, password string) {
 	hubService := hub.services["hub"]
 	driverAsEnumValue := hubService.Cp.Vm.Mem[hubService.Cp.EnumElements[driver]]
-	structType := hubService.Cp.StructNameToTypeNumber["Database"]
+	structType := hubService.Cp.ConcreteTypeNow("Database")
 	hub.setSV("database", structType, []values.Value{driverAsEnumValue, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
 }
 
@@ -196,17 +196,17 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if hub.peek {
 		lexer.LexDump(line)
 		lexer.RelexDump(line)
-		serviceToUse.Cp.GetParser().ParseDump(hub.currentServiceName(), line)
+		serviceToUse.Cp.P.ParseDump(hub.currentServiceName(), line)
 	}
 
 	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
 	// They may be sitting around so the end-user can do 'hub why', but we can get rid of them now.
-	serviceToUse.Cp.GetParser().ResetAfterError()
+	serviceToUse.Cp.P.ResetAfterError()
 
 	hub.Sources["REPL input"] = []string{line}
 
-	if serviceToUse.Cp.GetParser().ErrorsExist() {
-		hub.GetAndReportErrors(serviceToUse.Cp.GetParser())
+	if serviceToUse.Cp.P.ErrorsExist() {
+		hub.GetAndReportErrors(serviceToUse.Cp.P)
 		return passedServiceName, false
 	}
 
@@ -234,8 +234,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	val := ServiceDo(serviceToUse, line)
 	// *** FROM ALL THAT LOGIC, WE EXTRACT ONE PIPEFISH VALUE !!!
 
-	if serviceToUse.Cp.GetParser().ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
-		hub.GetAndReportErrors(serviceToUse.Cp.GetParser())
+	if serviceToUse.Cp.P.ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
+		hub.GetAndReportErrors(serviceToUse.Cp.P)
 		return passedServiceName, false
 	}
 
@@ -264,8 +264,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 	hubService := hub.services["hub"]
 	hubReturn := ServiceDo(hubService, line)
-	if hubService.Cp.GetParser().ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
-		hub.GetAndReportErrors(hubService.Cp.GetParser())
+	if hubService.Cp.P.ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
+		hub.GetAndReportErrors(hubService.Cp.P)
 		return "error", []string{}
 	}
 	if hubReturn.T == values.ERROR {
@@ -273,7 +273,7 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return "error", []string{hubReturn.V.(*err.Error).Message}
 	}
 
-	if hubReturn.T == hubService.Cp.StructNameToTypeNumber["HubResponse"] {
+	if hubReturn.T == hubService.Cp.ConcreteTypeNow("HubResponse") {
 		hR := hubReturn.V.([]values.Value)
 		verb := hR[0].V.(string)
 		args := []string{}
@@ -1212,8 +1212,8 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 			hub.WriteString("-> " + lineIn + "\n")
 		}
 		result := ServiceDo(testService, lineIn)
-		if testService.Cp.GetParser().ErrorsExist() {
-			hub.WritePretty(testService.Cp.GetParser().ReturnErrors())
+		if testService.Cp.P.ErrorsExist() {
+			hub.WritePretty(testService.Cp.P.ReturnErrors())
 			f.Close()
 			continue
 		}
@@ -1278,8 +1278,8 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 		scanner.Scan()
 		lineOut := scanner.Text()
 		result := ServiceDo(testService, lineIn)
-		if testService.Cp.GetParser().ErrorsExist() {
-			hub.WritePretty(testService.Cp.GetParser().ReturnErrors())
+		if testService.Cp.P.ErrorsExist() {
+			hub.WritePretty(testService.Cp.P.ReturnErrors())
 			f.Close()
 			return
 		}

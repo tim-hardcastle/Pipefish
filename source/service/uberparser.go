@@ -405,10 +405,6 @@ func (cp *Compiler) ParseEverything() {
 	cp.P.Bling.AddSet(cp.P.Endfixes)
 }
 
-func flatten(s string) string {
-	return strings.ReplaceAll(s, ".", "_")
-}
-
 // Having made the parsers FunctionTable, each function name is associated with a (partially) ordered list of
 // associated functions such that a more specific type signature comes before a less specific one.
 // We will now re-represent this as a tree.
@@ -564,16 +560,3 @@ func (cp *Compiler) addWordsToParser(currentChunk *token.TokenizedCodeChunk) {
 	}
 }
 
-// The compiler keeps its errors inside the parser it's initializing.
-
-func (cp *Compiler) Throw(errorID string, tok token.Token, args ...any) {
-	cp.P.Throw(errorID, &tok, args...)
-}
-
-func (cp *Compiler) ErrorsExist() bool {
-	return len(cp.P.Common.Errors) > 0
-}
-
-func (cp *Compiler) ReturnErrors() string {
-	return cp.P.ReturnErrors()
-}
