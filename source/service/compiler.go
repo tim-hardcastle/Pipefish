@@ -2716,6 +2716,21 @@ func (cp *Compiler) rollback(vms vmState, tok *token.Token) {
 	cp.Vm.SnippetFactories = cp.Vm.SnippetFactories[:vms.snippetFactories]
 }
 
+// For calling `init` or `main`.
+func (cp *Compiler) CallIfExists(name string) values.Value {
+	tree, ok := cp.P.FunctionForest[name]
+	if !ok {
+		return values.UNDEF
+	}
+	for _, t := range tree.Tree.Branch {
+		if t.Type.Len() == 0 && t.Node.Fn != nil {
+			cp.Vm.Run(cp.Fns[t.Node.Fn.Number].CallTo)
+			return cp.Vm.Mem[cp.Fns[t.Node.Fn.Number].OutReg]
+		}
+	}
+	return values.UNDEF
+}
+
 // Functions for emitting comments on what the compiler is doing, if the option to do so in the `settings.go`
 // file is set to `true`.
 

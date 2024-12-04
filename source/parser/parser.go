@@ -136,7 +136,7 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 
 // Shows output of parser for debugging purposes.
 func (p *Parser) ParseDump(source, input string) {
-	parsedLine := p.ParseLine(source, input) 
+	parsedLine := p.ParseLine(source, input)
 	if parsedLine == nil {
 		fmt.Printf("Parser returns: nil")
 	}
@@ -155,8 +155,9 @@ type CommonParserBindle struct {
 	IsBroken            bool
 	Sources             map[string][]string
 }
+
 // Initializes the common parser bindle.
-func NewCommonBindle() *CommonParserBindle {
+func NewCommonParserBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
 		Functions:           make(map[FuncSource]*ast.PrsrFunction),
 		InterfaceBacktracks: []BkInterface{},
@@ -179,7 +180,7 @@ type ParserData struct {
 // of another just if all the concrete types making up the former are found in the latter.
 type TypeSys map[string]values.AbstractType
 
- // For indexing the functions in the common function map, to prevent duplication.
+// For indexing the functions in the common function map, to prevent duplication.
 type FuncSource struct {
 	Filename     string
 	LineNo       int
@@ -361,7 +362,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseNamespaceExpression(leftExp)
 			case p.curToken.Type == token.FOR:
 				leftExp = p.parseForAsInfix(leftExp) // For the (usual) case where the 'for' is inside a 'from' and the leftExp is, or should be, the bound variables of the loop.
-			case p.curToken.Type == token.EQ || p.curToken.Type == token.NOT_EQ :
+			case p.curToken.Type == token.EQ || p.curToken.Type == token.NOT_EQ:
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				p.pushRParser(resolvingParser)
@@ -836,7 +837,7 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 
 // Function auxiliary to the previous one to get rid of syntactic sugar in streaming expressions.
 // Adds "that" after piping, works through namespaces.
-func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { 
+func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 	switch typedExp := exp.(type) {
 	case *ast.Identifier:
 		if p.Functions.Contains(exp.GetToken().Literal) {
@@ -952,6 +953,7 @@ func (p *Parser) topRParser() *Parser {
 func (p *Parser) popRParser() {
 	p.enumResolvingParsers = p.enumResolvingParsers[1:]
 }
+
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
 // to find which parser should resolve the symbol.
 func (p *Parser) getResolvingParser() *Parser {
@@ -974,7 +976,7 @@ func (p *Parser) getResolvingParser() *Parser {
 
 // Some functions for getting tokens from the `TokenSupplier`
 
-// This interface allows the parser to get its supply of tokens either from the relexer directly or from 
+// This interface allows the parser to get its supply of tokens either from the relexer directly or from
 // a `TokenizedCodeChunk`.
 type TokenSupplier interface{ NextToken() token.Token }
 
