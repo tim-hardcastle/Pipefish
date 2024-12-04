@@ -43,6 +43,7 @@ type initializer struct {
 	initializers map[string]*initializer               // The child initializers of this one, to initialize imports and external stubs.
 	TokenizedDeclarations [13]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations    [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
+	goBucket       *GoBucket                           // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	common *commonInitializerBindle                    // The information all the initializers have in common.
 }
 
@@ -50,6 +51,7 @@ func newInitializer() *initializer {
 	iz := initializer{
 		initializers: make(map[string]*initializer),
 	}
+	iz.newGoBucket()
 	return &iz
 }
 
@@ -865,7 +867,7 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
 		case *ast.GolangExpression:
-			iz.cp.goBucket.imports[imp.Token.Source] = append(iz.cp.goBucket.imports[imp.Token.Source], imp.Token.Literal)
+			iz.goBucket.imports[imp.Token.Source] = append(iz.goBucket.imports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
 			namespace, scriptFilepath = iz.getPartsOfImportOrExternalDeclaration(imp)
@@ -953,8 +955,8 @@ func (iz *initializer) MakeFunctionTable() {
 				return
 			}
 			if body.GetToken().Type == token.GOCODE {
-				iz.cp.goBucket.sources.Add(body.GetToken().Source)
-				iz.cp.goBucket.functions[body.GetToken().Source] = append(iz.cp.goBucket.functions[body.GetToken().Source], functionToAdd)
+				iz.goBucket.sources.Add(body.GetToken().Source)
+				iz.goBucket.functions[body.GetToken().Source] = append(iz.goBucket.functions[body.GetToken().Source], functionToAdd)
 				body.(*ast.GolangExpression).Sig = sig
 				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}

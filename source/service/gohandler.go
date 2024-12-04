@@ -51,14 +51,14 @@ type GoBucket struct {
 	pureGo    map[string][]string
 }
 
-func (cp *Compiler) newGoBucket() {
-	gh := GoBucket{
+func (iz *initializer) newGoBucket() {
+	gb := GoBucket{
 		sources:   make(dtypes.Set[string]),
 		imports:   make(map[string][]string),
 		functions: make(map[string][]*ast.PrsrFunction),
 		pureGo:    make(map[string][]string),
 	}
-	cp.goBucket = &gh
+	iz.goBucket = &gb
 }
 
 // This will if necessary compile or recompile the relevant .so files, and will extract from them
@@ -74,13 +74,13 @@ func (iz *initializer) compileGo() {
 	for _, golang := range iz.TokenizedDeclarations[golangDeclaration] {
 		golang.ToStart()
 		token := golang.NextToken()
-		iz.cp.goBucket.sources.Add(token.Source)
-		iz.cp.goBucket.pureGo[token.Source] = append(iz.cp.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
+		iz.goBucket.sources.Add(token.Source)
+		iz.goBucket.pureGo[token.Source] = append(iz.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
 	}
 
-	timeMap := iz.cp.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
+	timeMap := iz.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
 
-	for source := range iz.cp.goBucket.sources {
+	for source := range iz.goBucket.sources {
 		f, err := os.Stat(MakeFilepath(source))
 		if err != nil {
 			iz.Throw("go/file", token.Token{Source: "linking Golang"}, err.Error())
@@ -90,7 +90,7 @@ func (iz *initializer) compileGo() {
 		sourceCodeModified := f.ModTime().UnixMilli()
 		objectCodeModified, ok := timeMap[source]
 		if !ok || sourceCodeModified != int64(objectCodeModified) {
-			plugins = iz.cp.makeNewSoFile(source, sourceCodeModified)
+			plugins = iz.makeNewSoFile(source, sourceCodeModified)
 		} else {
 			soFile := settings.PipefishHomeDirectory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
@@ -122,7 +122,7 @@ func (iz *initializer) compileGo() {
 		// also pointed to by the compiler's function table and by the list of common functions
 		// in the common parser bindle. I.e. we are returning our result by mutating the
 		// functions.
-		for _, function := range iz.cp.goBucket.functions[source] {
+		for _, function := range iz.goBucket.functions[source] {
 			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 			for i, pair := range function.NameSig {
@@ -155,7 +155,7 @@ var BUILTIN_VALUE_CONVERTER = map[string]any{
 
 // This makes a new .so file, opens it, and returns the plugins.
 // Most of the code generation is in the `gogen.go` file in this same `service` package.
-func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
+func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 
 	var StringBuilder strings.Builder
 	sb := &StringBuilder
@@ -163,9 +163,9 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	// We emit the package declaration and builtins.
 
 	fmt.Fprint(sb, "package main\n\n")
-	if len(cp.goBucket.imports) > 0 {
+	if len(iz.goBucket.imports) > 0 {
 		fmt.Fprint(sb, "import (\n")
-		for _, v := range cp.goBucket.imports[source] {
+		for _, v := range iz.goBucket.imports[source] {
 			fmt.Fprint(sb, "    \""+v+"\"\n")
 		}
 		fmt.Fprint(sb, ")\n\n")
@@ -174,37 +174,37 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	// We extract all the types we're going to need to declare.
 	// TODO --- do we need guards here on the types?
 	userDefinedTypes := make(dtypes.Set[string])
-	for _, function := range cp.goBucket.functions[source] {
+	for _, function := range iz.goBucket.functions[source] {
 		for _, v := range function.NameSig {
-			if !cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" && text.WithoutDots(v.VarType) != "any?" {
+			if !iz.cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" && text.WithoutDots(v.VarType) != "any?" {
 				userDefinedTypes.Add(text.WithoutDots(v.VarType))
 			}
 		}
 		for _, v := range function.NameRets {
-			if !cp.isBuiltin(v.VarType) {
+			if !iz.cp.isBuiltin(v.VarType) {
 				userDefinedTypes.Add(v.VarType)
 			}
 		}
 	}
-	cp.transitivelyCloseTypes(userDefinedTypes)
-	if cp.P.ErrorsExist() {
+	iz.transitivelyCloseTypes(userDefinedTypes)
+	if iz.ErrorsExist() {
 		return nil
 	}
 
 	// We emit the type declarations and converters.
-	cp.generateDeclarations(sb, userDefinedTypes)
+	iz.generateDeclarations(sb, userDefinedTypes)
 	// And the functions.
-	for _, function := range cp.goBucket.functions[source] {
-		cp.generateGoFunctionCode(sb, function)
+	for _, function := range iz.goBucket.functions[source] {
+		iz.generateGoFunctionCode(sb, function)
 	}
 	// And any blocks of pure Go.
-	for _, pureGo := range cp.goBucket.pureGo[source] {
+	for _, pureGo := range iz.goBucket.pureGo[source] {
 		fmt.Fprint(sb, pureGo)
 	}
 
 	counter++ // The number of the gocode_<counter>.go source file we're going to write.
 	soFile := filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(newTime))+".so"))
-	timeMap := cp.getGoTimes()
+	timeMap := iz.getGoTimes()
 	if oldTime, ok := timeMap[source]; ok {
 		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
 	}
@@ -216,40 +216,40 @@ func (cp *Compiler) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 	output, err := cmd.Output()
 	if err != nil {
-		cp.P.Throw("golang/build", &token.Token{}, err.Error()+": "+string(output))
+		iz.Throw("golang/build", token.Token{}, err.Error()+": "+string(output))
 		return nil
 	}
 	plugins, err := plugin.Open(soFile)
 	if err != nil {
-		cp.P.Throw("golang/open/a", &token.Token{}, err.Error())
+		iz.Throw("golang/open/a", token.Token{}, err.Error())
 		return nil
 	}
 	if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
 		os.Remove("gocode_" + strconv.Itoa(counter) + ".go")
 	}
 	timeMap[source] = newTime
-	cp.recordGoTimes(timeMap)
+	iz.recordGoTimes(timeMap)
 	return plugins
 }
 
 // This makes sure that if  we're generating declarations for a struct type,
 // we're also generating declarations for the types of its fields if need be, and so on recursively. We do
 // a traditional non-recursive breadth-first search.
-func (cp *Compiler) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) {
+func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) {
 	structsToCheck := dtypes.Set[string]{}
 	for name := range userDefinedTypes {
-		if cp.isStruct(name) {
+		if iz.cp.isStruct(name) {
 			structsToCheck.Add(name)
 		}
 	}
 	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
 		for structName := range structsToCheck {
-			for _, fieldType := range cp.typeInfoNow(structName).(structType).abstractStructFields {
+			for _, fieldType := range iz.cp.typeInfoNow(structName).(structType).abstractStructFields {
 				if fieldType.Len() != 1 {
-					cp.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, cp.Vm.DescribeAbstractType(fieldType, LITERAL))
+					iz.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, iz.cp.Vm.DescribeAbstractType(fieldType, LITERAL))
 				}
-				typeOfField := cp.getTypeNameFromNumber(fieldType.Types[0])
-				switch fieldData := cp.typeInfoNow(typeOfField).(type) {
+				typeOfField := iz.cp.getTypeNameFromNumber(fieldType.Types[0])
+				switch fieldData := iz.cp.typeInfoNow(typeOfField).(type) {
 				case cloneType:
 					userDefinedTypes.Add(fieldData.getName(DEFAULT))
 				case enumType:
@@ -266,7 +266,7 @@ func (cp *Compiler) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) 
 	}
 }
 
-func (cp *Compiler) recordGoTimes(timeMap map[string]int64) {
+func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
 	f, err := os.Create(settings.PipefishHomeDirectory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't create file rsc/go/gotimes.dat")
@@ -278,7 +278,7 @@ func (cp *Compiler) recordGoTimes(timeMap map[string]int64) {
 	}
 }
 
-func (cp *Compiler) getGoTimes() map[string]int64 {
+func (iz *initializer) getGoTimes() map[string]int64 {
 	file, err := os.Open(settings.PipefishHomeDirectory + "rsc/go/gotimes.dat")
 	if err != nil {
 		panic("Can't open file 'rsc/go/gotimes.dat'.")

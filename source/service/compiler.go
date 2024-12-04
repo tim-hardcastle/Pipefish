@@ -37,7 +37,6 @@ type Compiler struct {
 	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
 	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
 	declarationMap map[decKey]any                 // TODO --- make common parser bindle.
-	goBucket       *GoBucket                      // Where the compiler keeps information gathered during parsing and compiling that will be needed to compile the Go modules.
 	TupleType      uint32                         // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	fnIndex        map[fnSource]*ast.PrsrFunction // Map from sources to how the parser sees functions. TODO, why does this exist and why is it here?
 
@@ -66,7 +65,6 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		typeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 	}
 	newC.pushRCompiler(newC)
-	newC.newGoBucket()
 	return newC
 }
 
