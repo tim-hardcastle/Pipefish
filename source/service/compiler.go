@@ -2484,13 +2484,6 @@ type interfaceInfo struct {
 	sigs []fnSigInfo
 }
 
-type decKey struct {
-	dOf declarationOf // A struct, a label, a function ...
-	src string        // The filepath to the source code.
-	lNo int           // Line number of the declaration.
-	ix  int           // If it's an element of an enum, the index of the element in its type.
-}
-
 // A function to find out if the source has changed and we need to recompile. TODO --- because of NULL-imports there is no longer such a thing as "the" source and you'll have to keep a list.
 func (cp *Compiler) NeedsUpdate() (bool, error) {
 	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" || len(cp.ScriptFilepath) >= 11 && cp.ScriptFilepath[0:11] == "test-files/" {

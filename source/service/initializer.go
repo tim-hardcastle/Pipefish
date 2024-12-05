@@ -86,6 +86,13 @@ type TokenizedCodeChunks []*token.TokenizedCodeChunk
 
 // You may wonder why the declarationMap is stored in the initializer and copied from one to the other rather than held 
 // in the common initializer and shared. So do I, but we get all sorts of weird bugs if we try. TODO --- investigate.
+type decKey struct {
+	dOf declarationOf // A struct, a label, a function ...
+	src string        // The filepath to the source code.
+	lNo int           // Line number of the declaration.
+	ix  int           // If it's an element of an enum, the index of the element in its type.
+}
+
 func makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
 	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, ix: ix}
 }
