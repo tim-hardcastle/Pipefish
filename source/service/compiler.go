@@ -38,8 +38,7 @@ type Compiler struct {
 	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
 	declarationMap map[decKey]any                 // TODO --- make common parser bindle.
 	TupleType      uint32                         // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
-	fnIndex        map[fnSource]*ast.PrsrFunction // Map from sources to how the parser sees functions. TODO, why does this exist and why is it here?
-
+	
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
 	recursionStore  []bkRecursion // Places in the code where we need to go back and doctor it to make the recursion work for outer functions.
@@ -61,7 +60,6 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Services:                 make(map[string]*Service),
 		CallHandlerNumbersByName: make(map[string]uint32),
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
-		fnIndex:                  make(map[fnSource]*ast.PrsrFunction),
 		typeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 	}
 	newC.pushRCompiler(newC)

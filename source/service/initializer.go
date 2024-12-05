@@ -46,13 +46,15 @@ type initializer struct {
 	localConcreteTypes dtypes.Set[values.ValueType]    // All the struct, enum, and clone types defined in a given module.
 	goBucket           *GoBucket                       // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets           []string                        // Names of snippet types visible to the module.
+	fnIndex        map[fnSource]*ast.PrsrFunction      // Map from sources to how the parser sees functions. 
 	common *commonInitializerBindle                    // The information all the initializers have in common.
 }
 
 func newInitializer() *initializer {
 	iz := initializer{
-		initializers: make(map[string]*initializer),
+		initializers:       make(map[string]*initializer),
 		localConcreteTypes: make(dtypes.Set[values.ValueType]),
+		fnIndex:            make(map[fnSource]*ast.PrsrFunction),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -953,7 +955,7 @@ func (iz *initializer) MakeFunctionTable() {
 			}
 			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: iz.p.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
-			iz.cp.fnIndex[fnSource{j, i}] = functionToAdd
+			iz.fnIndex[fnSource{j, i}] = functionToAdd
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
 				iz.cmI("Adding " + functionName + " to common functions.")
 				iz.common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
@@ -1316,8 +1318,8 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 		iz.cp.recursionStore = []bkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
 		fCount := uint32(len(iz.cp.Fns))       // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
 		for _, dec := range groupOfDeclarations {
-			iz.cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
-			iz.cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Compiler = iz.cp
+			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
+			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Compiler = iz.cp
 			fCount++
 		}
 		for _, dec := range groupOfDeclarations {
@@ -1327,7 +1329,7 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 			case commandDeclaration:
 				iz.compileFunction(iz.ParsedDeclarations[commandDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
 			}
-			iz.cp.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
+			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
 		for _, rDat := range iz.cp.recursionStore {
@@ -1796,7 +1798,7 @@ func (iz *initializer) createClones() {
 		rtnSig := ast.StringSig{ast.NameTypenamePair{"*dummy*", name}}
 		fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, NameRets: rtnSig, RtnSig: iz.p.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
 		iz.p.FunctionTable.Add(iz.p, name, fn)
-		iz.cp.fnIndex[fnSource{cloneDeclaration, i}] = fn
+		iz.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
 		// We get the requested builtins.
 		var opList []string
@@ -1981,7 +1983,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: node.GetToken()}
 		iz.p.FunctionTable.Add(iz.p, name, fn) // TODO --- give them their own ast type?
-		iz.cp.fnIndex[fnSource{structDeclaration, i}] = fn
+		iz.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
 			iz.cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
@@ -2179,7 +2181,7 @@ func (iz *initializer) createSnippetTypesPart2() {
 		iz.p.Functions.Add(name)
 		fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
 		iz.p.FunctionTable.Add(iz.p, name, fn)
-		iz.cp.fnIndex[fnSource{snippetDeclaration, i}] = fn
+		iz.fnIndex[fnSource{snippetDeclaration, i}] = fn
 	}
 }
 
@@ -2240,15 +2242,15 @@ func (iz *initializer) compileConstructors() {
 		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		typeNo := iz.cp.ConcreteTypeNow(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		iz.cp.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
-		iz.cp.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
+		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
+		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 	for i, name := range iz.Snippets {
 		typeNo := iz.cp.ConcreteTypeNow(name)
-		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
-		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
+		iz.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
+		iz.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
 	}
 	// Clones
 	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
@@ -2257,8 +2259,8 @@ func (iz *initializer) compileConstructors() {
 		name := nameTok.Literal
 		typeNo := iz.cp.ConcreteTypeNow(name)
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.concreteTypeInfo[iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType).parent].getName(DEFAULT)}}
-		iz.cp.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
-		iz.cp.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
+		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
+		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
 	}
 }
 
