@@ -23,12 +23,10 @@ type Parser struct {
 	curToken              token.Token
 	peekToken             token.Token
 	Logging               bool
-	TokenizedDeclarations [13]tokenizedCodeChunks // TODO --- neither this nor the thing below should be in the parser at all
-	ParsedDeclarations    [13]ParsedCodeChunks    // since they're no use after the uberparser has finished with them.
 	CurrentNamespace      []string
 
 	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
-	// in that namespace without being namespaced. This parser will do this for us.
+	// in that namespace without being namespaced.
 	enumResolvingParsers []*Parser
 
 	// Permanent state: things set up by the initializer which are
@@ -37,6 +35,7 @@ type Parser struct {
 	// Things that need to be attached to every parser: common information about the type system, functions, etc.
 	Common *CommonParserBindle
 
+	// Names/token types of identifiers.
 	Functions         dtypes.Set[string]
 	Prefixes          dtypes.Set[string]
 	Forefixes         dtypes.Set[string]
@@ -48,24 +47,25 @@ type Parser struct {
 	Bling             dtypes.Set[string]
 	AllFunctionIdents dtypes.Set[string]
 	Typenames         dtypes.Set[string]
-
 	nativeInfixes dtypes.Set[token.TokenType]
 	lazyInfixes   dtypes.Set[token.TokenType]
 
-	FunctionTable  FunctionTable
-	FunctionForest map[string]*ast.FunctionTree
+	// Used for multiple dispatch.
 
-	TypeMap            TypeSys                      // Maps names to abstract types.
-	typeData           map[string][]string          // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
-	LocalConcreteTypes dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
-
-	Structs   dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
-	StructSig map[string]ast.StringSig // <--- in here.
-
-	Snippets        []string
-	NamespaceBranch map[string]*ParserData
-	NamespacePath   string
-	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
+	// While this is mostly just used by the initializer to construct the function trees (below), it is also used
+	// to serialize the API and so may be needed at runtime.
+	FunctionTable   FunctionTable  
+	// Trees, one for each function identifier, for figuring out how to make function calls given the possibility
+	// of multiple dispatch.
+	FunctionForest  map[string]*ast.FunctionTree
+	
+	// Maps names to abstract types. This *is* the type system, at least as far as the compiler knows about it, 
+	// because there is a natural partial order on abstract types.
+	TypeMap         TypeSys                      
+	
+	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.	
+	NamespaceBranch map[string]*ParserData  // Map from the namespaces immediately available to this parser to the parsers they access.
+	NamespacePath   string                  // The chain of namespaces that got us to this parser, as a string.
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
@@ -93,14 +93,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		FunctionTable:  make(FunctionTable),
 		FunctionForest: make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:        make(TypeSys),
-		typeData: map[string][]string{
-			"struct": []string{"struct", "struct?", "any", "any?"},
-			"enum":   []string{"enum", "enum?", "any", "any?"},
-			"any":    []string{"any", "any?"},
-		},
-		LocalConcreteTypes: make(dtypes.Set[values.ValueType]),
-		Structs:            make(dtypes.Set[string]),
-		StructSig:          make(map[string]ast.StringSig),
 		NamespaceBranch:    make(map[string]*ParserData),
 		ExternalParsers:    make(map[string]*Parser),
 		NamespacePath:      namespacePath,
@@ -136,7 +128,7 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 
 // Shows output of parser for debugging purposes.
 func (p *Parser) ParseDump(source, input string) {
-	parsedLine := p.ParseLine(source, input) 
+	parsedLine := p.ParseLine(source, input)
 	if parsedLine == nil {
 		fmt.Printf("Parser returns: nil")
 	}
@@ -149,27 +141,33 @@ func (p *Parser) ParseDump(source, input string) {
 // and passed to the first parser, which then passes it down to its children.
 type CommonParserBindle struct {
 	Types               TypeSys
-	Functions           map[FuncSource]*ast.PrsrFunction
 	InterfaceBacktracks []BkInterface
 	Errors              []*err.Error
 	IsBroken            bool
 	Sources             map[string][]string
 }
+
 // Initializes the common parser bindle.
-func NewCommonBindle() *CommonParserBindle {
+func NewCommonParserBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
-		Functions:           make(map[FuncSource]*ast.PrsrFunction),
-		InterfaceBacktracks: []BkInterface{},
-		Errors:              []*err.Error{},
-		Sources:             make(map[string][]string),
+		Errors:              []*err.Error{},                // This is where all the errors emitted by enything end up.
+		Sources:             make(map[string][]string),     // Source code --- TODO: remove.
+		InterfaceBacktracks: []BkInterface{},               // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
 	}
 	return &result
+}
+
+// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we 
+// haven't compiled it yet, this keeps track of where we backtrack to.
+type BkInterface struct {
+	Fn   *ast.PrsrFunction
+	Addr uint32
 }
 
 // Stores parse code chunks for subsequent tokenization.
 type ParsedCodeChunks []ast.Node
 
-// Stores information about the other parsers on the hub so they can be used as external services.
+// Stores information about other parsers. TODO, deprecate.
 type ParserData struct {
 	Parser         *Parser
 	ScriptFilepath string
@@ -178,21 +176,6 @@ type ParserData struct {
 // This is indeed the whole of the type system as the parser sees it, because one abstract type is a subtype
 // of another just if all the concrete types making up the former are found in the latter.
 type TypeSys map[string]values.AbstractType
-
- // For indexing the functions in the common function map, to prevent duplication.
-type FuncSource struct {
-	Filename     string
-	LineNo       int
-	FunctionName string
-	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
-}
-
-// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we haven't compiled it yet, tis keeps track of where we backtrack to.
-// TODO --- it is here rather than with the other backtrackers in the compiler where it belongs, because we do have a common parser bindle and we don't have a common compiler bindle.
-type BkInterface struct {
-	Fn   *ast.PrsrFunction
-	Addr uint32
-}
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
@@ -361,7 +344,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				leftExp = p.parseNamespaceExpression(leftExp)
 			case p.curToken.Type == token.FOR:
 				leftExp = p.parseForAsInfix(leftExp) // For the (usual) case where the 'for' is inside a 'from' and the leftExp is, or should be, the bound variables of the loop.
-			case p.curToken.Type == token.EQ || p.curToken.Type == token.NOT_EQ :
+			case p.curToken.Type == token.EQ || p.curToken.Type == token.NOT_EQ:
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				p.pushRParser(resolvingParser)
@@ -836,7 +819,7 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 
 // Function auxiliary to the previous one to get rid of syntactic sugar in streaming expressions.
 // Adds "that" after piping, works through namespaces.
-func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node { 
+func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 	switch typedExp := exp.(type) {
 	case *ast.Identifier:
 		if p.Functions.Contains(exp.GetToken().Literal) {
@@ -952,6 +935,7 @@ func (p *Parser) topRParser() *Parser {
 func (p *Parser) popRParser() {
 	p.enumResolvingParsers = p.enumResolvingParsers[1:]
 }
+
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
 // to find which parser should resolve the symbol.
 func (p *Parser) getResolvingParser() *Parser {
@@ -972,9 +956,9 @@ func (p *Parser) getResolvingParser() *Parser {
 	return lP
 }
 
-// Some functions for getting tokens from the `TokenSupplier`
+// Some functions for interacting with a `TokenSupplier`.
 
-// This interface allows the parser to get its supply of tokens either from the relexer directly or from 
+// This interface allows the parser to get its supply of tokens either from the relexer directly or from
 // a `TokenizedCodeChunk`.
 type TokenSupplier interface{ NextToken() token.Token }
 
@@ -986,11 +970,6 @@ func String(t TokenSupplier) string {
 	}
 	return result
 }
-
-// Stores pretokenized chunks of code for later parsing.
-type tokenizedCodeChunks []*token.TokenizedCodeChunk
-
-// Functions for interacting with a `TokenSupplier`.
 
 func (p *Parser) NextToken() {
 	p.checkNesting()

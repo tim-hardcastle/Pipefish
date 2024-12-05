@@ -34,13 +34,8 @@ type Compiler struct {
 	structDeclarationNumberToTypeNumber map[int]values.ValueType           // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	typeToCloneGroup                    map[values.ValueType]AlternateType // A map from any clonable or clone type to an alt type containing the parent type and its clones.
 	labelResolvingCompilers             []*Compiler                        // We use this to resolve the meaning of labels and enums.
-	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
-	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
-	declarationMap map[decKey]any                 // TODO --- make common parser bindle.
-	goBucket       *GoBucket                      // Where the compiler keeps information gathered during parsing and compiling that will be needed to compile the Go modules.
-	TupleType      uint32                         // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
-	fnIndex        map[fnSource]*ast.PrsrFunction // Map from sources to how the parser sees functions. TODO, why does this exist and why is it here?
-
+	TupleType                           uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
+	
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
 	recursionStore  []bkRecursion // Places in the code where we need to go back and doctor it to make the recursion work for outer functions.
@@ -53,7 +48,6 @@ type Compiler struct {
 func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
 		P:                        p,
-		declarationMap:           make(map[decKey]any),
 		EnumElements:             make(map[string]uint32),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
@@ -62,11 +56,9 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		Services:                 make(map[string]*Service),
 		CallHandlerNumbersByName: make(map[string]uint32),
 		typeToCloneGroup:         make(map[values.ValueType]AlternateType),
-		fnIndex:                  make(map[fnSource]*ast.PrsrFunction),
 		typeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 	}
 	newC.pushRCompiler(newC)
-	newC.newGoBucket()
 	return newC
 }
 
@@ -2492,26 +2484,6 @@ type interfaceInfo struct {
 	sigs []fnSigInfo
 }
 
-type decKey struct {
-	dOf declarationOf // A struct, a label, a function ...
-	src string        // The filepath to the source code.
-	lNo int           // Line number of the declaration.
-	ix  int           // If it's an element of an enum, the index of the element in its type.
-}
-
-func (cp *Compiler) makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
-	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, ix: ix}
-}
-
-func (cp *Compiler) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {
-	result, ok := cp.declarationMap[cp.makeKey(dOf, tok, ix)]
-	return result, ok
-}
-
-func (cp *Compiler) setDeclaration(dOf declarationOf, tok *token.Token, ix int, v any) {
-	cp.declarationMap[cp.makeKey(dOf, tok, ix)] = v
-}
-
 // A function to find out if the source has changed and we need to recompile. TODO --- because of NULL-imports there is no longer such a thing as "the" source and you'll have to keep a list.
 func (cp *Compiler) NeedsUpdate() (bool, error) {
 	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" || len(cp.ScriptFilepath) >= 11 && cp.ScriptFilepath[0:11] == "test-files/" {
@@ -2714,6 +2686,21 @@ func (cp *Compiler) rollback(vms vmState, tok *token.Token) {
 	cp.Vm.Tokens = cp.Vm.Tokens[:vms.tokens]
 	cp.Vm.LambdaFactories = cp.Vm.LambdaFactories[:vms.lambdaFactories]
 	cp.Vm.SnippetFactories = cp.Vm.SnippetFactories[:vms.snippetFactories]
+}
+
+// For calling `init` or `main`.
+func (cp *Compiler) CallIfExists(name string) values.Value {
+	tree, ok := cp.P.FunctionForest[name]
+	if !ok {
+		return values.UNDEF
+	}
+	for _, t := range tree.Tree.Branch {
+		if t.Type.Len() == 0 && t.Node.Fn != nil {
+			cp.Vm.Run(cp.Fns[t.Node.Fn.Number].CallTo)
+			return cp.Vm.Mem[cp.Fns[t.Node.Fn.Number].OutReg]
+		}
+	}
+	return values.UNDEF
 }
 
 // Functions for emitting comments on what the compiler is doing, if the option to do so in the `settings.go`

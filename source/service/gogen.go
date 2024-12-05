@@ -29,10 +29,9 @@ import (
 	"pipefish/source/values"
 )
 
-func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {
-	
+func (iz *initializer) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {
 	for name := range userDefinedTypes {
-		switch typeInfo := cp.typeInfoNow(name).(type) {
+		switch typeInfo := iz.cp.typeInfoNow(name).(type) {
 		case cloneType :
 			goType := cloneConv[typeInfo.parent]
 			fmt.Fprint(sb, "type ", name, " ", goType, "\n\n")
@@ -46,7 +45,7 @@ func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes d
 		case structType : 
 			fmt.Fprint(sb, "type ", name, " struct {\n")
 			for i, lN := range typeInfo.labelNumbers {
-				fmt.Fprint(sb, "\t", (text.Capitalize(cp.Vm.Labels[lN])), " ", cp.convertFieldTypeFromPfToGo(typeInfo.abstractStructFields[i]), "\n")
+				fmt.Fprint(sb, "\t", (text.Capitalize(iz.cp.Vm.Labels[lN])), " ", iz.convertFieldTypeFromPfToGo(typeInfo.abstractStructFields[i]), "\n")
 			}
 			fmt.Fprint(sb, "}\n\n")
 		}
@@ -62,7 +61,7 @@ func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes d
 	fmt.Fprint(sb, "var PIPEFISH_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){\n")
 	for name := range userDefinedTypes {
 		fmt.Fprint(sb, "    \"", name, "\": func(t uint32, v any) any {return ", name)
-		switch typeInfo := cp.typeInfoNow(name).(type) {
+		switch typeInfo := iz.cp.typeInfoNow(name).(type) {
 		case cloneType :
 			fmt.Fprint(sb, "(v.(", cloneConv[typeInfo.parent], "))},\n")
 		case enumType :
@@ -71,7 +70,7 @@ func (cp *Compiler) generateDeclarations(sb *strings.Builder, userDefinedTypes d
 			fmt.Fprint(sb, "{")
 			sep := ""
 			for i := 0; i < typeInfo.len(); i++ {
-				fmt.Fprint(sb, sep, "v.([]any)[", strconv.Itoa(i), "].(", cp.convertFieldTypeFromPfToGo(typeInfo.abstractStructFields[i]), ")")
+				fmt.Fprint(sb, sep, "v.([]any)[", strconv.Itoa(i), "].(", iz.convertFieldTypeFromPfToGo(typeInfo.abstractStructFields[i]), ")")
 				sep = ", "
 			}
 			fmt.Fprint(sb,"}},\n")
@@ -103,43 +102,43 @@ var cloneConv = map[values.ValueType]string{
 // This is auxillary to 'generateDeclarations'. It produces the names of the
 // field types in the struct declarations generated for the Go code.
 // This produces the names of the field types in the struct declarations generated for the Go code.
-func (cp *Compiler) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
+func (iz *initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
 	if aT.Len() > 1 {
-		cp.P.Throw("golang/type/concrete", &token.Token{Source: "golang interop"})
+		iz.Throw("golang/type/concrete", token.Token{Source: "golang interop"})
 		return ""
 	}
 	typeNumber := aT.Types[0]
-	typeName := cp.Vm.concreteTypeInfo[typeNumber].getName(DEFAULT)
+	typeName := iz.cp.Vm.concreteTypeInfo[typeNumber].getName(DEFAULT)
 	goType, ok := getGoType(typeName)
 	if !ok {
-		cp.P.Throw("golang/type/illegal", &token.Token{Source: "golang interop"})
+		iz.Throw("golang/type/illegal", token.Token{Source: "golang interop"})
 		return ""
 	}
 	return goType
 }
 
 // Since the signatures of each function is written in Pipefish, we must give each one a signature in Go.
-func (cp *Compiler) generateGoFunctionCode(sb *strings.Builder, function *ast.PrsrFunction) {
+func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast.PrsrFunction) {
     fmt.Fprint(sb, "func ", text.Capitalize(function.FName))
-	cp.printSig(sb, function.NameSig, *function.Tok)
+	iz.printSig(sb, function.NameSig, *function.Tok)
 	switch len(function.NameRets) {
 	case 0 :
 		fmt.Fprint(sb, "any ")
 	case 1 :
 		fmt.Fprint(sb, function.NameRets[0].VarType, " ")
 	default :
-		cp.printSig(sb, function.NameRets, *function.Tok)
+		iz.printSig(sb, function.NameRets, *function.Tok)
 	}
 	fmt.Fprint(sb, "{", function.Body.GetToken().Literal, "\n\n")
 }
 
-func (cp *Compiler) printSig(sb *strings.Builder, sig ast.StringSig, tok token.Token) {
+func (iz *initializer) printSig(sb *strings.Builder, sig ast.StringSig, tok token.Token) {
 	fmt.Fprint(sb, "(")
 	sep := ""
 	for _, param := range sig {
 		goType, ok := getGoType(param.VarType)
 		if !ok {
-			cp.Throw("golang/param", tok, param.VarType)
+			iz.Throw("golang/param", tok, param.VarType)
 		}
 		fmt.Fprint(sb, sep, param.VarName)
 		if param.VarName != "" { // In which case it would be a return signature.

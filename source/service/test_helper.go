@@ -33,35 +33,35 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compile
 			println(text.BULLET + "Running test " + text.Emph(test.Input))
 		}
 		mc := BlankVm(nil, nil)
-		common := parser.NewCommonBindle()
+		common := parser.NewCommonParserBindle()
+		iz := newInitializer()
+		iz.common = newCommonInitializerBindle()
 		var cp *Compiler
 		if filename == "" {
-			cp = initializeFromFilepath(mc, common, "", "")
+			cp = iz.initializeFromFilepath(mc, common, "", "")
 		} else {
-			cp = initializeFromFilepath(mc, common, wd+"/test-files/"+filename, "")
+			cp = iz.initializeFromFilepath(mc, common, wd+"/test-files/"+filename, "")
 		}
-		if cp.P.ErrorsExist() {
+		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		cp.makeFunctionTableAndGoMods()
-		if cp.P.ErrorsExist() {
+		iz.makeFunctionTableAndGoMods()
+		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		cp.populateAbstractTypesAndMakeFunctionTrees()
-		if cp.P.ErrorsExist() {
+		iz.populateAbstractTypesAndMakeFunctionTrees()
+		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		cp.compileEverything()
-		if cp.P.ErrorsExist() {
+		iz.compileEverything()
+		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-
-		cp.ResolveInterfaceBacktracks()
-
-		println(text.Red(test.Input))
+		iz.ResolveInterfaceBacktracks()
 		got := F(cp, test.Input)
 		if !(test.Want == got) {
-			if cp.P.ErrorsExist() {
+			if iz.ErrorsExist() {
+				println(text.Red(test.Input))
 				println("There were errors parsing the line: \n" + cp.P.ReturnErrors() + "\n")
 			}
 			t.Fatalf(`Test failed with input %s | Wanted : %s | Got : %s.`, test.Input, test.Want, got)

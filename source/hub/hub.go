@@ -936,7 +936,7 @@ func (hub *Hub) StartAndMakeCurrent(username, serviceName, scriptFilepath string
 
 func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 	if !hub.services[hub.currentServiceName()].IsBroken() {
-		val := hub.services[hub.currentServiceName()].Cp.CallIfExists("main")
+		val := hub.services[hub.currentServiceName()].CallMain()
 		hub.lastRun = []string{hub.currentServiceName()}
 		hub.services[hub.currentServiceName()].Visited = true
 		switch val.T {
@@ -1003,7 +1003,7 @@ func StartServiceFromCli() {
 		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
 	}
-	val := newService.Cp.CallIfExists("main")
+	val := newService.CallMain()
 	if val.T == values.UNDEFINED_VALUE {
 		s := "\nScript " + text.CYAN + text.Emph(filename) + text.RESET + " has no "  + text.CYAN + text.Emph("main") + text.RESET + " command.\n\n"
 		fmt.Println(text.Pretty(s, 0, 92))
