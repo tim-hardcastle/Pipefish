@@ -34,10 +34,7 @@ type Compiler struct {
 	structDeclarationNumberToTypeNumber map[int]values.ValueType           // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	typeToCloneGroup                    map[values.ValueType]AlternateType // A map from any clonable or clone type to an alt type containing the parent type and its clones.
 	labelResolvingCompilers             []*Compiler                        // We use this to resolve the meaning of labels and enums.
-	// Different compilers onto the same VM can and will compile the same source code. This keeps track of each declaration so that nothing actually
-	// gets compiled twice. It needs to be passed down to every child compiler spawned by an import/external.
-	declarationMap map[decKey]any                 // TODO --- make common parser bindle.
-	TupleType      uint32                         // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
+	TupleType                           uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -51,7 +48,6 @@ type Compiler struct {
 func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
 		P:                        p,
-		declarationMap:           make(map[decKey]any),
 		EnumElements:             make(map[string]uint32),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
@@ -2493,19 +2489,6 @@ type decKey struct {
 	src string        // The filepath to the source code.
 	lNo int           // Line number of the declaration.
 	ix  int           // If it's an element of an enum, the index of the element in its type.
-}
-
-func (cp *Compiler) makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
-	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, ix: ix}
-}
-
-func (cp *Compiler) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {
-	result, ok := cp.declarationMap[cp.makeKey(dOf, tok, ix)]
-	return result, ok
-}
-
-func (cp *Compiler) setDeclaration(dOf declarationOf, tok *token.Token, ix int, v any) {
-	cp.declarationMap[cp.makeKey(dOf, tok, ix)] = v
 }
 
 // A function to find out if the source has changed and we need to recompile. TODO --- because of NULL-imports there is no longer such a thing as "the" source and you'll have to keep a list.

@@ -46,7 +46,8 @@ type initializer struct {
 	localConcreteTypes dtypes.Set[values.ValueType]    // All the struct, enum, and clone types defined in a given module.
 	goBucket           *GoBucket                       // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets           []string                        // Names of snippet types visible to the module.
-	fnIndex        map[fnSource]*ast.PrsrFunction      // Map from sources to how the parser sees functions. 
+	fnIndex map[fnSource]*ast.PrsrFunction             // Map from sources to how the parser sees functions. 
+	declarationMap map[decKey]any                      // TODO --- it is not at all clear that this is doing what it ought to.
 	common *commonInitializerBindle                    // The information all the initializers have in common.
 }
 
@@ -55,6 +56,7 @@ func newInitializer() *initializer {
 		initializers:       make(map[string]*initializer),
 		localConcreteTypes: make(dtypes.Set[values.ValueType]),
 		fnIndex:            make(map[fnSource]*ast.PrsrFunction),
+		declarationMap:     make(map[decKey]any),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -81,6 +83,21 @@ type FuncSource struct {
 
 // Stores pretokenized chunks of code for later parsing.
 type TokenizedCodeChunks []*token.TokenizedCodeChunk
+
+// You may wonder why the declarationMap is stored in the initializer and copied from one to the other rather than held 
+// in the common initializer and shared. So do I, but we get all sorts of weird bugs if we try. TODO --- investigate.
+func makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
+	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, ix: ix}
+}
+
+func (iz *initializer) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {
+	result, ok := iz.declarationMap[makeKey(dOf, tok, ix)]
+	return result, ok
+}
+
+func (iz *initializer) setDeclaration(dOf declarationOf, tok *token.Token, ix int, v any) {
+	iz.declarationMap[makeKey(dOf, tok, ix)] = v
+}
 
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a 
 // `CommonInitializerBindle` for the initializers to share. These common bindles are then passed down to the
@@ -891,8 +908,8 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 		iz.initializers[scriptFilepath] = newIz
 		newCp := newIz.initializeFromFilepath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
 		iz.cp.Services[namespace] = &Service{newCp, false}
-		for k, v := range newCp.declarationMap {
-			iz.cp.declarationMap[k] = v
+		for k, v := range newIz.declarationMap { // See note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
+			iz.declarationMap[k] = v
 		}
 		iz.p.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
 		newCp.P.Private = iz.IsPrivate(int(importDeclaration), i)
@@ -977,7 +994,7 @@ func (iz *initializer) MakeFunctionTable() {
 
 // For compiling a top-level function.
 func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
-	if info, functionExists := iz.cp.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
+	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
 		iz.cp.Fns = append(iz.cp.Fns, info.(*CpFunc))
 		return info.(*CpFunc)
 	}
@@ -1117,7 +1134,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *En
 	if ac == CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
 		iz.p.Throw("comp/return/cmd", node.GetToken())
 	}
-	iz.cp.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
+	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
 
 	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
 
@@ -1499,7 +1516,7 @@ func (iz *initializer) populateAbstractTypesAndMakeFunctionTrees() {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		typename := nameTok.Literal
-		typeInfo, _ := iz.cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+		typeInfo, _ := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		types := values.MakeAbstractType()
 		funcsToAdd := map[values.ValueType][]funcWithName{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
@@ -1720,7 +1737,7 @@ func (iz *initializer) createEnums() {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
 		var typeNo values.ValueType
-		info, typeExists := iz.cp.getDeclaration(decENUM, &tok1, DUMMY)
+		info, typeExists := iz.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
 			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(enumType)
@@ -1728,7 +1745,7 @@ func (iz *initializer) createEnums() {
 			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
-			iz.cp.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
+			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		iz.AddType(tok1.Literal, "enum", typeNo)
 		if typeExists {
@@ -1776,7 +1793,7 @@ func (iz *initializer) createClones() {
 		}
 		abType := typeToClone + "like"
 		var typeNo values.ValueType
-		info, typeExists := iz.cp.getDeclaration(decCLONE, &tok1, DUMMY)
+		info, typeExists := iz.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
 			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType)
@@ -1784,7 +1801,7 @@ func (iz *initializer) createClones() {
 			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
-			iz.cp.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
+			iz.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
 			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, cloneType{name: name, path: iz.p.NamespacePath, parent: parentTypeNo, private: iz.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				iz.cp.Vm.IsRangeable = iz.cp.Vm.IsRangeable.Union(altType(typeNo))
@@ -1964,14 +1981,14 @@ func (iz *initializer) createStructNamesAndLabels() {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
 		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
-		typeInfo, typeExists := iz.cp.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
+		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
 			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(structType)
 			typeInfo.path = iz.p.NamespacePath
 			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
-			iz.cp.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i)})
+			iz.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i)})
 		}
 		iz.AddType(name, "struct", typeNo)
 		if name == "Error" {
@@ -1994,10 +2011,10 @@ func (iz *initializer) createStructNamesAndLabels() {
 				labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
 				if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
 					labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
-					iz.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
+					iz.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
 				} else {
 					iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), node.GetToken())
-					iz.cp.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{iz.cp.That(), true})
+					iz.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{iz.cp.That(), true})
 					labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 					iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
 					iz.cp.Vm.LabelIsPrivate = append(iz.cp.Vm.LabelIsPrivate, true)
@@ -2015,13 +2032,13 @@ func (iz *initializer) createStructNamesAndLabels() {
 			continue
 		}
 		tok := iz.ParsedDeclarations[structDeclaration][i].GetToken()
-		sI, _ := iz.cp.getDeclaration(decSTRUCT, tok, DUMMY)
+		sI, _ := iz.getDeclaration(decSTRUCT, tok, DUMMY)
 		sT := iz.cp.Vm.concreteTypeInfo[sI.(structInfo).structNumber]
 		for i := range sT.(structType).labelNumbers {
-			dec, _ := iz.cp.getDeclaration(decLABEL, tok, i)
+			dec, _ := iz.getDeclaration(decLABEL, tok, i)
 			decLabel := dec.(labelInfo)
 			decLabel.private = false
-			iz.cp.setDeclaration(decLABEL, tok, i, decLabel)
+			iz.setDeclaration(decLABEL, tok, i, decLabel)
 			iz.cp.Vm.LabelIsPrivate[iz.cp.Vm.Mem[decLabel.loc].V.(int)] = false
 		}
 	}
@@ -2058,9 +2075,9 @@ func (iz *initializer) createAbstractTypes() {
 			}
 		}
 		iz.p.TypeMap[newTypename+"?"] = iz.p.TypeMap[newTypename].Insert(values.NULL)
-		_, typeExists := iz.cp.getDeclaration(decABSTRACT, &nameTok, DUMMY)
+		_, typeExists := iz.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
-			iz.cp.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
+			iz.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
 		iz.p.Suffixes.Add(newTypename)
 		iz.p.Suffixes.Add(newTypename + "?")
@@ -2128,9 +2145,9 @@ func (iz *initializer) createInterfaceTypes() {
 		}
 		iz.p.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
 		iz.p.TypeMap[newTypename+"?"] = values.MakeAbstractType(values.NULL)
-		_, typeExists := iz.cp.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+		_, typeExists := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		if !typeExists {
-			iz.cp.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
+			iz.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
 		}
 		iz.p.Suffixes.Add(newTypename)
 		iz.p.Suffixes.Add(newTypename + "?")
@@ -2164,14 +2181,14 @@ func (iz *initializer) createSnippetTypesPart2() {
 		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
 		iz.TokenizedDeclarations[snippetDeclaration][i].ToStart()
 		decTok := iz.TokenizedDeclarations[snippetDeclaration][i].NextToken()
-		typeInfo, typeExists := iz.cp.getDeclaration(decSTRUCT, &decTok, DUMMY)
+		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
 			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(structType)
 			typeInfo.path = iz.p.NamespacePath
 			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
 		} else {
-			iz.cp.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, iz.IsPrivate(int(snippetDeclaration), i)})
+			iz.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, iz.IsPrivate(int(snippetDeclaration), i)})
 			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, structType{name: name, path: iz.p.NamespacePath, snippet: true, private: iz.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
 			iz.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			iz.cp.Vm.codeGeneratingTypes.Add(typeNo)
