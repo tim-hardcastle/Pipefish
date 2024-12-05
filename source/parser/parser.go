@@ -35,6 +35,7 @@ type Parser struct {
 	// Things that need to be attached to every parser: common information about the type system, functions, etc.
 	Common *CommonParserBindle
 
+	// Names/token types of identifiers.
 	Functions         dtypes.Set[string]
 	Prefixes          dtypes.Set[string]
 	Forefixes         dtypes.Set[string]
@@ -46,23 +47,28 @@ type Parser struct {
 	Bling             dtypes.Set[string]
 	AllFunctionIdents dtypes.Set[string]
 	Typenames         dtypes.Set[string]
-
 	nativeInfixes dtypes.Set[token.TokenType]
 	lazyInfixes   dtypes.Set[token.TokenType]
 
-	FunctionTable  FunctionTable
-	FunctionForest map[string]*ast.FunctionTree
+	// Used for multiple dispatch.
 
-	TypeMap            TypeSys                      // Maps names to abstract types.
-	typeData           map[string][]string          // Keeps track of what abstract types are defined in terms of built-in abstract types (struct, enum etc) so they can be updated.
+	// While this is mostly just used by the initializer to construct the function trees (below), it is also used
+	// to serialize the API and so may be needed at runtime.
+	FunctionTable   FunctionTable  
+	// Trees, one for each function identifier, for figuring out how to make function calls given the possibility
+	// of multiple dispatch.
+	FunctionForest  map[string]*ast.FunctionTree
 	
-	Structs   dtypes.Set[string]       // TODO --- remove: this has nothing to do that can't be done by the presence of a key
-	StructSig map[string]ast.StringSig // <--- in here.
-
+	// Maps names to abstract types. This *is* the type system, at least as far as the compiler knows about it, 
+	// because there is a natural partial order on abstract types.
+	TypeMap         TypeSys                      
+	
 	Snippets        []string
-	NamespaceBranch map[string]*ParserData
-	NamespacePath   string
+	
 	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
+	
+	NamespaceBranch map[string]*ParserData
+	NamespacePath   string                  // The chain of namespaces that got us to this parser, as a string.
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
 
@@ -90,7 +96,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		FunctionTable:  make(FunctionTable),
 		FunctionForest: make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:        make(TypeSys),
-	
 		NamespaceBranch:    make(map[string]*ParserData),
 		ExternalParsers:    make(map[string]*Parser),
 		NamespacePath:      namespacePath,
@@ -160,7 +165,7 @@ func NewCommonParserBindle() *CommonParserBindle {
 // Stores parse code chunks for subsequent tokenization.
 type ParsedCodeChunks []ast.Node
 
-// Stores information about the other parsers on the hub so they can be used as external services.
+// Stores information about other parsers. TODO, deprecate.
 type ParserData struct {
 	Parser         *Parser
 	ScriptFilepath string
