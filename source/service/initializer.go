@@ -44,7 +44,8 @@ type initializer struct {
 	TokenizedDeclarations [13]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations    [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
 	localConcreteTypes dtypes.Set[values.ValueType]    // All the struct, enum, and clone types defined in a given module.
-	goBucket       *GoBucket                           // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
+	goBucket           *GoBucket                       // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
+	Snippets           []string                        // Names of snippet types visible to the module.
 	common *commonInitializerBindle                    // The information all the initializers have in common.
 }
 
@@ -58,14 +59,22 @@ func newInitializer() *initializer {
 }
 
 type commonInitializerBindle struct {
-
+	Functions map[FuncSource]*ast.PrsrFunction
 }
 
 func newCommonInitializerBindle() *commonInitializerBindle {
 	b := commonInitializerBindle{
-
+		Functions: make(map[FuncSource]*ast.PrsrFunction),
 	}
 	return &b
+}
+
+// For indexing the functions in the common function map, to prevent duplication.
+type FuncSource struct {
+	Filename     string
+	LineNo       int
+	FunctionName string
+	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
 }
 
 // Stores pretokenized chunks of code for later parsing.
@@ -639,7 +648,7 @@ func (iz *initializer) createSnippetsPart1() {
 		// Note that the first tokens should already have been validated by the createTypeSuffixes method as IDENT.
 		tok1 := v.NextToken()
 		name := tok1.Literal
-		iz.p.Snippets = append(iz.p.Snippets, name)
+		iz.Snippets = append(iz.Snippets, name)
 		iz.p.AllFunctionIdents.Add(name)
 		iz.p.Functions.Add(name)
 	}
@@ -947,7 +956,7 @@ func (iz *initializer) MakeFunctionTable() {
 			iz.cp.fnIndex[fnSource{j, i}] = functionToAdd
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
 				iz.cmI("Adding " + functionName + " to common functions.")
-				iz.p.Common.Functions[parser.FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
+				iz.common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
 			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
@@ -1493,7 +1502,7 @@ func (iz *initializer) populateAbstractTypesAndMakeFunctionTrees() {
 		funcsToAdd := map[values.ValueType][]funcWithName{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
-			for key, fnToTry := range iz.p.Common.Functions {
+			for key, fnToTry := range iz.common.Functions {
 				if key.FunctionName == sigToMatch.name {
 					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
@@ -1936,7 +1945,7 @@ const (
 
 func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.StringSig, isPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: iz.p.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
-	iz.p.Common.Functions[parser.FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
+	iz.common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
 	}
@@ -2148,7 +2157,7 @@ func (iz *initializer) addFieldsToStructs() {
 func (iz *initializer) createSnippetTypesPart2() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
 	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
-	for i, name := range iz.p.Snippets {
+	for i, name := range iz.Snippets {
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
 		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
 		iz.TokenizedDeclarations[snippetDeclaration][i].ToStart()
@@ -2236,7 +2245,7 @@ func (iz *initializer) compileConstructors() {
 	}
 	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
 	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-	for i, name := range iz.p.Snippets {
+	for i, name := range iz.Snippets {
 		typeNo := iz.cp.ConcreteTypeNow(name)
 		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
 		iz.cp.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp

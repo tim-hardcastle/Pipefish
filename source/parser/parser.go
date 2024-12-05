@@ -26,7 +26,7 @@ type Parser struct {
 	CurrentNamespace      []string
 
 	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
-	// in that namespace without being namespaced. This parser will do this for us.
+	// in that namespace without being namespaced.
 	enumResolvingParsers []*Parser
 
 	// Permanent state: things set up by the initializer which are
@@ -63,11 +63,8 @@ type Parser struct {
 	// because there is a natural partial order on abstract types.
 	TypeMap         TypeSys                      
 	
-	Snippets        []string
-	
-	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
-	
-	NamespaceBranch map[string]*ParserData
+	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.	
+	NamespaceBranch map[string]*ParserData  // Map from the namespaces immediately available to this parser to the parsers they access.
 	NamespacePath   string                  // The chain of namespaces that got us to this parser, as a string.
 	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
 }
@@ -144,7 +141,6 @@ func (p *Parser) ParseDump(source, input string) {
 // and passed to the first parser, which then passes it down to its children.
 type CommonParserBindle struct {
 	Types               TypeSys
-	Functions           map[FuncSource]*ast.PrsrFunction
 	InterfaceBacktracks []BkInterface
 	Errors              []*err.Error
 	IsBroken            bool
@@ -154,12 +150,18 @@ type CommonParserBindle struct {
 // Initializes the common parser bindle.
 func NewCommonParserBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
-		Functions:           make(map[FuncSource]*ast.PrsrFunction),
-		InterfaceBacktracks: []BkInterface{},
-		Errors:              []*err.Error{},
-		Sources:             make(map[string][]string),
+		Errors:              []*err.Error{},                // This is where all the errors emitted by enything end up.
+		Sources:             make(map[string][]string),     // Source code --- TODO: remove.
+		InterfaceBacktracks: []BkInterface{},               // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
 	}
 	return &result
+}
+
+// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we 
+// haven't compiled it yet, this keeps track of where we backtrack to.
+type BkInterface struct {
+	Fn   *ast.PrsrFunction
+	Addr uint32
 }
 
 // Stores parse code chunks for subsequent tokenization.
@@ -174,21 +176,6 @@ type ParserData struct {
 // This is indeed the whole of the type system as the parser sees it, because one abstract type is a subtype
 // of another just if all the concrete types making up the former are found in the latter.
 type TypeSys map[string]values.AbstractType
-
-// For indexing the functions in the common function map, to prevent duplication.
-type FuncSource struct {
-	Filename     string
-	LineNo       int
-	FunctionName string
-	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
-}
-
-// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we haven't compiled it yet, tis keeps track of where we backtrack to.
-// TODO --- it is here rather than with the other backtrackers in the compiler where it belongs, because we do have a common parser bindle and we don't have a common compiler bindle.
-type BkInterface struct {
-	Fn   *ast.PrsrFunction
-	Addr uint32
-}
 
 func (p *Parser) parseExpression(precedence int) ast.Node {
 
