@@ -90,13 +90,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		FunctionTable:  make(FunctionTable),
 		FunctionForest: make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:        make(TypeSys),
-		typeData: map[string][]string{
-			"struct": []string{"struct", "struct?", "any", "any?"},
-			"enum":   []string{"enum", "enum?", "any", "any?"},
-			"any":    []string{"any", "any?"},
-		},
-		Structs:            make(dtypes.Set[string]),
-		StructSig:          make(map[string]ast.StringSig),
+	
 		NamespaceBranch:    make(map[string]*ParserData),
 		ExternalParsers:    make(map[string]*Parser),
 		NamespacePath:      namespacePath,

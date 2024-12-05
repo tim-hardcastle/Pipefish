@@ -624,7 +624,6 @@ func (iz *initializer) addConstructorsToParserAndParseStructDeclarations() {
 		iz.TokenizedDeclarations[structDeclaration][chunk].NextToken() // We skip the = sign.
 		iz.p.AllFunctionIdents.Add(tok1.Literal)
 		iz.p.Functions.Add(tok1.Literal)
-		iz.p.Structs.Add(tok1.Literal)
 	}
 	// Now we can parse them.
 	for chunk := 0; chunk < len(iz.TokenizedDeclarations[structDeclaration]); chunk++ {
@@ -643,7 +642,6 @@ func (iz *initializer) createSnippetsPart1() {
 		iz.p.Snippets = append(iz.p.Snippets, name)
 		iz.p.AllFunctionIdents.Add(name)
 		iz.p.Functions.Add(name)
-		iz.p.Structs.Add(name)
 	}
 }
 
