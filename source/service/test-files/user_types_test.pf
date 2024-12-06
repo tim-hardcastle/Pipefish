@@ -1,0 +1,33 @@
+newtype
+
+Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
+
+Shade = enum LIGHT, MEDIUM, DARK
+
+Tone = struct(shade Shade, color Color)
+
+MyType = abstract Shade/Color/Tone
+
+private 
+
+Pair = struct(one, two int)
+
+Suit = enum CLUBS, HEARTS, SPADES, DIAMONDS
+
+const 
+
+DARK_BLUE = Tone DARK, BLUE 
+
+def
+
+foo(x, y int) :
+    zort Pair(x, y)
+
+troz(s struct) :
+    s
+
+zort(p Pair) :
+    p[one] + p[two]
+
+gerp(x, y int) :
+    Pair(x, y)

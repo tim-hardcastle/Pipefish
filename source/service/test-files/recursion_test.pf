@@ -1,0 +1,23 @@
+def 
+
+fac(i int) :
+    i == 0 :
+        1
+    else :
+        i * fac i - 1
+
+power(a, n int) :
+    n == 0 :
+        1
+    else :
+        a * power a, n - 1
+
+inFac(i int) :
+    f(i)
+given :
+    f(i int) :
+        i == 0 :
+            1
+        else :
+            i * f i - 1
+
