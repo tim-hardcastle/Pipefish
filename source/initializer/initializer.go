@@ -125,6 +125,7 @@ func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*ser
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
 	cp := iz.InitializeFromFilepath(service.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
+	
 	result := &service.Service{Cp: cp}
 	if iz.ErrorsExist() {
 		return result

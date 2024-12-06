@@ -1060,6 +1060,9 @@ func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 }
 
 func (p *Parser) ErrorsExist() bool {
+	if p.Common == nil {
+		panic("There it is.")
+	}
 	return len(p.Common.Errors) > 0
 }
 
