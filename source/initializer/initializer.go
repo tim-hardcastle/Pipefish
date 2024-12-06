@@ -164,6 +164,7 @@ func (iz *initializer) InitializeFromFilepath(mc *service.Vm, Common *parser.Com
 		if err != nil {
 			p := parser.New(Common, scriptFilepath, sourcecode, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the Common parser bindle.
 			p.Throw("init/source/a", LINKING_TOKEN, scriptFilepath, err.Error())
+			iz.p = p
 			return service.NewCompiler(p)
 		}
 	}
