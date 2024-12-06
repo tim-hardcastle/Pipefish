@@ -381,12 +381,12 @@ func (iz *initializer) AddToNameSpace(thingsToImport []string) {
 		var libDat []byte
 		var err error
 		if len(fname) >= 13 && fname[:13] == "rsc/pipefish/" {
-			libDat, err = folder.ReadFile(fname)
+			libDat, err = folder.ReadFile("rsc-pf/"+fname[13:])
 		} else {
 			libDat, err = os.ReadFile(MakeFilepath(fname))
 		}
 		if err != nil {
-			iz.p.Throw("init/import/found", &token.Token{})
+			iz.p.Throw("init/import/found", &token.Token{}, fname)
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		iz.p.TokenizedCode = lexer.NewRelexer(fname, stdImp)
