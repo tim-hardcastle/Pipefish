@@ -2,19 +2,15 @@
 
 ## Overview
 
-This package consists of three systems which unfortunately all need to be able to see one another. It is therefore something of a tangled web.
+This package consists of two systems which need to be able to see one another. It is therefore something of a tangled web.
 
 It can be divided into:
 
-(A) Initialization, as performed by the `vmmaker` and `uberparser` files. This takes a script and turns it into a service (defined in the `service` file), consisting of a compiler and vm, and so must be able to see both of them.
+(A) Compilation, as performed by the `compiler`, `builtin`, `environment`, and `typeschemes` files.
 
-The two files are separate for historical reasons and could be condensed into one. But the fact that the uberparser only affects the parser and not the vm may still be a useful distinction.
+(C) The vm, as implemented by the `vm`, `descriptors`, `iohandler`, `operations`, `snap`, `SQL`, and `vmgo` files.
 
-(B) Compilation, as performed by the `compiler`, `builtin`, `environment`, `goconversion`, `golang`, and `typeschemes` files.
-
-(C) The vm, as implemented by the `vm`, `descriptors`, `iohandler`, `operations`, `snap`, and `SQL` files.
-
-Obviously (A) has to be able to see (B) and (B) has to be able to see (C). But also in order to make use of external services the VM needs to be able to see the compiler, and in order to launch needed external dependencies at runtime the compiler needs to be able to see the initializer. Hence the tangled web.
+In order to make use of external services the VM needs to be able to see the compiler, but of course also the compiler needs to be able to see the VM so as to compile onto it.
 
 ## Notes on the vm.
 
@@ -31,7 +27,7 @@ The `descriptors` file contains functions for describing Pipefish values and typ
 
 The `SQL` file contains utilities for the vm to talk to SQL, as you would guess.
 
-The `iohandler` file lets you create iohandlers to be passed to the vm to modify where it gets its input and send its output.
+The `iohandler` file lets you create iohandlers to be passed to the vm to modify where it gets its input and sends its output.
 
 The `snap` file contains functions to help the hub make and run tests.
 
@@ -53,7 +49,3 @@ t - type
 T - tuple
 x - anything
 Z - a struct
-
-
-
-`
