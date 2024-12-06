@@ -19,6 +19,7 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/err"
+	"pipefish/source/initializer"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
 	"pipefish/source/service"
@@ -351,7 +352,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		serializationOfApi := srv.SerializeApi()
-		stub := service.SerializedAPIToDeclarations(serializationOfApi, service.DUMMY)
+		stub := initializer.SerializedAPIToDeclarations(serializationOfApi, service.DUMMY)
 		hub.WriteString(stub + "\n")
 		return false
 	case "config-admin":
@@ -973,7 +974,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 
-	newService := service.StartService(scriptFilepath, hub.Db, hub.services)
+	newService := initializer.StartService(scriptFilepath, hub.Db, hub.services)
 	if len(newService.Cp.P.Common.Errors) > 0 {
 		newService.Cp.P.Common.IsBroken = true
 	}
@@ -995,7 +996,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 func StartServiceFromCli() {
 	filename := os.Args[2]
-	newService := service.StartService(filename, nil, make(map[string]*service.Service))
+	newService := initializer.StartService(filename, nil, make(map[string]*service.Service))
 	if len(newService.Cp.P.Common.Errors) > 0 {
 		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
 		s := err.GetList(newService.Cp.P.Common.Errors)
@@ -1100,7 +1101,7 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString(")\n")
 	}
 
-	fname := service.MakeFilepath(hub.hubFilepath)
+	fname := initializer.MakeFilepath(hub.hubFilepath)
 
 	f, err := os.Create(fname)
 	if err != nil {
@@ -1115,7 +1116,7 @@ func (hub *Hub) saveHubFile() string {
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
-	hub.hubFilepath = service.MakeFilepath(hubFilepath)
+	hub.hubFilepath = initializer.MakeFilepath(hubFilepath)
 	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
 
 	var driver, name, host, username, password string

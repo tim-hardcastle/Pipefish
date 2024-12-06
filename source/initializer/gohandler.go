@@ -1,4 +1,4 @@
-package service
+package initializer
 
 import (
 	"bufio"
@@ -14,9 +14,9 @@ import (
 
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
+	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
-	"pipefish/source/token"
 )
 
 // This allows the compiler to extract functions and converter data from the relevant `.so` files,
@@ -83,7 +83,7 @@ func (iz *initializer) compileGo() {
 	for source := range iz.goBucket.sources {
 		f, err := os.Stat(MakeFilepath(source))
 		if err != nil {
-			iz.Throw("go/file", token.Token{Source: "linking Golang"}, err.Error())
+			iz.Throw("go/file", INTEROP_TOKEN, err.Error())
 			break
 		}
 		var plugins *plugin.Plugin
@@ -95,15 +95,15 @@ func (iz *initializer) compileGo() {
 			soFile := settings.PipefishHomeDirectory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
-				iz.Throw("golang/open/b", token.Token{}, err.Error())
+				iz.Throw("golang/open/b", INTEROP_TOKEN, err.Error())
 				return
 			}
 		}
 
 		// We extract the conversion data from the object code, reformat it, and store the results
 		// in the vm.
-		newGoConverter := make([](func(t uint32, v any) any), len(iz.cp.Vm.concreteTypeInfo))
-		copy(newGoConverter, iz.cp.Vm.goConverter)
+		newGoConverter := make([](func(t uint32, v any) any), len(iz.cp.Vm.ConcreteTypeInfo))
+		copy(newGoConverter, iz.cp.Vm.GoConverter)
 		functionConverterSymbol, _ := plugins.Lookup("PIPEFISH_FUNCTION_CONVERTER")
 		functionConverter := *functionConverterSymbol.(*map[string](func(t uint32, v any) any))
 		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
@@ -111,12 +111,12 @@ func (iz *initializer) compileGo() {
 			typeNumber := iz.cp.ConcreteTypeNow(typeName)
 			newGoConverter[typeNumber] = constructor
 		}
-		iz.cp.Vm.goConverter = newGoConverter
+		iz.cp.Vm.GoConverter = newGoConverter
 		valueConverterSymbol, _ := plugins.Lookup("PIPEFISH_VALUE_CONVERTER")
 		valueConverter := *valueConverterSymbol.(*map[string]any)
 		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
 		for typeName, goValue := range valueConverter {
-			iz.cp.Vm.goToPipefishTypes[reflect.TypeOf(goValue).Elem()] = iz.cp.ConcreteTypeNow(typeName)
+			iz.cp.Vm.GoToPipefishTypes[reflect.TypeOf(goValue).Elem()] = iz.cp.ConcreteTypeNow(typeName)
 		}
 		//We attach the compiled functions to the (pointers to) the functions, which are
 		// also pointed to by the compiler's function table and by the list of common functions
@@ -128,7 +128,7 @@ func (iz *initializer) compileGo() {
 			for i, pair := range function.NameSig {
 				if text.Head(pair.VarType, "...") {
 					if i < function.NameSig.Len()-1 {
-						iz.Throw("go/variadic", *function.Tok)
+						iz.Throw("go/variadic", function.Tok)
 					}
 				}
 			}
@@ -176,12 +176,12 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range iz.goBucket.functions[source] {
 		for _, v := range function.NameSig {
-			if !iz.cp.isBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" && text.WithoutDots(v.VarType) != "any?" {
+			if !iz.cp.IsBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" && text.WithoutDots(v.VarType) != "any?" {
 				userDefinedTypes.Add(text.WithoutDots(v.VarType))
 			}
 		}
 		for _, v := range function.NameRets {
-			if !iz.cp.isBuiltin(v.VarType) {
+			if !iz.cp.IsBuiltin(v.VarType) {
 				userDefinedTypes.Add(v.VarType)
 			}
 		}
@@ -216,12 +216,12 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 	output, err := cmd.Output()
 	if err != nil {
-		iz.Throw("golang/build", token.Token{}, err.Error()+": "+string(output))
+		iz.Throw("golang/build", INTEROP_TOKEN, err.Error()+": "+string(output))
 		return nil
 	}
 	plugins, err := plugin.Open(soFile)
 	if err != nil {
-		iz.Throw("golang/open/a", token.Token{}, err.Error())
+		iz.Throw("golang/open/a", INTEROP_TOKEN, err.Error())
 		return nil
 	}
 	if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
@@ -238,26 +238,26 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) {
 	structsToCheck := dtypes.Set[string]{}
 	for name := range userDefinedTypes {
-		if iz.cp.isStruct(name) {
+		if iz.cp.IsStruct(name) {
 			structsToCheck.Add(name)
 		}
 	}
 	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
 		for structName := range structsToCheck {
-			for _, fieldType := range iz.cp.typeInfoNow(structName).(structType).abstractStructFields {
+			for _, fieldType := range iz.cp.TypeInfoNow(structName).(service.StructType).AbstractStructFields {
 				if fieldType.Len() != 1 {
-					iz.Throw("golang/type/concrete/a", token.Token{Source: "golang interop"}, iz.cp.Vm.DescribeAbstractType(fieldType, LITERAL))
+					iz.Throw("golang/type/concrete/a", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, service.LITERAL))
 				}
-				typeOfField := iz.cp.getTypeNameFromNumber(fieldType.Types[0])
-				switch fieldData := iz.cp.typeInfoNow(typeOfField).(type) {
-				case cloneType:
-					userDefinedTypes.Add(fieldData.getName(DEFAULT))
-				case enumType:
-					userDefinedTypes.Add(fieldData.getName(DEFAULT))
-				case structType:
-					if !userDefinedTypes.Contains(fieldData.name) {
-						newStructsToCheck.Add(fieldData.name)
-						userDefinedTypes.Add(fieldData.name)
+				typeOfField := iz.cp.GetTypeNameFromNumber(fieldType.Types[0])
+				switch fieldData := iz.cp.TypeInfoNow(typeOfField).(type) {
+				case service.CloneType:
+					userDefinedTypes.Add(fieldData.GetName(service.DEFAULT))
+				case service.EnumType:
+					userDefinedTypes.Add(fieldData.GetName(service.DEFAULT))
+				case service.StructType:
+					if !userDefinedTypes.Contains(fieldData.Name) {
+						newStructsToCheck.Add(fieldData.Name)
+						userDefinedTypes.Add(fieldData.Name)
 					}
 				}
 			}

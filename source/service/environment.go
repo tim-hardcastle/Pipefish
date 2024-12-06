@@ -4,10 +4,10 @@ package service
 
 import "pipefish/source/dtypes"
 
-type varAccess int
+type VarAccess int
 
 const (
-	GLOBAL_CONSTANT_PUBLIC varAccess = iota
+	GLOBAL_CONSTANT_PUBLIC VarAccess = iota
 	GLOBAL_VARIABLE_PUBLIC
 	GLOBAL_CONSTANT_PRIVATE
 	GLOBAL_VARIABLE_PRIVATE
@@ -26,12 +26,12 @@ const (
 )
 
 // Update with:
-var ALL_CONSTANT_ACCESS = dtypes.MakeFromSlice([]varAccess{GLOBAL_CONSTANT_PUBLIC, GLOBAL_CONSTANT_PRIVATE, LOCAL_CONSTANT, VERY_LOCAL_CONSTANT})
-var ALL_PRIVATE_ACCESS = dtypes.MakeFromSlice([]varAccess{GLOBAL_CONSTANT_PRIVATE, GLOBAL_VARIABLE_PRIVATE})
+var ALL_CONSTANT_ACCESS = dtypes.MakeFromSlice([]VarAccess{GLOBAL_CONSTANT_PUBLIC, GLOBAL_CONSTANT_PRIVATE, LOCAL_CONSTANT, VERY_LOCAL_CONSTANT})
+var ALL_PRIVATE_ACCESS = dtypes.MakeFromSlice([]VarAccess{GLOBAL_CONSTANT_PRIVATE, GLOBAL_VARIABLE_PRIVATE})
 
 type variable struct {
 	mLoc   uint32
-	access varAccess
+	access VarAccess
 	types  AlternateType
 }
 

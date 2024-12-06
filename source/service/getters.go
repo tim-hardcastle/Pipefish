@@ -13,11 +13,11 @@ func (cp *Compiler) getAbstractType(name string) (values.AbstractType, bool) {
 	return cp.P.SafeGetAbstractType(name)
 }
 
-func (cp *Compiler) getTypeNameFromNumber(typeNumber values.ValueType) string {
-	return cp.Vm.concreteTypeInfo[typeNumber].getName(DEFAULT)
+func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
+	return cp.Vm.ConcreteTypeInfo[typeNumber].GetName(DEFAULT)
 }
 
-func (cp *Compiler) getConcreteType(name string) (values.ValueType, bool) {
+func (cp *Compiler) GetConcreteType(name string) (values.ValueType, bool) {
 	abstractType, ok := cp.getAbstractType(name)
 	if !ok || abstractType.Len() != 1 {
 		return values.UNDEFINED_VALUE, false
@@ -30,25 +30,25 @@ func (cp *Compiler) ConcreteTypeNow(name string) values.ValueType {
 	return abstractType.Types[0]
 }
 
-func (cp *Compiler) typeInfoNow(name string) typeInformation {
-	concreteType, _ := cp.getConcreteType(name)
-	return cp.Vm.concreteTypeInfo[concreteType]
+func (cp *Compiler) TypeInfoNow(name string) typeInformation {
+	concreteType, _ := cp.GetConcreteType(name)
+	return cp.Vm.ConcreteTypeInfo[concreteType]
 }
 
 func (cp *Compiler) getTypeInformation(name string) (typeInformation, bool) {
-	concreteType, ok := cp.getConcreteType(name)
+	concreteType, ok := cp.GetConcreteType(name)
 	if !ok {
 		return nil, false
 	}
-	return cp.Vm.concreteTypeInfo[concreteType], true
+	return cp.Vm.ConcreteTypeInfo[concreteType], true
 }
 
-func (cp *Compiler) isBuiltin(name string) bool {
+func (cp *Compiler) IsBuiltin(name string) bool {
 	typeInfo, ok := cp.getTypeInformation(name)
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(builtinType)
+		_, ok := typeInfo.(BuiltinType)
 		return ok
 	}
 }
@@ -58,7 +58,7 @@ func (cp *Compiler) isEnum(name string) bool {
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(enumType)
+		_, ok := typeInfo.(EnumType)
 		return ok
 	}
 }
@@ -68,24 +68,24 @@ func (cp *Compiler) isClone(name string) bool {
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(cloneType)
+		_, ok := typeInfo.(CloneType)
 		return ok
 	}
 }
 
-func (cp *Compiler) isStruct(name string) bool {
+func (cp *Compiler) IsStruct(name string) bool {
 	typeInfo, ok := cp.getTypeInformation(name)
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(structType)
+		_, ok := typeInfo.(StructType)
 		return ok
 	}
 }
 
-func (cp *Compiler) isPrivate(a values.AbstractType) bool {
+func (cp *Compiler) IsPrivate(a values.AbstractType) bool {
 	for _, w := range a.Types {
-		if cp.Vm.concreteTypeInfo[w].isPrivate() {
+		if cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
 			return true
 		}
 	}
@@ -93,14 +93,14 @@ func (cp *Compiler) isPrivate(a values.AbstractType) bool {
 }
 
 func (cp *Compiler) typeNumberIsStruct(T values.ValueType) bool {
-	_, ok := cp.Vm.concreteTypeInfo[T].(structType)
+	_, ok := cp.Vm.ConcreteTypeInfo[T].(StructType)
 	return ok
 }
 
 func (cp *Compiler) alternateTypeIsOnlyStruct(aT AlternateType) (values.ValueType, bool) {
 	if len(aT) == 1 {
 		switch el := aT[0].(type) {
-		case simpleType:
+		case SimpleType:
 			if cp.typeNumberIsStruct(values.ValueType(el)) {
 				return values.ValueType(el), true
 			}
@@ -114,7 +114,7 @@ func (cp *Compiler) alternateTypeIsOnlyStruct(aT AlternateType) (values.ValueTyp
 func (cp *Compiler) alternateTypeIsOnlyAssortedStructs(aT AlternateType) bool {
 	for _, el := range aT {
 		switch el := el.(type) {
-		case simpleType:
+		case SimpleType:
 			if !cp.typeNumberIsStruct(values.ValueType(el)) {
 				return false
 			}
@@ -125,13 +125,13 @@ func (cp *Compiler) alternateTypeIsOnlyAssortedStructs(aT AlternateType) bool {
 	return true
 }
 
-func (cp *Compiler) returnSigToAlternateType(sig ast.StringSig) finiteTupleType {
+func (cp *Compiler) ReturnSigToAlternateType(sig ast.StringSig) FiniteTupleType {
 	if sig == nil {
 		return nil
 	}
-	ftt := finiteTupleType{}
+	ftt := FiniteTupleType{}
 	for _, pair := range sig {
-		ftt = append(ftt, cp.getAlternateTypeFromTypeName(pair.VarType))
+		ftt = append(ftt, cp.GetAlternateTypeFromTypeName(pair.VarType))
 	}
 	return ftt
 }
@@ -143,7 +143,7 @@ func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.AbstractSig) AlternateType {
 	if len(rtnSig) == 1 {
 		return AbstractTypeToAlternateType(rtnSig[0].VarType)
 	}
-	tup := finiteTupleType{}
+	tup := FiniteTupleType{}
 	for _, v := range rtnSig {
 		tup = append(tup, AbstractTypeToAlternateType(v.VarType))
 	}
@@ -156,7 +156,7 @@ func (cp *Compiler) getTypes(s signature, i int) AlternateType {
 	typeRep := s.GetVarType(i)
 	switch typeRep := typeRep.(type) {
 	case string:
-		return cp.getAlternateTypeFromTypeName(typeRep)
+		return cp.GetAlternateTypeFromTypeName(typeRep)
 	case AlternateType:
 		return typeRep
 	default:
@@ -185,19 +185,19 @@ func getVarNames(sig signature) string {
 	return strings.Join(names, ", ")
 }
 
-func (cp *Compiler) getAlternateTypeFromTypeName(typename string) AlternateType {
+func (cp *Compiler) GetAlternateTypeFromTypeName(typename string) AlternateType {
 	varargs := len(typename) >= 3 && typename[:3] == "..."
 	if varargs {
 		typename = typename[3:]
 	}
-	result, ok := cp.typeNameToTypeScheme[typename]
+	result, ok := cp.TypeNameToTypeScheme[typename]
 	if ok {
 		if varargs {
 			return AlternateType{TypedTupleType{result}}
 		}
 		return result
 	}
-	result, ok = cp.Vm.sharedTypenameToTypeList[typename]
+	result, ok = cp.Vm.SharedTypenameToTypeList[typename]
 	if ok {
 		if varargs {
 			return AlternateType{TypedTupleType{result}}
@@ -207,6 +207,7 @@ func (cp *Compiler) getAlternateTypeFromTypeName(typename string) AlternateType 
 	return AlternateType{}
 }
 
+// Manufactures a value.
 func val(T values.ValueType, V any) values.Value {
 	return values.Value{T: T, V: V}
 }

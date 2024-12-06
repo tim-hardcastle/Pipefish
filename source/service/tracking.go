@@ -17,12 +17,12 @@ import (
 type trackingFlavor int
 
 const (
-	trCONDITION trackingFlavor = iota
-	trELSE
-	trFNCALL
-	trLITERAL
-	trRESULT
-	trRETURN
+	TR_CONDITION trackingFlavor = iota
+	TR_ELSE
+	TR_FNCALL
+	TR_LITERAL
+	TR_RESULT
+	TR_RETURN
 )
 
 // This keeps track of what we should be logging, and is passed around the compiler in the context struct.
@@ -45,14 +45,14 @@ type TrackingData struct {
 
 // Although the arguments of this function are the same as the shape of the trackingData struct, we don't just naively shove one into the other,
 // but may have to tamper with it for the greater convenience of the caller.
-func (cp *Compiler) track(tf trackingFlavor, tok *token.Token, args ...any) {
+func (cp *Compiler) Track(tf trackingFlavor, tok *token.Token, args ...any) {
 	if settings.MandatoryImportSet().Contains(tok.Source) {
 		return
 	}
 	var newData TrackingData
 	switch tf {
-	case trFNCALL:
-		newData = TrackingData{trFNCALL, tok, []any{args[0]}}
+	case TR_FNCALL:
+		newData = TrackingData{TR_FNCALL, tok, []any{args[0]}}
 		sig := args[1].(ast.StringSig)
 		loReg := args[2].(uint32)
 		for i, pair := range sig {
@@ -62,7 +62,7 @@ func (cp *Compiler) track(tf trackingFlavor, tok *token.Token, args ...any) {
 	default:
 		newData = TrackingData{tf, tok, args}
 	}
-	cp.cm(staticTrackingToString(len(cp.Vm.tracking), newData), tok)
+	cp.Cm(staticTrackingToString(len(cp.Vm.tracking), newData), tok)
 	cp.Emit(Trak, uint32(len(cp.Vm.tracking)))
 	cp.Vm.tracking = append(cp.Vm.tracking, newData)
 }
@@ -73,20 +73,20 @@ func staticTrackingToString(i int, td TrackingData) string { // For the use of c
 	out.WriteString(strconv.Itoa(i))
 	out.WriteString(" for ")
 	switch td.flavor {
-	case trCONDITION:
+	case TR_CONDITION:
 		out.WriteString("the condition ")
 		out.WriteString(td.args[0].(string))
-	case trELSE:
+	case TR_ELSE:
 		out.WriteString("an 'else' statement")
-	case trFNCALL:
+	case TR_FNCALL:
 		out.WriteString("a function call to '")
 		out.WriteString(td.args[0].(string))
 		out.WriteString("'")
-	case trLITERAL:
+	case TR_LITERAL:
 		out.WriteString("a user-defined logging expression")
-	case trRESULT:
+	case TR_RESULT:
 		out.WriteString("the result of a conditional")
-	case trRETURN:
+	case TR_RETURN:
 		out.WriteString("a return from function '")
 		out.WriteString(text.Emph(td.args[0].(string)))
 		out.WriteString("'")
@@ -106,22 +106,22 @@ func (vm *Vm) TrackingToString() string {
 	for i, td := range vm.LiveTracking {
 		args := td.args
 		switch td.flavor {
-		case trCONDITION:
+		case TR_CONDITION:
 			out.WriteString("At@line ")
 			out.WriteString(strconv.Itoa(td.tok.Line))
 			out.WriteString("@we evaluated the condition ")
 			out.WriteString(text.Emph(args[0].(string)))
 			out.WriteString(". ")
-		case trELSE:
+		case TR_ELSE:
 			out.WriteString("At@line ")
 			out.WriteString(strconv.Itoa(td.tok.Line))
 			out.WriteString("@we took the ")
 			out.WriteString(text.Emph("else"))
 			out.WriteString(" branch")
-			if !vm.trackingIs(i+1, trRETURN) {
+			if !vm.trackingIs(i+1, TR_RETURN) {
 				out.WriteString(".\n")
 			}
-		case trFNCALL:
+		case TR_FNCALL:
 			out.WriteString("We called function ")
 			out.WriteString(text.Emph(args[0].(string)))
 			out.WriteString(" — defined at@line ")
@@ -137,21 +137,21 @@ func (vm *Vm) TrackingToString() string {
 				}
 			}
 			out.WriteString(".\n")
-		case trLITERAL:
+		case TR_LITERAL:
 			out.WriteString("Log at@line ")
 			out.WriteString(strconv.Itoa(td.tok.Line))
 			out.WriteString("@: ")
 			out.WriteString(args[0].(values.Value).V.(string))
 			out.WriteString("\n")
-		case trRESULT:
+		case TR_RESULT:
 			if args[0].(values.Value).V.(bool) {
 				out.WriteString("The condition succeeded.\n")
 			} else {
 				out.WriteString("The condition failed.\n")
 			}
-		case trRETURN:
+		case TR_RETURN:
 			if args[1].(values.Value).T != values.UNSATISFIED_CONDITIONAL {
-				if vm.trackingIs(i-1, trELSE) {
+				if vm.trackingIs(i-1, TR_ELSE) {
 					out.WriteString(", so at")
 				} else {
 					out.WriteString("At")
@@ -181,17 +181,17 @@ func (vm *Vm) trackingIs(i int, tf trackingFlavor) bool {
 	return vm.LiveTracking[i].flavor == tf
 }
 
-func (cp *Compiler) loggingOn(ctxt context) bool {
-	if !ctxt.isReturn {
+func (cp *Compiler) loggingOn(ctxt Context) bool {
+	if !ctxt.IsReturn {
 		return false
 	}
-	if (ctxt.logFlavor == LF_AUTO && cp.getLoggingScope() != 0) || (ctxt.logFlavor == LF_TRACK && cp.getLoggingScope() == 2) {
+	if (ctxt.LogFlavor == LF_AUTO && cp.GetLoggingScope() != 0) || (ctxt.LogFlavor == LF_TRACK && cp.GetLoggingScope() == 2) {
 		return true
 	}
 	return false
 }
 
-func (cp *Compiler) getLoggingScope() int {
+func (cp *Compiler) GetLoggingScope() int {
 	fields := cp.getValueOfConstant("$logging").([]values.Value)
 	return fields[0].V.(int)
 }

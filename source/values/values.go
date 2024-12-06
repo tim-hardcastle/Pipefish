@@ -8,13 +8,13 @@ const ( // Cross-reference with typeNames in BlankVm()
 
 	// The types from UNDEFINED VALUE to BREAK inclusive are internal types which should never actually be seen by the user.
 	// In some cases, e.g. CREATED_LOCAL_CONSTANT, they are also not instantiated: they are there to
-	// return in a typeScheme object when the compiled code doesn't create a value.
+	// return in a TypeScheme object when the compiled code doesn't create a value.
 
 	UNDEFINED_VALUE         ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
 	INT_ARRAY                                // V is an array of Golang uint32. TODO --- its only current use is a three-value enum.
 	SNIPPET_DATA                             // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
 	THUNK                                    // V is a ThunkValue which contains the address to call to evaluate the thunk and the memory location where the result ends up.
-	CREATED_THUNK_OR_CONST                   // Returned by the compiler in the typeScheme when we compile a thunk.
+	CREATED_THUNK_OR_CONST                   // Returned by the compiler in the TypeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                       // For when we have to return a type, but what we have is a compile time error.
 	BLING                                    // Values representing e.g. the `troz` in `foo (x) troz (y)`.
 	UNSATISFIED_CONDITIONAL                  // An unsatisfied conditional, i.e. what <condition> : <expression> returns if <condition> isn't true.
@@ -74,7 +74,7 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 		lhs := v.V.(AbstractType)
 		rhs := w.V.(AbstractType)
 		if len(lhs.Types) == len(rhs.Types) {
-			for i, ty := range(lhs.Types) {
+			for i, ty := range lhs.Types {
 				if ty < rhs.Types[i] {
 					return true
 				}

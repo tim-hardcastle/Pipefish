@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"os"
@@ -7,11 +7,13 @@ import (
 	"strconv"
 	"testing"
 
+	"pipefish/source/service"
+	"pipefish/source/test_helper"
 	"pipefish/source/text"
 )
 
 func TestLiterals(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`"foo"`, `"foo"`},
 		{"`foo`", `"foo"`},
 		{`'q'`, `'q'`},
@@ -25,10 +27,10 @@ func TestLiterals(t *testing.T) {
 		{`NULL`, `NULL`},
 		{`OK`, `OK`},
 	}
-	RunTest(t, "", tests, testValues)
+	test_helper.RunTest(t, "", tests, testValues)
 }
 func TestHardwiredOps(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`5.0 == 2.0`, `false`},
 		{`5.0 != 2.0`, `true`},
 		{`5 == 2`, `false`},
@@ -65,20 +67,20 @@ func TestHardwiredOps(t *testing.T) {
 		{`true or true`, `true`},
 		{`1, (2, 3)`, `(1, 2, 3)`},
 	}
-	RunTest(t, "", tests, testValues)
+	test_helper.RunTest(t, "", tests, testValues)
 }
 
 func TestConditionals(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`true : 5; else : 6`, `5`},
 		{`false : 5; else : 6`, `6`},
 		{`1 == 1 : 5; else : 6`, `5`},
 		{`1 == 2 : 5; else : 6`, `6`},
 	}
-	RunTest(t, "", tests, testValues)
+	test_helper.RunTest(t, "", tests, testValues)
 }
 func TestBuiltins(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`5.0 + 2.0`, `7.00000000`},
 		{`5 + 2`, `7`},
 		{`[1, 2] + [3, 4]`, `[1, 2, 3, 4]`},
@@ -142,10 +144,10 @@ func TestBuiltins(t *testing.T) {
 		{`type bool`, `type`},
 		{`varchar(32)`, `varchar(32)`},
 	}
-	RunTest(t, "", tests, testValues)
+	test_helper.RunTest(t, "", tests, testValues)
 }
 func TestIndexing(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`Color[4]`, `BLUE`},
 		{`myType[5]`, `PURPLE`},
 		{`DARK_BLUE[shade]`, `DARK`},
@@ -176,10 +178,10 @@ func TestIndexing(t *testing.T) {
 		{`foo myPair, myOtherNumber`, `"bar"`},
 		{`foo myWord, myNumber`, `'g'`},
 	}
-	RunTest(t, "index_test.pf", tests, testValues)
+	test_helper.RunTest(t, "index_test.pf", tests, testValues)
 }
 func TestFunctionSyntaxCalls(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`foo "bing"`, `"foo bing"`},
 		{`"bing" zort`, `"bing zort"`},
 		{`"bing" troz "bong"`, `"bing troz bong"`},
@@ -187,10 +189,10 @@ func TestFunctionSyntaxCalls(t *testing.T) {
 		{`flerp "bing" blerp "bong"`, `"flerp bing blerp bong"`},
 		{`qux`, `"qux"`},
 	}
-	RunTest(t, "function_call_test.pf", tests, testValues)
+	test_helper.RunTest(t, "function_call_test.pf", tests, testValues)
 }
 func TestVariablesAndConsts(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`A`, `42`},
 		{`getB`, `99`},
 		{`changeZ`, `OK`},
@@ -198,20 +200,20 @@ func TestVariablesAndConsts(t *testing.T) {
 		{`w`, `42`},
 		{`y = NULL`, "OK"},
 	}
-	RunTest(t, "variables_test.pf", tests, testValues)
+	test_helper.RunTest(t, "variables_test.pf", tests, testValues)
 }
 func TestVariableAccessErrors(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`B`, `comp/ident/private`},
 		{`A = 43`, `comp/assign/const`},
 		{`z`, `comp/ident/private`},
 		{`secretB`, `comp/private`},
 		{`secretZ`, `comp/private`},
 	}
-	RunTest(t, "variables_test.pf", tests, testCompilerErrors)
+	test_helper.RunTest(t, "variables_test.pf", tests, testCompilerErrors)
 }
 func TestUserDefinedTypes(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`Color[4]`, `BLUE`},
 		{`DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 		{`type DARK_BLUE`, `Tone`},
@@ -232,39 +234,39 @@ func TestUserDefinedTypes(t *testing.T) {
 		{`foo 3, 5`, `8`},
 		{`Tone with (shade::LIGHT, color::RED)`, `Tone with (shade::LIGHT, color::RED)`},
 	}
-	RunTest(t, "user_types_test.pf", tests, testValues)
+	test_helper.RunTest(t, "user_types_test.pf", tests, testValues)
 }
 func TestTypeAccessErrors(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
 		{`Suit`, `comp/private/type`},
 		{`HEARTS`, `comp/private/enum`},
 		{`one`, `comp/private/label`},
 	}
-	RunTest(t, "user_types_test.pf", tests, testCompilerErrors)
+	test_helper.RunTest(t, "user_types_test.pf", tests, testCompilerErrors)
 }
 func TestOverloading(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`foo 42`, `"int"`},
 		{`foo "zort"`, `"string"`},
 		{`foo 42, true`, `"any?, bool"`},
 		{`foo 42.0, true`, `"any?, bool"`},
 		{`foo true, true`, `"bool, bool"`},
 	}
-	RunTest(t, "overloading_test.pf", tests, testValues)
+	test_helper.RunTest(t, "overloading_test.pf", tests, testValues)
 }
 func TestPiping(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`["fee", "fie", "fo", "fum"] -> len`, `4`},
 		{`["fee", "fie", "fo", "fum"] >> len`, `[3, 3, 2, 3]`},
 		{`["fee", "fie", "fo", "fum"] -> that + ["foo"]`, `["fee", "fie", "fo", "fum", "foo"]`},
 		{`["fee", "fie", "fo", "fum"] >> that + "!"`, `["fee!", "fie!", "fo!", "fum!"]`},
 		{`[1, 2, 3, 4] ?> that % 2 == 0`, `[2, 4]`},
 	}
-	RunTest(t, "", tests, testValues)
+	test_helper.RunTest(t, "", tests, testValues)
 }
 func TestForLoops(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`fib 8`, `21`},
 		{`collatzA 42`, `1`},
 		{`collatzB 42`, `1`},
@@ -284,27 +286,27 @@ func TestForLoops(t *testing.T) {
 		{`showRangeKeys 8, 3`, `[0, 1, 2, 3, 4]`},
 		{`showRangeValues 8, 3 `, `[7, 6, 5, 4, 3]`},
 	}
-	RunTest(t, "for_loop_test.pf", tests, testValues)
+	test_helper.RunTest(t, "for_loop_test.pf", tests, testValues)
 }
 func TestInnerFunctionsAndVariables(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`foo 42`, `42`},
 		{`zort 3, 5`, `(25, 15)`},
 		{`troz 2`, `2200`},
 	}
-	RunTest(t, "inner_test.pf", tests, testValues)
+	test_helper.RunTest(t, "inner_test.pf", tests, testValues)
 }
 func TestRecursion(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`fac 5`, `120`},
 		{`power 3, 4`, `81`},
 		{`inFac 5`, `120`},
 	}
-	RunTest(t, "recursion_test.pf", tests, testValues)
+	test_helper.RunTest(t, "recursion_test.pf", tests, testValues)
 }
 
 func TestImports(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`qux.square 5`, `25`},
 		{`type qux.Color`, `type`},
 		{`qux.RED`, `qux.RED`},
@@ -316,16 +318,16 @@ func TestImports(t *testing.T) {
 		{`qux.Time`, `Time`},
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
-	RunTest(t, "import_test.pf", tests, testValues)
+	test_helper.RunTest(t, "import_test.pf", tests, testValues)
 }
 func TestRef(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`x ++`, `OK`},
 	}
-	RunTest(t, "ref_test.pf", tests, testValues)
+	test_helper.RunTest(t, "ref_test.pf", tests, testValues)
 }
 func TestClones(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
 		{`FloatClone(4.2) == FloatClone(9.9)`, `false`},
 		{`IntClone(42) == IntClone(42)`, `true`},
@@ -348,40 +350,40 @@ func TestClones(t *testing.T) {
 		{`StringClone("aardvark") == StringClone("zebra")`, `false`},
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
-	RunTest(t, "clone_test.pf", tests, testValues)
+	test_helper.RunTest(t, "clone_test.pf", tests, testValues)
 }
 func TestSnippet(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`makeSn 42`, `Foo with (text::"zort |x| troz", data::["zort ", 42, " troz"])`},
 		{`post HTML --- zort |2 + 2| troz`, `OK`},
 	}
-	RunTest(t, "snippets_test.pf", tests, testValues)
+	test_helper.RunTest(t, "snippets_test.pf", tests, testValues)
 }
 func TestInterface(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`BLERP in Addable`, `true`},
 		{`Fnug(5) in Addable`, `true`},
 		{`ZORT in Foobarable`, `true`},
 		{`true in Addable`, `false`},
 		{`Fnug(5) in Foobarable`, `false`},
 	}
-	RunTest(t, "interface_test.pf", tests, testValues)
+	test_helper.RunTest(t, "interface_test.pf", tests, testValues)
 }
 func TestFunctionSharing(t *testing.T) {
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`C(1, 2) in Addable`, `true`},
 		{`C(1, 2) in summer.Addable`, `true`},
 		{`C(1, 2) in summer.Rotatable`, `true`},
 		{`summer.sum [C(1, 2), C(3, 4), C(5, 6)]`, `C with (real::9, imaginary::12)`},
 		{`summer.rotAll [C(1, 2), C(3, 4)]`, `[C with (real::-2, imaginary::1), C with (real::-4, imaginary::3)]`},
 	}
-	RunTest(t, "function_sharing_test.pf", tests, testValues)
+	test_helper.RunTest(t, "function_sharing_test.pf", tests, testValues)
 }
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // WIndows can't use the plugin package.
 		return
 	}
-	tests := []TestItem{
+	tests := []test_helper.TestItem{
 		{`anyTest 42`, `42`},
 		{`variadicAnyTest 2, 42, true, "foo", 9.9`, `"foo"`},
 		{`boolTest true`, `false`},
@@ -422,7 +424,7 @@ func TestGocode(t *testing.T) {
 		println("Error was", err.Error())
 		panic("That's all folks!")
 	}
-	RunTest(t, "gocode_test.pf", tests, testValues)
+	test_helper.RunTest(t, "gocode_test.pf", tests, testValues)
 	// Tear down the .go and .so files.
 	nameOfTestFile := "gocode_test.pf"
 	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../golang 1.go")
@@ -433,4 +435,17 @@ func TestGocode(t *testing.T) {
 	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
 	os.Remove(goTestFile)
 	os.WriteFile(locationOfGoTimes, temp, 0644)
+}
+
+func testValues(cp *service.Compiler, s string) string {
+	return cp.Describe(cp.Do(s))
+}
+
+func testCompilerErrors(cp *service.Compiler, s string) string {
+	val := cp.Do(s)
+	if !cp.P.ErrorsExist() {
+		return "unexpected successful evaluation returned " + text.Emph(cp.Vm.DefaultDescription(val))
+	} else {
+		return cp.P.Common.Errors[0].ErrorId
+	}
 }

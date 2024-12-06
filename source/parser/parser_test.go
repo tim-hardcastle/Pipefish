@@ -1,13 +1,15 @@
 package parser_test
 
 import (
+    "testing"
+
 	"pipefish/source/parser"
 	"pipefish/source/service"
-	"testing"
+	"pipefish/source/test_helper"
 )
 
 func TestParser(t *testing.T) {
-	tests := []service.TestItem{
+	tests := []test_helper.TestItem{
 		{`2 + 2`, `(2 + 2)`},
 		{`2 + 3 * 4`, `(2 + (3 * 4))`},
 		{`2 * 3 + 4`, `((2 * 3) + 4)`},
@@ -52,11 +54,11 @@ func TestParser(t *testing.T) {
 		{`continue`, `continue`},
 		{`true : 42 ; else : "moo!"`, `((true : 42) ; (else : "moo!"))`},
 	}
-	service.RunTest(t, "", tests, testParserOutput)
+	test_helper.RunTest(t, "", tests, testParserOutput)
 }
 
 func TestFunctionSyntax(t *testing.T) {
-	tests := []service.TestItem{
+	tests := []test_helper.TestItem{
 		{`foo x`, `(foo x)`},
 		{`x zort`, `(x zort)`},
 		{`x troz y`, `(x troz y)`},
@@ -64,11 +66,11 @@ func TestFunctionSyntax(t *testing.T) {
 		{`flerp x blerp y`, `(flerp x blerp y)`},
 		{`qux`, `(qux)`},
 	}
-	service.RunTest(t, "function_syntax_test.pf", tests, testParserOutput)
+	test_helper.RunTest(t, "function_syntax_test.pf", tests, testParserOutput)
 }
 
 func TestParserErrors(t *testing.T) {
-	tests := []service.TestItem{
+	tests := []test_helper.TestItem{
 		{`2 +`, `parse/prefix`},
 		{`1 + )`, `parse/prefix`},
 		{`1 + ]`, `parse/prefix`},
@@ -81,7 +83,7 @@ func TestParserErrors(t *testing.T) {
 		{`from 1`, `parse/from`},
 		{`(1))`, `parse/expected`},
 	}
-	service.RunTest(t, "", tests, testParserErrors)
+	test_helper.RunTest(t, "", tests, testParserErrors)
 }
 func testParserOutput(cp *service.Compiler, s string) string {
 	p := cp.P

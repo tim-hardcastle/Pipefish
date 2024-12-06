@@ -33,12 +33,12 @@ type bindle struct {
 	targetList   AlternateType   // The possible types associated with this tree position.
 	doneList     AlternateType   // The types we've looked at up to and including those of the current branchNo.
 	valLocs      []uint32        // The locations of the values evaluated from the arguments.
-	types        finiteTupleType // The types of the values.
+	types        FiniteTupleType // The types of the values.
 	outLoc       uint32          // Where we're going to put the output.
 	env          *Environment    // Associates variable names with memory locations
 	varargsTime  bool            // Once we've taken a varArgs path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
-	access       cpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
+	access       CpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
 	override     bool            // A kludgy flag to pass back whether we have a forward declaration that would prevent constant folding.
 	libcall      bool            // Are we in a namespace?
 	lowMem       uint32          // The lowest point in memory that the function uses. Hence the lowest point from which we could need to copy when putting memory on the recursionStack.
@@ -51,10 +51,10 @@ type bindle struct {
 // The compiler in the method receiver is where we look up the function name (the "resolving compiler").
 // The arguments need to be compiled in their own namespace by the argCompiler, unless they're bling in which case we
 // use them to look up the function.
-func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable, ctxt context, libcall bool) (AlternateType, bool) {
+func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable, ctxt Context, libcall bool) (AlternateType, bool) {
 	args := node.GetArgs()
-	env := ctxt.env
-	ac := ctxt.access
+	env := ctxt.Env
+	ac := ctxt.Access
 	if len(args) == 1 {
 		switch args[0].(type) {
 		case *ast.Nothing:
@@ -66,10 +66,10 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		outLoc:       cp.reserveError("vm/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
-		types:        make(finiteTupleType, len(args)),
+		types:        make(FiniteTupleType, len(args)),
 		access:       ac,
 		libcall:      libcall,
-		lowMem:       ctxt.lowMem, // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
+		lowMem:       ctxt.LowMem, // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
 	}
 	backtrackList := make([]uint32, len(args))
 	var cstI bool
@@ -89,12 +89,12 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_VALUE, nil, node.GetToken())
-					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.getAlternateTypeFromTypeName("any?")}
+					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.GetAlternateTypeFromTypeName("any?")}
 					env.data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
-			b.types[i] = cp.getAlternateTypeFromTypeName("any?")
+			b.types[i] = cp.GetAlternateTypeFromTypeName("any?")
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(Asgm, v.mLoc)
@@ -115,7 +115,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			if b.types[i].(AlternateType).Contains(values.COMPILE_TIME_ERROR) {
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
-			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == simpleType(values.TUPLE) {
+			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == SimpleType(values.TUPLE) {
 				b.types[i] = AlternateType{cp.Vm.AnyTuple}
 			}
 			cst = cst && cstI
@@ -273,7 +273,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// We may have found a match because any string is a match for a varchar at this point. In that case we do need to do a type check on the length and
 	// conditionally continue to the next branch. We can kludge this by taking STRING out of the doneList of the bindle.
 	if isVarchar {
-		newBindle.doneList = newBindle.doneList.without(simpleType(values.STRING))
+		newBindle.doneList = newBindle.doneList.without(SimpleType(values.STRING))
 	}
 
 	needsLowerBranch := len(newBindle.doneList) != len(newBindle.targetList)
@@ -405,10 +405,10 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 }
 
 func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString string, mem uint32, index int) bkGoto { // TODO --- more of this.
-	ty := cp.getAlternateTypeFromTypeName(typeAsString)
+	ty := cp.GetAlternateTypeFromTypeName(typeAsString)
 	args := []uint32{mem, uint32(index)}
 	for _, t := range ty {
-		args = append(args, uint32(t.(simpleType)))
+		args = append(args, uint32(t.(SimpleType)))
 	}
 	args = append(args, DUMMY)
 	cp.Emit(Qtpt, args...)
@@ -416,7 +416,7 @@ func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString st
 }
 
 func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32, tok *token.Token) bkGoto {
-	cp.cm("Emitting type comparison from typename "+text.Emph(typeAsString), tok)
+	cp.Cm("Emitting type comparison from typename "+text.Emph(typeAsString), tok)
 	// We may have a 'varchar'.
 	if len(typeAsString) >= 8 && typeAsString[0:8] == "varchar(" {
 		if typeAsString[len(typeAsString)-1] == '?' {
@@ -430,9 +430,9 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		}
 	}
 	// It may be a plain old concrete type.
-	ty := cp.getAlternateTypeFromTypeName(typeAsString)
+	ty := cp.GetAlternateTypeFromTypeName(typeAsString)
 	if len(ty) == 1 {
-		cp.Emit(Qtyp, mem, uint32(ty[0].(simpleType)), DUMMY)
+		cp.Emit(Qtyp, mem, uint32(ty[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
@@ -455,7 +455,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		}
 	}
 	// It may be a clone group:
-	if group, ok := cp.Vm.sharedTypenameToTypeList[typeAsString]; ok {
+	if group, ok := cp.Vm.SharedTypenameToTypeList[typeAsString]; ok {
 		abType = group.ToAbstractType()
 	}
 	if abType.Types != nil {
@@ -471,14 +471,14 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 }
 
 func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
-	cp.cm("Emitting type comparison from alternate type "+text.Emph(typeAsAlt.describe(cp.Vm)), tok)
+	cp.Cm("Emitting type comparison from alternate type "+text.Emph(typeAsAlt.describe(cp.Vm)), tok)
 	if len(typeAsAlt) == 1 {
-		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(simpleType)), DUMMY)
+		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	args := []uint32{DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
 	for _, t := range typeAsAlt {
-		args = append(args, uint32(t.(simpleType)))
+		args = append(args, uint32(t.(SimpleType)))
 	}
 	args = append(args, DUMMY)
 	cp.Emit(Qabt, args...)
@@ -486,7 +486,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 }
 
 func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
-	cp.cm("Emitting type comparison from abstract type "+text.Emph(abType.String()), tok)
+	cp.Cm("Emitting type comparison from abstract type "+text.Emph(abType.String()), tok)
 	if len(abType.Types) == 1 {
 		cp.Emit(Qtyp, mem, uint32(abType.Types[0]), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
@@ -583,7 +583,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
 				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
-				cp.recursionStore = append(cp.recursionStore, bkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
+				cp.RecursionStore = append(cp.RecursionStore, BkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
 				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
 				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 				cp.Emit(Rpop)
@@ -606,13 +606,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				case "get_from_sql":
 					functionAndType.T = cp.Vm.AnyTypeScheme
 				case "cast":
-					cp.cm("Builtin is cast", b.tok)
+					cp.Cm("Builtin is cast", b.tok)
 					functionAndType.T = altType(values.ERROR)
 					for _, ty := range typesAtIndex(b.types[0], 0) {
-						st := values.ValueType(ty.(simpleType))
-						cp.cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), LITERAL), b.tok)
-						cp.cm("Clone group is "+cp.typeToCloneGroup[st].describe(cp.Vm), b.tok)
-						functionAndType.T = functionAndType.T.Union(cp.typeToCloneGroup[st])
+						st := values.ValueType(ty.(SimpleType))
+						cp.Cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), LITERAL), b.tok)
+						cp.Cm("Clone group is "+cp.TypeToCloneGroup[st].describe(cp.Vm), b.tok)
+						functionAndType.T = functionAndType.T.Union(cp.TypeToCloneGroup[st])
 					}
 				case "first_in_tuple":
 					if len(b.types) == 0 {
@@ -627,20 +627,20 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						functionAndType.T = typesAtIndex(b.types[0], len(b.types)-1)
 					}
 				case "tuple_of_varargs":
-					functionAndType.T = AlternateType{finiteTupleType{b.types[0]}}
+					functionAndType.T = AlternateType{FiniteTupleType{b.types[0]}}
 				case "tuple_of_tuple":
 					functionAndType.T = b.doneList
 				case "type_with":
-					functionAndType.T = AlternateType{cp.getAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
+					functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
 				case "struct_with":
-					functionAndType.T = AlternateType{cp.getAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
+					functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
 				}
 				functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 				return functionAndType.T
 			}
-			typeNumber, ok := cp.getConcreteType(builtinTag)
+			typeNumber, ok := cp.GetConcreteType(builtinTag)
 			// It might be a short-form struct constructor.
-			if ok && cp.isStruct(builtinTag) {
+			if ok && cp.IsStruct(builtinTag) {
 				cp.cmP("Emitting short form constructor.", b.tok)
 				args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
 				cp.Emit(Strc, args...)
@@ -666,14 +666,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					}
 				}
 				if len(branch.Node.Fn.NameRets) == 1 {
-					return cp.getAlternateTypeFromTypeName(branch.Node.Fn.NameRets[0].VarType)
+					return cp.GetAlternateTypeFromTypeName(branch.Node.Fn.NameRets[0].VarType)
 				}
 				// Otherwise it's a tuple.
 				tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
 				for _, v := range branch.Node.Fn.NameRets {
-					tt = append(tt, cp.getAlternateTypeFromTypeName(v.VarType))
+					tt = append(tt, cp.GetAlternateTypeFromTypeName(v.VarType))
 				}
-				return AlternateType{finiteTupleType{tt}}
+				return AlternateType{FiniteTupleType{tt}}
 			}
 			// It could be a call to an external service.
 			if F.Xcall != nil {

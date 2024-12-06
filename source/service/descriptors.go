@@ -39,7 +39,7 @@ func (vm *Vm) DescribeTypeAndValue(v values.Value, flavor descriptionFlavor) str
 }
 
 func (vm *Vm) DescribeType(t values.ValueType, flavor descriptionFlavor) string {
-	return vm.concreteTypeInfo[t].getName(flavor)
+	return vm.ConcreteTypeInfo[t].GetName(flavor)
 }
 
 type descriptionFlavor int
@@ -50,14 +50,14 @@ const (
 )
 
 func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
-	typeInfo := vm.concreteTypeInfo[v.T]
-	if typeInfo.isStruct() {
+	typeInfo := vm.ConcreteTypeInfo[v.T]
+	if typeInfo.IsStruct() {
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypeInfo[v.T].getName(flavor))
+		buf.WriteString(vm.ConcreteTypeInfo[v.T].GetName(flavor))
 		buf.WriteString(" with (")
 		var sep string
 		vals := v.V.([]values.Value)
-		for i, lb := range typeInfo.(structType).labelNumbers { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
+		for i, lb := range typeInfo.(StructType).LabelNumbers { // We iterate by the label and not by the value so that we can have hidden fields in the structs, as we do for efficiency when making a compilable snippet.
 			fmt.Fprintf(&buf, "%s%s::%s", sep, vm.Labels[lb], vm.StringifyValue(vals[i], flavor))
 			sep = ", "
 		}
@@ -67,20 +67,20 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	if typeInfo.isEnum() {
 		var buf strings.Builder
 		if flavor == LITERAL {
-			buf.WriteString(vm.concreteTypeInfo[v.T].(enumType).path)
+			buf.WriteString(vm.ConcreteTypeInfo[v.T].(EnumType).Path)
 		}
-		buf.WriteString(vm.concreteTypeInfo[v.T].(enumType).elementNames[v.V.(int)])
+		buf.WriteString(vm.ConcreteTypeInfo[v.T].(EnumType).ElementNames[v.V.(int)])
 		return buf.String()
 
 	}
 	if typeInfo.isClone() {
 		var buf strings.Builder
-		buf.WriteString(vm.concreteTypeInfo[v.T].getName(flavor))
+		buf.WriteString(vm.ConcreteTypeInfo[v.T].GetName(flavor))
 		buf.WriteString("(")
 		if flavor == LITERAL {
-			buf.WriteString(vm.concreteTypeInfo[v.T].(cloneType).path)
+			buf.WriteString(vm.ConcreteTypeInfo[v.T].(CloneType).Path)
 		}
-		buf.WriteString(vm.StringifyValue(values.Value{vm.concreteTypeInfo[v.T].(cloneType).parent, v.V}, flavor))
+		buf.WriteString(vm.StringifyValue(values.Value{vm.ConcreteTypeInfo[v.T].(CloneType).Parent, v.V}, flavor))
 		buf.WriteByte(')')
 		return buf.String()
 	}
@@ -201,7 +201,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		return "UNSATIFIED CONDITIONAL!"
 	case values.ITERATOR:
 		return "ITERATOR"
-	case values.REF :
+	case values.REF:
 		return "REFERENCE VARIABLE"
 	}
 	println("Undescribable value", v.T)
