@@ -1101,7 +1101,7 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString(")\n")
 	}
 
-	fname := initializer.MakeFilepath(hub.hubFilepath)
+	fname := text.MakeFilepath(hub.hubFilepath)
 
 	f, err := os.Create(fname)
 	if err != nil {
@@ -1116,7 +1116,7 @@ func (hub *Hub) saveHubFile() string {
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
-	hub.hubFilepath = initializer.MakeFilepath(hubFilepath)
+	hub.hubFilepath = text.MakeFilepath(hubFilepath)
 	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
 
 	var driver, name, host, username, password string

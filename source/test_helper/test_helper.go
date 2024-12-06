@@ -37,7 +37,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *service
 		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		iz.MakeFunctionTableAndGoMods()
+		iz.MakeFunctionTableAndGoModules()
 		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}

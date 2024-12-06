@@ -10,6 +10,7 @@ import (
 
 	"path/filepath"
 
+	"pipefish/source/settings"
 	"pipefish/source/token"
 )
 
@@ -390,4 +391,21 @@ func WithoutDots(s string) string {
 	} else {
 		return s
 	}
+}
+
+func MakeFilepath(scriptFilepath string) string {
+	doctoredFilepath := strings.Clone(scriptFilepath)
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" {
+		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash(scriptFilepath))
+	}
+	if len(scriptFilepath) >= 7 && scriptFilepath[0:7] == "rsc-pf/" {
+		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, "source", "initializer", filepath.FromSlash(scriptFilepath))
+	}
+	if settings.StandardLibraries.Contains(scriptFilepath) {
+		doctoredFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath
+	}
+	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" && len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] != ".hub" {
+		doctoredFilepath = doctoredFilepath + ".pf"
+	}
+	return doctoredFilepath
 }

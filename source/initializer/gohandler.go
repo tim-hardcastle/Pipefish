@@ -81,7 +81,7 @@ func (iz *initializer) compileGo() {
 	timeMap := iz.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
 
 	for source := range iz.goBucket.sources {
-		f, err := os.Stat(MakeFilepath(source))
+		f, err := os.Stat(text.MakeFilepath(source))
 		if err != nil {
 			iz.Throw("golang/file", INTEROP_TOKEN, source, err.Error())
 			break
