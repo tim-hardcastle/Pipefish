@@ -27,7 +27,7 @@ import (
 //go:embed test-files/*
 var testFolder embed.FS
 
-//go:embed rsc/pipefish/*
+//go:embed rsc-pf/*
 var folder embed.FS
 
 // The initializer contains the methods and data which are only needed when parsing and compiling a script.

@@ -1,0 +1,185 @@
+import
+
+golang "io/ioutil"
+golang "path/filepath"
+golang "math/rand"
+golang "os"
+golang "time"
+golang "errors"
+
+newtype
+
+Clock = struct()
+File = struct(filepath string)
+FileExists = struct(filepath string)
+Input = struct(prompt string)
+Output = struct()
+Random = struct(params int)
+RandomSeed = struct()
+Terminal = struct()
+
+SQL = snippet
+HTML = snippet
+
+cmd
+
+posttooutputmaker(x any) : builtin "post_to_output"
+post (x any) to (o Output): posttooutputmaker(x)
+post (x any) : builtin "post_to_output"
+// post (x tuple) to (o Output): posttooutputmaker(x)
+
+posttoterminalmaker(x any) : builtin "post_to_terminal"
+post (x any) to (t Terminal): posttoterminalmaker(x)
+
+get (x ref) from (i Input) : builtin "get_from_input"
+
+def
+
+goGetClock() -> Time : golang {
+    goNow := time.Now()
+    return Time{goNow.Year(), int(goNow.Month()), goNow.Day(), goNow.Hour(), goNow.Minute(), goNow.Second(), goNow.Nanosecond(), goNow.Location().String()}
+}
+
+goFileExists(fname string) : golang {
+     _, err := os.Stat(fname)
+     return err == nil
+}
+
+cmd
+
+goRandomize(i int) : golang {
+    rand.Seed(int64(i))
+    return struct{}{}
+}
+
+put (seed int) into (randomizer RandomSeed) :
+    goRandomize(seed)
+
+get (x ref) from (c Clock) :
+    x = goGetClock() 
+
+def
+
+goRandomInt(i int) : golang {
+    return rand.Intn(i)
+}
+
+// randomFunctionOf(random Random) :
+//     42
+// //     type r == int : 
+// //         r <= 0 :
+// //             error "range of Random object cannot be <= 0"
+// //         else :
+// //             goRandomInt(r)
+// //     // type r == list :
+// //     //     r == [] :
+// //     //         error "can't take random element of empty list"
+// //     //     else :
+// //     //         r[goRandomInt(len r)]
+// //     else :
+// //         error "can't randomize things of type " + string(type r)
+// // given :
+// //     r = random[params]
+
+// cmd
+
+// get (x ref) from (random Random) :
+//      x = randomFunctionOf(random)  
+
+
+def
+
+goGetFile(fname string) : golang {
+    fileContent, err := ioutil.ReadFile(fname)
+    if err != nil {
+        return errors.New("can't find file '" + fname + "'")
+    }
+    return string(fileContent)
+}
+
+cmd
+
+goDeleteFile(fname string) : golang {
+    err := os.Remove(fname) 
+    if err != nil {
+        return errors.New("can't delete file '" + fname + "'")
+    } else {
+        return struct{}{}
+    }
+}
+
+goPutStringInFile(output string, fname string) : golang {
+    f, err := os.Create(fname)
+    if err != nil {
+        return errors.New("can't access file '" + fname + "'")
+    }
+    defer f.Close()
+    _, err2 := f.WriteString(output)
+
+    if err2 != nil {
+        return errors.New("can't write to file '" + fname + "'")
+    }
+    return struct{}{}
+}
+
+get (contents ref) from (fileAccess File) : 
+    contents = "" // goGetFile(fileAccess[filepath])
+
+get (x ref) from (fileAccess FileExists) :
+    x = false // goFileExists(fileAccess[filepath])
+
+put (s string) into (fileAccess File) : 
+    goPutStringInFile(s, fileAccess[filepath])
+
+delete (fileAccess File) :
+    goDeleteFile(fileAccess[filepath])
+
+post(x SQL) : builtin "post_sql"
+put(x SQL) : builtin "post_sql"
+delete(x SQL) : builtin "post_sql"
+get(x ref) from (y SQL) : builtin "get_from_SQL"
+
+post(x HTML) : builtin "post_html"
+
+// This is strictly speaking not part of the "world" at all but it has to go somewhere and
+// it fights with the builtin definitions.
+
+def
+
+(x type) ? :
+    x/null
+
+newtype
+
+FileSearchMode = enum NONRECURSIVE, RECURSIVE
+
+FileNames = struct(directory string, fileSearchMode FileSearchMode) 
+
+DirectoryNames = struct(directory string, fileSearchMode FileSearchMode)
+
+cmd
+
+get (L ref) from (directoryNames DirectoryNames) : 
+    L = goGetDirectoryNames(directoryNames)
+
+def
+
+goGetDirectoryNames(directoryNames DirectoryNames) : golang {
+    resultList := []string{}
+    if directoryNames.FileSearchMode == 0 {
+        return resultList
+    }
+    err := filepath.Walk(directoryNames.Directory, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+        if info.IsDir() {
+            resultList = append(resultList, info.Name())
+        }
+        return nil
+    })
+	if err != nil {
+		return err
+	}
+    return resultList
+}
