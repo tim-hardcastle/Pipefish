@@ -14,13 +14,13 @@ import (
 )
 
 // Note the first of these will be set equal to the second by the 'main' function if we're running under WinOS.
-var MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/world.pf", "rsc/pipefish/interfaces.pf"}
+var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/world.pf", "rsc-pf/interfaces.pf"}
 // And so the result of this function is OS-dependent.
 func MandatoryImportSet() dtypes.Set[string] {
 	return dtypes.MakeFromSlice(MandatoryImports)
 }
 
-var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc/pipefish/hub.pf").Add("Builtin constant").Add("rsc/worldlite.pf")
+var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc/worldlite.pf")
 
 var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"})
 
@@ -56,6 +56,6 @@ func init() {
 		PipefishHomeDirectory = appDir + "/"
 	}
 	if runtime.GOOS == "windows" { // This allows a cut-down version that doesn't require the plugins package.
-		MandatoryImports = []string{"rsc/pipefish/builtins.pf", "rsc/pipefish/worldlite.pf", "rsc/pipefish/interfaces.pf"}
+		MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/worldlite.pf", "rsc-pf/interfaces.pf"}
 	}
 }

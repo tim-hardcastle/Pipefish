@@ -213,7 +213,7 @@ func (iz *initializer) parseAll(scriptFilepath, sourcecode string) {
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
 		iz.cmI("Adding hub.pf to hub namespace.")
-		iz.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
+		iz.AddToNameSpace([]string{"rsc-pf/hub.pf"})
 	}
 	iz.cmI("Making new relexer.")
 	iz.p.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
@@ -380,8 +380,8 @@ func (iz *initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
 		var libDat []byte
 		var err error
-		if len(fname) >= 13 && fname[:13] == "rsc/pipefish/" {
-			libDat, err = folder.ReadFile("rsc-pf/"+fname[13:])
+		if len(fname) >= 7 && fname[:7] == "rsc-pf/" {
+			libDat, err = folder.ReadFile(fname)
 		} else {
 			libDat, err = os.ReadFile(MakeFilepath(fname))
 		}
@@ -2343,8 +2343,8 @@ func MakeFilepath(scriptFilepath string) string {
 	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" {
 		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash(scriptFilepath))
 	}
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
-		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, "source", "service", filepath.FromSlash(scriptFilepath))
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc-pf/" {
+		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, "source", "initializer", filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
 		doctoredFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath
