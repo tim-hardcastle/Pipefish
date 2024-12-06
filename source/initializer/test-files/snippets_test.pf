@@ -1,9 +1,0 @@
-newtype 
-
-Foo = snippet
-
-def
-
-makeSn(x int) :
-    Foo --- zort |x| troz
-

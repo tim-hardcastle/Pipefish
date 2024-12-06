@@ -1,7 +1,14 @@
 package service
 
 import (
+	"embed"
+    "fmt"
 	"os"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+
 	"pipefish/source/ast"
 	"pipefish/source/dtypes"
 	"pipefish/source/err"
@@ -10,13 +17,10 @@ import (
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
-
-	"fmt"
-	"reflect"
-	"strconv"
-	"strings"
-	"testing"
 )
+
+//go:embed test-files/*
+var TestFolder embed.FS
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.

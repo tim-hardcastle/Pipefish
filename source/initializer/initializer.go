@@ -24,8 +24,7 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 )
 
-//go:embed test-files/*
-var testFolder embed.FS
+
 
 //go:embed rsc-pf/*
 var folder embed.FS
@@ -156,7 +155,7 @@ func (iz *initializer) InitializeFromFilepath(mc *service.Vm, Common *parser.Com
 	var err error
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		if len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
-			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
+			sourcebytes, err = service.TestFolder.ReadFile(scriptFilepath)
 		} else {
 			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath))
 		}
