@@ -83,7 +83,7 @@ func (iz *initializer) compileGo() {
 	for source := range iz.goBucket.sources {
 		f, err := os.Stat(MakeFilepath(source))
 		if err != nil {
-			iz.Throw("go/file", INTEROP_TOKEN, err.Error())
+			iz.Throw("golang/file", INTEROP_TOKEN, source, err.Error())
 			break
 		}
 		var plugins *plugin.Plugin
