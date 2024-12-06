@@ -1,0 +1,21 @@
+// A very cut-down version of `world` which only does input and output from and to
+// the terminal, which doesn't use any Go imports, and which can therefore be run
+// on a Windows machine.
+
+newtype
+
+Input = struct(prompt string)
+Output = struct()
+Terminal = struct()
+
+cmd
+
+post (x any) to (o Output): posttooutputmaker(x)
+posttooutputmaker(x any) : builtin "post_to_output"
+
+post (x any) : builtin "post_to_output"
+
+post (x any) to (t Terminal): posttoterminalmaker(x)
+posttoterminalmaker(x any) : builtin "post_to_terminal"
+
+get (x ref) from (i Input) : builtin "get_from_input"

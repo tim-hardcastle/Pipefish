@@ -1,59 +1,51 @@
-package service
+package test_helper
 
 import (
 	"os"
+	"testing"
+
+	"pipefish/source/initializer"
 	"pipefish/source/parser"
+	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
-	"testing"
 )
+
+// Auxiliary types and functions for testing the parser and compiler.
 
 type TestItem struct {
 	Input string
 	Want  string
 }
 
-func testValues(cp *Compiler, s string) string {
-	return cp.Describe(cp.Do(s))
-}
-
-func testCompilerErrors(cp *Compiler, s string) string {
-	val := cp.Do(s)
-	if !cp.P.ErrorsExist() {
-		return "unexpected successful evaluation returned " + text.Emph(cp.Vm.DefaultDescription(val))
-	} else {
-		return cp.P.Common.Errors[0].ErrorId
-	}
-}
-
-func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *Compiler, s string) string) {
+func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *service.Compiler, s string) string) {
 	wd, _ := os.Getwd() // The working directory is the directory containing the package being tested.
 	for _, test := range tests {
 		if settings.SHOW_TESTS {
 			println(text.BULLET + "Running test " + text.Emph(test.Input))
 		}
-		mc := BlankVm(nil, nil)
+		mc := service.BlankVm(nil, nil)
 		common := parser.NewCommonParserBindle()
-		iz := newInitializer()
-		iz.common = newCommonInitializerBindle()
-		var cp *Compiler
+		iz := initializer.NewInitializer()
+		iz.Common = initializer.NewCommonInitializerBindle()
+		var cp *service.Compiler
 		if filename == "" {
-			cp = iz.initializeFromFilepath(mc, common, "", "")
+			cp = iz.InitializeFromFilepath(mc, common, "", "")
 		} else {
-			cp = iz.initializeFromFilepath(mc, common, wd+"/test-files/"+filename, "")
+			cp = iz.InitializeFromFilepath(mc, common, wd+"/test-files/"+filename, "")
 		}
 		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		iz.makeFunctionTableAndGoMods()
+		iz.MakeFunctionTableAndGoMods()
 		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		iz.populateAbstractTypesAndMakeFunctionTrees()
+		iz.PopulateAbstractTypesAndMakeFunctionTrees()
 		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}
-		iz.compileEverything()
+		iz.CompileEverything()
 		if iz.ErrorsExist() {
 			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
 		}

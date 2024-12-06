@@ -484,7 +484,7 @@ func (p *Parser) SafeGetAbstractType(name string) (values.AbstractType, bool) {
 		result.Varchar = uint32(varCharValue)
 		return result, true
 	}
-	// Check if it's a shared abstract type: 'int', 'struct', 'listlike', 'any?' etc.
+	// Check if it's a shared type: 'int', 'struct', 'listlike', 'any?' etc.
 	if result, ok := p.Common.Types[name]; ok {
 		return result, true
 	}

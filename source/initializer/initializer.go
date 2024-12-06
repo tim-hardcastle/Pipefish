@@ -1,4 +1,4 @@
-package service
+package initializer
 
 import (
 	"database/sql"
@@ -13,6 +13,7 @@ import (
 	"pipefish/source/err"
 	"pipefish/source/lexer"
 	"pipefish/source/parser"
+	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/token"
@@ -23,13 +24,13 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 )
 
-// Do not under any cicumstances remove the following comment.
-//
-//go:embed test-files/*
-var testFolder embed.FS
+
+
+//go:embed rsc-pf/*
+var folder embed.FS
 
 // The initializer contains the methods and data which are only needed when parsing and compiling a script.
-// It returns a compiler which has a parser which are capable between them of parsing, compiling, and running 
+// It returns a compiler which has a parser which are capable between them of parsing, compiling, and running
 // a single block/AST of Pipefish code, and which can therefore cope with everything demanded of them via
 // the REPL at runtime.
 
@@ -38,20 +39,21 @@ var testFolder embed.FS
 
 // Definition of the initializer type.
 type initializer struct {
-	cp     *Compiler            // The compiler for the module being intitialized.
-	p      *parser.Parser       // The parser for the module being initialized.
-	initializers map[string]*initializer               // The child initializers of this one, to initialize imports and external stubs.
-	TokenizedDeclarations [13]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
-	ParsedDeclarations    [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
-	localConcreteTypes dtypes.Set[values.ValueType]    // All the struct, enum, and clone types defined in a given module.
-	goBucket           *GoBucket                       // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
-	Snippets           []string                        // Names of snippet types visible to the module.
-	fnIndex map[fnSource]*ast.PrsrFunction             // Map from sources to how the parser sees functions. 
-	declarationMap map[decKey]any                      // TODO --- it is not at all clear that this is doing what it ought to.
-	common *commonInitializerBindle                    // The information all the initializers have in common.
+	cp                                  *service.Compiler              // The compiler for the module being intitialized.
+	p                                   *parser.Parser                 // The parser for the module being initialized.
+	initializers                        map[string]*initializer        // The child initializers of this one, to initialize imports and external stubs.
+	TokenizedDeclarations               [13]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
+	ParsedDeclarations                  [13]parser.ParsedCodeChunks    // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
+	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
+	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
+	Snippets                            []string                       // Names of snippet types visible to the module.
+	fnIndex                             map[fnSource]*ast.PrsrFunction // Map from sources to how the parser sees functions.
+	declarationMap                      map[decKey]any                 // TODO --- it is not at all clear that this is doing what it ought to.
+	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
+	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 }
 
-func newInitializer() *initializer {
+func NewInitializer() *initializer {
 	iz := initializer{
 		initializers:       make(map[string]*initializer),
 		localConcreteTypes: make(dtypes.Set[values.ValueType]),
@@ -62,18 +64,18 @@ func newInitializer() *initializer {
 	return &iz
 }
 
-type commonInitializerBindle struct {
+type CommonInitializerBindle struct {
 	Functions map[FuncSource]*ast.PrsrFunction
 }
 
-func newCommonInitializerBindle() *commonInitializerBindle {
-	b := commonInitializerBindle{
+func NewCommonInitializerBindle() *CommonInitializerBindle {
+	b := CommonInitializerBindle{
 		Functions: make(map[FuncSource]*ast.PrsrFunction),
 	}
 	return &b
 }
 
-// For indexing the functions in the common function map, to prevent duplication.
+// For indexing the functions in the Common function map, to prevent duplication.
 type FuncSource struct {
 	Filename     string
 	LineNo       int
@@ -84,8 +86,8 @@ type FuncSource struct {
 // Stores pretokenized chunks of code for later parsing.
 type TokenizedCodeChunks []*token.TokenizedCodeChunk
 
-// You may wonder why the declarationMap is stored in the initializer and copied from one to the other rather than held 
-// in the common initializer and shared. So do I, but we get all sorts of weird bugs if we try. TODO --- investigate.
+// You may wonder why the declarationMap is stored in the initializer and copied from one to the other rather than held
+// in the Common initializer and shared. So do I, but we get all sorts of weird bugs if we try. TODO --- investigate.
 type decKey struct {
 	dOf declarationOf // A struct, a label, a function ...
 	src string        // The filepath to the source code.
@@ -106,32 +108,36 @@ func (iz *initializer) setDeclaration(dOf declarationOf, tok *token.Token, ix in
 	iz.declarationMap[makeKey(dOf, tok, ix)] = v
 }
 
-// We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a 
-// `CommonInitializerBindle` for the initializers to share. These common bindles are then passed down to the
+// Tokens to return when no token is available.
+var LINKING_TOKEN = &token.Token{Source: "Pipefish linker"}
+
+// We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
+// `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
 // "children" of the intitializer and the parser when new modules are created.
-func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*Service) *Service {
-	iz := newInitializer()
-	iz.common = newCommonInitializerBindle()
-	// We then carry out five phases of initialization each of which is performed recursively on all of the 
+func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*service.Service) *service.Service {
+	iz := NewInitializer()
+	iz.Common = NewCommonInitializerBindle()
+	// We then carry out five phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
 	//
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
-	cp := iz.initializeFromFilepath(BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "") 
-	result := &Service{Cp: cp}
+	cp := iz.InitializeFromFilepath(service.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
+	
+	result := &service.Service{Cp: cp}
 	if iz.ErrorsExist() {
 		return result
 	}
-	iz.makeFunctionTableAndGoMods()
+	iz.MakeFunctionTableAndGoMods()
 	if iz.ErrorsExist() {
 		return result
 	}
-	iz.populateAbstractTypesAndMakeFunctionTrees()
+	iz.PopulateAbstractTypesAndMakeFunctionTrees()
 	if iz.ErrorsExist() {
 		return result
 	}
-	iz.compileEverything()
+	iz.CompileEverything()
 	if iz.ErrorsExist() {
 		return result
 	}
@@ -143,36 +149,37 @@ func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*Ser
 // Then we can recurse over this, passing it the same vm every time.
 // This returns a compiler and and mutates the vm.
 // In the case that any errors are produced, the will be in the comon bindle of the parseer of the returned compiler.
-func (iz *initializer) initializeFromFilepath(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, namespacePath string) *Compiler {
+func (iz *initializer) InitializeFromFilepath(mc *service.Vm, Common *parser.CommonParserBindle, scriptFilepath, namespacePath string) *service.Compiler {
 	sourcecode := ""
 	var sourcebytes []byte
 	var err error
 	if scriptFilepath != "" { // In which case we're making a blank VM.
 		if len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
-			sourcebytes, err = testFolder.ReadFile(scriptFilepath)
+			sourcebytes, err = service.TestFolder.ReadFile(scriptFilepath)
 		} else {
 			sourcebytes, err = os.ReadFile(MakeFilepath(scriptFilepath))
 		}
 		sourcecode = string(sourcebytes) + "\n"
 		if err != nil {
-			p := parser.New(common, scriptFilepath, sourcecode, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the common parser bindle.
-			p.Throw("init/source/a", &token.Token{Source: "linking"}, scriptFilepath, err.Error())
-			return NewCompiler(p)
+			p := parser.New(Common, scriptFilepath, sourcecode, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the Common parser bindle.
+			p.Throw("init/source/a", LINKING_TOKEN, scriptFilepath, err.Error())
+			iz.p = p
+			return service.NewCompiler(p)
 		}
 	}
-	return iz.initializeFromSourcecode(mc, common, scriptFilepath, sourcecode, namespacePath)
+	return iz.initializeFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath)
 }
 
-func (iz *initializer) initializeFromSourcecode(mc *Vm, common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *Compiler {
-	iz.cp = newCompiler(common, scriptFilepath, sourcecode, mc, namespacePath)
-	iz.p  = iz.cp.P
+func (iz *initializer) initializeFromSourcecode(mc *service.Vm, Common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *service.Compiler {
+	iz.cp = newCompiler(Common, scriptFilepath, sourcecode, mc, namespacePath)
+	iz.p = iz.cp.P
 	iz.parseAll(scriptFilepath, sourcecode)
 	iz.cp.ScriptFilepath = scriptFilepath
 	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
 		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(MakeFilepath(scriptFilepath))
 		if err != nil {
-			iz.Throw("init/source/b", token.Token{Source: "linking"}, scriptFilepath)
+			iz.Throw("init/source/b", LINKING_TOKEN, scriptFilepath)
 			return nil
 		}
 		iz.cp.Timestamp = file.ModTime().UnixMilli()
@@ -181,9 +188,9 @@ func (iz *initializer) initializeFromSourcecode(mc *Vm, common *parser.CommonPar
 	return iz.cp
 }
 
-func newCompiler(common *parser.CommonParserBindle, scriptFilepath, sourcecode string, mc *Vm, namespacePath string) *Compiler {
-	p := parser.New(common, scriptFilepath, sourcecode, namespacePath)
-	cp := NewCompiler(p)
+func newCompiler(Common *parser.CommonParserBindle, scriptFilepath, sourcecode string, mc *service.Vm, namespacePath string) *service.Compiler {
+	p := parser.New(Common, scriptFilepath, sourcecode, namespacePath)
+	cp := service.NewCompiler(p)
 	cp.ScriptFilepath = scriptFilepath
 	cp.Vm = mc
 	cp.TupleType = cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
@@ -207,7 +214,7 @@ func (iz *initializer) parseAll(scriptFilepath, sourcecode string) {
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
 		iz.cmI("Adding hub.pf to hub namespace.")
-		iz.AddToNameSpace([]string{"rsc/pipefish/hub.pf"})
+		iz.AddToNameSpace([]string{"rsc-pf/hub.pf"})
 	}
 	iz.cmI("Making new relexer.")
 	iz.p.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
@@ -321,12 +328,6 @@ func (iz *initializer) ErrorsExist() bool {
 	return iz.p.ErrorsExist()
 }
 
-
-// Do not under any cicumstances remove the following comment.
-//
-//go:embed rsc/pipefish/*
-var folder embed.FS
-
 type Section int
 
 const (
@@ -380,13 +381,13 @@ func (iz *initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
 		var libDat []byte
 		var err error
-		if len(fname) >= 13 && fname[:13] == "rsc/pipefish/" {
+		if len(fname) >= 7 && fname[:7] == "rsc-pf/" {
 			libDat, err = folder.ReadFile(fname)
 		} else {
 			libDat, err = os.ReadFile(MakeFilepath(fname))
 		}
 		if err != nil {
-			iz.p.Throw("init/import/found", &token.Token{})
+			iz.p.Throw("init/import/found", &token.Token{}, fname)
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		iz.p.TokenizedCode = lexer.NewRelexer(fname, stdImp)
@@ -402,7 +403,6 @@ func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *to
 
 var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration,
 	"abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
-
 
 // This method takes the tokens from the relexer and splits it up into code types according to the headword,
 // which is discarded. It breaks these up into function declarations, variable intializations, etc.
@@ -420,7 +420,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 	indentCount := 0
 	lastTokenWasColon := false
 	typeDefined := declarationType(DUMMY)
-	isPrivate := false
+	IsPrivate := false
 	var (
 		tok token.Token
 	)
@@ -434,7 +434,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 		return
 	}
 	if !token.TokenTypeIsHeadword(tok.Type) {
-		iz.Throw("init/head", tok)
+		iz.Throw("init/head", &tok)
 		return
 	}
 
@@ -449,19 +449,19 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 		}
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
-				iz.Throw("init/import/first", tok)
+				iz.Throw("init/import/first", &tok)
 			}
 			currentSection = tokenTypeToSection[tok.Type]
-			isPrivate = false
+			IsPrivate = false
 			lastTokenWasColon = false
 			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
 		if tok.Type == token.PRIVATE {
-			if isPrivate {
-				iz.Throw("init/private", tok)
+			if IsPrivate {
+				iz.Throw("init/private", &tok)
 			}
-			isPrivate = true
+			IsPrivate = true
 			continue
 		}
 		if currentSection == TypesSection && tok.Type == token.IDENT {
@@ -488,7 +488,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 				line.Append(tok)
 			}
 			if beginCount != 0 {
-				iz.Throw("init/close", tok)
+				iz.Throw("init/close", &tok)
 				beginCount = 0 // Prevents error storm.
 				typeDefined = declarationType(DUMMY)
 				colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
@@ -496,24 +496,24 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			}
 			switch currentSection {
 			case ImportSection:
-				iz.addTokenizedDeclaration(importDeclaration, line, isPrivate)
+				iz.addTokenizedDeclaration(importDeclaration, line, IsPrivate)
 			case LanguagesSection:
-				iz.addTokenizedDeclaration(snippetDeclaration, line, isPrivate)
+				iz.addTokenizedDeclaration(snippetDeclaration, line, IsPrivate)
 			case ExternalSection:
-				iz.addTokenizedDeclaration(externalDeclaration, line, isPrivate)
+				iz.addTokenizedDeclaration(externalDeclaration, line, IsPrivate)
 			case CmdSection:
 				line.ToStart()
 				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
-					iz.addTokenizedDeclaration(golangDeclaration, line, isPrivate)
+					iz.addTokenizedDeclaration(golangDeclaration, line, IsPrivate)
 				} else {
-					iz.addTokenizedDeclaration(commandDeclaration, line, isPrivate)
+					iz.addTokenizedDeclaration(commandDeclaration, line, IsPrivate)
 				}
 			case DefSection:
 				line.ToStart()
 				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
-					iz.addTokenizedDeclaration(golangDeclaration, line, isPrivate)
+					iz.addTokenizedDeclaration(golangDeclaration, line, IsPrivate)
 				} else {
-					iz.addTokenizedDeclaration(functionDeclaration, line, isPrivate)
+					iz.addTokenizedDeclaration(functionDeclaration, line, IsPrivate)
 				}
 			case VarSection, ConstSection:
 				// As a wretched kludge, we will now weaken some of the commas on the LHS of
@@ -535,15 +535,15 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 					}
 				}
 				if currentSection == VarSection {
-					iz.addTokenizedDeclaration(variableDeclaration, line, isPrivate)
+					iz.addTokenizedDeclaration(variableDeclaration, line, IsPrivate)
 				} else {
-					iz.addTokenizedDeclaration(constantDeclaration, line, isPrivate)
+					iz.addTokenizedDeclaration(constantDeclaration, line, IsPrivate)
 				}
 			case TypesSection:
 				if typeDefined != declarationType(DUMMY) {
-					iz.addTokenizedDeclaration(typeDefined, line, isPrivate)
+					iz.addTokenizedDeclaration(typeDefined, line, IsPrivate)
 				} else {
-					iz.Throw("init/type/form", tok)
+					iz.Throw("init/type/form", &tok)
 				}
 			default:
 				panic("Unhandled section type.")
@@ -597,7 +597,7 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 		return namespace, scriptFilepath
 	case *ast.InfixExpression:
 		if imp.GetToken().Literal != "::" {
-			iz.Throw("init/import/infix", imp.Token)
+			iz.Throw("init/import/infix", imp.GetToken())
 		}
 		lhs := imp.Args[0]
 		rhs := imp.Args[2]
@@ -617,13 +617,13 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 				}
 				return namespace, scriptFilepath
 			default:
-				iz.Throw("init/import/ident", *lhs.GetToken())
+				iz.Throw("init/import/ident", lhs.GetToken())
 			}
 		default:
-			iz.Throw("init/import/string", *lhs.GetToken())
+			iz.Throw("init/import/string", lhs.GetToken())
 		}
 	}
-	iz.Throw("init/import/weird", *imp.GetToken())
+	iz.Throw("init/import/weird", imp.GetToken())
 	return "", ""
 }
 
@@ -636,12 +636,12 @@ func (iz *initializer) addTypesToParser() { /// TODO --- some of this seems to r
 			tok1 := iz.TokenizedDeclarations[kindOfType][chunk].NextToken()
 			tok2 := iz.TokenizedDeclarations[kindOfType][chunk].NextToken()
 			if tok1.Type != token.IDENT || tok2.Type != token.ASSIGN {
-				iz.Throw("init/type/form/a", tok1)
+				iz.Throw("init/type/form/a", &tok1)
 				continue
 			}
 			name := tok1.Literal
 			if iz.p.Suffixes.Contains(name) {
-				iz.Throw("init/type/exists", tok1)
+				iz.Throw("init/type/exists", &tok1)
 				continue
 			}
 			iz.p.Suffixes.Add(name)
@@ -810,7 +810,7 @@ func (iz *initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) 
 		}
 
 		if tok.Type != token.IDENT {
-			iz.Throw("init/inexplicable", tok)
+			iz.Throw("init/inexplicable", &tok)
 		}
 
 		if j == 0 {
@@ -861,11 +861,10 @@ func (iz *initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) 
 	}
 }
 
-
-func (iz *initializer) makeFunctionTableAndGoMods() {
+func (iz *initializer) MakeFunctionTableAndGoMods() {
 	// First we recursively call the method on all the dependencies of the module.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.makeFunctionTableAndGoMods()
+		dependencyIz.MakeFunctionTableAndGoMods()
 	}
 	// The vm needs to know how to describe the abstract types in words.
 	iz.addAbstractTypesToVm()
@@ -910,11 +909,11 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
 		}
-		newIz := newInitializer()
-		newIz.common = iz.common
+		newIz := NewInitializer()
+		newIz.Common = iz.Common
 		iz.initializers[scriptFilepath] = newIz
-		newCp := newIz.initializeFromFilepath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
-		iz.cp.Services[namespace] = &Service{newCp, false}
+		newCp := newIz.InitializeFromFilepath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
+		iz.cp.Services[namespace] = &service.Service{newCp, false}
 		for k, v := range newIz.declarationMap { // See note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
 			iz.declarationMap[k] = v
 		}
@@ -924,19 +923,19 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 	return unnamespacedImports
 }
 
-// OTOH, we want the type information spread across the parsers and shared in the common parser bindle to
+// OTOH, we want the type information spread across the parsers and shared in the Common parser bindle to
 // collectively be the any source of truth for our type system.
 // But it can't be the only *representation* of the truth, becase that would slow things down 'cos the compiler
 // would have to keep converting abstract types to alternate types to build the type schemes with.
 // The solution is to build the alternate type schemes once and for all from the alternate types, after we've
 // entirely finished generating the data in the parsers.
 func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
-	iz.cp.typeNameToTypeScheme = make(map[string]AlternateType)
+	iz.cp.TypeNameToTypeScheme = make(map[string]service.AlternateType)
 	for typename, abType := range iz.p.TypeMap {
-		iz.cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
+		iz.cp.TypeNameToTypeScheme[typename] = service.AbstractTypeToAlternateType(abType)
 	}
 	for typename, abType := range iz.p.Common.Types {
-		iz.cp.typeNameToTypeScheme[typename] = AbstractTypeToAlternateType(abType)
+		iz.cp.TypeNameToTypeScheme[typename] = service.AbstractTypeToAlternateType(abType)
 	}
 }
 
@@ -947,16 +946,16 @@ type labeledParsedCodeChunk struct {
 }
 
 type serviceVariableData struct {
-	ty          AlternateType
+	ty          service.AlternateType
 	deflt       values.Value
 	mustBeConst bool
-	vAcc        varAccess
+	vAcc        service.VarAccess
 }
 
 var serviceVariables = map[string]serviceVariableData{
-	"$logging":      {altType(), values.Value{}, true, GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
-	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, GLOBAL_VARIABLE_PRIVATE},
-	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, GLOBAL_VARIABLE_PRIVATE},
+	"$logging":      {altType(), values.Value{}, true, service.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
+	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, service.GLOBAL_VARIABLE_PRIVATE},
+	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, service.GLOBAL_VARIABLE_PRIVATE},
 }
 
 // At this point we have our functions as parsed code chunks in the uP.Parser.ParsedDeclarations(functionDeclaration)
@@ -981,8 +980,8 @@ func (iz *initializer) MakeFunctionTable() {
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			iz.fnIndex[fnSource{j, i}] = functionToAdd
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
-				iz.cmI("Adding " + functionName + " to common functions.")
-				iz.common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
+				iz.cmI("Adding " + functionName + " to Common functions.")
+				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
 			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
@@ -1000,22 +999,22 @@ func (iz *initializer) MakeFunctionTable() {
 }
 
 // For compiling a top-level function.
-func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *Environment, dec declarationType) *CpFunc {
+func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *service.Environment, dec declarationType) *service.CpFunc {
 	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
-		iz.cp.Fns = append(iz.cp.Fns, info.(*CpFunc))
-		return info.(*CpFunc)
+		iz.cp.Fns = append(iz.cp.Fns, info.(*service.CpFunc))
+		return info.(*service.CpFunc)
 	}
-	cpF := CpFunc{}
-	var ac cpAccess
+	cpF := service.CpFunc{}
+	var ac service.CpAccess
 	if dec == functionDeclaration {
-		ac = DEF
+		ac = service.DEF
 	} else {
-		ac = CMD
+		ac = service.CMD
 		cpF.Command = true
 	}
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := iz.p.ExtractPartsOfFunction(node)
-	iz.cp.cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", node.GetToken())
+	iz.cmI("Compiling function '" + functionName + "' with sig " + sig.String() + ".")
 
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
@@ -1026,17 +1025,18 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *En
 
 	if body.GetToken().Type == token.XCALL {
 		Xargs := body.(*ast.PrefixExpression).Args
-		cpF.Xcall = &XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value), FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
+		cpF.Xcall = &service.XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value),
+			FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
 		serializedTypescheme := Xargs[3].(*ast.StringLiteral).Value
-		cpF.RtnTypes = iz.cp.deserializeTypescheme(serializedTypescheme)
+		cpF.RtnTypes = iz.deserializeTypescheme(serializedTypescheme)
 	}
-	fnenv := NewEnvironment()
+	fnenv := service.NewEnvironment()
 	fnenv.Ext = outerEnv
 	cpF.LoReg = iz.cp.MemTop()
 	for _, pair := range sig {
 		iz.cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
 		if pair.VarType == "ref" {
-			iz.cp.AddVariable(fnenv, pair.VarName, REFERENCE_VARIABLE, iz.cp.Vm.AnyTypeScheme, node.GetToken())
+			iz.cp.AddVariable(fnenv, pair.VarName, service.REFERENCE_VARIABLE, iz.cp.Vm.AnyTypeScheme, node.GetToken())
 			continue
 		}
 		typeName := pair.VarType
@@ -1052,10 +1052,10 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *En
 			}
 		}
 		if isVarargs {
-			iz.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, AlternateType{TypedTupleType{iz.cp.getAlternateTypeFromTypeName(pair.VarType)}}, node.GetToken())
+			iz.cp.AddVariable(fnenv, pair.VarName, service.FUNCTION_ARGUMENT, service.AlternateType{service.TypedTupleType{iz.cp.GetAlternateTypeFromTypeName(pair.VarType)}}, node.GetToken())
 		} else {
 			if pair.VarType != "bling" {
-				iz.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, iz.cp.getAlternateTypeFromTypeName(pair.VarType), node.GetToken())
+				iz.cp.AddVariable(fnenv, pair.VarName, service.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), node.GetToken())
 			}
 		}
 	}
@@ -1077,18 +1077,18 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *En
 
 	}
 	if foundTupleOrVarArgs {
-		cpF.locOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
+		cpF.LocOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
 	} else {
-		cpF.locOfTupleAndVarargData = DUMMY
+		cpF.LocOfTupleAndVarargData = DUMMY
 	}
 	switch body.GetToken().Type {
 	case token.BUILTIN:
 		name := body.(*ast.BuiltInExpression).Name
-		types, ok := BUILTINS[name]
+		types, ok := service.BUILTINS[name]
 		if ok {
 			cpF.RtnTypes = types.T
 		} else {
-			typeNumber, ok := iz.cp.getConcreteType(name) // We treat the clone constructors and short struct constructors as builtins. TODO --- todon't.
+			typeNumber, ok := iz.cp.GetConcreteType(name) // We treat the clone constructors and short struct constructors as builtins. TODO --- todon't.
 			if ok {
 				cpF.RtnTypes = altType(typeNumber)
 			}
@@ -1097,48 +1097,48 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *En
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(iz.cp.Vm.GoFns))
 		cpF.HasGo = true
-		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, GoFn{Code: body.(*ast.GolangExpression).GoFunction})
+		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, service.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
 	case token.XCALL:
 	default:
-		logFlavor := LF_NONE
-		if iz.cp.getLoggingScope() == 2 {
-			logFlavor = LF_TRACK
+		logFlavor := service.LF_NONE
+		if iz.cp.GetLoggingScope() == 2 {
+			logFlavor = service.LF_TRACK
 		}
 		if given != nil {
-			iz.cp.ThunkList = []ThunkData{}
-			givenContext := context{fnenv, functionName, DEF, false, nil, cpF.LoReg, logFlavor}
-			iz.cp.compileGivenBlock(given, givenContext)
+			iz.cp.ThunkList = []service.ThunkData{}
+			givenContext := service.Context{fnenv, functionName, service.DEF, false, nil, cpF.LoReg, logFlavor}
+			iz.cp.CompileGivenBlock(given, givenContext)
 			cpF.CallTo = iz.cp.CodeTop()
 			if len(iz.cp.ThunkList) > 0 {
-				iz.cp.cm("Initializing thunks for outer function.", body.GetToken())
+				iz.cp.Cm("Initializing thunks for outer function.", body.GetToken())
 			}
 			for _, thunks := range iz.cp.ThunkList {
-				iz.cp.Emit(Thnk, thunks.dest, thunks.value.MLoc, thunks.value.CAddr)
+				iz.cp.Emit(service.Thnk, thunks.Dest, thunks.Value.MLoc, thunks.Value.CAddr)
 			}
 		}
 		// Logging the function call, if we do it, goes here.
 		// 'stringify' is secret sauce, users aren't meant to know it exists. TODO --- conceal it better.
 		// If the body starts with a 'PRELOG' then the user has put in a logging statement which should override the tracking.
-		if logFlavor == LF_TRACK && !(body.GetToken().Type == token.PRELOG) && (functionName != "stringify") {
-			iz.cp.track(trFNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
+		if logFlavor == service.LF_TRACK && !(body.GetToken().Type == token.PRELOG) && (functionName != "stringify") {
+			iz.cp.Track(service.TR_FNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
 		}
 
 		// Now the main body of the function, just as a lagniappe.
-		bodyContext := context{fnenv, functionName, ac, true, iz.cp.returnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
+		bodyContext := service.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
 		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = iz.cp.That()
 
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
-			iz.cp.emitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), CHECK_RETURN_TYPES)
+			iz.cp.EmitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), service.CHECK_RETURN_TYPES)
 		}
 
-		iz.cp.Emit(Ret)
+		iz.cp.Emit(service.Ret)
 	}
 	iz.cp.Fns = append(iz.cp.Fns, &cpF)
-	if ac == DEF && !cpF.RtnTypes.IsLegalDefReturn() {
+	if ac == service.DEF && !cpF.RtnTypes.IsLegalDefReturn() {
 		iz.p.Throw("comp/return/def", node.GetToken())
 	}
-	if ac == CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
+	if ac == service.CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
 		iz.p.Throw("comp/return/cmd", node.GetToken())
 	}
 	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
@@ -1177,10 +1177,10 @@ func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 // A function, variable or constant can't depend on a command.
 // A constant can't depend on a variable.
 // A variable or constant can't depend on itself.
-func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
+func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 	// First of all, the recursion.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.compileEverything()
+		dependencyIz.CompileEverything()
 	}
 	// And now we compile the module.
 	iz.cmI("Mapping variable names to the parsed code chunks in which they occur.")
@@ -1259,10 +1259,10 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 	}
 	iz.cmI("Initializing service variables.")
 	// $logging
-	loggingOptionsType := values.ValueType(iz.cp.typeNameToTypeScheme["$Logging"][0].(simpleType))
-	loggingScopeType := values.ValueType(iz.cp.typeNameToTypeScheme["$LoggingScope"][0].(simpleType))
+	loggingOptionsType := values.ValueType(iz.cp.TypeNameToTypeScheme["$Logging"][0].(service.SimpleType))
+	loggingScopeType := values.ValueType(iz.cp.TypeNameToTypeScheme["$LoggingScope"][0].(service.SimpleType))
 	value := val(loggingOptionsType, []values.Value{{loggingScopeType, 1}})
-	serviceVariables["$logging"] = serviceVariableData{altType(loggingOptionsType), value, true, GLOBAL_CONSTANT_PRIVATE}
+	serviceVariables["$logging"] = serviceVariableData{altType(loggingOptionsType), value, true, service.GLOBAL_CONSTANT_PRIVATE}
 	// $cliDirectory
 	cliDirData := serviceVariables["$cliDirectory"]
 	dir, _ := os.Getwd()
@@ -1310,7 +1310,7 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 			dummyTok := token.Token{}
 			vAcc := svData.vAcc
 			envToAddTo := iz.cp.GlobalVars
-			if vAcc == GLOBAL_CONSTANT_PUBLIC || vAcc == GLOBAL_CONSTANT_PRIVATE {
+			if vAcc == service.GLOBAL_CONSTANT_PUBLIC || vAcc == service.GLOBAL_CONSTANT_PRIVATE {
 				envToAddTo = iz.cp.GlobalConsts
 			}
 			iz.cp.Reserve(svData.deflt.T, svData.deflt.V, &dummyTok)
@@ -1339,8 +1339,8 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 		// We can't tell before we compile the group whether there is a recursive relationship in there, because we don't know how the dispatch is going to
 		// shake out. E.g. suppose we have a type 'Money = struct(dollars, cents int)' and we wish to implement '+'. We will of course do it using '+' for ints.
 		// This will not be recursion, but before we get that far we won't be able to tell whether it is or not.
-		iz.cp.recursionStore = []bkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
-		fCount := uint32(len(iz.cp.Fns))       // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
+		iz.cp.RecursionStore = []service.BkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
+		fCount := uint32(len(iz.cp.Fns))               // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
 		for _, dec := range groupOfDeclarations {
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Compiler = iz.cp
@@ -1356,9 +1356,9 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
-		for _, rDat := range iz.cp.recursionStore {
-			funcNumber := rDat.functionNumber
-			addr := rDat.address
+		for _, rDat := range iz.cp.RecursionStore {
+			funcNumber := rDat.FunctionNumber
+			addr := rDat.Address
 			iz.cp.Vm.Code[addr].Args[0] = iz.cp.Fns[funcNumber].CallTo
 			iz.cp.Vm.Code[addr].Args[1] = iz.cp.Fns[funcNumber].LoReg
 			iz.cp.Vm.Code[addr].Args[2] = iz.cp.Fns[funcNumber].HiReg
@@ -1372,25 +1372,25 @@ func (iz *initializer) compileEverything() [][]labeledParsedCodeChunk {
 
 func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationType, v int) {
 	dec := iz.ParsedDeclarations[declarations][v]
-	iz.cp.cm("Compiling assignment "+dec.String(), dec.GetToken())
+	iz.cp.Cm("Compiling assignment "+dec.String(), dec.GetToken())
 	lhs := dec.(*ast.AssignmentExpression).Left
 	rhs := dec.(*ast.AssignmentExpression).Right
 	sig, _ := iz.p.RecursivelySlurpSignature(lhs, "*inferred*")
 	if iz.ErrorsExist() {
 		return
 	}
-	rollbackTo := iz.cp.getState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
-	ctxt := context{env: iz.cp.GlobalVars, access: INIT, lowMem: DUMMY, logFlavor: LF_INIT}
+	rollbackTo := iz.cp.GetState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
+	ctxt := service.Context{Env: iz.cp.GlobalVars, Access: service.INIT, LowMem: DUMMY, LogFlavor: service.LF_INIT}
 	iz.cp.CompileNode(rhs, ctxt)
 	if iz.ErrorsExist() {
 		return
 	}
-	iz.cp.Emit(Ret)
-	iz.cp.cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
-	iz.cp.Vm.Run(uint32(rollbackTo.code))
+	iz.cp.Emit(service.Ret)
+	iz.cp.Cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
+	iz.cp.Vm.Run(uint32(rollbackTo.Code))
 	result := iz.cp.Vm.Mem[iz.cp.That()]
-	if !iz.cp.Vm.codeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
-		iz.cp.rollback(rollbackTo, dec.GetToken())
+	if !iz.cp.Vm.CodeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+		iz.cp.Rollback(rollbackTo, dec.GetToken())
 	}
 
 	envToAddTo, vAcc := iz.getEnvAndAccessForConstOrVarDeclaration(declarations, v)
@@ -1435,8 +1435,8 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 		if sig[i].VarType == "*inferred*" {
 			iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 		} else {
-			allowedTypes := iz.cp.getAlternateTypeFromTypeName(sig[i].VarType)
-			if allowedTypes.isNoneOf(head[i].T) {
+			allowedTypes := iz.cp.GetAlternateTypeFromTypeName(sig[i].VarType)
+			if allowedTypes.IsNoneOf(head[i].T) {
 				iz.p.Throw("comp/assign/type", dec.GetToken())
 				return
 			} else {
@@ -1446,22 +1446,22 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 	}
 }
 
-func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*Environment, varAccess) {
-	isPrivate := iz.IsPrivate(int(dT), i)
-	var vAcc varAccess
+func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*service.Environment, service.VarAccess) {
+	IsPrivate := iz.IsPrivate(int(dT), i)
+	var vAcc service.VarAccess
 	envToAddTo := iz.cp.GlobalConsts
 	if dT == constantDeclaration {
-		if isPrivate {
-			vAcc = GLOBAL_CONSTANT_PRIVATE
+		if IsPrivate {
+			vAcc = service.GLOBAL_CONSTANT_PRIVATE
 		} else {
-			vAcc = GLOBAL_CONSTANT_PUBLIC
+			vAcc = service.GLOBAL_CONSTANT_PUBLIC
 		}
 	} else {
 		envToAddTo = iz.cp.GlobalVars
-		if isPrivate {
-			vAcc = GLOBAL_VARIABLE_PRIVATE
+		if IsPrivate {
+			vAcc = service.GLOBAL_VARIABLE_PRIVATE
 		} else {
-			vAcc = GLOBAL_VARIABLE_PUBLIC
+			vAcc = service.GLOBAL_VARIABLE_PUBLIC
 		}
 	}
 	return envToAddTo, vAcc
@@ -1497,13 +1497,13 @@ func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 func (iz *initializer) ResolveInterfaceBacktracks() {
 	for _, rDat := range iz.p.Common.InterfaceBacktracks {
 		prsrFunction := rDat.Fn
-		resolvingCompiler := prsrFunction.Compiler.(*Compiler)
-		cpFunction := resolvingCompiler.Fns[prsrFunction.Number]
+		resolvingCompiler := prsrFunction.Compiler.(*service.Compiler)
+		CpFunction := resolvingCompiler.Fns[prsrFunction.Number]
 		addr := rDat.Addr
-		iz.cp.Vm.Code[addr].Args[0] = cpFunction.CallTo
-		iz.cp.Vm.Code[addr].Args[1] = cpFunction.LoReg
-		iz.cp.Vm.Code[addr].Args[2] = cpFunction.HiReg
-		iz.cp.Vm.Code[addr+1].Args[1] = cpFunction.OutReg
+		iz.cp.Vm.Code[addr].Args[0] = CpFunction.CallTo
+		iz.cp.Vm.Code[addr].Args[1] = CpFunction.LoReg
+		iz.cp.Vm.Code[addr].Args[2] = CpFunction.HiReg
+		iz.cp.Vm.Code[addr+1].Args[1] = CpFunction.OutReg
 	}
 }
 
@@ -1512,10 +1512,10 @@ type funcWithName struct {
 	pFunc *ast.PrsrFunction
 }
 
-func (iz *initializer) populateAbstractTypesAndMakeFunctionTrees() {
+func (iz *initializer) PopulateAbstractTypesAndMakeFunctionTrees() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.populateAbstractTypesAndMakeFunctionTrees()
+		dependencyIz.PopulateAbstractTypesAndMakeFunctionTrees()
 	}
 
 	// Now we pull in all the shared functions that fulfill the interface types, populating the types as we go.
@@ -1528,7 +1528,7 @@ func (iz *initializer) populateAbstractTypesAndMakeFunctionTrees() {
 		funcsToAdd := map[values.ValueType][]funcWithName{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
-			for key, fnToTry := range iz.common.Functions {
+			for key, fnToTry := range iz.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
 					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
@@ -1643,7 +1643,7 @@ func (iz *initializer) initializeExternals() {
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
 			service, ok := iz.cp.Vm.HubServices[name]
 			if !ok {
-				iz.Throw("init/external/exist/a", *declaration.GetToken())
+				iz.Throw("init/external/exist/a", declaration.GetToken())
 				continue
 			}
 			iz.addExternalOnSameHub(service.Cp.ScriptFilepath, name)
@@ -1652,14 +1652,14 @@ func (iz *initializer) initializeExternals() {
 		if len(path) >= 5 && path[0:5] == "http:" {
 			pos := strings.LastIndex(path, "/")
 			if pos == -1 {
-				iz.Throw("init/external/path/a", *declaration.GetToken())
+				iz.Throw("init/external/path/a", declaration.GetToken())
 				continue
 			}
 			hostpath := path[0:pos]
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
 			if pos == -1 {
-				iz.Throw("init/external/path/b", *declaration.GetToken())
+				iz.Throw("init/external/path/b", declaration.GetToken())
 				continue
 			}
 			hostname := hostpath[pos+1:]
@@ -1679,7 +1679,7 @@ func (iz *initializer) initializeExternals() {
 		hubService, ok := iz.cp.Vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubService.Cp.ScriptFilepath != path {
-				iz.Throw("init/external/exist/b", *declaration.GetToken(), hubService.Cp.ScriptFilepath)
+				iz.Throw("init/external/exist/b", declaration.GetToken(), hubService.Cp.ScriptFilepath)
 			} else {
 				iz.addExternalOnSameHub(path, name)
 			}
@@ -1697,28 +1697,28 @@ func (iz *initializer) initializeExternals() {
 
 func (iz *initializer) addExternalOnSameHub(path, name string) {
 	hubService := iz.cp.Vm.HubServices[name]
-	serviceToAdd := externalCallToHubHandler{hubService}
+	serviceToAdd := service.ExternalCallToHubHandler{hubService}
 	iz.addAnyExternalService(serviceToAdd, path, name)
 }
 
 func (iz *initializer) addHttpService(path, name, username, password string) {
-	serviceToAdd := externalHttpCallHandler{path, name, username, password}
+	serviceToAdd := service.ExternalHttpCallHandler{path, name, username, password}
 	iz.addAnyExternalService(serviceToAdd, path, name)
 }
 
-func (iz *initializer) addAnyExternalService(handlerForService externalCallHandler, path, name string) {
+func (iz *initializer) addAnyExternalService(handlerForService service.ExternalCallHandler, path, name string) {
 	externalServiceOrdinal := uint32(len(iz.cp.Vm.ExternalCallHandlers))
 	iz.cp.CallHandlerNumbersByName[name] = externalServiceOrdinal
 	iz.cp.Vm.ExternalCallHandlers = append(iz.cp.Vm.ExternalCallHandlers, handlerForService)
-	serializedAPI := handlerForService.getAPI()
+	serializedAPI := handlerForService.GetAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal) // This supplies us with a stub that know how to call the external servie.
-	newIz := newInitializer()
-	newIz.common = iz.common
+	newIz := NewInitializer()
+	newIz.Common = iz.Common
 	iz.initializers[name] = newIz
 	newCp := newIz.initializeFromSourcecode(iz.cp.Vm, iz.p.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
-	iz.cp.Services[name] = &Service{newCp, false}
+	iz.cp.Services[name] = &service.Service{newCp, false}
 }
 
 func (iz *initializer) AddType(name, supertype string, typeNo values.ValueType) {
@@ -1747,11 +1747,11 @@ func (iz *initializer) createEnums() {
 		info, typeExists := iz.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(enumType)
-			typeInfo.path = iz.p.NamespacePath
-			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
+			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.EnumType)
+			typeInfo.Path = iz.p.NamespacePath
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
+			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		iz.AddType(tok1.Literal, "enum", typeNo)
@@ -1764,22 +1764,22 @@ func (iz *initializer) createEnums() {
 		elementNameList := []string{}
 		for tok := tokens.NextToken(); tok.Type != token.EOF; {
 			if tok.Type != token.IDENT {
-				iz.Throw("init/enum/ident", tok)
+				iz.Throw("init/enum/ident", &tok)
 			}
 			_, alreadyExists := iz.cp.EnumElements[tok.Literal]
 			if alreadyExists { // Enums in the same namespace can't have overlapping elements or we wouldn't know their type.
-				iz.Throw("init/enum/element", tok)
+				iz.Throw("init/enum/element", &tok)
 			}
 
 			iz.cp.EnumElements[tok.Literal] = iz.cp.Reserve(typeNo, len(elementNameList), &tok)
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
-				iz.Throw("init/enum/comma", tok)
+				iz.Throw("init/enum/comma", &tok)
 			}
 			tok = tokens.NextToken()
 		}
-		iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, enumType{name: tok1.Literal, path: iz.p.NamespacePath, elementNames: elementNameList, private: iz.IsPrivate(int(enumDeclaration), i)})
+		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, service.EnumType{Name: tok1.Literal, Path: iz.p.NamespacePath, ElementNames: elementNameList, Private: iz.IsPrivate(int(enumDeclaration), i)})
 	}
 }
 
@@ -1795,7 +1795,7 @@ func (iz *initializer) createClones() {
 		typeToClone := typeToken.Literal
 		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 		if !ok {
-			iz.Throw("init/clone/type", typeToken)
+			iz.Throw("init/clone/type", &typeToken)
 			return
 		}
 		abType := typeToClone + "like"
@@ -1803,13 +1803,13 @@ func (iz *initializer) createClones() {
 		info, typeExists := iz.getDeclaration(decCLONE, &tok1, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
-			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType)
-			typeInfo.path = iz.p.NamespacePath
-			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
+			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType)
+			typeInfo.Path = iz.p.NamespacePath
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
-			typeNo = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
+			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 			iz.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, cloneType{name: name, path: iz.p.NamespacePath, parent: parentTypeNo, private: iz.IsPrivate(int(cloneDeclaration), i)})
+			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, service.CloneType{Name: name, Path: iz.p.NamespacePath, Parent: parentTypeNo, Private: iz.IsPrivate(int(cloneDeclaration), i)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				iz.cp.Vm.IsRangeable = iz.cp.Vm.IsRangeable.Union(altType(typeNo))
 			}
@@ -1829,7 +1829,7 @@ func (iz *initializer) createClones() {
 		usingOrEof := tokens.NextToken()
 		if usingOrEof.Type != token.EOF {
 			if usingOrEof.Literal != "using" {
-				iz.Throw("init/clone/using", usingOrEof)
+				iz.Throw("init/clone/using", &usingOrEof)
 				return
 			}
 			for {
@@ -1840,7 +1840,7 @@ func (iz *initializer) createClones() {
 					break
 				}
 				if sep.Type != token.COMMA {
-					iz.Throw("init/clone/comma", usingOrEof)
+					iz.Throw("init/clone/comma", &usingOrEof)
 					break
 				}
 			}
@@ -1848,7 +1848,7 @@ func (iz *initializer) createClones() {
 		if iz.ErrorsExist() {
 			return
 		}
-		// And add them to the common functions.
+		// And add them to the Common functions.
 		for _, op := range opList {
 			rtnSig := ast.StringSig{{"", name}}
 			switch parentTypeNo {
@@ -1856,40 +1856,40 @@ func (iz *initializer) createClones() {
 				switch op {
 				case "+":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "-":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 					sig = ast.StringSig{ast.NameTypenamePair{"x", name}}
-					iz.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, PREFIX, &tok1)
+					iz.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, service.PREFIX, &tok1)
 				case "*":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "/":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				default:
-					iz.Throw("init/request/float", usingOrEof, op)
+					iz.Throw("init/request/float", &usingOrEof, op)
 				}
 			case values.INT:
 				switch op {
 				case "+":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "-":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 					sig = ast.StringSig{ast.NameTypenamePair{"x", name}}
-					iz.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, PREFIX, &tok1)
+					iz.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, service.PREFIX, &tok1)
 				case "*":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "/":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "%":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"%", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				default:
 					iz.p.Throw("init/request/int", &usingOrEof, op)
 				}
@@ -1897,57 +1897,57 @@ func (iz *initializer) createClones() {
 				switch op {
 				case "+":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "with":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
-					iz.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "?>":
-					cloneData := iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType)
-					cloneData.isFilterable = true
-					iz.cp.Vm.concreteTypeInfo[typeNo] = cloneData
+					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType)
+					cloneData.IsFilterable = true
+					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 				case ">>":
-					cloneData := iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType)
-					cloneData.isMappable = true
-					iz.cp.Vm.concreteTypeInfo[typeNo] = cloneData
+					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType)
+					cloneData.IsMappable = true
+					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 				case "slice":
-					cloneData := iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType)
-					cloneData.isSliceable = true
-					iz.cp.Vm.concreteTypeInfo[typeNo] = cloneData
+					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType)
+					cloneData.IsSliceable = true
+					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 				default:
-					iz.Throw("init/request/list", usingOrEof, op)
+					iz.Throw("init/request/list", &usingOrEof, op)
 				}
 			case values.MAP:
 				switch op {
 				case "with":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
-					iz.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "without":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"without", "bling"}, ast.NameTypenamePair{"y", "...any?"}}
-					iz.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				default:
-					iz.Throw("init/request/map", usingOrEof, op)
+					iz.Throw("init/request/map", &usingOrEof, op)
 				}
 			case values.PAIR:
-				iz.Throw("init/request/pair", usingOrEof, op)
+				iz.Throw("init/request/pair", &usingOrEof, op)
 			case values.SET:
 				switch op {
 				case "+":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				default:
-					iz.Throw("init/request/set", usingOrEof, op)
+					iz.Throw("init/request/set", &usingOrEof, op)
 				}
 			case values.STRING:
 				switch op {
 				case "+":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, INFIX, &tok1)
+					iz.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, service.INFIX, &tok1)
 				case "slice":
-					cloneData := iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType)
-					cloneData.isSliceable = true
-					iz.cp.Vm.concreteTypeInfo[typeNo] = cloneData
+					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType)
+					cloneData.IsSliceable = true
+					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 				default:
-					iz.Throw("init/request/string", usingOrEof, op)
+					iz.Throw("init/request/string", &usingOrEof, op)
 				}
 			}
 		}
@@ -1955,23 +1955,16 @@ func (iz *initializer) createClones() {
 	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry in the map if they're uncloneable).
 	for typename := range parser.ClonableTypes {
 		abType := typename + "like"
-		cloneGroup := iz.cp.Vm.sharedTypenameToTypeList[abType]
+		cloneGroup := iz.cp.Vm.SharedTypenameToTypeList[abType]
 		for _, cloneTypeNo := range cloneGroup {
-			iz.cp.typeToCloneGroup[values.ValueType(cloneTypeNo.(simpleType))] = cloneGroup
+			iz.cp.TypeToCloneGroup[values.ValueType(cloneTypeNo.(service.SimpleType))] = cloneGroup
 		}
 	}
 }
 
-const (
-	PREFIX uint32 = iota
-	INFIX
-	SUFFIX
-	UNFIX
-)
-
-func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes AlternateType, rtnSig ast.StringSig, isPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: iz.p.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, isPrivate, tok)}
-	iz.common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
+func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes service.AlternateType, rtnSig ast.StringSig, IsPrivate bool, pos uint32, tok *token.Token) {
+	fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: iz.p.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
+	iz.Common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
 	}
@@ -1983,23 +1976,23 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, built
 
 // We create the struct types and their field labels but we don't define the field types because we haven't defined all the types even lexically yet, let alone what they are.
 func (iz *initializer) createStructNamesAndLabels() {
-	iz.cp.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
+	iz.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
 	for i, node := range iz.ParsedDeclarations[structDeclaration] {
 		lhs := node.(*ast.AssignmentExpression).Left
 		name := lhs.GetToken().Literal
-		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
+		typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(structType)
-			typeInfo.path = iz.p.NamespacePath
-			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
+			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.StructType)
+			typeInfo.Path = iz.p.NamespacePath
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
 			iz.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i)})
 		}
 		iz.AddType(name, "struct", typeNo)
 		if name == "Error" {
-			iz.cp.Vm.typeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
+			iz.cp.Vm.TypeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
 		}
 		// The parser needs to know about it too.
 		iz.p.Functions.Add(name)
@@ -2010,7 +2003,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 		iz.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
-			iz.cp.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
+			iz.structDeclarationNumberToTypeNumber[i] = typeInfo.(structInfo).structNumber
 		} else { // Else we need to add the labels to the vm and cp.
 			labelsForStruct := make([]int, 0, len(sig))
 			for j, labelNameAndType := range sig {
@@ -2027,10 +2020,10 @@ func (iz *initializer) createStructNamesAndLabels() {
 					iz.cp.Vm.LabelIsPrivate = append(iz.cp.Vm.LabelIsPrivate, true)
 				}
 			}
-			iz.cp.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
-			stT := structType{name: name, path: iz.p.NamespacePath, labelNumbers: labelsForStruct, private: iz.IsPrivate(int(structDeclaration), i)}
-			stT = stT.addLabels(labelsForStruct)
-			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, stT)
+			iz.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
+			stT := service.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct, Private: iz.IsPrivate(int(structDeclaration), i)}
+			stT = stT.AddLabels(labelsForStruct)
+			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, stT)
 		}
 	}
 
@@ -2040,8 +2033,8 @@ func (iz *initializer) createStructNamesAndLabels() {
 		}
 		tok := iz.ParsedDeclarations[structDeclaration][i].GetToken()
 		sI, _ := iz.getDeclaration(decSTRUCT, tok, DUMMY)
-		sT := iz.cp.Vm.concreteTypeInfo[sI.(structInfo).structNumber]
-		for i := range sT.(structType).labelNumbers {
+		sT := iz.cp.Vm.ConcreteTypeInfo[sI.(structInfo).structNumber]
+		for i := range sT.(service.StructType).LabelNumbers {
 			dec, _ := iz.getDeclaration(decLABEL, tok, i)
 			decLabel := dec.(labelInfo)
 			decLabel.private = false
@@ -2063,17 +2056,17 @@ func (iz *initializer) createAbstractTypes() {
 			typeTok := tcc.NextToken()
 			divTok := tcc.NextToken()
 			if typeTok.Type != token.IDENT {
-				iz.Throw("init/type/form/b", typeTok)
+				iz.Throw("init/type/form/b", &typeTok)
 				break
 			}
 			if divTok.Type != token.EOF && !(divTok.Type == token.IDENT && divTok.Literal == "/") {
-				iz.Throw("init/type/form/c", typeTok)
+				iz.Throw("init/type/form/c", &typeTok)
 				break
 			}
 			tname := typeTok.Literal
 			abTypeToAdd, ok := iz.p.TypeMap[tname]
 			if !ok {
-				iz.Throw("init/type/known", typeTok)
+				iz.Throw("init/type/known", &typeTok)
 				break
 			}
 			iz.p.TypeMap[newTypename] = iz.p.TypeMap[newTypename].Union(abTypeToAdd)
@@ -2163,42 +2156,42 @@ func (iz *initializer) createInterfaceTypes() {
 
 func (iz *initializer) addFieldsToStructs() {
 	for i, node := range iz.ParsedDeclarations[structDeclaration] {
-		structNumber := iz.cp.structDeclarationNumberToTypeNumber[i]
-		structInfo := iz.cp.Vm.concreteTypeInfo[structNumber].(structType)
+		structNumber := iz.structDeclarationNumberToTypeNumber[i]
+		structInfo := iz.cp.Vm.ConcreteTypeInfo[structNumber].(service.StructType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		typesForStruct := make([]AlternateType, 0, len(sig))
+		typesForStruct := make([]service.AlternateType, 0, len(sig))
 		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
 			typeName := labelNameAndType.VarType
 			abType := iz.p.GetAbstractType(typeName)
 			typesForStructForVm = append(typesForStructForVm, abType)
-			typesForStruct = append(typesForStruct, AbstractTypeToAlternateType(abType))
+			typesForStruct = append(typesForStruct, service.AbstractTypeToAlternateType(abType))
 		}
-		structInfo.alternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a common compiler bindle.
-		structInfo.abstractStructFields = typesForStructForVm
-		iz.cp.Vm.concreteTypeInfo[structNumber] = structInfo
+		structInfo.AlternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a Common compiler bindle.
+		structInfo.AbstractStructFields = typesForStructForVm
+		iz.cp.Vm.ConcreteTypeInfo[structNumber] = structInfo
 	}
 }
 
 func (iz *initializer) createSnippetTypesPart2() {
 	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
-	altTypes := []AlternateType{altType(values.STRING), altType(values.MAP)}
+	altTypes := []service.AlternateType{altType(values.STRING), altType(values.MAP)}
 	for i, name := range iz.Snippets {
 		sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-		typeNo := values.ValueType(len(iz.cp.Vm.concreteTypeInfo))
+		typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 		iz.TokenizedDeclarations[snippetDeclaration][i].ToStart()
 		decTok := iz.TokenizedDeclarations[snippetDeclaration][i].NextToken()
 		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, &decTok, DUMMY)
 		if typeExists { // We see if it's already been declared.
 			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(structType)
-			typeInfo.path = iz.p.NamespacePath
-			iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
+			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.StructType)
+			typeInfo.Path = iz.p.NamespacePath
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
 			iz.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, iz.IsPrivate(int(snippetDeclaration), i)})
-			iz.cp.Vm.concreteTypeInfo = append(iz.cp.Vm.concreteTypeInfo, structType{name: name, path: iz.p.NamespacePath, snippet: true, private: iz.IsPrivate(int(snippetDeclaration), i), abstractStructFields: abTypes, alternateStructFields: altTypes})
+			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, service.StructType{Name: name, Path: iz.p.NamespacePath, Snippet: true, Private: iz.IsPrivate(int(snippetDeclaration), i), AbstractStructFields: abTypes, AlternateStructFields: altTypes})
 			iz.addStructLabelsToVm(name, typeNo, sig, &decTok)
-			iz.cp.Vm.codeGeneratingTypes.Add(typeNo)
+			iz.cp.Vm.CodeGeneratingTypes.Add(typeNo)
 		}
 		iz.AddType(name, "snippet", typeNo)
 		// The parser needs to know about it too.
@@ -2210,14 +2203,14 @@ func (iz *initializer) createSnippetTypesPart2() {
 }
 
 func (iz *initializer) checkTypesForConsistency() {
-	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.concreteTypeInfo); typeNumber++ {
-		if !iz.cp.Vm.concreteTypeInfo[typeNumber].isStruct() {
+	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
+		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsStruct() {
 			continue
 		}
-		if !iz.cp.Vm.concreteTypeInfo[typeNumber].isPrivate() {
-			for _, ty := range iz.cp.Vm.concreteTypeInfo[typeNumber].(structType).abstractStructFields {
-				if iz.cp.isPrivate(ty) {
-					iz.Throw("init/private/struct", token.Token{}, iz.cp.Vm.concreteTypeInfo[typeNumber], iz.cp.Vm.DescribeAbstractType(ty, LITERAL))
+		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsPrivate() {
+			for _, ty := range iz.cp.Vm.ConcreteTypeInfo[typeNumber].(service.StructType).AbstractStructFields {
+				if iz.cp.IsPrivate(ty) {
+					iz.Throw("init/private/struct", &token.Token{}, iz.cp.Vm.ConcreteTypeInfo[typeNumber], iz.cp.Vm.DescribeAbstractType(ty, service.LITERAL))
 				}
 			}
 		}
@@ -2232,8 +2225,8 @@ func (iz *initializer) checkTypesForConsistency() {
 		name := tok.Literal
 		abType := iz.p.GetAbstractType(name)
 		for _, w := range abType.Types {
-			if iz.cp.Vm.concreteTypeInfo[w].isPrivate() {
-				iz.Throw("init/private/abstract", tok, name)
+			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
+				iz.Throw("init/private/abstract", &tok, name)
 			}
 		}
 
@@ -2254,10 +2247,10 @@ func (iz *initializer) addStructLabelsToVm(name string, typeNo values.ValueType,
 			iz.cp.Vm.LabelIsPrivate = append(iz.cp.Vm.LabelIsPrivate, true)
 		}
 	}
-	typeInfo := iz.cp.Vm.concreteTypeInfo[typeNo].(structType)
-	typeInfo.labelNumbers = labelsForStruct
-	typeInfo = typeInfo.addLabels(labelsForStruct)
-	iz.cp.Vm.concreteTypeInfo[typeNo] = typeInfo
+	typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.StructType)
+	typeInfo.LabelNumbers = labelsForStruct
+	typeInfo = typeInfo.AddLabels(labelsForStruct)
+	iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 }
 
 func (iz *initializer) compileConstructors() {
@@ -2282,18 +2275,18 @@ func (iz *initializer) compileConstructors() {
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.concreteTypeInfo[iz.cp.Vm.concreteTypeInfo[typeNo].(cloneType).parent].getName(DEFAULT)}}
+		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType).Parent].GetName(service.DEFAULT)}}
 		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
 	}
 }
 
-func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes AlternateType, private bool, tok *token.Token) uint32 {
-	cpF := &CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
-	fnenv := NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
+func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes service.AlternateType, private bool, tok *token.Token) uint32 {
+	cpF := &service.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
+	fnenv := service.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = iz.cp.MemTop()
 	for _, pair := range sig {
-		iz.cp.AddVariable(fnenv, pair.VarName, FUNCTION_ARGUMENT, iz.cp.getAlternateTypeFromTypeName(pair.VarType), tok)
+		iz.cp.AddVariable(fnenv, pair.VarName, service.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), tok)
 	}
 	cpF.HiReg = iz.cp.MemTop()
 	cpF.Private = private
@@ -2301,9 +2294,7 @@ func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, retur
 	return uint32(len(iz.cp.Fns) - 1)
 }
 
-var nativeAbstractTypes = []string{"any", "struct", "snippet"}
-
-// The Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
+// The service.Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to be able to describe them.
 func (iz *initializer) addAbstractTypesToVm() {
 	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
 	keys := []string{}
@@ -2340,8 +2331,8 @@ func (iz *initializer) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
 	iz.cp.Vm.AbstractTypes = append(iz.cp.Vm.AbstractTypes, typeInfo)
 }
 
-func altType(t ...values.ValueType) AlternateType {
-	return AltType(t...)
+func altType(t ...values.ValueType) service.AlternateType {
+	return service.AltType(t...)
 }
 
 func (i initializer) IsPrivate(x, y int) bool {
@@ -2353,8 +2344,8 @@ func MakeFilepath(scriptFilepath string) string {
 	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" {
 		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash(scriptFilepath))
 	}
-	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "rsc/" {
-		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, "source", "service", filepath.FromSlash(scriptFilepath))
+	if len(scriptFilepath) >= 7 && scriptFilepath[0:7] == "rsc-pf/" {
+		doctoredFilepath = filepath.Join(settings.PipefishHomeDirectory, "source", "initializer", filepath.FromSlash(scriptFilepath))
 	}
 	if settings.StandardLibraries.Contains(scriptFilepath) {
 		doctoredFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath
@@ -2365,7 +2356,50 @@ func MakeFilepath(scriptFilepath string) string {
 	return doctoredFilepath
 }
 
-// Like everything else, the initializer sends its errors to the common parser bindle via the parser.
-func (iz *initializer) Throw(errorID string, tok token.Token, args ...any) {
-	iz.p.Throw(errorID, &tok, args...)
+// Like everything else, the initializer sends its errors to the Common parser bindle via the parser.
+func (iz *initializer) Throw(errorID string, tok *token.Token, args ...any) {
+	iz.p.Throw(errorID, tok, args...)
+}
+
+// Types and functions to help with housekeeping. It stores the declarations of types and functions in a map
+// keyed by their source and line number. This is to prevent the same source code being compiled twice onto
+// the same VM, which only needs it once.
+type declarationOf int
+
+const (
+	decSTRUCT declarationOf = iota
+	decLABEL
+	decENUM
+	decCLONE
+	decABSTRACT
+	decINTERFACE
+	decFUNCTION
+)
+
+type labelInfo struct {
+	loc     uint32 // The location in the VM where we store a value {LABEL, n}.
+	private bool
+}
+
+type structInfo struct {
+	structNumber values.ValueType
+	private      bool
+}
+
+type fnSigInfo struct {
+	name   string
+	sig    ast.StringSig
+	rtnSig ast.StringSig
+}
+
+type interfaceInfo struct {
+	sigs []fnSigInfo
+}
+
+// The maximum value of a `uint32`. Used as a dummy/sentinel value when `0` is not appropriate.
+const DUMMY = 4294967295
+
+// Manufactures a value.
+func val(T values.ValueType, V any) values.Value {
+	return values.Value{T: T, V: V}
 }

@@ -74,84 +74,84 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 	case values.FUNC:
 		lambda := v.V.(Lambda)
 		goLambda := func(args ...any) []any { // Note that this largely repeats the logic of the VM's Dofn operation, and any changes needed here will probably need to be reflected there.
-						if len(args) != len(lambda.sig) { // TODO: variadics.
-							return []any{errors.New("wrong number of arguments for function")}
-						}
-						pfArgs := []values.Value{}
-						for _, goArg := range args {
-							pfArgs = append(pfArgs, vm.goToPipefish(reflect.ValueOf(goArg)))
-						}
-						for i := 0; i < int(lambda.capturesEnd-lambda.capturesStart); i++ {
-							vm.Mem[int(lambda.capturesStart)+i] = lambda.captures[i]
-						}
-						for i := 0; i < int(lambda.parametersEnd-lambda.capturesEnd); i++ {
-							vm.Mem[int(lambda.capturesEnd)+i] = pfArgs[i]
-						}
-						success := true
-						if lambda.sig != nil {
-							for i, abType := range lambda.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
-								success = false
-								if abType.Types == nil {
-									success = true
-									continue
-								} else {
-									for _, ty := range abType.Types {
-										if ty == vm.Mem[int(lambda.capturesEnd)+i].T {
-											success = true
-											if vm.Mem[int(lambda.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.capturesEnd)+i].V.(string)) > abType.Len() {
-												success = false
-											}
-										}
-									}
-								}
-								if !success {
-									return []any{errors.New("arguments of wrong type for sig")}
+			if len(args) != len(lambda.sig) { // TODO: variadics.
+				return []any{errors.New("wrong number of arguments for function")}
+			}
+			pfArgs := []values.Value{}
+			for _, goArg := range args {
+				pfArgs = append(pfArgs, vm.goToPipefish(reflect.ValueOf(goArg)))
+			}
+			for i := 0; i < int(lambda.capturesEnd-lambda.capturesStart); i++ {
+				vm.Mem[int(lambda.capturesStart)+i] = lambda.captures[i]
+			}
+			for i := 0; i < int(lambda.parametersEnd-lambda.capturesEnd); i++ {
+				vm.Mem[int(lambda.capturesEnd)+i] = pfArgs[i]
+			}
+			success := true
+			if lambda.sig != nil {
+				for i, abType := range lambda.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
+					success = false
+					if abType.Types == nil {
+						success = true
+						continue
+					} else {
+						for _, ty := range abType.Types {
+							if ty == vm.Mem[int(lambda.capturesEnd)+i].T {
+								success = true
+								if vm.Mem[int(lambda.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.capturesEnd)+i].V.(string)) > abType.Len() {
+									success = false
 								}
 							}
 						}
-						vm.Run(lambda.addressToCall)
-						result := vm.Mem[lambda.resultLocation]
-						if result.T == values.TUPLE {
-							results := []any{}
-							for _, pfVal := range result.V.([]values.Value) {
-								goVal, ok := vm.pipefishToGo(pfVal)
-								if !ok {
-									return []any{errors.New("can't convert Pipefish return value")}
-								}
-								results = append(results, goVal)
-							}
-							return results
-						}
-						goResult, ok := vm.pipefishToGo(result)
-						if !ok {
-							return []any{errors.New("can't convert Pipefish return value")}
-						}
-						return []any{goResult}
 					}
+					if !success {
+						return []any{errors.New("arguments of wrong type for sig")}
+					}
+				}
+			}
+			vm.Run(lambda.addressToCall)
+			result := vm.Mem[lambda.resultLocation]
+			if result.T == values.TUPLE {
+				results := []any{}
+				for _, pfVal := range result.V.([]values.Value) {
+					goVal, ok := vm.pipefishToGo(pfVal)
+					if !ok {
+						return []any{errors.New("can't convert Pipefish return value")}
+					}
+					results = append(results, goVal)
+				}
+				return results
+			}
+			goResult, ok := vm.pipefishToGo(result)
+			if !ok {
+				return []any{errors.New("can't convert Pipefish return value")}
+			}
+			return []any{goResult}
+		}
 		return goLambda, true
 	}
-					
-	constructor := vm.goConverter[v.T]
+
+	constructor := vm.GoConverter[v.T]
 	if constructor != nil {
-		typeInfo := vm.concreteTypeInfo[v.T]
+		typeInfo := vm.ConcreteTypeInfo[v.T]
 		switch typeInfo := typeInfo.(type) {
-		case builtinType :
+		case BuiltinType:
 			return constructor(uint32(v.T), v.V), true
-		case enumType :
+		case EnumType:
 			return constructor(uint32(v.T), v.V.(int)), true
-		case structType :
+		case StructType:
 			pVals := v.V.([]values.Value)
 			gVals := make([]any, 0, len(pVals))
 			for _, w := range pVals {
 				newGVal, ok := vm.pipefishToGo(w)
 				if !ok {
-					return newGVal, false     // 'false' meaning, this is the culprit.
+					return newGVal, false // 'false' meaning, this is the culprit.
 				}
 				gVals = append(gVals, newGVal)
 			}
 			return constructor(uint32(v.T), gVals), true
-		case cloneType :
-			switch typeInfo.parent {
+		case CloneType:
+			switch typeInfo.Parent {
 			case values.FLOAT, values.INT, values.RUNE, values.STRING:
 				return constructor(uint32(v.T), v.V), true
 			case values.LIST:
@@ -165,7 +165,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 					result = append(result, goEl)
 				}
 				return constructor(uint32(v.T), result), true
-			case values.MAP :
+			case values.MAP:
 				result := map[any]any{}
 				mapAsSlice := v.V.(*values.Map).AsSlice()
 				for _, pair := range mapAsSlice {
@@ -180,7 +180,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 					result[goKey] = goVal
 				}
 				return constructor(uint32(v.T), result), true
-			case values.PAIR :
+			case values.PAIR:
 				leftPf := v.V.([]values.Value)[0]
 				leftGo, ok := vm.pipefishToGo(leftPf)
 				if !ok {
@@ -207,19 +207,19 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 
 		}
 	}
-	return v, false  // So if it comes back false, we know which Pipefish value was the culprit.
+	return v, false // So if it comes back false, we know which Pipefish value was the culprit.
 }
 
 func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
-	if goValue.Kind() == reflect.Invalid {     // We returned 'nil'.
+	if goValue.Kind() == reflect.Invalid { // We returned 'nil'.
 		return values.Value{values.NULL, nil}
 	}
 	someGoDatum := goValue.Interface()
-	uint32Type, ok := vm.goToPipefishTypes[reflect.TypeOf(someGoDatum)]
+	uint32Type, ok := vm.GoToPipefishTypes[reflect.TypeOf(someGoDatum)]
 	if ok {
 		pipefishType := values.ValueType(uint32Type)
-		switch typeInfo := vm.concreteTypeInfo[uint32Type].(type) {
-		case builtinType :
+		switch typeInfo := vm.ConcreteTypeInfo[uint32Type].(type) {
+		case BuiltinType:
 			switch pipefishType {
 			case values.BOOL:
 				return values.Value{values.BOOL, someGoDatum.(bool)}
@@ -232,9 +232,9 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			case values.STRING:
 				return values.Value{values.STRING, someGoDatum.(string)}
 			}
-		case enumType :
+		case EnumType:
 			return values.Value{pipefishType, int(reflect.ValueOf(someGoDatum).Int())}
-		case structType :
+		case StructType:
 			// At this point someValue must contain a struct of type Foo where uint32
 			goValue := reflect.ValueOf(someGoDatum)
 			pipefishValues := make([]values.Value, 0, goValue.NumField())
@@ -242,15 +242,15 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				pipefishValues = append(pipefishValues, vm.goToPipefish(goValue.FieldByIndex([]int{i})))
 			}
 			return values.Value{values.ValueType(uint32Type), pipefishValues}
-		case cloneType :
-			switch typeInfo.parent {
-			case values.INT :
+		case CloneType:
+			switch typeInfo.Parent {
+			case values.INT:
 				return values.Value{values.ValueType(uint32Type), int(reflect.ValueOf(someGoDatum).Int())}
-			case values.FLOAT :
+			case values.FLOAT:
 				return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).Float()}
-			case values.STRING :
+			case values.STRING:
 				return values.Value{values.ValueType(uint32Type), reflect.ValueOf(someGoDatum).String()}
-			case values.RUNE :
+			case values.RUNE:
 				return values.Value{values.ValueType(uint32Type), rune(reflect.ValueOf(someGoDatum).Int())}
 			case values.LIST:
 				vec := vector.Empty
@@ -263,7 +263,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					vec = vec.Conj(pipefishElement)
 				}
 				return values.Value{values.ValueType(uint32Type), vec}
-			case values.MAP :
+			case values.MAP:
 				goMap := goValue.Convert(reflect.TypeFor[map[any]any]()).Interface().(map[any]any)
 				pfMap := &values.Map{}
 				for goKey, goEl := range goMap {
@@ -277,8 +277,8 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					}
 					pfMap = pfMap.Set(pfKey, pfEl)
 				}
-			return values.Value{values.ValueType(uint32Type), pfMap}
-			case values.PAIR :
+				return values.Value{values.ValueType(uint32Type), pfMap}
+			case values.PAIR:
 				goPair := goValue.Convert(reflect.TypeFor[[2]any]()).Interface().([2]any)
 				leftEl := vm.goToPipefish(reflect.ValueOf(goPair[0]))
 				if leftEl.T == values.UNDEFINED_VALUE || leftEl.T == values.ERROR {
@@ -289,7 +289,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					return rightEl
 				}
 				return values.Value{values.ValueType(uint32Type), []values.Value{leftEl, rightEl}}
-			case values.SET :
+			case values.SET:
 				pfSet := values.Set{}
 				goSet := goValue.Convert(reflect.TypeFor[map[any]struct{}]()).Interface().(map[any]struct{})
 				for el := range goSet {
@@ -311,8 +311,8 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		}
 		return values.Value{values.TUPLE, result}
 	}
-	switch  {
-	case goValue.Kind() == reflect.Slice || goValue.Kind() == reflect.Array && goValue.Len() != 2 : // 2 is pairs.
+	switch {
+	case goValue.Kind() == reflect.Slice || goValue.Kind() == reflect.Array && goValue.Len() != 2: // 2 is pairs.
 		vec := vector.Empty
 		for i := 0; i < goValue.Len(); i++ {
 			goElement := goValue.Index(i)
@@ -323,7 +323,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			vec = vec.Conj(pfElement)
 		}
 		return values.Value{values.LIST, vec}
-	case goValue.Kind() == reflect.Array && goValue.Len() == 2 :
+	case goValue.Kind() == reflect.Array && goValue.Len() == 2:
 		pair := []values.Value{}
 		for i := 0; i < goValue.Len(); i++ {
 			goElement := goValue.Index(i)
@@ -334,7 +334,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			pair = append(pair, pfElement)
 		}
 		return values.Value{values.PAIR, pair}
-	case goValue.Kind() == reflect.Map :
+	case goValue.Kind() == reflect.Map:
 		rangeType := goValue.Type().Elem()
 		if rangeType.Kind() == reflect.Struct && rangeType.NumField() == 0 { // Then we have a set.
 			iterator := goValue.MapRange()
@@ -354,7 +354,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			for iterator.Next() {
 				goKey := iterator.Key()
 				pfKey := vm.goToPipefish(goKey)
-				if pfKey.T == values.UNDEFINED_VALUE ||  pfKey.T == values.ERROR {
+				if pfKey.T == values.UNDEFINED_VALUE || pfKey.T == values.ERROR {
 					return pfKey
 				}
 				goEl := iterator.Value()
@@ -366,27 +366,27 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			}
 			return values.Value{values.MAP, pfMap}
 		}
-	case goValue.Kind() == reflect.Struct :
+	case goValue.Kind() == reflect.Struct:
 		if goValue.NumField() == 0 { // We use struct{}{} to represent OK.
 			return values.OK
 		}
-	case goValue.CanFloat() :
+	case goValue.CanFloat():
 		return values.Value{values.FLOAT, goValue.Float()}
-	case goValue.CanInt() :
+	case goValue.CanInt():
 		return values.Value{values.INT, int(goValue.Int())}
-	case goValue.CanUint() :
+	case goValue.CanUint():
 		return values.Value{values.INT, int(goValue.Uint())}
-	case goValue.Kind() == reflect.Func :
+	case goValue.Kind() == reflect.Func:
 		sig := []values.AbstractType{}
 		for i := 0; i < goValue.Type().NumIn(); i++ {
 			goType := goValue.Type().In(i)
-			uint32Type, ok := vm.goToPipefishTypes[goType]
+			uint32Type, ok := vm.GoToPipefishTypes[goType]
 			pfType := values.ValueType(uint32Type)
 			if !ok {
-				switch { 
-				case goType.Kind() == reflect.Array && goType.Len() == 2 :
+				switch {
+				case goType.Kind() == reflect.Array && goType.Len() == 2:
 					pfType = values.PAIR
-				case goType.Kind() == reflect.Slice || goType.Kind() == reflect.Array : 
+				case goType.Kind() == reflect.Slice || goType.Kind() == reflect.Array:
 					pfType = values.LIST
 				case goType.Kind() == reflect.Map: // TODO --- if you can't put this information i goTPipefishTypes you could put it in another map.
 					rangeType := goValue.Type().Elem()
@@ -395,13 +395,13 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					} else {
 						pfType = values.MAP
 					}
-				default :
+				default:
 					return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
 				}
 			}
 			sig = append(sig, values.AbstractType{Types: []values.ValueType{pfType}})
 		}
-		pfLambda := Lambda{gocode : &goValue, sig : sig}
+		pfLambda := Lambda{gocode: &goValue, sig: sig}
 		return values.Value{values.FUNC, pfLambda}
 	}
 	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
@@ -409,4 +409,4 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 
 // Because the above function will be applied recursively, we apply the goTuple type to the values
 // we first get back from Go so as to distinguish a tuple from a list.
-type goTuple []any 
+type goTuple []any
