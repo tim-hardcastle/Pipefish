@@ -1656,31 +1656,6 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 	return tree
 }
 
-
-
-
-
-
-
-type labeledParsedCodeChunk struct {
-	chunk     ast.Node
-	decType   declarationType
-	decNumber int
-}
-
-type serviceVariableData struct {
-	ty          service.AlternateType
-	deflt       values.Value
-	mustBeConst bool
-	vAcc        service.VarAccess
-}
-
-var serviceVariables = map[string]serviceVariableData{
-	"$logging":      {altType(), values.Value{}, true, service.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
-	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, service.GLOBAL_VARIABLE_PRIVATE},
-	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, service.GLOBAL_VARIABLE_PRIVATE},
-}
-
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
 func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 	// First of all, the recursion.
@@ -2283,6 +2258,12 @@ type fnSource struct {
 	decNumber int
 }
 
+type labeledParsedCodeChunk struct {
+	chunk     ast.Node
+	decType   declarationType
+	decNumber int
+}
+
 func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
 	line.Private = private
 	iz.TokenizedDeclarations[decType] = append(iz.TokenizedDeclarations[decType], line)
@@ -2324,6 +2305,20 @@ type fnSigInfo struct {
 
 type interfaceInfo struct {
 	sigs []fnSigInfo
+}
+
+// TYpe and data for setting up service variables.
+type serviceVariableData struct {
+	ty          service.AlternateType
+	deflt       values.Value
+	mustBeConst bool
+	vAcc        service.VarAccess
+}
+
+var serviceVariables = map[string]serviceVariableData{
+	"$logging":      {altType(), values.Value{}, true, service.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
+	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, service.GLOBAL_VARIABLE_PRIVATE},
+	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, service.GLOBAL_VARIABLE_PRIVATE},
 }
 
 // The maximum value of a `uint32`. Used as a dummy/sentinel value when `0` is not appropriate.
