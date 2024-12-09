@@ -20,7 +20,7 @@ import (
 	"pipefish/source/database"
 	"pipefish/source/err"
 	"pipefish/source/parser"
-	"pipefish/source/pipefish"
+	"pipefish/source/pf"
 	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
@@ -35,8 +35,8 @@ var (
 
 type Hub struct {
 	hubFilepath            string
-	services               map[string]*pipefish.Service  // The services the hub knows about.
-	ers                    err.Errors                   // The errors produced by the latest compilation/execution of one of the hub's services.
+	services               map[string]*pf.Service // The services the hub knows about.
+	ers                    err.Errors             // The errors produced by the latest compilation/execution of one of the hub's services.
 	in                     io.Reader
 	out                    io.Writer
 	anonymousServiceNumber int
@@ -56,7 +56,7 @@ type Hub struct {
 func New(in io.Reader, out io.Writer) *Hub {
 
 	hub := Hub{
-		services: make(map[string]*pipefish.Service),
+		services: make(map[string]*pf.Service),
 		in:       in,
 		out:      out,
 		lastRun:  []string{},
@@ -938,7 +938,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 
-	newService := pipefish.NewService()
+	newService := pf.NewService()
 	newService.SetDatabase(hub.Db)
 	newService.SetLocalExternalServices(hub.services)
 	newService.InitializeFromFilepath(scriptFilepath)
@@ -960,8 +960,8 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 func StartServiceFromCli() {
 	filename := os.Args[2]
-	newService := pipefish.NewService()
-	newService.InitializeFromFilepath(filename) 
+	newService := pf.NewService()
+	newService.InitializeFromFilepath(filename)
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
 		s := err.GetList(newService.GetErrors())
@@ -1260,7 +1260,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	}
 }
 
-func valToString(srv *pipefish.Service, val values.Value) string {
+func valToString(srv *pf.Service, val values.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
 	return srv.Cp.Vm.StringifyValue(val, service.LITERAL)
@@ -1479,6 +1479,6 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 }
 
 // We return the parser because this is where any compile-time errors in lex-parse-compile will end up.
-func ServiceDo(serviceToUse *pipefish.Service, line string) values.Value {
+func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
 	return serviceToUse.Cp.Do(line)
 }
