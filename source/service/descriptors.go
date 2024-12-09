@@ -195,7 +195,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		return prefix + strings.Join(result, ", ") + ")"
 	case values.TYPE:
 		return vm.DescribeAbstractType(v.V.(values.AbstractType), flavor)
-	case values.UNDEFINED_VALUE:
+	case values.UNDEFINED_TYPE:
 		return "UNDEFINED VALUE!"
 	case values.UNSATISFIED_CONDITIONAL:
 		return "UNSATIFIED CONDITIONAL!"

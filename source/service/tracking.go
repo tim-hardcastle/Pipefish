@@ -197,6 +197,6 @@ func (cp *Compiler) GetLoggingScope() int {
 }
 
 func (cp *Compiler) getValueOfConstant(s string) any {
-	varIs, _ := cp.GlobalConsts.getVar(s)
-	return cp.Vm.Mem[varIs.mLoc].V
+	varIs, _ := cp.GlobalConsts.GetVar(s)
+	return cp.Vm.Mem[varIs.MLoc].V
 }

@@ -82,25 +82,25 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			var v *variable
-			v, ok := env.getVar(arg.GetToken().Literal)
+			v, ok := env.GetVar(arg.GetToken().Literal)
 			if !ok {
 				if ac == REPL {
 					cp.P.Throw("comp/ref/var", arg.GetToken())
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
-					cp.Reserve(values.UNDEFINED_VALUE, nil, node.GetToken())
+					cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
 					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.GetAlternateTypeFromTypeName("any?")}
-					env.data[arg.GetToken().Literal] = newVar
+					env.Data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
 			b.types[i] = cp.GetAlternateTypeFromTypeName("any?")
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
-				cp.put(Asgm, v.mLoc)
+				cp.put(Asgm, v.MLoc)
 				b.valLocs[i] = cp.That()
 			} else {
-				cp.Reserve(values.REF, v.mLoc, node.GetToken())
+				cp.Reserve(values.REF, v.MLoc, node.GetToken())
 				b.valLocs[i] = cp.That()
 			}
 			continue
