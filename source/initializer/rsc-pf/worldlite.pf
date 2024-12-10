@@ -7,6 +7,7 @@ newtype
 Input = struct(prompt string)
 Output = struct()
 Terminal = struct()
+HTML = snippet
 
 cmd
 
