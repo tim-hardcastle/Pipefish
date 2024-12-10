@@ -579,7 +579,6 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 		}
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
-			//continue
 		}
 		newIz := NewInitializer()
 		newIz.Common = iz.Common
