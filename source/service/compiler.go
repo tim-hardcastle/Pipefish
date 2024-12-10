@@ -1035,19 +1035,20 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 
 // Function auxiliary to CompileNode that finds the appropriate compiler for a given namespace.
 func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string, ac CpAccess) *Compiler {
-	lC := cp
+	resolvingCompiler := cp
 	for _, name := range namespace {
-		lC, ok := lC.Modules[name]
+		var ok bool
+		resolvingCompiler, ok = resolvingCompiler.Modules[name]
 		if !ok {
 			cp.P.Throw("comp/namespace/exist", node.GetToken(), name)
 			return nil
 		}
-		if lC.P.Private && (ac == REPL || len(namespace) > 1) {
+		if resolvingCompiler.P.Private && (ac == REPL || len(namespace) > 1) {
 			cp.P.Throw("comp/namespace/private", node.GetToken(), name)
 			return nil
 		}
 	}
-	return lC
+	return resolvingCompiler
 }
 
 // This function compiles a comma, i.e. the thing that concatenates values into tuples.
