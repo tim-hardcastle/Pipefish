@@ -659,7 +659,7 @@ func (iz *initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp := StartService(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices, 
+		newServiceCp := StartService(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
 			iz.cp.Vm.IoHandle.InHandle, iz.cp.Vm.IoHandle.OutHandle)
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
@@ -2332,8 +2332,8 @@ func val(T values.ValueType, V any) values.Value {
 // Function for commenting on what the initializer is doing. Only mentions the largest steps, hence
 // the lack of a Token parameter in its sig. For more detail, turn on the SHOW_COMPILER flag.
 func (iz *initializer) cmI(s string) {
-	if settings.SHOW_VMM {
-		println(text.UNDERLINE + s + text.RESET)
+	if settings.SHOW_INITIALIZER {
+		println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")
 	}
 }
 
