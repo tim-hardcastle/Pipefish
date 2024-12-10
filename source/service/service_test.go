@@ -381,7 +381,7 @@ func TestFunctionSharing(t *testing.T) {
 	test_helper.RunTest(t, "function_sharing_test.pf", tests, testValues)
 }
 func TestGocode(t *testing.T) {
-	if runtime.GOOS == "windows" { // WIndows can't use the plugin package.
+	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return
 	}
 	tests := []test_helper.TestItem{
