@@ -1,15 +1,9 @@
-var 
+import
 
-x = 42
-y = "foo"
+"examples/foo.pf"
 
-cmd 
+def 
 
-init :
-    global x
-    x = 99 
-
-main :
-    global y
-    y = "qux"
+qux(x int) : 
+    x
 

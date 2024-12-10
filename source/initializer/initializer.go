@@ -1970,7 +1970,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *se
 	}
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := iz.p.ExtractPartsOfFunction(node)
-	iz.cmI("Compiling function '" + functionName + "' with sig " + sig.String() + ".")
+	iz.cp.Cm("Compiling function '" + functionName + "' with sig " + sig.String() + ".", body.GetToken())
 
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)

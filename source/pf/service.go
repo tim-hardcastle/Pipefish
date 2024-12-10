@@ -128,7 +128,7 @@ func (sv *Service) SetVariable(vname string, ty values.ValueType, v any) error {
 	if sv.IsBroken() {
 		return errors.New("Service is broken.")
 	}
-	v, ok := sv.Cp.GlobalVars.GetVar(vname)
+	_, ok := sv.Cp.GlobalVars.GetVar(vname)
 	if !ok {
 		return errors.New("Variable does not exist.")
 	}
