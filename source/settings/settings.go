@@ -13,8 +13,7 @@ import (
 	"pipefish/source/dtypes"
 )
 
-// Note the first of these will be set equal to the second by the 'main' function if we're running under WinOS.
-var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/world.pf", "rsc-pf/interfaces.pf"}
+var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/worldlite.pf", "rsc-pf/interfaces.pf"}
 
 // And so the result of this function is OS-dependent.
 func MandatoryImportSet() dtypes.Set[string] {
