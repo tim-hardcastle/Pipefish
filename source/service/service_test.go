@@ -1,13 +1,14 @@
 package service_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"testing"
 
-	"pipefish/source/service"
+	"pipefish/source/pf"
 	"pipefish/source/test_helper"
 	"pipefish/source/text"
 )
@@ -437,15 +438,19 @@ func TestGocode(t *testing.T) {
 	os.WriteFile(locationOfGoTimes, temp, 0644)
 }
 
-func testValues(cp *service.Compiler, s string) string {
-	return cp.Describe(cp.Do(s))
+func testValues(sv *pf.Service, s string) (string, error) {
+	v, e := sv.Do(s)
+	if e != nil {
+		return "", e
+	}
+	return sv.Cp.Describe(v), nil
 }
 
-func testCompilerErrors(cp *service.Compiler, s string) string {
-	val := cp.Do(s)
-	if !cp.P.ErrorsExist() {
-		return "unexpected successful evaluation returned " + text.Emph(cp.Vm.DefaultDescription(val))
+func testCompilerErrors(sv *pf.Service, s string) (string, error) {
+	val, e := sv.Do(s)
+	if e ==nil {
+		return "", errors.New("unexpected successful evaluation returned " + text.Emph(sv.Cp.Vm.DefaultDescription(val)))
 	} else {
-		return cp.P.Common.Errors[0].ErrorId
+		return sv.Cp.P.Common.Errors[0].ErrorId, nil
 	}
 }

@@ -4,9 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"pipefish/source/initializer"
-	"pipefish/source/parser"
-	"pipefish/source/service"
+	"pipefish/source/pf"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 )
@@ -18,44 +16,27 @@ type TestItem struct {
 	Want  string
 }
 
-func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *service.Compiler, s string) string) {
+func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *pf.Service, s string) (string, error)) {
 	wd, _ := os.Getwd() // The working directory is the directory containing the package being tested.
 	for _, test := range tests {
 		if settings.SHOW_TESTS {
 			println(text.BULLET + "Running test " + text.Emph(test.Input))
 		}
-		mc := service.BlankVm(nil, nil)
-		common := parser.NewCommonParserBindle()
-		iz := initializer.NewInitializer()
-		iz.Common = initializer.NewCommonInitializerBindle()
-		var cp *service.Compiler
+		sv := pf.NewService()
 		if filename == "" {
-			cp = iz.InitializeFromFilepath(mc, common, "", "")
+			sv.InitializeFromFilepath("")
 		} else {
-			cp = iz.InitializeFromFilepath(mc, common, wd+"/test-files/"+filename, "")
+			sv.InitializeFromFilepath(wd+"/test-files/"+filename)
 		}
-		if iz.ErrorsExist() {
-			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
+		if sv.IsBroken() {
+			t.Fatalf("There were errors initializing the service : \n" + sv.Cp.P.ReturnErrors())
 		}
-		iz.MakeFunctionTableAndGoModules()
-		if iz.ErrorsExist() {
-			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
+		got, e := F(sv, test.Input)
+		if e != nil {
+			println(text.Red(test.Input))
+			println("There were errors parsing the line: \n" + sv.Cp.P.ReturnErrors() + "\n")
 		}
-		iz.PopulateAbstractTypesAndMakeFunctionTrees()
-		if iz.ErrorsExist() {
-			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
-		}
-		iz.CompileEverything()
-		if iz.ErrorsExist() {
-			t.Fatalf("There were errors initializing the service : \n" + cp.P.ReturnErrors())
-		}
-		iz.ResolveInterfaceBacktracks()
-		got := F(cp, test.Input)
 		if !(test.Want == got) {
-			if iz.ErrorsExist() {
-				println(text.Red(test.Input))
-				println("There were errors parsing the line: \n" + cp.P.ReturnErrors() + "\n")
-			}
 			t.Fatalf(`Test failed with input %s | Wanted : %s | Got : %s.`, test.Input, test.Want, got)
 		}
 	}

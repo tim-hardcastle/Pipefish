@@ -47,7 +47,7 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	cp := initializer.StartService(scriptFilepath, sv.db, compilerMap, sv.in, sv.out)
 	sv.Cp = cp
 	if sv.IsBroken() {
-		return errors.New("Compilation error")
+		return errors.New("compilation error")
 	}
 	return nil
 }
@@ -158,4 +158,12 @@ type Error = err.Error
 
 func (sv *Service) GetErrors() []*Error {
 	return sv.Cp.P.Common.Errors
+}
+
+func (sv *Service) Parse(line string) (string, error) {
+	astOfLine := sv.Cp.P.ParseLine("test", line)
+	if sv.Cp.P.ErrorsExist() {
+		return "", errors.New("compilation error")
+	}
+	return astOfLine.String(), nil
 }
