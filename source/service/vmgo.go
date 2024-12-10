@@ -257,7 +257,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				goList := goValue.Convert(reflect.TypeFor[[]any]()).Interface().([]any)
 				for _, goElement := range goList {
 					pipefishElement := vm.goToPipefish(reflect.ValueOf(goElement))
-					if pipefishElement.T == values.UNDEFINED_VALUE || pipefishElement.T == values.ERROR {
+					if pipefishElement.T == values.UNDEFINED_TYPE || pipefishElement.T == values.ERROR {
 						return pipefishElement
 					}
 					vec = vec.Conj(pipefishElement)
@@ -268,11 +268,11 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				pfMap := &values.Map{}
 				for goKey, goEl := range goMap {
 					pfKey := vm.goToPipefish(reflect.ValueOf(goKey))
-					if pfKey.T == values.UNDEFINED_VALUE || pfKey.T == values.ERROR {
+					if pfKey.T == values.UNDEFINED_TYPE || pfKey.T == values.ERROR {
 						return pfKey
 					}
 					pfEl := vm.goToPipefish(reflect.ValueOf(goEl))
-					if pfEl.T == values.UNDEFINED_VALUE || pfEl.T == values.ERROR {
+					if pfEl.T == values.UNDEFINED_TYPE || pfEl.T == values.ERROR {
 						return pfEl
 					}
 					pfMap = pfMap.Set(pfKey, pfEl)
@@ -281,11 +281,11 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			case values.PAIR:
 				goPair := goValue.Convert(reflect.TypeFor[[2]any]()).Interface().([2]any)
 				leftEl := vm.goToPipefish(reflect.ValueOf(goPair[0]))
-				if leftEl.T == values.UNDEFINED_VALUE || leftEl.T == values.ERROR {
+				if leftEl.T == values.UNDEFINED_TYPE || leftEl.T == values.ERROR {
 					return leftEl
 				}
 				rightEl := vm.goToPipefish(reflect.ValueOf(goPair[1]))
-				if rightEl.T == values.UNDEFINED_VALUE || rightEl.T == values.ERROR {
+				if rightEl.T == values.UNDEFINED_TYPE || rightEl.T == values.ERROR {
 					return rightEl
 				}
 				return values.Value{values.ValueType(uint32Type), []values.Value{leftEl, rightEl}}
@@ -294,7 +294,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				goSet := goValue.Convert(reflect.TypeFor[map[any]struct{}]()).Interface().(map[any]struct{})
 				for el := range goSet {
 					pfEl := vm.goToPipefish(reflect.ValueOf(el))
-					if pfEl.T == values.UNDEFINED_VALUE || pfEl.T == values.ERROR {
+					if pfEl.T == values.UNDEFINED_TYPE || pfEl.T == values.ERROR {
 						return pfEl
 					}
 					pfSet = pfSet.Add(pfEl)
@@ -317,7 +317,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		for i := 0; i < goValue.Len(); i++ {
 			goElement := goValue.Index(i)
 			pfElement := vm.goToPipefish(goElement)
-			if pfElement.T == values.UNDEFINED_VALUE || pfElement.T == values.ERROR {
+			if pfElement.T == values.UNDEFINED_TYPE || pfElement.T == values.ERROR {
 				return pfElement
 			}
 			vec = vec.Conj(pfElement)
@@ -328,7 +328,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		for i := 0; i < goValue.Len(); i++ {
 			goElement := goValue.Index(i)
 			pfElement := vm.goToPipefish(goElement)
-			if pfElement.T == values.UNDEFINED_VALUE || pfElement.T == values.ERROR {
+			if pfElement.T == values.UNDEFINED_TYPE || pfElement.T == values.ERROR {
 				return pfElement
 			}
 			pair = append(pair, pfElement)
@@ -342,7 +342,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			for iterator.Next() {
 				goEl := iterator.Key()
 				pfEl := vm.goToPipefish(goEl)
-				if pfEl.T == values.UNDEFINED_VALUE || pfEl.T == values.ERROR {
+				if pfEl.T == values.UNDEFINED_TYPE || pfEl.T == values.ERROR {
 					return pfEl
 				}
 				pfSet = pfSet.Add(pfEl)
@@ -354,12 +354,12 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			for iterator.Next() {
 				goKey := iterator.Key()
 				pfKey := vm.goToPipefish(goKey)
-				if pfKey.T == values.UNDEFINED_VALUE || pfKey.T == values.ERROR {
+				if pfKey.T == values.UNDEFINED_TYPE || pfKey.T == values.ERROR {
 					return pfKey
 				}
 				goEl := iterator.Value()
 				pfEl := vm.goToPipefish(goEl)
-				if pfEl.T == values.UNDEFINED_VALUE || pfEl.T == values.ERROR {
+				if pfEl.T == values.UNDEFINED_TYPE || pfEl.T == values.ERROR {
 					return pfEl
 				}
 				pfMap = pfMap.Set(pfKey, pfEl)
@@ -396,7 +396,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 						pfType = values.MAP
 					}
 				default:
-					return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
+					return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
 				}
 			}
 			sig = append(sig, values.AbstractType{Types: []values.ValueType{pfType}})
@@ -404,7 +404,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		pfLambda := Lambda{gocode: &goValue, sig: sig}
 		return values.Value{values.FUNC, pfLambda}
 	}
-	return values.Value{values.UNDEFINED_VALUE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
+	return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
 }
 
 // Because the above function will be applied recursively, we apply the goTuple type to the values

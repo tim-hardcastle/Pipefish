@@ -25,26 +25,36 @@ type OutHandler interface {
 	Out(outVals []values.Value, vm *Vm)
 }
 
-func MakeStandardIoHandler(out io.Writer) IoHandler {
-	iH := &standardInHandler{}
-	oH := &standardOutHandler{out: out}
+func MakeReadlnIoHandler(out io.Writer) IoHandler {
+	iH := &ReadlnInHandler{}
+	oH := &WriteOutHandler{Output: out}
 	return IoHandler{InHandle: iH, OutHandle: oH}
 }
 
-type standardInHandler struct{}
+type ReadlnInHandler struct{}
 
-func (iH *standardInHandler) Get(prompt string) string {
+func (iH *ReadlnInHandler) Get(prompt string) string {
 	rline := readline.NewInstance()
 	rline.SetPrompt(prompt)
 	line, _ := rline.Readline()
 	return line
 }
 
-type standardOutHandler struct {
-	out io.Writer
+type StandardInHandler struct {
+	in io.Reader
 }
 
-func (oH *standardOutHandler) Out(vals []values.Value, vm *Vm) {
+func (iH *StandardInHandler) Get(prompt string) string {
+	var bytes []byte
+	iH.in.Read(bytes)
+	return string(bytes)
+}
+
+type WriteOutHandler struct {
+	Output io.Writer
+}
+
+func (oH *WriteOutHandler) Out(vals []values.Value, vm *Vm) {
 	var out bytes.Buffer
 
 	elements := []string{}
@@ -53,7 +63,7 @@ func (oH *standardOutHandler) Out(vals []values.Value, vm *Vm) {
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteRune('\n')
-	oH.out.Write(out.Bytes())
+	oH.Output.Write(out.Bytes())
 }
 
 type ConsumingOutHandler struct{}
@@ -63,18 +73,18 @@ func (oH *ConsumingOutHandler) Out(vals []values.Value, vm *Vm) {
 }
 
 func MakeSnapIoHandler(out io.Writer, sn *Snap) IoHandler {
-	iH := &snapInHandler{stdIn: standardInHandler{}, snap: sn}
-	oH := &snapOutHandler{stdOut: standardOutHandler{out: out}, snap: sn}
+	iH := &snapInHandler{stdIn: ReadlnInHandler{}, snap: sn}
+	oH := &snapOutHandler{stdOut: WriteOutHandler{Output: out}, snap: sn}
 	return IoHandler{InHandle: iH, OutHandle: oH}
 }
 
 type snapInHandler struct {
-	stdIn standardInHandler
+	stdIn ReadlnInHandler
 	snap  *Snap
 }
 
 type snapOutHandler struct {
-	stdOut standardOutHandler
+	stdOut WriteOutHandler
 	snap   *Snap
 }
 
@@ -100,13 +110,13 @@ func (oH *snapOutHandler) Out(vals []values.Value, vm *Vm) {
 }
 
 func MakeTestIoHandler(out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) IoHandler {
-	iH := &TestInHandler{out: out, stdIn: standardInHandler{}, scanner: scanner, testOutputType: testOutputType}
-	oH := &TestOutHandler{stdOut: standardOutHandler{out: out}, scanner: scanner, testOutputType: testOutputType}
+	iH := &TestInHandler{out: out, stdIn: ReadlnInHandler{}, scanner: scanner, testOutputType: testOutputType}
+	oH := &TestOutHandler{stdOut: WriteOutHandler{Output: out}, scanner: scanner, testOutputType: testOutputType}
 	return IoHandler{InHandle: iH, OutHandle: oH}
 }
 
 type TestInHandler struct {
-	stdIn          standardInHandler
+	stdIn          ReadlnInHandler
 	out            io.Writer
 	scanner        *bufio.Scanner
 	Fail           bool
@@ -114,7 +124,7 @@ type TestInHandler struct {
 }
 
 type TestOutHandler struct {
-	stdOut         standardOutHandler
+	stdOut         WriteOutHandler
 	scanner        *bufio.Scanner
 	Fail           bool
 	testOutputType TestOutputType
@@ -166,15 +176,15 @@ func (oH *TestOutHandler) Out(vals []values.Value, vm *Vm) {
 		oH.Fail = oH.Fail || getExpected != getGot
 	case SHOW_ALL:
 		if getExpected != getGot {
-			oH.stdOut.out.Write([]byte(text.WAS + getExpected))
-			oH.stdOut.out.Write([]byte("\n" + text.GOT + getGot + "\n"))
+			oH.stdOut.Output.Write([]byte(text.WAS + getExpected))
+			oH.stdOut.Output.Write([]byte("\n" + text.GOT + getGot + "\n"))
 		} else {
-			oH.stdOut.out.Write([]byte(getGot))
+			oH.stdOut.Output.Write([]byte(getGot))
 		}
 	case SHOW_DIFF:
 		if getExpected != getGot {
-			oH.stdOut.out.Write([]byte(text.WAS + getExpected))
-			oH.stdOut.out.Write([]byte("\n" + text.GOT + getGot + "\n"))
+			oH.stdOut.Output.Write([]byte(text.WAS + getExpected))
+			oH.stdOut.Output.Write([]byte("\n" + text.GOT + getGot + "\n"))
 		}
 	}
 }

@@ -19,9 +19,8 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/err"
-	"pipefish/source/initializer"
-	"pipefish/source/lexer"
 	"pipefish/source/parser"
+	"pipefish/source/pf"
 	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
@@ -36,9 +35,8 @@ var (
 
 type Hub struct {
 	hubFilepath            string
-	services               map[string]*service.Service
-	ers                    err.Errors
-	peek                   bool
+	services               map[string]*pf.Service // The services the hub knows about.
+	ers                    err.Errors             // The errors produced by the latest compilation/execution of one of the hub's services.
 	in                     io.Reader
 	out                    io.Writer
 	anonymousServiceNumber int
@@ -46,7 +44,7 @@ type Hub struct {
 	oldServiceName         string // Somewhere to keep the old service name while taking a snap. TODO --- you can now take snaps on their own dedicated hub, saving a good deal of faffing around.
 	Sources                map[string][]string
 	lastRun                []string
-	CurrentForm            *Form
+	CurrentForm            *Form // TODO!!! --- deprecate, you've had IO for a while.
 	Db                     *sql.DB
 	administered           bool
 	listeningToHttp        bool
@@ -56,12 +54,12 @@ type Hub struct {
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
-	
+
 	hub := Hub{
-		services:  make(map[string]*service.Service),
-		in:        in,
-		out:       out,
-		lastRun:   []string{},
+		services: make(map[string]*pf.Service),
+		in:       in,
+		out:      out,
+		lastRun:  []string{},
 	}
 	return &hub
 }
@@ -109,7 +107,8 @@ func (hub *Hub) makeEmptyServiceCurrent() {
 }
 
 func (hub *Hub) getSV(sv string) values.Value {
-	return hub.services["hub"].GetVariable(sv)
+	v, _ := hub.services["hub"].GetVariable(sv)
+	return v
 }
 
 func (hub *Hub) setSV(sv string, ty values.ValueType, v any) {
@@ -193,13 +192,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		serviceToUse = hub.services[""]
 	}
 
-	// If hub peek is turned on, this will show us the wheels going round.
-	if hub.peek {
-		lexer.LexDump(line)
-		lexer.RelexDump(line)
-		serviceToUse.Cp.P.ParseDump(hub.currentServiceName(), line)
-	}
-
 	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
 	// They may be sitting around so the end-user can do 'hub why', but we can get rid of them now.
 	serviceToUse.Cp.P.ResetAfterError()
@@ -249,7 +241,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 	} else {
 		var out string
-		if hub.services["hub"].GetVariable("display").V.(int) == 0 || hub.currentServiceName() == "#snap" {
+		v, _ := hub.services["hub"].GetVariable("display")
+		if v.V.(int) == 0 || hub.currentServiceName() == "#snap" {
 			out = serviceToUse.Cp.Vm.StringifyValue(val, service.LITERAL)
 		} else {
 			out = serviceToUse.Cp.Vm.StringifyValue(val, service.DEFAULT)
@@ -315,8 +308,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" ||
-			verb == "live-on" || verb == "live-off" || verb == "listen" || verb == "peek-on" ||
-			verb == "peek-off" || verb == "run" || verb == "reset" || verb == "rerun" ||
+			verb == "live-on" || verb == "live-off" || verb == "listen" ||
+			verb == "run" || verb == "reset" || verb == "rerun" ||
 			verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test" ||
 			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" ||
 			verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
@@ -344,16 +337,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		hub.WriteString(text.OK + "\n")
-		return false
-	case "api":
-		srv, ok := hub.services[args[0]]
-		if !ok {
-			hub.WriteError("Hub can't find service " + text.Emph(args[0]) + ".")
-			return false
-		}
-		serializationOfApi := srv.SerializeApi()
-		stub := initializer.SerializedAPIToDeclarations(serializationOfApi, service.DUMMY)
-		hub.WriteString(stub + "\n")
 		return false
 	case "config-admin":
 		if !hub.isAdministered() {
@@ -491,15 +474,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteString(result)
 			return false
 		}
-	case "serialize":
-		srv, ok := hub.services[args[0]]
-		if !ok {
-			hub.WriteError("Hub can't find service " + text.Emph(args[0]) + ".")
-			return false
-		}
-		serializationOfApi := srv.SerializeApi()
-		hub.WriteString(serializationOfApi)
-		return false
 	case "services":
 		if hub.isAdministered() {
 			result, err := database.GetServicesOfUser(hub.Db, username, true)
@@ -518,12 +492,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.list()
 			return false
 		}
-	case "peek-on":
-		hub.peek = true
-		return false
-	case "peek-off":
-		hub.peek = false
-		return false
 	case "quit":
 		hub.quit()
 		return true
@@ -672,9 +640,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 				return false
 			} else {
 				hub.setServiceName(args[0])
-				if !hub.services[hub.currentServiceName()].Visited {
-					hub.tryMain()
-				}
 				return false
 			}
 		} else {
@@ -937,15 +902,14 @@ func (hub *Hub) StartAndMakeCurrent(username, serviceName, scriptFilepath string
 
 func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 	if !hub.services[hub.currentServiceName()].IsBroken() {
-		val := hub.services[hub.currentServiceName()].CallMain()
+		val, _ := hub.services[hub.currentServiceName()].CallMain()
 		hub.lastRun = []string{hub.currentServiceName()}
-		hub.services[hub.currentServiceName()].Visited = true
 		switch val.T {
-		case values.ERROR :
+		case values.ERROR:
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName()], val))
 			hub.WriteString("\n")
 			hub.ers = []*err.Error{val.V.(*err.Error)}
-		case values.UNDEFINED_VALUE :           // Which is what we get back if there is no `main` command.
+		case values.UNDEFINED_TYPE: // Which is what we get back if there is no `main` command.
 		default:
 			hub.WriteString(valToString(hub.services[hub.currentServiceName()], val))
 		}
@@ -974,14 +938,14 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 
-	newService := initializer.StartService(scriptFilepath, hub.Db, hub.services)
-	if len(newService.Cp.P.Common.Errors) > 0 {
-		newService.Cp.P.Common.IsBroken = true
-	}
+	newService := pf.NewService()
+	newService.SetDatabase(hub.Db)
+	newService.SetLocalExternalServices(hub.services)
+	newService.InitializeFromFilepath(scriptFilepath)
 	hub.services[name] = newService
 	hub.Sources = newService.Cp.P.Common.Sources
-
 	if newService.Cp.P.ErrorsExist() {
+		newService.Cp.P.Common.IsBroken = true
 		if name == "hub" {
 			fmt.Println("Pipefish: unable to compile hub.")
 		}
@@ -996,22 +960,23 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 func StartServiceFromCli() {
 	filename := os.Args[2]
-	newService := initializer.StartService(filename, nil, make(map[string]*service.Service))
-	if len(newService.Cp.P.Common.Errors) > 0 {
+	newService := pf.NewService()
+	newService.InitializeFromFilepath(filename)
+	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
-		s := err.GetList(newService.Cp.P.Common.Errors)
+		s := err.GetList(newService.GetErrors())
 		fmt.Println(text.Pretty(s, 0, 92))
 		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
 	}
-	val := newService.CallMain()
-	if val.T == values.UNDEFINED_VALUE {
-		s := "\nScript " + text.CYAN + text.Emph(filename) + text.RESET + " has no "  + text.CYAN + text.Emph("main") + text.RESET + " command.\n\n"
+	val, _ := newService.CallMain()
+	if val.T == values.UNDEFINED_TYPE {
+		s := "\nScript " + text.CYAN + text.Emph(filename) + text.RESET + " has no " + text.CYAN + text.Emph("main") + text.RESET + " command.\n\n"
 		fmt.Println(text.Pretty(s, 0, 92))
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
-	fmt.Println(newService.Cp.Vm.Literal(val)+"\n")
+	fmt.Println(newService.Cp.Vm.Literal(val) + "\n")
 	os.Exit(0)
 }
 
@@ -1117,7 +1082,8 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
 	hub.hubFilepath = text.MakeFilepath(hubFilepath)
-	services := hubService.GetVariable("allServices").V.(*values.Map).AsSlice()
+	v, _ := hubService.GetVariable("allServices")
+	services := v.V.(*values.Map).AsSlice()
 
 	var driver, name, host, username, password string
 	var port int
@@ -1294,7 +1260,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	}
 }
 
-func valToString(srv *service.Service, val values.Value) string {
+func valToString(srv *pf.Service, val values.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
 	return srv.Cp.Vm.StringifyValue(val, service.LITERAL)
@@ -1513,6 +1479,6 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 }
 
 // We return the parser because this is where any compile-time errors in lex-parse-compile will end up.
-func ServiceDo(serviceToUse *service.Service, line string) values.Value {
+func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
 	return serviceToUse.Cp.Do(line)
 }

@@ -48,7 +48,7 @@ func NewCommonTypeMap() TypeSys {
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)
 	result["ref"] = values.MakeAbstractType(values.REF)
-	result["self"] = values.MakeAbstractType(values.UNDEFINED_VALUE)
+	result["self"] = values.MakeAbstractType(values.UNDEFINED_TYPE)
 	result["bling"] = values.MakeAbstractType(values.BLING)
 	return result
 }
@@ -56,7 +56,7 @@ func NewCommonTypeMap() TypeSys {
 var BaseTypesOtherThanNull = []string{"int", "float", "bool", "string", "rune", "error", "type", "list", "label",
 	"pair", "set", "map", "func", "struct", "label"}
 
-var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": values.INT, "list": values.LIST,"map": values.MAP, "pair": values.PAIR, "rune": values.RUNE,"set": values.SET, "string": values.STRING,}
+var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": values.INT, "list": values.LIST, "map": values.MAP, "pair": values.PAIR, "rune": values.RUNE, "set": values.SET, "string": values.STRING}
 
 var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
 

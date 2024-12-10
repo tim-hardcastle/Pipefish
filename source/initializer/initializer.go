@@ -87,7 +87,7 @@ func newCompiler(Common *parser.CommonParserBindle, scriptFilepath, sourcecode s
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
 // `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
 // "children" of the intitializer and the parser when new modules are created.
-func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*service.Service) *service.Service {
+func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*service.Compiler, in service.InHandler, out service.OutHandler) *service.Compiler {
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle()
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
@@ -96,9 +96,8 @@ func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*ser
 	//
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
-	cp := iz.InitializeFromFilepath(service.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
+	result := iz.InitializeFromFilepath(service.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
 
-	result := &service.Service{Cp: cp}
 	if iz.ErrorsExist() {
 		return result
 	}
@@ -115,7 +114,7 @@ func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*ser
 		return result
 	}
 	iz.ResolveInterfaceBacktracks()
-	result.Cp.Vm.OwnService = result
+	result.Vm.OwningCompiler = result
 	return result
 }
 
@@ -470,7 +469,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 	iz.p.Common.Errors = err.MergeErrors(iz.p.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.p.Common.Errors)
 }
 
-// Function auxiliary to the above and to `createInterfaceTypes``. This extracts the words from a function definition 
+// Function auxiliary to the above and to `createInterfaceTypes“. This extracts the words from a function definition
 // and decides on their "grammatical" role: are they prefixes, suffixes, bling?
 func (iz *initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) {
 	inParenthesis := false
@@ -585,7 +584,7 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 		newIz.Common = iz.Common
 		iz.initializers[scriptFilepath] = newIz
 		newCp := newIz.InitializeFromFilepath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
-		iz.cp.Services[namespace] = &service.Service{newCp, false}
+		iz.cp.Modules[namespace] = newCp
 		for k, v := range newIz.declarationMap { // See note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
 			iz.declarationMap[k] = v
 		}
@@ -615,12 +614,12 @@ func (iz *initializer) initializeExternals() {
 	for _, declaration := range iz.ParsedDeclarations[externalDeclaration] {
 		name, path := iz.getPartsOfImportOrExternalDeclaration(declaration)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
-			service, ok := iz.cp.Vm.HubServices[name]
+			externalCP, ok := iz.cp.Vm.HubServices[name]
 			if !ok {
 				iz.Throw("init/external/exist/a", declaration.GetToken())
 				continue
 			}
-			iz.addExternalOnSameHub(service.Cp.ScriptFilepath, name)
+			iz.addExternalOnSameHub(externalCP.ScriptFilepath, name)
 			continue
 		}
 		if len(path) >= 5 && path[0:5] == "http:" {
@@ -650,21 +649,22 @@ func (iz *initializer) initializeExternals() {
 		}
 
 		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
-		hubService, ok := iz.cp.Vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
+		hubServiceCp, ok := iz.cp.Vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
-			if hubService.Cp.ScriptFilepath != path {
-				iz.Throw("init/external/exist/b", declaration.GetToken(), hubService.Cp.ScriptFilepath)
+			if hubServiceCp.ScriptFilepath != path {
+				iz.Throw("init/external/exist/b", declaration.GetToken(), hubServiceCp.ScriptFilepath)
 			} else {
 				iz.addExternalOnSameHub(path, name)
 			}
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newService := StartService(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices)
-		if len(newService.Cp.P.Common.Errors) > 0 {
-			newService.Cp.P.Common.IsBroken = true
+		newServiceCp := StartService(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
+			iz.cp.Vm.IoHandle.InHandle, iz.cp.Vm.IoHandle.OutHandle)
+		if len(newServiceCp.P.Common.Errors) > 0 {
+			newServiceCp.P.Common.IsBroken = true
 		}
-		iz.cp.Vm.HubServices[name] = newService
+		iz.cp.Vm.HubServices[name] = newServiceCp
 		iz.addExternalOnSameHub(path, name)
 	}
 }
@@ -693,7 +693,7 @@ func (iz *initializer) addAnyExternalService(handlerForService service.ExternalC
 	newCp := newIz.initializeFromSourcecode(iz.cp.Vm, iz.p.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
-	iz.cp.Services[name] = &service.Service{newCp, false}
+	iz.cp.Modules[name] = newCp
 }
 
 // Now we can start creating the user-defined types.
@@ -1252,69 +1252,7 @@ func (iz *initializer) addStructLabelsToVm(name string, typeNo values.ValueType,
 	iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 }
 
-// Phase 1O (that's an 'o') of compilation. Compiles struct constructors.
-func (iz *initializer) compileConstructors() {
-	// Struct declarations.
-	for i, node := range iz.ParsedDeclarations[structDeclaration] {
-		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
-		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
-	}
-	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
-	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-	for i, name := range iz.Snippets {
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		iz.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
-		iz.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
-	}
-	// Clones
-	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
-		dec.ToStart()
-		nameTok := dec.NextToken()
-		name := nameTok.Literal
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType).Parent].GetName(service.DEFAULT)}}
-		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
-		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
-	}
-}
-
-// Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
-func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes service.AlternateType, private bool, tok *token.Token) uint32 {
-	cpF := &service.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
-	fnenv := service.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
-	cpF.LoReg = iz.cp.MemTop()
-	for _, pair := range sig {
-		iz.cp.AddVariable(fnenv, pair.VarName, service.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), tok)
-	}
-	cpF.HiReg = iz.cp.MemTop()
-	cpF.Private = private
-	iz.cp.Fns = append(iz.cp.Fns, cpF)
-	return uint32(len(iz.cp.Fns) - 1)
-}
-
-// Phase 1P of compilation. We add the abstract types to the VM.
-//
-// The service.Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to
-// be able to describe them.
-func (iz *initializer) addAbstractTypesToVm() {
-	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
-	keys := []string{}
-	for typeName, _ := range iz.p.TypeMap {
-		keys = append(keys, typeName)
-	}
-	for typeName, _ := range iz.p.Common.Types {
-		keys = append(keys, typeName)
-	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	for _, typeName := range keys {
-		iz.AddTypeToVm(values.AbstractTypeInfo{typeName, iz.p.NamespacePath, iz.p.GetAbstractType(typeName), false}) // TODO --- this only happens to be false because you didn't define any.
-	}
-}
-
-// Phase 1Q of compilation. We check thaat if a struct type is public, so are its fields.
+// Phase 1O of compilation. We check thaat if a struct type is public, so are its fields.
 func (iz *initializer) checkTypesForConsistency() {
 	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
 		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsStruct() {
@@ -1346,7 +1284,7 @@ func (iz *initializer) checkTypesForConsistency() {
 	}
 }
 
-// Phase 1R of compilation. We parse the snippet typess, abstract types, clone types, constants, variables,
+// Phase 1P of compilation. We parse the snippet typess, abstract types, clone types, constants, variables,
 // functions, commands.
 func (iz *initializer) parseEverythingElse() {
 	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
@@ -1412,7 +1350,26 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 	}
 }
 
-// Phase 2A of compilation. We make the alternate types from the abstract types, because the compiler
+// Phase 2A of compilation. We add the abstract types to the VM.
+//
+// The service.Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to
+// be able to describe them.
+func (iz *initializer) addAbstractTypesToVm() {
+	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
+	keys := []string{}
+	for typeName, _ := range iz.p.TypeMap {
+		keys = append(keys, typeName)
+	}
+	for typeName, _ := range iz.p.Common.Types {
+		keys = append(keys, typeName)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	for _, typeName := range keys {
+		iz.AddTypeToVm(values.AbstractTypeInfo{typeName, iz.p.NamespacePath, iz.p.GetAbstractType(typeName), false}) // TODO --- this only happens to be false because you didn't define any.
+	}
+}
+
+// Phase 2B of compilation. We make the alternate types from the abstract types, because the compiler
 // is shortly going to need them.
 //
 // OTOH, we want the type information spread across the parsers and shared in the Common parser bindle to
@@ -1431,8 +1388,8 @@ func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
-// Phase 2B of compilation. At this point we have our functions as parsed code chunks in the 
-// `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures 
+// Phase 2C of compilation. At this point we have our functions as parsed code chunks in the
+// `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures
 // and order them according to specificity for the purposes of implementing overloading.
 func (iz *initializer) makeFunctionTable() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
@@ -1471,7 +1428,7 @@ func (iz *initializer) makeFunctionTable() {
 	}
 }
 
-// Function auxiliary to the above. A function is shareable if at least one of its parameters must be of a type 
+// Function auxiliary to the above. A function is shareable if at least one of its parameters must be of a type
 // declared in the same module.
 func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 	for _, pair := range f.NameSig {
@@ -1499,8 +1456,51 @@ func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 	return false
 }
 
-// Phase 2C of compilation, beginning with a call to iz.compileGo, is handled in the `gohandler.go` file in
+// Phase 2D of compilation, beginning with a call to iz.compileGo, is handled in the `gohandler.go` file in
 // this package.
+
+// Phase 2E of compilation. Compiles struct constructors.
+func (iz *initializer) compileConstructors() {
+	// Struct declarations.
+	for i, node := range iz.ParsedDeclarations[structDeclaration] {
+		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
+		typeNo := iz.cp.ConcreteTypeNow(name)
+		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
+		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
+	}
+	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
+	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
+	for i, name := range iz.Snippets {
+		typeNo := iz.cp.ConcreteTypeNow(name)
+		iz.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
+		iz.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
+	}
+	// Clones
+	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
+		dec.ToStart()
+		nameTok := dec.NextToken()
+		name := nameTok.Literal
+		typeNo := iz.cp.ConcreteTypeNow(name)
+		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(service.CloneType).Parent].GetName(service.DEFAULT)}}
+		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
+		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
+	}
+}
+
+// Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
+func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes service.AlternateType, private bool, tok *token.Token) uint32 {
+	cpF := &service.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
+	fnenv := service.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
+	cpF.LoReg = iz.cp.MemTop()
+	for _, pair := range sig {
+		iz.cp.AddVariable(fnenv, pair.VarName, service.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), tok)
+	}
+	cpF.HiReg = iz.cp.MemTop()
+	cpF.Private = private
+	iz.cp.Fns = append(iz.cp.Fns, cpF)
+	return uint32(len(iz.cp.Fns) - 1)
+}
 
 // That concludes phase 2 of compilation.
 //
@@ -1584,7 +1584,7 @@ type funcWithName struct {
 }
 
 // Function auxiliary to the above. Having made the parsers FunctionTable, each function name is associated with a
-// (partially) ordered list of associated functions such that a more specific type signature comes before a less 
+// (partially) ordered list of associated functions such that a more specific type signature comes before a less
 // specific one. We will now re-represent this as a tree.
 func (iz *initializer) MakeFunctionTrees() {
 	iz.p.FunctionForest = map[string]*ast.FunctionTree{}
@@ -1654,31 +1654,6 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 		}
 	}
 	return tree
-}
-
-
-
-
-
-
-
-type labeledParsedCodeChunk struct {
-	chunk     ast.Node
-	decType   declarationType
-	decNumber int
-}
-
-type serviceVariableData struct {
-	ty          service.AlternateType
-	deflt       values.Value
-	mustBeConst bool
-	vAcc        service.VarAccess
-}
-
-var serviceVariables = map[string]serviceVariableData{
-	"$logging":      {altType(), values.Value{}, true, service.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
-	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, service.GLOBAL_VARIABLE_PRIVATE},
-	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, service.GLOBAL_VARIABLE_PRIVATE},
 }
 
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
@@ -1995,7 +1970,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *se
 	}
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := iz.p.ExtractPartsOfFunction(node)
-	iz.cmI("Compiling function '" + functionName + "' with sig " + sig.String() + ".")
+	iz.cp.Cm("Compiling function '" + functionName + "' with sig " + sig.String() + ".", body.GetToken())
 
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
@@ -2015,7 +1990,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *se
 	fnenv.Ext = outerEnv
 	cpF.LoReg = iz.cp.MemTop()
 	for _, pair := range sig {
-		iz.cp.Reserve(values.UNDEFINED_VALUE, DUMMY, node.GetToken())
+		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
 		if pair.VarType == "ref" {
 			iz.cp.AddVariable(fnenv, pair.VarName, service.REFERENCE_VARIABLE, iz.cp.Vm.AnyTypeScheme, node.GetToken())
 			continue
@@ -2283,6 +2258,12 @@ type fnSource struct {
 	decNumber int
 }
 
+type labeledParsedCodeChunk struct {
+	chunk     ast.Node
+	decType   declarationType
+	decNumber int
+}
+
 func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
 	line.Private = private
 	iz.TokenizedDeclarations[decType] = append(iz.TokenizedDeclarations[decType], line)
@@ -2326,6 +2307,20 @@ type interfaceInfo struct {
 	sigs []fnSigInfo
 }
 
+// TYpe and data for setting up service variables.
+type serviceVariableData struct {
+	ty          service.AlternateType
+	deflt       values.Value
+	mustBeConst bool
+	vAcc        service.VarAccess
+}
+
+var serviceVariables = map[string]serviceVariableData{
+	"$logging":      {altType(), values.Value{}, true, service.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
+	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, service.GLOBAL_VARIABLE_PRIVATE},
+	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, service.GLOBAL_VARIABLE_PRIVATE},
+}
+
 // The maximum value of a `uint32`. Used as a dummy/sentinel value when `0` is not appropriate.
 const DUMMY = 4294967295
 
@@ -2337,8 +2332,8 @@ func val(T values.ValueType, V any) values.Value {
 // Function for commenting on what the initializer is doing. Only mentions the largest steps, hence
 // the lack of a Token parameter in its sig. For more detail, turn on the SHOW_COMPILER flag.
 func (iz *initializer) cmI(s string) {
-	if settings.SHOW_VMM {
-		println(text.UNDERLINE + s + text.RESET)
+	if settings.SHOW_INITIALIZER {
+		println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")
 	}
 }
 

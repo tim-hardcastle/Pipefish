@@ -12,9 +12,6 @@ def
 add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
 
-api(namespace string) :
-    HubResponse("api", [namespace])
-
 config admin :
     HubResponse("config-admin", [])
 
@@ -72,12 +69,6 @@ log on :
 log off :
     HubResponse("log-off", [])
 
-peek on :
-    HubResponse("peek-on", [])
-
-peek off :
-    HubResponse("peek-off", [])
-
 quit :
     HubResponse("quit", [])
 
@@ -101,9 +92,6 @@ run(filename string) :
 
 run(filename string) as (srv string) :
     HubResponse("run", [filename, srv])
-
-serialize(namespace string) :
-    HubResponse("serialize", [namespace])
 
 services :
     HubResponse("services", [])

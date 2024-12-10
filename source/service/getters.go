@@ -20,7 +20,7 @@ func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
 func (cp *Compiler) GetConcreteType(name string) (values.ValueType, bool) {
 	abstractType, ok := cp.getAbstractType(name)
 	if !ok || abstractType.Len() != 1 {
-		return values.UNDEFINED_VALUE, false
+		return values.UNDEFINED_TYPE, false
 	}
 	return abstractType.Types[0], true
 }
@@ -105,10 +105,10 @@ func (cp *Compiler) alternateTypeIsOnlyStruct(aT AlternateType) (values.ValueTyp
 				return values.ValueType(el), true
 			}
 		default:
-			return values.UNDEFINED_VALUE, false
+			return values.UNDEFINED_TYPE, false
 		}
 	}
-	return values.UNDEFINED_VALUE, false
+	return values.UNDEFINED_TYPE, false
 }
 
 func (cp *Compiler) alternateTypeIsOnlyAssortedStructs(aT AlternateType) bool {

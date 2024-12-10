@@ -41,8 +41,8 @@ type Vm struct {
 	IoHandle                   IoHandler
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
-	OwnService                 *Service              // The service that owns the vm. Much of the useful metadata will be in the compiler attached to the service.
-	HubServices                map[string]*Service   // The same map that the hub has.
+	OwningCompiler             *Compiler             // The compiler at the root of the dependency tree.
+	HubServices                map[string]*Compiler  // Like the map that the hub has, but with the exposed compilers rather than wrapped in a Service.
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	Stringify                  *CpFunc
@@ -140,9 +140,9 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label"}
 
-func BlankVm(db *sql.DB, hubServices map[string]*Service) *Vm {
-	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServices,
-		logging: true, IoHandle: MakeStandardIoHandler(os.Stdout),
+func BlankVm(db *sql.DB, hubServiceCompilers map[string]*Compiler) *Vm {
+	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServiceCompilers,
+		logging: true, IoHandle: MakeReadlnIoHandler(os.Stdout),
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 		SharedTypenameToTypeList: map[string]AlternateType{
 			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
@@ -1503,14 +1503,14 @@ loop:
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/e", args[3], vm.DefaultDescription(key), vm.DescribeType(typ, LITERAL))
 					break Switch
 				}
-				if outVals[keyNumber].T != values.UNDEFINED_VALUE {
+				if outVals[keyNumber].T != values.UNDEFINED_TYPE {
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/f", args[3], vm.DefaultDescription(key))
 					break Switch
 				}
 				outVals[keyNumber] = val
 			}
 			for i, v := range outVals {
-				if v.T == values.UNDEFINED_VALUE {
+				if v.T == values.UNDEFINED_TYPE {
 					if vm.ConcreteTypeInfo[typ].(StructType).AbstractStructFields[i].Contains(values.NULL) {
 						outVals[i] = values.Value{values.NULL, nil}
 						break Switch

@@ -30,27 +30,27 @@ var ALL_CONSTANT_ACCESS = dtypes.MakeFromSlice([]VarAccess{GLOBAL_CONSTANT_PUBLI
 var ALL_PRIVATE_ACCESS = dtypes.MakeFromSlice([]VarAccess{GLOBAL_CONSTANT_PRIVATE, GLOBAL_VARIABLE_PRIVATE})
 
 type variable struct {
-	mLoc   uint32
+	MLoc   uint32
 	access VarAccess
 	types  AlternateType
 }
 
 type Environment struct {
-	data map[string]variable
+	Data map[string]variable
 	Ext  *Environment
 }
 
 func NewEnvironment() *Environment {
-	return &Environment{data: make(map[string]variable), Ext: nil}
+	return &Environment{Data: make(map[string]variable), Ext: nil}
 }
 
-func (env *Environment) getVar(name string) (*variable, bool) {
+func (env *Environment) GetVar(name string) (*variable, bool) {
 	if env == nil {
 		return nil, false
 	}
-	v, ok := env.data[name]
+	v, ok := env.Data[name]
 	if ok {
 		return &v, true
 	}
-	return env.Ext.getVar(name)
+	return env.Ext.GetVar(name)
 }
