@@ -19,7 +19,6 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/pf"
-	"pipefish/source/text"
 	"pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
@@ -156,7 +155,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
 			os.Chdir(hubWords[2])    // process, if we did it with exec it would do it for
-			hub.WriteString(text.OK) // that process and not for Pipefish.
+			hub.WriteString(GREEN_OK) // that process and not for Pipefish.
 			return passedServiceName, false
 		}
 		command := exec.Command(hubWords[1], hubWords[2:]...)
@@ -166,7 +165,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			return passedServiceName, false
 		}
 		if len(out) == 0 {
-			hub.WriteString(text.OK)
+			hub.WriteString(GREEN_OK)
 			return passedServiceName, false
 		}
 		hub.WriteString(string(out))
@@ -264,7 +263,7 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		if hub.getSV("display").V.(int) == 0 {
 			hub.WriteString("OK" + "\n")
 		} else {
-			hub.WriteString(text.OK + "\n")
+			hub.WriteString(GREEN_OK + "\n")
 		}
 		return "OK", nil
 	}
@@ -319,7 +318,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("d/ " + err.Error())
 			return false
 		}
-		hub.WriteString(text.OK + "\n")
+		hub.WriteString(GREEN_OK + "\n")
 		return false
 	case "config-admin":
 		if !hub.isAdministered() {
@@ -343,7 +342,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("f/" + err.Error())
 			return false
 		}
-		hub.WriteString(text.OK + "\n")
+		hub.WriteString(GREEN_OK + "\n")
 		return false
 	case "edit":
 		command := exec.Command("vim", args[0])
@@ -355,11 +354,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		return false
 	case "errors":
-		if len(hub.ers) == 0 {
-			hub.WritePretty("There are no recent errors.")
-			return false
-		}
-		hub.WritePretty(hub.listErrors())
+		r, _ := hub.services[hub.currentServiceName()].GetErrorReport()
+		hub.WritePretty(r)
 		return false
 	case "groups-of-user":
 		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
@@ -391,7 +387,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 		delete(hub.services, name)
-		hub.WriteString(text.OK + "\n")
+		hub.WriteString(GREEN_OK + "\n")
 		if name == hub.currentServiceName() {
 			hub.makeEmptyServiceCurrent()
 		}
@@ -420,10 +416,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("j/ " + err.Error())
 			return false
 		}
-		hub.WriteString(text.OK + "\n")
+		hub.WriteString(GREEN_OK + "\n")
 		return false
 	case "listen":
-		hub.WriteString(text.OK)
+		hub.WriteString(GREEN_OK)
 		hub.WriteString("\nHub is listening.\n\n")
 		hub.StartHttp("/"+args[0], args[1])
 		return false
@@ -445,7 +441,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.Username = ""
 		hub.Password = ""
 		hub.makeEmptyServiceCurrent()
-		hub.WriteString("\n" + text.OK + "\n")
+		hub.WriteString("\n" + GREEN_OK + "\n")
 		hub.WritePretty("\nThis is an administered hub and you aren't logged on. Please enter either " +
 			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 			"with this hub.\n\n")
@@ -607,13 +603,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		hub.WriteString(text.OK + "\n")
+		hub.WriteString(GREEN_OK + "\n")
 		hub.setServiceName(hub.oldServiceName)
 		return false
 	case "switch":
 		_, ok := hub.services[args[0]]
 		if ok {
-			hub.WriteString(text.OK + "\n")
+			hub.WriteString(GREEN_OK + "\n")
 			if hub.administered {
 				access, err := database.DoesUserHaveAccess(hub.Db, username, args[0])
 				if err != nil {
@@ -673,11 +669,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("not a runtime error.")
 			return false
 		}
-		hub.WritePretty(text.RT_ERROR + hub.ers[0].Message + "\n\n") // If it is a runtime error, then there is only one of them.
-		for i := len(hub.ers[0].Trace) - 1; i >= 0; i-- {
-			hub.WritePretty("  From: " + text.DescribeTok(hub.ers[0].Trace[i]) + text.DescribePos(hub.ers[0].Trace[i]) + ".")
-		}
-		hub.WriteString("\n")
+		hub.WritePretty(pf.GetTraceReport(hub.ers[0]))
 		return false
 
 	case "users-of-group":
@@ -716,9 +708,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		for _, v := range hub.ers[0].Values {
 			if v.T == values.BLING {
-				hub.WritePretty(text.BULLET_SPACING + hub.services[hub.currentServiceName()].Literal(v))
+				hub.WritePretty(BULLET_SPACING + hub.services[hub.currentServiceName()].Literal(v))
 			} else {
-				hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName()].Literal(v))
+				hub.WritePretty(BULLET + hub.services[hub.currentServiceName()].Literal(v))
 			}
 		}
 		hub.WriteString("\n")
@@ -737,7 +729,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("there aren't that many errors.")
 			return false
 		}
-		hub.WritePretty("\nFound" + text.DescribePos(hub.ers[num].Token) + ":\n")
 		println()
 		line := hub.Sources[hub.ers[num].Token.Source][hub.ers[num].Token.Line-1] + "\n"
 		startUnderline := hub.ers[num].Token.ChStart
@@ -747,10 +738,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		endUnderline := startUnderline + lenUnderline
 		hub.WriteString(line[0:startUnderline])
-		hub.WriteString(text.Red(line[startUnderline:endUnderline]))
+		hub.WriteString(Red(line[startUnderline:endUnderline]))
 		hub.WriteString(line[endUnderline:])
 		hub.WriteString(strings.Repeat(" ", startUnderline))
-		hub.WriteString(text.Red(strings.Repeat("▔", lenUnderline)))
+		hub.WriteString(Red(strings.Repeat("▔", lenUnderline)))
 		return false
 	case "why":
 		num, e := strconv.Atoi(args[0])
@@ -782,7 +773,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
 	dname := filepath.Dir(scriptFilepath)
 	directoryName := dname + "/-tests/" + fname
-	name := text.FlattenedFilename(scriptFilepath) + "_"
+	name := FlattenedFilename(scriptFilepath) + "_"
 
 	tryNumber := 1
 	tryName := ""
@@ -799,7 +790,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 
 func (hub *Hub) quit() {
 	hub.saveHubFile()
-	hub.WriteString(text.OK + "\n" + text.Logo() + "Thank you for using Pipefish. Have a nice day!\n\n")
+	hub.WriteString(GREEN_OK + "\n" + Logo() + "Thank you for using Pipefish. Have a nice day!\n\n")
 }
 
 func (hub *Hub) help() {
@@ -807,17 +798,17 @@ func (hub *Hub) help() {
 	hub.WriteString("Help topics are:\n")
 	hub.WriteString("\n")
 	for _, v := range helpTopics {
-		hub.WriteString("  " + text.BULLET + v + "\n")
+		hub.WriteString("  " + BULLET + v + "\n")
 	}
 	hub.WriteString("\n")
 }
 
 func (hub *Hub) WritePretty(s string) {
 	if errorsExist, _ := hub.services["hub"].ErrorsExist(); errorsExist {
-		hub.WriteString(text.Pretty(s, 0, 92))
+		hub.WriteString(pf.PrettyString(s, 0, 92))
 		return
 	}
-	hub.WriteString(text.Pretty(s, 0, hub.getSV("width").V.(int)))
+	hub.WriteString(pf.PrettyString(s, 0, hub.getSV("width").V.(int)))
 }
 
 func (hub *Hub) isAdministered() bool {
@@ -838,7 +829,14 @@ var helpStrings = map[string]string{}
 
 var helpTopics = []string{}
 
+
+// This is replicated in the settings file and any changes made here must be reflected there.
+var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
+
 func init() {
+	for _, v := range []string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"} {
+		StandardLibraries[v] = struct{}{}
+	}
 	cwd, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	file, err := os.Open(cwd + "/rsc/text/helpfile.txt")
 	if err != nil {
@@ -868,7 +866,7 @@ func init() {
 	helpStringForHelp := "\nYou can get help on a subject by typing 'hub help \"<topic name>\"' into the REPL.\n\n" +
 		"Help topics are: \n\n"
 	for _, v := range helpTopics {
-		helpStringForHelp = helpStringForHelp + text.BULLET + "\"" + v + "\"\n"
+		helpStringForHelp = helpStringForHelp + BULLET + "\"" + v + "\"\n"
 	}
 	helpStrings["topics"] = helpStringForHelp
 }
@@ -955,16 +953,16 @@ func StartServiceFromCli() {
 	newService := pf.NewService()
 	newService.InitializeFromFilepath(filename)
 	if newService.IsBroken() {
-		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
+		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
 		s, _ := newService.GetErrorReport()
-		fmt.Println(text.Pretty(s, 0, 92))
+		fmt.Println(pf.PrettyString(s, 0, 92))
 		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
 	}
 	val, _ := newService.CallMain()
 	if val.T == values.UNDEFINED_TYPE {
-		s := "\nScript " + text.CYAN + text.Emph(filename) + text.RESET + " has no " + text.CYAN + text.Emph("main") + text.RESET + " command.\n\n"
-		fmt.Println(text.Pretty(s, 0, 92))
+		s := "\nScript " + Cyan("'" + filename) + " has no " + Cyan("'main'") + " command.\n\n"
+		fmt.Println(pf.PrettyString(s, 0, 92))
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
@@ -1060,22 +1058,22 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString(")\n")
 	}
 
-	fname := text.MakeFilepath(hub.hubFilepath)
+	fname := hub.MakeFilepath(hub.hubFilepath)
 
 	f, err := os.Create(fname)
 	if err != nil {
-		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
+		return HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
 	defer f.Close()
 	f.WriteString(buf.String())
-	return text.OK
+	return GREEN_OK
 
 }
 
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
-	hub.hubFilepath = text.MakeFilepath(hubFilepath)
+	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
 	v, _ := hubService.GetVariable("allServices")
 	services := v.V.(*values.Map).AsSlice()
 
@@ -1108,10 +1106,10 @@ func (hub *Hub) list() {
 		}
 		fpath, _ := hub.services[k].Filepath()
 		if hub.services[k].IsBroken() {
-			hub.WriteString(text.BROKEN)
+			hub.WriteString(BROKEN)
 			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")
 		} else {
-			hub.WriteString(text.GOOD_BULLET)
+			hub.WriteString(GOOD_BULLET)
 			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")
 		}
 	}
@@ -1156,7 +1154,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	}
 	scanner.Scan()
 	if !hub.StartAndMakeCurrent("", "#test", scriptFilepath) {
-		hub.WriteError("Can't initialize script " + text.Emph(scriptFilepath))
+		hub.WriteError("Can't initialize script '" + scriptFilepath + "'")
 		return
 	}
 	in, out := MakeTestIoHandler(hub.out, scanner, testOutputType)
@@ -1186,10 +1184,10 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 		if valToString(testService, result) != lineOut {
 			executionMatchesTest = false
 			if testOutputType == SHOW_DIFF {
-				hub.WriteString("-> " + lineIn + "\n" + text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
+				hub.WriteString("-> " + lineIn + "\n" + WAS + lineOut + "\n" + GOT + valToString(testService, result) + "\n")
 			}
 			if testOutputType == SHOW_ALL {
-				hub.WriteString(text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
+				hub.WriteString(WAS + lineOut + "\n" + GOT + valToString(testService, result) + "\n")
 			}
 		} else {
 			if testOutputType == SHOW_ALL {
@@ -1210,7 +1208,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 			hub.RunTest(scriptFilepath, testFilepath, SHOW_ALL)
 			return
 		}
-		hub.WriteString(text.TEST_PASSED)
+		hub.WriteString(TEST_PASSED)
 	}
 	f.Close()
 }
@@ -1250,7 +1248,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 		if valToString(testService, result) == lineOut || !diffOn {
 			hub.WriteString(valToString(testService, result) + "\n")
 		} else {
-			hub.WriteString(text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
+			hub.WriteString(WAS + lineOut + "\n" + GOT + valToString(testService, result) + "\n")
 		}
 	}
 }
@@ -1406,7 +1404,7 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 		h.WriteError("H/ " + err.Error())
 		return
 	}
-	h.WriteString(text.OK + "\n")
+	h.WriteString(GREEN_OK + "\n")
 	h.Username = f.Result["Username"]
 	h.Password = f.Result["*Password"]
 	h.WritePretty("You are logged in as '" + h.Username + "'.\n")
@@ -1435,7 +1433,7 @@ func (h *Hub) handleLoginForm(f *Form) {
 	}
 	h.Username = f.Result["Username"]
 	h.Password = f.Result["*Password"]
-	h.WriteString(text.OK + "\n")
+	h.WriteString(GREEN_OK + "\n")
 }
 
 func (h *Hub) configDb() {
@@ -1465,7 +1463,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 		h.WriteError("hub/db/config/c: " + err.Error())
 		return
 	}
-	h.WriteString(text.OK + "\n")
+	h.WriteString(GREEN_OK + "\n")
 }
 
 func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
@@ -1473,14 +1471,77 @@ func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
 	return v
 }
 
-func (hub *Hub) listErrors() string {
-	result := "\n"
-	for i, v := range hub.ers {
-		result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"
-	}
-	return result + "\n"
-}
-
 var (
 	MARGIN = 92
+	GREEN_OK = ("\033[32mOK\033[0m")
+	WAS         = Green("was") + ": "
+	GOT         = Red("got") + ": "
+	TEST_PASSED = Green("Test passed!") + "\n"
+	VERSION        = "0.5.9"
+	BULLET         = "  ▪ "
+	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
+	GOOD_BULLET    = Green("  ▪ ")
+	BROKEN         = Red("  ✖ ")
+	PROMPT         = "→ "
+	ERROR     = "$Error$"
+	RT_ERROR  = "$Error$"
+	HUB_ERROR = "$Hub error$"
 )
+
+const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
+	"                <command> [args]\n\n" +
+	"Commands are:\n\n" +
+	"  tui           Starts the Pipfish TUI (text user interface).\n" +
+	"  run <file>    Runs a Pipefish script if it has a 'main' command.\n\n"
+
+func Red(s string) string {
+	return "\033[31m" + s + "\033[0m"
+}
+
+func Green(s string) string {
+	return "\033[32m" + s + "\033[0m"
+}
+
+func Cyan(s string) string {
+	return "\033[36m" + s + "\033[0m"
+}
+
+func Logo() string {
+	var padding string
+	if len(VERSION)%2 == 1 {
+		padding = ","
+	}
+	titleText := " Pipefish" + padding + " version " + VERSION + " "
+	loveHeart := Red("♥")
+	leftMargin := "  "
+	bar := strings.Repeat("═", len(titleText)/2)
+	logoString := "\n" +
+		leftMargin + "╔" + bar + loveHeart + bar + "╗\n" +
+		leftMargin + "║" + titleText + "║\n" +
+		leftMargin + "╚" + bar + loveHeart + bar + "╝\n\n"
+	return logoString
+}
+
+func FlattenedFilename(s string) string {
+	base := filepath.Base(s)
+	withoutSuffix := strings.TrimSuffix(base, filepath.Ext(base))
+	flattened := strings.Replace(withoutSuffix, ".", "_", -1)
+	return flattened
+}
+
+func (h *Hub) MakeFilepath(scriptFilepath string) string {
+	doctoredFilepath := strings.Clone(scriptFilepath)
+	if len(scriptFilepath) >= 4 && scriptFilepath[0:4] == "hub/" {
+		doctoredFilepath = filepath.Join(h.pipefishHomeDirectory, filepath.FromSlash(scriptFilepath))
+	}
+	if len(scriptFilepath) >= 7 && scriptFilepath[0:7] == "rsc-pf/" {
+		doctoredFilepath = filepath.Join(h.pipefishHomeDirectory, "source", "initializer", filepath.FromSlash(scriptFilepath))
+	}
+	if _, ok := StandardLibraries[scriptFilepath]; ok {
+		doctoredFilepath = h.pipefishHomeDirectory + "lib/" + scriptFilepath
+	}
+	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" && len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] != ".hub" {
+		doctoredFilepath = doctoredFilepath + ".pf"
+	}
+	return doctoredFilepath
+}

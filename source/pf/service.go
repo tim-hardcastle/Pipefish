@@ -10,6 +10,7 @@ import (
 	"pipefish/source/initializer"
 	"pipefish/source/service"
 	"pipefish/source/settings"
+	"pipefish/source/text"
 	"pipefish/source/values"
 )
 
@@ -186,6 +187,14 @@ func (sv *Service) GetErrorReport() (string, error) {
 	return sv.cp.P.ReturnErrors(), nil
 }
 
+func GetTraceReport(e *err.Error) (string) {
+    result := text.RT_ERROR + e.Message + "\n\n" 
+		for i := len(e.Trace) - 1; i >= 0; i-- {
+			result = result + "  From: " + text.DescribeTok(e.Trace[i]) + text.DescribePos(e.Trace[i]) + "."
+		}
+	return result + "\n"
+}
+
 func ExplainError(es []*Error, i int) (string, error) {
 	if i >= len(es) {
 		return "", errors.New("index too big for list")
@@ -248,4 +257,8 @@ func (sv *Service) GetTracking() (string, error) {
 		return "", errors.New("service is broken")
 	}
 	return sv.cp.Vm.TrackingToString(), nil
+}
+
+func PrettyString(s string, left, right int) string {
+	return text.Pretty(s, left, right)
 }

@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 
 	"pipefish/source/hub"
-	"pipefish/source/text"
 )
 
 func main() {
@@ -34,20 +33,20 @@ func main() {
 			showhelp()
 			return
 		case "-v", "--version", "version":
-			os.Stdout.WriteString("\nPipefish version " + text.VERSION + ".\n\n")
+			os.Stdout.WriteString("\nPipefish version " + hub.VERSION + ".\n\n")
 			return
 		case "-r", "--run", "run":
 			hub.StartServiceFromCli()
 		case "-t", "--tui", "tui": // Left blank to avoid the default.
 		default:
-			os.Stdout.WriteString("\nPipefish doesn't recognize the command " + text.Emph(os.Args[1]) + ".\n")
+			os.Stdout.WriteString("\nPipefish doesn't recognize the command '" + os.Args[1] + "'.\n")
 			println()
 			showhelp()
 			os.Exit(1)
 		}
 	}
 
-	fmt.Print(text.Logo())
+	fmt.Print(hub.Logo())
 
 	h := hub.New(os.Stdin, os.Stdout)
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -64,5 +63,5 @@ func main() {
 }
 
 func showhelp() {
-	os.Stdout.WriteString(text.HELP)
+	os.Stdout.WriteString(hub.HELP)
 }

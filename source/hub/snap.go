@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"pipefish/source/pf"
-	"pipefish/source/text"
 	"pipefish/source/values"
 )
 
@@ -60,18 +59,18 @@ func (sn *Snap) Save(st string) string {
 	directoryName := dname + "/-tests/" + fname
 	err := os.MkdirAll(directoryName, 0777)
 	if err != nil {
-		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
+		return HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
 	testFilepath := directoryName + "/" + sn.testFilename
 	f, err := os.Create(testFilepath)
 	if err != nil {
-		return text.HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
+		return HUB_ERROR + "os reports \"" + strings.TrimSpace(err.Error()) + "\".\n"
 	}
 	defer f.Close()
 
 	f.WriteString(snapOutput)
 
-	return "Created test as file " + text.Emph(testFilepath) + "."
+	return "Created test as file " + Cyan("'"+testFilepath+"'") + "."
 }
 
 
@@ -152,15 +151,15 @@ func (iH *TestInHandler) Get(prompt string) string {
 		iH.Fail = iH.Fail || expectedPrompt != gotPrompt
 	case SHOW_ALL:
 		if expectedPrompt != gotPrompt {
-			iH.out.Write([]byte(text.WAS + expectedPrompt))
-			iH.out.Write([]byte("\n" + text.GOT + gotPrompt + "\n"))
+			iH.out.Write([]byte(WAS + expectedPrompt))
+			iH.out.Write([]byte("\n" + GOT + gotPrompt + "\n"))
 		} else {
 			iH.out.Write([]byte(gotPrompt + "\n"))
 		}
 	case SHOW_DIFF:
 		if expectedPrompt != gotPrompt {
-			iH.out.Write([]byte(text.WAS + expectedPrompt))
-			iH.out.Write([]byte("\n" + text.GOT + gotPrompt + "\n"))
+			iH.out.Write([]byte(WAS + expectedPrompt))
+			iH.out.Write([]byte("\n" + GOT + gotPrompt + "\n"))
 		}
 	}
 	iH.scanner.Scan()
@@ -188,15 +187,15 @@ func (oH *TestOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
 		oH.Fail = oH.Fail || getExpected != getGot
 	case SHOW_ALL:
 		if getExpected != getGot {
-			oH.Write(text.WAS + getExpected)
-			oH.Write("\n" + text.GOT + getGot + "\n")
+			oH.Write(WAS + getExpected)
+			oH.Write("\n" + GOT + getGot + "\n")
 		} else {
 			oH.Write(getGot)
 		}
 	case SHOW_DIFF:
 		if getExpected != getGot {
-			oH.Write(text.WAS + getExpected)
-			oH.Write("\n" + text.GOT + getGot + "\n")
+			oH.Write(WAS + getExpected)
+			oH.Write("\n" + GOT + getGot + "\n")
 		}
 	}
 }

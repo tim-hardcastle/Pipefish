@@ -1,8 +1,6 @@
 package hub
 
 import (
-	"pipefish/source/text"
-
 	"io"
 	"strings"
 
@@ -61,11 +59,11 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 
 func makePrompt(hub *Hub) string {
 	if hub.currentServiceName() == "" {
-		return text.PROMPT
+		return PROMPT
 	}
-	promptText := hub.currentServiceName() + " " + text.PROMPT
+	promptText := hub.currentServiceName() + " " + PROMPT
 	if hub.CurrentServiceIsBroken() {
-		promptText = text.Red(promptText)
+		promptText = Red(promptText)
 	}
 	return promptText
 }
