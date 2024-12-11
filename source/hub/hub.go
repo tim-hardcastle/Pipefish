@@ -19,7 +19,6 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/pf"
-	"pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
 )
@@ -60,7 +59,7 @@ func New(in io.Reader, out io.Writer) *Hub {
 
 func (hub *Hub) currentServiceName() string {
 	cs := hub.getSV("currentService")
-	if cs.T == values.NULL {
+	if cs.T == pf.NULL {
 		return ""
 	} else {
 		return cs.V.(string)
@@ -68,11 +67,11 @@ func (hub *Hub) currentServiceName() string {
 }
 
 func (hub *Hub) hasDatabase() bool {
-	return hub.getSV("database").T != values.NULL
+	return hub.getSV("database").T != pf.NULL
 }
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
-	dbStruct := hub.getSV("database").V.([]values.Value)
+	dbStruct := hub.getSV("database").V.([]pf.Value)
 	driver := hub.services["hub"].Literal(dbStruct[0])
 	return driver, dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
 }
@@ -81,7 +80,7 @@ func (hub *Hub) setDB(driver, name, path string, port int, username, password st
 	hubService := hub.services["hub"]
 	driverAsEnumValue, _ := hubService.Do(driver)
 	structType, _ := hubService.TypeNameToType("Database")
-	hub.setSV("database", structType, []values.Value{driverAsEnumValue, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
+	hub.setSV("database", structType, []pf.Value{driverAsEnumValue, {pf.STRING, name}, {pf.STRING, path}, {pf.INT, port}, {pf.STRING, username}, {pf.STRING, password}})
 }
 
 func (hub *Hub) isLive() bool {
@@ -89,23 +88,23 @@ func (hub *Hub) isLive() bool {
 }
 
 func (hub *Hub) setLive(b bool) {
-	hub.setSV("isLive", values.BOOL, b)
+	hub.setSV("isLive", pf.BOOL, b)
 }
 
 func (hub *Hub) setServiceName(name string) {
-	hub.setSV("currentService", values.STRING, name)
+	hub.setSV("currentService", pf.STRING, name)
 }
 
 func (hub *Hub) makeEmptyServiceCurrent() {
-	hub.setSV("currentService", values.NULL, nil)
+	hub.setSV("currentService", pf.NULL, nil)
 }
 
-func (hub *Hub) getSV(sv string) values.Value {
+func (hub *Hub) getSV(sv string) pf.Value {
 	v, _ := hub.services["hub"].GetVariable(sv)
 	return v
 }
 
-func (hub *Hub) setSV(sv string, ty values.ValueType, v any) {
+func (hub *Hub) setSV(sv string, ty pf.Type, v any) {
 	hub.services["hub"].SetVariable(sv, ty, v)
 }
 
@@ -214,7 +213,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
-	if val.T == values.ERROR {
+	if val.T == pf.ERROR {
 		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
 		hub.ers = []*pf.Error{val.V.(*pf.Error)}
@@ -244,22 +243,22 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		hub.GetAndReportErrors(hubService)
 		return "error", []string{}
 	}
-	if hubReturn.T == values.ERROR {
+	if hubReturn.T == pf.ERROR {
 		hub.WriteError(hubReturn.V.(*pf.Error).Message)
 		return "error", []string{hubReturn.V.(*pf.Error).Message}
 	}
 	hrType, _ := hubService.TypeNameToType("HubResponse")
 	if hubReturn.T == hrType {
-		hR := hubReturn.V.([]values.Value)
+		hR := hubReturn.V.([]pf.Value)
 		verb := hR[0].V.(string)
 		args := []string{}
 		for i := 0; i < hR[1].V.(vector.Vector).Len(); i++ {
 			el, _ := hR[1].V.(vector.Vector).Index(i)
-			args = append(args, el.(values.Value).V.(string))
+			args = append(args, el.(pf.Value).V.(string))
 		}
 		return verb, args
 	}
-	if hubReturn.T == values.SUCCESSFUL_VALUE {
+	if hubReturn.T == pf.OK {
 		if hub.getSV("display").V.(int) == 0 {
 			hub.WriteString("OK" + "\n")
 		} else {
@@ -707,7 +706,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteString("\nValues passed were:\n\n")
 		}
 		for _, v := range hub.ers[0].Values {
-			if v.T == values.BLING {
+			if v.T == pf.BLING {
 				hub.WritePretty(BULLET_SPACING + hub.services[hub.currentServiceName()].Literal(v))
 			} else {
 				hub.WritePretty(BULLET + hub.services[hub.currentServiceName()].Literal(v))
@@ -896,11 +895,11 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 		val, _ := hub.services[hub.currentServiceName()].CallMain()
 		hub.lastRun = []string{hub.currentServiceName()}
 		switch val.T {
-		case values.ERROR:
+		case pf.ERROR:
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName()], val))
 			hub.WriteString("\n")
 			hub.ers = []*pf.Error{val.V.(*pf.Error)}
-		case values.UNDEFINED_TYPE: // Which is what we get back if there is no `main` command.
+		case pf.UNDEFINED_TYPE: // Which is what we get back if there is no `main` command.
 		default:
 			hub.WriteString(valToString(hub.services[hub.currentServiceName()], val))
 		}
@@ -960,7 +959,7 @@ func StartServiceFromCli() {
 		os.Exit(3)
 	}
 	val, _ := newService.CallMain()
-	if val.T == values.UNDEFINED_TYPE {
+	if val.T == pf.UNDEFINED_TYPE {
 		s := "\nScript " + Cyan("'" + filename) + " has no " + Cyan("'main'") + " command.\n\n"
 		fmt.Println(pf.PrettyString(s, 0, 92))
 		fmt.Print("\n\nClosing Pipefish.\n\n")
@@ -1034,10 +1033,10 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString("\n\n")
 	buf.WriteString("database Database? = ")
 	dbVal := hub.getSV("database")
-	if dbVal.T == values.NULL {
+	if dbVal.T == pf.NULL {
 		buf.WriteString("NULL\n")
 	} else {
-		args := dbVal.V.([]values.Value)
+		args := dbVal.V.([]pf.Value)
 		buf.WriteString("Database with (driver::")
 		buf.WriteString(hubService.Literal(args[0]))
 		buf.WriteString(",\n")
@@ -1075,7 +1074,7 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
 	v, _ := hubService.GetVariable("allServices")
-	services := v.V.(*values.Map).AsSlice()
+	services := v.V.(pf.Map).AsSlice()
 
 	var driver, name, host, username, password string
 	var port int
@@ -1253,7 +1252,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	}
 }
 
-func valToString(srv *pf.Service, val values.Value) string {
+func valToString(srv *pf.Service, val pf.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
 	return srv.Literal(val)
@@ -1466,7 +1465,7 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	h.WriteString(GREEN_OK + "\n")
 }
 
-func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
+func ServiceDo(serviceToUse *pf.Service, line string) pf.Value {
 	v, _ := serviceToUse.Do(line)
 	return v
 }

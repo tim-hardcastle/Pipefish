@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"pipefish/source/pf"
-	"pipefish/source/values"
 )
 
 type ioPair struct {
@@ -97,7 +96,7 @@ func (iH *snapInHandler) Get(prompt string) string {
 	return input
 }
 
-func (oH *snapOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
+func (oH *snapOutHandler) Out(v pf.Value, fn func(pf.Value)[]byte) {
 	oH.snap.AppendOutput(string(fn(v)))
 	oH.stdOut.Out(v, fn)
 }
@@ -106,10 +105,10 @@ func (oH *snapOutHandler) Write(s string) {
 	oH.stdOut.Write(s)
 }
 
-func snapFunctionMaker(sv *pf.Service) func(values.Value)[]byte {
-	return func (v values.Value) []byte {
+func snapFunctionMaker(sv *pf.Service) func(pf.Value)[]byte {
+	return func (v pf.Value) []byte {
 		var out bytes.Buffer
-		vals := v.V.([]values.Value) // A snap always returns a tuple.
+		vals := v.V.([]pf.Value) // A snap always returns a tuple.
 		elements := []string{}
 		for _, e := range vals {
 			elements = append(elements, sv.Literal(e))
@@ -170,10 +169,10 @@ func (iH *TestInHandler) Get(prompt string) string {
 	return input[3:]
 }
 
-func (oH *TestOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
+func (oH *TestOutHandler) Out(v pf.Value, fn func(pf.Value)[]byte) {
 
 	var out bytes.Buffer
-	vals := v.V.([]values.Value)
+	vals := v.V.([]pf.Value)
 	elements := []string{}
 	for _, e := range vals {
 		elements = append(elements, string(fn(e)))

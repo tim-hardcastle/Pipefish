@@ -12,6 +12,8 @@ import (
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/values"
+
+	"src.elv.sh/pkg/persistent/vector"
 )
 
 type Service struct {
@@ -39,6 +41,30 @@ type SimpleInHandler = service.SimpleInHandler
 type SimpleOutHandler = service.SimpleOutHandler
 type StandardInHandler = service.StandardInHandler
 type StandardOutHandler = service.StandardOutHandler
+type List = vector.Vector 
+type Map = *values.Map
+type Set = values.Set
+
+const (
+    UNDEFINED_TYPE Type = values.UNDEFINED_TYPE
+	BLING Type = values.BLING
+	OK Type = values.SUCCESSFUL_VALUE
+	TUPLE Type = values.TUPLE
+	ERROR Type = values.ERROR
+	NULL Type = values.NULL            
+	INT Type = values.INT          
+	BOOL Type = values.BOOL          
+	STRING Type = values.STRING     
+	RUNE Type = values.RUNE        
+	FLOAT Type = values.FLOAT      
+	TYPE Type = values.TYPE        
+	FUNC Type = values.FUNC    
+	PAIR Type = values.PAIR   
+	LIST Type = values.LIST   
+	MAP Type = values.MAP     
+	SET Type = values.SET      
+	LABEL Type = values.LABEL    
+)
 
 var (
 	STANDARD_INPUT  = service.StandardInHandler{}
