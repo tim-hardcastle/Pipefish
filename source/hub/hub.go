@@ -19,7 +19,6 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/pf"
-	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/values"
@@ -27,18 +26,14 @@ import (
 	"src.elv.sh/pkg/persistent/vector"
 )
 
-var (
-	MARGIN = 84
-)
-
 type Hub struct {
 	hubFilepath            string
 	services               map[string]*pf.Service // The services the hub knows about.
-	ers                    []*pf.Error             // The errors produced by the latest compilation/execution of one of the hub's services.
+	ers                    []*pf.Error            // The errors produced by the latest compilation/execution of one of the hub's services.
 	in                     io.Reader
 	out                    io.Writer
 	anonymousServiceNumber int
-	snap                   *service.Snap
+	snap                   *Snap
 	oldServiceName         string // Somewhere to keep the old service name while taking a snap. TODO --- you can now take snaps on their own dedicated hub, saving a good deal of faffing around.
 	Sources                map[string][]string
 	lastRun                []string
@@ -566,15 +561,15 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
 		}
-		hub.snap = service.NewSnap(scriptFilepath, testFilepath)
+		hub.snap = NewSnap(scriptFilepath, testFilepath)
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			ServiceDo((*hub).services["#snap"], "$view = \"\"")
 			hub.WriteString("Serialization is ON.\n")
-			snapIO := service.MakeSnapIoHandler(hub.out, hub.snap)
+			in, out := MakeSnapIo(hub.out, hub.snap)
 			currentService := hub.services[hub.currentServiceName()]
-			currentService.SetInput(snapIO.InHandle)
-			currentService.SetOutput(snapIO.OutHandle)
+			currentService.SetInHandler(in)
+			currentService.SetOutHandler(out)
 		}
 
 		return false
@@ -583,7 +578,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		result := hub.snap.Save(service.GOOD)
+		result := hub.snap.Save(GOOD)
 		hub.WriteString(result + "\n")
 		hub.setServiceName(hub.oldServiceName)
 		return false
@@ -592,7 +587,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		result := hub.snap.Save(service.BAD)
+		result := hub.snap.Save(BAD)
 		hub.WriteString(result + "\n")
 		hub.setServiceName(hub.oldServiceName)
 		return false
@@ -601,7 +596,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you aren't taking a snap.")
 			return false
 		}
-		result := hub.snap.Save(service.RECORD)
+		result := hub.snap.Save(RECORD)
 		hub.WriteString(result + "\n")
 		hub.setServiceName(hub.oldServiceName)
 		return false
@@ -659,11 +654,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 
 			for _, potentialCharmFile := range files {
 				if filepath.Ext(potentialCharmFile.Name()) == ".pf" {
-					hub.TestScript(args[0]+"/"+potentialCharmFile.Name(), service.ERROR_CHECK)
+					hub.TestScript(args[0]+"/"+potentialCharmFile.Name(), ERROR_CHECK)
 				}
 			}
 		} else {
-			hub.TestScript(args[0], service.ERROR_CHECK)
+			hub.TestScript(args[0], ERROR_CHECK)
 		}
 
 		return false
@@ -1121,7 +1116,7 @@ func (hub *Hub) list() {
 	hub.WriteString("\n")
 }
 
-func (hub *Hub) TestScript(scriptFilepath string, testOutputType service.TestOutputType) {
+func (hub *Hub) TestScript(scriptFilepath string, testOutputType TestOutputType) {
 
 	fname := filepath.Base(scriptFilepath)
 	fname = fname[:len(fname)-len(filepath.Ext(fname))]
@@ -1142,7 +1137,7 @@ func (hub *Hub) TestScript(scriptFilepath string, testOutputType service.TestOut
 
 }
 
-func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType service.TestOutputType) {
+func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType TestOutputType) {
 
 	f, err := os.Open(testFilepath)
 	if err != nil {
@@ -1153,7 +1148,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	testType := strings.Split(scanner.Text(), ": ")[1]
-	if testType == service.RECORD {
+	if testType == RECORD {
 		f.Close() // TODO --- shouldn't this do something?
 		return
 	}
@@ -1162,10 +1157,10 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 		hub.WriteError("Can't initialize script " + text.Emph(scriptFilepath))
 		return
 	}
-	testIO := service.MakeTestIoHandler(hub.out, scanner, testOutputType)
-	hub.services["#test"].SetInput(testIO.InHandle)
-	hub.services["#test"].SetOutput(testIO.OutHandle)	
-	if testOutputType == service.ERROR_CHECK {
+	in, out := MakeTestIoHandler(hub.out, scanner, testOutputType)
+	hub.services["#test"].SetInHandler(in)
+	hub.services["#test"].SetOutHandler(out)
+	if testOutputType == ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
 	ServiceDo((*hub).services["#test"], "$view = \"\"")
@@ -1174,7 +1169,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 	executionMatchesTest := true
 	for scanner.Scan() {
 		lineIn := scanner.Text()[3:]
-		if testOutputType == service.SHOW_ALL {
+		if testOutputType == SHOW_ALL {
 			hub.WriteString("-> " + lineIn + "\n")
 		}
 		result := ServiceDo(testService, lineIn)
@@ -1188,29 +1183,29 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 		lineOut := scanner.Text()
 		if valToString(testService, result) != lineOut {
 			executionMatchesTest = false
-			if testOutputType == service.SHOW_DIFF {
+			if testOutputType == SHOW_DIFF {
 				hub.WriteString("-> " + lineIn + "\n" + text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
 			}
-			if testOutputType == service.SHOW_ALL {
+			if testOutputType == SHOW_ALL {
 				hub.WriteString(text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
 			}
 		} else {
-			if testOutputType == service.SHOW_ALL {
+			if testOutputType == SHOW_ALL {
 				hub.WriteString(lineOut + "\n")
 			}
 		}
 	}
-	if testOutputType == service.ERROR_CHECK {
-		if executionMatchesTest && testType == service.BAD {
+	if testOutputType == ERROR_CHECK {
+		if executionMatchesTest && testType == BAD {
 			hub.WriteError("bad behavior reproduced by test" + "\n")
 			f.Close()
-			hub.RunTest(scriptFilepath, testFilepath, service.SHOW_ALL)
+			hub.RunTest(scriptFilepath, testFilepath, SHOW_ALL)
 			return
 		}
-		if !executionMatchesTest && testType == service.GOOD {
+		if !executionMatchesTest && testType == GOOD {
 			hub.WriteError("good behavior not reproduced by test" + "\n")
 			f.Close()
-			hub.RunTest(scriptFilepath, testFilepath, service.SHOW_ALL)
+			hub.RunTest(scriptFilepath, testFilepath, SHOW_ALL)
 			return
 		}
 		hub.WriteString(text.TEST_PASSED)
@@ -1233,9 +1228,9 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	ServiceDo((*hub).services["#test"], "$view = \"\"")
 	testService := (*hub).services["#test"]
-	testIo := service.MakeTestIoHandler(hub.out, scanner, service.SHOW_ALL)
-	testService.SetInput(testIo.InHandle) 
-	testService.SetOutput(testIo.OutHandle)
+	in, out := MakeTestIoHandler(hub.out, scanner, SHOW_ALL)
+	testService.SetInHandler(in)
+	testService.SetOutHandler(out)
 	_ = scanner.Scan() // eats the newline
 	for scanner.Scan() {
 		lineIn := scanner.Text()[3:]
@@ -1471,7 +1466,6 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	h.WriteString(text.OK + "\n")
 }
 
-
 func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
 	v, _ := serviceToUse.Do(line)
 	return v
@@ -1479,8 +1473,12 @@ func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
 
 func (hub *Hub) listErrors() string {
 	result := "\n"
-		for i, v := range hub.ers {
-			result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"
-		}
-		return result + "\n"
+	for i, v := range hub.ers {
+		result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"
+	}
+	return result + "\n"
 }
+
+var (
+	MARGIN = 92
+)

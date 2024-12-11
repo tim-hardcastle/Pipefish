@@ -660,7 +660,7 @@ func (iz *initializer) initializeExternals() {
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
 		newServiceCp := StartService(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
-			iz.cp.Vm.IoHandle.InHandle, iz.cp.Vm.IoHandle.OutHandle)
+			iz.cp.Vm.InHandle, iz.cp.Vm.OutHandle)
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
 		}

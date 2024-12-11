@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 
 	"pipefish/source/err"
 	"pipefish/source/initializer"
@@ -13,18 +13,9 @@ import (
 	"pipefish/source/values"
 )
 
-type Value = values.Value
-type Type = values.ValueType
-
-var (
-	STANDARD_INPUT = &service.ReadlnInHandler{}
-	STANDARD_OUTPUT = &service.WriteOutHandler{os.Stdout}
-	UNDEFINED_VALUE = Value{}
-)
-
 type Service struct {
-	cp             *service.Compiler 
-	localExternals map[string]*Service 
+	cp             *service.Compiler
+	localExternals map[string]*Service
 	in             service.InHandler
 	out            service.OutHandler
 	db             *sql.DB
@@ -32,11 +23,34 @@ type Service struct {
 
 func NewService() *Service {
 	return &Service{cp: nil,
-					localExternals: make(map[string]*Service),
-					in:             STANDARD_INPUT,
-					out:            STANDARD_OUTPUT,
-					db:             nil,
+		localExternals: make(map[string]*Service),
+		in:             &STANDARD_INPUT,
+		out:            &STANDARD_OUTPUT,
+		db:             nil,
 	}
+}
+
+type Value = values.Value
+type Type = values.ValueType
+type InHandler = service.InHandler
+type OutHandler = service.OutHandler
+type SimpleInHandler = service.SimpleInHandler
+type SimpleOutHandler = service.SimpleOutHandler
+type StandardInHandler = service.StandardInHandler
+type StandardOutHandler = service.StandardOutHandler
+
+var (
+	STANDARD_INPUT  = service.StandardInHandler{}
+	STANDARD_OUTPUT = service.StandardOutHandler{}
+	UNDEFINED_VALUE = Value{}
+)
+
+func MakeSimpleInHandler(in io.Reader) SimpleInHandler {
+	return service.MakeSimpleInHandler(in)
+}
+
+func MakeSimpleOutHandler(out io.Writer) SimpleOutHandler {
+	return service.MakeSimpleOutHandler(out)
 }
 
 func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
@@ -52,22 +66,21 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	return nil
 }
 
-
 func (sv *Service) SetLocalExternalServices(svs map[string]*Service) {
 	sv.localExternals = svs
 }
 
-func (sv *Service) SetInput(in service.InHandler) {
+func (sv *Service) SetInHandler(in service.InHandler) {
 	sv.in = in
 	if sv.cp != nil {
-		sv.cp.Vm.IoHandle.InHandle = in
+		sv.cp.Vm.InHandle = in
 	}
 }
 
-func (sv *Service) SetOutput(out service.OutHandler) {
+func (sv *Service) SetOutHandler(out service.OutHandler) {
 	sv.out = out
 	if sv.cp != nil {
-		sv.cp.Vm.IoHandle.OutHandle = out
+		sv.cp.Vm.OutHandle = out
 	}
 }
 
@@ -177,7 +190,7 @@ func ExplainError(es []*Error, i int) (string, error) {
 	if i >= len(es) {
 		return "", errors.New("index too big for list")
 	}
-	return(err.ErrorCreatorMap[es[i].ErrorId].Explanation(es, i, es[i].Token, es[i].Args...)), nil
+	return (err.ErrorCreatorMap[es[i].ErrorId].Explanation(es, i, es[i].Token, es[i].Args...)), nil
 }
 
 func (sv *Service) Filepath() (string, error) {

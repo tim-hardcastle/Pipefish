@@ -1,195 +1,79 @@
 package service
 
 import (
-	"bufio"
-	"bytes"
 	"io"
-	"strings"
+	"os"
 
-	"pipefish/source/text"
 	"pipefish/source/values"
 
 	"github.com/lmorg/readline"
 )
 
-type IoHandler struct {
-	InHandle  InHandler
-	OutHandle OutHandler
-}
 
 type InHandler interface {
 	Get(query string) string
 }
 
 type OutHandler interface {
-	Out(v values.Value, serializer func(values.Value)[]byte)
+	Out(v values.Value, serializer func(values.Value) []byte)
+	Write(s string)
 }
 
-func MakeReadlnIoHandler(out io.Writer) IoHandler {
-	iH := &ReadlnInHandler{}
-	oH := &WriteOutHandler{Output: out}
-	return IoHandler{InHandle: iH, OutHandle: oH}
-}
+type StandardInHandler struct{}
 
-type ReadlnInHandler struct{}
+type StandardOutHandler struct{}
 
-func (iH *ReadlnInHandler) Get(prompt string) string {
+func (iH *StandardInHandler) Get(prompt string) string {
 	rline := readline.NewInstance()
 	rline.SetPrompt(prompt)
 	line, _ := rline.Readline()
 	return line
 }
 
-type StandardInHandler struct {
-	in io.Reader
+func (oH *StandardOutHandler) Out(v values.Value, fn func(values.Value) []byte) {
+	os.Stdout.Write(fn(v))
 }
 
-func (iH *StandardInHandler) Get(prompt string) string {
+func (oH *StandardOutHandler) Write(s string) {
+	os.Stdout.Write([]byte(s))
+}
+
+type SimpleInHandler struct {
+	input io.Reader
+}
+
+func (iH *SimpleInHandler) Get(prompt string) string {
 	var bytes []byte
-	iH.in.Read(bytes)
+	iH.input.Read(bytes)
 	return string(bytes)
 }
 
-type WriteOutHandler struct {
-	Output io.Writer
+type SimpleOutHandler struct {
+	output io.Writer
 }
 
-func (oH *WriteOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
-	oH.Output.Write(fn(v))
+func (oH *SimpleOutHandler) Out(v values.Value, fn func(values.Value) []byte) {
+	oH.output.Write(fn(v))
+}
+
+func (oH *SimpleOutHandler) Write(s string) {
+	oH.output.Write([]byte(s))
 }
 
 type ConsumingOutHandler struct{}
 
 func (oH *ConsumingOutHandler) Out(vals []values.Value, vm *Vm) {
-	// Sometimes we just want to eat te values. Yum, values.
+	// Sometimes we just want to eat the values. Yum, values.
 }
 
-func MakeSnapIoHandler(out io.Writer, sn *Snap) IoHandler {
-	iH := &snapInHandler{stdIn: ReadlnInHandler{}, snap: sn}
-	oH := &snapOutHandler{stdOut: WriteOutHandler{Output: out}, snap: sn}
-	return IoHandler{InHandle: iH, OutHandle: oH}
+func (oH *ConsumingOutHandler) Write(s string) {
+	
 }
 
-type snapInHandler struct {
-	stdIn ReadlnInHandler
-	snap  *Snap
+func MakeSimpleInHandler(in io.Reader) SimpleInHandler {
+	return SimpleInHandler{in}
 }
 
-type snapOutHandler struct {
-	stdOut WriteOutHandler
-	snap   *Snap
+func MakeSimpleOutHandler(out io.Writer) SimpleOutHandler {
+	return SimpleOutHandler{out}
 }
-
-func (iH *snapInHandler) Get(prompt string) string {
-	iH.snap.AddOutput("\"" + prompt + "\"")
-	input := iH.stdIn.Get(prompt)
-	iH.snap.AddInput(input)
-	return input
-}
-
-func (oH *snapOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
-	oH.snap.AppendOutput(string(fn(v)))
-	oH.stdOut.Out(v, fn)
-}
-
-func snapFunctionMaker(vm *Vm) func(values.Value)[]byte {
-	return func (v values.Value) []byte {
-		var out bytes.Buffer
-		vals := v.V.([]values.Value) // A snap always returns a tuple.
-		elements := []string{}
-		for _, e := range vals {
-			elements = append(elements, vm.Literal(e))
-		}
-		out.WriteString(strings.Join(elements, ", "))
-		out.WriteRune('\n')
-		return out.Bytes()
-	}
-}
-
-func MakeTestIoHandler(out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) IoHandler {
-	iH := &TestInHandler{out: out, stdIn: ReadlnInHandler{}, scanner: scanner, testOutputType: testOutputType}
-	oH := &TestOutHandler{stdOut: WriteOutHandler{Output: out}, scanner: scanner, testOutputType: testOutputType}
-	return IoHandler{InHandle: iH, OutHandle: oH}
-}
-
-type TestInHandler struct {
-	stdIn          ReadlnInHandler
-	out            io.Writer
-	scanner        *bufio.Scanner
-	Fail           bool
-	testOutputType TestOutputType
-}
-
-type TestOutHandler struct {
-	stdOut         WriteOutHandler
-	scanner        *bufio.Scanner
-	Fail           bool
-	testOutputType TestOutputType
-}
-
-func (iH *TestInHandler) Get(prompt string) string {
-	iH.scanner.Scan()
-	expectedPrompt := iH.scanner.Text()
-	gotPrompt := "\"" + prompt + "\""
-
-	switch iH.testOutputType {
-	case ERROR_CHECK:
-		iH.Fail = iH.Fail || expectedPrompt != gotPrompt
-	case SHOW_ALL:
-		if expectedPrompt != gotPrompt {
-			iH.out.Write([]byte(text.WAS + expectedPrompt))
-			iH.out.Write([]byte("\n" + text.GOT + gotPrompt + "\n"))
-		} else {
-			iH.out.Write([]byte(gotPrompt + "\n"))
-		}
-	case SHOW_DIFF:
-		if expectedPrompt != gotPrompt {
-			iH.out.Write([]byte(text.WAS + expectedPrompt))
-			iH.out.Write([]byte("\n" + text.GOT + gotPrompt + "\n"))
-		}
-	}
-	iH.scanner.Scan()
-	input := iH.scanner.Text()
-	if iH.testOutputType == SHOW_ALL {
-		iH.out.Write([]byte(input + "\n"))
-	}
-	return input[3:]
-}
-
-func (oH *TestOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
-
-	var out bytes.Buffer
-	vals := v.V.([]values.Value)
-	elements := []string{}
-	for _, e := range vals {
-		elements = append(elements, string(fn(e)))
-	}
-	out.WriteString(strings.Join(elements, ", "))
-	oH.scanner.Scan()
-	getExpected := oH.scanner.Text()
-	getGot := out.String()
-	switch oH.testOutputType {
-	case ERROR_CHECK:
-		oH.Fail = oH.Fail || getExpected != getGot
-	case SHOW_ALL:
-		if getExpected != getGot {
-			oH.stdOut.Output.Write([]byte(text.WAS + getExpected))
-			oH.stdOut.Output.Write([]byte("\n" + text.GOT + getGot + "\n"))
-		} else {
-			oH.stdOut.Output.Write([]byte(getGot))
-		}
-	case SHOW_DIFF:
-		if getExpected != getGot {
-			oH.stdOut.Output.Write([]byte(text.WAS + getExpected))
-			oH.stdOut.Output.Write([]byte("\n" + text.GOT + getGot + "\n"))
-		}
-	}
-}
-
-type TestOutputType int
-
-const (
-	ERROR_CHECK TestOutputType = iota
-	SHOW_ALL
-	SHOW_DIFF
-)
