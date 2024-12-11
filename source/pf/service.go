@@ -23,7 +23,7 @@ var (
 )
 
 type Service struct {
-	Cp             *service.Compiler 
+	cp             *service.Compiler 
 	localExternals map[string]*Service 
 	in             service.InHandler
 	out            service.OutHandler
@@ -31,7 +31,7 @@ type Service struct {
 }
 
 func NewService() *Service {
-	return &Service{Cp: nil,
+	return &Service{cp: nil,
 					localExternals: make(map[string]*Service),
 					in:             STANDARD_INPUT,
 					out:            STANDARD_OUTPUT,
@@ -42,10 +42,10 @@ func NewService() *Service {
 func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	compilerMap := make(map[string]*service.Compiler)
 	for k, v := range sv.localExternals {
-		compilerMap[k] = v.Cp
+		compilerMap[k] = v.cp
 	}
 	cp := initializer.StartService(scriptFilepath, sv.db, compilerMap, sv.in, sv.out)
-	sv.Cp = cp
+	sv.cp = cp
 	if sv.IsBroken() {
 		return errors.New("compilation error")
 	}
@@ -59,111 +59,175 @@ func (sv *Service) SetLocalExternalServices(svs map[string]*Service) {
 
 func (sv *Service) SetInput(in service.InHandler) {
 	sv.in = in
-	if sv.Cp != nil {
-		sv.Cp.Vm.IoHandle.InHandle = in
+	if sv.cp != nil {
+		sv.cp.Vm.IoHandle.InHandle = in
 	}
 }
 
 func (sv *Service) SetOutput(out service.OutHandler) {
 	sv.out = out
-	if sv.Cp != nil {
-		sv.Cp.Vm.IoHandle.OutHandle = out
+	if sv.cp != nil {
+		sv.cp.Vm.IoHandle.OutHandle = out
 	}
 }
 
 func (sv *Service) SetDatabase(db *sql.DB) {
 	sv.db = db
-	if sv.Cp != nil {
-		sv.Cp.Vm.Database = db
+	if sv.cp != nil {
+		sv.cp.Vm.Database = db
 	}
 }
 
 func (sv *Service) Do(line string) (values.Value, error) {
-	if sv.Cp == nil {
+	if sv.cp == nil {
 		return UNDEFINED_VALUE, errors.New("Service is uninitialized.")
 	}
 	if sv.IsBroken() {
 		return UNDEFINED_VALUE, errors.New("Service is broken.")
 	}
-	state := sv.Cp.GetState()
-	cT := sv.Cp.CodeTop()
-	node := sv.Cp.P.ParseLine("REPL input", line)
+	sv.cp.P.ResetAfterError()
+	sv.cp.Vm.LiveTracking = make([]service.TrackingData, 0)
+	state := sv.cp.GetState()
+	cT := sv.cp.CodeTop()
+	node := sv.cp.P.ParseLine("REPL input", line)
 	if settings.SHOW_PARSER {
 		fmt.Println("Parsed line:", node.String())
 	}
-	if sv.Cp.P.ErrorsExist() {
+	if sv.cp.P.ErrorsExist() {
 		return UNDEFINED_VALUE, errors.New("Error parsing input.")
 	}
-	ctxt := service.Context{Env: sv.Cp.GlobalVars, Access: service.REPL, LowMem: service.DUMMY, LogFlavor: service.LF_NONE}
-	sv.Cp.CompileNode(node, ctxt)
-	if sv.Cp.P.ErrorsExist() {
+	ctxt := service.Context{Env: sv.cp.GlobalVars, Access: service.REPL, LowMem: service.DUMMY, LogFlavor: service.LF_NONE}
+	sv.cp.CompileNode(node, ctxt)
+	if sv.cp.P.ErrorsExist() {
 		return UNDEFINED_VALUE, errors.New("Error compiling input.")
 	}
-	sv.Cp.Emit(service.Ret)
-	sv.Cp.Cm("Calling Run from Do.", node.GetToken())
-	sv.Cp.Vm.Run(cT)
-	result := sv.Cp.Vm.Mem[sv.Cp.That()]
-	sv.Cp.Rollback(state, node.GetToken())
+	sv.cp.Emit(service.Ret)
+	sv.cp.Cm("Calling Run from Do.", node.GetToken())
+	sv.cp.Vm.Run(cT)
+	result := sv.cp.Vm.Mem[sv.cp.That()]
+	sv.cp.Rollback(state, node.GetToken())
 	return result, nil
 }
 
 func (sv *Service) GetVariable(vname string) (values.Value, error) {
-	if sv.Cp == nil {
+	if sv.cp == nil {
 		return UNDEFINED_VALUE, errors.New("Service is uninitialized.")
 	}
 	if sv.IsBroken() {
 		return UNDEFINED_VALUE, errors.New("Service is broken.")
 	}
-	v, ok := sv.Cp.GlobalVars.GetVar(vname)
+	v, ok := sv.cp.GlobalVars.GetVar(vname)
 	if !ok {
 		return UNDEFINED_VALUE, errors.New("Variable does not exist.")
 	}
-	return sv.Cp.Vm.Mem[v.MLoc], nil
+	return sv.cp.Vm.Mem[v.MLoc], nil
 }
 
 func (sv *Service) SetVariable(vname string, ty values.ValueType, v any) error {
-	if sv.Cp == nil {
+	if sv.cp == nil {
 		return errors.New("Service is uninitialized.")
 	}
 	if sv.IsBroken() {
 		return errors.New("Service is broken.")
 	}
-	_, ok := sv.Cp.GlobalVars.GetVar(vname)
+	_, ok := sv.cp.GlobalVars.GetVar(vname)
 	if !ok {
 		return errors.New("Variable does not exist.")
 	}
-	sv.Cp.Vm.Mem[sv.Cp.GlobalVars.Data[vname].MLoc] = values.Value{ty, v}
+	sv.cp.Vm.Mem[sv.cp.GlobalVars.Data[vname].MLoc] = values.Value{ty, v}
 	return nil
 }
 
 func (s *Service) CallMain() (values.Value, error) {
-	return s.Cp.CallIfExists("main")
+	return s.cp.CallIfExists("main")
 }
 
 func (sv *Service) NeedsUpdate() (bool, error) {
-	if sv.Cp == nil {
+	if sv.cp == nil {
 		return false, errors.New("Service is uninitialized.")
 	}
 	if sv.IsBroken() {
 		return false, errors.New("Service is broken.")
 	}
-	return sv.Cp.NeedsUpdate()
+	return sv.cp.NeedsUpdate()
+}
+
+func (sv *Service) ErrorsExist() (bool, error) {
+	if sv.cp == nil {
+		return false, errors.New("Service is uninitialized.")
+	}
+	return sv.cp.P.ErrorsExist(), nil
+}
+
+func (sv *Service) GetSources() (map[string][]string, error) {
+	if sv.cp == nil {
+		return nil, errors.New("Service is uninitialized.")
+	}
+	return sv.cp.P.Common.Sources, nil
+}
+
+func (sv *Service) GetErrorReport() (string, error) {
+	if sv.cp == nil {
+		return "", errors.New("Service is uninitialized.")
+	}
+	return sv.cp.P.ReturnErrors(), nil
+}
+
+
+
+func (sv *Service) Filepath() (string, error) {
+	if sv.cp == nil {
+		return "", errors.New("Service is uninitialized.")
+	}
+	return sv.cp.ScriptFilepath, nil
 }
 
 func (sv *Service) IsBroken() bool {
-	return sv.Cp == nil || sv.Cp.P.Common.IsBroken
+	return sv.cp == nil || sv.cp.P.Common.IsBroken
 }
 
 type Error = err.Error
 
 func (sv *Service) GetErrors() []*Error {
-	return sv.Cp.P.Common.Errors
+	return sv.cp.P.Common.Errors
 }
 
 func (sv *Service) Parse(line string) (string, error) {
-	astOfLine := sv.Cp.P.ParseLine("test", line)
-	if sv.Cp.P.ErrorsExist() {
+	astOfLine := sv.cp.P.ParseLine("test", line)
+	if sv.cp.P.ErrorsExist() {
 		return "", errors.New("compilation error")
 	}
 	return astOfLine.String(), nil
+}
+
+func (sv *Service) Literal(v Value) string {
+	return sv.cp.Vm.Literal(v)
+}
+
+func (sv *Service) String(v Value) string {
+	return sv.cp.Vm.Literal(v)
+}
+
+func (sv *Service) TypeNameToType(s string) (Type, error) {
+	if sv.cp == nil {
+		return values.UNDEFINED_TYPE, errors.New("service is uninitialized")
+	}
+	if sv.IsBroken() {
+		return values.UNDEFINED_TYPE, errors.New("service is broken")
+	}
+	t, ok := sv.cp.GetConcreteType(s)
+	if !ok {
+		return values.UNDEFINED_TYPE, errors.New("no concrete type of that name exists")
+	}
+	return t, nil
+}
+
+func (sv *Service) GetTracking() (string, error) {
+	if sv.cp == nil {
+		return "", errors.New("service is uninitialized")
+	}
+	if sv.IsBroken() {
+		return "", errors.New("service is broken")
+	}
+	return sv.cp.Vm.TrackingToString(), nil
 }

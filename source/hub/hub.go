@@ -19,7 +19,6 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/err"
-	"pipefish/source/parser"
 	"pipefish/source/pf"
 	"pipefish/source/service"
 	"pipefish/source/settings"
@@ -79,14 +78,14 @@ func (hub *Hub) hasDatabase() bool {
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
 	dbStruct := hub.getSV("database").V.([]values.Value)
-	driver := hub.services["hub"].Cp.Vm.Literal(dbStruct[0])
+	driver := hub.services["hub"].Literal(dbStruct[0])
 	return driver, dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
 }
 
 func (hub *Hub) setDB(driver, name, path string, port int, username, password string) {
 	hubService := hub.services["hub"]
-	driverAsEnumValue := hubService.Cp.Vm.Mem[hubService.Cp.EnumElements[driver]]
-	structType := hubService.Cp.ConcreteTypeNow("Database")
+	driverAsEnumValue, _ := hubService.Do(driver)
+	structType, _ := hubService.TypeNameToType("Database")
 	hub.setSV("database", structType, []values.Value{driverAsEnumValue, {values.STRING, name}, {values.STRING, path}, {values.INT, port}, {values.STRING, username}, {values.STRING, password}})
 }
 
@@ -191,23 +190,13 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if serviceToUse.IsBroken() {
 		serviceToUse = hub.services[""]
 	}
-
-	// Errors in the parser are a signal for the parser/initializer to halt, so we need to clear them here.
-	// They may be sitting around so the end-user can do 'hub why', but we can get rid of them now.
-	serviceToUse.Cp.P.ResetAfterError()
-
 	hub.Sources["REPL input"] = []string{line}
-
-	if serviceToUse.Cp.P.ErrorsExist() {
-		hub.GetAndReportErrors(serviceToUse.Cp.P)
-		return passedServiceName, false
-	}
-
 	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName())
 	if hub.isLive() && needsUpdate {
-		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), hub.services[hub.currentServiceName()].Cp.ScriptFilepath)
+		path, _ := hub.services[hub.currentServiceName()].Filepath()
+		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), path)
 		serviceToUse = hub.services[hub.currentServiceName()]
-		if serviceToUse.Cp.ErrorsExist() {
+		if serviceToUse.IsBroken() {
 			return passedServiceName, false
 		}
 	}
@@ -221,14 +210,12 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		hub.snap.AddInput(line)
 	}
 
-	serviceToUse.Cp.Vm.LiveTracking = make([]service.TrackingData, 0)
-
 	// *** THIS IS THE BIT WHERE WE DO THE THING!
 	val := ServiceDo(serviceToUse, line)
 	// *** FROM ALL THAT LOGIC, WE EXTRACT ONE PIPEFISH VALUE !!!
-
-	if serviceToUse.Cp.P.ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
-		hub.GetAndReportErrors(serviceToUse.Cp.P)
+	errorsExist, _ := serviceToUse.ErrorsExist()
+	if errorsExist { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
+		hub.GetAndReportErrors(serviceToUse)
 		return passedServiceName, false
 	}
 
@@ -243,9 +230,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		var out string
 		v, _ := hub.services["hub"].GetVariable("display")
 		if v.V.(int) == 0 || hub.currentServiceName() == "#snap" {
-			out = serviceToUse.Cp.Vm.StringifyValue(val, service.LITERAL)
+			out = serviceToUse.Literal(val)
 		} else {
-			out = serviceToUse.Cp.Vm.StringifyValue(val, service.DEFAULT)
+			out = serviceToUse.String(val)
 		}
 		hub.WriteString(out)
 		if hub.currentServiceName() == "#snap" {
@@ -258,16 +245,16 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 	hubService := hub.services["hub"]
 	hubReturn := ServiceDo(hubService, line)
-	if hubService.Cp.P.ErrorsExist() { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
-		hub.GetAndReportErrors(hubService.Cp.P)
+	if errorsExist, _ := hubService.ErrorsExist(); errorsExist { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
+		hub.GetAndReportErrors(hubService)
 		return "error", []string{}
 	}
 	if hubReturn.T == values.ERROR {
 		hub.WriteError(hubReturn.V.(*err.Error).Message)
 		return "error", []string{hubReturn.V.(*err.Error).Message}
 	}
-
-	if hubReturn.T == hubService.Cp.ConcreteTypeNow("HubResponse") {
+	hrType, _ := hubService.TypeNameToType("HubResponse")
+	if hubReturn.T == hrType {
 		hR := hubReturn.V.([]values.Value)
 		verb := hR[0].V.(string)
 		args := []string{}
@@ -451,7 +438,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.setLive(false)
 		return false
 	case "log":
-		hub.WritePretty(hub.services[hub.currentServiceName()].Cp.Vm.TrackingToString())
+		tracking, _ := hub.services[hub.currentServiceName()].GetTracking()
+		hub.WritePretty(tracking)
 		hub.WriteString("\n")
 		return false
 	case "log-on":
@@ -526,9 +514,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("service is empty, nothing to reset.")
 			return false
 		}
-		hub.WritePretty("Restarting script '" + serviceToReset.Cp.ScriptFilepath +
+		filepath, _ := serviceToReset.Filepath()
+		hub.WritePretty("Restarting script '" + filepath +
 			"' as service '" + hub.currentServiceName() + "'.\n")
-		hub.StartAndMakeCurrent(username, hub.currentServiceName(), serviceToReset.Cp.ScriptFilepath)
+		hub.StartAndMakeCurrent(username, hub.currentServiceName(), filepath)
 		hub.lastRun = []string{hub.currentServiceName()}
 		return false
 	case "rerun":
@@ -536,9 +525,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
-		hub.WritePretty("Rerunning script '" + hub.services[hub.lastRun[0]].Cp.ScriptFilepath +
+		filepath, _ := hub.services[hub.lastRun[0]].Filepath()
+		hub.WritePretty("Rerunning script '" + filepath +
 			"' as service '" + hub.lastRun[0] + "'.\n")
-		hub.StartAndMakeCurrent(username, hub.lastRun[0], hub.services[hub.lastRun[0]].Cp.ScriptFilepath)
+		hub.StartAndMakeCurrent(username, hub.lastRun[0], filepath)
 		hub.tryMain()
 		return false
 	case "run":
@@ -582,8 +572,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			ServiceDo((*hub).services["#snap"], "$view = \"\"")
 			hub.WriteString("Serialization is ON.\n")
-			hub.services[hub.currentServiceName()].Cp.Vm.IoHandle =
-				service.MakeSnapIoHandler(hub.out, hub.snap)
+			snapIO := service.MakeSnapIoHandler(hub.out, hub.snap)
+			currentService := hub.services[hub.currentServiceName()]
+			currentService.SetInput(snapIO.InHandle)
+			currentService.SetOutput(snapIO.OutHandle)
 		}
 
 		return false
@@ -728,9 +720,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		for _, v := range hub.ers[0].Values {
 			if v.T == values.BLING {
-				hub.WritePretty(text.BULLET_SPACING + hub.services[hub.currentServiceName()].Cp.Vm.Literal(v))
+				hub.WritePretty(text.BULLET_SPACING + hub.services[hub.currentServiceName()].Literal(v))
 			} else {
-				hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName()].Cp.Vm.Literal(v))
+				hub.WritePretty(text.BULLET + hub.services[hub.currentServiceName()].Literal(v))
 			}
 		}
 		hub.WriteString("\n")
@@ -820,7 +812,7 @@ func (hub *Hub) help() {
 }
 
 func (hub *Hub) WritePretty(s string) {
-	if hub.services["hub"].Cp.ErrorsExist() {
+	if errorsExist, _ := hub.services["hub"].ErrorsExist(); errorsExist {
 		hub.WriteString(text.Pretty(s, 0, 92))
 		return
 	}
@@ -943,13 +935,12 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	newService.SetLocalExternalServices(hub.services)
 	newService.InitializeFromFilepath(scriptFilepath)
 	hub.services[name] = newService
-	hub.Sources = newService.Cp.P.Common.Sources
-	if newService.Cp.P.ErrorsExist() {
-		newService.Cp.P.Common.IsBroken = true
+	hub.Sources, _ = newService.GetSources()
+	if newService.IsBroken() {
 		if name == "hub" {
 			fmt.Println("Pipefish: unable to compile hub.")
 		}
-		hub.GetAndReportErrors(newService.Cp.P)
+		hub.GetAndReportErrors(newService)
 		if name == "hub" {
 			os.Exit(2)
 		}
@@ -976,17 +967,17 @@ func StartServiceFromCli() {
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
-	fmt.Println(newService.Cp.Vm.Literal(val) + "\n")
+	fmt.Println(newService.Literal(val) + "\n")
 	os.Exit(0)
 }
 
-func (hub *Hub) GetAndReportErrors(p *parser.Parser) {
-	hub.ers = p.Common.Errors
-	hub.WritePretty(err.GetList(hub.ers))
+func (hub *Hub) GetAndReportErrors(sv *pf.Service) {
+	r, _ := sv.GetErrorReport()
+	hub.WritePretty(r)
 }
 
 func (hub *Hub) CurrentServiceIsBroken() bool {
-	return hub.services[hub.currentServiceName()].Cp.ErrorsExist()
+	return hub.services[hub.currentServiceName()].IsBroken()
 }
 
 var prefix = `newtype
@@ -1016,7 +1007,8 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString("\"")
 		buf.WriteString(v)
 		buf.WriteString("\"::\"")
-		buf.WriteString(hub.services[v].Cp.ScriptFilepath)
+		name, _ := hub.services[v].Filepath()
+		buf.WriteString(name)
 		buf.WriteString("\"")
 		if i < len(serviceList)-1 {
 			buf.WriteString(",\n               .. ")
@@ -1024,7 +1016,7 @@ func (hub *Hub) saveHubFile() string {
 	}
 	buf.WriteString(")\n\n")
 	buf.WriteString("currentService string? = ")
-	cs := hubService.Cp.Vm.Literal(hub.getSV("currentService"))
+	cs := hubService.Literal(hub.getSV("currentService"))
 	if len(cs) > 0 && cs[1] == '#' {
 		buf.WriteString("NULL")
 	} else {
@@ -1032,13 +1024,13 @@ func (hub *Hub) saveHubFile() string {
 	}
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")
-	buf.WriteString(hubService.Cp.Vm.Literal(hub.getSV("isLive")))
+	buf.WriteString(hubService.Literal(hub.getSV("isLive")))
 	buf.WriteString("\n")
 	buf.WriteString("display = ")
-	buf.WriteString(hubService.Cp.Vm.Literal(hub.getSV("display")))
+	buf.WriteString(hubService.Literal(hub.getSV("display")))
 	buf.WriteString("\n")
 	buf.WriteString("width = ")
-	buf.WriteString(hubService.Cp.Vm.Literal(hub.getSV("width")))
+	buf.WriteString(hubService.Literal(hub.getSV("width")))
 	buf.WriteString("\n\n")
 	buf.WriteString("database Database? = ")
 	dbVal := hub.getSV("database")
@@ -1047,22 +1039,22 @@ func (hub *Hub) saveHubFile() string {
 	} else {
 		args := dbVal.V.([]values.Value)
 		buf.WriteString("Database with (driver::")
-		buf.WriteString(hubService.Cp.Vm.Literal(args[0]))
+		buf.WriteString(hubService.Literal(args[0]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. name::")
-		buf.WriteString(hubService.Cp.Vm.Literal(args[1]))
+		buf.WriteString(hubService.Literal(args[1]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. host::")
-		buf.WriteString(hubService.Cp.Vm.Literal(args[2]))
+		buf.WriteString(hubService.Literal(args[2]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. port::")
-		buf.WriteString(hubService.Cp.Vm.Literal(args[3]))
+		buf.WriteString(hubService.Literal(args[3]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. username::")
-		buf.WriteString(hubService.Cp.Vm.Literal(args[4]))
+		buf.WriteString(hubService.Literal(args[4]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. password::")
-		buf.WriteString(hubService.Cp.Vm.Literal(args[5]))
+		buf.WriteString(hubService.Literal(args[5]))
 		buf.WriteString(")\n")
 	}
 
@@ -1112,12 +1104,13 @@ func (hub *Hub) list() {
 		if k == "" || k == "hub" {
 			continue
 		}
-		if hub.services[k].Cp.ErrorsExist() {
+		fpath, _ := hub.services[k].Filepath()
+		if hub.services[k].IsBroken() {
 			hub.WriteString(text.BROKEN)
-			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].Cp.ScriptFilepath) + "'.")
+			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")
 		} else {
 			hub.WriteString(text.GOOD_BULLET)
-			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(hub.services[k].Cp.ScriptFilepath) + "'.")
+			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")
 		}
 	}
 	hub.WriteString("\n")
@@ -1164,8 +1157,9 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 		hub.WriteError("Can't initialize script " + text.Emph(scriptFilepath))
 		return
 	}
-	hub.services["#test"].Cp.Vm.IoHandle =
-		service.MakeTestIoHandler(hub.out, scanner, testOutputType)
+	testIO := service.MakeTestIoHandler(hub.out, scanner, testOutputType)
+	hub.services["#test"].SetInput(testIO.InHandle)
+	hub.services["#test"].SetOutput(testIO.OutHandle)	
 	if testOutputType == service.ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
@@ -1179,30 +1173,26 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType serv
 			hub.WriteString("-> " + lineIn + "\n")
 		}
 		result := ServiceDo(testService, lineIn)
-		if testService.Cp.P.ErrorsExist() {
-			hub.WritePretty(testService.Cp.P.ReturnErrors())
+		if errorsExist, _ := testService.ErrorsExist(); errorsExist {
+			report, _ := testService.GetErrorReport()
+			hub.WritePretty(report)
 			f.Close()
 			continue
 		}
 		scanner.Scan()
 		lineOut := scanner.Text()
-		nonIoError := valToString(testService, result) != lineOut
-		newError := nonIoError ||
-			testService.Cp.Vm.IoHandle.InHandle.(*service.TestInHandler).Fail ||
-			testService.Cp.Vm.IoHandle.OutHandle.(*service.TestOutHandler).Fail
-		if newError {
-			testService.Cp.Vm.IoHandle.InHandle.(*service.TestInHandler).Fail = false
-			testService.Cp.Vm.IoHandle.OutHandle.(*service.TestOutHandler).Fail = false
+		if valToString(testService, result) != lineOut {
 			executionMatchesTest = false
-			if testOutputType == service.SHOW_DIFF && nonIoError {
+			if testOutputType == service.SHOW_DIFF {
 				hub.WriteString("-> " + lineIn + "\n" + text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
 			}
-			if testOutputType == service.SHOW_ALL && nonIoError {
+			if testOutputType == service.SHOW_ALL {
 				hub.WriteString(text.WAS + lineOut + "\n" + text.GOT + valToString(testService, result) + "\n")
 			}
-		}
-		if !newError && testOutputType == service.SHOW_ALL {
-			hub.WriteString(lineOut + "\n")
+		} else {
+			if testOutputType == service.SHOW_ALL {
+				hub.WriteString(lineOut + "\n")
+			}
 		}
 	}
 	if testOutputType == service.ERROR_CHECK {
@@ -1238,15 +1228,18 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	ServiceDo((*hub).services["#test"], "$view = \"\"")
 	testService := (*hub).services["#test"]
-	testService.Cp.Vm.IoHandle = service.MakeTestIoHandler(hub.out, scanner, service.SHOW_ALL)
+	testIo := service.MakeTestIoHandler(hub.out, scanner, service.SHOW_ALL)
+	testService.SetInput(testIo.InHandle) 
+	testService.SetOutput(testIo.OutHandle)
 	_ = scanner.Scan() // eats the newline
 	for scanner.Scan() {
 		lineIn := scanner.Text()[3:]
 		scanner.Scan()
 		lineOut := scanner.Text()
 		result := ServiceDo(testService, lineIn)
-		if testService.Cp.P.ErrorsExist() {
-			hub.WritePretty(testService.Cp.P.ReturnErrors())
+		if errorsExist, _ := testService.ErrorsExist(); errorsExist {
+			report, _ := testService.GetErrorReport()
+			hub.WritePretty(report)
 			f.Close()
 			return
 		}
@@ -1263,7 +1256,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 func valToString(srv *pf.Service, val values.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
-	return srv.Cp.Vm.StringifyValue(val, service.LITERAL)
+	return srv.Literal(val)
 }
 
 func (h *Hub) StartHttp(path, port string) {
@@ -1470,15 +1463,11 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 		h.WriteError("hub/db/config/c: " + err.Error())
 		return
 	}
-
-	for _, v := range h.services {
-		v.Cp.Vm.Database = h.Db
-	}
-
 	h.WriteString(text.OK + "\n")
 }
 
-// We return the parser because this is where any compile-time errors in lex-parse-compile will end up.
+
 func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
-	return serviceToUse.Cp.Do(line)
+	v, _ := serviceToUse.Do(line)
+	return v
 }

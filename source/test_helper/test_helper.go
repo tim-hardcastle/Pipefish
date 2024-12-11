@@ -29,12 +29,14 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *pf.Serv
 			sv.InitializeFromFilepath(wd+"/test-files/"+filename)
 		}
 		if sv.IsBroken() {
-			t.Fatalf("There were errors initializing the service : \n" + sv.Cp.P.ReturnErrors())
+			r, _ := sv.GetErrorReport()
+			t.Fatalf("There were errors initializing the service : \n" + r)
 		}
 		got, e := F(sv, test.Input)
 		if e != nil {
 			println(text.Red(test.Input))
-			println("There were errors parsing the line: \n" + sv.Cp.P.ReturnErrors() + "\n")
+			r, _ := sv.GetErrorReport()
+			println("There were errors parsing the line: \n" + r + "\n")
 		}
 		if !(test.Want == got) {
 			t.Fatalf(`Test failed with input %s | Wanted : %s | Got : %s.`, test.Input, test.Want, got)

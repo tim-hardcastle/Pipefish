@@ -95,7 +95,7 @@ func testParserErrors(sv *pf.Service, s string) (string, error) {
 	if e == nil {
 		return "", errors.New("unexpected successful parsing")
 	} else {
-		return sv.Cp.P.Common.Errors[0].ErrorId, nil
+		return sv.GetErrors()[0].ErrorId, nil
 	}
 }
 

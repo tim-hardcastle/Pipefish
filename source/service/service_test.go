@@ -443,14 +443,14 @@ func testValues(sv *pf.Service, s string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	return sv.Cp.Describe(v), nil
+	return sv.String(v), nil
 }
 
 func testCompilerErrors(sv *pf.Service, s string) (string, error) {
 	val, e := sv.Do(s)
 	if e ==nil {
-		return "", errors.New("unexpected successful evaluation returned " + text.Emph(sv.Cp.Vm.DefaultDescription(val)))
+		return "", errors.New("unexpected successful evaluation returned " + text.Emph(sv.String(val)))
 	} else {
-		return sv.Cp.P.Common.Errors[0].ErrorId, nil
+		return sv.GetErrors()[0].ErrorId, nil
 	}
 }
