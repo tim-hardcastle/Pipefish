@@ -19,7 +19,6 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/pf"
-	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/values"
 
@@ -44,6 +43,7 @@ type Hub struct {
 	port, path             string
 	Username               string
 	Password               string
+	pipefishHomeDirectory  string
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
@@ -54,6 +54,8 @@ func New(in io.Reader, out io.Writer) *Hub {
 		out:      out,
 		lastRun:  []string{},
 	}
+	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+    hub.pipefishHomeDirectory = appDir + "/"
 	return &hub
 }
 
@@ -819,7 +821,7 @@ func (hub *Hub) WritePretty(s string) {
 }
 
 func (hub *Hub) isAdministered() bool {
-	_, err := os.Stat(settings.PipefishHomeDirectory + "user/admin.dat")
+	_, err := os.Stat(hub.pipefishHomeDirectory + "user/admin.dat")
 	return !errors.Is(err, os.ErrNotExist)
 }
 
@@ -1351,7 +1353,7 @@ func (h *Hub) addUserAsGuest() {
 
 func (h *Hub) handleConfigUserForm(f *Form) {
 	h.CurrentForm = nil
-	_, err := os.Stat(settings.PipefishHomeDirectory + "user/admin.dat")
+	_, err := os.Stat(h.pipefishHomeDirectory + "user/admin.dat")
 	if errors.Is(err, os.ErrNotExist) {
 		h.WriteError("this Charm hub doesn't have administered " +
 			"access: there is nothing to join.")
@@ -1399,7 +1401,7 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 		return
 	}
 	err := database.AddAdmin(h.Db, f.Result["Username"], f.Result["First name"],
-		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], h.currentServiceName(), settings.PipefishHomeDirectory)
+		f.Result["Last name"], f.Result["Email"], f.Result["*Password"], h.currentServiceName(), h.pipefishHomeDirectory)
 	if err != nil {
 		h.WriteError("H/ " + err.Error())
 		return
