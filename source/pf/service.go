@@ -173,7 +173,12 @@ func (sv *Service) GetErrorReport() (string, error) {
 	return sv.cp.P.ReturnErrors(), nil
 }
 
-
+func ExplainError(es []*Error, i int) (string, error) {
+	if i >= len(es) {
+		return "", errors.New("index too big for list")
+	}
+	return(err.ErrorCreatorMap[es[i].ErrorId].Explanation(es, i, es[i].Token, es[i].Args...)), nil
+}
 
 func (sv *Service) Filepath() (string, error) {
 	if sv.cp == nil {

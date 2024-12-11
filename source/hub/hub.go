@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"pipefish/source/database"
-	"pipefish/source/err"
 	"pipefish/source/pf"
 	"pipefish/source/service"
 	"pipefish/source/settings"
@@ -35,7 +34,7 @@ var (
 type Hub struct {
 	hubFilepath            string
 	services               map[string]*pf.Service // The services the hub knows about.
-	ers                    err.Errors             // The errors produced by the latest compilation/execution of one of the hub's services.
+	ers                    []*pf.Error             // The errors produced by the latest compilation/execution of one of the hub's services.
 	in                     io.Reader
 	out                    io.Writer
 	anonymousServiceNumber int
@@ -222,8 +221,8 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	if val.T == values.ERROR {
 		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
-		hub.ers = []*err.Error{val.V.(*err.Error)}
-		if len(val.V.(*err.Error).Values) > 0 {
+		hub.ers = []*pf.Error{val.V.(*pf.Error)}
+		if len(val.V.(*pf.Error).Values) > 0 {
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
@@ -250,8 +249,8 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		return "error", []string{}
 	}
 	if hubReturn.T == values.ERROR {
-		hub.WriteError(hubReturn.V.(*err.Error).Message)
-		return "error", []string{hubReturn.V.(*err.Error).Message}
+		hub.WriteError(hubReturn.V.(*pf.Error).Message)
+		return "error", []string{hubReturn.V.(*pf.Error).Message}
 	}
 	hrType, _ := hubService.TypeNameToType("HubResponse")
 	if hubReturn.T == hrType {
@@ -363,7 +362,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WritePretty("There are no recent errors.")
 			return false
 		}
-		hub.WritePretty(err.GetList(hub.ers))
+		hub.WritePretty(hub.listErrors())
 		return false
 	case "groups-of-user":
 		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
@@ -762,8 +761,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("the 'why' keyword takes the number of an error as a parameter.")
 			return false
 		}
+		if num >= len(hub.ers) {
+			hub.WriteError("there aren't that many errors.")
+			return false
+		}
+		exp, _ := pf.ExplainError(hub.ers, num)
 		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
-			".\n\n" + err.ErrorCreatorMap[hub.ers[num].ErrorId].Explanation(hub.ers, num, hub.ers[num].Token, hub.ers[num].Args...) + "\n")
+			".\n\n" + exp + "\n")
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
@@ -900,7 +904,7 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 		case values.ERROR:
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName()], val))
 			hub.WriteString("\n")
-			hub.ers = []*err.Error{val.V.(*err.Error)}
+			hub.ers = []*pf.Error{val.V.(*pf.Error)}
 		case values.UNDEFINED_TYPE: // Which is what we get back if there is no `main` command.
 		default:
 			hub.WriteString(valToString(hub.services[hub.currentServiceName()], val))
@@ -955,7 +959,7 @@ func StartServiceFromCli() {
 	newService.InitializeFromFilepath(filename)
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + text.CYAN + text.Emph(filename) + text.RESET + ".")
-		s := err.GetList(newService.GetErrors())
+		s, _ := newService.GetErrorReport()
 		fmt.Println(text.Pretty(s, 0, 92))
 		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
@@ -972,6 +976,7 @@ func StartServiceFromCli() {
 }
 
 func (hub *Hub) GetAndReportErrors(sv *pf.Service) {
+	hub.ers = sv.GetErrors()
 	r, _ := sv.GetErrorReport()
 	hub.WritePretty(r)
 }
@@ -1470,4 +1475,12 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 func ServiceDo(serviceToUse *pf.Service, line string) values.Value {
 	v, _ := serviceToUse.Do(line)
 	return v
+}
+
+func (hub *Hub) listErrors() string {
+	result := "\n"
+		for i, v := range hub.ers {
+			result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"
+		}
+		return result + "\n"
 }
