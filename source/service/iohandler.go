@@ -22,7 +22,7 @@ type InHandler interface {
 }
 
 type OutHandler interface {
-	Out(outVals []values.Value, vm *Vm)
+	Out(v values.Value, serializer func(values.Value)[]byte)
 }
 
 func MakeReadlnIoHandler(out io.Writer) IoHandler {
@@ -54,16 +54,8 @@ type WriteOutHandler struct {
 	Output io.Writer
 }
 
-func (oH *WriteOutHandler) Out(vals []values.Value, vm *Vm) {
-	var out bytes.Buffer
-
-	elements := []string{}
-	for _, e := range vals {
-		elements = append(elements, vm.DefaultDescription(e))
-	}
-	out.WriteString(strings.Join(elements, ", "))
-	out.WriteRune('\n')
-	oH.Output.Write(out.Bytes())
+func (oH *WriteOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
+	oH.Output.Write(fn(v))
 }
 
 type ConsumingOutHandler struct{}
@@ -95,18 +87,23 @@ func (iH *snapInHandler) Get(prompt string) string {
 	return input
 }
 
-func (oH *snapOutHandler) Out(vals []values.Value, vm *Vm) {
+func (oH *snapOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
+	oH.snap.AppendOutput(string(fn(v)))
+	oH.stdOut.Out(v, fn)
+}
 
-	var out bytes.Buffer
-
-	elements := []string{}
-	for _, e := range vals {
-		elements = append(elements, vm.DefaultDescription(e))
+func snapFunctionMaker(vm *Vm) func(values.Value)[]byte {
+	return func (v values.Value) []byte {
+		var out bytes.Buffer
+		vals := v.V.([]values.Value) // A snap always returns a tuple.
+		elements := []string{}
+		for _, e := range vals {
+			elements = append(elements, vm.Literal(e))
+		}
+		out.WriteString(strings.Join(elements, ", "))
+		out.WriteRune('\n')
+		return out.Bytes()
 	}
-	out.WriteString(strings.Join(elements, ", "))
-	out.WriteRune('\n')
-	oH.snap.AppendOutput(out.String())
-	oH.stdOut.Out(vals, vm)
 }
 
 func MakeTestIoHandler(out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) IoHandler {
@@ -159,13 +156,13 @@ func (iH *TestInHandler) Get(prompt string) string {
 	return input[3:]
 }
 
-func (oH *TestOutHandler) Out(vals []values.Value, vm *Vm) {
+func (oH *TestOutHandler) Out(v values.Value, fn func(values.Value)[]byte) {
 
 	var out bytes.Buffer
-
+	vals := v.V.([]values.Value)
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, vm.Literal(e))
+		elements = append(elements, string(fn(e)))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	oH.scanner.Scan()

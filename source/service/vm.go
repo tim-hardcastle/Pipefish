@@ -47,11 +47,10 @@ type Vm struct {
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	Stringify                  *CpFunc
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
-
-	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
+	Writer                     func(values.Value)[]byte
+	
+	// Possibly some or all of these should be in the common parser bindle or the common initializer bindle.
 	CodeGeneratingTypes dtypes.Set[values.ValueType]
-	// These also may not belong in the VM, but it is shared state among all the compilers for the various modules, and there's nothing else
-	// tying them together but the vm. TODO --- make some common bindle for them so I'm not doing this.
 	SharedTypenameToTypeList map[string]AlternateType
 	AnyTypeScheme            AlternateType
 	AnyTuple                 AlternateType
@@ -174,6 +173,9 @@ func BlankVm(db *sql.DB, hubServiceCompilers map[string]*Compiler) *Vm {
 	vm.SharedTypenameToTypeList["tuple"] = vm.AnyTuple
 	vm.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET)
 	vm.FieldLabelsInMem = make(map[string]uint32)
+	vm.Writer = func(v values.Value)[]byte {
+		return []byte(vm.DefaultDescription(v)+"\n")
+	}
 	return vm
 }
 
@@ -965,7 +967,7 @@ loop:
 		case Orb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, (vm.Mem[args[1]].V.(bool) || vm.Mem[args[2]].V.(bool))}
 		case Outp:
-			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
+			vm.IoHandle.OutHandle.Out(vm.Mem[args[0]], vm.Writer)
 		case Outt:
 			fmt.Println(vm.Literal(vm.Mem[args[0]]))
 		case Psnp: // Only for if you 'post HTML' or 'post SQL'.
@@ -1001,7 +1003,7 @@ loop:
 					}
 				}
 				t.Execute(&buf, injector)
-				vm.IoHandle.OutHandle.Out([]values.Value{{values.STRING, buf.String()}}, vm)
+				vm.IoHandle.OutHandle.Out(values.Value{values.STRING, buf.String()}, vm.Writer)
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 			case SQL_SNIPPET:
 				injector := make([]values.Value, 0, len(bindle.valueLocs))
