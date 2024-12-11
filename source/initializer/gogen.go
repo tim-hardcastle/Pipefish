@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"pipefish/source/ast"
+	"pipefish/source/compiler"
 	"pipefish/source/dtypes"
-	"pipefish/source/service"
 	"pipefish/source/text"
 	"pipefish/source/token"
 	"pipefish/source/values"
@@ -33,17 +33,17 @@ import (
 func (iz *initializer) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {
 	for name := range userDefinedTypes {
 		switch typeInfo := iz.cp.TypeInfoNow(name).(type) {
-		case service.CloneType:
+		case compiler.CloneType:
 			goType := cloneConv[typeInfo.Parent]
 			fmt.Fprint(sb, "type ", name, " ", goType, "\n\n")
-		case service.EnumType:
+		case compiler.EnumType:
 			firstEnumElement := typeInfo.ElementNames[0]
 			fmt.Fprint(sb, "type ", name, " int\n\nconst (\n    ", firstEnumElement, " ", name, " = iota\n")
 			for _, element := range typeInfo.ElementNames[1:] {
 				fmt.Fprint(sb, "    ", element, "\n")
 			}
 			fmt.Fprint(sb, ")\n\n")
-		case service.StructType:
+		case compiler.StructType:
 			fmt.Fprint(sb, "type ", name, " struct {\n")
 			for i, lN := range typeInfo.LabelNumbers {
 				fmt.Fprint(sb, "\t", (text.Capitalize(iz.cp.Vm.Labels[lN])), " ", iz.convertFieldTypeFromPfToGo(typeInfo.AbstractStructFields[i]), "\n")
@@ -63,11 +63,11 @@ func (iz *initializer) generateDeclarations(sb *strings.Builder, userDefinedType
 	for name := range userDefinedTypes {
 		fmt.Fprint(sb, "    \"", name, "\": func(t uint32, v any) any {return ", name)
 		switch typeInfo := iz.cp.TypeInfoNow(name).(type) {
-		case service.CloneType:
+		case compiler.CloneType:
 			fmt.Fprint(sb, "(v.(", cloneConv[typeInfo.Parent], "))},\n")
-		case service.EnumType:
+		case compiler.EnumType:
 			fmt.Fprint(sb, "(v.(int))},\n")
-		case service.StructType:
+		case compiler.StructType:
 			fmt.Fprint(sb, "{")
 			sep := ""
 			for i := 0; i < typeInfo.Len(); i++ {
@@ -109,7 +109,7 @@ func (iz *initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string
 		return ""
 	}
 	typeNumber := aT.Types[0]
-	typeName := iz.cp.Vm.ConcreteTypeInfo[typeNumber].GetName(service.DEFAULT)
+	typeName := iz.cp.Vm.ConcreteTypeInfo[typeNumber].GetName(compiler.DEFAULT)
 	goType, ok := getGoType(typeName)
 	if !ok {
 		iz.Throw("golang/type/illegal", INTEROP_TOKEN)

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
+	"pipefish/source/compiler"
 	"pipefish/source/err"
 	"pipefish/source/initializer"
-	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 	"pipefish/source/values"
@@ -17,10 +17,10 @@ import (
 )
 
 type Service struct {
-	cp             *service.Compiler
+	cp             *compiler.Compiler
 	localExternals map[string]*Service
-	in             service.InHandler
-	out            service.OutHandler
+	in             compiler.InHandler
+	out            compiler.OutHandler
 	db             *sql.DB
 }
 
@@ -35,53 +35,53 @@ func NewService() *Service {
 
 type Value = values.Value
 type Type = values.ValueType
-type InHandler = service.InHandler
-type OutHandler = service.OutHandler
-type SimpleInHandler = service.SimpleInHandler
-type SimpleOutHandler = service.SimpleOutHandler
-type StandardInHandler = service.StandardInHandler
-type StandardOutHandler = service.StandardOutHandler
-type List = vector.Vector 
+type InHandler = compiler.InHandler
+type OutHandler = compiler.OutHandler
+type SimpleInHandler = compiler.SimpleInHandler
+type SimpleOutHandler = compiler.SimpleOutHandler
+type StandardInHandler = compiler.StandardInHandler
+type StandardOutHandler = compiler.StandardOutHandler
+type List = vector.Vector
 type Map = *values.Map
 type Set = values.Set
 
 const (
-    UNDEFINED_TYPE Type = values.UNDEFINED_TYPE
-	BLING Type = values.BLING
-	OK Type = values.SUCCESSFUL_VALUE
-	TUPLE Type = values.TUPLE
-	ERROR Type = values.ERROR
-	NULL Type = values.NULL            
-	INT Type = values.INT          
-	BOOL Type = values.BOOL          
-	STRING Type = values.STRING     
-	RUNE Type = values.RUNE        
-	FLOAT Type = values.FLOAT      
-	TYPE Type = values.TYPE        
-	FUNC Type = values.FUNC    
-	PAIR Type = values.PAIR   
-	LIST Type = values.LIST   
-	MAP Type = values.MAP     
-	SET Type = values.SET      
-	LABEL Type = values.LABEL    
+	UNDEFINED_TYPE Type = values.UNDEFINED_TYPE
+	BLING          Type = values.BLING
+	OK             Type = values.SUCCESSFUL_VALUE
+	TUPLE          Type = values.TUPLE
+	ERROR          Type = values.ERROR
+	NULL           Type = values.NULL
+	INT            Type = values.INT
+	BOOL           Type = values.BOOL
+	STRING         Type = values.STRING
+	RUNE           Type = values.RUNE
+	FLOAT          Type = values.FLOAT
+	TYPE           Type = values.TYPE
+	FUNC           Type = values.FUNC
+	PAIR           Type = values.PAIR
+	LIST           Type = values.LIST
+	MAP            Type = values.MAP
+	SET            Type = values.SET
+	LABEL          Type = values.LABEL
 )
 
 var (
-	STANDARD_INPUT  = service.StandardInHandler{}
-	STANDARD_OUTPUT = service.StandardOutHandler{}
+	STANDARD_INPUT  = compiler.StandardInHandler{}
+	STANDARD_OUTPUT = compiler.StandardOutHandler{}
 	UNDEFINED_VALUE = Value{}
 )
 
 func MakeSimpleInHandler(in io.Reader) SimpleInHandler {
-	return service.MakeSimpleInHandler(in)
+	return compiler.MakeSimpleInHandler(in)
 }
 
 func MakeSimpleOutHandler(out io.Writer) SimpleOutHandler {
-	return service.MakeSimpleOutHandler(out)
+	return compiler.MakeSimpleOutHandler(out)
 }
 
 func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
-	compilerMap := make(map[string]*service.Compiler)
+	compilerMap := make(map[string]*compiler.Compiler)
 	for k, v := range sv.localExternals {
 		compilerMap[k] = v.cp
 	}
@@ -97,14 +97,14 @@ func (sv *Service) SetLocalExternalServices(svs map[string]*Service) {
 	sv.localExternals = svs
 }
 
-func (sv *Service) SetInHandler(in service.InHandler) {
+func (sv *Service) SetInHandler(in compiler.InHandler) {
 	sv.in = in
 	if sv.cp != nil {
 		sv.cp.Vm.InHandle = in
 	}
 }
 
-func (sv *Service) SetOutHandler(out service.OutHandler) {
+func (sv *Service) SetOutHandler(out compiler.OutHandler) {
 	sv.out = out
 	if sv.cp != nil {
 		sv.cp.Vm.OutHandle = out
@@ -126,7 +126,7 @@ func (sv *Service) Do(line string) (values.Value, error) {
 		return UNDEFINED_VALUE, errors.New("Service is broken.")
 	}
 	sv.cp.P.ResetAfterError()
-	sv.cp.Vm.LiveTracking = make([]service.TrackingData, 0)
+	sv.cp.Vm.LiveTracking = make([]compiler.TrackingData, 0)
 	state := sv.cp.GetState()
 	cT := sv.cp.CodeTop()
 	node := sv.cp.P.ParseLine("REPL input", line)
@@ -136,12 +136,12 @@ func (sv *Service) Do(line string) (values.Value, error) {
 	if sv.cp.P.ErrorsExist() {
 		return UNDEFINED_VALUE, errors.New("Error parsing input.")
 	}
-	ctxt := service.Context{Env: sv.cp.GlobalVars, Access: service.REPL, LowMem: service.DUMMY, LogFlavor: service.LF_NONE}
+	ctxt := compiler.Context{Env: sv.cp.GlobalVars, Access: compiler.REPL, LowMem: compiler.DUMMY, LogFlavor: compiler.LF_NONE}
 	sv.cp.CompileNode(node, ctxt)
 	if sv.cp.P.ErrorsExist() {
 		return UNDEFINED_VALUE, errors.New("Error compiling input.")
 	}
-	sv.cp.Emit(service.Ret)
+	sv.cp.Emit(compiler.Ret)
 	sv.cp.Cm("Calling Run from Do.", node.GetToken())
 	sv.cp.Vm.Run(cT)
 	result := sv.cp.Vm.Mem[sv.cp.That()]
@@ -213,11 +213,11 @@ func (sv *Service) GetErrorReport() (string, error) {
 	return sv.cp.P.ReturnErrors(), nil
 }
 
-func GetTraceReport(e *err.Error) (string) {
-    result := text.RT_ERROR + e.Message + "\n\n" 
-		for i := len(e.Trace) - 1; i >= 0; i-- {
-			result = result + "  From: " + text.DescribeTok(e.Trace[i]) + text.DescribePos(e.Trace[i]) + "."
-		}
+func GetTraceReport(e *err.Error) string {
+	result := text.RT_ERROR + e.Message + "\n\n"
+	for i := len(e.Trace) - 1; i >= 0; i-- {
+		result = result + "  From: " + text.DescribeTok(e.Trace[i]) + text.DescribePos(e.Trace[i]) + "."
+	}
 	return result + "\n"
 }
 

@@ -1,4 +1,4 @@
-package service
+package compiler
 
 // Converts values from Pipefish to Go and back for the vm.
 

@@ -1,6 +1,6 @@
 // Some small functions which answer the question "Given datum x, how do I find y?"
 
-package service
+package compiler
 
 import (
 	"strings"
