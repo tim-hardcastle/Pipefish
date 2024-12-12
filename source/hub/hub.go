@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tim-hardcastle/Pipefish/tree/main/source/vendor/pf"
 	"pipefish/source/database"
 	"pipefish/source/svc"
 )
@@ -1503,6 +1504,7 @@ func Cyan(s string) string {
 }
 
 func Logo() string {
+	pf.Greet()
 	var padding string
 	if len(VERSION)%2 == 1 {
 		padding = ","
