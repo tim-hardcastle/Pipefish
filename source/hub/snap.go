@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"pipefish/source/pf"
+	"pipefish/source/svc"
 )
 
 type ioPair struct {
@@ -72,23 +72,22 @@ func (sn *Snap) Save(st string) string {
 	return "Created test as file " + Cyan("'"+testFilepath+"'") + "."
 }
 
-
-func MakeSnapIo(sv *pf.Service, out io.Writer, sn *Snap) (*snapInHandler, *snapOutHandler) {
-	iH := snapInHandler{stdIn: pf.MakeStandardInHandler(""), snap: sn}
+func MakeSnapIo(sv *svc.Service, out io.Writer, sn *Snap) (*snapInHandler, *snapOutHandler) {
+	iH := snapInHandler{stdIn: svc.MakeStandardInHandler(""), snap: sn}
 	oH := snapOutHandler{stdOut: sv.MakeLiteralWritingOutHandler(out), snap: sn}
 	return &iH, &oH
 }
 
 type snapInHandler struct {
-	stdIn *pf.StandardInHandler
-	snap  *Snap
+	stdIn  *svc.StandardInHandler
+	snap   *Snap
 	prompt string
 }
 
 type snapOutHandler struct {
-	stdOut *pf.SimpleOutHandler
+	stdOut *svc.SimpleOutHandler
 	snap   *Snap
-	sv     *pf.Service
+	sv     *svc.Service
 }
 
 func (iH *snapInHandler) Get() string {
@@ -98,7 +97,7 @@ func (iH *snapInHandler) Get() string {
 	return input
 }
 
-func (oH *snapOutHandler) Out(v pf.Value) {
+func (oH *snapOutHandler) Out(v svc.Value) {
 	oH.snap.AppendOutput(oH.sv.Literal(v))
 	oH.stdOut.Out(v)
 }
@@ -107,10 +106,10 @@ func (oH *snapOutHandler) Write(s string) {
 	oH.stdOut.Write(s)
 }
 
-func snapFunctionMaker(sv *pf.Service) func(pf.Value)[]byte {
-	return func (v pf.Value) []byte {
+func snapFunctionMaker(sv *svc.Service) func(svc.Value) []byte {
+	return func(v svc.Value) []byte {
 		var out bytes.Buffer
-		vals := v.V.([]pf.Value) // A snap always returns a tuple.
+		vals := v.V.([]svc.Value) // A snap always returns a tuple.
 		elements := []string{}
 		for _, e := range vals {
 			elements = append(elements, sv.Literal(e))
@@ -121,14 +120,14 @@ func snapFunctionMaker(sv *pf.Service) func(pf.Value)[]byte {
 	}
 }
 
-func MakeTestIoHandler(sv *pf.Service, out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) (*TestInHandler, *TestOutHandler) {
-	iH := &TestInHandler{out: out, stdIn: pf.MakeStandardInHandler(""), scanner: scanner, testOutputType: testOutputType}
+func MakeTestIoHandler(sv *svc.Service, out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) (*TestInHandler, *TestOutHandler) {
+	iH := &TestInHandler{out: out, stdIn: svc.MakeStandardInHandler(""), scanner: scanner, testOutputType: testOutputType}
 	oH := &TestOutHandler{sv: sv, stdOut: sv.MakeLiteralWritingOutHandler(out), scanner: scanner, testOutputType: testOutputType}
 	return iH, oH
 }
 
 type TestInHandler struct {
-	stdIn          *pf.StandardInHandler
+	stdIn          *svc.StandardInHandler
 	out            io.Writer
 	scanner        *bufio.Scanner
 	Fail           bool
@@ -136,8 +135,8 @@ type TestInHandler struct {
 }
 
 type TestOutHandler struct {
-	sv             *pf.Service
-	stdOut         *pf.SimpleOutHandler
+	sv             *svc.Service
+	stdOut         *svc.SimpleOutHandler
 	scanner        *bufio.Scanner
 	Fail           bool
 	testOutputType TestOutputType
@@ -146,8 +145,8 @@ type TestOutHandler struct {
 func (iH *TestInHandler) Get() string {
 	iH.scanner.Scan()
 	prompt := iH.scanner.Text()
-	if iH.testOutputType == SHOW_ALL{
-			iH.out.Write([]byte(prompt + "\n"))
+	if iH.testOutputType == SHOW_ALL {
+		iH.out.Write([]byte(prompt + "\n"))
 	}
 	iH.scanner.Scan()
 	input := iH.scanner.Text()
@@ -157,9 +156,9 @@ func (iH *TestInHandler) Get() string {
 	return input[3:]
 }
 
-func (oH *TestOutHandler) Out(v pf.Value) {
+func (oH *TestOutHandler) Out(v svc.Value) {
 	var out bytes.Buffer
-	vals := v.V.([]pf.Value) // We make sure it is always passed a tuple.
+	vals := v.V.([]svc.Value) // We make sure it is always passed a tuple.
 	elements := []string{}
 	for _, e := range vals {
 		elements = append(elements, string(oH.sv.Literal(e)))
