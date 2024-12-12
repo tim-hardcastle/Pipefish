@@ -2,34 +2,48 @@
 
 ## Overview
 
-This package consists of two systems which need to be able to see one another. It is therefore something of a tangled web.
+This package consists of two systems which need to be able to see one another. In order to make use of external services the VM needs to be able to see the compiler class, but of course also the compiler needs to be able to see the VM so as to compile onto it. Hence the tangled web. It may be possible to remedy this in a future version.
 
-It can be divided into:
+So the package can be divided into two parts, the compiler and the VM.
 
-(A) Compilation, as performed by the `compiler`, `builtin`, `environment`, and `typeschemes` files.
+## The compiler
 
-(C) The vm, as implemented by the `vm`, `descriptors`, `iohandler`, `operations`, `snap`, `SQL`, and `vmgo` files.
+This is performed by the `builtin`, `compiler`, `compfcall`, `environment`, `getters` and `typeschemes` files.
 
-In order to make use of external services the VM needs to be able to see the compiler, but of course also the compiler needs to be able to see the VM so as to compile onto it.
+* `builtin` contains the code for generating builtin functions.
 
-## Notes on the vm.
+* `compiler` knows everything needed to compile a line of code from the REPL at runtime. It does *not* know how to compile a script by itself, and is directed in this by the `initializer` package.
+
+* `compfcall` breaks out the logic for compiling a function call, which is complicated because of the multiple dispatch.
+
+* `environment` supplies data structures and their getters and setters for keeping track of where in (virtual) memory variables are stored.
+
+* `getters` is a miscellaneous collection of helper functions for extracting data conveniently from wherever its stored and converting it from one form to another. This can be quite convoluted as a result of my attempts to maintain a single source of truth.
+
+* `typeschemes` contains types, and functions for manipulating them, that represents the compiler's view of the type system. This is somewhat richer than that enjoyed by the user or the compiled code, in that it can keep track of the types of the elements of tuples.
+
+## The vm
+
+This is implemented by the `descriptors`, `iohandler`, `operations`, `SQL`, `vm`, and `vmgo` files.
 
 Mainly, the vm needs to do two things
 
 (1) Go round in a big loop running the bytecode.
 (2) Know how to describe things as text --- values, types, and its own workings.
 
-The opcodes of the machine are defined in the `operations` file, which also contains information about the number and semantic significance of the operands, and so constitutes an informal specification.
+* `descriptors` contains functions for describing Pipefish values and types. In order to maintain DRYness and a single source of truth it does this for the rest of the application, by one route or another.
 
-The main loop is in the `vm` file.
+* `iohandler` lets you create iohandlers to modify where the vm gets its input and sends its output. Much of this has been moved to the `pf` package, which aliases the relevant types.
 
-The `descriptors` file contains functions for describing Pipefish values and types.
+* `operations` defines the opcodes of the machine are defined in the file, which also contains information about the number and semantic significance of the operands, and so constitutes an informal specification. It also contains the code for peeking at the workings of the VM for debugging purposes.
 
-The `SQL` file contains utilities for the vm to talk to SQL, as you would guess.
+* `SQL` contains utilities for the vm to talk to SQL, as you would guess.
 
-The `iohandler` file lets you create iohandlers to be passed to the vm to modify where it gets its input and sends its output.
+* `vm` contains the main loop: one big `switch` statement on the operands.
 
-The `snap` file contains functions to help the hub make and run tests.
+* `vmgo` contains functions for converting Piepfish values to Go values and vice versa.
+
+### Note on the operations of the vm.
 
 The opcodes of the vm, as found in the `operations` file, are based on English. They often have one or more suffix characters indicating the type to which they relate. Container types are capitalized.
 
