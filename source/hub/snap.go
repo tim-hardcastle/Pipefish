@@ -73,32 +73,34 @@ func (sn *Snap) Save(st string) string {
 }
 
 
-func MakeSnapIo(out io.Writer, sn *Snap) (pf.InHandler, pf.OutHandler) {
-	iH := snapInHandler{stdIn: pf.STANDARD_INPUT, snap: sn}
-	oH := snapOutHandler{stdOut: pf.MakeSimpleOutHandler(out), snap: sn}
+func MakeSnapIo(sv *pf.Service, out io.Writer, sn *Snap) (*snapInHandler, *snapOutHandler) {
+	iH := snapInHandler{stdIn: pf.MakeStandardInHandler(""), snap: sn}
+	oH := snapOutHandler{stdOut: sv.MakeLiteralWritingOutHandler(out), snap: sn}
 	return &iH, &oH
 }
 
 type snapInHandler struct {
-	stdIn pf.StandardInHandler
+	stdIn *pf.StandardInHandler
 	snap  *Snap
+	prompt string
 }
 
 type snapOutHandler struct {
-	stdOut pf.SimpleOutHandler
+	stdOut *pf.SimpleOutHandler
 	snap   *Snap
+	sv     *pf.Service
 }
 
-func (iH *snapInHandler) Get(prompt string) string {
-	iH.snap.AddOutput("\"" + prompt + "\"")
-	input := iH.stdIn.Get(prompt)
+func (iH *snapInHandler) Get() string {
+	iH.snap.AddOutput("\"" + iH.prompt + "\"")
+	input := iH.stdIn.Get()
 	iH.snap.AddInput(input)
 	return input
 }
 
-func (oH *snapOutHandler) Out(v pf.Value, fn func(pf.Value)[]byte) {
-	oH.snap.AppendOutput(string(fn(v)))
-	oH.stdOut.Out(v, fn)
+func (oH *snapOutHandler) Out(v pf.Value) {
+	oH.snap.AppendOutput(oH.sv.Literal(v))
+	oH.stdOut.Out(v)
 }
 
 func (oH *snapOutHandler) Write(s string) {
@@ -119,14 +121,14 @@ func snapFunctionMaker(sv *pf.Service) func(pf.Value)[]byte {
 	}
 }
 
-func MakeTestIoHandler(out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) (pf.InHandler, pf.OutHandler) {
-	iH := &TestInHandler{out: out, stdIn: pf.STANDARD_INPUT, scanner: scanner, testOutputType: testOutputType}
-	oH := &TestOutHandler{stdOut: pf.MakeSimpleOutHandler(out), scanner: scanner, testOutputType: testOutputType}
+func MakeTestIoHandler(sv *pf.Service, out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) (*TestInHandler, *TestOutHandler) {
+	iH := &TestInHandler{out: out, stdIn: pf.MakeStandardInHandler(""), scanner: scanner, testOutputType: testOutputType}
+	oH := &TestOutHandler{sv: sv, stdOut: sv.MakeLiteralWritingOutHandler(out), scanner: scanner, testOutputType: testOutputType}
 	return iH, oH
 }
 
 type TestInHandler struct {
-	stdIn          pf.StandardInHandler
+	stdIn          *pf.StandardInHandler
 	out            io.Writer
 	scanner        *bufio.Scanner
 	Fail           bool
@@ -134,32 +136,18 @@ type TestInHandler struct {
 }
 
 type TestOutHandler struct {
-	stdOut         pf.SimpleOutHandler
+	sv             *pf.Service
+	stdOut         *pf.SimpleOutHandler
 	scanner        *bufio.Scanner
 	Fail           bool
 	testOutputType TestOutputType
 }
 
-func (iH *TestInHandler) Get(prompt string) string {
+func (iH *TestInHandler) Get() string {
 	iH.scanner.Scan()
-	expectedPrompt := iH.scanner.Text()
-	gotPrompt := "\"" + prompt + "\""
-
-	switch iH.testOutputType {
-	case ERROR_CHECK:
-		iH.Fail = iH.Fail || expectedPrompt != gotPrompt
-	case SHOW_ALL:
-		if expectedPrompt != gotPrompt {
-			iH.out.Write([]byte(WAS + expectedPrompt))
-			iH.out.Write([]byte("\n" + GOT + gotPrompt + "\n"))
-		} else {
-			iH.out.Write([]byte(gotPrompt + "\n"))
-		}
-	case SHOW_DIFF:
-		if expectedPrompt != gotPrompt {
-			iH.out.Write([]byte(WAS + expectedPrompt))
-			iH.out.Write([]byte("\n" + GOT + gotPrompt + "\n"))
-		}
+	prompt := iH.scanner.Text()
+	if iH.testOutputType == SHOW_ALL{
+			iH.out.Write([]byte(prompt + "\n"))
 	}
 	iH.scanner.Scan()
 	input := iH.scanner.Text()
@@ -169,13 +157,12 @@ func (iH *TestInHandler) Get(prompt string) string {
 	return input[3:]
 }
 
-func (oH *TestOutHandler) Out(v pf.Value, fn func(pf.Value)[]byte) {
-
+func (oH *TestOutHandler) Out(v pf.Value) {
 	var out bytes.Buffer
-	vals := v.V.([]pf.Value)
+	vals := v.V.([]pf.Value) // We make sure it is always passed a tuple.
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, string(fn(e)))
+		elements = append(elements, string(oH.sv.Literal(e)))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	oH.scanner.Scan()

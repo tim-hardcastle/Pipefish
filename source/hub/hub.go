@@ -561,9 +561,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.snap = NewSnap(scriptFilepath, testFilepath)
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
-			ServiceDo((*hub).services["#snap"], "$view = \"\"")
+			ServiceDo(hub.services["#snap"], "$view = \"\"")
 			hub.WriteString("Serialization is ON.\n")
-			in, out := MakeSnapIo(hub.out, hub.snap)
+			in, out := MakeSnapIo(hub.services["#snap"], hub.out, hub.snap)
 			currentService := hub.services[hub.currentServiceName()]
 			currentService.SetInHandler(in)
 			currentService.SetOutHandler(out)
@@ -1156,7 +1156,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 		hub.WriteError("Can't initialize script '" + scriptFilepath + "'")
 		return
 	}
-	in, out := MakeTestIoHandler(hub.out, scanner, testOutputType)
+	in, out := MakeTestIoHandler(hub.services["#test"], hub.out, scanner, testOutputType)
 	hub.services["#test"].SetInHandler(in)
 	hub.services["#test"].SetOutHandler(out)
 	if testOutputType == ERROR_CHECK {
@@ -1227,7 +1227,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	ServiceDo((*hub).services["#test"], "$view = \"\"")
 	testService := (*hub).services["#test"]
-	in, out := MakeTestIoHandler(hub.out, scanner, SHOW_ALL)
+	in, out := MakeTestIoHandler(testService, hub.out, scanner, SHOW_ALL)
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)
 	_ = scanner.Scan() // eats the newline

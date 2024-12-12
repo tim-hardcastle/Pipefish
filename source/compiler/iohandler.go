@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"io"
-	"os"
 
 	"pipefish/source/values"
 
@@ -11,38 +10,30 @@ import (
 
 
 type InHandler interface {
-	Get(query string) string
+	Get() string
 }
 
 type OutHandler interface {
-	Out(v values.Value, serializer func(values.Value) []byte)
+	Out(v values.Value)
 	Write(s string)
 }
 
-type StandardInHandler struct{}
+type StandardInHandler struct{
+	prompt string
+}
 
-type StandardOutHandler struct{}
-
-func (iH *StandardInHandler) Get(prompt string) string {
+func (iH *StandardInHandler) Get() string {
 	rline := readline.NewInstance()
-	rline.SetPrompt(prompt)
+	rline.SetPrompt(iH.prompt)
 	line, _ := rline.Readline()
 	return line
-}
-
-func (oH *StandardOutHandler) Out(v values.Value, fn func(values.Value) []byte) {
-	os.Stdout.Write(fn(v))
-}
-
-func (oH *StandardOutHandler) Write(s string) {
-	os.Stdout.Write([]byte(s))
 }
 
 type SimpleInHandler struct {
 	input io.Reader
 }
 
-func (iH *SimpleInHandler) Get(prompt string) string {
+func (iH *SimpleInHandler) Get() string {
 	var bytes []byte
 	iH.input.Read(bytes)
 	return string(bytes)
@@ -50,10 +41,21 @@ func (iH *SimpleInHandler) Get(prompt string) string {
 
 type SimpleOutHandler struct {
 	output io.Writer
+	vm *Vm
+	literal bool
 }
 
-func (oH *SimpleOutHandler) Out(v values.Value, fn func(values.Value) []byte) {
-	oH.output.Write(fn(v))
+func MakeSimpleOutHandler(out io.Writer, vm *Vm, literal bool) *SimpleOutHandler {
+	return &SimpleOutHandler{out, vm, literal}
+}
+
+func (oH *SimpleOutHandler) Out(v values.Value) {
+	if oH.literal {
+		oH.output.Write([]byte(oH.vm.Literal(v)))
+	} else {
+		oH.output.Write([]byte(oH.vm.Literal(v)))
+	}
+	oH.output.Write([]byte{'\n'})
 }
 
 func (oH *SimpleOutHandler) Write(s string) {
@@ -70,10 +72,11 @@ func (oH *ConsumingOutHandler) Write(s string) {
 	
 }
 
-func MakeSimpleInHandler(in io.Reader) SimpleInHandler {
-	return SimpleInHandler{in}
+func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
+	return &SimpleInHandler{in}
 }
 
-func MakeSimpleOutHandler(out io.Writer) SimpleOutHandler {
-	return SimpleOutHandler{out}
+func MakeStandardInHandler(prompt string) *StandardInHandler {
+	return &StandardInHandler{prompt}
 }
+

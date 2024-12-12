@@ -92,18 +92,18 @@ func (iz *initializer) ParseEverythingFromFilePath(mc *compiler.Vm, Common *pars
 	return iz.ParseEverythingFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath), nil
 }
 
-func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) (*compiler.Compiler, error) {
+func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*compiler.Compiler) (*compiler.Compiler, error) {
 	sourcecode, e := compiler.GetSourceCode(filepath)
 	if e != nil {
 		return nil, e
 	}
-	return StartCompiler(filepath, sourcecode, db, svs, in, out), nil
+	return StartCompiler(filepath, sourcecode, db, svs), nil
 }
 
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
 // `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
 // "children" of the intitializer and the parser when new modules are created.
-func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) *compiler.Compiler {
+func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*compiler.Compiler) *compiler.Compiler {
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle()
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
@@ -654,8 +654,7 @@ func (iz *initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
-			iz.cp.Vm.InHandle, iz.cp.Vm.OutHandle)
+		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices)
 			if e != nil { // Then we couldn't open the file.
 			iz.Throw("init/external/file", declaration.GetToken(), e)
 		}

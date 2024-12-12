@@ -19,16 +19,12 @@ import (
 type Service struct {
 	cp             *compiler.Compiler
 	localExternals map[string]*Service
-	in             compiler.InHandler
-	out            compiler.OutHandler
 	db             *sql.DB
 }
 
 func NewService() *Service {
 	return &Service{cp: nil,
 		localExternals: make(map[string]*Service),
-		in:             &STANDARD_INPUT,
-		out:            &STANDARD_OUTPUT,
 		db:             nil,
 	}
 }
@@ -50,7 +46,7 @@ func (sv *Service) Initialize(scriptFilepath, sourcecode string) error {
 	for k, v := range sv.localExternals {
 		compilerMap[k] = v.cp
 	}
-	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap, sv.in, sv.out)
+	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap)
 	sv.cp = cp
 	for k, v := range compilerMap {
 		sv.localExternals[k].cp = v
@@ -68,7 +64,6 @@ type OutHandler = compiler.OutHandler
 type SimpleInHandler = compiler.SimpleInHandler
 type SimpleOutHandler = compiler.SimpleOutHandler
 type StandardInHandler = compiler.StandardInHandler
-type StandardOutHandler = compiler.StandardOutHandler
 type List = vector.Vector
 type Map = *values.Map
 type Set = values.Set
@@ -95,35 +90,57 @@ const (
 )
 
 var (
-	STANDARD_INPUT  = compiler.StandardInHandler{}
-	STANDARD_OUTPUT = compiler.StandardOutHandler{}
 	UNDEFINED_VALUE = Value{}
 )
 
-func MakeSimpleInHandler(in io.Reader) SimpleInHandler {
+func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
 	return compiler.MakeSimpleInHandler(in)
 }
 
-func MakeSimpleOutHandler(out io.Writer) SimpleOutHandler {
-	return compiler.MakeSimpleOutHandler(out)
+func (sv *Service) MakeLiteralWritingOutHandler(out io.Writer) *SimpleOutHandler {
+	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, true)
+}
+
+func (sv *Service) MakeStringWritingOutHandler(out io.Writer) *SimpleOutHandler {
+	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, false)
+}
+
+func (sv *Service) MakeStandardLiteralOutHandler(out io.Writer) *SimpleOutHandler {
+	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, false)
+}
+
+func (sv *Service) MakeStandardStringOutHandler(out io.Writer) *SimpleOutHandler {
+	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, false)
+}
+
+func MakeStandardInHandler(prompt string) *StandardInHandler {
+	return compiler.MakeStandardInHandler(prompt)
 }
 
 func (sv *Service) SetLocalExternalServices(svs map[string]*Service) {
 	sv.localExternals = svs
 }
 
-func (sv *Service) SetInHandler(in compiler.InHandler) {
-	sv.in = in
-	if sv.cp != nil {
-		sv.cp.Vm.InHandle = in
+func (sv *Service) SetInHandler(in compiler.InHandler) error {
+	if sv.cp == nil {
+		return errors.New("service is uninitialized.")
 	}
+	if sv.IsBroken() {
+		return errors.New("service is broken.")
+	}
+	sv.cp.Vm.InHandle = in
+	return nil
 }
 
-func (sv *Service) SetOutHandler(out compiler.OutHandler) {
-	sv.out = out
-	if sv.cp != nil {
-		sv.cp.Vm.OutHandle = out
+func (sv *Service) SetOutHandler(out compiler.OutHandler) error {
+	if sv.cp == nil {
+		return errors.New("service is uninitialized.")
 	}
+	if sv.IsBroken() {
+		return errors.New("service is broken.")
+	}
+	sv.cp.Vm.OutHandle = out
+	return nil
 }
 
 func (sv *Service) SetDatabase(db *sql.DB) {
@@ -135,10 +152,10 @@ func (sv *Service) SetDatabase(db *sql.DB) {
 
 func (sv *Service) Do(line string) (values.Value, error) {
 	if sv.cp == nil {
-		return UNDEFINED_VALUE, errors.New("Service is uninitialized.")
+		return UNDEFINED_VALUE, errors.New("service is uninitialized.")
 	}
 	if sv.IsBroken() {
-		return UNDEFINED_VALUE, errors.New("Service is broken.")
+		return UNDEFINED_VALUE, errors.New("service is broken.")
 	}
 	sv.cp.P.ResetAfterError()
 	sv.cp.Vm.LiveTracking = make([]compiler.TrackingData, 0)
@@ -149,12 +166,12 @@ func (sv *Service) Do(line string) (values.Value, error) {
 		fmt.Println("Parsed line:", node.String())
 	}
 	if sv.cp.P.ErrorsExist() {
-		return UNDEFINED_VALUE, errors.New("Error parsing input.")
+		return UNDEFINED_VALUE, errors.New("error parsing input.")
 	}
 	ctxt := compiler.Context{Env: sv.cp.GlobalVars, Access: compiler.REPL, LowMem: compiler.DUMMY, LogFlavor: compiler.LF_NONE}
 	sv.cp.CompileNode(node, ctxt)
 	if sv.cp.P.ErrorsExist() {
-		return UNDEFINED_VALUE, errors.New("Error compiling input.")
+		return UNDEFINED_VALUE, errors.New("error compiling input.")
 	}
 	sv.cp.Emit(compiler.Ret)
 	sv.cp.Cm("Calling Run from Do.", node.GetToken())
@@ -166,10 +183,10 @@ func (sv *Service) Do(line string) (values.Value, error) {
 
 func (sv *Service) GetVariable(vname string) (values.Value, error) {
 	if sv.cp == nil {
-		return UNDEFINED_VALUE, errors.New("Service is uninitialized.")
+		return UNDEFINED_VALUE, errors.New("service is uninitialized.")
 	}
 	if sv.IsBroken() {
-		return UNDEFINED_VALUE, errors.New("Service is broken.")
+		return UNDEFINED_VALUE, errors.New("service is broken.")
 	}
 	v, ok := sv.cp.GlobalVars.GetVar(vname)
 	if !ok {
@@ -180,10 +197,10 @@ func (sv *Service) GetVariable(vname string) (values.Value, error) {
 
 func (sv *Service) SetVariable(vname string, ty values.ValueType, v any) error {
 	if sv.cp == nil {
-		return errors.New("Service is uninitialized.")
+		return errors.New("service is uninitialized.")
 	}
 	if sv.IsBroken() {
-		return errors.New("Service is broken.")
+		return errors.New("service is broken.")
 	}
 	_, ok := sv.cp.GlobalVars.GetVar(vname)
 	if !ok {
@@ -199,31 +216,31 @@ func (s *Service) CallMain() (values.Value, error) {
 
 func (sv *Service) NeedsUpdate() (bool, error) {
 	if sv.cp == nil {
-		return false, errors.New("Service is uninitialized.")
+		return false, errors.New("service is uninitialized.")
 	}
 	if sv.IsBroken() {
-		return false, errors.New("Service is broken.")
+		return false, errors.New("service is broken.")
 	}
 	return sv.cp.NeedsUpdate()
 }
 
 func (sv *Service) ErrorsExist() (bool, error) {
 	if sv.cp == nil {
-		return false, errors.New("Service is uninitialized.")
+		return false, errors.New("service is uninitialized.")
 	}
 	return sv.cp.P.ErrorsExist(), nil
 }
 
 func (sv *Service) GetSources() (map[string][]string, error) {
 	if sv.cp == nil {
-		return nil, errors.New("Service is uninitialized.")
+		return nil, errors.New("service is uninitialized.")
 	}
 	return sv.cp.P.Common.Sources, nil
 }
 
 func (sv *Service) GetErrorReport() (string, error) {
 	if sv.cp == nil {
-		return "", errors.New("Service is uninitialized.")
+		return "", errors.New("service is uninitialized.")
 	}
 	return sv.cp.P.ReturnErrors(), nil
 }
@@ -245,7 +262,7 @@ func ExplainError(es []*Error, i int) (string, error) {
 
 func (sv *Service) Filepath() (string, error) {
 	if sv.cp == nil {
-		return "", errors.New("Service is uninitialized.")
+		return "", errors.New("service is uninitialized.")
 	}
 	return sv.cp.ScriptFilepath, nil
 }
