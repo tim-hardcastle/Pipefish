@@ -440,7 +440,7 @@ func TestGocode(t *testing.T) {
 
 func testValues(cp *compiler.Compiler, s string) (string, error) {
 	v := cp.Do(s)
-	if !cp.ErrorsExist() {
+	if cp.ErrorsExist() {
 		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
 	return cp.Vm.Literal(v), nil
