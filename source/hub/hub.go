@@ -18,13 +18,13 @@ import (
 	"strings"
 
 	"pipefish/source/database"
-	"pipefish/source/svc"
+	"pipefish/source/pf"
 )
 
 type Hub struct {
 	hubFilepath            string
-	services               map[string]*svc.Service // The services the hub knows about.
-	ers                    []*svc.Error            // The errors produced by the latest compilation/execution of one of the hub's services.
+	services               map[string]*pf.Service // The services the hub knows about.
+	ers                    []*pf.Error            // The errors produced by the latest compilation/execution of one of the hub's services.
 	in                     io.Reader
 	out                    io.Writer
 	anonymousServiceNumber int
@@ -45,19 +45,19 @@ type Hub struct {
 func New(in io.Reader, out io.Writer) *Hub {
 
 	hub := Hub{
-		services: make(map[string]*svc.Service),
+		services: make(map[string]*pf.Service),
 		in:       in,
 		out:      out,
 		lastRun:  []string{},
 	}
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	hub.pipefishHomeDirectory = appDir + "/"
+    hub.pipefishHomeDirectory = appDir + "/"
 	return &hub
 }
 
 func (hub *Hub) currentServiceName() string {
 	cs := hub.getSV("currentService")
-	if cs.T == svc.NULL {
+	if cs.T == pf.NULL {
 		return ""
 	} else {
 		return cs.V.(string)
@@ -65,11 +65,11 @@ func (hub *Hub) currentServiceName() string {
 }
 
 func (hub *Hub) hasDatabase() bool {
-	return hub.getSV("database").T != svc.NULL
+	return hub.getSV("database").T != pf.NULL
 }
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
-	dbStruct := hub.getSV("database").V.([]svc.Value)
+	dbStruct := hub.getSV("database").V.([]pf.Value)
 	driver := hub.services["hub"].Literal(dbStruct[0])
 	return driver, dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
 }
@@ -78,7 +78,7 @@ func (hub *Hub) setDB(driver, name, path string, port int, username, password st
 	hubService := hub.services["hub"]
 	driverAsEnumValue, _ := hubService.Do(driver)
 	structType, _ := hubService.TypeNameToType("Database")
-	hub.setSV("database", structType, []svc.Value{driverAsEnumValue, {svc.STRING, name}, {svc.STRING, path}, {svc.INT, port}, {svc.STRING, username}, {svc.STRING, password}})
+	hub.setSV("database", structType, []pf.Value{driverAsEnumValue, {pf.STRING, name}, {pf.STRING, path}, {pf.INT, port}, {pf.STRING, username}, {pf.STRING, password}})
 }
 
 func (hub *Hub) isLive() bool {
@@ -86,23 +86,23 @@ func (hub *Hub) isLive() bool {
 }
 
 func (hub *Hub) setLive(b bool) {
-	hub.setSV("isLive", svc.BOOL, b)
+	hub.setSV("isLive", pf.BOOL, b)
 }
 
 func (hub *Hub) setServiceName(name string) {
-	hub.setSV("currentService", svc.STRING, name)
+	hub.setSV("currentService", pf.STRING, name)
 }
 
 func (hub *Hub) makeEmptyServiceCurrent() {
-	hub.setSV("currentService", svc.NULL, nil)
+	hub.setSV("currentService", pf.NULL, nil)
 }
 
-func (hub *Hub) getSV(sv string) svc.Value {
+func (hub *Hub) getSV(sv string) pf.Value {
 	v, _ := hub.services["hub"].GetVariable(sv)
 	return v
 }
 
-func (hub *Hub) setSV(sv string, ty svc.Type, v any) {
+func (hub *Hub) setSV(sv string, ty pf.Type, v any) {
 	hub.services["hub"].SetVariable(sv, ty, v)
 }
 
@@ -151,7 +151,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			return passedServiceName, false
 		}
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
-			os.Chdir(hubWords[2])     // process, if we did it with exec it would do it for
+			os.Chdir(hubWords[2])    // process, if we did it with exec it would do it for
 			hub.WriteString(GREEN_OK) // that process and not for Pipefish.
 			return passedServiceName, false
 		}
@@ -211,11 +211,11 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
-	if val.T == svc.ERROR {
+	if val.T == pf.ERROR {
 		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
-		hub.ers = []*svc.Error{val.V.(*svc.Error)}
-		if len(val.V.(*svc.Error).Values) > 0 {
+		hub.ers = []*pf.Error{val.V.(*pf.Error)}
+		if len(val.V.(*pf.Error).Values) > 0 {
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
@@ -241,22 +241,22 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		hub.GetAndReportErrors(hubService)
 		return "error", []string{}
 	}
-	if hubReturn.T == svc.ERROR {
-		hub.WriteError(hubReturn.V.(*svc.Error).Message)
-		return "error", []string{hubReturn.V.(*svc.Error).Message}
+	if hubReturn.T == pf.ERROR {
+		hub.WriteError(hubReturn.V.(*pf.Error).Message)
+		return "error", []string{hubReturn.V.(*pf.Error).Message}
 	}
 	hrType, _ := hubService.TypeNameToType("HubResponse")
 	if hubReturn.T == hrType {
-		hR := hubReturn.V.([]svc.Value)
+		hR := hubReturn.V.([]pf.Value)
 		verb := hR[0].V.(string)
 		args := []string{}
-		for i := 0; i < hR[1].V.(svc.List).Len(); i++ {
-			el, _ := hR[1].V.(svc.List).Index(i)
-			args = append(args, el.(svc.Value).V.(string))
+		for i := 0; i < hR[1].V.(pf.List).Len(); i++ {
+			el, _ := hR[1].V.(pf.List).Index(i)
+			args = append(args, el.(pf.Value).V.(string))
 		}
 		return verb, args
 	}
-	if hubReturn.T == svc.OK {
+	if hubReturn.T == pf.OK {
 		if hub.getSV("display").V.(int) == 0 {
 			hub.WriteString("OK" + "\n")
 		} else {
@@ -666,7 +666,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("not a runtime error.")
 			return false
 		}
-		hub.WritePretty(svc.GetTraceReport(hub.ers[0]))
+		hub.WritePretty(pf.GetTraceReport(hub.ers[0]))
 		return false
 
 	case "users-of-group":
@@ -704,7 +704,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteString("\nValues passed were:\n\n")
 		}
 		for _, v := range hub.ers[0].Values {
-			if v.T == svc.BLING {
+			if v.T == pf.BLING {
 				hub.WritePretty(BULLET_SPACING + hub.services[hub.currentServiceName()].Literal(v))
 			} else {
 				hub.WritePretty(BULLET + hub.services[hub.currentServiceName()].Literal(v))
@@ -750,7 +750,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("there aren't that many errors.")
 			return false
 		}
-		exp, _ := svc.ExplainError(hub.ers, num)
+		exp, _ := pf.ExplainError(hub.ers, num)
 		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
 			".\n\n" + exp + "\n")
 		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
@@ -802,10 +802,10 @@ func (hub *Hub) help() {
 
 func (hub *Hub) WritePretty(s string) {
 	if errorsExist, _ := hub.services["hub"].ErrorsExist(); errorsExist {
-		hub.WriteString(svc.PrettyString(s, 0, 92))
+		hub.WriteString(pf.PrettyString(s, 0, 92))
 		return
 	}
-	hub.WriteString(svc.PrettyString(s, 0, hub.getSV("width").V.(int)))
+	hub.WriteString(pf.PrettyString(s, 0, hub.getSV("width").V.(int)))
 }
 
 func (hub *Hub) isAdministered() bool {
@@ -825,6 +825,7 @@ func (hub *Hub) WriteString(s string) {
 var helpStrings = map[string]string{}
 
 var helpTopics = []string{}
+
 
 // This is replicated in the settings file and any changes made here must be reflected there.
 var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
@@ -892,11 +893,11 @@ func (hub *Hub) tryMain() { // Guardedly tries to run the `main` command.
 		val, _ := hub.services[hub.currentServiceName()].CallMain()
 		hub.lastRun = []string{hub.currentServiceName()}
 		switch val.T {
-		case svc.ERROR:
+		case pf.ERROR:
 			hub.WritePretty("\n[0] " + valToString(hub.services[hub.currentServiceName()], val))
 			hub.WriteString("\n")
-			hub.ers = []*svc.Error{val.V.(*svc.Error)}
-		case svc.UNDEFINED_TYPE: // Which is what we get back if there is no `main` command.
+			hub.ers = []*pf.Error{val.V.(*pf.Error)}
+		case pf.UNDEFINED_TYPE: // Which is what we get back if there is no `main` command.
 		default:
 			hub.WriteString(valToString(hub.services[hub.currentServiceName()], val))
 		}
@@ -925,7 +926,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 
-	newService := svc.NewService()
+	newService := pf.NewService()
 	newService.SetDatabase(hub.Db)
 	newService.SetLocalExternalServices(hub.services)
 	newService.InitializeFromFilepath(scriptFilepath)
@@ -946,19 +947,19 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 
 func StartServiceFromCli() {
 	filename := os.Args[2]
-	newService := svc.NewService()
+	newService := pf.NewService()
 	newService.InitializeFromFilepath(filename)
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
 		s, _ := newService.GetErrorReport()
-		fmt.Println(svc.PrettyString(s, 0, 92))
+		fmt.Println(pf.PrettyString(s, 0, 92))
 		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
 	}
 	val, _ := newService.CallMain()
-	if val.T == svc.UNDEFINED_TYPE {
-		s := "\nScript " + Cyan("'"+filename) + " has no " + Cyan("'main'") + " command.\n\n"
-		fmt.Println(svc.PrettyString(s, 0, 92))
+	if val.T == pf.UNDEFINED_TYPE {
+		s := "\nScript " + Cyan("'" + filename) + " has no " + Cyan("'main'") + " command.\n\n"
+		fmt.Println(pf.PrettyString(s, 0, 92))
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
@@ -966,7 +967,7 @@ func StartServiceFromCli() {
 	os.Exit(0)
 }
 
-func (hub *Hub) GetAndReportErrors(sv *svc.Service) {
+func (hub *Hub) GetAndReportErrors(sv *pf.Service) {
 	hub.ers = sv.GetErrors()
 	r, _ := sv.GetErrorReport()
 	hub.WritePretty(r)
@@ -1030,10 +1031,10 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString("\n\n")
 	buf.WriteString("database Database? = ")
 	dbVal := hub.getSV("database")
-	if dbVal.T == svc.NULL {
+	if dbVal.T == pf.NULL {
 		buf.WriteString("NULL\n")
 	} else {
-		args := dbVal.V.([]svc.Value)
+		args := dbVal.V.([]pf.Value)
 		buf.WriteString("Database with (driver::")
 		buf.WriteString(hubService.Literal(args[0]))
 		buf.WriteString(",\n")
@@ -1071,7 +1072,7 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
 	v, _ := hubService.GetVariable("allServices")
-	services := v.V.(svc.Map).AsSlice()
+	services := v.V.(pf.Map).AsSlice()
 
 	var driver, name, host, username, password string
 	var port int
@@ -1249,7 +1250,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	}
 }
 
-func valToString(srv *svc.Service, val svc.Value) string {
+func valToString(srv *pf.Service, val pf.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
 	return srv.Literal(val)
@@ -1462,26 +1463,26 @@ func (h *Hub) handleConfigDbForm(f *Form) {
 	h.WriteString(GREEN_OK + "\n")
 }
 
-func ServiceDo(serviceToUse *svc.Service, line string) svc.Value {
+func ServiceDo(serviceToUse *pf.Service, line string) pf.Value {
 	v, _ := serviceToUse.Do(line)
 	return v
 }
 
 var (
-	MARGIN         = 92
-	GREEN_OK       = ("\033[32mOK\033[0m")
-	WAS            = Green("was") + ": "
-	GOT            = Red("got") + ": "
-	TEST_PASSED    = Green("Test passed!") + "\n"
+	MARGIN = 92
+	GREEN_OK = ("\033[32mOK\033[0m")
+	WAS         = Green("was") + ": "
+	GOT         = Red("got") + ": "
+	TEST_PASSED = Green("Test passed!") + "\n"
 	VERSION        = "0.5.9"
 	BULLET         = "  ▪ "
 	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
 	GOOD_BULLET    = Green("  ▪ ")
 	BROKEN         = Red("  ✖ ")
 	PROMPT         = "→ "
-	ERROR          = "$Error$"
-	RT_ERROR       = "$Error$"
-	HUB_ERROR      = "$Hub error$"
+	ERROR     = "$Error$"
+	RT_ERROR  = "$Error$"
+	HUB_ERROR = "$Hub error$"
 )
 
 const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
@@ -1503,7 +1504,6 @@ func Cyan(s string) string {
 }
 
 func Logo() string {
-	// pf.Greet()
 	var padding string
 	if len(VERSION)%2 == 1 {
 		padding = ","

@@ -1,1 +1,0 @@
-The `pf` module contains all of the Pipefish app except the TUI. Consequently it can be imported as a library by other Go applications, which can access its functionality via the `Service` class to use Pipefish as an embedded language.
