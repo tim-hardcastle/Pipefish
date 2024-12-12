@@ -96,7 +96,7 @@ func StartCompiler(scriptFilepath string, db *sql.DB, hubServices map[string]*co
 	//
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
-	result := iz.InitializeFromFilepath(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
+	result := iz.ParseEverythingFromFilePath(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
 
 	if iz.ErrorsExist() {
 		return result
@@ -118,10 +118,7 @@ func StartCompiler(scriptFilepath string, db *sql.DB, hubServices map[string]*co
 	return result
 }
 
-// Then we can recurse over this, passing it the same vm every time.
-// This returns a compiler and and mutates the vm.
-// In the case that any errors are produced, the will be in the comon bindle of the parseer of the returned compiler.
-func (iz *initializer) InitializeFromFilepath(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, namespacePath string) *compiler.Compiler {
+func (iz *initializer) ParseEverythingFromFilePath(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, namespacePath string) *compiler.Compiler {
 	sourcecode := ""
 	var sourcebytes []byte
 	var err error
@@ -139,10 +136,10 @@ func (iz *initializer) InitializeFromFilepath(mc *compiler.Vm, Common *parser.Co
 			return compiler.NewCompiler(p)
 		}
 	}
-	return iz.initializeFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath)
+	return iz.ParseEverythingFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath)
 }
 
-func (iz *initializer) initializeFromSourcecode(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
+func (iz *initializer) ParseEverythingFromSourcecode(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
 	iz.cp = newCompiler(Common, scriptFilepath, sourcecode, mc, namespacePath)
 	iz.p = iz.cp.P
 	iz.parseEverything(scriptFilepath, sourcecode)
@@ -583,7 +580,7 @@ func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports()
 		newIz := NewInitializer()
 		newIz.Common = iz.Common
 		iz.initializers[scriptFilepath] = newIz
-		newCp := newIz.InitializeFromFilepath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
+		newCp := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
 		iz.cp.Modules[namespace] = newCp
 		for k, v := range newIz.declarationMap { // See note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
 			iz.declarationMap[k] = v
@@ -690,7 +687,7 @@ func (iz *initializer) addAnyExternalService(handlerForService compiler.External
 	newIz := NewInitializer()
 	newIz.Common = iz.Common
 	iz.initializers[name] = newIz
-	newCp := newIz.initializeFromSourcecode(iz.cp.Vm, iz.p.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
+	newCp := newIz.ParseEverythingFromSourcecode(iz.cp.Vm, iz.p.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	iz.cp.Modules[name] = newCp
