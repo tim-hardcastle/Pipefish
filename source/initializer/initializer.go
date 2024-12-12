@@ -87,7 +87,7 @@ func newCompiler(Common *parser.CommonParserBindle, scriptFilepath, sourcecode s
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
 // `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
 // "children" of the intitializer and the parser when new modules are created.
-func StartService(scriptFilepath string, db *sql.DB, hubServices map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) *compiler.Compiler {
+func StartCompiler(scriptFilepath string, db *sql.DB, hubServices map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) *compiler.Compiler {
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle()
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
@@ -659,7 +659,7 @@ func (iz *initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp := StartService(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
+		newServiceCp := StartCompiler(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
 			iz.cp.Vm.InHandle, iz.cp.Vm.OutHandle)
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true

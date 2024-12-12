@@ -8,7 +8,9 @@ So the package can be divided into two parts, the compiler and the VM.
 
 ## The compiler
 
-This is performed by the `builtin`, `compiler`, `compfcall`, `environment`, `getters` and `typeschemes` files.
+This is performed by the `api_serialization`, `builtin`, `compiler`, `compfcall`, `environment`, `getters` and `typeschemes` files.
+
+* `api_serialization` serializes the API for the benefit of potential client services. (TODO: this could be done once at compile time and stored in the compiler.)
 
 * `builtin` contains the code for generating builtin functions.
 
@@ -41,13 +43,15 @@ Mainly, the vm needs to do two things
 
 * `vm` contains the main loop: one big `switch` statement on the operands.
 
-* `vmgo` contains functions for converting Piepfish values to Go values and vice versa.
+* `vmgo` contains functions for converting Pipefish values to Go values and vice versa.
 
 ### Note on the operations of the vm.
 
 The opcodes of the vm, as found in the `operations` file, are based on English. They often have one or more suffix characters indicating the type to which they relate. Container types are capitalized.
 
 Conditionals begin with `Q`, their last operand being a code location. The semantics of the conditional is "if the condition is met, continue to the next operation, otherwise jump to the given location". `Qn` means "if not".
+
+The following suffixes may be used to indicate the types of the operands:
 
 b - bool
 f - float

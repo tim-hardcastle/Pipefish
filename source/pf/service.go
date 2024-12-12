@@ -85,8 +85,11 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	for k, v := range sv.localExternals {
 		compilerMap[k] = v.cp
 	}
-	cp := initializer.StartService(scriptFilepath, sv.db, compilerMap, sv.in, sv.out)
+	cp := initializer.StartCompiler(scriptFilepath, sv.db, compilerMap, sv.in, sv.out)
 	sv.cp = cp
+	for k, v := range compilerMap {
+		sv.localExternals[k].cp = v
+	}
 	if sv.IsBroken() {
 		return errors.New("compilation error")
 	}
