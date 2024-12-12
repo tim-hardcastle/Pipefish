@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"pipefish/source/ast"
+	"pipefish/source/compiler"
 	"pipefish/source/dtypes"
-	"pipefish/source/service"
 	"pipefish/source/settings"
 	"pipefish/source/text"
 )
@@ -244,17 +244,17 @@ func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string
 	}
 	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
 		for structName := range structsToCheck {
-			for _, fieldType := range iz.cp.TypeInfoNow(structName).(service.StructType).AbstractStructFields {
+			for _, fieldType := range iz.cp.TypeInfoNow(structName).(compiler.StructType).AbstractStructFields {
 				if fieldType.Len() != 1 {
-					iz.Throw("golang/type/concrete/a", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, service.LITERAL))
+					iz.Throw("golang/type/concrete/a", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, compiler.LITERAL))
 				}
 				typeOfField := iz.cp.GetTypeNameFromNumber(fieldType.Types[0])
 				switch fieldData := iz.cp.TypeInfoNow(typeOfField).(type) {
-				case service.CloneType:
-					userDefinedTypes.Add(fieldData.GetName(service.DEFAULT))
-				case service.EnumType:
-					userDefinedTypes.Add(fieldData.GetName(service.DEFAULT))
-				case service.StructType:
+				case compiler.CloneType:
+					userDefinedTypes.Add(fieldData.GetName(compiler.DEFAULT))
+				case compiler.EnumType:
+					userDefinedTypes.Add(fieldData.GetName(compiler.DEFAULT))
+				case compiler.StructType:
 					if !userDefinedTypes.Contains(fieldData.Name) {
 						newStructsToCheck.Add(fieldData.Name)
 						userDefinedTypes.Add(fieldData.Name)

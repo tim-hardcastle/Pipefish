@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"pipefish/source/compiler"
 	"pipefish/source/dtypes"
-	"pipefish/source/service"
 	"pipefish/source/token"
 )
 
@@ -96,10 +96,10 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 	posInt, _ := strconv.Atoi(parts[1])
 	position := uint32(posInt)
 	params := parts[2 : len(parts)-1]
-	if position == service.UNFIX {
+	if position == compiler.UNFIX {
 		return functionName
 	}
-	if position == service.PREFIX {
+	if position == compiler.PREFIX {
 		buf.WriteString(functionName)
 		buf.WriteString(" ")
 	}
@@ -129,7 +129,7 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 		buf.WriteString(bits[1])
 	}
 	buf.WriteString(")")
-	if position == service.SUFFIX {
+	if position == compiler.SUFFIX {
 		buf.WriteString(" ")
 		buf.WriteString(functionName)
 	}
@@ -152,8 +152,8 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 }
 
 // Deserializes the type schemes. We can't trust the dependency, so we must check at every step that the description is well-formed.
-func (iz *initializer) deserializeTypescheme(s string) service.AlternateType { // If it is well-formed we know we must have been passed an AlternateType because all the function return information is stored in that form.
-	stack := dtypes.Stack[service.TypeScheme]{}
+func (iz *initializer) deserializeTypescheme(s string) compiler.AlternateType { // If it is well-formed we know we must have been passed an AlternateType because all the function return information is stored in that form.
+	stack := dtypes.Stack[compiler.TypeScheme]{}
 	words := strings.Split(s, " ")
 	ix := 0
 	for ix < len(words) {
@@ -185,7 +185,7 @@ func (iz *initializer) deserializeTypescheme(s string) service.AlternateType { /
 				}
 				stack.Push(res)
 			case "*FT":
-				res := service.FiniteTupleType{}
+				res := compiler.FiniteTupleType{}
 				for _, ty := range types {
 					res = append(res, ty)
 				}
@@ -195,7 +195,7 @@ func (iz *initializer) deserializeTypescheme(s string) service.AlternateType { /
 				for _, ty := range types {
 					res = append(res, ty)
 				}
-				stack.Push(service.TypedTupleType{res})
+				stack.Push(compiler.TypedTupleType{res})
 			default:
 				iz.Throw("ext/deserialize/d", &token.Token{Source: "Pipefish builder"})
 				return nil
@@ -208,7 +208,7 @@ func (iz *initializer) deserializeTypescheme(s string) service.AlternateType { /
 			}
 			ty := aT[0]
 			switch ty := ty.(type) {
-			case service.SimpleType:
+			case compiler.SimpleType:
 				stack.Push(ty)
 			default:
 				iz.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
@@ -222,7 +222,7 @@ func (iz *initializer) deserializeTypescheme(s string) service.AlternateType { /
 		return nil
 	}
 	switch result := result.(type) { // And it should be an AlternateType.
-	case service.AlternateType:
+	case compiler.AlternateType:
 		return result
 	default:
 		iz.Throw("ext/deserialize/g", &token.Token{Source: "Pipefish builder"})

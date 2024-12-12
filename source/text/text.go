@@ -3,6 +3,9 @@ package text
 // This consists of a bunch of text utilities to help in generating pretty and meaningful
 // help messages, error messages, etc.
 
+// As a result of factoring out the pf library, it has some overlap with functions declared
+// in the `hub` package, and changes made here may need to be reflected there.
+
 import (
 	"runtime"
 	"strconv"
@@ -12,15 +15,6 @@ import (
 
 	"pipefish/source/settings"
 	"pipefish/source/token"
-)
-
-const (
-	VERSION        = "0.5.9"
-	BULLET         = "  ▪ "
-	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
-	GOOD_BULLET    = "\033[32m  ▪ \033[0m"
-	BROKEN         = "\033[31m  ✖ \033[0m"
-	PROMPT         = "→ "
 )
 
 func ExtractFileName(s string) string {
@@ -86,28 +80,6 @@ func Green(s string) string {
 func Yellow(s string) string {
 	return YELLOW + s + RESET
 }
-
-func Logo() string {
-	var padding string
-	if len(VERSION)%2 == 1 {
-		padding = ","
-	}
-	titleText := " Pipefish" + padding + " version " + VERSION + " "
-	loveHeart := Red("♥")
-	leftMargin := "  "
-	bar := strings.Repeat("═", len(titleText)/2)
-	logoString := "\n" +
-		leftMargin + "╔" + bar + loveHeart + bar + "╗\n" +
-		leftMargin + "║" + titleText + "║\n" +
-		leftMargin + "╚" + bar + loveHeart + bar + "╝\n\n"
-	return logoString
-}
-
-const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
-	"                <command> [args]\n\n" +
-	"Commands are:\n\n" +
-	"  tui           Starts the Pipfish TUI (text user interface).\n" +
-	"  run <file>    Runs a Pipefish script if it has a 'main' command.\n\n"
 
 func DescribePos(token *token.Token) string {
 	if token == nil {
@@ -203,7 +175,7 @@ func DescribeOpposite(tok *token.Token) string {
 	return "You goofed, that doesn't have an opposite."
 }
 
-var (
+const (
 	RESET  = "\033[0m"
 	UNDERLINE = "\033[3m"
 	RED    = "\033[31m"
@@ -214,11 +186,9 @@ var (
 	CYAN   = "\033[36m"
 	GRAY   = "\033[37m"
 	WHITE  = "\033[97m"
-
-	ERROR     = "$Error$"
-	RT_ERROR  = "$Error$"
-	HUB_ERROR = "$Hub error$"
-	OK        = Green("OK")
+	BULLET = "  ▪ "
+	RT_ERROR = "$Error$"
+	ERROR = "$Error$"
 )
 
 func HighlightLine(plainLine string, highlighter rune) (string, rune) {
@@ -277,11 +247,7 @@ func HighlightLine(plainLine string, highlighter rune) (string, rune) {
 	return highlitLine, highlighter
 }
 
-var (
-	WAS         = Green("was") + ": "
-	GOT         = Red("got") + ": "
-	TEST_PASSED = Green("Test passed!") + "\n"
-)
+
 
 func Pretty(s string, lMargin, rMargin int) string {
 	LENGTH := rMargin - lMargin

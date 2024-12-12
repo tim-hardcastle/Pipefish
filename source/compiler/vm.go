@@ -1,4 +1,4 @@
-package service
+package compiler
 
 import (
 	"database/sql"
@@ -38,7 +38,8 @@ type Vm struct {
 	SnippetFactories           []*SnippetFactory
 	GoFns                      []GoFn
 	tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
-	IoHandle                   IoHandler
+	InHandle                   InHandler
+	OutHandle                  OutHandler
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	OwningCompiler             *Compiler             // The compiler at the root of the dependency tree.
@@ -48,10 +49,9 @@ type Vm struct {
 	Stringify                  *CpFunc
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 
-	// Strictly speaking this field should not be here since it is only used at compile time. However it refers to something which is *not* naturally shared by the parser, uberparser, vmm, compiler, etc, so what to do?
-	CodeGeneratingTypes dtypes.Set[values.ValueType]
-	// These also may not belong in the VM, but it is shared state among all the compilers for the various modules, and there's nothing else
-	// tying them together but the vm. TODO --- make some common bindle for them so I'm not doing this.
+
+	// Possibly some or all of these should be in the common parser bindle or the common initializer bindle.
+	CodeGeneratingTypes      dtypes.Set[values.ValueType]
 	SharedTypenameToTypeList map[string]AlternateType
 	AnyTypeScheme            AlternateType
 	AnyTuple                 AlternateType
@@ -142,7 +142,7 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 
 func BlankVm(db *sql.DB, hubServiceCompilers map[string]*Compiler) *Vm {
 	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServiceCompilers,
-		logging: true, IoHandle: MakeReadlnIoHandler(os.Stdout),
+		logging: true, InHandle: &StandardInHandler{"→ "},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 		SharedTypenameToTypeList: map[string]AlternateType{
 			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
@@ -153,6 +153,7 @@ func BlankVm(db *sql.DB, hubServiceCompilers map[string]*Compiler) *Vm {
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
 	}
+	vm.OutHandle = &SimpleOutHandler{os.Stdout, vm, false}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
 		vm.SharedTypenameToTypeList[name] = AltType()
 		vm.SharedTypenameToTypeList[name+"?"] = AltType(values.NULL)
@@ -615,7 +616,10 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/index/tuple", args[3], ix, len(tuple), args[1], args[2])
 			}
 		case Inpt:
-			vm.Mem[args[0]] = values.Value{values.STRING, vm.IoHandle.InHandle.Get(vm.Mem[args[1]].V.([]values.Value)[0].V.(string))}
+			if _, ok := vm.InHandle.(*StandardInHandler); ok {
+				vm.InHandle = &StandardInHandler{vm.Mem[args[1]].V.([]values.Value)[0].V.(string)}
+			}
+			vm.Mem[args[0]] = values.Value{values.STRING, vm.InHandle.Get()}
 		case Inte:
 			vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int)}
 		case Intf:
@@ -965,7 +969,7 @@ loop:
 		case Orb:
 			vm.Mem[args[0]] = values.Value{values.BOOL, (vm.Mem[args[1]].V.(bool) || vm.Mem[args[2]].V.(bool))}
 		case Outp:
-			vm.IoHandle.OutHandle.Out([]values.Value{vm.Mem[args[0]]}, vm)
+			vm.OutHandle.Out(vm.Mem[args[0]])
 		case Outt:
 			fmt.Println(vm.Literal(vm.Mem[args[0]]))
 		case Psnp: // Only for if you 'post HTML' or 'post SQL'.
@@ -1001,7 +1005,7 @@ loop:
 					}
 				}
 				t.Execute(&buf, injector)
-				vm.IoHandle.OutHandle.Out([]values.Value{{values.STRING, buf.String()}}, vm)
+				vm.OutHandle.Out(values.Value{values.STRING, buf.String()})
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 			case SQL_SNIPPET:
 				injector := make([]values.Value, 0, len(bindle.valueLocs))

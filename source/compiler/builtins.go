@@ -1,4 +1,4 @@
-package service
+package compiler
 
 import (
 	"pipefish/source/token"

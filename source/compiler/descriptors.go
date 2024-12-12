@@ -1,4 +1,4 @@
-package service
+package compiler
 
 // Used by the vm to describe Pipefish values and types, and also to describe bytecode for debugging purposes.
 

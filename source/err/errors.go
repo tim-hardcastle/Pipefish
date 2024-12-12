@@ -49,6 +49,9 @@ func Put(message string, tok *token.Token, ers Errors) []*Error {
 }
 
 func GetList(ers Errors) string {
+	if len(ers) == 0 {
+		return "\nCurrent service has no recent errors.\n" 
+	}
 	result := "\n"
 	for i, v := range ers {
 		result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"

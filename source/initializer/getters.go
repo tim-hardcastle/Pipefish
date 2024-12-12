@@ -120,3 +120,4 @@ func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	bodyNames = bodyNames.SubtractSet(lhsG)
 	return bodyNames.SubtractSet(sigNames)
 }
+

@@ -22,6 +22,7 @@ func MandatoryImportSet() dtypes.Set[string] {
 
 var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc/worldlite.pf")
 
+// This is replicated in the hub and any changes made here must be reflected there.
 var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"})
 
 const (
