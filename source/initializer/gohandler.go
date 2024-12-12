@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"strings"
 
-	"pipefish/source/ast"
-	"pipefish/source/compiler"
-	"pipefish/source/dtypes"
-	"pipefish/source/settings"
-	"pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
 // This allows the compiler to extract functions and converter data from the relevant `.so` files,

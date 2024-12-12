@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"pipefish/source/compiler"
-	"pipefish/source/dtypes"
-	"pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 // The serialization of the API belongs to the compiler, since this will if at all be demanded of the

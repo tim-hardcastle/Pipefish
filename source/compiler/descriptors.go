@@ -3,10 +3,10 @@ package compiler
 // Used by the vm to describe Pipefish values and types, and also to describe bytecode for debugging purposes.
 
 import (
-	"pipefish/source/err"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"fmt"
 	"strconv"

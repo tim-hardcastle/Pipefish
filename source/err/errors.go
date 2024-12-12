@@ -3,9 +3,9 @@ package err
 import (
 	"strconv"
 
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // This handles the creation of errors, their messages, and their explanations, and the maintainance
@@ -13,7 +13,6 @@ import (
 //
 // The logic to create a specific error given its error identifier and the relevant parameters
 // is in errorfile.go.
-
 
 // The 'error' type.
 type Error struct {
@@ -28,7 +27,6 @@ type Error struct {
 func (e *Error) AddToTrace(tok *token.Token) {
 	e.Trace = append(e.Trace, tok)
 }
-
 
 type Errors = []*Error
 
@@ -50,7 +48,7 @@ func Put(message string, tok *token.Token, ers Errors) []*Error {
 
 func GetList(ers Errors) string {
 	if len(ers) == 0 {
-		return "\nCurrent service has no recent errors.\n" 
+		return "\nCurrent service has no recent errors.\n"
 	}
 	result := "\n"
 	for i, v := range ers {

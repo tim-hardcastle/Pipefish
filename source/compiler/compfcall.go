@@ -3,13 +3,13 @@ package compiler
 import (
 	"strconv"
 
-	"pipefish/source/ast"
-	"pipefish/source/dtypes"
-	"pipefish/source/err"
-	"pipefish/source/parser"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/parser"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // Generating a function call is an elaborate business because of the multiple dispatch. This needs

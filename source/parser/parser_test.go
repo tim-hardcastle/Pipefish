@@ -2,11 +2,11 @@ package parser_test
 
 import (
 	"errors"
-    "testing"
+	"testing"
 
-	"pipefish/source/compiler"
-	"pipefish/source/parser"
-	"pipefish/source/test_helper"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/parser"
+	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 )
 
 func TestParser(t *testing.T) {

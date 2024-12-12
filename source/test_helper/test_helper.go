@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"pipefish/source/compiler"
-	"pipefish/source/initializer"
-	"pipefish/source/settings"
-	"pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/initializer"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
 // Auxiliary types and functions for testing the parser and compiler.

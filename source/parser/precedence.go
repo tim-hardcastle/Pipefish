@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"pipefish/source/dtypes"
-	"pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 // Data and fuctions for sorting out the operator precedences.

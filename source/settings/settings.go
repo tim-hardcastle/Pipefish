@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"testing"
 
-	"pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 )
 
 var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/world.pf", "rsc-pf/interfaces.pf"}

@@ -13,8 +13,8 @@ import (
 
 	"path/filepath"
 
-	"pipefish/source/settings"
-	"pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 func ExtractFileName(s string) string {
@@ -176,19 +176,19 @@ func DescribeOpposite(tok *token.Token) string {
 }
 
 const (
-	RESET  = "\033[0m"
+	RESET     = "\033[0m"
 	UNDERLINE = "\033[3m"
-	RED    = "\033[31m"
-	GREEN  = "\033[32m"
-	YELLOW = "\033[33m"
-	BLUE   = "\033[34m"
-	PURPLE = "\033[35m"
-	CYAN   = "\033[36m"
-	GRAY   = "\033[37m"
-	WHITE  = "\033[97m"
-	BULLET = "  ▪ "
-	RT_ERROR = "$Error$"
-	ERROR = "$Error$"
+	RED       = "\033[31m"
+	GREEN     = "\033[32m"
+	YELLOW    = "\033[33m"
+	BLUE      = "\033[34m"
+	PURPLE    = "\033[35m"
+	CYAN      = "\033[36m"
+	GRAY      = "\033[37m"
+	WHITE     = "\033[97m"
+	BULLET    = "  ▪ "
+	RT_ERROR  = "$Error$"
+	ERROR     = "$Error$"
 )
 
 func HighlightLine(plainLine string, highlighter rune) (string, rune) {
@@ -246,8 +246,6 @@ func HighlightLine(plainLine string, highlighter rune) (string, rune) {
 	}
 	return highlitLine, highlighter
 }
-
-
 
 func Pretty(s string, lMargin, rMargin int) string {
 	LENGTH := rMargin - lMargin

@@ -7,10 +7,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"pipefish/source/dtypes"
-	"pipefish/source/err"
-	"pipefish/source/settings"
-	"pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 type Lexer struct {

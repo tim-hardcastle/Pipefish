@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 
 	// SQL drivers
 

@@ -11,13 +11,13 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
-	"pipefish/source/dtypes"
-	"pipefish/source/err"
-	"pipefish/source/parser"
-	"pipefish/source/settings"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/parser"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 type Vm struct {
@@ -48,7 +48,6 @@ type Vm struct {
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	Stringify                  *CpFunc
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
-
 
 	// Possibly some or all of these should be in the common parser bindle or the common initializer bindle.
 	CodeGeneratingTypes      dtypes.Set[values.ValueType]

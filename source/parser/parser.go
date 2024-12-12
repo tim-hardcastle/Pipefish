@@ -6,24 +6,24 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"pipefish/source/ast"
-	"pipefish/source/dtypes"
-	"pipefish/source/err"
-	"pipefish/source/lexer"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/lexer"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 type Parser struct {
 
 	// Temporary state: things that are used to parse one line.
 
-	TokenizedCode         TokenSupplier
-	nesting               dtypes.Stack[token.Token]
-	curToken              token.Token
-	peekToken             token.Token
-	Logging               bool
-	CurrentNamespace      []string
+	TokenizedCode    TokenSupplier
+	nesting          dtypes.Stack[token.Token]
+	curToken         token.Token
+	peekToken        token.Token
+	Logging          bool
+	CurrentNamespace []string
 
 	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
 	// in that namespace without being namespaced.
@@ -47,26 +47,26 @@ type Parser struct {
 	Bling             dtypes.Set[string]
 	AllFunctionIdents dtypes.Set[string]
 	Typenames         dtypes.Set[string]
-	nativeInfixes dtypes.Set[token.TokenType]
-	lazyInfixes   dtypes.Set[token.TokenType]
+	nativeInfixes     dtypes.Set[token.TokenType]
+	lazyInfixes       dtypes.Set[token.TokenType]
 
 	// Used for multiple dispatch.
 
 	// While this is mostly just used by the initializer to construct the function trees (below), it is also used
 	// to serialize the API and so may be needed at runtime.
-	FunctionTable   FunctionTable  
+	FunctionTable FunctionTable
 	// Trees, one for each function identifier, for figuring out how to make function calls given the possibility
 	// of multiple dispatch.
-	FunctionForest  map[string]*ast.FunctionTree
-	
-	// Maps names to abstract types. This *is* the type system, at least as far as the compiler knows about it, 
+	FunctionForest map[string]*ast.FunctionTree
+
+	// Maps names to abstract types. This *is* the type system, at least as far as the compiler knows about it,
 	// because there is a natural partial order on abstract types.
-	TypeMap         TypeSys                      
-	
-	ExternalParsers map[string]*Parser // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.	
-	NamespaceBranch map[string]*ParserData  // Map from the namespaces immediately available to this parser to the parsers they access.
-	NamespacePath   string                  // The chain of namespaces that got us to this parser, as a string.
-	Private         bool               // Indicates if it's the parser of a private library/external/whatevs.
+	TypeMap TypeSys
+
+	ExternalParsers map[string]*Parser     // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
+	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
+	NamespacePath   string                 // The chain of namespaces that got us to this parser, as a string.
+	Private         bool                   // Indicates if it's the parser of a private library/external/whatevs.
 }
 
 func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
@@ -90,13 +90,13 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
-		FunctionTable:  make(FunctionTable),
-		FunctionForest: make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
-		TypeMap:        make(TypeSys),
-		NamespaceBranch:    make(map[string]*ParserData),
-		ExternalParsers:    make(map[string]*Parser),
-		NamespacePath:      namespacePath,
-		Common:             common,
+		FunctionTable:   make(FunctionTable),
+		FunctionForest:  make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
+		TypeMap:         make(TypeSys),
+		NamespaceBranch: make(map[string]*ParserData),
+		ExternalParsers: make(map[string]*Parser),
+		NamespacePath:   namespacePath,
+		Common:          common,
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
@@ -150,14 +150,14 @@ type CommonParserBindle struct {
 // Initializes the common parser bindle.
 func NewCommonParserBindle() *CommonParserBindle {
 	result := CommonParserBindle{Types: NewCommonTypeMap(),
-		Errors:              []*err.Error{},                // This is where all the errors emitted by enything end up.
-		Sources:             make(map[string][]string),     // Source code --- TODO: remove.
-		InterfaceBacktracks: []BkInterface{},               // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
+		Errors:              []*err.Error{},            // This is where all the errors emitted by enything end up.
+		Sources:             make(map[string][]string), // Source code --- TODO: remove.
+		InterfaceBacktracks: []BkInterface{},           // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
 	}
 	return &result
 }
 
-// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we 
+// When we dispatch on a function which is semantically available to us because it fulfills an interface, but we
 // haven't compiled it yet, this keeps track of where we backtrack to.
 type BkInterface struct {
 	Fn   *ast.PrsrFunction

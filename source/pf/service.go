@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 
-	"pipefish/source/compiler"
-	"pipefish/source/err"
-	"pipefish/source/initializer"
-	"pipefish/source/settings"
-	"pipefish/source/text"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/initializer"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
 )

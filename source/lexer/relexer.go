@@ -13,9 +13,9 @@ package lexer
 // but in lots of small passes.
 
 import (
-	"pipefish/source/dtypes"
-	"pipefish/source/err"
-	"pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 
 	"fmt"
 	"strconv"

@@ -4,8 +4,9 @@ package compiler
 
 import (
 	"errors"
-	"pipefish/source/values"
 	"reflect"
+
+	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
 )

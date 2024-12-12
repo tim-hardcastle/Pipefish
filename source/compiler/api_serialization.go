@@ -1,13 +1,14 @@
 package compiler
 
 import (
-	"pipefish/source/err"
-	"pipefish/source/p2p"
-	"pipefish/source/settings"
-	"pipefish/source/token"
-	"pipefish/source/values"
 	"strconv"
 	"strings"
+
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/p2p"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // We have two types of external service, defined below: one for services on the same hub, one for services on

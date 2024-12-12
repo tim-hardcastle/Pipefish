@@ -17,8 +17,8 @@ import (
 	"strconv"
 	"strings"
 
-	"pipefish/source/database"
-	"pipefish/source/pf"
+	"github.com/tim-hardcastle/Pipefish/source/database"
+	"github.com/tim-hardcastle/Pipefish/source/pf"
 )
 
 type Hub struct {

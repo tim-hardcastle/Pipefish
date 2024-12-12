@@ -2,7 +2,7 @@ package compiler
 
 // How the compiler keeps track of where in memory the variables are stored, and what the access to them is like.
 
-import "pipefish/source/dtypes"
+import "github.com/tim-hardcastle/Pipefish/source/dtypes"
 
 type VarAccess int
 

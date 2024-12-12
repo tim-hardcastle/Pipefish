@@ -7,17 +7,18 @@ import (
 	"sort"
 	"testing"
 
-	"pipefish/source/ast"
-	"pipefish/source/compiler"
-	"pipefish/source/dtypes"
-	"pipefish/source/err"
-	"pipefish/source/lexer"
-	"pipefish/source/parser"
-	"pipefish/source/settings"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
 	"strings"
+
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/err"
+	"github.com/tim-hardcastle/Pipefish/source/lexer"
+	"github.com/tim-hardcastle/Pipefish/source/parser"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"github.com/lmorg/readline"
 	"src.elv.sh/pkg/persistent/vector"
@@ -655,7 +656,7 @@ func (iz *initializer) initializeExternals() {
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
 		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices)
-			if e != nil { // Then we couldn't open the file.
+		if e != nil { // Then we couldn't open the file.
 			iz.Throw("init/external/file", declaration.GetToken(), e)
 		}
 		if len(newServiceCp.P.Common.Errors) > 0 {

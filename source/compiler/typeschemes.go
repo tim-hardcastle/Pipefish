@@ -2,10 +2,11 @@ package compiler
 
 import (
 	"fmt"
-	"pipefish/source/dtypes"
-	"pipefish/source/values"
 	"reflect"
 	"strings"
+
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // The Pipefish compiler has a rather richer view of the type system than the Pipefish language and its

@@ -1,4 +1,4 @@
-module pipefish
+module github.com/tim-hardcastle/Pipefish
 
 go 1.23
 

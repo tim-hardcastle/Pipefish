@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"pipefish/source/ast"
-	"pipefish/source/text"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 func (cp *Compiler) getAbstractType(name string) (values.AbstractType, bool) {

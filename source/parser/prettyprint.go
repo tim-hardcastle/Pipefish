@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"pipefish/source/ast"
-	"pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 type printFlavor int

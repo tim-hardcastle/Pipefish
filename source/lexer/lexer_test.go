@@ -1,8 +1,9 @@
 package lexer
 
 import (
-	"pipefish/source/token"
 	"testing"
+
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 func TestNextToken(t *testing.T) {

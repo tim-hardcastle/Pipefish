@@ -18,7 +18,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"pipefish/source/hub"
+	"github.com/tim-hardcastle/Pipefish/source/hub"
 )
 
 func main() {

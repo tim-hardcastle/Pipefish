@@ -3,8 +3,8 @@ package parser
 import (
 	"strconv"
 
-	"pipefish/source/ast"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 var baseTypes = map[string]values.ValueType{

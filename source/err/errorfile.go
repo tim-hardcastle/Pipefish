@@ -1,10 +1,11 @@
 package err
 
 import (
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
 	"strings"
+
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"fmt"
 	"strconv"
@@ -811,8 +812,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-
-	
 	"golang/build": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "failed to compile Go\n\nError was '" + args[0].(string) + "'"

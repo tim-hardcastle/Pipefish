@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
-	"pipefish/source/compiler"
-	"pipefish/source/test_helper"
-	"pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/test_helper"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
 func TestLiterals(t *testing.T) {
@@ -85,7 +85,7 @@ func TestBuiltins(t *testing.T) {
 		{`5.0 + 2.0`, `7.00000000`},
 		{`5 + 2`, `7`},
 		{`[1, 2] + [3, 4]`, `[1, 2, 3, 4]`},
-		{`set(1, 2) + set(3, 4) == set(1, 2, 3, 4)`, `true`}, 
+		{`set(1, 2) + set(3, 4) == set(1, 2, 3, 4)`, `true`},
 		{`'h' + 'i'`, `"hi"`},
 		{`'j' + "ello"`, `"jello"`},
 		{`"jell" + 'o'`, `"jello"`},

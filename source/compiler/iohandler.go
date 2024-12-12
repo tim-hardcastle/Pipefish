@@ -3,11 +3,10 @@ package compiler
 import (
 	"io"
 
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"github.com/lmorg/readline"
 )
-
 
 type InHandler interface {
 	Get() string
@@ -18,7 +17,7 @@ type OutHandler interface {
 	Write(s string)
 }
 
-type StandardInHandler struct{
+type StandardInHandler struct {
 	prompt string
 }
 
@@ -40,8 +39,8 @@ func (iH *SimpleInHandler) Get() string {
 }
 
 type SimpleOutHandler struct {
-	output io.Writer
-	vm *Vm
+	output  io.Writer
+	vm      *Vm
 	literal bool
 }
 
@@ -69,7 +68,7 @@ func (oH *ConsumingOutHandler) Out(vals []values.Value, vm *Vm) {
 }
 
 func (oH *ConsumingOutHandler) Write(s string) {
-	
+
 }
 
 func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
@@ -79,4 +78,3 @@ func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
 func MakeStandardInHandler(prompt string) *StandardInHandler {
 	return &StandardInHandler{prompt}
 }
-

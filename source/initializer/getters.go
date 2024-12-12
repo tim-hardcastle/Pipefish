@@ -1,12 +1,12 @@
 package initializer
 
 import (
-	"pipefish/source/ast"
-	"pipefish/source/dtypes"
-	"pipefish/source/settings"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // A miscellaneous collection of functions for extracting data from other data.
@@ -120,4 +120,3 @@ func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	bodyNames = bodyNames.SubtractSet(lhsG)
 	return bodyNames.SubtractSet(sigNames)
 }
-

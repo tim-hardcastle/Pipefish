@@ -1,12 +1,12 @@
 package parser
 
 import (
-	"pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/ast"
 )
 
 type FunctionTable map[string][]*ast.PrsrFunction
 
-func (ft FunctionTable) Add(p *Parser, functionName string, f *ast.PrsrFunction) (*ast.PrsrFunction) {
+func (ft FunctionTable) Add(p *Parser, functionName string, f *ast.PrsrFunction) *ast.PrsrFunction {
 	if functions, ok := ft[functionName]; ok {
 		functions, conflictingFunction := p.AddInOrder(functions, f)
 		ft[functionName] = functions

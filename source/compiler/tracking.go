@@ -2,12 +2,13 @@ package compiler
 
 import (
 	"bytes"
-	"pipefish/source/ast"
-	"pipefish/source/settings"
-	"pipefish/source/text"
-	"pipefish/source/token"
-	"pipefish/source/values"
 	"strconv"
+
+	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // When we have tracking turned on, and the compiler reaches a point where the generated code needs to track something, we need to (a)

@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"pipefish/source/settings"
+
+	"github.com/tim-hardcastle/Pipefish/source/settings"
 )
 
 type jsonRequest = struct {

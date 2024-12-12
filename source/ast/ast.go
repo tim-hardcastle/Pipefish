@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strconv"
 
-	"pipefish/source/dtypes"
-	"pipefish/source/token"
-	"pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // The base Node interface
