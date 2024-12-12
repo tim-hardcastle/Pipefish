@@ -186,7 +186,7 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 	}
 
 	iz.cmI("Initializing imports.")
-	unnamespacedImports := iz.InitializeNamespacedImportsAndReturnUnnamespacedImports()
+	unnamespacedImports := iz.ParseNamespacedImportsAndReturnUnnamespacedImports()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -560,9 +560,9 @@ func (iz *initializer) ParseImportsAndExternals() {
 	}
 }
 
-// Phase 1C of compilation. We start up the namespaced imports, returning a list of unnamespaced imports which
-// the main phase 1 function will add to the parser.
-func (iz *initializer) InitializeNamespacedImportsAndReturnUnnamespacedImports() []string {
+// Phase 1C of compilation. We call ParseEverything on the namespaced imports, returning a
+// list of unnamespaced imports which the main phase 1 function will add to the parser.
+func (iz *initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
 	for i, imp := range iz.ParsedDeclarations[importDeclaration] {
 		namespace := ""
