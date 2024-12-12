@@ -277,14 +277,6 @@ func (sv *Service) GetErrors() []*Error {
 	return sv.cp.P.Common.Errors
 }
 
-func (sv *Service) Parse(line string) (string, error) {
-	astOfLine := sv.cp.P.ParseLine("test", line)
-	if sv.cp.P.ErrorsExist() {
-		return "", errors.New("compilation error")
-	}
-	return astOfLine.String(), nil
-}
-
 func (sv *Service) Literal(v Value) string {
 	return sv.cp.Vm.Literal(v)
 }

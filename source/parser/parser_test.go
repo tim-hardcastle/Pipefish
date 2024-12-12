@@ -4,8 +4,8 @@ import (
 	"errors"
     "testing"
 
+	"pipefish/source/compiler"
 	"pipefish/source/parser"
-	"pipefish/source/pf"
 	"pipefish/source/test_helper"
 )
 
@@ -86,16 +86,20 @@ func TestParserErrors(t *testing.T) {
 	}
 	test_helper.RunTest(t, "", tests, testParserErrors)
 }
-func testParserOutput(sv *pf.Service, s string) (string, error) {
-	return sv.Parse(s)
+func testParserOutput(cp *compiler.Compiler, s string) (string, error) {
+	astOfLine := cp.P.ParseLine("test", s)
+	if cp.P.ErrorsExist() {
+		return "", errors.New("compilation error")
+	}
+	return astOfLine.String(), nil
 }
 
-func testParserErrors(sv *pf.Service, s string) (string, error) {
-	_, e := sv.Parse(s)
-	if e == nil {
-		return "", errors.New("unexpected successful parsing")
+func testParserErrors(cp *compiler.Compiler, s string) (string, error) {
+	cp.P.ParseLine("test", s)
+	if cp.P.ErrorsExist() {
+		return cp.P.Common.Errors[0].ErrorId, nil
 	} else {
-		return sv.GetErrors()[0].ErrorId, nil
+		return "", errors.New("unexpected successful parsing")
 	}
 }
 

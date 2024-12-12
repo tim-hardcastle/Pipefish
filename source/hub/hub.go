@@ -19,8 +19,6 @@ import (
 
 	"pipefish/source/database"
 	"pipefish/source/pf"
-
-	"src.elv.sh/pkg/persistent/vector"
 )
 
 type Hub struct {
@@ -252,8 +250,8 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 		hR := hubReturn.V.([]pf.Value)
 		verb := hR[0].V.(string)
 		args := []string{}
-		for i := 0; i < hR[1].V.(vector.Vector).Len(); i++ {
-			el, _ := hR[1].V.(vector.Vector).Index(i)
+		for i := 0; i < hR[1].V.(pf.List).Len(); i++ {
+			el, _ := hR[1].V.(pf.List).Index(i)
 			args = append(args, el.(pf.Value).V.(string))
 		}
 		return verb, args

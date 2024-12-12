@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"pipefish/source/pf"
+	"pipefish/source/compiler"
 	"pipefish/source/test_helper"
 	"pipefish/source/text"
 )
@@ -438,19 +438,19 @@ func TestGocode(t *testing.T) {
 	os.WriteFile(locationOfGoTimes, temp, 0644)
 }
 
-func testValues(sv *pf.Service, s string) (string, error) {
-	v, e := sv.Do(s)
-	if e != nil {
-		return "", e
+func testValues(cp *compiler.Compiler, s string) (string, error) {
+	v := cp.Do(s)
+	if !cp.ErrorsExist() {
+		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
-	return sv.String(v), nil
+	return cp.Vm.Literal(v), nil
 }
 
-func testCompilerErrors(sv *pf.Service, s string) (string, error) {
-	val, e := sv.Do(s)
-	if e ==nil {
-		return "", errors.New("unexpected successful evaluation returned " + text.Emph(sv.String(val)))
+func testCompilerErrors(cp *compiler.Compiler, s string) (string, error) {
+	v := cp.Do(s)
+	if !cp.ErrorsExist() {
+		return "", errors.New("unexpected successful evaluation returned " + text.Emph(cp.Vm.Literal(v)))
 	} else {
-		return sv.GetErrors()[0].ErrorId, nil
+		return cp.P.Common.Errors[0].ErrorId, nil
 	}
 }
