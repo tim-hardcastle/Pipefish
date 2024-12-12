@@ -4,7 +4,7 @@ go 1.23
 
 require (
 	github.com/lmorg/readline v0.0.0-20210316231630-be4b7d79fc3a
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 )
 
 require (
@@ -79,13 +79,13 @@ require (
 	gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b // indirect
 	golang.org/dl v0.0.0-20240905150950-a427666708fc // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/mod v0.19.0 // indirect
-	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/mod v0.22.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/term v0.22.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
-	golang.org/x/tools v0.23.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/tools v0.28.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240716161551-93cc26a95ae9 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
@@ -108,7 +108,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.7.2
 	github.com/nakagami/firebirdsql v0.9.4
 	github.com/sijms/go-ora v1.3.2
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.30.0
 	modernc.org/sqlite v1.31.1
 	src.elv.sh v0.20.1
 )
