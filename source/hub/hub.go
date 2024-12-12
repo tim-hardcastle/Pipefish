@@ -1503,6 +1503,7 @@ func Cyan(s string) string {
 }
 
 func Logo() string {
+	// pf.Greet()
 	var padding string
 	if len(VERSION)%2 == 1 {
 		padding = ","
