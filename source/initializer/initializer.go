@@ -84,10 +84,26 @@ func newCompiler(Common *parser.CommonParserBindle, scriptFilepath, sourcecode s
 	return cp
 }
 
+func (iz *initializer) ParseEverythingFromFilePath(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, namespacePath string) (*compiler.Compiler, error) {
+	sourcecode, e := compiler.GetSourceCode(scriptFilepath)
+	if e != nil {
+		return nil, e
+	}
+	return iz.ParseEverythingFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath), nil
+}
+
+func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) (*compiler.Compiler, error) {
+	sourcecode, e := compiler.GetSourceCode(filepath)
+	if e != nil {
+		return nil, e
+	}
+	return StartCompiler(filepath, sourcecode, db, svs, in, out), nil
+}
+
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
 // `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
 // "children" of the intitializer and the parser when new modules are created.
-func StartCompiler(scriptFilepath string, db *sql.DB, hubServices map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) *compiler.Compiler {
+func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*compiler.Compiler, in compiler.InHandler, out compiler.OutHandler) *compiler.Compiler {
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle()
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
@@ -96,7 +112,7 @@ func StartCompiler(scriptFilepath string, db *sql.DB, hubServices map[string]*co
 	//
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
-	result := iz.ParseEverythingFromFilePath(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, "")
+	result := iz.ParseEverythingFromSourcecode(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, sourcecode, "")
 
 	if iz.ErrorsExist() {
 		return result
@@ -116,27 +132,6 @@ func StartCompiler(scriptFilepath string, db *sql.DB, hubServices map[string]*co
 	iz.ResolveInterfaceBacktracks()
 	result.Vm.OwningCompiler = result
 	return result
-}
-
-func (iz *initializer) ParseEverythingFromFilePath(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, namespacePath string) *compiler.Compiler {
-	sourcecode := ""
-	var sourcebytes []byte
-	var err error
-	if scriptFilepath != "" { // In which case we're making a blank VM.
-		if len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/" {
-			sourcebytes, err = compiler.TestFolder.ReadFile(scriptFilepath)
-		} else {
-			sourcebytes, err = os.ReadFile(text.MakeFilepath(scriptFilepath))
-		}
-		sourcecode = string(sourcebytes) + "\n"
-		if err != nil {
-			p := parser.New(Common, scriptFilepath, sourcecode, namespacePath) // Just because it's expecting to get a compiler back, with errors contained in the Common parser bindle.
-			p.Throw("init/source/a", LINKING_TOKEN, scriptFilepath, err.Error())
-			iz.p = p
-			return compiler.NewCompiler(p)
-		}
-	}
-	return iz.ParseEverythingFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath)
 }
 
 func (iz *initializer) ParseEverythingFromSourcecode(mc *compiler.Vm, Common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
@@ -180,7 +175,7 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 	}
 
 	iz.cmI("Parsing import and external declarations.")
-	iz.ParseImportsAndExternals() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
+	iz.ParseImportAndExternalDeclarations() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
 	if iz.ErrorsExist() {
 		return
 	}
@@ -549,7 +544,7 @@ func (iz *initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) 
 
 // Phase 1B of compilation. At this point we parse the import and external declarations but then just stow away the
 // resulting ASTs for the next two steps, where we have to treat imports and externals very differently.
-func (iz *initializer) ParseImportsAndExternals() {
+func (iz *initializer) ParseImportAndExternalDeclarations() {
 	for kindOfDeclarationToParse := importDeclaration; kindOfDeclarationToParse <= externalDeclaration; kindOfDeclarationToParse++ {
 		iz.ParsedDeclarations[kindOfDeclarationToParse] = parser.ParsedCodeChunks{}
 		for chunk := 0; chunk < len(iz.TokenizedDeclarations[kindOfDeclarationToParse]); chunk++ {
@@ -580,7 +575,10 @@ func (iz *initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 		newIz := NewInitializer()
 		newIz.Common = iz.Common
 		iz.initializers[scriptFilepath] = newIz
-		newCp := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
+		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
+		if e != nil { // Then we couldn't open the file.
+			iz.Throw("init/import/file", imp.GetToken(), e)
+		}
 		iz.cp.Modules[namespace] = newCp
 		for k, v := range newIz.declarationMap { // See note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
 			iz.declarationMap[k] = v
@@ -656,8 +654,11 @@ func (iz *initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp := StartCompiler(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
+		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices,
 			iz.cp.Vm.InHandle, iz.cp.Vm.OutHandle)
+			if e != nil { // Then we couldn't open the file.
+			iz.Throw("init/external/file", declaration.GetToken(), e)
+		}
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
 		}

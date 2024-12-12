@@ -33,6 +33,34 @@ func NewService() *Service {
 	}
 }
 
+func (sv *Service) InitializeFromCode(code string) error {
+	return sv.Initialize("InitializeFromCode", code)
+}
+
+func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
+	sourcecode, e := compiler.GetSourceCode(scriptFilepath)
+	if e != nil {
+		return e
+	}
+	return sv.Initialize(scriptFilepath, sourcecode)
+}
+
+func (sv *Service) Initialize(scriptFilepath, sourcecode string) error {
+	compilerMap := make(map[string]*compiler.Compiler)
+	for k, v := range sv.localExternals {
+		compilerMap[k] = v.cp
+	}
+	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap, sv.in, sv.out)
+	sv.cp = cp
+	for k, v := range compilerMap {
+		sv.localExternals[k].cp = v
+	}
+	if sv.IsBroken() {
+		return errors.New("compilation error")
+	}
+	return nil
+}
+
 type Value = values.Value
 type Type = values.ValueType
 type InHandler = compiler.InHandler
@@ -78,22 +106,6 @@ func MakeSimpleInHandler(in io.Reader) SimpleInHandler {
 
 func MakeSimpleOutHandler(out io.Writer) SimpleOutHandler {
 	return compiler.MakeSimpleOutHandler(out)
-}
-
-func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
-	compilerMap := make(map[string]*compiler.Compiler)
-	for k, v := range sv.localExternals {
-		compilerMap[k] = v.cp
-	}
-	cp := initializer.StartCompiler(scriptFilepath, sv.db, compilerMap, sv.in, sv.out)
-	sv.cp = cp
-	for k, v := range compilerMap {
-		sv.localExternals[k].cp = v
-	}
-	if sv.IsBroken() {
-		return errors.New("compilation error")
-	}
-	return nil
 }
 
 func (sv *Service) SetLocalExternalServices(svs map[string]*Service) {
