@@ -3,7 +3,6 @@ package initializer
 import (
 	"bufio"
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,6 +48,22 @@ type GoBucket struct {
 	imports   map[string][]string
 	functions map[string][]*ast.PrsrFunction
 	pureGo    map[string][]string
+}
+
+func qux(i int, b bool) int {
+    x := 42
+    if b {
+        x, ok := thing(x)
+        if !ok {
+            panic("Oops")
+        }
+        println("x is ", x)
+    }
+    return x
+}
+
+func thing(x int) (int, bool) {
+	return 99, true
 }
 
 func (iz *initializer) newGoBucket() {
@@ -106,7 +121,9 @@ func (iz *initializer) compileGo() {
 		copy(newGoConverter, iz.cp.Vm.GoConverter)
 		functionConverterSymbol, _ := plugins.Lookup("PIPEFISH_FUNCTION_CONVERTER")
 		functionConverter := *functionConverterSymbol.(*map[string](func(t uint32, v any) any))
-		maps.Copy(functionConverter, BUILTIN_FUNCTION_CONVERTER)
+		for k, v := range BUILTIN_FUNCTION_CONVERTER {
+			functionConverter[k] = v
+		}
 		for typeName, constructor := range functionConverter {
 			typeNumber := iz.cp.ConcreteTypeNow(typeName)
 			newGoConverter[typeNumber] = constructor
@@ -114,7 +131,9 @@ func (iz *initializer) compileGo() {
 		iz.cp.Vm.GoConverter = newGoConverter
 		valueConverterSymbol, _ := plugins.Lookup("PIPEFISH_VALUE_CONVERTER")
 		valueConverter := *valueConverterSymbol.(*map[string]any)
-		maps.Copy(valueConverter, BUILTIN_VALUE_CONVERTER)
+		for k, v := range BUILTIN_VALUE_CONVERTER {
+			valueConverter[k] = v
+		}
 		for typeName, goValue := range valueConverter {
 			iz.cp.Vm.GoToPipefishTypes[reflect.TypeOf(goValue).Elem()] = iz.cp.ConcreteTypeNow(typeName)
 		}
