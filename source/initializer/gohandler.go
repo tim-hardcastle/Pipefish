@@ -298,10 +298,17 @@ func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
 }
 
 func (iz *initializer) getGoTimes() map[string]int64 {
-	filepath := settings.PipefishHomeDirectory + "pipefish-rsc/gotimes.dat"
-	file, err := os.Open(filepath)
+	timeMap := make(map[string]int64)
+	pathToGoResourceDirectory := settings.PipefishHomeDirectory + "pipefish-rsc/"
+	os.Mkdir(pathToGoResourceDirectory, os.ModePerm) // We may be using Pipefish as a library and this needs creating. Will do nothing if the directory exists.
+	pathToGoTimes := pathToGoResourceDirectory + "gotimes.dat"
+	file, err := os.Open(pathToGoTimes)
 	if err != nil {
-		panic("Can't open file '" + filepath + "'.")
+		if os.IsNotExist(err) {
+			os.Create(pathToGoTimes)
+			return timeMap
+		}
+		panic("Can't open file '" + pathToGoTimes + "'.")
 	}
 	defer file.Close()
 
@@ -310,8 +317,6 @@ func (iz *initializer) getGoTimes() map[string]int64 {
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
-
-	timeMap := make(map[string]int64)
 
 	for i := 0; i < (len(lines) / 2); i++ {
 		time, _ := strconv.Atoi(lines[(2*i)+1])
