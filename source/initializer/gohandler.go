@@ -107,7 +107,7 @@ func (iz *initializer) compileGo() {
 		if !ok || sourceCodeModified != int64(objectCodeModified) {
 			plugins = iz.makeNewSoFile(source, sourceCodeModified)
 		} else {
-			soFile := settings.PipefishHomeDirectory + "rsc/go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
+			soFile := settings.PipefishHomeDirectory + "source/initializer/rsc-go/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
 				iz.Throw("golang/open/b", INTEROP_TOKEN, err.Error())
@@ -222,10 +222,10 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	}
 
 	counter++ // The number of the gocode_<counter>.go source file we're going to write.
-	soFile := filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(newTime))+".so"))
+	soFile := filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("source/initializer/rsc-go/"+text.Flatten(source)+"_"+strconv.Itoa(int(newTime))+".so"))
 	timeMap := iz.getGoTimes()
 	if oldTime, ok := timeMap[source]; ok {
-		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("rsc/go/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
+		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("source/initializer/rsc-go/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
 	}
 	goFile := filepath.Join(settings.PipefishHomeDirectory, "gocode_"+strconv.Itoa(counter)+".go")
 	file, _ := os.Create(goFile)
@@ -286,9 +286,9 @@ func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string
 }
 
 func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
-	f, err := os.Create(settings.PipefishHomeDirectory + "rsc/go/gotimes.dat")
+	f, err := os.Create(settings.PipefishHomeDirectory + "source/initializer/rsc-go/gotimes.dat")
 	if err != nil {
-		panic("Can't create file rsc/go/gotimes.dat")
+		panic("Can't create file gotimes.dat")
 	}
 	defer f.Close()
 	for k, v := range timeMap {
@@ -298,9 +298,9 @@ func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
 }
 
 func (iz *initializer) getGoTimes() map[string]int64 {
-	file, err := os.Open(settings.PipefishHomeDirectory + "rsc/go/gotimes.dat")
+	file, err := os.Open(settings.PipefishHomeDirectory + "source/initializer/rsc-go/gotimes.dat")
 	if err != nil {
-		panic("Can't open file 'rsc/go/gotimes.dat'.")
+		panic("Can't open file 'gotimes.dat'.")
 	}
 	defer file.Close()
 
