@@ -298,9 +298,10 @@ func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
 }
 
 func (iz *initializer) getGoTimes() map[string]int64 {
-	file, err := os.Open(settings.PipefishHomeDirectory + "source/initializer/rsc-go/gotimes.dat")
+	filepath := settings.PipefishHomeDirectory + "source/initializer/rsc-go/gotimes.dat"
+	file, err := os.Open(filepath)
 	if err != nil {
-		panic("Can't open file 'gotimes.dat'.")
+		panic("Can't open file '" + filepath + "'.")
 	}
 	defer file.Close()
 
