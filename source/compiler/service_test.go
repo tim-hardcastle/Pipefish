@@ -417,7 +417,7 @@ func TestGocode(t *testing.T) {
 		{`multiply 2, 3`, `6`},
 	}
 	currentDirectory, _ := os.Getwd()
-	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../rsc/go/")
+	absolutePathToRscGo, _ := filepath.Abs(currentDirectory + "/../../source/initializer/rsc-go/")
 	locationOfGoTimes := absolutePathToRscGo + "/gotimes.dat"
 	temp, err := os.ReadFile(locationOfGoTimes)
 	if err != nil {
