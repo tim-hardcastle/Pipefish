@@ -140,7 +140,8 @@ func (iz *initializer) ParseEverythingFromSourcecode(mc *compiler.Vm, Common *pa
 	iz.p = iz.cp.P
 	iz.parseEverything(scriptFilepath, sourcecode)
 	iz.cp.ScriptFilepath = scriptFilepath
-	if !(scriptFilepath == "" || (len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
+	if !(scriptFilepath == "" || scriptFilepath == "InitializeFromCode" ||
+		(len(scriptFilepath) >= 5 && scriptFilepath[0:5] == "http:")) &&
 		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(text.MakeFilepath(scriptFilepath))
 		if err != nil {
