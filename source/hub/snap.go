@@ -72,7 +72,6 @@ func (sn *Snap) Save(st string) string {
 	return "Created test as file " + Cyan("'"+testFilepath+"'") + "."
 }
 
-
 func MakeSnapIo(sv *pf.Service, out io.Writer, sn *Snap) (*snapInHandler, *snapOutHandler) {
 	iH := snapInHandler{stdIn: pf.MakeStandardInHandler(""), snap: sn}
 	oH := snapOutHandler{stdOut: sv.MakeLiteralWritingOutHandler(out), snap: sn}
@@ -80,8 +79,8 @@ func MakeSnapIo(sv *pf.Service, out io.Writer, sn *Snap) (*snapInHandler, *snapO
 }
 
 type snapInHandler struct {
-	stdIn *pf.StandardInHandler
-	snap  *Snap
+	stdIn  *pf.StandardInHandler
+	snap   *Snap
 	prompt string
 }
 
@@ -99,7 +98,7 @@ func (iH *snapInHandler) Get() string {
 }
 
 func (oH *snapOutHandler) Out(v pf.Value) {
-	oH.snap.AppendOutput(oH.sv.Literal(v))
+	oH.snap.AppendOutput(oH.sv.ToLiteral(v))
 	oH.stdOut.Out(v)
 }
 
@@ -107,13 +106,13 @@ func (oH *snapOutHandler) Write(s string) {
 	oH.stdOut.Write(s)
 }
 
-func snapFunctionMaker(sv *pf.Service) func(pf.Value)[]byte {
-	return func (v pf.Value) []byte {
+func snapFunctionMaker(sv *pf.Service) func(pf.Value) []byte {
+	return func(v pf.Value) []byte {
 		var out bytes.Buffer
 		vals := v.V.([]pf.Value) // A snap always returns a tuple.
 		elements := []string{}
 		for _, e := range vals {
-			elements = append(elements, sv.Literal(e))
+			elements = append(elements, sv.ToLiteral(e))
 		}
 		out.WriteString(strings.Join(elements, ", "))
 		out.WriteRune('\n')
@@ -146,8 +145,8 @@ type TestOutHandler struct {
 func (iH *TestInHandler) Get() string {
 	iH.scanner.Scan()
 	prompt := iH.scanner.Text()
-	if iH.testOutputType == SHOW_ALL{
-			iH.out.Write([]byte(prompt + "\n"))
+	if iH.testOutputType == SHOW_ALL {
+		iH.out.Write([]byte(prompt + "\n"))
 	}
 	iH.scanner.Scan()
 	input := iH.scanner.Text()
@@ -162,7 +161,7 @@ func (oH *TestOutHandler) Out(v pf.Value) {
 	vals := v.V.([]pf.Value) // We make sure it is always passed a tuple.
 	elements := []string{}
 	for _, e := range vals {
-		elements = append(elements, string(oH.sv.Literal(e)))
+		elements = append(elements, string(oH.sv.ToLiteral(e)))
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	oH.scanner.Scan()

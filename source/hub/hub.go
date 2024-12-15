@@ -51,7 +51,7 @@ func New(in io.Reader, out io.Writer) *Hub {
 		lastRun:  []string{},
 	}
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-    hub.pipefishHomeDirectory = appDir + "/"
+	hub.pipefishHomeDirectory = appDir + "/"
 	return &hub
 }
 
@@ -70,7 +70,7 @@ func (hub *Hub) hasDatabase() bool {
 
 func (hub *Hub) getDB() (string, string, string, int, string, string) {
 	dbStruct := hub.getSV("database").V.([]pf.Value)
-	driver := hub.services["hub"].Literal(dbStruct[0])
+	driver := hub.services["hub"].ToLiteral(dbStruct[0])
 	return driver, dbStruct[1].V.(string), dbStruct[2].V.(string), dbStruct[3].V.(int), dbStruct[4].V.(string), dbStruct[5].V.(string)
 }
 
@@ -151,7 +151,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			return passedServiceName, false
 		}
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
-			os.Chdir(hubWords[2])    // process, if we did it with exec it would do it for
+			os.Chdir(hubWords[2])     // process, if we did it with exec it would do it for
 			hub.WriteString(GREEN_OK) // that process and not for Pipefish.
 			return passedServiceName, false
 		}
@@ -222,9 +222,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		var out string
 		v, _ := hub.services["hub"].GetVariable("display")
 		if v.V.(int) == 0 || hub.currentServiceName() == "#snap" {
-			out = serviceToUse.Literal(val)
+			out = serviceToUse.ToLiteral(val)
 		} else {
-			out = serviceToUse.String(val)
+			out = serviceToUse.ToString(val)
 		}
 		hub.WriteString(out)
 		if hub.currentServiceName() == "#snap" {
@@ -427,7 +427,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.setLive(false)
 		return false
 	case "log":
-		tracking, _ := hub.services[hub.currentServiceName()].GetTracking()
+		tracking, _ := hub.services[hub.currentServiceName()].GetTrackingReport()
 		hub.WritePretty(tracking)
 		hub.WriteString("\n")
 		return false
@@ -705,9 +705,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		for _, v := range hub.ers[0].Values {
 			if v.T == pf.BLING {
-				hub.WritePretty(BULLET_SPACING + hub.services[hub.currentServiceName()].Literal(v))
+				hub.WritePretty(BULLET_SPACING + hub.services[hub.currentServiceName()].ToLiteral(v))
 			} else {
-				hub.WritePretty(BULLET + hub.services[hub.currentServiceName()].Literal(v))
+				hub.WritePretty(BULLET + hub.services[hub.currentServiceName()].ToLiteral(v))
 			}
 		}
 		hub.WriteString("\n")
@@ -825,7 +825,6 @@ func (hub *Hub) WriteString(s string) {
 var helpStrings = map[string]string{}
 
 var helpTopics = []string{}
-
 
 // This is replicated in the settings file and any changes made here must be reflected there.
 var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
@@ -958,12 +957,12 @@ func StartServiceFromCli() {
 	}
 	val, _ := newService.CallMain()
 	if val.T == pf.UNDEFINED_TYPE {
-		s := "\nScript " + Cyan("'" + filename) + " has no " + Cyan("'main'") + " command.\n\n"
+		s := "\nScript " + Cyan("'"+filename) + " has no " + Cyan("'main'") + " command.\n\n"
 		fmt.Println(pf.PrettyString(s, 0, 92))
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
-	fmt.Println(newService.Literal(val) + "\n")
+	fmt.Println(newService.ToLiteral(val) + "\n")
 	os.Exit(0)
 }
 
@@ -1013,7 +1012,7 @@ func (hub *Hub) saveHubFile() string {
 	}
 	buf.WriteString(")\n\n")
 	buf.WriteString("currentService string? = ")
-	cs := hubService.Literal(hub.getSV("currentService"))
+	cs := hubService.ToLiteral(hub.getSV("currentService"))
 	if len(cs) > 0 && cs[1] == '#' {
 		buf.WriteString("NULL")
 	} else {
@@ -1021,13 +1020,13 @@ func (hub *Hub) saveHubFile() string {
 	}
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")
-	buf.WriteString(hubService.Literal(hub.getSV("isLive")))
+	buf.WriteString(hubService.ToLiteral(hub.getSV("isLive")))
 	buf.WriteString("\n")
 	buf.WriteString("display = ")
-	buf.WriteString(hubService.Literal(hub.getSV("display")))
+	buf.WriteString(hubService.ToLiteral(hub.getSV("display")))
 	buf.WriteString("\n")
 	buf.WriteString("width = ")
-	buf.WriteString(hubService.Literal(hub.getSV("width")))
+	buf.WriteString(hubService.ToLiteral(hub.getSV("width")))
 	buf.WriteString("\n\n")
 	buf.WriteString("database Database? = ")
 	dbVal := hub.getSV("database")
@@ -1036,22 +1035,22 @@ func (hub *Hub) saveHubFile() string {
 	} else {
 		args := dbVal.V.([]pf.Value)
 		buf.WriteString("Database with (driver::")
-		buf.WriteString(hubService.Literal(args[0]))
+		buf.WriteString(hubService.ToLiteral(args[0]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. name::")
-		buf.WriteString(hubService.Literal(args[1]))
+		buf.WriteString(hubService.ToLiteral(args[1]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. host::")
-		buf.WriteString(hubService.Literal(args[2]))
+		buf.WriteString(hubService.ToLiteral(args[2]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. port::")
-		buf.WriteString(hubService.Literal(args[3]))
+		buf.WriteString(hubService.ToLiteral(args[3]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. username::")
-		buf.WriteString(hubService.Literal(args[4]))
+		buf.WriteString(hubService.ToLiteral(args[4]))
 		buf.WriteString(",\n")
 		buf.WriteString("                                 .. password::")
-		buf.WriteString(hubService.Literal(args[5]))
+		buf.WriteString(hubService.ToLiteral(args[5]))
 		buf.WriteString(")\n")
 	}
 
@@ -1253,7 +1252,7 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 func valToString(srv *pf.Service, val pf.Value) string {
 	// TODO --- the exact behavior of this function should depend on service variables but I haven't put them in the VM yet.
 	// Alternately we can leave it as it is and have the vm's Describe method take care of it.
-	return srv.Literal(val)
+	return srv.ToLiteral(val)
 }
 
 func (h *Hub) StartHttp(path, port string) {
@@ -1469,20 +1468,20 @@ func ServiceDo(serviceToUse *pf.Service, line string) pf.Value {
 }
 
 var (
-	MARGIN = 92
-	GREEN_OK = ("\033[32mOK\033[0m")
-	WAS         = Green("was") + ": "
-	GOT         = Red("got") + ": "
-	TEST_PASSED = Green("Test passed!") + "\n"
+	MARGIN         = 92
+	GREEN_OK       = ("\033[32mOK\033[0m")
+	WAS            = Green("was") + ": "
+	GOT            = Red("got") + ": "
+	TEST_PASSED    = Green("Test passed!") + "\n"
 	VERSION        = "0.5.9"
 	BULLET         = "  ▪ "
 	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
 	GOOD_BULLET    = Green("  ▪ ")
 	BROKEN         = Red("  ✖ ")
 	PROMPT         = "→ "
-	ERROR     = "$Error$"
-	RT_ERROR  = "$Error$"
-	HUB_ERROR = "$Hub error$"
+	ERROR          = "$Error$"
+	RT_ERROR       = "$Error$"
+	HUB_ERROR      = "$Hub error$"
 )
 
 const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
