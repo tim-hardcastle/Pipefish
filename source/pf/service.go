@@ -376,6 +376,21 @@ func (sv *Service) TypeNameToType(s string) (Type, error) {
 	return t, nil
 }
 
+// Returns the type name associated with a given `Type`.
+func (sv *Service) TypeToTypeName(t Type) (string, error) {
+	if sv.cp == nil {
+		return "", errors.New("service is uninitialized")
+	}
+	if sv.IsBroken() {
+		return "", errors.New("service is broken")
+	}
+	if int(t) >= len(sv.cp.Vm.ConcreteTypeInfo) {
+		return "", errors.New("type does not exist")
+	}
+	s := sv.cp.Vm.DescribeType(t, compiler.DEFAULT)
+	return s, nil
+}
+
 // Gets a report of the tracking if any, in the form of a string which can be passed to
 // `PrettyString` for highlighting.
 func (sv *Service) GetTrackingReport() (string, error) {
