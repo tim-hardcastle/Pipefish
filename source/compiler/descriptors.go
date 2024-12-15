@@ -64,7 +64,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		buf.WriteByte(')')
 		return buf.String()
 	}
-	if typeInfo.isEnum() {
+	if typeInfo.IsEnum() {
 		var buf strings.Builder
 		if flavor == LITERAL {
 			buf.WriteString(vm.ConcreteTypeInfo[v.T].(EnumType).Path)
@@ -73,7 +73,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		return buf.String()
 
 	}
-	if typeInfo.isClone() {
+	if typeInfo.IsClone() {
 		var buf strings.Builder
 		buf.WriteString(vm.ConcreteTypeInfo[v.T].GetName(flavor))
 		buf.WriteString("(")

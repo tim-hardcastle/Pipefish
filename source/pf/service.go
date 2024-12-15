@@ -91,7 +91,7 @@ type SimpleInHandler = compiler.SimpleInHandler
 type SimpleOutHandler = compiler.SimpleOutHandler
 
 // An InHandler which supplies a prompt and then gets its input from the terminal.
-type StandardInHandler = compiler.StandardInHandler
+type TerminalInHandler = compiler.StandardInHandler
 
 // The representation of a Pipefish list in the `V` field of a `Value` with `T` = `LIST`.
 type List = vector.Vector
@@ -144,21 +144,22 @@ func (sv *Service) MakeLiteralWritingOutHandler(out io.Writer) *SimpleOutHandler
 func (sv *Service) MakeStringWritingOutHandler(out io.Writer) *SimpleOutHandler {
 	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, false)
 }
+
 // Makes an `OutHandler` which applies Pipefish's `literal` function
 // to the value and then writes the result to the terminal.
-func (sv *Service) MakeStandardLiteralOutHandler(out io.Writer) *SimpleOutHandler {
+func (sv *Service) MakeLiteralTerminalOutHandler(out io.Writer) *SimpleOutHandler {
 	return compiler.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
 }
 
-// Makes an `OutHandler` which applies Pipefish's `string` function to the value and 
+// Makes an `OutHandler` which applies Pipefish's `string` function to the value and
 // then writes the result to the terminal.
-func (sv *Service) MakeStandardStringOutHandler(out io.Writer) *SimpleOutHandler {
+func (sv *Service) MakeStringTerminalOutHandler(out io.Writer) *SimpleOutHandler {
 	return compiler.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
 }
 
 // Makes an `InHandler` which will get input from the terminal using the string supplied
 // to prompt the end user.
-func MakeStandardInHandler(prompt string) *StandardInHandler {
+func MakeTerminalInHandler(prompt string) *TerminalInHandler {
 	return compiler.MakeStandardInHandler(prompt)
 }
 
@@ -171,7 +172,7 @@ func (sv *Service) SetLocalExternalServices(svs map[string]*Service) {
 
 // Sets an InHandler, i.e. the thing that decides what happens when you do
 // `get x from Input()`.
-func (sv *Service) SetInHandler(in compiler.InHandler) error {
+func (sv *Service) SetInHandler(in InHandler) error {
 	if sv.cp == nil {
 		return errors.New("service is uninitialized")
 	}
@@ -297,8 +298,8 @@ func (sv *Service) ErrorsExist() (bool, error) {
 	return sv.cp.P.ErrorsExist(), nil
 }
 
-// Gets the source code of the service as a map from filenames to lists of strings (i.e.)
-// lines of source code.
+// Gets the source code of the service as a map from filenames to lists of strings (i.e.
+// lines of source code).
 func (sv *Service) GetSources() (map[string][]string, error) {
 	if sv.cp == nil {
 		return nil, errors.New("service is uninitialized")
@@ -333,8 +334,8 @@ func ExplainError(es []*Error, i int) (string, error) {
 	return (err.ErrorCreatorMap[es[i].ErrorId].Explanation(es, i, es[i].Token, es[i].Args...)), nil
 }
 
-// Filepath to the root file of the service.
-func (sv *Service) Filepath() (string, error) {
+// GetFilepath to the root file of the service.
+func (sv *Service) GetFilepath() (string, error) {
 	if sv.cp == nil {
 		return "", errors.New("service is uninitialized")
 	}
@@ -360,6 +361,30 @@ func (sv *Service) ToLiteral(v Value) string {
 // Converts a `Value` to a string using Pipefish's `string` function.
 func (sv *Service) ToString(v Value) string {
 	return sv.cp.Vm.Literal(v)
+}
+
+
+// Returns `true` if the `Value` is a clone.
+func (sv *Service) IsClone(v Value) bool {
+	return sv.cp.Vm.ConcreteTypeInfo[v.T].IsClone()
+}
+
+// Returns `true` if the `Value` is an enum.
+func (sv *Service) IsEnum(v Value) bool {
+	return sv.cp.Vm.ConcreteTypeInfo[v.T].IsEnum()
+}
+
+// Returns `true` if the `Value` is a struct.
+func (sv *Service) IsStruct(v Value) bool {
+	return sv.cp.Vm.ConcreteTypeInfo[v.T].IsStruct()
+}
+
+// Returns the underlying `Type` of a `Value`, i.e. its parent type if it's a clone, otherwise its own type.
+func (sv *Service) UnderlyingType(v Value) Type {
+	if clone, ok := sv.cp.Vm.ConcreteTypeInfo[v.T].(compiler.CloneType); ok {
+		return clone.Parent
+	}
+	return v.T
 }
 
 // Returns the `Type` associated with a given type name.
@@ -414,19 +439,20 @@ func PrettyString(s string, left, right int) string {
 // still need downcasting to the type it was coerced to.
 //
 // E.g:
-// func TwoPlusTwo() int {
-//     v, _ := fooService.Do(`2 + 2`)                   // `v` has type `Value`.
-//     i := fooService.ToGo(v, reflect.TypeFor[int]())  // `i` has type `any`.
-//     return i.(int)                                   // We return an integer as required.
-//}
+//
+//	func TwoPlusTwo() int {
+//	    v, _ := fooService.Do(`2 + 2`)                   // `v` has type `Value`.
+//	    i := fooService.ToGo(v, reflect.TypeFor[int]())  // `i` has type `any`.
+//	    return i.(int)                                   // We return an integer as required.
+//	}
 //
 // The error will be non-nil if the coercion is impossible.
-func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
+func (sv *Service) ToGo(pfValue Value, goType reflect.Type) (any, error) {
 	pfTypeInfo := sv.cp.Vm.ConcreteTypeInfo[pfValue.T]
 	pfTypeName := pfTypeInfo.GetName(compiler.LITERAL)
 	goTypeName := goType.String()
-	myError := errors.New("cannot coerce Pipefish value of type '" + pfTypeName + 
-	                       "' to Go value of type '" + goTypeName + "'")
+	myError := errors.New("cannot coerce Pipefish value of type '" + pfTypeName +
+		"' to Go value of type '" + goTypeName + "'")
 	if goType.Kind() == reflect.Pointer {
 		goDatum, e := sv.ToGo(pfValue, goType.Elem())
 		if e != nil {
@@ -467,62 +493,62 @@ func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
 		pfBaseType = INT
 	}
 	switch pfBaseType {
-	case UNDEFINED_TYPE : // Then we didn't find anything we could do with it.
+	case UNDEFINED_TYPE: // Then we didn't find anything we could do with it.
 		return nil, myError
 	case INT:
 		switch goType.Kind() {
-		case reflect.Int :
+		case reflect.Int:
 			goDatum = pfValue.V.(int)
-		case reflect.Int8 :
+		case reflect.Int8:
 			goDatum = int8(pfValue.V.(int))
-		case reflect.Int16 :
+		case reflect.Int16:
 			goDatum = int16(pfValue.V.(int))
-		case reflect.Int32 :
+		case reflect.Int32:
 			goDatum = int32(pfValue.V.(int))
-		case reflect.Int64 :
+		case reflect.Int64:
 			goDatum = int64(pfValue.V.(int))
-		case reflect.Uint :
+		case reflect.Uint:
 			goDatum = uint(pfValue.V.(int))
-		case reflect.Uint8 :
+		case reflect.Uint8:
 			goDatum = uint8(pfValue.V.(int))
-		case reflect.Uint16 :
+		case reflect.Uint16:
 			goDatum = uint16(pfValue.V.(int))
-		case reflect.Uint32 :
+		case reflect.Uint32:
 			goDatum = uint32(pfValue.V.(int))
-		case reflect.Uint64 :
+		case reflect.Uint64:
 			goDatum = uint64(pfValue.V.(int))
-		default :
-			return nil, myError	
+		default:
+			return nil, myError
 		}
 	case BOOL:
 		if goType.Kind() != reflect.Bool {
-			return nil, myError	
+			return nil, myError
 		}
 		goDatum = pfValue.V.(bool)
 	case STRING:
 		if goType.Kind() != reflect.String {
-			return nil, myError	
+			return nil, myError
 		}
 		goDatum = pfValue.V.(bool)
 	case RUNE:
 		if goType.Kind() != reflect.Int32 {
-			return nil, myError	
+			return nil, myError
 		}
 		goDatum = pfValue.V.(rune)
 	case FLOAT:
 		switch goType.Kind() {
-		case reflect.Float32 :
+		case reflect.Float32:
 			goDatum = float32(pfValue.V.(float64))
-		case reflect.Float64 :
+		case reflect.Float64:
 			goDatum = pfValue.V.(float64)
-		default :
-			return nil, myError	
+		default:
+			return nil, myError
 		}
-	case TUPLE, PAIR, LIST :
-		var pfValues []Value 
+	case TUPLE, PAIR, LIST:
+		var pfValues []Value
 		if pfValue.T == LIST {
 			vec := pfValue.V.(List)
-			for i := 0; i <= vec.Len() ; i++ {
+			for i := 0; i <= vec.Len(); i++ {
 				pfElement, _ := vec.Index(i)
 				pfValues = append(pfValues, pfElement.(Value))
 			}
@@ -531,7 +557,7 @@ func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
 		}
 		goElements := pfValue.V.([]Value)
 		switch goType.Kind() {
-		case reflect.Array :
+		case reflect.Array:
 			if goType.Len() != len(goElements) {
 				return nil, myError
 			}
@@ -544,7 +570,7 @@ func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
 				goArray.Index(i).Set(reflect.ValueOf(goFieldDatum))
 			}
 			goDatum = goArray.Interface()
-		case reflect.Slice :
+		case reflect.Slice:
 			goSlice := reflect.New(goType).Elem()
 			goSlice.SetCap(len(goElements))
 			goSlice.SetLen(len(goElements))
@@ -559,7 +585,7 @@ func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
 		}
 	case MAP:
 		if goType.Kind() != reflect.Map {
-			return nil, myError	
+			return nil, myError
 		}
 		pfMap := pfValue.V.(Map)
 		goMap := reflect.MakeMap(goType)
@@ -577,7 +603,7 @@ func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
 		goDatum = goMap.Interface()
 	case SET:
 		if goType.Kind() != reflect.Map || goType.Elem() != reflect.TypeFor[struct{}]() {
-			return nil, myError	
+			return nil, myError
 		}
 		pfSet := pfValue.V.(Set)
 		goSet := reflect.MakeMap(goType)
@@ -589,22 +615,22 @@ func (sv *Service) ToGo (pfValue Value, goType reflect.Type) (any, error) {
 			goSet.SetMapIndex(reflect.ValueOf(goElementDatum), reflect.ValueOf(struct{}{}))
 		}
 		goDatum = goSet.Interface()
-	default :
+	default:
 		return nil, myError
 	}
 	// This takes care of the assigned types.
 	return reflect.ValueOf(goDatum).Convert(goType).Interface(), nil
-} 
+}
 
 // What we convert to when we convert to `any`.
 var DEFAULT_TYPE_FOR = map[Type]reflect.Type{
-	INT: reflect.TypeFor[int](),
-	BOOL: reflect.TypeFor[bool](),
+	INT:    reflect.TypeFor[int](),
+	BOOL:   reflect.TypeFor[bool](),
 	STRING: reflect.TypeFor[string](),
-	FLOAT: reflect.TypeFor[float64](),
-	LIST: reflect.TypeFor[[]any](),
-	PAIR: reflect.TypeFor[[2]any](),
-	MAP: reflect.TypeFor[map[any]any](),
-	SET: reflect.TypeFor[map[any]struct{}](),
-	TUPLE: reflect.TypeFor[[]any](),
+	FLOAT:  reflect.TypeFor[float64](),
+	LIST:   reflect.TypeFor[[]any](),
+	PAIR:   reflect.TypeFor[[2]any](),
+	MAP:    reflect.TypeFor[map[any]any](),
+	SET:    reflect.TypeFor[map[any]struct{}](),
+	TUPLE:  reflect.TypeFor[[]any](),
 }

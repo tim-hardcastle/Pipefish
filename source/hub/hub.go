@@ -185,7 +185,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	hub.Sources["REPL input"] = []string{line}
 	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName())
 	if hub.isLive() && needsUpdate {
-		path, _ := hub.services[hub.currentServiceName()].Filepath()
+		path, _ := hub.services[hub.currentServiceName()].GetFilepath()
 		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), path)
 		serviceToUse = hub.services[hub.currentServiceName()]
 		if serviceToUse.IsBroken() {
@@ -503,7 +503,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("service is empty, nothing to reset.")
 			return false
 		}
-		filepath, _ := serviceToReset.Filepath()
+		filepath, _ := serviceToReset.GetFilepath()
 		hub.WritePretty("Restarting script '" + filepath +
 			"' as service '" + hub.currentServiceName() + "'.\n")
 		hub.StartAndMakeCurrent(username, hub.currentServiceName(), filepath)
@@ -514,7 +514,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("nothing to rerun.")
 			return false
 		}
-		filepath, _ := hub.services[hub.lastRun[0]].Filepath()
+		filepath, _ := hub.services[hub.lastRun[0]].GetFilepath()
 		hub.WritePretty("Rerunning script '" + filepath +
 			"' as service '" + hub.lastRun[0] + "'.\n")
 		hub.StartAndMakeCurrent(username, hub.lastRun[0], filepath)
@@ -1003,7 +1003,7 @@ func (hub *Hub) saveHubFile() string {
 		buf.WriteString("\"")
 		buf.WriteString(v)
 		buf.WriteString("\"::\"")
-		name, _ := hub.services[v].Filepath()
+		name, _ := hub.services[v].GetFilepath()
 		buf.WriteString(name)
 		buf.WriteString("\"")
 		if i < len(serviceList)-1 {
@@ -1100,7 +1100,7 @@ func (hub *Hub) list() {
 		if k == "" || k == "hub" {
 			continue
 		}
-		fpath, _ := hub.services[k].Filepath()
+		fpath, _ := hub.services[k].GetFilepath()
 		if hub.services[k].IsBroken() {
 			hub.WriteString(BROKEN)
 			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")

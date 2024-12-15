@@ -423,7 +423,7 @@ NodeTypeSwitch:
 				allEnums := AlternateType{} // TODO --- you only need to calculate this once.
 				allEnums = append(allEnums, SimpleType(values.ERROR))
 				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.ConcreteTypeInfo); i++ {
-					if cp.Vm.ConcreteTypeInfo[i].isEnum() {
+					if cp.Vm.ConcreteTypeInfo[i].IsEnum() {
 						allEnums = append(allEnums, SimpleType(i))
 					}
 				}

@@ -594,7 +594,7 @@ loop:
 			}
 		case Idxt:
 			typ := (vm.Mem[args[1]].V.(values.AbstractType)).Types[0]
-			if !vm.ConcreteTypeInfo[typ].isEnum() {
+			if !vm.ConcreteTypeInfo[typ].IsEnum() {
 				vm.Mem[args[0]] = vm.makeError("vm/index/type/a", args[3], vm.DescribeType(typ, LITERAL))
 				break
 			}
@@ -819,7 +819,7 @@ loop:
 						break
 					}
 					typ := abTyp.Types[0]
-					if !vm.ConcreteTypeInfo[typ].isEnum() {
+					if !vm.ConcreteTypeInfo[typ].IsEnum() {
 						vm.Mem[args[0]] = vm.makeError("vm/index/o", args[3])
 						break
 					}
@@ -919,7 +919,7 @@ loop:
 				}
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
-				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.ConcreteTypeInfo[v.T].isEnum()) {
+				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.ConcreteTypeInfo[v.T].IsEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T, LITERAL))
 					break Switch
 				}
@@ -931,7 +931,7 @@ loop:
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
-				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.ConcreteTypeInfo[v.T].isEnum()) {
+				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.ConcreteTypeInfo[v.T].IsEnum()) {
 					vm.Mem[args[0]] = vm.makeError("vm/set", args[2], v, vm.DescribeType(v.T, LITERAL))
 					break Switch
 				}
@@ -1579,7 +1579,7 @@ loop:
 			}
 			mp := vm.Mem[args[1]].V.(*values.Map)
 			for _, key := range items {
-				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || vm.ConcreteTypeInfo[key.T].isEnum()) { // Check that the key is orderable.
+				if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || vm.ConcreteTypeInfo[key.T].IsEnum()) { // Check that the key is orderable.
 					vm.Mem[args[0]] = vm.makeError("vm/without", args[3], vm.DescribeType(key.T, LITERAL))
 					break Switch
 				}
@@ -1744,7 +1744,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		return container
 	case values.MAP:
 		mp := container.V.(*values.Map)
-		if ((key.T < values.NULL) || (key.T >= values.FUNC && key.T < values.LABEL)) && !vm.ConcreteTypeInfo[key.T].isEnum() { // Check that the key is orderable.
+		if ((key.T < values.NULL) || (key.T >= values.FUNC && key.T < values.LABEL)) && !vm.ConcreteTypeInfo[key.T].IsEnum() { // Check that the key is orderable.
 			return vm.makeError("vm/with/c", errTok, vm.DescribeType(key.T, LITERAL))
 		}
 		if len(keys) == 1 {
@@ -1789,10 +1789,10 @@ const (
 type typeInformation interface {
 	GetName(flavor descriptionFlavor) string
 	getPath() string
-	isEnum() bool
+	IsEnum() bool
 	IsStruct() bool
 	isSnippet() bool
-	isClone() bool
+	IsClone() bool
 	IsPrivate() bool
 	isMandatoryImport() bool
 }
@@ -1809,7 +1809,7 @@ func (t BuiltinType) GetName(flavor descriptionFlavor) string {
 	return string(t.name)
 }
 
-func (t BuiltinType) isEnum() bool {
+func (t BuiltinType) IsEnum() bool {
 	return false
 }
 
@@ -1821,7 +1821,7 @@ func (t BuiltinType) isSnippet() bool {
 	return false
 }
 
-func (t BuiltinType) isClone() bool {
+func (t BuiltinType) IsClone() bool {
 	return false
 }
 
@@ -1852,7 +1852,7 @@ func (t EnumType) GetName(flavor descriptionFlavor) string {
 	return t.Name
 }
 
-func (t EnumType) isEnum() bool {
+func (t EnumType) IsEnum() bool {
 	return true
 }
 
@@ -1868,7 +1868,7 @@ func (t EnumType) IsPrivate() bool {
 	return t.Private
 }
 
-func (t EnumType) isClone() bool {
+func (t EnumType) IsClone() bool {
 	return false
 }
 
@@ -1898,7 +1898,7 @@ func (t CloneType) GetName(flavor descriptionFlavor) string {
 	return t.Name
 }
 
-func (t CloneType) isEnum() bool {
+func (t CloneType) IsEnum() bool {
 	return false
 }
 
@@ -1914,7 +1914,7 @@ func (t CloneType) IsPrivate() bool {
 	return t.Private
 }
 
-func (t CloneType) isClone() bool {
+func (t CloneType) IsClone() bool {
 	return true
 }
 
@@ -1945,7 +1945,7 @@ func (t StructType) GetName(flavor descriptionFlavor) string {
 	return t.Name
 }
 
-func (t StructType) isEnum() bool {
+func (t StructType) IsEnum() bool {
 	return false
 }
 
@@ -1961,7 +1961,7 @@ func (t StructType) IsPrivate() bool {
 	return t.Private
 }
 
-func (t StructType) isClone() bool {
+func (t StructType) IsClone() bool {
 	return false
 }
 
@@ -2049,7 +2049,7 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc)}
 		}
 		typ := abTyp.Types[0]
-		if !vm.ConcreteTypeInfo[typ].isEnum() {
+		if !vm.ConcreteTypeInfo[typ].IsEnum() {
 			return values.Value{values.ERROR, vm.makeError("vm/for/type/b", tokLoc)}
 		}
 		if keysOnly {

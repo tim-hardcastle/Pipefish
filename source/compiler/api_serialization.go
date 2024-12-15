@@ -77,7 +77,7 @@ func (es ExternalHttpCallHandler) GetAPI() string {
 func (cp *Compiler) SerializeApi() string {
 	var buf strings.Builder
 	for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.ConcreteTypeInfo); i++ {
-		if !cp.Vm.ConcreteTypeInfo[i].isEnum() {
+		if !cp.Vm.ConcreteTypeInfo[i].IsEnum() {
 			continue
 		}
 		if !cp.Vm.ConcreteTypeInfo[i].IsPrivate() && !cp.Vm.ConcreteTypeInfo[i].isMandatoryImport() {
