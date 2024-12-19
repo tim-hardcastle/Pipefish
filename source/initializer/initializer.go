@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -1772,7 +1773,10 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 	cliArgsData := serviceVariables["$cliArguments"]
 	cliArgsData.deflt = val(values.LIST, cliArgs)
 	serviceVariables["$cliArguments"] = cliArgsData
-
+	// $moduleDirectory
+	moduleDirData := serviceVariables["$moduleDirectory"]
+	moduleDirData.deflt = val(values.STRING, filepath.Dir(iz.cp.ScriptFilepath))
+	serviceVariables["$moduleDirectory"] = moduleDirData
 	// Add variables to environment.
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
@@ -2322,6 +2326,7 @@ var serviceVariables = map[string]serviceVariableData{
 	"$logging":      {altType(), values.Value{}, true, compiler.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
 	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, compiler.GLOBAL_VARIABLE_PRIVATE},
 	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, compiler.GLOBAL_VARIABLE_PRIVATE},
+	"$moduleDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, compiler.GLOBAL_VARIABLE_PRIVATE},
 }
 
 // The maximum value of a `uint32`. Used as a dummy/sentinel value when `0` is not appropriate.
