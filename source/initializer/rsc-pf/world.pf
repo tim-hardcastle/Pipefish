@@ -153,21 +153,60 @@ newtype
 
 FileSearchMode = enum NONRECURSIVE, RECURSIVE
 
-FileNames = struct(directory string, fileSearchMode FileSearchMode) 
+Filenames = struct(directory string, fileSearchMode FileSearchMode) 
 
 DirectoryNames = struct(directory string, fileSearchMode FileSearchMode)
 
 cmd
+
+get (L ref) from (filenames Filenames) : 
+    L = goGetFilenames(filenames)
 
 get (L ref) from (directoryNames DirectoryNames) : 
     L = goGetDirectoryNames(directoryNames)
 
 def
 
+goGetFilenames(filenames Filenames) : golang {
+    resultList := []string{}
+    if filenames.FileSearchMode == 0 {
+        fileInfos, err := ReadDir(filenames)
+        if err != nil {
+            return err
+        }
+        for _, info := range fileInfos {
+            if !info.IsDir() {
+                resultList = append(resultList, info.Name())
+            }
+        }
+    }
+    err := filepath.Walk(directoryNames.Directory, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+        if !info.IsDir() {
+            resultList = append(resultList, info.Name())
+        }
+        return nil
+    })
+	if err != nil {
+		return err
+	}
+    return resultList
+}
+
 goGetDirectoryNames(directoryNames DirectoryNames) : golang {
     resultList := []string{}
-    if directoryNames.FileSearchMode == 0 {
-        return resultList
+    if filenames.FileSearchMode == 0 {
+        fileInfos, err := ReadDir(filenames)
+        if err != nil {
+            return err
+        }
+        for _, info := range fileInfos {
+            if info.IsDir() {
+                resultList = append(resultList, info.Name())
+            }
+        }
     }
     err := filepath.Walk(directoryNames.Directory, func(path string, info os.FileInfo, err error) error {
         if err != nil {

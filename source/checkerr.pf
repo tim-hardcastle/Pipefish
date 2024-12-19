@@ -5,8 +5,8 @@ cmd
 
 init :
     global $moduleDirectory
-    get dirs from DirectoryNames($moduleDirectory, RECURSIVE)
-    for _::dir = range dirs :
-        post "  ▪ " + dir
+    get filenames from Filenames($moduleDirectory, RECURSIVE)
+    for _::filename = range filenames :
+        post "  ▪ " + filename
 
 
