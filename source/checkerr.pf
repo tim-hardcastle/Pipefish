@@ -5,7 +5,7 @@ cmd
 
 init :
     global $cliDirectory
-    get dirs from Directories($cliDirectory, RECURSIVE)
+    get dirs from DirectoryNames($cliDirectory, RECURSIVE)
     for _::dir = range dirs :
         post "  ▪ " + dir
 
