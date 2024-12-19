@@ -48,7 +48,9 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 
 // Initializes the service on behalf of both the previous methods. As the
 // compiler can't see the service class, the other services visible to a
-// service have to be supplied as raw compilers.
+// service have to be supplied as raw compilers. We pass them in, and then we
+// yoink them out at the end because the service might have started up a new
+// external service.
 func (sv *Service) initialize(scriptFilepath, sourcecode string) error {
 	compilerMap := make(map[string]*compiler.Compiler)
 	for k, v := range sv.localExternals {

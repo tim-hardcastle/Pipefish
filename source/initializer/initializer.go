@@ -116,18 +116,22 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	result := iz.ParseEverythingFromSourcecode(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, sourcecode, "")
 
 	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.MakeFunctionTableAndGoModules()
 	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.PopulateAbstractTypesAndMakeFunctionTrees()
 	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.ResolveInterfaceBacktracks()
