@@ -203,7 +203,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	case token.FLOAT:
 		leftExp = p.parseFloatLiteral()
 	case token.FOR:
-		// p.NextToken()
 		leftExp = p.parseForExpression()
 	case token.GOCODE:
 		leftExp = p.parseGolangExpression()

@@ -286,6 +286,7 @@ func TestForLoops(t *testing.T) {
 		{`showRange 8, 3`, `[0::7, 1::6, 2::5, 3::4, 4::3]`},
 		{`showRangeKeys 8, 3`, `[0, 1, 2, 3, 4]`},
 		{`showRangeValues 8, 3 `, `[7, 6, 5, 4, 3]`},
+		{`x`, `10`},
 	}
 	test_helper.RunTest(t, "for_loop_test.pf", tests, testValues)
 }
