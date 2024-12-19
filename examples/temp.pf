@@ -1,6 +1,7 @@
 
-def
+cmd
 
-foo(x int) :
-    1 + "foo"
+tri(n) :
+    for i = 0; i < n; i + 1 :
+        post i
 
