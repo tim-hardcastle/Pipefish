@@ -1197,7 +1197,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			cp.P.Throw("cp/for/bound/a", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
-		cp.Reserve(values.UNDEFINED_TYPE, nil, node.BoundVariables.GetToken()) // If we don't have any bound variables, then this is presumptively an imperative loop and we'll need somewhere to put OK/break/error still.
+		cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken()) // If we don't have any bound variables, then this is presumptively an imperative loop and we'll need somewhere to put OK/break/error still.
 		boundResultLoc = cp.That()
 	} else {
 		hasBoundVariables = true

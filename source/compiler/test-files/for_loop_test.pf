@@ -10,6 +10,15 @@ myList = [PURPLE, BLUE, GREEN, YELLOW, ORANGE, RED]
 
 mySet = set "a", "e", "i", "o", "u"
 
+var x = 0
+
+cmd
+
+init :
+    global x
+    for i = 0; i < 5; i + 1 :
+        x = x + i
+
 def
 
 fib(n int) :
