@@ -4,7 +4,7 @@
 init :
     global $cliDirectory
     get dirs from Directories($cliDirectory, RECURSIVE)
-    for _, dir = range dirs :
+    for _::dir = range dirs :
         post "  ▪ " + dir
 
 
