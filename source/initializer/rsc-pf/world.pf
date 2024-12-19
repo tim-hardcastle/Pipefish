@@ -170,7 +170,7 @@ def
 goGetFilenames(filenames Filenames) : golang {
     resultList := []string{}
     if filenames.FileSearchMode == 0 {
-        fileInfos, err := ReadDir(filenames)
+        fileInfos, err := os.ReadDir(filenames)
         if err != nil {
             return err
         }
@@ -180,7 +180,7 @@ goGetFilenames(filenames Filenames) : golang {
             }
         }
     }
-    err := filepath.Walk(directoryNames.Directory, func(path string, info os.FileInfo, err error) error {
+    err := filepath.Walk(filenames.Directory, func(path string, info os.FileInfo, err error) error {
         if err != nil {
             return err
         }
@@ -197,8 +197,8 @@ goGetFilenames(filenames Filenames) : golang {
 
 goGetDirectoryNames(directoryNames DirectoryNames) : golang {
     resultList := []string{}
-    if filenames.FileSearchMode == 0 {
-        fileInfos, err := ReadDir(filenames)
+    if directoryNames.FileSearchMode == 0 {
+        fileInfos, err := ReadDir(directoryNames)
         if err != nil {
             return err
         }

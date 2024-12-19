@@ -1,5 +1,5 @@
 // A little app to go through the sourcecode and see if any error codes are either unmatched
-// in the error file, or duplicated.
+// in the error file, or duplicated, or declared in the error file but unused.
 
 cmd
 
