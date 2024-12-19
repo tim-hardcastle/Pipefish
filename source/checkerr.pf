@@ -1,0 +1,10 @@
+// A little app to go through the sourcecode and see if any error codes are either unmatched
+// in the error file, or duplicated.
+
+init :
+    global $cliDirectory
+    get dirs from Directories($cliDirectory, RECURSIVE)
+    for _, dir = range dirs :
+        post "  ▪ " + dir
+
+
