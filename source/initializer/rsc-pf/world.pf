@@ -176,7 +176,7 @@ goGetFilenames(filenames Filenames) : golang {
         }
         for _, info := range fileInfos {
             if !info.IsDir() {
-                resultList = append(resultList, info.Name())
+                resultList = append(resultList, filepath.Join(filenames.Directory, info.Name()))
             }
         }
     }
@@ -185,7 +185,7 @@ goGetFilenames(filenames Filenames) : golang {
             return err
         }
         if !info.IsDir() {
-            resultList = append(resultList, info.Name())
+            resultList = append(resultList, filepath.Join(path, info.Name()))
         }
         return nil
     })
@@ -204,7 +204,7 @@ goGetDirectoryNames(directoryNames DirectoryNames) : golang {
         }
         for _, info := range fileInfos {
             if info.IsDir() {
-                resultList = append(resultList, info.Name())
+                resultList = append(resultList, filepath.Join(directoryNames.Directory, info.Name()))
             }
         }
     }
@@ -213,7 +213,7 @@ goGetDirectoryNames(directoryNames DirectoryNames) : golang {
             return err
         }
         if info.IsDir() {
-            resultList = append(resultList, info.Name())
+            resultList = append(resultList, filepath.Join(path, info.Name()))
         }
         return nil
     })
