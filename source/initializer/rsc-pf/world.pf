@@ -185,7 +185,7 @@ goGetFilenames(filenames Filenames) : golang {
             return err
         }
         if !info.IsDir() {
-            resultList = append(resultList, filepath.Join(path, info.Name()))
+            resultList = append(resultList, path)
         }
         return nil
     })
@@ -213,7 +213,7 @@ goGetDirectoryNames(directoryNames DirectoryNames) : golang {
             return err
         }
         if info.IsDir() {
-            resultList = append(resultList, filepath.Join(path, info.Name()))
+            resultList = append(resultList, path)
         }
         return nil
     })
