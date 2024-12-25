@@ -830,7 +830,7 @@ var helpTopics = []string{}
 var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
 
 func init() {
-	for _, v := range []string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"} {
+	for _, v := range []string{"filepath", "fmt", "math", "path", "regexp", "strings", "time", "unicode"} {
 		StandardLibraries[v] = struct{}{}
 	}
 	cwd, _ := filepath.Abs(filepath.Dir(os.Args[0]))

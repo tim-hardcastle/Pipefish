@@ -1,0 +1,78 @@
+import
+
+golang "filepath"
+golang "errors"
+
+def
+
+abs(path string) : golang {
+    return filepath.Abs(path)
+}
+
+base(path string) -> string : golang {
+    return filepath.Base(path)
+}
+
+clean(path string) -> string : golang {
+    return filepath.Clean(path)
+}
+
+dir(path string) -> string : golang {
+    return filepath.Dir(path)
+}
+
+evalSymlinks(path string) : golang {
+    return filepath.EvalSymlinks(path)
+}
+
+ext(path string) -> string : golang {
+    return filepath.Ext(path)
+}
+
+fromSlash(path string) -> string : golang {
+    return filepath.FromSlash(path)
+}
+
+glob(path string) -> string : golang {
+    return filepath.Glob(path)
+}
+
+isAbs(path string) -> string : golang {
+    return filepath.IsAbs(path)
+}
+
+isLocal(path string) -> string : golang {
+    return filepath.IsLocal(path)
+}
+
+join(elem ... string) -> string : golang {
+    return filepath.Join(elem ...)
+}
+
+localize(path string) -> string : golang {
+    return filepath.Localize(path)
+}
+
+match(pattern, name string) : golang {
+    return filepath.Match(pattern, name)
+}
+
+rel(basepath, targpath string) : golang {
+    return filepath.Rel(basepath, targpath)
+}
+
+spilt(path string) -> string, string : golang {
+    return filepath.Split(path string)
+}
+
+splitList(path string) -> list : golang {
+    return filepath.SplitList(path)
+}
+
+toSlash(path string) -> string : golang {
+    return filepath.ToSlash(path)
+}
+
+volumeName(path string) -> string : golang {
+    return filepath.VolumeName(path)
+}

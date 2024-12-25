@@ -23,7 +23,7 @@ func MandatoryImportSet() dtypes.Set[string] {
 var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc/worldlite.pf")
 
 // This is replicated in the hub and any changes made here must be reflected there.
-var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"})
+var StandardLibraries = dtypes.MakeFromSlice([]string{"filepath", "fmt", "math", "path", "regexp", "strings", "time", "unicode"})
 
 const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
