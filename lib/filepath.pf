@@ -1,7 +1,6 @@
 import
 
-golang "filepath"
-golang "errors"
+golang "path/filepath"
 
 def
 
