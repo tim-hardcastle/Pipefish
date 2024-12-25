@@ -585,9 +585,10 @@ func (iz *initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
 		if e != nil { // Then we couldn't open the file.
 			iz.Throw("init/import/file", imp.GetToken(), e)
+			return []string{}
 		}
 		iz.cp.Modules[namespace] = newCp
-		for k, v := range newIz.declarationMap { // See note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
+		for k, v := range newIz.declarationMap { // TODO --- see note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
 			iz.declarationMap[k] = v
 		}
 		iz.p.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
