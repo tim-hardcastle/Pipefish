@@ -62,7 +62,7 @@ rel(basepath, targpath string) : golang {
 }
 
 spilt(path string) -> string, string : golang {
-    return filepath.Split(path string)
+    return filepath.Split(path)
 }
 
 splitList(path string) -> list : golang {
