@@ -584,7 +584,7 @@ func (iz *initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 		iz.initializers[scriptFilepath] = newIz
 		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
 		if e != nil { // Then we couldn't open the file.
-			iz.Throw("init/import/file", imp.GetToken(), e)
+			iz.Throw("init/import/file", imp.GetToken(), scriptFilepath, e)
 			return []string{}
 		}
 		iz.cp.Modules[namespace] = newCp
