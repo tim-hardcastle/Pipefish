@@ -175,12 +175,12 @@ var BUILTIN_VALUE_CONVERTER = map[string]any{
 // This makes a new .so file, opens it, and returns the plugins.
 // Most of the code generation is in the `gogen.go` file in this same `service` package.
 func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
-
+	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
+		println("Making golang from source '" + source + "'\n\n")
+	}
 	var StringBuilder strings.Builder
 	sb := &StringBuilder
-
 	// We emit the package declaration and builtins.
-
 	fmt.Fprint(sb, "package main\n\n")
 	if len(iz.goBucket.imports) > 0 {
 		fmt.Fprint(sb, "import (\n")
@@ -189,7 +189,6 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 		}
 		fmt.Fprint(sb, ")\n\n")
 	}
-
 	// We extract all the types we're going to need to declare.
 	// TODO --- do we need guards here on the types?
 	userDefinedTypes := make(dtypes.Set[string])
@@ -209,7 +208,6 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	if iz.ErrorsExist() {
 		return nil
 	}
-
 	// We emit the type declarations and converters.
 	iz.generateDeclarations(sb, userDefinedTypes)
 	// And the functions.
@@ -220,7 +218,6 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	for _, pureGo := range iz.goBucket.pureGo[source] {
 		fmt.Fprint(sb, pureGo)
 	}
-
 	counter++ // The number of the gocode_<counter>.go source file we're going to write.
 	soFile := filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("pipefish-rsc/"+text.Flatten(source)+"_"+strconv.Itoa(int(newTime))+".so"))
 	timeMap := iz.getGoTimes()
@@ -228,9 +225,19 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("pipefish-rsc/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
 	}
 	goFile := filepath.Join(settings.PipefishHomeDirectory, "gocode_"+strconv.Itoa(counter)+".go")
-	file, _ := os.Create(goFile)
+	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
+		println("Creating goFile with filepath '" + goFile + "'\n\n")
+	}
+	file, err := os.Create(goFile)
+	if err != nil {
+		iz.Throw("golang/create", INTEROP_TOKEN, err.Error(), goFile)
+		return nil
+	}
 	file.WriteString(sb.String())
 	file.Close()
+	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
+		println("Creating soFile with filepath '" + soFile + "'\n\n")
+	}
 	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", soFile, goFile) // Version to use running from terminal.
 	// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 	output, err := cmd.Output()
@@ -242,9 +249,6 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	if err != nil {
 		iz.Throw("golang/open/a", INTEROP_TOKEN, err.Error())
 		return nil
-	}
-	if err == nil || strings.Contains(err.Error(), "plugin was built with a different version of package") {
-		os.Remove("gocode_" + strconv.Itoa(counter) + ".go")
 	}
 	timeMap[source] = newTime
 	iz.recordGoTimes(timeMap)
