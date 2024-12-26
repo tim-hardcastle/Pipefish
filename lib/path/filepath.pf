@@ -25,7 +25,7 @@ dir(path string) -> string : golang {
 }
 
 evalSymlinks(path string) : golang {
-    r, e filepath.EvalSymlinks(path)
+    r, e := filepath.EvalSymlinks(path)
     if e == nil {
         return r
     }
