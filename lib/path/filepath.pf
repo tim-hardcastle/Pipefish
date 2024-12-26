@@ -40,28 +40,20 @@ fromSlash(path string) -> string : golang {
     return filepath.FromSlash(path)
 }
 
-glob(path string) -> string : golang {
-    r, e := return filepath.Glob(path)
+glob(path string) : golang {
+    r, e := filepath.Glob(path)
     if e == nil {
         return r
     }
     return e
 }
 
-isAbs(path string) : golang {
-    r, e := filepath.IsAbs(path)
-    if e == nil {
-        return r
-    }
-    return e
+isAbs(path string) -> bool : golang {
+    return filepath.IsAbs(path)
 }
 
-isLocal(path string) -> string : golang {
-    r, e := filepath.IsLocal(path)
-    if e == nil {
-        return r
-    }
-    return e
+isLocal(path string) -> bool : golang {
+    return filepath.IsLocal(path)
 }
 
 join(elem ... string) -> string : golang {
@@ -97,7 +89,12 @@ split(path string) -> string, string : golang {
 }
 
 splitList(path string) -> list : golang {
-    return filepath.SplitList(path)
+	p := filepath.SplitList(path)
+	r := make([]any, len(p), len(p))
+	for i, v := range p {
+		r[i] = v
+	}
+    return r
 }
 
 toSlash(path string) -> string : golang {
