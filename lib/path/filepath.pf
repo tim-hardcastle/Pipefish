@@ -5,7 +5,11 @@ golang "path/filepath"
 def
 
 abs(path string) : golang {
-    return filepath.Abs(path)
+    r, e := filepath.Abs(path)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
 base(path string) -> string : golang {
@@ -21,7 +25,11 @@ dir(path string) -> string : golang {
 }
 
 evalSymlinks(path string) : golang {
-    return filepath.EvalSymlinks(path)
+    r, e filepath.EvalSymlinks(path)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
 ext(path string) -> string : golang {
@@ -33,34 +41,58 @@ fromSlash(path string) -> string : golang {
 }
 
 glob(path string) -> string : golang {
-    return filepath.Glob(path)
+    r, e := return filepath.Glob(path)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
-isAbs(path string) -> string : golang {
-    return filepath.IsAbs(path)
+isAbs(path string) : golang {
+    r, e := filepath.IsAbs(path)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
 isLocal(path string) -> string : golang {
-    return filepath.IsLocal(path)
+    r, e := filepath.IsLocal(path)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
 join(elem ... string) -> string : golang {
     return filepath.Join(elem ...)
 }
 
-localize(path string) -> string : golang {
-    return filepath.Localize(path)
+localize(path string) : golang {
+    r, e := filepath.Localize(path)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
 match(pattern, name string) : golang {
-    return filepath.Match(pattern, name)
+    r, e := filepath.Match(pattern, name)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
 rel(basepath, targpath string) : golang {
-    return filepath.Rel(basepath, targpath)
+    r, e := filepath.Rel(basepath, targpath)
+    if e == nil {
+        return r
+    }
+    return e
 }
 
-spilt(path string) -> string, string : golang {
+split(path string) -> string, string : golang {
     return filepath.Split(path)
 }
 
