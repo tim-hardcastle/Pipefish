@@ -175,9 +175,7 @@ var BUILTIN_VALUE_CONVERTER = map[string]any{
 // This makes a new .so file, opens it, and returns the plugins.
 // Most of the code generation is in the `gogen.go` file in this same `service` package.
 func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
-	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
-		println("Making golang from source '" + source + "'\n\n")
-	}
+	iz.cmG("Making golang from source '" + source + "'\n\n", source)
 	var StringBuilder strings.Builder
 	sb := &StringBuilder
 	// We emit the package declaration and builtins.
@@ -225,15 +223,14 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("pipefish-rsc/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
 	}
 	goFile := filepath.Join(settings.PipefishHomeDirectory, "gocode_"+strconv.Itoa(counter)+".go")
-	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
-		println("Creating goFile with filepath '" + goFile + "'\n\n")
-	}
+	iz.cmG("Creating goFile with filepath '" + goFile + "'\n\n", source)
 	file, err := os.Create(goFile)
 	if err != nil {
 		iz.Throw("golang/create", INTEROP_TOKEN, err.Error(), goFile)
 		return nil
 	}
 	file.WriteString(sb.String())
+	iz.cmG("*************GENERATED GO IS*************\n\n" + sb.String() + "*****************************************\n\n", source)
 	file.Close()
 	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
 		println("Creating soFile with filepath '" + soFile + "'\n\n")
@@ -327,4 +324,11 @@ func (iz *initializer) getGoTimes() map[string]int64 {
 		timeMap[lines[2*i]] = int64(time)
 	}
 	return timeMap
+}
+
+// Creates comments on the gohandler and gogen when settings.SHOW_GOLANG is true.
+func (iz *initializer) cmG(text, source string) {
+	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
+		println(text)
+	}
 }
