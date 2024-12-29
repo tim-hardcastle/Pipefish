@@ -4,27 +4,27 @@ golang "strings"
 
 def
 
-compare(a, b string) : golang {
+compare(a, b string) -> int : golang {
    return strings.Compare(a, b)
 }
 
-contains(s, substr string) : golang {
+contains(s, substr string) -> bool : golang {
    return strings.Contains(s, substr)
 }
 
-containsAny(s, chars string) : golang {
+containsAny(s, chars string) -> bool : golang {
     return strings.ContainsAny(s, chars)
 }
 
-count(s, substr string) : golang {
+count(s, substr string) -> int : golang {
     return strings.Count(s, substr)
 }
 
-cut(s, sep string) : golang {
+cut(s, sep string) -> string, string, bool : golang {
     return strings.Cut(s, sep)
 }
 
-equalFold(s, t string) : golang {
+equalFold(s, t string) -> bool : golang {
     return strings.EqualFold(s, t)
 }
 
@@ -32,39 +32,39 @@ fields(s string) : golang {
     return strings.Fields(s)
 }
 
-hasPrefix(s, prefix string) : golang {
+hasPrefix(s, prefix string) -> bool : golang {
     return strings.HasPrefix(s, prefix)
 }
 
-hasSuffix(s, suffix string) : golang {
+hasSuffix(s, suffix string) -> bool : golang {
     return strings.HasSuffix(s, suffix)
 }
 
-index(s, substr string) : golang {
+index(s, substr string) -> int : golang {
     return strings.Index(s, substr)
 }
 
-indexAny(s, chars string) : golang {
+indexAny(s, chars string) -> int : golang {
     return strings.IndexAny(s, chars)
 }
 
-lastIndex(s, substr string) : golang {
+lastIndex(s, substr string) -> int : golang {
     return strings.LastIndex(s, substr)
 }
 
-lastIndexAny(s, chars string) : golang {
+lastIndexAny(s, chars string) -> int : golang {
     return strings.LastIndexAny(s, chars)
 }
 
-repeat(s string, c int) : golang {
+repeat(s string, c int) -> string : golang {
     return strings.Repeat(s, c)
 }
 
-replace(s string, old string, new string, n int) : golang {
+replace(s string, old string, new string, n int) -> string : golang {
     return strings.Replace(s, old, new, n)
 }
 
-replaceAll(s string, old string, new string) : golang {
+replaceAll(s string, old string, new string) -> string : golang {
     return strings.ReplaceAll(s, old, new)
 }
 
@@ -84,38 +84,38 @@ splitN(s string, sep string, n int) : golang {
     return strings.SplitN(s, sep, n)
 }
 
-toLower(s string) : golang {
+toLower(s string) -> string : golang {
     return strings.ToLower(s)
 }
 
-toTitle(s string) : golang {
+toTitle(s string) -> string : golang {
     return strings.ToTitle(s)
 }
 
-toUpper(s string) : golang {
+toUpper(s string) -> string : golang {
     return strings.ToUpper(s)
 }
 
-toValidUTF8(s, replacementString string) : golang {
+toValidUTF8(s, replacementString string) -> string : golang {
     return strings.ToValidUTF8(s, replacementString)
 }
 
-trim(s, cutset string) : golang {
+trim(s, cutset string) -> string : golang {
     return strings.Trim(s, cutset)
 }
 
-trimLeft(s, cutset string) : golang {
+trimLeft(s, cutset string) -> string : golang {
     return strings.TrimLeft(s, cutset)
 }
 
-trimPrefix(s, prefix string) : golang {
+trimPrefix(s, prefix string) -> string : golang {
     return strings.TrimPrefix(s, prefix)
 }
 
-trimRight(s, cutset string) : golang {
+trimRight(s, cutset string) -> string : golang {
     return strings.TrimRight(s, cutset)
 }
 
-trimSuffix(s, prefix string) : golang {
+trimSuffix(s, prefix string) -> string : golang {
     return strings.TrimPrefix(s, prefix)
 }
