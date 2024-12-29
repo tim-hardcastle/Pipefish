@@ -1,0 +1,106 @@
+import
+
+golang "path/filepath"
+
+def
+
+abs(path string) : golang {
+    r, e := filepath.Abs(path)
+    if e == nil {
+        return r
+    }
+    return e
+}
+
+base(path string) -> string : golang {
+    return filepath.Base(path)
+}
+
+clean(path string) -> string : golang {
+    return filepath.Clean(path)
+}
+
+dir(path string) -> string : golang {
+    return filepath.Dir(path)
+}
+
+evalSymlinks(path string) : golang {
+    r, e := filepath.EvalSymlinks(path)
+    if e == nil {
+        return r
+    }
+    return e
+}
+
+ext(path string) -> string : golang {
+    return filepath.Ext(path)
+}
+
+fromSlash(path string) -> string : golang {
+    return filepath.FromSlash(path)
+}
+
+glob(path string) : golang {
+    r, e := filepath.Glob(path)
+    if e == nil {
+        return r
+    }
+    return e
+}
+
+isAbs(path string) -> bool : golang {
+    return filepath.IsAbs(path)
+}
+
+isLocal(path string) -> bool : golang {
+    return filepath.IsLocal(path)
+}
+
+join(elem ... string) -> string : golang {
+    return filepath.Join(elem ...)
+}
+
+localize(path string) : golang {
+    r, e := filepath.Localize(path)
+    if e == nil {
+        return r
+    }
+    return e
+}
+
+match(pattern, name string) : golang {
+    r, e := filepath.Match(pattern, name)
+    if e == nil {
+        return r
+    }
+    return e
+}
+
+rel(basepath, targpath string) : golang {
+    r, e := filepath.Rel(basepath, targpath)
+    if e == nil {
+        return r
+    }
+    return e
+}
+
+split(path string) -> string, string : golang {
+    return filepath.Split(path)
+}
+
+splitList(path string) -> list : golang {
+	p := filepath.SplitList(path)
+	r := make([]any, len(p), len(p))
+	for i, v := range p {
+		r[i] = v
+	}
+    return r
+}
+
+toSlash(path string) -> string : golang {
+    return filepath.ToSlash(path)
+}
+
+volumeName(path string) -> string : golang {
+    return filepath.VolumeName(path)
+}

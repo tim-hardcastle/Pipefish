@@ -13,17 +13,18 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 )
 
+// This can be changed during initialization.
 var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/world.pf", "rsc-pf/interfaces.pf"}
 
-// And so the result of this function is OS-dependent.
+// And so this is a function. TODO --- init it instead.
 func MandatoryImportSet() dtypes.Set[string] {
 	return dtypes.MakeFromSlice(MandatoryImports)
 }
 
 var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc/worldlite.pf")
 
-// This is replicated in the hub and any changes made here must be reflected there.
-var StandardLibraries = dtypes.MakeFromSlice([]string{"fmt", "math", "path", "regexp", "strings", "time", "unicode"})
+// This is replicated in the hub and any changes made here must be reflected there. TODO --- don't.
+var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "math", "path", "regexp", "strings", "time", "unicode"})
 
 const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
@@ -41,8 +42,9 @@ const (
 	SHOW_RUNTIME           = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
 	SHOW_RUNTIME_VALUES    = false // Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
 	SHOW_XCALLS            = false
+	SHOW_GOLANG            = false
 
-	SHOW_TESTS = true // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
+	SHOW_TESTS = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
 )
 
 var PipefishHomeDirectory string

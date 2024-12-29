@@ -1,12 +1,24 @@
 // A little app to go through the sourcecode and see if any error codes are either unmatched
 // in the error file, or duplicated, or declared in the error file but unused.
 
+import
+
+"filepath"
+
 cmd
 
 init :
     global $moduleDirectory
     get filenames from Filenames($moduleDirectory, RECURSIVE)
+    allTheCode = "" // We can just put all the code in one string except the errorfile.
+    errorFile = ""
     for _::filename = range filenames :
         post "  ▪ " + filename
+        get code from File(filename)
+        filepath.Base(filename) == "errorfile.go" :
+            errorFile = code 
+        else :
+            allTheCode = allTheCode + code
+    post len(errorFile)
 
 

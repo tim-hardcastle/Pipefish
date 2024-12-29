@@ -1035,6 +1035,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/import/file": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "couldn't open file " + emph(args[0]) + " with OS error " + emph(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "What it says. Pipefish is trying to import something from the given filepath and failing."
+		},
+	},
+
 	"init/import/first": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "if it occurs, 'import' must be the first headword"

@@ -126,7 +126,11 @@ func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast
 	case 0:
 		fmt.Fprint(sb, "any ")
 	case 1:
-		fmt.Fprint(sb, function.NameRets[0].VarType, " ")
+		goType, ok := getGoType(function.NameRets[0].VarType)
+		if !ok {
+			iz.Throw("golang/param/a",function.Tok, function.NameRets[0].VarType)
+		}
+		fmt.Fprint(sb, goType, " ")
 	default:
 		iz.printSig(sb, function.NameRets, *function.Tok)
 	}
@@ -139,7 +143,7 @@ func (iz *initializer) printSig(sb *strings.Builder, sig ast.StringSig, tok toke
 	for _, param := range sig {
 		goType, ok := getGoType(param.VarType)
 		if !ok {
-			iz.Throw("golang/param", &tok, param.VarType)
+			iz.Throw("golang/param/b", &tok, param.VarType)
 		}
 		fmt.Fprint(sb, sep, param.VarName)
 		if param.VarName != "" { // In which case it would be a return signature.
