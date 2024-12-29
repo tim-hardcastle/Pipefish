@@ -4,18 +4,18 @@ golang "fmt"
 
 def
 
-errorf(format string, a ... any?) : golang {
+errorf(format string, a ... any) : golang {
     return fmt.Errorf(format, a...)
 }
 
-sprint(a ... any?) : golang {
+sprint(a ... any) -> string : golang {
     return fmt.Sprint(a...)
 }
 
-sprintf(format string, a ... any?) : golang {
+sprintf(format string, a ... any) -> string : golang {
     return fmt.Sprintf(format, a...)
 }
 
-sprintln(a ... any?) : golang {
+sprintln(a ... any) -> string : golang {
     return fmt.Sprintln(a...)
 }
