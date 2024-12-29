@@ -285,9 +285,6 @@ func (sv *Service) NeedsUpdate() (bool, error) {
 	if sv.cp == nil {
 		return false, errors.New("service is uninitialized")
 	}
-	if sv.IsBroken() {
-		return false, errors.New("service is broken")
-	}
 	return sv.cp.NeedsUpdate()
 }
 

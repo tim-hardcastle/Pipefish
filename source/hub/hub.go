@@ -913,7 +913,7 @@ func (hub *Hub) serviceNeedsUpdate(name string) bool {
 	}
 	needsUpdate, err := serviceToUpdate.NeedsUpdate()
 	if err != nil {
-		hub.WriteError("v/ " + err.Error())
+		hub.WriteError(err.Error())
 		return false
 	}
 	return needsUpdate
