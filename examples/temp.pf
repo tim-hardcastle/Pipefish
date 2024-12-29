@@ -1,4 +1,9 @@
 import 
 
-"path/filepath"
+"strings"
+
+def 
+
+foo(x) :
+    x
 

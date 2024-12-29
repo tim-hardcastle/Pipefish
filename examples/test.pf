@@ -1,9 +1,6 @@
-import
-
-"examples/foo.pf"
 
 def 
 
-qux(x int) : 
+foo(x) :
     x
 
