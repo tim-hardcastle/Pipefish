@@ -13,19 +13,19 @@ clean(p string) -> string : golang {
     return path.Clean(p)
 }
 
-dir(p string)  -> string : golang {
+dir(p string) -> string : golang {
     return path.Dir(p)
 }
 
-ext(p string)  -> string : golang {
+ext(p string) -> string : golang {
     return path.Ext(p)
 }
 
-isAbs(p string)  -> bool : golang {
+isAbs(p string) -> bool : golang {
     return path.IsAbs(p)
 }
 
-join(t tuple)  -> any : golang {
+join(t tuple) : golang {
     strings := []string{}
     for _, v := range(t) {
         switch v := v.(type) {
@@ -38,7 +38,7 @@ join(t tuple)  -> any : golang {
     return path.Join(strings...)
 }
 
-match(pattern, name string)  -> any : golang {
+match(pattern, name string) : golang {
     m, err := path.Match(pattern, name)
     if err != nil {
         return err
@@ -46,6 +46,6 @@ match(pattern, name string)  -> any : golang {
     return m
 }
 
-split(p string)  -> string, string : golang {
+split(p string) -> string, string : golang {
     return path.Split(p)
 }
