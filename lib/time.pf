@@ -1,11 +1,12 @@
+// TODO: this was written before the Golang interop worked properly
+// and could be rewritten now that the Time struct is passable.
+
 import
 
 golang "time"
 golang "fmt"
 
 newtype
-
-Time = struct(year, month, day, hour, min, sec, nsec int, loc string)
 
 Weekday = enum SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
 
