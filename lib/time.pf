@@ -3,16 +3,18 @@ import
 golang "time"
 golang "fmt"
 
-def
+newtype
 
 Time = struct(year, month, day, hour, min, sec, nsec int, loc string)
 
 Weekday = enum SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
 
-components(t Time) :
+def
+
+components(t Time) -> int, int, int, int, int, int, int, string :
     t[year], t[month], t[day], t[hour], t[min], t[sec], t[nsec], t[loc]
 
-add (t Time, duration int) :
+add (t Time, duration int) -> Time :
     Time(goAdd(components(t), i))
 
 goAdd(year, month, day, hour, min, sec, nsec int, loc string, d int) : golang {
