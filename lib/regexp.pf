@@ -4,7 +4,7 @@ golang "regexp"
 
 def
 
-match(pattern, text string) -> bool : golang {
+match(pattern, text string) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
@@ -12,7 +12,7 @@ match(pattern, text string) -> bool : golang {
 	return regObj.MatchString(text)
 }
 
-find(pattern, text string) -> string : golang {
+find(pattern, text string) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
