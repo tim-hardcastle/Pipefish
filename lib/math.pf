@@ -4,242 +4,242 @@ golang "math"
 
 def
 
-abs(x float) -> float : golang{
+abs(x float) -> float : golang {
     return math.Abs(x)
 }
 
-acos(x float) -> float : golang{
+acos(x float) -> float : golang {
     return math.Acos(x)
 }
 
-acosh(x float) -> float : golang{
+acosh(x float) -> float : golang {
     return math.Acosh(x)
 }
 
-asin(x float) -> float : golang{
+asin(x float) -> float : golang {
     return math.Asin(x)
 }
 
-asinh(x float) -> float : golang{
+asinh(x float) -> float : golang {
     return math.Asinh(x)
 }
 
-atan(x float) -> float : golang{
+atan(x float) -> float : golang {
     return math.Atan(x)
 }
 
-atan2(y, x float) -> float : golang{
+atan2(y, x float) -> float : golang {
     return math.Atan2(y, x)
 }
 
-atanh(x float) -> float : golang{
+atanh(x float) -> float : golang {
     return math.Atanh(x)
 }
 
-cbrt(x float) -> float : golang{
+cbrt(x float) -> float : golang {
     return math.Cbrt(x)
 }
 
-ceil(x float) -> float : golang{
+ceil(x float) -> float : golang {
     return math.Ceil(x)
 }
 
-copysign(f, sign float) -> float : golang{
+copysign(f, sign float) -> float : golang {
     return math.Copysign(f, sign)
 }
 
-cos(x float) -> float : golang{
+cos(x float) -> float : golang {
     return math.Cos(x)
 }
 
-cosh(x float) -> float : golang{
+cosh(x float) -> float : golang {
     return math.Cosh(x)
 }
 
-dim(x, y float) -> float : golang{
+dim(x, y float) -> float : golang {
     return math.Dim(x, y)
 }
 
-erf(x float) -> float : golang{
+erf(x float) -> float : golang {
     return math.Erf(x)
 }
 
-erfc(x float) -> float : golang{
+erfc(x float) -> float : golang {
     return math.Erfc(x)
 }
 
-erfcinv(x float) -> float : golang{
+erfcinv(x float) -> float : golang {
     return math.Erfcinv(x)
 }
 
-erfinv(x float) -> float : golang{
+erfinv(x float) -> float : golang {
     return math.Erfinv(x)
 }
 
-exp(x float) -> float : golang{
+exp(x float) -> float : golang {
     return math.Exp(x)
 }
 
-exp2(x float) -> float : golang{
+exp2(x float) -> float : golang {
     return math.Exp2(x)
 }
 
-expm1(x float) -> float : golang{
+expm1(x float) -> float : golang {
     return math.Expm1(x)
 }
 
-fMA(x float, y float, z float) -> float : golang{
+fMA(x float, y float, z float) -> float : golang {
     return math.FMA(x, y, z)
 }
 
-floor(x float) -> float : golang{
+floor(x float) -> float : golang {
     return math.Floor(x)
 }
 
-frexp(f float) -> float : golang{
+frexp(f float) -> float, int : golang {
     return math.Frexp(f)
 }
 
-gamma(x float) -> float : golang{
+gamma(x float) -> float : golang {
     return math.Gamma(x)
 }
 
-hypot(p, q float) -> float : golang{
+hypot(p, q float) -> float : golang {
     return math.Hypot(p, q)
 }
 
-inf(sign int) -> float : golang{
+inf(sign int) -> float : golang {
     return math.Inf(sign)
 }
 
-isInf(f float, sign int) -> float : golang{
+isInf(f float, sign int) -> bool : golang {
     return math.IsInf(f, sign)
 }
 
-isNaN(f float) -> float : golang{
+isNaN(f float) -> bool : golang {
     return math.IsNaN(f)
 }
 
-j0(x float) -> float : golang{
+j0(x float) -> float : golang {
     return math.J0(x)
 }
 
-j1(x float) -> float : golang{
+j1(x float) -> float : golang {
     return math.J1(x)
 }
 
-jn(n int, x float) -> float : golang{
+jn(n int, x float) -> float : golang {
     return math.Jn(n, x)
 }
 
-ldexp(frac float, ex int) -> float : golang{
+ldexp(frac float, ex int) -> float : golang {
     return math.Ldexp(frac, ex)
 }
 
-lgamma(x float) -> float : golang{
+lgamma(x float) -> float, int : golang {
     return math.Lgamma(x)
 }
 
-log(x float) -> float : golang{
+log(x float) -> float : golang {
     return math.Log(x)
 }
 
-log10(x float) -> float : golang{
+log10(x float) -> float : golang {
     return math.Log10(x)
 }
 
-log1p(x float) -> float : golang{
+log1p(x float) -> float : golang {
     return math.Log1p(x)
 }
 
-log2(x float) -> float : golang{
+log2(x float) -> float : golang {
     return math.Log2(x)
 }
 
-logb(x float) -> float : golang{
+logb(x float) -> float : golang {
     return math.Logb(x)
 }
 
-max(x, y float) -> float : golang{
+max(x, y float) -> float : golang {
     return math.Max(x, y)
 }
 
-min(x, y float) -> float : golang{
+min(x, y float) -> float : golang {
     return math.Min(x, y)
 }
 
-mod(x, y float) -> float : golang{
+mod(x, y float) -> float : golang {
     return math.Mod(x, y)
 }
 
-modf(x float) -> float : golang{
+modf(x float) -> float, float : golang {
     return math.Modf(x)
 }
 
-nextafter(x, y float) -> float : golang{
+nextafter(x, y float) -> float : golang {
     return math.Nextafter(x, y)
 }
 
-pow(x, y float) -> float : golang{
+pow(x, y float) -> float : golang {
     return math.Pow(x, y)
 }
 
-pow10(n int) -> float : golang{
+pow10(n int) -> float : golang {
     return math.Pow10(n)
 }
 
-remainder(x, y float) -> float : golang{
+remainder(x, y float) -> float : golang {
     return math.Remainder(x, y)
 }
 
-round(x float) -> float : golang{
+round(x float) -> float : golang {
     return math.Round(x)
 }
 
-roundToEven(x float) -> float : golang{
+roundToEven(x float) -> float : golang {
     return math.RoundToEven(x)
 }
 
-signbit(x float) -> float : golang{
+signbit(x float) -> bool : golang {
     return math.Signbit(x)
 }
 
-sin(x float) -> float : golang{
+sin(x float) -> float : golang {
     return math.Sin(x)
 }
 
-sincos(x float) -> float : golang{
+sincos(x float) -> float, float : golang {
     return math.Sincos(x)
 }
 
-sinh(x float) -> float : golang{
+sinh(x float) -> float : golang {
     return math.Sinh(x)
 }
 
-sqrt(x float) -> float : golang{
+sqrt(x float) -> float : golang {
     return math.Sqrt(x)
 }
 
-tan(x float) -> float : golang{
+tan(x float) -> float : golang {
     return math.Tan(x)
 }
 
-tanh(x float) -> float : golang{
+tanh(x float) -> float : golang {
     return math.Tanh(x)
 }
 
-trunc(x float) -> float : golang{
+trunc(x float) -> float : golang {
     return math.Trunc(x)
 }
 
-y0(x float) -> float : golang{
+y0(x float) -> float : golang {
     return math.Y0(x)
 }
 
-y1(x float) -> float : golang{
+y1(x float) -> float : golang {
     return math.Y1(x)
 }
 
-yn(n int, x float) -> float : golang{
+yn(n int, x float) -> float : golang {
     return math.Yn(n, x)
 }
