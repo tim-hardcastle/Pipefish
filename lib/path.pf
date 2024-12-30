@@ -5,27 +5,27 @@ golang "errors"
 
 def
 
-base(p string) : golang {
+base(p string) -> string : golang {
     return path.Base(p)
 }
 
-clean(p string) : golang {
+clean(p string) -> string : golang {
     return path.Clean(p)
 }
 
-dir(p string)  : golang {
+dir(p string)  -> string : golang {
     return path.Dir(p)
 }
 
-ext(p string)  : golang {
+ext(p string)  -> string : golang {
     return path.Ext(p)
 }
 
-isAbs(p string)  : golang {
+isAbs(p string)  -> bool : golang {
     return path.IsAbs(p)
 }
 
-join(t tuple)  : golang {
+join(t tuple)  -> any : golang {
     strings := []string{}
     for _, v := range(t) {
         switch v := v.(type) {
@@ -38,7 +38,7 @@ join(t tuple)  : golang {
     return path.Join(strings...)
 }
 
-match(pattern, name string)  : golang {
+match(pattern, name string)  -> any : golang {
     m, err := path.Match(pattern, name)
     if err != nil {
         return err
@@ -46,6 +46,6 @@ match(pattern, name string)  : golang {
     return m
 }
 
-split(p string)  : golang {
+split(p string)  -> string, string : golang {
     return path.Split(p)
 }
