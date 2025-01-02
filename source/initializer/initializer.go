@@ -711,17 +711,21 @@ func (iz *initializer) createEnums() {
 	for i, tokens := range iz.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
+		println("Defining type ", tok1.Literal)
 		var typeNo values.ValueType
 		info, typeExists := iz.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
+			println("Type ", tok1.Literal, " already exists")
 			typeNo = info.(values.ValueType)
 			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(compiler.EnumType)
 			typeInfo.Path = iz.p.NamespacePath
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 			for i, elementName := range typeInfo.ElementNames {
+				println("Adding ", elementName, " to the compiler")
 				iz.cp.EnumElements[elementName] = values.Value{typeNo, i}
 			}
 		} else {
+			println("Type ", tok1.Literal, " needs creating")
 			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}

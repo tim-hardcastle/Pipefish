@@ -265,7 +265,7 @@ NodeTypeSwitch:
 		case "NULL":
 			cp.Reserve(values.NULL, nil, &node.Token)
 			rtnTypes, rtnConst = altType(values.NULL), false // Yes it is a const but there's nothing to roll back so ...
-			break NodeTypeSwitch
+			break NodeTypeSwitch                             // TODO --- investigate further. We still need to know that this and OK and enums are const for when we apply things to them.
 		case "OK":
 			cp.Reserve(values.SUCCESSFUL_VALUE, nil, &node.Token)
 			rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
