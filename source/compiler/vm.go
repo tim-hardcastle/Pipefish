@@ -60,19 +60,7 @@ type Vm struct {
 	GoConverter              [](func(t uint32, v any) any)
 }
 
-func (vm *Vm) AddTypeNumberToSharedAlternateTypes(typeNo values.ValueType, abTypes ...string) {
-	abTypes = append(abTypes, "any")
-	for _, ty := range abTypes {
-		vm.SharedTypenameToTypeList[ty] = vm.SharedTypenameToTypeList[ty].Union(altType(typeNo))
-		vm.SharedTypenameToTypeList[ty+"?"] = vm.SharedTypenameToTypeList[ty+"?"].Union(altType(typeNo))
-	}
-	vm.AnyTuple = AlternateType{TypedTupleType{vm.SharedTypenameToTypeList["any?"]}}
-	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(altType(typeNo))
-	vm.AnyTypeScheme[len(vm.AnyTypeScheme)-1] = vm.AnyTuple
-	vm.SharedTypenameToTypeList["tuple"] = vm.AnyTuple
-}
-
-// This takes a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
+// This contains a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
 // point. Then to roll back the vm, we can call the rollback function (below) on the state returned by getState.
 type vmState struct {
 	mem              int
@@ -82,10 +70,12 @@ type vmState struct {
 	snippetFactories int
 }
 
+// Contains a Go function in the form of a reflect.Value, and, currently, nothing else.
 type GoFn struct {
 	Code reflect.Value
 }
 
+// Contains the information to execute a lambda at runtime; i.e. it is the payload of a FUNC type value.
 type Lambda struct {
 	capturesStart  uint32
 	capturesEnd    uint32
@@ -120,6 +110,7 @@ type SnippetBindle struct {
 	valueLocs           []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
 }
 
+// Container for the data we push when a function might be about to do recursion.
 type recursionData struct {
 	mems []values.Value
 	loc  uint32
@@ -177,6 +168,8 @@ func BlankVm(db *sql.DB, hubServiceCompilers map[string]*Compiler) *Vm {
 	return vm
 }
 
+// The heart of the VM. A big loop around a switch. It will keep going until it hits a `ret`
+// and the callstack is empty.
 func (vm *Vm) Run(loc uint32) {
 	if settings.SHOW_RUNTIME {
 		println()
@@ -1723,6 +1716,7 @@ func (vm *Vm) setsAreEqual(v, w values.Value) bool {
 	return true
 }
 
+// Implements `with`, which needs to be done separately because it may be recursive.
 func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value, errTok uint32) values.Value {
 	key := keys[0]
 	switch container.T {
@@ -1777,6 +1771,8 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		return clone
 	}
 }
+
+// Struct and functions for handling the concrete type information.
 
 type supertype int
 
@@ -1991,6 +1987,18 @@ func (t StructType) resolve(labelNumber int) int {
 		return result
 	}
 	return -1
+}
+
+func (vm *Vm) AddTypeNumberToSharedAlternateTypes(typeNo values.ValueType, abTypes ...string) {
+	abTypes = append(abTypes, "any")
+	for _, ty := range abTypes {
+		vm.SharedTypenameToTypeList[ty] = vm.SharedTypenameToTypeList[ty].Union(altType(typeNo))
+		vm.SharedTypenameToTypeList[ty+"?"] = vm.SharedTypenameToTypeList[ty+"?"].Union(altType(typeNo))
+	}
+	vm.AnyTuple = AlternateType{TypedTupleType{vm.SharedTypenameToTypeList["any?"]}}
+	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(altType(typeNo))
+	vm.AnyTypeScheme[len(vm.AnyTypeScheme)-1] = vm.AnyTuple
+	vm.SharedTypenameToTypeList["tuple"] = vm.AnyTuple
 }
 
 // Produces a Value of the internal type ITERATOR for use in implementing `for` loops.
