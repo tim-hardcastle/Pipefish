@@ -116,7 +116,7 @@ func (iz *initializer) compileGo() {
 			}
 		}
 		if plugins == nil { // Then the Go has failed to compile.
-			iz.Throw("golang/compile", sourceToken, err.Error())
+			iz.Throw("golang/compile", sourceToken)
 			return
 		}
 

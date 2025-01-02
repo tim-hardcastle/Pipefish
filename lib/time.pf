@@ -69,11 +69,11 @@ parseDuration(s string) : golang {
 }
 
 round(t Time, duration int) -> Time : golang {
-    return goToPf(pfToGo(t).Round(time.Duration(d)))
+    return goToPf(pfToGo(t).Round(time.Duration(duration)))
 }
 
 sub (t Time, duration int) -> int : golang {
-    return int(pfToGo(t).Sub(time.Duration(d)))
+    return int(pfToGo(t).Sub(time.Duration(duration)))
 }
 
 timeIn(t Time, location string) : golang {
@@ -136,11 +136,11 @@ golang {
     func pfToGo(t Time) time.Time {
         locObj, _ := time.LoadLocation(t.Loc)
         goMonth := time.Month(t.Month)
-        return time.Date(t.Year, goMonth, t.Day, t.Hour, t.Min, t.Sec, t.Nsec, locObj)
+        return time.Date(t.Year, goMonth, t.Day, t.Hour, t.Minute, t.Second, t.Nanosecond, locObj)
     }
 
     func goToPf(t time.Time) Time {
-        return Time{t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Min(), t.Sec(), t.Nsec(), t.Location().String()}
+        return Time{t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location().String()}
     }
 
 }
