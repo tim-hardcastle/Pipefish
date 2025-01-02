@@ -134,7 +134,7 @@ yearDay(t Time) -> int : golang {
 golang {
 
     func pfToGo(t Time) time.Time {
-        locObj, _ := time.LoadLocation(t.Loc)
+        locObj, _ := time.LoadLocation(t.Location)
         goMonth := time.Month(t.Month)
         return time.Date(t.Year, goMonth, t.Day, t.Hour, t.Minute, t.Second, t.Nanosecond, locObj)
     }

@@ -4,7 +4,7 @@ newtype
 
 Error = struct(errorCode, errorText string)
 
-Time = struct(year, month, day, hour, min, sec, nsec int, loc string)
+Time = struct(year, month, day, hour, minute, second, nanosecond int, location string)
 
 $LoggingScope = enum $NONE, $SELECTED, $ALL
 
