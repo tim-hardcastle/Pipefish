@@ -122,10 +122,10 @@ utc(t Time) -> Time : golang {
 }
 
 weekday(t Time) -> Weekday :
-    Weekday[(pfToGo(t)).Weekday()]
+    Weekday[goWeekday(t)]
 
-goWeekday(year, month, day, hour, min, sec, nsec int, loc string) : golang {
-    return int(goTime(year, month, day, hour, min, sec, nsec, loc).Weekday())
+goWeekday(t Time) -> int : golang {
+    return int((pfToGo(t)).Weekday())
 }
 
 yearDay(t Time) -> int : golang {
