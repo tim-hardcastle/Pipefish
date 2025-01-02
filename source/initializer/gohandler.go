@@ -16,6 +16,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 // This allows the compiler to extract functions and converter data from the relevant `.so` files,
@@ -79,7 +80,6 @@ func (iz *initializer) newGoBucket() {
 // This will if necessary compile or recompile the relevant .so files, and will extract from them
 // the functions and converter data needed by the compiler and vm and put it into its proper place.
 func (iz *initializer) compileGo() {
-
 	// The purpose of putting timestamps on the .so files is not that we ever read the timestamps
 	// from the filenames (we look either at the OS metadata of the file or at the 'gotimes' file),
 	// but simply because you can't re-use the names of .so files in the same Go runtime and since
@@ -96,9 +96,10 @@ func (iz *initializer) compileGo() {
 	timeMap := iz.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
 
 	for source := range iz.goBucket.sources {
+		sourceToken := &token.Token{Source: source}
 		f, err := os.Stat(text.MakeFilepath(source))
 		if err != nil {
-			iz.Throw("golang/file", INTEROP_TOKEN, source, err.Error())
+			iz.Throw("golang/file", sourceToken, source, err.Error())
 			break
 		}
 		var plugins *plugin.Plugin
@@ -110,9 +111,13 @@ func (iz *initializer) compileGo() {
 			soFile := settings.PipefishHomeDirectory + "pipefish-rsc/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
-				iz.Throw("golang/open/b", INTEROP_TOKEN, err.Error())
+				iz.Throw("golang/open/b", sourceToken, err.Error())
 				return
 			}
+		}
+		if plugins == nil { // Then the Go has failed to compile.
+			iz.Throw("golang/compile", sourceToken, err.Error())
+			return
 		}
 
 		// We extract the conversion data from the object code, reformat it, and store the results
@@ -175,6 +180,7 @@ var BUILTIN_VALUE_CONVERTER = map[string]any{
 // This makes a new .so file, opens it, and returns the plugins.
 // Most of the code generation is in the `gogen.go` file in this same `service` package.
 func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
+	sourceToken := &token.Token{Source: source}
 	iz.cmG("Making golang from source '" + source + "'\n\n", source)
 	var StringBuilder strings.Builder
 	sb := &StringBuilder
@@ -226,7 +232,7 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	iz.cmG("Creating goFile with filepath '" + goFile + "'\n\n", source)
 	file, err := os.Create(goFile)
 	if err != nil {
-		iz.Throw("golang/create", INTEROP_TOKEN, err.Error(), goFile)
+		iz.Throw("golang/create", sourceToken, err.Error(), goFile)
 		return nil
 	}
 	file.WriteString(sb.String())
@@ -239,12 +245,12 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 	output, err := cmd.Output()
 	if err != nil {
-		iz.Throw("golang/build", INTEROP_TOKEN, err.Error()+": "+string(output))
+		iz.Throw("golang/build", sourceToken, err.Error()+": "+string(output))
 		return nil
 	}
 	plugins, err := plugin.Open(soFile)
 	if err != nil {
-		iz.Throw("golang/open/a", INTEROP_TOKEN, err.Error())
+		iz.Throw("golang/open/a", sourceToken, err.Error())
 		return nil
 	}
 	timeMap[source] = newTime

@@ -1,7 +1,6 @@
 import
 
 golang "time"
-golang "fmt"
 
 newtype
 
@@ -10,7 +9,7 @@ Weekday = enum SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY
 def
 
 add (t Time, duration int) -> Time : golang {
-    return goToPf(pfToGo(t).Add(time.Duration(d)))
+    return goToPf(pfToGo(t).Add(time.Duration(duration)))
 }
 
 addDate(t Time, years, months, days int) -> Time : golang {
@@ -38,7 +37,7 @@ format(t Time, layout string) -> string : golang {
 }
 
 isDst(t Time) -> bool : golang {
-    return pfToGo(t).IsDST
+    return pfToGo(t).IsDST()
 }
 
 ISOWeek(t Time) -> int, int : golang {
@@ -49,7 +48,7 @@ isZero(t Time) -> bool : golang {
     return pfToGo(t).IsZero()
 }
 
-local(t Time) -> bool : golang {
+local(t Time) -> Time : golang {
     return goToPf(pfToGo(t).Local())
 }
 
@@ -73,8 +72,8 @@ round(t Time, duration int) -> Time : golang {
     return goToPf(pfToGo(t).Round(time.Duration(d)))
 }
 
-sub (t Time, duration int) -> Time : golang {
-    return goToPf(pfToGo(t).Sub(time.Duration(d)))
+sub (t Time, duration int) -> int : golang {
+    return int(pfToGo(t).Sub(time.Duration(d)))
 }
 
 timeIn(t Time, location string) : golang {
@@ -86,23 +85,23 @@ timeIn(t Time, location string) : golang {
 }
 
 timeToUnix(t Time) -> int : golang {
-    return pfToGo(t).Unix()
+    return int(pfToGo(t).Unix())
 }
 
 timeToUnixMicro(t Time) -> int : golang {
-    return pfToGo(t).UnixMicro()
+    return int(pfToGo(t).UnixMicro())
 }
 
 timeToUnixMilli(t Time) -> int : golang {
-    return pfToGo(t).UnixMilli()
+    return int(pfToGo(t).UnixMilli())
 }
 
 timeToUnixNano(t Time) -> int : golang {
-    return pfToGo(t).Unix()
+    return int(pfToGo(t).UnixNano())
 }
 
 truncate(t Time, duration int) -> Time : golang {
-    goToPf(pfToGo(t).Truncate(time.Duration(d)))
+    goToPf(pfToGo(t).Truncate(time.Duration(duration)))
 }
 
 unixToTime(sec, usec int) -> Time : golang {
@@ -117,8 +116,8 @@ unixMilliToTime(msec int) -> Time : golang {
     return goToPf(time.UnixMilli(int64(msec)))
 }
 
-utc(t Time) -> Time : golang {
-    return goToPf(pfToGo(t).Utc())
+UTC(t Time) -> Time : golang {
+    return goToPf(pfToGo(t).UTC())
 }
 
 weekday(t Time) -> Weekday :
@@ -141,7 +140,7 @@ golang {
     }
 
     func goToPf(t time.Time) Time {
-        return Time{t.Year, int(t.Month), t.Day, t.Hour, t.Min, t.Sec, t.Nsec, t.Location().String()}
+        return Time{t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Min(), t.Sec(), t.Nsec(), t.Location().String()}
     }
 
 }
