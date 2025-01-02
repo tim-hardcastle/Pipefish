@@ -718,6 +718,9 @@ func (iz *initializer) createEnums() {
 			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(compiler.EnumType)
 			typeInfo.Path = iz.p.NamespacePath
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
+			for i, elementName := range typeInfo.ElementNames {
+				iz.cp.EnumElements[elementName] = values.Value{typeNo, i}
+			}
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
@@ -739,7 +742,7 @@ func (iz *initializer) createEnums() {
 				iz.Throw("init/enum/element", &tok)
 			}
 
-			iz.cp.EnumElements[tok.Literal] = iz.cp.Reserve(typeNo, len(elementNameList), &tok)
+			iz.cp.EnumElements[tok.Literal] = values.Value{typeNo, len(elementNameList)}
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()
 			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
