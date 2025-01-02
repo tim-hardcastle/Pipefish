@@ -72,8 +72,8 @@ round(t Time, duration int) -> Time : golang {
     return goToPf(pfToGo(t).Round(time.Duration(duration)))
 }
 
-sub (t Time, duration int) -> int : golang {
-    return int(pfToGo(t).Sub(time.Duration(duration)))
+sub (t, u Time) -> int : golang {
+    return int(pfToGo(t).Sub(pfToGo(u)))
 }
 
 timeIn(t Time, location string) : golang {
@@ -101,7 +101,7 @@ timeToUnixNano(t Time) -> int : golang {
 }
 
 truncate(t Time, duration int) -> Time : golang {
-    goToPf(pfToGo(t).Truncate(time.Duration(duration)))
+    return goToPf(pfToGo(t).Truncate(time.Duration(duration)))
 }
 
 unixToTime(sec, usec int) -> Time : golang {
