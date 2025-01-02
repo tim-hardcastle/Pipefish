@@ -101,10 +101,11 @@ timeToUnixNano(t Time) -> int : golang {
     return pfToGo(t).Unix()
 }
 
-truncate(t Time, duration int) -> Time :
+truncate(t Time, duration int) -> Time : golang {
     goToPf(pfToGo(t).Truncate(time.Duration(d)))
+}
 
-unixToTime(sec, usec int) : golang {
+unixToTime(sec, usec int) -> Time : golang {
     return goToPf(time.Unix(int64(sec), int64(usec)))
 }
 
