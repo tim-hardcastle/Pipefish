@@ -27,7 +27,7 @@ type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
 	Vm                       *Vm                                // The vm we're compiling to.
 	P                        *parser.Parser                     // The parser the compiler's using to parse with..
-	EnumElements             map[string]uint32                  // Map from the names of the enum elements the compiler knows about to memory locations where they're stored. TODO --- not that.
+	EnumElements             map[string]values.Value            // Map from the names of the enum elements the compiler knows about to their values.
 	GlobalConsts             *Environment                       // The global constants of the module.
 	GlobalVars               *Environment                       // The global variables of the module.
 	Fns                      []*CpFunc                          // The functions the compiler knows about, in a format it can use.
@@ -52,7 +52,7 @@ type Compiler struct {
 func NewCompiler(p *parser.Parser) *Compiler {
 	newC := &Compiler{
 		P:                        p,
-		EnumElements:             make(map[string]uint32),
+		EnumElements:             make(map[string]values.Value),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
 		ThunkList:                []ThunkData{},
@@ -279,12 +279,12 @@ NodeTypeSwitch:
 		}
 		enumElement, ok := enumCompiler.EnumElements[node.Value]
 		if ok {
-			if cp.Vm.ConcreteTypeInfo[cp.Vm.Mem[enumElement].T].IsPrivate() {
-				cp.P.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(cp.Vm.Mem[enumElement].T, LITERAL))
+			if cp.Vm.ConcreteTypeInfo[enumElement.T].IsPrivate() {
+				cp.P.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(enumElement.T, LITERAL))
 				break
 			}
-			cp.put(Asgm, enumElement)
-			rtnTypes, rtnConst = AltType(cp.Vm.Mem[enumElement].T), true
+			cp.Reserve(enumElement.T, enumElement.V, &node.Token)
+			rtnTypes, rtnConst = AltType(enumElement.T), true
 			break
 		}
 		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
