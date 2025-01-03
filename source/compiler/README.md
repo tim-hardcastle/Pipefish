@@ -1,4 +1,4 @@
-# README for the "service" package.
+# README for the "compiler" package.
 
 ## Overview
 
