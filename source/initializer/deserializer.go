@@ -64,6 +64,7 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 			buf.WriteString(parts[1])
 			buf.WriteString(" = abstract ")
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), "/"))
+			buf.WriteString("\n\n")
 			lineNo++
 		case "COMMAND":
 			if !hasHappened["CMD"] {

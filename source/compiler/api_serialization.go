@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/p2p"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
@@ -73,6 +74,10 @@ func (es ExternalHttpCallHandler) GetAPI() string {
 	return p2p.Do(es.Host, "hub serialize \""+es.Service+"\"", es.Username, es.Password)
 }
 
+// TODO --- The problem with all of this is that the serializer doesn't send
+// details of the sources, and until it does, we can't tell if two types
+// are meant to be the same type.
+
 // For a description of the file format, see README-api-serialization.md
 func (cp *Compiler) SerializeApi() string {
 	var buf strings.Builder
@@ -109,11 +114,9 @@ func (cp *Compiler) SerializeApi() string {
 		}
 	}
 
-	var nativeAbstractTypes = []string{"any", "struct", "snippet"}
-
-	for i := len(nativeAbstractTypes); i < len(cp.Vm.AbstractTypes); i++ {
+	for i := 0; i < len(cp.Vm.AbstractTypes); i++ {
 		ty := cp.Vm.AbstractTypes[i]
-		if !(cp.IsPrivate(ty.AT)) && !ty.IsMandatoryImport() {
+		if !(cp.IsPrivate(ty.AT)) && !cp.isMandatoryImport(ty) && ty.Name[len(ty.Name)-1] != '?' {
 			buf.WriteString("ABSTRACT | ")
 			buf.WriteString(ty.Name)
 			buf.WriteString(" | ")
@@ -125,7 +128,8 @@ func (cp *Compiler) SerializeApi() string {
 	for name, fns := range cp.P.FunctionTable {
 		for defOrCmd := 0; defOrCmd < 2; defOrCmd++ { // In the function table the commands and functions are all jumbled up. But we want the commands first, for neatness, so we'll do two passes.
 			for _, fn := range fns {
-				if fn.Private || settings.MandatoryImportSet().Contains(fn.Body.GetToken().Source) {
+				_, ok := fn.Body.(*ast.BuiltInExpression) // Which includes the constructors, which don't need exporting.
+				if fn.Private || settings.MandatoryImportSet().Contains(fn.Body.GetToken().Source) || ok { 
 					continue
 				}
 				if fn.Cmd {
@@ -159,6 +163,18 @@ func (cp *Compiler) SerializeApi() string {
 
 func (cp *Compiler) serializeAbstractType(ty values.AbstractType) string {
 	return strings.ReplaceAll(cp.Vm.DescribeAbstractType(ty, LITERAL), "/", " ")
+}
+
+func (cp *Compiler) isMandatoryImport(aT values.AbstractTypeInfo) bool {
+	if aT.IsMandatoryImport() {
+		return true
+	}
+	for _, ty := range aT.AT.Types {
+		if cp.Vm.ConcreteTypeInfo[ty].isMandatoryImport() {
+			return true
+		}
+	}
+	return false
 }
 
 // The compiler infers more about the return types of a function than is expressed in the code or

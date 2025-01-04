@@ -59,7 +59,7 @@ func (sv *Service) initialize(scriptFilepath, sourcecode string) error {
 	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap)
 	sv.cp = cp
 	for k, v := range compilerMap {
-		sv.localExternals[k].cp = v
+		sv.localExternals[k] = &Service{v, sv.localExternals, sv.db}
 	}
 	if sv.IsBroken() {
 		return errors.New("compilation error")

@@ -50,6 +50,7 @@ type initializer struct {
 	declarationMap                      map[decKey]any                 // TODO --- it is not at all clear that this is doing what it ought to.
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
+	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
 }
 
 func NewInitializer() *initializer {
@@ -58,6 +59,7 @@ func NewInitializer() *initializer {
 		localConcreteTypes: make(dtypes.Set[values.ValueType]),
 		fnIndex:            make(map[fnSource]*ast.PrsrFunction),
 		declarationMap:     make(map[decKey]any),
+		unserializableTypes: make(dtypes.Set[string]),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -115,7 +117,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
 	result := iz.ParseEverythingFromSourcecode(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, sourcecode, "")
-
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -468,7 +469,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 	iz.p.Common.Errors = err.MergeErrors(iz.p.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.p.Common.Errors)
 }
 
-// Function auxiliary to the above and to `createInterfaceTypes“. This extracts the words from a function definition
+// Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
 // and decides on their "grammatical" role: are they prefixes, suffixes, bling?
 func (iz *initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) {
 	inParenthesis := false
@@ -692,6 +693,11 @@ func (iz *initializer) addAnyExternalService(handlerForService compiler.External
 	iz.cp.Vm.ExternalCallHandlers = append(iz.cp.Vm.ExternalCallHandlers, handlerForService)
 	serializedAPI := handlerForService.GetAPI()
 	sourcecode := SerializedAPIToDeclarations(serializedAPI, externalServiceOrdinal) // This supplies us with a stub that know how to call the external servie.
+	if settings.SHOW_EXTERNAL_STUBS {
+		println("Making stub for external service '", name , "'.\n\n")
+		println(sourcecode)
+		println("\n\n")
+	}
 	newIz := NewInitializer()
 	newIz.Common = iz.Common
 	iz.initializers[name] = newIz
@@ -750,7 +756,8 @@ func (iz *initializer) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, compiler.EnumType{Name: tok1.Literal, Path: iz.p.NamespacePath, ElementNames: elementNameList, Private: iz.IsPrivate(int(enumDeclaration), i)})
+		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, compiler.EnumType{Name: tok1.Literal, Path: iz.p.NamespacePath, ElementNames: elementNameList, 
+				Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
 	}
 }
 
@@ -781,7 +788,8 @@ func (iz *initializer) createClones() {
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 			iz.setDeclaration(decCLONE, &tok1, DUMMY, typeNo)
-			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, compiler.CloneType{Name: name, Path: iz.p.NamespacePath, Parent: parentTypeNo, Private: iz.IsPrivate(int(cloneDeclaration), i)})
+			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, compiler.CloneType{Name: name, Path: iz.p.NamespacePath, Parent: parentTypeNo, 
+					Private: iz.IsPrivate(int(cloneDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
 			if parentTypeNo == values.LIST || parentTypeNo == values.STRING || parentTypeNo == values.SET || parentTypeNo == values.MAP {
 				iz.cp.Vm.IsRangeable = iz.cp.Vm.IsRangeable.Union(altType(typeNo))
 			}
@@ -1050,7 +1058,8 @@ func (iz *initializer) createStructNamesAndLabels() {
 				}
 			}
 			iz.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
-			stT := compiler.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct, Private: iz.IsPrivate(int(structDeclaration), i)}
+			stT := compiler.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct, 
+					Private: iz.IsPrivate(int(structDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(node.GetToken().Source)}
 			stT = stT.AddLabels(labelsForStruct)
 			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, stT)
 		}
@@ -1082,6 +1091,9 @@ func (iz *initializer) createAbstractTypes() {
 		tcc.NextToken() // The equals sign.
 		tcc.NextToken() // The 'abstract' identifier.
 		iz.p.TypeMap[newTypename] = values.MakeAbstractType()
+		if settings.MandatoryImportSet().Contains(nameTok.Source) {
+			iz.unserializableTypes.Add(nameTok.Literal)
+		}
 		for {
 			typeTok := tcc.NextToken()
 			divTok := tcc.NextToken()
@@ -1121,6 +1133,9 @@ func (iz *initializer) createInterfaceTypes() {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
 		newTypename := nameTok.Literal
+		if settings.MandatoryImportSet().Contains(nameTok.Source) {
+			iz.unserializableTypes.Add(newTypename)
+		}
 		tcc.NextToken() // The equals sign. We know this must be the case from the MakeParserAndTokenizedProgram method putting it here.
 		tcc.NextToken() // The 'interface' identifier. Ditto.
 		if shouldBeColon := tcc.NextToken(); shouldBeColon.Type != token.COLON {
@@ -1223,8 +1238,8 @@ func (iz *initializer) createSnippetTypesPart2() {
 			typeInfo.Path = iz.p.NamespacePath
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
-			iz.setDeclaration(decSTRUCT, &decTok, DUMMY, structInfo{typeNo, iz.IsPrivate(int(snippetDeclaration), i)})
-			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, compiler.StructType{Name: name, Path: iz.p.NamespacePath, Snippet: true, Private: iz.IsPrivate(int(snippetDeclaration), i), AbstractStructFields: abTypes, AlternateStructFields: altTypes})
+			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, compiler.StructType{Name: name, Path: iz.p.NamespacePath, Snippet: true, 
+					Private: iz.IsPrivate(int(snippetDeclaration), i), AbstractStructFields: abTypes, AlternateStructFields: altTypes, IsMI: settings.MandatoryImportSet().Contains(decTok.Source)})
 			iz.addStructLabelsToVm(name, typeNo, sig, &decTok)
 			iz.cp.Vm.CodeGeneratingTypes.Add(typeNo)
 		}
@@ -1373,7 +1388,8 @@ func (iz *initializer) addAbstractTypesToVm() {
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, typeName := range keys {
-		iz.AddTypeToVm(values.AbstractTypeInfo{typeName, iz.p.NamespacePath, iz.p.GetAbstractType(typeName), false}) // TODO --- this only happens to be false because you didn't define any.
+		iz.AddTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.p.NamespacePath, 
+			AT: iz.p.GetAbstractType(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
 	}
 }
 
@@ -2140,6 +2156,7 @@ func (iz *initializer) AddType(name, supertype string, typeNo values.ValueType) 
 	iz.localConcreteTypes = iz.localConcreteTypes.Add(typeNo)
 	iz.p.TypeMap[name] = values.MakeAbstractType(typeNo)
 	iz.p.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
+	iz.unserializableTypes.Add(name).Add(name+"?")
 	types := []string{supertype}
 	if supertype == "snippet" {
 		types = append(types, "struct")
@@ -2250,7 +2267,7 @@ const (
 	variableDeclaration                  //
 	functionDeclaration                  //
 	commandDeclaration                   //
-	golangDeclaration                    // Pure golang in a block; the Charm functions with golang bodies don't go here but under function or command as they were declared.
+	golangDeclaration                    // Pure golang in a block; the Pipefish functions with golang bodies don't go here but under function or command as they were declared.
 
 )
 
