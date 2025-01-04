@@ -2,7 +2,7 @@
 
 import
 
-zort::"test-files/zort.pf"
+zort::"zort.pf"
 
 def 
 
@@ -11,3 +11,4 @@ double(x int) :
 
 sumOfSquares(x, y int) :
     zort.square(x) + zort.square(y)
+
