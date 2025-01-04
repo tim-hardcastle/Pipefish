@@ -8,11 +8,9 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map("hub"::"hub/hub.hub",
-               .. "thingA"::"examples/thingA.pf",
-               .. "THING_B"::"examples/thingB.pf")
+allServices = map(`hub`::`hub/hub.hub`)
 
-currentService string? = "THING_B"
+currentService string? = NULL
 
 isLive = true
 display = STRING

@@ -6,3 +6,5 @@ foo(x int) :
 newtype
 
 Zort = struct(i int)
+
+Qux = clone int using +

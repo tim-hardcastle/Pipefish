@@ -96,6 +96,24 @@ func (cp *Compiler) SerializeApi() string {
 		}
 	}
 
+	for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.ConcreteTypeInfo); i++ {
+		info, ok := cp.Vm.ConcreteTypeInfo[i].(CloneType)
+		if !ok {
+			continue
+		}
+		if !info.IsPrivate() && !info.isMandatoryImport() {
+			buf.WriteString("CLONE | ")
+			buf.WriteString(info.GetName(DEFAULT))
+			buf.WriteString(" | ")
+			buf.WriteString(cp.Vm.ConcreteTypeInfo[info.Parent].GetName(DEFAULT))
+			for _, el := range info.Using {
+				buf.WriteString(" | ")
+				buf.WriteString(el)
+			}
+			buf.WriteString("\n")
+		}
+	}
+
 	for ty := int(values.FIRST_DEFINED_TYPE); ty < len(cp.Vm.ConcreteTypeInfo); ty++ {
 		if !cp.Vm.ConcreteTypeInfo[ty].IsStruct() {
 			continue

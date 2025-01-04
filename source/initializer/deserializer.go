@@ -16,31 +16,40 @@ import (
 // This turns a serialized API back into a set of declarations.
 // xserve is the external service number: set to DUMMY it will indicate that we're just doing this for human readers and
 // can therefore leave off the 'xcall' hooks.
+
+// TODO --- malformed data would crash the deserializer with e.g. indexing errors.
+// We need to make this a method of the initializer so it can Throw.
 func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 	var buf strings.Builder
 	lines := strings.Split(strings.TrimRight(serializedAPI, "\n"), "\n")
 	lineNo := 0
 	hasHappened := map[string]bool{"ENUM": false, "STRUCT": false, "ABSTRACT": false, "COMMAND": false, "FUNCTION": false}
+	types := dtypes.MakeFromSlice([]string{"ENUM", "CLONE", "STRUCT", "ABSTRACT"})
 	for lineNo < len(lines) {
 		line := lines[lineNo]
 		parts := strings.Split(line, " | ")
+		if types.Contains(parts[0]) && !hasHappened["ENUM"] && !hasHappened["CLONE"] && 
+						!hasHappened["STRUCT"] && !hasHappened["ABSTRACT"] {
+				buf.WriteString("newtype\n\n")
+		}
 		switch parts[0] {
 		case "ENUM":
-			if !hasHappened["ENUM"] {
-				buf.WriteString("newtype\n\n")
-			}
 			buf.WriteString(parts[1])
 			buf.WriteString(" = enum ")
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), ", "))
-			buf.WriteString("\n")
+			buf.WriteString("\n\n")
+			lineNo++
+		case "CLONE":
+			buf.WriteString(parts[1])
+			buf.WriteString(" = clone ")
+			buf.WriteString(parts[2])
+			if len(parts) > 3 {
+				buf.WriteString(" using ")
+				buf.WriteString(strings.Join(parts[3:], ", "))
+			}
+			buf.WriteString("\n\n")
 			lineNo++
 		case "STRUCT":
-			if hasHappened["ENUM"] && !hasHappened["STRUCT"] {
-				buf.WriteString("\n")
-			}
-			if !hasHappened["ENUM"] && !hasHappened["STRUCT"] {
-				buf.WriteString("newtype\n\n")
-			}
 			buf.WriteString(parts[1])
 			buf.WriteString(" = struct (")
 			sep := ""
@@ -52,28 +61,22 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 				buf.WriteString(strings.Join(fieldNameAndTypes[1:], "/"))
 				sep = ", "
 			}
-			buf.WriteString(")\n")
+			buf.WriteString(")\n\n")
 			lineNo++
 		case "ABSTRACT":
-			if (hasHappened["ENUM"] || hasHappened["STRUCT"]) && !hasHappened["ABSTRACT"] {
-				buf.WriteString("\n")
-			}
-			if !hasHappened["ENUM"] && !hasHappened["STRUCT"] && !hasHappened["ABSTRACT"] {
-				buf.WriteString("newtype\n\n")
-			}
 			buf.WriteString(parts[1])
 			buf.WriteString(" = abstract ")
 			buf.WriteString(strings.Join(strings.Split(parts[2], " "), "/"))
 			buf.WriteString("\n\n")
 			lineNo++
 		case "COMMAND":
-			if !hasHappened["CMD"] {
+			if !hasHappened["COMMAND"] {
 				buf.WriteString("\ncmd\n\n")
 			}
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
 			lineNo++
 		case "FUNCTION":
-			if !hasHappened["DEF"] {
+			if !hasHappened["FUNCTION"] {
 				buf.WriteString("\ndef\n\n")
 			}
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))

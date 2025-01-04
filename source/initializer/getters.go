@@ -1,6 +1,8 @@
 package initializer
 
 import (
+	"path/filepath"
+
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
@@ -21,6 +23,9 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 			scriptFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath + ".pf"
 		}
 		namespace = text.ExtractFileName(scriptFilepath)
+		if filepath.IsLocal(scriptFilepath) {
+			scriptFilepath = filepath.Join(filepath.Dir(imp.GetToken().Source), scriptFilepath)
+		}
 		return namespace, scriptFilepath
 	case *ast.Identifier:
 		namespace = imp.Value
@@ -37,6 +42,9 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 			if settings.StandardLibraries.Contains(scriptFilepath) {
 				namespace = scriptFilepath
 				scriptFilepath = settings.PipefishHomeDirectory + "lib/" + scriptFilepath + ".pf"
+			}
+			if filepath.IsLocal(scriptFilepath) {
+				scriptFilepath = filepath.Join(filepath.Dir(imp.GetToken().Source), scriptFilepath)
 			}
 			switch lhs := lhs.(type) {
 			case *ast.Identifier:

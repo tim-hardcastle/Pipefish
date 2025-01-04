@@ -44,8 +44,7 @@ const (
 	SHOW_XCALLS            = false
 	SHOW_GOLANG            = false
 	SHOW_EXTERNAL_STUBS    = false
-
-	SHOW_TESTS = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
+	SHOW_TESTS             = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
 )
 
 var PipefishHomeDirectory string

@@ -1,6 +1,6 @@
 external
 
-"examples/thingA.pf"
+"./thingA.pf"
 
 def
 

@@ -346,9 +346,17 @@ func (sv *Service) IsBroken() bool {
 	return sv.cp == nil || sv.cp.P.Common.IsBroken
 }
 
+// Returns `true` if the service is initialized.
+func (sv *Service) IsInitialized() bool {
+	return sv.cp != nil
+}
+
 // Returns the errors produced by the last thing the service did, as a list of things
 // of type `*Error`.
 func (sv *Service) GetErrors() []*Error {
+	if sv.cp == nil {
+		return []*Error{}
+	}
 	return sv.cp.P.Common.Errors
 }
 

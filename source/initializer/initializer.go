@@ -794,7 +794,7 @@ func (iz *initializer) createClones() {
 				iz.cp.Vm.IsRangeable = iz.cp.Vm.IsRangeable.Union(altType(typeNo))
 			}
 		}
-		// We make the conversion fuction.
+		// We make the conversion function.
 		iz.AddType(name, abType, typeNo)
 		iz.p.AllFunctionIdents.Add(name)
 		iz.p.Functions.Add(name)
@@ -931,6 +931,9 @@ func (iz *initializer) createClones() {
 				}
 			}
 		}
+		cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(compiler.CloneType)
+		cloneData.Using = opList
+		iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 	}
 	// For convenience, we give the compiler a map between types and the group of clones they belong to (no entry in the map if they're uncloneable).
 	for typename := range parser.ClonableTypes {

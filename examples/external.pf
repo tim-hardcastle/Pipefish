@@ -1,0 +1,8 @@
+external 
+
+"other.pf"
+
+def
+
+foo(x int) :
+    other.qux x

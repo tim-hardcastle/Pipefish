@@ -1885,6 +1885,7 @@ type CloneType struct {
 	IsFilterable bool
 	IsMappable   bool
 	IsMI         bool
+	Using        []string // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
 }
 
 func (t CloneType) GetName(flavor descriptionFlavor) string {
