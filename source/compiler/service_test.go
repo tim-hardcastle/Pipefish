@@ -306,7 +306,6 @@ func TestRecursion(t *testing.T) {
 	}
 	test_helper.RunTest(t, "recursion_test.pf", tests, testValues)
 }
-
 func TestImports(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`qux.square 5`, `25`},
@@ -321,6 +320,20 @@ func TestImports(t *testing.T) {
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
 	test_helper.RunTest(t, "import_test.pf", tests, testValues)
+}
+func TestExternals(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`zort.square 5`, `25`},
+		{`type zort.Color`, `type`},
+		{`zort.RED`, `zort.RED`},
+		{`type zort.RED`, `zort.Color`},
+		{`zort.RED in zort.Color`, `true`},
+		{`zort.Color[4]`, `zort.BLUE`},
+		{`zort.Person "John", 22`, `zort.Person with (name::"John", age::22)`},
+		{`zort.Tone LIGHT, BLUE`, `zort.Tone with (shade::zort.LIGHT, color::zort.BLUE)`},
+		{`zort.Time`, `Time`},
+	}
+	test_helper.RunTest(t, "external_test.pf", tests, testValues)
 }
 func TestRef(t *testing.T) {
 	tests := []test_helper.TestItem{

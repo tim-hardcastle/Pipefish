@@ -1,3 +1,5 @@
+// Exists to be imported by the import_test.pf and external_test.pf files.
+
 def
 
 square(x int) :
