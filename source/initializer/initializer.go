@@ -290,7 +290,8 @@ func (iz *initializer) AddToNameSpace(thingsToImport []string) {
 		if len(fname) >= 7 && fname[:7] == "rsc-pf/" {
 			libDat, err = folder.ReadFile(fname)
 		} else {
-			libDat, err = os.ReadFile(text.MakeFilepath(fname))
+			fname = text.MakeFilepath(fname)
+			libDat, err = os.ReadFile(fname)
 		}
 		if err != nil {
 			iz.p.Throw("init/import/found", &token.Token{}, fname)
