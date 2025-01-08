@@ -139,8 +139,8 @@ func (cp *Compiler) SerializeApi() string {
 			buf.WriteString(ty.Name)
 			buf.WriteString(" | ")
 			buf.WriteString(cp.serializeAbstractType(ty.AT))
+			buf.WriteString("\n")
 		}
-		buf.WriteString("\n")
 	}
 
 	for name, fns := range cp.P.FunctionTable {
@@ -175,6 +175,9 @@ func (cp *Compiler) SerializeApi() string {
 				buf.WriteString("\n")
 			}
 		}
+	}
+	if settings.SHOW_API_SERIALIZATION {
+		println("Api serialization:\n\n" + buf.String() + "\n")
 	}
 	return buf.String()
 }

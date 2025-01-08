@@ -36,7 +36,7 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 		case "ENUM":
 			buf.WriteString(parts[1])
 			buf.WriteString(" = enum ")
-			buf.WriteString(strings.Join(strings.Split(parts[2], " "), ", "))
+			buf.WriteString(strings.Join(parts[2:], ", "))
 			buf.WriteString("\n\n")
 			lineNo++
 		case "CLONE":
