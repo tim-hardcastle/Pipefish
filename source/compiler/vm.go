@@ -821,7 +821,7 @@ loop:
 					if ok {
 						vm.Mem[args[0]] = values.Value{typ, ix}
 					} else {
-						vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3])
+						vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), ix)
 					}
 					break Switch
 				default:

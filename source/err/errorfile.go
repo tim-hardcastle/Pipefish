@@ -2344,7 +2344,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/index/p": {
 		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("can't index value of type %v by an integer", emph(args[0]))
+			return fmt.Sprintf("out of range: can't index value of type %v by", emph(args[0]), emph(args[1]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("Types that can be indexed by integers are %v, %v, %v, %v, and %v if it has integer keys.", emph("list"), emph("pair"), emph("string"), emph("tuple"), emph("map"))
