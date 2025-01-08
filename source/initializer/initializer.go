@@ -173,7 +173,7 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		iz.cmI("Adding hub.pf to hub namespace.")
 		iz.AddToNameSpace([]string{"rsc-pf/hub.pf"})
 	}
-	iz.cmI("Making new relexer.")
+	iz.cmI("Making new relexer with filepath '" + scriptFilepath + "'")
 	iz.p.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
 
 	iz.cmI("Making parser and tokenized program.")
@@ -194,14 +194,14 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	iz.cmI("Adding unnamespaced imports to namespace.")
-	iz.AddToNameSpace(unnamespacedImports)
+	iz.cmI("Initializing external services.")
+	iz.initializeExternals()
 	if iz.ErrorsExist() {
 		return
 	}
 
-	iz.cmI("Initializing external services.")
-	iz.initializeExternals()
+	iz.cmI("Adding unnamespaced imports to namespace.")
+	iz.AddToNameSpace(unnamespacedImports)
 	if iz.ErrorsExist() {
 		return
 	}
@@ -285,18 +285,19 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 // into the same array of `TokenizedodeChunks` as the main file.
 func (iz *initializer) AddToNameSpace(thingsToImport []string) {
 	for _, fname := range thingsToImport {
+		iz.cmI("Adding '" + fname + "' to namespace")
 		var libDat []byte
 		var err error
 		if len(fname) >= 7 && fname[:7] == "rsc-pf/" {
 			libDat, err = folder.ReadFile(fname)
 		} else {
-			fname = text.MakeFilepath(fname)
 			libDat, err = os.ReadFile(fname)
 		}
 		if err != nil {
 			iz.p.Throw("init/import/found", &token.Token{}, fname)
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
+		iz.cmI("Making new relexer with filepath '" + fname + "'")
 		iz.p.TokenizedCode = lexer.NewRelexer(fname, stdImp)
 		iz.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.
 		iz.p.Common.Sources[fname] = strings.Split(stdImp, "\n")
@@ -706,6 +707,9 @@ func (iz *initializer) addAnyExternalService(handlerForService compiler.External
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	iz.cp.Modules[name] = newCp
+	for k, v := range newIz.declarationMap { // TODO --- see note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
+		iz.declarationMap[k] = v
+	}
 }
 
 // Now we can start creating the user-defined types.
@@ -1219,7 +1223,7 @@ func (iz *initializer) addFieldsToStructs() {
 			typesForStructForVm = append(typesForStructForVm, abType)
 			typesForStruct = append(typesForStruct, compiler.AbstractTypeToAlternateType(abType))
 		}
-		structInfo.AlternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed  at runtime and presumably belongs in a Common compiler bindle.
+		structInfo.AlternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed at runtime and presumably belongs in a Common compiler bindle.
 		structInfo.AbstractStructFields = typesForStructForVm
 		iz.cp.Vm.ConcreteTypeInfo[structNumber] = structInfo
 	}
@@ -1438,7 +1442,7 @@ func (iz *initializer) makeFunctionTable() {
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			iz.fnIndex[fnSource{j, i}] = functionToAdd
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
-				iz.cmI("Adding " + functionName + " to Common functions.")
+				// iz.cmI("Adding " + functionName + " to Common functions.")
 				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 			}
 			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
@@ -1838,7 +1842,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 	order := graph.Tarjan()
 
 	// We now have a list of lists of names to declare. We're off to the races!
-	iz.cmI("Compiling the variables/functions in the order give by the sort.")
+	iz.cmI("Compiling the variables/functions in the order given by the sort.")
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
