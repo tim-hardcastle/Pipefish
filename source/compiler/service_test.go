@@ -331,6 +331,7 @@ func TestExternals(t *testing.T) {
 		{`zort.Color[4]`, `zort.BLUE`},
 		{`zort.Person "John", 22`, `zort.Person with (name::"John", age::22)`},
 		{`zort.Tone LIGHT, BLUE`, `zort.Tone with (shade::zort.LIGHT, color::zort.BLUE)`},
+		{`zort.Qux 5`, `zort.Qux(5)`},
 		{`zort.Time`, `Time`},
 	}
 	test_helper.RunTest(t, "external_test.pf", tests, testValues)

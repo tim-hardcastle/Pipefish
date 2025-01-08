@@ -77,9 +77,6 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		var buf strings.Builder
 		buf.WriteString(vm.ConcreteTypeInfo[v.T].GetName(flavor))
 		buf.WriteString("(")
-		if flavor == LITERAL {
-			buf.WriteString(vm.ConcreteTypeInfo[v.T].(CloneType).Path)
-		}
 		buf.WriteString(vm.StringifyValue(values.Value{vm.ConcreteTypeInfo[v.T].(CloneType).Parent, v.V}, flavor))
 		buf.WriteByte(')')
 		return buf.String()

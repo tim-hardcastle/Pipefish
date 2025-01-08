@@ -17,3 +17,4 @@ MyType = abstract Shade/Color/Tone
 
 Person = struct(name string, age int)
 
+Qux = clone int

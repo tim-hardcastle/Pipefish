@@ -9,6 +9,8 @@ Output = struct()
 Terminal = struct()
 HTML = snippet
 
+Foo = enum FOO, BAR
+
 cmd
 
 post (x any) to (o Output): posttooutputmaker(x)

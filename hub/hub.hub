@@ -8,8 +8,8 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map(`ext`::`C:\Users\owner\Pipefish\examples\external.pf`,
-               .. `hub`::`hub/hub.hub`,
+allServices = map(`hub`::`hub/hub.hub`,
+               .. `ext`::`C:\Users\owner\Pipefish\examples\external.pf`,
                .. `zort`::`C:\Users\owner\Pipefish\examples\zort.pf`)
 
 currentService string? = `ext`
