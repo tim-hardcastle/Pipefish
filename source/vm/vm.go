@@ -1,6 +1,7 @@
-package compiler
+package vm
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
@@ -31,41 +31,30 @@ type Vm struct {
 
 	// Permanent state: things established at compile time.
 
-	ConcreteTypeInfo           []typeInformation
+	ConcreteTypeInfo           []TypeInformation
 	Labels                     []string // Array from the number of a field label to its name.
 	Tokens                     []*token.Token
 	LambdaFactories            []*LambdaFactory
 	SnippetFactories           []*SnippetFactory
 	GoFns                      []GoFn
-	tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
+	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
-	Stringify                  *CpFunc
+	StringifyLoReg             uint32   // | 
+	StringifyCallTo			   uint32   // | These are so the vm knows how to call the stringify function.
+	StringifyOutReg            uint32   // |
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 
 	// Possibly some or all of these should be in the common parser bindle or the common initializer bindle.
 	CodeGeneratingTypes      dtypes.Set[values.ValueType]
-	SharedTypenameToTypeList map[string]AlternateType
-	AnyTypeScheme            AlternateType
-	AnyTuple                 AlternateType
+	
 	LabelIsPrivate           []bool
-	IsRangeable              AlternateType
 	FieldLabelsInMem         map[string]uint32 // TODO --- remove, probably? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter              [](func(t uint32, v any) any)
-}
-
-// This contains a snapshot of how much code, memory locations, etc, have been added to the respective lists at a given
-// point. Then to roll back the vm, we can call the rollback function (below) on the state returned by getState.
-type vmState struct {
-	mem              int
-	Code             int
-	tokens           int
-	lambdaFactories  int
-	snippetFactories int
 }
 
 // Contains a Go function in the form of a reflect.Value, and, currently, nothing else.
@@ -75,16 +64,23 @@ type GoFn struct {
 
 // Contains the information to execute a lambda at runtime; i.e. it is the payload of a FUNC type value.
 type Lambda struct {
-	capturesStart  uint32
-	capturesEnd    uint32
-	parametersEnd  uint32
-	resultLocation uint32
-	addressToCall  uint32
-	captures       []values.Value
-	sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'any?'
-	rtnSig         []values.AbstractType // The return signature. If empty means ok/error for a command, anything for a function.
-	tok            *token.Token
-	gocode         *reflect.Value // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
+	CapturesStart  uint32
+	CapturesEnd    uint32
+	ParametersEnd  uint32
+	ResultLocation uint32
+	AddressToCall  uint32
+	Captures       []values.Value
+	Sig            []values.AbstractType // To represent the call signature. Unusual in that the types of the AbstractType will be nil in case the type is 'any?'
+	RtnSig         []values.AbstractType // The return signature. If empty means ok/error for a command, anything for a function.
+	Tok            *token.Token
+	Gocode         *reflect.Value // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
+}
+
+// Interface wrapping around external calls whether to the same hub or via HTTP.
+type ExternalCallHandler interface {
+	Evaluate(line string) values.Value
+	Problem() *err.Error
+	GetAPI() string
 }
 
 // All the information we need to make a lambda at a particular point in the code.
@@ -95,17 +91,50 @@ type LambdaFactory struct {
 
 // All the information we need to make a snippet at a particular point in the code.
 type SnippetFactory struct {
-	snippetType  values.ValueType // The type of the snippet, adoy.
-	sourceString string           // The plain text of the snippet before processing.
-	bindle       *SnippetBindle   // Points to the structure defined below.
+	SnippetType  values.ValueType // The type of the snippet, adoy.
+	SourceString string           // The plain text of the snippet before processing.
+	Bindle       *SnippetBindle   // Points to the structure defined below.
 }
 
 // A grouping of all the things a snippet from a given snippet factory have in common.
 type SnippetBindle struct {
-	compiledSnippetKind compiledSnippetKind // An enum type saying whether it's uncompiled, an external service, SQL, or HTML.
-	codeLoc             uint32              // Where to find the code to compute the object string and the values.
-	objectStringLoc     uint32              // Where to find the object string.
-	valueLocs           []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
+	Csk             CompiledSnippetKind // An enum type saying whether it's uncompiled, an external service, SQL, or HTML.
+	CodeLoc         uint32              // Where to find the code to compute the object string and the values.
+	ObjectStringLoc uint32              // Where to find the object string.
+	ValueLocs       []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
+}
+
+type CompiledSnippetKind int
+
+const (
+	VANILLA_SNIPPET CompiledSnippetKind = iota
+	SQL_SNIPPET
+	HTML_SNIPPET
+)
+
+// This contains the information we need to generate tracking reports at runtime.
+type TrackingData struct {
+	Flavor TrackingFlavor
+	Tok    *token.Token
+	Args   []any
+}
+
+type TrackingFlavor int
+
+const (
+	TR_CONDITION TrackingFlavor = iota
+	TR_ELSE
+	TR_FNCALL
+	TR_LITERAL
+	TR_RESULT
+	TR_RETURN
+)
+
+func (vm *Vm) trackingIs(i int, tf TrackingFlavor) bool {
+	if i < 0 || i >= len(vm.LiveTracking) {
+		return false
+	}
+	return vm.LiveTracking[i].Flavor == tf
 }
 
 // Container for the data we push when a function might be about to do recursion.
@@ -129,39 +158,20 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"pair", "list", "map", "set", "label"}
 
 func BlankVm(db *sql.DB) *Vm {
-	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, 
+	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db,
 		logging: true, InHandle: &StandardInHandler{"→ "},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
-		SharedTypenameToTypeList: map[string]AlternateType{
-			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-		},
-		AnyTypeScheme:     AlternateType{},
-		AnyTuple:          AlternateType{},
+		
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
 	}
 	vm.OutHandle = &SimpleOutHandler{os.Stdout, vm, false}
-	for _, name := range parser.AbstractTypesOtherThanSingle {
-		vm.SharedTypenameToTypeList[name] = AltType()
-		vm.SharedTypenameToTypeList[name+"?"] = AltType(values.NULL)
-	}
-	for name, ty := range parser.ClonableTypes {
-		vm.SharedTypenameToTypeList[name+"like"] = AltType(ty)
-		vm.SharedTypenameToTypeList[name+"like?"] = AltType(values.NULL, ty)
-	}
 	copy(vm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
 		vm.ConcreteTypeInfo = append(vm.ConcreteTypeInfo, BuiltinType{name: name})
 	}
 	vm.TypeNumberOfUnwrappedError = DUMMY
 	vm.Mem = append(vm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil}) // TODO --- why?
-	vm.AnyTuple = AlternateType{TypedTupleType{vm.SharedTypenameToTypeList["any?"]}}
-	vm.AnyTypeScheme = make(AlternateType, len(vm.SharedTypenameToTypeList["any?"]), 1+len(vm.SharedTypenameToTypeList["any?"]))
-	copy(vm.AnyTypeScheme, vm.SharedTypenameToTypeList["any?"])
-	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(vm.AnyTuple)
-	vm.SharedTypenameToTypeList["tuple"] = vm.AnyTuple
-	vm.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET)
 	vm.FieldLabelsInMem = make(map[string]uint32)
 	return vm
 }
@@ -383,18 +393,18 @@ loop:
 		case Dofn:
 			lambda := vm.Mem[args[1]].V.(Lambda)
 			// The case where the lambda is from a Go function.
-			if lambda.gocode != nil {
+			if lambda.Gocode != nil {
 				goArgs := []reflect.Value{}
 				for _, pfMemLoc := range args[2:] {
 					pfArg := vm.Mem[pfMemLoc]
 					goArg, ok := vm.pipefishToGo(pfArg)
 					if !ok {
-						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/go", lambda.tok, goArg)} // If the conversion failed, the goArg will be the Pipefish value it couldn't convert.
+						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/go", lambda.Tok, goArg)} // If the conversion failed, the goArg will be the Pipefish value it couldn't convert.
 						break Switch
 					}
 					goArgs = append(goArgs, reflect.ValueOf(goArg))
 				}
-				goResultValues := lambda.gocode.Call(goArgs)
+				goResultValues := lambda.Gocode.Call(goArgs)
 				var doctoredValues any
 				if len(goResultValues) == 1 {
 					doctoredValues = goResultValues[0].Interface()
@@ -417,41 +427,41 @@ loop:
 			}
 			// The normal case.
 			// The code here is repeated with a few twists in a very non-DRY in `vmgo` and any changes necessary here will probably need to be copied there.
-			if len(args)-2 != len(lambda.sig) { // TODO: variadics.
-				vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/args", lambda.tok)}
+			if len(args)-2 != len(lambda.Sig) { // TODO: variadics.
+				vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/args", lambda.Tok)}
 				break Switch
 			}
-			for i := 0; i < int(lambda.capturesEnd-lambda.capturesStart); i++ {
-				vm.Mem[int(lambda.capturesStart)+i] = lambda.captures[i]
+			for i := 0; i < int(lambda.CapturesEnd-lambda.CapturesStart); i++ {
+				vm.Mem[int(lambda.CapturesStart)+i] = lambda.Captures[i]
 			}
-			for i := 0; i < int(lambda.parametersEnd-lambda.capturesEnd); i++ {
-				vm.Mem[int(lambda.capturesEnd)+i] = vm.Mem[args[2+i]]
+			for i := 0; i < int(lambda.ParametersEnd-lambda.CapturesEnd); i++ {
+				vm.Mem[int(lambda.CapturesEnd)+i] = vm.Mem[args[2+i]]
 			}
 			success := true
-			if lambda.sig != nil {
-				for i, abType := range lambda.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
+			if lambda.Sig != nil {
+				for i, abType := range lambda.Sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
 					success = false
 					if abType.Types == nil { // Used for `any?`.
 						success = true
 						continue
 					} else {
 						for _, ty := range abType.Types {
-							if ty == vm.Mem[int(lambda.capturesEnd)+i].T {
+							if ty == vm.Mem[int(lambda.CapturesEnd)+i].T {
 								success = true
-								if vm.Mem[int(lambda.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.capturesEnd)+i].V.(string)) > abType.Len() {
+								if vm.Mem[int(lambda.CapturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.CapturesEnd)+i].V.(string)) > abType.Len() {
 									success = false
 								}
 							}
 						}
 					}
 					if !success {
-						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/types", lambda.tok)}
+						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/types", lambda.Tok)}
 						break Switch
 					}
 				}
 			}
-			vm.Run(lambda.addressToCall)
-			vm.Mem[args[0]] = vm.Mem[lambda.resultLocation]
+			vm.Run(lambda.AddressToCall)
+			vm.Mem[args[0]] = vm.Mem[lambda.ResultLocation]
 		case Dref:
 			vm.Mem[args[0]] = vm.Mem[vm.Mem[args[1]].V.(uint32)]
 		case Equb:
@@ -503,7 +513,7 @@ loop:
 				buf.WriteString(remainingNamespace)
 				buf.WriteString(name)
 			}
-			vm.Mem[args[0]] = vm.ExternalCallHandlers[externalOrdinal].evaluate(buf.String())
+			vm.Mem[args[0]] = vm.ExternalCallHandlers[externalOrdinal].Evaluate(buf.String())
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:
@@ -738,7 +748,7 @@ loop:
 				}
 				typeInfo := vm.ConcreteTypeInfo[containerType]
 				if typeInfo.IsStruct() {
-					ix := typeInfo.(StructType).resolve(vm.Mem[args[2]].V.(int))
+					ix := typeInfo.(StructType).Resolve(vm.Mem[args[2]].V.(int))
 					vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 					break
 				}
@@ -829,7 +839,7 @@ loop:
 			}
 		case IxZl:
 			typeInfo := vm.ConcreteTypeInfo[vm.Mem[args[1]].T].(StructType)
-			ix := typeInfo.resolve(vm.Mem[args[2]].V.(int))
+			ix := typeInfo.Resolve(vm.Mem[args[2]].V.(int))
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
@@ -889,14 +899,14 @@ loop:
 		case Mkfn:
 			lf := vm.LambdaFactories[args[1]]
 			newLambda := *lf.Model
-			newLambda.captures = make([]values.Value, len(lf.CaptureLocations))
+			newLambda.Captures = make([]values.Value, len(lf.CaptureLocations))
 			for i, v := range lf.CaptureLocations {
 				val := vm.Mem[v]
 				if val.T == values.THUNK {
 					vm.Run(val.V.(uint32))
 					val = vm.Mem[v]
 				}
-				newLambda.captures[i] = val
+				newLambda.Captures[i] = val
 			}
 			vm.Mem[args[0]] = values.Value{values.FUNC, newLambda}
 		case Mkit:
@@ -932,11 +942,11 @@ loop:
 		case MkSn:
 			sFac := vm.SnippetFactories[args[1]]
 			vals := vector.Empty
-			for _, v := range sFac.bindle.valueLocs {
+			for _, v := range sFac.Bindle.ValueLocs {
 				vals = vals.Conj(vm.Mem[v])
 			}
-			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.snippetType),
-				[]values.Value{{values.STRING, sFac.sourceString}, {values.LIST, vals}, {values.SNIPPET_DATA, sFac.bindle}}}
+			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.SnippetType),
+				[]values.Value{{values.STRING, sFac.SourceString}, {values.LIST, vals}, {values.SNIPPET_DATA, sFac.Bindle}}}
 		case Mlfi:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) * float64(vm.Mem[args[2]].V.(int))}
 		case Modi:
@@ -966,9 +976,9 @@ loop:
 			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
 			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.
 			bindle := vm.Mem[args[1]].V.([]values.Value)[2].V.(*SnippetBindle)
-			objectString := vm.Mem[bindle.objectStringLoc].V.(string)
+			objectString := vm.Mem[bindle.ObjectStringLoc].V.(string)
 			// What we do at that point depends on what kind of snippet it is, which is also recorded in the snippet data:
-			switch bindle.compiledSnippetKind {
+			switch bindle.Csk {
 			case HTML_SNIPPET: // We parse this and emit it to whatever Output is.
 				t, err := template.New("html snippet").Parse(objectString) // TODO: parse this at compile time and stick it in the bindle.
 				if err != nil {
@@ -977,9 +987,9 @@ loop:
 					// continue
 				}
 				var buf strings.Builder
-				injector := HTMLInjector{make([]any, 0, len(bindle.valueLocs))}
-				for i := 1; i < len(bindle.valueLocs); i = i + 2 {
-					mLoc := bindle.valueLocs[i]
+				injector := HTMLInjector{make([]any, 0, len(bindle.ValueLocs))}
+				for i := 1; i < len(bindle.ValueLocs); i = i + 2 {
+					mLoc := bindle.ValueLocs[i]
 					v := vm.Mem[mLoc]
 					switch v.T {
 					case values.STRING:
@@ -998,9 +1008,9 @@ loop:
 				vm.OutHandle.Out(values.Value{values.STRING, buf.String()})
 				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
 			case SQL_SNIPPET:
-				injector := make([]values.Value, 0, len(bindle.valueLocs))
-				for i := 1; i < len(bindle.valueLocs); i = i + 2 {
-					mLoc := bindle.valueLocs[i]
+				injector := make([]values.Value, 0, len(bindle.ValueLocs))
+				for i := 1; i < len(bindle.ValueLocs); i = i + 2 {
+					mLoc := bindle.ValueLocs[i]
 					injector = append(injector, vm.Mem[mLoc])
 				}
 				vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
@@ -1287,7 +1297,7 @@ loop:
 		case Subi:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
 		case Thnk:
-			vm.Mem[args[0]] = values.Value{values.THUNK, ThunkValue{args[1], args[2]}}
+			vm.Mem[args[0]] = values.Value{values.THUNK, values.ThunkValue{args[1], args[2]}}
 		case Tplf:
 			tup := vm.Mem[args[1]].V.([]values.Value)
 			if len(tup) == 0 {
@@ -1303,12 +1313,12 @@ loop:
 			}
 			vm.Mem[args[0]] = tup[len(tup)-1]
 		case Trak:
-			staticData := vm.tracking[args[0]]
-			newData := TrackingData{staticData.flavor, staticData.tok, make([]any, len(staticData.args))}
-			copy(newData.args, staticData.args)
-			for i, v := range newData.args {
+			staticData := vm.Tracking[args[0]]
+			newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
+			copy(newData.Args, staticData.Args)
+			for i, v := range newData.Args {
 				if v, ok := v.(uint32); ok {
-					newData.args[i] = vm.Mem[v]
+					newData.Args[i] = vm.Mem[v]
 				}
 			}
 			vm.LiveTracking = append(vm.LiveTracking, newData)
@@ -1366,8 +1376,8 @@ loop:
 			err.Values = newVals
 		case Untk:
 			if vm.Mem[args[0]].T == values.THUNK {
-				resultLoc := vm.Mem[args[0]].V.(ThunkValue).MLoc
-				codeAddr := vm.Mem[args[0]].V.(ThunkValue).CAddr
+				resultLoc := vm.Mem[args[0]].V.(values.ThunkValue).MLoc
+				codeAddr := vm.Mem[args[0]].V.(values.ThunkValue).CAddr
 				vm.Run(codeAddr)
 				vm.Mem[args[0]] = vm.Mem[resultLoc]
 			}
@@ -1492,7 +1502,7 @@ loop:
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/d", args[3], vm.DescribeType(pair.T, LITERAL))
 					break Switch
 				}
-				keyNumber := typeInfo.resolve(key.V.(int))
+				keyNumber := typeInfo.Resolve(key.V.(int))
 				if keyNumber == -1 {
 					vm.Mem[args[0]] = vm.makeError("vm/with/type/e", args[3], vm.DefaultDescription(key), vm.DescribeType(typ, LITERAL))
 					break Switch
@@ -1754,7 +1764,7 @@ func (vm *Vm) with(container values.Value, keys []values.Value, val values.Value
 		if key.T != values.LABEL {
 			return vm.makeError("vm/with/d", errTok, vm.DescribeType(key.T, LITERAL))
 		}
-		fieldNumber := typeInfo.resolve(key.V.(int))
+		fieldNumber := typeInfo.Resolve(key.V.(int))
 		if fieldNumber == -1 {
 			return vm.makeError("vm/with/e", errTok, vm.DefaultDescription(key), vm.DescribeType(container.T, LITERAL))
 		}
@@ -1780,7 +1790,7 @@ const (
 	STRUCT
 )
 
-type typeInformation interface {
+type TypeInformation interface {
 	GetName(flavor descriptionFlavor) string
 	getPath() string
 	IsEnum() bool
@@ -1788,7 +1798,7 @@ type typeInformation interface {
 	isSnippet() bool
 	IsClone() bool
 	IsPrivate() bool
-	isMandatoryImport() bool
+	IsMandatoryImport() bool
 }
 
 type BuiltinType struct {
@@ -1827,7 +1837,7 @@ func (t BuiltinType) getPath() string {
 	return t.path
 }
 
-func (t BuiltinType) isMandatoryImport() bool {
+func (t BuiltinType) IsMandatoryImport() bool {
 	return true
 }
 
@@ -1870,7 +1880,7 @@ func (t EnumType) getPath() string {
 	return t.Path
 }
 
-func (t EnumType) isMandatoryImport() bool {
+func (t EnumType) IsMandatoryImport() bool {
 	return t.IsMI
 }
 
@@ -1917,7 +1927,7 @@ func (t CloneType) getPath() string {
 	return t.Path
 }
 
-func (t CloneType) isMandatoryImport() bool {
+func (t CloneType) IsMandatoryImport() bool {
 	return t.IsMI
 }
 
@@ -1928,7 +1938,7 @@ type StructType struct {
 	Snippet               bool
 	Private               bool
 	AbstractStructFields  []values.AbstractType
-	AlternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
+	//AlternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
 	ResolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
 	IsMI                  bool
 }
@@ -1968,7 +1978,7 @@ func (t StructType) getPath() string {
 	return t.Path
 }
 
-func (t StructType) isMandatoryImport() bool {
+func (t StructType) IsMandatoryImport() bool {
 	return t.IsMI
 }
 
@@ -1980,7 +1990,7 @@ func (t StructType) AddLabels(labels []int) StructType {
 	return t
 }
 
-func (t StructType) resolve(labelNumber int) int {
+func (t StructType) Resolve(labelNumber int) int {
 	result, ok := t.ResolvingMap[labelNumber]
 	if ok {
 		return result
@@ -1988,17 +1998,7 @@ func (t StructType) resolve(labelNumber int) int {
 	return -1
 }
 
-func (vm *Vm) AddTypeNumberToSharedAlternateTypes(typeNo values.ValueType, abTypes ...string) {
-	abTypes = append(abTypes, "any")
-	for _, ty := range abTypes {
-		vm.SharedTypenameToTypeList[ty] = vm.SharedTypenameToTypeList[ty].Union(altType(typeNo))
-		vm.SharedTypenameToTypeList[ty+"?"] = vm.SharedTypenameToTypeList[ty+"?"].Union(altType(typeNo))
-	}
-	vm.AnyTuple = AlternateType{TypedTupleType{vm.SharedTypenameToTypeList["any?"]}}
-	vm.AnyTypeScheme = vm.AnyTypeScheme.Union(altType(typeNo))
-	vm.AnyTypeScheme[len(vm.AnyTypeScheme)-1] = vm.AnyTuple
-	vm.SharedTypenameToTypeList["tuple"] = vm.AnyTuple
-}
+
 
 // Produces a Value of the internal type ITERATOR for use in implementing `for` loops.
 // TODO --- since the only thing we're using the VM for is to look up the `concreteTypeInfo`,
@@ -2068,3 +2068,87 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 		return values.Value{values.ERROR, vm.makeError("vm/for/type", tokLoc)}
 	}
 }
+
+func (vm *Vm) TrackingToString() string {
+	if len(vm.LiveTracking) == 0 {
+		return ("\nNo tracking data exists.\n")
+	}
+	var out bytes.Buffer
+	out.WriteString("\n")
+	for i, td := range vm.LiveTracking {
+		args := td.Args
+		switch td.Flavor {
+		case TR_CONDITION:
+			out.WriteString("At@line ")
+			out.WriteString(strconv.Itoa(td.Tok.Line))
+			out.WriteString("@we evaluated the condition ")
+			out.WriteString(text.Emph(args[0].(string)))
+			out.WriteString(". ")
+		case TR_ELSE:
+			out.WriteString("At@line ")
+			out.WriteString(strconv.Itoa(td.Tok.Line))
+			out.WriteString("@we took the ")
+			out.WriteString(text.Emph("else"))
+			out.WriteString(" branch")
+			if !vm.trackingIs(i+1, TR_RETURN) {
+				out.WriteString(".\n")
+			}
+		case TR_FNCALL:
+			out.WriteString("We called function ")
+			out.WriteString(text.Emph(args[0].(string)))
+			out.WriteString(" — defined at@line ")
+			out.WriteString(strconv.Itoa(td.Tok.Line))
+			out.WriteString("@")
+			if len(args) > 1 {
+				out.WriteString("— with ")
+				sep := ""
+				for i := 1; i < len(args); i = i + 2 {
+					out.WriteString(sep)
+					out.WriteString(text.Emph(args[i].(string) + " = " + vm.Literal(args[i+1].(values.Value))))
+					sep = ", "
+				}
+			}
+			out.WriteString(".\n")
+		case TR_LITERAL:
+			out.WriteString("Log at@line ")
+			out.WriteString(strconv.Itoa(td.Tok.Line))
+			out.WriteString("@: ")
+			out.WriteString(args[0].(values.Value).V.(string))
+			out.WriteString("\n")
+		case TR_RESULT:
+			if args[0].(values.Value).V.(bool) {
+				out.WriteString("The condition succeeded.\n")
+			} else {
+				out.WriteString("The condition failed.\n")
+			}
+		case TR_RETURN:
+			if args[1].(values.Value).T != values.UNSATISFIED_CONDITIONAL {
+				if vm.trackingIs(i-1, TR_ELSE) {
+					out.WriteString(", so at")
+				} else {
+					out.WriteString("At")
+				}
+				out.WriteString("@line ")
+				out.WriteString(strconv.Itoa(td.Tok.Line))
+				out.WriteString("@")
+				//out.WriteString("of ")
+				//out.WriteString(text.Emph(td.tok.Source))
+				//out.WriteString(" ")
+				out.WriteString("function ")
+				out.WriteString(text.Emph(args[0].(string)))
+				out.WriteString(" returned ")
+				out.WriteString(vm.Literal(args[1].(values.Value)))
+				out.WriteString(".\n")
+			}
+		}
+
+	}
+	return out.String()
+}
+
+const (
+	PREFIX uint32 = iota
+	INFIX
+	SUFFIX
+	UNFIX
+)

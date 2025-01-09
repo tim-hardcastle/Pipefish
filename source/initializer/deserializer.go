@@ -7,6 +7,8 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
+
 )
 
 // The serialization of the API belongs to the compiler, since this will if at all be demanded of the
@@ -100,10 +102,10 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 	posInt, _ := strconv.Atoi(parts[1])
 	position := uint32(posInt)
 	params := parts[2 : len(parts)-1]
-	if position == compiler.UNFIX {
+	if position == vm.UNFIX {
 		return functionName
 	}
-	if position == compiler.PREFIX {
+	if position == vm.PREFIX {
 		buf.WriteString(functionName)
 		buf.WriteString(" ")
 	}
@@ -133,7 +135,7 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 		buf.WriteString(bits[1])
 	}
 	buf.WriteString(")")
-	if position == compiler.SUFFIX {
+	if position == vm.SUFFIX {
 		buf.WriteString(" ")
 		buf.WriteString(functionName)
 	}

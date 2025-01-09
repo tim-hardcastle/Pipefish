@@ -7,6 +7,7 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
 // The Pipefish compiler has a rather richer view of the type system than the Pipefish language and its
@@ -20,8 +21,8 @@ import (
 
 type TypeScheme interface {
 	compare(u TypeScheme) int
-	describe(mc *Vm) string
-	IsPrivate(mc *Vm) bool
+	describe(mc *vm.Vm) string
+	IsPrivate(mc *vm.Vm) bool
 }
 
 // What every compiler starts off with. The `AlternateType` typescheme is the cannonical form for storing
@@ -231,11 +232,11 @@ func (t SimpleType) compare(u TypeScheme) int {
 	}
 }
 
-func (t SimpleType) describe(mc *Vm) string {
-	return mc.DescribeType(values.ValueType(t), LITERAL)
+func (t SimpleType) describe(mc *vm.Vm) string {
+	return mc.DescribeType(values.ValueType(t), vm.LITERAL)
 }
 
-func (t SimpleType) IsPrivate(mc *Vm) bool {
+func (t SimpleType) IsPrivate(mc *vm.Vm) bool {
 	return mc.ConcreteTypeInfo[t].IsPrivate()
 }
 
@@ -279,7 +280,7 @@ func (vL AlternateType) intersect(wL AlternateType) AlternateType {
 	return x
 }
 
-func (aT AlternateType) describe(mc *Vm) string {
+func (aT AlternateType) describe(mc *vm.Vm) string {
 	var buf strings.Builder
 	var sep string
 	for _, v := range aT {
@@ -344,17 +345,25 @@ func (aT AlternateType) isOnly(vt values.ValueType) bool {
 	return false
 }
 
-func (aT AlternateType) isOnlyCloneOf(vm *Vm, vts ...values.ValueType) bool {
-	targetAltType := AlternateType{}
-	for _, vt := range vts {
-		targetAltType = targetAltType.Union(vm.SharedTypenameToTypeList[vm.ConcreteTypeInfo[vt].GetName(LITERAL)])
-	}
+func (aT AlternateType) isOnlyCloneOf(mc *vm.Vm, vts ...values.ValueType) bool {
+	types := dtypes.MakeFromSlice(vts)
 	for _, el := range aT {
 		switch el := el.(type) {
 		case SimpleType:
-			if !targetAltType.Contains(values.ValueType(el)) {
+			typeNumber := values.ValueType(el)
+			switch typeInfo := mc.ConcreteTypeInfo[typeNumber].(type) {
+			case vm.BuiltinType :
+				if !types.Contains(typeNumber) {
+					return false
+				}
+			case vm.CloneType :
+				if !types.Contains(typeInfo.Parent) {
+					return false
+				}
+			default :
 				return false
 			}
+			
 		default:
 			return false
 		}
@@ -362,16 +371,30 @@ func (aT AlternateType) isOnlyCloneOf(vm *Vm, vts ...values.ValueType) bool {
 	return true
 }
 
-func (aT AlternateType) cannotBeACloneOf(vm *Vm, vts ...values.ValueType) bool {
-	targetAltType := AlternateType{}
-	for _, vt := range vts {
-		targetAltType = targetAltType.Union(vm.SharedTypenameToTypeList[vm.ConcreteTypeInfo[vt].GetName(LITERAL)])
-	}
+func (aT AlternateType) cannotBeACloneOf(mc *vm.Vm, vts ...values.ValueType) bool {
 	singles, _ := aT.splitSinglesAndTuples()
-	return !(len(targetAltType.intersect(singles)) == 0)
+	types := dtypes.MakeFromSlice(vts)
+	for _, el := range singles {
+		switch el := el.(type) {
+		case SimpleType:
+			typeNumber := values.ValueType(el)
+			switch typeInfo := mc.ConcreteTypeInfo[typeNumber].(type) {
+			case vm.BuiltinType :
+				if types.Contains(typeNumber) {
+					return false
+				}
+			case vm.CloneType :
+				if types.Contains(typeInfo.Parent) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+	
 }
 
-func (aT AlternateType) IsPrivate(mc *Vm) bool {
+func (aT AlternateType) IsPrivate(mc *vm.Vm) bool {
 	for _, el := range aT {
 		if el.IsPrivate(mc) {
 			return true
@@ -539,7 +562,7 @@ func (t FiniteTupleType) compare(u TypeScheme) int {
 	}
 }
 
-func (fT FiniteTupleType) describe(mc *Vm) string {
+func (fT FiniteTupleType) describe(mc *vm.Vm) string {
 	var buf strings.Builder
 	lastWasBling := true // Which is a lie, but stops us from putting a comma right at the start.
 	for i, v := range fT {
@@ -559,7 +582,7 @@ func (fT FiniteTupleType) describe(mc *Vm) string {
 // The 'infix' field will usually be "" but if it is populated then it will single that piece of bling out for
 // special treatment.
 // The sole use of this is to produce good error essages from bad function calls.
-func (fT FiniteTupleType) describeWithPotentialInfix(mc *Vm, infix string) string {
+func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) string {
 	var buf strings.Builder
 	fmt.Fprintf(&buf, "'")
 	specialBlingHasHappened := false
@@ -594,7 +617,7 @@ func (fT FiniteTupleType) describeWithPotentialInfix(mc *Vm, infix string) strin
 	return buf.String()
 }
 
-func (fT FiniteTupleType) IsPrivate(mc *Vm) bool {
+func (fT FiniteTupleType) IsPrivate(mc *vm.Vm) bool {
 	for _, el := range fT {
 		if el.IsPrivate(mc) {
 			return true
@@ -618,14 +641,14 @@ func (t TypedTupleType) compare(u TypeScheme) int {
 	}
 }
 
-func (tT TypedTupleType) describe(mc *Vm) string {
+func (tT TypedTupleType) describe(mc *vm.Vm) string {
 	var buf strings.Builder
 	buf.WriteString(tT.T.describe(mc))
 	buf.WriteString("... ")
 	return buf.String()
 }
 
-func (tT TypedTupleType) IsPrivate(mc *Vm) bool {
+func (tT TypedTupleType) IsPrivate(mc *vm.Vm) bool {
 	for _, el := range tT.T {
 		if el.IsPrivate(mc) {
 			return true
@@ -655,11 +678,11 @@ func (t blingType) compare(u TypeScheme) int {
 	}
 }
 
-func (bT blingType) describe(mc *Vm) string {
+func (bT blingType) describe(mc *vm.Vm) string {
 	return bT.tag
 }
 
-func (bT blingType) IsPrivate(mc *Vm) bool {
+func (bT blingType) IsPrivate(mc *vm.Vm) bool {
 	return false // TODO --- not covered this yet.
 }
 

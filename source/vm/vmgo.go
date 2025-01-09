@@ -1,4 +1,4 @@
-package compiler
+package vm
 
 // Converts values from Pipefish to Go and back for the vm.
 
@@ -75,31 +75,31 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 	case values.FUNC:
 		lambda := v.V.(Lambda)
 		goLambda := func(args ...any) []any { // Note that this largely repeats the logic of the VM's Dofn operation, and any changes needed here will probably need to be reflected there.
-			if len(args) != len(lambda.sig) { // TODO: variadics.
+			if len(args) != len(lambda.Sig) { // TODO: variadics.
 				return []any{errors.New("wrong number of arguments for function")}
 			}
 			pfArgs := []values.Value{}
 			for _, goArg := range args {
 				pfArgs = append(pfArgs, vm.goToPipefish(reflect.ValueOf(goArg)))
 			}
-			for i := 0; i < int(lambda.capturesEnd-lambda.capturesStart); i++ {
-				vm.Mem[int(lambda.capturesStart)+i] = lambda.captures[i]
+			for i := 0; i < int(lambda.CapturesEnd-lambda.CapturesStart); i++ {
+				vm.Mem[int(lambda.CapturesStart)+i] = lambda.Captures[i]
 			}
-			for i := 0; i < int(lambda.parametersEnd-lambda.capturesEnd); i++ {
-				vm.Mem[int(lambda.capturesEnd)+i] = pfArgs[i]
+			for i := 0; i < int(lambda.ParametersEnd-lambda.CapturesEnd); i++ {
+				vm.Mem[int(lambda.CapturesEnd)+i] = pfArgs[i]
 			}
 			success := true
-			if lambda.sig != nil {
-				for i, abType := range lambda.sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
+			if lambda.Sig != nil {
+				for i, abType := range lambda.Sig { // TODO --- as with other such cases there will be a threshold at which linear search becomes inferior to binary search and we should find out what it is.
 					success = false
 					if abType.Types == nil {
 						success = true
 						continue
 					} else {
 						for _, ty := range abType.Types {
-							if ty == vm.Mem[int(lambda.capturesEnd)+i].T {
+							if ty == vm.Mem[int(lambda.CapturesEnd)+i].T {
 								success = true
-								if vm.Mem[int(lambda.capturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.capturesEnd)+i].V.(string)) > abType.Len() {
+								if vm.Mem[int(lambda.CapturesEnd)+i].T == values.STRING && len(vm.Mem[int(lambda.CapturesEnd)+i].V.(string)) > abType.Len() {
 									success = false
 								}
 							}
@@ -110,8 +110,8 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 					}
 				}
 			}
-			vm.Run(lambda.addressToCall)
-			result := vm.Mem[lambda.resultLocation]
+			vm.Run(lambda.AddressToCall)
+			result := vm.Mem[lambda.ResultLocation]
 			if result.T == values.TUPLE {
 				results := []any{}
 				for _, pfVal := range result.V.([]values.Value) {
@@ -402,7 +402,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 			}
 			sig = append(sig, values.AbstractType{Types: []values.ValueType{pfType}})
 		}
-		pfLambda := Lambda{gocode: &goValue, sig: sig}
+		pfLambda := Lambda{Gocode: &goValue, Sig: sig}
 		return values.Value{values.FUNC, pfLambda}
 	}
 	return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}

@@ -1,4 +1,4 @@
-package compiler
+package vm
 
 // Used by the vm to describe Pipefish values and types, and also to describe bytecode for debugging purposes.
 
@@ -14,6 +14,9 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 )
+
+// The maximum value of a `uint32`. Used as a dummy/sentinel value when `0` is not appropriate.
+const DUMMY = 4294967295
 
 func (vm *Vm) DescribeCode(loc uint32) string {
 	prefix := "@" + strconv.Itoa(int(loc)) + " : "
@@ -179,7 +182,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if v.V == nil {
 			return "nil"
 		}
-		return "m" + strconv.Itoa(int(v.V.(ThunkValue).MLoc)) + ", @" + strconv.Itoa(int(v.V.(ThunkValue).CAddr))
+		return "m" + strconv.Itoa(int(v.V.(values.ThunkValue).MLoc)) + ", @" + strconv.Itoa(int(v.V.(values.ThunkValue).CAddr))
 	case values.TUPLE:
 		result := make([]string, len(v.V.([]values.Value)))
 		for i, v := range v.V.([]values.Value) {
@@ -280,9 +283,9 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 	if v.T == values.TUPLE || v.T == values.SUCCESSFUL_VALUE || v.T == values.ERROR {
 		return vm.toString(v, flavor)
 	}
-	vm.Mem[vm.Stringify.LoReg] = v
-	vm.Run(vm.Stringify.CallTo)
-	return vm.Mem[vm.Stringify.OutReg].V.(string)
+	vm.Mem[vm.StringifyLoReg] = v
+	vm.Run(vm.StringifyCallTo)
+	return vm.Mem[vm.StringifyOutReg].V.(string)
 }
 
 // To make an error, we need the error code, the number of the token to be attached to it,

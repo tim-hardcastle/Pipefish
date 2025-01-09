@@ -12,11 +12,11 @@ import (
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
 // This allows the compiler to extract functions and converter data from the relevant `.so` files,
@@ -270,17 +270,17 @@ func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string
 	}
 	for newStructsToCheck := make(dtypes.Set[string]); len(structsToCheck) > 0; {
 		for structName := range structsToCheck {
-			for _, fieldType := range iz.cp.TypeInfoNow(structName).(compiler.StructType).AbstractStructFields {
+			for _, fieldType := range iz.cp.TypeInfoNow(structName).(vm.StructType).AbstractStructFields {
 				if fieldType.Len() != 1 {
-					iz.Throw("golang/type/concrete/a", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, compiler.LITERAL))
+					iz.Throw("golang/type/concrete/a", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, vm.LITERAL))
 				}
 				typeOfField := iz.cp.GetTypeNameFromNumber(fieldType.Types[0])
 				switch fieldData := iz.cp.TypeInfoNow(typeOfField).(type) {
-				case compiler.CloneType:
-					userDefinedTypes.Add(fieldData.GetName(compiler.DEFAULT))
-				case compiler.EnumType:
-					userDefinedTypes.Add(fieldData.GetName(compiler.DEFAULT))
-				case compiler.StructType:
+				case vm.CloneType:
+					userDefinedTypes.Add(fieldData.GetName(vm.DEFAULT))
+				case vm.EnumType:
+					userDefinedTypes.Add(fieldData.GetName(vm.DEFAULT))
+				case vm.StructType:
 					if !userDefinedTypes.Contains(fieldData.Name) {
 						newStructsToCheck.Add(fieldData.Name)
 						userDefinedTypes.Add(fieldData.Name)
