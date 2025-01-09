@@ -54,6 +54,7 @@ type initializer struct {
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
 }
 
+// Makes a new initializer.
 func NewInitializer() *initializer {
 	iz := initializer{
 		initializers:       make(map[string]*initializer),
@@ -82,21 +83,21 @@ func NewCommonInitializerBindle() *CommonInitializerBindle {
 }
 
 // Initializes a compiler.
-func newCompiler(Common *parser.CommonParserBindle, scriptFilepath, sourcecode string, mc *vm.Vm, namespacePath string) *compiler.Compiler {
+func newCompiler(Common *parser.CommonParserBindle, ccb *compiler.CommonCompilerBindle, scriptFilepath, sourcecode string, mc *vm.Vm, namespacePath string) *compiler.Compiler {
 	p := parser.New(Common, scriptFilepath, sourcecode, namespacePath)
-	cp := compiler.NewCompiler(p)
+	cp := compiler.NewCompiler(p, ccb)
 	cp.ScriptFilepath = scriptFilepath
 	cp.Vm = mc
 	cp.TupleType = cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
 	return cp
 }
 
-func (iz *initializer) ParseEverythingFromFilePath(mc *vm.Vm, Common *parser.CommonParserBindle, CCB *compiler.CommonCompilerBindle, scriptFilepath, namespacePath string) (*compiler.Compiler, error) {
+func (iz *initializer) ParseEverythingFromFilePath(mc *vm.Vm, cpb *parser.CommonParserBindle, ccb *compiler.CommonCompilerBindle, scriptFilepath, namespacePath string) (*compiler.Compiler, error) {
 	sourcecode, e := compiler.GetSourceCode(scriptFilepath)
 	if e != nil {
 		return nil, e
 	}
-	return iz.ParseEverythingFromSourcecode(mc, Common, CCB, scriptFilepath, sourcecode, namespacePath), nil
+	return iz.ParseEverythingFromSourcecode(mc, cpb, ccb, scriptFilepath, sourcecode, namespacePath), nil
 }
 
 func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*compiler.Compiler) (*compiler.Compiler, error) {
@@ -144,8 +145,11 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	return result
 }
 
-func (iz *initializer) ParseEverythingFromSourcecode(mc *vm.Vm, Common *parser.CommonParserBindle, CCB *compiler.CommonCompilerBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
-	iz.cp = newCompiler(Common, scriptFilepath, sourcecode, mc, namespacePath)
+// This initializes the initializers compiler (which initializes its parser), and
+// extracts the source code from the given file, and then calls the `parseEverything``
+// method, below.
+func (iz *initializer) ParseEverythingFromSourcecode(mc *vm.Vm, cpb *parser.CommonParserBindle, ccb *compiler.CommonCompilerBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
+	iz.cp = newCompiler(cpb, ccb, scriptFilepath, sourcecode, mc, namespacePath)
 	iz.p = iz.cp.P
 	iz.parseEverything(scriptFilepath, sourcecode)
 	iz.cp.ScriptFilepath = scriptFilepath

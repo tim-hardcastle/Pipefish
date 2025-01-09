@@ -51,7 +51,7 @@ type Compiler struct {
 }
 
 // Initializes a compiler.
-func NewCompiler(p *parser.Parser) *Compiler {
+func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 	newC := &Compiler{
 		P:                        p,
 		EnumElements:             make(map[string]values.Value),
@@ -63,6 +63,7 @@ func NewCompiler(p *parser.Parser) *Compiler {
 		CallHandlerNumbersByName: make(map[string]uint32),
 		TypeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
+		Common:					  ccb,
 	}
 	newC.pushRCompiler(newC)
 	return newC
