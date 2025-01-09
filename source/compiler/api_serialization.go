@@ -15,33 +15,32 @@ import (
 // We have two types of external service, defined below: one for services on the same hub, one for services on
 // a different hub.
 type ExternalCallHandler interface {
-	evaluate(mc *Vm, line string) values.Value
-
+	evaluate(line string) values.Value
 	problem() *err.Error
 	GetAPI() string
 }
 
 type ExternalCallToHubHandler struct {
-	ExternalServiceCp *Compiler
+	Evaluator func(line string) values.Value
+	Problem func() bool
+	SerializeApi func() string
 }
 
 // There is a somewhat faster way of doing this when the services are on the same hub, since we would just need
 // to change the type numbers. TODO. Until then, this serves as a good test bed for the external services on other hubs.
-func (ex ExternalCallToHubHandler) evaluate(mc *Vm, line string) values.Value {
-	exVal := ex.ExternalServiceCp.Do(line)
-	serialize := ex.ExternalServiceCp.Vm.Literal(exVal)
-	return mc.OwningCompiler.Do(serialize)
+func (ex ExternalCallToHubHandler) evaluate(line string) values.Value {
+	return ex.Evaluator(line)
 }
 
 func (es ExternalCallToHubHandler) problem() *err.Error {
-	if es.ExternalServiceCp.P.ErrorsExist() {
+	if es.Problem() {
 		return err.CreateErr("ext/broken", &token.Token{Source: "Pipefish builder"})
 	}
 	return nil
 }
 
 func (es ExternalCallToHubHandler) GetAPI() string {
-	return es.ExternalServiceCp.SerializeApi()
+	return es.SerializeApi()
 }
 
 type ExternalHttpCallHandler struct {
@@ -49,20 +48,15 @@ type ExternalHttpCallHandler struct {
 	Service  string
 	Username string
 	Password string
+	Deserializer func(valAsString string) values.Value
 }
 
-func (es ExternalHttpCallHandler) evaluate(mc *Vm, line string) values.Value {
+func (es ExternalHttpCallHandler) evaluate(line string) values.Value {
 	if settings.SHOW_XCALLS {
 		println("Line is", line)
 	}
 	exValAsString := p2p.Do(es.Host, line, es.Username, es.Password)
-	if settings.SHOW_XCALLS {
-		println("Returned string is", exValAsString)
-	}
-	val := mc.OwningCompiler.Do(exValAsString)
-	if settings.SHOW_XCALLS {
-		println("Value is", mc.DefaultDescription(val))
-	}
+	val := es.Deserializer(exValAsString)
 	return val
 }
 

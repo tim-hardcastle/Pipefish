@@ -680,12 +680,28 @@ func (iz *initializer) initializeExternals() {
 // Functions auxiliary to the above.
 func (iz *initializer) addExternalOnSameHub(path, name string) {
 	hubService := iz.cp.Vm.HubServices[name]
-	serviceToAdd := compiler.ExternalCallToHubHandler{hubService}
+	ev := func(line string) values.Value{
+		exVal := hubService.Do(line)
+		serialize := hubService.Vm.Literal(exVal)
+		return iz.cp.Do(serialize)
+	}
+	pr := func() bool {
+		return hubService.P.ErrorsExist()
+	}
+	se := func() string {
+		return hubService.SerializeApi()
+	}
+	serviceToAdd := compiler.ExternalCallToHubHandler{ev, pr, se}
 	iz.addAnyExternalService(serviceToAdd, path, name)
 }
 
+
+
 func (iz *initializer) addHttpService(path, name, username, password string) {
-	serviceToAdd := compiler.ExternalHttpCallHandler{path, name, username, password}
+	ds := func(valAsString string) values.Value {
+		return iz.cp.Do(valAsString)
+	}
+	serviceToAdd := compiler.ExternalHttpCallHandler{path, name, username, password, ds}
 	iz.addAnyExternalService(serviceToAdd, path, name)
 }
 

@@ -56,7 +56,7 @@ type Vm struct {
 	AnyTuple                 AlternateType
 	LabelIsPrivate           []bool
 	IsRangeable              AlternateType
-	FieldLabelsInMem         map[string]uint32 // We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	FieldLabelsInMem         map[string]uint32 // TODO --- remove, probably? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter              [](func(t uint32, v any) any)
 }
 
@@ -505,7 +505,7 @@ loop:
 				buf.WriteString(remainingNamespace)
 				buf.WriteString(name)
 			}
-			vm.Mem[args[0]] = vm.ExternalCallHandlers[externalOrdinal].evaluate(vm, buf.String())
+			vm.Mem[args[0]] = vm.ExternalCallHandlers[externalOrdinal].evaluate(buf.String())
 		case Flti:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int))}
 		case Flts:
