@@ -42,8 +42,6 @@ type Vm struct {
 	OutHandle                  OutHandler
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
-	OwningCompiler             *Compiler             // The compiler at the root of the dependency tree.
-	HubServices                map[string]*Compiler  // Like the map that the hub has, but with the exposed compilers rather than wrapped in a Service.
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	Stringify                  *CpFunc
@@ -130,8 +128,8 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label"}
 
-func BlankVm(db *sql.DB, hubServiceCompilers map[string]*Compiler) *Vm {
-	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, HubServices: hubServiceCompilers,
+func BlankVm(db *sql.DB) *Vm {
+	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db, 
 		logging: true, InHandle: &StandardInHandler{"→ "},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 		SharedTypenameToTypeList: map[string]AlternateType{

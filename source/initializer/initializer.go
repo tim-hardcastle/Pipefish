@@ -68,12 +68,14 @@ func NewInitializer() *initializer {
 // The CommonInitializerBindle contains information that all the initializers need to share.
 type CommonInitializerBindle struct {
 	Functions map[FuncSource]*ast.PrsrFunction
+	HubCompilers map[string]*compiler.Compiler
 }
 
 // Initializes the `CommonInitializerBindle`
 func NewCommonInitializerBindle() *CommonInitializerBindle {
 	b := CommonInitializerBindle{
 		Functions: make(map[FuncSource]*ast.PrsrFunction),
+		HubCompilers: make(map[string]*compiler.Compiler),
 	}
 	return &b
 }
@@ -110,13 +112,14 @@ func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*comp
 func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*compiler.Compiler) *compiler.Compiler {
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle()
+	iz.Common.HubCompilers = hubServices
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
 	//
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
-	result := iz.ParseEverythingFromSourcecode(compiler.BlankVm(db, hubServices), parser.NewCommonParserBindle(), scriptFilepath, sourcecode, "")
+	result := iz.ParseEverythingFromSourcecode(compiler.BlankVm(db), parser.NewCommonParserBindle(), scriptFilepath, sourcecode, "")
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -137,7 +140,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		return result
 	}
 	iz.ResolveInterfaceBacktracks()
-	result.Vm.OwningCompiler = result
 	return result
 }
 
@@ -620,7 +622,7 @@ func (iz *initializer) initializeExternals() {
 	for _, declaration := range iz.ParsedDeclarations[externalDeclaration] {
 		name, path := iz.getPartsOfImportOrExternalDeclaration(declaration)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
-			externalCP, ok := iz.cp.Vm.HubServices[name]
+			externalCP, ok := iz.Common.HubCompilers[name]
 			if !ok {
 				iz.Throw("init/external/exist/a", declaration.GetToken())
 				continue
@@ -655,7 +657,7 @@ func (iz *initializer) initializeExternals() {
 		}
 
 		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
-		hubServiceCp, ok := iz.cp.Vm.HubServices[name] // If the service already exists, then we just need to check that it uses the same source file.
+		hubServiceCp, ok := iz.Common.HubCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubServiceCp.ScriptFilepath != path {
 				iz.Throw("init/external/exist/b", declaration.GetToken(), hubServiceCp.ScriptFilepath)
@@ -665,21 +667,21 @@ func (iz *initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.cp.Vm.HubServices)
+		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.Common.HubCompilers)
 		if e != nil { // Then we couldn't open the file.
 			iz.Throw("init/external/file", declaration.GetToken(), e)
 		}
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
 		}
-		iz.cp.Vm.HubServices[name] = newServiceCp
+		iz.Common.HubCompilers[name] = newServiceCp
 		iz.addExternalOnSameHub(path, name)
 	}
 }
 
 // Functions auxiliary to the above.
 func (iz *initializer) addExternalOnSameHub(path, name string) {
-	hubService := iz.cp.Vm.HubServices[name]
+	hubService := iz.Common.HubCompilers[name]
 	ev := func(line string) values.Value{
 		exVal := hubService.Do(line)
 		serialize := hubService.Vm.Literal(exVal)
