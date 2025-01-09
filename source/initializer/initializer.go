@@ -91,12 +91,12 @@ func newCompiler(Common *parser.CommonParserBindle, scriptFilepath, sourcecode s
 	return cp
 }
 
-func (iz *initializer) ParseEverythingFromFilePath(mc *vm.Vm, Common *parser.CommonParserBindle, scriptFilepath, namespacePath string) (*compiler.Compiler, error) {
+func (iz *initializer) ParseEverythingFromFilePath(mc *vm.Vm, Common *parser.CommonParserBindle, CCB *compiler.CommonCompilerBindle, scriptFilepath, namespacePath string) (*compiler.Compiler, error) {
 	sourcecode, e := compiler.GetSourceCode(scriptFilepath)
 	if e != nil {
 		return nil, e
 	}
-	return iz.ParseEverythingFromSourcecode(mc, Common, scriptFilepath, sourcecode, namespacePath), nil
+	return iz.ParseEverythingFromSourcecode(mc, Common, CCB, scriptFilepath, sourcecode, namespacePath), nil
 }
 
 func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*compiler.Compiler) (*compiler.Compiler, error) {
@@ -120,7 +120,7 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	//
 	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
 	// any changes here will also need to be reflected there.
-	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(db), parser.NewCommonParserBindle(), scriptFilepath, sourcecode, "")
+	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(db), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -144,7 +144,7 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	return result
 }
 
-func (iz *initializer) ParseEverythingFromSourcecode(mc *vm.Vm, Common *parser.CommonParserBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
+func (iz *initializer) ParseEverythingFromSourcecode(mc *vm.Vm, Common *parser.CommonParserBindle, CCB *compiler.CommonCompilerBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
 	iz.cp = newCompiler(Common, scriptFilepath, sourcecode, mc, namespacePath)
 	iz.p = iz.cp.P
 	iz.parseEverything(scriptFilepath, sourcecode)
@@ -588,7 +588,7 @@ func (iz *initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 		newIz := NewInitializer()
 		newIz.Common = iz.Common
 		iz.initializers[scriptFilepath] = newIz
-		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
+		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.p.Common, iz.cp.Common, scriptFilepath, namespace+"."+iz.p.NamespacePath)
 		if e != nil { // Then we couldn't open the file.
 			iz.Throw("init/import/file", imp.GetToken(), scriptFilepath, e)
 			return []string{}
@@ -722,7 +722,7 @@ func (iz *initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 	newIz := NewInitializer()
 	newIz.Common = iz.Common
 	iz.initializers[name] = newIz
-	newCp := newIz.ParseEverythingFromSourcecode(iz.cp.Vm, iz.p.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
+	newCp := newIz.ParseEverythingFromSourcecode(iz.cp.Vm, iz.p.Common, iz.cp.Common, path, sourcecode, name+"."+iz.p.NamespacePath)
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	iz.cp.Modules[name] = newCp

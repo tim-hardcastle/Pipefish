@@ -75,7 +75,7 @@ type CommonCompilerBindle struct {
 	IsRangeable              AlternateType
 }
 
-func NewCommonCompilerBindle(p *parser.Parser) *CommonCompilerBindle {
+func NewCommonCompilerBindle() *CommonCompilerBindle {
 	newBindle := &CommonCompilerBindle{
 		SharedTypenameToTypeList: map[string]AlternateType{
 			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
