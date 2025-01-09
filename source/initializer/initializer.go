@@ -1085,7 +1085,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 					iz.setDeclaration(decLABEL, node.GetToken(), j, labelInfo{iz.cp.That(), true})
 					labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 					iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
-					iz.cp.Vm.LabelIsPrivate = append(iz.cp.Vm.LabelIsPrivate, true)
+					iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, true)
 				}
 			}
 			iz.structDeclarationNumberToTypeNumber[i] = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
@@ -1108,7 +1108,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 			decLabel := dec.(labelInfo)
 			decLabel.private = false
 			iz.setDeclaration(decLABEL, tok, i, decLabel)
-			iz.cp.Vm.LabelIsPrivate[iz.cp.Vm.Mem[decLabel.loc].V.(int)] = false
+			iz.cp.Common.LabelIsPrivate[iz.cp.Vm.Mem[decLabel.loc].V.(int)] = false
 		}
 	}
 }
@@ -1271,7 +1271,7 @@ func (iz *initializer) createSnippetTypesPart2() {
 			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.StructType{Name: name, Path: iz.p.NamespacePath, Snippet: true, 
 					Private: iz.IsPrivate(int(snippetDeclaration), i), AbstractStructFields: abTypes, IsMI: settings.MandatoryImportSet().Contains(decTok.Source)})
 			iz.addStructLabelsToVm(name, typeNo, sig, &decTok)
-			iz.cp.Vm.CodeGeneratingTypes.Add(typeNo)
+			iz.cp.Common.CodeGeneratingTypes.Add(typeNo)
 		}
 		iz.AddType(name, "snippet", typeNo)
 		// The parser needs to know about it too.
@@ -1296,7 +1296,7 @@ func (iz *initializer) addStructLabelsToVm(name string, typeNo values.ValueType,
 			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), tok)
 			labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 			iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
-			iz.cp.Vm.LabelIsPrivate = append(iz.cp.Vm.LabelIsPrivate, true)
+			iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, true)
 		}
 	}
 	typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
@@ -1932,7 +1932,7 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 	iz.cp.Cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
 	iz.cp.Vm.Run(uint32(rollbackTo.Code))
 	result := iz.cp.Vm.Mem[iz.cp.That()]
-	if !iz.cp.Vm.CodeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
+	if !iz.cp.Common.CodeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
 		iz.cp.Rollback(rollbackTo, dec.GetToken())
 	}
 

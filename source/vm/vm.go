@@ -12,7 +12,6 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
@@ -48,13 +47,8 @@ type Vm struct {
 	StringifyCallTo			   uint32   // | These are so the vm knows how to call the stringify function.
 	StringifyOutReg            uint32   // |
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
-
-	// Possibly some or all of these should be in the common parser bindle or the common initializer bindle.
-	CodeGeneratingTypes      dtypes.Set[values.ValueType]
-	
-	LabelIsPrivate           []bool
-	FieldLabelsInMem         map[string]uint32 // TODO --- remove, probably? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
-	GoConverter              [](func(t uint32, v any) any)
+	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	GoConverter                [](func(t uint32, v any) any)
 }
 
 // Contains a Go function in the form of a reflect.Value, and, currently, nothing else.
@@ -160,8 +154,6 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "
 func BlankVm(db *sql.DB) *Vm {
 	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db,
 		logging: true, InHandle: &StandardInHandler{"→ "},
-		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
-		
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
 	}

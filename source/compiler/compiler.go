@@ -74,6 +74,8 @@ type CommonCompilerBindle struct {
 	AnyTypeScheme            AlternateType
 	AnyTuple                 AlternateType
 	IsRangeable              AlternateType
+	CodeGeneratingTypes      dtypes.Set[values.ValueType]
+	LabelIsPrivate           []bool
 }
 
 func NewCommonCompilerBindle() *CommonCompilerBindle {
@@ -84,6 +86,7 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 		},
 		AnyTypeScheme:     AlternateType{},
 		AnyTuple:          AlternateType{},
+		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 	}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
@@ -337,7 +340,7 @@ NodeTypeSwitch:
 		}
 		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
 		if ok {
-			if ac == REPL && cp.Vm.LabelIsPrivate[cp.Vm.Mem[labelNumberLocation].V.(int)] {
+			if ac == REPL && cp.Common.LabelIsPrivate[cp.Vm.Mem[labelNumberLocation].V.(int)] {
 				cp.P.Throw("comp/private/label", node.GetToken())
 				break
 			}
@@ -1793,7 +1796,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			typeToUse = typesAtIndex(types, i)
 		}
 		if cst {
-			if !types.containsAnyOf(cp.Vm.CodeGeneratingTypes.ToSlice()...) {
+			if !types.containsAnyOf(cp.Common.CodeGeneratingTypes.ToSlice()...) {
 				cp.Cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
 				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 				cp.EmitTypeChecks(resultLocation, types, ctxt.Env, sig, ctxt.Access, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
