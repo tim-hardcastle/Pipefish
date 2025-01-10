@@ -2,6 +2,7 @@ package test_helper
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
@@ -27,7 +28,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 		if filename == "" {
 			cp, _ = initializer.StartCompilerFromFilepath(filename, nil, map[string]*compiler.Compiler{})
 		} else {
-			cp, _ = initializer.StartCompilerFromFilepath(wd+"/test-files/"+filename, nil, map[string]*compiler.Compiler{})
+			cp, _ = initializer.StartCompilerFromFilepath(filepath.Join(wd, "../compiler/test-files/", filename), nil, map[string]*compiler.Compiler{})
 		}
 		if cp.P.Common.IsBroken {
 			r := cp.P.ReturnErrors()
