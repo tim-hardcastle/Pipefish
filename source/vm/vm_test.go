@@ -1,4 +1,4 @@
-package compiler_test
+package vm_test
 
 import (
 	"errors"
