@@ -1,0 +1,144 @@
+newtype
+
+Person = struct(name string, age int)
+
+Color = enum RED, GREEN, BLUE
+
+FloatClone = clone float 
+IntClone = clone int
+ListClone = clone list 
+MapClone = clone map 
+PairClone = clone pair 
+RuneClone = clone rune 
+SetClone = clone set 
+StringClone = clone string 
+
+def
+
+applyFunction(i int, f func) : golang {
+	return (f(i))[0]
+}
+
+multiplyBy(i int) : golang {
+    return (func(n int) int {return i*n})
+}
+
+apply(f func, x) :
+    f(x)
+
+multiply(x, y int) :
+    apply(multiplyBy(x), y)
+
+getType(x int) :
+    type(multiplyBy(x))
+
+anyTest(x any) : golang {
+    return x
+}
+
+variadicAnyTest(x int, y ...any) : golang {
+    return y[x]
+}
+
+boolTest(x bool) : golang {
+    return !x
+}
+
+floatTest(x float) : golang {
+    return x
+}
+
+intTest(x int) : golang {
+    return double(x)
+}
+
+stringTest(x string) : golang {
+    return x
+}
+
+runeTest(x rune) : golang {
+    return x
+}
+
+pairTest(x pair) : golang {
+    return x
+}
+
+listTest(x list) : golang {
+    return x
+}
+
+setTest(x set) : golang {
+    return x
+}
+
+mapTest(x map) : golang {
+    return x
+}
+
+tupleTest(x tuple) : golang {
+    return x
+}
+
+variadicTest(x int, y ...string) : golang {
+    return y[x]
+}
+
+enumTest(x Color) : golang {
+    return x
+}
+
+floatCloneTest(x FloatClone) : golang {
+    return x
+}
+
+intCloneTest(x IntClone) : golang {
+    return x
+}
+
+listCloneTest(x ListClone) : golang {
+    return x
+}
+
+mapCloneTest(x MapClone) : golang {
+    return x
+}
+
+pairCloneTest(x PairClone) : golang {
+    return x
+}
+
+runeCloneTest(x RuneClone) : golang {
+    return x
+}
+
+setCloneTest(x SetClone) : golang {
+    return x
+}
+
+stringCloneTest(x StringClone) : golang {
+    return x
+}
+
+constructPerson(aName string, anAge int) -> Person : golang {
+    return Person{Name: aName, Age: anAge}
+}
+
+deconstructPerson(aPerson Person) -> string, int : golang {
+    return aPerson.Name, aPerson.Age
+}
+
+golang {
+    func double(x int) int {
+        return 2 * x
+    }
+}
+
+cmd 
+
+commandTest : golang {
+    println("A big hello from Go!")
+    return struct{}{}
+}
+
+
