@@ -445,7 +445,7 @@ func TestGocode(t *testing.T) {
 	nameOfTestFile := "gocode_test.pf"
 	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../golang 1.go")
 	os.Remove(locationOfGocode)
-	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/test-files/" + nameOfTestFile)
+	absoluteLocationOfPipefishTestFile, _ := filepath.Abs(currentDirectory + "/../test_helper/test-files/" + nameOfTestFile)
 	file, _ := os.Stat(absoluteLocationOfPipefishTestFile)
 	timestamp := file.ModTime().UnixMilli()
 	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
