@@ -24,7 +24,8 @@ def
 (x string) + (y string) -> string : builtin "add_strings"
 (x float) / (y float) -> float : builtin "divide_floats"
 (x float) / (y int) -> float : builtin "divide_float_by_integer"
-(x int) / (y int) -> int : builtin "divide_integers"
+(x int) div (y int) -> int : builtin "divide_integers"
+(x int) / (y int) -> int : builtin "divide_integers_to_float"
 (x int) / (y float) -> float : builtin "divide_integer_by_float"
 (x float) > (y float) -> bool : builtin "gt_floats"
 (x float) >= (y float) -> bool : builtin "gte_floats"
@@ -35,7 +36,7 @@ def
 (x int) < (y int) -> bool : builtin "lt_ints"
 (x int) <= (y int) -> bool : builtin "lte_ints"
 (x any?) :: (y any?) -> pair : builtin "make_pair"
-(x int) % (y int) -> int : builtin "modulo_integers"
+(x int) mod (y int) -> int : builtin "modulo_integers"
 (x float) * (y float) -> float : builtin "multiply_floats"
 (x float) * (y int) -> float : builtin "multiply_float_by_integer"
 (x int) * (y int) -> int : builtin "multiply_integers"
@@ -103,3 +104,9 @@ typeWithMaker(x type, y tuple) -> struct : builtin "type_with"
 // type of x to the relevant instance of the 'string' function.
 stringify(x any?) -> string :
     string x
+
+(x int) % :
+    x / 100
+
+(x float) % :
+    x / 100.0

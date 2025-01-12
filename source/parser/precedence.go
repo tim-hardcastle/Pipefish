@@ -146,7 +146,10 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			if tok.Literal == "+" || tok.Literal == "-" {
 				return SUM
 			}
-			if tok.Literal == "*" || tok.Literal == "/" || tok.Literal == "%" {
+			if tok.Literal == "mod" {
+				return WITH
+			}
+			if tok.Literal == "*" || tok.Literal == "/" {
 				return PRODUCT
 			}
 			if tok.Literal == "<" || tok.Literal == "<=" || tok.Literal == ">" || tok.Literal == ">=" {
