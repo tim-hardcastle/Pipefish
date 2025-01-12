@@ -892,12 +892,12 @@ func (iz *initializer) createClones() {
 				case "*":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
 					iz.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
-				case "/":
+				case "div":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("/", sig, "divide_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
-				case "%":
+					iz.makeCloneFunction("div", sig, "divide_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
+				case "mod":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"%", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("%", sig, "modulo_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
+					iz.makeCloneFunction("mod", sig, "modulo_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				default:
 					iz.p.Throw("init/request/int", &usingOrEof, op)
 				}

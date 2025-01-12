@@ -328,6 +328,13 @@ loop:
 				slice[i] = vm.Mem[args[i+1]]
 			}
 			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
+		case Diif:
+			divisor := vm.Mem[args[2]].V.(int)
+			if divisor == 0 {
+				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+			} else {
+				vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int)) / float64(divisor)}
+			}
 		case Divf:
 			divisor := vm.Mem[args[2]].V.(float64)
 			if divisor == 0 {

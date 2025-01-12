@@ -33,6 +33,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"divide_float_by_integer":   {(*Compiler).btDivideFloatByInteger, AltType(values.ERROR, values.FLOAT)},
 	"divide_integers":           {(*Compiler).btDivideIntegers, AltType(values.ERROR, values.INT)},
 	"divide_integer_by_float":   {(*Compiler).btDivideIntegerByFloat, AltType(values.ERROR, values.FLOAT)},
+	"divide_integers_to_float":  {(*Compiler).btDivideIntegersToFloat, AltType(values.ERROR, values.FLOAT)},
 	"first_in_tuple":            {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller.
 	"float_of_int":              {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":           {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
@@ -179,6 +180,10 @@ func (cp *Compiler) btDivideIntegers(tok *token.Token, dest uint32, args []uint3
 
 func (cp *Compiler) btDivideIntegerByFloat(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Dvif, dest, args[0], args[2], cp.reserveToken(tok))
+}
+
+func (cp *Compiler) btDivideIntegersToFloat(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Diif, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btFirstInTuple(tok *token.Token, dest uint32, args []uint32) {

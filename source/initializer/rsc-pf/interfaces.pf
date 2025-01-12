@@ -10,7 +10,7 @@ Comparable = interface :
     (x self) >= (y self) -> bool
 
 Dividable = interface :
-    (x self) / (y self) -> self
+    (x self) / (y self) -> float
 
 Lennable = interface :
     len(x self) -> int 
