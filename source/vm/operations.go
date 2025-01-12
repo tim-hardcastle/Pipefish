@@ -116,8 +116,11 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Cpnt: {"cpnt", operands{dst, mem}},
 	Cv1T: {"cv1T", operands{dst, mem}},
 	CvTT: {"cvTT", operands{dst, tup}},
+	Diif: {"diif", operands{dst, mem, mem, tok}},
 	Divf: {"divf", operands{dst, mem, mem, tok}},
 	Divi: {"divi", operands{dst, mem, mem, tok}},
+	Dvfi: {"dvfi", operands{dst, mem, mem, tok}},
+	Dvif: {"dvif", operands{dst, mem, mem, tok}},
 	Dofn: {"dofn", operands{dst, mem, tup}},
 	Dref: {"dref", operands{dst, mem}},
 	Equb: {"equb", operands{dst, mem, mem}},
@@ -281,6 +284,7 @@ const (
 	CalT // Specialized for tuple capture.
 	Cast
 	Casx
+	Diif
 	Divf
 	Divi
 	Dofn // For lambdas, as opposed to call for outer functions.
