@@ -30,14 +30,14 @@ collatzA(n) :
         i == 1 :
             break 
         i mod 2 == 0 :
-            i / 2
+            i div 2
         else :
             3 * i + 1
 
 collatzB(n) :
     from i = n for i != 1 :
         i mod 2 == 0 :
-            i / 2
+            i div 2
         else :
             3 * i + 1
 
