@@ -29,21 +29,21 @@ collatzA(n) :
     from i = n for :
         i == 1 :
             break 
-        i % 2 == 0 :
+        i mod 2 == 0 :
             i / 2
         else :
             3 * i + 1
 
 collatzB(n) :
     from i = n for i != 1 :
-        i % 2 == 0 :
+        i mod 2 == 0 :
             i / 2
         else :
             3 * i + 1
 
 evens(x) :
     from L = [] for k::v = range x :
-        k % 2 == 0 :
+        k mod 2 == 0 :
             L + [v]
         else :
             continue

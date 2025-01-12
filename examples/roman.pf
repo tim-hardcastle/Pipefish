@@ -1,6 +1,6 @@
 newtype
 
-Roman = clone int using +, -, *, /, %
+Roman = clone int using +, -, *, div, mod
 
 const
 

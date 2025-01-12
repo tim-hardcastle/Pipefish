@@ -17,6 +17,6 @@ bar(q Qux) -> int :
     int q
 
 (p Qux) + (q Qux) -> Qux :
-    Qux[(int(p) + int(q)) % 4]
+    Qux[(int(p) + int(q)) mod 4]
 
 
