@@ -1,5 +1,12 @@
 package compiler_test
 
+// This largely repeats the tests in `vm_test.go`. This is not entirely superfluous,
+// as while those tests would still ensure that the bits of the compiler being used
+// were working, this doesn't show up as line coverage in VSCode and so I wouldn't
+// know which those bits are.
+//
+// It would be useful to reduce any tests that don't contribute to coverage. TODO.
+
 import (
 	"errors"
 	"os"
@@ -306,7 +313,6 @@ func TestRecursion(t *testing.T) {
 	}
 	test_helper.RunTest(t, "recursion_test.pf", tests, testValues)
 }
-
 func TestImports(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`qux.square 5`, `25`},
@@ -321,6 +327,21 @@ func TestImports(t *testing.T) {
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
 	test_helper.RunTest(t, "import_test.pf", tests, testValues)
+}
+func TestExternals(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`zort.square 5`, `25`},
+		{`type zort.Color`, `type`},
+		{`zort.RED`, `zort.RED`},
+		{`type zort.RED`, `zort.Color`},
+		{`zort.RED in zort.Color`, `true`},
+		{`zort.Color[4]`, `zort.BLUE`},
+		{`zort.Person "John", 22`, `zort.Person with (name::"John", age::22)`},
+		{`zort.Tone LIGHT, BLUE`, `zort.Tone with (shade::zort.LIGHT, color::zort.BLUE)`},
+		{`zort.Qux 5`, `zort.Qux(5)`},
+		{`zort.Time`, `Time`},
+	}
+	test_helper.RunTest(t, "external_test.pf", tests, testValues)
 }
 func TestRef(t *testing.T) {
 	tests := []test_helper.TestItem{

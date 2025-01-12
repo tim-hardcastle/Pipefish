@@ -10,6 +10,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
 // Generating a function call is an elaborate business because of the multiple dispatch. This needs
@@ -97,7 +98,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			b.types[i] = cp.GetAlternateTypeFromTypeName("any?")
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
-				cp.put(Asgm, v.MLoc)
+				cp.put(vm.Asgm, v.MLoc)
 				b.valLocs[i] = cp.That()
 			} else {
 				cp.Reserve(values.REF, v.MLoc, node.GetToken())
@@ -116,7 +117,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == SimpleType(values.TUPLE) {
-				b.types[i] = AlternateType{cp.Vm.AnyTuple}
+				b.types[i] = AlternateType{cp.Common.AnyTuple}
 			}
 			cst = cst && cstI
 			b.valLocs[i] = cp.That()
@@ -125,11 +126,11 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if b.types[i].(AlternateType).Contains(values.ERROR) { // IMPORTANT --- find out if the ret statement is going to cause a problem with thunks as it did below before I fixed it.
-				cp.Emit(Qtyp, cp.That(), uint32(tp(values.ERROR)), cp.CodeTop()+4)
+				cp.Emit(vm.Qtyp, cp.That(), uint32(tp(values.ERROR)), cp.CodeTop()+4)
 				backtrackList[i] = cp.CodeTop()
-				cp.Emit(Asgm, DUMMY, cp.That())
-				cp.Emit(Adtk, cp.That(), cp.That(), cp.reserveToken(arg.GetToken()))
-				cp.Emit(Ret)
+				cp.Emit(vm.Asgm, DUMMY, cp.That())
+				cp.Emit(vm.Adtk, cp.That(), cp.That(), cp.reserveToken(arg.GetToken()))
+				cp.Emit(vm.Ret)
 			}
 		}
 	}
@@ -137,7 +138,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Prepared bindle, making initial call into generateNewArgument.", b.tok)
 	returnTypes := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
-	cp.put(Asgm, b.outLoc)
+	cp.put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
 		cp.P.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 	}
@@ -147,8 +148,8 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		}
 	}
 	if returnTypes.Contains(values.ERROR) {
-		cp.Emit(Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
-		cp.Emit(Adtk, cp.That(), cp.That(), cp.reserveToken(b.tok))
+		cp.Emit(vm.Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
+		cp.Emit(vm.Adtk, cp.That(), cp.That(), cp.reserveToken(b.tok))
 	}
 	cp.cmP("Returning from createFunctionCall.", b.tok)
 	return returnTypes, cst && !b.override
@@ -234,8 +235,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 		}
 		cp.cmP("Unthunking error "+text.Emph("vm/types/a")+".", b.tok)
-		cp.Emit(UntE, cp.That())
-		cp.Emit(Asgm, b.outLoc, cp.That())
+		cp.Emit(vm.UntE, cp.That())
+		cp.Emit(vm.Asgm, b.outLoc, cp.That())
 		return AltType(values.ERROR)
 	}
 	branch := b.treePosition.Branch[b.branchNo]
@@ -293,10 +294,10 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		case len(overlap):
 			singleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.tok)
 		default:
-			cp.Emit(Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
+			cp.Emit(vm.Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
 			singleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.tok)
-			cp.Emit(Jmp, cp.CodeTop()+3)
-			cp.put(IxTn, b.valLocs[b.argNo], uint32(b.index))
+			cp.Emit(vm.Jmp, cp.CodeTop()+3)
+			cp.put(vm.IxTn, b.valLocs[b.argNo], uint32(b.index))
 			elementOfTupleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, cp.That(), b.tok)
 		}
 	}
@@ -334,8 +335,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 					cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 				}
 				cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
-				cp.Emit(UntE, cp.That())
-				cp.Emit(Asgm, b.outLoc, cp.That())
+				cp.Emit(vm.UntE, cp.That())
+				cp.Emit(vm.Asgm, b.outLoc, cp.That())
 				return AltType(values.ERROR)
 			}
 			cp.cmP("Going across branch consuming any value.", b.tok)
@@ -347,7 +348,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.cmP("Type is tuple. Generating branch to consume tuple.", b.tok)
 				typesFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
-				singleCheck := cp.vmIf(Qsnq, b.valLocs[b.argNo])
+				singleCheck := cp.vmIf(vm.Qsnq, b.valLocs[b.argNo])
 				cp.cmP("Generating branch to check out any values.", b.tok)
 				typesFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 				skipElse = cp.vmGoTo()
@@ -377,13 +378,13 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
-var TYPE_COMPARISONS = map[string]Opcode{
-	"snippet":  Qspt,
-	"snippet?": Qspq,
-	"any":      Qsng,
-	"any?":     Qsnq,
-	"struct":   Qstr,
-	"struct?":  Qstq,
+var TYPE_COMPARISONS = map[string]vm.Opcode{
+	"snippet":  vm.Qspt,
+	"snippet?": vm.Qspq,
+	"any":      vm.Qsng,
+	"any?":     vm.Qsnq,
+	"struct":   vm.Qstr,
+	"struct?":  vm.Qstq,
 }
 
 // The reason why this and the following two functions exist is that we need to be able to emit restrictions on what values we
@@ -411,7 +412,7 @@ func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString st
 		args = append(args, uint32(t.(SimpleType)))
 	}
 	args = append(args, DUMMY)
-	cp.Emit(Qtpt, args...)
+	cp.Emit(vm.Qtpt, args...)
 	return bkGoto(cp.CodeTop() - 1)
 }
 
@@ -421,23 +422,23 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	if len(typeAsString) >= 8 && typeAsString[0:8] == "varchar(" {
 		if typeAsString[len(typeAsString)-1] == '?' {
 			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-2])
-			cp.Emit(Qvcq, mem, uint32(vChar), DUMMY)
+			cp.Emit(vm.Qvcq, mem, uint32(vChar), DUMMY)
 			return bkGoto(cp.CodeTop() - 1)
 		} else {
 			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-1])
-			cp.Emit(Qvch, mem, uint32(vChar), DUMMY)
+			cp.Emit(vm.Qvch, mem, uint32(vChar), DUMMY)
 			return bkGoto(cp.CodeTop() - 1)
 		}
 	}
 	// It may be a plain old concrete type.
 	ty := cp.GetAlternateTypeFromTypeName(typeAsString)
 	if len(ty) == 1 {
-		cp.Emit(Qtyp, mem, uint32(ty[0].(SimpleType)), DUMMY)
+		cp.Emit(vm.Qtyp, mem, uint32(ty[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
 	if typeAsString == "tuple" {
-		cp.Emit(Qtyp, mem, uint32(values.TUPLE), DUMMY)
+		cp.Emit(vm.Qtyp, mem, uint32(values.TUPLE), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be one of the built-in abstract types, 'struct', 'snippet', etc.
@@ -455,7 +456,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		}
 	}
 	// It may be a clone group:
-	if group, ok := cp.Vm.SharedTypenameToTypeList[typeAsString]; ok {
+	if group, ok := cp.Common.SharedTypenameToTypeList[typeAsString]; ok {
 		abType = group.ToAbstractType()
 	}
 	if abType.Types != nil {
@@ -464,7 +465,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 			args = append(args, uint32(t))
 		}
 		args = append(args, DUMMY)
-		cp.Emit(Qabt, args...)
+		cp.Emit(vm.Qabt, args...)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	panic("Unknown type: " + typeAsString)
@@ -473,7 +474,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
 	cp.Cm("Emitting type comparison from alternate type "+text.Emph(typeAsAlt.describe(cp.Vm)), tok)
 	if len(typeAsAlt) == 1 {
-		cp.Emit(Qtyp, mem, uint32(typeAsAlt[0].(SimpleType)), DUMMY)
+		cp.Emit(vm.Qtyp, mem, uint32(typeAsAlt[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	args := []uint32{DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
@@ -481,14 +482,14 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 		args = append(args, uint32(t.(SimpleType)))
 	}
 	args = append(args, DUMMY)
-	cp.Emit(Qabt, args...)
+	cp.Emit(vm.Qabt, args...)
 	return bkGoto(cp.CodeTop() - 1)
 }
 
 func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
 	cp.Cm("Emitting type comparison from abstract type "+text.Emph(abType.String()), tok)
 	if len(abType.Types) == 1 {
-		cp.Emit(Qtyp, mem, uint32(abType.Types[0]), DUMMY)
+		cp.Emit(vm.Qtyp, mem, uint32(abType.Types[0]), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	args := []uint32{mem, DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
@@ -496,7 +497,7 @@ func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractTyp
 		args = append(args, uint32(t))
 	}
 	args = append(args, DUMMY)
-	cp.Emit(Qabt, args...)
+	cp.Emit(vm.Qabt, args...)
 	return bkGoto(cp.CodeTop() - 1)
 	// TODO --- this no longer special-cases things like "any" or "struct".
 }
@@ -507,7 +508,7 @@ func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromAbstractType(abType valu
 		args = append(args, uint32(t))
 	}
 	args = append(args, DUMMY)
-	cp.Emit(Qtpt, args...)
+	cp.Emit(vm.Qtpt, args...)
 	return bkGoto(cp.CodeTop() - 1)
 }
 
@@ -530,7 +531,7 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 	var skipElse bkGoto
 	if needsConditional {
 		cp.cmP("Generating a conditional to see if we move to the next argument or move along the tuple.", b.tok)
-		lengthCheck := cp.vmIf(QlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index))
+		lengthCheck := cp.vmIf(vm.QlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index))
 		newArgumentBindle := newBindle
 		newArgumentBindle.argNo++
 		typesFromNextArgument = cp.generateNewArgument(&newArgumentBindle)
@@ -575,19 +576,19 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
 				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
 				args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
-				cp.Emit(Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
-				cp.Emit(Asgm, b.outLoc, DUMMY)
+				cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
+				cp.Emit(vm.Asgm, b.outLoc, DUMMY)
 				b.override = true
 				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
 			}
 			if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 				cp.cmP("Undefined function. We're doing recursion!", b.tok)
-				cp.Emit(Rpsh, b.lowMem, cp.MemTop())
+				cp.Emit(vm.Rpsh, b.lowMem, cp.MemTop())
 				cp.RecursionStore = append(cp.RecursionStore, BkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
 				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
 				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
-				cp.Emit(Rpop)
-				cp.Emit(Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
+				cp.Emit(vm.Rpop)
+				cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 				b.override = true              // We can't do constant folding on a dummy function call.
 				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
 			}
@@ -604,13 +605,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.cmP("Emitting builtin.", b.tok)
 				switch builtinTag { // Then for these we need to special-case their return types.
 				case "get_from_sql":
-					functionAndType.T = cp.Vm.AnyTypeScheme
+					functionAndType.T = cp.Common.AnyTypeScheme
 				case "cast":
 					cp.Cm("Builtin is cast", b.tok)
 					functionAndType.T = altType(values.ERROR)
 					for _, ty := range typesAtIndex(b.types[0], 0) {
 						st := values.ValueType(ty.(SimpleType))
-						cp.Cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), LITERAL), b.tok)
+						cp.Cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), vm.LITERAL), b.tok)
 						cp.Cm("Clone group is "+cp.TypeToCloneGroup[st].describe(cp.Vm), b.tok)
 						functionAndType.T = functionAndType.T.Union(cp.TypeToCloneGroup[st])
 					}
@@ -643,13 +644,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 			if ok && cp.IsStruct(builtinTag) {
 				cp.cmP("Emitting short form constructor.", b.tok)
 				args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
-				cp.Emit(Strc, args...)
+				cp.Emit(vm.Strc, args...)
 				return AltType(typeNumber)
 			}
 			// It might be a clone type constructor.
 			if ok && cp.topRCompiler().isClone(builtinTag) {
 				cp.cmP("Emitting clone constructor.", b.tok)
-				cp.Emit(Cast, b.outLoc, b.valLocs[0], uint32(typeNumber))
+				cp.Emit(vm.Cast, b.outLoc, b.valLocs[0], uint32(typeNumber))
 				return AltType(typeNumber)
 			}
 			// It could have a Golang body.
@@ -657,12 +658,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.cmP("Emitting Go function call.", b.tok)
 				convErrorLoc := cp.reserveError("go/conv/x", b.tok)
 				args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
-				cp.Emit(Gofn, args...)
+				cp.Emit(vm.Gofn, args...)
 				if len(branch.Node.Fn.NameRets) == 0 {
 					if F.Command {
 						return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
 					} else {
-						return cp.Vm.AnyTypeScheme
+						return cp.Common.AnyTypeScheme
 					}
 				}
 				if len(branch.Node.Fn.NameRets) == 1 {
@@ -686,13 +687,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				cp.Reserve(values.STRING, F.Xcall.FunctionName, branch.Node.Fn.Body.GetToken())
 				vmArgs = append(vmArgs, cp.That())
 				vmArgs = append(vmArgs, b.valLocs...)
-				cp.Emit(Extn, vmArgs...)
+				cp.Emit(vm.Extn, vmArgs...)
 				return F.RtnTypes
 			}
 			// Otherwise it's a regular old function call, which we do like this:
 			cp.cmP("Emitting call opcode.", b.tok)
 			resolvingCompiler.emitCallOpcode(fNo, b.valLocs)
-			cp.Emit(Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
+			cp.Emit(vm.Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
 			return F.RtnTypes
 		}
 	}
@@ -702,7 +703,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 		cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 	}
 	cp.cmP("Unthunking error "+text.Emph("vm/types/c")+".", b.tok)
-	cp.Emit(UntE, cp.That())
-	cp.Emit(Asgm, b.outLoc, cp.That())
+	cp.Emit(vm.UntE, cp.That())
+	cp.Emit(vm.Asgm, b.outLoc, cp.That())
 	return AltType(values.ERROR)
 }

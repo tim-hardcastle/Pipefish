@@ -1,9 +1,8 @@
-import 
+external
 
-"examples/thingA.pf"
-"examples/thingC.pf"
+"./thingA.pf"
 
 def
 
-troz (i int) :
-    thingA.Zort(thingA.foo thingA.THING)
+troz (n int) :
+    thingA.Zort(thingA.foo n)

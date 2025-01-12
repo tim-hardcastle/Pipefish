@@ -8,7 +8,7 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map("hub"::"hub/hub.hub")
+allServices = map(`hub`::`hub/hub.hub`)
 
 currentService string? = NULL
 

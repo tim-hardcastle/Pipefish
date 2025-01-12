@@ -9,6 +9,8 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
+
 )
 
 func (cp *Compiler) getAbstractType(name string) (values.AbstractType, bool) {
@@ -16,7 +18,7 @@ func (cp *Compiler) getAbstractType(name string) (values.AbstractType, bool) {
 }
 
 func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
-	return cp.Vm.ConcreteTypeInfo[typeNumber].GetName(DEFAULT)
+	return cp.Vm.ConcreteTypeInfo[typeNumber].GetName(vm.DEFAULT)
 }
 
 func (cp *Compiler) GetConcreteType(name string) (values.ValueType, bool) {
@@ -32,12 +34,12 @@ func (cp *Compiler) ConcreteTypeNow(name string) values.ValueType {
 	return abstractType.Types[0]
 }
 
-func (cp *Compiler) TypeInfoNow(name string) typeInformation {
+func (cp *Compiler) TypeInfoNow(name string) vm.TypeInformation {
 	concreteType, _ := cp.GetConcreteType(name)
 	return cp.Vm.ConcreteTypeInfo[concreteType]
 }
 
-func (cp *Compiler) getTypeInformation(name string) (typeInformation, bool) {
+func (cp *Compiler) getTypeInformation(name string) (vm.TypeInformation, bool) {
 	concreteType, ok := cp.GetConcreteType(name)
 	if !ok {
 		return nil, false
@@ -50,7 +52,7 @@ func (cp *Compiler) IsBuiltin(name string) bool {
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(BuiltinType)
+		_, ok := typeInfo.(vm.BuiltinType)
 		return ok
 	}
 }
@@ -60,7 +62,7 @@ func (cp *Compiler) isEnum(name string) bool {
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(EnumType)
+		_, ok := typeInfo.(vm.EnumType)
 		return ok
 	}
 }
@@ -70,7 +72,7 @@ func (cp *Compiler) isClone(name string) bool {
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(CloneType)
+		_, ok := typeInfo.(vm.CloneType)
 		return ok
 	}
 }
@@ -80,7 +82,7 @@ func (cp *Compiler) IsStruct(name string) bool {
 	if !ok {
 		return false
 	} else {
-		_, ok := typeInfo.(StructType)
+		_, ok := typeInfo.(vm.StructType)
 		return ok
 	}
 }
@@ -95,7 +97,7 @@ func (cp *Compiler) IsPrivate(a values.AbstractType) bool {
 }
 
 func (cp *Compiler) typeNumberIsStruct(T values.ValueType) bool {
-	_, ok := cp.Vm.ConcreteTypeInfo[T].(StructType)
+	_, ok := cp.Vm.ConcreteTypeInfo[T].(vm.StructType)
 	return ok
 }
 
@@ -140,7 +142,7 @@ func (cp *Compiler) ReturnSigToAlternateType(sig ast.StringSig) FiniteTupleType 
 
 func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.AbstractSig) AlternateType {
 	if len(rtnSig) == 0 {
-		return cp.Vm.AnyTypeScheme
+		return cp.Common.AnyTypeScheme
 	}
 	if len(rtnSig) == 1 {
 		return AbstractTypeToAlternateType(rtnSig[0].VarType)
@@ -199,7 +201,7 @@ func (cp *Compiler) GetAlternateTypeFromTypeName(typename string) AlternateType 
 		}
 		return result
 	}
-	result, ok = cp.Vm.SharedTypenameToTypeList[typename]
+	result, ok = cp.Common.SharedTypenameToTypeList[typename]
 	if ok {
 		if varargs {
 			return AlternateType{TypedTupleType{result}}

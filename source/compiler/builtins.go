@@ -3,6 +3,7 @@ package compiler
 import (
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
 type functionAndReturnType struct {
@@ -97,333 +98,333 @@ var BUILTINS = map[string]functionAndReturnType{
 }
 
 func (cp *Compiler) btAddFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Addf, dest, args[0], args[2])
+	cp.Emit(vm.Addf, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Addi, dest, args[0], args[2])
+	cp.Emit(vm.Addi, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddLists(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(AddL, dest, args[0], args[2])
+	cp.Emit(vm.AddL, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddRuneToRune(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Adrr, dest, args[0], args[2])
+	cp.Emit(vm.Adrr, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddRuneToString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Adrs, dest, args[0], args[2])
+	cp.Emit(vm.Adrs, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddSets(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(AddS, dest, args[0], args[2])
+	cp.Emit(vm.AddS, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddStrings(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Adds, dest, args[0], args[2])
+	cp.Emit(vm.Adds, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btAddStringToRune(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Adsr, dest, args[0], args[2])
+	cp.Emit(vm.Adsr, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btCast(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Casx, dest, args[0], args[1], cp.reserveToken(tok))
+	cp.Emit(vm.Casx, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btCastToFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.FLOAT))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.FLOAT))
 }
 
 func (cp *Compiler) btCastToInt(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.INT))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.INT))
 }
 
 func (cp *Compiler) btCastToList(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.LIST))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.LIST))
 }
 
 func (cp *Compiler) btCastToMap(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.MAP))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.MAP))
 }
 
 func (cp *Compiler) btCastToPair(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.PAIR))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.PAIR))
 }
 
 func (cp *Compiler) btCastToSet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.SET))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.SET))
 }
 
 func (cp *Compiler) btCastToString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cast, dest, args[0], uint32(values.STRING))
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.STRING))
 }
 
 func (cp *Compiler) btCodepoint(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Cpnt, dest, args[0])
+	cp.Emit(vm.Cpnt, dest, args[0])
 }
 
 func (cp *Compiler) btDivideFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Divf, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Divf, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btDivideFloatByInteger(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Dvfi, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Dvfi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btDivideIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Divi, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Divi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btDivideIntegerByFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Dvif, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Dvif, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btFirstInTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Tplf, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Tplf, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btFloatOfInt(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Flti, dest, args[0])
+	cp.Emit(vm.Flti, dest, args[0])
 }
 
 func (cp *Compiler) btFloatOfString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Flts, dest, args[0])
+	cp.Emit(vm.Flts, dest, args[0])
 }
 
 func (cp *Compiler) btGetFromSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gsnp, cp.Vm.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(Qtyp, cp.Vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
-	cp.Emit(Asgm, dest, cp.Vm.Mem[args[0]].V.(uint32))
-	cp.Emit(Jmp, cp.CodeTop()+2)
-	cp.Emit(Asgm, dest, values.C_OK)
+	cp.Emit(vm.Gsnp, cp.Vm.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(vm.Qtyp, cp.Vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
+	cp.Emit(vm.Asgm, dest, cp.Vm.Mem[args[0]].V.(uint32))
+	cp.Emit(vm.Jmp, cp.CodeTop()+2)
+	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Inpt, cp.Vm.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(Asgm, dest, values.C_OK)
+	cp.Emit(vm.Inpt, cp.Vm.Mem[args[0]].V.(uint32), args[2])
+	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btGtFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gthf, dest, args[0], args[2])
+	cp.Emit(vm.Gthf, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btGteFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gtef, dest, args[0], args[2])
+	cp.Emit(vm.Gtef, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btGtInts(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gthi, dest, args[0], args[2])
+	cp.Emit(vm.Gthi, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btGteInts(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gtei, dest, args[0], args[2])
+	cp.Emit(vm.Gtei, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btIntOfEnum(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Inte, dest, args[0])
+	cp.Emit(vm.Inte, dest, args[0])
 }
 
 func (cp *Compiler) btIntOfFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Intf, dest, args[0])
+	cp.Emit(vm.Intf, dest, args[0])
 }
 
 func (cp *Compiler) btIntOfString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Ints, dest, args[0])
+	cp.Emit(vm.Ints, dest, args[0])
 }
 
 func (cp *Compiler) btKeysOfMap(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(KeyM, dest, args[0])
+	cp.Emit(vm.KeyM, dest, args[0])
 }
 
 func (cp *Compiler) btKeysOfStruct(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(KeyZ, dest, args[0])
+	cp.Emit(vm.KeyZ, dest, args[0])
 }
 
 func (cp *Compiler) btLabelOfString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Lbls, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Lbls, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btLastInTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Tpll, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Tpll, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btLenList(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(LenL, dest, args[0])
+	cp.Emit(vm.LenL, dest, args[0])
 }
 
 func (cp *Compiler) btLenMap(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(LenM, dest, args[0])
+	cp.Emit(vm.LenM, dest, args[0])
 }
 
 func (cp *Compiler) btLenSet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(LenS, dest, args[0])
+	cp.Emit(vm.LenS, dest, args[0])
 }
 
 func (cp *Compiler) btLenString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Lens, dest, args[0])
+	cp.Emit(vm.Lens, dest, args[0])
 }
 
 func (cp *Compiler) btLenTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(LenT, dest, args[0])
+	cp.Emit(vm.LenT, dest, args[0])
 }
 
 func (cp *Compiler) btListWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(WthL, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WthL, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btLiteral(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Litx, dest, args[0])
+	cp.Emit(vm.Litx, dest, args[0])
 }
 
 func (cp *Compiler) btLtFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gthf, dest, args[2], args[0])
+	cp.Emit(vm.Gthf, dest, args[2], args[0])
 }
 
 func (cp *Compiler) btLteFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gtef, dest, args[2], args[0])
+	cp.Emit(vm.Gtef, dest, args[2], args[0])
 }
 
 func (cp *Compiler) btLtInts(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gthi, dest, args[2], args[0])
+	cp.Emit(vm.Gthi, dest, args[2], args[0])
 }
 
 func (cp *Compiler) btLteInts(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Gtei, dest, args[2], args[0])
+	cp.Emit(vm.Gtei, dest, args[2], args[0])
 }
 
 func (cp *Compiler) btMakeError(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mker, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Mker, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMakeMap(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mkmp, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Mkmp, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMakePair(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mkpr, dest, args[0], args[2])
+	cp.Emit(vm.Mkpr, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btMakeSet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mkst, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Mkst, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMapWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(WthM, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WthM, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMapWithout(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(WtoM, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WtoM, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btModuloIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Modi, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Modi, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMultiplyFloatByInteger(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mlfi, dest, args[0], args[2])
+	cp.Emit(vm.Mlfi, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btMultiplyFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mulf, dest, args[0], args[2])
+	cp.Emit(vm.Mulf, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btMultiplyIntegerByFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Mlfi, dest, args[2], args[0])
+	cp.Emit(vm.Mlfi, dest, args[2], args[0])
 }
 
 func (cp *Compiler) btMultiplyIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Muli, dest, args[0], args[2])
+	cp.Emit(vm.Muli, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btNegateFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Negf, dest, args[0])
+	cp.Emit(vm.Negf, dest, args[0])
 }
 
 func (cp *Compiler) btNegateInteger(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Negi, dest, args[0])
+	cp.Emit(vm.Negi, dest, args[0])
 }
 
 func (cp *Compiler) btPostToOutput(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Outp, args[0])
-	cp.Emit(Asgm, dest, values.C_OK)
+	cp.Emit(vm.Outp, args[0])
+	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btPostSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Psnp, dest, args[0])
+	cp.Emit(vm.Psnp, dest, args[0])
 }
 
 func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Outt, args[0])
-	cp.Emit(Asgm, dest, values.C_OK)
+	cp.Emit(vm.Outt, args[0])
+	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
 func (cp *Compiler) btRune(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Itor, dest, args[0])
+	cp.Emit(vm.Itor, dest, args[0])
 }
 
 func (cp *Compiler) btSingleInList(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(InxL, dest, args[0], args[2])
+	cp.Emit(vm.InxL, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSingleInSet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(InxS, dest, args[0], args[2])
+	cp.Emit(vm.InxS, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSingleInTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(InxT, dest, args[0], args[2])
+	cp.Emit(vm.InxT, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSingleInType(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Inxt, dest, args[0], args[2])
+	cp.Emit(vm.Inxt, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Strx, dest, args[0])
+	cp.Emit(vm.Strx, dest, args[0])
 }
 
 func (cp *Compiler) btStructWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(WthZ, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WthZ, dest, args[0], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btSubtractFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Subf, dest, args[0], args[2])
+	cp.Emit(vm.Subf, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btSubtractIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Subi, dest, args[0], args[2])
+	cp.Emit(vm.Subi, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btTupleOfTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Asgm, dest, args[0])
+	cp.Emit(vm.Asgm, dest, args[0])
 }
 
 func (cp *Compiler) btTupleOfVarargs(tok *token.Token, dest uint32, args []uint32) {
 	destWithArgs := append([]uint32{dest}, args...)
-	cp.Emit(CvTT, destWithArgs...)
+	cp.Emit(vm.CvTT, destWithArgs...)
 }
 
 func (cp *Compiler) btType(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Typx, dest, args[0])
+	cp.Emit(vm.Typx, dest, args[0])
 }
 
 func (cp *Compiler) btTypeOfTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Asgm, dest, cp.TupleType)
+	cp.Emit(vm.Asgm, dest, cp.TupleType)
 }
 
 func (cp *Compiler) btTypeUnion(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Typu, dest, args[0], args[2])
+	cp.Emit(vm.Typu, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btTypesOfType(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Typs, dest, args[0])
+	cp.Emit(vm.Typs, dest, args[0])
 }
 
 func (cp *Compiler) btTypeWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Wtht, dest, args[0], args[1], cp.reserveToken(tok))
+	cp.Emit(vm.Wtht, dest, args[0], args[1], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btVarchar(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(Varc, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Varc, dest, args[0], cp.reserveToken(tok))
 }

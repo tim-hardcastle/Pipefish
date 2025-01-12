@@ -329,3 +329,9 @@ type AbstractTypeInfo struct {
 func (aT AbstractTypeInfo) IsMandatoryImport() bool {
 	return aT.IsMI
 }
+
+// This is the data that goes inside a THUNK value.
+type ThunkValue struct {
+	MLoc  uint32 // The place in memory where the result of the thunk ends up when you unthunk it.
+	CAddr uint32 // The code address to call to unthunk the thunk.
+}

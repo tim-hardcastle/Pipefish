@@ -19,6 +19,7 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/pf"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 type Hub struct {
@@ -521,6 +522,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.tryMain()
 		return false
 	case "run":
+		if filepath.IsLocal(args[0]) {
+			dir, _ := os.Getwd()
+			args[0] = filepath.Join(dir, args[0])
+		}
 		hub.lastRun = args
 		if args[1] == "" {
 			hub.WritePretty("Starting script '" + args[0] +
@@ -551,7 +556,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 	case "snap":
 		scriptFilepath := args[0]
-		println("Script filepath is", scriptFilepath)
+		if filepath.IsLocal(scriptFilepath) {
+			dir, _ := os.Getwd()
+			scriptFilepath = filepath.Join(dir, scriptFilepath)
+		}
 		testFilepath := args[1]
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
@@ -627,6 +635,10 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("service '" + args[0] + "' doesn't exist")
 		}
 	case "test":
+		if filepath.IsLocal(args[0]) {
+			dir, _ := os.Getwd()
+			args[0] = filepath.Join(dir, args[0])
+		}
 		file, err := os.Open(args[0])
 		if err != nil {
 			hub.WriteError("p/ " + strings.TrimSpace(err.Error()) + "\n")
@@ -924,18 +936,21 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	if !needsRebuild {
 		return false
 	}
-
 	newService := pf.NewService()
 	newService.SetDatabase(hub.Db)
 	newService.SetLocalExternalServices(hub.services)
-	newService.InitializeFromFilepath(scriptFilepath)
+	e := newService.InitializeFromFilepath(scriptFilepath) // We get an error only if it completely fails to open the file, otherwise there'll be errors in the Common Parser Bindle as usual.
 	hub.services[name] = newService
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
 		if name == "hub" {
 			fmt.Println("Pipefish: unable to compile hub.")
 		}
-		hub.GetAndReportErrors(newService)
+		if !newService.IsInitialized() {
+			hub.WriteError("unable to open '" + scriptFilepath + "' with error '" + e.Error() + "'")
+		} else {
+			hub.GetAndReportErrors(newService)
+		}
 		if name == "hub" {
 			os.Exit(2)
 		}
@@ -1000,23 +1015,30 @@ func (hub *Hub) saveHubFile() string {
 		}
 	}
 	for i, v := range serviceList {
-		buf.WriteString("\"")
+		buf.WriteString("`")
 		buf.WriteString(v)
-		buf.WriteString("\"::\"")
+		buf.WriteString("`::`")
 		name, _ := hub.services[v].GetFilepath()
 		buf.WriteString(name)
-		buf.WriteString("\"")
+		buf.WriteString("`")
 		if i < len(serviceList)-1 {
 			buf.WriteString(",\n               .. ")
 		}
 	}
 	buf.WriteString(")\n\n")
 	buf.WriteString("currentService string? = ")
-	cs := hubService.ToLiteral(hub.getSV("currentService"))
-	if len(cs) > 0 && cs[1] == '#' {
+	csV := hub.getSV("currentService")
+	if csV.T == values.NULL {
 		buf.WriteString("NULL")
 	} else {
-		buf.WriteString(cs)
+		cs := csV.V.(string)
+		if len(cs) == 0 || cs[0] == '#' {
+			buf.WriteString("NULL")
+		} else {
+			buf.WriteString("`")
+			buf.WriteString(cs)
+			buf.WriteString("`")
+		}
 	}
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")

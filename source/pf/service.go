@@ -14,6 +14,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 
 	"src.elv.sh/pkg/persistent/vector"
 )
@@ -59,7 +60,7 @@ func (sv *Service) initialize(scriptFilepath, sourcecode string) error {
 	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap)
 	sv.cp = cp
 	for k, v := range compilerMap {
-		sv.localExternals[k].cp = v
+		sv.localExternals[k] = &Service{v, sv.localExternals, sv.db}
 	}
 	if sv.IsBroken() {
 		return errors.New("compilation error")
@@ -77,23 +78,23 @@ type Type = values.ValueType
 
 // An interface with one method, `Get()`, which supplies a string when the Pipefish
 // code does `get x from Input()`.
-type InHandler = compiler.InHandler
+type InHandler = vm.InHandler
 
 // An interface with two methods (1) `Out(v Value)` which takes the value supplied when
 // the Pipefish code says `post x to Output()` and does something with it, presumably
 // serializing it in some way and writing it somewhere; (2) a method `Write(s string)`
 // which if necessary allows the user to write a string to the same place.
-type OutHandler = compiler.OutHandler
+type OutHandler = vm.OutHandler
 
 // An InHandler which just gets an input from an io.Reader supplied at its construction.
-type SimpleInHandler = compiler.SimpleInHandler
+type SimpleInHandler = vm.SimpleInHandler
 
 // An OutHandler which serializes the given value and writes it to an io.Writer supplied
 // at its construction.
-type SimpleOutHandler = compiler.SimpleOutHandler
+type SimpleOutHandler = vm.SimpleOutHandler
 
 // An InHandler which supplies a prompt and then gets its input from the terminal.
-type TerminalInHandler = compiler.StandardInHandler
+type TerminalInHandler = vm.StandardInHandler
 
 // The representation of a Pipefish list in the `V` field of a `Value` with `T` = `LIST`.
 type List = vector.Vector
@@ -132,37 +133,37 @@ const (
 // Makes an InHandler which does nothing but get a string from terminal
 // input and return it.
 func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
-	return compiler.MakeSimpleInHandler(in)
+	return vm.MakeSimpleInHandler(in)
 }
 
 // Method makes an `OutHandler` which applies Pipefish's `literal` function
 // to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeLiteralWritingOutHandler(out io.Writer) *SimpleOutHandler {
-	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, true)
+	return vm.MakeSimpleOutHandler(out, sv.cp.Vm, true)
 }
 
 // Makes an `OutHandler` which applies Pipefish's `string` function
 // to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeStringWritingOutHandler(out io.Writer) *SimpleOutHandler {
-	return compiler.MakeSimpleOutHandler(out, sv.cp.Vm, false)
+	return vm.MakeSimpleOutHandler(out, sv.cp.Vm, false)
 }
 
 // Makes an `OutHandler` which applies Pipefish's `literal` function
 // to the value and then writes the result to the terminal.
 func (sv *Service) MakeLiteralTerminalOutHandler(out io.Writer) *SimpleOutHandler {
-	return compiler.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
+	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
 }
 
 // Makes an `OutHandler` which applies Pipefish's `string` function to the value and
 // then writes the result to the terminal.
 func (sv *Service) MakeStringTerminalOutHandler(out io.Writer) *SimpleOutHandler {
-	return compiler.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
+	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
 }
 
 // Makes an `InHandler` which will get input from the terminal using the string supplied
 // to prompt the end user.
 func MakeTerminalInHandler(prompt string) *TerminalInHandler {
-	return compiler.MakeStandardInHandler(prompt)
+	return vm.MakeStandardInHandler(prompt)
 }
 
 // Makes other services visible to the service, as though they were running
@@ -187,7 +188,7 @@ func (sv *Service) SetInHandler(in InHandler) error {
 
 // Sets an OutHandler, i.e. the thing that decides what happens when you do
 // `post x to Output()`.
-func (sv *Service) SetOutHandler(out compiler.OutHandler) error {
+func (sv *Service) SetOutHandler(out vm.OutHandler) error {
 	if sv.cp == nil {
 		return errors.New("service is uninitialized")
 	}
@@ -218,7 +219,7 @@ func (sv *Service) Do(line string) (Value, error) {
 		return Value{}, errors.New("service is broken")
 	}
 	sv.cp.P.ResetAfterError()
-	sv.cp.Vm.LiveTracking = make([]compiler.TrackingData, 0)
+	sv.cp.Vm.LiveTracking = make([]vm.TrackingData, 0)
 	state := sv.cp.GetState()
 	cT := sv.cp.CodeTop()
 	node := sv.cp.P.ParseLine("REPL input", line)
@@ -233,7 +234,7 @@ func (sv *Service) Do(line string) (Value, error) {
 	if sv.cp.P.ErrorsExist() {
 		return Value{}, errors.New("error compiling input")
 	}
-	sv.cp.Emit(compiler.Ret)
+	sv.cp.Emit(vm.Ret)
 	sv.cp.Cm("Calling Run from Do.", node.GetToken())
 	sv.cp.Vm.Run(cT)
 	result := sv.cp.Vm.Mem[sv.cp.That()]
@@ -346,9 +347,17 @@ func (sv *Service) IsBroken() bool {
 	return sv.cp == nil || sv.cp.P.Common.IsBroken
 }
 
+// Returns `true` if the service is initialized.
+func (sv *Service) IsInitialized() bool {
+	return sv.cp != nil
+}
+
 // Returns the errors produced by the last thing the service did, as a list of things
 // of type `*Error`.
 func (sv *Service) GetErrors() []*Error {
+	if sv.cp == nil {
+		return []*Error{}
+	}
 	return sv.cp.P.Common.Errors
 }
 
@@ -380,7 +389,7 @@ func (sv *Service) IsStruct(v Value) bool {
 
 // Returns the underlying `Type` of a `Value`, i.e. its parent type if it's a clone, otherwise its own type.
 func (sv *Service) UnderlyingType(v Value) Type {
-	if clone, ok := sv.cp.Vm.ConcreteTypeInfo[v.T].(compiler.CloneType); ok {
+	if clone, ok := sv.cp.Vm.ConcreteTypeInfo[v.T].(vm.CloneType); ok {
 		return clone.Parent
 	}
 	return v.T
@@ -412,7 +421,7 @@ func (sv *Service) TypeToTypeName(t Type) (string, error) {
 	if int(t) >= len(sv.cp.Vm.ConcreteTypeInfo) {
 		return "", errors.New("type does not exist")
 	}
-	s := sv.cp.Vm.DescribeType(t, compiler.DEFAULT)
+	s := sv.cp.Vm.DescribeType(t, vm.DEFAULT)
 	return s, nil
 }
 
@@ -448,7 +457,7 @@ func PrettyString(s string, left, right int) string {
 // The error will be non-nil if the coercion is impossible.
 func (sv *Service) ToGo(pfValue Value, goType reflect.Type) (any, error) {
 	pfTypeInfo := sv.cp.Vm.ConcreteTypeInfo[pfValue.T]
-	pfTypeName := pfTypeInfo.GetName(compiler.LITERAL)
+	pfTypeName := pfTypeInfo.GetName(vm.LITERAL)
 	goTypeName := goType.String()
 	myError := errors.New("cannot coerce Pipefish value of type '" + pfTypeName +
 		"' to Go value of type '" + goTypeName + "'")
@@ -467,7 +476,7 @@ func (sv *Service) ToGo(pfValue Value, goType reflect.Type) (any, error) {
 		}
 	}
 	var goDatum any
-	if structInfo, ok := pfTypeInfo.(compiler.StructType); ok {
+	if structInfo, ok := pfTypeInfo.(vm.StructType); ok {
 		if goType.Kind() != reflect.Struct || structInfo.Len() != goType.NumField() {
 			return nil, myError
 		}
@@ -482,13 +491,13 @@ func (sv *Service) ToGo(pfValue Value, goType reflect.Type) (any, error) {
 		return goStruct.Interface(), nil
 	}
 	pfBaseType := UNDEFINED_TYPE
-	if _, ok := pfTypeInfo.(compiler.BuiltinType); ok {
+	if _, ok := pfTypeInfo.(vm.BuiltinType); ok {
 		pfBaseType = pfValue.T
 	}
-	if cloneType, ok := pfTypeInfo.(compiler.CloneType); ok {
+	if cloneType, ok := pfTypeInfo.(vm.CloneType); ok {
 		pfBaseType = cloneType.Parent
 	}
-	if _, ok := pfTypeInfo.(compiler.EnumType); ok {
+	if _, ok := pfTypeInfo.(vm.EnumType); ok {
 		pfBaseType = INT
 	}
 	switch pfBaseType {

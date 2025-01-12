@@ -1,4 +1,4 @@
-package compiler
+package vm
 
 import (
 	"strconv"
@@ -82,7 +82,7 @@ func (vm *Vm) evalGetSQL(structTypeNumber values.ValueType, query string, pfArgs
 	return values.Value{values.LIST, vec}
 }
 
-func (vm *Vm) getSqlSig(pfStructType values.ValueType) (string, bool) {
+func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 	var buf strings.Builder
 	buf.WriteString("(")
 	sep := ""

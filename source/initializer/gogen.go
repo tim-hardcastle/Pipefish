@@ -23,27 +23,27 @@ import (
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
 func (iz *initializer) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {
 	for name := range userDefinedTypes {
 		switch typeInfo := iz.cp.TypeInfoNow(name).(type) {
-		case compiler.CloneType:
+		case vm.CloneType:
 			goType := cloneConv[typeInfo.Parent]
 			fmt.Fprint(sb, "type ", name, " ", goType, "\n\n")
-		case compiler.EnumType:
+		case vm.EnumType:
 			firstEnumElement := typeInfo.ElementNames[0]
 			fmt.Fprint(sb, "type ", name, " int\n\nconst (\n    ", firstEnumElement, " ", name, " = iota\n")
 			for _, element := range typeInfo.ElementNames[1:] {
 				fmt.Fprint(sb, "    ", element, "\n")
 			}
 			fmt.Fprint(sb, ")\n\n")
-		case compiler.StructType:
+		case vm.StructType:
 			fmt.Fprint(sb, "type ", name, " struct {\n")
 			for i, lN := range typeInfo.LabelNumbers {
 				fmt.Fprint(sb, "\t", (text.Capitalize(iz.cp.Vm.Labels[lN])), " ", iz.convertFieldTypeFromPfToGo(typeInfo.AbstractStructFields[i]), "\n")
@@ -63,11 +63,11 @@ func (iz *initializer) generateDeclarations(sb *strings.Builder, userDefinedType
 	for name := range userDefinedTypes {
 		fmt.Fprint(sb, "    \"", name, "\": func(t uint32, v any) any {return ", name)
 		switch typeInfo := iz.cp.TypeInfoNow(name).(type) {
-		case compiler.CloneType:
+		case vm.CloneType:
 			fmt.Fprint(sb, "(v.(", cloneConv[typeInfo.Parent], "))},\n")
-		case compiler.EnumType:
+		case vm.EnumType:
 			fmt.Fprint(sb, "(v.(int))},\n")
-		case compiler.StructType:
+		case vm.StructType:
 			fmt.Fprint(sb, "{")
 			sep := ""
 			for i := 0; i < typeInfo.Len(); i++ {
@@ -109,7 +109,7 @@ func (iz *initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string
 		return ""
 	}
 	typeNumber := aT.Types[0]
-	typeName := iz.cp.Vm.ConcreteTypeInfo[typeNumber].GetName(compiler.DEFAULT)
+	typeName := iz.cp.Vm.ConcreteTypeInfo[typeNumber].GetName(vm.DEFAULT)
 	goType, ok := getGoType(typeName)
 	if !ok {
 		iz.Throw("golang/type/illegal", INTEROP_TOKEN)

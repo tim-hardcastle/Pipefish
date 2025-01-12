@@ -43,8 +43,9 @@ const (
 	SHOW_RUNTIME_VALUES    = false // Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
 	SHOW_XCALLS            = false
 	SHOW_GOLANG            = false
-
-	SHOW_TESTS = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
+	SHOW_API_SERIALIZATION = false
+	SHOW_EXTERNAL_STUBS    = false
+	SHOW_TESTS             = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
 )
 
 var PipefishHomeDirectory string
