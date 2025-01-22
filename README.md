@@ -79,6 +79,14 @@ Here are some of Pipefish's more distinctive features:
 * [Functional core, imperative shell](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/functional-core-imperative-shell.md). A synopsis of the language paradigm.
 * [The whys of Pipefish](https://github.com/tim-hardcastle/Pipefish/blob/main/docs/the-whys-of-pipefish.md). This explains the reasoning behind some lower-level design choices which are sufficiently unusual as to need explanation.
 
+## Our adorable mascot
+
+According to no less than Rob Pike, every language needs an adorable mascot. This is our adorable (though not cuddly) mascot, René the pipefish.
+<div align="center">
+  <img src="./docs/Rene.png" alt="René the Pipefish" width="150">
+</div>
+Pipefish may also be symbolized by the nazda emoji: 🧿
+
 ## Licensing
 
 🧿 Pipefish is distributed under the MIT license. Please steal my code and ideas.
