@@ -85,7 +85,7 @@ According to no less than Rob Pike, every language needs an adorable mascot. Thi
 <div align="center">
   <img src="./docs/Rene.png" alt="René the Pipefish" width="150">
 </div>
-Pipefish may also be symbolized by the nazda emoji: 🧿
+Pipefish may also be symbolized by the nazar emoji: 🧿
 
 ## Licensing
 
