@@ -123,6 +123,12 @@ func TestFunctionSharing(t *testing.T) {
 	}
 	test_helper.RunTest(t, "function_sharing_test.pf", tests, test_helper.TestValues)
 }
+func TestImperative(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`zort false`, `7`},
+	}
+	test_helper.RunTest(t, "imperative_test.pf", tests, test_helper.TestOutput)
+}
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return
