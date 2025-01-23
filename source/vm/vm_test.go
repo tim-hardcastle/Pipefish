@@ -9,8 +9,11 @@ import (
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
 func TestLiterals(t *testing.T) {
@@ -399,6 +402,16 @@ func TestFunctionSharing(t *testing.T) {
 	}
 	test_helper.RunTest(t, "function_sharing_test.pf", tests, testValues)
 }
+func TestImperative(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`zort false`, `7`},
+		{`zort true`, `6`},
+		{`qux false`, `5`},
+		{`qux true`, `6`},
+	}
+	test_helper.RunTest(t, "imperative_test.pf", tests, testOutput)
+}
+
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return
@@ -463,6 +476,18 @@ func testValues(cp *compiler.Compiler, s string) (string, error) {
 		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
 	return cp.Vm.Literal(v), nil
+}
+
+func testOutput(cp *compiler.Compiler, s string) (string, error) {
+	cp.Vm.OutHandle = vm.MakeCapturingOutHandler(cp.Vm)
+	ok := cp.Do(s)
+	if ok.T == values.ERROR {
+		return "", errors.New("runtime error with code " + ok.V.(*err.Error).ErrorId)
+	} 
+	if cp.ErrorsExist() {
+		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
+	}
+	return cp.Vm.OutHandle.(*vm.CapturingOutHandler).Dump(), nil
 }
 
 func testCompilerErrors(cp *compiler.Compiler, s string) (string, error) {

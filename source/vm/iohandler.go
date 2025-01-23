@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/tim-hardcastle/Pipefish/source/values"
@@ -59,6 +60,31 @@ func (oH *SimpleOutHandler) Out(v values.Value) {
 
 func (oH *SimpleOutHandler) Write(s string) {
 	oH.output.Write([]byte(s))
+}
+
+func MakeCapturingOutHandler(vm *Vm) *CapturingOutHandler {
+	buffer := bytes.NewBuffer(nil)
+	simpleHandler := MakeSimpleOutHandler(buffer, vm, true)
+	return &CapturingOutHandler{simpleHandler, buffer}
+}
+
+type CapturingOutHandler struct {
+	handler *SimpleOutHandler
+	capture *bytes.Buffer
+}
+
+func (oH *CapturingOutHandler) Out(v values.Value) {
+	oH.capture.Write([]byte(oH.handler.vm.Literal(v)))
+}
+
+func (oH *CapturingOutHandler) Write(s string) {
+	oH.capture.Write([]byte(s))
+}
+
+func (oH *CapturingOutHandler) Dump() string {
+	s := oH.capture.String()
+	oH.capture.Reset()
+	return s
 }
 
 type ConsumingOutHandler struct{}
