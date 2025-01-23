@@ -662,14 +662,18 @@ NodeTypeSwitch:
 				if lTypes.Contains(values.ERROR) {
 					ifError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
 				}
-				if lTypes.Contains(values.UNSATISFIED_CONDITIONAL) { // Then it is an else-less conditional or a try, and it it isn't UNSAT then we should skip the right node.
+				if lTypes.Contains(values.UNSATISFIED_CONDITIONAL) && node.Right.GetToken().Type == token.COLON { // Then it is an else-less conditional or a try, and it it isn't UNSAT then we should skip the right node if it is a conditional.
 					ifCouldBeUnsatButIsnt = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.UNSATISFIED_CONDITIONAL), leftRg)
 				}
 				rTypes, _ = cp.CompileNode(node.Right, ctxt) // In a cmd we wish rConst to remain false to avoid folding.
 				cp.vmComeFrom(ifError, ifCouldBeUnsatButIsnt)
-				rtnTypes, rtnConst = lTypes.Union(rTypes), lcst && rcst
-
-				break
+				rtnConst = lcst && rcst
+				rtnTypes = lTypes.Union(rTypes)
+				if colon, ok := node.Left.(*ast.LazyInfixExpression); ok {
+					if colon.Left.GetToken().Type == token.ELSE {
+						rtnTypes = rTypes.without(SimpleType(values.UNSATISFIED_CONDITIONAL))
+					}
+				}
 			} else { // Otherwise it's functional.
 				satJump := cp.vmIf(vm.Qsat, leftRg)
 				lhsIsSat := cp.vmEarlyReturn(leftRg)
@@ -683,7 +687,6 @@ NodeTypeSwitch:
 				} else {
 					rtnTypes = lTypes.Union(rTypes)
 				}
-				break
 			}
 		}
 	case *ast.ListExpression:

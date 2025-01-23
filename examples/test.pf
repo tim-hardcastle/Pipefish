@@ -1,6 +1,19 @@
+var
 
-def 
+x = 42
 
-foo(x) :
-    x
+cmd
 
+zort(b bool) :
+    global x
+    b :
+        x = x + 1
+    else :
+        x = x + 2
+    x = x + 5
+
+qux(b bool) :
+    global x
+    b :
+        x = x + 1
+    x = x + 5
