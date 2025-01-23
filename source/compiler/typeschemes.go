@@ -290,6 +290,7 @@ func (aT AlternateType) describe(mc *vm.Vm) string {
 	return buf.String()
 }
 
+
 func (vL AlternateType) Union(wL AlternateType) AlternateType {
 	x := AlternateType{}
 	var vix, wix int

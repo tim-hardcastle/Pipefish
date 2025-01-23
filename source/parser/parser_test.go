@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 )
 
@@ -103,6 +102,3 @@ func testParserErrors(cp *compiler.Compiler, s string) (string, error) {
 	}
 }
 
-func dummyFunction(p parser.Parser) {
-
-}

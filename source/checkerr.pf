@@ -13,12 +13,12 @@ init :
     allTheCode = "" // We can just put all the code in one string except the errorfile.
     errorFile = ""
     for _::filename = range filenames :
-        post "  ▪ " + filename
-        get code from File(filename)
-        filepath.Base(filename) == "errorfile.go" :
-            errorFile = code 
-        else :
-            allTheCode = allTheCode + code
+        filepath.suffix(filename) == "go" :
+            post "  ▪ " + filename
+            get code from File(filename)
+            filepath.base(filename) == "errorfile.go" :
+                errorFile = code 
+            else :
+                allTheCode = allTheCode + code
     post len(errorFile)
-
 
