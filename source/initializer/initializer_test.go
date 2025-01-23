@@ -10,14 +10,12 @@ package initializer_test
 // which those bits are.
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 )
@@ -28,39 +26,39 @@ func TestIndexing(t *testing.T) {
 		{`myType[5]`, `PURPLE`},
 		{`DARK_BLUE[shade]`, `DARK`},
 	}
-	test_helper.RunTest(t, "index_test.pf", tests, testValues)
+	test_helper.RunTest(t, "index_test.pf", tests, test_helper.TestValues)
 }
 func TestFunctionSyntaxCalls(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`foo "bing"`, `"foo bing"`},
 	}
-	test_helper.RunTest(t, "function_call_test.pf", tests, testValues)
+	test_helper.RunTest(t, "function_call_test.pf", tests, test_helper.TestValues)
 }
 func TestVariablesAndConsts(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`A`, `42`},
 	}
-	test_helper.RunTest(t, "variables_test.pf", tests, testValues)
+	test_helper.RunTest(t, "variables_test.pf", tests, test_helper.TestValues)
 }
 func TestUserDefinedTypes(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Color[4]`, `BLUE`},
 		{`DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 	}
-	test_helper.RunTest(t, "user_types_test.pf", tests, testValues)
+	test_helper.RunTest(t, "user_types_test.pf", tests, test_helper.TestValues)
 }
 func TestOverloading(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`foo 42`, `"int"`},
 	}
-	test_helper.RunTest(t, "overloading_test.pf", tests, testValues)
+	test_helper.RunTest(t, "overloading_test.pf", tests, test_helper.TestValues)
 }
 func TestForLoops(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`fib 8`, `21`},
 		{`x`, `10`},
 	}
-	test_helper.RunTest(t, "for_loop_test.pf", tests, testValues)
+	test_helper.RunTest(t, "for_loop_test.pf", tests, test_helper.TestValues)
 }
 func TestInnerFunctionsAndVariables(t *testing.T) {
 	tests := []test_helper.TestItem{
@@ -68,7 +66,7 @@ func TestInnerFunctionsAndVariables(t *testing.T) {
 		{`zort 3, 5`, `(25, 15)`},
 		{`troz 2`, `2200`},
 	}
-	test_helper.RunTest(t, "inner_test.pf", tests, testValues)
+	test_helper.RunTest(t, "inner_test.pf", tests, test_helper.TestValues)
 }
 func TestRecursion(t *testing.T) {
 	tests := []test_helper.TestItem{
@@ -76,54 +74,54 @@ func TestRecursion(t *testing.T) {
 		{`power 3, 4`, `81`},
 		{`inFac 5`, `120`},
 	}
-	test_helper.RunTest(t, "recursion_test.pf", tests, testValues)
+	test_helper.RunTest(t, "recursion_test.pf", tests, test_helper.TestValues)
 }
 func TestImports(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`qux.square 5`, `25`},
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
-	test_helper.RunTest(t, "import_test.pf", tests, testValues)
+	test_helper.RunTest(t, "import_test.pf", tests, test_helper.TestValues)
 }
 func TestExternals(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`zort.square 5`, `25`},
 		{`zort.Time`, `Time`},
 	}
-	test_helper.RunTest(t, "external_test.pf", tests, testValues)
+	test_helper.RunTest(t, "external_test.pf", tests, test_helper.TestValues)
 }
 func TestRef(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`x ++`, `OK`},
 	}
-	test_helper.RunTest(t, "ref_test.pf", tests, testValues)
+	test_helper.RunTest(t, "ref_test.pf", tests, test_helper.TestValues)
 }
 func TestClones(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},
 		{`5 apples + 3 apples`, `apples(8)`},
 	}
-	test_helper.RunTest(t, "clone_test.pf", tests, testValues)
+	test_helper.RunTest(t, "clone_test.pf", tests, test_helper.TestValues)
 }
 func TestSnippet(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`makeSn 42`, `Foo with (text::"zort |x| troz", data::["zort ", 42, " troz"])`},
 		{`post HTML --- zort |2 + 2| troz`, `OK`},
 	}
-	test_helper.RunTest(t, "snippets_test.pf", tests, testValues)
+	test_helper.RunTest(t, "snippets_test.pf", tests, test_helper.TestValues)
 }
 func TestInterface(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`BLERP in Addable`, `true`},
 		{`Fnug(5) in Foobarable`, `false`},
 	}
-	test_helper.RunTest(t, "interface_test.pf", tests, testValues)
+	test_helper.RunTest(t, "interface_test.pf", tests, test_helper.TestValues)
 }
 func TestFunctionSharing(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`C(1, 2) in Addable`, `true`},
 	}
-	test_helper.RunTest(t, "function_sharing_test.pf", tests, testValues)
+	test_helper.RunTest(t, "function_sharing_test.pf", tests, test_helper.TestValues)
 }
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
@@ -142,7 +140,7 @@ func TestGocode(t *testing.T) {
 		println("Error was", err.Error())
 		panic("That's all folks!")
 	}
-	test_helper.RunTest(t, "gocode_test.pf", tests, testValues)
+	test_helper.RunTest(t, "gocode_test.pf", tests, test_helper.TestValues)
 	// Tear down the .go and .so files.
 	nameOfTestFile := "gocode_test.pf"
 	locationOfGocode, _ := filepath.Abs(currentDirectory + "/../../golang 1.go")
@@ -153,21 +151,4 @@ func TestGocode(t *testing.T) {
 	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
 	os.Remove(goTestFile)
 	os.WriteFile(locationOfGoTimes, temp, 0644)
-}
-
-func testValues(cp *compiler.Compiler, s string) (string, error) {
-	v := cp.Do(s)
-	if cp.ErrorsExist() {
-		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
-	}
-	return cp.Vm.Literal(v), nil
-}
-
-func testCompilerErrors(cp *compiler.Compiler, s string) (string, error) {
-	v := cp.Do(s)
-	if !cp.ErrorsExist() {
-		return "", errors.New("unexpected successful evaluation returned " + text.Emph(cp.Vm.Literal(v)))
-	} else {
-		return cp.P.Common.Errors[0].ErrorId, nil
-	}
 }
