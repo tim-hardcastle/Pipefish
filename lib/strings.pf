@@ -1,6 +1,7 @@
 import
 
 golang "strings"
+golang "errors"
 
 def
 
@@ -46,6 +47,18 @@ index(s, substr string) -> int : golang {
 
 indexAny(s, chars string) -> int : golang {
     return strings.IndexAny(s, chars)
+}
+
+join(elems list, sep string) : golang {
+    strL := make([]string, len(elems))
+    for _, elem := range elems {
+        strElem, ok := elem.(string)
+        if !ok {
+            return errors.New("non-string element in list")
+        }
+        strL = append(strL, strElem)
+    }
+    return strings.Join(strL, sep)
 }
 
 lastIndex(s, substr string) -> int : golang {
