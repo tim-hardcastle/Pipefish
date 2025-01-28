@@ -33,4 +33,4 @@ given :
     codesDefined = regexp.findAllString(`"[a-z]*\/[a-z\/]*"`, errorFile, -1)
 
 prettyList(L list) -> string :
-    "  ▪ " + strings.Join(L, "\n  ▪ ")
+    "  ▪ " + strings.join(L, "\n  ▪ ")
