@@ -4,6 +4,8 @@
 import
 
 "path/filepath"
+"regexp"
+"strings"
 
 cmd
 
@@ -14,14 +16,21 @@ init :
     errorFile = ""
     for _::filename = range filenames :
         filepath.ext(filename) == ".go" :
-            post "  ▪ " + filepath.base(filename)
             get code from File(filename)
-            post len code
             filepath.base(filename) == "errorfile.go" :
                 errorFile = code
             else :
                 allTheCode = allTheCode + code
-    post len(errorFile)
+    post makeResult(allTheCode, errorFile)
 
+def 
 
-    
+makeResult(allTheCode, errorFile string) :
+    "Codes used are:\n\n" + prettyList codesUsed + ..
+ .. "\n\nCodes defined are\n\n" + prettyList codesDefined
+given :
+    codesUsed := regexp.findAllString(`"[a-z]*\/[a-z\/]*"`, allTheCode, -1)
+    codesDefined := regexp.findAllString(`"[a-z]*\/[a-z\/]*"`, errorFile, -1)
+
+prettyList(L list) -> string :
+    "  ▪ " + strings.Join(L, "\n  ▪ ")
