@@ -368,9 +368,8 @@ func (sv *Service) ToLiteral(v Value) string {
 
 // Converts a `Value` to a string using Pipefish's `string` function.
 func (sv *Service) ToString(v Value) string {
-	return sv.cp.Vm.Literal(v)
+	return sv.cp.Vm.DefaultDescription(v)
 }
-
 
 // Returns `true` if the `Value` is a clone.
 func (sv *Service) IsClone(v Value) bool {

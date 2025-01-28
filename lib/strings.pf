@@ -51,12 +51,12 @@ indexAny(s, chars string) -> int : golang {
 
 join(elems list, sep string) : golang {
     strL := make([]string, len(elems))
-    for _, elem := range elems {
+    for i, elem := range elems {
         strElem, ok := elem.(string)
         if !ok {
             return errors.New("non-string element in list")
         }
-        strL = append(strL, strElem)
+        strL[i] = strElem
     }
     return strings.Join(strL, sep)
 }
