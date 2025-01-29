@@ -9,7 +9,7 @@ import
 
 cmd
 
-init :
+main :
     global $moduleDirectory
     errorFile = ""
     get filenames from Filenames($moduleDirectory, RECURSIVE)
