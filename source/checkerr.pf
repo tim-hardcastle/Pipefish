@@ -25,9 +25,9 @@ main :
 
 def 
 
-makeResult( errorFile, allTheOtherCode string) :
+makeResult(errorFile, allTheOtherCode string) :
     "Codes used but not defined are:\n\n" + prettySet(usedSet - definedSet) + ..
- .. "\n\nCodes used more than once are\n\n" + prettySet(dulpicates) + .. 
+ .. "\n\nCodes used more than once are\n\n" + prettySet(duplicates) + .. 
  .. "\n\nCodes defined but not used are\n\n" + prettySet(usedSet - definedSet)
 given :
     definedList = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, errorFile, -1)
