@@ -6,9 +6,9 @@ Error = struct(errorCode, errorText string)
 
 Time = struct(year, month, day, hour, minute, second, nanosecond int, location string)
 
-$LoggingScope = enum $NONE, $SELECTED, $ALL
+$Logging = enum $NONE, $SELECTED, $ALL
 
-$Logging = struct(loggingScope $LoggingScope)
+$Output = enum $LITERAL, $STRING 
 
 def
 

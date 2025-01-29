@@ -165,12 +165,3 @@ where(errorNo int) :
 why(errorNo int) :
     HubResponse("why", [string errorNo])
 
-cmd
-
-serial on :
-    global display
-    display = LITERAL
-
-serial off :
-    global display
-    display = STRING

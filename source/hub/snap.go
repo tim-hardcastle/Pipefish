@@ -74,7 +74,7 @@ func (sn *Snap) Save(st string) string {
 
 func MakeSnapIo(sv *pf.Service, out io.Writer, sn *Snap) (*snapInHandler, *snapOutHandler) {
 	iH := snapInHandler{stdIn: pf.MakeTerminalInHandler(""), snap: sn}
-	oH := snapOutHandler{stdOut: sv.MakeLiteralWritingOutHandler(out), snap: sn}
+	oH := snapOutHandler{stdOut: sv.MakeWritingOutHandler(out), snap: sn}
 	return &iH, &oH
 }
 
@@ -122,7 +122,7 @@ func snapFunctionMaker(sv *pf.Service) func(pf.Value) []byte {
 
 func MakeTestIoHandler(sv *pf.Service, out io.Writer, scanner *bufio.Scanner, testOutputType TestOutputType) (*TestInHandler, *TestOutHandler) {
 	iH := &TestInHandler{out: out, stdIn: pf.MakeTerminalInHandler(""), scanner: scanner, testOutputType: testOutputType}
-	oH := &TestOutHandler{sv: sv, stdOut: sv.MakeLiteralWritingOutHandler(out), scanner: scanner, testOutputType: testOutputType}
+	oH := &TestOutHandler{sv: sv, stdOut: sv.MakeWritingOutHandler(out), scanner: scanner, testOutputType: testOutputType}
 	return iH, oH
 }
 

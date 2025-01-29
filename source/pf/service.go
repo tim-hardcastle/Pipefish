@@ -136,34 +136,28 @@ func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
 	return vm.MakeSimpleInHandler(in)
 }
 
-// Method makes an `OutHandler` which applies Pipefish's `literal` function
-// to the value and then writes the result to the supplied `io.Writer`.
-func (sv *Service) MakeLiteralWritingOutHandler(out io.Writer) *SimpleOutHandler {
-	return vm.MakeSimpleOutHandler(out, sv.cp.Vm, true)
+// Method makes an `OutHandler` which applies Pipefish's `literal` or `string` 
+// function to the value and then writes the result to the supplied `io.Writer`.
+func (sv *Service) MakeWritingOutHandler(out io.Writer) *SimpleOutHandler {
+	return vm.MakeSimpleOutHandler(out, sv.cp.Vm)
 }
 
-// Makes an `OutHandler` which applies Pipefish's `string` function
-// to the value and then writes the result to the supplied `io.Writer`.
-func (sv *Service) MakeStringWritingOutHandler(out io.Writer) *SimpleOutHandler {
-	return vm.MakeSimpleOutHandler(out, sv.cp.Vm, false)
-}
 
-// Makes an `OutHandler` which applies Pipefish's `literal` function
-// to the value and then writes the result to the terminal.
-func (sv *Service) MakeLiteralTerminalOutHandler(out io.Writer) *SimpleOutHandler {
-	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
-}
-
-// Makes an `OutHandler` which applies Pipefish's `string` function to the value and
-// then writes the result to the terminal.
-func (sv *Service) MakeStringTerminalOutHandler(out io.Writer) *SimpleOutHandler {
-	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm, false)
+// Method makes an `OutHandler` which applies Pipefish's `literal` or `string` 
+// function to the value and then writes the result to the supplied `io.Writer`.
+func (sv *Service) MakeTerminalOutHandler(out io.Writer) *SimpleOutHandler {
+	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm)
 }
 
 // Makes an `InHandler` which will get input from the terminal using the string supplied
 // to prompt the end user.
 func MakeTerminalInHandler(prompt string) *TerminalInHandler {
 	return vm.MakeStandardInHandler(prompt)
+}
+
+// Outputs a value via the outhandler.
+func (sv *Service) Output(v Value) {
+	sv.cp.Vm.OutHandle.Out(v)
 }
 
 // Makes other services visible to the service, as though they were running

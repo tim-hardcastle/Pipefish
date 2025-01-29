@@ -1,17 +1,5 @@
 cmd
 
-zort(b bool) :
-    x = 0
-    b :
-        x = x + 1
-    else :
-        x = x + 2
-    x = x + 5
-    post x
+init :
+    $output = $STRING
 
-qux(b bool) :
-    x = 0
-    b :
-        x = x + 1
-    x = x + 5
-    post x

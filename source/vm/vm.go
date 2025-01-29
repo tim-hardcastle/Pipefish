@@ -38,6 +38,7 @@ type Vm struct {
 	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
+	LocationOfOutputFlavor     uint32 // Where we keep the value of the `$output` service variable.
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
@@ -131,7 +132,7 @@ func BlankVm(db *sql.DB) *Vm {
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
 	}
-	vm.OutHandle = &SimpleOutHandler{os.Stdout, vm, false}
+	vm.OutHandle = &SimpleOutHandler{os.Stdout, vm}
 	copy(vm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
 		vm.ConcreteTypeInfo = append(vm.ConcreteTypeInfo, BuiltinType{name: name})
@@ -944,7 +945,11 @@ loop:
 		case Outp:
 			vm.OutHandle.Out(vm.Mem[args[0]])
 		case Outt:
-			fmt.Println(vm.Literal(vm.Mem[args[0]]))
+			if vm.Mem[vm.LocationOfOutputFlavor].V.(int) == 0 {
+				fmt.Println(vm.Literal(vm.Mem[args[0]]))
+			} else {
+				fmt.Println(vm.DefaultDescription(vm.Mem[args[0]]))
+			}
 		case Psnp: // Only for if you 'post HTML' or 'post SQL'.
 			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
 			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.

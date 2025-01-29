@@ -220,16 +220,9 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
 	} else {
-		var out string
-		v, _ := hub.services["hub"].GetVariable("display")
-		if v.V.(int) == 0 || hub.currentServiceName() == "#snap" {
-			out = serviceToUse.ToLiteral(val)
-		} else {
-			out = serviceToUse.ToString(val)
-		}
-		hub.WriteString(out)
+		serviceToUse.Output(val)
 		if hub.currentServiceName() == "#snap" {
-			hub.snap.AddOutput(out)
+			hub.snap.AddOutput(serviceToUse.ToLiteral(val))
 		}
 	}
 	return passedServiceName, false
@@ -567,14 +560,17 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.snap = NewSnap(scriptFilepath, testFilepath)
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
-			ServiceDo(hub.services["#snap"], "$view = \"\"")
+			snapService := hub.services["#snap"]
+			ty, _ := snapService.TypeNameToType("$Output")
+			snapService.SetVariable("$output",  ty, 0)
 			hub.WriteString("Serialization is ON.\n")
-			in, out := MakeSnapIo(hub.services["#snap"], hub.out, hub.snap)
-			currentService := hub.services[hub.currentServiceName()]
+			in, out := MakeSnapIo(snapService, hub.out, hub.snap)
+			currentService := snapService
 			currentService.SetInHandler(in)
 			currentService.SetOutHandler(out)
+		} else {
+			hub.WriteError("failed to start snap")
 		}
-
 		return false
 	case "snap-good":
 		if hub.currentServiceName() != "#snap" {
@@ -993,7 +989,6 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 
 var prefix = `newtype
 
-TextDisplayMode = enum LITERAL, STRING
 DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
                     .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
@@ -1043,10 +1038,7 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")
 	buf.WriteString(hubService.ToLiteral(hub.getSV("isLive")))
-	buf.WriteString("\n")
-	buf.WriteString("display = ")
-	buf.WriteString(hubService.ToLiteral(hub.getSV("display")))
-	buf.WriteString("\n")
+	buf.WriteString("\n\n")
 	buf.WriteString("width = ")
 	buf.WriteString(hubService.ToLiteral(hub.getSV("width")))
 	buf.WriteString("\n\n")
@@ -1175,14 +1167,15 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 		hub.WriteError("Can't initialize script '" + scriptFilepath + "'")
 		return
 	}
-	in, out := MakeTestIoHandler(hub.services["#test"], hub.out, scanner, testOutputType)
-	hub.services["#test"].SetInHandler(in)
-	hub.services["#test"].SetOutHandler(out)
+	testService := hub.services["#test"]
+	in, out := MakeTestIoHandler(testService, hub.out, scanner, testOutputType)
+	testService.SetInHandler(in)
+	testService.SetOutHandler(out)
 	if testOutputType == ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
-	ServiceDo((*hub).services["#test"], "$view = \"\"")
-	testService := (*hub).services["#test"]
+	ty, _ := testService.TypeNameToType("$Output")
+	testService.SetVariable("$output",  ty, 0)
 	_ = scanner.Scan() // eats the newline
 	executionMatchesTest := true
 	for scanner.Scan() {

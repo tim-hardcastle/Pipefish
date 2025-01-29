@@ -1,6 +1,5 @@
 newtype
 
-TextDisplayMode = enum LITERAL, STRING
 DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
                     .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
@@ -13,7 +12,7 @@ allServices = map(`hub`::`hub/hub.hub`)
 currentService string? = NULL
 
 isLive = true
-display = STRING
+
 width = 92
 
 database Database? = NULL

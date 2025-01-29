@@ -42,18 +42,17 @@ func (iH *SimpleInHandler) Get() string {
 type SimpleOutHandler struct {
 	output  io.Writer
 	vm      *Vm
-	literal bool
 }
 
-func MakeSimpleOutHandler(out io.Writer, vm *Vm, literal bool) *SimpleOutHandler {
-	return &SimpleOutHandler{out, vm, literal}
+func MakeSimpleOutHandler(out io.Writer, vm *Vm) *SimpleOutHandler {
+	return &SimpleOutHandler{out, vm}
 }
 
 func (oH *SimpleOutHandler) Out(v values.Value) {
-	if oH.literal {
+	if oH.vm.Mem[oH.vm.LocationOfOutputFlavor].V.(int) == 0 {
 		oH.output.Write([]byte(oH.vm.Literal(v)))
 	} else {
-		oH.output.Write([]byte(oH.vm.Literal(v)))
+		oH.output.Write([]byte(oH.vm.DefaultDescription(v)))
 	}
 	oH.output.Write([]byte{'\n'})
 }
@@ -64,7 +63,7 @@ func (oH *SimpleOutHandler) Write(s string) {
 
 func MakeCapturingOutHandler(vm *Vm) *CapturingOutHandler {
 	buffer := bytes.NewBuffer(nil)
-	simpleHandler := MakeSimpleOutHandler(buffer, vm, true)
+	simpleHandler := MakeSimpleOutHandler(buffer, vm)
 	return &CapturingOutHandler{simpleHandler, buffer}
 }
 
