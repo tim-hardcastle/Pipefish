@@ -29,8 +29,8 @@ makeResult(allTheCode, errorFile string) :
     "Codes used are:\n\n" + prettyList(codesUsed) + ..
  .. "\n\nCodes defined are\n\n" + prettyList(codesDefined)
 given :
-    codesUsed = regexp.findAllString(`"[a-z]*\/[a-z\/]*"`, allTheCode, -1)
-    codesDefined = regexp.findAllString(`"[a-z]*\/[a-z\/]*"`, errorFile, -1)
+    codesUsed = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, allTheCode, -1)
+    codesDefined = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, errorFile, -1)
 
 prettyList(L list) -> string :
     "  ▪ " + strings.join(L, "\n  ▪ ")
