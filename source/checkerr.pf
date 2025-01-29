@@ -11,26 +11,38 @@ cmd
 
 init :
     global $moduleDirectory
-    get filenames from Filenames($moduleDirectory, RECURSIVE)
-    allTheCode = "" // We can just put all the code in one string except the errorfile.
     errorFile = ""
+    get filenames from Filenames($moduleDirectory, RECURSIVE)
+    allTheOtherCode = "" // We can just put all the code in one string except the errorfile.
     for _::filename = range filenames :
         filepath.ext(filename) == ".go" :
             get code from File(filename)
             filepath.base(filename) == "errorfile.go" :
                 errorFile = code
             else :
-                allTheCode = allTheCode + code
-    post makeResult(allTheCode, errorFile)
+                allTheOtherCode = allTheCode + code
+    post makeResult(errorFile, allTheOtherCode)
 
 def 
 
-makeResult(allTheCode, errorFile string) :
-    "Codes used are:\n\n" + prettyList(codesUsed) + ..
- .. "\n\nCodes defined are\n\n" + prettyList(codesDefined)
+makeResult( errorFile, allTheOtherCode string) :
+    "Codes used but not defined are:\n\n" + prettySet(usedSet - definedSet) + ..
+ .. "\n\nCodes used more than once are\n\n" + prettySet(dulpicates) + .. 
+ .. "\n\nCodes defined but not used are\n\n" + prettySet(usedSet - definedSet)
 given :
-    codesUsed = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, allTheCode, -1)
-    codesDefined = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, errorFile, -1)
+    definedList = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, errorFile, -1)
+    definedSet = set(definedList ...)
+    usedList = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, allTheOtherCode, -1)
+    usedSet, duplicates = getDuplicates(usedList)
 
-prettyList(L list) -> string :
-    "  ▪ " + strings.join(L, "\n  ▪ ")
+getDuplicates(L list) :
+    from a, dups = set(), set() for _, v = range L :
+        v in a :
+            a, dups + set(v)
+        else :
+            a + set(v), dups 
+
+prettySet(S set) :
+    from a = "" for _::v = range S :
+        a + "\n  ▪ " + v 
+
