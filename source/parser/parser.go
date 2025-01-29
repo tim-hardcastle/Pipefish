@@ -920,6 +920,8 @@ func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
 			left = append(left, &ast.Bling{Value: start.Operator, Token: start.Token})
 			return left
 		}
+	case *ast.Nothing:
+		return []ast.Node{}
 	}
 	return []ast.Node{start}
 }
