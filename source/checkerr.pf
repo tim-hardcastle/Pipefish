@@ -11,16 +11,16 @@ cmd
 
 main :
     global $moduleDirectory
-    errorFile = ""
     get filenames from Filenames($moduleDirectory, RECURSIVE)
-    allTheOtherCode = "" // We can just put all the code in one string except the errorfile.
+    errorFile = ""
+    allTheOtherCode = ""
     for _::filename = range filenames :
         filepath.ext(filename) == ".go" :
             get code from File(filename)
             filepath.base(filename) == "errorfile.go" :
                 errorFile = code
             else :
-                allTheOtherCode = allTheCode + code
+                allTheOtherCode = allTheOtherCode + code
     post makeResult(errorFile, allTheOtherCode)
 
 def 
@@ -45,4 +45,3 @@ getDuplicates(L list) :
 prettySet(S set) :
     from a = "" for _::v = range S :
         a + "\n  ▪ " + v 
-
