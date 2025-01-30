@@ -88,6 +88,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"subtract_floats":           {(*Compiler).btSubtractFloats, AltType(values.FLOAT)},
 	"struct_with":               {(*Compiler).btStructWith, AltType()},
 	"subtract_integers":         {(*Compiler).btSubtractIntegers, AltType(values.INT)},
+	"subtract_sets":             {(*Compiler).btSubtractSets, AltType(values.SET)},
 	"tuple_of_tuple":            {(*Compiler).btTupleOfTuple, AltType()}, // Since we can't know the typeschemes in advance, these are kludged in by the seekFunctionCall method.
 	"tuple_of_varargs":          {(*Compiler).btTupleOfVarargs, AltType()},
 	"type":                      {(*Compiler).btType, AltType(values.TYPE)},
@@ -399,6 +400,10 @@ func (cp *Compiler) btSubtractFloats(tok *token.Token, dest uint32, args []uint3
 
 func (cp *Compiler) btSubtractIntegers(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Subi, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btSubtractSets(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.SubS, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btTupleOfTuple(tok *token.Token, dest uint32, args []uint32) {

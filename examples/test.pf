@@ -17,6 +17,9 @@ V tuple = tuple(1)
 W tuple = tuple("zort")
 X tuple = "a", "b", "c"
 
+x = set(1, 2, 3)
+y = set(3, 4, 5)
+
 const 
 
 Z tuple = "a", "b", "c"

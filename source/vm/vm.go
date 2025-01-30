@@ -1282,6 +1282,10 @@ loop:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) - vm.Mem[args[2]].V.(float64)}
 		case Subi:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
+		case SubS:
+			result := vm.Mem[args[1]].V.(values.Set)
+			result.Subtract(vm.Mem[args[2]].V.(values.Set))
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case Thnk:
 			vm.Mem[args[0]] = values.Value{values.THUNK, values.ThunkValue{args[1], args[2]}}
 		case Tplf:

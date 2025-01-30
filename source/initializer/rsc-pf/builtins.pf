@@ -45,6 +45,7 @@ def
 - (x int) -> int : builtin "negate_integer"
 (x float) - (y float) -> float : builtin "subtract_floats"
 (x int) - (y int) -> int : builtin "subtract_integers"
+(x set) - (y set) -> set : builtin "subtract_sets"
 (x type) / (y type) -> any : builtin "type_union"
 
 // Ordinary functions are in order of their function name.
