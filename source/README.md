@@ -12,13 +12,13 @@ It does this by interacting with the `Service` class defined in the `pf` package
 
 ## The `pf` package
 
-The `pf.Service` class exists to encapsulate services and provide nice clean public methods for dealing with them. This gives a nice way for other people to embed Pipefish services in Go code, since they can then just import it `pf` as a library.
+The `pf.Service` class exists to encapsulate services and provide clean public methods for dealing with them. This gives a nice way for other people to embed Pipefish services in Go code, since they can then just import it `pf` as a library.
 
 ## The `initializer` package
 
 We will give a longer explanation of initialization in the README of the initializer. For now, the important point to grasp is that while there is only one VM per project, there is a separate initializer, compiler, and parser for every module of the project. There is no one uberclass in charge of this, rather the first initializer, if there are imports or external services, will spawn further initializers (each with their own compiler and parser), and so on recursively.
 
-What is finally returned is a `Compiler`, which is then wrapped in a `Service` type by the `pf` package. We will discuss the `Compiler` below. The `initializer` can then be disposed of together with the initialization-time data.
+What is finally returned is a `Compiler`, which is then wrapped in a `Service` type by the `pf` package. We will discuss the `Compiler` below. The `Initializer` can then be disposed of together with the initialization-time data.
 
 The initializer doesn't operate on the VM directly: rather it directs the compiler's interactions with the VM.
  

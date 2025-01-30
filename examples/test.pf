@@ -1,5 +1,17 @@
-cmd
+def 
 
-init :
-    $output = $STRING
+foo() :
+    "foo" 
+
+qux : 
+    "qux" 
+
+zort(t ... any?) :
+    len(t)
+
+var 
+
+T tuple = ()
+U tuple = 1, 2, 3
+V tuple = (1::2, 3::4)
 

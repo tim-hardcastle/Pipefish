@@ -229,6 +229,10 @@ loop:
 					vm.Mem[paramNumber] = values.Value{values.TUPLE, []values.Value{}}
 					varargsTime = true
 				}
+				if varargsTime && len(args) <= argNumber { // Then we have no more arguments but may be supplying an empty varargs.
+					paramNumber++
+					continue
+				}
 				v := vm.Mem[args[argNumber]]
 				if v.T == values.TUPLE && tupleOrVarargsData[torvIndex] != 2 { // Then we're exploding a tuple.
 					tup := v.V.([]values.Value)
