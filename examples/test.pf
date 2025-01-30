@@ -1,16 +1,13 @@
 def 
 
-foo() :
-    "foo 0"
-
 foo(i int) :
-    "foo 1"
+    "foo"
 
 zort(t ... any?) :
     len(t)
 
-zort(i int) :
-    "int with zort"
+troz(i, j, k int) :
+    "troz"
 
 var 
 
@@ -18,4 +15,8 @@ T tuple = ()
 U tuple = 1, 2, 3
 V tuple = tuple(1)
 W tuple = tuple("zort")
+X tuple = "a", "b", "c"
 
+const 
+
+Z tuple = "a", "b", "c"

@@ -36,7 +36,7 @@ given :
     usedSet, duplicates = getDuplicates(usedList)
 
 getDuplicates(L list) :
-    from a, dups = set(), set() for _, v = range L :
+    from a, dups = set(), set() for _::v = range L :
         v in a :
             a, dups + set(v)
         else :
