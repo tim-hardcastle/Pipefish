@@ -1130,7 +1130,11 @@ loop:
 				loc = args[1]
 			}
 		case Qtpt:
-			slice := vm.Mem[args[0]].V.([]values.Value)[args[1]:]
+			vals := vm.Mem[args[0]].V.([]values.Value)
+			slice := []values.Value{}
+			if int(args[1]) <= len(vals) {
+				slice = vals[args[1]:]
+			}
 			for _, v := range slice {
 				var found bool
 				for _, t := range args[2 : len(args)-1] {

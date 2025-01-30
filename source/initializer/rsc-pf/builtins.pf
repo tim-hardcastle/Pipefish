@@ -81,7 +81,7 @@ map(x ... pair) -> map : makeMap(x)
 makeMap(x tuple) -> map : builtin "make_map"
 pair(x pairlike) -> pair : builtin "cast_to_pair"
 rune(x int) -> rune : builtin "rune"
-// set(x setlike) -> set : builtin "cast_to_set"
+set(x setlike) -> set : builtin "cast_to_set"
 set(x ... any?) -> set : makeSet(x)
 makeSet(x tuple) -> set : builtin "make_set"   
 // string(x stringlike) -> string : builtin "cast_to_string"        

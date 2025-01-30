@@ -1,17 +1,21 @@
 def 
 
 foo() :
-    "foo" 
+    "foo 0"
 
-qux : 
-    "qux" 
+foo(i int) :
+    "foo 1"
 
 zort(t ... any?) :
     len(t)
+
+zort(i int) :
+    "int with zort"
 
 var 
 
 T tuple = ()
 U tuple = 1, 2, 3
-V tuple = (1::2, 3::4)
+V tuple = tuple(1)
+W tuple = tuple("zort")
 

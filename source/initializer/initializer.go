@@ -1697,7 +1697,10 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 		for _, branch := range tree.Branch {
 			if branch.Type.IsSubtypeOf(currentAbstractType) {
 				branch.Node = iz.addSigToTree(branch.Node, fn, pos+1)
-				if currentTypeName == "tuple" && !(branch.Type.Contains(values.TUPLE)) {
+				if (currentTypeName == "tuple") && !(branch.Type.Contains(values.TUPLE)) {
+					iz.addSigToTree(branch.Node, fn, pos)
+				}
+				if isVararg && !branch.IsVararg {
 					iz.addSigToTree(branch.Node, fn, pos)
 				}
 			}
