@@ -451,7 +451,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 				if typeDefined != declarationType(DUMMY) {
 					iz.addTokenizedDeclaration(typeDefined, line, IsPrivate)
 				} else {
-					iz.Throw("init/type/form", &tok)
+					iz.Throw("init/type/defined", &tok)
 				}
 			default:
 				panic("Unhandled section type.")
@@ -674,7 +674,7 @@ func (iz *initializer) initializeExternals() {
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
 		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.Common.HubCompilers)
 		if e != nil { // Then we couldn't open the file.
-			iz.Throw("init/external/file", declaration.GetToken(), e)
+			iz.Throw("init/external/file", declaration.GetToken(), path, e.Error())
 		}
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
@@ -936,7 +936,7 @@ func (iz *initializer) createClones() {
 					iz.Throw("init/request/map", &usingOrEof, op)
 				}
 			case values.PAIR:
-				iz.Throw("init/request/pair", &usingOrEof, op)
+				iz.Throw("init/request/pair", &usingOrEof)
 			case values.SET:
 				switch op {
 				case "+":
@@ -1790,8 +1790,8 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 								iz.p.Throw("init/depend/cmd", dec.chunk.GetToken())
 								return nil
 							}
-							if rhsDec.decType == variableDeclaration {
-								iz.p.Throw("init/depend/const/var", dec.chunk.GetToken())
+							if rhsDec.decType == variableDeclaration && dec.decType != variableDeclaration{
+								iz.p.Throw("init/depend/var", dec.chunk.GetToken())
 								return nil
 							}
 						}
@@ -1837,12 +1837,12 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 			decType := namesToDeclarations[svName][0].decType
 			decNumber := namesToDeclarations[svName][0].decNumber
 			if len(rhs) > 0 {
-				iz.p.Throw("init/service/depends", tok)
+				iz.p.Throw("init/service/depends", tok, svName)
 				return nil
 			}
 			iz.compileGlobalConstantOrVariable(decType, decNumber)
 			if svData.T != iz.cp.Vm.Mem[iz.cp.That()].T {
-				iz.p.Throw("init/service/type", tok)
+				iz.p.Throw("init/service/type", tok, svName, iz.cp.GetTypeNameFromNumber(svData.T))
 				return nil
 			}
 			delete(graph, svName)

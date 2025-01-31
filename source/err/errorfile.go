@@ -1225,12 +1225,45 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/assign/ident": {
+	"init/assign": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of assignment should be identifier"
+			return "expected assignment"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The left-hand side of an assignment operation names the things to be assigned to."
+			return "All you're meant to do in the 'var' and 'const' sections of " +
+			       "the code is assign variables and constants, respectively"
+		},
+	},
+
+	"init/clone/comma": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected comma-separated list"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When declaring a clone type, after 'using', Pipefish expects a comma-" +
+			       "separated list of operations that the type can use."
+		},
+	},
+
+	"init/clone/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't clone type " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Only the types 'float', 'int', 'list', 'map', 'pair', 'rune', " +
+			       "'set' and 'string' are cloneable."
+		},
+	},
+
+	"init/clone/using": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "was expecting end of line or 'using' keyword"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When defining a clone type, after giving the type of its parent " +
+			"you've either finished, or you can go on to request operations for it, which "+
+			"consists of the word 'using' followed by a comma-separated list of the " +
+			"operations you want to use."
 		},
 	},
 
@@ -1246,6 +1279,25 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				"    (foo\n" +
 				"bar\n\n|-\n\n" + "This violates the nesting rules in just the same way " +
 				"as the ']' in '(foo] bar'."
+		},
+	},
+
+	"init/depend/cmd": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "illegal dependency on command"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return  "Only a command can use another command as a dependency."
+		},
+	},
+
+	"init/depend/var": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "illegal dependency on global variable"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return  "Only a command or another variable declaration can use another " +
+			        "variable as a dependency."
 		},
 	},
 
@@ -1305,6 +1357,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return `The service you specified already exists on the hub and keeps its sourcecode in a different file from the one you specified.`
+		},
+	},
+
+	"init/external/file": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to open file " + emph(args[0]) + " with error " + emph(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This error very much means what it says. Pipefish tried to open the file " +
+			       "specified in the 'external' statement, and failed."
 		},
 	},
 
@@ -1440,6 +1502,57 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/interface/colon": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The only thing Pipefish was expecting to see after 'interface' is a colon."
+		},
+	},
+
+	"init/interface/self": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "'self' missing in clause of interface"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The parts of an interface define what types fit it b referring to the " +
+			       "behavior of a pseudotype called 'self'. Any clause of this definition that " +
+				   "doesn't refer to 'self' would not in fact contribute to the definition of " +
+				   "the interface."
+		},
+	},
+
+	"init/name/exists/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "definition of " + emph(args[1]) + text.DescribePos((args[0]).(*token.Token)) +
+			       " conflicts with definition"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can't declare the same identifier twice!"
+		},
+	},
+
+	"init/name/exists/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "definition of " + emph(args[1]) + text.DescribePos((args[0]).(*token.Token)) +
+			       " conflicts with definition"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can't declare the same identifier twice!"
+		},
+	},
+
+	"init/name/exists/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "definition of " + emph(args[1]) + text.DescribePos((args[0]).(*token.Token)) +
+			       " conflicts with definition"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can't declare the same identifier twice!"
+		},
+	},
+
 	"init/overload/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "too much overloading: function '" + args[0].(string) + "' defined at@line " + strconv.Itoa(args[1].(int)) + "@conflicts with another version of the same function defined at"
@@ -1514,7 +1627,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "mismatching reference parameters in overloaded function"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "if you overload a function with reference parameters, then they must have the same number of reference parameters, at the start of the parameter list, or you will see this error."
+			return "If you overload a function with reference parameters, then they must have the same number of reference parameters, at the start of the parameter list, or you will see this error."
 		},
 	},
 
@@ -1542,21 +1655,90 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/request/float": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "clone of type " + emph("float") + " cannot request operation " + emph(args[0])
+			return "clone of " + emph("float") + " cannot request operation " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "A clone of " + emph("int") + " can only request the native operations suitable to that type, i.e. " +
+			return "A clone of " + emph("float") + " can only request the native operations suitable to that type, i.e. " +
 				emph("+") + ", " + emph("-") + ", " + emph("*") + ", and " + emph("/") + "."
 		},
 	},
 
 	"init/request/int": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "clone of type " + emph("int") + " cannot request operation " + emph(args[0])
+			return "clone of " + emph("int") + " cannot request operation " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A clone of " + emph("int") + " can only request the native operations suitable to that type, i.e. " +
-				emph("+") + ", " + emph("-") + ", " + emph("*") + ", " + emph("/") + ", and " + emph("%") + "."
+				emph("+") + ", " + emph("-") + ", " + emph("*") + emph("div") + ", " + ", and " + emph("mod") + "."
+		},
+	},
+
+	"init/request/list": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of " + emph("list") + " cannot request operation " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A clone of " + emph("list") + " can only request the native operations suitable to that type, i.e. " +
+				emph("+") + ", " + emph("with") + ", " + emph("?>") + emph(">>") + ", " + ", and " + emph("slice") + "."
+		},
+	},
+
+	"init/request/map": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of " + emph("map") + " cannot request operation " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A clone of " + emph("map") + " can only request the native operations suitable to that type, i.e. " +
+				emph("with") + " and " + emph("without") + "."
+		},
+	},
+
+	"init/request/pair": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of " + emph("pair") + " cannot request operations"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Since the " + emph("pair") + " type has no native operations besides " +
+			       "indexing, which you get for free, there's nothing to request."
+		},
+	},
+
+	"init/request/set": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of " + emph("set") + " cannot request operation " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A clone of " + emph("int") + " can only request the native operations suitable to that type, i.e. " +
+				emph("+") + " and " + emph("-") + "."
+		},
+	},
+
+	"init/request/string": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "clone of " + emph("string") + " cannot request operation " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A clone of " + emph("string") + " can only request the native operations suitable to that type, i.e. " +
+				emph("+") + " and " + emph("slice") + "."
+		},
+	},
+
+	"init/service/depends": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "service variable " + emph(args[0]) + " has illegal dependencies"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As service variables are initialized before anything else, they shouldn't" +
+			       "depend on anything else you define in your code."
+		},
+	},
+
+	"init/service/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "service variable " + emph(args[0]) + " should have type " + emph(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The fact that you can redeclare service variables doesn't mean you can change their type."
 		},
 	},
 
@@ -1641,12 +1823,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/type/null": {
+	"init/type/defined": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "type name ends in " + emph("?")
+			return "redefinition of type"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Only an abstract type name can end in " + emph("?") + ", and even then only if the type contains " + emph("NULL") + "."
+			return "Each type can only be declared once."
 		},
 	},
 
