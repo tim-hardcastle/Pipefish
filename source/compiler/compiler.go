@@ -26,7 +26,7 @@ var TestFolder embed.FS
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	Vm                       *vm.Vm                                // The vm we're compiling to.
+	Vm                       *vm.Vm                             // The vm we're compiling to.
 	P                        *parser.Parser                     // The parser the compiler's using to parse with..
 	EnumElements             map[string]values.Value            // Map from the names of the enum elements the compiler knows about to their values.
 	GlobalConsts             *Environment                       // The global constants of the module.
@@ -40,7 +40,7 @@ type Compiler struct {
 	TypeToCloneGroup         map[values.ValueType]AlternateType // A map from any clonable or clone type to an alt type containing the parent type and its clones.
 	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
-	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.              
+	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -63,7 +63,7 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		CallHandlerNumbersByName: make(map[string]uint32),
 		TypeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
-		Common:					  ccb,
+		Common:                   ccb,
 	}
 	newC.pushRCompiler(newC)
 	return newC
@@ -84,8 +84,8 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
 		},
-		AnyTypeScheme:     AlternateType{},
-		AnyTuple:          AlternateType{},
+		AnyTypeScheme:       AlternateType{},
+		AnyTuple:            AlternateType{},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 	}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
@@ -1248,7 +1248,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 
 	if node.BoundVariables == nil {
 		if ctxt.Access != CMD && ctxt.Access != REPL {
-			cp.P.Throw("cp/for/bound/a", &node.Token)
+			cp.P.Throw("comp/for/bound/a", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken()) // If we don't have any bound variables, then this is presumptively an imperative loop and we'll need somewhere to put OK/break/error still.
@@ -1257,7 +1257,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		hasBoundVariables = true
 		// We set up the bound variables. Note that type checking happens *inside* the 'for' loop, not up here.
 		if node.BoundVariables.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("cp/for/assign", &node.Token)
+			cp.P.Throw("comp/for/assign", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Left
@@ -1302,7 +1302,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		// For the initializer we have to do something very un-DRYly like what we just did with the bound variables; TODO ---
 		// is there any way to DRY it up that doesn't obfuscate the code?
 		if node.Initializer.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("cp/for/init/a", &node.Token)
+			cp.P.Throw("comp/for/init/a", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Left
@@ -1858,7 +1858,6 @@ func (cp *Compiler) getLambdaStart() uint32 {
 }
 
 // A function for making snippet factories.
-
 
 func (cp *Compiler) reserveSnippetFactory(t string, env *Environment, fnNode *ast.SuffixExpression, ctxt Context) uint32 {
 	cp.Cm("Reserving snippet factory.", &fnNode.Token)
@@ -2771,5 +2770,3 @@ func (cp *Compiler) ReturnErrors() string {
 func altType(t ...values.ValueType) AlternateType {
 	return AltType(t...)
 }
-
-

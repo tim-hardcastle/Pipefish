@@ -659,7 +659,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				// It could have a Golang body.
 				if F.HasGo {
 					cp.cmP("Emitting Go function call.", b.tok)
-					convErrorLoc := cp.reserveError("go/conv/x", b.tok)
+					convErrorLoc := cp.reserveError("golang/conv/x", b.tok)
 					args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
 					cp.Emit(vm.Gofn, args...)
 					if len(branch.Node.Fn.NameRets) == 0 {

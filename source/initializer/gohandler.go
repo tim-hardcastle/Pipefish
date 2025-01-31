@@ -152,7 +152,7 @@ func (iz *initializer) compileGo() {
 			for i, pair := range function.NameSig {
 				if text.Head(pair.VarType, "...") {
 					if i < function.NameSig.Len()-1 {
-						iz.Throw("go/variadic", function.Tok)
+						iz.Throw("golang/variadic", function.Tok)
 					}
 				}
 			}

@@ -98,9 +98,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 			return "nil error"
 		}
 		ob := v.V.(*err.Error)
-		if ob.ErrorId != "eval/user" {
-			ob = err.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
-		}
+		ob = err.CreateErr(ob.ErrorId, ob.Token, ob.Args...)
 		return text.Pretty(text.RT_ERROR+ob.Message+text.DescribePos(ob.Token)+".", 0, 80)
 	case values.FLOAT:
 		return strconv.FormatFloat(v.V.(float64), 'f', 8, 64)
