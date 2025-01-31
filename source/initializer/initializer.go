@@ -942,6 +942,9 @@ func (iz *initializer) createClones() {
 				case "+":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
 					iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
+				case "-":
+					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
+					iz.makeCloneFunction("-", sig, "subtract_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)	
 				default:
 					iz.Throw("init/request/set", &usingOrEof, op)
 				}
@@ -1697,7 +1700,10 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 		for _, branch := range tree.Branch {
 			if branch.Type.IsSubtypeOf(currentAbstractType) {
 				branch.Node = iz.addSigToTree(branch.Node, fn, pos+1)
-				if currentTypeName == "tuple" && !(branch.Type.Contains(values.TUPLE)) {
+				if (currentTypeName == "tuple") && !(branch.Type.Contains(values.TUPLE)) {
+					iz.addSigToTree(branch.Node, fn, pos)
+				}
+				if isVararg && !branch.IsVararg {
 					iz.addSigToTree(branch.Node, fn, pos)
 				}
 			}
@@ -1797,16 +1803,17 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 		}
 	}
 	iz.cmI("Initializing service variables.")
+	// $We stick them in a map to be compiled below as private and variable. TODO --- think about this.
+	serviceVariables := make(map[string]values.Value)
 	// $logging
 	loggingOptionsType := values.ValueType(iz.cp.TypeNameToTypeScheme["$Logging"][0].(compiler.SimpleType))
-	loggingScopeType := values.ValueType(iz.cp.TypeNameToTypeScheme["$LoggingScope"][0].(compiler.SimpleType))
-	value := val(loggingOptionsType, []values.Value{{loggingScopeType, 1}})
-	serviceVariables["$logging"] = serviceVariableData{altType(loggingOptionsType), value, true, compiler.GLOBAL_CONSTANT_PRIVATE}
+	serviceVariables["$logging"] = val(loggingOptionsType, 1)
+	//$output
+	outputOptionsType := values.ValueType(iz.cp.TypeNameToTypeScheme["$Output"][0].(compiler.SimpleType))
+	serviceVariables["$output"] = val(outputOptionsType, 1)
 	// $cliDirectory
-	cliDirData := serviceVariables["$cliDirectory"]
 	dir, _ := os.Getwd()
-	cliDirData.deflt = val(values.STRING, dir)
-	serviceVariables["$cliDirectory"] = cliDirData
+	serviceVariables["$cliDirectory"] = val(values.STRING, dir)
 	// $cliArguments
 	cliArgs := vector.Empty
 	if len(os.Args) >= 2 {
@@ -1820,13 +1827,8 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 			}
 		}
 	}
-	cliArgsData := serviceVariables["$cliArguments"]
-	cliArgsData.deflt = val(values.LIST, cliArgs)
-	serviceVariables["$cliArguments"] = cliArgsData
-	// $moduleDirectory
-	moduleDirData := serviceVariables["$moduleDirectory"]
-	moduleDirData.deflt = val(values.STRING, filepath.Dir(iz.cp.ScriptFilepath))
-	serviceVariables["$moduleDirectory"] = moduleDirData
+	serviceVariables["$cliArguments"] = val(values.LIST, cliArgs)	
+	serviceVariables["$moduleDirectory"] = val(values.STRING, filepath.Dir(iz.cp.ScriptFilepath))
 	// Add variables to environment.
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
@@ -1834,32 +1836,23 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 			tok := namesToDeclarations[svName][0].chunk.GetToken()
 			decType := namesToDeclarations[svName][0].decType
 			decNumber := namesToDeclarations[svName][0].decNumber
-			if decType == variableDeclaration && svData.mustBeConst {
-				iz.p.Throw("init/service/const", tok)
-				return nil
-			}
 			if len(rhs) > 0 {
 				iz.p.Throw("init/service/depends", tok)
 				return nil
 			}
 			iz.compileGlobalConstantOrVariable(decType, decNumber)
-			if !svData.ty.Contains(iz.cp.Vm.Mem[iz.cp.That()].T) {
+			if svData.T != iz.cp.Vm.Mem[iz.cp.That()].T {
 				iz.p.Throw("init/service/type", tok)
 				return nil
 			}
 			delete(graph, svName)
 		} else {
 			dummyTok := token.Token{}
-			vAcc := svData.vAcc
-			envToAddTo := iz.cp.GlobalVars
-			if vAcc == compiler.GLOBAL_CONSTANT_PUBLIC || vAcc == compiler.GLOBAL_CONSTANT_PRIVATE {
-				envToAddTo = iz.cp.GlobalConsts
-			}
-			iz.cp.Reserve(svData.deflt.T, svData.deflt.V, &dummyTok)
-			iz.cp.AddVariable(envToAddTo, svName, vAcc, altType(svData.deflt.T), &dummyTok)
+			iz.cp.Reserve(svData.T, svData.V, &dummyTok)
+			iz.cp.AddVariable(iz.cp.GlobalVars, svName, compiler.GLOBAL_VARIABLE_PRIVATE, altType(svData.T), &dummyTok)
 		}
 	}
-
+	iz.cp.Vm.LocationOfOutputFlavor = iz.cp.GlobalVars.Data["$output"].MLoc
 	iz.cmI("Performing sort on digraph.")
 	order := graph.Tarjan()
 
@@ -2365,21 +2358,6 @@ type fnSigInfo struct {
 
 type interfaceInfo struct {
 	sigs []fnSigInfo
-}
-
-// TYpe and data for setting up service variables.
-type serviceVariableData struct {
-	ty          compiler.AlternateType
-	deflt       values.Value
-	mustBeConst bool
-	vAcc        compiler.VarAccess
-}
-
-var serviceVariables = map[string]serviceVariableData{
-	"$logging":      {altType(), values.Value{}, true, compiler.GLOBAL_VARIABLE_PRIVATE}, // The values have to be extracted from the compiler.
-	"$cliDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, compiler.GLOBAL_VARIABLE_PRIVATE},
-	"$cliArguments": {altType(values.LIST), values.Value{values.LIST, vector.Empty}, true, compiler.GLOBAL_VARIABLE_PRIVATE},
-	"$moduleDirectory": {altType(values.STRING), values.Value{values.STRING, ""}, true, compiler.GLOBAL_VARIABLE_PRIVATE},
 }
 
 // The maximum value of a `uint32`. Used as a dummy/sentinel value when `0` is not appropriate.

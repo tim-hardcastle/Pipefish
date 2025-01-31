@@ -56,12 +56,6 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	args := node.GetArgs()
 	env := ctxt.Env
 	ac := ctxt.Access
-	if len(args) == 1 {
-		switch args[0].(type) {
-		case *ast.Nothing:
-			args = []ast.Node{}
-		}
-	}
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.P.FunctionForest[node.GetToken().Literal].Tree,
 		outLoc:       cp.reserveError("vm/oopsie", node.GetToken()),
@@ -567,134 +561,154 @@ func (cp *Compiler) generateNextBranchDown(b *bindle) AlternateType {
 
 func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	cp.cmP("Called seekFunctionCall.", b.tok)
-	for _, branch := range b.treePosition.Branch {
-		if branch.Node.Fn != nil {
-			resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
-			fNo := branch.Node.Fn.Number
-			if resolvingCompiler != cp && fNo == DUMMY {
-				cp.cmP("Emitting interface backtracks", b.tok)
-				cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
-				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
-				args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
-				cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
-				cp.Emit(vm.Asgm, b.outLoc, DUMMY)
-				b.override = true
-				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
-			}
-			if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
-				cp.cmP("Undefined function. We're doing recursion!", b.tok)
-				cp.Emit(vm.Rpsh, b.lowMem, cp.MemTop())
-				cp.RecursionStore = append(cp.RecursionStore, BkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
-				cp.cmP("Emitting call opcode with dummy operands.", b.tok)
-				cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
-				cp.Emit(vm.Rpop)
-				cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
-				b.override = true              // We can't do constant folding on a dummy function call.
-				return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
-			}
-			F := resolvingCompiler.Fns[fNo]
-			if (b.access == REPL || b.libcall) && F.Private {
-				cp.cmP("REPL trying to access private function. Returning error.", b.tok)
-				cp.P.Throw("comp/private", b.tok)
-				return AltType(values.COMPILE_TIME_ERROR)
-			}
-			// Deal with the case where the function is a builtin.
-			builtinTag := F.Builtin
-			functionAndType, ok := BUILTINS[builtinTag]
-			if ok {
-				cp.cmP("Emitting builtin.", b.tok)
-				switch builtinTag { // Then for these we need to special-case their return types.
-				case "get_from_sql":
-					functionAndType.T = cp.Common.AnyTypeScheme
-				case "cast":
-					cp.Cm("Builtin is cast", b.tok)
-					functionAndType.T = altType(values.ERROR)
-					for _, ty := range typesAtIndex(b.types[0], 0) {
-						st := values.ValueType(ty.(SimpleType))
-						cp.Cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), vm.LITERAL), b.tok)
-						cp.Cm("Clone group is "+cp.TypeToCloneGroup[st].describe(cp.Vm), b.tok)
-						functionAndType.T = functionAndType.T.Union(cp.TypeToCloneGroup[st])
-					}
-				case "first_in_tuple":
-					if len(b.types) == 0 {
-						functionAndType.T = altType(values.COMPILE_TIME_ERROR)
-					} else {
-						functionAndType.T = typesAtIndex(b.types[0], 0)
-					}
-				case "last_in_tuple":
-					if len(b.types) == 0 {
-						functionAndType.T = altType(values.COMPILE_TIME_ERROR)
-					} else {
-						functionAndType.T = typesAtIndex(b.types[0], len(b.types)-1)
-					}
-				case "tuple_of_varargs":
-					functionAndType.T = AlternateType{FiniteTupleType{b.types[0]}}
-				case "tuple_of_tuple":
-					functionAndType.T = b.doneList
-				case "type_with":
-					functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
-				case "struct_with":
-					functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
+	// This outer loop is to deal with the possibility that we're not at the leaf of
+	// a tree, but there's a varargs as the next parameter, in which case we can move
+	// along that branch and try again.
+	var finished bool
+	for !finished { 
+		for _, branch := range b.treePosition.Branch {
+			if branch.Node.Fn != nil {
+				resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
+				fNo := branch.Node.Fn.Number
+				if resolvingCompiler != cp && fNo == DUMMY {
+					cp.cmP("Emitting interface backtracks", b.tok)
+					cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
+					cp.cmP("Emitting call opcode with dummy operands.", b.tok)
+					args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
+					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
+					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
+					b.override = true
+					return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
 				}
-				functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
-				return functionAndType.T
-			}
-			typeNumber, ok := cp.GetConcreteType(builtinTag)
-			// It might be a short-form struct constructor.
-			if ok && cp.IsStruct(builtinTag) {
-				cp.cmP("Emitting short form constructor.", b.tok)
-				args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
-				cp.Emit(vm.Strc, args...)
-				return AltType(typeNumber)
-			}
-			// It might be a clone type constructor.
-			if ok && cp.topRCompiler().isClone(builtinTag) {
-				cp.cmP("Emitting clone constructor.", b.tok)
-				cp.Emit(vm.Cast, b.outLoc, b.valLocs[0], uint32(typeNumber))
-				return AltType(typeNumber)
-			}
-			// It could have a Golang body.
-			if F.HasGo {
-				cp.cmP("Emitting Go function call.", b.tok)
-				convErrorLoc := cp.reserveError("go/conv/x", b.tok)
-				args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
-				cp.Emit(vm.Gofn, args...)
-				if len(branch.Node.Fn.NameRets) == 0 {
-					if F.Command {
-						return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
-					} else {
-						return cp.Common.AnyTypeScheme
+				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
+					cp.cmP("Undefined function. We're doing recursion!", b.tok)
+					cp.Emit(vm.Rpsh, b.lowMem, cp.MemTop())
+					cp.RecursionStore = append(cp.RecursionStore, BkRecursion{fNo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
+					cp.cmP("Emitting call opcode with dummy operands.", b.tok)
+					cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
+					cp.Emit(vm.Rpop)
+					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
+					b.override = true              // We can't do constant folding on a dummy function call.
+					return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
+				}
+				F := resolvingCompiler.Fns[fNo]
+				if (b.access == REPL || b.libcall) && F.Private {
+					cp.cmP("REPL trying to access private function. Returning error.", b.tok)
+					cp.P.Throw("comp/private", b.tok)
+					return AltType(values.COMPILE_TIME_ERROR)
+				}
+				// Deal with the case where the function is a builtin.
+				builtinTag := F.Builtin
+				functionAndType, ok := BUILTINS[builtinTag]
+				if ok {
+					cp.cmP("Emitting builtin.", b.tok)
+					switch builtinTag { // Then for these we need to special-case their return types.
+					case "get_from_sql":
+						functionAndType.T = cp.Common.AnyTypeScheme
+					case "cast":
+						cp.Cm("Builtin is cast", b.tok)
+						functionAndType.T = altType(values.ERROR)
+						for _, ty := range typesAtIndex(b.types[0], 0) {
+							st := values.ValueType(ty.(SimpleType))
+							cp.Cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), vm.LITERAL), b.tok)
+							cp.Cm("Clone group is "+cp.TypeToCloneGroup[st].describe(cp.Vm), b.tok)
+							functionAndType.T = functionAndType.T.Union(cp.TypeToCloneGroup[st])
+						}
+					case "first_in_tuple":
+						if len(b.types) == 0 {
+							functionAndType.T = altType(values.COMPILE_TIME_ERROR)
+						} else {
+							functionAndType.T = typesAtIndex(b.types[0], 0)
+						}
+					case "last_in_tuple":
+						if len(b.types) == 0 {
+							functionAndType.T = altType(values.COMPILE_TIME_ERROR)
+						} else {
+							functionAndType.T = typesAtIndex(b.types[0], len(b.types)-1)
+						}
+					case "tuple_of_varargs":
+						if len(b.types) == 0 {
+							functionAndType.T = AlternateType{FiniteTupleType{}}
+						} else {
+							functionAndType.T = AlternateType{FiniteTupleType{b.types[0]}}
+						}
+					case "tuple_of_tuple":
+						functionAndType.T = b.doneList
+					case "type_with":
+						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
+					case "struct_with":
+						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
 					}
+					functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
+					return functionAndType.T
 				}
-				if len(branch.Node.Fn.NameRets) == 1 {
-					return cp.GetAlternateTypeFromTypeName(branch.Node.Fn.NameRets[0].VarType)
+				typeNumber, ok := cp.GetConcreteType(builtinTag)
+				// It might be a short-form struct constructor.
+				if ok && cp.IsStruct(builtinTag) {
+					cp.cmP("Emitting short form constructor.", b.tok)
+					args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
+					cp.Emit(vm.Strc, args...)
+					return AltType(typeNumber)
 				}
-				// Otherwise it's a tuple.
-				tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
-				for _, v := range branch.Node.Fn.NameRets {
-					tt = append(tt, cp.GetAlternateTypeFromTypeName(v.VarType))
+				// It might be a clone type constructor.
+				if ok && cp.topRCompiler().isClone(builtinTag) {
+					cp.cmP("Emitting clone constructor.", b.tok)
+					cp.Emit(vm.Cast, b.outLoc, b.valLocs[0], uint32(typeNumber))
+					return AltType(typeNumber)
 				}
-				return AlternateType{FiniteTupleType{tt}}
-			}
-			// It could be a call to an external service.
-			if F.Xcall != nil {
-				cp.cmP("Emitting xcall.", b.tok)
-				var remainingNamespace string
-				vmArgs := make([]uint32, 0, len(b.valLocs)+5)
-				vmArgs = append(vmArgs, b.outLoc, F.Xcall.ExternalServiceOrdinal, F.Xcall.Position)
-				cp.Reserve(values.STRING, remainingNamespace, branch.Node.Fn.Body.GetToken())
-				vmArgs = append(vmArgs, cp.That())
-				cp.Reserve(values.STRING, F.Xcall.FunctionName, branch.Node.Fn.Body.GetToken())
-				vmArgs = append(vmArgs, cp.That())
-				vmArgs = append(vmArgs, b.valLocs...)
-				cp.Emit(vm.Extn, vmArgs...)
+				// It could have a Golang body.
+				if F.HasGo {
+					cp.cmP("Emitting Go function call.", b.tok)
+					convErrorLoc := cp.reserveError("go/conv/x", b.tok)
+					args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
+					cp.Emit(vm.Gofn, args...)
+					if len(branch.Node.Fn.NameRets) == 0 {
+						if F.Command {
+							return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
+						} else {
+							return cp.Common.AnyTypeScheme
+						}
+					}
+					if len(branch.Node.Fn.NameRets) == 1 {
+						return cp.GetAlternateTypeFromTypeName(branch.Node.Fn.NameRets[0].VarType)
+					}
+					// Otherwise it's a tuple.
+					tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
+					for _, v := range branch.Node.Fn.NameRets {
+						tt = append(tt, cp.GetAlternateTypeFromTypeName(v.VarType))
+					}
+					return AlternateType{FiniteTupleType{tt}}
+				}
+				// It could be a call to an external service.
+				if F.Xcall != nil {
+					cp.cmP("Emitting xcall.", b.tok)
+					var remainingNamespace string
+					vmArgs := make([]uint32, 0, len(b.valLocs)+5)
+					vmArgs = append(vmArgs, b.outLoc, F.Xcall.ExternalServiceOrdinal, F.Xcall.Position)
+					cp.Reserve(values.STRING, remainingNamespace, branch.Node.Fn.Body.GetToken())
+					vmArgs = append(vmArgs, cp.That())
+					cp.Reserve(values.STRING, F.Xcall.FunctionName, branch.Node.Fn.Body.GetToken())
+					vmArgs = append(vmArgs, cp.That())
+					vmArgs = append(vmArgs, b.valLocs...)
+					cp.Emit(vm.Extn, vmArgs...)
+					return F.RtnTypes
+				}
+				// Otherwise it's a regular old function call, which we do like this:
+				cp.cmP("Emitting call opcode.", b.tok)
+				resolvingCompiler.emitCallOpcode(fNo, b.valLocs)
+				cp.Emit(vm.Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
 				return F.RtnTypes
 			}
-			// Otherwise it's a regular old function call, which we do like this:
-			cp.cmP("Emitting call opcode.", b.tok)
-			resolvingCompiler.emitCallOpcode(fNo, b.valLocs)
-			cp.Emit(vm.Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
-			return F.RtnTypes
+		}
+		// We haven't found a function to call, but we may have a varargs parameter
+		// in which case we can move along that branch.
+		finished = true
+		for _, branch := range b.treePosition.Branch {
+			if branch.IsVararg {
+				finished = false
+				b.treePosition = branch.Node 
+				break
+			}
 		}
 	}
 	cp.cmP("Returning error.", b.tok)

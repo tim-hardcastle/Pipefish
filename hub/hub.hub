@@ -1,6 +1,5 @@
 newtype
 
-TextDisplayMode = enum LITERAL, STRING
 DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
                     .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
@@ -8,12 +7,13 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map(`hub`::`hub/hub.hub`)
+allServices = map(`hub`::`hub/hub.hub`,
+               .. `test`::`C:\Users\owner\Pipefish\examples\test.pf`)
 
-currentService string? = NULL
+currentService string? = `test`
 
 isLive = true
-display = STRING
+
 width = 92
 
 database Database? = NULL

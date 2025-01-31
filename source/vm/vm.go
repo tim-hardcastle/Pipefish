@@ -38,6 +38,7 @@ type Vm struct {
 	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
+	LocationOfOutputFlavor     uint32 // Where we keep the value of the `$output` service variable.
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
@@ -131,7 +132,7 @@ func BlankVm(db *sql.DB) *Vm {
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
 	}
-	vm.OutHandle = &SimpleOutHandler{os.Stdout, vm, false}
+	vm.OutHandle = &SimpleOutHandler{os.Stdout, vm}
 	copy(vm.Mem, CONSTANTS)
 	for _, name := range nativeTypeNames {
 		vm.ConcreteTypeInfo = append(vm.ConcreteTypeInfo, BuiltinType{name: name})
@@ -227,6 +228,10 @@ loop:
 				if tupleOrVarargsData[torvIndex] == 1 && !varargsTime {
 					vm.Mem[paramNumber] = values.Value{values.TUPLE, []values.Value{}}
 					varargsTime = true
+				}
+				if varargsTime && len(args) <= argNumber { // Then we have no more arguments but may be supplying an empty varargs.
+					paramNumber++
+					continue
 				}
 				v := vm.Mem[args[argNumber]]
 				if v.T == values.TUPLE && tupleOrVarargsData[torvIndex] != 2 { // Then we're exploding a tuple.
@@ -944,7 +949,11 @@ loop:
 		case Outp:
 			vm.OutHandle.Out(vm.Mem[args[0]])
 		case Outt:
-			fmt.Println(vm.Literal(vm.Mem[args[0]]))
+			if vm.Mem[vm.LocationOfOutputFlavor].V.(int) == 0 {
+				fmt.Println(vm.Literal(vm.Mem[args[0]]))
+			} else {
+				fmt.Println(vm.DefaultDescription(vm.Mem[args[0]]))
+			}
 		case Psnp: // Only for if you 'post HTML' or 'post SQL'.
 			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
 			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.
@@ -1121,7 +1130,11 @@ loop:
 				loc = args[1]
 			}
 		case Qtpt:
-			slice := vm.Mem[args[0]].V.([]values.Value)[args[1]:]
+			vals := vm.Mem[args[0]].V.([]values.Value)
+			slice := []values.Value{}
+			if int(args[1]) <= len(vals) {
+				slice = vals[args[1]:]
+			}
 			for _, v := range slice {
 				var found bool
 				for _, t := range args[2 : len(args)-1] {
@@ -1269,6 +1282,10 @@ loop:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) - vm.Mem[args[2]].V.(float64)}
 		case Subi:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) - vm.Mem[args[2]].V.(int)}
+		case SubS:
+			result := vm.Mem[args[1]].V.(values.Set)
+			result.Subtract(vm.Mem[args[2]].V.(values.Set))
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case Thnk:
 			vm.Mem[args[0]] = values.Value{values.THUNK, values.ThunkValue{args[1], args[2]}}
 		case Tplf:

@@ -20,19 +20,19 @@ find(pattern, text string) : golang {
 	return regObj.FindString(text)
 }
 
-findAll(pattern, text string) : golang {
+findAllString(pattern, text string, start int) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
 	}
-	return regObj.FindAllString(text, -1)
+	return regObj.FindAllString(text, start)
 }
 
-findAllIndex(pattern, text string) : golang {
+findAllIndex(pattern, text string, start int) : golang {
 	regObj, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
 	}
-	indices := regObj.FindAllStringIndex(text, -1)
+	indices := regObj.FindAllStringIndex(text, start)
     return indices
 }

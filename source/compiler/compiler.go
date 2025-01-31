@@ -1401,7 +1401,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 				}
 			}
 		} else {
-			cp.P.Throw("comp/for/range/c", node.Initializer.GetToken())
+			cp.P.Throw("comp/for/range/c", node.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 	default:

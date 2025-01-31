@@ -123,7 +123,7 @@ goPutStringInFile(output string, fname string) : golang {
 }
 
 get (contents ref) from (fileAccess File) : 
-    contents = "" // goGetFile(fileAccess[filepath])
+    contents = goGetFile(fileAccess[filepath])
 
 get (x ref) from (fileAccess FileExists) :
     x = false // goFileExists(fileAccess[filepath])

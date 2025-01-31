@@ -8,7 +8,6 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
 	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
@@ -94,11 +93,10 @@ func (cp *Compiler) loggingOn(ctxt Context) bool {
 }
 
 func (cp *Compiler) GetLoggingScope() int {
-	fields := cp.getValueOfConstant("$logging").([]values.Value)
-	return fields[0].V.(int)
+	return cp.getValueOfVariable("$logging").(int)
 }
 
-func (cp *Compiler) getValueOfConstant(s string) any {
-	varIs, _ := cp.GlobalConsts.GetVar(s)
+func (cp *Compiler) getValueOfVariable(s string) any {
+	varIs, _ := cp.GlobalVars.GetVar(s)
 	return cp.Vm.Mem[varIs.MLoc].V
 }
