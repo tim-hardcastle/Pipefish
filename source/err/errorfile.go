@@ -267,24 +267,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/call": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You have supplied the function with arguments of types for which no function of that name is defined."
-		},
-	},
-
-	"comp/command": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "trying to access a command " + emph(tok.Literal) + " from a function"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Functions can only call other functions, whereas commands can call both functions and commands."
-		},
-	},
-
 	"comp/continue": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "'continue' outside of 'for' loop"
@@ -328,15 +310,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Because of the types of the values you're trying to compare, the result, if compiled, could only ever produce a runtime error. Pipefish assumes that this is a mistake."
-		},
-	},
-
-	"comp/error/return": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "function can only return error"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This function is written so that it can never return anything but an error. Pipefish assumes that this is a mistake."
 		},
 	},
 
@@ -720,24 +693,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/loop/body": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "trying to return a value from an imperative loop"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The body of a loop should consist only of imperative instructions. It cannot return any value except an error."
-		},
-	},
-
-	"comp/loop/infinite": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "look cannot terminate"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This loop can neither return an error nor encounter a " + emph("break") + " statement, and so can never halt."
-		},
-	},
-
 	"comp/namespace/exist": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unknown namespace " + emph(args[0])
@@ -921,26 +876,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/splat/type": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "argument of '...' must be list or listlike, not " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The purpose of the splat operator '...' is to expand a list or " +
-			       "listlike value into a tuple. You're applying it to the wrong type."
-		},
-	},
-
-	"comp/snippet/form/a": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unmatched " + emph("|") + " in snippet constructor"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish interprets " + emph("| <expression> |") + " in a snippet constructor as meaning that the expression should be evaluated. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
-		},
-	},
-
-	"comp/snippet/form/b": {
+	"comp/snippet/form": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unmatched " + emph("|") + " in snippet constructor"
 		},
@@ -973,6 +909,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You declare a snippet of type " + emph("Foo") + " with " + emph("Foo ---") + "."
+		},
+	},
+
+	"comp/splat/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "argument of '...' must be list or listlike, not " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The purpose of the splat operator '...' is to expand a list or " +
+			       "listlike value into a tuple. You're applying it to the wrong type."
 		},
 	},
 
@@ -1073,34 +1019,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have written code which can't be reached because one of the previous branches " +
 				"must be taken. As there is never any point in doing this, Pipefish assumes that this is a mistake."
-		},
-	},
-
-	"comp/var/exist": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unknown identifier " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You don't seem to have declared that as a variable, function, constant, or anything else."
-		},
-	},
-
-	"comp/var/var": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "trying to change value of constant " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Having declared that value as constant, you are not allowed to change it. If you want to, define it in the " + emph("var") + " section instead."
-		},
-	},
-
-	"comp/varargs": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrence of " + emph("...")
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The " + emph("...") + " token is meaningful only in the signature of a function, command, or assignment, where '<parameterName> <typename>...' indicates " +
-				"that the parameter can accept any number of arguments of the given type, e.g. " + emph("foo(numbers int...)") + ". It is meaningless in an ordinary statement or expression."
 		},
 	},
 
@@ -1266,26 +1184,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A Pipefish function written in Go has failed to compile at initialization time."
-		},
-	},
-
-	"golang/found": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "couldn't find Go function '" + args[0].(string) + "'"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish's system for handling functions written in Go has broken down.\n\n" +
-				"There are no circumstances under which you should actually see this error: if you ever " +
-				"do, please err it to the author of Pipefish as an issue."
-		},
-	},
-
-	"golang/namespace": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "can't find namespace " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The Golang type converter can't find the specified namespace."
 		},
 	},
 

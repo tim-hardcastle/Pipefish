@@ -2160,7 +2160,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk vm
 	bindle := vm.SnippetBindle{Csk: csk}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
-		cp.P.Throw("comp/snippet/form/b", tok)
+		cp.P.Throw("comp/snippet/form", tok)
 		return &bindle
 	}
 	var buf strings.Builder
