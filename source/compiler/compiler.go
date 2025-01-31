@@ -220,7 +220,7 @@ NodeTypeSwitch:
 				cp.Cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
 					if !Equals(v.types, cp.GetAlternateTypeFromTypeName(sig[i].VarType)) {
-						cp.P.Throw("comp/assign/redefine/b", node.GetToken(), pair.VarName)
+						cp.P.Throw("comp/assign/type/b", node.GetToken(), pair.VarName)
 						break NodeTypeSwitch
 					}
 				}
@@ -832,7 +832,7 @@ NodeTypeSwitch:
 		}
 		if node.Token.Type == token.BREAK {
 			if !cp.forDataExists() { // Then we're not in a 'for' loop.
-				cp.P.Throw("comp/break", node.GetToken())
+				cp.P.Throw("comp/break/a", node.GetToken())
 				break NodeTypeSwitch
 			}
 			rtnTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt)
@@ -1257,17 +1257,17 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		hasBoundVariables = true
 		// We set up the bound variables. Note that type checking happens *inside* the 'for' loop, not up here.
 		if node.BoundVariables.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("cp/for/bound/b", &node.Token)
+			cp.P.Throw("cp/for/assign", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Left
 		rhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Right
 		boundSig, err := cp.P.RecursivelySlurpSignature(lhsOfBoundVariables, "*default*")
 		if err != nil {
-			cp.P.Throw("comp/for/bound/c", node.BoundVariables.GetToken())
+			cp.P.Throw("comp/for/bound", node.BoundVariables.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
-		cp.Cm("Finding intitial values of bound variables", tok)
+		cp.Cm("Finding initial values of bound variables", tok)
 		var isConst bool
 		boundVariableTypes, isConst = cp.CompileNode(rhsOfBoundVariables, ctxt)
 		if isConst { // Then we still need to initialize the index variables when we start the loop.
@@ -1554,7 +1554,7 @@ func (cp *Compiler) vmBreakWithValue(mLoc uint32) bkBreakWithValue {
 
 func (cp *Compiler) emitBreakWithoutValue(tok *token.Token) {
 	if len(cp.forData) == 0 {
-		cp.P.Throw("comp/break/continue", tok)
+		cp.P.Throw("comp/break/b", tok)
 		return
 	}
 	cp.addToForData(cp.vmBreakWithoutValue())

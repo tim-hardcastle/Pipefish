@@ -1977,7 +1977,7 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 		} else {
 			allowedTypes := iz.cp.GetAlternateTypeFromTypeName(sig[i].VarType)
 			if allowedTypes.IsNoneOf(head[i].T) {
-				iz.p.Throw("comp/assign/type", dec.GetToken(), sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
+				iz.p.Throw("comp/assign/type/a", dec.GetToken(), sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
 				return
 			} else {
 				iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())

@@ -146,7 +146,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/assign/type": {
+	"comp/assign/type/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "assigning a value of type " + emph(args[1]) + " to variable " + emph(args[0]) 
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are trying to assign a value to a variable when you have explicitly said " +
+			       "that the variable cannot contain values of that type"
+		},
+	},
+
+	"comp/assign/type/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "assigning a value of type " + emph(args[1]) + " to variable " + emph(args[0]) 
 		},
@@ -192,7 +202,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/bool/cond": {
+	"comp/bool/cond/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "left-hand side of conditional should be boolean expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the left-hand side of a conditional should be a boolean-valued expression."
+		},
+	},
+
+	"comp/bool/cond/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "left-hand side of conditional should be boolean expression"
 		},
@@ -225,6 +244,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+		},
+	},
+
+	"comp/break/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "'break' outside of 'for' loop"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The 'break' keyword really has no meaning outside of a 'for' loop, " +
+			       "since what it means is \"break out of the 'for' loop we're in\"."
+		},
+	},
+
+	"comp/break/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "'break' outside of 'for' loop"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The 'break' keyword really has no meaning outside of a 'for' loop, " +
+			       "since what it means is \"break out of the 'for' loop we're in\"."
 		},
 	},
 
@@ -344,6 +383,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/for/assign": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected assignment of bound variables"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting you to define the bound variables of the 'for' " +
+			       "loop here, but instead has found something else."
+		},
+	},
+
+	"comp/for/bound": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed declaration of bound variables"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting a declaration of variable names, and optionally their types " +
+			       "on the left hand side of the '=' sign, but insted has found something it can't make sense of."
+		},
+	},
+
 	"comp/for/exists/key": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "reassigning to variable " + emph(args[0])
@@ -352,6 +411,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "The index variables of a 'for' loop cannot have already been declared in the scope."
 		},
 	},
+
 
 	"comp/for/exists/value": {
 		Message: func(tok *token.Token, args ...any) string {
