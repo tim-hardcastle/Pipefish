@@ -285,6 +285,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/continue": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "'continue' outside of 'for' loop"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The 'continue' keyword really has no meaning outside of a 'for' loop, " +
+			       "since what it means is \"continue the 'for' loop we're in without changing the bound variables\"."
+		},
+	},
+
 	"comp/error/arg": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "expression can only return error"
@@ -337,40 +347,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish doesn't let you compare values of different types, on the grounds that " +
 				"this is more often a mistake than intentional."
-		},
-	},
-
-	"comp/given/cycle": {
-		Message: func(tok *token.Token, args ...any) string {
-			cycle := args[0].([]string)
-			var description string
-			if len(cycle) == 1 {
-				description = emph(cycle[0]) + " is defined in terms of itself"
-			} else {
-				sep := ""
-				for _, name := range cycle {
-					description = description + sep + emph(name)
-					if sep == "" {
-						sep = " is defined in terms of "
-					} else {
-						sep = ", which is defined in terms of "
-					}
-				}
-				description = description + ", which is defined in terms of " + emph(cycle[0])
-			}
-			return description + " in " + emph("given") + " block"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "It isn't possible to define variables in terms of each other because how would that even work?"
-		},
-	},
-
-	"comp/log/close": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unclosed " + emph("|") + " in logging expression"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish interprets " + emph("| <expression> |") + " in a logging expression as meaning that the expression should be evaluated and inserted into the string. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
 		},
 	},
 
@@ -432,6 +408,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+
 	"comp/for/bound/present": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "loop has no bound variables"
@@ -439,6 +416,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "In a function, a 'for' loop must have bound variables or there's no point in it " +
 			       "existing: all such a loop ever does is return the final value of the bound variables."
+		},
+	},
+
+	"comp/for/exists/index": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "reassigning to variable " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The index variables of a 'for' loop cannot have already been declared in the scope."
 		},
 	},
 
@@ -451,13 +437,115 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-
 	"comp/for/exists/value": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "reassigning to variable " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The index variables of a 'for' loop cannot have already been declared in the scope."
+		},
+	},
+
+	"comp/for/range/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed assignment of range"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expect the range of a 'for' loop to be assigned to a pair of " +
+			       "index variables separated by a '::' operator."
+		},
+	},
+
+	"comp/for/range/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed assignment of range"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expect the range of a 'for' loop to be assigned to a pair of " +
+			       "index variables separated by a '::' operator."
+		},
+	},
+
+	"comp/for/range/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed assignment of range"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish expect the range of a 'for' loop to be assigned to a pair of " +
+			       "index variables separated by a '::' operator."
+		},
+	},
+
+	"comp/for/range/discard": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "discarding both key and value of range"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish currently doesn't let you do this. It may be allowed in later " +
+			       "versions, since there is a marginal use-case."       // TODO.
+		},
+	},
+
+	"comp/for/range/types": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "ranging over invalid type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The argument of 'range' should be a type you can in fact range over, such as a list or a set."
+		},
+	},
+
+	"comp/given/assign": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed expression in 'given' block"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting either a function declaration or an assignment, and " +
+			       "this is neither."
+		},
+	},
+
+	"comp/given/cycle": {
+		Message: func(tok *token.Token, args ...any) string {
+			cycle := args[0].([]string)
+			var description string
+			if len(cycle) == 1 {
+				description = emph(cycle[0]) + " is defined in terms of itself"
+			} else {
+				sep := ""
+				for _, name := range cycle {
+					description = description + sep + emph(name)
+					if sep == "" {
+						sep = " is defined in terms of "
+					} else {
+						sep = ", which is defined in terms of "
+					}
+				}
+				description = description + ", which is defined in terms of " + emph(cycle[0])
+			}
+			return description + " in " + emph("given") + " block"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "It isn't possible to define variables in terms of each other because how would that even work?"
+		},
+	},
+
+	"comp/given/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "variable " + emph(args[0]) + " already exists"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish doesn't allow the variables declared in a 'given' block " +
+			"to \"shadow\" existing variables."
+		},
+	},
+
+	"comp/given/redeclared": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "variable " + emph(args[0]) + " defined twice"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You've tried to define the same variable twice on the left-hand side of the same assignment."
 		},
 	},
 
@@ -611,6 +699,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The expression you are trying to wrap in a list must evaluate to an error, and so trying to wrap it in a list would return an error rather than a list. Pipefish assumes that this is not what you want to do."
+		},
+	},
+
+	"comp/log/close": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unclosed " + emph("|") + " in logging expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish interprets " + emph("| <expression> |") + " in a logging expression as meaning that the expression should be evaluated and inserted into the string. It therefore expects the " + emph("|") + " symbols to come in matching pairs."
 		},
 	},
 

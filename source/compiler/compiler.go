@@ -1325,7 +1325,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		for i, pair := range indexSig {
 			_, exists := newEnv.GetVar(pair.VarName)
 			if exists {
-				cp.P.Throw("comp/for/index/exists", node.Initializer.GetToken())
+				cp.P.Throw("comp/for/exists/index", node.Initializer.GetToken(), pair.VarName)
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			cp.Reserve(values.UNDEFINED_TYPE, nil, tok)
@@ -1529,7 +1529,7 @@ func (cp *Compiler) resolveBreaksWithValue() {
 // Compile a `continue` in a `for loop`.
 func (cp *Compiler) emitContinue(tok *token.Token) {
 	if len(cp.forData) == 0 {
-		cp.P.Throw("comp/for/continue", tok)
+		cp.P.Throw("comp/continue", tok)
 		return
 	}
 	cp.addToForData(cp.vmContinue())
@@ -1704,7 +1704,7 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 		for _, pair := range lhsSig {
 			_, exists := ctxt.Env.GetVar(pair.VarName)
 			if exists {
-				cp.P.Throw("comp/given/exists", chunk.GetToken())
+				cp.P.Throw("comp/given/exists", chunk.GetToken(), pair.VarName)
 				return
 			}
 			nameToNode[pair.VarName] = assEx

@@ -873,7 +873,7 @@ loop:
 		case Logy:
 			vm.logging = true
 		case Mker:
-			vm.Mem[args[0]] = values.Value{values.ERROR, &err.Error{ErrorId: "eval/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
+			vm.Mem[args[0]] = values.Value{values.ERROR, &err.Error{ErrorId: "vm/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
 		case Mkfn:
 			lf := vm.LambdaFactories[args[1]]
 			newLambda := *lf.Model
