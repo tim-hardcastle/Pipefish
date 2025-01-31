@@ -7,6 +7,12 @@ import
 "regexp"
 "strings"
 
+const 
+
+// Things that have the right format to be error codes but aren't.
+FALSE_POSITIVES = set("database/sql", "encoding/json", "math/rand", "net/http", 
+                   .. "os/exec", "path/filepath")
+
 cmd
 
 main :
@@ -26,9 +32,9 @@ main :
 def 
 
 makeResult(errorFile, allTheOtherCode string) :
-    "Codes used but not defined are:\n\n" + prettySet(usedSet - definedSet) + ..
- .. "\n\nCodes used more than once are\n\n" + prettySet(duplicates) + .. 
- .. "\n\nCodes defined but not used are\n\n" + prettySet(usedSet - definedSet)
+    "Codes used but not defined are:\n" + prettySet(usedSet - definedSet - FALSE_POSITIVES) + ..
+ .. "\n\nCodes used more than once are\n" + prettySet(duplicates - FALSE_POSITIVES) + .. 
+ .. "\n\nCodes defined but not used are\n" + prettySet(usedSet - definedSet - FALSE_POSITIVES)
 given :
     definedList = regexp.findAllString(`"[a-z]+\/[a-z\/]+"`, errorFile, -1)
     definedSet = set(definedList ...)
