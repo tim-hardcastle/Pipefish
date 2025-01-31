@@ -105,14 +105,14 @@ var cloneConv = map[values.ValueType]string{
 // This produces the names of the field types in the struct declarations generated for the Go code.
 func (iz *initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
 	if aT.Len() > 1 {
-		iz.Throw("golang/type/concrete", INTEROP_TOKEN)
+		iz.Throw("golang/concrete/a", INTEROP_TOKEN)
 		return ""
 	}
 	typeNumber := aT.Types[0]
 	typeName := iz.cp.Vm.ConcreteTypeInfo[typeNumber].GetName(vm.DEFAULT)
 	goType, ok := getGoType(typeName)
 	if !ok {
-		iz.Throw("golang/type/illegal", INTEROP_TOKEN)
+		iz.Throw("golang/type/c", INTEROP_TOKEN, typeName)
 		return ""
 	}
 	return goType
@@ -128,7 +128,7 @@ func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast
 	case 1:
 		goType, ok := getGoType(function.NameRets[0].VarType)
 		if !ok {
-			iz.Throw("golang/param/a",function.Tok, function.NameRets[0].VarType)
+			iz.Throw("golang/type/a",function.Tok, function.NameRets[0].VarType)
 		}
 		fmt.Fprint(sb, goType, " ")
 	default:
@@ -143,7 +143,7 @@ func (iz *initializer) printSig(sb *strings.Builder, sig ast.StringSig, tok toke
 	for _, param := range sig {
 		goType, ok := getGoType(param.VarType)
 		if !ok {
-			iz.Throw("golang/param/b", &tok, param.VarType)
+			iz.Throw("golang/type/b", &tok, param.VarType)
 		}
 		fmt.Fprint(sb, sep, param.VarName)
 		if param.VarName != "" { // In which case it would be a return signature.

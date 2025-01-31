@@ -9,9 +9,10 @@ import
 
 const 
 
-// Things that have the right format to be error codes but aren't.
+// Things that have the right format to be error codes but aren't (or in the case of
+// 'vm/user', shouldn't have an error message).
 FALSE_POSITIVES = set(`"database/sql"`, `"encoding/json"`, `"math/rand"`, `"net/http"`, 
-                   .. `"os/exec"`, `"path/filepath"`, `"html/template"`)
+                   .. `"os/exec"`, `"path/filepath"`, `"html/template"`, `"vm/user"`)
 
 cmd
 

@@ -232,7 +232,7 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	iz.cmG("Creating goFile with filepath '" + goFile + "'\n\n", source)
 	file, err := os.Create(goFile)
 	if err != nil {
-		iz.Throw("golang/create", sourceToken, err.Error(), goFile)
+		iz.Throw("golang/create", sourceToken, err.Error())
 		return nil
 	}
 	file.WriteString(sb.String())
@@ -272,7 +272,7 @@ func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string
 		for structName := range structsToCheck {
 			for _, fieldType := range iz.cp.TypeInfoNow(structName).(vm.StructType).AbstractStructFields {
 				if fieldType.Len() != 1 {
-					iz.Throw("golang/type/concrete/a", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, vm.LITERAL))
+					iz.Throw("golang/concrete/b", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, vm.LITERAL))
 				}
 				typeOfField := iz.cp.GetTypeNameFromNumber(fieldType.Types[0])
 				switch fieldData := iz.cp.TypeInfoNow(typeOfField).(type) {

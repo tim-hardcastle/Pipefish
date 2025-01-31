@@ -1195,34 +1195,63 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"golang/conv/a": {
+	"golang/compile": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "failed to convert golang values."
+			return "failed to compile Go"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A Pipefish function written in Go has failed to compile at initialization time."
+		},
+	},
+
+	"golang/concrete/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "abstract type in signature of golang function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Only concrete types can appear in the signature of a golang function because " +
+			       "how would you convert an abstract type to Go?"
+		},
+	},
+
+	"golang/concrete/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "abstract type in signature of golang function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Only concrete types can appear in the signature of a golang function because " +
+			       "how would you convert an abstract type to Go?"
+		},
+	},
+
+	"golang/conv": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to convert golang values"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This error should not occur."
 		},
 	},
 
-	"golang/conv/b": {
+	"golang/create": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "failed to convert golang values."
+			return "failed to create .go file with error " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This error should not occur."
+			return "For some reason Pipefish was literally unable to write the file to disc."
 		},
 	},
 
-	"golang/conv/c": {
+	"golang/open/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "failed to convert golang values."
+			return "failed to open Go\n\nError was '" + args[0].(string) + "'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This error should not occur."
+			return "A Pipefish function written in Go has failed to open at initialization time."
 		},
 	},
 
-	"golang/open": {
+	"golang/open/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "failed to open Go\n\nError was '" + args[0].(string) + "'"
 		},
@@ -1260,12 +1289,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"golang/type": {
+	"golang/type/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't pass value of type " + emph(args[0]) + " to Go as value"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This is because the author of Pipefish hasn't gotten around to it yet."
+			return "Not all types can be passed to Go. This isn't one of them."
+		},
+	},
+
+	"golang/type/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't pass value of type " + emph(args[0]) + " to Go"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Not all types can be passed to Go. This isn't one of them."
 		},
 	},
 
@@ -1274,7 +1312,18 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't pass value of type " + emph(args[0]) + " to Go"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This is because the author of Pipefish hasn't gotten around to it yet."
+			return "Not all types can be passed to Go. This isn't one of them."
+		},
+	},
+
+	"golang/variadic": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "non-final parameter of golang function can't be variadic"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Such signatures don't make sense in Go and in fact since a golang " +
+			       "function can only have a vanilla sig, it wouldn't make sense in" +
+				   "Pipefish either."
 		},
 	},
 
