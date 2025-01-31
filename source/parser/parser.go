@@ -475,14 +475,14 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 				expression.ConditionOrRange = leftBitOfHeader.(*ast.InfixExpression).Args[2]
 				expression.Update = rightBitOfHeader
 			} else {
-				p.Throw("parse/for/a", &expression.Token)
+				p.Throw("parse/for/semicolon", &expression.Token)
 				return nil
 			}
 		} else {
 			expression.ConditionOrRange = header
 		}
 	} else {
-		p.Throw("parse/for/b", &expression.Token)
+		p.Throw("parse/for/colon", &expression.Token)
 		return nil
 	}
 	return expression

@@ -2037,17 +2037,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/builtin": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "the 'builtin' keyword should be followed by a string literal"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You shouldn't be seeing this error, nor using the 'builtin' keyword. However, if you are, " +
-				"the reason for the error is that 'builtin' is followed by a string literal to say which builtin " +
-				"function you mean."
-		},
-	},
-
 	"parse/colon": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "'func' declaration should have a colon"
@@ -2110,6 +2099,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/for/colon": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected colon, not " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "While there are lots of valid forms the declaration of a 'for' loop can " +
+			       "take, this isn't one of them."
+		},
+	},
+
+	"parse/for/semicolon": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected semicolon, not " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "While there are lots of valid forms the declaration of a 'for' loop can " +
+			       "take, this isn't one of them."
+		},
+	},
+
 	"parse/from": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "Prefix " + emph("from") + " without " + emph("for")
@@ -2129,6 +2138,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 	},
 
 	"parse/inner/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed inner function declaration: unexpected occurrence of " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish thinks you're trying to declare an inner function here but is unable to parse it as such."
+		},
+	},
+
+	"parse/inner/c": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed inner function declaration: unexpected occurrence of " + emph(tok.Literal)
 		},
@@ -2357,17 +2375,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/sig/suffix/a": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrence of " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish is trying to interpret this as a function or assignment signature, and " +
-				"the " + text.DescribeTok(tok) + " doesn't belong in such a context."
-		},
-	},
-
-	"parse/sig/suffix/b": {
+	"parse/sig/suffix": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unexpected occurrence of " + text.DescribeTok(tok)
 		},

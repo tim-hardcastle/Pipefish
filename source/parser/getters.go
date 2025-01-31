@@ -91,54 +91,31 @@ func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
 		varName := ""
 		varType := "*"
 		switch arg := arg.(type) {
-		case *ast.SuffixExpression:
-			if arg.Operator == "raw" { // TODO --- same for 'ref'?
-				switch inner := arg.Args[0].(type) {
-				case *ast.SuffixExpression:
-					if !p.TypeExists(inner.Operator) {
-						p.Throw("parse/suffix/type", inner.GetToken())
-						return nil
-					}
-					switch inmost := inner.Args[0].(type) {
-					case *ast.Identifier:
-						varName = inmost.Value
-						varType = inner.Operator + " " + arg.Operator
-					default:
-						p.Throw("parse/suffix/ident", inmost.GetToken())
-						return nil
-					}
+		case *ast.SuffixExpression:			
+			if !p.TypeExists(arg.Operator) {
+				p.Throw("parse/sig/type/a", &arg.Token)
+				return nil
+			}
+			switch inner := arg.Args[0].(type) {
+			case *ast.Identifier:
+				varName = inner.Value
+				varType = arg.Operator
+			case *ast.SuffixExpression:
+				if inner.Operator != "..." {
+					p.Throw("parse/sig/suffix", inner.GetToken())
+					return nil
+				}
+				switch innerer := inner.Args[0].(type) {
 				case *ast.Identifier:
-					varName = inner.Value
-					varType = "any? " + arg.Operator
+					varName = innerer.Value
+					varType = "..." + arg.Operator
 				default:
-					p.Throw("parse/sig/suffix/a", arg.GetToken())
-					return nil
+					p.Throw("parse/sig/ident/d", innerer.GetToken())
 				}
-			} else { // The suffix is not 'raw'.
-				if !p.TypeExists(arg.Operator) {
-					p.Throw("parse/sig/type/a", &arg.Token)
-					return nil
-				}
-				switch inner := arg.Args[0].(type) {
-				case *ast.Identifier:
-					varName = inner.Value
-					varType = arg.Operator
-				case *ast.SuffixExpression:
-					if inner.Operator != "..." {
-						p.Throw("parse/sig/suffix/b", inner.GetToken())
-						return nil
-					}
-					switch innerer := inner.Args[0].(type) {
-					case *ast.Identifier:
-						varName = innerer.Value
-						varType = "..." + arg.Operator
-					default:
-						p.Throw("parse/sig/ident/d", innerer.GetToken())
-					}
-				default:
-					p.Throw("parse/sig/ident/a", inner.GetToken())
-					return nil
-				}
+			default:
+				p.Throw("parse/sig/ident/a", inner.GetToken())
+				return nil
+			
 			}
 		case *ast.Identifier:
 			if p.Endfixes.Contains(arg.Value) {
