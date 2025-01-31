@@ -377,7 +377,7 @@ loop:
 					pfArg := vm.Mem[pfMemLoc]
 					goArg, ok := vm.pipefishToGo(pfArg)
 					if !ok {
-						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/go", lambda.Tok, goArg)} // If the conversion failed, the goArg will be the Pipefish value it couldn't convert.
+						vm.Mem[args[0]] = values.Value{values.ERROR, err.CreateErr("vm/func/go", lambda.Tok, goArg)} // If the conversion failed, the goArg will be the value it couldn't convert.
 						break Switch
 					}
 					goArgs = append(goArgs, reflect.ValueOf(goArg))
@@ -2043,7 +2043,7 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 	case values.TYPE:
 		abTyp := container.V.(values.AbstractType)
 		if len(abTyp.Types) != 1 {
-			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc)}
+			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc, )}
 		}
 		typ := abTyp.Types[0]
 		if !vm.ConcreteTypeInfo[typ].IsEnum() {
@@ -2055,7 +2055,7 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 			return values.Value{values.ITERATOR, &values.EnumIterator{Type: typ, Max: len(vm.ConcreteTypeInfo[typ].(EnumType).ElementNames)}}
 		}
 	default:
-		return values.Value{values.ERROR, vm.makeError("vm/for/type", tokLoc)}
+		return values.Value{values.ERROR, vm.makeError("vm/for/type/c", tokLoc)}
 	}
 }
 

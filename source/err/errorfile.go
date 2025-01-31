@@ -2585,6 +2585,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/cast/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to perform cast"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Types can only be cast between clones of the same parent, or the " +
+			       "parent itself."
+		},
+	},
+
+	"vm/cast/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to perform cast"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Types can only be cast between clones of the same parent, or the " +
+			       "parent itself."
+		},
+	},
+
 	"vm/div/float": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "division by zero"
@@ -2600,6 +2620,71 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
+	"vm/for/type/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't range over given type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can range over lists, strings, maps, sets, and enums."
+		},
+	},
+
+	"vm/for/type/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't range over given type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can range over lists, strings, maps, sets, and enums."
+		},
+	},
+
+	"vm/for/type/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't range over given type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can range over lists, strings, maps, sets, and enums."
+		},
+	},
+
+	"vm/for/pair": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "range should be pair of integers"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "If you're going to give the range of a list using `::`, the elements of the pair should both be integers."
+		},
+	},
+
+	"vm/func/args": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "lambda function has the wrong number of arguments"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The arguments passed are different in number from the parameters of the function."
+		},
+	},
+
+	"vm/func/go": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to convert Pipefish value"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You're trying to apply a Go lambda function (wrapped in a Pipefish " +
+			       "lambda function), to something that Pipefish doesn't know how to convert " +
+				   "into Go."
+		},
+	},
+
+	"vm/func/types": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "function has the wrong types"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The arguments passed are different in type from the parameters of the function."
 		},
 	},
 
@@ -2819,6 +2904,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/index/q": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("out of range: can't index value of type %v by %v", emph(args[0]), emph(args[1]))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return fmt.Sprintf("Pipefish just can't make sense of that at all.")
+		},
+	},
+
 	"vm/label/exist": {
 		Message: func(tok *token.Token, args ...any) string {
 			return fmt.Sprintf("can't convert string %v to a label", emphStr(args[0]))
@@ -2846,12 +2940,31 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/mf/lhs": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected value of type 'list'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The value on the left-hand side of the operators '?>' and '>>' " +
+				   "should always be of type 'list'."
+		},
+	},
+
 	"vm/mod/int": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "taking the modulus of a number by zero"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
+	"vm/oopsie": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "something unexpected has gone wrong"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Please tell the author of Pipefish that he messed up. Thank you."
 		},
 	},
 
@@ -3017,6 +3130,43 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/splat/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected value of type 'list'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The value on the left-hand side of the splat operator '...' " +
+				   "should always be of type 'list'."
+		},
+	},
+
+	"vm/tup/first": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to take the first element of an empty tuple"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The empty tuple '()' has no first element."
+		},
+	},
+
+	"vm/tup/last": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to take the last element of an empty tuple"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The empty tuple '()' has no last element."
+		},
+	},
+
+	"vm/typecheck": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed typecheck"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You placed constraints on the types of this expression which you then violated."
+		},
+	},
+
 	"vm/types/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
@@ -3050,6 +3200,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
+		},
+	},
+
+	"vm/unwrap": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to unwrap something that isn't an 'error'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The 'unwrap' function converts things of type 'error' into type 'Error': " +
+			       "it doesn't work on anything else."
 		},
 	},
 
