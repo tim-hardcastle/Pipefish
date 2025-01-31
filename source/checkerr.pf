@@ -10,9 +10,11 @@ import
 const 
 
 // Things that have the right format to be error codes but aren't (or in the case of
-// 'vm/user', shouldn't have an error message).
+// 'vm/user', shouldn't have an error message, or in the case of 'lex/wsp' appears
+// in a '_test.go' file).
 FALSE_POSITIVES = set(`"database/sql"`, `"encoding/json"`, `"math/rand"`, `"net/http"`, 
-                   .. `"os/exec"`, `"path/filepath"`, `"html/template"`, `"vm/user"`)
+                   .. `"os/exec"`, `"path/filepath"`, `"html/template"`, `"vm/user"`,
+                   .. `"lex/wsp"`)
 
 cmd
 

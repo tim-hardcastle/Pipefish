@@ -217,21 +217,21 @@ func (iz *initializer) deserializeTypescheme(s string) compiler.AlternateType { 
 			case compiler.SimpleType:
 				stack.Push(ty)
 			default:
-				iz.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
+				iz.Throw("ext/deserialize/f", &token.Token{Source: "Pipefish builder"})
 			}
 		}
 	}
 	// We're done.
 	result, ok := stack.Pop() // We should have one thing left on the stack, which is the answer.
 	if !ok {
-		iz.Throw("ext/deserialize/f", &token.Token{Source: "Pipefish builder"})
+		iz.Throw("ext/deserialize/g", &token.Token{Source: "Pipefish builder"})
 		return nil
 	}
 	switch result := result.(type) { // And it should be an AlternateType.
 	case compiler.AlternateType:
 		return result
 	default:
-		iz.Throw("ext/deserialize/g", &token.Token{Source: "Pipefish builder"})
+		iz.Throw("ext/deserialize/h", &token.Token{Source: "Pipefish builder"})
 		return nil
 
 	}

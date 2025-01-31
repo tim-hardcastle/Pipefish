@@ -1104,6 +1104,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"ext/deserialize/h": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unable to deserialize message from external service"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "This condition should never actually arise. Please contact the author of Pipefish and tell him how it occurred."
+		},
+	},
+
 	"golang/build": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "failed to compile Go\n\nError was '" + args[0].(string) + "'"
@@ -2018,6 +2027,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Having begun a string literal with an opening quote, you haven't concluded it with a matching " +
+				"closing quote before the end of your line of code."
+		},
+	},
+
+	"lex/quote/rune": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "rune litereal unterminated by end of line"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Having begun a rune literal with an opening quote, you haven't concluded it with a matching " +
 				"closing quote before the end of your line of code."
 		},
 	},

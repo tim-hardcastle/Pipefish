@@ -126,7 +126,7 @@ func (l *Lexer) NextToken() token.Token {
 	case '\'':
 		r, ok := l.readRune()
 		if !ok {
-			return l.Throw("lex/quote/c")
+			return l.Throw("lex/rune")
 		}
 		return l.NewToken(token.RUNE, r)
 	case '.':
@@ -408,12 +408,12 @@ func (l *Lexer) readSnippet() string {
 			}
 			if langIndent == "" { // Then this is the first time around.
 				if currentWhitespace == "" {
-					l.Throw("lex/emdash/indent/a", l.NewToken(token.ILLEGAL, "lex/emdash/indent/a"))
+					l.Throw("lex/emdash/indent/a", l.NewToken(token.ILLEGAL, "bad emdash"))
 					return result
 				}
 				langIndent = currentWhitespace
 				if langIndent == stackTop {
-					l.Throw("lex/emdash/indent/b", l.NewToken(token.ILLEGAL, "lex/emdash/indent/b"))
+					l.Throw("lex/emdash/indent/b", l.NewToken(token.ILLEGAL, "bad emdash"))
 					return result
 				}
 			}
@@ -424,7 +424,7 @@ func (l *Lexer) readSnippet() string {
 				return result
 			}
 			if !strings.HasPrefix(currentWhitespace, stackTop) && !(currentWhitespace == "\n") {
-				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "lex/emdash/indent/c"))
+				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "bad emdash"))
 				return result
 			}
 			for l.peekChar() != '\n' && l.peekChar() != 0 {
@@ -454,14 +454,14 @@ func (l *Lexer) readGolang() string {
 	}
 	// We expect a brace or quotes after the golang keyword. (The quotes if it's in the import section, import golang "foo".)
 	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
-		l.Throw("lex/golang", l.NewToken(token.ILLEGAL, "lex/golang"))
+		l.Throw("lex/golang", l.NewToken(token.ILLEGAL, "bad golang"))
 		return ""
 	}
 	if l.peekChar() == '"' {
 		l.readChar()
 		s, ok := l.readFormattedString()
 		if !ok {
-			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "lex/quote/c"))
+			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
 		return s
 	}
@@ -469,7 +469,7 @@ func (l *Lexer) readGolang() string {
 		l.readChar()
 		s, ok := l.readPlaintextString()
 		if !ok {
-			l.Throw("lex/quote/d", l.NewToken(token.ILLEGAL, "lex/quote/d"))
+			l.Throw("lex/quote/d", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
 		return s
 	}
