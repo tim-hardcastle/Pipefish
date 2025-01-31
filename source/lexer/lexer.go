@@ -126,7 +126,7 @@ func (l *Lexer) NextToken() token.Token {
 	case '\'':
 		r, ok := l.readRune()
 		if !ok {
-			return l.Throw("lex/rune")
+			return l.Throw("lex/quote/rune")
 		}
 		return l.NewToken(token.RUNE, r)
 	case '.':

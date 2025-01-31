@@ -158,7 +158,7 @@ func (iz *initializer) ParseEverythingFromSourcecode(mc *vm.Vm, cpb *parser.Comm
 		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(text.MakeFilepath(scriptFilepath))
 		if err != nil {
-			iz.Throw("init/source/b", LINKING_TOKEN, scriptFilepath)
+			iz.Throw("init/source", LINKING_TOKEN, scriptFilepath)
 			return nil
 		}
 		iz.cp.Timestamp = file.ModTime().UnixMilli()

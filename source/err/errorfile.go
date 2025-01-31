@@ -1397,15 +1397,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/external/source": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "can't get source " + emph(args[0]) + "for external service"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return `Pipefish can't open the specified file.`
-		},
-	},
-
 	"init/func/body": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "function definition has no body"
@@ -1760,25 +1751,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/source/a": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unable to get source " + emph(args[0]) + " with error " + emph(args[1])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The initializer can't retrieve the source code for the given file. Check that it exists."
-		},
-	},
 
-	"init/source/b": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unable to get source " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The initializer can't retrieve the source code for the given file. Check that it exists."
-		},
-	},
 
-	"init/source/c": {
+	"init/source": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unable to get source " + emph(args[0])
 		},
@@ -1838,15 +1813,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Each type can only be declared once."
-		},
-	},
-
-	"init/unfinished": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unfinished business at end of script"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "It looks like you started a function definition but didn't finish it."
 		},
 	},
 
@@ -2171,16 +2137,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/int": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "Couldn't parse '" + tok.Literal + "' as integer"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Something about the form of '" + tok.Literal + "' has persuaded Pipefish to try and parse it " +
-				"as an integer, and yet it is not an integer so Pipefish has failed."
-		},
-	},
-
 	"parse/line": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "Pipefish expected an expression before the end of the line"
@@ -2188,16 +2144,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This error is produced when a line stops with something clearly missing, e.g. if you put '2 + '" +
 				" into the REPL."
-		},
-	},
-
-	"parse/malfunc": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed 'func' expression"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "This error pretty much speaks for itself: whatever you put after 'func' was in fact just " +
-				"too plain weird for Pipefish to interpret as a function definition."
 		},
 	},
 
@@ -2268,33 +2214,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You've put " + text.DescribeTok(tok) + " in such a position that it looks like you want it to " +
 				"function as a prefix, but it isn't one."
-		},
-	},
-
-	"parse/raw/form": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "malformed signature"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Something's gone wrong with your syntax around the word 'raw', so that Pipefish isn't sure what you want to do."
-		},
-	},
-
-	"parse/raw/ident": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "expected identifier, not " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish was expecting the name of a parameter at that point in the function declaration."
-		},
-	},
-
-	"parse/raw/type": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "no such type as " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The 'raw' suffix must be attached either directly to the name of a parameter, or to a Pipefish type."
 		},
 	},
 
@@ -2531,15 +2450,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"sql/": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unable to parse Pipefish in SQL snippet"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Your SQL contains an expression of the form '|...|', which Pipefish is attempting to interpret as being in the Pipefish language. However, the parser isn't able to parse it."
-		},
-	},
-
 	"sql/conv": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unable to perform type conversion"
@@ -2603,12 +2513,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"sql/sig": {
+	"sql/": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't convert Pipefish struct to SQL table"
+			return "unable to parse Pipefish in SQL snippet"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Recall that only a limited number of types have been implemented for demonstration purposes."
+			return "Your SQL contains an expression of the form '|...|', which Pipefish is attempting to interpret as being in the Pipefish language. However, the parser isn't able to parse it."
 		},
 	},
 
@@ -2627,6 +2537,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
+		},
+	},
+
+	"sql/sig": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't convert Pipefish struct to SQL table"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Recall that only a limited number of types have been implemented for demonstration purposes."
 		},
 	},
 
@@ -3293,16 +3212,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("The key of a map cannot be of a struct type.")
-		},
-	},
-
-	"vm/varchar": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "varchar limit exceeded"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The function you are trying to pass the string to has a parameter with a varchar type which restricts how long " +
-				"a string you can pass to it, and you have exceeded that limit."
 		},
 	},
 }
