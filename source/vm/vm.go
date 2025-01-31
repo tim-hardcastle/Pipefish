@@ -336,35 +336,35 @@ loop:
 		case Diif:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {
-				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+				vm.Mem[args[0]] = vm.makeError("vm/div/zero/a", args[3])
 			} else {
 				vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int)) / float64(divisor)}
 			}
 		case Divf:
 			divisor := vm.Mem[args[2]].V.(float64)
 			if divisor == 0 {
-				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+				vm.Mem[args[0]] = vm.makeError("vm/div/zero/b", args[3])
 			} else {
 				vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / divisor}
 			}
 		case Divi:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {
-				vm.Mem[args[0]] = vm.makeError("vm/div/int", args[3])
+				vm.Mem[args[0]] = vm.makeError("vm/div/zero/c", args[3])
 			} else {
 				vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int) / vm.Mem[args[2]].V.(int)}
 			}
 		case Dvfi:
 			divisor := vm.Mem[args[2]].V.(int)
 			if divisor == 0 {
-				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+				vm.Mem[args[0]] = vm.makeError("vm/div/zero/d", args[3])
 			} else {
 				vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) / float64(divisor)}
 			}
 		case Dvif:
 			divisor := vm.Mem[args[2]].V.(float64)
 			if divisor == 0 {
-				vm.Mem[args[0]] = vm.makeError("vm/div/float", args[3])
+				vm.Mem[args[0]] = vm.makeError("vm/div/zero/e", args[3])
 			} else {
 				vm.Mem[args[0]] = values.Value{values.FLOAT, float64(vm.Mem[args[1]].V.(int)) / divisor}
 			}
@@ -710,7 +710,7 @@ loop:
 				case values.TUPLE:
 					tup := container.V.([]values.Value)
 					if ix[1].V.(int) > len(tup) {
-						vm.Mem[args[0]] = vm.makeError("vm/index/f", args[3])
+						vm.Mem[args[0]] = vm.makeError("vm/index/r", args[3])
 						break Switch
 					}
 					vm.Mem[args[0]] = values.Value{values.TUPLE, tup[ix[0].V.(int):ix[1].V.(int)]}

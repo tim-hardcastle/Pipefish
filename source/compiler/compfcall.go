@@ -228,7 +228,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		for _, loc := range b.valLocs {
 			cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 		}
-		cp.cmP("Unthunking error "+text.Emph("vm/types/a")+".", b.tok)
+		cp.cmP("Unthunking error 'vm/types/a'.", b.tok)
 		cp.Emit(vm.UntE, cp.That())
 		cp.Emit(vm.Asgm, b.outLoc, cp.That())
 		return AltType(values.ERROR)
@@ -328,7 +328,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				for _, loc := range b.valLocs {
 					cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 				}
-				cp.cmP("Unthunking error "+text.Emph("vm/types/b")+".", b.tok)
+				cp.cmP("Unthunking error 'vm/types/b'.", b.tok)
 				cp.Emit(vm.UntE, cp.That())
 				cp.Emit(vm.Asgm, b.outLoc, cp.That())
 				return AltType(values.ERROR)
@@ -716,7 +716,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	for _, loc := range b.valLocs {
 		cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 	}
-	cp.cmP("Unthunking error "+text.Emph("vm/types/c")+".", b.tok)
+	cp.cmP("Unthunking error 'vm/types/c'.", b.tok)
 	cp.Emit(vm.UntE, cp.That())
 	cp.Emit(vm.Asgm, b.outLoc, cp.That())
 	return AltType(values.ERROR)

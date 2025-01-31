@@ -2605,7 +2605,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/div/float": {
+	"vm/div/zero/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "division by zero"
 		},
@@ -2614,7 +2614,34 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/div/int": {
+	"vm/div/zero/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "division by zero"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
+	"vm/div/zero/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "division by zero"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
+	"vm/div/zero/d": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "division by zero"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "As it is not possible to divide a number by zero, Pipefish considers this a runtime error."
+		},
+	},
+
+	"vm/div/zero/e": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "division by zero"
 		},
@@ -2688,7 +2715,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/go/type": {
+	"vm/go/type/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't convert Go value of type " + emph(args[0]) + " to Pipefish"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Not every Go value can or should be converted into Pipefish."
+		},
+	},
+
+	"vm/go/type/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't convert Go value of type " + emph(args[0]) + " to Pipefish"
 		},
@@ -2910,6 +2946,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("Pipefish just can't make sense of that at all.")
+		},
+	},
+
+	"vm/index/r": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("upper bound %v of tuple slice is strictly greater than string length %v", emph(args[0]), args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
 		},
 	},
 

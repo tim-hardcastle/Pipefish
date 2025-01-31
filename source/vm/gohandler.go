@@ -397,7 +397,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 						pfType = values.MAP
 					}
 				default:
-					return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
+					return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type/a", reflect.TypeOf(someGoDatum).String()}}
 				}
 			}
 			sig = append(sig, values.AbstractType{Types: []values.ValueType{pfType}})
@@ -405,7 +405,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 		pfLambda := Lambda{Gocode: &goValue, Sig: sig}
 		return values.Value{values.FUNC, pfLambda}
 	}
-	return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type", reflect.TypeOf(someGoDatum).String()}}
+	return values.Value{values.UNDEFINED_TYPE, []any{"vm/go/type/b", reflect.TypeOf(someGoDatum).String()}}
 }
 
 // Because the above function will be applied recursively, we apply the goTuple type to the values
