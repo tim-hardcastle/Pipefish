@@ -10,8 +10,8 @@ import
 const 
 
 // Things that have the right format to be error codes but aren't.
-FALSE_POSITIVES = set("database/sql", "encoding/json", "math/rand", "net/http", 
-                   .. "os/exec", "path/filepath")
+FALSE_POSITIVES = set(`"database/sql"`, `"encoding/json"`, `"math/rand"`, `"net/http"`, 
+                   .. `"os/exec"`, `"path/filepath"`)
 
 cmd
 
