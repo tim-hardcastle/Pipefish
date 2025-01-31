@@ -383,7 +383,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/for/assign": {
+	"comp/for/assign/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "expected assignment of bound variables"
 		},
@@ -393,13 +393,52 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/for/bound": {
+	"comp/for/assign/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected assignment of bound variables"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting you to define the bound variables of the 'for' " +
+			       "loop here, but instead has found something else."
+		},
+	},
+
+	"comp/for/bound/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed declaration of bound variables"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish was expecting a declaration of variable names, and optionally their types " +
 			       "on the left hand side of the '=' sign, but insted has found something it can't make sense of."
+		},
+	},
+
+	"comp/for/bound/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed declaration of bound variables"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting a declaration of variable names, and optionally their types " +
+			       "on the left hand side of the '=' sign, but insted has found something it can't make sense of."
+		},
+	},
+
+	"comp/for/bound/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "bound variable " + emph(args[0]) + " already exists"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The bound variables of a 'for' loop must be specific to that 'for' loop."
+		},
+	},
+
+	"comp/for/bound/present": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "loop has no bound variables"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "In a function, a 'for' loop must have bound variables or there's no point in it " +
+			       "existing: all such a loop ever does is return the final value of the bound variables."
 		},
 	},
 

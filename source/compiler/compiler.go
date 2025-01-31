@@ -1248,7 +1248,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 
 	if node.BoundVariables == nil {
 		if ctxt.Access != CMD && ctxt.Access != REPL {
-			cp.P.Throw("comp/for/bound/a", &node.Token)
+			cp.P.Throw("comp/for/bound/present", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken()) // If we don't have any bound variables, then this is presumptively an imperative loop and we'll need somewhere to put OK/break/error still.
@@ -1257,14 +1257,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		hasBoundVariables = true
 		// We set up the bound variables. Note that type checking happens *inside* the 'for' loop, not up here.
 		if node.BoundVariables.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("comp/for/assign", &node.Token)
+			cp.P.Throw("comp/for/assign/a", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Left
 		rhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Right
 		boundSig, err := cp.P.RecursivelySlurpSignature(lhsOfBoundVariables, "*default*")
 		if err != nil {
-			cp.P.Throw("comp/for/bound", node.BoundVariables.GetToken())
+			cp.P.Throw("comp/for/bound/a", node.BoundVariables.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.Cm("Finding initial values of bound variables", tok)
@@ -1302,17 +1302,17 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		// For the initializer we have to do something very un-DRYly like what we just did with the bound variables; TODO ---
 		// is there any way to DRY it up that doesn't obfuscate the code?
 		if node.Initializer.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("comp/for/init/a", &node.Token)
+			cp.P.Throw("comp/for/assign/b", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Left
 		rhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Right
 		indexSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, "*default*")
 		if err != nil {
-			cp.P.Throw("comp/for/init/b", node.Initializer.GetToken())
+			cp.P.Throw("comp/for/bound/b", node.Initializer.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
-		cp.Cm("Finding intitial values of index variables", tok)
+		cp.Cm("Finding initial values of index variables", tok)
 		var isConst bool
 		indexVariableTypes, isConst = cp.CompileNode(rhsOfInitVariables, ctxt)
 		if isConst { // Then we still need to initialize the index variables when we start the loop.
