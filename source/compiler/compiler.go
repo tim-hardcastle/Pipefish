@@ -790,7 +790,7 @@ NodeTypeSwitch:
 				cp.put(vm.Notb, cp.That())
 				cp.Emit(vm.Jmp, cp.CodeTop()+2)
 				cp.vmComeFrom(boolTest)
-				cp.Emit(vm.Asgm, cp.That(), cp.reserveError("vm/bool/not", node.GetToken()))
+				cp.Emit(vm.Asgm, cp.That(), cp.reserveError("vm/bool/not", node.GetToken()), cp.That())
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
 				break NodeTypeSwitch
 			default:
@@ -881,7 +881,7 @@ NodeTypeSwitch:
 					cp.Emit(vm.Rpop)
 				}
 			case v.types.Contains(values.FUNC):
-				errorLoc := cp.reserveError("vm/apply/func", node.GetToken())
+				errorLoc := cp.reserveError("vm/apply/func", node.GetToken(), v.MLoc)
 				cp.Cm("Prefix variable might be lambda. Emitting type check.", node.GetToken())
 				funcTest := cp.vmIf(vm.Qtyp, v.MLoc, uint32(values.FUNC))
 				cp.put(vm.Dofn, operands...)

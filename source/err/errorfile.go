@@ -2566,6 +2566,25 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/apply/func": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "value is not of type 'func'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "It only makes sense to apply a value to an expression if the value " +
+			       "is a lambda function."
+		},
+	},
+
+	"vm/bool/not": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "value is not of type 'bool'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The built-in 'not' operator can only be applied to values of boolean types."
+		},
+	},
+
 	"vm/div/float": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "division by zero"
