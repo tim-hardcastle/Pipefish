@@ -941,7 +941,7 @@ NodeTypeSwitch:
 			leftTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
 			overlap := leftTypes.intersect(cp.Common.SharedTypenameToTypeList["listlike"])
 			if len(overlap) == 0 {
-				cp.P.Throw("comp/splat/types", node.GetToken(), leftTypes)
+				cp.P.Throw("comp/splat/type", node.GetToken(), leftTypes)
 				rtnTypes = altType(values.COMPILE_TIME_ERROR)
 				break NodeTypeSwitch
 			}
@@ -1753,7 +1753,7 @@ func (cp *Compiler) getPartsOfGiven(given ast.Node, ctxt Context) []ast.Node {
 			rhs := cp.getPartsOfGiven(branch.Right, ctxt)
 			result = append(result, rhs...)
 		} else {
-			cp.P.Throw("comp/unexpected", given.GetToken())
+			cp.P.Throw("comp/given/unexpected", given.GetToken())
 		}
 	default:
 		result = []ast.Node{given}
@@ -2276,7 +2276,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 	acceptedSingles := AlternateType{}
 	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
 	if types.isOnly(values.ERROR) {
-		cp.P.Throw("comp/typecheck/a", tok)
+		cp.P.Throw("comp/typecheck/error", tok)
 		return errorCheck
 	}
 	if types.Contains(values.ERROR) {
@@ -2288,11 +2288,9 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		acceptedSingles = singles.intersect(cp.getTypes(sig, 0))
 	}
 	checkSingleType := bkGoto(DUMMY)
-	if len(tuples) == 0 {
-		if sig.Len() != 1 {
-			cp.P.Throw("comp/typecheck/b", tok)
+	if len(singles) == 0 && sig.Len() != 1 {
+			cp.P.Throw("comp/typecheck/values/a", tok)
 			return errorCheck
-		}
 	}
 	if len(acceptedSingles) != len(singles) {
 		checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc, tok)
@@ -2337,7 +2335,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 			}
 		}
 		if badLengths == len(lengths) {
-			cp.P.Throw("comp/typecheck/c", tok)
+			cp.P.Throw("comp/typecheck/values/b", tok)
 			return errorCheck
 		}
 
@@ -2361,7 +2359,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 			sigTypes := cp.getTypes(sig, i)
 			overlap := typesToCheck.intersect(sigTypes)
 			if len(overlap) == 0 || overlap.isOnly(values.ERROR) {
-				cp.P.Throw("comp/typecheck/d", tok)
+				cp.P.Throw("comp/typecheck/type", tok)
 				return errorCheck
 			}
 			if len(overlap) == len(typesToCheck) {

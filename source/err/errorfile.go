@@ -549,6 +549,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/given/unexpected": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph(tok.Literal) + " in 'given' block"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish has no idea what this is doing here."
+		},
+	},
+
 	"comp/global/global": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "identifier " + emph(tok.Literal) + " doesn't identify a global variable"
@@ -756,6 +765,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/pipe/mf/func": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to use " + emph(tok.Literal) + " as a function"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+		},
+	},
+
 	"comp/pipe/mf/ident": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unexpected occurrence of " + emph(tok.Literal)
@@ -765,12 +783,14 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/pipe/mf/func": {
+	"comp/pipe/mf/list": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "trying to use " + emph(tok.Literal) + " as a function"
+			return "lhs of piping operator is not a list"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish was expecting an expression that it could pipe the left-hand side of the piping operator into."
+			return "Pipefish was expecting a list on the left-hand side of the " +
+			       "piping operator but the typechecker has determined that it can never " +
+				   "be one."
 		},
 	},
 
@@ -846,6 +866,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/return/length": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "return has wrong number of values"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You have given a return type to your function constraining the number of " +
+			       "values it can return, and then tried to return the wrong number of values."
+		},
+	},
+
 	"comp/return/types": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "return " + redescribeType(args[0].(string)) + " cannot satisfy specifed return " + redescribeType(args[1].(string))
@@ -879,6 +909,25 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Some of this carries out imperative operations, other parts try to return values."
+		},
+	},
+
+	"comp/splat/args": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "too many arguments for '...'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The splat operator '...' takes only one argument, on its left."
+		},
+	},
+
+	"comp/splat/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "argument of '...' must be list or listlike, not " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The purpose of the splat operator '...' is to expand a list or " +
+			       "listlike value into a tuple. You're applying it to the wrong type."
 		},
 	},
 
@@ -924,6 +973,60 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You declare a snippet of type " + emph("Foo") + " with " + emph("Foo ---") + "."
+		},
+	},
+
+	"comp/typecheck/error": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expression can only have error type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When Pipefish typechecks something, it is permissible at compile-time " +
+			       "for that thing to contain an error not declared in the type annotations: " +
+				   "that would be a runtime error. However, it is a compile-time error for this " +
+				   "always to be the case, and the typechecker has determined that this is " +
+				   "one of those situations."
+		},
+	},
+
+	"comp/typecheck/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "wrong number of arguments"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The typechecker has found a situation where your code can only ever " +
+			       "pass/return the wrong number of arguments."
+		},
+	},
+
+	"comp/typecheck/values/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "type error"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The typechecker has determined that this condition can never be " +
+			       "fulfilled by your code as written."
+		},
+	},
+
+	"comp/typecheck/values/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to assign multiple values to non-tuple type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The typechecker has determined that you're trying to squeeze more " +
+			       "than one value into a place where your type signature says that only " +
+				   "one will go"
+		},
+	},
+
+	"comp/typecheck/values/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "wrong number of arguments"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The typechecker has found a situation where your code can only ever " +
+			       "pass/return the wrong number of arguments."
 		},
 	},
 
