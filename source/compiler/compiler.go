@@ -2288,7 +2288,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		acceptedSingles = singles.intersect(cp.getTypes(sig, 0))
 	}
 	checkSingleType := bkGoto(DUMMY)
-	if len(singles) == 0 && sig.Len() != 1 {
+	if len(singles) == 0 && sig.Len() == 1 {
 			cp.P.Throw("comp/typecheck/values/a", tok)
 			return errorCheck
 	}

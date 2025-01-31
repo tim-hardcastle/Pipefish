@@ -1001,16 +1001,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/typecheck/values/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "type error"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The typechecker has determined that this condition can never be " +
-			       "fulfilled by your code as written."
-		},
-	},
-
-	"comp/typecheck/values/b": {
-		Message: func(tok *token.Token, args ...any) string {
 			return "trying to assign multiple values to non-tuple type"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
@@ -1020,7 +1010,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/typecheck/values/c": {
+	"comp/typecheck/values/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "wrong number of arguments"
 		},
