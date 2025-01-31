@@ -551,7 +551,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/ident/known": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unknown identifier " + emph(tok.Literal)
+			return "identifier " + emph(args[0].(string)) + " is undeclared"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You don't seem to have declared that as a variable, function, constant, or anything else."
@@ -3466,6 +3466,9 @@ func blame(errors Errors, pos int, args ...string) string {
 }
 
 func emph(s any) string {
+	if t, ok := s.(string); ok {
+		s = strings.TrimSpace(t)
+	}
 	return fmt.Sprintf("'%v'", s)
 }
 

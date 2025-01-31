@@ -356,7 +356,7 @@ NodeTypeSwitch:
 			v, ok = env.GetVar(node.Value)
 		}
 		if !ok {
-			cp.P.Throw("comp/ident/known", node.GetToken())
+			cp.P.Throw("comp/ident/known", node.GetToken(), node.Value)
 			break
 		}
 		if (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {

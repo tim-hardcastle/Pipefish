@@ -3,8 +3,9 @@ def
 foo(i int) :
     "foo"
 
+
 zort(t ... any?) :
-    len(t)
+    foo +
 
 troz(i, j, k int) :
     "troz"
