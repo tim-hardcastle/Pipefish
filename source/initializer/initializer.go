@@ -1938,12 +1938,16 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 	if rhsIsTuple {
 		tupleLen = len(result.V.([]values.Value))
 	}
-	if !lastIsTuple && tupleLen != len(sig) {
+	if !lastIsTuple && tupleLen > len(sig) {
 		iz.p.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
 		return
 	}
-	if lastIsTuple && tupleLen < len(sig)-1 {
+	if !lastIsTuple && tupleLen < len(sig) {
 		iz.p.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
+		return
+	}
+	if lastIsTuple && tupleLen < len(sig)-1 {
+		iz.p.Throw("comp/assign/c", dec.GetToken(), tupleLen, len(sig))
 		return
 	}
 	loopTop := len(sig)
@@ -1973,7 +1977,7 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 		} else {
 			allowedTypes := iz.cp.GetAlternateTypeFromTypeName(sig[i].VarType)
 			if allowedTypes.IsNoneOf(head[i].T) {
-				iz.p.Throw("comp/assign/type", dec.GetToken())
+				iz.p.Throw("comp/assign/type", dec.GetToken(), sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
 				return
 			} else {
 				iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())

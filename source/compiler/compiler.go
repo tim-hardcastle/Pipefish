@@ -196,7 +196,7 @@ NodeTypeSwitch:
 		cp.Cm("Assignment from REPL or in 'cmd' section", node.GetToken())
 		sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
 		if err != nil {
-			cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
+			cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
 			break NodeTypeSwitch
 		}
 		cp.Cm("Assignment signature is "+text.Emph(sig.String()), &node.Token)
@@ -220,7 +220,7 @@ NodeTypeSwitch:
 				cp.Cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
 					if !Equals(v.types, cp.GetAlternateTypeFromTypeName(sig[i].VarType)) {
-						cp.P.Throw("comp/assign/redefine/b", node.GetToken())
+						cp.P.Throw("comp/assign/redefine/b", node.GetToken(), pair.VarName)
 						break NodeTypeSwitch
 					}
 				}
@@ -231,15 +231,15 @@ NodeTypeSwitch:
 				}
 				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
-					cp.P.Throw("comp/assign/immutable", node.Left.GetToken())
+					cp.P.Throw("comp/assign/immutable", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				if ac == REPL && (ALL_PRIVATE_ACCESS.Contains(v.access)) {
-					cp.P.Throw("comp/assign/private", node.Left.GetToken())
+					cp.P.Throw("comp/assign/private", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				if ac == REPL && (ALL_CONSTANT_ACCESS.Contains(v.access)) {
-					cp.P.Throw("comp/assign/const", node.Left.GetToken())
+					cp.P.Throw("comp/assign/const", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				if v.access == GLOBAL_VARIABLE_PUBLIC {
@@ -248,7 +248,7 @@ NodeTypeSwitch:
 			} else { // The variable doesn't already exist.
 				cp.Cm("Assignment creating local variable "+text.Emph(sig.String())+".", &node.Token)
 				if ac == REPL {
-					cp.P.Throw("comp/assign/error", node.Left.GetToken())
+					cp.P.Throw("comp/assign/repl", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
@@ -893,7 +893,7 @@ NodeTypeSwitch:
 				cp.Emit(vm.Asgm, cp.That(), errorLoc)
 			default:
 				cp.Cm("Prefix variable cannot be lambda. Throwing error.", node.GetToken())
-				cp.P.Throw("comp/apply/func", node.GetToken())
+				cp.P.Throw("comp/apply/func", node.GetToken(), node.Operator)
 				break NodeTypeSwitch
 			}
 			rtnConst = false
@@ -1767,7 +1767,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 	oldThis, thisExists := ctxt.Env.GetVar("this")
 	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "any?")
 	if err != nil {
-		cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
+		cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
 		return
 	}
 	rollbackTo := cp.GetState()

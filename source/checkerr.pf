@@ -11,7 +11,7 @@ const
 
 // Things that have the right format to be error codes but aren't.
 FALSE_POSITIVES = set(`"database/sql"`, `"encoding/json"`, `"math/rand"`, `"net/http"`, 
-                   .. `"os/exec"`, `"path/filepath"`)
+                   .. `"os/exec"`, `"path/filepath"`, `html/template`)
 
 cmd
 

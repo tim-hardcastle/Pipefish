@@ -35,39 +35,124 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/assign": {
+	"comp/apply/func": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed assignment"
+			return "trying to apply a value " + emph(args[0]) + " which can't be a function"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish assumes this is an assignment because it contains an " + emph("=") + " but is having a hard time making sense of it."
+			return "Since " + emph(args[0]) + " is a variable, it can only make sense to " +
+			       "follow it directly with an expression if there was at least some possibility of " +
+				   "it being of type 'func', which there isn't."
+		},
+	},
+
+	"comp/assign/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "too many values on rhs of assignment"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An assignment which has more values on the " +
+			       "right-hand side than it has variables on the left is an error."
+		},
+	},
+
+	"comp/assign/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "too few values on rhs of assignment"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An assignment which has fewer values on the " +
+			       "right-hand side than it has variables on the left is an error."
+		},
+	},
+
+	"comp/assign/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "too few values on rhs of assignment"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "An assignment which has fewer values on the " +
+			       "right-hand side than it has variables on the left is an error."
 		},
 	},
 
 	"comp/assign/const": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "assigning to constant"
+			return "assigning to constant " + emph(args[0]) 
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When an identifier has been declared constant in the " + emph("const") + " section of your script, it can't be redefined later: that's what it means to be constant."
 		},
 	},
 
-	"comp/assign/ident": {
+	"comp/assign/error": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "Pipefish was expecting an identifier, not " + emph(tok.Literal)
+			return "rhs of assignment can only be error"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The left-hand side of an assignment should contain one or more variable names."
+			return "While it is possible for a local identifieer in a 'given' block to be assigned an " +
+			       "error value, it is assumed that you don't want this always to be the case, " +
+				   "and so if the typechecker can determine that it is, this is a compile-time error."
+		},
+	},
+
+	"comp/assign/immutable": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "reassigning immutable variable or constant " + emph(args[0]) 
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The only variables that can be redefined are global variables, and local variables defined in the body of a command."
+		},
+	},
+
+	"comp/assign/lhs/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed left-hand side of assignment" 
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish presumes from the '=' in the expression that you're " +
+			       "trying to assign to a variable or variables, but it can't make sense " +
+				   "of the left-hand side of the expression, where the variables should be."
+		},
+	},
+
+	"comp/assign/lhs/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed left-hand side of assignment" 
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish presumes from the '=' in the expression that you're " +
+			       "trying to assign to a variable or variables, but it can't make sense " +
+				   "of the left-hand side of the expression, where the variables should be."
 		},
 	},
 
 	"comp/assign/private": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "assigning to private variable"
+			return "assigning to private variable " + emph(args[0]) 
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When a variable has been declared private, it can be accessed from commands in your script but not directly from the REPL: this is what private means. For more information see " + emph(`hub help "private"`) + "."
+		},
+	},
+
+	"comp/assign/repl": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to assign to a variable " + emph(args[0]) + " which doesn't exist"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Since you can't create variables in the REPL, you can only use it to assign " +
+			       "values to public global variables."
+		},
+	},
+
+	"comp/assign/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "assigning a value of type " + emph(args[1]) + " to variable " + emph(args[0]) 
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You are trying to assign a value to a variable when you have explicitly said " +
+			       "that the variable cannot contain values of that type"
 		},
 	},
 
