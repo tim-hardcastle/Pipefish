@@ -43,3 +43,6 @@ def // Indexing when we don't know the types in advance is a different compilati
 foo(x, y) :
     x[y]
 
+iota(i) :
+    i 
+
