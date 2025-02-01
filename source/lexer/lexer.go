@@ -64,7 +64,15 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case 0:
-		return l.NewToken(token.EOF, "EOF")
+		level := l.whitespaceStack.Find("")
+		if level > 0 {
+			for i := 0; i < level; i++ {
+				l.whitespaceStack.Pop()
+			}
+			return l.MakeToken(token.END, fmt.Sprint(level))
+		} else {
+			return l.NewToken(token.EOF, "EOF")
+		}
 	case '\n':
 		return l.NewToken(token.NEWLINE, ";")
 	case '\\':
@@ -198,7 +206,7 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			return l.NewToken(tType, text)
 		case token.EMDASH:
-			return l.MakeToken(tType, l.readSnippet())
+			return l.MakeToken(tType, strings.TrimSpace(l.readSnippet()))
 		default:
 			return l.NewToken(tType, lit)
 		}
@@ -393,8 +401,10 @@ func (l *Lexer) readSnippet() string {
 	}
 	// There are two possibilities. Either we found a non-whitespace character, and the whole snippet is on the same line as the
 	// `---` token, or we found a newline and the snipped is an indent on the succeeding lines. Just like with a colon.
-	if l.peekChar() == '\n' { // --- then we have to mess with whitespace.
-		l.readChar()
+	if l.peekChar() == '\n' || l.peekChar() == '\r' { // --- then we have to mess with whitespace.
+		for l.peekChar() == '\n' || l.peekChar() == '\r' {
+			l.readChar()
+		}
 		langIndent := ""
 		stackTop, ok := l.whitespaceStack.HeadValue()
 		if !ok {
@@ -417,8 +427,8 @@ func (l *Lexer) readSnippet() string {
 					return result
 				}
 			}
-			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" { // Then we've unindented. Dobby is free!
-				if currentWhitespace != "\n" {
+			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(rune(0)) { // Then we've unindented. Dobby is free!
+				if currentWhitespace != "\n" && currentWhitespace != "\r" && currentWhitespace == string(rune(0)) {
 					l.snippetWhitespace = currentWhitespace
 				}
 				return result
@@ -427,18 +437,19 @@ func (l *Lexer) readSnippet() string {
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "bad emdash"))
 				return result
 			}
-			for l.peekChar() != '\n' && l.peekChar() != 0 {
+			for l.peekChar() != '\n' && l.peekChar() != '\r' && l.peekChar() != 0 {
 				l.readChar()
 				result = result + string(l.ch)
 			}
 			if l.peekChar() == 0 {
+				l.readChar()
 				return result
 			}
 			l.readChar()
 			result = result + "\n"
 		}
 	} else {
-		for l.peekChar() != '\n' && l.peekChar() != 0 {
+		for l.peekChar() != '\n' && l.peekChar() != '\r' && l.peekChar() != 0 {
 			l.readChar()
 			result = result + string(l.ch)
 		}
@@ -621,7 +632,7 @@ func isHexDigit(ch rune) bool {
 
 func isProtectedPunctuationOrWhitespace(ch rune) bool {
 	return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' || ch == ' ' || ch == ',' ||
-		ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == 0
+		ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == '\r' || ch == 0
 }
 
 func isSymbol(ch rune) bool {
@@ -646,7 +657,7 @@ func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
 
 func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 	if settings.SHOW_LEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(l.source)) {
-		fmt.Println(tokenType, st, l.line, l.tstart)
+		fmt.Println(tokenType, st)
 	}
 	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.line, ChStart: l.tstart, ChEnd: l.char}
 }

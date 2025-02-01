@@ -11,7 +11,13 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	
 )
-
+func TestEof(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`troz 42`, `42`},
+		{`zort 42`, `42`},
+	}
+	test_helper.RunTest(t, "eof_test.pf", tests, test_helper.TestValues)
+}
 func TestLiterals(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`"foo"`, `"foo"`},

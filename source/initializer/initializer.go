@@ -118,9 +118,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
-	//
-	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
-	// any changes here will also need to be reflected there.
 	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(db), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
@@ -335,7 +332,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 
 	tok = iz.p.TokenizedCode.NextToken() // note that we've already removed leading newlines.
 	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-		println(tok.Type, tok.Literal)
+		println(text.PURPLE + tok.Type, tok.Literal + text.RESET)
 	}
 
 	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
@@ -351,9 +348,9 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 
 	line := token.NewCodeChunk()
 
-	for tok = iz.p.TokenizedCode.NextToken(); tok.Type != token.EOF; tok = iz.p.TokenizedCode.NextToken() {
+	for tok = iz.p.TokenizedCode.NextToken(); true; tok = iz.p.TokenizedCode.NextToken() {
 		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-			println(tok.Type, tok.Literal)
+			println(text.PURPLE + tok.Type, tok.Literal + text.RESET)
 		}
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
@@ -390,7 +387,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 				indentCount--
 			}
 		}
-		if ((tok.Type == token.NEWLINE) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
+		if ((tok.Type == token.NEWLINE || tok.Type == token.EOF) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
 			tok.Type == token.GOCODE {
 			if tok.Type == token.GOCODE {
 				line.Append(tok)
@@ -423,6 +420,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 				} else {
 					iz.addTokenizedDeclaration(functionDeclaration, line, IsPrivate)
 				}
+
 			case VarSection, ConstSection:
 				// As a wretched kludge, we will now weaken some of the commas on the LHS of
 				// the assignment so that it parses properly. (TODO: at this point it would be much easier to
@@ -461,8 +459,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
-
-		if (tok.Type == token.NEWLINE) && line.Length() == 0 {
+		if tok.Type == token.NEWLINE && line.Length() == 0 {
 			continue
 		}
 
@@ -473,6 +470,9 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			iz.addWordsToParser(line)
 		}
 		line.Append(tok)
+		if tok.Type == token.EOF {
+			break
+		}
 	}
 
 	iz.p.Common.Errors = err.MergeErrors(iz.p.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.p.Common.Errors)

@@ -222,8 +222,13 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 				return rl.burnToken()
 			}
 			rl.curTok.Literal = strconv.Itoa(n - 1)
-			return token.Token{Type: token.NEWLINE, Literal: ";", Line: rl.curTok.Line,
+			if rl.nexTok.Type == token.EOF {
+				return token.Token{Type: token.EOF, Literal: ";", Line: rl.curTok.Line,
+					ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
+			} else {
+				return token.Token{Type: token.NEWLINE, Literal: ";", Line: rl.curTok.Line,
 				ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
+			}
 		default:
 			rl.nestingLevel = rl.nestingLevel - 1
 			rl.curTok.Literal = strconv.Itoa(n - 1)
