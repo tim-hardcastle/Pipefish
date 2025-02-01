@@ -334,10 +334,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 	)
 
 	tok = iz.p.TokenizedCode.NextToken() // note that we've already removed leading newlines.
-	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-		println(tok.Type, tok.Literal)
-	}
-
+	
 	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
 		return
 	}
@@ -352,9 +349,6 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 	line := token.NewCodeChunk()
 
 	for tok = iz.p.TokenizedCode.NextToken(); tok.Type != token.EOF; tok = iz.p.TokenizedCode.NextToken() {
-		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-			println(tok.Type, tok.Literal)
-		}
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
 				iz.Throw("init/import/first", &tok)

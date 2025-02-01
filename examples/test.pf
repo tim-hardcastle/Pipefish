@@ -1,31 +1,6 @@
-def 
+def
 
-foo(i int) :
-    "foo"
+qux :
+    SQL --- foo bar
 
 
-zort(t ... any?) :
-    foo +
-
-troz(i, j, k int) :
-    "troz"
-
-var 
-
-T tuple = ()
-U tuple = 1, 2, 3
-V tuple = tuple(1)
-W tuple = tuple("zort")
-X tuple = "a", "b", "c"
-
-x = set(1, 2, 3, 4, 5, 6)
-y = set(2, 3, 4)
-z = set(6, 5, 4)
-
-a = set("a", "b", "c", "d", "e", "f")
-b = set("a", "b", "c")
-c = set("c", "f", "d")
-
-const 
-
-Z tuple = "a", "b", "c"

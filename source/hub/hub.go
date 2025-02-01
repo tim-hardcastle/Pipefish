@@ -1494,6 +1494,7 @@ var (
 	GOOD_BULLET    = Green("  ▪ ")
 	BROKEN         = Red("  ✖ ")
 	PROMPT         = "→ "
+	INDENT_PROMPT  = "  "
 	ERROR          = "$Error$"
 	RT_ERROR       = "$Error$"
 	HUB_ERROR      = "$Hub error$"
