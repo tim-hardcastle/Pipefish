@@ -55,7 +55,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 // to output; or the errors in the compiler.
 
 func TestValues(cp *compiler.Compiler, s string) (string, error) {
-	v := cp.Do(s)
+	v := cp.Do(s + "\n")
 	if cp.ErrorsExist() {
 		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
