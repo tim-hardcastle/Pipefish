@@ -32,7 +32,7 @@ func TestNextTokenForRelexer(t *testing.T) {
 		{token.COLON, ":", 3},
 		{token.INT, "2", 3},
 		{token.RPAREN, "<-|", 4},
-		{token.NEWLINE, ";", 0},
+		{token.EOF, "EOF", 0},
 	}
 
 	rl := NewRelexer("", input)
