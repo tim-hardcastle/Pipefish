@@ -118,9 +118,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
-	//
-	// NOTE that these five phases are repeated in an un-DRY way in `test_helper.go` in this package, and that
-	// any changes here will also need to be reflected there.
 	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(db), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
@@ -423,6 +420,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 				} else {
 					iz.addTokenizedDeclaration(functionDeclaration, line, IsPrivate)
 				}
+
 			case VarSection, ConstSection:
 				// As a wretched kludge, we will now weaken some of the commas on the LHS of
 				// the assignment so that it parses properly. (TODO: at this point it would be much easier to
