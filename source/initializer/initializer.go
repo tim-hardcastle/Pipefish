@@ -462,7 +462,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			continue
 		}
 
-		if (tok.Type == token.NEWLINE) && line.Length() == 0 {
+		if (tok.Type == token.NEWLINE || tok.Type == token.EOF) && line.Length() == 0 {
 			continue
 		}
 
