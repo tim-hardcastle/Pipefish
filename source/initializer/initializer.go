@@ -390,7 +390,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 				indentCount--
 			}
 		}
-		if ((tok.Type == token.NEWLINE) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
+		if ((tok.Type == token.NEWLINE || tok.Type == token.EOF) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
 			tok.Type == token.GOCODE {
 			if tok.Type == token.GOCODE {
 				line.Append(tok)
