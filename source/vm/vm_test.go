@@ -181,7 +181,7 @@ func TestIndexing(t *testing.T) {
 		{`myWord[myIntPair]`, `"An"`},
 		{`myPair[0]`, `"foo"`},
 		{`myMap["a"]`, `[1, 2]`},
-		{`foo (myType, myNumber)`, `YELLOW`},
+		{`foo myType, myNumber`, `YELLOW`},
 		{`foo myMap, myIndex`, `[1, 2]`},
 		{`foo myList, myNumber`, `[5, 6]`},
 		{`foo myColor, key`, `LIGHT`},
