@@ -52,7 +52,7 @@ const (
 	LBRACE              = "{"
 	LBRACK              = "["
 	NAMESPACE_SEPARATOR = "."
-	NEWLINE             = "NEWLINE"
+	NEWLINE             = "\n"
 	RBRACE              = "}"
 	RBRACK              = "]"
 	RPAREN              = ")"
