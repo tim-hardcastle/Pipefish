@@ -1,0 +1,8 @@
+// A regression test to make sure that the last function declared in a program
+// both compiles and runs.
+
+troz(i) :
+    i 
+
+zort(i) :
+    i
