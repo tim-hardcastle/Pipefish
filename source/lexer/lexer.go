@@ -427,8 +427,8 @@ func (l *Lexer) readSnippet() string {
 					return result
 				}
 			}
-			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(0) { // Then we've unindented. Dobby is free!
-				if currentWhitespace != "\n" && currentWhitespace != "\r" && currentWhitespace == string(0) {
+			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(rune(0)) { // Then we've unindented. Dobby is free!
+				if currentWhitespace != "\n" && currentWhitespace != "\r" && currentWhitespace == string(rune(0)) {
 					l.snippetWhitespace = currentWhitespace
 				}
 				return result
