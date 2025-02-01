@@ -91,7 +91,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
 		varName := ""
 		varType := "*"
 		switch arg := arg.(type) {
-		case *ast.SuffixExpression:			
+		case *ast.SuffixExpression:
 			if !p.TypeExists(arg.Operator) {
 				p.Throw("parse/sig/type/a", &arg.Token)
 				return nil
@@ -115,7 +115,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
 			default:
 				p.Throw("parse/sig/ident/a", inner.GetToken())
 				return nil
-			
+
 			}
 		case *ast.Identifier:
 			if p.Endfixes.Contains(arg.Value) {

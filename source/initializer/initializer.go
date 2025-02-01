@@ -332,7 +332,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 
 	tok = iz.p.TokenizedCode.NextToken() // note that we've already removed leading newlines.
 	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-		println(tok.Type, tok.Literal)
+		println(text.PURPLE + tok.Type, tok.Literal + text.RESET)
 	}
 
 	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
@@ -348,9 +348,9 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 
 	line := token.NewCodeChunk()
 
-	for tok = iz.p.TokenizedCode.NextToken(); tok.Type != token.EOF; tok = iz.p.TokenizedCode.NextToken() {
+	for tok = iz.p.TokenizedCode.NextToken(); true; tok = iz.p.TokenizedCode.NextToken() {
 		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-			println(tok.Type, tok.Literal)
+			println(text.PURPLE + tok.Type, tok.Literal + text.RESET)
 		}
 		if token.TokenTypeIsHeadword(tok.Type) {
 			if tok.Literal == "import" {
@@ -459,8 +459,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
-
-		if (tok.Type == token.NEWLINE || tok.Type == token.EOF) && line.Length() == 0 {
+		if tok.Type == token.NEWLINE && line.Length() == 0 {
 			continue
 		}
 
@@ -471,6 +470,9 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			iz.addWordsToParser(line)
 		}
 		line.Append(tok)
+		if tok.Type == token.EOF {
+			break
+		}
 	}
 
 	iz.p.Common.Errors = err.MergeErrors(iz.p.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.p.Common.Errors)
