@@ -3,14 +3,12 @@ def
 foo(i int) :
     "foo"
 
-
-zort(t ... any?) :
-    foo +
-
 troz(i, j, k int) :
     "troz"
 
 var 
+
+sn = -- Hello world! |2 + 2| Goodbye
 
 T tuple = ()
 U tuple = 1, 2, 3

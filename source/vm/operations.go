@@ -158,6 +158,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Itkv: {"itgv", operands{dst, dst, mem}},
 	Itgv: {"itgv", operands{dst, mem}},
 	Itor: {"itor", operands{dst, mem}},
+	IxSn: {"inxS", operands{dst, mem, mem}},
 	IxXx: {"ixXx", operands{dst, mem, mem, tok}},
 	Jmp:  {"jmp", operands{loc}},
 	Jsr:  {"jsr", operands{loc}},
@@ -171,6 +172,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	LenT: {"lenT", operands{dst, mem}},
 	Litx: {"litx", operands{dst, mem}},
 	List: {"list", operands{dst, mem}},
+	LnSn: {"lnSn", operands{dst, mem}},
 	Log:  {"log", operands{mem}},
 	Logn: {"logn", operands{}},
 	Logy: {"logy", operands{}},
@@ -322,6 +324,7 @@ const (
 	Itkv
 	Itgv
 	Itor
+	IxSn
 	IxTn
 	IxXx
 	IxZl
@@ -338,6 +341,7 @@ const (
 	LenT
 	List
 	Litx
+	LnSn
 	Log
 	Logn
 	Logy

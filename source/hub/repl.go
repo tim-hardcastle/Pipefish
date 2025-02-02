@@ -10,7 +10,7 @@ import (
 
 func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 	var rline *readline.Instance
-	colonOrEmdash, _ := regexp.Compile(`.*[\w\s]*(:|---)[\s]*$`)
+	colonOrEmdash, _ := regexp.Compile(`.*[\w\s]*(:|--)[\s]*$`)
 	for {
 
 		// The hub's CurrentForm setting allows it to ask for information from the user instead of

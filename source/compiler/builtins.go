@@ -54,6 +54,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"len_list":                  {(*Compiler).btLenList, AltType(values.INT)},
 	"len_map":                   {(*Compiler).btLenMap, AltType(values.INT)},
 	"len_set":                   {(*Compiler).btLenSet, AltType(values.INT)},
+	"len_snippet":               {(*Compiler).btLenSnippet, AltType(values.INT)},
 	"len_string":                {(*Compiler).btLenString, AltType(values.INT)},
 	"len_tuple":                 {(*Compiler).btLenTuple, AltType(values.INT)},
 	"list_with":                 {(*Compiler).btListWith, AltType(values.LIST)},
@@ -264,6 +265,10 @@ func (cp *Compiler) btLenMap(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btLenSet(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.LenS, dest, args[0])
+}
+
+func (cp *Compiler) btLenSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.LnSn, dest, args[0])
 }
 
 func (cp *Compiler) btLenString(tok *token.Token, dest uint32, args []uint32) {

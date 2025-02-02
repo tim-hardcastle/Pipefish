@@ -395,6 +395,7 @@ NodeTypeSwitch:
 		// Tuples, ditto.
 		// Strings, ditto.
 		// Pairs, by integers.
+		// Snippets, by integers.
 		// Names of enum types, by integers. Query, add slice too?
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
@@ -454,6 +455,17 @@ NodeTypeSwitch:
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
 				cp.P.Throw("comp/index/pair", node.GetToken())
+				break
+			}
+			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+		}
+		if containerType.isOnlyCloneOf(cp.Vm, values.SNIPPET) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
+				cp.put(vm.IxSn, container, index, errTok)
+				break
+			}
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
+				cp.P.Throw("comp/index/snippet", node.GetToken())
 				break
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))

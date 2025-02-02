@@ -643,6 +643,8 @@ loop:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Iterator).GetValue()
 		case Itor:
 			vm.Mem[args[0]] = values.Value{values.RUNE, rune(vm.Mem[args[1]].V.(int))}
+		case IxSn:
+			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Snippet).Data[vm.Mem[args[2]].V.(int)]
 		case IxTn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxXx:
@@ -754,6 +756,16 @@ loop:
 						vm.Mem[args[0]] = vm.makeError("vm/index/k", args[3], ix)
 					}
 					break Switch
+				case values.SNIPPET:
+					snippetData := container.V.(values.Snippet).Data
+					ix := index.V.(int)
+					ok := 0 <= ix && ix < len(snippetData)
+					if ok {
+						vm.Mem[args[0]] = snippetData[ix]
+					} else {
+						vm.Mem[args[0]] = vm.makeError("vm/index/s", args[3], ix, len(snippetData), args[1], args[2])
+					}
+					break Switch
 				case values.STRING:
 					str := container.V.(string)
 					ix := index.V.(int)
@@ -850,6 +862,8 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, list}
 		case Litx:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Literal(vm.Mem[args[1]])}
+		case LnSn:
+			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.(values.Snippet).Data)}
 		case Log:
 			fmt.Print(vm.Mem[args[0]].V.(string) + "\n\n")
 		case Logn:
