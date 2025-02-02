@@ -18,9 +18,6 @@ Random = struct(params int)
 RandomSeed = struct()
 Terminal = struct()
 
-SQL = snippet
-HTML = snippet
-
 cmd
 
 posttooutputmaker(x any) : builtin "post_to_output"
@@ -134,12 +131,12 @@ put (s string) into (fileAccess File) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
-post(x SQL) : builtin "post_sql"
-put(x SQL) : builtin "post_sql"
-delete(x SQL) : builtin "post_sql"
-get(x ref) from (y SQL) : builtin "get_from_SQL"
+// post(x SQL) : builtin "post_sql"
+// put(x SQL) : builtin "post_sql"
+// delete(x SQL) : builtin "post_sql"
+// get(x ref) from (y SQL) : builtin "get_from_SQL"
 
-post(x HTML) : builtin "post_html"
+// post(x HTML) : builtin "post_html"
 
 // This is strictly speaking not part of the "world" at all but it has to go somewhere and
 // it fights with the builtin definitions.
