@@ -55,7 +55,7 @@ func NewCommonTypeMap() TypeSys {
 }
 
 var BaseTypesOtherThanNull = []string{"int", "float", "bool", "string", "rune", "error", "type", "list", "label",
-	"pair", "set", "map", "func", "struct", "label", "snippet"}
+	"pair", "set", "map", "func", "struct", "snippet"}
 
 var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": values.INT, "list": values.LIST, "map": values.MAP, "pair": values.PAIR, "rune": values.RUNE, "set": values.SET, "snippet": values.SNIPPET, "string": values.STRING}
 

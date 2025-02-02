@@ -80,8 +80,8 @@ type CommonCompilerBindle struct {
 func NewCommonCompilerBindle() *CommonCompilerBindle {
 	newBindle := &CommonCompilerBindle{
 		SharedTypenameToTypeList: map[string]AlternateType{
-			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET),
+			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET),
 		},
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
