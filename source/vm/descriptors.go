@@ -56,7 +56,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	typeInfo := vm.ConcreteTypeInfo[v.T]
 	if typeInfo.IsStruct() {
 		var buf strings.Builder
-		buf.WriteString(vm.ConcreteTypeInfo[v.T].GetName(flavor))
+		buf.WriteString(typeInfo.GetName(flavor))
 		buf.WriteString(" with (")
 		var sep string
 		vals := v.V.([]values.Value)
@@ -70,17 +70,29 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	if typeInfo.IsEnum() {
 		var buf strings.Builder
 		if flavor == LITERAL {
-			buf.WriteString(vm.ConcreteTypeInfo[v.T].(EnumType).Path)
+			buf.WriteString(typeInfo.(EnumType).Path)
 		}
-		buf.WriteString(vm.ConcreteTypeInfo[v.T].(EnumType).ElementNames[v.V.(int)])
+		buf.WriteString(typeInfo.(EnumType).ElementNames[v.V.(int)])
 		return buf.String()
 
 	}
 	if typeInfo.IsClone() {
+		if typeInfo.(CloneType).Parent == values.SNIPPET {
+			var buf strings.Builder
+			buf.WriteString(typeInfo.GetName(flavor))
+			buf.WriteByte('(')
+			var sep string
+			for _, k := range v.V.(values.Snippet).Data {
+				fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))
+				sep = ", "
+			}
+			buf.WriteByte(')')
+			return buf.String()
+		}
 		var buf strings.Builder
-		buf.WriteString(vm.ConcreteTypeInfo[v.T].GetName(flavor))
+		buf.WriteString(typeInfo.GetName(flavor))
 		buf.WriteString("(")
-		buf.WriteString(vm.StringifyValue(values.Value{vm.ConcreteTypeInfo[v.T].(CloneType).Parent, v.V}, flavor))
+		buf.WriteString(vm.StringifyValue(values.Value{typeInfo.(CloneType).Parent, v.V}, flavor))
 		buf.WriteByte(')')
 		return buf.String()
 	}
@@ -161,6 +173,16 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 			fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))
 			sep = ", "
 		})
+		buf.WriteByte(')')
+		return buf.String()
+	case values.SNIPPET:
+		var buf strings.Builder
+		buf.WriteString("snippet(")
+		var sep string
+		for _, k := range v.V.(values.Snippet).Data {
+			fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))
+			sep = ", "
+		}
 		buf.WriteByte(')')
 		return buf.String()
 	case values.STRING:

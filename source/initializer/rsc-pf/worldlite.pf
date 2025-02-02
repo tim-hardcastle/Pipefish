@@ -7,9 +7,6 @@ newtype
 Input = struct(prompt string)
 Output = struct()
 Terminal = struct()
-HTML = snippet
-
-Foo = enum FOO, BAR
 
 cmd
 

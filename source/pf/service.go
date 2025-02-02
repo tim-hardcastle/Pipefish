@@ -128,6 +128,7 @@ const (
 	MAP            Type = values.MAP
 	SET            Type = values.SET
 	LABEL          Type = values.LABEL
+	SNIPPET        Type = values.SNIPPET
 )
 
 // Makes an InHandler which does nothing but get a string from terminal

@@ -27,6 +27,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"cast_to_map":               {(*Compiler).btCastToMap, AltType(values.MAP)},
 	"cast_to_pair":              {(*Compiler).btCastToPair, AltType(values.PAIR)},
 	"cast_to_set":               {(*Compiler).btCastToSet, AltType(values.SET)},
+	"cast_to_snippet":           {(*Compiler).btCastToSnippet, AltType(values.SNIPPET)},
 	"cast_to_string":            {(*Compiler).btCastToString, AltType(values.STRING)},
 	"codepoint":                 {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":             {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
@@ -54,6 +55,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"len_list":                  {(*Compiler).btLenList, AltType(values.INT)},
 	"len_map":                   {(*Compiler).btLenMap, AltType(values.INT)},
 	"len_set":                   {(*Compiler).btLenSet, AltType(values.INT)},
+	"len_snippet":               {(*Compiler).btLenSnippet, AltType(values.INT)},
 	"len_string":                {(*Compiler).btLenString, AltType(values.INT)},
 	"len_tuple":                 {(*Compiler).btLenTuple, AltType(values.INT)},
 	"list_with":                 {(*Compiler).btListWith, AltType(values.LIST)},
@@ -66,6 +68,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"make_map":                  {(*Compiler).btMakeMap, AltType(values.MAP)},
 	"make_pair":                 {(*Compiler).btMakePair, AltType(values.PAIR)},
 	"make_set":                  {(*Compiler).btMakeSet, AltType(values.SET)},
+	"make_snippet":              {(*Compiler).btMakeSnippet, AltType(values.SNIPPET)},
 	"map_with":                  {(*Compiler).btMapWith, AltType(values.MAP)},
 	"map_without":               {(*Compiler).btMapWithout, AltType(values.MAP)},
 	"modulo_integers":           {(*Compiler).btModuloIntegers, AltType(values.ERROR, values.INT)},
@@ -75,9 +78,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"multiply_integer_by_float": {(*Compiler).btMultiplyIntegerByFloat, AltType(values.FLOAT)},
 	"negate_float":              {(*Compiler).btNegateFloat, AltType(values.FLOAT)},
 	"negate_integer":            {(*Compiler).btNegateInteger, AltType(values.INT)},
-	"post_html":                 {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_output":            {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
-	"post_sql":                  {(*Compiler).btPostSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_terminal":          {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
 	"rune":                      {(*Compiler).btRune, AltType(values.RUNE)},
 	"string":                    {(*Compiler).btString, AltType(values.STRING)},
@@ -157,6 +158,10 @@ func (cp *Compiler) btCastToPair(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btCastToSet(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Cast, dest, args[0], uint32(values.SET))
+}
+
+func (cp *Compiler) btCastToSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.SNIPPET))
 }
 
 func (cp *Compiler) btCastToString(tok *token.Token, dest uint32, args []uint32) {
@@ -268,6 +273,10 @@ func (cp *Compiler) btLenSet(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.LenS, dest, args[0])
 }
 
+func (cp *Compiler) btLenSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.LnSn, dest, args[0])
+}
+
 func (cp *Compiler) btLenString(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Lens, dest, args[0])
 }
@@ -310,6 +319,10 @@ func (cp *Compiler) btMakeMap(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btMakePair(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Mkpr, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btMakeSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.CoSn, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMakeSet(tok *token.Token, dest uint32, args []uint32) {
@@ -355,10 +368,6 @@ func (cp *Compiler) btNegateInteger(tok *token.Token, dest uint32, args []uint32
 func (cp *Compiler) btPostToOutput(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Outp, args[0])
 	cp.Emit(vm.Asgm, dest, values.C_OK)
-}
-
-func (cp *Compiler) btPostSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Psnp, dest, args[0])
 }
 
 func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {

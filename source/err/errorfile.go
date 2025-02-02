@@ -590,7 +590,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "pair index is not of type" + emph("int")
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "A pair may be indexed  only by the integers " + emph("0") + " and " + emph("1")
+			return "A pair may be indexed only by the integers " + emph("0") + " and " + emph("1")
+		},
+	},
+
+	"comp/index/snippet": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "snippet index is not of type" + emph("int")
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A snippet may be indexed only by integers."
 		},
 	},
 
@@ -2955,6 +2964,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
+		},
+	},
+
+	"vm/index/s": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("index %v of snippet is out of range", emph(args[0]))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return fmt.Sprintf("The greatest value the index of a snippet can have is the length of the thing being indexed.")
 		},
 	},
 

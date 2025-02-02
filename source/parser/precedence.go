@@ -93,7 +93,6 @@ var precedences = map[token.TokenType]int{
 	// SUM
 	// PRODUCT
 	token.DOTDOTDOT: FSUFFIX,
-	token.EMDASH:    FSUFFIX,
 	// MINUS     (as prefix)
 	token.LBRACK: INDEX,
 	// BELOW_NAMESPACE

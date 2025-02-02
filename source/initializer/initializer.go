@@ -222,12 +222,6 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	iz.cmI("Creating snippet types, part 1.")
-	iz.createSnippetsPart1()
-	if iz.ErrorsExist() {
-		return
-	}
-
 	iz.cmI("Adding types to parser.")
 	iz.addTypesToParser()
 	if iz.ErrorsExist() {
@@ -260,12 +254,6 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 
 	iz.cmI("Adding fields to structs.")
 	iz.addFieldsToStructs()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	iz.cmI("Creating snippet types, part 2.")
-	iz.createSnippetTypesPart2()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -802,7 +790,7 @@ func (iz *initializer) createClones() {
 		typeToClone := typeToken.Literal
 		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 		if !ok {
-			iz.Throw("init/clone/type", &typeToken)
+			iz.Throw("init/clone/type", &typeToken, typeToClone)
 			return
 		}
 		abType := typeToClone + "like"
@@ -986,19 +974,6 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, built
 	conflictingFunction := iz.p.FunctionTable.Add(iz.p, fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
 		iz.p.Throw("init/overload/c", tok, fnName, conflictingFunction.Tok.Line)
-	}
-}
-
-// Phase 1G of compilation. We do a little work to create the snippet types, leaving the rest for later.
-func (iz *initializer) createSnippetsPart1() {
-	for _, v := range iz.TokenizedDeclarations[snippetDeclaration] {
-		v.ToStart()
-		// Note that the first tokens should already have been validated by the createTypeSuffixes method as IDENT.
-		tok1 := v.NextToken()
-		name := tok1.Literal
-		iz.Snippets = append(iz.Snippets, name)
-		iz.p.AllFunctionIdents.Add(name)
-		iz.p.Functions.Add(name)
 	}
 }
 
@@ -1255,36 +1230,6 @@ func (iz *initializer) addFieldsToStructs() {
 	}
 }
 
-// Phase 1N of compilation. We create a little more of the snippet types, though we won't finish up until
-// `parseEverythingElse`.
-func (iz *initializer) createSnippetTypesPart2() {
-	abTypes := []values.AbstractType{{[]values.ValueType{values.STRING}, DUMMY}, {[]values.ValueType{values.MAP}, DUMMY}}
-	for i, name := range iz.Snippets {
-		sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-		typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
-		iz.TokenizedDeclarations[snippetDeclaration][i].ToStart()
-		decTok := iz.TokenizedDeclarations[snippetDeclaration][i].NextToken()
-		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, &decTok, DUMMY)
-		if typeExists { // We see if it's already been declared.
-			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
-			typeInfo.Path = iz.p.NamespacePath
-			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
-		} else {
-			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.StructType{Name: name, Path: iz.p.NamespacePath, Snippet: true, 
-					Private: iz.IsPrivate(int(snippetDeclaration), i), AbstractStructFields: abTypes, IsMI: settings.MandatoryImportSet().Contains(decTok.Source)})
-			iz.addStructLabelsToVm(name, typeNo, sig, &decTok)
-			iz.cp.Common.CodeGeneratingTypes.Add(typeNo)
-		}
-		iz.AddType(name, "snippet", typeNo)
-		// The parser needs to know about it too.
-		iz.p.Functions.Add(name)
-		fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name, Token: decTok}, Tok: &decTok}
-		iz.p.FunctionTable.Add(iz.p, name, fn)
-		iz.fnIndex[fnSource{snippetDeclaration, i}] = fn
-	}
-}
-
 // Function auxiliary to the above, for adding struct labels to the VM.
 //
 // TODO --- this appears to only be used by snippets and not by ordinary structs. Find out what they use and use that.
@@ -1525,13 +1470,6 @@ func (iz *initializer) compileConstructors() {
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
 		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
-	}
-	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
-	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-	for i, name := range iz.Snippets {
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		iz.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
-		iz.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
 	}
 	// Clones
 	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
@@ -2187,9 +2125,6 @@ func (iz *initializer) AddType(name, supertype string, typeNo values.ValueType) 
 	iz.p.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
 	iz.unserializableTypes.Add(name).Add(name+"?")
 	types := []string{supertype}
-	if supertype == "snippet" {
-		types = append(types, "struct")
-	}
 	iz.cp.Common.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "any")
 	for _, sT := range types {
@@ -2326,7 +2261,7 @@ func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *to
 	iz.TokenizedDeclarations[decType] = append(iz.TokenizedDeclarations[decType], line)
 }
 
-var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration,
+var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, 
 	"abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
 
 // Types and functions to help with housekeeping. The initializer stores the declarations of types and functions

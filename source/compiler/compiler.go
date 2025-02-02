@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
@@ -81,8 +80,8 @@ type CommonCompilerBindle struct {
 func NewCommonCompilerBindle() *CommonCompilerBindle {
 	newBindle := &CommonCompilerBindle{
 		SharedTypenameToTypeList: map[string]AlternateType{
-			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
-			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL),
+			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET),
+			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET),
 		},
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
@@ -396,6 +395,7 @@ NodeTypeSwitch:
 		// Tuples, ditto.
 		// Strings, ditto.
 		// Pairs, by integers.
+		// Snippets, by integers.
 		// Names of enum types, by integers. Query, add slice too?
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
@@ -455,6 +455,17 @@ NodeTypeSwitch:
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
 				cp.P.Throw("comp/index/pair", node.GetToken())
+				break
+			}
+			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+		}
+		if containerType.isOnlyCloneOf(cp.Vm, values.SNIPPET) {
+			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
+				cp.put(vm.IxSn, container, index, errTok)
+				break
+			}
+			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
+				cp.P.Throw("comp/index/snippet", node.GetToken())
 				break
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
@@ -912,6 +923,11 @@ NodeTypeSwitch:
 		cp.Reserve(values.RUNE, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.RUNE), true
 		break
+	case *ast.SnippetLiteral:		
+		snF := cp.reserveSnippetFactory(env, node, ctxt)
+		cp.put(vm.MkSn, snF)
+		rtnTypes, rtnConst = AltType(values.SNIPPET), false
+		break
 	case *ast.StringLiteral:
 		cp.Reserve(values.STRING, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.STRING), true
@@ -920,18 +936,6 @@ NodeTypeSwitch:
 		panic("This is used only in the vmmaker and should never be compiled.")
 	case *ast.SuffixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		if node.GetToken().Type == token.EMDASH {
-			switch t := node.Args[0].(type) {
-			case *ast.TypeLiteral:
-				snF := cp.reserveSnippetFactory(t.Value, env, node, ctxt)
-				cp.put(vm.MkSn, snF)
-				rtnTypes, rtnConst = cp.TypeNameToTypeScheme[t.Value], false
-				break NodeTypeSwitch
-			default:
-				cp.P.Throw("comp/snippet/type", node.Args[0].GetToken()) // There is no reason why this should be a first-class value, that would just be confusing. Hence the error.
-				break NodeTypeSwitch
-			}
-		}
 		if node.GetToken().Type == token.DOTDOTDOT {
 			if len(node.Args) != 1 {
 				cp.P.Throw("comp/splat/args", node.GetToken())
@@ -1859,17 +1863,10 @@ func (cp *Compiler) getLambdaStart() uint32 {
 
 // A function for making snippet factories.
 
-func (cp *Compiler) reserveSnippetFactory(t string, env *Environment, fnNode *ast.SuffixExpression, ctxt Context) uint32 {
-	cp.Cm("Reserving snippet factory.", &fnNode.Token)
-	snF := &vm.SnippetFactory{SnippetType: cp.ConcreteTypeNow(t), SourceString: fnNode.Token.Literal}
-	csk := vm.VANILLA_SNIPPET
-	switch {
-	case t == "SQL":
-		csk = vm.SQL_SNIPPET
-	case t == "HTML":
-		csk = vm.HTML_SNIPPET
-	}
-	snF.Bindle = cp.compileSnippet(fnNode.GetToken(), env, csk, snF.SourceString, ctxt)
+func (cp *Compiler) reserveSnippetFactory(env *Environment, node *ast.SnippetLiteral, ctxt Context) uint32 {
+	cp.Cm("Reserving snippet factory.", &node.Token)
+	snF := &vm.SnippetFactory{}
+	snF.Bindle = cp.compileSnippet(node.GetToken(), env, node.Token.Literal, ctxt)
 	cp.Vm.SnippetFactories = append(cp.Vm.SnippetFactories, snF)
 	return uint32(len(cp.Vm.SnippetFactories) - 1)
 }
@@ -2155,79 +2152,35 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	return AltType(values.LIST), lhsConst && rhsConst
 }
 
-func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, csk vm.CompiledSnippetKind, sText string, ctxt Context) *vm.SnippetBindle {
+func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, sText string, ctxt Context) *values.SnippetBindle {
 	cp.Cm("Compile snippet", tok)
-	bindle := vm.SnippetBindle{Csk: csk}
+	bindle := values.SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
 		cp.P.Throw("comp/snippet/form", tok)
 		return &bindle
 	}
-	var buf strings.Builder
 	bindle.CodeLoc = cp.CodeTop()
-	c := 0
+	if len(bits) > 0 && len(bits[0]) > 0 && bits[0][0] == '|' {
+		cp.Reserve(values.STRING, "", tok)
+		bindle.ValueLocs = append(bindle.ValueLocs, cp.That())
+	}
 	for _, bit := range bits {
 		if len(bit) > 0 && bit[0] == '|' {
 			node := cp.P.ParseLine(tok.Source, bit[1:len(bit)-1])
 			newContext := ctxt
 			newContext.Env = newEnv
-			types, cst := cp.CompileNode(node, newContext)
+			types, _ := cp.CompileNode(node, newContext)
 			val := cp.That()
-
-			// Special sauce for the SQL snippets.
-			if types.isOnly(values.TYPE) && cst && csk == vm.SQL_SNIPPET {
-				typeNumbers := cp.Vm.Mem[cp.That()].V.(values.AbstractType).Types
-				if len(typeNumbers) == 1 && cp.Vm.ConcreteTypeInfo[typeNumbers[0]].IsStruct() {
-					sig, ok := cp.Vm.GetSqlSig(typeNumbers[0])
-					if !ok {
-						cp.P.Throw("comp/snippet/sig", tok, cp.Vm.DescribeType(typeNumbers[0], vm.LITERAL))
-					}
-					buf.WriteString(sig)
-					continue // ... the for loop.
-				}
-			}
-			// If it's a tuple of fixed length, we can split it and inject the values separately.
-			// If it's of indeterminate length then we need to throw an error.
-			numberOfInjectionSites := 1 // Default, if the type is any.
 			if types.Contains(values.TUPLE) {
-				lengths := lengths(types)
-				if lengths.Contains(-1) || len(lengths) > 1 { // ... then we can't infer the length and must throw an error.
-					cp.P.Throw("comp/snippet/tuple", tok)
-				}
-				numberOfInjectionSites, _ = lengths.GetArbitraryElement()
-				for i := 0; i < numberOfInjectionSites; i++ {
-					cp.put(vm.IxTn, val, uint32(i))
-					bindle.ValueLocs = append(bindle.ValueLocs, cp.That())
-				}
-			} else { // We have a any element so we add it to the injectable values.
-				bindle.ValueLocs = append(bindle.ValueLocs, val)
+				cp.P.Throw("comp/snippet/tuple", tok)
 			}
-			sep := ""
-			for i := 0; i < numberOfInjectionSites; i++ {
-				buf.WriteString(sep)
-				switch csk {
-				case vm.SQL_SNIPPET:
-					buf.WriteString("$")
-					c++
-					buf.WriteString(strconv.Itoa(c)) // The injection sites in SQL go $1 , $2 , $3 ...
-				case vm.HTML_SNIPPET:
-					buf.WriteString("{{index .Data ")
-					buf.WriteString(strconv.Itoa(c)) // The injection sites in HTML go {{index .Data 0}} , {{index .Data 1}} ...
-					buf.WriteString("}}")
-					c++
-				case vm.VANILLA_SNIPPET:
-					buf.WriteString("%v") // We produce a Go format string.
-				}
-				sep = ", "
-			}
+			bindle.ValueLocs = append(bindle.ValueLocs, val)
 		} else {
 			cp.Reserve(values.STRING, bit, tok)
 			bindle.ValueLocs = append(bindle.ValueLocs, cp.That())
-			buf.WriteString(bit)
 		}
 	}
-	cp.Reserve(values.STRING, buf.String(), tok)
-	bindle.ObjectStringLoc = cp.That()
 	return &bindle
 }
 

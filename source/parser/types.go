@@ -23,6 +23,7 @@ var baseTypes = map[string]values.ValueType{
 	"label":  values.LABEL,
 	"func":   values.FUNC,
 	"null":   values.NULL,
+	"snippet": values.SNIPPET,
 }
 
 func NewCommonTypeMap() TypeSys {
@@ -38,7 +39,7 @@ func NewCommonTypeMap() TypeSys {
 	singleAndNull := anyType.Insert(values.NULL)
 	result["any"] = anyType
 	result["any?"] = singleAndNull
-	for _, abType := range []string{"enum", "struct", "snippet"} {
+	for _, abType := range []string{"enum", "struct"} {
 		result[abType] = values.MakeAbstractType()
 		result[abType+"?"] = values.MakeAbstractType(values.NULL)
 	}
@@ -54,11 +55,11 @@ func NewCommonTypeMap() TypeSys {
 }
 
 var BaseTypesOtherThanNull = []string{"int", "float", "bool", "string", "rune", "error", "type", "list", "label",
-	"pair", "set", "map", "func", "struct", "label"}
+	"pair", "set", "map", "func", "struct", "snippet"}
 
-var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": values.INT, "list": values.LIST, "map": values.MAP, "pair": values.PAIR, "rune": values.RUNE, "set": values.SET, "string": values.STRING}
+var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": values.INT, "list": values.LIST, "map": values.MAP, "pair": values.PAIR, "rune": values.RUNE, "set": values.SET, "snippet": values.SNIPPET, "string": values.STRING}
 
-var AbstractTypesOtherThanSingle = []string{"struct", "snippet", "enum"}
+var AbstractTypesOtherThanSingle = []string{"struct", "enum"}
 
 func (p *Parser) IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 	if len(sigB) == 0 {

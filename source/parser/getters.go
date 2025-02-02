@@ -487,7 +487,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	}
 	if p.Functions.Contains(p.curToken.Literal) && p.TypeExists(p.curToken.Literal) {
 		if p.peekToken.Type == token.EMDASH {
-			return false
+			return true
 		}
 		if literalsAndLParen.Contains(p.peekToken.Type) {
 			return true

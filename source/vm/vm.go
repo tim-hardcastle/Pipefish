@@ -3,7 +3,6 @@ package vm
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 	"os"
 	"reflect"
 	"strconv"
@@ -84,27 +83,12 @@ type LambdaFactory struct {
 }
 
 // All the information we need to make a snippet at a particular point in the code.
+// Currently contaains only the bindle but later will contain some secret sauce.
 type SnippetFactory struct {
-	SnippetType  values.ValueType // The type of the snippet, adoy.
-	SourceString string           // The plain text of the snippet before processing.
-	Bindle       *SnippetBindle   // Points to the structure defined below.
+	Bindle *values.SnippetBindle   // Points to the structure defined below.
 }
 
-// A grouping of all the things a snippet from a given snippet factory have in common.
-type SnippetBindle struct {
-	Csk             CompiledSnippetKind // An enum type saying whether it's uncompiled, an external service, SQL, or HTML.
-	CodeLoc         uint32              // Where to find the code to compute the object string and the values.
-	ObjectStringLoc uint32              // Where to find the object string.
-	ValueLocs       []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
-}
 
-type CompiledSnippetKind int
-
-const (
-	VANILLA_SNIPPET CompiledSnippetKind = iota
-	SQL_SNIPPET
-	HTML_SNIPPET
-)
 
 // Container for the data we push when a function might be about to do recursion.
 type recursionData struct {
@@ -121,10 +105,10 @@ type HTMLInjector struct {
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.EMPTY}
 
 // Type names in upper case are things the user should never see.
-var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "SNIPPET DATA", "THUNK",
-	"CREATED LOCAL CONSTANT", "COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
+var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT", 
+	"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
-	"pair", "list", "map", "set", "label"}
+	"pair", "list", "map", "set", "label", "snippet"}
 
 func BlankVm(db *sql.DB) *Vm {
 	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db,
@@ -323,6 +307,8 @@ loop:
 					vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 				}
 			}
+		case CoSn:
+			vm.Mem[args[0]] = values.Value{values.SNIPPET, values.Snippet{vm.Mem[args[1]].V.([]values.Value), nil}}
 		case Cpnt:
 			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(rune))}
 		case Cv1T:
@@ -659,6 +645,8 @@ loop:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Iterator).GetValue()
 		case Itor:
 			vm.Mem[args[0]] = values.Value{values.RUNE, rune(vm.Mem[args[1]].V.(int))}
+		case IxSn:
+			vm.Mem[args[0]] = vm.Mem[args[1]].V.(values.Snippet).Data[vm.Mem[args[2]].V.(int)]
 		case IxTn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxXx:
@@ -770,6 +758,16 @@ loop:
 						vm.Mem[args[0]] = vm.makeError("vm/index/k", args[3], ix)
 					}
 					break Switch
+				case values.SNIPPET:
+					snippetData := container.V.(values.Snippet).Data
+					ix := index.V.(int)
+					ok := 0 <= ix && ix < len(snippetData)
+					if ok {
+						vm.Mem[args[0]] = snippetData[ix]
+					} else {
+						vm.Mem[args[0]] = vm.makeError("vm/index/s", args[3], ix, len(snippetData), args[1], args[2])
+					}
+					break Switch
 				case values.STRING:
 					str := container.V.(string)
 					ix := index.V.(int)
@@ -866,6 +864,8 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.LIST, list}
 		case Litx:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Literal(vm.Mem[args[1]])}
+		case LnSn:
+			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.(values.Snippet).Data)}
 		case Log:
 			fmt.Print(vm.Mem[args[0]].V.(string) + "\n\n")
 		case Logn:
@@ -919,12 +919,11 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.SET, result}
 		case MkSn:
 			sFac := vm.SnippetFactories[args[1]]
-			vals := vector.Empty
-			for _, v := range sFac.Bindle.ValueLocs {
-				vals = vals.Conj(vm.Mem[v])
+			vals := make([]values.Value, len(sFac.Bindle.ValueLocs))
+			for i, v := range sFac.Bindle.ValueLocs {
+				vals[i] = vm.Mem[v]
 			}
-			vm.Mem[args[0]] = values.Value{values.ValueType(sFac.SnippetType),
-				[]values.Value{{values.STRING, sFac.SourceString}, {values.LIST, vals}, {values.SNIPPET_DATA, sFac.Bindle}}}
+			vm.Mem[args[0]] = values.Value{values.SNIPPET, values.Snippet{vals, sFac.Bindle}}
 		case Mlfi:
 			vm.Mem[args[0]] = values.Value{values.FLOAT, vm.Mem[args[1]].V.(float64) * float64(vm.Mem[args[2]].V.(int))}
 		case Modi:
@@ -953,49 +952,6 @@ loop:
 				fmt.Println(vm.Literal(vm.Mem[args[0]]))
 			} else {
 				fmt.Println(vm.DefaultDescription(vm.Mem[args[0]]))
-			}
-		case Psnp: // Only for if you 'post HTML' or 'post SQL'.
-			// Everything we need to evaluate the snippets has been precompiled into a secret third field of the snippet struct, having
-			// type SNIPPET_DATA. We extract the relevant data from this and execute the precompiled code.
-			bindle := vm.Mem[args[1]].V.([]values.Value)[2].V.(*SnippetBindle)
-			objectString := vm.Mem[bindle.ObjectStringLoc].V.(string)
-			// What we do at that point depends on what kind of snippet it is, which is also recorded in the snippet data:
-			switch bindle.Csk {
-			case HTML_SNIPPET: // We parse this and emit it to whatever Output is.
-				t, err := template.New("html snippet").Parse(objectString) // TODO: parse this at compile time and stick it in the bindle.
-				if err != nil {
-					panic("Template parsing error.")
-					// TODO --- this.
-					// continue
-				}
-				var buf strings.Builder
-				injector := HTMLInjector{make([]any, 0, len(bindle.ValueLocs))}
-				for i := 1; i < len(bindle.ValueLocs); i = i + 2 {
-					mLoc := bindle.ValueLocs[i]
-					v := vm.Mem[mLoc]
-					switch v.T {
-					case values.STRING:
-						injector.Data = append(injector.Data, v.V.(string))
-					case values.INT:
-						injector.Data = append(injector.Data, v.V.(int))
-					case values.BOOL:
-						injector.Data = append(injector.Data, v.V.(bool))
-					case values.FLOAT:
-						injector.Data = append(injector.Data, v.V.(float64))
-					default:
-						panic("Unhandled case:" + vm.ConcreteTypeInfo[v.T].GetName(LITERAL))
-					}
-				}
-				t.Execute(&buf, injector)
-				vm.OutHandle.Out(values.Value{values.STRING, buf.String()})
-				vm.Mem[args[0]] = values.Value{values.SUCCESSFUL_VALUE, nil}
-			case SQL_SNIPPET:
-				injector := make([]values.Value, 0, len(bindle.ValueLocs))
-				for i := 1; i < len(bindle.ValueLocs); i = i + 2 {
-					mLoc := bindle.ValueLocs[i]
-					injector = append(injector, vm.Mem[mLoc])
-				}
-				vm.Mem[args[0]] = vm.evalPostSQL(objectString, injector)
 			}
 		case Qabt:
 			varcharLimit := args[1]
@@ -1085,30 +1041,6 @@ loop:
 			} else {
 				loc = args[1]
 			}
-			continue
-		case Qspt:
-			switch ty := vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
-			case StructType:
-				if ty.Snippet {
-					loc = loc + 1
-					continue
-				}
-			}
-			loc = args[1]
-			continue
-		case Qspq:
-			if vm.Mem[args[0]].T == values.NULL {
-				loc = loc + 1
-				continue
-			}
-			switch ty := vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
-			case StructType:
-				if ty.Snippet {
-					loc = loc + 1
-					continue
-				}
-			}
-			loc = args[1]
 			continue
 		case Qstr:
 			switch vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {

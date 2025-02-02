@@ -129,7 +129,7 @@ var keywords = map[string]TokenType{
 	"?>":  FILTER,
 	"==":  EQ,
 	"!=":  NOT_EQ,
-	"---": EMDASH,
+	"--":  EMDASH,
 
 	// False and true.
 	"true":  TRUE,

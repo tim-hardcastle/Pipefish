@@ -378,6 +378,15 @@ func (rl *RuneLiteral) Children() []Node       { return []Node{} }
 func (rl *RuneLiteral) GetToken() *token.Token { return &rl.Token }
 func (rl *RuneLiteral) String() string         { return strconv.QuoteRune(rl.Value) }
 
+type SnippetLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (sl *SnippetLiteral) Children() []Node       { return []Node{} }
+func (sl *SnippetLiteral) GetToken() *token.Token { return &sl.Token }
+func (sl *SnippetLiteral) String() string         { return "---" + sl.Value }
+
 type StringLiteral struct {
 	Token token.Token
 	Value string

@@ -41,6 +41,7 @@ var INITIAL_TYPE_SCHEMES = map[string]AlternateType{
 	"map":      AltType(values.MAP),
 	"set":      AltType(values.SET),
 	"label":    AltType(values.LABEL),
+	"snippet":  AltType(values.SNIPPET),
 	"func":     AltType(values.FUNC),
 	"int?":     AltType(values.NULL, values.INT),
 	"string?":  AltType(values.NULL, values.STRING),
@@ -53,6 +54,7 @@ var INITIAL_TYPE_SCHEMES = map[string]AlternateType{
 	"set?":     AltType(values.NULL, values.SET),
 	"label?":   AltType(values.NULL, values.LABEL),
 	"func?":    AltType(values.NULL, values.FUNC),
+	"snippet?": AltType(values.NULL, values.SNIPPET),
 	"null":     AltType(values.NULL),
 }
 
