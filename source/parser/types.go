@@ -39,7 +39,7 @@ func NewCommonTypeMap() TypeSys {
 	singleAndNull := anyType.Insert(values.NULL)
 	result["any"] = anyType
 	result["any?"] = singleAndNull
-	for _, abType := range []string{"enum", "struct", "snippet"} {
+	for _, abType := range []string{"enum", "struct"} {
 		result[abType] = values.MakeAbstractType()
 		result[abType+"?"] = values.MakeAbstractType(values.NULL)
 	}
