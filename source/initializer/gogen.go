@@ -180,6 +180,7 @@ var goTypes = map[string]string{
 	"map":   "map[any]any",
 	"pair":  "[2]any",
 	"set":   "map[any]struct{}",
+	"snippet": "!",
 	"tuple": "[]any",
 	"type":  "!",
 }

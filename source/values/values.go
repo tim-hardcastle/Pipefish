@@ -12,7 +12,6 @@ const ( // Cross-reference with typeNames in BlankVm()
 
 	UNDEFINED_TYPE          ValueType = iota // For debugging purposes, it is useful to have the zero value be something it should never actually be.
 	INT_ARRAY                                // V is an array of Golang uint32. TODO --- its only current use is a three-value enum.
-	SNIPPET_DATA                             // V is SnippetData. This is attached as an invisible field to a snippet struct to carry around things that can be deduced at compile time.
 	THUNK                                    // V is a ThunkValue which contains the address to call to evaluate the thunk and the memory location where the result ends up.
 	CREATED_THUNK_OR_CONST                   // Returned by the compiler in the TypeScheme when we compile a thunk.
 	COMPILE_TIME_ERROR                       // For when we have to return a type, but what we have is a compile time error.
@@ -37,11 +36,12 @@ const ( // Cross-reference with typeNames in BlankVm()
 	FLOAT              // V : float
 	TYPE               // V : abstractType
 	FUNC               // V : vm.Lambda
-	PAIR               // V : []values.Value
+	PAIR               // V : []values.Value // TODO --- this should be [2]values.Value just for neatness.
 	LIST               // V : vector.Vector
 	MAP                // V : *values.Map
 	SET                // V : values.Set
 	LABEL              // V : int
+	SNIPPET            // V : Snippet struct{Data []values.Value, Bindle *SnippetBindle}
 	FIRST_DEFINED_TYPE // I.e the first of the enums.
 )
 
@@ -50,6 +50,17 @@ const DUMMY = 4294967295
 type Value struct {
 	T ValueType
 	V any
+}
+
+type Snippet struct {
+	Data []Value
+	Bindle *SnippetBindle
+}
+
+// A grouping of all the things a snippet from a given snippet factory have in common.
+type SnippetBindle struct {
+	CodeLoc         uint32              // Where to find the code to compute the object string and the values.
+	ValueLocs       []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
 }
 
 func (v Value) compare(w Value) bool { // To implement the set and hash structures. It doesn't really matter which order

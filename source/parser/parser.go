@@ -198,6 +198,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseContinue()
 	case token.ELSE:
 		leftExp = p.parseElse()
+	case token.EMDASH :
+		leftExp = p.parseSnippetLiteral()
 	case token.FALSE:
 		leftExp = p.parseBooleanLiteral()
 	case token.FLOAT:
@@ -299,7 +301,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	}
 
 	for precedence < p.peekPrecedence() {
-		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.EMDASH || p.peekToken.Type == token.DOTDOTDOT {
+		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.DOTDOTDOT {
 			if p.curToken.Type == token.NOT || p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
 				p.Throw("parse/before/b", &p.curToken, &p.peekToken)
 				return nil
@@ -842,6 +844,10 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 		}
 	}
 	return exp
+}
+
+func (p *Parser) parseSnippetLiteral() ast.Node {
+	return &ast.SnippetLiteral{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) parseStringLiteral() ast.Node {

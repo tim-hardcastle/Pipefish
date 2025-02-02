@@ -319,7 +319,9 @@ func GetTextWithBarsAsList(text string) ([]string, bool) {
 	if exp {
 		return nil, false
 	}
-	strList = append(strList, word)
+	if word != "" {
+		strList = append(strList, word)
+	}
 	return strList, true
 }
 
