@@ -88,7 +88,7 @@ set(x ... any?) -> set : makeSet(x)
 makeSet(x tuple) -> set : builtin "make_set"   
 // string(x stringlike) -> string : builtin "cast_to_string" 
 // snippet(x ... any?) -> snippet : builtin "make_snippet" 
-// snippet(x snippetlike) -> snippet : builtin "cast_to_snippet"      
+snippet(x snippetlike) -> snippet : builtin "cast_to_snippet"      
 string(x any?) -> string : builtin "string"
 tuple(x tuple) -> tuple : builtin "tuple_of_tuple"
 tuple(x ... any?) -> tuple : builtin "tuple_of_varargs"

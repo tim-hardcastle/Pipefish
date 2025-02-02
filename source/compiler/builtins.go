@@ -27,6 +27,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"cast_to_map":               {(*Compiler).btCastToMap, AltType(values.MAP)},
 	"cast_to_pair":              {(*Compiler).btCastToPair, AltType(values.PAIR)},
 	"cast_to_set":               {(*Compiler).btCastToSet, AltType(values.SET)},
+	"cast_to_snippet":           {(*Compiler).btCastToSnippet, AltType(values.SNIPPET)},
 	"cast_to_string":            {(*Compiler).btCastToString, AltType(values.STRING)},
 	"codepoint":                 {(*Compiler).btCodepoint, AltType(values.INT)},
 	"divide_floats":             {(*Compiler).btDivideFloats, AltType(values.ERROR, values.FLOAT)},
@@ -156,6 +157,10 @@ func (cp *Compiler) btCastToPair(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btCastToSet(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Cast, dest, args[0], uint32(values.SET))
+}
+
+func (cp *Compiler) btCastToSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Cast, dest, args[0], uint32(values.SNIPPET))
 }
 
 func (cp *Compiler) btCastToString(tok *token.Token, dest uint32, args []uint32) {
