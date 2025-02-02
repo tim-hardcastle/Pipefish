@@ -83,7 +83,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 			buf.WriteByte('(')
 			var sep string
 			for _, k := range v.V.(values.Snippet).Data {
-				fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))
+				fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, LITERAL))
 				sep = ", "
 			}
 			buf.WriteByte(')')
@@ -180,7 +180,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		buf.WriteString("snippet(")
 		var sep string
 		for _, k := range v.V.(values.Snippet).Data {
-			fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))
+			fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, LITERAL))
 			sep = ", "
 		}
 		buf.WriteByte(')')
