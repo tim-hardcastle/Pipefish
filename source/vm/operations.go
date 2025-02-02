@@ -202,8 +202,6 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qsat: {"qsat", operands{mem, loc}},
 	Qsng: {"qsng", operands{mem, loc}},
 	Qsnq: {"qsnq", operands{mem, loc}},
-	Qspt: {"qspt", operands{mem, loc}},
-	Qspq: {"qspq", operands{mem, loc}},
 	Qstr: {"qstr", operands{mem, loc}},
 	Qstq: {"qstq", operands{mem, loc}},
 	Qtpt: {"qtpt", operands{mem, num, tup, loc}},

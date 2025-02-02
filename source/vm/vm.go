@@ -1026,30 +1026,6 @@ loop:
 				loc = args[1]
 			}
 			continue
-		case Qspt:
-			switch ty := vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
-			case StructType:
-				if ty.Snippet {
-					loc = loc + 1
-					continue
-				}
-			}
-			loc = args[1]
-			continue
-		case Qspq:
-			if vm.Mem[args[0]].T == values.NULL {
-				loc = loc + 1
-				continue
-			}
-			switch ty := vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
-			case StructType:
-				if ty.Snippet {
-					loc = loc + 1
-					continue
-				}
-			}
-			loc = args[1]
-			continue
 		case Qstr:
 			switch vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
 			case StructType:

@@ -373,8 +373,6 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 }
 
 var TYPE_COMPARISONS = map[string]vm.Opcode{
-	"snippet":  vm.Qspt,
-	"snippet?": vm.Qspq,
 	"any":      vm.Qsng,
 	"any?":     vm.Qsnq,
 	"struct":   vm.Qstr,
