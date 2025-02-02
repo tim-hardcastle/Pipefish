@@ -80,6 +80,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if typeInfo.(CloneType).Parent == values.SNIPPET {
 			var buf strings.Builder
 			buf.WriteString(typeInfo.GetName(flavor))
+			buf.WriteByte('(')
 			var sep string
 			for _, k := range v.V.(values.Snippet).Data {
 				fmt.Fprintf(&buf, "%s%s", sep, vm.StringifyValue(k, flavor))

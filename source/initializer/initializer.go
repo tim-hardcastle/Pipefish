@@ -790,7 +790,7 @@ func (iz *initializer) createClones() {
 		typeToClone := typeToken.Literal
 		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 		if !ok {
-			iz.Throw("init/clone/type", &typeToken)
+			iz.Throw("init/clone/type", &typeToken, typeToClone)
 			return
 		}
 		abType := typeToClone + "like"
@@ -1470,13 +1470,6 @@ func (iz *initializer) compileConstructors() {
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
 		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
-	}
-	// Snippets. TODO --- should this even exist? It seems like all it adds is that you could make ill-formed snippets if you chose.
-	sig := ast.StringSig{ast.NameTypenamePair{VarName: "text", VarType: "string"}, ast.NameTypenamePair{VarName: "data", VarType: "list"}}
-	for i, name := range iz.Snippets {
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		iz.fnIndex[fnSource{snippetDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(snippetDeclaration), i), iz.ParsedDeclarations[snippetDeclaration][i].GetToken())
-		iz.fnIndex[fnSource{snippetDeclaration, i}].Compiler = iz.cp
 	}
 	// Clones
 	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
@@ -2268,7 +2261,7 @@ func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *to
 	iz.TokenizedDeclarations[decType] = append(iz.TokenizedDeclarations[decType], line)
 }
 
-var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, "snippet": snippetDeclaration,
+var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration, 
 	"abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
 
 // Types and functions to help with housekeeping. The initializer stores the declarations of types and functions
