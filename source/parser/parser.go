@@ -300,6 +300,16 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		}
 	}
 
+	if p.peekToken.Type == token.EMDASH {
+		right := &ast.SnippetLiteral{p.peekToken, p.peekToken.Literal}
+		tok := token.Token{token.COMMA, ",", p.peekToken.Line, p.peekToken.ChStart, 
+			p.peekToken.ChEnd, p.peekToken.Source}
+		children := []ast.Node{leftExp, &ast.Bling{tok, ",", []string{}}, right}
+		result := &ast.InfixExpression{tok, ",", children, []string{}}
+		p.NextToken()
+		return result
+	}
+
 	for precedence < p.peekPrecedence() {
 		for resolvingParser.Suffixes.Contains(p.peekToken.Literal) || resolvingParser.Endfixes.Contains(p.peekToken.Literal) || p.peekToken.Type == token.DOTDOTDOT {
 			if p.curToken.Type == token.NOT || p.curToken.Type == token.IDENT && p.curToken.Literal == "-" || p.curToken.Type == token.ELSE {
