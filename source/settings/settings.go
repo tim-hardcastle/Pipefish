@@ -43,7 +43,7 @@ const (
 	SHOW_RUNTIME_VALUES    = false // Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
 	SHOW_XCALLS            = false
 	SHOW_GOLANG            = false
-	SHOW_API_SERIALIZATION = false
+	SHOW_API_SERIALIZATION = true
 	SHOW_EXTERNAL_STUBS    = false
 	SHOW_TESTS             = true // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
 )
