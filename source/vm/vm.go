@@ -307,6 +307,8 @@ loop:
 					vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 				}
 			}
+		case CoSn:
+			vm.Mem[args[0]] = values.Value{values.SNIPPET, values.Snippet{vm.Mem[args[1]].V.([]values.Value), nil}}
 		case Cpnt:
 			vm.Mem[args[0]] = values.Value{values.INT, int(vm.Mem[args[1]].V.(rune))}
 		case Cv1T:

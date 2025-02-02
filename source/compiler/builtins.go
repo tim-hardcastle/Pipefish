@@ -68,6 +68,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"make_map":                  {(*Compiler).btMakeMap, AltType(values.MAP)},
 	"make_pair":                 {(*Compiler).btMakePair, AltType(values.PAIR)},
 	"make_set":                  {(*Compiler).btMakeSet, AltType(values.SET)},
+	"make_snippet":              {(*Compiler).btMakeSnippet, AltType(values.SNIPPET)},
 	"map_with":                  {(*Compiler).btMapWith, AltType(values.MAP)},
 	"map_without":               {(*Compiler).btMapWithout, AltType(values.MAP)},
 	"modulo_integers":           {(*Compiler).btModuloIntegers, AltType(values.ERROR, values.INT)},
@@ -318,6 +319,10 @@ func (cp *Compiler) btMakeMap(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btMakePair(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Mkpr, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btMakeSnippet(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.CoSn, dest, args[0], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btMakeSet(tok *token.Token, dest uint32, args []uint32) {

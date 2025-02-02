@@ -284,6 +284,7 @@ const (
 	CalT // Specialized for tuple capture.
 	Cast
 	Casx
+	CoSn
 	Diif
 	Divf
 	Divi
@@ -350,8 +351,8 @@ const (
 	Mkit
 	Mkmp
 	Mkpr
-	Mkst
 	MkSn
+	Mkst
 	Mlfi
 	Modi
 	Mulf
