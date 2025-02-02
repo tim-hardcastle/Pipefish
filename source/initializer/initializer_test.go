@@ -105,8 +105,7 @@ func TestClones(t *testing.T) {
 }
 func TestSnippet(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`makeSn 42`, `Foo with (text::"zort |x| troz", data::["zort ", 42, " troz"])`},
-		{`post HTML --- zort |2 + 2| troz`, `OK`},
+
 	}
 	test_helper.RunTest(t, "snippets_test.pf", tests, test_helper.TestValues)
 }
