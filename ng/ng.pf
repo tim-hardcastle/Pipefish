@@ -1,0 +1,120 @@
+import 
+
+phon::"phonemes.pf"
+
+const 
+
+PHOMAP = map("front"::phon.FRONT,
+          .. "central"::phon.CENTRAL,
+          .. "back"::phon.BACK,
+          .. "rounded"::phon.ROUNDED,
+          .. "unrounded"::phon.UNROUNDED,
+          .. "close"::phon.CLOSE,
+          .. "near-close"::phon.NEAR_CLOSE,
+          .. "close-mid"::phon.CLOSE_MID,
+          .. "mid"::phon.MID,
+          .. "open-mid"::phon.OPEN_MID,
+          .. "near-open"::phon.NEAR_OPEN,
+          .. "open"::phon.OPEN,
+          .. "vowel"::phon.VOWELS,
+          .. "V"::phon.VOWELS,
+          .. "bilabial"::phon.BILABIAL,
+          .. "labiodental"::phon.LABIODENTAL,
+          .. "linguo-labial"::phon.LINGUO_LABIAL,
+          .. "dental"::phon.DENTAL,
+          .. "alveolar"::phon.ALVEOLAR,
+          .. "retroflex"::phon.RETROFLEX,
+          .. "palatal"::phon.PALATAL,
+          .. "velar"::phon.VELAR,
+          .. "uvular"::phon.UVULAR,
+          .. "pharyngeal"::phon.PHARYNGEAL,
+          .. "glottal"::phon.GLOTTAL,
+          .. "nasal"::phon.NASAL,
+          .. "plosive"::phon.PLOSIVE,
+          .. "affricate"::phon.AFFRICATE,
+          .. "fricative"::phon.FRICATIVE,
+          .. "approximant"::phon.APPROXIMANT,
+          .. "tap"::phon.TAP,
+          .. "trill"::phon.TRILL,
+          .. "consonsant"::phon.CONSONANT,
+          .. "C":: phon.CONSONANT)
+
+newtype
+
+Token = struct(t TokenType, v any?, lineNumber int)
+
+TokenType = enum WORD, NUMBER, SYMBOL, EOL
+
+RuneType = enum ALPHABETIC, NUMERAL, PUNCTUATION, WHITESPACE, NEWLINE
+
+def 
+
+tkn(sn snippet) :
+    sn -> glue -> lex
+
+glue(sn snippet) :
+    from str = "" for _::el = range sn :
+        str + string(el)
+
+
+// Lexer
+
+runeType(r rune) :
+    r in set(' ', '\t', '\r') :
+        WHITESPACE
+    r == '\n' :
+        NEWLINE
+    r in set('(', ')', '+', '/', ',') :
+        PUNCTUATION
+    65 <= cp and cp < 91 :
+        ALPHABETIC
+    97 <= cp and cp < 123 :
+        ALPHABETIC
+    r == '-' :        
+        ALPHABETIC         // So we can kebab-case things.
+    48 <= cp and cp < 58 :
+        NUMERAL
+    else :
+        error "Can't lex rune '" + r + "'"
+given :
+    cp = codepoint r
+
+lex(s string) :
+    first from L, word, line = [], "", 1 for _::r = range (s + "\n"):
+        word == "" :
+            rType == WHITESPACE :
+                continue
+            rType == NEWLINE :
+                L + [Token(EOL, null, line)], "", line + 1
+            else :
+                L, word + r, line
+        else :
+            rType == PUNCTUATION :
+                L + [makeTok(word, line)], "" + r, line
+            rType != wType :
+                rType == WHITESPACE :
+                    L + [makeTok(word, line)], "", line 
+                rType == NEWLINE :
+                    L + [makeTok(word, line), makeTok("\n", line)], "", line + 1
+                else :
+                    L + [makeTok(word, line)], "" + r, line   
+            else :
+                L, word + r, line 
+    given :
+        rType = runeType(r)
+        wType = runeType(word[0])        
+
+makeTok(word string, line int) :
+    wType == NEWLINE :
+        Token(EOL, NULL, line)
+    wType == NUMERAL :
+        Token(NUMBER, int(word), line)
+    wType == ALPHABETIC :
+        Token(WORD, word, line)
+    wType == PUNCTUATION :
+        Token(SYMBOL, word, line)
+    else :
+        error "Can't lex '" + word + "'"
+given :
+    wType = runeType word[0]
+
