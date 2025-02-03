@@ -100,7 +100,7 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 	copy(newBindle.AnyTypeScheme, newBindle.SharedTypenameToTypeList["any?"])
 	newBindle.AnyTypeScheme = newBindle.AnyTypeScheme.Union(newBindle.AnyTuple)
 	newBindle.SharedTypenameToTypeList["tuple"] = newBindle.AnyTuple
-	newBindle.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET)
+	newBindle.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET, values.SNIPPET)
 	return newBindle
 }
 

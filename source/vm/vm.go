@@ -1959,6 +1959,12 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 	case values.SET:
 		setAsSlice := container.V.(values.Set).AsSlice()
 		return values.Value{values.ITERATOR, &values.SetIterator{Elements: setAsSlice, Len: len(setAsSlice)}}
+	case values.SNIPPET:
+		if keysOnly {
+			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(container.V.(values.Snippet).Data)}}
+		} else {
+			return values.Value{values.ITERATOR, &values.TupleIterator{Elements: container.V.(values.Snippet).Data, Len: len(container.V.(values.Snippet).Data)}}
+		}
 	case values.STRING:
 		if keysOnly {
 			return values.Value{values.ITERATOR, &values.KeyIncIterator{Max: len(container.V.(string))}}

@@ -6,13 +6,20 @@ foo(i int) :
 troz(i, j, k int) :
     "troz"
 
+qux(i int, s snippet) :
+    i, len s
+
+glue(sn snippet) :
+    from str = "" for _, el = range sn :
+        str + string(el)
+
 newtype 
 
 gorp = clone snippet
 
 var 
 
-sn = gorp -- foo
+sn = -- foo |2 + 2| bar
 
 T tuple = ()
 U tuple = 1, 2, 3
