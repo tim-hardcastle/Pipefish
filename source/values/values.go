@@ -79,6 +79,8 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 		return (!v.V.(bool)) && w.V.(bool)
 	case STRING:
 		return v.V.(string) < w.V.(string)
+	case RUNE :
+		return v.V.(rune) < w.V.(rune) 
 	case FLOAT:
 		return v.V.(float64) < w.V.(float64)
 	case TYPE:

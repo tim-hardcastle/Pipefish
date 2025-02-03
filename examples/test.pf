@@ -10,7 +10,7 @@ qux(i int, s snippet) :
     i, len s
 
 glue(sn snippet) :
-    from str = "" for _, el = range sn :
+    from str = "" for _::el = range sn :
         str + string(el)
 
 newtype 
