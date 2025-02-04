@@ -1,61 +1,37 @@
 import 
 
-phon::"phonemes.pf"
-
-const 
-
-PHOMAP = map("front"::phon.FRONT,
-          .. "central"::phon.CENTRAL,
-          .. "back"::phon.BACK,
-          .. "rounded"::phon.ROUNDED,
-          .. "unrounded"::phon.UNROUNDED,
-          .. "close"::phon.CLOSE,
-          .. "near-close"::phon.NEAR_CLOSE,
-          .. "close-mid"::phon.CLOSE_MID,
-          .. "mid"::phon.MID,
-          .. "open-mid"::phon.OPEN_MID,
-          .. "near-open"::phon.NEAR_OPEN,
-          .. "open"::phon.OPEN,
-          .. "vowel"::phon.VOWELS,
-          .. "V"::phon.VOWELS,
-          .. "bilabial"::phon.BILABIAL,
-          .. "labiodental"::phon.LABIODENTAL,
-          .. "linguo-labial"::phon.LINGUO_LABIAL,
-          .. "dental"::phon.DENTAL,
-          .. "alveolar"::phon.ALVEOLAR,
-          .. "retroflex"::phon.RETROFLEX,
-          .. "palatal"::phon.PALATAL,
-          .. "velar"::phon.VELAR,
-          .. "uvular"::phon.UVULAR,
-          .. "pharyngeal"::phon.PHARYNGEAL,
-          .. "glottal"::phon.GLOTTAL,
-          .. "nasal"::phon.NASAL,
-          .. "plosive"::phon.PLOSIVE,
-          .. "affricate"::phon.AFFRICATE,
-          .. "fricative"::phon.FRICATIVE,
-          .. "approximant"::phon.APPROXIMANT,
-          .. "tap"::phon.TAP,
-          .. "trill"::phon.TRILL,
-          .. "consonsant"::phon.CONSONANT,
-          .. "C":: phon.CONSONANT)
+"phonemes.pf"
 
 newtype
 
-Token = struct(t TokenType, v any?, lineNumber int)
-
+Token = struct(tokenType TokenType, value any?, lineNumber int)
 TokenType = enum WORD, NUMBER, SYMBOL, EOL
-
 RuneType = enum ALPHABETIC, NUMERAL, PUNCTUATION, WHITESPACE, NEWLINE
+
+var 
+
+words = map()
+
+cmd
+
+add(sn snippet) :
+    words = combine words, (sn -> tokenize -> parseWordList)
+
+show vocab :
+    post display words
 
 def 
 
-tkn(sn snippet) :
+combine(M, N map) :
+    from m = M for k::v = range N :
+        m with k::v
+
+tokenize(sn snippet) :
     sn -> glue -> lex
 
 glue(sn snippet) :
     from str = "" for _::el = range sn :
         str + string(el)
-
 
 // Lexer
 
@@ -118,3 +94,44 @@ makeTok(word string, line int) :
 given :
     wType = runeType word[0]
 
+// For parsing lists of words for 'add' or 'retcon'.
+parseWordList(toks list) -> map :
+    from result = map() for _::i = range 0::(len(toks) div 4) :
+        4 * i + 3 > len(toks) or toks[4 * i + 3][tokenType] != EOL :
+            error "malformed definition at line " + line + " of snippet"
+        toks[4 * i][tokenType] != WORD :
+            error "expected a word at start of line " + line + " of snippet"
+        toks[4 * i + 1][tokenType] != WORD or  toks[4 * i + 1][value] != "-" :
+            error "expected a '-' to separate words at " + line + " of snippet"
+        toks[4 * i + 2][tokenType] != WORD :
+            error "expected a word after '-' at line " + line + " of snippet" 
+        else :
+            result with toks[4 * i][value]::toks[4 * i + 2][value]
+    given : 
+        line = string(toks[4 * i][lineNumber])
+
+const 
+
+COLUMNS = 3
+WIDTH = 25
+
+def
+
+display(M map) :
+    len(M) == 0 :
+        "Vocab list is empty."
+    else :
+        first from result, c = "", 1 for k::v = range M :
+            c mod COLUMNS == 0 :
+                result + str + "\n", c + 1
+            else :
+                result + str, c + 1
+        given :
+            str = pad("▪ " + k + " - " + v)
+
+pad(s string) :
+    len(s) > WIDTH :
+        error "string too wide to pad"
+    else :
+        from result = s for _::i = range 0::(WIDTH - len s) :
+            result + " "

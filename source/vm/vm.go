@@ -25,6 +25,7 @@ type Vm struct {
 	recursionStack []recursionData
 	logging        bool
 	LiveTracking   []TrackingData // "Live" tracking data in which the uint32s in the permanent tracking data have been replaced by the corresponding memory registers.
+	PostHappened   bool
 
 	// Permanent state: things established at compile time.
 
@@ -947,6 +948,7 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, (vm.Mem[args[1]].V.(bool) || vm.Mem[args[2]].V.(bool))}
 		case Outp:
 			vm.OutHandle.Out(vm.Mem[args[0]])
+			vm.PostHappened = true
 		case Outt:
 			if vm.Mem[vm.LocationOfOutputFlavor].V.(int) == 0 {
 				fmt.Println(vm.Literal(vm.Mem[args[0]]))

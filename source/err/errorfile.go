@@ -186,7 +186,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/and/left": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of " + emph("and") + " should be boolean expression."
+			return "left-hand side of " + emph("and") + " should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -195,7 +195,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/and/right": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "right-hand side of " + emph("and") + " should be boolean expression."
+			return "right-hand side of " + emph("and") + " should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -231,7 +231,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/or/left": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of " + emph("or") + " should be boolean expression."
+			return "left-hand side of " + emph("or") + " should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -240,7 +240,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/or/right": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "right-hand side of " + emph("or") + " should be boolean expression."
+			return "right-hand side of " + emph("or") + " should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."

@@ -219,7 +219,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		if len(val.V.(*pf.Error).Values) > 0 {
 			hub.WritePretty("Values are available with 'hub values'.\n\n")
 		}
-	} else {
+	} else if !serviceToUse.PostHappened() {
 		serviceToUse.Output(val)
 		if hub.currentServiceName() == "#snap" {
 			hub.snap.AddOutput(serviceToUse.ToLiteral(val))
@@ -521,13 +521,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		hub.lastRun = args
 		if args[1] == "" {
-			hub.WritePretty("Starting script '" + args[0] +
+			hub.WritePretty("Starting script '" + filepath.Base(args[0]) +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
 			hub.StartAnonymous(args[0])
 			hub.tryMain()
 			return false
 		}
-		hub.WritePretty("Starting script '" + args[0] + "' as service '" + args[1] + "'.\n")
+		hub.WritePretty("Starting script '" + filepath.Base(args[0]) + "' as service '" + args[1] + "'.\n")
 		hub.StartAndMakeCurrent(username, args[1], args[0])
 		hub.tryMain()
 		return false

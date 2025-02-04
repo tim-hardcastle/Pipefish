@@ -3,6 +3,41 @@
 
 const 
 
+MAP = map("front"::FRONT,
+          .. "central"::CENTRAL,
+          .. "back"::BACK,
+          .. "rounded"::ROUNDED,
+          .. "unrounded"::UNROUNDED,
+          .. "close"::CLOSE,
+          .. "near-close"::NEAR_CLOSE,
+          .. "close-mid"::CLOSE_MID,
+          .. "mid"::MID,
+          .. "open-mid"::OPEN_MID,
+          .. "near-open"::NEAR_OPEN,
+          .. "open"::OPEN,
+          .. "vowel"::VOWELS,
+          .. "V"::VOWELS,
+          .. "bilabial"::BILABIAL,
+          .. "labiodental"::LABIODENTAL,
+          .. "linguo-labial"::LINGUO_LABIAL,
+          .. "dental"::DENTAL,
+          .. "alveolar"::ALVEOLAR,
+          .. "retroflex"::RETROFLEX,
+          .. "palatal"::PALATAL,
+          .. "velar"::VELAR,
+          .. "uvular"::UVULAR,
+          .. "pharyngeal"::PHARYNGEAL,
+          .. "glottal"::GLOTTAL,
+          .. "nasal"::NASAL,
+          .. "plosive"::PLOSIVE,
+          .. "affricate"::AFFRICATE,
+          .. "fricative"::FRICATIVE,
+          .. "approximant"::APPROXIMANT,
+          .. "tap"::TAP,
+          .. "trill"::TRILL,
+          .. "consonsant"::CONSONANT,
+          .. "C":: CONSONANT)
+
 FRONT = set("i", "y", "ɪ", "ʏ", "e", "ø", "e̞", "ø̞", "ɛ", "œ", "æ", "a", "ɶ")
 CENTRAL = set("ɨ", "ʉ", "ɘ", "ɵ", "ə", "ɜ", "ɞ", "ɐ", "ä")
 BACK = set("ɯ", "u", "ʊ", "ɤ", "o", "ɤ̞", "o̞", "ʌ", "ɔ", "ɑ", "ɒ")
@@ -51,3 +86,21 @@ NON_LATERAL = CONSONANT - LATERAL
 VOICED = set("m", "b", "bβ", "β", "ⱱ̟", "ʙ", "ɱ", "b̪", "b̪v", "v", "ʋ", "ⱱ", "n̼", "d̼", "ð̼", "ɾ̼", "d̪ð", "ð", "n", "d", "dz", "dɹ̝", "z", "ð̠", "ɹ", "ɾ", "r", "dɮ", "ɮ", "l", "ɺ", "d̠ʒ", "d̠ɹ̠˔", "ʒ", "ɹ̠˔", "ɳ", "ɖ", "dʐ", "ʐ", "ɻ˔", "ɻ", "ɽ", "ɽr", "d𝼅", "𝼅", "ɭ", "𝼈", "ɲ", "ɟ", "dʑ", "ɟʝ", "ʑ", "ʝ", "j", "ɟʎ̝", "ʎ̝", "ʎ", "ʎ̆", "ŋ", "ɡ", "ɡɣ", "ɣ", "ɰ", "ɡʟ̝", "ʟ̝", "ʟ", "ʟ̆", "ɴ", "ɢ", "ɢʁ", "ʁ", "ɢ̆", "ʀ", "ʟ̠", "ɦ", "ʔ̞")
 
 UNVOICED = CONSONANT - VOICED
+
+def
+
+closeness(s, t string) :
+    from count = 0 for _::v = range MAP :
+        s in v and t in v :
+            count + 1
+        else :
+            continue
+
+closest(pho string, S set) :
+    first from result, max = "", 0 for _::el = range S :
+        c > max :
+            el, c 
+        else :
+            continue
+    given :
+        c = closeness(pho, el)

@@ -231,6 +231,7 @@ func (sv *Service) Do(line string) (Value, error) {
 	}
 	sv.cp.Emit(vm.Ret)
 	sv.cp.Cm("Calling Run from Do.", node.GetToken())
+	sv.cp.Vm.PostHappened = false
 	sv.cp.Vm.Run(cT)
 	result := sv.cp.Vm.Mem[sv.cp.That()]
 	sv.cp.Rollback(state, node.GetToken())
@@ -429,6 +430,11 @@ func (sv *Service) GetTrackingReport() (string, error) {
 		return "", errors.New("service is broken")
 	}
 	return sv.cp.Vm.TrackingToString(), nil
+}
+
+// Says whether pot happened when we called Do.
+func (sv *Service) PostHappened() bool {
+	return sv.cp.Vm.PostHappened
 }
 
 // Turns the markup Pipefish uses internally into highlighting.
