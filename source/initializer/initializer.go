@@ -1829,6 +1829,11 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
+		
+		if iz.ErrorsExist() {
+			continue
+		}
+		
 		for _, rDat := range iz.cp.RecursionStore {
 			funcNumber := rDat.FunctionNumber
 			addr := rDat.Address

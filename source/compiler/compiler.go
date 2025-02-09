@@ -630,7 +630,7 @@ NodeTypeSwitch:
 				cp.Track(vm.TR_CONDITION, &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) {
+			if !lTypes.Contains(values.BOOL) && !lTypes.isOnly(values.ERROR) {
 				cp.P.Throw("comp/bool/cond/a", node.GetToken())
 				break
 			}
@@ -2360,7 +2360,11 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		errorCheck = cp.vmEarlyReturn(errorLocation)
 	case insert:
 		for i := 0; i < sig.Len(); i++ {
-			vr, _ := env.GetVar(sig.GetVarName(i))
+			vr, ok := env.GetVar(sig.GetVarName(i))
+			if !ok {
+				cp.P.Throw("comp/typecheck/var", tok, sig.GetVarName(i))
+				return bkEarlyReturn(DUMMY)
+			}
 			cp.Emit(vm.Asgm, vr.MLoc, errorLocation)
 		}
 	default:

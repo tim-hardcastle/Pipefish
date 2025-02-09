@@ -189,7 +189,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "left-hand side of " + emph("and") + " should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+			return "Unlike in some languages, the " + emph("and") + " operator is not overloaded, and so can only be applied to boolean values."
 		},
 	},
 
@@ -198,7 +198,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "right-hand side of " + emph("and") + " should be boolean expression"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
+			return "Unlike in some languages, the " + emph("and") + " operator is not overloaded, and so can only be applied to boolean values."
 		},
 	},
 
@@ -569,7 +569,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/index/list": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "list index is not of type" + emph("int") + " or " + emph("pair")
+			return "list index is not of type " + emph("int") + " or " + emph("pair")
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A list may be indexed by an integer, to select a particular value, or by a pair of integers, to take a slice."
@@ -1008,6 +1008,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You are trying to concatenate together two values one of which is certainly of type " + emph("error") + ". As this will only return the error, Pipefish assumes this is a mistake."
+		},
+	},
+
+	"comp/typecheck/var": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unknown variable " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The typechecker has found itself trying to typecheck a variable which doesn't exist."
 		},
 	},
 

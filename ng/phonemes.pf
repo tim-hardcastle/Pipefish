@@ -15,8 +15,8 @@ MAP = map("front"::FRONT,
           .. "open-mid"::OPEN_MID,
           .. "near-open"::NEAR_OPEN,
           .. "open"::OPEN,
-          .. "vowel"::VOWELS,
-          .. "V"::VOWELS,
+          .. "vowel"::VOWEL,
+          .. "V"::VOWEL,
           .. "bilabial"::BILABIAL,
           .. "labiodental"::LABIODENTAL,
           .. "linguo-labial"::LINGUO_LABIAL,
@@ -42,10 +42,10 @@ FRONT = set("i", "y", "ɪ", "ʏ", "e", "ø", "e̞", "ø̞", "ɛ", "œ", "æ", "a
 CENTRAL = set("ɨ", "ʉ", "ɘ", "ɵ", "ə", "ɜ", "ɞ", "ɐ", "ä")
 BACK = set("ɯ", "u", "ʊ", "ɤ", "o", "ɤ̞", "o̞", "ʌ", "ɔ", "ɑ", "ɒ")
 
-VOWELS = FRONT + CENTRAL + BACK
+VOWEL = FRONT + CENTRAL + BACK
 
 ROUNDED = set("y", "ʏ", "ø", "ø̞", "œ", "ɶ", "ʉ", "ɵ", "ɞ", "u", "o", "o̞", "ɔ", "ɒ")
-UNROUNDED = VOWELS - ROUNDED
+UNROUNDED = VOWEL - ROUNDED
 
 CLOSE = set("i", "y", "ɨ", "ʉ", "ɯ", "u")
 NEAR_CLOSE = set("ɪ", "ʏ", "ʊ")
@@ -87,6 +87,8 @@ VOICED = set("m", "b", "bβ", "β", "ⱱ̟", "ʙ", "ɱ", "b̪", "b̪v", "v", "ʋ
 
 UNVOICED = CONSONANT - VOICED
 
+PHONEME = CONSONANT + VOWEL 
+
 def
 
 closeness(s, t string) :
@@ -104,3 +106,4 @@ closest(pho string, S set) :
             continue
     given :
         c = closeness(pho, el)
+

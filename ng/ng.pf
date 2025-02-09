@@ -135,3 +135,68 @@ pad(s string) :
     else :
         from result = s for _::i = range 0::(WIDTH - len s) :
             result + " "
+
+// Parser for sound changes 
+
+newtype 
+
+PhonemeNode = struct(phoneme string, tok Token)
+ClassNode = struct(class string, tok Token)
+NumberNode = struct(value int, tok Token)
+BinaryNode = struct(operator string, left, right AST, tok Token)
+EmptyNode = struct()
+
+AST = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/EmptyNode
+
+def
+
+prs(sn snippet) :
+    sn -> glue -> lex -> parse(EmptyNode(), that, 0) -> first
+
+parse(ast AST, toks list, precedence int) -> AST, list, int :
+    headType == EOL :
+        ast, toks, 0
+    headType in set(WORD, NUMBER) :
+        parse parseWordOrNumber(ast, toks, precedence)
+    headType == SYMBOL :
+        parse parseSymbol(ast, toks, precedence)
+given :
+    head = toks[0]
+    headType = head[tokenType]
+
+const 
+
+PRECEDENCE = map(">"::1, ","::2, "/"::3, "&"::6)
+
+def
+
+parseWordOrNumber(ast AST, toks list, precedence int) :
+    peekType in set(WORD, NUMBER) : // Then we have an implicit "and".
+        BinaryNode("&", ast, rhs, toks[0]), remainder, 6
+    peekType in set(SYMBOL) and peekPrec > precedence :
+        BinaryNode(headOp, ast, rhs), remainder, peekPrec
+    headType == NUMBER :
+        NumberNode()
+    headValue in phonemes.PHONEME :
+        PhonemeNode(headValue, head, tok[0]), tail, 0
+    headValue in keys phonemes.MAP :
+        ClassNode(headValue, head, tok[0]), tail, 0
+    else :
+        error "can't parse " + headValue + " as phoneme or class at line " ..
+                ..+ line + " of snippet"
+given :
+    headValue = toks[0][value]
+    peekOp = toks[1][value]
+    headType = toks[0][tokenType]
+    peekType = toks[1][tokenType]
+    peekPrec = (peekType == SYMBOL : PRECEDENCE[toks[1][operator]]; else : 0)
+    line = string(toks[0][lineNumber])
+    tail = toks[1::(len toks)]
+    rhs, remainder, _ = (parse(EmptyNode(), toks[1::(len toks)], peekPrec))
+
+parseSymbol(ast AST, toks list, precedence int) :
+    BinaryNode(headOp, ast, rhs), remainder, 0
+given :
+    headOp = toks[0][value]
+    rhs, remainder, _ = (parse(EmptyNode(), toks[1::(len toks)], precedence))
+

@@ -1,9 +1,8 @@
-import
+newtype 
 
-"strings"
+Foo = struct(x int)
 
-def 
+// Bar = struct(x int)
 
-foo(x) :
-    x
+// Zort = abstract Foo/Bar
 
