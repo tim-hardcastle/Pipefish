@@ -1,8 +1,8 @@
 newtype 
 
-Foo = struct(x int)
+Foo = struct(flerp int, glerp Addable)
 
-// Bar = struct(x int)
+Bar = struct(blerp int)
 
-// Zort = abstract Foo/Bar
+Zort = abstract Bar
 

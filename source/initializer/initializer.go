@@ -1216,44 +1216,19 @@ func (iz *initializer) addFieldsToStructs() {
 		structNumber := iz.structDeclarationNumberToTypeNumber[i]
 		structInfo := iz.cp.Vm.ConcreteTypeInfo[structNumber].(vm.StructType)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		typesForStruct := make([]compiler.AlternateType, 0, len(sig))
-		typesForStructForVm := make([]values.AbstractType, 0, len(sig))
+		structTypes := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
 			typeName := labelNameAndType.VarType
 			abType := iz.p.GetAbstractType(typeName)
-			typesForStructForVm = append(typesForStructForVm, abType)
-			typesForStruct = append(typesForStruct, compiler.AbstractTypeToAlternateType(abType))
+			structTypes = append(structTypes, abType)
 		}
-		// structInfo.AlternateStructFields = typesForStruct // TODO --- even assuming we want this data duplicated, the AlternateType can't possibly be needed at runtime and presumably belongs in a Common compiler bindle.
-		structInfo.AbstractStructFields = typesForStructForVm
+		structInfo.AbstractStructFields = structTypes
 		iz.cp.Vm.ConcreteTypeInfo[structNumber] = structInfo
 	}
 }
 
-// Function auxiliary to the above, for adding struct labels to the VM.
-//
-// TODO --- this appears to only be used by snippets and not by ordinary structs. Find out what they use and use that.
-func (iz *initializer) addStructLabelsToVm(name string, typeNo values.ValueType, sig ast.StringSig, tok *token.Token) { // TODO --- seems like we're only using this for snippets and not regular structs?
-	labelsForStruct := make([]int, 0, len(sig))
-	for _, labelNameAndType := range sig {
-		labelName := labelNameAndType.VarName
-		labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
-		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
-		} else {
-			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), tok)
-			labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
-			iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
-			iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, true)
-		}
-	}
-	typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
-	typeInfo.LabelNumbers = labelsForStruct
-	typeInfo = typeInfo.AddLabels(labelsForStruct)
-	iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
-}
 
-// Phase 1O of compilation. We check thaat if a struct type is public, so are its fields.
+// Phase 1N of compilation. We check that if a struct type is public, so are its fields.
 func (iz *initializer) checkTypesForConsistency() {
 	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
 		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsStruct() {
@@ -1285,7 +1260,7 @@ func (iz *initializer) checkTypesForConsistency() {
 	}
 }
 
-// Phase 1P of compilation. We parse the snippet typess, abstract types, clone types, constants, variables,
+// Phase 1P of compilation. We parse the snippet types, abstract types, clone types, constants, variables,
 // functions, commands.
 func (iz *initializer) parseEverythingElse() {
 	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
