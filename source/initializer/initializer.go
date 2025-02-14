@@ -966,7 +966,7 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, built
 	}
 	conflictingFunction := iz.p.FunctionTable.Add(iz.p, fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
-		iz.p.Throw("init/overload/c", tok, fnName, conflictingFunction.Tok.Line)
+		iz.p.Throw("init/overload/c", tok, fnName, conflictingFunction.Tok)
 	}
 }
 
@@ -1331,7 +1331,7 @@ func (iz *initializer) makeFunctionTable() {
 			}
 			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
-				iz.p.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok.Line)
+				iz.p.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok)
 				return
 			}
 			if body.GetToken().Type == token.GOCODE {
@@ -1479,7 +1479,7 @@ func (iz *initializer) populateInterfaceTypes() {
 			for _, fn := range funcsToAdd[ty] {
 				conflictingFunction := iz.p.FunctionTable.Add(iz.p, fn.name, fn.pFunc)
 				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
-					iz.p.Throw("init/overload/b", fn.pFunc.Tok, fn.name, conflictingFunction.Tok.Line)
+					iz.p.Throw("init/overload/b", fn.pFunc.Tok, fn.name, conflictingFunction.Tok)
 				}
 			}
 		}

@@ -1573,7 +1573,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/overload/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "too much overloading: function '" + args[0].(string) + "' defined at@line " + strconv.Itoa(args[1].(int)) + "@conflicts with another version of the same function defined at"
+			return "too much overloading: function " + emph(args[0]) + " defined" + text.DescribePos(args[1].(*token.Token)) + "conflicts with another version of the same function defined at"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish allows for multiple dispatch, i.e. you could write two functions like this and the result " +
@@ -1596,7 +1596,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/overload/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "too much overloading: function '" + args[0].(string) + "' defined at@line " + strconv.Itoa(args[2].(int)) + "@conflicts with another version of the same function defined at"
+			return "too much overloading: function " + emph(args[0]) + " defined" + text.DescribePos(args[1].(*token.Token)) + "conflicts with another version of the same function defined at"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish allows for multiple dispatch, i.e. you could write two functions like this and the result " +
@@ -1619,7 +1619,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/overload/c": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "too much overloading: function '" + args[0].(string) + "' defined at@line " + strconv.Itoa(args[2].(int)) + "@conflicts with another version of the same function defined at"
+			return "too much overloading: function " + emph(args[0]) + " defined" + text.DescribePos(args[1].(*token.Token)) + "conflicts with another version of the same function defined at"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish allows for multiple dispatch, i.e. you could write two functions like this and the result " +
