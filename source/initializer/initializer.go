@@ -138,6 +138,11 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.compileGoModules()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
@@ -1257,10 +1262,6 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 		return
 	}
 
-	// We slurp the functions and converters out of the .so files, if necessary building or rebuilding
-	// the .so files first.
-	iz.compileGo()
-
 	// We add in constructors for the structs, snippets, and clones.
 	iz.compileConstructors()
 	if iz.ErrorsExist() {
@@ -1648,8 +1649,21 @@ func (iz *initializer) checkTypesForConsistency() {
 	}
 }
 
+// Phase 3-3/4 of compilation.
+// We slurp the functions and converters out of the .so files, if necessary building or rebuilding
+// the .so files first.
+	
+
+func (iz *initializer) compileGoModules() {
+	// First of all, the recursion.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.compileGoModules()
+	}
+	iz.compileGo() // This is in 'gohandler.go' in this package.
+}
+
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
-func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
+func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO --- do we do anything with the return type?
 	// First of all, the recursion.
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.CompileEverything()
