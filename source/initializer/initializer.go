@@ -1251,6 +1251,14 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 	// runtime.
 	iz.makeAlternateTypesFromAbstractTypes()
 
+	// If at least one of the parameters of a function in the module has a parameter which
+	// can only acceept locally defined concrete types, then in principle this function might
+	// fulfil an interface and be shared with the module that defines the interface.
+	iz.findShareableFunctions()
+	if iz.ErrorsExist() {
+		return
+	}
+
 	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
 	// We return a GoHandler for the next step.
 	iz.makeFunctionTable()
@@ -1304,10 +1312,11 @@ func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
-// Phase 2C of compilation. At this point we have our functions as parsed code chunks in the
-// `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures
-// and order them according to specificity for the purposes of implementing overloading.
-func (iz *initializer) makeFunctionTable() {
+
+// If a function in the module must have at least one of its parameters some type
+// defined in the module, then we add an ast.PrsrFunction representation of it
+// to the list of functions in the common initializer bindle.
+func (iz *initializer) findShareableFunctions() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
 			tok := iz.ParsedDeclarations[j][i].GetToken()
@@ -1322,23 +1331,12 @@ func (iz *initializer) makeFunctionTable() {
 			if iz.ErrorsExist() {
 				return
 			}
-			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: iz.p.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
+			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: nil, NameSig: sig, Position: position, NameRets: rTypes, RtnSig: nil, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			iz.fnIndex[fnSource{j, i}] = functionToAdd
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
 				// iz.cmI("Adding " + functionName + " to Common functions.")
 				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
-			}
-			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
-			if conflictingFunction != nil && conflictingFunction != functionToAdd {
-				iz.p.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok)
-				return
-			}
-			if body.GetToken().Type == token.GOCODE {
-				iz.goBucket.sources.Add(body.GetToken().Source)
-				iz.goBucket.functions[body.GetToken().Source] = append(iz.goBucket.functions[body.GetToken().Source], functionToAdd)
-				body.(*ast.GolangExpression).Sig = sig
-				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}
 		}
 	}
@@ -1370,6 +1368,52 @@ func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 		}
 	}
 	return false
+}
+
+// Phase 2C of compilation. At this point we have our functions as parsed code chunks in the
+// `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures
+// and order them according to specificity for the purposes of implementing overloading.
+func (iz *initializer) makeFunctionTable() {
+	for j := functionDeclaration; j <= commandDeclaration; j++ {
+		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
+			tok := iz.ParsedDeclarations[j][i].GetToken()
+			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
+			var (
+				ok bool
+				functionToAdd *ast.PrsrFunction
+			)
+			if functionToAdd, ok = iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}]; ok {
+				functionToAdd.Sig = iz.p.MakeAbstractSigFromStringSig(functionToAdd.NameSig)
+				functionToAdd.RtnSig = iz.p.MakeAbstractSigFromStringSig(functionToAdd.NameRets)
+			} else {
+				// TODO --- this is vile shotgun parsing and is probably duplicated elsewhere.
+				if body == nil {
+					iz.p.Throw("init/func/body", tok)
+					return
+				}
+				if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
+					body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
+				}
+				if iz.ErrorsExist() {
+					return
+				}
+				functionToAdd = &ast.PrsrFunction{FName: functionName, Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: iz.p.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
+					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
+			}
+			iz.fnIndex[fnSource{j, i}] = functionToAdd
+			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
+			if conflictingFunction != nil && conflictingFunction != functionToAdd {
+				iz.p.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok)
+				return
+			}
+			if body.GetToken().Type == token.GOCODE {
+				iz.goBucket.sources.Add(body.GetToken().Source)
+				iz.goBucket.functions[body.GetToken().Source] = append(iz.goBucket.functions[body.GetToken().Source], functionToAdd)
+				body.(*ast.GolangExpression).Sig = sig
+				body.(*ast.GolangExpression).ReturnTypes = rTypes
+			}
+		}
+	}
 }
 
 // Phase 2D of compilation, beginning with a call to iz.compileGo, is handled in the `gohandler.go` file in
