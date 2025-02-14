@@ -120,41 +120,67 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
+	iz.cmI("Parsing everything.")
 	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(db), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.MakeFunctionTableAndGoModules()
+	iz.cmI("Finding shareable functions.")
+	iz.findAllShareableFunctions()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.cmI("Populating interface types.")
+	iz.populateInterfaceTypes()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+	iz.cmI("Populating abstract types and creating alternate types.")
+	iz.populateAbstractTypes()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+	iz.cmI("Compiling constructors.")
+	iz.compileAllConstructors()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+	iz.cmI("Making function tables.")
 	iz.MakeFunctionTables()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.PopulateTypesAndMakeFunctionTrees()
+	iz.cmI("Making function forest.")
+	iz.MakeFunctionForests()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.cmI("Adding abstract types to struct fields.")
 	iz.AddFieldsToStructsAndCheckForConsistency()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.cmI("Compiling Go.")
 	iz.compileGoModules()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.cmI("Compiling evrything else.")
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.cmI("Resolving interface backtracks.")
 	iz.ResolveInterfaceBacktracks()
 	return result
 }
@@ -1236,15 +1262,25 @@ func (iz *initializer) parseEverythingElse() {
 	iz.p.Bling.AddSet(iz.p.Endfixes)
 }
 
-// And we have finished phase 1 of compilation! Everything is now parsed.
-//
-// We move on to phase 2.
-
-// Phase 2 of compilation.
-func (iz *initializer) MakeFunctionTableAndGoModules() {
+// Phase 2. We find the shareable functions and add the constructors.
+func (iz *initializer) findAllShareableFunctions() {
 	// First we recursively call the method on all the dependencies of the module.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.MakeFunctionTableAndGoModules()
+		dependencyIz.findAllShareableFunctions()
+	}
+	// If at least one of the parameters of a function in the module has a parameter which
+	// can only accept locally defined concrete types, then in principle this function might
+	// fulfil an interface and be shared with the module that defines the interface.
+	iz.findShareableFunctions()
+	if iz.ErrorsExist() {
+		return
+	}
+}
+
+func (iz *initializer) populateAbstractTypes() {
+	// First we recursively call the method on all the dependencies of the module.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.findAllShareableFunctions()
 	}
 	// The vm needs to know how to describe the abstract types in words.
 	iz.addAbstractTypesToVm()
@@ -1255,20 +1291,6 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 	// The compiler uses a somewhat richer type representation than the one used by the compiler and the
 	// runtime.
 	iz.makeAlternateTypesFromAbstractTypes()
-
-	// If at least one of the parameters of a function in the module has a parameter which
-	// can only acceept locally defined concrete types, then in principle this function might
-	// fulfil an interface and be shared with the module that defines the interface.
-	iz.findShareableFunctions()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	// We add in constructors for the structs, snippets, and clones.
-	iz.compileConstructors()
-	if iz.ErrorsExist() {
-		return
-	}
 }
 
 // Phase 2A of compilation. We add the abstract types to the VM.
@@ -1310,6 +1332,14 @@ func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
+
+func (iz *initializer) compileAllConstructors() {
+	// First we recursively call the method on all the dependencies of the module.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.compileAllConstructors()
+	}
+	iz.compileConstructors()
+}
 
 // If a function in the module must have at least one of its parameters some type
 // defined in the module, then we add an ast.PrsrFunction representation of it
@@ -1368,9 +1398,59 @@ func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 	return false
 }
 
-// Phase 2C of compilation. At this point we have our functions as parsed code chunks in the
+
+
+// Phase 2D of compilation, beginning with a call to iz.compileGo, is handled in the `gohandler.go` file in
+// this package.
+
+// Phase 2E of compilation. Compiles struct constructors.
+func (iz *initializer) compileConstructors() {
+	// Struct declarations.
+	for i, node := range iz.ParsedDeclarations[structDeclaration] {
+		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
+		typeNo := iz.cp.ConcreteTypeNow(name)
+		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
+		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
+	}
+	// Clones
+	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
+		dec.ToStart()
+		nameTok := dec.NextToken()
+		name := nameTok.Literal
+		typeNo := iz.cp.ConcreteTypeNow(name)
+		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT)}}
+		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
+		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
+	}
+}
+
+// Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
+func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
+	cpF := &compiler.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
+	fnenv := compiler.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
+	cpF.LoReg = iz.cp.MemTop()
+	for _, pair := range sig {
+		iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), tok)
+	}
+	cpF.HiReg = iz.cp.MemTop()
+	cpF.Private = private
+	iz.cp.Fns = append(iz.cp.Fns, cpF)
+	return uint32(len(iz.cp.Fns) - 1)
+}
+
+// Phase 4 of compilation. At this point we have our functions as parsed code chunks in the
 // `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures
 // and order them according to specificity for the purposes of implementing overloading.
+func (iz *initializer) MakeFunctionTables() {
+	// First we recursively call the method on all the dependencies of the module.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.MakeFunctionTables()
+	}
+	iz.makeFunctionTable()
+}
+
+// Function auxillary to the above for making one function table.
 func (iz *initializer) makeFunctionTable() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
@@ -1414,69 +1494,13 @@ func (iz *initializer) makeFunctionTable() {
 	}
 }
 
-// Phase 2D of compilation, beginning with a call to iz.compileGo, is handled in the `gohandler.go` file in
-// this package.
-
-// Phase 2E of compilation. Compiles struct constructors.
-func (iz *initializer) compileConstructors() {
-	// Struct declarations.
-	for i, node := range iz.ParsedDeclarations[structDeclaration] {
-		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
-		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
-	}
-	// Clones
-	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
-		dec.ToStart()
-		nameTok := dec.NextToken()
-		name := nameTok.Literal
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT)}}
-		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
-		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
-	}
-}
-
-// Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
-func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
-	cpF := &compiler.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
-	fnenv := compiler.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
-	cpF.LoReg = iz.cp.MemTop()
-	for _, pair := range sig {
-		iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), tok)
-	}
-	cpF.HiReg = iz.cp.MemTop()
-	cpF.Private = private
-	iz.cp.Fns = append(iz.cp.Fns, cpF)
-	return uint32(len(iz.cp.Fns) - 1)
-}
-
-// Phase 2 of compilation.
-func (iz *initializer) MakeFunctionTables() {
-	// First we recursively call the method on all the dependencies of the module.
-	for _, dependencyIz := range iz.initializers {
-		dependencyIz.MakeFunctionTables()
-	}
-	iz.makeFunctionTable()
-}
-
-// We populate the abstract types and make the function trees.
-// While making the abstract types we also collect the functions they import.
-func (iz *initializer) PopulateTypesAndMakeFunctionTrees() {
+func (iz *initializer) MakeFunctionForests() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.PopulateTypesAndMakeFunctionTrees()
+		dependencyIz.MakeFunctionForests()
 	}
 
-	iz.cmI("Population interface types.")
-	iz.populateInterfaceTypes()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
+	// Now we turn the function tables into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
 	iz.MakeFunctionTrees()
 	if iz.ErrorsExist() {
@@ -1627,7 +1651,7 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 func (iz *initializer) AddFieldsToStructsAndCheckForConsistency() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.PopulateTypesAndMakeFunctionTrees()
+		dependencyIz.MakeFunctionForests()
 	}
 	iz.cmI("Adding abstract types of fields to structs.")
 	iz.addFieldsToStructs()

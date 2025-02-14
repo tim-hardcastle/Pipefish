@@ -1,8 +1,15 @@
 newtype 
 
-Foo = struct(flerp int, glerp Addable)
+Foo = struct(flerp int, glerp intlike)
 
 Bar = struct(blerp int)
 
-Zort = abstract Bar
+Zort = abstract Bar/Foo
 
+def
+
+qux(z Zort) :
+    z
+
+troz(a Addable) :
+    a
