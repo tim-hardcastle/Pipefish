@@ -1,10 +1,13 @@
 newtype 
 
-Foo = struct(flerp int, glerp intlike)
+Foo = struct(flerp int, glerp Addable)
 
 Bar = struct(blerp int)
 
 Zort = abstract Bar/Foo
+
+Spoitable = interface :
+    spoit(x self)
 
 def
 
@@ -13,3 +16,12 @@ qux(z Zort) :
 
 troz(a Addable) :
     a
+
+spoit(b Bar) :
+    b
+
+respoit(s Spoitable) :
+    s 
+
+goo(g intlike) :
+    g 

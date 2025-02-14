@@ -60,10 +60,11 @@ func (m NameAbstractTypePair) Matches(n NameAbstractTypePair) bool {
 type AbstractSig []NameAbstractTypePair
 
 func (p AbstractSig) String() string {
-	result := ""
+	result := "("
 	sep := ""
 	for _, pair := range p {
-		result = sep + result + pair.VarName + " " + pair.VarType.String()
+		result = result + sep + pair.VarName + " " + pair.VarType.String()
+		sep = ", "
 	}
 	return result + ")"
 }

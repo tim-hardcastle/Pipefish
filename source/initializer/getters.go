@@ -67,27 +67,33 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 
 func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
 	result := values.MakeAbstractType()
-	if sigToMatch.sig.Len() != len(fnToTry.Sig) {
+	// Check that the sigs are the right length, the return sig being optional.
+	if sigToMatch.sig.Len() != len(fnToTry.NameSig) {
 		return result
 	}
-	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.RtnSig) {
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.NameRets) {
 		return result
 	}
+	// Once we have identified one set of types as being 'self' we need to fix that
+	// as 'self' and take its intersection with the other things that appear in the
+	// 'self' position.
 	foundSelf := false
+	abSig := iz.p.MakeAbstractSigFromStringSig(fnToTry.NameSig)
+	abRets := iz.p.MakeAbstractSigFromStringSig(fnToTry.NameRets)
 	for i := 0; i < len(sigToMatch.sig); i++ {
 		if sigToMatch.sig.GetVarType(i).(string) == "self" {
 			if foundSelf {
-				result = result.Intersect(fnToTry.Sig[i].VarType)
+				result = result.Intersect(abSig[i].VarType)
 				if len(result.Types) == 0 {
 					break
 				}
 			} else {
 				foundSelf = true
-				result = fnToTry.Sig[i].VarType
+				result = abSig[i].VarType
 			}
 		} else {
-			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(string)).IsSubtypeOf(fnToTry.Sig[i].VarType) ||
-				sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != fnToTry.Sig[i].VarName {
+			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(string)).IsSubtypeOf(abSig[i].VarType) ||
+				sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
 				return values.MakeAbstractType()
 			}
 		}
@@ -98,9 +104,9 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
 		if sigToMatch.rtnSig[i].VarType == "self" {
-			result = result.Intersect(fnToTry.RtnSig[i].VarType)
+			result = result.Intersect(abRets[i].VarType)
 		} else {
-			if !fnToTry.RtnSig[i].VarType.IsSubtypeOf(iz.p.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+			if !abRets[i].VarType.IsSubtypeOf(iz.p.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}

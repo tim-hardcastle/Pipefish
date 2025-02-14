@@ -67,11 +67,9 @@ func NewInitializer() *initializer {
 
 // The CommonInitializerBindle contains information that all the initializers need to share.
 type CommonInitializerBindle struct {
-	Functions map[FuncSource]*ast.PrsrFunction    // This is to ensure that the same function (i.e. from the same place in source code) isn't pared more than once.
+	Functions map[FuncSource]*ast.PrsrFunction    // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
 	DeclarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
 	HubCompilers map[string]*compiler.Compiler    // This is a map of the compilers of all the (potential) external services on the same hub.
-	
-	
 }
 
 // Initializes the `CommonInitializerBindle`
@@ -174,7 +172,7 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.cmI("Compiling evrything else.")
+	iz.cmI("Compiling everything else.")
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
@@ -1262,7 +1260,7 @@ func (iz *initializer) parseEverythingElse() {
 	iz.p.Bling.AddSet(iz.p.Endfixes)
 }
 
-// Phase 2. We find the shareable functions and add the constructors.
+// Phase 2. We find the shareable functions.
 func (iz *initializer) findAllShareableFunctions() {
 	// First we recursively call the method on all the dependencies of the module.
 	for _, dependencyIz := range iz.initializers {
@@ -1277,10 +1275,125 @@ func (iz *initializer) findAllShareableFunctions() {
 	}
 }
 
+// If a function in the module must have at least one of its parameters some type
+// defined in the module, then we add an ast.PrsrFunction representation of it
+// to the list of functions in the common initializer bindle.
+func (iz *initializer) findShareableFunctions() {
+	for j := functionDeclaration; j <= commandDeclaration; j++ {
+		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
+			tok := iz.ParsedDeclarations[j][i].GetToken()
+			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
+			if body == nil {
+				iz.p.Throw("init/func/body", tok)
+				return
+			}
+			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
+				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
+			}
+			if iz.ErrorsExist() {
+				return
+			}
+			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: nil, NameSig: sig, Position: position, NameRets: rTypes, RtnSig: nil, Body: body, Given: given,
+				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
+			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
+				// iz.cmI("Adding " + functionName + " to Common functions.")
+				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
+				iz.fnIndex[fnSource{j, i}] = functionToAdd
+			}
+		}
+	}
+}
+
+// Function auxiliary to the above. A function is shareable if at least one of its parameters must be of a type
+// declared in the same module.
+func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
+	for _, pair := range f.NameSig {
+		ty := pair.VarType
+		if ty == "bling" {
+			continue
+		}
+		if len(ty) >= 3 && ty[:3] == "..." {
+			ty = ty[3:]
+		}
+		if ty == "struct" || ty == "enum" {
+			continue
+		}
+		abType := iz.p.GetAbstractType(ty)
+		ok := true
+		for _, concType := range abType.Types {
+			if !iz.localConcreteTypes.Contains(concType) {
+				ok = false
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (iz *initializer) populateInterfaceTypes() {
+	// First we recursively call the method on all the dependencies of the module.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.populateInterfaceTypes()
+	}
+	iz.addAbstractTypesToVm() // TODO --- this is the first of two times we're going to do this when what we really need is another topological sort.
+	// We pull in all the shared functions that fulfill the interface types, populating the types as we go.
+	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
+		tcc.ToStart()
+		nameTok := tcc.NextToken()
+		typename := nameTok.Literal
+		typeInfo, _ := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+		types := values.MakeAbstractType()
+		funcsToAdd := map[values.ValueType][]funcWithName{}
+		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
+			typesMatched := values.MakeAbstractType()
+			for key, fnToTry := range iz.Common.Functions {
+				if key.FunctionName == sigToMatch.name {
+					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
+					typesMatched = typesMatched.Union(matches)
+					if !settings.MandatoryImportSet().Contains(fnToTry.Tok.Source) {
+						for _, ty := range matches.Types {
+							if _, ok := funcsToAdd[ty]; ok {
+								funcsToAdd[ty] = append(funcsToAdd[ty], funcWithName{key.FunctionName, fnToTry})
+							} else {
+								funcsToAdd[ty] = []funcWithName{{key.FunctionName, fnToTry}}
+							}
+						}
+					}
+				}
+			}
+			if i == 0 {
+				types = typesMatched
+			} else {
+				types = types.Intersect(typesMatched)
+			}
+		}
+		// We have created an abstract type from our interface! We put it in the type map.
+		iz.p.TypeMap[typename] = types
+		typesWithNull := types.Insert(values.NULL)
+		iz.p.TypeMap[typename+"?"] = typesWithNull
+		iz.AddTypeToVm(values.AbstractTypeInfo{typename, iz.p.NamespacePath, types, settings.MandatoryImportSet().Contains(nameTok.Source)})
+		// And we add all the implicated functions to the function table.
+		for _, ty := range types.Types {
+			for _, fn := range funcsToAdd[ty] {
+				conflictingFunction := iz.p.FunctionTable.Add(iz.p, fn.name, fn.pFunc)
+				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
+					iz.p.Throw("init/overload/b", fn.pFunc.Tok, fn.name, conflictingFunction.Tok)
+				}
+			}
+		}
+	}
+
+	if settings.FUNCTION_TO_PEEK != "" {
+		println(iz.p.FunctionTable.Describe(iz.p, settings.FUNCTION_TO_PEEK))
+	}	
+}
+
 func (iz *initializer) populateAbstractTypes() {
 	// First we recursively call the method on all the dependencies of the module.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.findAllShareableFunctions()
+		dependencyIz.populateAbstractTypes()
 	}
 	// The vm needs to know how to describe the abstract types in words.
 	iz.addAbstractTypesToVm()
@@ -1332,7 +1445,6 @@ func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
-
 func (iz *initializer) compileAllConstructors() {
 	// First we recursively call the method on all the dependencies of the module.
 	for _, dependencyIz := range iz.initializers {
@@ -1341,69 +1453,6 @@ func (iz *initializer) compileAllConstructors() {
 	iz.compileConstructors()
 }
 
-// If a function in the module must have at least one of its parameters some type
-// defined in the module, then we add an ast.PrsrFunction representation of it
-// to the list of functions in the common initializer bindle.
-func (iz *initializer) findShareableFunctions() {
-	for j := functionDeclaration; j <= commandDeclaration; j++ {
-		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
-			tok := iz.ParsedDeclarations[j][i].GetToken()
-			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
-			if body == nil {
-				iz.p.Throw("init/func/body", tok)
-				return
-			}
-			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
-				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
-			}
-			if iz.ErrorsExist() {
-				return
-			}
-			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: nil, NameSig: sig, Position: position, NameRets: rTypes, RtnSig: nil, Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
-			iz.fnIndex[fnSource{j, i}] = functionToAdd
-			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
-				// iz.cmI("Adding " + functionName + " to Common functions.")
-				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
-			}
-		}
-	}
-}
-
-// Function auxiliary to the above. A function is shareable if at least one of its parameters must be of a type
-// declared in the same module.
-func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
-	for _, pair := range f.NameSig {
-		ty := pair.VarType
-		if ty == "bling" {
-			continue
-		}
-		if len(ty) >= 3 && ty[:3] == "..." {
-			ty = ty[3:]
-		}
-		if ty == "struct" || ty == "enum" {
-			continue
-		}
-		abType := iz.p.GetAbstractType(ty)
-		ok := true
-		for _, concType := range abType.Types {
-			if !iz.localConcreteTypes.Contains(concType) {
-				ok = false
-			}
-		}
-		if ok {
-			return true
-		}
-	}
-	return false
-}
-
-
-
-// Phase 2D of compilation, beginning with a call to iz.compileGo, is handled in the `gohandler.go` file in
-// this package.
-
-// Phase 2E of compilation. Compiles struct constructors.
 func (iz *initializer) compileConstructors() {
 	// Struct declarations.
 	for i, node := range iz.ParsedDeclarations[structDeclaration] {
@@ -1508,58 +1557,7 @@ func (iz *initializer) MakeFunctionForests() {
 	}
 }
 
-func (iz *initializer) populateInterfaceTypes() {
-	// We pull in all the shared functions that fulfill the interface types, populating the types as we go.
-	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
-		tcc.ToStart()
-		nameTok := tcc.NextToken()
-		typename := nameTok.Literal
-		typeInfo, _ := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
-		types := values.MakeAbstractType()
-		funcsToAdd := map[values.ValueType][]funcWithName{}
-		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
-			typesMatched := values.MakeAbstractType()
-			for key, fnToTry := range iz.Common.Functions {
-				if key.FunctionName == sigToMatch.name {
-					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
-					typesMatched = typesMatched.Union(matches)
-					if !settings.MandatoryImportSet().Contains(fnToTry.Tok.Source) {
-						for _, ty := range matches.Types {
-							if _, ok := funcsToAdd[ty]; ok {
-								funcsToAdd[ty] = append(funcsToAdd[ty], funcWithName{key.FunctionName, fnToTry})
-							} else {
-								funcsToAdd[ty] = []funcWithName{funcWithName{key.FunctionName, fnToTry}}
-							}
-						}
-					}
-				}
-			}
-			if i == 0 {
-				types = typesMatched
-			} else {
-				types = types.Intersect(typesMatched)
-			}
-		}
-		// We have created an abstract type from our interface! We put it in the type map.
-		iz.p.TypeMap[typename] = types
-		typesWithNull := types.Insert(values.NULL)
-		iz.p.TypeMap[typename+"?"] = typesWithNull
-		iz.AddTypeToVm(values.AbstractTypeInfo{typename, iz.p.NamespacePath, types, settings.MandatoryImportSet().Contains(nameTok.Source)})
-		// And we add all the implicated functions to the function table.
-		for _, ty := range types.Types {
-			for _, fn := range funcsToAdd[ty] {
-				conflictingFunction := iz.p.FunctionTable.Add(iz.p, fn.name, fn.pFunc)
-				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
-					iz.p.Throw("init/overload/b", fn.pFunc.Tok, fn.name, conflictingFunction.Tok)
-				}
-			}
-		}
-	}
 
-	if settings.FUNCTION_TO_PEEK != "" {
-		println(iz.p.FunctionTable.Describe(iz.p, settings.FUNCTION_TO_PEEK))
-	}	
-}
 
 // Type for the use of the previous function. Just wraps a parser function in a struct that knows its name.
 // TODO --- just put the names in the parser functions.
