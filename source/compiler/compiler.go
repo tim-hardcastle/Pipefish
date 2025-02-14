@@ -505,6 +505,8 @@ NodeTypeSwitch:
 						break
 					}
 					cp.put(vm.IxZn, container, uint32(fieldNumber))
+					println("structT is", structT, "fieldNumber is", fieldNumber, "len cti is", len(cp.Vm.ConcreteTypeInfo))
+					println("length of struct fields is", len(cp.Vm.ConcreteTypeInfo[structT].(vm.StructType).AbstractStructFields))
 					rtnTypes = AbstractTypeToAlternateType(cp.Vm.ConcreteTypeInfo[structT].(vm.StructType).AbstractStructFields[fieldNumber])
 					break
 				}
@@ -1544,7 +1546,7 @@ func (cp *Compiler) vmContinue() bkContinue {
 	return bkContinue(cp.CodeTop() - 1)
 }
 
-// COmpile `break` statements.
+// Compile `break` statements.
 func (cp *Compiler) vmBreakWithoutValue() bkBreakWithoutValue {
 	cp.Emit(vm.Jmp, DUMMY)
 	return bkBreakWithoutValue(cp.CodeTop() - 1)
