@@ -576,7 +576,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
 					b.override = true
-					return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
+					return cp.rtnTypesToTypeScheme(cp.P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
 				}
 				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 					cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -587,7 +587,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Rpop)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 					b.override = true              // We can't do constant folding on a dummy function call.
-					return cp.rtnTypesToTypeScheme(branch.Node.Fn.RtnSig)
+					return cp.rtnTypesToTypeScheme(cp.P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
 				}
 				F := resolvingCompiler.Fns[fNo]
 				if (b.access == REPL || b.libcall) && F.Private {

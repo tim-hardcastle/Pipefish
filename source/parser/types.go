@@ -167,8 +167,10 @@ func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.Pr
 }
 
 func (p *Parser) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
+	fSig := p.MakeAbstractSigFromStringSig(f.NameSig)
 	for i := 0; i < len(S); i++ {
-		yes, ok := p.IsMoreSpecific(f.Sig, S[i].Sig)
+		gSig := p.MakeAbstractSigFromStringSig(S[i].NameSig)
+		yes, ok := p.IsMoreSpecific(fSig, gSig)
 		if !ok {
 			return S, S[i]
 		}

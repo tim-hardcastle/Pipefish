@@ -1,6 +1,6 @@
 newtype 
 
-Foo = struct(flerp int, glerp Addable)
+Foo = struct(flerp int, glerp Spoitable)
 
 Bar = struct(blerp int)
 

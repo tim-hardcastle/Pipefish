@@ -838,7 +838,7 @@ func (iz *initializer) createClones() {
 		iz.p.Functions.Add(name)
 		sig := ast.StringSig{ast.NameTypenamePair{"x", typeToClone}}
 		rtnSig := ast.StringSig{ast.NameTypenamePair{"*dummy*", name}}
-		fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, NameRets: rtnSig, RtnSig: iz.p.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
+		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
 		iz.p.FunctionTable.Add(iz.p, name, fn)
 		iz.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
@@ -988,7 +988,7 @@ func (iz *initializer) createClones() {
 
 // Function auxiliary to the previous one, to make constructors for the clone types.
 func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.StringSig, IsPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), Tok: tok, NameSig: sig, NameRets: rtnSig, RtnSig: iz.p.MakeAbstractSigFromStringSig(rtnSig), Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
+	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
 	iz.Common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	if fnName == settings.FUNCTION_TO_PEEK {
 		println("Making clone with sig", sig.String())
@@ -1066,7 +1066,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 		iz.p.Functions.Add(name)
 		iz.p.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		fn := &ast.PrsrFunction{Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: node.GetToken()}
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: node.GetToken()}
 		iz.p.FunctionTable.Add(iz.p, name, fn) // TODO --- give them their own ast type?
 		iz.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
@@ -1293,7 +1293,7 @@ func (iz *initializer) findShareableFunctions() {
 			if iz.ErrorsExist() {
 				return
 			}
-			functionToAdd := &ast.PrsrFunction{FName: functionName, Sig: nil, NameSig: sig, Position: position, NameRets: rTypes, RtnSig: nil, Body: body, Given: given,
+			functionToAdd := &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, NameRets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
 				// iz.cmI("Adding " + functionName + " to Common functions.")
@@ -1510,8 +1510,6 @@ func (iz *initializer) makeFunctionTable() {
 				functionToAdd *ast.PrsrFunction
 			)
 			if functionToAdd, ok = iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}]; ok {
-				functionToAdd.Sig = iz.p.MakeAbstractSigFromStringSig(functionToAdd.NameSig)
-				functionToAdd.RtnSig = iz.p.MakeAbstractSigFromStringSig(functionToAdd.NameRets)
 			} else {
 				// TODO --- this is vile shotgun parsing and is probably duplicated elsewhere.
 				if body == nil {
@@ -1524,7 +1522,7 @@ func (iz *initializer) makeFunctionTable() {
 				if iz.ErrorsExist() {
 					return
 				}
-				functionToAdd = &ast.PrsrFunction{FName: functionName, Sig: iz.p.MakeAbstractSigFromStringSig(sig), NameSig: sig, Position: position, NameRets: rTypes, RtnSig: iz.p.MakeAbstractSigFromStringSig(rTypes), Body: body, Given: given,
+				functionToAdd = &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, NameRets: rTypes, Body: body, Given: given,
 					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			}
 			iz.fnIndex[fnSource{j, i}] = functionToAdd
@@ -1599,8 +1597,8 @@ func (iz *initializer) MakeFunctionTrees() {
 
 // Note that the sigs have already been sorted on their specificity.
 func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
-	sig := fn.Sig
-	nameSig := fn.NameSig
+	nameSig := fn.NameSig // TODO --- do we really need both of these?
+	sig := iz.cp.P.MakeAbstractSigFromStringSig(nameSig)
 	if pos < len(sig) {
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType

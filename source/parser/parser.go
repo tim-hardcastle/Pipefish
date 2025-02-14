@@ -613,7 +613,6 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			case *ast.PrefixExpression:
 				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
 				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, "any?")
-				fn.Sig = p.MakeAbstractSigFromStringSig(fn.NameSig) // TODO --- elsewhere.
 			default:
 				p.Throw("parse/inner/b", newLeft.GetToken())
 			}
@@ -690,7 +689,6 @@ func (p *Parser) parseLambdaExpression() ast.Node {
 	if p.ErrorsExist() {
 		return nil
 	}
-	expression.Sig = p.MakeAbstractSigFromStringSig(expression.NameSig) // TODO --- elsewhere.
 	bodyRoot := root.(*ast.LazyInfixExpression).Right
 	if bodyRoot.GetToken().Type == token.GIVEN {
 		expression.Body = bodyRoot.(*ast.InfixExpression).Args[0]

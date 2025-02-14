@@ -510,7 +510,7 @@ func GetVariableNames(n Node) dtypes.Set[string] {
 		return result.Add(n.Value)
 	case *FuncExpression:
 		params := dtypes.Set[string]{}
-		for _, pair := range n.Sig {
+		for _, pair := range n.NameSig {
 			params.Add(pair.VarName)
 		}
 		// We find all the identifiers that we declare in the 'given' block.
@@ -554,7 +554,7 @@ func GetPrefixes(n Node) dtypes.Set[string] {
 		return result.Add(n.Operator)
 	case *FuncExpression:
 		params := dtypes.Set[string]{}
-		for _, pair := range n.Sig {
+		for _, pair := range n.NameSig {
 			params.Add(pair.VarName)
 		}
 		// We find all the identifiers that we declare in the 'given' block of the lambda.
@@ -600,7 +600,7 @@ func ExtractAllNames(node Node) dtypes.Set[string] {
 		return result.Add(n.Value)
 	case *FuncExpression:
 		params := dtypes.Set[string]{}
-		for _, pair := range n.Sig {
+		for _, pair := range n.NameSig {
 			params.Add(pair.VarName)
 		}
 		// We find all the identifiers that we declare in the 'given' block of the lambda.
@@ -634,9 +634,7 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 
 type PrsrFunction struct {
 	FName    string       // The name of the function.
-	Sig      AbstractSig  // The signature of the function, represented in a form where the types are given as abstract types.
 	NameSig  StringSig    // The same, but with names of types instead of abstract types.
-	RtnSig   AbstractSig  // The return types: nil if not supplied.
 	NameRets StringSig    // The same, but with names of types instead of abstract types.
 	Body     Node         // The body of the function.
 	Given    Node         // The 'given' block: nil if there isn't one.
