@@ -130,6 +130,11 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.MakeFunctionTables()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
 	iz.PopulateTypesAndMakeFunctionTrees()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
@@ -269,7 +274,7 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 	if iz.ErrorsExist() {
 		return
 	}
-	// We hand back flow of control to StartService or RunTest.
+	// We hand back flow of control to StartService.
 }
 
 // Function auxilliary to phase 1. NULL-namespaced imports are first read from file and then tokenized
@@ -1259,13 +1264,6 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 		return
 	}
 
-	// An intermediate step that groups the functions by name and orders them by specificity in a "function table".
-	// We return a GoHandler for the next step.
-	iz.makeFunctionTable()
-	if iz.ErrorsExist() {
-		return
-	}
-
 	// We add in constructors for the structs, snippets, and clones.
 	iz.compileConstructors()
 	if iz.ErrorsExist() {
@@ -1455,9 +1453,14 @@ func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, retur
 	return uint32(len(iz.cp.Fns) - 1)
 }
 
-// That concludes phase 2 of compilation.
-//
-// We can now move on to phase 3.
+// Phase 2 of compilation.
+func (iz *initializer) MakeFunctionTables() {
+	// First we recursively call the method on all the dependencies of the module.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.MakeFunctionTables()
+	}
+	iz.makeFunctionTable()
+}
 
 // We populate the abstract types and make the function trees.
 // While making the abstract types we also collect the functions they import.
