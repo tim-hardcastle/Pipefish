@@ -128,7 +128,12 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.PopulateAbstractTypesAndMakeFunctionTrees()
+	iz.PopulateTypesAndMakeFunctionTrees()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+	iz.AddFieldsToStructsAndCheckForConsistency()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -248,19 +253,6 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 
 	iz.cmI("Creating (but not populating) interface types.")
 	iz.createInterfaceTypes()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	iz.cmI("Adding fields to structs.")
-	iz.addFieldsToStructs()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	// We want to ensure that no public type (whether a struct or abstract type) contains a private type.
-	iz.cmI("Checking types for consistency of encapsulation.")
-	iz.checkTypesForConsistency()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -1210,56 +1202,6 @@ func (iz *initializer) createInterfaceTypes() {
 	}
 }
 
-// Phase 1M of compilation. Adds field types to structs.
-func (iz *initializer) addFieldsToStructs() {
-	for i, node := range iz.ParsedDeclarations[structDeclaration] {
-		structNumber := iz.structDeclarationNumberToTypeNumber[i]
-		structInfo := iz.cp.Vm.ConcreteTypeInfo[structNumber].(vm.StructType)
-		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
-		structTypes := make([]values.AbstractType, 0, len(sig))
-		for _, labelNameAndType := range sig {
-			typeName := labelNameAndType.VarType
-			abType := iz.p.GetAbstractType(typeName)
-			structTypes = append(structTypes, abType)
-		}
-		structInfo.AbstractStructFields = structTypes
-		iz.cp.Vm.ConcreteTypeInfo[structNumber] = structInfo
-	}
-}
-
-
-// Phase 1N of compilation. We check that if a struct type is public, so are its fields.
-func (iz *initializer) checkTypesForConsistency() {
-	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
-		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsStruct() {
-			continue
-		}
-		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsPrivate() {
-			for _, ty := range iz.cp.Vm.ConcreteTypeInfo[typeNumber].(vm.StructType).AbstractStructFields {
-				if iz.cp.IsPrivate(ty) {
-					iz.Throw("init/private/struct", &token.Token{}, iz.cp.Vm.ConcreteTypeInfo[typeNumber], iz.cp.Vm.DescribeAbstractType(ty, vm.LITERAL))
-				}
-			}
-		}
-	}
-
-	for i, dec := range iz.TokenizedDeclarations[abstractDeclaration] {
-		if iz.IsPrivate(int(abstractDeclaration), i) {
-			continue
-		}
-		dec.ToStart()
-		tok := dec.NextToken()
-		name := tok.Literal
-		abType := iz.p.GetAbstractType(name)
-		for _, w := range abType.Types {
-			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
-				iz.Throw("init/private/abstract", &tok, name)
-			}
-		}
-
-	}
-}
-
 // Phase 1P of compilation. We parse the snippet types, abstract types, clone types, constants, variables,
 // functions, commands.
 func (iz *initializer) parseEverythingElse() {
@@ -1298,7 +1240,7 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.MakeFunctionTableAndGoModules()
 	}
-	// The vm needs to know how to describe the abstract types in words. TODO --- you seem to have done this already as phase 1P. Can it be removed?
+	// The vm needs to know how to describe the abstract types in words.
 	iz.addAbstractTypesToVm()
 	if iz.ErrorsExist() {
 		return
@@ -1319,7 +1261,7 @@ func (iz *initializer) MakeFunctionTableAndGoModules() {
 	// the .so files first.
 	iz.compileGo()
 
-	// We add in constructors for the structs, snippets, and clones. TODO --- this appears to be phase 1O again.
+	// We add in constructors for the structs, snippets, and clones.
 	iz.compileConstructors()
 	if iz.ErrorsExist() {
 		return
@@ -1476,15 +1418,30 @@ func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, retur
 //
 // We can now move on to phase 3.
 
-// Phase 3 of compilation. As the function name says, we populate the abstract types and make the function trees.
+// We populate the abstract types and make the function trees.
 // While making the abstract types we also collect the functions they import.
-func (iz *initializer) PopulateAbstractTypesAndMakeFunctionTrees() {
+func (iz *initializer) PopulateTypesAndMakeFunctionTrees() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.PopulateAbstractTypesAndMakeFunctionTrees()
+		dependencyIz.PopulateTypesAndMakeFunctionTrees()
 	}
 
-	// Now we pull in all the shared functions that fulfill the interface types, populating the types as we go.
+	iz.cmI("Population interface types.")
+	iz.populateInterfaceTypes()
+	if iz.ErrorsExist() {
+		return
+	}
+
+	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
+	// with types. Following it tells us which version of an overloaded function to use.
+	iz.MakeFunctionTrees()
+	if iz.ErrorsExist() {
+		return
+	}
+}
+
+func (iz *initializer) populateInterfaceTypes() {
+	// We pull in all the shared functions that fulfill the interface types, populating the types as we go.
 	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
 		tcc.ToStart()
 		nameTok := tcc.NextToken()
@@ -1533,17 +1490,7 @@ func (iz *initializer) PopulateAbstractTypesAndMakeFunctionTrees() {
 
 	if settings.FUNCTION_TO_PEEK != "" {
 		println(iz.p.FunctionTable.Describe(iz.p, settings.FUNCTION_TO_PEEK))
-	}
-
-	if iz.ErrorsExist() {
-		return
-	}
-	// Now we turn the function table into a different data structure, a "function tree" with its branches labeled
-	// with types. Following it tells us which version of an overloaded function to use.
-	iz.MakeFunctionTrees()
-	if iz.ErrorsExist() {
-		return
-	}
+	}	
 }
 
 // Type for the use of the previous function. Just wraps a parser function in a struct that knows its name.
@@ -1627,6 +1574,78 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 		}
 	}
 	return tree
+}
+
+// Phase 3-1/2 of compilation.
+
+// We assign abstract types to the fields of the structs, and chek for consistency of
+// private types, i.e. a struct type declared public can't have field types declared private.
+func (iz *initializer) AddFieldsToStructsAndCheckForConsistency() {
+	// First we recurse.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.PopulateTypesAndMakeFunctionTrees()
+	}
+	iz.cmI("Adding abstract types of fields to structs.")
+	iz.addFieldsToStructs()
+	if iz.ErrorsExist() {
+		return
+	}
+	// We want to ensure that no public type (whether a struct or abstract type) contains a private type.
+	iz.cmI("Checking types for consistency of encapsulation.")
+	iz.checkTypesForConsistency()
+	if iz.ErrorsExist() {
+		return
+	}
+}
+
+// Phase 3-1/2A, formerly phase 1M of compilation. Adds field types to structs.
+func (iz *initializer) addFieldsToStructs() {
+	for i, node := range iz.ParsedDeclarations[structDeclaration] {
+		structNumber := iz.structDeclarationNumberToTypeNumber[i]
+		structInfo := iz.cp.Vm.ConcreteTypeInfo[structNumber].(vm.StructType)
+		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		structTypes := make([]values.AbstractType, 0, len(sig))
+		for _, labelNameAndType := range sig {
+			typeName := labelNameAndType.VarType
+			abType := iz.p.GetAbstractType(typeName)
+			structTypes = append(structTypes, abType)
+		}
+		structInfo.AbstractStructFields = structTypes
+		iz.cp.Vm.ConcreteTypeInfo[structNumber] = structInfo
+	}
+}
+
+
+// Phase 3-1/2B, formerly phase 1N of compilation. We check that if a struct type is public, so are its fields.
+func (iz *initializer) checkTypesForConsistency() {
+	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
+		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsStruct() {
+			continue
+		}
+		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsPrivate() {
+			for _, ty := range iz.cp.Vm.ConcreteTypeInfo[typeNumber].(vm.StructType).AbstractStructFields {
+				if iz.cp.IsPrivate(ty) {
+					iz.Throw("init/private/struct", &token.Token{}, iz.cp.Vm.ConcreteTypeInfo[typeNumber], iz.cp.Vm.DescribeAbstractType(ty, vm.LITERAL))
+				}
+			}
+		}
+	}
+
+	for i, dec := range iz.TokenizedDeclarations[abstractDeclaration] {
+		if iz.IsPrivate(int(abstractDeclaration), i) {
+			continue
+		}
+		dec.ToStart()
+		tok := dec.NextToken()
+		name := tok.Literal
+		abType := iz.p.GetAbstractType(name)
+		for _, w := range abType.Types {
+			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
+				iz.Throw("init/private/abstract", &tok, name)
+			}
+		}
+
+	}
 }
 
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
@@ -1823,7 +1842,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk {
 	return result
 }
 
-// FUnction auxiliary to the above for compiling constant and variable declarations.
+// Function auxiliary to the above for compiling constant and variable declarations.
 func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationType, v int) {
 	dec := iz.ParsedDeclarations[declarations][v]
 	iz.cp.Cm("Compiling assignment "+dec.String(), dec.GetToken())
