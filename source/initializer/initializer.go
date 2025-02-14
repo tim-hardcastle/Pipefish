@@ -48,7 +48,6 @@ type initializer struct {
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets                            []string                       // Names of snippet types visible to the module.
 	fnIndex                             map[fnSource]*ast.PrsrFunction // Map from sources to how the parser sees functions.
-	declarationMap                      map[decKey]any                 // TODO --- it is not at all clear that this is doing what it ought to.
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
@@ -60,7 +59,6 @@ func NewInitializer() *initializer {
 		initializers:       make(map[string]*initializer),
 		localConcreteTypes: make(dtypes.Set[values.ValueType]),
 		fnIndex:            make(map[fnSource]*ast.PrsrFunction),
-		declarationMap:     make(map[decKey]any),
 		unserializableTypes: make(dtypes.Set[string]),
 	}
 	iz.newGoBucket()
@@ -69,14 +67,18 @@ func NewInitializer() *initializer {
 
 // The CommonInitializerBindle contains information that all the initializers need to share.
 type CommonInitializerBindle struct {
-	Functions map[FuncSource]*ast.PrsrFunction
-	HubCompilers map[string]*compiler.Compiler
+	Functions map[FuncSource]*ast.PrsrFunction    // This is to ensure that the same function (i.e. from the same place in source code) isn't pared more than once.
+	DeclarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
+	HubCompilers map[string]*compiler.Compiler    // This is a map of the compilers of all the (potential) external services on the same hub.
+	
+	
 }
 
 // Initializes the `CommonInitializerBindle`
 func NewCommonInitializerBindle() *CommonInitializerBindle {
 	b := CommonInitializerBindle{
 		Functions: make(map[FuncSource]*ast.PrsrFunction),
+		DeclarationMap: make(map[decKey]any),
 		HubCompilers: make(map[string]*compiler.Compiler),
 	}
 	return &b
@@ -583,9 +585,6 @@ func (iz *initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 			return []string{}
 		}
 		iz.cp.Modules[namespace] = newCp
-		for k, v := range newIz.declarationMap { // TODO --- see note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
-			iz.declarationMap[k] = v
-		}
 		iz.p.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
 		newCp.P.Private = iz.IsPrivate(int(importDeclaration), i)
 	}
@@ -715,9 +714,6 @@ func (iz *initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 	iz.p.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
 	iz.cp.Modules[name] = newCp
-	for k, v := range newIz.declarationMap { // TODO --- see note above. It's not clear why we have to do it this way rather than sharing it in the bindle, and we should find out.
-		iz.declarationMap[k] = v
-	}
 }
 
 // Now we can start creating the user-defined types.
@@ -2202,12 +2198,12 @@ func makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
 }
 
 func (iz *initializer) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {
-	result, ok := iz.declarationMap[makeKey(dOf, tok, ix)]
+	result, ok := iz.Common.DeclarationMap[makeKey(dOf, tok, ix)]
 	return result, ok
 }
 
 func (iz *initializer) setDeclaration(dOf declarationOf, tok *token.Token, ix int, v any) {
-	iz.declarationMap[makeKey(dOf, tok, ix)] = v
+	iz.Common.DeclarationMap[makeKey(dOf, tok, ix)] = v
 }
 
 // Tokens to return when no token is available.
