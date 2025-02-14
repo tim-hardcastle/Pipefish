@@ -507,6 +507,7 @@ NodeTypeSwitch:
 					cp.put(vm.IxZn, container, uint32(fieldNumber))
 					println("structT is", structT, "fieldNumber is", fieldNumber, "len cti is", len(cp.Vm.ConcreteTypeInfo))
 					println("length of struct fields is", len(cp.Vm.ConcreteTypeInfo[structT].(vm.StructType).AbstractStructFields))
+					println("struct name is", cp.Vm.ConcreteTypeInfo[structT].GetName(vm.LITERAL))
 					rtnTypes = AbstractTypeToAlternateType(cp.Vm.ConcreteTypeInfo[structT].(vm.StructType).AbstractStructFields[fieldNumber])
 					break
 				}
