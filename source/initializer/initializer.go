@@ -2098,7 +2098,6 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		default:
 			tupleData = append(tupleData, 0)
 		}
-
 	}
 	if foundTupleOrVarArgs {
 		cpF.LocOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
