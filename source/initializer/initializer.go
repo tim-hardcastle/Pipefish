@@ -2119,6 +2119,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		}
 		cpF.Builtin = name
 	case token.GOCODE:
+		println("******** Function", functionName, "at", node.GetToken().Source, node.GetToken().Line, "has go.")
 		cpF.GoNumber = uint32(len(iz.cp.Vm.GoFns))
 		cpF.HasGo = true
 		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
