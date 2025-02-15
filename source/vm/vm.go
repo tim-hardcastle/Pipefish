@@ -489,10 +489,12 @@ loop:
 				vm.Mem[args[0]] = values.Value{values.FLOAT, i}
 			}
 		case Gofn:
+			println("Called gofn")
 			F := vm.GoFns[args[2]]
 			goTpl := make([]reflect.Value, 0, len(args))
 			for _, v := range args[3:] { // TODO --- how can this be right? Surely they should be stored in a TUPLE.
 				el := vm.Mem[v]
+				println("el is", vm.DescribeTypeAndValue(el, LITERAL))
 				goVal, ok := vm.pipefishToGo(el)
 				if !ok {
 					newError := err.CreateErr("vm/pipefish/type", vm.Mem[args[1]].V.(*err.Error).Token, vm.DescribeType(el.T, LITERAL))
