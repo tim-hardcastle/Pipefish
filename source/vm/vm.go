@@ -490,7 +490,7 @@ loop:
 			}
 		case Gofn:
 			F := vm.GoFns[args[2]]
-			println("Called Gofn with args length", len(args))
+			println("Called Gofn", args[2], "with args length", len(args))
 			goTpl := make([]reflect.Value, 0, len(args))
 			for _, v := range args[3:] { // TODO --- how can this be right? Surely they should be stored in a TUPLE.
 				el := vm.Mem[v]
