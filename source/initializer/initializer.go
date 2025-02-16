@@ -1727,6 +1727,8 @@ func (iz *initializer) compileGoModules() {
 		dependencyIz.compileGoModules()
 	}
 	iz.compileGo() // This is in 'gohandler.go' in this package.
+	println("Calling check all Go from namespace", iz.cp.P.NamespacePath)
+	iz.checkAllGo()
 }
 
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
