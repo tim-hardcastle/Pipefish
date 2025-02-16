@@ -179,8 +179,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	println("Check all Go --- 2")
-	iz.checkAllGo()
 	iz.cmI("Resolving interface backtracks.")
 	iz.ResolveInterfaceBacktracks()
 	return result
@@ -1727,6 +1725,7 @@ func (iz *initializer) compileGoModules() {
 		println("Calling check all Go for namespace", dependencyIz.cp.P.NamespacePath)
 		dependencyIz.checkAllGo()
 	}
+	println("Compiling Go for", iz.cp.P.NamespacePath)
 	iz.compileGo() // This is in 'gohandler.go' in this package.
 	println("Calling check all Go for", iz.cp.P.NamespacePath,"after compiling Go modules")
 	iz.checkAllGo()
