@@ -2024,7 +2024,7 @@ func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationTyp
 
 // Method for compiling a top-level function.
 func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType) *compiler.CpFunc {
-	println("Trying to get function declared at", iz.cp.P, node.GetToken().Source, node.GetToken().Line)
+	println("Trying to get function declared at", iz.cp.P.NamespacePath, node.GetToken().Source, node.GetToken().Line)
 	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
 		println("Function exists.")
 		iz.cp.Fns = append(iz.cp.Fns, info.(*compiler.CpFunc))
@@ -2169,7 +2169,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	if ac == compiler.CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
 		iz.p.Throw("comp/return/cmd", node.GetToken())
 	}
-	println("Setting function declared at", iz.cp.P, node.GetToken().Source, node.GetToken().Line)
+	println("Setting function declared at", iz.cp.P.NamespacePath, node.GetToken().Source, node.GetToken().Line)
 	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
 
 	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
