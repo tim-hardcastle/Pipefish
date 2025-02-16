@@ -505,7 +505,7 @@ loop:
 			}
 			var goResultValues []reflect.Value
 			println("goTuple has length", len(goTpl))
-			println("F.Code is", F.Code.String())
+			println("F.Code is", F.Code.IsZero(), F.Code.Kind().String())
 			goResultValues = F.Code.Call(goTpl)
 			var doctoredValues any
 			if len(goResultValues) == 1 {
