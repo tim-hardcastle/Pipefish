@@ -2121,6 +2121,8 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		cpF.GoNumber = uint32(len(iz.cp.Vm.GoFns))
 		cpF.HasGo = true
 		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
+		println("Making Go function", cpF.GoNumber, iz.cp.P.NamespacePath)
+		println("Code is", iz.cp.Vm.GoFns[cpF.GoNumber].Code.Kind().String())
 	case token.XCALL:
 	default:
 		logFlavor := compiler.LF_NONE
