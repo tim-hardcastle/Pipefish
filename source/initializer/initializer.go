@@ -172,13 +172,15 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.checkGo()
+	println("Check all Go --- 1")
+	iz.checkAllGo()
 	iz.cmI("Compiling everything else.")
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	println("Check all Go --- 2")
 	iz.checkAllGo()
 	iz.cmI("Resolving interface backtracks.")
 	iz.ResolveInterfaceBacktracks()
