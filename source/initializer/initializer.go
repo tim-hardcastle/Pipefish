@@ -172,12 +172,14 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.checkGo()
 	iz.cmI("Compiling everything else.")
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.checkAllGo()
 	iz.cmI("Resolving interface backtracks.")
 	iz.ResolveInterfaceBacktracks()
 	return result
@@ -2022,15 +2024,29 @@ func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationTyp
 	return envToAddTo, vAcc
 }
 
+func(iz *initializer) checkAllGo() {
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.checkAllGo()
+	}
+	iz.checkGo()
+}
+
+func (iz *initializer) checkGo() {
+	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
+		for _, node := range iz.ParsedDeclarations[dT] {
+			functionName, _, _, _, body, _ := iz.p.ExtractPartsOfFunction(node)
+			if body.GetToken().Type == token.GOCODE {
+				println("In namespace", iz.cp.P.NamespacePath, functionName, "has gocode", body.(*ast.GolangExpression).GoFunction.Kind().String())
+			}
+		}
+	}
+}
+
 // Method for compiling a top-level function.
 func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType) *compiler.CpFunc {
-	println("Trying to get function declared at", iz.cp.P.NamespacePath, node.GetToken().Source, node.GetToken().Line)
 	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
-		println("Function exists.")
 		iz.cp.Fns = append(iz.cp.Fns, info.(*compiler.CpFunc))
 		return info.(*compiler.CpFunc)
-	} else {
-		println("Function does not exist.")
 	}
 	cpF := compiler.CpFunc{}
 	var ac compiler.CpAccess
@@ -2043,14 +2059,12 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := iz.p.ExtractPartsOfFunction(node)
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", body.GetToken())
-
 	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
 		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 	}
 	if iz.ErrorsExist() {
 		return nil
 	}
-
 	if body.GetToken().Type == token.XCALL {
 		Xargs := body.(*ast.PrefixExpression).Args
 		cpF.Xcall = &compiler.XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value),
@@ -2124,7 +2138,6 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(iz.cp.Vm.GoFns))
 		cpF.HasGo = true
-		println("*********In initializer", iz.cp.P.NamespacePath, body.GetToken().Source, body.GetToken().Line, body.GetToken().ChStart, "appending", body.(*ast.GolangExpression).GoFunction.Kind().String())
 		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
 	case token.XCALL:
 	default:
@@ -2169,7 +2182,6 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	if ac == compiler.CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
 		iz.p.Throw("comp/return/cmd", node.GetToken())
 	}
-	println("Setting function declared at", iz.cp.P.NamespacePath, node.GetToken().Source, node.GetToken().Line)
 	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
 
 	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
