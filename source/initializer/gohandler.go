@@ -80,6 +80,7 @@ func (iz *initializer) newGoBucket() {
 // This will if necessary compile or recompile the relevant .so files, and will extract from them
 // the functions and converter data needed by the compiler and vm and put it into its proper place.
 func (iz *initializer) compileGo() {
+	println("Compiling Go for namespace", iz.cp.P.NamespacePath)
 	// The purpose of putting timestamps on the .so files is not that we ever read the timestamps
 	// from the filenames (we look either at the OS metadata of the file or at the 'gotimes' file),
 	// but simply because you can't re-use the names of .so files in the same Go runtime and since
