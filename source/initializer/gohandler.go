@@ -149,7 +149,7 @@ func (iz *initializer) compileGo() {
 		// functions.
 		for _, function := range iz.goBucket.functions[source] {
 			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
-			println("In namespace", iz.cp.P.NamespacePath, "source", function.Body.GetToken().Source, function.Body.GetToken().Line, "attaching", reflect.ValueOf(goFunction).Kind().String())
+			println("In namespace", iz.cp.P.NamespacePath, "source", function.Body.GetToken().Source, function.Body.GetToken().Line, function.Body.GetToken().ChStart, "attaching", reflect.ValueOf(goFunction).Kind().String())
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 			for i, pair := range function.NameSig {
 				if text.Head(pair.VarType, "...") {
