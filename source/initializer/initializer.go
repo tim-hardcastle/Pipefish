@@ -172,7 +172,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	println("Check all Go --- 1")
 	iz.checkAllGo()
 	iz.cmI("Compiling everything else.")
 	iz.CompileEverything()
@@ -1725,9 +1724,11 @@ func (iz *initializer) compileGoModules() {
 	// First of all, the recursion.
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.compileGoModules()
+		println("Calling check all Go for namespace", dependencyIz.cp.P.NamespacePath)
+		dependencyIz.checkAllGo()
 	}
 	iz.compileGo() // This is in 'gohandler.go' in this package.
-	println("Calling check all Go from namespace", iz.cp.P.NamespacePath)
+	println("Calling check all Go for", iz.cp.P.NamespacePath,"after compiling Go modules")
 	iz.checkAllGo()
 }
 
