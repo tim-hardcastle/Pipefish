@@ -329,6 +329,7 @@ func TestImports(t *testing.T) {
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
 	test_helper.RunTest(t, "import_test.pf", tests, test_helper.TestValues)
+	panic("We're done!")
 }
 func TestExternals(t *testing.T) {
 	tests := []test_helper.TestItem{

@@ -2045,6 +2045,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	case token.GOCODE:
 		cpF.GoNumber = uint32(len(iz.cp.Vm.GoFns))
 		cpF.HasGo = true
+		println("Initializer in namespace", iz.cp.P.NamespacePath, "attaching", body.(*ast.GolangExpression).GoFunction.Kind().String())
 		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
 	case token.XCALL:
 	default:
