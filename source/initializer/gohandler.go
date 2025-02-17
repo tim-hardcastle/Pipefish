@@ -94,6 +94,18 @@ func (iz *initializer) compileGo() {
 		iz.goBucket.pureGo[token.Source] = append(iz.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
 	}
 
+	for j := functionDeclaration; j <= commandDeclaration; j++ {
+		for i, _ := range iz.ParsedDeclarations[j] {
+				functionToAdd := iz.fnIndex[fnSource{j, i}]
+				if functionToAdd.Body.GetToken().Type == token.GOCODE {
+					iz.goBucket.sources.Add(functionToAdd.Body.GetToken().Source)
+					iz.goBucket.functions[functionToAdd.Body.GetToken().Source] = append(iz.goBucket.functions[functionToAdd.Body.GetToken().Source], functionToAdd)
+					functionToAdd.Body.(*ast.GolangExpression).Sig = functionToAdd.NameSig
+					functionToAdd.Body.(*ast.GolangExpression).ReturnTypes = functionToAdd.NameRets
+			}
+		}
+	}
+
 	timeMap := iz.getGoTimes() // We slurp a map from sources to times from the `gotimes` file.
 
 	for source := range iz.goBucket.sources {
@@ -149,7 +161,6 @@ func (iz *initializer) compileGo() {
 		// functions.
 		for _, function := range iz.goBucket.functions[source] {
 			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
-			println("In namespace", iz.cp.P.NamespacePath, "source", function.Body.GetToken().Source, function.Body.GetToken().Line, function.Body.GetToken().ChStart, function.Body, "attaching", reflect.ValueOf(goFunction).Kind().String())
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 			for i, pair := range function.NameSig {
 				if text.Head(pair.VarType, "...") {
@@ -159,8 +170,6 @@ func (iz *initializer) compileGo() {
 				}
 			}
 		}
-		println("Calling checkGo from compileGo, namespace", iz.cp.P.NamespacePath)
-		iz.checkGo()
 	}
 }
 

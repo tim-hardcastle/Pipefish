@@ -2023,24 +2023,6 @@ func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationTyp
 	return envToAddTo, vAcc
 }
 
-func(iz *initializer) checkAllGo() {
-	for _, dependencyIz := range iz.initializers {
-		dependencyIz.checkAllGo()
-	}
-	iz.checkGo()
-}
-
-func (iz *initializer) checkGo() {
-	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
-		for _, node := range iz.ParsedDeclarations[dT] {
-			functionName, _, _, _, body, _ := iz.p.ExtractPartsOfFunction(node)
-			if body.GetToken().Type == token.GOCODE {
-				println("In namespace", iz.cp.P.NamespacePath, functionName, body, "has gocode", body.(*ast.GolangExpression).GoFunction.Kind().String())
-			}
-		}
-	}
-}
-
 // Method for compiling a top-level function.
 func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType) *compiler.CpFunc {
 	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
