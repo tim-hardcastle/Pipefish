@@ -2035,7 +2035,7 @@ func (iz *initializer) checkGo() {
 		for _, node := range iz.ParsedDeclarations[dT] {
 			functionName, _, _, _, body, _ := iz.p.ExtractPartsOfFunction(node)
 			if body.GetToken().Type == token.GOCODE {
-				println("In namespace", iz.cp.P.NamespacePath, functionName, "has gocode", body.(*ast.GolangExpression).GoFunction.Kind().String())
+				println("In namespace", iz.cp.P.NamespacePath, functionName, body, "has gocode", body.(*ast.GolangExpression).GoFunction.Kind().String())
 			}
 		}
 	}
