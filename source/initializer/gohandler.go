@@ -96,14 +96,14 @@ func (iz *initializer) compileGo() {
 
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i, _ := range iz.ParsedDeclarations[j] {
-			_, _, _, _, body, _ := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
+			_, _, sig, rtnSig, body, _ := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
 			functionToAdd := iz.fnIndex[fnSource{j, i}]
 			if body.GetToken().Type == token.GOCODE {
 				functionToAdd.Body = body
 				iz.goBucket.sources.Add(functionToAdd.Body.GetToken().Source)
 				iz.goBucket.functions[functionToAdd.Body.GetToken().Source] = append(iz.goBucket.functions[functionToAdd.Body.GetToken().Source], functionToAdd)
-				functionToAdd.Body.(*ast.GolangExpression).Sig = functionToAdd.NameSig
-				functionToAdd.Body.(*ast.GolangExpression).ReturnTypes = functionToAdd.NameRets
+				body.(*ast.GolangExpression).Sig = sig
+				body.(*ast.GolangExpression).ReturnTypes = rtnSig
 			}
 		}
 	}
