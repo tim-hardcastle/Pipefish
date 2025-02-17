@@ -1531,12 +1531,6 @@ func (iz *initializer) makeFunctionTable() {
 				iz.p.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok)
 				return
 			}
-			if body.GetToken().Type == token.GOCODE {
-				iz.goBucket.sources.Add(body.GetToken().Source)
-				iz.goBucket.functions[body.GetToken().Source] = append(iz.goBucket.functions[body.GetToken().Source], functionToAdd)
-				body.(*ast.GolangExpression).Sig = sig
-				body.(*ast.GolangExpression).ReturnTypes = rTypes
-			}
 		}
 	}
 }
