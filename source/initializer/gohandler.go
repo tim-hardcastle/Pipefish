@@ -159,6 +159,7 @@ func (iz *initializer) compileGo() {
 				}
 			}
 		}
+
 	}
 }
 

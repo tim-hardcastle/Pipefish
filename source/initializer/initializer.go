@@ -1719,15 +1719,8 @@ func (iz *initializer) checkTypesForConsistency() {
 	
 
 func (iz *initializer) compileGoModules() {
-	// First of all, the recursion.
-	for _, dependencyIz := range iz.initializers {
-		dependencyIz.compileGoModules()
-		dependencyIz.compileGo()
-	}
-	println("Compiling Go for", iz.cp.P.NamespacePath)
-	iz.compileGo() // This is in 'gohandler.go' in this package.
-	println("Calling check all Go for", iz.cp.P.NamespacePath,"after compiling Go modules")
-	iz.checkAllGo()
+	
+	
 }
 
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
@@ -1736,6 +1729,8 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.CompileEverything()
 	}
+	// Compile the golang dependencies first.
+	iz.compileGo() // This is in 'gohandler.go' in this package.
 	// And now we compile the module.
 	//
 	// First we need to do a big topological sort on everything, according to the following rules:
