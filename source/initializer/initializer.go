@@ -1722,7 +1722,7 @@ func (iz *initializer) compileGoModules() {
 	// First of all, the recursion.
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.compileGoModules()
-		dependencyIz.checkAllGo()
+		dependencyIz.compileGo()
 	}
 	println("Compiling Go for", iz.cp.P.NamespacePath)
 	iz.compileGo() // This is in 'gohandler.go' in this package.
