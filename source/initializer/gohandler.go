@@ -159,7 +159,8 @@ func (iz *initializer) compileGo() {
 				}
 			}
 		}
-
+		println("Calling checkGo from compileGo, namespace", iz.cp.P.NamespacePath)
+		iz.checkGo()
 	}
 }
 

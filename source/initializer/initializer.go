@@ -172,7 +172,6 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.checkAllGo()
 	iz.cmI("Compiling everything else.")
 	iz.CompileEverything()
 	if iz.ErrorsExist() {
@@ -1719,8 +1718,12 @@ func (iz *initializer) checkTypesForConsistency() {
 	
 
 func (iz *initializer) compileGoModules() {
+	// First of all, the recursion.
+	for _, dependencyIz := range iz.initializers {
+		dependencyIz.compileGoModules()
+	}
 	
-	
+	iz.compileGo() // This is in 'gohandler.go' in this package.
 }
 
 // Phase 4 of compilation. We compile the constants, variables, functions, and commands.
@@ -1729,8 +1732,6 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.CompileEverything()
 	}
-	// Compile the golang dependencies first.
-	iz.compileGo() // This is in 'gohandler.go' in this package.
 	// And now we compile the module.
 	//
 	// First we need to do a big topological sort on everything, according to the following rules:
