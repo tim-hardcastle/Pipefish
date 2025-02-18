@@ -390,6 +390,11 @@ func TestInterface(t *testing.T) {
 		{`ZORT in Foobarable`, `true`},
 		{`true in Addable`, `false`},
 		{`Fnug(5) in Foobarable`, `false`},
+		{`Grunt(1, Derp(5))`, `Grunt with (flerp::1, glerp::Derp with (blerp::5))`},
+		{`Derp(5) in Zort`, `true`},
+		{`Derp(5) in Spoitable`, `true`},
+		{`xuq Derp(5)`, `Derp with (blerp::5)`},
+		{`respoit Derp(5)`, `Derp with (blerp::5)`},
 	}
 	test_helper.RunTest(t, "interface_test.pf", tests, test_helper.TestValues)
 }

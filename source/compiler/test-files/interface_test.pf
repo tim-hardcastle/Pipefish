@@ -8,6 +8,15 @@ Qux = enum ZORT, TROZ, BLERP, SPONG
 
 Fnug = clone int using +, -
 
+Grunt = struct(flerp int, glerp Spoitable)
+
+Derp = struct(blerp int)
+
+Zort = abstract Derp/Grunt
+
+Spoitable = interface :
+    spoit(x self)
+
 def
 
 foo(q Qux) -> int :
@@ -19,4 +28,14 @@ bar(q Qux) -> int :
 (p Qux) + (q Qux) -> Qux :
     Qux[(int(p) + int(q)) mod 4]
 
+xuq(z Zort) :
+    z
 
+troz(a Addable) :
+    a
+
+spoit(b Derp) :
+    b
+
+respoit(s Spoitable) :
+    s 
