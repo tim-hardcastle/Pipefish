@@ -50,7 +50,7 @@ type Parser struct {
 	nativeInfixes     dtypes.Set[token.TokenType]
 	lazyInfixes       dtypes.Set[token.TokenType]
 
-	// Used for multiple dispatch.
+	// Used for multiple dispatch. TODO --- neither of these should be in the parser.
 
 	// While this is mostly just used by the initializer to construct the function trees (below), it is also used
 	// to serialize the API and so may be needed at runtime.

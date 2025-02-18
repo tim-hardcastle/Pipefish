@@ -21,7 +21,7 @@ func MandatoryImportSet() dtypes.Set[string] {
 	return dtypes.MakeFromSlice(MandatoryImports)
 }
 
-var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc/worldlite.pf")
+var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc-pf/worldlite.pf")
 
 // This is replicated in the hub and any changes made here must be reflected there. TODO --- don't.
 var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "math", "path", "regexp", "strings", "time", "unicode"})
@@ -42,7 +42,7 @@ const (
 	SHOW_RUNTIME           = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
 	SHOW_RUNTIME_VALUES    = false // Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
 	SHOW_XCALLS            = false
-	SHOW_GOLANG            = true
+	SHOW_GOLANG            = false
 	SHOW_API_SERIALIZATION = false
 	SHOW_EXTERNAL_STUBS    = false
 	SHOW_TESTS             = true // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.

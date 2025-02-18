@@ -73,14 +73,14 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		backtrackList[i] = DUMMY
 		if i < cp.P.FunctionForest[node.GetToken().Literal].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
-				cp.P.Throw("comp/ref/ident", arg.GetToken())
+				cp.Throw("comp/ref/ident", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			var v *variable
 			v, ok := env.GetVar(arg.GetToken().Literal)
 			if !ok {
 				if ac == REPL {
-					cp.P.Throw("comp/ref/var", arg.GetToken())
+					cp.Throw("comp/ref/var", arg.GetToken())
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
@@ -116,7 +116,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			cst = cst && cstI
 			b.valLocs[i] = cp.That()
 			if b.types[i].(AlternateType).isOnly(values.ERROR) {
-				cp.P.Throw("comp/error/arg", arg.GetToken())
+				cp.Throw("comp/error/arg", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if b.types[i].(AlternateType).Contains(values.ERROR) { // IMPORTANT --- find out if the ret statement is going to cause a problem with thunks as it did below before I fixed it.
@@ -134,7 +134,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.P.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
+		cp.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
@@ -277,8 +277,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	varargsSlurpingTupleTypeCheck := bkGoto(DUMMY)
 	if needsLowerBranch && !acceptingTuple {
 		cp.cmP("Overlap is partial: "+overlap.describe(cp.Vm), b.tok)
-		cp.cmP("Accepted any types are "+acceptedSingleTypes.describe(cp.Vm), b.tok)
-		cp.cmP("Emitting type comparisons for any types.", b.tok)
+		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.Vm), b.tok)
+		cp.cmP("Emitting type comparisons for single types.", b.tok)
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a any, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
@@ -322,7 +322,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 		case len(overlap):
-			cp.cmP("Nothing but any types", b.tok)
+			cp.cmP("Nothing but single types", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
@@ -333,17 +333,17 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.Emit(vm.Asgm, b.outLoc, cp.That())
 				return AltType(values.ERROR)
 			}
-			cp.cmP("Going across branch consuming any value.", b.tok)
+			cp.cmP("Going across branch consuming single value.", b.tok)
 			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 		default:
 			skipElse := bkGoto(DUMMY)
-			cp.cmP("Mix of any and tuple types.", b.tok)
+			cp.cmP("Mix of single and tuple types.", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.cmP("Type is tuple. Generating branch to consume tuple.", b.tok)
 				typesFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
 				singleCheck := cp.vmIf(vm.Qsnq, b.valLocs[b.argNo])
-				cp.cmP("Generating branch to check out any values.", b.tok)
+				cp.cmP("Generating branch to check out single values.", b.tok)
 				typesFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 				skipElse = cp.vmGoTo()
 				cp.vmComeFrom(singleCheck)
@@ -576,7 +576,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
 					b.override = true
-					return cp.rtnTypesToTypeScheme(cp.P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
+					return cp.rtnTypesToTypeScheme(branch.Node.Fn.Compiler.(*Compiler).P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
 				}
 				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 					cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -587,12 +587,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Rpop)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 					b.override = true              // We can't do constant folding on a dummy function call.
-					return cp.rtnTypesToTypeScheme(cp.P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
+					return cp.rtnTypesToTypeScheme(branch.Node.Fn.Compiler.(*Compiler).P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
 				}
 				F := resolvingCompiler.Fns[fNo]
 				if (b.access == REPL || b.libcall) && F.Private {
 					cp.cmP("REPL trying to access private function. Returning error.", b.tok)
-					cp.P.Throw("comp/private", b.tok)
+					cp.Throw("comp/private", b.tok)
 					return AltType(values.COMPILE_TIME_ERROR)
 				}
 				// Deal with the case where the function is a builtin.

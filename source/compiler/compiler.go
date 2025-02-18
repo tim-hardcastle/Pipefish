@@ -195,7 +195,7 @@ NodeTypeSwitch:
 		cp.Cm("Assignment from REPL or in 'cmd' section", node.GetToken())
 		sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
 		if err != nil {
-			cp.P.Throw("comp/assign/lhs/a", node.Left.GetToken())
+			cp.Throw("comp/assign/lhs/a", node.Left.GetToken())
 			break NodeTypeSwitch
 		}
 		cp.Cm("Assignment signature is "+text.Emph(sig.String()), &node.Token)
@@ -219,7 +219,7 @@ NodeTypeSwitch:
 				cp.Cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
 					if !Equals(v.types, cp.GetAlternateTypeFromTypeName(sig[i].VarType)) {
-						cp.P.Throw("comp/assign/type/b", node.GetToken(), pair.VarName)
+						cp.Throw("comp/assign/type/b", node.GetToken(), pair.VarName)
 						break NodeTypeSwitch
 					}
 				}
@@ -230,15 +230,15 @@ NodeTypeSwitch:
 				}
 				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
-					cp.P.Throw("comp/assign/immutable", node.Left.GetToken(), pair.VarName)
+					cp.Throw("comp/assign/immutable", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				if ac == REPL && (ALL_PRIVATE_ACCESS.Contains(v.access)) {
-					cp.P.Throw("comp/assign/private", node.Left.GetToken(), pair.VarName)
+					cp.Throw("comp/assign/private", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				if ac == REPL && (ALL_CONSTANT_ACCESS.Contains(v.access)) {
-					cp.P.Throw("comp/assign/const", node.Left.GetToken(), pair.VarName)
+					cp.Throw("comp/assign/const", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				if v.access == GLOBAL_VARIABLE_PUBLIC {
@@ -247,7 +247,7 @@ NodeTypeSwitch:
 			} else { // The variable doesn't already exist.
 				cp.Cm("Assignment creating local variable "+text.Emph(sig.String())+".", &node.Token)
 				if ac == REPL {
-					cp.P.Throw("comp/assign/repl", node.Left.GetToken(), pair.VarName)
+					cp.Throw("comp/assign/repl", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
 				cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
@@ -273,7 +273,7 @@ NodeTypeSwitch:
 		cp.vmComeFrom(rhsIsError, typeCheckFailed)
 		break NodeTypeSwitch
 	case *ast.Bling:
-		cp.P.Throw("comp/bling/wut", node.GetToken())
+		cp.Throw("comp/bling/wut", node.GetToken())
 		break
 	case *ast.BooleanLiteral:
 		cp.Reserve(values.BOOL, node.Value, node.GetToken())
@@ -330,7 +330,7 @@ NodeTypeSwitch:
 		enumElement, ok := enumCompiler.EnumElements[node.Value]
 		if ok {
 			if cp.Vm.ConcreteTypeInfo[enumElement.T].IsPrivate() {
-				cp.P.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(enumElement.T, vm.LITERAL))
+				cp.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(enumElement.T, vm.LITERAL))
 				break
 			}
 			cp.Reserve(enumElement.T, enumElement.V, &node.Token)
@@ -340,7 +340,7 @@ NodeTypeSwitch:
 		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
 		if ok {
 			if ac == REPL && cp.Common.LabelIsPrivate[cp.Vm.Mem[labelNumberLocation].V.(int)] {
-				cp.P.Throw("comp/private/label", node.GetToken())
+				cp.Throw("comp/private/label", node.GetToken())
 				break
 			}
 			cp.put(vm.Asgm, labelNumberLocation)
@@ -355,11 +355,11 @@ NodeTypeSwitch:
 			v, ok = env.GetVar(node.Value)
 		}
 		if !ok {
-			cp.P.Throw("comp/ident/known", node.GetToken(), node.Value)
+			cp.Throw("comp/ident/known", node.GetToken(), node.Value)
 			break
 		}
 		if (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
-			cp.P.Throw("comp/ident/private", node.GetToken())
+			cp.Throw("comp/ident/private", node.GetToken())
 			break
 		}
 		if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
@@ -411,7 +411,7 @@ NodeTypeSwitch:
 				rtnTypes = containerType
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT, values.PAIR) {
-				cp.P.Throw("comp/index/list", node.GetToken())
+				cp.Throw("comp/index/list", node.GetToken())
 				break
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
@@ -428,7 +428,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT, values.PAIR) {
-				cp.P.Throw("comp/index/string", node.GetToken())
+				cp.Throw("comp/index/string", node.GetToken())
 				break
 			}
 
@@ -443,7 +443,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT, values.PAIR) {
-				cp.P.Throw("comp/index/tuple", node.GetToken())
+				cp.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
@@ -454,7 +454,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
-				cp.P.Throw("comp/index/pair", node.GetToken())
+				cp.Throw("comp/index/pair", node.GetToken())
 				break
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
@@ -465,7 +465,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
-				cp.P.Throw("comp/index/snippet", node.GetToken())
+				cp.Throw("comp/index/snippet", node.GetToken())
 				break
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
@@ -476,7 +476,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
-				cp.P.Throw("comp/index/type", node.GetToken())
+				cp.Throw("comp/index/type", node.GetToken())
 				break
 			}
 			if ctrConst {
@@ -501,7 +501,7 @@ NodeTypeSwitch:
 					labelName := cp.Vm.Labels[indexNumber]
 					fieldNumber := structInfo.Resolve(indexNumber)
 					if fieldNumber == -1 {
-						cp.P.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.Vm.DescribeType(structT, vm.LITERAL))
+						cp.Throw("comp/index/struct/a", node.GetToken(), labelName, cp.Vm.DescribeType(structT, vm.LITERAL))
 						break
 					}
 					cp.put(vm.IxZn, container, uint32(fieldNumber))
@@ -517,7 +517,7 @@ NodeTypeSwitch:
 				break
 			}
 			if indexType.IsNoneOf(values.LABEL) {
-				cp.P.Throw("comp/index/struct/b", node.GetToken())
+				cp.Throw("comp/index/struct/b", node.GetToken())
 				break
 			}
 		}
@@ -540,7 +540,7 @@ NodeTypeSwitch:
 						}
 					}
 					if !labelIsPossible {
-						cp.P.Throw("comp/index/struct/c", node.GetToken())
+						cp.Throw("comp/index/struct/c", node.GetToken())
 						break
 					}
 					if !labelIsCertain {
@@ -572,7 +572,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = cp.compileComma(node, ctxt.x())
 			break
 		}
-		cp.P.Throw("comp/known/infix", node.GetToken())
+		cp.Throw("comp/known/infix", node.GetToken())
 		break
 	case *ast.IntegerLiteral:
 		cp.Reserve(values.INT, node.Value, node.GetToken())
@@ -582,7 +582,7 @@ NodeTypeSwitch:
 		if node.Operator == "or" {
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/bool/or/left", node.GetToken())
+				cp.Throw("comp/bool/or/left", node.GetToken())
 				break
 			}
 			leftRg := cp.That()
@@ -590,7 +590,7 @@ NodeTypeSwitch:
 			skipElse := cp.vmGoTo()
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
 			if !rTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/bool/or/right", node.GetToken())
+				cp.Throw("comp/bool/or/right", node.GetToken())
 				break
 			}
 			rightRg := cp.That()
@@ -602,14 +602,14 @@ NodeTypeSwitch:
 		if node.Operator == "and" {
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/bool/and/left", node.GetToken())
+				cp.Throw("comp/bool/and/left", node.GetToken())
 				break
 			}
 			leftRg := cp.That()
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
 			if !rTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/bool/and/right", node.GetToken())
+				cp.Throw("comp/bool/and/right", node.GetToken())
 				break
 			}
 			rightRg := cp.That()
@@ -631,7 +631,7 @@ NodeTypeSwitch:
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) && !lTypes.isOnly(values.ERROR) {
-				cp.P.Throw("comp/bool/cond/a", node.GetToken())
+				cp.Throw("comp/bool/cond/a", node.GetToken())
 				break
 			}
 			// TODO --- what if it's not *only* bool?
@@ -662,7 +662,7 @@ NodeTypeSwitch:
 			cmdRet := lTypes.IsLegalCmdReturn()
 			if !cmdRet && !lTypes.Contains(values.UNSATISFIED_CONDITIONAL) {
 				// TODO --- implement warnings.
-				// cp.p.Throw("comp/unreachable", node.GetToken())
+				// cp.Throw("comp/unreachable", node.GetToken())
 				// break
 			}
 			var rTypes AlternateType
@@ -705,7 +705,7 @@ NodeTypeSwitch:
 		errCheck := bkEarlyReturn(DUMMY)
 		containedTypes, rtnConst = cp.CompileNode(node.List, ctxt.x())
 		if containedTypes.isOnly(values.ERROR) {
-			cp.P.Throw("comp/list/err", node.GetToken())
+			cp.Throw("comp/list/err", node.GetToken())
 			break
 		}
 		if containedTypes.Contains(values.ERROR) {
@@ -748,7 +748,7 @@ NodeTypeSwitch:
 
 			lTypes, _ := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) {
-				cp.P.Throw("comp/bool/cond/b", node.GetToken())
+				cp.Throw("comp/bool/cond/b", node.GetToken())
 				break
 			}
 			// TODO --- what if it's not *only* bool?
@@ -805,7 +805,7 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
 				break NodeTypeSwitch
 			default:
-				cp.P.Throw("comp/bool/not", node.GetToken())
+				cp.Throw("comp/bool/not", node.GetToken())
 				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
 				break NodeTypeSwitch
 			}
@@ -829,12 +829,12 @@ NodeTypeSwitch:
 				case *ast.Identifier:
 					variable, ok := cp.GlobalVars.GetVar(arg.Value)
 					if !ok {
-						cp.P.Throw("comp/global/global", arg.GetToken())
+						cp.Throw("comp/global/global", arg.GetToken())
 						break NodeTypeSwitch
 					}
 					env.Data[arg.Value] = *variable
 				default:
-					cp.P.Throw("comp/global/ident", arg.GetToken())
+					cp.Throw("comp/global/ident", arg.GetToken())
 					break NodeTypeSwitch
 				}
 			}
@@ -843,7 +843,7 @@ NodeTypeSwitch:
 		}
 		if node.Token.Type == token.BREAK {
 			if !cp.forDataExists() { // Then we're not in a 'for' loop.
-				cp.P.Throw("comp/break/a", node.GetToken())
+				cp.Throw("comp/break/a", node.GetToken())
 				break NodeTypeSwitch
 			}
 			rtnTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt)
@@ -904,7 +904,7 @@ NodeTypeSwitch:
 				cp.Emit(vm.Asgm, cp.That(), errorLoc)
 			default:
 				cp.Cm("Prefix variable cannot be lambda. Throwing error.", node.GetToken())
-				cp.P.Throw("comp/apply/func", node.GetToken(), node.Operator)
+				cp.Throw("comp/apply/func", node.GetToken(), node.Operator)
 				break NodeTypeSwitch
 			}
 			rtnConst = false
@@ -917,7 +917,7 @@ NodeTypeSwitch:
 			cp.popRCompiler()
 			break
 		}
-		cp.P.Throw("comp/known/prefix", node.GetToken())
+		cp.Throw("comp/known/prefix", node.GetToken())
 		break
 	case *ast.RuneLiteral:
 		cp.Reserve(values.RUNE, node.Value, node.GetToken())
@@ -938,14 +938,14 @@ NodeTypeSwitch:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if node.GetToken().Type == token.DOTDOTDOT {
 			if len(node.Args) != 1 {
-				cp.P.Throw("comp/splat/args", node.GetToken())
+				cp.Throw("comp/splat/args", node.GetToken())
 				break NodeTypeSwitch
 			}
 			var leftTypes AlternateType
 			leftTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
 			overlap := leftTypes.intersect(cp.Common.SharedTypenameToTypeList["listlike"])
 			if len(overlap) == 0 {
-				cp.P.Throw("comp/splat/type", node.GetToken(), leftTypes)
+				cp.Throw("comp/splat/type", node.GetToken(), leftTypes)
 				rtnTypes = altType(values.COMPILE_TIME_ERROR)
 				break NodeTypeSwitch
 			}
@@ -964,14 +964,14 @@ NodeTypeSwitch:
 			cp.popRCompiler()
 			break
 		}
-		cp.P.Throw("comp/known/suffix", node.GetToken())
+		cp.Throw("comp/known/suffix", node.GetToken())
 		break
 	case *ast.TryExpression:
 		ident := node.VarName
 		v, exists := env.GetVar(ident)
 		if exists && (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == GLOBAL_VARIABLE_PRIVATE ||
 			v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK) {
-			cp.P.Throw("comp/try/var", node.GetToken())
+			cp.Throw("comp/try/var", node.GetToken())
 			break
 		}
 		var err uint32
@@ -983,7 +983,7 @@ NodeTypeSwitch:
 		}
 		tryTypes, _ := cp.CompileNode(node.Right, ctxt.x())
 		if tryTypes.IsNoneOf(values.ERROR, values.SUCCESSFUL_VALUE) {
-			cp.P.Throw("comp/try/return", node.GetToken())
+			cp.Throw("comp/try/return", node.GetToken())
 			break
 		}
 		cp.Emit(vm.Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+4)
@@ -1004,7 +1004,7 @@ NodeTypeSwitch:
 		default:
 			abType := resolvingCompiler.P.GetAbstractType(typeName)
 			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
-				cp.P.Throw("comp/private/type", node.GetToken())
+				cp.Throw("comp/private/type", node.GetToken())
 			}
 			cp.Reserve(values.TYPE, abType, node.GetToken())
 		}
@@ -1016,7 +1016,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(resolvingCompiler, node, ctxt.x(), len(node.Namespace) > 0)
 			break
 		}
-		cp.P.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
+		cp.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
 		break
 	default:
 		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
@@ -1024,10 +1024,10 @@ NodeTypeSwitch:
 	// We're done with the typeswitch. We perform some sanity checks to ensure that our functions aren't behaving
 	// like commands or vice versa.
 	if !rtnTypes.IsLegalCmdReturn() && !rtnTypes.IsLegalDefReturn() && !rtnTypes.Contains(values.COMPILE_TIME_ERROR) {
-		cp.P.Throw("comp/sanity", node.GetToken())
+		cp.Throw("comp/sanity", node.GetToken())
 	}
 	if ac == DEF && !rtnTypes.IsLegalDefReturn() {
-		cp.P.Throw("comp/fcis", node.GetToken())
+		cp.Throw("comp/fcis", node.GetToken())
 	}
 	if cp.P.ErrorsExist() {
 		return AltType(values.COMPILE_TIME_ERROR), true
@@ -1080,13 +1080,13 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 	}
 	typeLengths := lengths(rtnTypes)
 	if !(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck))) {
-		cp.P.Throw("comp/return/length", tok, rtnTypes.describe(cp.Vm), typecheck.describe(cp.Vm))
+		cp.Throw("comp/return/length", tok, rtnTypes.describe(cp.Vm), typecheck.describe(cp.Vm))
 		return
 	}
 	for i, ty := range typecheck {
 		intersection := ty.(AlternateType).intersect(typesAtIndex(rtnTypes, i))
 		if len(intersection) == 0 {
-			cp.P.Throw("comp/return/types", tok, rtnTypes.without(SimpleType(values.ERROR)).describe(cp.Vm), typecheck.describe(cp.Vm))
+			cp.Throw("comp/return/types", tok, rtnTypes.without(SimpleType(values.ERROR)).describe(cp.Vm), typecheck.describe(cp.Vm))
 		}
 	}
 }
@@ -1098,11 +1098,11 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string, ac C
 		var ok bool
 		resolvingCompiler, ok = resolvingCompiler.Modules[name]
 		if !ok {
-			cp.P.Throw("comp/namespace/exist", node.GetToken(), name)
+			cp.Throw("comp/namespace/exist", node.GetToken(), name)
 			return nil
 		}
 		if resolvingCompiler.P.Private && (ac == REPL || len(namespace) > 1) {
-			cp.P.Throw("comp/namespace/private", node.GetToken(), name)
+			cp.Throw("comp/namespace/private", node.GetToken(), name)
 			return nil
 		}
 	}
@@ -1115,12 +1115,12 @@ func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string, ac C
 func (cp *Compiler) compileComma(node *ast.InfixExpression, ctxt Context) (AlternateType, bool) {
 	lTypes, lcst := cp.CompileNode(node.Args[0], ctxt.x())
 	if lTypes.isOnly(values.ERROR) {
-		cp.P.Throw("comp/tuple/err/a", node.GetToken())
+		cp.Throw("comp/tuple/err/a", node.GetToken())
 	}
 	left := cp.That()
 	rTypes, rcst := cp.CompileNode(node.Args[2], ctxt.x())
 	if rTypes.isOnly(values.ERROR) {
-		cp.P.Throw("comp/tuple/err/b", node.GetToken())
+		cp.Throw("comp/tuple/err/b", node.GetToken())
 	}
 	right := cp.That()
 	leftIsError := bkEarlyReturn(DUMMY)
@@ -1252,7 +1252,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 
 	if node.BoundVariables == nil {
 		if ctxt.Access != CMD && ctxt.Access != REPL {
-			cp.P.Throw("comp/for/bound/present", &node.Token)
+			cp.Throw("comp/for/bound/present", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken()) // If we don't have any bound variables, then this is presumptively an imperative loop and we'll need somewhere to put OK/break/error still.
@@ -1261,14 +1261,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		hasBoundVariables = true
 		// We set up the bound variables. Note that type checking happens *inside* the 'for' loop, not up here.
 		if node.BoundVariables.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("comp/for/assign/a", &node.Token)
+			cp.Throw("comp/for/assign/a", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Left
 		rhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Right
 		boundSig, err := cp.P.RecursivelySlurpSignature(lhsOfBoundVariables, "*default*")
 		if err != nil {
-			cp.P.Throw("comp/for/bound/a", node.BoundVariables.GetToken())
+			cp.Throw("comp/for/bound/a", node.BoundVariables.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.Cm("Finding initial values of bound variables", tok)
@@ -1284,7 +1284,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		for i, pair := range boundSig {
 			_, exists := newEnv.GetVar(pair.VarName)
 			if exists {
-				cp.P.Throw("comp/for/bound/exists", node.BoundVariables.GetToken())
+				cp.Throw("comp/for/bound/exists", node.BoundVariables.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			cp.Reserve(values.UNDEFINED_TYPE, nil, tok)
@@ -1306,14 +1306,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		// For the initializer we have to do something very un-DRYly like what we just did with the bound variables; TODO ---
 		// is there any way to DRY it up that doesn't obfuscate the code?
 		if node.Initializer.GetToken().Type != token.ASSIGN {
-			cp.P.Throw("comp/for/assign/b", &node.Token)
+			cp.Throw("comp/for/assign/b", &node.Token)
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		lhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Left
 		rhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Right
 		indexSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, "*default*")
 		if err != nil {
-			cp.P.Throw("comp/for/bound/b", node.Initializer.GetToken())
+			cp.Throw("comp/for/bound/b", node.Initializer.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 		cp.Cm("Finding initial values of index variables", tok)
@@ -1329,7 +1329,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		for i, pair := range indexSig {
 			_, exists := newEnv.GetVar(pair.VarName)
 			if exists {
-				cp.P.Throw("comp/for/exists/index", node.Initializer.GetToken(), pair.VarName)
+				cp.Throw("comp/for/exists/index", node.Initializer.GetToken(), pair.VarName)
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			cp.Reserve(values.UNDEFINED_TYPE, nil, tok)
@@ -1353,19 +1353,19 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			if leftId, ok := pairOfIdentifiers.Args[0].(*ast.Identifier); ok {
 				leftName = leftId.Value
 			} else {
-				cp.P.Throw("comp/for/range/a", node.GetToken())
+				cp.Throw("comp/for/range/a", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			if rightId, ok := pairOfIdentifiers.Args[2].(*ast.Identifier); ok {
 				rightName = rightId.Value
 			} else {
-				cp.P.Throw("comp/for/range/b", node.GetToken())
+				cp.Throw("comp/for/range/b", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			keysOnly = rightName == "_"
 			valuesOnly = leftName == "_"
 			if keysOnly && valuesOnly {
-				cp.P.Throw("comp/for/range/discard", node.GetToken())
+				cp.Throw("comp/for/range/discard", node.GetToken())
 				return altType(values.COMPILE_TIME_ERROR)
 			}
 			var rangeOver ast.Node
@@ -1374,7 +1374,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 				rangeTypes, _ := cp.CompileNode(rangeOver, ctxt.x())
 
 				if len(rangeTypes.intersect(cp.Common.IsRangeable)) == 0 && !rangeTypes.Contains(values.TUPLE) { // Note that 'Contains' special-cases tuples.
-					cp.P.Throw("comp/for/range/types", node.GetToken())
+					cp.Throw("comp/for/range/types", node.GetToken())
 					return altType(values.COMPILE_TIME_ERROR)
 				}
 				keysInt := uint32(0)
@@ -1388,7 +1388,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 					rangeKeyLoc = cp.That()
 					_, exists := newEnv.GetVar(leftName)
 					if exists {
-						cp.P.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
+						cp.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
 					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeName("any?"), rangeOver.GetToken()) // TODO --- narrow down.
@@ -1398,14 +1398,14 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 					rangeValLoc = cp.That()
 					_, exists := newEnv.GetVar(rightName)
 					if exists {
-						cp.P.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
+						cp.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
 					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeName("any?"), rangeOver.GetToken())
 				}
 			}
 		} else {
-			cp.P.Throw("comp/for/range/c", node.GetToken())
+			cp.Throw("comp/for/range/c", node.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
 		}
 	default:
@@ -1533,7 +1533,7 @@ func (cp *Compiler) resolveBreaksWithValue() {
 // Compile a `continue` in a `for loop`.
 func (cp *Compiler) emitContinue(tok *token.Token) {
 	if len(cp.forData) == 0 {
-		cp.P.Throw("comp/continue", tok)
+		cp.Throw("comp/continue", tok)
 		return
 	}
 	cp.addToForData(cp.vmContinue())
@@ -1558,7 +1558,7 @@ func (cp *Compiler) vmBreakWithValue(mLoc uint32) bkBreakWithValue {
 
 func (cp *Compiler) emitBreakWithoutValue(tok *token.Token) {
 	if len(cp.forData) == 0 {
-		cp.P.Throw("comp/break/b", tok)
+		cp.Throw("comp/break/b", tok)
 		return
 	}
 	cp.addToForData(cp.vmBreakWithoutValue())
@@ -1604,7 +1604,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		v, ok := env.GetVar(k)
 		if !ok {
 			cp.Cm("Throwing unknown identifier error", tok)
-			cp.P.Throw("comp/body/known", tok, k)
+			cp.Throw("comp/body/known", tok, k)
 			return
 		}
 		if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == LOCAL_CONSTANT {
@@ -1699,7 +1699,7 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 	chunks := cp.getPartsOfGiven(given, ctxt)
 	for _, chunk := range chunks {
 		if chunk.GetToken().Type != token.GVN_ASSIGN {
-			cp.P.Throw("comp/given/assign", chunk.GetToken())
+			cp.Throw("comp/given/assign", chunk.GetToken())
 			break
 		}
 		assEx := chunk.(*ast.AssignmentExpression)
@@ -1708,7 +1708,7 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 		for _, pair := range lhsSig {
 			_, exists := ctxt.Env.GetVar(pair.VarName)
 			if exists {
-				cp.P.Throw("comp/given/exists", chunk.GetToken(), pair.VarName)
+				cp.Throw("comp/given/exists", chunk.GetToken(), pair.VarName)
 				return
 			}
 			nameToNode[pair.VarName] = assEx
@@ -1733,7 +1733,7 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 	}
 	order, cycle := dtypes.Ordering(nameGraph)
 	if cycle != nil {
-		cp.P.Throw("comp/given/cycle", given.GetToken(), cycle)
+		cp.Throw("comp/given/cycle", given.GetToken(), cycle)
 	} else {
 		used := dtypes.Set[string]{} // If we have a multiple assignment, we only want to compile the rhs once.
 		for _, v := range order {
@@ -1757,7 +1757,7 @@ func (cp *Compiler) getPartsOfGiven(given ast.Node, ctxt Context) []ast.Node {
 			rhs := cp.getPartsOfGiven(branch.Right, ctxt)
 			result = append(result, rhs...)
 		} else {
-			cp.P.Throw("comp/given/unexpected", given.GetToken())
+			cp.Throw("comp/given/unexpected", given.GetToken())
 		}
 	default:
 		result = []ast.Node{given}
@@ -1771,7 +1771,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 	oldThis, thisExists := ctxt.Env.GetVar("this")
 	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "any?")
 	if err != nil {
-		cp.P.Throw("comp/assign/lhs/b", node.Left.GetToken())
+		cp.Throw("comp/assign/lhs/b", node.Left.GetToken())
 		return
 	}
 	rollbackTo := cp.GetState()
@@ -1782,7 +1782,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 	}
 	resultLocation := cp.That()
 	if types.isOnly(values.ERROR) {
-		cp.P.Throw("comp/assign/error", node.Left.GetToken())
+		cp.Throw("comp/assign/error", node.Left.GetToken())
 		return
 	}
 	for i, pair := range sig {
@@ -1792,7 +1792,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			if v.access == LOCAL_FUNCTION_THUNK && cp.Vm.Mem[v.MLoc].V == nil || v.access == LOCAL_FUNCTION_CONSTANT && cp.Vm.Mem[v.MLoc].V == nil {
 				ctxt.Env.Data["this"] = *v
 			} else {
-				cp.P.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
+				cp.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
 				return
 			}
 		}
@@ -1875,23 +1875,23 @@ func (cp *Compiler) reserveSnippetFactory(env *Environment, node *ast.SnippetLit
 func (cp *Compiler) compileEquals(node *ast.ComparisonExpression, ctxt Context) (AlternateType, bool) {
 	lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 	if lTypes.isOnly(values.ERROR) {
-		cp.P.Throw("comp/error/eq/a", node.GetToken())
+		cp.Throw("comp/error/eq/a", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	leftRg := cp.That()
 	rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
 	if rTypes.isOnly(values.ERROR) {
-		cp.P.Throw("comp/error/eq/b", node.GetToken())
+		cp.Throw("comp/error/eq/b", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	rightRg := cp.That()
 	oL := lTypes.intersect(rTypes)
 	if oL.isOnly(values.ERROR) {
-		cp.P.Throw("comp/error/eq/c", node.GetToken())
+		cp.Throw("comp/error/eq/c", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 0 {
-		cp.P.Throw("comp/eq/types", node.GetToken())
+		cp.Throw("comp/eq/types", node.GetToken())
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
@@ -1926,7 +1926,7 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt Context) (uint32, b
 	logStr := node.Value
 	strList, ok := text.GetTextWithBarsAsList(logStr)
 	if !ok {
-		cp.P.Throw("comp/log/close", &node.Token)
+		cp.Throw("comp/log/close", &node.Token)
 		return uint32(DUMMY), false
 	}
 	// So at this point we have a strList consisting of things which either do or don't need parsing and compiling,
@@ -1982,7 +1982,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 	case *ast.Identifier:
 		v, ok = env.GetVar(rhs.Value)
 		if ok {
-			cp.P.Throw("comp/pipe/pipe/ident", rhs.GetToken())
+			cp.Throw("comp/pipe/pipe/ident", rhs.GetToken())
 			return AltType(values.ERROR), true
 		}
 		isAttemptedFunc = true
@@ -1990,7 +1990,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 			if rhs.GetToken().Literal == "that" { // Yeah it's a stupid corner case but the stupid user has a right to it.
 				isAttemptedFunc = false
 			} else {
-				cp.P.Throw("comp/pipe/pipe/func", rhs.GetToken())
+				cp.Throw("comp/pipe/pipe/func", rhs.GetToken())
 				return AltType(values.ERROR), true
 			}
 		}
@@ -2044,7 +2044,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 
 	overlap := lhsTypes.intersect(cp.Common.SharedTypenameToTypeList["listlike"])
 	if len(overlap) == 0 {
-		cp.P.Throw("comp/pipe/mf/list", rhs.GetToken())
+		cp.Throw("comp/pipe/mf/list", rhs.GetToken())
 		return AltType(values.ERROR), true
 	}
 	if len(overlap) < len(lhsTypes) {
@@ -2069,13 +2069,13 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 			var ok bool
 			v, ok = env.GetVar(rhs.Value)
 			if !ok {
-				cp.P.Throw("comp/pipe/mf/ident", rhs.GetToken())
+				cp.Throw("comp/pipe/mf/ident", rhs.GetToken())
 				return AltType(values.ERROR), true
 			}
 			isAttemptedFunc = true
 			rhsConst = ALL_CONSTANT_ACCESS.Contains(v.access)
 			if !v.types.Contains(values.FUNC) {
-				cp.P.Throw("comp/pipe/mf/func", rhs.GetToken())
+				cp.Throw("comp/pipe/mf/func", rhs.GetToken())
 			}
 			if !v.types.isOnly(values.FUNC) {
 				cp.reserveError("vm/pipe/mf/func", rhs.GetToken())
@@ -2122,7 +2122,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	}
 	if isFilter {
 		if !types.Contains(values.BOOL) {
-			cp.P.Throw("comp/pipe/filter/bool", rhs.GetToken())
+			cp.Throw("comp/pipe/filter/bool", rhs.GetToken())
 		}
 		if !types.isOnly(values.BOOL) {
 			cp.Cm("The function we're filtering on might return something other than a boolean so we emit a check.", tok)
@@ -2157,7 +2157,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, sText 
 	bindle := values.SnippetBindle{}
 	bits, ok := text.GetTextWithBarsAsList(sText)
 	if !ok {
-		cp.P.Throw("comp/snippet/form", tok)
+		cp.Throw("comp/snippet/form", tok)
 		return &bindle
 	}
 	bindle.CodeLoc = cp.CodeTop()
@@ -2173,7 +2173,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, sText 
 			types, _ := cp.CompileNode(node, newContext)
 			val := cp.That()
 			if types.Contains(values.TUPLE) {
-				cp.P.Throw("comp/snippet/tuple", tok)
+				cp.Throw("comp/snippet/tuple", tok)
 			}
 			bindle.ValueLocs = append(bindle.ValueLocs, val)
 		} else {
@@ -2229,7 +2229,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 	acceptedSingles := AlternateType{}
 	lastIsTuple := sig.Len() > 0 && cp.getTypes(sig, sig.Len()-1).containsOnlyTuples()
 	if types.isOnly(values.ERROR) {
-		cp.P.Throw("comp/typecheck/error", tok)
+		cp.Throw("comp/typecheck/error", tok)
 		return errorCheck
 	}
 	if types.Contains(values.ERROR) {
@@ -2242,7 +2242,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 	}
 	checkSingleType := bkGoto(DUMMY)
 	if len(singles) == 0 && sig.Len() == 1 {
-			cp.P.Throw("comp/typecheck/values/a", tok)
+			cp.Throw("comp/typecheck/values/a", tok)
 			return errorCheck
 	}
 	if len(acceptedSingles) != len(singles) {
@@ -2288,7 +2288,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 			}
 		}
 		if badLengths == len(lengths) {
-			cp.P.Throw("comp/typecheck/values/b", tok)
+			cp.Throw("comp/typecheck/values/b", tok)
 			return errorCheck
 		}
 
@@ -2312,7 +2312,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 			sigTypes := cp.getTypes(sig, i)
 			overlap := typesToCheck.intersect(sigTypes)
 			if len(overlap) == 0 || overlap.isOnly(values.ERROR) {
-				cp.P.Throw("comp/typecheck/type", tok)
+				cp.Throw("comp/typecheck/type", tok)
 				return errorCheck
 			}
 			if len(overlap) == len(typesToCheck) {
@@ -2362,7 +2362,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		for i := 0; i < sig.Len(); i++ {
 			vr, ok := env.GetVar(sig.GetVarName(i))
 			if !ok {
-				cp.P.Throw("comp/typecheck/var", tok, sig.GetVarName(i))
+				cp.Throw("comp/typecheck/var", tok, sig.GetVarName(i))
 				return bkEarlyReturn(DUMMY)
 			}
 			cp.Emit(vm.Asgm, vr.MLoc, errorLocation)
@@ -2710,8 +2710,9 @@ func (cp *Compiler) cmR(comment string, tok *token.Token) {
 // The compiler keeps its errors in the CommonParserBindle like eveerything else, and accesses them through
 // its parser.
 
-func (cp *Compiler) Throw(errorID string, tok token.Token, args ...any) {
-	cp.P.Throw(errorID, &tok, args...)
+func (cp *Compiler) Throw(errorID string, tok *token.Token, args ...any) {
+	cp.Cm("Throwing compiler error " + errorID, tok)
+	cp.P.Throw(errorID, tok, args...)
 }
 
 func (cp *Compiler) ErrorsExist() bool {

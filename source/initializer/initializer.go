@@ -154,6 +154,7 @@ func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices ma
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+
 	iz.cmI("Making function forest.")
 	iz.MakeFunctionForests()
 	if iz.ErrorsExist() {
@@ -839,7 +840,7 @@ func (iz *initializer) createClones() {
 		sig := ast.StringSig{ast.NameTypenamePair{"x", typeToClone}}
 		rtnSig := ast.StringSig{ast.NameTypenamePair{"*dummy*", name}}
 		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
-		iz.p.FunctionTable.Add(iz.p, name, fn)
+		iz.Add(name, fn)
 		iz.fnIndex[fnSource{cloneDeclaration, i}] = fn
 
 		// We get the requested builtins.
@@ -990,10 +991,7 @@ func (iz *initializer) createClones() {
 func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.StringSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
 	iz.Common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
-	if fnName == settings.FUNCTION_TO_PEEK {
-		println("Making clone with sig", sig.String())
-	}
-	conflictingFunction := iz.p.FunctionTable.Add(iz.p, fnName, fn)
+	conflictingFunction := iz.Add(fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
 		iz.p.Throw("init/overload/c", tok, fnName, conflictingFunction.Tok)
 	}
@@ -1067,7 +1065,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 		iz.p.AllFunctionIdents.Add(name)
 		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: node.GetToken()}
-		iz.p.FunctionTable.Add(iz.p, name, fn) // TODO --- give them their own ast type?
+		iz.Add(name, fn) // TODO --- give them their own ast type?
 		iz.fnIndex[fnSource{structDeclaration, i}] = fn
 		// We make the labels exist, unless they already do.
 		if typeExists { // Then the vm knows about it but we have to tell this compiler about it too.
@@ -1270,9 +1268,6 @@ func (iz *initializer) findAllShareableFunctions() {
 	// can only accept locally defined concrete types, then in principle this function might
 	// fulfil an interface and be shared with the module that defines the interface.
 	iz.findShareableFunctions()
-	if iz.ErrorsExist() {
-		return
-	}
 }
 
 // If a function in the module must have at least one of its parameters some type
@@ -1296,7 +1291,6 @@ func (iz *initializer) findShareableFunctions() {
 			functionToAdd := &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, NameRets: rTypes, Body: body, Given: given,
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
-				// iz.cmI("Adding " + functionName + " to Common functions.")
 				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
 				iz.fnIndex[fnSource{j, i}] = functionToAdd
 			}
@@ -1345,19 +1339,21 @@ func (iz *initializer) populateInterfaceTypes() {
 		typename := nameTok.Literal
 		typeInfo, _ := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		types := values.MakeAbstractType()
-		funcsToAdd := map[values.ValueType][]funcWithName{}
+		funcsToAdd := map[values.ValueType][]*ast.PrsrFunction{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range iz.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
-					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
+					abSig := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameSig)
+					abRets := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameRets)
+					matches := iz.getMatches(sigToMatch, abSig, abRets, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet().Contains(fnToTry.Tok.Source) {
 						for _, ty := range matches.Types {
 							if _, ok := funcsToAdd[ty]; ok {
-								funcsToAdd[ty] = append(funcsToAdd[ty], funcWithName{key.FunctionName, fnToTry})
+								funcsToAdd[ty] = append(funcsToAdd[ty], fnToTry)
 							} else {
-								funcsToAdd[ty] = []funcWithName{{key.FunctionName, fnToTry}}
+								funcsToAdd[ty] = []*ast.PrsrFunction{fnToTry}
 							}
 						}
 					}
@@ -1377,16 +1373,12 @@ func (iz *initializer) populateInterfaceTypes() {
 		// And we add all the implicated functions to the function table.
 		for _, ty := range types.Types {
 			for _, fn := range funcsToAdd[ty] {
-				conflictingFunction := iz.p.FunctionTable.Add(iz.p, fn.name, fn.pFunc)
-				if conflictingFunction != nil && conflictingFunction != fn.pFunc {
-					iz.p.Throw("init/overload/b", fn.pFunc.Tok, fn.name, conflictingFunction.Tok)
+				conflictingFunction := iz.Add(fn.FName, fn)
+				if conflictingFunction != nil && conflictingFunction != fn {
+					iz.p.Throw("init/overload/b", fn.Tok, fn.FName, conflictingFunction.Tok)
 				}
 			}
 		}
-	}
-
-	if settings.FUNCTION_TO_PEEK != "" {
-		println(iz.p.FunctionTable.Describe(iz.p, settings.FUNCTION_TO_PEEK))
 	}	
 }
 
@@ -1497,6 +1489,10 @@ func (iz *initializer) MakeFunctionTables() {
 		dependencyIz.MakeFunctionTables()
 	}
 	iz.makeFunctionTable()
+	if settings.FUNCTION_TO_PEEK != "" {
+		println("In namespace", iz.p.NamespacePath)
+		println(iz.p.FunctionTable.Describe(iz.p, settings.FUNCTION_TO_PEEK))
+	}
 }
 
 // Function auxillary to the above for making one function table.
@@ -1526,7 +1522,7 @@ func (iz *initializer) makeFunctionTable() {
 					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
 			}
 			iz.fnIndex[fnSource{j, i}] = functionToAdd
-			conflictingFunction := iz.p.FunctionTable.Add(iz.p, functionName, functionToAdd)
+			conflictingFunction := iz.Add(functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
 				iz.p.Throw("init/overload/a", body.GetToken(), functionName, conflictingFunction.Tok)
 				return
@@ -1544,18 +1540,10 @@ func (iz *initializer) MakeFunctionForests() {
 	// Now we turn the function tables into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
 	iz.MakeFunctionTrees()
-	if iz.ErrorsExist() {
-		return
+	if tree, ok := iz.p.FunctionForest[settings.FUNCTION_TO_PEEK]; ok && settings.FUNCTION_TO_PEEK != "" {
+		println("In namespace", iz.p.NamespacePath, "function tree for " + settings.FUNCTION_TO_PEEK)
+		println(tree.Tree.IndentString("") + "\n")
 	}
-}
-
-
-
-// Type for the use of the previous function. Just wraps a parser function in a struct that knows its name.
-// TODO --- just put the names in the parser functions.
-type funcWithName struct {
-	name  string
-	pFunc *ast.PrsrFunction
 }
 
 // Function auxiliary to the above. Having made the parsers FunctionTable, each function name is associated with a
@@ -1582,17 +1570,13 @@ func (iz *initializer) MakeFunctionTrees() {
 			}
 		}
 		iz.p.FunctionForest[k] = &ast.FunctionTree{Tree: tree, RefCount: rc}
-		if settings.FUNCTION_TO_PEEK != "" && k == settings.FUNCTION_TO_PEEK {
-			println("Function tree for " + k)
-			println(iz.p.FunctionForest[k].Tree.IndentString("") + "\n")
-		}
 	}
 }
 
 // Note that the sigs have already been sorted on their specificity.
 func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
 	nameSig := fn.NameSig // TODO --- do we really need both of these?
-	sig := iz.cp.P.MakeAbstractSigFromStringSig(nameSig)
+	sig := fn.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(nameSig)
 	if pos < len(sig) {
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType
@@ -2379,7 +2363,9 @@ func val(T values.ValueType, V any) values.Value {
 // the lack of a Token parameter in its sig. For more detail, turn on the SHOW_COMPILER flag.
 func (iz *initializer) cmI(s string) {
 	if settings.SHOW_INITIALIZER {
-		println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")
+		if iz.cp != nil && iz.cp.P != nil {
+			println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")
+		}
 	}
 }
 
@@ -2391,4 +2377,43 @@ func (iz *initializer) Throw(errorID string, tok *token.Token, args ...any) {
 // Return whether the initializer has encountered errors.
 func (iz *initializer) ErrorsExist() bool {
 	return iz.p.ErrorsExist()
+}
+
+// Methods for manipulating the function table.
+
+func (iz *initializer) Add(functionName string, f *ast.PrsrFunction) *ast.PrsrFunction {
+	if functions, ok := iz.cp.P.FunctionTable[functionName]; ok {
+		functions, conflictingFunction := iz.AddInOrder(functions, f)
+		iz.cp.P.FunctionTable[functionName] = functions
+		return conflictingFunction
+	}
+	iz.cp.P.FunctionTable[functionName] = []*ast.PrsrFunction{f}
+	return nil
+}
+
+func (iz *initializer) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
+	fSig := f.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(f.NameSig)
+	for i := 0; i < len(S); i++ {
+		gSig := S[i].Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(S[i].NameSig)
+		yes, ok := parser.IsMoreSpecific(fSig, gSig)
+		if !ok {
+			return S, S[i]
+		}
+		if yes {
+			S = insert(S, f, i)
+			return S, nil
+		}
+	}
+	S = append(S, f)
+	return S, nil
+}
+
+
+func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.PrsrFunction {
+	if len(a) == index { // nil or empty slice or after last element
+		return append(a, value)
+	}
+	a = append(a[:index+1], a[index:]...) // index < len(a)
+	a[index] = value
+	return a
 }

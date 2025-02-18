@@ -61,7 +61,7 @@ var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": va
 
 var AbstractTypesOtherThanSingle = []string{"struct", "enum"}
 
-func (p *Parser) IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
+func IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 	if len(sigB) == 0 {
 		result = true
 		ok = true
@@ -157,28 +157,5 @@ func UnnullType(maybeNulled string) string {
 	}
 }
 
-func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.PrsrFunction {
-	if len(a) == index { // nil or empty slice or after last element
-		return append(a, value)
-	}
-	a = append(a[:index+1], a[index:]...) // index < len(a)
-	a[index] = value
-	return a
-}
 
-func (p *Parser) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
-	fSig := p.MakeAbstractSigFromStringSig(f.NameSig)
-	for i := 0; i < len(S); i++ {
-		gSig := p.MakeAbstractSigFromStringSig(S[i].NameSig)
-		yes, ok := p.IsMoreSpecific(fSig, gSig)
-		if !ok {
-			return S, S[i]
-		}
-		if yes {
-			S = insert(S, f, i)
-			return S, nil
-		}
-	}
-	S = append(S, f)
-	return S, nil
-}
+

@@ -65,7 +65,7 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	return "", ""
 }
 
-func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
+func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.AbstractSig, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
 	result := values.MakeAbstractType()
 	// Check that the sigs are the right length, the return sig being optional.
 	if sigToMatch.sig.Len() != len(fnToTry.NameSig) {
@@ -78,8 +78,6 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 	// as 'self' and take its intersection with the other things that appear in the
 	// 'self' position.
 	foundSelf := false
-	abSig := iz.p.MakeAbstractSigFromStringSig(fnToTry.NameSig)
-	abRets := iz.p.MakeAbstractSigFromStringSig(fnToTry.NameRets)
 	for i := 0; i < len(sigToMatch.sig); i++ {
 		if sigToMatch.sig.GetVarType(i).(string) == "self" {
 			if foundSelf {
