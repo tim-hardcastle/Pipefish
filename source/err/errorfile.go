@@ -186,7 +186,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/and/left": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of " + emph("and") + " should be boolean expression"
+			return "left-hand side of " + emph("and") + " should be type " + emph("bool") + ", not " + emph(args[0]) 
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("and") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -195,7 +195,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/and/right": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "right-hand side of " + emph("and") + " should be boolean expression"
+			return "right-hand side of " + emph("and") + " should be type " + emph("bool") + ", not " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("and") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -204,7 +204,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/cond/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of conditional should be boolean expression"
+			return "left-hand side of conditional should be type " + emph("bool") + ", not " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the left-hand side of a conditional should be a boolean-valued expression."
@@ -213,7 +213,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/cond/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of conditional should be boolean expression"
+			return "left-hand side of conditional should be type " + emph("bool") + ", not " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the left-hand side of a conditional should be a boolean-valued expression."
@@ -222,7 +222,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/not": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "trying to apply " + emph("not") + " to something that isn't a boolean expression"
+			return "the " + emph("not") + " operator should be type " + emph("bool") + ", not " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, Pipefish has no notion of \"truthiness\", and so the argument of " + emph("not") + " should be a boolean-valued expression."
@@ -231,7 +231,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/or/left": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "left-hand side of " + emph("or") + " should be boolean expression"
+			return "left-hand side of " + emph("or") + " should be type " + emph("bool") + ", not " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -240,7 +240,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/bool/or/right": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "right-hand side of " + emph("or") + " should be boolean expression"
+			return "right-hand side of " + emph("or") + " should be type " + emph("bool") + ", not " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Unlike in some languages, the " + emph("or") + " operator is not overloaded, and so can only be applied to boolean values."
@@ -2982,6 +2982,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("The greatest value the index of a snippet can have is the length of the thing being indexed.")
+		},
+	},
+
+	"vm/index/t": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("can't index struct of type %v by label %v", emph(args[0]), emph(args[1]))
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A struct can only be indexed by the labels declared in its type signature."
 		},
 	},
 

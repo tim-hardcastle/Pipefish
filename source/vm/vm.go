@@ -699,7 +699,7 @@ loop:
 				case values.TUPLE:
 					tup := container.V.([]values.Value)
 					if ix[1].V.(int) > len(tup) {
-						vm.Mem[args[0]] = vm.makeError("vm/index/r", args[3])
+						vm.Mem[args[0]] = vm.makeError("vm/index/r", args[3], ix[1].V.(int))
 						break Switch
 					}
 					vm.Mem[args[0]] = values.Value{values.TUPLE, tup[ix[0].V.(int):ix[1].V.(int)]}
@@ -716,7 +716,11 @@ loop:
 				typeInfo := vm.ConcreteTypeInfo[containerType]
 				if typeInfo.IsStruct() {
 					ix := typeInfo.(StructType).Resolve(vm.Mem[args[2]].V.(int))
-					vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
+					if ix == -1 {
+						vm.Mem[args[0]] = vm.makeError("vm/index/t", args[3], typeInfo.(StructType).Name, vm.Labels[vm.Mem[args[2]].V.(int)])
+					} else {
+						vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
+					}
 					break
 				}
 				if containerType == values.MAP {

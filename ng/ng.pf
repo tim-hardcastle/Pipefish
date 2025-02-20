@@ -143,26 +143,27 @@ newtype
 PhonemeNode = struct(phoneme string, tok Token)
 ClassNode = struct(class string, tok Token)
 NumberNode = struct(value int, tok Token)
-BinaryNode = struct(operator string, left, right AST, tok Token)
+BinaryNode = struct(operator string, left, right Ast, tok Token)
 EmptyNode = struct()
 
-AST = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/EmptyNode
+Ast = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/EmptyNode
 
 def
 
 prs(sn snippet) :
     sn -> glue -> lex -> parse(EmptyNode(), that, 0) -> first
 
-parse(ast AST, toks list, precedence int) -> AST, list, int :
-    headType == EOL :
+parse(ast Ast, toks list, precedence int) -> Ast, list, int :
+    headType == EOL or len(toks) == 0 :
         ast, toks, 0
     headType in set(WORD, NUMBER) :
         parse parseWordOrNumber(ast, toks, precedence)
     headType == SYMBOL :
         parse parseSymbol(ast, toks, precedence)
+    else :
+        error "unknown token type " + string(headType)
 given :
-    head = toks[0]
-    headType = head[tokenType]
+    headType = toks[0][tokenType]
 
 const 
 
@@ -170,33 +171,38 @@ PRECEDENCE = map(">"::1, ","::2, "/"::3, "&"::6)
 
 def
 
-parseWordOrNumber(ast AST, toks list, precedence int) :
+parseWordOrNumber(ast Ast, toks list, precedence int) -> Ast, list, int :
     peekType in set(WORD, NUMBER) : // Then we have an implicit "and".
-        BinaryNode("&", ast, rhs, toks[0]), remainder, 6
+        BinaryNode("&", lhs, rhs, head), remainder, 6
     peekType in set(SYMBOL) and peekPrec > precedence :
-        BinaryNode(headOp, ast, rhs), remainder, peekPrec
+        BinaryNode(peekOp, lhs, rhs, head), remainder, peekPrec
     headType == NUMBER :
-        NumberNode()
+        NumberNode(headValue, head), tail, 0
     headValue in phonemes.PHONEME :
-        PhonemeNode(headValue, head, tok[0]), tail, 0
+        PhonemeNode(headValue, head), tail, 0
     headValue in keys phonemes.MAP :
-        ClassNode(headValue, head, tok[0]), tail, 0
+        ClassNode(headValue, head), tail, 0
     else :
-        error "can't parse " + headValue + " as phoneme or class at line " ..
-                ..+ line + " of snippet"
+        error "can't parse " + headValue + " at line " ..
+              .. + line + " of snippet"
 given :
-    headValue = toks[0][value]
-    peekOp = toks[1][value]
-    headType = toks[0][tokenType]
-    peekType = toks[1][tokenType]
-    peekPrec = (peekType == SYMBOL : PRECEDENCE[toks[1][operator]]; else : 0)
-    line = string(toks[0][lineNumber])
+    head = toks[0]
+    lhs = first parseWordOrNumber(EmptyNode(), toks[0::1], 0)
+    headType = head[tokenType]
+    headValue = head[value]
+    peek = toks[1]
+    peekOp = peek[value]
+    peekType = peek[tokenType]
+    peekPrec = (valid(peek) and peekType == SYMBOL : ..
+                   .. PRECEDENCE[peekOp]; else : 0)
+    line = string(head[lineNumber])
     tail = toks[1::(len toks)]
-    rhs, remainder, _ = (parse(EmptyNode(), toks[1::(len toks)], peekPrec))
+    rhs, remainder, _ = parse(EmptyNode(), toks[1::(len toks)], peekPrec)
 
-parseSymbol(ast AST, toks list, precedence int) :
-    BinaryNode(headOp, ast, rhs), remainder, 0
+parseSymbol(ast Ast, toks list, precedence int) -> Ast, list, int :
+    BinaryNode(headOp, ast, rhs, head), remainder, 0
 given :
-    headOp = toks[0][value]
-    rhs, remainder, _ = (parse(EmptyNode(), toks[1::(len toks)], precedence))
+    head = toks[0]
+    headOp = head[value]
+    rhs, remainder, _ = parse(EmptyNode(), toks[1::(len toks)], precedence)
 

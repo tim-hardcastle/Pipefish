@@ -581,16 +581,16 @@ NodeTypeSwitch:
 	case *ast.LazyInfixExpression:
 		if node.Operator == "or" {
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) {
-				cp.Throw("comp/bool/or/left", node.GetToken())
+			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+				cp.Throw("comp/bool/or/left", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
 			leftRg := cp.That()
 			cp.Emit(vm.Qtru, leftRg, cp.Next()+2)
 			skipElse := cp.vmGoTo()
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
-			if !rTypes.Contains(values.BOOL) {
-				cp.Throw("comp/bool/or/right", node.GetToken())
+			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+				cp.Throw("comp/bool/or/right", node.GetToken(), rTypes.describe(cp.Vm))
 				break
 			}
 			rightRg := cp.That()
@@ -601,15 +601,15 @@ NodeTypeSwitch:
 		}
 		if node.Operator == "and" {
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) {
-				cp.Throw("comp/bool/and/left", node.GetToken())
+			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+				cp.Throw("comp/bool/and/left", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
 			leftRg := cp.That()
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
-			if !rTypes.Contains(values.BOOL) {
-				cp.Throw("comp/bool/and/right", node.GetToken())
+			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+				cp.Throw("comp/bool/and/right", node.GetToken(), rTypes.describe(cp.Vm))
 				break
 			}
 			rightRg := cp.That()
@@ -630,8 +630,8 @@ NodeTypeSwitch:
 				cp.Track(vm.TR_CONDITION, &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) && !lTypes.isOnly(values.ERROR) {
-				cp.Throw("comp/bool/cond/a", node.GetToken())
+			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+				cp.Throw("comp/bool/cond/a", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
 			// TODO --- what if it's not *only* bool?
@@ -747,8 +747,8 @@ NodeTypeSwitch:
 			}
 
 			lTypes, _ := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) {
-				cp.Throw("comp/bool/cond/b", node.GetToken())
+			if !lTypes.Contains(values.BOOL) && !lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+				cp.Throw("comp/bool/cond/b", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
 			// TODO --- what if it's not *only* bool?
@@ -805,8 +805,10 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
 				break NodeTypeSwitch
 			default:
-				cp.Throw("comp/bool/not", node.GetToken())
-				rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
+				if rtnTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+					cp.Throw("comp/bool/not", node.GetToken(), rtnTypes.describe(cp.Vm))
+					rtnTypes, rtnConst = AltType(values.COMPILE_TIME_ERROR), false
+				}
 				break NodeTypeSwitch
 			}
 		}
@@ -1079,13 +1081,13 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 		return
 	}
 	typeLengths := lengths(rtnTypes)
-	if !(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck))) {
+	if (!(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck)))) && !rtnTypes.isOnly(values.ERROR)  {
 		cp.Throw("comp/return/length", tok, rtnTypes.describe(cp.Vm), typecheck.describe(cp.Vm))
 		return
 	}
 	for i, ty := range typecheck {
 		intersection := ty.(AlternateType).intersect(typesAtIndex(rtnTypes, i))
-		if len(intersection) == 0 {
+		if len(intersection) == 0 && !rtnTypes.isOnly(values.ERROR) {
 			cp.Throw("comp/return/types", tok, rtnTypes.without(SimpleType(values.ERROR)).describe(cp.Vm), typecheck.describe(cp.Vm))
 		}
 	}
@@ -1788,7 +1790,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 	for i, pair := range sig {
 		v, alreadyExists := ctxt.Env.GetVar(pair.VarName) // In that case we (should) have an inner function declaration and the sig will have length 1.
 		// We check that it isn't just the user redefining a variable.
-		if alreadyExists {
+		if alreadyExists && pair.VarName != "_" {
 			if v.access == LOCAL_FUNCTION_THUNK && cp.Vm.Mem[v.MLoc].V == nil || v.access == LOCAL_FUNCTION_CONSTANT && cp.Vm.Mem[v.MLoc].V == nil {
 				ctxt.Env.Data["this"] = *v
 			} else {
