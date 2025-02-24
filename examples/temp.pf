@@ -1,0 +1,15 @@
+const 
+
+X tuple = 1, 2, 3
+
+var 
+
+x tuple = 1, 2, 3
+
+def
+
+foo(x int) -> string, int, int :
+    x < 0 :
+        error "x should be >= 0"
+    else :
+        "foo", x, x

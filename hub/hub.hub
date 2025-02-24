@@ -7,10 +7,11 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 
 var
 
-allServices = map(`ng`::`C:\Users\owner\Pipefish\ng\ng.pf`,
-               .. `hub`::`hub/hub.hub`)
+allServices = map(`hub`::`hub/hub.hub`,
+               .. `ng`::`C:\Users\owner\Pipefish\ng\ng.pf`,
+               .. `temp`::`C:\Users\owner\Pipefish\examples\temp.pf`)
 
-currentService string? = `ng`
+currentService string? = `temp`
 
 isLive = true
 

@@ -1080,14 +1080,17 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 	if typecheck == nil {
 		return
 	}
+	singles, _ := rtnTypes.splitSinglesAndTuples()
 	typeLengths := lengths(rtnTypes)
-	if (!(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck)))) && !rtnTypes.isOnly(values.ERROR)  {
+	
+	if (!(typeLengths.Contains(-1) || typeLengths.Contains(len(typecheck)))) && 
+			!(singles.areOnly(values.ERROR, values.UNSATISFIED_CONDITIONAL)) {
 		cp.Throw("comp/return/length", tok, rtnTypes.describe(cp.Vm), typecheck.describe(cp.Vm))
 		return
 	}
 	for i, ty := range typecheck {
 		intersection := ty.(AlternateType).intersect(typesAtIndex(rtnTypes, i))
-		if len(intersection) == 0 && !rtnTypes.isOnly(values.ERROR) {
+		if len(intersection) == 0 && !rtnTypes.areOnly(values.ERROR, values.UNSATISFIED_CONDITIONAL) {
 			cp.Throw("comp/return/types", tok, rtnTypes.without(SimpleType(values.ERROR)).describe(cp.Vm), typecheck.describe(cp.Vm))
 		}
 	}
@@ -1776,7 +1779,6 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		cp.Throw("comp/assign/lhs/b", node.Left.GetToken())
 		return
 	}
-	rollbackTo := cp.GetState()
 	thunkStart := cp.Next()
 	types, cst := cp.CompileNode(node.Right, ctxt.x())
 	if recursivelyContains(types, SimpleType(values.ERROR)) { // TODO --- this is a loathsome kludge over the fact that we're not constructing it that way in the first place.
@@ -1804,20 +1806,11 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		} else {
 			typeToUse = typesAtIndex(types, i)
 		}
-		if cst {
+		cst = cst && !types.Contains(values.COMPILE_TIME_ERROR) // To avoid folding. TODO --- ensure that CTEs are never constant.
+		if cst { // TODO --- we should implement constant folding of course, but there's no big hurry because hardly enyone will declare constant here, why would they?
 			if !types.containsAnyOf(cp.Common.CodeGeneratingTypes.ToSlice()...) {
 				cp.Cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
 				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
-				cp.EmitTypeChecks(resultLocation, types, ctxt.Env, sig, ctxt.Access, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
-				cp.Emit(vm.Ret)
-				if cp.P.ErrorsExist() {
-					return
-				}
-				cp.Cm("Calling Run from compileOneGivenChunk to fold constant.", node.GetToken())
-				cp.Vm.Run(uint32(rollbackTo.Code))
-				v := cp.Vm.Mem[resultLocation]
-				cp.Rollback(rollbackTo, node.GetToken())
-				cp.Reserve(v.T, v.V, node.GetToken())
 				continue
 			} else {
 				cp.Cm("Adding unfoldable constant from compileOneGivenChunk.", node.GetToken())
@@ -1841,6 +1834,12 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 				cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), values.ThunkValue{cp.That(), thunkStart}})
 			}
 		}
+	}
+	// NOTE --- we perform this check here rather than at the start of the method because
+	// we want the variables to be declared, otherwise this will cause an error storm when
+	// trying to compile the main body.
+	if types.Contains(values.COMPILE_TIME_ERROR) {
+		return
 	}
 	cp.Cm("Typechecking and inserting result into local variables.", node.GetToken())
 	cp.EmitTypeChecks(resultLocation, types, ctxt.Env, sig, ctxt.Access, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)

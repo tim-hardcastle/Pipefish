@@ -348,6 +348,19 @@ func (aT AlternateType) isOnly(vt values.ValueType) bool {
 	return false
 }
 
+func (aT AlternateType) areOnly(vts ...values.ValueType) bool {
+	types := dtypes.MakeFromSlice(vts)
+	for _, el := range aT {
+		switch el := el.(type) {
+		case SimpleType:
+			return types.Contains(values.ValueType(el))
+		default:
+			return false
+		}
+	}
+	return false
+}
+
 func (aT AlternateType) isOnlyCloneOf(mc *vm.Vm, vts ...values.ValueType) bool {
 	types := dtypes.MakeFromSlice(vts)
 	for _, el := range aT {
