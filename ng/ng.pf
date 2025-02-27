@@ -187,7 +187,7 @@ parseWordOrNumber(ast Ast, toks list, precedence int) -> Ast, list, int :
               .. + line + " of snippet"
 given :
     head = toks[0]
-    lhs = first parseWordOrNumber(EmptyNode(), toks[0::1], 0)
+    lhs = (parseWordOrNumber(EmptyNode(), toks[0::1], 0))[0]
     headType = head[tokenType]
     headValue = head[value]
     peek = toks[1]

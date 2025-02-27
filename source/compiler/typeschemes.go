@@ -286,7 +286,14 @@ func (aT AlternateType) describe(mc *vm.Vm) string {
 	var buf strings.Builder
 	var sep string
 	for _, v := range aT {
-		fmt.Fprintf(&buf, "%s%s", sep, v.describe(mc))
+		fmt.Fprint(&buf, sep)
+		if _, ok := v.(FiniteTupleType); ok {
+			fmt.Fprint(&buf, "(")
+		}
+		fmt.Fprint(&buf, v.describe(mc))
+		if _, ok := v.(FiniteTupleType); ok {
+			fmt.Fprint(&buf, ")")
+		}
 		sep = "/"
 	}
 	return buf.String()
@@ -612,23 +619,23 @@ func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) st
 			bling, thisIsBling = v[0].(blingType)
 		}
 		if !(lastWasBling || thisIsBling) {
-			fmt.Fprintf(&buf, ",")
+			fmt.Fprint(&buf, ",")
 		}
 		if thisIsBling && bling.tag == infix {
 			specialBlingHasHappened = true
-			fmt.Fprintf(&buf, "' on the left of it and '") // The ' characters will sneakily interact with emph in the errorfile.
+			fmt.Fprint(&buf, "' on the left of it and '") // The ' characters will sneakily interact with emph in the errorfile.
 		} else {
 			if i > 0 && !specialBlingJustHappened {
-				fmt.Fprintf(&buf, " ")
+				fmt.Fprint(&buf, " ")
 			}
-			fmt.Fprintf(&buf, v.describe(mc))
+			fmt.Fprint(&buf, v.describe(mc))
 		}
 		lastWasBling = thisIsBling
 		specialBlingJustHappened = thisIsBling && bling.tag == infix
 	}
-	fmt.Fprintf(&buf, "'")
+	fmt.Fprint(&buf, "'")
 	if specialBlingHasHappened {
-		fmt.Fprintf(&buf, " on the right")
+		fmt.Fprint(&buf, " on the right")
 	}
 	return buf.String()
 }

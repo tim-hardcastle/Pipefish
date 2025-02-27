@@ -258,11 +258,12 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// Now we need to do conditionals based on whether this is some or all, and on whether we're looking at a mix of any values and of 0th elements of tuples, or one, or the other.
 
 	acceptedSingleTypes := make(AlternateType, 0)
-	if newBindle.index == 0 { // Otherwise we *must* be looking at the index-dx position of a tuple, and there are no any values to inspect.
-		acceptedSingleTypes, _ = b.types[b.argNo].(AlternateType).splitSinglesAndTuples()
+	acceptedTuples := make(AlternateType, 0)
+	if newBindle.index == 0 { // Otherwise we *must* be looking at the index-dx position of a tuple, and there are no single values to inspect.
+		acceptedSingleTypes, acceptedTuples = b.types[b.argNo].(AlternateType).splitSinglesAndTuples()
 	}
 
-	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve any values,
+	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve single values,
 	// whereas the length of doneList tells us whether we need to recurse on the next branch or not.
 
 	// We may have found a match because any string is a match for a varchar at this point. In that case we do need to do a type check on the length and
@@ -311,8 +312,8 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	} else {
 		var typesFromTuples AlternateType
 		var typesFromSingles AlternateType
-		switch len(acceptedSingleTypes) {
-		case 0:
+		switch {
+		case len(acceptedSingleTypes) == 0 && len(acceptedTuples) > 0:
 			cp.cmP("Nothing but tuples.", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.cmP("Type is tuple. Consuming tuple value.", b.tok)
@@ -321,7 +322,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.cmP("Consuming one element of the tuple.", b.tok)
 				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
-		case len(overlap):
+		case  len(acceptedSingleTypes) > 0 && len(acceptedTuples) == 0:
 			cp.cmP("Nothing but single types", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.reserveError("vm/types/b", b.tok)
@@ -395,17 +396,6 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 		return cp.emitTypeComparisonFromAbstractType(typeRepresentation, mem, tok)
 	}
 	panic("Now this was not meant to happen.")
-}
-
-func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromTypeName(typeAsString string, mem uint32, index int) bkGoto { // TODO --- more of this.
-	ty := cp.GetAlternateTypeFromTypeName(typeAsString)
-	args := []uint32{mem, uint32(index)}
-	for _, t := range ty {
-		args = append(args, uint32(t.(SimpleType)))
-	}
-	args = append(args, DUMMY)
-	cp.Emit(vm.Qtpt, args...)
-	return bkGoto(cp.CodeTop() - 1)
 }
 
 func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32, tok *token.Token) bkGoto {

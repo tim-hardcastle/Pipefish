@@ -579,13 +579,26 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.INT), true
 		break
 	case *ast.LazyInfixExpression:
+		leftTypecheck := bkEarlyReturn(DUMMY)
+		rightTypecheck := bkEarlyReturn(DUMMY)
+		leftError := bkEarlyReturn(DUMMY)
+		rightError := bkEarlyReturn(DUMMY)
 		if node.Operator == "or" {
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/or/left", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
 			leftRg := cp.That()
+			if !lTypes.isOnly(values.BOOL) {
+				if lTypes.Contains(values.ERROR) {
+					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+				}
+				if !lTypes.areOnly(values.BOOL, values.ERROR) {
+					cp.reserveError("vm/bool/or/left", node.Left.GetToken())
+					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
+				}
+			}
 			cp.Emit(vm.Qtru, leftRg, cp.Next()+2)
 			skipElse := cp.vmGoTo()
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
@@ -595,8 +608,26 @@ NodeTypeSwitch:
 			}
 			rightRg := cp.That()
 			cp.vmComeFrom(skipElse)
+			if !rTypes.isOnly(values.BOOL) {
+				if rTypes.Contains(values.ERROR) {
+					rightError = cp.vmConditionalEarlyReturn(vm.Qtyp, rightRg, uint32(values.ERROR), rightRg)
+				}
+				if !rTypes.areOnly(values.BOOL, values.ERROR) {
+					cp.reserveError("vm/bool/or/right", node.Right.GetToken())
+					rightTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, rightRg, uint32(values.BOOL), cp.That())
+				}
+			}
 			cp.put(vm.Orb, leftRg, rightRg)
-			rtnTypes, rtnConst = AltType(values.BOOL), lcst && rcst
+			cp.vmComeFrom(leftTypecheck, leftError, rightTypecheck, rightError)
+			switch { 
+			case lTypes.isOnly(values.BOOL) && rTypes.isOnly(values.BOOL) :
+				rtnTypes = AltType(values.BOOL)
+			case lTypes.Contains(values.COMPILE_TIME_ERROR) || rTypes.Contains(values.COMPILE_TIME_ERROR) :
+				rtnTypes = AltType(values.COMPILE_TIME_ERROR)
+			default :
+				rtnTypes = AltType(values.BOOL, values.ERROR)
+			}
+			rtnConst = lcst && rcst
 			break
 		}
 		if node.Operator == "and" {
@@ -606,16 +637,43 @@ NodeTypeSwitch:
 				break
 			}
 			leftRg := cp.That()
+			if !lTypes.isOnly(values.BOOL) {
+				if lTypes.Contains(values.ERROR) {
+					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+				}
+				if !lTypes.areOnly(values.BOOL, values.ERROR) {
+					cp.reserveError("vm/bool/and/left", node.Left.GetToken())
+					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
+				}
+			}
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
-			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/and/right", node.GetToken(), rTypes.describe(cp.Vm))
 				break
 			}
 			rightRg := cp.That()
+			if !rTypes.isOnly(values.BOOL) {
+				if rTypes.Contains(values.ERROR) {
+					rightError = cp.vmConditionalEarlyReturn(vm.Qtyp, rightRg, uint32(values.ERROR), rightRg)
+				}
+				if !rTypes.areOnly(values.BOOL, values.ERROR) {
+					cp.reserveError("vm/bool/or/right", node.Right.GetToken())
+					rightTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, rightRg, uint32(values.BOOL), cp.That())
+				}
+			}
 			cp.vmComeFrom(checkLhs)
 			cp.put(vm.Andb, leftRg, rightRg)
-			rtnTypes, rtnConst = AltType(values.BOOL), lcst && rcst
+			cp.vmComeFrom(leftTypecheck, leftError, rightTypecheck, rightError)
+			switch { 
+			case lTypes.isOnly(values.BOOL) && rTypes.isOnly(values.BOOL) :
+				rtnTypes = AltType(values.BOOL)
+			case lTypes.Contains(values.COMPILE_TIME_ERROR) || rTypes.Contains(values.COMPILE_TIME_ERROR) :
+				rtnTypes = AltType(values.COMPILE_TIME_ERROR)
+			default :
+				rtnTypes = AltType(values.BOOL, values.ERROR)
+			}
+			rtnConst = lcst && rcst
 			break
 		}
 		if node.Operator == ":" {
@@ -630,22 +688,38 @@ NodeTypeSwitch:
 				cp.Track(vm.TR_CONDITION, &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
-			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/cond/a", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
-			// TODO --- what if it's not *only* bool?
 			if cp.loggingOn(ctxt) {
 				cp.Track(vm.TR_RESULT, &node.Token, cp.That())
 			}
 			leftRg := cp.That()
+			if !lTypes.isOnly(values.BOOL) {
+				if lTypes.Contains(values.ERROR) {
+					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+				}
+				if !lTypes.areOnly(values.BOOL, values.ERROR) {
+					cp.reserveError("vm/bool/cond", node.Left.GetToken())
+					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
+				}
+			}
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt)
 			ifCondition := cp.vmEarlyReturn(cp.That())
 			cp.vmComeFrom(checkLhs)
 			cp.put(vm.Asgm, values.C_U_OBJ)
-			cp.vmComeFrom(ifCondition)
-			rtnTypes, rtnConst = rTypes.Union(AltType(values.UNSATISFIED_CONDITIONAL)), lcst && rcst
+			cp.vmComeFrom(ifCondition, leftTypecheck, leftError)
+			rtnConst = lcst && rcst
+			switch { 
+			case lTypes.isOnly(values.BOOL) :
+				rtnTypes = rTypes.Union(AltType(values.UNSATISFIED_CONDITIONAL))
+			case lTypes.Contains(values.COMPILE_TIME_ERROR) || rTypes.Contains(values.COMPILE_TIME_ERROR) :
+				rtnTypes = AltType(values.COMPILE_TIME_ERROR)
+			default :
+				rtnTypes = rTypes.Union(AltType(values.UNSATISFIED_CONDITIONAL, values.ERROR))
+			}
 			break
 		}
 		if node.Operator == ";" {
