@@ -705,8 +705,9 @@ NodeTypeSwitch:
 					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.BOOL), cp.That())
 				}
 			}
-			ifCondition := cp.vmConditionalEarlyReturn(vm.Qfls, leftRg, values.C_U_OBJ)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt)
+			ifCondition := cp.vmConditionalEarlyReturn(vm.Qtru, leftRg, cp.That())
+			cp.put(vm.Asgm, values.C_U_OBJ)
 			cp.vmComeFrom(ifCondition, leftTypecheck, leftError)
 			rtnConst = lcst && rcst
 			switch { 
