@@ -698,14 +698,14 @@ NodeTypeSwitch:
 			leftRg := cp.That()
 			if !lTypes.isOnly(values.BOOL) {
 				if lTypes.Contains(values.ERROR) {
-					leftError = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.ERROR), leftRg)
+					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
 				}
 				if !lTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.reserveError("vm/bool/cond", node.Left.GetToken())
 					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.BOOL), cp.That())
 				}
 			}
-			ifCondition := cp.vmConditionalEarlyReturn(vm.Qtru, leftRg, values.C_U_OBJ)
+			ifCondition := cp.vmConditionalEarlyReturn(vm.Qfls, leftRg, values.C_U_OBJ)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt)
 			cp.vmComeFrom(ifCondition, leftTypecheck, leftError)
 			rtnConst = lcst && rcst
