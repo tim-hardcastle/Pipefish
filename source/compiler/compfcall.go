@@ -420,6 +420,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	}
 	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
 	if typeAsString == "tuple" {
+		println("Emitting tuple check at", mem)
 		cp.Emit(vm.Qtyp, mem, uint32(values.TUPLE), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}

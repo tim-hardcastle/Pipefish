@@ -592,7 +592,7 @@ NodeTypeSwitch:
 			leftRg := cp.That()
 			if !lTypes.isOnly(values.BOOL) {
 				if lTypes.Contains(values.ERROR) {
-					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+					leftError = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.ERROR), leftRg)
 				}
 				if !lTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.reserveError("vm/bool/or/left", node.Left.GetToken())
@@ -602,7 +602,7 @@ NodeTypeSwitch:
 			cp.Emit(vm.Qtru, leftRg, cp.Next()+2)
 			skipElse := cp.vmGoTo()
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
-			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
+			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/or/right", node.GetToken(), rTypes.describe(cp.Vm))
 				break
 			}
@@ -610,11 +610,11 @@ NodeTypeSwitch:
 			cp.vmComeFrom(skipElse)
 			if !rTypes.isOnly(values.BOOL) {
 				if rTypes.Contains(values.ERROR) {
-					rightError = cp.vmConditionalEarlyReturn(vm.Qtyp, rightRg, uint32(values.ERROR), rightRg)
+					rightError = cp.vmConditionalEarlyReturn(vm.Qntp, rightRg, uint32(values.ERROR), rightRg)
 				}
 				if !rTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.reserveError("vm/bool/or/right", node.Right.GetToken())
-					rightTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, rightRg, uint32(values.BOOL), cp.That())
+					rightTypecheck = cp.vmConditionalEarlyReturn(vm.Qtyp, rightRg, uint32(values.BOOL), cp.That())
 				}
 			}
 			cp.put(vm.Orb, leftRg, rightRg)
@@ -639,11 +639,11 @@ NodeTypeSwitch:
 			leftRg := cp.That()
 			if !lTypes.isOnly(values.BOOL) {
 				if lTypes.Contains(values.ERROR) {
-					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+					leftError = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.ERROR), leftRg)
 				}
 				if !lTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.reserveError("vm/bool/and/left", node.Left.GetToken())
-					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
+					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.BOOL), cp.That())
 				}
 			}
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
@@ -698,11 +698,11 @@ NodeTypeSwitch:
 			leftRg := cp.That()
 			if !lTypes.isOnly(values.BOOL) {
 				if lTypes.Contains(values.ERROR) {
-					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+					leftError = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.ERROR), leftRg)
 				}
 				if !lTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.reserveError("vm/bool/cond", node.Left.GetToken())
-					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
+					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.BOOL), cp.That())
 				}
 			}
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
