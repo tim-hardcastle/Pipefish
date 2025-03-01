@@ -10,7 +10,7 @@ var
 allServices = map(`hub`::`hub/hub.hub`,
                .. `ng`::`C:\Users\owner\Pipefish\ng\ng.pf`)
 
-currentService string? = NULL
+currentService string? = `ng`
 
 isLive = true
 

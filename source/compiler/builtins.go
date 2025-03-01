@@ -45,6 +45,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"gte_floats":                {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":                   {(*Compiler).btGtInts, AltType(values.BOOL)},
 	"gte_ints":                  {(*Compiler).btGteInts, AltType(values.BOOL)},
+	"intersect_sets":            {(*Compiler).btIntersectSets, AltType(values.SET)},
 	"int_of_enum":               {(*Compiler).btIntOfEnum, AltType(values.INT)},
 	"int_of_float":              {(*Compiler).btIntOfFloat, AltType(values.INT)},
 	"int_of_string":             {(*Compiler).btIntOfString, AltType(values.ERROR, values.INT)},
@@ -231,6 +232,10 @@ func (cp *Compiler) btGtInts(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btGteInts(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Gtei, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btIntersectSets(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.IctS, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btIntOfEnum(tok *token.Token, dest uint32, args []uint32) {

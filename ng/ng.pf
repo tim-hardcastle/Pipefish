@@ -1,6 +1,6 @@
 import 
 
-"phonemes.pf"
+pho::"phonemes.pf"
 
 var 
 
@@ -11,8 +11,39 @@ cmd
 add(sn snippet) :
     words = combine words, (sn -> tokenize -> parseWordList)
 
-show vocab :
+vocab :
     post display words
+
+phonemes(sn snippet) :
+    post (sn -> prs -> evaluateSet)
+
+// Evaluator
+
+// The Neogram DSl is structured, and not every expression makes sense in every 
+// context.
+
+// This evaluates the description of a set of pho. Therefore the allowed
+// literals are individual phonemes and phoneme classes, and the allowed operators
+// are '/','or', and '&'. Note that as '/' and 'or' are distinguished ony by their
+// precedence, and since this distinction will have already been made by the parser,
+// we can by this point treat them the same.
+
+def
+
+evaluateSet(node Node) -> set :
+    type node == PhonemeNode :
+        set(node[phoneme])
+    type node == ClassNode :
+        pho.MAP[node[class]]
+    type node == BinaryNode :
+        node[operator] in set("/", "or") :
+            evaluateSet(node[left]) + evaluateSet(node[right])
+        node[operator] == "&" :
+            evaluateSet(node[left]) /\ evaluateSet(node[right])
+    else :
+        error "can't evaluate '" + string(node[token][value]) + ..
+           .. "' as part of definition of set of phonemes at line " + ..
+           .. string(node[token][lineNumber])
 
 // Parser for sound changes 
 
@@ -28,23 +59,27 @@ Node = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/EmptyNode
 
 const 
 
-PRECEDENCE = map(">"::1, ","::2, "/"::3, "&"::6)
-
+PRECEDENCE = map(">"::1, ","::2, "or"::3, "&"::4, "/"::5)
 EMPTY_NODE = EmptyNode(Token(EMPTY, NULL, 0))
+AND_TOKEN = [Token(OPERATOR, "&", 0)] // For adding as an implicit "&".
 
 def
 
 prs(sn snippet) :
     sn -> glue -> lex -> parse(that, 0, EMPTY_NODE) -> that[2]
 
-parse(tokens list, precedence int, leftNode Node) -> list, int, Node :
+// TODO --- why is 'tokens' of type 'any' and not of type 'list'?
+parse(tokens any, precedence int, leftNode Node) -> list, int, Node :
     tokens == [] or headType in set(EOL, R_PAREN) or ..
     .. headValue in keys(PRECEDENCE) and PRECEDENCE[headValue] < precedence:
         tokens, 0, leftNode
     headType == OPERATOR :
         parse infixExpression(tokens, precedence, leftNode)
-    type leftNode != EmptyNode :
-        error "unexpected " + string(headValue) + " at line " + string(head[lineNumber]) + " with leftNode " + string(leftNode)
+    type leftNode != EmptyNode : // Then we have an error or and implicit "&" operator.
+        headType in set(WORD, L_PAREN) :
+            parse infixExpression(AND_TOKEN + tokens, precedence, leftNode)
+        else: 
+            error "unexpected '" + string(headValue) + "' at line " + string(head[lineNumber])
     headType in set(WORD, NUMBER) : 
         parse literalExpression(tokens, precedence)
     headType == L_PAREN :
@@ -77,9 +112,9 @@ given:
 makeNode(aToken Token) -> Node : 
     aToken[tokenType] == NUMBER :
         NumberNode(aToken, val)
-    val in phonemes.PHONEME :
+    val in pho.PHONEME :
         PhonemeNode(aToken, val)
-    val in keys phonemes.MAP :
+    val in keys pho.MAP :
         ClassNode(aToken, val)
     else :
         error "can't parse " + string(val) + " at line " + string(aToken[lineNumber])

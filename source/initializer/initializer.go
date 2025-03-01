@@ -955,7 +955,10 @@ func (iz *initializer) createClones() {
 					iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "-":
 					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
-					iz.makeCloneFunction("-", sig, "subtract_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)	
+					iz.makeCloneFunction("-", sig, "subtract_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
+				case "/\\":
+					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/\\", "bling"}, ast.NameTypenamePair{"y", name}}
+					iz.makeCloneFunction("/\\", sig, "intersect_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)		
 				default:
 					iz.Throw("init/request/set", &usingOrEof, op)
 				}

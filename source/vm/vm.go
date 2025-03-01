@@ -530,6 +530,10 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) > vm.Mem[args[2]].V.(float64)}
 		case Gthi:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(int) > vm.Mem[args[2]].V.(int)}
+		case IctS:
+			leftSet := vm.Mem[args[1]].V.(values.Set)
+			result := leftSet.Intersect(vm.Mem[args[2]].V.(values.Set))
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case IdxL:
 			vec := vm.Mem[args[1]].V.(vector.Vector)
 			ix := vm.Mem[args[2]].V.(int)

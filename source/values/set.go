@@ -62,6 +62,16 @@ func (pm *Set) Subtract(qm Set) {
 	})
 }
 
+func (pm *Set) Intersect (qm Set) Set {
+	newSet := Set{}
+	pm.root.forEach(func(k Value) {
+		if qm.Contains(k) {
+			newSet = newSet.Add(k)
+		}
+	})
+	return newSet
+}
+
 func (pm Set) Len() int {
 	return pm.root.len()
 }

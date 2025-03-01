@@ -31,6 +31,7 @@ def
 (x float) >= (y float) -> bool : builtin "gte_floats"
 (x int) > (y int) -> bool : builtin "gt_ints"
 (x int) >= (y int) -> bool : builtin "gte_ints"
+(x set) /\ (y set) -> set : builtin "intersect_sets"
 (x float) < (y float) -> bool : builtin "lt_floats"
 (x float) <= (y float) -> bool : builtin "lte_floats"
 (x int) < (y int) -> bool : builtin "lt_ints"
