@@ -36,7 +36,13 @@ MAP = map("front"::FRONT,
           .. "tap"::TAP,
           .. "trill"::TRILL,
           .. "consonsant"::CONSONANT,
-          .. "C":: CONSONANT)
+          .. "C"::CONSONANT,
+          .. "voiced"::VOICED,
+          .. "unvoiced"::UNVOICED,
+          .. "sibilant"::SIBILANT,
+          .. "non-sibilant"::NON_SIBILANT,
+          .. "lateral"::LATERAL,
+          .. "non-lateral"::NON_LATERAL)
 
 FRONT = set("i", "y", "ɪ", "ʏ", "e", "ø", "e̞", "ø̞", "ɛ", "œ", "æ", "a", "ɶ")
 CENTRAL = set("ɨ", "ʉ", "ɘ", "ɵ", "ə", "ɜ", "ɞ", "ɐ", "ä")

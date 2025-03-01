@@ -652,7 +652,15 @@ loop:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxXx:
 			container := vm.Mem[args[1]]
+			if container.T == values.ERROR {
+				vm.Mem[args[0]] = container
+				break Switch
+			}
 			index := vm.Mem[args[2]]
+			if index.T == values.ERROR {
+				vm.Mem[args[0]] = index
+				break Switch
+			}
 			indexType := index.T
 			if cloneInfo, ok := vm.ConcreteTypeInfo[indexType].(CloneType); ok {
 				indexType = cloneInfo.Parent
@@ -814,7 +822,7 @@ loop:
 					}
 					break Switch
 				default:
-					vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL))
+					vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DescribeType(vm.Mem[args[2]].T, LITERAL))
 					break Switch
 				}
 			}
@@ -1287,7 +1295,11 @@ loop:
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)
 			vm.Mem[args[0]] = values.Value{values.TYPE, lhs.Union(rhs)}
 		case Typx:
-			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, DUMMY}}
+			if vm.Mem[args[1]].T == values.STRING { // TODO --- you can get rid of this once you fix the parameterized types.
+				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}}
+			} else {
+				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, 0}}
+			}
 		case UntE:
 			err := vm.Mem[args[0]].V.(*err.Error)
 			newArgs := []any{}
