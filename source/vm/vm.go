@@ -833,6 +833,10 @@ loop:
 		case IxZl:
 			typeInfo := vm.ConcreteTypeInfo[vm.Mem[args[1]].T].(StructType)
 			ix := typeInfo.Resolve(vm.Mem[args[2]].V.(int))
+			if ix == -1 {
+				vm.Mem[args[0]] = vm.makeError("vm/index/z", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DefaultDescription(vm.Mem[args[2]]))
+				continue	
+			}
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]

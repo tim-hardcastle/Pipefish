@@ -19,16 +19,20 @@ phonemes(sn snippet) :
 
 // Evaluator
 
-// The Neogram DSl is structured, and not every expression makes sense in every 
+// The Neogram DSL is structured, and not every expression makes sense in every 
 // context.
 
-// This evaluates the description of a set of pho. Therefore the allowed
+// This evaluates the description of a set of phonemes. Therefore the allowed
 // literals are individual phonemes and phoneme classes, and the allowed operators
-// are '/','or', and '&'. Note that as '/' and 'or' are distinguished ony by their
+// are '/','or', and '&'. Parentheses will already have been parsed away to 
+// produce the AST/ Note that as '/' and 'or' are distinguished only by their
 // precedence, and since this distinction will have already been made by the parser,
 // we can by this point treat them the same.
 
 def
+
+ev(sn snippet) :
+    sn -> prs -> evaluateCommaSeparatedSets(that, WITH_NUMBER)
 
 evaluateSet(node Node) -> set :
     type node == PhonemeNode :
@@ -45,6 +49,41 @@ evaluateSet(node Node) -> set :
            .. "' as part of definition of set of phonemes at line " + ..
            .. string(node[token][lineNumber])
 
+newtype 
+
+// On the left-hand-side of a phonetic change, the phoneme sets may optionally
+// be decorated with a prefix giving the position : initial, medial, final,
+// non-initial, non-final, any. Whereas on the right-hand side it may optionally 
+// be decorated with a number saying which capture group we're referring to, in 
+// case we use them out of order, e.g. : 'unvoiced fricative . 2'
+
+SetFlavor = enum WITH_POSITION, WITH_NUMBER 
+Position = enum ANY, INITIAL, MEDIAL, FINAL, NON_INITIAL, NON_FINAL
+TaggedSet = struct(phSet set, position Position)
+NumberedSet = struct(phSet set, number int)
+
+def
+
+evaluateCommaSeparatedSets(node Node, flavor SetFlavor) -> list :
+    (type node == BinaryNode) and (node[operator] == ",") :
+        evaluateCommaSeparatedSets(node[left], flavor) ..
+        .. + evaluateCommaSeparatedSets(node[right], flavor)
+    else :
+        [evaluateSetWithPositionOrNumber(node, flavor)]
+
+evaluateSetWithPositionOrNumber(node Node, flavor SetFlavor) :
+    flavor == WITH_NUMBER :
+        (type node == BinaryNode) and (node[operator] == ".") .. 
+        .. and (type node[right] == NumberNode) :
+            NumberedSet(evaluateSet(node[left]), node[right][value])
+        else :
+            NumberedSet(evaluateSet(node), -1)
+    else :
+        type node == PrefixNode :
+            TaggedSet(evaluateSet(node[argument]), PREFIXES[node[prefix]])
+        else :
+            TaggedSet(evaluateSet(node), ANY)
+
 // Parser for sound changes 
 
 newtype 
@@ -53,15 +92,22 @@ PhonemeNode = struct(token Token, phoneme string)
 ClassNode = struct(token Token, class string)
 NumberNode = struct(token Token, value int)
 BinaryNode = struct(token Token, operator string, left, right Node)
+PrefixNode = struct(token Token, prefix string, argument Node)
 EmptyNode = struct(token Token)
 
-Node = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/EmptyNode
+Node = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/PrefixNode/EmptyNode
 
 const 
 
-PRECEDENCE = map(">"::1, ","::2, "or"::3, "&"::4, "/"::5)
+PRECEDENCE = map(">"::1, ","::2, "."::3, "PREFIXES"::4, "or"::5, "&"::6, "/"::7)
 EMPTY_NODE = EmptyNode(Token(EMPTY, NULL, 0))
 AND_TOKEN = [Token(OPERATOR, "&", 0)] // For adding as an implicit "&".
+PREFIXES = map("any"::ANY,
+            .. "initial"::INITIAL, 
+            .. "medial"::MEDIAL,
+            .. "final"::FINAL,
+            .. "non-initial"::NON_INITIAL, 
+            .. "non-final"::NON_FINAL)
 
 def
 
@@ -71,17 +117,20 @@ prs(sn snippet) :
 // TODO --- why is 'tokens' of type 'any' and not of type 'list'?
 parse(tokens any, precedence int, leftNode Node) -> list, int, Node :
     tokens == [] or headType in set(EOL, R_PAREN) or ..
-    .. headValue in keys(PRECEDENCE) and PRECEDENCE[headValue] < precedence:
+    .. false :
         tokens, 0, leftNode
     headType == OPERATOR :
         parse infixExpression(tokens, precedence, leftNode)
-    type leftNode != EmptyNode : // Then we have an error or and implicit "&" operator.
+    type leftNode != EmptyNode : // Then we have an error or an implicit "&" operator.
         headType in set(WORD, L_PAREN) :
             parse infixExpression(AND_TOKEN + tokens, precedence, leftNode)
         else: 
             error "unexpected '" + string(headValue) + "' at line " + string(head[lineNumber])
-    headType in set(WORD, NUMBER) : 
-        parse literalExpression(tokens, precedence)
+    headType in set(WORD, NUMBER) :
+        headValue in keys(PREFIXES) :
+            parse prefixExpression(tokens)
+        else :
+            parse literalExpression(tokens, precedence)
     headType == L_PAREN :
         parse groupedExpression(tokens, precedence)
     else :
@@ -96,13 +145,13 @@ infixExpression(tokens list, precedence int, leftNode Node) -> list, int, Node :
     remainingTokens, newPrecedence, BinaryNode(tokens[0], tokens[0][value], leftNode, rightNode) 
 given :
     remainingTokens, newPrecedence, rightNode ..
-        .. = parse(tokens[1::len(tokens)], precedence, EMPTY_NODE)
+        .. = parse(tokens[1::len(tokens)], PRECEDENCE[tokens[0][value]], EMPTY_NODE)
 
 literalExpression(tokens list, precedence int) -> list, int, Node : 
-    nextToken[tokenType] == OPERATOR :
+    nextToken[tokenType] == OPERATOR and PRECEDENCE[nextToken[value]] > precedence:
         infixExpression(tail, PRECEDENCE[nextToken[value]], thisNode) 
     else : 
-        tail, precedence, thisNode 
+        tail, 0, thisNode 
 given:
     nextToken = tokens[1]
     tail = tokens[1::len(tokens)]
@@ -120,6 +169,11 @@ makeNode(aToken Token) -> Node :
         error "can't parse " + string(val) + " at line " + string(aToken[lineNumber])
 given :
     val = aToken[value]
+
+prefixExpression(tokens list) -> list, int, Node : 
+    remainingToks, newPrec, PrefixNode(tokens[0], tokens[0][value], arg) 
+given :
+    remainingToks, newPrec, arg = parse(tokens[1::len(tokens)], PRECEDENCE["PREFIXES"], EMPTY_NODE)
 
 groupedExpression(tokens list, precedence int) -> list, int, Node : 
     remainingTokens[1::len(that)], precedence, groupNode
@@ -164,7 +218,7 @@ runeType(r rune) :
         WHITESPACE
     r == '\n' :
         NEWLINE
-    r in set('(', ')', '+', '/', ',') :
+    r in set('(', ')', '+', '/', ',', '&', '.') :
         SYMBOL
     65 <= cp and cp < 91 :
         ALPHABETIC
@@ -256,3 +310,21 @@ pad(s string) :
     else :
         from result = s for _::i = range 0::(WIDTH - len s) :
             result + " "
+
+// Prettyprints an AST.
+pp(node Node) :
+    type node == NumberNode :
+        string(node[value])
+    type node == PhonemeNode :
+        node[phoneme]
+    type node == ClassNode :
+        node[class]
+    type node == BinaryNode :
+        "(" + pp(node[left]) + ") " + node[operator] ..
+        .. + " (" + pp(node[right]) + ")"
+    type node == PrefixNode :
+        node[prefix] + " (" + pp(node[argument]) + ")"
+    type node == EmptyNode :
+        "<EMPTY NODE>"
+    else :
+        error "unknown node type"
