@@ -429,7 +429,7 @@ func (sv *Service) GetTrackingReport() (string, error) {
 	if sv.IsBroken() {
 		return "", errors.New("service is broken")
 	}
-	return sv.cp.Vm.TrackingToString(), nil
+	return sv.cp.Vm.TrackingToString(sv.cp.Vm.LiveTracking), nil
 }
 
 // Says whether pot happened when we called Do.

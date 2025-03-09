@@ -35,13 +35,13 @@ func (vm *Vm) trackingIs(i int, tf TrackingFlavor) bool {
 	return vm.LiveTracking[i].Flavor == tf
 }
 
-func (vm *Vm) TrackingToString() string {
-	if len(vm.LiveTracking) == 0 {
+func (vm *Vm) TrackingToString(tdL []TrackingData) string {
+	if len(tdL) == 0 {
 		return ("\nNo tracking data exists.\n")
 	}
 	var out bytes.Buffer
 	out.WriteString("\n")
-	for i, td := range vm.LiveTracking {
+	for i, td := range tdL {
 		args := td.Args
 		switch td.Flavor {
 		case TR_CONDITION:

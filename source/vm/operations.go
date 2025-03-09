@@ -102,6 +102,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Andb: {"andb", operands{dst, mem, mem}},
 	Aref: {"aref", operands{dst, mem}},
 	Asgm: {"asgm", operands{dst, mem}},
+	Auto: {"auto", operands{trk}},
 	Bcon: {"bcon", operands{dst, mem}},
 	Bsql: {"bsql", operands{dst, mem}},
 	Call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
@@ -270,6 +271,7 @@ const (
 	Andb
 	Aref
 	Asgm
+	Auto
 	Bcon
 	Bsql
 	Cc11

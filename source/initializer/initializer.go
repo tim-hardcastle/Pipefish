@@ -1285,9 +1285,6 @@ func (iz *initializer) findShareableFunctions() {
 				iz.p.Throw("init/func/body", tok)
 				return
 			}
-			if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
-				body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
-			}
 			if iz.ErrorsExist() {
 				return
 			}
@@ -1514,9 +1511,6 @@ func (iz *initializer) makeFunctionTable() {
 				if body == nil {
 					iz.p.Throw("init/func/body", tok)
 					return
-				}
-				if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
-					body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
 				}
 				if iz.ErrorsExist() {
 					return
@@ -2021,9 +2015,6 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	cpF.Private = private
 	functionName, _, sig, rtnSig, body, given := iz.p.ExtractPartsOfFunction(node)
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", body.GetToken())
-	if body.GetToken().Type == token.PRELOG && body.GetToken().Literal == "" {
-		body.(*ast.LogExpression).Value = parser.DescribeFunctionCall(functionName, &sig)
-	}
 	if iz.ErrorsExist() {
 		return nil
 	}
@@ -2103,13 +2094,13 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
 	case token.XCALL:
 	default:
-		logFlavor := compiler.LF_NONE
+		areWeTracking := compiler.LF_NONE
 		if iz.cp.GetLoggingScope() == 2 {
-			logFlavor = compiler.LF_TRACK
+			areWeTracking = compiler.LF_TRACK
 		}
 		if given != nil {
 			iz.cp.ThunkList = []compiler.ThunkData{}
-			givenContext := compiler.Context{fnenv, functionName, compiler.DEF, false, nil, cpF.LoReg, logFlavor}
+			givenContext := compiler.Context{fnenv, functionName, compiler.DEF, false, nil, cpF.LoReg, areWeTracking, compiler.LF_NONE}
 			iz.cp.CompileGivenBlock(given, givenContext)
 			cpF.CallTo = iz.cp.CodeTop()
 			if len(iz.cp.ThunkList) > 0 {
@@ -2121,13 +2112,19 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		}
 		// Logging the function call, if we do it, goes here.
 		// 'stringify' is secret sauce, users aren't meant to know it exists. TODO --- conceal it better.
-		// If the body starts with a 'PRELOG' then the user has put in a logging statement which should override the tracking.
-		if logFlavor == compiler.LF_TRACK && !(body.GetToken().Type == token.PRELOG) && (functionName != "stringify") {
-			iz.cp.Track(vm.TR_FNCALL, node.GetToken(), functionName, sig, cpF.LoReg)
+
+		trackingOn := areWeTracking == compiler.LF_TRACK && (functionName != "stringify")
+		log, nodeHasLog := body.(*ast.LogExpression)
+		autoOn := nodeHasLog && log.Token.Type == token.PRELOG && log.Value == ""
+		if trackingOn || autoOn {
+			iz.cp.Track(vm.TR_FNCALL, trackingOn, autoOn, node.GetToken(), functionName, sig, cpF.LoReg)
+		}
+		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
+
 		}
 
 		// Now the main body of the function, just as a lagniappe.
-		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, logFlavor}
+		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE}
 		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = iz.cp.That()
 

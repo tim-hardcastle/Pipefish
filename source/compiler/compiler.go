@@ -125,7 +125,8 @@ type Context struct {
 	IsReturn  bool            // Is the value of the node to be evaluated potentially a return value of the function being compiled?
 	Typecheck FiniteTupleType // The type(s) for the compiler to check for if isReturn is true; nil if no return types are defined.
 	LowMem    uint32          // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
-	LogFlavor LogFlavor       // Whether we should be logging something and if so what.
+	LogFlavor LogFlavor       // Whether we should be tracking something and if so what.
+	LogFlavor2 LogFlavor      // Whether we should be logging something and if so what.
 }
 
 // Unless we're going down a branch, we want the new context for each node compilation to have no forward type-checking.
@@ -678,22 +679,22 @@ NodeTypeSwitch:
 		}
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
-				if cp.loggingOn(ctxt) {
-					cp.Track(vm.TR_ELSE, &node.Token)
+				if cp.loggingOn(ctxt) || cp.autoOn(ctxt) {
+					cp.Track(vm.TR_ELSE, cp.loggingOn(ctxt), cp.autoOn(ctxt), &node.Token)
 				}
 				rtnTypes, rtnConst = cp.CompileNode(node.Right, ctxt)
 				break
 			}
-			if cp.loggingOn(ctxt) {
-				cp.Track(vm.TR_CONDITION, &node.Token, cp.P.PrettyPrint(node.Left))
+			if cp.loggingOn(ctxt) || cp.autoOn(ctxt) {
+				cp.Track(vm.TR_CONDITION, cp.loggingOn(ctxt), cp.autoOn(ctxt), &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/cond/a", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
-			if cp.loggingOn(ctxt) {
-				cp.Track(vm.TR_RESULT, &node.Token, cp.That())
+			if cp.loggingOn(ctxt) || cp.autoOn(ctxt) {
+				cp.Track(vm.TR_RESULT, cp.loggingOn(ctxt), cp.autoOn(ctxt), &node.Token, cp.That())
 			}
 			leftRg := cp.That()
 			if !lTypes.isOnly(values.BOOL) {
@@ -791,19 +792,21 @@ NodeTypeSwitch:
 		break
 	case *ast.LogExpression:
 		newCtxt := ctxt
+		newCtxt.LogFlavor2 = LF_NONE
 		ifRuntimeError := bkEarlyReturn(DUMMY)
 		if cp.GetLoggingScope() != 0 { // Test that the logging hasn't been silenced by setting '$logging = $OFF'.
 			rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
 			// A a user-defined logging statement can contain arbitrary expressions in the |...| delimiters which we
 			// therefore need to compile like it was a snippet.
 			if node.Value == "" {
-				newCtxt.LogFlavor = LF_AUTO
-			} else {
-				newCtxt.LogFlavor = LF_MANUAL
+				if node.Token.Type != token.PRELOG { // In which case autologging will have been taken care of when we started compiling the function.
+					newCtxt.LogFlavor2 = LF_TRACK    // This will ensure that autologging happens for the children of the LogExpression.
+				}
+			} else { // Otherwise the user has made their own logging statement.
 				logCheck := cp.vmIf(vm.Qlog) // Skips over the logging if we are already in a logging statement, as explained below.
 				cp.Emit(vm.Logn)             // 'logn' and 'logy' turn logging on and off respectively in the vm, to prevent us from logging the activities of functions called in compileLog and at worst facing an infinite regress.
 				outputLoc, logMayHaveError := cp.compileLog(node, ctxt)
-				cp.Track(vm.TR_LITERAL, &node.Token, outputLoc)
+				cp.Track(vm.TR_LITERAL, false, true, &node.Token, outputLoc)
 				cp.Emit(vm.Logy)
 				if logMayHaveError {
 					ifRuntimeError = cp.vmConditionalEarlyReturn(vm.Qtyp, outputLoc, uint32(values.ERROR), cp.That())
@@ -814,25 +817,34 @@ NodeTypeSwitch:
 		// Syntactically a log expression is attached to a normal expression, which we must now compile.
 		switch node.GetToken().Type {
 		case token.IFLOG:
+			leftTypecheck := bkEarlyReturn(DUMMY)
+			leftError := bkEarlyReturn(DUMMY)
 			// This unDRY-ly repeats a bunch of the logic for generating a conditiona. TODO? We could consider factoring it out but it would be messy to save only a few duplicated lines.
 			if node.Left.GetToken().Type == token.ELSE {
 				rtnTypes, _ = cp.CompileNode(node.Right, ctxt)
 				break
 			}
-
 			lTypes, _ := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) && !lTypes.IsNoneOf(values.ERROR, values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/cond/b", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
-			// TODO --- what if it's not *only* bool?
 			leftRg := cp.That()
+			if !lTypes.isOnly(values.BOOL) {
+				if lTypes.Contains(values.ERROR) {
+					leftError = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.ERROR), leftRg)
+				}
+				if !lTypes.areOnly(values.BOOL, values.ERROR) {
+					cp.reserveError("vm/bool/cond", node.Left.GetToken())
+					leftTypecheck = cp.vmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.BOOL), cp.That())
+				}
+			}
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
 			rTypes, _ := cp.CompileNode(node.Right, ctxt)
 			ifCondition := cp.vmEarlyReturn(cp.That())
 			cp.vmComeFrom(checkLhs)
 			cp.put(vm.Asgm, values.C_U_OBJ)
-			cp.vmComeFrom(ifCondition)
+			cp.vmComeFrom(ifCondition, leftError, leftTypecheck)
 			rtnTypes = rTypes.Union(AltType(values.UNSATISFIED_CONDITIONAL))
 			break
 		case token.PRELOG:
@@ -1117,13 +1129,12 @@ NodeTypeSwitch:
 		return AltType(values.COMPILE_TIME_ERROR), true
 	}
 	// We do a little logging.
-	if cp.loggingOn(ctxt) && ac == DEF {
-		_, isLazyInfix := node.(*ast.LazyInfixExpression)
-		_, isLoggingOperation := node.(*ast.LogExpression)
-		if !(isLazyInfix || isLoggingOperation) {
-			cp.Track(vm.TR_RETURN, node.GetToken(), ctxt.FName, cp.That())
-			return rtnTypes, false // 'false' because we don't want to fold away the tracking information.
-		}
+	_, isLazyInfix := node.(*ast.LazyInfixExpression)
+	log, isLoggingOperation := node.(*ast.LogExpression)
+	isAuto := isLoggingOperation && log.Value == ""
+	if !(isLazyInfix) && (cp.loggingOn(ctxt) || isAuto) && ac == DEF {
+		cp.Track(vm.TR_RETURN, cp.loggingOn(ctxt), isAuto, node.GetToken(), ctxt.FName, cp.That())
+		return rtnTypes, false // 'false' because we don't want to fold away the tracking information.
 	}
 	// If we have a foldable constant, we run the code, roll back the vm, and put the result we got
 	// from the code on top of memory.

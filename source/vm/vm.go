@@ -182,6 +182,17 @@ loop:
 			vm.Mem[vm.Mem[args[0]].V.(uint32)] = vm.Mem[args[1]]
 		case Asgm:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
+		case Auto:
+			staticData := vm.Tracking[args[0]]
+			newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
+			copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
+			for i, v := range newData.Args {
+				if v, ok := v.(uint32); ok {
+					newData.Args[i] = vm.Mem[v]
+				}
+			}
+			prettyString := vm.TrackingToString([]TrackingData{newData})
+			println(text.Pretty(prettyString, 0, 90))
 		case Call:
 			paramNumber := args[1]
 			argNumber := 3
@@ -1259,7 +1270,7 @@ loop:
 		case Trak:
 			staticData := vm.Tracking[args[0]]
 			newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
-			copy(newData.Args, staticData.Args)
+			copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
 			for i, v := range newData.Args {
 				if v, ok := v.(uint32); ok {
 					newData.Args[i] = vm.Mem[v]

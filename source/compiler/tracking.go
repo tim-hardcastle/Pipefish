@@ -24,13 +24,11 @@ const (
 	LF_NONE   LogFlavor = iota // No logging is taking place.
 	LF_INIT                    // We're still initializing the variables.
 	LF_TRACK                   // We're logging everything.
-	LF_AUTO                    // We're autologging a line.
-	LF_MANUAL                  // The user did a custom log statement other than an autolog.
 )
 
 // Although the arguments of this function are the same as the shape of the vm.TrackingData struct, we don't just naively shove one into the other,
 // but may have to tamper with it for the greater convenience of the caller.
-func (cp *Compiler) Track(tf vm.TrackingFlavor, tok *token.Token, args ...any) {
+func (cp *Compiler) Track(tf vm.TrackingFlavor, trackingOn, autoOn bool, tok *token.Token, args ...any) {
 	if settings.MandatoryImportSet().Contains(tok.Source) {
 		return
 	}
@@ -48,7 +46,12 @@ func (cp *Compiler) Track(tf vm.TrackingFlavor, tok *token.Token, args ...any) {
 		newData = vm.TrackingData{tf, tok, args}
 	}
 	cp.Cm(staticTrackingToString(len(cp.Vm.Tracking), newData), tok)
-	cp.Emit(vm.Trak, uint32(len(cp.Vm.Tracking)))
+	if trackingOn {
+		cp.Emit(vm.Trak, uint32(len(cp.Vm.Tracking)))
+	}
+	if autoOn {
+		cp.Emit(vm.Auto, uint32(len(cp.Vm.Tracking)))
+	}
 	cp.Vm.Tracking = append(cp.Vm.Tracking, newData)
 }
 
@@ -86,10 +89,17 @@ func (cp *Compiler) loggingOn(ctxt Context) bool {
 	if !ctxt.IsReturn {
 		return false
 	}
-	if (ctxt.LogFlavor == LF_AUTO && cp.GetLoggingScope() != 0) || (ctxt.LogFlavor == LF_TRACK && cp.GetLoggingScope() == 2) {
+	if (ctxt.LogFlavor == LF_TRACK && cp.GetLoggingScope() == 2) {
 		return true
 	}
 	return false
+}
+
+func (cp *Compiler) autoOn(ctxt Context) bool {
+	if !ctxt.IsReturn {
+		return false
+	}
+	return ctxt.LogFlavor2 == LF_TRACK
 }
 
 func (cp *Compiler) GetLoggingScope() int {
