@@ -1,14 +1,8 @@
+def 
 
-def
+foo(i int) :       \\
+    i mod 2 == 0 : \\
+        "zort"     \\
+    else :         \\
+        "troz"     \\
 
-foo(s string, i int) -> string, int :
-    i == 0 :
-        s, i
-    else :
-        foo bar s, i - 1
-
-bar(s string, i int) -> string, int :
-    i < 0 :
-        error "Oopsie"
-    else :
-        "*" + s + "*", i 
