@@ -184,7 +184,6 @@ loop:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
 		case Auto:
 			if vm.logging {
-				println("log", args[0])
 				staticData := vm.Tracking[args[0]]
 				newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
 				copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
