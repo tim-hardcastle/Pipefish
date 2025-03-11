@@ -137,14 +137,13 @@ func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
 	return vm.MakeSimpleInHandler(in)
 }
 
-// Method makes an `OutHandler` which applies Pipefish's `literal` or `string` 
+// Method makes an `OutHandler` which applies Pipefish's `literal` or `string`
 // function to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeWritingOutHandler(out io.Writer) *SimpleOutHandler {
 	return vm.MakeSimpleOutHandler(out, sv.cp.Vm)
 }
 
-
-// Method makes an `OutHandler` which applies Pipefish's `literal` or `string` 
+// Method makes an `OutHandler` which applies Pipefish's `literal` or `string`
 // function to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeTerminalOutHandler(out io.Writer) *SimpleOutHandler {
 	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm)
@@ -224,7 +223,7 @@ func (sv *Service) Do(line string) (Value, error) {
 	if sv.cp.P.ErrorsExist() {
 		return Value{}, errors.New("error parsing input")
 	}
-	ctxt := compiler.Context{Env: sv.cp.GlobalVars, Access: compiler.REPL, LowMem: compiler.DUMMY, LogFlavor: compiler.LF_NONE}
+	ctxt := compiler.Context{Env: sv.cp.GlobalVars, Access: compiler.REPL, LowMem: compiler.DUMMY, TrackingFlavor: compiler.LF_NONE}
 	sv.cp.CompileNode(node, ctxt)
 	if sv.cp.P.ErrorsExist() {
 		return Value{}, errors.New("error compiling input")

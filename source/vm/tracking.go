@@ -40,7 +40,6 @@ func (vm *Vm) TrackingToString(tdL []TrackingData) string {
 		return ("\nNo tracking data exists.\n")
 	}
 	var out bytes.Buffer
-	out.WriteString("\n")
 	for i, td := range tdL {
 		args := td.Args
 		switch td.Flavor {

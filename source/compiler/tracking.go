@@ -15,15 +15,13 @@ import (
 // store sufficient data in the vm for it to describe the situation at runtime using the tracking information and the current state of
 // the VM. At the same time, we need to emit an opcode trac with one operand giving the number of the tracking data item in the VM's list.
 
-
-
 // This keeps track of what we should be logging, and is passed around the compiler in the context struct.
 type LogFlavor int
 
 const (
-	LF_NONE   LogFlavor = iota // No logging is taking place.
-	LF_INIT                    // We're still initializing the variables.
-	LF_TRACK                   // We're logging everything.
+	LF_NONE  LogFlavor = iota // No logging is taking place.
+	LF_INIT                   // We're still initializing the variables.
+	LF_TRACK                  // We're logging everything.
 )
 
 // Although the arguments of this function are the same as the shape of the vm.TrackingData struct, we don't just naively shove one into the other,
@@ -85,11 +83,11 @@ func staticTrackingToString(i int, td vm.TrackingData) string { // For the use o
 	return out.String()
 }
 
-func (cp *Compiler) loggingOn(ctxt Context) bool {
+func (cp *Compiler) trackingOn(ctxt Context) bool {
 	if !ctxt.IsReturn {
 		return false
 	}
-	if (ctxt.LogFlavor == LF_TRACK && cp.GetLoggingScope() == 2) {
+	if ctxt.TrackingFlavor == LF_TRACK && cp.GetTrackingScope() == 2 {
 		return true
 	}
 	return false
@@ -99,10 +97,10 @@ func (cp *Compiler) autoOn(ctxt Context) bool {
 	if !ctxt.IsReturn {
 		return false
 	}
-	return ctxt.LogFlavor2 == LF_TRACK
+	return ctxt.LogFlavor == LF_TRACK
 }
 
-func (cp *Compiler) GetLoggingScope() int {
+func (cp *Compiler) GetTrackingScope() int {
 	return cp.getValueOfVariable("$logging").(int)
 }
 

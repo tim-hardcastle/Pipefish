@@ -48,6 +48,12 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		out.WriteString(node.Token.Literal)
 	case *ast.BuiltInExpression:
 		panic("Found secret 'builtin' keyword in prettyprinter")
+	case *ast.ComparisonExpression:
+		out.WriteString(p.prettyPrint(node.Left, inlineCtxt))
+		out.WriteString(" ")
+		out.WriteString(node.Operator)
+		out.WriteString(" ")
+		out.WriteString(p.prettyPrint(node.Right, inlineCtxt))
 	case *ast.FloatLiteral:
 		out.WriteString(node.Token.Literal)
 	case *ast.ForExpression:
