@@ -19,6 +19,7 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/pf"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
@@ -939,7 +940,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
 		if name == "hub" {
-			fmt.Println("Pipefish: unable to compile hub.")
+			fmt.Println("Pipefish: unable to compile hub: " +text.Red(newService.GetErrors()[0].ErrorId) + ".")
 		}
 		if !newService.IsInitialized() {
 			hub.WriteError("unable to open '" + scriptFilepath + "' with error '" + e.Error() + "'")

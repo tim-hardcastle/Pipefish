@@ -5,7 +5,7 @@
 </a>
 
 <a href="https://go.dev/doc/install">
-    <img src="https://img.shields.io/badge/Requires-Go_v._1.22.5+-cyan">
+    <img src="https://img.shields.io/badge/Requires-Go_v._1.23.1+-cyan">
 </a>
 
 <a href="https://github.com/tim-hardcastle/Pipefish/actions?query=workflow%3A%22Tests%22">
@@ -18,7 +18,7 @@
 
 ## Welcome to Pipefish!
 
-Welcome to Pipefish, a new programming language. This is version 0.5.9; you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. (Note: at time of writing, November, I have just changed the main branch from the prototype treewalker to the compiler/vm implementation. It is therefore probably rather flaky and needs me to test it hard for a couple of weeks.)
+Welcome to Pipefish, a new programming language. This is version 0.5.9; you shouldn't use it in production but it's good enough at this point for you to [install it](https://github.com/tim-hardcastle/Pipefish/wiki/Installing-and-using-Pipefish) and play around with it. (Note: at time of writing, I have just changed the main branch from the prototype treewalker to the compiler/vm implementation. It is therefore probably rather flaky and needs me to test it hard for a couple of months.)
 
 There are [batteries included](https://github.com/tim-hardcastle/Pipefish/wiki/Imports-and-libraries#libraries); there is [tooling](https://github.com/tim-hardcastle/Pipefish/wiki/Developing-in-Pipefish); there is [a wiki](https://github.com/tim-hardcastle/Pipefish/wiki); there are plenty of features including some you've never heard or thought of.
 
