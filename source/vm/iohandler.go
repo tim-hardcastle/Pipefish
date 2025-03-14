@@ -49,7 +49,7 @@ func MakeSimpleOutHandler(out io.Writer, vm *Vm) *SimpleOutHandler {
 }
 
 func (oH *SimpleOutHandler) Out(v values.Value) {
-	if oH.vm.Mem[oH.vm.LocationOfOutputFlavor].V.(int) == 0 {
+	if oH.vm.Mem[oH.vm.UsefulValues.OutputAs].V.(int) == 0 {
 		oH.output.Write([]byte(oH.vm.Literal(v)))
 	} else {
 		oH.output.Write([]byte(oH.vm.DefaultDescription(v)))

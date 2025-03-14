@@ -82,3 +82,16 @@ func TestCompilerErrors(cp *compiler.Compiler, s string) (string, error) {
 		return cp.P.Common.Errors[0].ErrorId, nil
 	}
 }
+
+var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 7 [0m— [0mwith [0m[36m'i = 8'[0m.
+At [33mline 8 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
+The [0mcondition [0msucceeded.
+At [33mline 9 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"even"[0m.
+`
+
+var Foo13Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 7 [0m— [0mwith [0m[36m'i = 13'[0m.
+At [33mline 8 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
+The [0mcondition [0mfailed.
+At [33mline 10 [0mwe [0mtook [0mthe [0m[36m'else'[0m [0mbranch.
+At [33mline 11 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"odd"[0m.
+`

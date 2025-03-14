@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ type Vm struct {
 	callstack      []uint32
 	recursionStack []recursionData
 	logging        bool
+	// TODO --- the LogToLoc field of TrackingData is never used by *live* tracking, which should therefore have its own data type. 
 	LiveTracking   []TrackingData // "Live" tracking data in which the uint32s in the permanent tracking data have been replaced by the corresponding memory registers.
 	PostHappened   bool
 
@@ -38,10 +40,11 @@ type Vm struct {
 	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
-	LocationOfOutputFlavor     uint32 // Where we keep the value of the `$output` service variable.
 	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
+	UsefulTypes                UsefulTypes
+	UsefulValues			   UsefulValues
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	StringifyLoReg             uint32   // | 
 	StringifyCallTo			   uint32   // | These are so the vm knows how to call the stringify function.
@@ -49,6 +52,22 @@ type Vm struct {
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter                [](func(t uint32, v any) any)
+}
+
+// In general, the VM can't convert from type names to type numbers, because it doesn't
+// need to. And we don't need the whole map of them because only a tiny proportion are
+// needed by the runtime, so a struct gives us quick access to what we do need.
+type UsefulTypes struct{
+	UnwrappedError values.ValueType
+	File           values.ValueType
+	Terminal	   values.ValueType
+	Output         values.ValueType
+} 
+
+// Similarly we need to know where some values are kept, if they have special effects
+// on runtime behavior.
+type UsefulValues struct{
+	OutputAs uint32
 }
 
 // Contains a Go function in the form of a reflect.Value, and, currently, nothing else.
@@ -122,7 +141,7 @@ func BlankVm(db *sql.DB) *Vm {
 	for _, name := range nativeTypeNames {
 		vm.ConcreteTypeInfo = append(vm.ConcreteTypeInfo, BuiltinType{name: name})
 	}
-	vm.TypeNumberOfUnwrappedError = DUMMY
+	vm.UsefulTypes.UnwrappedError = DUMMY
 	vm.Mem = append(vm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil}) // TODO --- why?
 	vm.FieldLabelsInMem = make(map[string]uint32)
 	return vm
@@ -185,7 +204,7 @@ loop:
 		case Auto:
 			if vm.logging {
 				staticData := vm.Tracking[args[0]]
-				newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
+				newData := TrackingData{staticData.Flavor, staticData.Tok, DUMMY, make([]any, len(staticData.Args))}
 				copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
 				for i, v := range newData.Args {
 					if v, ok := v.(uint32); ok {
@@ -193,7 +212,32 @@ loop:
 					}
 				}
 				prettyString := vm.TrackingToString([]TrackingData{newData})
-				print(text.Pretty(prettyString, 0, 90))
+				switch vm.Mem[staticData.LogToLoc].T {
+				case vm.UsefulTypes.Terminal :
+					print(text.Pretty(prettyString, 0, 90))
+				case vm.UsefulTypes.Output :
+					vm.OutHandle.Write(text.Pretty(prettyString, 0, 90))
+				case vm.UsefulTypes.File :
+					// TODO --- this is obviously very wasteful. Make $logTo into a constant?
+					filename := vm.Mem[staticData.LogToLoc].V.([]values.Value)[0].V.(string)
+					path := filename
+					if filepath.IsLocal(path) {
+						path = filepath.Join(filepath.Dir(staticData.Tok.Source) , path)
+					}
+					var f *os.File
+					if _, err := os.Stat(path); os.IsNotExist(err) {
+						f, err = os.Create(path)
+						if err != nil {
+							panic(err)
+						}
+					} else {
+						f, err = os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0660);
+						if err != nil {
+							panic(err)
+						}
+					}
+					f.WriteString(text.Pretty(prettyString, 0, 90))
+				}
 			}
 		case Call:
 			paramNumber := args[1]
@@ -983,7 +1027,7 @@ loop:
 			vm.OutHandle.Out(vm.Mem[args[0]])
 			vm.PostHappened = true
 		case Outt:
-			if vm.Mem[vm.LocationOfOutputFlavor].V.(int) == 0 {
+			if vm.Mem[vm.UsefulValues.OutputAs].V.(int) == 0 {
 				fmt.Println(vm.Literal(vm.Mem[args[0]]))
 			} else {
 				fmt.Println(vm.DefaultDescription(vm.Mem[args[0]]))
@@ -1271,7 +1315,7 @@ loop:
 			vm.Mem[args[0]] = tup[len(tup)-1]
 		case Trak:
 			staticData := vm.Tracking[args[0]]
-			newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
+			newData := TrackingData{staticData.Flavor, staticData.Tok, DUMMY, make([]any, len(staticData.Args))}
 			copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
 			for i, v := range newData.Args {
 				if v, ok := v.(uint32); ok {
@@ -1346,7 +1390,7 @@ loop:
 			if vm.Mem[args[1]].T == values.ERROR {
 				wrappedErr := vm.Mem[args[1]].V.(*err.Error)
 				errWithMessage := err.CreateErr(wrappedErr.ErrorId, wrappedErr.Token, wrappedErr.Args...)
-				vm.Mem[args[0]] = values.Value{vm.TypeNumberOfUnwrappedError, []values.Value{{values.STRING, errWithMessage.ErrorId}, {values.STRING, errWithMessage.Message}}}
+				vm.Mem[args[0]] = values.Value{vm.UsefulTypes.UnwrappedError, []values.Value{{values.STRING, errWithMessage.ErrorId}, {values.STRING, errWithMessage.Message}}}
 			} else {
 				vm.Mem[args[0]] = vm.makeError("vm/unwrap", args[2], vm.DescribeType(vm.Mem[args[1]].T, LITERAL))
 			}

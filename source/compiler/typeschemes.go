@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
@@ -107,6 +108,10 @@ func maxLengthsOrMinusOne(s dtypes.Set[int]) int {
 		}
 	}
 	return max
+}
+
+func Describe(t TypeScheme, mc *vm.Vm) string {
+	return t.describe(mc)
 }
 
 func Equals(t, u TypeScheme) bool {
@@ -710,6 +715,9 @@ func (bT blingType) IsPrivate(mc *vm.Vm) bool {
 }
 
 func AltType(t ...values.ValueType) AlternateType {
+	sort.Slice(t, func(i, j int) bool {
+		return t[i] < t[j]
+	})
 	result := make(AlternateType, len(t))
 	for i, v := range t {
 		result[i] = SimpleType(v)

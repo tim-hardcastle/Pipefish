@@ -12,9 +12,10 @@ import (
 // This file supplies resources for generating racking information at runtims.
 
 type TrackingData struct {
-	Flavor TrackingFlavor
-	Tok    *token.Token
-	Args   []any
+	Flavor    TrackingFlavor
+	Tok       *token.Token
+	LogToLoc  uint32 // The memory location in the compiler 
+	Args      []any
 }
 
 type TrackingFlavor int

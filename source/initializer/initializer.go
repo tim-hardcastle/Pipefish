@@ -1058,8 +1058,18 @@ func (iz *initializer) createStructNamesAndLabels() {
 			iz.setDeclaration(decSTRUCT, node.GetToken(), DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i)})
 		}
 		iz.AddType(name, "struct", typeNo)
+		// The VM needs fast access to a few special types.
 		if name == "Error" {
-			iz.cp.Vm.TypeNumberOfUnwrappedError = typeNo // The vm needs to know this so it can convert an 'error' into an 'Error'.
+			iz.cp.Vm.UsefulTypes.UnwrappedError = typeNo 
+		}
+		if name == "File" {
+			iz.cp.Vm.UsefulTypes.File = typeNo 
+		}
+		if name == "Terminal" {
+			iz.cp.Vm.UsefulTypes.Terminal = typeNo 
+		}
+		if name == "Output" {
+			iz.cp.Vm.UsefulTypes.Output = typeNo 
 		}
 		// The parser needs to know about it too.
 		iz.p.Functions.Add(name)
@@ -1784,18 +1794,14 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		}
 	}
 	iz.cmI("Initializing service variables.")
-	// $We stick them in a map to be compiled below as private and variable. TODO --- think about this.
-	serviceVariables := make(map[string]values.Value)
-	// $logging
-	loggingOptionsType := values.ValueType(iz.cp.TypeNameToTypeScheme["$Logging"][0].(compiler.SimpleType))
-	serviceVariables["$logging"] = val(loggingOptionsType, 1)
-	//$output
-	outputOptionsType := values.ValueType(iz.cp.TypeNameToTypeScheme["$Output"][0].(compiler.SimpleType))
-	serviceVariables["$output"] = val(outputOptionsType, 1)
-	// $cliDirectory
+	// $We need a few bits and pieeces to assemble the types and content of the variables.
+	loggingOptionsType, _ := iz.cp.GetConcreteType("$Logging")
+	outputOptionsType, _ := iz.cp.GetConcreteType("$Output")
+	outputStructType, _ := iz.cp.GetConcreteType("Output")
+	terminalStructType, _ := iz.cp.GetConcreteType("Terminal")
+	fileStructType, _ := iz.cp.GetConcreteType("File")
+	logToTypes := altType(outputStructType, terminalStructType, fileStructType)
 	dir, _ := os.Getwd()
-	serviceVariables["$cliDirectory"] = val(values.STRING, dir)
-	// $cliArguments
 	cliArgs := vector.Empty
 	if len(os.Args) >= 2 {
 		firstArg := 2
@@ -1808,12 +1814,23 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			}
 		}
 	}
-	serviceVariables["$cliArguments"] = val(values.LIST, cliArgs)
-	serviceVariables["$moduleDirectory"] = val(values.STRING, filepath.Dir(iz.cp.ScriptFilepath))
+
+	serviceVariables := map[string]serviceVariableData{
+		"$logging": {loggingOptionsType, 1, altType(loggingOptionsType)},
+		"$logTo": {terminalStructType, []values.Value{}, logToTypes},
+		"$output": {outputOptionsType, 1, altType(outputOptionsType)},
+		"$cliDirectory": {values.STRING, dir, altType(values.STRING)},
+		"$cliArguments": {values.LIST, cliArgs, altType(values.LIST)},
+		"$moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
+	}
+	// Service variables which tell the compiler how to compile things must be 
+	// set before we compile the functions, and so can't be calculated but must
+	// be literal.
+	compilerDirectives := dtypes.MakeFromSlice([]string{"$logging", "$logTo"})
 	// Add variables to environment.
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
-		if ok {
+		if ok && compilerDirectives.Contains(svName) { // Then we've declared a service variable which is also a compiler directive, and must compile the declaration.
 			tok := namesToDeclarations[svName][0].chunk.GetToken()
 			decType := namesToDeclarations[svName][0].decType
 			decNumber := namesToDeclarations[svName][0].decNumber
@@ -1822,18 +1839,20 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				return nil
 			}
 			iz.compileGlobalConstantOrVariable(decType, decNumber)
-			if svData.T != iz.cp.Vm.Mem[iz.cp.That()].T {
-				iz.p.Throw("init/service/type", tok, svName, iz.cp.GetTypeNameFromNumber(svData.T))
+			if !svData.alt.Contains(iz.cp.Vm.Mem[iz.cp.That()].T) {
+				iz.p.Throw("init/service/type", tok, svName, compiler.Describe(svData.alt, iz.cp.Vm))
 				return nil
 			}
 			delete(graph, svName)
-		} else {
+		} else if !ok { // Then the service variable isn't declared, and we need to stick in a default value.
 			dummyTok := token.Token{}
-			iz.cp.Reserve(svData.T, svData.V, &dummyTok)
-			iz.cp.AddVariable(iz.cp.GlobalVars, svName, compiler.GLOBAL_VARIABLE_PRIVATE, altType(svData.T), &dummyTok)
+			iz.cp.Reserve(svData.t, svData.v, &dummyTok)
+			iz.cp.AddVariable(iz.cp.GlobalVars, svName, compiler.GLOBAL_VARIABLE_PRIVATE, svData.alt, &dummyTok)
 		}
+		// The third possibility here is that we've declared a service variable which isn't
+		// a compiler directive. In that case, it can be compiled in the usual way.
 	}
-	iz.cp.Vm.LocationOfOutputFlavor = iz.cp.GlobalVars.Data["$output"].MLoc
+	iz.cp.Vm.UsefulValues.OutputAs = iz.cp.GlobalVars.Data["$output"].MLoc
 	iz.cmI("Performing sort on digraph.")
 	order := graph.Tarjan()
 
@@ -1891,6 +1910,12 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	return result
 }
 
+type serviceVariableData struct {
+	t values.ValueType
+	v any
+	alt compiler.AlternateType
+}
+
 // Function auxiliary to the above for compiling constant and variable declarations.
 func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationType, v int) {
 	dec := iz.ParsedDeclarations[declarations][v]
@@ -1908,7 +1933,7 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 		return
 	}
 	iz.cp.Emit(vm.Ret)
-	iz.cp.Cm("Calling Run from vmMaker's compileGlobalConstantOrVariable method.", dec.GetToken())
+	iz.cp.Cm("Calling Run from initializer's compileGlobalConstantOrVariable method.", dec.GetToken())
 	iz.cp.Vm.Run(uint32(rollbackTo.Code))
 	result := iz.cp.Vm.Mem[iz.cp.That()]
 	if !iz.cp.Common.CodeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.

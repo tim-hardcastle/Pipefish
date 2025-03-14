@@ -30,10 +30,12 @@ func (cp *Compiler) Track(tf vm.TrackingFlavor, trackingOn, autoOn bool, tok *to
 	if settings.MandatoryImportSet().Contains(tok.Source) {
 		return
 	}
+	logToVar, _ := cp.GlobalVars.GetVar("$logTo")
+	logToLoc := logToVar.MLoc
 	var newData vm.TrackingData
 	switch tf {
 	case vm.TR_FNCALL:
-		newData = vm.TrackingData{vm.TR_FNCALL, tok, []any{args[0]}}
+		newData = vm.TrackingData{vm.TR_FNCALL, tok, logToLoc, []any{args[0]}}
 		sig := args[1].(ast.StringSig)
 		loReg := args[2].(uint32)
 		for i, pair := range sig {
@@ -41,7 +43,7 @@ func (cp *Compiler) Track(tf vm.TrackingFlavor, trackingOn, autoOn bool, tok *to
 			newData.Args = append(newData.Args, loReg+uint32(i))
 		}
 	default:
-		newData = vm.TrackingData{tf, tok, args}
+		newData = vm.TrackingData{tf, tok, logToLoc, args}
 	}
 	cp.Cm(staticTrackingToString(len(cp.Vm.Tracking), newData), tok)
 	if trackingOn {
