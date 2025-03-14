@@ -1060,16 +1060,16 @@ func (iz *initializer) createStructNamesAndLabels() {
 		iz.AddType(name, "struct", typeNo)
 		// The VM needs fast access to a few special types.
 		if name == "Error" {
-			iz.cp.Vm.UsefulTypes.UnwrappedError = typeNo 
+			iz.cp.Vm.UsefulTypes.UnwrappedError = typeNo
 		}
 		if name == "File" {
-			iz.cp.Vm.UsefulTypes.File = typeNo 
+			iz.cp.Vm.UsefulTypes.File = typeNo
 		}
 		if name == "Terminal" {
-			iz.cp.Vm.UsefulTypes.Terminal = typeNo 
+			iz.cp.Vm.UsefulTypes.Terminal = typeNo
 		}
 		if name == "Output" {
-			iz.cp.Vm.UsefulTypes.Output = typeNo 
+			iz.cp.Vm.UsefulTypes.Output = typeNo
 		}
 		// The parser needs to know about it too.
 		iz.p.Functions.Add(name)
@@ -1816,14 +1816,14 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	}
 
 	serviceVariables := map[string]serviceVariableData{
-		"$logging": {loggingOptionsType, 1, altType(loggingOptionsType)},
-		"$logTo": {terminalStructType, []values.Value{}, logToTypes},
-		"$output": {outputOptionsType, 1, altType(outputOptionsType)},
-		"$cliDirectory": {values.STRING, dir, altType(values.STRING)},
-		"$cliArguments": {values.LIST, cliArgs, altType(values.LIST)},
+		"$logging":         {loggingOptionsType, 1, altType(loggingOptionsType)},
+		"$logTo":           {terminalStructType, []values.Value{}, logToTypes},
+		"$output":          {outputOptionsType, 1, altType(outputOptionsType)},
+		"$cliDirectory":    {values.STRING, dir, altType(values.STRING)},
+		"$cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
 		"$moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
 	}
-	// Service variables which tell the compiler how to compile things must be 
+	// Service variables which tell the compiler how to compile things must be
 	// set before we compile the functions, and so can't be calculated but must
 	// be literal.
 	compilerDirectives := dtypes.MakeFromSlice([]string{"$logging", "$logTo"})
@@ -1911,8 +1911,8 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 }
 
 type serviceVariableData struct {
-	t values.ValueType
-	v any
+	t   values.ValueType
+	v   any
 	alt compiler.AlternateType
 }
 
@@ -2138,7 +2138,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		log, nodeHasLog := body.(*ast.LogExpression)
 		autoOn := nodeHasLog && log.Token.Type == token.PRELOG && log.Value == ""
 		if trackingOn || autoOn {
-			iz.cp.Track(vm.TR_FNCALL, trackingOn, autoOn, node.GetToken(), functionName, sig, cpF.LoReg)
+			iz.cp.TrackOrLog(vm.TR_FNCALL, trackingOn, autoOn, node.GetToken(), functionName, sig, cpF.LoReg)
 		}
 		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
 

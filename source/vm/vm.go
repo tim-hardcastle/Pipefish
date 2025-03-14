@@ -944,8 +944,6 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Literal(vm.Mem[args[1]])}
 		case LnSn:
 			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.(values.Snippet).Data)}
-		case Log:
-			fmt.Print(vm.Mem[args[0]].V.(string) + "\n\n")
 		case Logn:
 			vm.logging = false
 		case Logy:

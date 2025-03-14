@@ -45,7 +45,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 			println("There were errors parsing the line: \n" + r + "\n")
 		}
 		if !(test.Want == got) {
-			t.Fatalf(`Test failed with input %s | Wanted : %s | Got : %s.`, test.Input, test.Want, got)
+			t.Fatalf("Test failed with input %s \nExp :\n%s\nGot :\n%s", test.Input, test.Want, got)
 		}
 	}
 }
@@ -83,15 +83,26 @@ func TestCompilerErrors(cp *compiler.Compiler, s string) (string, error) {
 	}
 }
 
-var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 7 [0m— [0mwith [0m[36m'i = 8'[0m.
-At [33mline 8 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
+var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i = 8'[0m.
+At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
 The [0mcondition [0msucceeded.
-At [33mline 9 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"even"[0m.
+At [33mline 15 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"even"[0m.
 `
 
-var Foo13Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 7 [0m— [0mwith [0m[36m'i = 13'[0m.
-At [33mline 8 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
+var Foo13Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i = 13'[0m.
+At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
 The [0mcondition [0mfailed.
-At [33mline 10 [0mwe [0mtook [0mthe [0m[36m'else'[0m [0mbranch.
-At [33mline 11 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"odd"[0m.
+At [33mline 16 [0mwe [0mtook [0mthe [0m[36m'else'[0m [0mbranch.
+At [33mline 17 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"odd"[0m.
+`
+
+var Qux8Result = `Log [0mat [33mline 7 [0m: [0mWe're [0mhere.
+Log [0mat [33mline 8 [0m: [0mWe [0mtest [0mto [0msee [0mif [0mi [0m(8) [0mis [0meven, [0mwhich [0mis [0mtrue.
+Log [0mat [33mline 9 [0m: [0mWe [0mreturn [0m[36m"even"[0m, [0mbecause [0m8 [0mis [0meven.
+`
+
+var Qux13Result = `Log [0mat [33mline 7 [0m: [0mWe're [0mhere.
+Log [0mat [33mline 8 [0m: [0mWe [0mtest [0mto [0msee [0mif [0mi [0m(13) [0mis [0meven, [0mwhich [0mis [0mfalse.
+Log [0mat [33mline 10 [0m: [0mGuess [0mwe're [0mtaking [0mthe [0m[36m'else'[0m [0mbranch.
+Log [0mat [33mline 11 [0m: [0mAnd [0mwe [0mreturn [0m[36m"odd"[0m.
 `

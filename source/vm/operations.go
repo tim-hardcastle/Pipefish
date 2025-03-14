@@ -174,7 +174,6 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Litx: {"litx", operands{dst, mem}},
 	List: {"list", operands{dst, mem}},
 	LnSn: {"lnSn", operands{dst, mem}},
-	Log:  {"log", operands{mem}},
 	Logn: {"logn", operands{}},
 	Logy: {"logy", operands{}},
 	Mker: {"mker", operands{dst, mem, tok}},
@@ -346,7 +345,6 @@ const (
 	List
 	Litx
 	LnSn
-	Log
 	Logn
 	Logy
 	Mker

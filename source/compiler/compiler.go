@@ -680,13 +680,13 @@ NodeTypeSwitch:
 		if node.Operator == ":" {
 			if node.Left.GetToken().Type == token.ELSE {
 				if cp.trackingOn(ctxt) || cp.autoOn(ctxt) {
-					cp.Track(vm.TR_ELSE, cp.trackingOn(ctxt), cp.autoOn(ctxt), &node.Token)
+					cp.TrackOrLog(vm.TR_ELSE, cp.trackingOn(ctxt), cp.autoOn(ctxt), &node.Token)
 				}
 				rtnTypes, rtnConst = cp.CompileNode(node.Right, ctxt)
 				break
 			}
 			if cp.trackingOn(ctxt) || cp.autoOn(ctxt) {
-				cp.Track(vm.TR_CONDITION, cp.trackingOn(ctxt), cp.autoOn(ctxt), &node.Token, cp.P.PrettyPrint(node.Left))
+				cp.TrackOrLog(vm.TR_CONDITION, cp.trackingOn(ctxt), cp.autoOn(ctxt), &node.Token, cp.P.PrettyPrint(node.Left))
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
@@ -694,7 +694,7 @@ NodeTypeSwitch:
 				break
 			}
 			if cp.trackingOn(ctxt) || cp.autoOn(ctxt) {
-				cp.Track(vm.TR_RESULT, cp.trackingOn(ctxt), cp.autoOn(ctxt), &node.Token, cp.That())
+				cp.TrackOrLog(vm.TR_RESULT, cp.trackingOn(ctxt), cp.autoOn(ctxt), &node.Token, cp.That())
 			}
 			leftRg := cp.That()
 			if !lTypes.isOnly(values.BOOL) {
@@ -794,7 +794,7 @@ NodeTypeSwitch:
 		newCtxt := ctxt
 		newCtxt.LogFlavor = LF_NONE
 		ifRuntimeError := bkEarlyReturn(DUMMY)
-		 // TODO --- check if logging has been silenced by a flag.
+		// TODO --- check if logging has been silenced by a flag.
 		rtnConst = false // Since a log expression has a side-effect, it can't be folded even if it's constant.
 		// A a user-defined logging statement can contain arbitrary expressions in the |...| delimiters which we
 		// therefore need to compile like it was a snippet.
@@ -806,8 +806,8 @@ NodeTypeSwitch:
 			logCheck := cp.vmIf(vm.Qlog) // Skips over the logging if we are already in a logging statement, as explained below.
 			cp.Emit(vm.Logn)             // 'logn' and 'logy' turn logging on and off respectively in the vm, to prevent us from logging the activities of functions called in compileLog and at worst facing an infinite regress.
 			outputLoc, logMayHaveError := cp.compileLog(node, ctxt)
-			cp.Track(vm.TR_LITERAL, false, true, &node.Token, outputLoc)
 			cp.Emit(vm.Logy)
+			cp.TrackOrLog(vm.TR_LITERAL, false, true, &node.Token, outputLoc)
 			if logMayHaveError {
 				ifRuntimeError = cp.vmConditionalEarlyReturn(vm.Qtyp, outputLoc, uint32(values.ERROR), cp.That())
 			}
@@ -1107,7 +1107,7 @@ NodeTypeSwitch:
 	_, isLazyInfix := node.(*ast.LazyInfixExpression)
 	_, isLoggingOperation := node.(*ast.LogExpression)
 	if !(isLazyInfix || isLoggingOperation) && (cp.trackingOn(ctxt) || cp.autoOn(ctxt)) && ac == DEF {
-		cp.Track(vm.TR_RETURN, cp.trackingOn(ctxt), cp.autoOn(ctxt), node.GetToken(), ctxt.FName, cp.That())
+		cp.TrackOrLog(vm.TR_RETURN, cp.trackingOn(ctxt), cp.autoOn(ctxt), node.GetToken(), ctxt.FName, cp.That())
 		return rtnTypes, false // 'false' because we don't want to fold away the tracking information.
 	}
 	// If we have a foldable constant, we run the code, roll back the vm, and put the result we got
@@ -1982,7 +1982,8 @@ func (cp *Compiler) compileEquals(node *ast.ComparisonExpression, ctxt Context) 
 
 // Compiles a logging expression.
 func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt Context) (uint32, bool) {
-	output := uint32(DUMMY)
+	output := cp.Reserve(values.STRING, "", &node.Token)
+	first := true
 	logStr := node.Value
 	strList, ok := text.GetTextWithBarsAsList(logStr)
 	if !ok {
@@ -2006,17 +2007,12 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt Context) (uint32, b
 					cp.vmConditionalEarlyReturn(vm.Qtyp, cp.That(), uint32(values.ERROR), cp.That()))
 			}
 			cp.put(vm.Strx, thingToAdd)
-			if output == DUMMY {
-				output = cp.That()
-			} else {
-				cp.Emit(vm.Adds, output, output, cp.That())
-			}
-			continue
+		} else { // Otherwise, we just add it on as a string.
+			cp.Reserve(values.STRING, str, node.GetToken())
 		}
-		// Otherwise, we just add it on as a string.
-		cp.Reserve(values.STRING, str, node.GetToken())
-		if output == DUMMY {
-			output = cp.That()
+		if first {
+			cp.Emit(vm.Asgm, output, cp.That())
+			first = false
 		} else {
 			cp.Emit(vm.Adds, output, output, cp.That())
 		}
@@ -2024,7 +2020,7 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt Context) (uint32, b
 	for _, rtn := range errorReturns {
 		cp.vmComeFrom(rtn)
 	}
-	return uint32(output), len(errorReturns) > 0
+	return output, len(errorReturns) > 0
 }
 
 // The various 'piping operators'.

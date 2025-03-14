@@ -478,6 +478,8 @@ func TestLogging(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`foo 8`, test_helper.Foo8Result},
 		{`foo 13`, test_helper.Foo13Result},
+		{`qux 8`, test_helper.Qux8Result},
+		{`qux 13`, test_helper.Qux13Result},
 	}
 	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
 }

@@ -26,7 +26,7 @@ const (
 
 // Although the arguments of this function are the same as the shape of the vm.TrackingData struct, we don't just naively shove one into the other,
 // but may have to tamper with it for the greater convenience of the caller.
-func (cp *Compiler) Track(tf vm.TrackingFlavor, trackingOn, autoOn bool, tok *token.Token, args ...any) {
+func (cp *Compiler) TrackOrLog(tf vm.TrackingFlavor, trackingOn, autoOn bool, tok *token.Token, args ...any) {
 	if settings.MandatoryImportSet().Contains(tok.Source) {
 		return
 	}
