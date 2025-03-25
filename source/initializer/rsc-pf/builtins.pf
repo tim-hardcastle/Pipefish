@@ -3,12 +3,10 @@
 newtype
 
 Error = struct(errorCode, errorText string)
-
 Time = struct(year, month, day, hour, minute, second, nanosecond int, location string)
 
 $Logging = enum $NONE, $SELECTED, $ALL
-
-$Output = enum $LITERAL, $STRING 
+$OutputAs = enum $LITERAL, $STRING 
 
 def
 

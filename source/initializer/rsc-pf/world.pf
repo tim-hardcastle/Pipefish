@@ -18,15 +18,20 @@ Random = struct(params int)
 RandomSeed = struct()
 Terminal = struct()
 
+SqlDriver = enum $COCKROACHDB, $FIREBIRD_SQL, $MARIADB, $MICROSOFT_SQL_SERVER, $MYSQL, $ORACLE, 
+                    .. $POSTGRESQL, $SNOWFLAKE, $SQLITE, $TIDB
+
+SqlDb = struct(driver SqlDriver, host string, port int, username string)
+
 cmd
 
-posttooutputmaker(x any) : builtin "post_to_output"
-post (x any) to (o Output): posttooutputmaker(x)
-post (x any) : builtin "post_to_output"
+posttooutputmaker(x any?) : builtin "post_to_output"
+post (x any?) to (o Output): posttooutputmaker(x)
+post (x any?) : builtin "post_to_output"
 // post (x tuple) to (o Output): posttooutputmaker(x)
 
-posttoterminalmaker(x any) : builtin "post_to_terminal"
-post (x any) to (t Terminal): posttoterminalmaker(x)
+posttoterminalmaker(x any?) : builtin "post_to_terminal"
+post (x any?) to (t Terminal): posttoterminalmaker(x)
 
 get (x ref) from (i Input) : builtin "get_from_input"
 

@@ -562,8 +562,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			snapService := hub.services["#snap"]
-			ty, _ := snapService.TypeNameToType("$Output")
-			snapService.SetVariable("$output",  ty, 0)
+			ty, _ := snapService.TypeNameToType("$OutputAs")
+			snapService.SetVariable("$outputAs",  ty, 0)
 			hub.WriteString("Serialization is ON.\n")
 			in, out := MakeSnapIo(snapService, hub.out, hub.snap)
 			currentService := snapService
@@ -1174,8 +1174,8 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	if testOutputType == ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
-	ty, _ := testService.TypeNameToType("$Output")
-	testService.SetVariable("$output",  ty, 0)
+	ty, _ := testService.TypeNameToType("$OutputAs")
+	testService.SetVariable("$outputAs",  ty, 0)
 	_ = scanner.Scan() // eats the newline
 	executionMatchesTest := true
 	for scanner.Scan() {
@@ -1238,8 +1238,8 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	scanner.Scan()
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	testService := (*hub).services["#test"]
-	ty, _ := testService.TypeNameToType("$Output")
-	testService.SetVariable("$output",  ty, 0)
+	ty, _ := testService.TypeNameToType("$OutputAs")
+	testService.SetVariable("$outputAs",  ty, 0)
 	in, out := MakeTestIoHandler(testService, hub.out, scanner, SHOW_ALL)
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)

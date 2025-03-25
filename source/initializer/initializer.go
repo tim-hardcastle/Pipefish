@@ -1796,7 +1796,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	iz.cmI("Initializing service variables.")
 	// $We need a few bits and pieeces to assemble the types and content of the variables.
 	loggingOptionsType, _ := iz.cp.GetConcreteType("$Logging")
-	outputOptionsType, _ := iz.cp.GetConcreteType("$Output")
+	outputOptionsType, _ := iz.cp.GetConcreteType("$OutputAs")
 	outputStructType, _ := iz.cp.GetConcreteType("Output")
 	terminalStructType, _ := iz.cp.GetConcreteType("Terminal")
 	fileStructType, _ := iz.cp.GetConcreteType("File")
@@ -1818,7 +1818,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	serviceVariables := map[string]serviceVariableData{
 		"$logging":         {loggingOptionsType, 1, altType(loggingOptionsType)},
 		"$logTo":           {terminalStructType, []values.Value{}, logToTypes},
-		"$output":          {outputOptionsType, 1, altType(outputOptionsType)},
+		"$outputAs":        {outputOptionsType, 1, altType(outputOptionsType)},
 		"$cliDirectory":    {values.STRING, dir, altType(values.STRING)},
 		"$cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
 		"$moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
@@ -1852,7 +1852,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		// The third possibility here is that we've declared a service variable which isn't
 		// a compiler directive. In that case, it can be compiled in the usual way.
 	}
-	iz.cp.Vm.UsefulValues.OutputAs = iz.cp.GlobalVars.Data["$output"].MLoc
+	iz.cp.Vm.UsefulValues.OutputAs = iz.cp.GlobalVars.Data["$outputAs"].MLoc
 	iz.cmI("Performing sort on digraph.")
 	order := graph.Tarjan()
 

@@ -634,8 +634,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				typeNumber, ok := cp.GetConcreteType(builtinTag)
 				// It might be a short-form struct constructor.
 				if ok && cp.IsStruct(builtinTag) {
+					args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)					
 					cp.cmP("Emitting short form constructor.", b.tok)
-					args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
 					cp.Emit(vm.Strc, args...)
 					return AltType(typeNumber)
 				}

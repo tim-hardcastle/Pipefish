@@ -1,7 +1,7 @@
 package database
 
 // When I do the SQL integration I can just put this stuff in the hub, replacing it with more generic
-// methods for interacting with Charm code. Hence, no efforts to keep it DRY and minimal efforts at
+// methods for interacting with Pipefish code. Hence, no efforts to keep it DRY and minimal efforts at
 // error-handling.
 
 import (
