@@ -42,6 +42,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	SET                // V : values.Set
 	LABEL              // V : int
 	SNIPPET            // V : Snippet struct{Data []values.Value, Bindle *SnippetBindle}
+	SECRET             // V : SecretContainer
 	FIRST_DEFINED_TYPE // I.e the first of the enums.
 )
 
@@ -53,14 +54,18 @@ type Value struct {
 }
 
 type Snippet struct {
-	Data []Value
+	Data   []Value
 	Bindle *SnippetBindle
 }
 
 // A grouping of all the things a snippet from a given snippet factory have in common.
 type SnippetBindle struct {
-	CodeLoc         uint32              // Where to find the code to compute the object string and the values.
-	ValueLocs       []uint32            // The locations where we put the computed values to inject into SQL or HTML snippets.
+	CodeLoc   uint32   // Where to find the code to compute the object string and the values.
+	ValueLocs []uint32 // The locations where we put the computed values to inject into SQL or HTML snippets.
+}
+
+type Secret struct {
+	Tag, Secret Value
 }
 
 func (v Value) compare(w Value) bool { // To implement the set and hash structures. It doesn't really matter which order
@@ -79,8 +84,8 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 		return (!v.V.(bool)) && w.V.(bool)
 	case STRING:
 		return v.V.(string) < w.V.(string)
-	case RUNE :
-		return v.V.(rune) < w.V.(rune) 
+	case RUNE:
+		return v.V.(rune) < w.V.(rune)
 	case FLOAT:
 		return v.V.(float64) < w.V.(float64)
 	case TYPE:

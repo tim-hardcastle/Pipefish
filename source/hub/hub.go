@@ -42,6 +42,7 @@ type Hub struct {
 	Username               string
 	Password               string
 	pipefishHomeDirectory  string
+	store                  values.Map
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
@@ -229,25 +230,26 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	return passedServiceName, false
 }
 
-func (hub *Hub) ParseHubCommand(line string) (string, []string) {
+func (hub *Hub) ParseHubCommand(line string) (string, []values.Value) {
 	hubService := hub.services["hub"]
 	hubReturn := ServiceDo(hubService, line)
 	if errorsExist, _ := hubService.ErrorsExist(); errorsExist { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
 		hub.GetAndReportErrors(hubService)
-		return "error", []string{}
+		return "error", []values.Value{}
 	}
 	if hubReturn.T == pf.ERROR {
 		hub.WriteError(hubReturn.V.(*pf.Error).Message)
-		return "error", []string{hubReturn.V.(*pf.Error).Message}
+		return "error", []values.Value{hubReturn}
 	}
 	hrType, _ := hubService.TypeNameToType("HubResponse")
 	if hubReturn.T == hrType {
 		hR := hubReturn.V.([]pf.Value)
 		verb := hR[0].V.(string)
-		args := []string{}
-		for i := 0; i < hR[1].V.(pf.List).Len(); i++ {
-			el, _ := hR[1].V.(pf.List).Index(i)
-			args = append(args, el.(pf.Value).V.(string))
+		vargs := hR[1].V.(pf.List)
+		args := []values.Value{}
+		for i := 0; i < vargs.Len(); i++ {
+			el, _ := vargs.Index(i)
+			args = append(args, el.(values.Value))
 		}
 		return verb, args
 	}
@@ -261,10 +263,15 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 	}
 
 	hub.WriteError("couldn't parse hub instruction.")
-	return "error", []string{"couldn't parse hub instruction"}
+	return "error", []values.Value{values.Value{values.UNDEFINED_TYPE, nil}}
 }
 
-func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
+// Quick and dirty auxilliary function for when we know the value is in fact a string.
+func toStr(v pf.Value) string {
+	return v.V.(string)
+}
+
+func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Value) bool {
 	if (!hub.isAdministered()) &&
 		(verb == "add" || verb == "create" || verb == "log-on" || verb == "log-off" ||
 			verb == "let" || verb == "register" || verb == "groups" ||
@@ -281,13 +288,14 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError(err.Error())
 			return false
 		}
+		// TODO --- replace with set containing green list.
 		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" ||
 			verb == "live-on" || verb == "live-off" || verb == "listen" ||
 			verb == "run" || verb == "reset" || verb == "rerun" ||
 			verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test" ||
 			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" ||
 			verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
-			verb == "let-use" || verb == "let-own") {
+			verb == "let-use" || verb == "let-own" || verb == "store" || verb == "store-secret") {
 			hub.WriteError("you don't have the admin status necessary to do that.")
 			return false
 		}
@@ -300,12 +308,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	}
 	switch verb {
 	case "add":
-		err := database.IsUserGroupOwner(hub.Db, username, args[1])
+		err := database.IsUserGroupOwner(hub.Db, username, toStr(args[1]))
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.Db, args[0], args[1], false)
+		err = database.AddUserToGroup(hub.Db, toStr(args[0]), toStr(args[1]), false)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -324,12 +332,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.configDb()
 		return false
 	case "create":
-		err := database.AddGroup(hub.Db, args[0])
+		err := database.AddGroup(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.Db, username, args[0], true)
+		err = database.AddUserToGroup(hub.Db, username, toStr(args[0]), true)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -337,7 +345,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(GREEN_OK + "\n")
 		return false
 	case "edit":
-		command := exec.Command("vim", args[0])
+		command := exec.Command("vim", toStr(args[0]))
 		command.Stdin = os.Stdin
 		command.Stdout = os.Stdout
 		err := command.Run()
@@ -350,7 +358,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty(r)
 		return false
 	case "groups-of-user":
-		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
+		result, err := database.GetGroupsOfUser(hub.Db, toStr(args[0]), false)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -358,7 +366,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "groups-of-service":
-		result, err := database.GetGroupsOfService(hub.Db, args[0])
+		result, err := database.GetGroupsOfService(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -367,11 +375,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 	case "halt":
 		var name string
-		_, ok := hub.services[args[0]]
+		_, ok := hub.services[toStr(args[0])]
 		if ok {
-			name = args[0]
+			name = toStr(args[0])
 		} else {
-			hub.WriteError("the hub can't find the service '" + args[0] + "'.")
+			hub.WriteError("the hub can't find the service '" + toStr(args[0]) + "'.")
 			return false
 		}
 		if name == "" || name == "hub" {
@@ -385,12 +393,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		return false
 	case "help":
-		if helpMessage, ok := helpStrings[args[0]]; ok {
+		if helpMessage, ok := helpStrings[toStr(args[0])]; ok {
 			hub.WritePretty(helpMessage + "\n")
 			return false
 		} else {
 			hub.WriteError("the 'hub help' command doesn't accept " +
-				"'" + args[0] + "' as a parameter.")
+				"'" + toStr(args[0]) + "' as a parameter.")
 			return false
 		}
 	case "let":
@@ -403,7 +411,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you don't have the admin status necessary to do that.")
 			return false
 		}
-		err = database.LetGroupUseService(hub.Db, args[0], args[1])
+		err = database.LetGroupUseService(hub.Db, toStr(args[0]), toStr(args[1]))
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -413,7 +421,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "listen":
 		hub.WriteString(GREEN_OK)
 		hub.WriteString("\nHub is listening.\n\n")
-		hub.StartHttp("/"+args[0], args[1])
+		hub.StartHttp("/"+ toStr(args[0]), toStr(args[1]))
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -472,7 +480,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 	case "replay":
 		hub.oldServiceName = hub.currentServiceName()
-		hub.playTest(args[0], false)
+		hub.playTest(toStr(args[0]), false)
 		hub.setServiceName(hub.oldServiceName)
 		_, ok := hub.services["#test"]
 		if ok {
@@ -481,7 +489,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 	case "replay-diff":
 		hub.oldServiceName = hub.currentServiceName()
-		hub.playTest(args[0], true)
+		hub.playTest(toStr(args[0]), true)
 		hub.setServiceName(hub.oldServiceName)
 		_, ok := hub.services["#test"]
 		if ok {
@@ -516,24 +524,26 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.tryMain()
 		return false
 	case "run":
-		if filepath.IsLocal(args[0]) {
+		fname := toStr(args[0])
+		sname := toStr(args[1])
+		if filepath.IsLocal(fname) {
 			dir, _ := os.Getwd()
-			args[0] = filepath.Join(dir, args[0])
+			fname = filepath.Join(dir, fname)
 		}
-		hub.lastRun = args
-		if args[1] == "" {
-			hub.WritePretty("Starting script '" + filepath.Base(args[0]) +
+		hub.lastRun = []string{fname, sname}
+		if sname == "" {
+			hub.WritePretty("Starting script '" + filepath.Base(fname) +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
-			hub.StartAnonymous(args[0])
+			hub.StartAnonymous(fname)
 			hub.tryMain()
 			return false
 		}
-		hub.WritePretty("Starting script '" + filepath.Base(args[0]) + "' as service '" + args[1] + "'.\n")
-		hub.StartAndMakeCurrent(username, args[1], args[0])
+		hub.WritePretty("Starting script '" + filepath.Base(fname) + "' as service '" + sname + "'.\n")
+		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
 		return false
 	case "services-of-user":
-		result, err := database.GetServicesOfUser(hub.Db, args[0], false)
+		result, err := database.GetServicesOfUser(hub.Db, toStr(args[0]), false)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -541,7 +551,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "services-of-group":
-		result, err := database.GetServicesOfGroup(hub.Db, args[0])
+		result, err := database.GetServicesOfGroup(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -549,12 +559,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "snap":
-		scriptFilepath := args[0]
+		scriptFilepath := toStr(args[0])
 		if filepath.IsLocal(scriptFilepath) {
 			dir, _ := os.Getwd()
 			scriptFilepath = filepath.Join(dir, scriptFilepath)
 		}
-		testFilepath := args[1]
+		testFilepath := toStr(args[1])
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
 		}
@@ -608,40 +618,49 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(GREEN_OK + "\n")
 		hub.setServiceName(hub.oldServiceName)
 		return false
+	case "store":
+		hub.store = *hub.store.Set(args[0].V.([]values.Value)[0], args[0].V.([]values.Value)[1])
+		hub.WriteString(GREEN_OK + "\n")
+		return false
+	case "store-secret":
+		hub.store = *hub.store.Set(args[0].V.(values.Secret).Tag, args[0])
+		hub.WriteString(GREEN_OK + "\n")
+		return false
 	case "switch":
-		_, ok := hub.services[args[0]]
+		sname := toStr(args[0])
+		_, ok := hub.services[sname]
 		if ok {
 			hub.WriteString(GREEN_OK + "\n")
 			if hub.administered {
-				access, err := database.DoesUserHaveAccess(hub.Db, username, args[0])
+				access, err := database.DoesUserHaveAccess(hub.Db, username, sname)
 				if err != nil {
 					hub.WriteError("o/ " + err.Error())
 					return false
 				}
 				if !access {
-					hub.WriteError("you don't have access to service '" + args[0] + "'.")
+					hub.WriteError("you don't have access to service '" + sname + "'.")
 					return false
 				}
-				database.UpdateService(hub.Db, username, args[0])
+				database.UpdateService(hub.Db, username, sname)
 				return false
 			} else {
-				hub.setServiceName(args[0])
+				hub.setServiceName(sname)
 				return false
 			}
-		} else {
-			hub.WriteError("service '" + args[0] + "' doesn't exist")
-		}
+		} 
+		hub.WriteError("service '" + sname + "' doesn't exist")
+		return false
 	case "test":
-		if filepath.IsLocal(args[0]) {
+		fname := toStr(args[0])
+		if filepath.IsLocal(fname) {
 			dir, _ := os.Getwd()
-			args[0] = filepath.Join(dir, args[0])
+			fname = filepath.Join(dir, fname)
 		}
-		file, err := os.Open(args[0])
+		file, err := os.Open(fname)
 		if err != nil {
 			hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
 			return false
 		}
-
 		defer file.Close()
 		fileInfo, err := file.Stat()
 		if err != nil {
@@ -658,11 +677,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 
 			for _, potentialPfFile := range files {
 				if filepath.Ext(potentialPfFile.Name()) == ".pf" {
-					hub.TestScript(args[0]+"/"+potentialPfFile.Name(), ERROR_CHECK)
+					hub.TestScript(fname+"/"+potentialPfFile.Name(), ERROR_CHECK)
 				}
 			}
 		} else {
-			hub.TestScript(args[0], ERROR_CHECK)
+			hub.TestScript(fname, ERROR_CHECK)
 		}
 		return false
 	case "trace":
@@ -678,7 +697,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 
 	case "users-of-group":
-		result, err := database.GetUsersOfGroup(hub.Db, args[0])
+		result, err := database.GetUsersOfGroup(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -686,7 +705,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "users-of-service":
-		result, err := database.GetUsersOfService(hub.Db, args[0])
+		result, err := database.GetUsersOfService(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -721,11 +740,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\n")
 		return false
 	case "where":
-		num, err := strconv.Atoi(args[0])
-		if err != nil {
-			hub.WriteError("the 'where' keyword takes the number of an error as a parameter.")
-			return false
-		}
+		num := args[0].V.(int)
 		if num < 0 {
 			hub.WriteError("the 'where' keyword can't take a negative number as a parameter.")
 			return false
@@ -749,11 +764,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(Red(strings.Repeat("▔", lenUnderline)))
 		return false
 	case "why":
-		num, e := strconv.Atoi(args[0])
-		if e != nil {
-			hub.WriteError("the 'why' keyword takes the number of an error as a parameter.")
-			return false
-		}
+		num := args[0].V.(int)
 		if num >= len(hub.ers) {
 			hub.WriteError("there aren't that many errors.")
 			return false

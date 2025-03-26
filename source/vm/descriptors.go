@@ -52,6 +52,8 @@ const (
 	LITERAL
 )
 
+// TODO --- LITERAL should produce an error on being fed something unserializable.
+// Add an EXPLICIT option for LITERAL with fallback to STRING.
 func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	typeInfo := vm.ConcreteTypeInfo[v.T]
 	if typeInfo.IsStruct() {
@@ -165,6 +167,12 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if flavor == LITERAL {
 			return fmt.Sprintf("'%c'", v.V.(rune))
 		}
+	case values.SECRET:
+		var buf strings.Builder
+		buf.WriteString("secret(")
+		buf.WriteString(vm.StringifyValue(v.V.(values.Secret).Tag, LITERAL))
+		buf.WriteByte(')')
+		return buf.String()
 	case values.SET:
 		var buf strings.Builder
 		buf.WriteString("set(")

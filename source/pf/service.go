@@ -128,6 +128,7 @@ const (
 	MAP            Type = values.MAP
 	SET            Type = values.SET
 	LABEL          Type = values.LABEL
+	SECRET         Type = values.SECRET
 	SNIPPET        Type = values.SNIPPET
 )
 

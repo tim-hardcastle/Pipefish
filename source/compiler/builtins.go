@@ -82,12 +82,13 @@ var BUILTINS = map[string]functionAndReturnType{
 	"post_to_output":            {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
 	"post_to_terminal":          {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
 	"rune":                      {(*Compiler).btRune, AltType(values.RUNE)},
-	"string":                    {(*Compiler).btString, AltType(values.STRING)},
+	"secret":				     {(*Compiler).btSecret, AltType(values.SECRET)},
 	"single_in_list":            {(*Compiler).btSingleInList, AltType(values.BOOL)},
 	"single_in_set":             {(*Compiler).btSingleInSet, AltType(values.BOOL)},
 	"single_in_tuple":           {(*Compiler).btSingleInTuple, AltType(values.BOOL)},
 	"single_in_type":            {(*Compiler).btSingleInType, AltType(values.BOOL)},
 	"subtract_floats":           {(*Compiler).btSubtractFloats, AltType(values.FLOAT)},
+	"string":                    {(*Compiler).btString, AltType(values.STRING)},
 	"struct_with":               {(*Compiler).btStructWith, AltType()},
 	"subtract_integers":         {(*Compiler).btSubtractIntegers, AltType(values.INT)},
 	"subtract_sets":             {(*Compiler).btSubtractSets, AltType(values.SET)},
@@ -382,6 +383,10 @@ func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint3
 
 func (cp *Compiler) btRune(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Itor, dest, args[0])
+}
+
+func (cp *Compiler) btSecret(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.MkSc, dest, args[0])
 }
 
 func (cp *Compiler) btSingleInList(tok *token.Token, dest uint32, args []uint32) {

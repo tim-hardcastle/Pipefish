@@ -128,7 +128,7 @@ var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U
 var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT", 
 	"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
-	"pair", "list", "map", "set", "label", "snippet"}
+	"pair", "list", "map", "set", "label", "snippet", "secret"}
 
 func BlankVm(db *sql.DB) *Vm {
 	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db,
@@ -983,6 +983,9 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.MAP, result}
 		case Mkpr:
 			vm.Mem[args[0]] = values.Value{values.PAIR, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
+		case MkSc:
+			pair := vm.Mem[args[1]].V.([]values.Value)
+			vm.Mem[args[0]] = values.Value{values.SECRET, values.Secret{pair[0], pair[1]}}
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {

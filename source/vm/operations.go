@@ -181,6 +181,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Mkit: {"mkit", operands{dst, mem, num, tok}}, // the num is 0 or 1 according to whether the iterator doesn't or does only return keys.
 	Mkmp: {"mkmp", operands{dst, mem, tok}},
 	Mkpr: {"mkpr", operands{dst, mem, mem}},
+	MkSc: {"mkSn", operands{dst, sfc}},
 	MkSn: {"mkSn", operands{dst, sfc}},
 	Mkst: {"mkst", operands{dst, mem, tok}},
 	Modi: {"modi", operands{dst, mem, mem, tok}},
@@ -352,6 +353,7 @@ const (
 	Mkit
 	Mkmp
 	Mkpr
+	MkSc
 	MkSn
 	Mkst
 	Mlfi

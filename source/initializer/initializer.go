@@ -1822,6 +1822,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		"$cliDirectory":    {values.STRING, dir, altType(values.STRING)},
 		"$cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
 		"$moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
+		"$store":           {values.MAP, &values.Map{}, altType(values.MAP)},
 	}
 	// Service variables which tell the compiler how to compile things must be
 	// set before we compile the functions, and so can't be calculated but must

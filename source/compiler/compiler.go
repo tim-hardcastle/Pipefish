@@ -80,8 +80,9 @@ type CommonCompilerBindle struct {
 func NewCommonCompilerBindle() *CommonCompilerBindle {
 	newBindle := &CommonCompilerBindle{
 		SharedTypenameToTypeList: map[string]AlternateType{
-			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET),
-			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET),
+			// TODO --- why can't we define one in terms of the other?
+			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET, values.SECRET),
+			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET, values.SECRET),
 		},
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
