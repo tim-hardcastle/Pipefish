@@ -1087,6 +1087,28 @@ func (hub *Hub) saveHubFile() string {
 }
 
 func (hub *Hub) OpenHubFile(hubFilepath string) {
+	hub.createService("", "")
+	storePath := hubFilepath[0:len(hubFilepath)-len(filepath.Ext(hubFilepath))] + ".str"
+	_, err := os.Stat(storePath)
+	if err == nil {
+		file, err := os.Open(storePath)
+		if err != nil {
+			panic("Can't open hub data store")
+		}
+		b, err := io.ReadAll(file)
+		if err != nil {
+			panic("Can't open hub data store")
+		}
+  		s := string(b)
+		if s[0:9] != "PLAINTEXT" {
+
+		}
+		bits := strings.Split(s, "\n")[1:]
+		for _, bit := range bits {
+			pair, _ := hub.services[""].Do(bit)
+			hub.store = *hub.store.Set(pair.V.([]pf.Value)[0], pair.V.([]pf.Value)[1])
+		}
+	}
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
@@ -1106,8 +1128,6 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		serviceFilepath := pair.Val.V.(string)
 		hub.createService(serviceName, serviceFilepath)
 	}
-	hub.createService("", "")
-
 	hub.list()
 }
 
