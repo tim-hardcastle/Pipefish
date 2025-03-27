@@ -18,10 +18,10 @@ Random = struct(params int)
 RandomSeed = struct()
 Terminal = struct()
 
-SqlDriver = enum $COCKROACHDB, $FIREBIRD_SQL, $MARIADB, $MICROSOFT_SQL_SERVER, $MYSQL, $ORACLE, 
-                    .. $POSTGRESQL, $SNOWFLAKE, $SQLITE, $TIDB
+SqlDriver = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
+              .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
-SqlDb = struct(driver SqlDriver, host string, port int, username string)
+SqlDb = struct(driver SqlDriver, host string, port int, username, password secret)
 
 cmd
 

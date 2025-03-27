@@ -35,7 +35,7 @@ func NewService() *Service {
 
 // Initializes the service with the source code supplied in the string.
 func (sv *Service) InitializeFromCode(code string) error {
-	return sv.initialize("InitializeFromCode", code)
+	return sv.initialize("InitializeFromCode", code, &values.Map{})
 }
 
 // Initializes the service with the source code supplied in the file indicated by the filepath.
@@ -44,7 +44,23 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	if e != nil {
 		return e
 	}
-	return sv.initialize(scriptFilepath, sourcecode)
+	return sv.initialize(scriptFilepath, sourcecode, &values.Map{})
+}
+
+//The same as the previous two functions, except that we pass in a map of values to initialize
+// $store.
+// Initializes the service with the source code supplied in the string.
+func (sv *Service) InitializeFromCodeWithStore(code string, store Map) error {
+	return sv.initialize("InitializeFromCode", code, store)
+}
+
+// Initializes the service with the source code supplied in the file indicated by the filepath.
+func (sv *Service) InitializeFromFilepathWithStore(scriptFilepath string, store Map) error {
+	sourcecode, e := compiler.GetSourceCode(scriptFilepath)
+	if e != nil {
+		return e
+	}
+	return sv.initialize(scriptFilepath, sourcecode, store)
 }
 
 // Initializes the service on behalf of both the previous methods. As the
@@ -52,12 +68,12 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 // service have to be supplied as raw compilers. We pass them in, and then we
 // yoink them out at the end because the service might have started up a new
 // external service.
-func (sv *Service) initialize(scriptFilepath, sourcecode string) error {
+func (sv *Service) initialize(scriptFilepath, sourcecode string, store Map) error {
 	compilerMap := make(map[string]*compiler.Compiler)
 	for k, v := range sv.localExternals {
 		compilerMap[k] = v.cp
 	}
-	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap)
+	cp := initializer.StartCompiler(scriptFilepath, sourcecode, compilerMap, store)
 	sv.cp = cp
 	for k, v := range compilerMap {
 		sv.localExternals[k] = &Service{v, sv.localExternals, sv.db}
@@ -194,14 +210,6 @@ func (sv *Service) SetOutHandler(out vm.OutHandler) error {
 	return nil
 }
 
-// Sets the database to be used by the service.
-func (sv *Service) SetDatabase(db *sql.DB) {
-	sv.db = db
-	if sv.cp != nil {
-		sv.cp.Vm.Database = db
-	}
-}
-
 // Once the service is initialized, will interpret the string supplied as though
 // it had been entered into the REPL of the service. The error field will be non-nil
 // in the case of a compile-time error. In the case of a runtime error, it will be
@@ -271,8 +279,19 @@ func (sv *Service) SetVariable(vname string, ty values.ValueType, v any) error {
 	return nil
 }
 
+func (sv *Service) Store(k, v Value) error {
+	if sv.cp == nil {
+		return errors.New("service is uninitialized")
+	}
+	if sv.IsBroken() {
+		return errors.New("service is broken")
+	}
+	sv.cp.Store(k, v)
+	return nil
+}
+
 // Calls the `main` function.
-func (s *Service) CallMain() (values.Value, error) {
+func (s *Service) CallMain() (Value, error) {
 	return s.cp.CallIfExists("main")
 }
 

@@ -1,7 +1,6 @@
 package initializer
 
 import (
-	"database/sql"
 	"embed"
 	"os"
 	"path/filepath"
@@ -70,14 +69,16 @@ type CommonInitializerBindle struct {
 	Functions      map[FuncSource]*ast.PrsrFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
 	DeclarationMap map[decKey]any                   // This prevents redeclaration of types in the same sort of way.
 	HubCompilers   map[string]*compiler.Compiler    // This is a map of the compilers of all the (potential) external services on the same hub.
+	HubStore       *values.Map
 }
 
 // Initializes the `CommonInitializerBindle`
-func NewCommonInitializerBindle() *CommonInitializerBindle {
+func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
 	b := CommonInitializerBindle{
 		Functions:      make(map[FuncSource]*ast.PrsrFunction),
 		DeclarationMap: make(map[decKey]any),
 		HubCompilers:   make(map[string]*compiler.Compiler),
+		HubStore:       store,
 	}
 	return &b
 }
@@ -100,26 +101,26 @@ func (iz *initializer) ParseEverythingFromFilePath(mc *vm.Vm, cpb *parser.Common
 	return iz.ParseEverythingFromSourcecode(mc, cpb, ccb, scriptFilepath, sourcecode, namespacePath), nil
 }
 
-func StartCompilerFromFilepath(filepath string, db *sql.DB, svs map[string]*compiler.Compiler) (*compiler.Compiler, error) {
+func StartCompilerFromFilepath(filepath string, svs map[string]*compiler.Compiler, store *values.Map) (*compiler.Compiler, error) {
 	sourcecode, e := compiler.GetSourceCode(filepath)
 	if e != nil {
 		return nil, e
 	}
-	return StartCompiler(filepath, sourcecode, db, svs), nil
+	return StartCompiler(filepath, sourcecode, svs, store), nil
 }
 
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
 // `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
 // "children" of the intitializer and the parser when new modules are created.
-func StartCompiler(scriptFilepath, sourcecode string, db *sql.DB, hubServices map[string]*compiler.Compiler) *compiler.Compiler {
+func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*compiler.Compiler, store *values.Map) *compiler.Compiler {
 	iz := NewInitializer()
-	iz.Common = NewCommonInitializerBindle()
+	iz.Common = NewCommonInitializerBindle(store)
 	iz.Common.HubCompilers = hubServices
 	// We then carry out five phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
 	iz.cmI("Parsing everything.")
-	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(db), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
+	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -686,7 +687,7 @@ func (iz *initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp, e := StartCompilerFromFilepath(path, iz.cp.Vm.Database, iz.Common.HubCompilers)
+		newServiceCp, e := StartCompilerFromFilepath(path, iz.Common.HubCompilers, iz.Common.HubStore)
 		if e != nil { // Then we couldn't open the file.
 			iz.Throw("init/external/file", declaration.GetToken(), path, e.Error())
 		}
@@ -1822,7 +1823,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		"$cliDirectory":    {values.STRING, dir, altType(values.STRING)},
 		"$cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
 		"$moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
-		"$store":           {values.MAP, &values.Map{}, altType(values.MAP)},
+		"$hub":             {values.MAP, iz.Common.HubStore, altType(values.MAP)},
 	}
 	// Service variables which tell the compiler how to compile things must be
 	// set before we compile the functions, and so can't be calculated but must

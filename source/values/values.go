@@ -64,10 +64,6 @@ type SnippetBindle struct {
 	ValueLocs []uint32 // The locations where we put the computed values to inject into SQL or HTML snippets.
 }
 
-type Secret struct {
-	Tag, Secret Value
-}
-
 func (v Value) compare(w Value) bool { // To implement the set and hash structures. It doesn't really matter which order
 	if v.T < w.T { // these things are in, so long as there is one.
 		return true

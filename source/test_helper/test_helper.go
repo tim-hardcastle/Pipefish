@@ -30,9 +30,9 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 		}
 		var cp *compiler.Compiler
 		if filename == "" {
-			cp, _ = initializer.StartCompilerFromFilepath(filename, nil, map[string]*compiler.Compiler{})
+			cp, _ = initializer.StartCompilerFromFilepath(filename, map[string]*compiler.Compiler{}, &values.Map{})
 		} else {
-			cp, _ = initializer.StartCompilerFromFilepath(filepath.Join(wd, "../compiler/test-files/", filename), nil, map[string]*compiler.Compiler{})
+			cp, _ = initializer.StartCompilerFromFilepath(filepath.Join(wd, "../compiler/test-files/", filename), map[string]*compiler.Compiler{}, &values.Map{})
 		}
 		if cp.P.Common.IsBroken {
 			r := cp.P.ReturnErrors()

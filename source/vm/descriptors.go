@@ -169,9 +169,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		}
 	case values.SECRET:
 		var buf strings.Builder
-		buf.WriteString("secret(")
-		buf.WriteString(vm.StringifyValue(v.V.(values.Secret).Tag, LITERAL))
-		buf.WriteByte(')')
+		buf.WriteString("secret(?)")
 		return buf.String()
 	case values.SET:
 		var buf strings.Builder

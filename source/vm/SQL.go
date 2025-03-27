@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"database/sql"
 	"strconv"
 	"strings"
 
@@ -15,19 +16,19 @@ import (
 // So when this works properly we can write that bit of the hub entirely in Charm and dispense with the
 // 'database.go' file.
 
-func (vm *Vm) evalPostSQL(query string, pfArgs []values.Value) values.Value {
+func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value) values.Value {
 	goArgs := pfToGoPointers(pfArgs)
 
-	_, err := (vm.Database).Exec(query, goArgs...)
+	_, err := (db).Exec(query, goArgs...)
 	if err != nil {
 		return values.Value{values.ERROR, nil}
 	}
 	return values.Value{values.SUCCESSFUL_VALUE, nil}
 }
 
-func (vm *Vm) evalGetSQL(structTypeNumber values.ValueType, query string, pfArgs []values.Value) values.Value {
+func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query string, pfArgs []values.Value) values.Value {
 	goArgs := pfToGoPointers(pfArgs)
-	rows, err := (vm.Database).Query(query, goArgs...)
+	rows, err := (db).Query(query, goArgs...)
 	if err != nil {
 		return values.Value{values.ERROR, nil}
 	}

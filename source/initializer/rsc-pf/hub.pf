@@ -123,9 +123,6 @@ snap record :
 store(p pair) :
     HubResponse("store", [p])
 
-store(x secret) :
-    HubResponse("store-secret", [x])
-
 switch(srv string) :
     HubResponse("switch", [srv])
 

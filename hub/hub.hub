@@ -1,7 +1,6 @@
 newtype
 
-DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
-                    .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
+DatabaseDrivers = enum FEE, FIE, FO, FOO
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
 

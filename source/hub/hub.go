@@ -622,10 +622,6 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.store = *hub.store.Set(args[0].V.([]values.Value)[0], args[0].V.([]values.Value)[1])
 		hub.WriteString(GREEN_OK + "\n")
 		return false
-	case "store-secret":
-		hub.store = *hub.store.Set(args[0].V.(values.Secret).Tag, args[0])
-		hub.WriteString(GREEN_OK + "\n")
-		return false
 	case "switch":
 		sname := toStr(args[0])
 		_, ok := hub.services[sname]
@@ -944,9 +940,8 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 	newService := pf.NewService()
-	newService.SetDatabase(hub.Db)
 	newService.SetLocalExternalServices(hub.services)
-	e := newService.InitializeFromFilepath(scriptFilepath) // We get an error only if it completely fails to open the file, otherwise there'll be errors in the Common Parser Bindle as usual.
+	e := newService.InitializeFromFilepathWithStore(scriptFilepath, &hub.store) // We get an error only if it completely fails to open the file, otherwise there'll be errors in the Common Parser Bindle as usual.
 	hub.services[name] = newService
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
@@ -969,7 +964,8 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 func StartServiceFromCli() {
 	filename := os.Args[2]
 	newService := pf.NewService()
-	newService.InitializeFromFilepath(filename)
+	// TODO --- probably this ought to get the `$hub` settings.
+	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
 		s, _ := newService.GetErrorReport()
@@ -1000,8 +996,7 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 
 var prefix = `newtype
 
-DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
-                    .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
+DatabaseDrivers = enum FEE, FIE, FO, FOO
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
 

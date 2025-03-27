@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,7 +39,6 @@ type Vm struct {
 	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
-	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
 	UsefulTypes                UsefulTypes
@@ -89,6 +87,11 @@ type Lambda struct {
 	Gocode         *reflect.Value // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
 }
 
+// What a thing of type SECRET keeps in its V field.
+type Secret struct {
+	secret values.Value
+}
+
 // Interface wrapping around external calls whether to the same hub or via HTTP.
 type ExternalCallHandler interface {
 	Evaluate(line string) values.Value
@@ -130,8 +133,8 @@ var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label", "snippet", "secret"}
 
-func BlankVm(db *sql.DB) *Vm {
-	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db,
+func BlankVm() *Vm {
+	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)),
 		logging: true, InHandle: &StandardInHandler{"→ "},
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
@@ -984,8 +987,7 @@ loop:
 		case Mkpr:
 			vm.Mem[args[0]] = values.Value{values.PAIR, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 		case MkSc:
-			pair := vm.Mem[args[1]].V.([]values.Value)
-			vm.Mem[args[0]] = values.Value{values.SECRET, values.Secret{pair[0], pair[1]}}
+			vm.Mem[args[0]] = values.Value{values.SECRET, Secret{vm.Mem[args[1]]}}
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
