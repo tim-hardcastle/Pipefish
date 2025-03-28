@@ -661,3 +661,11 @@ var DEFAULT_TYPE_FOR = map[Type]reflect.Type{
 	SET:    reflect.TypeFor[map[any]struct{}](),
 	TUPLE:  reflect.TypeFor[[]any](),
 }
+
+// Serializes a Map of Values into newline-separated key-value pairs, encrypting if the 
+// password is non-empty, and heading the result with "PLAINTEXT\n" if the password is empty.
+// This is the only thing that can serialize the `secret` type, exposing its contents. Hence
+// if you encrypt it at the same time, then you haven't exposed its contents.
+func (sv *Service) WriteSecret(store values.Map, password string) string {
+	return sv.cp.Vm.DumpStore(store, password)
+}

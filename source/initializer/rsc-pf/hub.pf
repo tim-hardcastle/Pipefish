@@ -123,6 +123,9 @@ snap record :
 store(p pair) :
     HubResponse("store", [p])
 
+storekey :
+    HubResponse("storekey", [])
+
 switch(srv string) :
     HubResponse("switch", [srv])
 
@@ -164,4 +167,7 @@ where(errorNo int) :
     
 why(errorNo int) :
     HubResponse("why", [errorNo])
+
+wipe store :
+    HubResponse("wipe-store", [])
 

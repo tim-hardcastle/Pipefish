@@ -3,6 +3,9 @@ package hub
 import (
 	"bufio"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,6 +19,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/pbkdf2"
+	"github.com/lmorg/readline"
 
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/pf"
@@ -43,6 +49,7 @@ type Hub struct {
 	Password               string
 	pipefishHomeDirectory  string
 	store                  values.Map
+	storekey               string
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
@@ -620,7 +627,26 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		return false
 	case "store":
 		hub.store = *hub.store.Set(args[0].V.([]values.Value)[0], args[0].V.([]values.Value)[1])
+		hub.SaveHubStore()
 		hub.WriteString(GREEN_OK + "\n")
+		return false
+	case "storekey":
+		if hub.storekey != "" {
+			rline := readline.NewInstance()
+			rline.SetPrompt("Enter the current storekey for the hub: ")
+			rline.PasswordMask = '▪'
+			storekey, _ := rline.Readline()
+			if storekey != hub.storekey {
+				hub.WriteError("incorrect store key.")
+			    return false
+			}
+		}
+		rline := readline.NewInstance()
+		rline.SetPrompt("Enter the new storekey: ")
+		rline.PasswordMask = '▪'
+		storekey, _ := rline.Readline()
+		hub.storekey = storekey
+		hub.SaveHubStore()
 		return false
 	case "switch":
 		sname := toStr(args[0])
@@ -772,6 +798,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")
+		return false
+	case "wipe-store":
+		hub.storekey = ""
+		hub.store = values.Map{}
+		hub.SaveHubStore()
 		return false
 	default:
 		panic("Didn't return from verb " + verb)
@@ -1087,6 +1118,53 @@ func (hub *Hub) saveHubFile() string {
 }
 
 func (hub *Hub) OpenHubFile(hubFilepath string) {
+	hub.createService("", "")
+	storePath := hubFilepath[0:len(hubFilepath)-len(filepath.Ext(hubFilepath))] + ".str"
+	_, err := os.Stat(storePath)
+	if err == nil {
+		file, err := os.Open(storePath)
+		if err != nil {
+			panic("Can't open hub data store")
+		}
+		b, err := io.ReadAll(file)
+		if err != nil {
+			panic("Can't open hub data store")
+		}
+  		s := string(b)
+		for ; s[0:9] != "PLAINTEXT" ; println("Invalid storekey. Enter a valid one or press return to continue without loading the store.") {
+			salt := s[0:32]
+			ciphertext := s[32:]
+			rline := readline.NewInstance()
+			rline.SetPrompt("Enter the storekey for the hub: ")
+			rline.PasswordMask = '▪'
+			storekey, _ := rline.Readline()
+			if storekey == "" {
+				println("Starting hub without opening store.")
+				s = "PLAINTEXT"
+				break
+			}
+			key := pbkdf2.Key([]byte(storekey), []byte(salt), 65536, 32, sha256.New) // sha256 has nothing to do with it but the API is stupid.
+			block, err := aes.NewCipher(key)
+			if err != nil {
+				panic(err)
+			}
+			iv := ciphertext[:aes.BlockSize]
+			ciphertext = ciphertext[aes.BlockSize:]
+			mode := cipher.NewCBCDecrypter(block, []byte(iv))
+			decrypt := make([]byte, len(ciphertext))
+			mode.CryptBlocks(decrypt, []byte(ciphertext))
+			if string(decrypt[0:9]) == "PLAINTEXT" {
+				s = string(decrypt)
+				hub.storekey = storekey
+				break
+			}
+		}
+		bits := strings.Split(strings.TrimSpace(s), "\n")[1:]
+		for _, bit := range bits {
+			pair, _ := hub.services[""].Do(bit)
+			hub.store = *hub.store.Set(pair.V.([]pf.Value)[0], pair.V.([]pf.Value)[1])
+		}
+	}
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
@@ -1106,9 +1184,14 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		serviceFilepath := pair.Val.V.(string)
 		hub.createService(serviceName, serviceFilepath)
 	}
-	hub.createService("", "")
-
 	hub.list()
+}
+
+func (hub *Hub) SaveHubStore() {
+	storePath := hub.hubFilepath[0:len(hub.hubFilepath)-len(filepath.Ext(hub.hubFilepath))] + ".str"
+	storeDump := hub.services[""].WriteSecret(hub.store, hub.storekey)
+	file, _ := os.Create(storePath)
+	file.WriteString(storeDump)
 }
 
 func (hub *Hub) list() {
