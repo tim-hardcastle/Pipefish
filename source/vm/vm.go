@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
+	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
@@ -168,6 +170,115 @@ loop:
 		args := vm.Code[loc].Args
 	Switch:
 		switch vm.Code[loc].Opcode {
+		case Gsql:
+			// Arguments:
+			// 0: the destination
+			// 1: the address of the reference variable
+			// 2: the type of the result
+			// 3: the database
+			// 4: the snippet
+			// 5: the token
+			rType := vm.Mem[args[2]].V.(values.AbstractType)
+			if rType.Len() != 1 {
+				vm.Mem[args[0]] = vm.makeError("vm/post/type", args[3])
+				break Switch
+			}
+			cType := rType.Types[0]
+			if ! vm.ConcreteTypeInfo[cType].IsStruct() {
+				vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
+				break Switch
+			}
+			dbValue := vm.Mem[args[3]].V.([]values.Value)
+			driverNo := dbValue[0].V.(int)
+			host := dbValue[1].V.(string)
+			port := dbValue[2].V.(int)
+			name := dbValue[3].V.(string)
+			user := dbValue[4].V.(Secret).secret.V.(string)
+			password := dbValue[5].V.(Secret).secret.V.(string)
+			connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
+			host, port, name, user, password)
+			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
+			if connectionError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/connect/get", args[5], connectionError.Error())
+				vm.Mem[args[1]] = vm.Mem[args[0]]
+				break Switch
+			}
+			pingError := sqlObj.Ping()
+			if pingError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/ping/get", args[5], pingError.Error())
+				vm.Mem[args[1]] = vm.Mem[args[0]]
+				break Switch
+			}
+			snippet := vm.Mem[args[4]].V.(values.Snippet).Data
+			buf := strings.Builder{}
+			vals := make([]values.Value, 0, len(snippet)/2)
+			for i, v := range snippet {
+				if i % 2 == 0 {
+					buf.WriteString(v.V.(string))
+				} else {
+					vals = append(vals, v)
+					buf.WriteString("$")
+					buf.WriteString(strconv.Itoa(1 + i/2))
+				}
+			}
+			result := vm.evalGetSQL(sqlObj, cType, buf.String(), vals, args[5])
+			vm.Mem[args[1]] = result
+			if result.T == values.ERROR {
+				vm.Mem[args[0]] = result
+			} else {
+				vm.Mem[args[0]] = values.OK
+			}
+		case Psql:
+			dbValue := vm.Mem[args[1]].V.([]values.Value)
+			driverNo := dbValue[0].V.(int)
+			host := dbValue[1].V.(string)
+			port := dbValue[2].V.(int)
+			name := dbValue[3].V.(string)
+			user := dbValue[4].V.(Secret).secret.V.(string)
+			password := dbValue[5].V.(Secret).secret.V.(string)
+			connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
+			host, port, name, user, password)
+			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
+			if connectionError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/connect/post", args[3], connectionError.Error())
+				break Switch
+			}
+			pingError := sqlObj.Ping()
+			if pingError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/ping/post", args[3], pingError.Error())
+				break Switch
+			}
+			snippet := vm.Mem[args[2]].V.(values.Snippet).Data
+			buf := strings.Builder{}
+			vals := make([]values.Value, 0, len(snippet)/2)
+			for i, v := range snippet {
+				if i % 2 == 0 {
+					buf.WriteString(v.V.(string))
+				} else {
+					if v.T == values.TYPE {
+						if v.V.(values.AbstractType).Len() != 1 {
+							vm.Mem[args[0]] = vm.makeError("vm/post/type", args[3])
+							break Switch
+						}
+						cType := v.V.(values.AbstractType).Types[0]
+						if ! vm.ConcreteTypeInfo[cType].IsStruct() {
+							vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
+							break Switch
+						}
+						sqlSig, ok := vm.GetSqlSig(cType)
+						if !ok {
+							vm.Mem[args[0]] = vm.makeError("vm/post/sig", args[3])
+							break Switch
+						}
+						buf.WriteString(sqlSig)
+					} else {
+						vals = append(vals, v)
+						buf.WriteString("$")
+						buf.WriteString(strconv.Itoa(1 + i/2))
+					}
+				}
+			}
+			vm.Mem[args[0]] = vm.evalPostSQL(sqlObj, buf.String(), vals, args[3])
 		case Addf:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) + vm.Mem[args[2]].V.(float64)}
 		case Addi:

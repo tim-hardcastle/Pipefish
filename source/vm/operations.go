@@ -133,8 +133,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Extn: {"extn", operands{dst, mem, mem, mem, mem, tup}}, // Operands are: the external service to call; whether the function is PREFIX, INFIX, or POSTFIX; the remainder of the namespace of the function as a string; the name of the function as a string; the locations of the arguments.
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
-	Gsnp: {"gsnp", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, mem, gfn, tup}}, // Mem contains the location of a *mutable* error, i.e. we will copy its token but change its contents when returning it. 
+	Gsql: {"gsql", operands{dst, mem, mem, mem, mem, tok}},
 	Gtef: {"gtef", operands{dst, mem, mem}},
 	Gtei: {"gtei", operands{dst, mem, mem}},
 	Gthf: {"gthf", operands{dst, mem, mem}},
@@ -212,6 +212,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Qvch: {"qvch", operands{mem, num, loc}},
 	Qvcq: {"qvcq", operands{mem, num, loc}},
+	Psql: {"gsql", operands{dst, mem, mem, tok}},
 	Ret:  {"ret", operands{}},
 	Rpop: {"rpop", operands{}},
 	Rpsh: {"rpsh", operands{num, num}},
@@ -304,7 +305,7 @@ const (
 	Flti
 	Flts
 	Gofn
-	Gsnp
+	Gsql
 	Gtef
 	Gtei
 	Gthf
@@ -366,6 +367,7 @@ const (
 	Orb
 	Outp
 	Outt
+	Psql
 	Qabt
 	Qfls
 	Qitr

@@ -38,9 +38,8 @@ var BUILTINS = map[string]functionAndReturnType{
 	"first_in_tuple":            {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller.
 	"float_of_int":              {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":           {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
-	"get_from_external":         {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"get_from_input":            {(*Compiler).btGetFromInput, AltType(values.SUCCESSFUL_VALUE)},
-	"get_from_SQL":              {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
+	"get_sql":                   {(*Compiler).btGetFromSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"gt_floats":                 {(*Compiler).btGtFloats, AltType(values.BOOL)},
 	"gte_floats":                {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":                   {(*Compiler).btGtInts, AltType(values.BOOL)},
@@ -80,6 +79,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"negate_float":              {(*Compiler).btNegateFloat, AltType(values.FLOAT)},
 	"negate_integer":            {(*Compiler).btNegateInteger, AltType(values.INT)},
 	"post_to_output":            {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
+	"post_sql":                  {(*Compiler).btPostToSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_terminal":          {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
 	"rune":                      {(*Compiler).btRune, AltType(values.RUNE)},
 	"secret":				     {(*Compiler).btSecret, AltType(values.SECRET)},
@@ -206,17 +206,13 @@ func (cp *Compiler) btFloatOfString(tok *token.Token, dest uint32, args []uint32
 	cp.Emit(vm.Flts, dest, args[0])
 }
 
-func (cp *Compiler) btGetFromSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Gsnp, cp.Vm.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(vm.Qtyp, cp.Vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
-	cp.Emit(vm.Asgm, dest, cp.Vm.Mem[args[0]].V.(uint32))
-	cp.Emit(vm.Jmp, cp.CodeTop()+2)
-	cp.Emit(vm.Asgm, dest, values.C_OK)
-}
-
 func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Inpt, cp.Vm.Mem[args[0]].V.(uint32), args[2])
 	cp.Emit(vm.Asgm, dest, values.C_OK)
+}
+
+func (cp *Compiler) btGetFromSQL(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btGtFloats(tok *token.Token, dest uint32, args []uint32) {
@@ -374,6 +370,10 @@ func (cp *Compiler) btNegateInteger(tok *token.Token, dest uint32, args []uint32
 func (cp *Compiler) btPostToOutput(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Outp, args[0])
 	cp.Emit(vm.Asgm, dest, values.C_OK)
+}
+
+func (cp *Compiler) btPostToSQL(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Psql, dest, args[1], args[2], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {

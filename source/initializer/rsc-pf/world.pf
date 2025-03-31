@@ -21,9 +21,12 @@ Terminal = struct()
 SqlDriver = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
               .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
-SqlDb = struct(driver SqlDriver, host string, port int, username, password secret)
+SqlDb = struct(driver SqlDriver, host string, port int, name string, username, password secret)
 
 cmd
+
+post to (x SqlDb, y snippet) : builtin "post_sql"
+get(x ref) as (t type) from (y SqlDb, z snippet) : builtin "get_sql"
 
 posttooutputmaker(x any?) : builtin "post_to_output"
 post (x any?) to (o Output): posttooutputmaker(x)
@@ -136,10 +139,7 @@ put (s string) into (fileAccess File) :
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
 
-// post(x SQL) : builtin "post_sql"
-// put(x SQL) : builtin "post_sql"
-// delete(x SQL) : builtin "post_sql"
-// get(x ref) from (y SQL) : builtin "get_from_SQL"
+
 
 // post(x HTML) : builtin "post_html"
 
