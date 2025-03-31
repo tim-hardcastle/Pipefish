@@ -1,8 +1,7 @@
-def 
+cmd
 
-foo(i int) :       \\
-    i mod 2 == 0 : \\
-        "zort"     \\
-    else :         \\
-        "troz"     \\
+foo :       
+    post --
+        zort
+    post "troz"
 

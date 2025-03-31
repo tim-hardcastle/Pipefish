@@ -33,8 +33,8 @@ const (
 	FUNCTION_TO_PEEK = "" // Shows the function table entry and function tree associated with the function named in the string, if non-empty.
 
 	// These do what it sounds like.
-	SHOW_LEXER             = false
-	SHOW_RELEXER           = false
+	SHOW_LEXER             = true
+	SHOW_RELEXER           = true
 	SHOW_PARSER            = false // Note that this only applies to the REPL and not to code initialization. Use FUNCTION_TO_PEEK to look at the AST of a function.
 	SHOW_INITIALIZER       = false
 	SHOW_COMPILER          = false

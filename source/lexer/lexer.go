@@ -69,6 +69,7 @@ func (l *Lexer) NextToken() token.Token {
 			for i := 0; i < level; i++ {
 				l.whitespaceStack.Pop()
 			}
+			println("Making end, 72.")
 			return l.MakeToken(token.END, fmt.Sprint(level))
 		} else {
 			return l.NewToken(token.EOF, "EOF")
@@ -264,11 +265,20 @@ func (l *Lexer) interpretWhitespace() token.Token {
 var whitespaceDescriptions = map[rune]string{' ': "space", '\n': "newline", '\t': "tab"}
 
 func describeWhitespace(s string) string {
+	if len(s) == 0 {
+		return "no indentation"
+	}
+	if len(s) == 1 {
+		return "1 " + whitespaceDescriptions[rune(s[0])]
+	}
 	result := ""
-	cur := '#' // We could use any character that isn't whitespace.
-	count := 0
-	for i, ch := range s {
-		if ch != cur || i == len(s)-1 {
+	cur := rune(s[0]) //
+	count := 1
+	for i, ch := range s[1:] {
+		if ch != cur || i == len(s)-2 {
+			if i == len(s)-2 {
+				count++
+			}
 			singular := whitespaceDescriptions[ch]
 			result = result + strconv.Itoa(count) + " " + singular
 			if count > 1 {
@@ -282,9 +292,6 @@ func describeWhitespace(s string) string {
 		} else {
 			count++
 		}
-	}
-	if result == "" {
-		result = "no indentation"
 	}
 	return result
 }
