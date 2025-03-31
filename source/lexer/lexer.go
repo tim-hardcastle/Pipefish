@@ -44,19 +44,19 @@ func NewLexer(source, input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) NextToken() token.Token {
+func (l *Lexer) getTokens() []token.Token {
 
 	if l.afterSnippet {
 		l.afterSnippet = false
 		if l.source != "REPL input" {
-			return l.NewToken(token.NEWLINE, ";")
+			return []token.Token{l.NewToken(token.NEWLINE, ";")}
 		}
 	}
 
 	if l.newline {
 		l.afterWhitespace = true
 		l.newline = false
-		return l.interpretWhitespace()
+		return []token.Token{l.interpretWhitespace()}
 	}
 	l.newline = false
 	l.skipWhitespace()
@@ -70,95 +70,95 @@ func (l *Lexer) NextToken() token.Token {
 				l.whitespaceStack.Pop()
 			}
 			println("Making end, 72.")
-			return l.MakeToken(token.END, fmt.Sprint(level))
+			return []token.Token{l.MakeToken(token.END, fmt.Sprint(level))}
 		} else {
-			return l.NewToken(token.EOF, "EOF")
+			return []token.Token{l.NewToken(token.EOF, "EOF")}
 		}
 	case '\n':
-		return l.NewToken(token.NEWLINE, ";")
+		return []token.Token{l.NewToken(token.NEWLINE, ";")}
 	case '\\':
 		if l.peekChar() == '\\' {
 			l.readChar()
-			return l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))
+			return []token.Token{l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))}
 		}
 	case ';':
-		return l.NewToken(token.SEMICOLON, ";")
+		return []token.Token{l.NewToken(token.SEMICOLON, ";")}
 	case ':':
 		if l.peekChar() == ':' {
 			l.readChar()
-			return l.NewToken(token.IDENT, "::") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+			return []token.Token{l.NewToken(token.IDENT, "::")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
-			return l.NewToken(token.COLON, ":")
+			return []token.Token{l.NewToken(token.COLON, ":")}
 		}
 	case '=':
 		if l.peekChar() == '=' {
 			l.readChar()
-			return l.NewToken(token.EQ, "==") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+			return []token.Token{l.NewToken(token.EQ, "==")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
-			return l.NewToken(token.ASSIGN, "=")
+			return []token.Token{l.NewToken(token.ASSIGN, "=")}
 		}
 	case '?':
 		if l.peekChar() == '>' {
 			l.readChar()
-			return l.NewToken(token.FILTER, "?>") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+			return []token.Token{l.NewToken(token.FILTER, "?>")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		}
 	case ',':
 		if l.skipWhitespaceAfterPotentialContinuation() {
-			return l.NewToken(token.COMMA, ",")
+			return []token.Token{l.NewToken(token.COMMA, ",")}
 		} else {
-			return l.Throw("lex/comma")
+			return []token.Token{l.Throw("lex/comma")}
 		}
 	case '{':
-		return l.NewToken(token.LBRACE, "{")
+		return []token.Token{l.NewToken(token.LBRACE, "{")}
 	case '}':
-		return l.NewToken(token.RBRACE, "}")
+		return []token.Token{l.NewToken(token.RBRACE, "}")}
 	case '[':
-		return l.NewToken(token.LBRACK, "[")
+		return []token.Token{l.NewToken(token.LBRACK, "[")}
 	case ']':
-		return l.NewToken(token.RBRACK, "]")
+		return []token.Token{l.NewToken(token.RBRACK, "]")}
 	case '(':
-		return l.NewToken(token.LPAREN, "(")
+		return []token.Token{l.NewToken(token.LPAREN, "(")}
 	case ')':
-		return l.NewToken(token.RPAREN, ")")
+		return []token.Token{l.NewToken(token.RPAREN, ")")}
 	case '"':
 		s, ok := l.readFormattedString()
 		if !ok {
-			return l.Throw("lex/quote/a")
+			return []token.Token{l.Throw("lex/quote/a")}
 		}
-		return l.NewToken(token.STRING, s)
+		return []token.Token{l.NewToken(token.STRING, s)}
 	case '`':
 		s, ok := l.readPlaintextString()
 		if !ok {
-			return l.Throw("lex/quote/b")
+			return []token.Token{l.Throw("lex/quote/b")}
 		}
-		return l.NewToken(token.STRING, s)
+		return []token.Token{l.NewToken(token.STRING, s)}
 	case '\'':
 		r, ok := l.readRune()
 		if !ok {
-			return l.Throw("lex/quote/rune")
+			return []token.Token{l.Throw("lex/quote/rune")}
 		}
-		return l.NewToken(token.RUNE, r)
+		return []token.Token{l.NewToken(token.RUNE, r)}
 	case '.':
 		if l.peekChar() == '.' {
 			l.readChar()
 			if l.peekChar() == '.' {
 				l.readChar()
-				return l.NewToken(token.DOTDOTDOT, "...")
+				return []token.Token{l.NewToken(token.DOTDOTDOT, "...")}
 			}
 			if l.skipWhitespaceAfterPotentialContinuation() {
-				return l.NewToken(token.DOTDOT, "..")
+				return []token.Token{l.NewToken(token.DOTDOT, "..")}
 			} else {
-				return l.Throw("lex/cont/a")
+				return []token.Token{l.Throw("lex/cont/a")}
 			}
 		} else {
-			return l.NewToken(token.NAMESPACE_SEPARATOR, ".")
+			return []token.Token{l.NewToken(token.NAMESPACE_SEPARATOR, ".")}
 		}
 	}
 
 	// We may have a comment.
 	if l.ch == '/' && l.peekChar() == '/' {
 		l.readChar()
-		return l.NewToken(token.COMMENT, l.readComment())
+		return []token.Token{l.NewToken(token.COMMENT, l.readComment())}
 	}
 
 	// We may have a binary, octal, or hex literal.
@@ -167,21 +167,21 @@ func (l *Lexer) NextToken() token.Token {
 		case 'b':
 			numString := l.readBinaryNumber()
 			if num, err := strconv.ParseInt(numString, 2, 64); err == nil {
-				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
-			return l.Throw("lex/bin", numString)
+			return []token.Token{l.Throw("lex/bin", numString)}
 		case 'o':
 			numString := l.readOctalNumber()
 			if num, err := strconv.ParseInt(numString, 8, 64); err == nil {
-				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
-			return l.Throw("lex/oct", numString)
+			return []token.Token{l.Throw("lex/oct", numString)}
 		case 'x':
 			numString := l.readHexNumber()
 			if num, err := strconv.ParseInt(numString, 16, 64); err == nil {
-				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
-			return l.Throw("lex/hex", numString)
+			return []token.Token{l.Throw("lex/hex", numString)}
 		}
 	}
 
@@ -189,12 +189,12 @@ func (l *Lexer) NextToken() token.Token {
 	if isDigit(l.ch) {
 		numString := l.readNumber()
 		if _, err := strconv.ParseInt(numString, 0, 64); err == nil {
-			return l.NewToken(token.INT, numString)
+			return []token.Token{l.NewToken(token.INT, numString)}
 		}
 		if _, err := strconv.ParseFloat(numString, 64); err == nil {
-			return l.NewToken(token.FLOAT, numString)
+			return []token.Token{l.NewToken(token.FLOAT, numString)}
 		}
-		return l.Throw("lex/num", numString)
+		return []token.Token{l.Throw("lex/num", numString)}
 	}
 
 	// We may have an identifier, a golang block, or a snippet.
@@ -205,16 +205,16 @@ func (l *Lexer) NextToken() token.Token {
 		case token.GOCODE:
 			text := l.readGolang()
 			l.readChar()
-			return l.NewToken(tType, text)
+			return []token.Token{l.NewToken(tType, text)}
 		case token.EMDASH:
-			return l.MakeToken(tType, strings.TrimSpace(l.readSnippet()))
+			return []token.Token{l.MakeToken(tType, strings.TrimSpace(l.readSnippet()))}
 		default:
-			return l.NewToken(tType, lit)
+			return []token.Token{l.NewToken(tType, lit)}
 		}
 	}
 
 	// Or we have nothing recognizable.
-	return l.Throw("lex/ill", l.ch)
+	return []token.Token{l.Throw("lex/ill", l.ch)}
 }
 
 func (l *Lexer) interpretWhitespace() token.Token {
@@ -675,19 +675,4 @@ func (l *Lexer) Throw(errorID string, args ...any) token.Token {
 	return tok
 }
 
-func LexDump(input string) {
-	fmt.Print("\nLexer output: \n\n")
-	l := NewLexer("", input)
-	for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
-		fmt.Println(tok)
-	}
-	fmt.Println()
-}
 
-func (l *Lexer) NextNonCommentToken() token.Token {
-	for tok := l.NextToken(); ; tok = l.NextToken() {
-		if tok.Type != token.COMMENT {
-			return tok
-		}
-	}
-}

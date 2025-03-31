@@ -15,21 +15,38 @@ import "github.com/tim-hardcastle/Pipefish/source/token"
 // one at a time.
 
 // The chain is assembled by the following function.
-func makeChain(ts tokenSupplier) monotokenizer {
-	return chain(ts)
+func makeChain(ts tokenSupplier) *monotokenizer {
+	return chain(ts, &commentRelexer{})
+}
+
+// A relexer for removing comment tokens 
+type commentRelexer struct {
+	acc *tokenAccessor
+}
+
+func (r *commentRelexer) chain(ts tokenSupplier) {
+	r.acc = newAccessor(ts)
+}
+
+func (r *commentRelexer) getTokens() []token.Token {
+	for ; r.acc.tok(0).Type == token.COMMENT; r.acc.next() {}
+	result := []token.Token{r.acc.tok(0)}
+	r.acc.next()
+	return result
 }
 
 // A relexer that just passes the tokens on unaltered, for testing purposes. 
 type iotaRelexer struct {
-	acc tokenAccessor
+	acc *tokenAccessor
 }
 
-func (iR *iotaRelexer) chain(acc tokenAccessor) {
-	iR.acc = acc 
+func (r *iotaRelexer) chain(ts tokenSupplier) {
+	r.acc = newAccessor(ts)
 }
 
-func (iR *iotaRelexer) getTokens() []token.Token {
-	result := iR.acc.buffer
-	iR.acc.buffer = []token.Token{}
+func (r *iotaRelexer) getTokens() []token.Token {
+	result := r.acc.buffer
+	r.acc.buffer = []token.Token{}
 	return result
 }
+

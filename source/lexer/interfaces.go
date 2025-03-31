@@ -61,13 +61,13 @@ func (mt *monotokenizer) NextToken() token.Token {
 	return result
 }
 
-func chain(ts tokenSupplier, relexers ... relexer) monotokenizer {
+func chain(ts tokenSupplier, relexers ... relexer) *monotokenizer {
 	sup := ts
 	for _,rl := range relexers {
 		rl.chain(ts)
 		sup = rl
 	}
-	return *newMonotokenizer(sup)
+	return newMonotokenizer(sup)
 }
 
 
