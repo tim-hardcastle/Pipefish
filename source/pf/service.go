@@ -35,7 +35,7 @@ func NewService() *Service {
 
 // Initializes the service with the source code supplied in the string.
 func (sv *Service) InitializeFromCode(code string) error {
-	return sv.initialize("InitializeFromCode", code)
+	return sv.initialize("InitializeFromCode", code, &values.Map{})
 }
 
 // Initializes the service with the source code supplied in the file indicated by the filepath.
@@ -44,7 +44,23 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	if e != nil {
 		return e
 	}
-	return sv.initialize(scriptFilepath, sourcecode)
+	return sv.initialize(scriptFilepath, sourcecode, &values.Map{})
+}
+
+//The same as the previous two functions, except that we pass in a map of values to initialize
+// $store.
+// Initializes the service with the source code supplied in the string.
+func (sv *Service) InitializeFromCodeWithStore(code string, store Map) error {
+	return sv.initialize("InitializeFromCode", code, store)
+}
+
+// Initializes the service with the source code supplied in the file indicated by the filepath.
+func (sv *Service) InitializeFromFilepathWithStore(scriptFilepath string, store Map) error {
+	sourcecode, e := compiler.GetSourceCode(scriptFilepath)
+	if e != nil {
+		return e
+	}
+	return sv.initialize(scriptFilepath, sourcecode, store)
 }
 
 // Initializes the service on behalf of both the previous methods. As the
@@ -52,12 +68,12 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 // service have to be supplied as raw compilers. We pass them in, and then we
 // yoink them out at the end because the service might have started up a new
 // external service.
-func (sv *Service) initialize(scriptFilepath, sourcecode string) error {
+func (sv *Service) initialize(scriptFilepath, sourcecode string, store Map) error {
 	compilerMap := make(map[string]*compiler.Compiler)
 	for k, v := range sv.localExternals {
 		compilerMap[k] = v.cp
 	}
-	cp := initializer.StartCompiler(scriptFilepath, sourcecode, sv.db, compilerMap)
+	cp := initializer.StartCompiler(scriptFilepath, sourcecode, compilerMap, store)
 	sv.cp = cp
 	for k, v := range compilerMap {
 		sv.localExternals[k] = &Service{v, sv.localExternals, sv.db}
@@ -128,6 +144,7 @@ const (
 	MAP            Type = values.MAP
 	SET            Type = values.SET
 	LABEL          Type = values.LABEL
+	SECRET         Type = values.SECRET
 	SNIPPET        Type = values.SNIPPET
 )
 
@@ -137,14 +154,13 @@ func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
 	return vm.MakeSimpleInHandler(in)
 }
 
-// Method makes an `OutHandler` which applies Pipefish's `literal` or `string` 
+// Method makes an `OutHandler` which applies Pipefish's `literal` or `string`
 // function to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeWritingOutHandler(out io.Writer) *SimpleOutHandler {
 	return vm.MakeSimpleOutHandler(out, sv.cp.Vm)
 }
 
-
-// Method makes an `OutHandler` which applies Pipefish's `literal` or `string` 
+// Method makes an `OutHandler` which applies Pipefish's `literal` or `string`
 // function to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeTerminalOutHandler(out io.Writer) *SimpleOutHandler {
 	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm)
@@ -194,14 +210,6 @@ func (sv *Service) SetOutHandler(out vm.OutHandler) error {
 	return nil
 }
 
-// Sets the database to be used by the service.
-func (sv *Service) SetDatabase(db *sql.DB) {
-	sv.db = db
-	if sv.cp != nil {
-		sv.cp.Vm.Database = db
-	}
-}
-
 // Once the service is initialized, will interpret the string supplied as though
 // it had been entered into the REPL of the service. The error field will be non-nil
 // in the case of a compile-time error. In the case of a runtime error, it will be
@@ -224,7 +232,7 @@ func (sv *Service) Do(line string) (Value, error) {
 	if sv.cp.P.ErrorsExist() {
 		return Value{}, errors.New("error parsing input")
 	}
-	ctxt := compiler.Context{Env: sv.cp.GlobalVars, Access: compiler.REPL, LowMem: compiler.DUMMY, LogFlavor: compiler.LF_NONE}
+	ctxt := compiler.Context{Env: sv.cp.GlobalVars, Access: compiler.REPL, LowMem: compiler.DUMMY, TrackingFlavor: compiler.LF_NONE}
 	sv.cp.CompileNode(node, ctxt)
 	if sv.cp.P.ErrorsExist() {
 		return Value{}, errors.New("error compiling input")
@@ -271,8 +279,19 @@ func (sv *Service) SetVariable(vname string, ty values.ValueType, v any) error {
 	return nil
 }
 
+func (sv *Service) Store(k, v Value) error {
+	if sv.cp == nil {
+		return errors.New("service is uninitialized")
+	}
+	if sv.IsBroken() {
+		return errors.New("service is broken")
+	}
+	sv.cp.Store(k, v)
+	return nil
+}
+
 // Calls the `main` function.
-func (s *Service) CallMain() (values.Value, error) {
+func (s *Service) CallMain() (Value, error) {
 	return s.cp.CallIfExists("main")
 }
 
@@ -429,7 +448,7 @@ func (sv *Service) GetTrackingReport() (string, error) {
 	if sv.IsBroken() {
 		return "", errors.New("service is broken")
 	}
-	return sv.cp.Vm.TrackingToString(), nil
+	return sv.cp.Vm.TrackingToString(sv.cp.Vm.LiveTracking), nil
 }
 
 // Says whether pot happened when we called Do.
@@ -641,4 +660,12 @@ var DEFAULT_TYPE_FOR = map[Type]reflect.Type{
 	MAP:    reflect.TypeFor[map[any]any](),
 	SET:    reflect.TypeFor[map[any]struct{}](),
 	TUPLE:  reflect.TypeFor[[]any](),
+}
+
+// Serializes a Map of Values into newline-separated key-value pairs, encrypting if the 
+// password is non-empty, and heading the result with "PLAINTEXT\n" if the password is empty.
+// This is the only thing that can serialize the `secret` type, exposing its contents. Hence
+// if you encrypt it at the same time, then you haven't exposed its contents.
+func (sv *Service) WriteSecret(store values.Map, password string) string {
+	return sv.cp.Vm.DumpStore(store, password)
 }

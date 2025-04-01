@@ -38,6 +38,7 @@ type Relexer struct {
 	stack                  *dtypes.Stack[keepTrack]
 	source                 string
 	lexer                  Lexer
+	mt                     *monotokenizer
 	preTok, curTok, nexTok token.Token
 	ifLogHappened          bool
 	nestingLevel           int
@@ -48,11 +49,13 @@ type Relexer struct {
 
 func NewRelexer(source, input string) *Relexer {
 	l := *NewLexer(source, input)
+	mt := makeChain(&l)
 	rl := &Relexer{lexer: l,
+		mt:        mt,
 		source:    source,
 		preTok:    l.NewToken(token.NEWLINE, ";"),
-		curTok:    l.NextNonCommentToken(),
-		nexTok:    l.NextNonCommentToken(),
+		curTok:    mt.NextToken(),
+		nexTok:    mt.NextToken(),
 		funcDef:   false,
 		structDef: false,
 		Errors:    []*err.Error{},
@@ -256,18 +259,18 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 func (rl *Relexer) getToken() {
 	rl.preTok = rl.curTok
 	rl.curTok = rl.nexTok
-	rl.nexTok = rl.lexer.NextNonCommentToken()
+	rl.nexTok = rl.mt.NextToken()
 
 }
 
 func (rl *Relexer) burnToken() token.Token {
 	rl.curTok = rl.nexTok
-	rl.nexTok = rl.lexer.NextNonCommentToken()
+	rl.nexTok = rl.mt.NextToken()
 	return rl.NextSemanticToken()
 }
 
 func (rl *Relexer) burnNextToken() token.Token {
-	rl.nexTok = rl.lexer.NextNonCommentToken()
+	rl.nexTok = rl.mt.NextToken()
 	return rl.NextSemanticToken()
 }
 

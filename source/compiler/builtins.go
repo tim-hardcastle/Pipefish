@@ -38,13 +38,13 @@ var BUILTINS = map[string]functionAndReturnType{
 	"first_in_tuple":            {(*Compiler).btFirstInTuple, AltType()}, // Types need to be added by the caller.
 	"float_of_int":              {(*Compiler).btFloatOfInt, AltType(values.FLOAT)},
 	"float_of_string":           {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
-	"get_from_external":         {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"get_from_input":            {(*Compiler).btGetFromInput, AltType(values.SUCCESSFUL_VALUE)},
-	"get_from_SQL":              {(*Compiler).btGetFromSpecialSnippet, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
+	"get_sql":                   {(*Compiler).btGetFromSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"gt_floats":                 {(*Compiler).btGtFloats, AltType(values.BOOL)},
 	"gte_floats":                {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":                   {(*Compiler).btGtInts, AltType(values.BOOL)},
 	"gte_ints":                  {(*Compiler).btGteInts, AltType(values.BOOL)},
+	"intersect_sets":            {(*Compiler).btIntersectSets, AltType(values.SET)},
 	"int_of_enum":               {(*Compiler).btIntOfEnum, AltType(values.INT)},
 	"int_of_float":              {(*Compiler).btIntOfFloat, AltType(values.INT)},
 	"int_of_string":             {(*Compiler).btIntOfString, AltType(values.ERROR, values.INT)},
@@ -79,14 +79,16 @@ var BUILTINS = map[string]functionAndReturnType{
 	"negate_float":              {(*Compiler).btNegateFloat, AltType(values.FLOAT)},
 	"negate_integer":            {(*Compiler).btNegateInteger, AltType(values.INT)},
 	"post_to_output":            {(*Compiler).btPostToOutput, AltType(values.SUCCESSFUL_VALUE)},
+	"post_sql":                  {(*Compiler).btPostToSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_terminal":          {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
 	"rune":                      {(*Compiler).btRune, AltType(values.RUNE)},
-	"string":                    {(*Compiler).btString, AltType(values.STRING)},
+	"secret":				     {(*Compiler).btSecret, AltType(values.SECRET)},
 	"single_in_list":            {(*Compiler).btSingleInList, AltType(values.BOOL)},
 	"single_in_set":             {(*Compiler).btSingleInSet, AltType(values.BOOL)},
 	"single_in_tuple":           {(*Compiler).btSingleInTuple, AltType(values.BOOL)},
 	"single_in_type":            {(*Compiler).btSingleInType, AltType(values.BOOL)},
 	"subtract_floats":           {(*Compiler).btSubtractFloats, AltType(values.FLOAT)},
+	"string":                    {(*Compiler).btString, AltType(values.STRING)},
 	"struct_with":               {(*Compiler).btStructWith, AltType()},
 	"subtract_integers":         {(*Compiler).btSubtractIntegers, AltType(values.INT)},
 	"subtract_sets":             {(*Compiler).btSubtractSets, AltType(values.SET)},
@@ -204,17 +206,13 @@ func (cp *Compiler) btFloatOfString(tok *token.Token, dest uint32, args []uint32
 	cp.Emit(vm.Flts, dest, args[0])
 }
 
-func (cp *Compiler) btGetFromSpecialSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Gsnp, cp.Vm.Mem[args[0]].V.(uint32), args[2])
-	cp.Emit(vm.Qtyp, cp.Vm.Mem[args[0]].V.(uint32), uint32(values.ERROR), cp.CodeTop()+3)
-	cp.Emit(vm.Asgm, dest, cp.Vm.Mem[args[0]].V.(uint32))
-	cp.Emit(vm.Jmp, cp.CodeTop()+2)
-	cp.Emit(vm.Asgm, dest, values.C_OK)
-}
-
 func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Inpt, cp.Vm.Mem[args[0]].V.(uint32), args[2])
 	cp.Emit(vm.Asgm, dest, values.C_OK)
+}
+
+func (cp *Compiler) btGetFromSQL(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.reserveToken(tok))
 }
 
 func (cp *Compiler) btGtFloats(tok *token.Token, dest uint32, args []uint32) {
@@ -231,6 +229,10 @@ func (cp *Compiler) btGtInts(tok *token.Token, dest uint32, args []uint32) {
 
 func (cp *Compiler) btGteInts(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Gtei, dest, args[0], args[2])
+}
+
+func (cp *Compiler) btIntersectSets(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.IctS, dest, args[0], args[2])
 }
 
 func (cp *Compiler) btIntOfEnum(tok *token.Token, dest uint32, args []uint32) {
@@ -370,6 +372,10 @@ func (cp *Compiler) btPostToOutput(tok *token.Token, dest uint32, args []uint32)
 	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
+func (cp *Compiler) btPostToSQL(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Psql, dest, args[1], args[2], cp.reserveToken(tok))
+}
+
 func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Outt, args[0])
 	cp.Emit(vm.Asgm, dest, values.C_OK)
@@ -377,6 +383,10 @@ func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint3
 
 func (cp *Compiler) btRune(tok *token.Token, dest uint32, args []uint32) {
 	cp.Emit(vm.Itor, dest, args[0])
+}
+
+func (cp *Compiler) btSecret(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.MkSc, dest, args[0])
 }
 
 func (cp *Compiler) btSingleInList(tok *token.Token, dest uint32, args []uint32) {

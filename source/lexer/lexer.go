@@ -25,8 +25,6 @@ type Lexer struct {
 	whitespaceStack   dtypes.Stack[string] // levels of whitespace to unindent to
 	Ers               err.Errors
 	source            string
-	snippetWhitespace string
-	afterSnippet      bool
 }
 
 func NewLexer(source, input string) *Lexer {
@@ -44,19 +42,12 @@ func NewLexer(source, input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) NextToken() token.Token {
-
-	if l.afterSnippet {
-		l.afterSnippet = false
-		if l.source != "REPL input" {
-			return l.NewToken(token.NEWLINE, ";")
-		}
-	}
+func (l *Lexer) getTokens() []token.Token {
 
 	if l.newline {
 		l.afterWhitespace = true
 		l.newline = false
-		return l.interpretWhitespace()
+		return []token.Token{l.interpretWhitespace()}
 	}
 	l.newline = false
 	l.skipWhitespace()
@@ -69,95 +60,96 @@ func (l *Lexer) NextToken() token.Token {
 			for i := 0; i < level; i++ {
 				l.whitespaceStack.Pop()
 			}
-			return l.MakeToken(token.END, fmt.Sprint(level))
+			println("Making end, 72.")
+			return []token.Token{l.MakeToken(token.END, fmt.Sprint(level))}
 		} else {
-			return l.NewToken(token.EOF, "EOF")
+			return []token.Token{l.NewToken(token.EOF, "EOF")}
 		}
 	case '\n':
-		return l.NewToken(token.NEWLINE, ";")
+		return []token.Token{l.NewToken(token.NEWLINE, ";")}
 	case '\\':
 		if l.peekChar() == '\\' {
 			l.readChar()
-			return l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))
+			return []token.Token{l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))}
 		}
 	case ';':
-		return l.NewToken(token.SEMICOLON, ";")
+		return []token.Token{l.NewToken(token.SEMICOLON, ";")}
 	case ':':
 		if l.peekChar() == ':' {
 			l.readChar()
-			return l.NewToken(token.IDENT, "::") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+			return []token.Token{l.NewToken(token.IDENT, "::")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
-			return l.NewToken(token.COLON, ":")
+			return []token.Token{l.NewToken(token.COLON, ":")}
 		}
 	case '=':
 		if l.peekChar() == '=' {
 			l.readChar()
-			return l.NewToken(token.EQ, "==") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+			return []token.Token{l.NewToken(token.EQ, "==")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
-			return l.NewToken(token.ASSIGN, "=")
+			return []token.Token{l.NewToken(token.ASSIGN, "=")}
 		}
 	case '?':
 		if l.peekChar() == '>' {
 			l.readChar()
-			return l.NewToken(token.FILTER, "?>") // We return this as a regular identifier so we can define the '::' operator as a builtin.
+			return []token.Token{l.NewToken(token.FILTER, "?>")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		}
 	case ',':
 		if l.skipWhitespaceAfterPotentialContinuation() {
-			return l.NewToken(token.COMMA, ",")
+			return []token.Token{l.NewToken(token.COMMA, ",")}
 		} else {
-			return l.Throw("lex/comma")
+			return []token.Token{l.Throw("lex/comma")}
 		}
 	case '{':
-		return l.NewToken(token.LBRACE, "{")
+		return []token.Token{l.NewToken(token.LBRACE, "{")}
 	case '}':
-		return l.NewToken(token.RBRACE, "}")
+		return []token.Token{l.NewToken(token.RBRACE, "}")}
 	case '[':
-		return l.NewToken(token.LBRACK, "[")
+		return []token.Token{l.NewToken(token.LBRACK, "[")}
 	case ']':
-		return l.NewToken(token.RBRACK, "]")
+		return []token.Token{l.NewToken(token.RBRACK, "]")}
 	case '(':
-		return l.NewToken(token.LPAREN, "(")
+		return []token.Token{l.NewToken(token.LPAREN, "(")}
 	case ')':
-		return l.NewToken(token.RPAREN, ")")
+		return []token.Token{l.NewToken(token.RPAREN, ")")}
 	case '"':
 		s, ok := l.readFormattedString()
 		if !ok {
-			return l.Throw("lex/quote/a")
+			return []token.Token{l.Throw("lex/quote/a")}
 		}
-		return l.NewToken(token.STRING, s)
+		return []token.Token{l.NewToken(token.STRING, s)}
 	case '`':
 		s, ok := l.readPlaintextString()
 		if !ok {
-			return l.Throw("lex/quote/b")
+			return []token.Token{l.Throw("lex/quote/b")}
 		}
-		return l.NewToken(token.STRING, s)
+		return []token.Token{l.NewToken(token.STRING, s)}
 	case '\'':
 		r, ok := l.readRune()
 		if !ok {
-			return l.Throw("lex/quote/rune")
+			return []token.Token{l.Throw("lex/quote/rune")}
 		}
-		return l.NewToken(token.RUNE, r)
+		return []token.Token{l.NewToken(token.RUNE, r)}
 	case '.':
 		if l.peekChar() == '.' {
 			l.readChar()
 			if l.peekChar() == '.' {
 				l.readChar()
-				return l.NewToken(token.DOTDOTDOT, "...")
+				return []token.Token{l.NewToken(token.DOTDOTDOT, "...")}
 			}
 			if l.skipWhitespaceAfterPotentialContinuation() {
-				return l.NewToken(token.DOTDOT, "..")
+				return []token.Token{l.NewToken(token.DOTDOT, "..")}
 			} else {
-				return l.Throw("lex/cont/a")
+				return []token.Token{l.Throw("lex/cont/a")}
 			}
 		} else {
-			return l.NewToken(token.NAMESPACE_SEPARATOR, ".")
+			return []token.Token{l.NewToken(token.NAMESPACE_SEPARATOR, ".")}
 		}
 	}
 
 	// We may have a comment.
 	if l.ch == '/' && l.peekChar() == '/' {
 		l.readChar()
-		return l.NewToken(token.COMMENT, l.readComment())
+		return []token.Token{l.NewToken(token.COMMENT, l.readComment())}
 	}
 
 	// We may have a binary, octal, or hex literal.
@@ -166,21 +158,21 @@ func (l *Lexer) NextToken() token.Token {
 		case 'b':
 			numString := l.readBinaryNumber()
 			if num, err := strconv.ParseInt(numString, 2, 64); err == nil {
-				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
-			return l.Throw("lex/bin", numString)
+			return []token.Token{l.Throw("lex/bin", numString)}
 		case 'o':
 			numString := l.readOctalNumber()
 			if num, err := strconv.ParseInt(numString, 8, 64); err == nil {
-				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
-			return l.Throw("lex/oct", numString)
+			return []token.Token{l.Throw("lex/oct", numString)}
 		case 'x':
 			numString := l.readHexNumber()
 			if num, err := strconv.ParseInt(numString, 16, 64); err == nil {
-				return l.NewToken(token.INT, strconv.FormatInt(num, 10))
+				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
-			return l.Throw("lex/hex", numString)
+			return []token.Token{l.Throw("lex/hex", numString)}
 		}
 	}
 
@@ -188,12 +180,12 @@ func (l *Lexer) NextToken() token.Token {
 	if isDigit(l.ch) {
 		numString := l.readNumber()
 		if _, err := strconv.ParseInt(numString, 0, 64); err == nil {
-			return l.NewToken(token.INT, numString)
+			return []token.Token{l.NewToken(token.INT, numString)}
 		}
 		if _, err := strconv.ParseFloat(numString, 64); err == nil {
-			return l.NewToken(token.FLOAT, numString)
+			return []token.Token{l.NewToken(token.FLOAT, numString)}
 		}
-		return l.Throw("lex/num", numString)
+		return []token.Token{l.Throw("lex/num", numString)}
 	}
 
 	// We may have an identifier, a golang block, or a snippet.
@@ -204,16 +196,24 @@ func (l *Lexer) NextToken() token.Token {
 		case token.GOCODE:
 			text := l.readGolang()
 			l.readChar()
-			return l.NewToken(tType, text)
+			return []token.Token{l.NewToken(tType, text)}
 		case token.EMDASH:
-			return l.MakeToken(tType, strings.TrimSpace(l.readSnippet()))
+			str, outdent := l.readSnippet()
+			if outdent <= 0 {
+				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)),
+					l.MakeToken(token.NEWLINE, ";")}
+			} else {
+				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)), 
+					l.MakeToken(token.END, fmt.Sprint(outdent)),
+					l.MakeToken(token.NEWLINE, ";")}
+			}
 		default:
-			return l.NewToken(tType, lit)
+			return []token.Token{l.NewToken(tType, lit)}
 		}
 	}
 
 	// Or we have nothing recognizable.
-	return l.Throw("lex/ill", l.ch)
+	return []token.Token{l.Throw("lex/ill", l.ch)}
 }
 
 func (l *Lexer) interpretWhitespace() token.Token {
@@ -224,10 +224,6 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	for l.ch == ' ' || l.ch == '\t' {
 		whitespace = whitespace + string(l.ch)
 		l.readChar()
-	}
-	if l.snippetWhitespace != "" {
-		whitespace = l.snippetWhitespace
-		l.snippetWhitespace = ""
 	}
 	if l.ch == '\n' {
 		return l.NewToken(token.NO_INDENT, "|||")
@@ -264,11 +260,20 @@ func (l *Lexer) interpretWhitespace() token.Token {
 var whitespaceDescriptions = map[rune]string{' ': "space", '\n': "newline", '\t': "tab"}
 
 func describeWhitespace(s string) string {
+	if len(s) == 0 {
+		return "no indentation"
+	}
+	if len(s) == 1 {
+		return "1 " + whitespaceDescriptions[rune(s[0])]
+	}
 	result := ""
-	cur := '#' // We could use any character that isn't whitespace.
-	count := 0
-	for i, ch := range s {
-		if ch != cur || i == len(s)-1 {
+	cur := rune(s[0]) //
+	count := 1
+	for i, ch := range s[1:] {
+		if ch != cur || i == len(s)-2 {
+			if i == len(s)-2 {
+				count++
+			}
 			singular := whitespaceDescriptions[ch]
 			result = result + strconv.Itoa(count) + " " + singular
 			if count > 1 {
@@ -282,9 +287,6 @@ func describeWhitespace(s string) string {
 		} else {
 			count++
 		}
-	}
-	if result == "" {
-		result = "no indentation"
 	}
 	return result
 }
@@ -391,16 +393,15 @@ func (l *Lexer) readComment() string {
 	return result
 }
 
-func (l *Lexer) readSnippet() string {
+func (l *Lexer) readSnippet() (string, int) {
 	// Note --- what we return from this is followed by makeToken, which doesn't read a character, rather than NewToken, which does.
 	// This is because we may end up in a position where we've just realized that we've unindented. (See other use of MakeChar.)
-	l.afterSnippet = true
 	result := ""
 	for l.peekChar() == ' ' || l.peekChar() == '\t' { // We consume the whitespace between the emdash and either a non-whitespace character or a newline.
 		l.readChar()
 	}
 	// There are two possibilities. Either we found a non-whitespace character, and the whole snippet is on the same line as the
-	// `---` token, or we found a newline and the snipped is an indent on the succeeding lines. Just like with a colon.
+	// `---` token, or we found a newline and the snippet is an indent on the succeeding lines. Just like with a colon.
 	if l.peekChar() == '\n' || l.peekChar() == '\r' { // --- then we have to mess with whitespace.
 		for l.peekChar() == '\n' || l.peekChar() == '\r' {
 			l.readChar()
@@ -419,23 +420,25 @@ func (l *Lexer) readSnippet() string {
 			if langIndent == "" { // Then this is the first time around.
 				if currentWhitespace == "" {
 					l.Throw("lex/emdash/indent/a", l.NewToken(token.ILLEGAL, "bad emdash"))
-					return result
+					return result, -1
 				}
 				langIndent = currentWhitespace
 				if langIndent == stackTop {
 					l.Throw("lex/emdash/indent/b", l.NewToken(token.ILLEGAL, "bad emdash"))
-					return result
+					return result, -1
 				}
 			}
 			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(rune(0)) { // Then we've unindented. Dobby is free!
-				if currentWhitespace != "\n" && currentWhitespace != "\r" && currentWhitespace == string(rune(0)) {
-					l.snippetWhitespace = currentWhitespace
+				if currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(rune(0)) {
+					currentWhitespace = ""
 				}
-				return result
+				outdent := l.whitespaceStack.Find(currentWhitespace)
+				l.whitespaceStack.Take(outdent)
+				return result, outdent
 			}
 			if !strings.HasPrefix(currentWhitespace, stackTop) && !(currentWhitespace == "\n") {
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "bad emdash"))
-				return result
+				return result, -1
 			}
 			for l.peekChar() != '\n' && l.peekChar() != '\r' && l.peekChar() != 0 {
 				l.readChar()
@@ -443,7 +446,9 @@ func (l *Lexer) readSnippet() string {
 			}
 			if l.peekChar() == 0 {
 				l.readChar()
-				return result
+				cstackHeight := l.whitespaceStack.Find("")
+				l.whitespaceStack.Take(cstackHeight)
+				return result, cstackHeight
 			}
 			l.readChar()
 			result = result + "\n"
@@ -454,7 +459,7 @@ func (l *Lexer) readSnippet() string {
 			result = result + string(l.ch)
 		}
 		l.readChar()
-		return result
+		return result, -1
 	}
 }
 
@@ -668,19 +673,4 @@ func (l *Lexer) Throw(errorID string, args ...any) token.Token {
 	return tok
 }
 
-func LexDump(input string) {
-	fmt.Print("\nLexer output: \n\n")
-	l := NewLexer("", input)
-	for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
-		fmt.Println(tok)
-	}
-	fmt.Println()
-}
 
-func (l *Lexer) NextNonCommentToken() token.Token {
-	for tok := l.NextToken(); ; tok = l.NextToken() {
-		if tok.Type != token.COMMENT {
-			return tok
-		}
-	}
-}

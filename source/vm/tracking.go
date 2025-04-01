@@ -12,9 +12,10 @@ import (
 // This file supplies resources for generating racking information at runtims.
 
 type TrackingData struct {
-	Flavor TrackingFlavor
-	Tok    *token.Token
-	Args   []any
+	Flavor    TrackingFlavor
+	Tok       *token.Token
+	LogToLoc  uint32 // The memory location in the compiler 
+	Args      []any
 }
 
 type TrackingFlavor int
@@ -35,13 +36,12 @@ func (vm *Vm) trackingIs(i int, tf TrackingFlavor) bool {
 	return vm.LiveTracking[i].Flavor == tf
 }
 
-func (vm *Vm) TrackingToString() string {
-	if len(vm.LiveTracking) == 0 {
+func (vm *Vm) TrackingToString(tdL []TrackingData) string {
+	if len(tdL) == 0 {
 		return ("\nNo tracking data exists.\n")
 	}
 	var out bytes.Buffer
-	out.WriteString("\n")
-	for i, td := range vm.LiveTracking {
+	for i, td := range tdL {
 		args := td.Args
 		switch td.Flavor {
 		case TR_CONDITION:

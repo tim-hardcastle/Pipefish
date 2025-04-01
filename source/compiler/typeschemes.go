@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
@@ -42,6 +43,7 @@ var INITIAL_TYPE_SCHEMES = map[string]AlternateType{
 	"set":      AltType(values.SET),
 	"label":    AltType(values.LABEL),
 	"snippet":  AltType(values.SNIPPET),
+	"secret":   AltType(values.SECRET),
 	"func":     AltType(values.FUNC),
 	"int?":     AltType(values.NULL, values.INT),
 	"string?":  AltType(values.NULL, values.STRING),
@@ -55,6 +57,7 @@ var INITIAL_TYPE_SCHEMES = map[string]AlternateType{
 	"label?":   AltType(values.NULL, values.LABEL),
 	"func?":    AltType(values.NULL, values.FUNC),
 	"snippet?": AltType(values.NULL, values.SNIPPET),
+	"secret?":  AltType(values.NULL, values.SECRET),
 	"null":     AltType(values.NULL),
 }
 
@@ -107,6 +110,10 @@ func maxLengthsOrMinusOne(s dtypes.Set[int]) int {
 		}
 	}
 	return max
+}
+
+func Describe(t TypeScheme, mc *vm.Vm) string {
+	return t.describe(mc)
 }
 
 func Equals(t, u TypeScheme) bool {
@@ -286,7 +293,14 @@ func (aT AlternateType) describe(mc *vm.Vm) string {
 	var buf strings.Builder
 	var sep string
 	for _, v := range aT {
-		fmt.Fprintf(&buf, "%s%s", sep, v.describe(mc))
+		fmt.Fprint(&buf, sep)
+		if _, ok := v.(FiniteTupleType); ok {
+			fmt.Fprint(&buf, "(")
+		}
+		fmt.Fprint(&buf, v.describe(mc))
+		if _, ok := v.(FiniteTupleType); ok {
+			fmt.Fprint(&buf, ")")
+		}
 		sep = "/"
 	}
 	return buf.String()
@@ -341,6 +355,19 @@ func (aT AlternateType) isOnly(vt values.ValueType) bool {
 		switch el := aT[0].(type) {
 		case SimpleType:
 			return el == t
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func (aT AlternateType) areOnly(vts ...values.ValueType) bool {
+	types := dtypes.MakeFromSlice(vts)
+	for _, el := range aT {
+		switch el := el.(type) {
+		case SimpleType:
+			return types.Contains(values.ValueType(el))
 		default:
 			return false
 		}
@@ -599,23 +626,23 @@ func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) st
 			bling, thisIsBling = v[0].(blingType)
 		}
 		if !(lastWasBling || thisIsBling) {
-			fmt.Fprintf(&buf, ",")
+			fmt.Fprint(&buf, ",")
 		}
 		if thisIsBling && bling.tag == infix {
 			specialBlingHasHappened = true
-			fmt.Fprintf(&buf, "' on the left of it and '") // The ' characters will sneakily interact with emph in the errorfile.
+			fmt.Fprint(&buf, "' on the left of it and '") // The ' characters will sneakily interact with emph in the errorfile.
 		} else {
 			if i > 0 && !specialBlingJustHappened {
-				fmt.Fprintf(&buf, " ")
+				fmt.Fprint(&buf, " ")
 			}
-			fmt.Fprintf(&buf, v.describe(mc))
+			fmt.Fprint(&buf, v.describe(mc))
 		}
 		lastWasBling = thisIsBling
 		specialBlingJustHappened = thisIsBling && bling.tag == infix
 	}
-	fmt.Fprintf(&buf, "'")
+	fmt.Fprint(&buf, "'")
 	if specialBlingHasHappened {
-		fmt.Fprintf(&buf, " on the right")
+		fmt.Fprint(&buf, " on the right")
 	}
 	return buf.String()
 }
@@ -690,6 +717,9 @@ func (bT blingType) IsPrivate(mc *vm.Vm) bool {
 }
 
 func AltType(t ...values.ValueType) AlternateType {
+	sort.Slice(t, func(i, j int) bool {
+		return t[i] < t[j]
+	})
 	result := make(AlternateType, len(t))
 	for i, v := range t {
 		result[i] = SimpleType(v)

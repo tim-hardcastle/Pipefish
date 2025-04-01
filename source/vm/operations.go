@@ -102,6 +102,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Andb: {"andb", operands{dst, mem, mem}},
 	Aref: {"aref", operands{dst, mem}},
 	Asgm: {"asgm", operands{dst, mem}},
+	Auto: {"auto", operands{trk}},
 	Bcon: {"bcon", operands{dst, mem}},
 	Bsql: {"bsql", operands{dst, mem}},
 	Call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
@@ -132,8 +133,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Extn: {"extn", operands{dst, mem, mem, mem, mem, tup}}, // Operands are: the external service to call; whether the function is PREFIX, INFIX, or POSTFIX; the remainder of the namespace of the function as a string; the name of the function as a string; the locations of the arguments.
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
-	Gsnp: {"gsnp", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, mem, gfn, tup}}, // Mem contains the location of a *mutable* error, i.e. we will copy its token but change its contents when returning it. 
+	Gsql: {"gsql", operands{dst, mem, mem, mem, mem, tok}},
 	Gtef: {"gtef", operands{dst, mem, mem}},
 	Gtei: {"gtei", operands{dst, mem, mem}},
 	Gthf: {"gthf", operands{dst, mem, mem}},
@@ -173,7 +174,6 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Litx: {"litx", operands{dst, mem}},
 	List: {"list", operands{dst, mem}},
 	LnSn: {"lnSn", operands{dst, mem}},
-	Log:  {"log", operands{mem}},
 	Logn: {"logn", operands{}},
 	Logy: {"logy", operands{}},
 	Mker: {"mker", operands{dst, mem, tok}},
@@ -181,6 +181,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Mkit: {"mkit", operands{dst, mem, num, tok}}, // the num is 0 or 1 according to whether the iterator doesn't or does only return keys.
 	Mkmp: {"mkmp", operands{dst, mem, tok}},
 	Mkpr: {"mkpr", operands{dst, mem, mem}},
+	MkSc: {"mkSn", operands{dst, sfc}},
 	MkSn: {"mkSn", operands{dst, sfc}},
 	Mkst: {"mkst", operands{dst, mem, tok}},
 	Modi: {"modi", operands{dst, mem, mem, tok}},
@@ -211,6 +212,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Qvch: {"qvch", operands{mem, num, loc}},
 	Qvcq: {"qvcq", operands{mem, num, loc}},
+	Psql: {"gsql", operands{dst, mem, mem, tok}},
 	Ret:  {"ret", operands{}},
 	Rpop: {"rpop", operands{}},
 	Rpsh: {"rpsh", operands{num, num}},
@@ -270,6 +272,7 @@ const (
 	Andb
 	Aref
 	Asgm
+	Auto
 	Bcon
 	Bsql
 	Cc11
@@ -302,11 +305,12 @@ const (
 	Flti
 	Flts
 	Gofn
-	Gsnp
+	Gsql
 	Gtef
 	Gtei
 	Gthf
 	Gthi
+	IctS
 	IdxL
 	IdxM
 	Idxp
@@ -343,7 +347,6 @@ const (
 	List
 	Litx
 	LnSn
-	Log
 	Logn
 	Logy
 	Mker
@@ -351,6 +354,7 @@ const (
 	Mkit
 	Mkmp
 	Mkpr
+	MkSc
 	MkSn
 	Mkst
 	Mlfi
@@ -363,6 +367,7 @@ const (
 	Orb
 	Outp
 	Outt
+	Psql
 	Qabt
 	Qfls
 	Qitr

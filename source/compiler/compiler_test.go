@@ -466,3 +466,9 @@ func TestGocode(t *testing.T) {
 	os.Remove(goTestFile)
 	os.WriteFile(locationOfGoTimes, temp, 0644)
 }
+func TestLogging(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`foo 8`, test_helper.Foo8Result},
+	}
+	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
+}

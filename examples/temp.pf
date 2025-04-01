@@ -1,0 +1,6 @@
+cmd
+
+foo :       
+    post -- zort
+    post "troz"
+

@@ -1,12 +1,6 @@
 import 
 
-"phonemes.pf"
-
-newtype
-
-Token = struct(tokenType TokenType, value any?, lineNumber int)
-TokenType = enum WORD, NUMBER, SYMBOL, EOL
-RuneType = enum ALPHABETIC, NUMERAL, PUNCTUATION, WHITESPACE, NEWLINE
+pho::"phonemes.pf"
 
 var 
 
@@ -17,31 +11,215 @@ cmd
 add(sn snippet) :
     words = combine words, (sn -> tokenize -> parseWordList)
 
-show vocab :
+vocab :
     post display words
 
-def 
+phonemes(sn snippet) :
+    post (sn -> prs -> evaluateSet)
+
+// Evaluator
+
+// The Neogram DSL is structured, and not every expression makes sense in every 
+// context.
+
+// This evaluates the description of a set of phonemes. Therefore the allowed
+// literals are individual phonemes and phoneme classes, and the allowed operators
+// are '/','or', and '&'. Parentheses will already have been parsed away to 
+// produce the AST/ Note that as '/' and 'or' are distinguished only by their
+// precedence, and since this distinction will have already been made by the parser,
+// we can by this point treat them the same.
+
+def
+
+ev(sn snippet) :
+    sn -> prs -> evaluateCommaSeparatedSets(that, WITH_NUMBER)
+
+evaluateSet(node Node) -> set :
+    type node == PhonemeNode :
+        set(node[phoneme])
+    type node == ClassNode :
+        pho.MAP[node[class]]
+    type node == BinaryNode :
+        node[operator] in set("/", "or") :
+            evaluateSet(node[left]) + evaluateSet(node[right])
+        node[operator] == "&" :
+            evaluateSet(node[left]) /\ evaluateSet(node[right])
+    else :
+        error "can't evaluate '" + string(node[token][value]) + ..
+           .. "' as part of definition of set of phonemes at line " + ..
+           .. string(node[token][lineNumber])
+
+newtype 
+
+// On the left-hand-side of a phonetic change, the phoneme sets may optionally
+// be decorated with a prefix giving the position : initial, medial, final,
+// non-initial, non-final, any. Whereas on the right-hand side it may optionally 
+// be decorated with a number saying which capture group we're referring to, in 
+// case we use them out of order, e.g. : 'unvoiced fricative . 2'
+
+SetFlavor = enum WITH_POSITION, WITH_NUMBER 
+Position = enum ANY, INITIAL, MEDIAL, FINAL, NON_INITIAL, NON_FINAL
+TaggedSet = struct(phSet set, position Position)
+NumberedSet = struct(phSet set, number int)
+
+def
+
+evaluateCommaSeparatedSets(node Node, flavor SetFlavor) -> list :
+    (type node == BinaryNode) and (node[operator] == ",") :
+        evaluateCommaSeparatedSets(node[left], flavor) ..
+        .. + evaluateCommaSeparatedSets(node[right], flavor)
+    else :
+        [evaluateSetWithPositionOrNumber(node, flavor)]
+
+evaluateSetWithPositionOrNumber(node Node, flavor SetFlavor) :
+    flavor == WITH_NUMBER :
+        (type node == BinaryNode) and (node[operator] == ".") .. 
+        .. and (type node[right] == NumberNode) :
+            NumberedSet(evaluateSet(node[left]), node[right][value])
+        else :
+            NumberedSet(evaluateSet(node), -1)
+    else :
+        type node == PrefixNode :
+            TaggedSet(evaluateSet(node[argument]), PREFIXES[node[prefix]])
+        else :
+            TaggedSet(evaluateSet(node), ANY)
+
+// Parser for sound changes 
+
+newtype 
+
+PhonemeNode = struct(token Token, phoneme string)
+ClassNode = struct(token Token, class string)
+NumberNode = struct(token Token, value int)
+BinaryNode = struct(token Token, operator string, left, right Node)
+PrefixNode = struct(token Token, prefix string, argument Node)
+EmptyNode = struct(token Token)
+
+Node = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/PrefixNode/EmptyNode
+
+const 
+
+PRECEDENCE = map(">"::1, ","::2, "."::3, "PREFIXES"::4, "or"::5, "&"::6, "/"::7)
+EMPTY_NODE = EmptyNode(Token(EMPTY, NULL, 0))
+AND_TOKEN = [Token(OPERATOR, "&", 0)] // For adding as an implicit "&".
+PREFIXES = map("any"::ANY,
+            .. "initial"::INITIAL, 
+            .. "medial"::MEDIAL,
+            .. "final"::FINAL,
+            .. "non-initial"::NON_INITIAL, 
+            .. "non-final"::NON_FINAL)
+
+def
+
+prs(sn snippet) :
+    sn -> glue -> lex -> parse(that, 0, EMPTY_NODE) -> that[2]
+
+// TODO --- why is 'tokens' of type 'any' and not of type 'list'?
+parse(tokens any, precedence int, leftNode Node) -> list, int, Node :
+    tokens == [] or headType in set(EOL, R_PAREN) or ..
+    .. false :
+        tokens, 0, leftNode
+    headType == OPERATOR :
+        parse infixExpression(tokens, precedence, leftNode)
+    type leftNode != EmptyNode : // Then we have an error or an implicit "&" operator.
+        headType in set(WORD, L_PAREN) :
+            parse infixExpression(AND_TOKEN + tokens, precedence, leftNode)
+        else: 
+            error "unexpected '" + string(headValue) + "' at line " + string(head[lineNumber])
+    headType in set(WORD, NUMBER) :
+        headValue in keys(PREFIXES) :
+            parse prefixExpression(tokens)
+        else :
+            parse literalExpression(tokens, precedence)
+    headType == L_PAREN :
+        parse groupedExpression(tokens, precedence)
+    else :
+        error "neogram doesn't understand " + string(headValue) + ..
+           .. " at line " + string(head[lineNumber])
+given :
+    head = tokens[0]
+    headType = head[tokenType]
+    headValue = head[value]
+
+infixExpression(tokens list, precedence int, leftNode Node) -> list, int, Node :
+    remainingTokens, newPrecedence, BinaryNode(tokens[0], tokens[0][value], leftNode, rightNode) 
+given :
+    remainingTokens, newPrecedence, rightNode ..
+        .. = parse(tokens[1::len(tokens)], PRECEDENCE[tokens[0][value]], EMPTY_NODE)
+
+literalExpression(tokens list, precedence int) -> list, int, Node : 
+    nextToken[tokenType] == OPERATOR and PRECEDENCE[nextToken[value]] > precedence:
+        infixExpression(tail, PRECEDENCE[nextToken[value]], thisNode) 
+    else : 
+        tail, 0, thisNode 
+given:
+    nextToken = tokens[1]
+    tail = tokens[1::len(tokens)]
+    thisNode = makeNode(tokens[0])
+
+// Makes a literal node from a token.
+makeNode(aToken Token) -> Node : 
+    aToken[tokenType] == NUMBER :
+        NumberNode(aToken, val)
+    val in pho.PHONEME :
+        PhonemeNode(aToken, val)
+    val in keys pho.MAP :
+        ClassNode(aToken, val)
+    else :
+        error "can't parse " + string(val) + " at line " + string(aToken[lineNumber])
+given :
+    val = aToken[value]
+
+prefixExpression(tokens list) -> list, int, Node : 
+    remainingToks, newPrec, PrefixNode(tokens[0], tokens[0][value], arg) 
+given :
+    remainingToks, newPrec, arg = parse(tokens[1::len(tokens)], PRECEDENCE["PREFIXES"], EMPTY_NODE)
+
+groupedExpression(tokens list, precedence int) -> list, int, Node : 
+    remainingTokens[1::len(that)], precedence, groupNode
+given :
+    remainingTokens, _, groupNode = parse(tokens[1::len(that)], 0, EMPTY_NODE)
+
+// For parsing lists of words for 'add' or 'retcon'.
+
+def
+
+parseWordList(toks list) -> map :
+    from result = map() for _::i = range 0::(len(toks) div 4) :
+        4 * i + 3 > len(toks) or toks[4 * i + 3][tokenType] != EOL :
+            error "malformed definition at line " + line + " of snippet"
+        toks[4 * i][tokenType] != WORD :
+            error "expected a word at start of line " + line + " of snippet"
+        toks[4 * i + 1][tokenType] != WORD or  toks[4 * i + 1][value] != "-" :
+            error "expected a '-' to separate words at " + line + " of snippet"
+        toks[4 * i + 2][tokenType] != WORD :
+            error "expected a word after '-' at line " + line + " of snippet" 
+        else :
+            result with toks[4 * i][value]::toks[4 * i + 2][value]
+    given : 
+        line = string(toks[4 * i][lineNumber])
 
 combine(M, N map) :
     from m = M for k::v = range N :
         m with k::v
 
-tokenize(sn snippet) :
-    sn -> glue -> lex
-
-glue(sn snippet) :
-    from str = "" for _::el = range sn :
-        str + string(el)
-
 // Lexer
+
+newtype
+
+Token = struct(tokenType TokenType, value any?, lineNumber int)
+TokenType = enum EMPTY, WORD, NUMBER, OPERATOR, L_PAREN, R_PAREN, EOL
+RuneType = enum ALPHABETIC, NUMERAL, SYMBOL, WHITESPACE, NEWLINE
+
+def
 
 runeType(r rune) :
     r in set(' ', '\t', '\r') :
         WHITESPACE
     r == '\n' :
         NEWLINE
-    r in set('(', ')', '+', '/', ',') :
-        PUNCTUATION
+    r in set('(', ')', '+', '/', ',', '&', '.') :
+        SYMBOL
     65 <= cp and cp < 91 :
         ALPHABETIC
     97 <= cp and cp < 123 :
@@ -65,7 +243,7 @@ lex(s string) :
             else :
                 L, word + r, line
         else :
-            rType == PUNCTUATION :
+            rType == SYMBOL :
                 L + [makeTok(word, line)], "" + r, line
             rType != wType :
                 rType == WHITESPACE :
@@ -81,34 +259,31 @@ lex(s string) :
         wType = runeType(word[0])        
 
 makeTok(word string, line int) :
+    word in keys(PRECEDENCE) :
+        Token(OPERATOR, word, line)
+    word == "(" :
+        Token(L_PAREN, "(", line)
+    word == ")" :
+        Token(R_PAREN, ")", line)
     wType == NEWLINE :
         Token(EOL, NULL, line)
     wType == NUMERAL :
         Token(NUMBER, int(word), line)
     wType == ALPHABETIC :
         Token(WORD, word, line)
-    wType == PUNCTUATION :
-        Token(SYMBOL, word, line)
     else :
         error "Can't lex '" + word + "'"
 given :
     wType = runeType word[0]
 
-// For parsing lists of words for 'add' or 'retcon'.
-parseWordList(toks list) -> map :
-    from result = map() for _::i = range 0::(len(toks) div 4) :
-        4 * i + 3 > len(toks) or toks[4 * i + 3][tokenType] != EOL :
-            error "malformed definition at line " + line + " of snippet"
-        toks[4 * i][tokenType] != WORD :
-            error "expected a word at start of line " + line + " of snippet"
-        toks[4 * i + 1][tokenType] != WORD or  toks[4 * i + 1][value] != "-" :
-            error "expected a '-' to separate words at " + line + " of snippet"
-        toks[4 * i + 2][tokenType] != WORD :
-            error "expected a word after '-' at line " + line + " of snippet" 
-        else :
-            result with toks[4 * i][value]::toks[4 * i + 2][value]
-    given : 
-        line = string(toks[4 * i][lineNumber])
+tokenize(sn snippet) :
+    sn -> glue -> lex
+
+glue(sn snippet) :
+    from str = "" for _::el = range sn :
+        str + string(el)
+
+// Displays word lists.
 
 const 
 
@@ -136,67 +311,20 @@ pad(s string) :
         from result = s for _::i = range 0::(WIDTH - len s) :
             result + " "
 
-// Parser for sound changes 
-
-newtype 
-
-PhonemeNode = struct(phoneme string, tok Token)
-ClassNode = struct(class string, tok Token)
-NumberNode = struct(value int, tok Token)
-BinaryNode = struct(operator string, left, right AST, tok Token)
-EmptyNode = struct()
-
-AST = abstract PhonemeNode/ClassNode/NumberNode/BinaryNode/EmptyNode
-
-def
-
-prs(sn snippet) :
-    sn -> glue -> lex -> parse(EmptyNode(), that, 0) -> first
-
-parse(ast AST, toks list, precedence int) -> AST, list, int :
-    headType == EOL :
-        ast, toks, 0
-    headType in set(WORD, NUMBER) :
-        parse parseWordOrNumber(ast, toks, precedence)
-    headType == SYMBOL :
-        parse parseSymbol(ast, toks, precedence)
-given :
-    head = toks[0]
-    headType = head[tokenType]
-
-const 
-
-PRECEDENCE = map(">"::1, ","::2, "/"::3, "&"::6)
-
-def
-
-parseWordOrNumber(ast AST, toks list, precedence int) :
-    peekType in set(WORD, NUMBER) : // Then we have an implicit "and".
-        BinaryNode("&", ast, rhs, toks[0]), remainder, 6
-    peekType in set(SYMBOL) and peekPrec > precedence :
-        BinaryNode(headOp, ast, rhs), remainder, peekPrec
-    headType == NUMBER :
-        NumberNode()
-    headValue in phonemes.PHONEME :
-        PhonemeNode(headValue, head, tok[0]), tail, 0
-    headValue in keys phonemes.MAP :
-        ClassNode(headValue, head, tok[0]), tail, 0
+// Prettyprints an AST.
+pp(node Node) :
+    type node == NumberNode :
+        string(node[value])
+    type node == PhonemeNode :
+        node[phoneme]
+    type node == ClassNode :
+        node[class]
+    type node == BinaryNode :
+        "(" + pp(node[left]) + ") " + node[operator] ..
+        .. + " (" + pp(node[right]) + ")"
+    type node == PrefixNode :
+        node[prefix] + " (" + pp(node[argument]) + ")"
+    type node == EmptyNode :
+        "<EMPTY NODE>"
     else :
-        error "can't parse " + headValue + " as phoneme or class at line " ..
-                ..+ line + " of snippet"
-given :
-    headValue = toks[0][value]
-    peekOp = toks[1][value]
-    headType = toks[0][tokenType]
-    peekType = toks[1][tokenType]
-    peekPrec = (peekType == SYMBOL : PRECEDENCE[toks[1][operator]]; else : 0)
-    line = string(toks[0][lineNumber])
-    tail = toks[1::(len toks)]
-    rhs, remainder, _ = (parse(EmptyNode(), toks[1::(len toks)], peekPrec))
-
-parseSymbol(ast AST, toks list, precedence int) :
-    BinaryNode(headOp, ast, rhs), remainder, 0
-given :
-    headOp = toks[0][value]
-    rhs, remainder, _ = (parse(EmptyNode(), toks[1::(len toks)], precedence))
-
+        error "unknown node type"

@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"database/sql"
 	"strconv"
 	"strings"
 
@@ -10,30 +11,29 @@ import (
 )
 
 // While 'database.go' contains the means for the hub to use the database for RBAM purposes,
-// this file contains the means for Charm scripts to interact with the database.
+// this file contains the means for Pipefish scripts to interact with the database.
 
-// So when this works properly we can write that bit of the hub entirely in Charm and dispense with the
+// So when this works properly we can write that bit of the hub entirely in Pipefish and dispense with the
 // 'database.go' file.
 
-func (vm *Vm) evalPostSQL(query string, pfArgs []values.Value) values.Value {
+func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value, tok uint32) values.Value {
 	goArgs := pfToGoPointers(pfArgs)
-
-	_, err := (vm.Database).Exec(query, goArgs...)
+	_, err := (db).Exec(query, goArgs...)
 	if err != nil {
-		return values.Value{values.ERROR, nil}
+		return vm.makeError("vm/sql/get", tok, err.Error())
 	}
 	return values.Value{values.SUCCESSFUL_VALUE, nil}
 }
 
-func (vm *Vm) evalGetSQL(structTypeNumber values.ValueType, query string, pfArgs []values.Value) values.Value {
+func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query string, pfArgs []values.Value, tok uint32) values.Value {
 	goArgs := pfToGoPointers(pfArgs)
-	rows, err := (vm.Database).Query(query, goArgs...)
+	rows, err := (db).Query(query, goArgs...)
 	if err != nil {
-		return values.Value{values.ERROR, nil}
+		return values.Value{values.ERROR, vm.makeError("vm/sql/get", tok, err.Error())}
 	}
 	defer rows.Close()
 
-	targetStrings := []string{} // TODO --- can we set this up on initialization?
+	targetStrings := []string{} 
 	targetInts := []int{}
 	targetBools := []bool{}
 	pointerList := []any{}

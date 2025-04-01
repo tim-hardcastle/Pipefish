@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"src.elv.sh/pkg/persistent/vector"
 
+	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
@@ -24,6 +26,7 @@ type Vm struct {
 	callstack      []uint32
 	recursionStack []recursionData
 	logging        bool
+	// TODO --- the LogToLoc field of TrackingData is never used by *live* tracking, which should therefore have its own data type. 
 	LiveTracking   []TrackingData // "Live" tracking data in which the uint32s in the permanent tracking data have been replaced by the corresponding memory registers.
 	PostHappened   bool
 
@@ -38,10 +41,10 @@ type Vm struct {
 	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
-	LocationOfOutputFlavor     uint32 // Where we keep the value of the `$output` service variable.
-	Database                   *sql.DB
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
+	UsefulTypes                UsefulTypes
+	UsefulValues			   UsefulValues
 	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
 	StringifyLoReg             uint32   // | 
 	StringifyCallTo			   uint32   // | These are so the vm knows how to call the stringify function.
@@ -49,6 +52,22 @@ type Vm struct {
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter                [](func(t uint32, v any) any)
+}
+
+// In general, the VM can't convert from type names to type numbers, because it doesn't
+// need to. And we don't need the whole map of them because only a tiny proportion are
+// needed by the runtime, so a struct gives us quick access to what we do need.
+type UsefulTypes struct{
+	UnwrappedError values.ValueType
+	File           values.ValueType
+	Terminal	   values.ValueType
+	Output         values.ValueType
+} 
+
+// Similarly we need to know where some values are kept, if they have special effects
+// on runtime behavior.
+type UsefulValues struct{
+	OutputAs uint32
 }
 
 // Contains a Go function in the form of a reflect.Value, and, currently, nothing else.
@@ -68,6 +87,11 @@ type Lambda struct {
 	RtnSig         []values.AbstractType // The return signature. If empty means ok/error for a command, anything for a function.
 	Tok            *token.Token
 	Gocode         *reflect.Value // If it's a lambda returned from Go code, this will be non-nil, and most of the other fields will be their zero value except the sig information.
+}
+
+// What a thing of type SECRET keeps in its V field.
+type Secret struct {
+	secret values.Value
 }
 
 // Interface wrapping around external calls whether to the same hub or via HTTP.
@@ -109,10 +133,10 @@ var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U
 var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT", 
 	"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
-	"pair", "list", "map", "set", "label", "snippet"}
+	"pair", "list", "map", "set", "label", "snippet", "secret"}
 
-func BlankVm(db *sql.DB) *Vm {
-	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)), Database: db,
+func BlankVm() *Vm {
+	vm := &Vm{Mem: make([]values.Value, len(CONSTANTS)),
 		logging: true, InHandle: &StandardInHandler{"→ "},
 		GoToPipefishTypes: map[reflect.Type]values.ValueType{},
 		GoConverter:       [](func(t uint32, v any) any){},
@@ -122,7 +146,7 @@ func BlankVm(db *sql.DB) *Vm {
 	for _, name := range nativeTypeNames {
 		vm.ConcreteTypeInfo = append(vm.ConcreteTypeInfo, BuiltinType{name: name})
 	}
-	vm.TypeNumberOfUnwrappedError = DUMMY
+	vm.UsefulTypes.UnwrappedError = DUMMY
 	vm.Mem = append(vm.Mem, values.Value{values.SUCCESSFUL_VALUE, nil}) // TODO --- why?
 	vm.FieldLabelsInMem = make(map[string]uint32)
 	return vm
@@ -146,6 +170,115 @@ loop:
 		args := vm.Code[loc].Args
 	Switch:
 		switch vm.Code[loc].Opcode {
+		case Gsql:
+			// Arguments:
+			// 0: the destination
+			// 1: the address of the reference variable
+			// 2: the type of the result
+			// 3: the database
+			// 4: the snippet
+			// 5: the token
+			rType := vm.Mem[args[2]].V.(values.AbstractType)
+			if rType.Len() != 1 {
+				vm.Mem[args[0]] = vm.makeError("vm/post/type", args[3])
+				break Switch
+			}
+			cType := rType.Types[0]
+			if ! vm.ConcreteTypeInfo[cType].IsStruct() {
+				vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
+				break Switch
+			}
+			dbValue := vm.Mem[args[3]].V.([]values.Value)
+			driverNo := dbValue[0].V.(int)
+			host := dbValue[1].V.(string)
+			port := dbValue[2].V.(int)
+			name := dbValue[3].V.(string)
+			user := dbValue[4].V.(Secret).secret.V.(string)
+			password := dbValue[5].V.(Secret).secret.V.(string)
+			connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
+			host, port, name, user, password)
+			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
+			if connectionError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/connect/get", args[5], connectionError.Error())
+				vm.Mem[args[1]] = vm.Mem[args[0]]
+				break Switch
+			}
+			pingError := sqlObj.Ping()
+			if pingError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/ping/get", args[5], pingError.Error())
+				vm.Mem[args[1]] = vm.Mem[args[0]]
+				break Switch
+			}
+			snippet := vm.Mem[args[4]].V.(values.Snippet).Data
+			buf := strings.Builder{}
+			vals := make([]values.Value, 0, len(snippet)/2)
+			for i, v := range snippet {
+				if i % 2 == 0 {
+					buf.WriteString(v.V.(string))
+				} else {
+					vals = append(vals, v)
+					buf.WriteString("$")
+					buf.WriteString(strconv.Itoa(1 + i/2))
+				}
+			}
+			result := vm.evalGetSQL(sqlObj, cType, buf.String(), vals, args[5])
+			vm.Mem[args[1]] = result
+			if result.T == values.ERROR {
+				vm.Mem[args[0]] = result
+			} else {
+				vm.Mem[args[0]] = values.OK
+			}
+		case Psql:
+			dbValue := vm.Mem[args[1]].V.([]values.Value)
+			driverNo := dbValue[0].V.(int)
+			host := dbValue[1].V.(string)
+			port := dbValue[2].V.(int)
+			name := dbValue[3].V.(string)
+			user := dbValue[4].V.(Secret).secret.V.(string)
+			password := dbValue[5].V.(Secret).secret.V.(string)
+			connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
+			host, port, name, user, password)
+			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
+			if connectionError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/connect/post", args[3], connectionError.Error())
+				break Switch
+			}
+			pingError := sqlObj.Ping()
+			if pingError != nil {
+				vm.Mem[args[0]] = vm.makeError("vm/ping/post", args[3], pingError.Error())
+				break Switch
+			}
+			snippet := vm.Mem[args[2]].V.(values.Snippet).Data
+			buf := strings.Builder{}
+			vals := make([]values.Value, 0, len(snippet)/2)
+			for i, v := range snippet {
+				if i % 2 == 0 {
+					buf.WriteString(v.V.(string))
+				} else {
+					if v.T == values.TYPE {
+						if v.V.(values.AbstractType).Len() != 1 {
+							vm.Mem[args[0]] = vm.makeError("vm/post/type", args[3])
+							break Switch
+						}
+						cType := v.V.(values.AbstractType).Types[0]
+						if ! vm.ConcreteTypeInfo[cType].IsStruct() {
+							vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
+							break Switch
+						}
+						sqlSig, ok := vm.GetSqlSig(cType)
+						if !ok {
+							vm.Mem[args[0]] = vm.makeError("vm/post/sig", args[3])
+							break Switch
+						}
+						buf.WriteString(sqlSig)
+					} else {
+						vals = append(vals, v)
+						buf.WriteString("$")
+						buf.WriteString(strconv.Itoa(1 + i/2))
+					}
+				}
+			}
+			vm.Mem[args[0]] = vm.evalPostSQL(sqlObj, buf.String(), vals, args[3])
 		case Addf:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) + vm.Mem[args[2]].V.(float64)}
 		case Addi:
@@ -182,6 +315,44 @@ loop:
 			vm.Mem[vm.Mem[args[0]].V.(uint32)] = vm.Mem[args[1]]
 		case Asgm:
 			vm.Mem[args[0]] = vm.Mem[args[1]]
+		case Auto:
+			if vm.logging {
+				staticData := vm.Tracking[args[0]]
+				newData := TrackingData{staticData.Flavor, staticData.Tok, DUMMY, make([]any, len(staticData.Args))}
+				copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
+				for i, v := range newData.Args {
+					if v, ok := v.(uint32); ok {
+						newData.Args[i] = vm.Mem[v]
+					}
+				}
+				prettyString := vm.TrackingToString([]TrackingData{newData})
+				switch vm.Mem[staticData.LogToLoc].T {
+				case vm.UsefulTypes.Terminal :
+					print(text.Pretty(prettyString, 0, 90))
+				case vm.UsefulTypes.Output :
+					vm.OutHandle.Write(text.Pretty(prettyString, 0, 90))
+				case vm.UsefulTypes.File :
+					// TODO --- this is obviously very wasteful. Make $logTo into a constant?
+					filename := vm.Mem[staticData.LogToLoc].V.([]values.Value)[0].V.(string)
+					path := filename
+					if filepath.IsLocal(path) {
+						path = filepath.Join(filepath.Dir(staticData.Tok.Source) , path)
+					}
+					var f *os.File
+					if _, err := os.Stat(path); os.IsNotExist(err) {
+						f, err = os.Create(path)
+						if err != nil {
+							panic(err)
+						}
+					} else {
+						f, err = os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0660);
+						if err != nil {
+							panic(err)
+						}
+					}
+					f.WriteString(text.Pretty(prettyString, 0, 90))
+				}
+			}
 		case Call:
 			paramNumber := args[1]
 			argNumber := 3
@@ -530,6 +701,10 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(float64) > vm.Mem[args[2]].V.(float64)}
 		case Gthi:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].V.(int) > vm.Mem[args[2]].V.(int)}
+		case IctS:
+			leftSet := vm.Mem[args[1]].V.(values.Set)
+			result := leftSet.Intersect(vm.Mem[args[2]].V.(values.Set))
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case IdxL:
 			vec := vm.Mem[args[1]].V.(vector.Vector)
 			ix := vm.Mem[args[2]].V.(int)
@@ -652,7 +827,15 @@ loop:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
 		case IxXx:
 			container := vm.Mem[args[1]]
+			if container.T == values.ERROR {
+				vm.Mem[args[0]] = container
+				break Switch
+			}
 			index := vm.Mem[args[2]]
+			if index.T == values.ERROR {
+				vm.Mem[args[0]] = index
+				break Switch
+			}
 			indexType := index.T
 			if cloneInfo, ok := vm.ConcreteTypeInfo[indexType].(CloneType); ok {
 				indexType = cloneInfo.Parent
@@ -699,7 +882,7 @@ loop:
 				case values.TUPLE:
 					tup := container.V.([]values.Value)
 					if ix[1].V.(int) > len(tup) {
-						vm.Mem[args[0]] = vm.makeError("vm/index/r", args[3])
+						vm.Mem[args[0]] = vm.makeError("vm/index/r", args[3], ix[1].V.(int))
 						break Switch
 					}
 					vm.Mem[args[0]] = values.Value{values.TUPLE, tup[ix[0].V.(int):ix[1].V.(int)]}
@@ -716,7 +899,11 @@ loop:
 				typeInfo := vm.ConcreteTypeInfo[containerType]
 				if typeInfo.IsStruct() {
 					ix := typeInfo.(StructType).Resolve(vm.Mem[args[2]].V.(int))
-					vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
+					if ix == -1 {
+						vm.Mem[args[0]] = vm.makeError("vm/index/t", args[3], typeInfo.(StructType).Name, vm.Labels[vm.Mem[args[2]].V.(int)])
+					} else {
+						vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
+					}
 					break
 				}
 				if containerType == values.MAP {
@@ -810,13 +997,17 @@ loop:
 					}
 					break Switch
 				default:
-					vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL))
+					vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DescribeType(vm.Mem[args[2]].T, LITERAL))
 					break Switch
 				}
 			}
 		case IxZl:
 			typeInfo := vm.ConcreteTypeInfo[vm.Mem[args[1]].T].(StructType)
 			ix := typeInfo.Resolve(vm.Mem[args[2]].V.(int))
+			if ix == -1 {
+				vm.Mem[args[0]] = vm.makeError("vm/index/z", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DefaultDescription(vm.Mem[args[2]]))
+				continue	
+			}
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[args[2]]
@@ -867,8 +1058,6 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.STRING, vm.Literal(vm.Mem[args[1]])}
 		case LnSn:
 			vm.Mem[args[0]] = values.Value{values.INT, len(vm.Mem[args[1]].V.(values.Snippet).Data)}
-		case Log:
-			fmt.Print(vm.Mem[args[0]].V.(string) + "\n\n")
 		case Logn:
 			vm.logging = false
 		case Logy:
@@ -908,6 +1097,8 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.MAP, result}
 		case Mkpr:
 			vm.Mem[args[0]] = values.Value{values.PAIR, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
+		case MkSc:
+			vm.Mem[args[0]] = values.Value{values.SECRET, Secret{vm.Mem[args[1]]}}
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
@@ -950,7 +1141,7 @@ loop:
 			vm.OutHandle.Out(vm.Mem[args[0]])
 			vm.PostHappened = true
 		case Outt:
-			if vm.Mem[vm.LocationOfOutputFlavor].V.(int) == 0 {
+			if vm.Mem[vm.UsefulValues.OutputAs].V.(int) == 0 {
 				fmt.Println(vm.Literal(vm.Mem[args[0]]))
 			} else {
 				fmt.Println(vm.DefaultDescription(vm.Mem[args[0]]))
@@ -1238,8 +1429,8 @@ loop:
 			vm.Mem[args[0]] = tup[len(tup)-1]
 		case Trak:
 			staticData := vm.Tracking[args[0]]
-			newData := TrackingData{staticData.Flavor, staticData.Tok, make([]any, len(staticData.Args))}
-			copy(newData.Args, staticData.Args)
+			newData := TrackingData{staticData.Flavor, staticData.Tok, DUMMY, make([]any, len(staticData.Args))}
+			copy(newData.Args, staticData.Args) // This is because only things of tye uint32 are meant to be replaced.
 			for i, v := range newData.Args {
 				if v, ok := v.(uint32); ok {
 					newData.Args[i] = vm.Mem[v]
@@ -1283,7 +1474,11 @@ loop:
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)
 			vm.Mem[args[0]] = values.Value{values.TYPE, lhs.Union(rhs)}
 		case Typx:
-			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, DUMMY}}
+			if vm.Mem[args[1]].T == values.STRING { // TODO --- you can get rid of this once you fix the parameterized types.
+				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}}
+			} else {
+				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, 0}}
+			}
 		case UntE:
 			err := vm.Mem[args[0]].V.(*err.Error)
 			newArgs := []any{}
@@ -1309,7 +1504,7 @@ loop:
 			if vm.Mem[args[1]].T == values.ERROR {
 				wrappedErr := vm.Mem[args[1]].V.(*err.Error)
 				errWithMessage := err.CreateErr(wrappedErr.ErrorId, wrappedErr.Token, wrappedErr.Args...)
-				vm.Mem[args[0]] = values.Value{vm.TypeNumberOfUnwrappedError, []values.Value{{values.STRING, errWithMessage.ErrorId}, {values.STRING, errWithMessage.Message}}}
+				vm.Mem[args[0]] = values.Value{vm.UsefulTypes.UnwrappedError, []values.Value{{values.STRING, errWithMessage.ErrorId}, {values.STRING, errWithMessage.Message}}}
 			} else {
 				vm.Mem[args[0]] = vm.makeError("vm/unwrap", args[2], vm.DescribeType(vm.Mem[args[1]].T, LITERAL))
 			}

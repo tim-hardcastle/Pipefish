@@ -1,15 +1,15 @@
-def // We define our data type!
+newtype
 
 Person = struct(name varchar(32), age int) 
 
-cmd // We wrap some commands around SQL.
+cmd
 
-main : // Create the table on initialization if it isn't there.
+init : // Create the table on initialization if it isn't there.
     put SQL -- CREATE TABLE IF NOT EXISTS People |Person|
 
 clear :
     put SQL -- DROP TABLE People
-    main
+    init
 
 add (name string, age int) :
     put SQL --
@@ -20,14 +20,16 @@ show (name string) :
     get personList as Person from SQL --
         SELECT * FROM People
         WHERE name=|name| 
-    post prettyFmt(personList) to Output()
+    post prettyFmt(personList)
 
 show all :
     get peopleList as Person from SQL --
         SELECT * FROM People
-    post prettyFmt(peopleList) to Output()
+    post prettyFmt(peopleList)
 
-def // Some functions to do the formatting.
+def // Prettyprinting functions, omitted.
+
+
 
 HEADING = "\n" + spaceOut("Name", "Age") + repeat(36, "-") + "\n"
 

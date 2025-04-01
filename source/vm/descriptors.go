@@ -8,10 +8,15 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"golang.org/x/crypto/pbkdf2"
 	"src.elv.sh/pkg/persistent/vector"
 )
 
@@ -50,8 +55,11 @@ type descriptionFlavor int
 const (
 	DEFAULT descriptionFlavor = iota
 	LITERAL
+	SECRET
 )
 
+// TODO --- LITERAL should produce an error on being fed something unserializable.
+// Add an EXPLICIT option for LITERAL with fallback to STRING.
 func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	typeInfo := vm.ConcreteTypeInfo[v.T]
 	if typeInfo.IsStruct() {
@@ -69,7 +77,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 	}
 	if typeInfo.IsEnum() {
 		var buf strings.Builder
-		if flavor == LITERAL {
+		if flavor == LITERAL || flavor == SECRET {
 			buf.WriteString(typeInfo.(EnumType).Path)
 		}
 		buf.WriteString(typeInfo.(EnumType).ElementNames[v.V.(int)])
@@ -162,8 +170,18 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if flavor == DEFAULT {
 			return fmt.Sprintf("%c", v.V.(rune))
 		}
-		if flavor == LITERAL {
+		if flavor == LITERAL || flavor == SECRET {
 			return fmt.Sprintf("'%c'", v.V.(rune))
+		}
+	case values.SECRET:
+		if flavor == SECRET {
+			var buf strings.Builder
+			buf.WriteString("secret(")
+			buf.WriteString(vm.toString(v.V.(Secret).secret, SECRET))
+			buf.WriteString(")")
+			return buf.String()
+		} else {
+			return "secret(?)"
 		}
 	case values.SET:
 		var buf strings.Builder
@@ -189,14 +207,14 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if flavor == DEFAULT {
 			return v.V.(string)
 		}
-		if flavor == LITERAL {
+		if flavor == LITERAL || flavor == SECRET {
 			return strconv.Quote(v.V.(string))
 		}
 	case values.SUCCESSFUL_VALUE:
 		if flavor == DEFAULT {
 			return text.GREEN + "OK" + text.RESET
 		}
-		if flavor == LITERAL {
+		if flavor == LITERAL  || flavor == SECRET {
 			return "OK"
 		}
 
@@ -258,7 +276,7 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType, flavor descriptionFla
 		if sizeOfBiggestType == 0 {
 			break
 		}
-		if flavor == LITERAL {
+		if flavor == LITERAL || flavor == SECRET {
 			result = append(result, vm.AbstractTypes[biggestType].Path+vm.AbstractTypes[biggestType].Name)
 		} else {
 			result = append(result, vm.AbstractTypes[biggestType].Name)
@@ -329,3 +347,34 @@ func (vm *Vm) makeError(errCode string, tokenOrdinal uint32, args ...any) values
 	}
 	return values.Value{values.ERROR, result}
 }
+
+// Actually this can dump any Map but why would you want to?
+func (vm *Vm) DumpStore(store values.Map, password string) string {
+	var plaintext strings.Builder	
+	plaintext.WriteString("PLAINTEXT\n")
+	for _, pair := range store.AsSlice() {
+		plaintext.WriteString(vm.toString(pair.Key, SECRET))
+		plaintext.WriteString("::")
+		plaintext.WriteString(vm.toString(pair.Val, SECRET))
+		plaintext.WriteString("\n")
+	}
+	if password == "" {
+		return plaintext.String()
+	}
+	plaintext.WriteString(strings.Repeat(" ", aes.BlockSize - plaintext.Len()%aes.BlockSize))
+	salt := make([]byte, 32)
+	rand.Read(salt)
+	key := pbkdf2.Key([]byte(password), salt, 65536, 32, sha256.New) // sha256 has nothing to do with it but the API is stupid.
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	// We also use salt for the AES cypher (the salt being called `iv` below because the people
+	// I copied the code from have a sense of humor).
+	ciphertext := make([]byte, aes.BlockSize+plaintext.Len())
+	iv := ciphertext[:aes.BlockSize]
+	rand.Read(iv);
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext[aes.BlockSize:], []byte(plaintext.String()))
+	return string(salt) + string(ciphertext)
+} 

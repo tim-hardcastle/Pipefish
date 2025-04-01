@@ -3,10 +3,10 @@ newtype
 Person = struct(name string, age int) 
 
 init : 
-    put SQL --- CREATE TABLE IF NOT EXISTS People |Person|
+    put SQL -- CREATE TABLE IF NOT EXISTS People |Person|
 
 add (name string, age int) :
-    put SQL ---
+    put SQL --
         INSERT INTO People
         VALUES |name, age|
 

@@ -3,6 +3,9 @@ package hub
 import (
 	"bufio"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,6 +19,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/pbkdf2"
+	"github.com/lmorg/readline"
 
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/pf"
@@ -42,6 +48,8 @@ type Hub struct {
 	Username               string
 	Password               string
 	pipefishHomeDirectory  string
+	store                  values.Map
+	storekey               string
 }
 
 func New(in io.Reader, out io.Writer) *Hub {
@@ -229,25 +237,26 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 	return passedServiceName, false
 }
 
-func (hub *Hub) ParseHubCommand(line string) (string, []string) {
+func (hub *Hub) ParseHubCommand(line string) (string, []values.Value) {
 	hubService := hub.services["hub"]
 	hubReturn := ServiceDo(hubService, line)
 	if errorsExist, _ := hubService.ErrorsExist(); errorsExist { // Any lex-parse-compile errors should end up in the parser of the compiler of the service, returned in p.
 		hub.GetAndReportErrors(hubService)
-		return "error", []string{}
+		return "error", []values.Value{}
 	}
 	if hubReturn.T == pf.ERROR {
 		hub.WriteError(hubReturn.V.(*pf.Error).Message)
-		return "error", []string{hubReturn.V.(*pf.Error).Message}
+		return "error", []values.Value{hubReturn}
 	}
 	hrType, _ := hubService.TypeNameToType("HubResponse")
 	if hubReturn.T == hrType {
 		hR := hubReturn.V.([]pf.Value)
 		verb := hR[0].V.(string)
-		args := []string{}
-		for i := 0; i < hR[1].V.(pf.List).Len(); i++ {
-			el, _ := hR[1].V.(pf.List).Index(i)
-			args = append(args, el.(pf.Value).V.(string))
+		vargs := hR[1].V.(pf.List)
+		args := []values.Value{}
+		for i := 0; i < vargs.Len(); i++ {
+			el, _ := vargs.Index(i)
+			args = append(args, el.(values.Value))
 		}
 		return verb, args
 	}
@@ -261,10 +270,15 @@ func (hub *Hub) ParseHubCommand(line string) (string, []string) {
 	}
 
 	hub.WriteError("couldn't parse hub instruction.")
-	return "error", []string{"couldn't parse hub instruction"}
+	return "error", []values.Value{values.Value{values.UNDEFINED_TYPE, nil}}
 }
 
-func (hub *Hub) DoHubCommand(username, password, verb string, args []string) bool {
+// Quick and dirty auxilliary function for when we know the value is in fact a string.
+func toStr(v pf.Value) string {
+	return v.V.(string)
+}
+
+func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Value) bool {
 	if (!hub.isAdministered()) &&
 		(verb == "add" || verb == "create" || verb == "log-on" || verb == "log-off" ||
 			verb == "let" || verb == "register" || verb == "groups" ||
@@ -281,13 +295,14 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError(err.Error())
 			return false
 		}
+		// TODO --- replace with set containing green list.
 		if !isAdmin && (verb == "config-db" || verb == "create" || verb == "let" ||
 			verb == "live-on" || verb == "live-off" || verb == "listen" ||
 			verb == "run" || verb == "reset" || verb == "rerun" ||
 			verb == "replay" || verb == "replay-diff" || verb == "snap" || verb == "test" ||
 			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" ||
 			verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
-			verb == "let-use" || verb == "let-own") {
+			verb == "let-use" || verb == "let-own" || verb == "store" || verb == "store-secret") {
 			hub.WriteError("you don't have the admin status necessary to do that.")
 			return false
 		}
@@ -300,12 +315,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	}
 	switch verb {
 	case "add":
-		err := database.IsUserGroupOwner(hub.Db, username, args[1])
+		err := database.IsUserGroupOwner(hub.Db, username, toStr(args[1]))
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.Db, args[0], args[1], false)
+		err = database.AddUserToGroup(hub.Db, toStr(args[0]), toStr(args[1]), false)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -324,12 +339,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.configDb()
 		return false
 	case "create":
-		err := database.AddGroup(hub.Db, args[0])
+		err := database.AddGroup(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
 		}
-		err = database.AddUserToGroup(hub.Db, username, args[0], true)
+		err = database.AddUserToGroup(hub.Db, username, toStr(args[0]), true)
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -337,7 +352,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(GREEN_OK + "\n")
 		return false
 	case "edit":
-		command := exec.Command("vim", args[0])
+		command := exec.Command("vim", toStr(args[0]))
 		command.Stdin = os.Stdin
 		command.Stdout = os.Stdout
 		err := command.Run()
@@ -350,7 +365,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WritePretty(r)
 		return false
 	case "groups-of-user":
-		result, err := database.GetGroupsOfUser(hub.Db, args[0], false)
+		result, err := database.GetGroupsOfUser(hub.Db, toStr(args[0]), false)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -358,7 +373,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "groups-of-service":
-		result, err := database.GetGroupsOfService(hub.Db, args[0])
+		result, err := database.GetGroupsOfService(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -367,11 +382,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 	case "halt":
 		var name string
-		_, ok := hub.services[args[0]]
+		_, ok := hub.services[toStr(args[0])]
 		if ok {
-			name = args[0]
+			name = toStr(args[0])
 		} else {
-			hub.WriteError("the hub can't find the service '" + args[0] + "'.")
+			hub.WriteError("the hub can't find the service '" + toStr(args[0]) + "'.")
 			return false
 		}
 		if name == "" || name == "hub" {
@@ -385,12 +400,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		}
 		return false
 	case "help":
-		if helpMessage, ok := helpStrings[args[0]]; ok {
+		if helpMessage, ok := helpStrings[toStr(args[0])]; ok {
 			hub.WritePretty(helpMessage + "\n")
 			return false
 		} else {
 			hub.WriteError("the 'hub help' command doesn't accept " +
-				"'" + args[0] + "' as a parameter.")
+				"'" + toStr(args[0]) + "' as a parameter.")
 			return false
 		}
 	case "let":
@@ -403,7 +418,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			hub.WriteError("you don't have the admin status necessary to do that.")
 			return false
 		}
-		err = database.LetGroupUseService(hub.Db, args[0], args[1])
+		err = database.LetGroupUseService(hub.Db, toStr(args[0]), toStr(args[1]))
 		if err != nil {
 			hub.WriteError(err.Error())
 			return false
@@ -413,7 +428,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 	case "listen":
 		hub.WriteString(GREEN_OK)
 		hub.WriteString("\nHub is listening.\n\n")
-		hub.StartHttp("/"+args[0], args[1])
+		hub.StartHttp("/"+ toStr(args[0]), toStr(args[1]))
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -472,7 +487,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 	case "replay":
 		hub.oldServiceName = hub.currentServiceName()
-		hub.playTest(args[0], false)
+		hub.playTest(toStr(args[0]), false)
 		hub.setServiceName(hub.oldServiceName)
 		_, ok := hub.services["#test"]
 		if ok {
@@ -481,7 +496,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 	case "replay-diff":
 		hub.oldServiceName = hub.currentServiceName()
-		hub.playTest(args[0], true)
+		hub.playTest(toStr(args[0]), true)
 		hub.setServiceName(hub.oldServiceName)
 		_, ok := hub.services["#test"]
 		if ok {
@@ -516,24 +531,26 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.tryMain()
 		return false
 	case "run":
-		if filepath.IsLocal(args[0]) {
+		fname := toStr(args[0])
+		sname := toStr(args[1])
+		if filepath.IsLocal(fname) {
 			dir, _ := os.Getwd()
-			args[0] = filepath.Join(dir, args[0])
+			fname = filepath.Join(dir, fname)
 		}
-		hub.lastRun = args
-		if args[1] == "" {
-			hub.WritePretty("Starting script '" + filepath.Base(args[0]) +
+		hub.lastRun = []string{fname, sname}
+		if sname == "" {
+			hub.WritePretty("Starting script '" + filepath.Base(fname) +
 				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
-			hub.StartAnonymous(args[0])
+			hub.StartAnonymous(fname)
 			hub.tryMain()
 			return false
 		}
-		hub.WritePretty("Starting script '" + filepath.Base(args[0]) + "' as service '" + args[1] + "'.\n")
-		hub.StartAndMakeCurrent(username, args[1], args[0])
+		hub.WritePretty("Starting script '" + filepath.Base(fname) + "' as service '" + sname + "'.\n")
+		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
 		return false
 	case "services-of-user":
-		result, err := database.GetServicesOfUser(hub.Db, args[0], false)
+		result, err := database.GetServicesOfUser(hub.Db, toStr(args[0]), false)
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -541,7 +558,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "services-of-group":
-		result, err := database.GetServicesOfGroup(hub.Db, args[0])
+		result, err := database.GetServicesOfGroup(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -549,12 +566,12 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "snap":
-		scriptFilepath := args[0]
+		scriptFilepath := toStr(args[0])
 		if filepath.IsLocal(scriptFilepath) {
 			dir, _ := os.Getwd()
 			scriptFilepath = filepath.Join(dir, scriptFilepath)
 		}
-		testFilepath := args[1]
+		testFilepath := toStr(args[1])
 		if testFilepath == "" {
 			testFilepath = getUnusedTestFilename(scriptFilepath) // If no filename is given, we just generate one.
 		}
@@ -562,8 +579,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			snapService := hub.services["#snap"]
-			ty, _ := snapService.TypeNameToType("$Output")
-			snapService.SetVariable("$output",  ty, 0)
+			ty, _ := snapService.TypeNameToType("$OutputAs")
+			snapService.SetVariable("$outputAs",  ty, 0)
 			hub.WriteString("Serialization is ON.\n")
 			in, out := MakeSnapIo(snapService, hub.out, hub.snap)
 			currentService := snapService
@@ -608,40 +625,64 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(GREEN_OK + "\n")
 		hub.setServiceName(hub.oldServiceName)
 		return false
+	case "store":
+		hub.store = *hub.store.Set(args[0].V.([]values.Value)[0], args[0].V.([]values.Value)[1])
+		hub.SaveHubStore()
+		hub.WriteString(GREEN_OK + "\n")
+		return false
+	case "storekey":
+		if hub.storekey != "" {
+			rline := readline.NewInstance()
+			rline.SetPrompt("Enter the current storekey for the hub: ")
+			rline.PasswordMask = '▪'
+			storekey, _ := rline.Readline()
+			if storekey != hub.storekey {
+				hub.WriteError("incorrect store key.")
+			    return false
+			}
+		}
+		rline := readline.NewInstance()
+		rline.SetPrompt("Enter the new storekey: ")
+		rline.PasswordMask = '▪'
+		storekey, _ := rline.Readline()
+		hub.storekey = storekey
+		hub.SaveHubStore()
+		return false
 	case "switch":
-		_, ok := hub.services[args[0]]
+		sname := toStr(args[0])
+		_, ok := hub.services[sname]
 		if ok {
 			hub.WriteString(GREEN_OK + "\n")
 			if hub.administered {
-				access, err := database.DoesUserHaveAccess(hub.Db, username, args[0])
+				access, err := database.DoesUserHaveAccess(hub.Db, username, sname)
 				if err != nil {
 					hub.WriteError("o/ " + err.Error())
 					return false
 				}
 				if !access {
-					hub.WriteError("you don't have access to service '" + args[0] + "'.")
+					hub.WriteError("you don't have access to service '" + sname + "'.")
 					return false
 				}
-				database.UpdateService(hub.Db, username, args[0])
+				database.UpdateService(hub.Db, username, sname)
 				return false
 			} else {
-				hub.setServiceName(args[0])
+				hub.setServiceName(sname)
 				return false
 			}
-		} else {
-			hub.WriteError("service '" + args[0] + "' doesn't exist")
-		}
+		} 
+		hub.WriteError("service '" + sname + "' doesn't exist")
+		return false
 	case "test":
-		if filepath.IsLocal(args[0]) {
+		fname := toStr(args[0])
+		if filepath.IsLocal(fname) {
 			dir, _ := os.Getwd()
-			args[0] = filepath.Join(dir, args[0])
+			fname = filepath.Join(dir, fname)
 		}
-		file, err := os.Open(args[0])
+		file, err := os.Open(fname)
 		if err != nil {
 			hub.WriteError(strings.TrimSpace(err.Error()) + "\n")
 			return false
 		}
-
 		defer file.Close()
 		fileInfo, err := file.Stat()
 		if err != nil {
@@ -658,11 +699,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 
 			for _, potentialPfFile := range files {
 				if filepath.Ext(potentialPfFile.Name()) == ".pf" {
-					hub.TestScript(args[0]+"/"+potentialPfFile.Name(), ERROR_CHECK)
+					hub.TestScript(fname+"/"+potentialPfFile.Name(), ERROR_CHECK)
 				}
 			}
 		} else {
-			hub.TestScript(args[0], ERROR_CHECK)
+			hub.TestScript(fname, ERROR_CHECK)
 		}
 		return false
 	case "trace":
@@ -678,7 +719,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		return false
 
 	case "users-of-group":
-		result, err := database.GetUsersOfGroup(hub.Db, args[0])
+		result, err := database.GetUsersOfGroup(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -686,7 +727,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 			return false
 		}
 	case "users-of-service":
-		result, err := database.GetUsersOfService(hub.Db, args[0])
+		result, err := database.GetUsersOfService(hub.Db, toStr(args[0]))
 		if err != nil {
 			hub.WriteError(err.Error())
 		} else {
@@ -721,11 +762,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString("\n")
 		return false
 	case "where":
-		num, err := strconv.Atoi(args[0])
-		if err != nil {
-			hub.WriteError("the 'where' keyword takes the number of an error as a parameter.")
-			return false
-		}
+		num := args[0].V.(int)
 		if num < 0 {
 			hub.WriteError("the 'where' keyword can't take a negative number as a parameter.")
 			return false
@@ -749,11 +786,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		hub.WriteString(Red(strings.Repeat("▔", lenUnderline)))
 		return false
 	case "why":
-		num, e := strconv.Atoi(args[0])
-		if e != nil {
-			hub.WriteError("the 'why' keyword takes the number of an error as a parameter.")
-			return false
-		}
+		num := args[0].V.(int)
 		if num >= len(hub.ers) {
 			hub.WriteError("there aren't that many errors.")
 			return false
@@ -765,6 +798,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []string) boo
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")
+		return false
+	case "wipe-store":
+		hub.storekey = ""
+		hub.store = values.Map{}
+		hub.SaveHubStore()
 		return false
 	default:
 		panic("Didn't return from verb " + verb)
@@ -933,9 +971,8 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		return false
 	}
 	newService := pf.NewService()
-	newService.SetDatabase(hub.Db)
 	newService.SetLocalExternalServices(hub.services)
-	e := newService.InitializeFromFilepath(scriptFilepath) // We get an error only if it completely fails to open the file, otherwise there'll be errors in the Common Parser Bindle as usual.
+	e := newService.InitializeFromFilepathWithStore(scriptFilepath, &hub.store) // We get an error only if it completely fails to open the file, otherwise there'll be errors in the Common Parser Bindle as usual.
 	hub.services[name] = newService
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
@@ -958,7 +995,8 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 func StartServiceFromCli() {
 	filename := os.Args[2]
 	newService := pf.NewService()
-	newService.InitializeFromFilepath(filename)
+	// TODO --- probably this ought to get the `$hub` settings.
+	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
 		s, _ := newService.GetErrorReport()
@@ -989,8 +1027,7 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 
 var prefix = `newtype
 
-DatabaseDrivers = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
-                    .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
+DatabaseDrivers = enum FEE, FIE, FO, FOO
 
 Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
 
@@ -1081,6 +1118,53 @@ func (hub *Hub) saveHubFile() string {
 }
 
 func (hub *Hub) OpenHubFile(hubFilepath string) {
+	hub.createService("", "")
+	storePath := hubFilepath[0:len(hubFilepath)-len(filepath.Ext(hubFilepath))] + ".str"
+	_, err := os.Stat(storePath)
+	if err == nil {
+		file, err := os.Open(storePath)
+		if err != nil {
+			panic("Can't open hub data store")
+		}
+		b, err := io.ReadAll(file)
+		if err != nil {
+			panic("Can't open hub data store")
+		}
+  		s := string(b)
+		for ; s[0:9] != "PLAINTEXT" ; println("Invalid storekey. Enter a valid one or press return to continue without loading the store.") {
+			salt := s[0:32]
+			ciphertext := s[32:]
+			rline := readline.NewInstance()
+			rline.SetPrompt("Enter the storekey for the hub: ")
+			rline.PasswordMask = '▪'
+			storekey, _ := rline.Readline()
+			if storekey == "" {
+				println("Starting hub without opening store.")
+				s = "PLAINTEXT"
+				break
+			}
+			key := pbkdf2.Key([]byte(storekey), []byte(salt), 65536, 32, sha256.New) // sha256 has nothing to do with it but the API is stupid.
+			block, err := aes.NewCipher(key)
+			if err != nil {
+				panic(err)
+			}
+			iv := ciphertext[:aes.BlockSize]
+			ciphertext = ciphertext[aes.BlockSize:]
+			mode := cipher.NewCBCDecrypter(block, []byte(iv))
+			decrypt := make([]byte, len(ciphertext))
+			mode.CryptBlocks(decrypt, []byte(ciphertext))
+			if string(decrypt[0:9]) == "PLAINTEXT" {
+				s = string(decrypt)
+				hub.storekey = storekey
+				break
+			}
+		}
+		bits := strings.Split(strings.TrimSpace(s), "\n")[1:]
+		for _, bit := range bits {
+			pair, _ := hub.services[""].Do(bit)
+			hub.store = *hub.store.Set(pair.V.([]pf.Value)[0], pair.V.([]pf.Value)[1])
+		}
+	}
 	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
@@ -1100,9 +1184,14 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		serviceFilepath := pair.Val.V.(string)
 		hub.createService(serviceName, serviceFilepath)
 	}
-	hub.createService("", "")
-
 	hub.list()
+}
+
+func (hub *Hub) SaveHubStore() {
+	storePath := hub.hubFilepath[0:len(hub.hubFilepath)-len(filepath.Ext(hub.hubFilepath))] + ".str"
+	storeDump := hub.services[""].WriteSecret(hub.store, hub.storekey)
+	file, _ := os.Create(storePath)
+	file.WriteString(storeDump)
 }
 
 func (hub *Hub) list() {
@@ -1174,8 +1263,8 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	if testOutputType == ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
-	ty, _ := testService.TypeNameToType("$Output")
-	testService.SetVariable("$output",  ty, 0)
+	ty, _ := testService.TypeNameToType("$OutputAs")
+	testService.SetVariable("$outputAs",  ty, 0)
 	_ = scanner.Scan() // eats the newline
 	executionMatchesTest := true
 	for scanner.Scan() {
@@ -1238,8 +1327,8 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	scanner.Scan()
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	testService := (*hub).services["#test"]
-	ty, _ := testService.TypeNameToType("$Output")
-	testService.SetVariable("$output",  ty, 0)
+	ty, _ := testService.TypeNameToType("$OutputAs")
+	testService.SetVariable("$outputAs",  ty, 0)
 	in, out := MakeTestIoHandler(testService, hub.out, scanner, SHOW_ALL)
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)

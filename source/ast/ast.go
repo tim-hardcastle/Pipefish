@@ -640,7 +640,7 @@ type PrsrFunction struct {
 	Given    Node         // The 'given' block: nil if there isn't one.
 	Cmd      bool         // Whether it's a command or not.
 	Private  bool         // Whether it's private or not.
-	Number   uint32       // The order in which the function was compiled by the vmMaker. Initialized as DUMMY.
+	Number   uint32       // The order in which the function was compiled by the initializer. Initialized as DUMMY.
 	Compiler any          // A vile kludge at the last minute to make the interfaces work without restructuring the whole program. TODO --- something else.
 	Position uint32       // PREFIX, INFIX, SUFFIX.
 	Tok      *token.Token // Where it was declared.

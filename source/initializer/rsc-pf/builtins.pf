@@ -3,12 +3,10 @@
 newtype
 
 Error = struct(errorCode, errorText string)
-
 Time = struct(year, month, day, hour, minute, second, nanosecond int, location string)
 
 $Logging = enum $NONE, $SELECTED, $ALL
-
-$Output = enum $LITERAL, $STRING 
+$OutputAs = enum $LITERAL, $STRING 
 
 def
 
@@ -31,6 +29,7 @@ def
 (x float) >= (y float) -> bool : builtin "gte_floats"
 (x int) > (y int) -> bool : builtin "gt_ints"
 (x int) >= (y int) -> bool : builtin "gte_ints"
+(x set) /\ (y set) -> set : builtin "intersect_sets"
 (x float) < (y float) -> bool : builtin "lt_floats"
 (x float) <= (y float) -> bool : builtin "lte_floats"
 (x int) < (y int) -> bool : builtin "lt_ints"
@@ -83,6 +82,7 @@ map(x ... pair) -> map : makeMap(x)
 makeMap(x tuple) -> map : builtin "make_map"
 pair(x pairlike) -> pair : builtin "cast_to_pair"
 rune(x int) -> rune : builtin "rune"
+secret(x any?) -> secret : builtin "secret"
 set(x setlike) -> set : builtin "cast_to_set"
 set(x ... any?) -> set : makeSet(x)
 makeSet(x tuple) -> set : builtin "make_set"   

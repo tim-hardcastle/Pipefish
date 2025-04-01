@@ -1,11 +1,11 @@
 package initializer_test
 
 // This largely repeats the tests in `vm_test.go` and `vm_compiler.go`, but only 
-// running one or twwo tests for each file initialized, since the initializer is 
+// running one or two tests for each file initialized, since the initializer is 
 // what we're meant to be testing.
 
 // This repetition is not entirely superfluous, as while the tests in those other 
-// packages would still ensure that the bits of the initialzer being used were 
+// packages would still ensure that the bits of the initializer being used were 
 // working, this doesn't show up as line coverage in VSCode and so I wouldn't know 
 // which those bits are.
 
@@ -156,4 +156,10 @@ func TestGocode(t *testing.T) {
 	goTestFile := absolutePathToRscGo + "/" + text.Flatten(absoluteLocationOfPipefishTestFile) + "_" + strconv.Itoa(int(timestamp)) + ".so"
 	os.Remove(goTestFile)
 	os.WriteFile(locationOfGoTimes, temp, 0644)
+}
+func TestLogging(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`foo 8`, test_helper.Foo8Result},
+	}
+	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
 }

@@ -7,7 +7,7 @@ def
 
 // Verb are in alphabetical order:
 // add, config, create, do, edit, errors, halt, help, let, listen, live, log, my, peek, quit, register, replay, run, services, snap,
-// test, trace, track, where, why, values
+// store, test, trace, track, where, why, values
 
 add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
@@ -120,8 +120,11 @@ snap good :
 snap record :
     HubResponse("snap-record", [])  
 
-switch(srv label) :
-    HubResponse("switch", [string srv])
+store(p pair) :
+    HubResponse("store", [p])
+
+storekey :
+    HubResponse("storekey", [])
 
 switch(srv string) :
     HubResponse("switch", [srv])
@@ -160,8 +163,11 @@ values :
     HubResponse("values", [])
 
 where(errorNo int) :
-    HubResponse("where", [string errorNo])
+    HubResponse("where", [errorNo])
     
 why(errorNo int) :
-    HubResponse("why", [string errorNo])
+    HubResponse("why", [errorNo])
+
+wipe store :
+    HubResponse("wipe-store", [])
 

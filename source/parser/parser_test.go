@@ -101,4 +101,3 @@ func testParserErrors(cp *compiler.Compiler, s string) (string, error) {
 		return "", errors.New("unexpected successful parsing")
 	}
 }
-
