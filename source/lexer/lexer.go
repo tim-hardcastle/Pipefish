@@ -25,8 +25,6 @@ type Lexer struct {
 	whitespaceStack   dtypes.Stack[string] // levels of whitespace to unindent to
 	Ers               err.Errors
 	source            string
-	snippetWhitespace string
-	afterSnippet      bool
 }
 
 func NewLexer(source, input string) *Lexer {
@@ -45,13 +43,6 @@ func NewLexer(source, input string) *Lexer {
 }
 
 func (l *Lexer) getTokens() []token.Token {
-
-	if l.afterSnippet {
-		l.afterSnippet = false
-		if l.source != "REPL input" {
-			return []token.Token{l.NewToken(token.NEWLINE, ";")}
-		}
-	}
 
 	if l.newline {
 		l.afterWhitespace = true
@@ -207,7 +198,15 @@ func (l *Lexer) getTokens() []token.Token {
 			l.readChar()
 			return []token.Token{l.NewToken(tType, text)}
 		case token.EMDASH:
-			return []token.Token{l.MakeToken(tType, strings.TrimSpace(l.readSnippet()))}
+			str, outdent := l.readSnippet()
+			if outdent <= 0 {
+				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)),
+					l.MakeToken(token.NEWLINE, ";")}
+			} else {
+				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)), 
+					l.MakeToken(token.END, fmt.Sprint(outdent)),
+					l.MakeToken(token.NEWLINE, ";")}
+			}
 		default:
 			return []token.Token{l.NewToken(tType, lit)}
 		}
@@ -225,10 +224,6 @@ func (l *Lexer) interpretWhitespace() token.Token {
 	for l.ch == ' ' || l.ch == '\t' {
 		whitespace = whitespace + string(l.ch)
 		l.readChar()
-	}
-	if l.snippetWhitespace != "" {
-		whitespace = l.snippetWhitespace
-		l.snippetWhitespace = ""
 	}
 	if l.ch == '\n' {
 		return l.NewToken(token.NO_INDENT, "|||")
@@ -398,16 +393,15 @@ func (l *Lexer) readComment() string {
 	return result
 }
 
-func (l *Lexer) readSnippet() string {
+func (l *Lexer) readSnippet() (string, int) {
 	// Note --- what we return from this is followed by makeToken, which doesn't read a character, rather than NewToken, which does.
 	// This is because we may end up in a position where we've just realized that we've unindented. (See other use of MakeChar.)
-	l.afterSnippet = true
 	result := ""
 	for l.peekChar() == ' ' || l.peekChar() == '\t' { // We consume the whitespace between the emdash and either a non-whitespace character or a newline.
 		l.readChar()
 	}
 	// There are two possibilities. Either we found a non-whitespace character, and the whole snippet is on the same line as the
-	// `---` token, or we found a newline and the snipped is an indent on the succeeding lines. Just like with a colon.
+	// `---` token, or we found a newline and the snippet is an indent on the succeeding lines. Just like with a colon.
 	if l.peekChar() == '\n' || l.peekChar() == '\r' { // --- then we have to mess with whitespace.
 		for l.peekChar() == '\n' || l.peekChar() == '\r' {
 			l.readChar()
@@ -426,23 +420,25 @@ func (l *Lexer) readSnippet() string {
 			if langIndent == "" { // Then this is the first time around.
 				if currentWhitespace == "" {
 					l.Throw("lex/emdash/indent/a", l.NewToken(token.ILLEGAL, "bad emdash"))
-					return result
+					return result, -1
 				}
 				langIndent = currentWhitespace
 				if langIndent == stackTop {
 					l.Throw("lex/emdash/indent/b", l.NewToken(token.ILLEGAL, "bad emdash"))
-					return result
+					return result, -1
 				}
 			}
 			if strings.HasPrefix(stackTop, currentWhitespace) || currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(rune(0)) { // Then we've unindented. Dobby is free!
-				if currentWhitespace != "\n" && currentWhitespace != "\r" && currentWhitespace == string(rune(0)) {
-					l.snippetWhitespace = currentWhitespace
+				if currentWhitespace == "\n" || currentWhitespace == "\r" || currentWhitespace == string(rune(0)) {
+					currentWhitespace = ""
 				}
-				return result
+				outdent := l.whitespaceStack.Find(currentWhitespace)
+				l.whitespaceStack.Take(outdent)
+				return result, outdent
 			}
 			if !strings.HasPrefix(currentWhitespace, stackTop) && !(currentWhitespace == "\n") {
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "bad emdash"))
-				return result
+				return result, -1
 			}
 			for l.peekChar() != '\n' && l.peekChar() != '\r' && l.peekChar() != 0 {
 				l.readChar()
@@ -450,7 +446,9 @@ func (l *Lexer) readSnippet() string {
 			}
 			if l.peekChar() == 0 {
 				l.readChar()
-				return result
+				cstackHeight := l.whitespaceStack.Find("")
+				l.whitespaceStack.Take(cstackHeight)
+				return result, cstackHeight
 			}
 			l.readChar()
 			result = result + "\n"
@@ -461,7 +459,7 @@ func (l *Lexer) readSnippet() string {
 			result = result + string(l.ch)
 		}
 		l.readChar()
-		return result
+		return result, -1
 	}
 }
 

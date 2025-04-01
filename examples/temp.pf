@@ -1,7 +1,6 @@
 cmd
 
 foo :       
-    post --
-        zort
+    post -- zort
     post "troz"
 
