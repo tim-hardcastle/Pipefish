@@ -116,7 +116,7 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle(store)
 	iz.Common.HubCompilers = hubServices
-	// We then carry out five phases of initialization each of which is performed recursively on all of the
+	// We then carry out eleven phases of initialization each of which is performed recursively on all of the
 	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
 	iz.cmI("Parsing everything.")
@@ -1046,7 +1046,23 @@ func (iz *initializer) addConstructorsToParserAndParseStructDeclarations() {
 func (iz *initializer) createStructNamesAndLabels() {
 	iz.structDeclarationNumberToTypeNumber = make(map[int]values.ValueType)
 	for i, node := range iz.ParsedDeclarations[structDeclaration] {
-		lhs := node.(*ast.AssignmentExpression).Left
+		var shouldAssign ast.Node
+		if colon, ok := node.(*ast.LazyInfixExpression); ok {
+			if colon.Operator != ":" {
+				iz.Throw("init/struct/colon", node.GetToken())
+				continue
+			}
+			shouldAssign = colon.Left
+		} else {
+			shouldAssign = node
+		}
+		var lhs ast.Node
+		if assign, ok := shouldAssign.(*ast.AssignmentExpression); !ok {
+			iz.Throw("init/struct/assign", node.GetToken())
+			continue
+		} else {
+			lhs = assign.Left
+		}
 		name := lhs.GetToken().Literal
 		typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, node.GetToken(), DUMMY)
@@ -1075,7 +1091,7 @@ func (iz *initializer) createStructNamesAndLabels() {
 		// The parser needs to know about it too.
 		iz.p.Functions.Add(name)
 		iz.p.AllFunctionIdents.Add(name)
-		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		sig := shouldAssign.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: node.GetToken()}
 		iz.Add(name, fn) // TODO --- give them their own ast type?
 		iz.fnIndex[fnSource{structDeclaration, i}] = fn
@@ -1457,9 +1473,19 @@ func (iz *initializer) compileAllConstructors() {
 func (iz *initializer) compileConstructors() {
 	// Struct declarations.
 	for i, node := range iz.ParsedDeclarations[structDeclaration] {
-		name := node.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
+		var shouldAssign ast.Node
+		if colon, ok := node.(*ast.LazyInfixExpression); ok {
+			if colon.Operator != ":" {
+				iz.Throw("init/struct/colon", node.GetToken())
+				continue
+			}
+			shouldAssign = colon.Left
+		} else {
+			shouldAssign = node
+		}
+		name := shouldAssign.(*ast.AssignmentExpression).Left.GetToken().Literal // We know this and the next line are safe because we already checked in createStructs
 		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		sig := shouldAssign.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), node.GetToken())
 		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
 	}
@@ -1651,7 +1677,13 @@ func (iz *initializer) addFieldsToStructs() {
 	for i, node := range iz.ParsedDeclarations[structDeclaration] {
 		structNumber := iz.structDeclarationNumberToTypeNumber[i]
 		structInfo := iz.cp.Vm.ConcreteTypeInfo[structNumber].(vm.StructType)
-		sig := node.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
+		var shouldAssign ast.Node
+		if colon, ok := node.(*ast.LazyInfixExpression); ok {
+			shouldAssign = colon.Left
+		} else {
+			shouldAssign = node
+		}
+		sig := shouldAssign.(*ast.AssignmentExpression).Right.(*ast.StructExpression).Sig
 		structTypes := make([]values.AbstractType, 0, len(sig))
 		for _, labelNameAndType := range sig {
 			typeName := labelNameAndType.VarType
@@ -1741,7 +1773,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			}
 		}
 	}
-	iz.cmI("Extracting variable names from functions.")
+	iz.cmI("Mapping names of functions to their declarations.")
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range iz.ParsedDeclarations[dT] {
 			name, _, _, _, _, _ := iz.p.ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
@@ -1758,6 +1790,17 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				}
 				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i})
 			} else {
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
+			}
+		}
+	}
+	iz.cmI("Adding typechecks to declarations.")
+	// Since the name of a type will appear already in the map as the name of the function 
+	// constructing it, we'll mangle the names by adding a `*` to the front of each.
+	for _, dT := range []declarationType{structDeclaration} {
+		for i, dec := range iz.ParsedDeclarations[dT] {
+			if colon, ok := dec.(*ast.LazyInfixExpression); ok {
+				name := "*" + colon.Left.(*ast.AssignmentExpression).Left.(*ast.Identifier).Value
 				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
 			}
 		}
@@ -1860,6 +1903,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 
 	// We now have a list of lists of names to declare. We're off to the races!
 	iz.cmI("Compiling the variables/functions in the order given by the sort.")
+	outerLoop:
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
@@ -1889,6 +1933,9 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				iz.compileFunction(iz.ParsedDeclarations[functionDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
 			case commandDeclaration:
 				iz.compileFunction(iz.ParsedDeclarations[commandDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
+			case structDeclaration:
+				println("Found one!")
+				break outerLoop
 			}
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}

@@ -399,6 +399,7 @@ func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Litera
 type StructExpression struct {
 	Token token.Token
 	Sig   StringSig
+	Check Node
 }
 
 func (st *StructExpression) Children() []Node       { return []Node{} }

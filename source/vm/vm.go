@@ -2003,6 +2003,15 @@ func (t EnumType) IsMandatoryImport() bool {
 	return t.IsMI
 }
 
+// Contains the information necessary to perform the runtime checks on type constructors
+// on structs and clones.
+type TypeCheck struct {
+	CallAdr       uint32              
+	ParamsLoc     uint32 
+	ResultLoc     uint32
+	Params        []values.Value
+}
+
 type CloneType struct {
 	Name         string
 	Path         string
@@ -2013,6 +2022,7 @@ type CloneType struct {
 	IsMappable   bool
 	IsMI         bool
 	Using        []string // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
+	TypeCheck    *TypeCheck
 }
 
 func (t CloneType) GetName(flavor descriptionFlavor) string {
@@ -2057,9 +2067,9 @@ type StructType struct {
 	Snippet               bool
 	Private               bool
 	AbstractStructFields  []values.AbstractType
-	//AlternateStructFields []AlternateType // TODO --- even assuming we also need this, it shouldn't be here.
 	ResolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
 	IsMI                  bool
+	TypeCheck             *TypeCheck
 }
 
 func (t StructType) GetName(flavor descriptionFlavor) string {

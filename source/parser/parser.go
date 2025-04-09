@@ -869,6 +869,11 @@ func (p *Parser) parseStructExpression() ast.Node {
 	p.NextToken()
 	sigtree := p.parseExpression(FPREFIX)
 	expression.Sig = p.extractSig(p.recursivelyListify(sigtree))
+	if p.curToken.Type == token.COLON {
+		p.NextToken()
+		expression.Check = p.parseExpression(COLON)
+		println("Found", p.prettyPrint(expression.Check, printContext{}))
+	}
 	return expression
 }
 
@@ -1072,6 +1077,7 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 	c := *tok
 	p.Common.Errors = err.Throw(errorID, p.Common.Errors, &c, args...)
+	panic("Error is " + errorID)
 }
 
 func (p *Parser) ErrorsExist() bool {

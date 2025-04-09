@@ -1,6 +1,5 @@
-cmd
+newtype
 
-foo :       
-    post -- zort
-    post "troz"
+Person = struct(name string, age int) :
+    that[age] >= 0
 
