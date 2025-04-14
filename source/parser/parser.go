@@ -1077,7 +1077,6 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 func (p *Parser) Throw(errorID string, tok *token.Token, args ...any) {
 	c := *tok
 	p.Common.Errors = err.Throw(errorID, p.Common.Errors, &c, args...)
-	panic("Error is " + errorID)
 }
 
 func (p *Parser) ErrorsExist() bool {
