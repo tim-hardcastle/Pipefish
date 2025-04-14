@@ -845,7 +845,7 @@ func (iz *initializer) createClones() {
 		// We get the requested builtins.
 		var opList []string
 		usingOrEof := tokens.NextToken()
-		if usingOrEof.Type != token.EOF {
+		if usingOrEof.Type != token.EOF && usingOrEof.Type != token.COLON {
 			if usingOrEof.Literal != "using" {
 				iz.Throw("init/clone/using", &usingOrEof)
 				return
@@ -854,7 +854,7 @@ func (iz *initializer) createClones() {
 				op := tokens.NextToken()
 				sep := tokens.NextToken()
 				opList = append(opList, strings.Trim(op.Literal, "\n\r\t "))
-				if sep.Type == token.EOF {
+				if sep.Type == token.EOF || sep.Type == token.COLON {
 					break
 				}
 				if sep.Type != token.COMMA {
@@ -1794,17 +1794,30 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			}
 		}
 	}
-	iz.cmI("Adding typechecks to declarations.")
+	iz.cmI("Adding struct typechecks to declarations.")
 	// Since the name of a type will appear already in the map as the name of the function 
 	// constructing it, we'll mangle the names by adding a `*` to the front of each.
-	for _, dT := range []declarationType{structDeclaration} {
-		for i, dec := range iz.ParsedDeclarations[dT] {
-			if colon, ok := dec.(*ast.LazyInfixExpression); ok {
-				name := "*" + colon.Left.(*ast.AssignmentExpression).Left.(*ast.Identifier).Value
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i}}
-			}
+	for i, dec := range iz.ParsedDeclarations[structDeclaration] {
+		if colon, ok := dec.(*ast.LazyInfixExpression); ok {
+			name := "*" + colon.Left.(*ast.AssignmentExpression).Left.(*ast.Identifier).Value
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, structDeclaration, i}}
 		}
 	}
+	iz.cmI("Adding clone typechecks to declarations.")
+	// Since the name of a type will appear already in the map as the name of the function 
+	// constructing it, we'll mangle the names by adding a `*` to the front of each.
+	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
+		dec.ToStart()
+		tok := dec.NextToken()
+		name := "*" + tok.Literal
+		for ; tok.Type != token.NEWLINE && tok.Type != token.EOF && tok.Type != token.COLON; tok = dec.NextToken() {}
+		if tok.Type == token.COLON {
+			iz.cp.P.TokenizedCode = dec
+			typecheck := iz.cp.P.ParseTokenizedChunk()
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i}}	
+		}
+	}
+	
 	iz.cmI("Building digraph of dependencies.")
 	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
 	graph := dtypes.Digraph[string]{}
@@ -1903,7 +1916,6 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 
 	// We now have a list of lists of names to declare. We're off to the races!
 	iz.cmI("Compiling the variables/functions in the order given by the sort.")
-	outerLoop:
 	for _, namesToDeclare := range order { // 'namesToDeclare' is one Tarjan partition.
 		groupOfDeclarations := []labeledParsedCodeChunk{}
 		for _, nameToDeclare := range namesToDeclare {
@@ -1933,9 +1945,8 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				iz.compileFunction(iz.ParsedDeclarations[functionDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
 			case commandDeclaration:
 				iz.compileFunction(iz.ParsedDeclarations[commandDeclaration][dec.decNumber], iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
-			case structDeclaration:
-				println("Found one!")
-				break outerLoop
+			case structDeclaration, cloneDeclaration:
+				continue
 			}
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}

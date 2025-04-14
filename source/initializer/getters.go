@@ -119,8 +119,11 @@ func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
 		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
 	}
-	if dec.decType == structDeclaration || dec.decType == cloneDeclaration {
+	if dec.decType == structDeclaration {
 		return ast.ExtractAllNames(dec.chunk.(*ast.LazyInfixExpression).Right)
+	}
+	if dec.decType == cloneDeclaration {
+		return ast.ExtractAllNames(dec.chunk)
 	}
 	_, _, sig, _, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
 	sigNames := dtypes.Set[string]{}

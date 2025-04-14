@@ -3,3 +3,5 @@ newtype
 Person = struct(name string, age int) :
     that[age] >= 0
 
+EvenNumber = clone int :
+    that mod 2 == 0
