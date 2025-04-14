@@ -82,7 +82,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"post_sql":                  {(*Compiler).btPostToSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
 	"post_to_terminal":          {(*Compiler).btPostToTerminal, AltType(values.SUCCESSFUL_VALUE)},
 	"rune":                      {(*Compiler).btRune, AltType(values.RUNE)},
-	"secret":				     {(*Compiler).btSecret, AltType(values.SECRET)},
+	"secret":                    {(*Compiler).btSecret, AltType(values.SECRET)},
 	"single_in_list":            {(*Compiler).btSingleInList, AltType(values.BOOL)},
 	"single_in_set":             {(*Compiler).btSingleInSet, AltType(values.BOOL)},
 	"single_in_tuple":           {(*Compiler).btSingleInTuple, AltType(values.BOOL)},
@@ -135,7 +135,7 @@ func (cp *Compiler) btAddStringToRune(tok *token.Token, dest uint32, args []uint
 }
 
 func (cp *Compiler) btCast(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Casx, dest, args[0], args[1], cp.reserveToken(tok))
+	cp.Emit(vm.Casx, dest, args[0], args[1], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btCastToFloat(tok *token.Token, dest uint32, args []uint32) {
@@ -175,27 +175,27 @@ func (cp *Compiler) btCodepoint(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btDivideFloats(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Divf, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Divf, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btDivideFloatByInteger(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Dvfi, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Dvfi, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btDivideIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Divi, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Divi, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btDivideIntegerByFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Dvif, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Dvif, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btDivideIntegersToFloat(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Diif, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Diif, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btFirstInTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Tplf, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Tplf, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btFloatOfInt(tok *token.Token, dest uint32, args []uint32) {
@@ -212,7 +212,7 @@ func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32)
 }
 
 func (cp *Compiler) btGetFromSQL(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.reserveToken(tok))
+	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btGtFloats(tok *token.Token, dest uint32, args []uint32) {
@@ -256,11 +256,11 @@ func (cp *Compiler) btKeysOfStruct(tok *token.Token, dest uint32, args []uint32)
 }
 
 func (cp *Compiler) btLabelOfString(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Lbls, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Lbls, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btLastInTuple(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Tpll, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Tpll, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btLenList(tok *token.Token, dest uint32, args []uint32) {
@@ -288,7 +288,7 @@ func (cp *Compiler) btLenTuple(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btListWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WthL, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WthL, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btLiteral(tok *token.Token, dest uint32, args []uint32) {
@@ -312,11 +312,11 @@ func (cp *Compiler) btLteInts(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btMakeError(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Mker, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Mker, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMakeMap(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Mkmp, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Mkmp, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMakePair(tok *token.Token, dest uint32, args []uint32) {
@@ -324,23 +324,23 @@ func (cp *Compiler) btMakePair(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btMakeSnippet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.CoSn, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.CoSn, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMakeSet(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Mkst, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Mkst, dest, args[0], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMapWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WthM, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WthM, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMapWithout(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WtoM, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WtoM, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btModuloIntegers(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Modi, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Modi, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMultiplyFloatByInteger(tok *token.Token, dest uint32, args []uint32) {
@@ -373,7 +373,7 @@ func (cp *Compiler) btPostToOutput(tok *token.Token, dest uint32, args []uint32)
 }
 
 func (cp *Compiler) btPostToSQL(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Psql, dest, args[1], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.Psql, dest, args[1], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btPostToTerminal(tok *token.Token, dest uint32, args []uint32) {
@@ -410,7 +410,7 @@ func (cp *Compiler) btString(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btStructWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WthZ, dest, args[0], args[2], cp.reserveToken(tok))
+	cp.Emit(vm.WthZ, dest, args[0], args[2], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btSubtractFloats(tok *token.Token, dest uint32, args []uint32) {
@@ -451,9 +451,9 @@ func (cp *Compiler) btTypesOfType(tok *token.Token, dest uint32, args []uint32) 
 }
 
 func (cp *Compiler) btTypeWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Wtht, dest, args[0], args[1], cp.reserveToken(tok))
+	cp.Emit(vm.Wtht, dest, args[0], args[1], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btVarchar(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.Varc, dest, args[0], cp.reserveToken(tok))
+	cp.Emit(vm.Varc, dest, args[0], cp.ReserveToken(tok))
 }

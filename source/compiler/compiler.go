@@ -391,7 +391,7 @@ NodeTypeSwitch:
 		indexType, idxConst := cp.CompileNode(node.Index, newContext)
 		index := cp.That()
 		rtnConst = ctrConst && idxConst
-		errTok := cp.reserveToken(node.GetToken())
+		errTok := cp.ReserveToken(node.GetToken())
 		// Things we can index:
 		// Lists, by integers; or a pair for a slice.
 		// Tuples, ditto.
@@ -882,7 +882,7 @@ NodeTypeSwitch:
 		}
 		if node.Token.Type == token.UNWRAP {
 			_, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
-			errTok := cp.reserveToken(node.GetToken())
+			errTok := cp.ReserveToken(node.GetToken())
 			cp.put(vm.Uwrp, cp.That(), errTok)
 			rtnTypes = AltType(values.ERROR).Union(cp.GetAlternateTypeFromTypeName("Error"))
 			break
@@ -1018,7 +1018,7 @@ NodeTypeSwitch:
 				rtnTypes = altType(values.TUPLE)
 				break NodeTypeSwitch
 			}
-			cp.put(vm.TuLx, cp.That(), cp.reserveToken(node.Args[0].GetToken()))
+			cp.put(vm.TuLx, cp.That(), cp.ReserveToken(node.Args[0].GetToken()))
 			rtnTypes = altType(values.ERROR, values.TUPLE)
 			break NodeTypeSwitch
 		}
@@ -1446,7 +1446,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 				if keysOnly {
 					keysInt = 1
 				}
-				cp.put(vm.Mkit, cp.That(), keysInt, cp.reserveToken(rangeOver.GetToken())) // TODO --- optimize constant case.
+				cp.put(vm.Mkit, cp.That(), keysInt, cp.ReserveToken(rangeOver.GetToken())) // TODO --- optimize constant case.
 				iteratorLoc = cp.That()
 				if !valuesOnly {
 					cp.Reserve(values.UNDEFINED_TYPE, nil, rangeOver.GetToken())
@@ -1977,7 +1977,7 @@ func (cp *Compiler) compileEquals(node *ast.ComparisonExpression, ctxt Context) 
 			}
 		}
 	}
-	cp.put(vm.Eqxx, leftRg, rightRg, cp.reserveToken(node.GetToken()))
+	cp.put(vm.Eqxx, leftRg, rightRg, cp.ReserveToken(node.GetToken()))
 	return AltType(values.ERROR, values.BOOL), lcst && rcst
 }
 
@@ -2663,7 +2663,7 @@ func (cp *Compiler) reserveError(ec string, tok *token.Token, args ...any) uint3
 	return cp.That()
 }
 
-func (cp *Compiler) reserveToken(tok *token.Token) uint32 {
+func (cp *Compiler) ReserveToken(tok *token.Token) uint32 {
 	cp.Vm.Tokens = append(cp.Vm.Tokens, tok)
 	return cp.ThatToken()
 }

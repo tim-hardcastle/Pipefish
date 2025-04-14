@@ -2010,6 +2010,7 @@ type TypeCheck struct {
 	ParamsLoc     uint32 
 	ResultLoc     uint32
 	Params        []values.Value
+	Tok			  uint32          // Contains a location which contains an integer which is an index of the tokens in the vm.
 }
 
 type CloneType struct {
@@ -2058,6 +2059,10 @@ func (t CloneType) getPath() string {
 
 func (t CloneType) IsMandatoryImport() bool {
 	return t.IsMI
+}
+
+func (t CloneType) AddTypeCheck(tc TypeCheck) {
+	t.TypeCheck = &tc
 }
 
 type StructType struct {
@@ -2127,7 +2132,9 @@ func (t StructType) Resolve(labelNumber int) int {
 	return -1
 }
 
-
+func (t StructType) AddTypeCheck(tc TypeCheck) {
+	t.TypeCheck = &tc
+}
 
 // Produces a Value of the internal type ITERATOR for use in implementing `for` loops.
 // TODO --- since the only thing we're using the VM for is to look up the `concreteTypeInfo`,
