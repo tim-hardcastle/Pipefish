@@ -522,15 +522,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/given/unexpected": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "unexpected occurrence of " + emph(tok.Literal) + " in 'given' block"
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Pipefish has no idea what this is doing here."
-		},
-	},
-
 	"comp/global/global": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "identifier " + emph(tok.Literal) + " doesn't identify a global variable"
@@ -1831,6 +1822,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Each type can only be declared once."
+		},
+	},
+
+	"init/typecheck/bool": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "typecheck " + emph(args[0]) + " declared at for type " + emph(args[1]) +
+				" can never return a boolean value"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A typecheck should return a boolean value or an error but this can't do either."
 		},
 	},
 
@@ -3239,9 +3240,21 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/typecheck": {
+	"vm/typecheck/bool": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "failed typecheck"
+			return "runtime typecheck " + emph(args[0]) + " declared at " + 
+			    text.DescribePos(args[2].(*token.Token)) + " returned a non-boolean value of type " +
+				emph(args[3]) + " when constructing type " + emph(args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A runtime typecheck should return either a boolean value or an error."
+		},
+	},
+
+	"vm/typecheck/fail": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed runtime typecheck " + emph(args[0]) + " declared at " + 
+			    text.DescribePos(args[2].(*token.Token)) + " when constructing type " + emph(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You placed constraints on the types of this expression which you then violated."

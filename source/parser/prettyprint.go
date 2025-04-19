@@ -183,7 +183,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 				out.WriteString(")")
 			}
 		} else {
-			if node.Token.Type == token.SEMICOLON {
+			if node.Token.Type == token.SEMICOLON || node.Token.Type == token.NEWLINE {
 				out.WriteString(p.prettyPrint(node.Left, ctxt))
 				out.WriteString("\n")
 				out.WriteString(p.prettyPrint(node.Right, ctxt))

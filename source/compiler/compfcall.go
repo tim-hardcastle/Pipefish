@@ -420,7 +420,6 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	}
 	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
 	if typeAsString == "tuple" {
-		println("Emitting tuple check at", mem)
 		cp.Emit(vm.Qtyp, mem, uint32(values.TUPLE), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
@@ -632,35 +631,33 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					return functionAndType.T
 				}
 				typeNumber, ok := cp.GetConcreteType(builtinTag)
-				// It might be a short-form struct constructor.
-				if ok && cp.IsStruct(builtinTag) {
-					args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
-					cp.cmP("Emitting short form constructor.", b.tok)
-					cp.Emit(vm.Strc, args...)
-					typeInfo := cp.Vm.ConcreteTypeInfo[typeNumber]
-					typeCheck := typeInfo.(vm.StructType).TypeCheck
+				typeInfo := cp.Vm.ConcreteTypeInfo[typeNumber]
+				if ok && (typeInfo.IsStruct() || typeInfo.IsClone()) {
+					var typeCheck *vm.TypeCheck
+					// It might be a short-form struct constructor.
+					if typeInfo.IsStruct() {
+						args := append([]uint32{b.outLoc, uint32(typeNumber)}, b.valLocs...)
+						cp.cmP("Emitting short form constructor.", b.tok)
+						cp.Emit(vm.Strc, args...)
+						typeCheck = typeInfo.(vm.StructType).TypeCheck
+					} else { // Or a clone constructor.
+						cp.cmP("Emitting clone constructor.", b.tok)
+						cp.Emit(vm.Cast, b.outLoc, b.valLocs[0], uint32(typeNumber))
+						typeCheck = typeInfo.(vm.CloneType).TypeCheck
+					}
 					if typeCheck == nil {
 						return AltType(typeNumber)
 					}
-					cp.Emit(vm.Asgm, typeCheck.ResultLoc, cp.That())
-					cp.Reserve(values.INT, int(cp.ReserveToken(b.tok)), b.tok)
-					cp.Emit(vm.Asgm, typeCheck.Tok, cp.That())
-					cp.Emit(vm.Jsr, typeCheck.CallAdr)
-					return AltType(values.ERROR, typeNumber)
-				}
-				// It might be a clone type constructor.
-				if ok && cp.topRCompiler().isClone(builtinTag) {
-					cp.cmP("Emitting clone constructor.", b.tok)
-					cp.Emit(vm.Cast, b.outLoc, b.valLocs[0], uint32(typeNumber))
-					typeInfo := cp.Vm.ConcreteTypeInfo[typeNumber]
-					typeCheck := typeInfo.(vm.CloneType).TypeCheck
-					if typeCheck == nil {
-						return AltType(typeNumber)
+					cp.Emit(vm.Asgm, typeCheck.ResultLoc, b.outLoc)
+					if typeInfo.IsClone() {
+						cp.Emit(vm.Asgm, typeCheck.InLoc, b.valLocs[0])
+					} else {
+						cp.Emit(vm.Asgm, typeCheck.InLoc, b.outLoc)
 					}
-					cp.Emit(vm.Asgm, typeCheck.ResultLoc, cp.That())
 					cp.Reserve(values.INT, int(cp.ReserveToken(b.tok)), b.tok)
-					cp.Emit(vm.Asgm, typeCheck.Tok, cp.That())
-					cp.Emit(vm.Jsr, typeCheck.CallAdr)
+					cp.Emit(vm.Asgm, typeCheck.TokNumberLoc, cp.That())
+					cp.Emit(vm.Jsr, typeCheck.CallAddress)
+					cp.Emit(vm.Asgm, b.outLoc, typeCheck.ResultLoc)
 					return AltType(values.ERROR, typeNumber)
 				}
 				// It could have a Golang body.

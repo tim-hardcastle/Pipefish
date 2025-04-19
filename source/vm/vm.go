@@ -26,9 +26,9 @@ type Vm struct {
 	callstack      []uint32
 	recursionStack []recursionData
 	logging        bool
-	// TODO --- the LogToLoc field of TrackingData is never used by *live* tracking, which should therefore have its own data type. 
-	LiveTracking   []TrackingData // "Live" tracking data in which the uint32s in the permanent tracking data have been replaced by the corresponding memory registers.
-	PostHappened   bool
+	// TODO --- the LogToLoc field of TrackingData is never used by *live* tracking, which should therefore have its own data type.
+	LiveTracking []TrackingData // "Live" tracking data in which the uint32s in the permanent tracking data have been replaced by the corresponding memory registers.
+	PostHappened bool
 
 	// Permanent state: things established at compile time.
 
@@ -38,17 +38,18 @@ type Vm struct {
 	LambdaFactories            []*LambdaFactory
 	SnippetFactories           []*SnippetFactory
 	GoFns                      []GoFn
+	TypeCheckErrors            []*TypeCheckError
 	Tracking                   []TrackingData // Data needed by the 'trak' opcode to produce the live tracking data.
 	InHandle                   InHandler
 	OutHandle                  OutHandler
 	AbstractTypes              []values.AbstractTypeInfo
 	ExternalCallHandlers       []ExternalCallHandler // The services declared external, whether on the same hub or a different one.
 	UsefulTypes                UsefulTypes
-	UsefulValues			   UsefulValues
-	TypeNumberOfUnwrappedError values.ValueType      // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
-	StringifyLoReg             uint32   // | 
-	StringifyCallTo			   uint32   // | These are so the vm knows how to call the stringify function.
-	StringifyOutReg            uint32   // |
+	UsefulValues               UsefulValues
+	TypeNumberOfUnwrappedError values.ValueType // What it says. When we unwrap an 'error' to an 'Error' struct, the vm needs to know the number of the struct.
+	StringifyLoReg             uint32           // |
+	StringifyCallTo            uint32           // | These are so the vm knows how to call the stringify function.
+	StringifyOutReg            uint32           // |
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter                [](func(t uint32, v any) any)
@@ -57,16 +58,16 @@ type Vm struct {
 // In general, the VM can't convert from type names to type numbers, because it doesn't
 // need to. And we don't need the whole map of them because only a tiny proportion are
 // needed by the runtime, so a struct gives us quick access to what we do need.
-type UsefulTypes struct{
+type UsefulTypes struct {
 	UnwrappedError values.ValueType
 	File           values.ValueType
-	Terminal	   values.ValueType
+	Terminal       values.ValueType
 	Output         values.ValueType
-} 
+}
 
 // Similarly we need to know where some values are kept, if they have special effects
 // on runtime behavior.
-type UsefulValues struct{
+type UsefulValues struct {
 	OutputAs uint32
 }
 
@@ -108,12 +109,18 @@ type LambdaFactory struct {
 }
 
 // All the information we need to make a snippet at a particular point in the code.
-// Currently contaains only the bindle but later will contain some secret sauce.
+// Currently contains only the bindle but later may contain some secret sauce.
 type SnippetFactory struct {
-	Bindle *values.SnippetBindle   // Points to the structure defined below.
+	Bindle *values.SnippetBindle // Points to the structure defined below.
 }
 
-
+// For containing the data needed to manufacture a typechecking error at runtime.
+type TypeCheckError struct {
+	Tok       *token.Token
+	Condition string
+	Type      string
+	Value     uint32
+}
 
 // Container for the data we push when a function might be about to do recursion.
 type recursionData struct {
@@ -130,7 +137,7 @@ type HTMLInjector struct {
 var CONSTANTS = []values.Value{values.UNDEF, values.FALSE, values.TRUE, values.U_OBJ, values.ONE, values.BLNG, values.OK, values.EMPTY}
 
 // Type names in upper case are things the user should never see.
-var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT", 
+var nativeTypeNames = []string{"UNDEFINED VALUE", "INT ARRAY", "THUNK", "CREATED LOCAL CONSTANT",
 	"COMPILE TIME ERROR", "BLING", "UNSATISFIED CONDITIONAL", "REFERENCE VARIABLE",
 	"ITERATOR", "ok", "tuple", "error", "null", "int", "bool", "string", "rune", "float", "type", "func",
 	"pair", "list", "map", "set", "label", "snippet", "secret"}
@@ -184,7 +191,7 @@ loop:
 				break Switch
 			}
 			cType := rType.Types[0]
-			if ! vm.ConcreteTypeInfo[cType].IsStruct() {
+			if !vm.ConcreteTypeInfo[cType].IsStruct() {
 				vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
 				break Switch
 			}
@@ -196,7 +203,7 @@ loop:
 			user := dbValue[4].V.(Secret).secret.V.(string)
 			password := dbValue[5].V.(Secret).secret.V.(string)
 			connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
-			host, port, name, user, password)
+				host, port, name, user, password)
 			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
 			if connectionError != nil {
 				vm.Mem[args[0]] = vm.makeError("vm/connect/get", args[5], connectionError.Error())
@@ -213,7 +220,7 @@ loop:
 			buf := strings.Builder{}
 			vals := make([]values.Value, 0, len(snippet)/2)
 			for i, v := range snippet {
-				if i % 2 == 0 {
+				if i%2 == 0 {
 					buf.WriteString(v.V.(string))
 				} else {
 					vals = append(vals, v)
@@ -237,7 +244,7 @@ loop:
 			user := dbValue[4].V.(Secret).secret.V.(string)
 			password := dbValue[5].V.(Secret).secret.V.(string)
 			connectionString := fmt.Sprintf("host=%v port=%v dbname=%v user=%v password=%v sslmode=disable",
-			host, port, name, user, password)
+				host, port, name, user, password)
 			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
 			if connectionError != nil {
 				vm.Mem[args[0]] = vm.makeError("vm/connect/post", args[3], connectionError.Error())
@@ -252,7 +259,7 @@ loop:
 			buf := strings.Builder{}
 			vals := make([]values.Value, 0, len(snippet)/2)
 			for i, v := range snippet {
-				if i % 2 == 0 {
+				if i%2 == 0 {
 					buf.WriteString(v.V.(string))
 				} else {
 					if v.T == values.TYPE {
@@ -261,7 +268,7 @@ loop:
 							break Switch
 						}
 						cType := v.V.(values.AbstractType).Types[0]
-						if ! vm.ConcreteTypeInfo[cType].IsStruct() {
+						if !vm.ConcreteTypeInfo[cType].IsStruct() {
 							vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
 							break Switch
 						}
@@ -327,16 +334,16 @@ loop:
 				}
 				prettyString := vm.TrackingToString([]TrackingData{newData})
 				switch vm.Mem[staticData.LogToLoc].T {
-				case vm.UsefulTypes.Terminal :
+				case vm.UsefulTypes.Terminal:
 					print(text.Pretty(prettyString, 0, 90))
-				case vm.UsefulTypes.Output :
+				case vm.UsefulTypes.Output:
 					vm.OutHandle.Write(text.Pretty(prettyString, 0, 90))
-				case vm.UsefulTypes.File :
+				case vm.UsefulTypes.File:
 					// TODO --- this is obviously very wasteful. Make $logTo into a constant?
 					filename := vm.Mem[staticData.LogToLoc].V.([]values.Value)[0].V.(string)
 					path := filename
 					if filepath.IsLocal(path) {
-						path = filepath.Join(filepath.Dir(staticData.Tok.Source) , path)
+						path = filepath.Join(filepath.Dir(staticData.Tok.Source), path)
 					}
 					var f *os.File
 					if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -345,7 +352,7 @@ loop:
 							panic(err)
 						}
 					} else {
-						f, err = os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0660);
+						f, err = os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0660)
 						if err != nil {
 							panic(err)
 						}
@@ -478,6 +485,34 @@ loop:
 				} else {
 					vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 				}
+			}
+		case Chck:
+			// Arguments:
+			// args[0] : memory location of result.
+			// args[1] : evaluation of the type condition, presumptively boolean.
+			// args[2] : memory location containing an int which is the number of the
+			// token of the calling constructor.
+			// args[3] : the ordinal of the data needed to hold the error message.
+			switch vm.Mem[args[1]].T {
+			case values.BOOL:
+				if !(vm.Mem[args[1]].V.(bool)) {
+					tokNumber := uint32(vm.Mem[args[2]].V.(int))
+					errorInfo := vm.TypeCheckErrors[args[3]]
+					vm.Mem[args[0]] = vm.makeError("vm/typecheck/fail", tokNumber,
+					    errorInfo.Condition, errorInfo.Type, errorInfo.Tok, errorInfo.Value)
+					loc = vm.callstack[len(vm.callstack)-1]
+					vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
+				}
+			case values.ERROR:
+				vm.Mem[args[0]] = vm.Mem[args[1]]
+			default:
+				tokNumber := uint32(vm.Mem[args[2]].V.(int))
+				errorInfo := vm.TypeCheckErrors[args[3]]
+				vm.Mem[args[0]] = vm.makeError("vm/typecheck/bool", tokNumber,
+				    errorInfo.Condition, errorInfo.Type, errorInfo.Tok,
+				    vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.Mem[args[1]], errorInfo.Tok)
+				loc = vm.callstack[len(vm.callstack)-1]
+				vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 			}
 		case CoSn:
 			vm.Mem[args[0]] = values.Value{values.SNIPPET, values.Snippet{vm.Mem[args[1]].V.([]values.Value), nil}}
@@ -1006,7 +1041,7 @@ loop:
 			ix := typeInfo.Resolve(vm.Mem[args[2]].V.(int))
 			if ix == -1 {
 				vm.Mem[args[0]] = vm.makeError("vm/index/z", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DefaultDescription(vm.Mem[args[2]]))
-				continue	
+				continue
 			}
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
 		case IxZn:
@@ -2006,11 +2041,12 @@ func (t EnumType) IsMandatoryImport() bool {
 // Contains the information necessary to perform the runtime checks on type constructors
 // on structs and clones.
 type TypeCheck struct {
-	CallAdr       uint32              
-	ParamsLoc     uint32 
-	ResultLoc     uint32
-	Params        []values.Value
-	Tok			  uint32          // Contains a location which contains an integer which is an index of the tokens in the vm.
+	CallAddress  uint32
+	ParamsLoc    uint32
+	InLoc        uint32
+	ResultLoc    uint32
+	Params       []values.Value
+	TokNumberLoc uint32 // Contains a location which contains an integer which is an index of the tokens in the vm.
 }
 
 type CloneType struct {
@@ -2061,20 +2097,21 @@ func (t CloneType) IsMandatoryImport() bool {
 	return t.IsMI
 }
 
-func (t CloneType) AddTypeCheck(tc TypeCheck) {
-	t.TypeCheck = &tc
+func (t CloneType) AddTypeCheck(tc *TypeCheck) CloneType {
+	t.TypeCheck = tc
+	return t
 }
 
 type StructType struct {
-	Name                  string
-	Path                  string
-	LabelNumbers          []int
-	Snippet               bool
-	Private               bool
-	AbstractStructFields  []values.AbstractType
-	ResolvingMap          map[int]int     // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
-	IsMI                  bool
-	TypeCheck             *TypeCheck
+	Name                 string
+	Path                 string
+	LabelNumbers         []int
+	Snippet              bool
+	Private              bool
+	AbstractStructFields []values.AbstractType
+	ResolvingMap         map[int]int // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
+	IsMI                 bool
+	TypeCheck            *TypeCheck
 }
 
 func (t StructType) GetName(flavor descriptionFlavor) string {
@@ -2132,8 +2169,9 @@ func (t StructType) Resolve(labelNumber int) int {
 	return -1
 }
 
-func (t StructType) AddTypeCheck(tc TypeCheck) {
-	t.TypeCheck = &tc
+func (t StructType) AddTypeCheck(tc *TypeCheck) StructType {
+	t.TypeCheck = tc
+	return t
 }
 
 // Produces a Value of the internal type ITERATOR for use in implementing `for` loops.
@@ -2195,7 +2233,7 @@ func (vm *Vm) NewIterator(container values.Value, keysOnly bool, tokLoc uint32) 
 	case values.TYPE:
 		abTyp := container.V.(values.AbstractType)
 		if len(abTyp.Types) != 1 {
-			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc, )}
+			return values.Value{values.ERROR, vm.makeError("vm/for/type/a", tokLoc)}
 		}
 		typ := abTyp.Types[0]
 		if !vm.ConcreteTypeInfo[typ].IsEnum() {

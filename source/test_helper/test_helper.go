@@ -59,6 +59,9 @@ func TestValues(cp *compiler.Compiler, s string) (string, error) {
 	if cp.ErrorsExist() {
 		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
+	if v.T == values.ERROR {
+		return v.V.(*err.Error).ErrorId, nil
+	}
 	return cp.Vm.Literal(v), nil
 }
 

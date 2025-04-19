@@ -182,7 +182,6 @@ func (cp *Compiler) Do(line string) values.Value {
 // The node types in the switch are in alphabetical order.
 func (cp *Compiler) CompileNode(node ast.Node, ctxt Context) (AlternateType, bool) {
 	cp.Cm("Compiling node of type "+(reflect.TypeOf(node).String())[5:]+" with literal "+text.Emph(node.GetToken().Literal)+".", node.GetToken())
-	cp.Cm("Node is "+node.String(), node.GetToken())
 	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source)) || testing.Testing()
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := cp.GetState()
@@ -1761,7 +1760,7 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 	cp.Cm("Compiling 'given' block.", given.GetToken())
 	nameToNode := map[string]*ast.AssignmentExpression{}
 	nameGraph := dtypes.Digraph[string]{}
-	chunks := cp.getPartsOfGiven(given, ctxt)
+	chunks := cp.SplitOnNewlines(given)
 	for _, chunk := range chunks {
 		if chunk.GetToken().Type != token.GVN_ASSIGN {
 			cp.Throw("comp/given/assign", chunk.GetToken())
@@ -1813,19 +1812,17 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 
 // Function auxiliary to the previous one, `CompileGivenBlock`, to break down a `given` block into its
 // component declarations so they can be passed one by one to the next function, `compileOneGivenBlock`.
-func (cp *Compiler) getPartsOfGiven(given ast.Node, ctxt Context) []ast.Node {
+func (cp *Compiler) SplitOnNewlines(block ast.Node) []ast.Node {
 	result := []ast.Node{}
-	switch branch := given.(type) {
+	switch branch := block.(type) {
 	case *ast.LazyInfixExpression:
 		if branch.Token.Literal == ";" {
-			result = cp.getPartsOfGiven(branch.Left, ctxt)
-			rhs := cp.getPartsOfGiven(branch.Right, ctxt)
+			result = cp.SplitOnNewlines(branch.Left)
+			rhs := cp.SplitOnNewlines(branch.Right)
 			result = append(result, rhs...)
-		} else {
-			cp.Throw("comp/given/unexpected", given.GetToken())
 		}
 	default:
-		result = []ast.Node{given}
+		result = []ast.Node{block}
 	}
 	return result
 }
@@ -1923,13 +1920,22 @@ func (cp *Compiler) getLambdaStart() uint32 {
 }
 
 // A function for making snippet factories.
-
 func (cp *Compiler) reserveSnippetFactory(env *Environment, node *ast.SnippetLiteral, ctxt Context) uint32 {
 	cp.Cm("Reserving snippet factory.", &node.Token)
 	snF := &vm.SnippetFactory{}
 	snF.Bindle = cp.compileSnippet(node.GetToken(), env, node.Token.Literal, ctxt)
 	cp.Vm.SnippetFactories = append(cp.Vm.SnippetFactories, snF)
 	return uint32(len(cp.Vm.SnippetFactories) - 1)
+}
+
+// Reserves information to be emitted when a typecheck fails at runtime.
+// TODO --- move to intializer.
+func (cp *Compiler) ReserveTypeCheckError(node ast.Node, typename string, valLoc uint32) uint32 {
+	cp.Cm("Reserving typeCheckError factory.", node.GetToken())
+	err := &vm.TypeCheckError{Tok: node.GetToken(), Condition: cp.P.PrettyPrint(node),
+		Type: typename, Value: valLoc}
+	cp.Vm.TypeCheckErrors = append(cp.Vm.TypeCheckErrors, err)
+	return uint32(len(cp.Vm.TypeCheckErrors) - 1)
 }
 
 // Compiles a test for equality.

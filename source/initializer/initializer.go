@@ -1795,30 +1795,31 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		}
 	}
 	iz.cmI("Adding struct typechecks to declarations.")
-	// Since the name of a type will appear already in the map as the name of the function 
+	// Since the name of a type will appear already in the map as the name of the function
 	// constructing it, we'll mangle the names by adding a `*` to the front of each.
 	for i, dec := range iz.ParsedDeclarations[structDeclaration] {
 		if colon, ok := dec.(*ast.LazyInfixExpression); ok {
 			name := "*" + colon.Left.(*ast.AssignmentExpression).Left.(*ast.Identifier).Value
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, structDeclaration, i, name[1:]}}
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{colon.Right, structDeclaration, i, name[1:]}}
 		}
 	}
 	iz.cmI("Adding clone typechecks to declarations.")
-	// Since the name of a type will appear already in the map as the name of the function 
+	// Since the name of a type will appear already in the map as the name of the function
 	// constructing it, we'll mangle the names by adding a `*` to the front of each.
 	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
 		iz.ParsedDeclarations[cloneDeclaration] = make(parser.ParsedCodeChunks, len(iz.TokenizedDeclarations[cloneDeclaration]))
 		dec.ToStart()
 		tok := dec.NextToken()
 		name := "*" + tok.Literal
-		for ; tok.Type != token.NEWLINE && tok.Type != token.EOF && tok.Type != token.COLON; tok = dec.NextToken() {}
+		for ; tok.Type != token.NEWLINE && tok.Type != token.EOF && tok.Type != token.COLON; tok = dec.NextToken() {
+		}
 		if tok.Type == token.COLON {
 			iz.cp.P.TokenizedCode = dec
 			typecheck := iz.cp.P.ParseTokenizedChunk()
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:]}}
 		}
 	}
-	
+
 	iz.cmI("Building digraph of dependencies.")
 	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
 	graph := dtypes.Digraph[string]{}
@@ -1935,7 +1936,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		iz.cp.RecursionStore = []compiler.BkRecursion{} // The compiler will put all the places it needs to backtrack for recursion here.
 		fCount := uint32(len(iz.cp.Fns))                // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
 		for _, dec := range groupOfDeclarations {
-				if dec.decType == functionDeclaration || dec.decType == commandDeclaration {
+			if dec.decType == functionDeclaration || dec.decType == commandDeclaration {
 				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
 				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Compiler = iz.cp
 				fCount++
@@ -1945,6 +1946,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			switch dec.decType {
 			case structDeclaration, cloneDeclaration:
 				iz.compileTypecheck(dec.name, dec.chunk)
+				
 				continue
 			case functionDeclaration:
 				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
@@ -2085,20 +2087,39 @@ func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationTyp
 // Method for compiling the runtime typechecks on structs and clones
 func (iz *initializer) compileTypecheck(name string, node ast.Node) {
 	typeNumber, _ := iz.cp.GetConcreteType(name)
+	typeInfo := iz.cp.TypeInfoNow(name)
+	thatType := typeNumber
+	if typeInfo.IsClone() {
+		thatType = typeInfo.(vm.CloneType).Parent
+	}
 	iz.cmI("Compiling typecheck for '" + name + "'")
 	callAddress := iz.cp.CodeTop()
 	info := iz.cp.Vm.ConcreteTypeInfo[typeNumber]
-	tokLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
-	iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
+	resultLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
+	tokNumberLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
+	newEnv := compiler.NewEnvironment()
+	newEnv.Ext = iz.cp.GlobalConsts
+	inLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
+	iz.cp.AddVariable(newEnv, "that", compiler.VERY_LOCAL_VARIABLE, altType(thatType), node.GetToken())
+	chunks := iz.cp.SplitOnNewlines(node)
+	for _, chunk := range chunks {
+		context := compiler.Context{Env: newEnv}
+		rTypes, _ := iz.cp.CompileNode(chunk, context)
+		if !rTypes.Contains(values.BOOL) {
+			iz.Throw("init/typecheck/bool", chunk.GetToken(), iz.cp.P.PrettyPrint(chunk), name)
+		}
+		errNo := iz.cp.ReserveTypeCheckError(chunk, name, inLoc)
+		iz.cp.Emit(vm.Chck, resultLoc, iz.cp.That(), tokNumberLoc, errNo) // This will do its own early return from the typecheck.
+	}
 	iz.cp.Emit(vm.Ret)
-	typeCheck := vm.TypeCheck{CallAdr: callAddress, ResultLoc: iz.cp.That(), Tok: tokLoc}
+	typeCheck := &vm.TypeCheck{CallAddress: callAddress, InLoc: inLoc, ResultLoc: resultLoc, TokNumberLoc: tokNumberLoc}
 	if info.IsClone() {
-		info.(vm.CloneType).AddTypeCheck(typeCheck)
+		info = info.(vm.CloneType).AddTypeCheck(typeCheck)
 	} else {
-		info.(vm.StructType).AddTypeCheck(typeCheck)
+		info = info.(vm.StructType).AddTypeCheck(typeCheck)
 	}
 	iz.cp.Vm.ConcreteTypeInfo[typeNumber] = info
-}	
+}
 
 // Method for compiling a top-level function.
 func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType) *compiler.CpFunc {

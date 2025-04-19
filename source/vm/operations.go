@@ -14,7 +14,8 @@ type Operation struct {
 type operandType uint8
 
 const (
-	dst operandType = iota
+	chk operandType = iota
+	dst 
 	gfn
 	lfc
 	loc
@@ -50,6 +51,8 @@ func (op *Operation) ppOperand(i int) string {
 	}
 	opVal := strconv.Itoa(int(op.Args[i]))
 	switch opType {
+	case chk:
+		return "?" + opVal
 	case dst:
 		return " m" + opVal + " <-"
 	case gfn:
@@ -114,6 +117,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	CcT1: {"ccT1", operands{dst, mem, mem}},
 	CcTT: {"ccTT", operands{dst, mem, mem}},
 	Ccxx: {"ccxx", operands{dst, mem, mem}},
+	Chck: {"chck", operands{dst, mem, mem, chk}},
 	Cpnt: {"cpnt", operands{dst, mem}},
 	Cv1T: {"cv1T", operands{dst, mem}},
 	CvTT: {"cvTT", operands{dst, tup}},
@@ -287,6 +291,7 @@ const (
 	CalT // Specialized for tuple capture.
 	Cast
 	Casx
+	Chck
 	CoSn
 	Diif
 	Divf

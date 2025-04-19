@@ -417,6 +417,16 @@ func TestImperative(t *testing.T) {
 	}
 	test_helper.RunTest(t, "imperative_test.pf", tests, test_helper.TestOutput)
 }
+func TestRuntimeTypecheck(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`EvenNumber 2`, `EvenNumber(2)`},
+		{`EvenNumber 3`, `vm/typecheck/fail`},
+		{`Person "Doug", 42`, `Person with (name::"Doug", age::42)`},
+		{`Person "", 42`, "vm/typecheck/fail"},
+		{`Person "Doug", -99`, "vm/typecheck/fail"},
+	}
+	test_helper.RunTest(t, "runtime_typecheck_test.pf", tests, test_helper.TestValues)
+}
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return
