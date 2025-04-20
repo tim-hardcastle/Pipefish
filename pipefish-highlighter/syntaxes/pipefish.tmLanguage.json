@@ -27,7 +27,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.pipefish",
-				"match": "\\b(and|break|continue|else|false|for|given|global|golang|not|or|raw|ref|true)\\b"
+				"match": "\\b(and|break|continue|else|false|for|given|global|golang|not|or|ref|true)\\b"
 			}]
 		},
 		"headwords": {
@@ -70,7 +70,7 @@
 			"patterns": [
 				{
 				"name": "keyword.pipefish",
-				"match": "(==|!=|=|->|\\?>|\\>>|:|::|->|;|---|\\.\\.\\.)"
+				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|\\.\\.\\.)"
 				}
 			]
 		},

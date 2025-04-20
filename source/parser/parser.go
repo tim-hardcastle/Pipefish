@@ -248,7 +248,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	// minus sign, that would be confusing, people can use parentheses.
 	// If so, then we will parse it as though it's a Function, and it had better turn out to be a lambda at
 	// runtime. If it isn't, then we'll treat it as an identifier.
-	// TODO -- why aren't builtin, func, and struct not native prefixes? Possibly func and struct aren't because they're types?
+	// TODO -- why are builtin, func, and struct not native prefixes? Possibly func and struct aren't because they're types?
 	// 'from' isn't because we want to be able to use it as an infix and 'for' may end up the same way for the same reason.
 	if noNativePrefix {
 		if p.curToken.Type == token.IDENT {
@@ -263,6 +263,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			if !resolvingParser.isPositionallyFunctional() {
 				switch {
 				case resolvingParser.TypeExists(p.curToken.Literal):
+					typeIs := resolvingParser.ParseType(T_LOWEST)
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
 					leftExp = p.parseUnfixExpression()

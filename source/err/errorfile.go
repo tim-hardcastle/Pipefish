@@ -3242,9 +3242,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/typecheck/bool": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "runtime typecheck " + emph(args[0]) + " declared at " + 
+			return "runtime typecheck " + emph(args[0]) + " declared" + 
 			    text.DescribePos(args[2].(*token.Token)) + " returned a non-boolean value of type " +
-				emph(args[3]) + " when constructing type " + emph(args[1])
+				emph(args[3]) + " when constructing value of type " + emph(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A runtime typecheck should return either a boolean value or an error."
@@ -3253,8 +3253,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/typecheck/fail": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "failed runtime typecheck " + emph(args[0]) + " declared at " + 
-			    text.DescribePos(args[2].(*token.Token)) + " when constructing type " + emph(args[1])
+			return "failed runtime typecheck " + emph(args[0]) + " declared" + 
+			    text.DescribePos(args[2].(*token.Token)) + " when constructing value of type " + emph(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You placed constraints on the types of this expression which you then violated."
