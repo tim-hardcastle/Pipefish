@@ -126,6 +126,20 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 	return result
 }
 
+// Parses a type supplied as a string, for use in 'parser_test.go'.
+func (p *Parser) ParseTypeFromString(source, input string) ast.TypeNode {
+	p.ResetAfterError()
+	rl := lexer.NewRelexer(source, input)
+	p.TokenizedCode = rl
+	// TODO --- the next two lines are to prime the relexer and would not be necessary in
+	// a saner world.
+	p.SafeNextToken()
+	p.SafeNextToken()
+	result := p.ParseType(T_LOWEST)
+	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
+	return result
+}
+
 // Shows output of parser for debugging purposes.
 func (p *Parser) ParseDump(source, input string) {
 	parsedLine := p.ParseLine(source, input)
@@ -263,7 +277,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			if !resolvingParser.isPositionallyFunctional() {
 				switch {
 				case resolvingParser.TypeExists(p.curToken.Literal):
-					typeIs := resolvingParser.ParseType(T_LOWEST)
+					// typeIs := resolvingParser.ParseType(T_LOWEST)
 					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
 					leftExp = p.parseUnfixExpression()

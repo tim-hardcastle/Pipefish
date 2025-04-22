@@ -2440,6 +2440,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/type/form/e": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "found unexpected " + text.DescribeTok(tok) + " in type expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting either the name of a type or one of a number of special" + 
+			    "operators such as 'like'."
+		},
+	},
+
 	"parse/try/colon": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "found " + text.DescribeTok(tok) + " in 'try' expression"

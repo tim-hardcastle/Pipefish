@@ -7,7 +7,6 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 )
-
 func TestParser(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`2 + 2`, `(2 + 2)`},
@@ -56,7 +55,6 @@ func TestParser(t *testing.T) {
 	}
 	test_helper.RunTest(t, "", tests, testParserOutput)
 }
-
 func TestFunctionSyntax(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`foo x`, `(foo x)`},
@@ -68,7 +66,26 @@ func TestFunctionSyntax(t *testing.T) {
 	}
 	test_helper.RunTest(t, "function_syntax_test.pf", tests, testParserOutput)
 }
-
+func TestTypeParser(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`string`, `string`},
+		{`string/int`, `(string / int)`},
+		{`string&int`, `(string & int)`},
+		{`int?`, `int?`},
+		{`int!`, `int!`},
+		{`string[42]`, `string[42]`},
+		{`string[42, 43]`, `string[42, 43]`},
+		{`string[true]`, `string[true]`},
+		{`string[4.2]`, `string[4.2]`},
+		{`string["foo"]`, `string["foo"]`},
+		{`string['q']`, `string['q']`},
+		{`list[string]`, `list[string]`},
+		{`list[list[string]]`, `list[list[string]]`},
+		{`list[T type]`, `list[T type]`},
+		{`pair[K, V type]`, `pair[K type, V type]`},
+	}
+	test_helper.RunTest(t, "", tests, testTypeParserOutput)
+}
 func TestParserErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`2 +`, `parse/prefix`},
@@ -85,10 +102,24 @@ func TestParserErrors(t *testing.T) {
 	}
 	test_helper.RunTest(t, "", tests, testParserErrors)
 }
+
+// The helper functions for testing the parser.
+
 func testParserOutput(cp *compiler.Compiler, s string) (string, error) {
 	astOfLine := cp.P.ParseLine("test", s)
 	if cp.P.ErrorsExist() {
 		return "", errors.New("compilation error")
+	}
+	return astOfLine.String(), nil
+}
+
+func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
+	astOfLine := cp.P.ParseTypeFromString("test", s)
+	if cp.P.ErrorsExist() {
+		return "", errors.New("compilation error")
+	}
+	if astOfLine == nil {
+		return "nil", nil
 	}
 	return astOfLine.String(), nil
 }
