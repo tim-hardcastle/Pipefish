@@ -836,8 +836,8 @@ func (iz *initializer) createClones() {
 		iz.AddType(name, abType, typeNo)
 		iz.p.AllFunctionIdents.Add(name)
 		iz.p.Functions.Add(name)
-		sig := ast.StringSig{ast.NameTypenamePair{"x", typeToClone}}
-		rtnSig := ast.StringSig{ast.NameTypenamePair{"*dummy*", name}}
+		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, name}}}
+		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
 		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
 		iz.Add(name, fn)
 		iz.fnIndex[fnSource{cloneDeclaration, i}] = fn
@@ -867,24 +867,25 @@ func (iz *initializer) createClones() {
 			return
 		}
 		// And add them to the Common functions.
+		nameAst := &ast.TypeWithName{token.Token{}, name}
 		for _, op := range opList {
-			rtnSig := ast.StringSig{{"", name}}
+			rtnSig := ast.AstSig{{"", nameAst}}
 			switch parentTypeNo {
 			case values.FLOAT:
 				switch op {
 				case "+":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "-":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
-					sig = ast.StringSig{ast.NameTypenamePair{"x", name}}
+					sig = ast.AstSig{ast.NameTypeAstPair{"x", nameAst}}
 					iz.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, vm.PREFIX, &tok1)
 				case "*":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"*", ast.AsBling("*")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "/":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				default:
 					iz.Throw("init/request/float", &usingOrEof, op)
@@ -892,21 +893,21 @@ func (iz *initializer) createClones() {
 			case values.INT:
 				switch op {
 				case "+":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "-":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
-					sig = ast.StringSig{ast.NameTypenamePair{"x", name}}
+					sig = ast.AstSig{ast.NameTypeAstPair{"x", nameAst}}
 					iz.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, vm.PREFIX, &tok1)
 				case "*":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"*", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"*", ast.AsBling("*")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "div":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("div", sig, "divide_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "mod":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"%", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"%", ast.AsBling("&")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("mod", sig, "modulo_integers", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				default:
 					iz.p.Throw("init/request/int", &usingOrEof, op)
@@ -914,10 +915,10 @@ func (iz *initializer) createClones() {
 			case values.LIST:
 				switch op {
 				case "+":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "with":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"with", ast.AsBling("with")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_PAIR}}
 					iz.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "?>":
 					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
@@ -937,10 +938,10 @@ func (iz *initializer) createClones() {
 			case values.MAP:
 				switch op {
 				case "with":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"with", "bling"}, ast.NameTypenamePair{"y", "...pair"}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"with", ast.AsBling("with")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_PAIR}}
 					iz.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "without":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"without", "bling"}, ast.NameTypenamePair{"y", "...any?"}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"without", ast.AsBling("without")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_ANY_NULLABLE}}
 					iz.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				default:
 					iz.Throw("init/request/map", &usingOrEof, op)
@@ -950,13 +951,13 @@ func (iz *initializer) createClones() {
 			case values.SET:
 				switch op {
 				case "+":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "-":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"-", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("-", sig, "subtract_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "/\\":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"/\\", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/\\", ast.AsBling("/\\")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("/\\", sig, "intersect_sets", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				default:
 					iz.Throw("init/request/set", &usingOrEof, op)
@@ -964,7 +965,7 @@ func (iz *initializer) createClones() {
 			case values.STRING:
 				switch op {
 				case "+":
-					sig := ast.StringSig{ast.NameTypenamePair{"x", name}, ast.NameTypenamePair{"+", "bling"}, ast.NameTypenamePair{"y", name}}
+					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, vm.INFIX, &tok1)
 				case "slice":
 					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
@@ -990,7 +991,7 @@ func (iz *initializer) createClones() {
 }
 
 // Function auxiliary to the previous one, to make constructors for the clone types.
-func (iz *initializer) makeCloneFunction(fnName string, sig ast.StringSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.StringSig, IsPrivate bool, pos uint32, tok *token.Token) {
+func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
 	iz.Common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	conflictingFunction := iz.Add(fnName, fn)
@@ -1227,7 +1228,7 @@ func (iz *initializer) createInterfaceTypes() {
 			iz.p.TokenizedCode = sig
 			lhs := sig
 			astOfSig := iz.p.ParseTokenizedChunk()
-			var astSig, retSig ast.StringSig
+			var astSig, retSig ast.AstSig
 			var functionName string
 			if astOfSig.GetToken().Type == token.PIPE {
 				sig.ToStart()
@@ -1328,13 +1329,14 @@ func (iz *initializer) findShareableFunctions() {
 func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 	for _, pair := range f.NameSig {
 		ty := pair.VarType
-		if ty == "bling" {
+		if _, ok := ty.(*ast.Bling); ok {
 			continue
 		}
-		if len(ty) >= 3 && ty[:3] == "..." {
-			ty = ty[3:]
+		if t, ok := ty.(*ast.TypeDotDotDot); ok {
+			ty = t.Right
 		}
-		if ty == "struct" || ty == "enum" {
+		if t, ok := ty.(*ast.TypeWithName); ok && 
+				(t.Name == "struct" || t.Name == "enum") {
 			continue
 		}
 		abType := iz.p.GetAbstractType(ty)
@@ -1439,7 +1441,7 @@ func (iz *initializer) addAbstractTypesToVm() {
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, typeName := range keys {
 		iz.AddTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.p.NamespacePath,
-			AT: iz.p.GetAbstractType(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
+			AT: iz.p.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
 	}
 }
 
@@ -1495,19 +1497,19 @@ func (iz *initializer) compileConstructors() {
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.StringSig{ast.NameTypenamePair{VarName: "x", VarType: iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT)}}
+		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
 		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
 	}
 }
 
 // Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
-func (iz *initializer) addToBuiltins(sig ast.StringSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
+func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
 	cpF := &compiler.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
 	fnenv := compiler.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = iz.cp.MemTop()
 	for _, pair := range sig {
-		iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), tok)
+		iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), tok)
 	}
 	cpF.HiReg = iz.cp.MemTop()
 	cpF.Private = private
@@ -1590,7 +1592,7 @@ func (iz *initializer) MakeFunctionTrees() {
 			tree = iz.addSigToTree(tree, v[i], 0)
 
 			refs := 0 // Overloaded functions must have the same number of reference variables, which go at the start.
-			for ; refs < len(v[i].NameSig) && v[i].NameSig[refs].VarType == "ref"; refs++ {
+			for ; refs < len(v[i].NameSig) && ast.IsRef(v[i].NameSig[refs].VarType); refs++ {
 			}
 			if i == 0 {
 				rc = refs
@@ -1612,10 +1614,10 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 	if pos < len(sig) {
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType
-		if nameSig[pos].VarType == "bling" {
+		if _, ok := nameSig[pos].VarType.(*ast.Bling); ok {
 			currentTypeName = nameSig[pos].VarName
 		} else {
-			currentTypeName = nameSig[pos].VarType
+			currentTypeName = nameSig[pos].VarType.String()
 		}
 		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
 		if isVararg {
@@ -1717,7 +1719,7 @@ func (iz *initializer) checkTypesForConsistency() {
 		dec.ToStart()
 		tok := dec.NextToken()
 		name := tok.Literal
-		abType := iz.p.GetAbstractType(name)
+		abType := iz.p.GetAbstractTypeFromTypeSys(name)
 		for _, w := range abType.Types {
 			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
 				iz.Throw("init/private/abstract", &tok, name)
@@ -1946,7 +1948,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			switch dec.decType {
 			case structDeclaration, cloneDeclaration:
 				iz.compileTypecheck(dec.name, dec.chunk)
-				
+
 				continue
 			case functionDeclaration:
 				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
@@ -1987,7 +1989,7 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 	iz.cp.Cm("Compiling assignment "+dec.String(), dec.GetToken())
 	lhs := dec.(*ast.AssignmentExpression).Left
 	rhs := dec.(*ast.AssignmentExpression).Right
-	sig, _ := iz.p.RecursivelySlurpSignature(lhs, "*inferred*")
+	sig, _ := iz.p.RecursivelySlurpSignature(lhs, ast.INFERRED_TYPE_AST)
 	if iz.ErrorsExist() {
 		return
 	}
@@ -2008,7 +2010,8 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 	envToAddTo, vAcc := iz.getEnvAndAccessForConstOrVarDeclaration(declarations, v)
 
 	last := len(sig) - 1
-	lastIsTuple := sig[last].VarType == "tuple"
+	t, ok := sig[last].VarType.(*ast.TypeWithName)
+	lastIsTuple := ok && t.Name == "tuple"
 	rhsIsTuple := result.T == values.TUPLE
 	tupleLen := 1
 	if rhsIsTuple {
@@ -2048,10 +2051,10 @@ func (iz *initializer) compileGlobalConstantOrVariable(declarations declarationT
 	}
 	for i := 0; i < loopTop; i++ {
 		iz.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
-		if sig[i].VarType == "*inferred*" {
+		if sig[i].VarType == ast.INFERRED_TYPE_AST {
 			iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 		} else {
-			allowedTypes := iz.cp.GetAlternateTypeFromTypeName(sig[i].VarType)
+			allowedTypes := iz.cp.GetAlternateTypeFromTypeAst(sig[i].VarType)
 			if allowedTypes.IsNoneOf(head[i].T) {
 				iz.p.Throw("comp/assign/type/a", dec.GetToken(), sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
 				return
@@ -2153,27 +2156,20 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	cpF.LoReg = iz.cp.MemTop()
 	for _, pair := range sig {
 		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
-		if pair.VarType == "ref" {
+		if ast.IsRef(pair.VarType) {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, node.GetToken())
 			continue
 		}
 		typeName := pair.VarType
-		isVarargs := len(typeName) >= 3 && typeName[:3] == "..."
+		t, isVarargs := typeName.(*ast.TypeDotDotDot)
 		if isVarargs {
-			typeName = typeName[3:]
-		}
-		if len(typeName) >= 8 && typeName[0:8] == "varchar(" {
-			if typeName[len(typeName)-1] == '?' {
-				typeName = "string?"
-			} else {
-				typeName = "string"
-			}
+			typeName = t.Right
 		}
 		if isVarargs {
-			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeName(pair.VarType)}}, node.GetToken())
+			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, node.GetToken())
 		} else {
-			if pair.VarType != "bling" {
-				iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeName(pair.VarType), node.GetToken())
+			if ast.IsAstBling(pair.VarType) {
+				iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), node.GetToken())
 			}
 		}
 	}
@@ -2183,10 +2179,10 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	var foundTupleOrVarArgs bool
 	for _, param := range sig {
 		switch {
-		case len(param.VarType) >= 3 && param.VarType[:3] == "...":
+		case ast.IsVarargs(param.VarType):
 			tupleData = append(tupleData, 1)
 			foundTupleOrVarArgs = true
-		case param.VarType == "tuple":
+		case ast.Is(param.VarType, "tuple"):
 			tupleData = append(tupleData, 2)
 			foundTupleOrVarArgs = true
 		default:
@@ -2467,8 +2463,8 @@ type structInfo struct {
 
 type fnSigInfo struct {
 	name   string
-	sig    ast.StringSig
-	rtnSig ast.StringSig
+	sig    ast.AstSig
+	rtnSig ast.AstSig
 }
 
 type interfaceInfo struct {

@@ -36,7 +36,7 @@ func (cp *Compiler) TrackOrLog(tf vm.TrackingFlavor, trackingOn, autoOn bool, to
 	switch tf {
 	case vm.TR_FNCALL:
 		newData = vm.TrackingData{vm.TR_FNCALL, tok, logToLoc, []any{args[0]}}
-		sig := args[1].(ast.StringSig)
+		sig := args[1].(ast.AstSig)
 		loReg := args[2].(uint32)
 		for i, pair := range sig {
 			newData.Args = append(newData.Args, pair.VarName)

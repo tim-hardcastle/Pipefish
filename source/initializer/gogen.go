@@ -126,9 +126,9 @@ func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast
 	case 0:
 		fmt.Fprint(sb, "any ")
 	case 1:
-		goType, ok := getGoType(function.NameRets[0].VarType)
+		goType, ok := getGoTypeFromTypeAst(function.NameRets[0].VarType)
 		if !ok {
-			iz.Throw("golang/type/a",function.Tok, function.NameRets[0].VarType)
+			iz.Throw("golang/type/a", function.Tok, function.NameRets[0].VarType)
 		}
 		fmt.Fprint(sb, goType, " ")
 	default:
@@ -137,11 +137,11 @@ func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast
 	fmt.Fprint(sb, "{", function.Body.GetToken().Literal, "\n\n")
 }
 
-func (iz *initializer) printSig(sb *strings.Builder, sig ast.StringSig, tok token.Token) {
+func (iz *initializer) printSig(sb *strings.Builder, sig ast.AstSig, tok token.Token) {
 	fmt.Fprint(sb, "(")
 	sep := ""
 	for _, param := range sig {
-		goType, ok := getGoType(param.VarType)
+		goType, ok := getGoTypeFromTypeAst(param.VarType.(*ast.TypeWithName))
 		if !ok {
 			iz.Throw("golang/type/b", &tok, param.VarType)
 		}
@@ -153,6 +153,26 @@ func (iz *initializer) printSig(sb *strings.Builder, sig ast.StringSig, tok toke
 		sep = ", "
 	}
 	fmt.Fprint(sb, ") ")
+}
+
+func getGoTypeFromTypeAst(pfTypeAst ast.TypeNode) (string, bool) {
+	pfType := ""
+	dots := ""
+	switch pf := pfTypeAst.(type) {
+	case *ast.TypeDotDotDot:
+		dots = "..."
+		pfType = pf.Right.String()
+	case *ast.TypeWithName:
+		pfType = pf.Name
+	} 
+	goType, ok := goTypes[pfType]
+	if ok {
+		if goType == "!" {
+			return "", false
+		}
+		return dots + goType, true
+	}
+	return dots + pfType, false
 }
 
 func getGoType(pfType string) (string, bool) {
@@ -168,22 +188,22 @@ func getGoType(pfType string) (string, bool) {
 		}
 		return dots + goType, true
 	}
-	return dots + pfType, true
+	return dots + pfType, false
 }
 
 var goTypes = map[string]string{
-	"any":   "any",
-	"float": "float64",
-	"func":  "(func(...any)[]any)",
-	"label": "!",
-	"list":  "[]any",
-	"map":   "map[any]any",
-	"pair":  "[2]any",
-	"set":   "map[any]struct{}",
+	"any":     "any",
+	"float":   "float64",
+	"func":    "(func(...any)[]any)",
+	"label":   "!",
+	"list":    "[]any",
+	"map":     "map[any]any",
+	"pair":    "[2]any",
+	"set":     "map[any]struct{}",
 	"snippet": "!",
-	"secret": "!",
-	"tuple": "[]any",
-	"type":  "!",
+	"secret":  "!",
+	"tuple":   "[]any",
+	"type":    "!",
 }
 
 var INTEROP_TOKEN = &token.Token{Source: "golang interop"}

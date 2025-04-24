@@ -115,17 +115,8 @@ func IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 	return aIsMoreSpecific, true
 }
 
-func (p *Parser) IsSameTypeOrSubtype(maybeSub, maybeSuper string) bool {
-	subLen, ok := GetLengthFromType(maybeSub)
-	if ok {
-		if maybeSuper == "string" || maybeSuper == "any" || maybeSuper == "tuple" {
-			return true
-		}
-		superLen, ok := GetLengthFromType(maybeSuper)
-		return ok && subLen <= superLen
-	}
-
-	return maybeSub == maybeSuper || p.GetAbstractType(maybeSub).IsSubtypeOf(p.GetAbstractType(maybeSuper))
+func (p *Parser) IsSameTypeOrSubtype(maybeSub, maybeSuper ast.TypeNode) bool {
+	return p.GetAbstractType(maybeSub).IsSubtypeOf(p.GetAbstractType(maybeSuper))
 }
 
 func GetLengthFromType(maybeVarchar string) (int, bool) {

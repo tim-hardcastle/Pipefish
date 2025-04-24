@@ -194,7 +194,7 @@ NodeTypeSwitch:
 	// the assignment is in the body of a function or in the REPL.
 	case *ast.AssignmentExpression:
 		cp.Cm("Assignment from REPL or in 'cmd' section", node.GetToken())
-		sig, err := cp.P.RecursivelySlurpSignature(node.Left, "*inferred*")
+		sig, err := cp.P.RecursivelySlurpSignature(node.Left, ast.INFERRED_TYPE_AST)
 		if err != nil {
 			cp.Throw("comp/assign/lhs/a", node.Left.GetToken())
 			break NodeTypeSwitch
@@ -219,7 +219,7 @@ NodeTypeSwitch:
 			if ok {
 				cp.Cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
-					if !Equals(v.types, cp.GetAlternateTypeFromTypeName(sig[i].VarType)) {
+					if !Equals(v.types, cp.GetAlternateTypeFromTypeAst(sig[i].VarType)) {
 						cp.Throw("comp/assign/type/b", node.GetToken(), pair.VarName)
 						break NodeTypeSwitch
 					}
@@ -227,7 +227,7 @@ NodeTypeSwitch:
 				if v.access != REFERENCE_VARIABLE { // TODO --- THere's probably a more elgant way of dealing with the reference variable thing if I think about it, but as I intend to type them anyway and this will get refactored away it's not a big deal.
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
 				} else {
-					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.GetAlternateTypeFromTypeName("any?")})
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)})
 				}
 				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
 					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
@@ -252,18 +252,18 @@ NodeTypeSwitch:
 					break NodeTypeSwitch
 				}
 				cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
-				if pair.VarType == "tuple" {
+				if vType, ok := pair.VarType.(*ast.TypeWithName); ok && vType.Name == "tuple" {
 					cp.Cm("Adding variable in ASSIGN, 1", node.GetToken())
 					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Common.AnyTuple, node.GetToken())
-					newSig = append(newSig, ast.NameTypenamePair{pair.VarName, "tuple"})
+					newSig = append(newSig, ast.NameTypeAstPair{pair.VarName, ast.TUPLE_TYPE_AST})
 				} else {
 					typesAtIndex := typesAtIndex(types, i)
 					cp.Cm("Adding variable in ASSIGN, 2", node.GetToken())
 					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
-					if sig[i].VarType == "*inferred*" {
+					if sig[i].VarType == ast.INFERRED_TYPE_AST {
 						newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
 					} else {
-						newSig = append(newSig, ast.NameTypenamePair{pair.VarName, sig[i].VarType})
+						newSig = append(newSig, ast.NameTypeAstPair{pair.VarName, sig[i].VarType})
 					}
 				}
 			}
@@ -368,7 +368,7 @@ NodeTypeSwitch:
 		}
 		if v.access == REFERENCE_VARIABLE {
 			cp.put(vm.Dref, v.MLoc)
-			rtnTypes = cp.GetAlternateTypeFromTypeName("any?")
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 		} else {
 			cp.put(vm.Asgm, v.MLoc)
 			rtnTypes = v.types
@@ -404,7 +404,7 @@ NodeTypeSwitch:
 		if len(containerType.intersect(cp.Common.SharedTypenameToTypeList["listlike"])) == len(containerType) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.put(vm.IdxL, container, index, errTok)
-				rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+				rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 				break
 			}
 			if indexType.isOnlyCloneOf(cp.Vm, values.PAIR) {
@@ -415,7 +415,7 @@ NodeTypeSwitch:
 				cp.Throw("comp/index/list", node.GetToken())
 				break
 			}
-			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 		}
 		if len(containerType.intersect(cp.Common.SharedTypenameToTypeList["stringlike"])) == len(containerType) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -447,7 +447,7 @@ NodeTypeSwitch:
 				cp.Throw("comp/index/tuple", node.GetToken())
 				break
 			}
-			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 		}
 		if containerType.isOnlyCloneOf(cp.Vm, values.PAIR) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -458,7 +458,7 @@ NodeTypeSwitch:
 				cp.Throw("comp/index/pair", node.GetToken())
 				break
 			}
-			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 		}
 		if containerType.isOnlyCloneOf(cp.Vm, values.SNIPPET) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -469,7 +469,7 @@ NodeTypeSwitch:
 				cp.Throw("comp/index/snippet", node.GetToken())
 				break
 			}
-			rtnTypes = cp.GetAlternateTypeFromTypeName("any?").Union(AltType(values.ERROR))
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 		}
 		if containerType.isOnly(values.TYPE) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
@@ -559,7 +559,7 @@ NodeTypeSwitch:
 		if containerType.Contains(values.TUPLE) {
 			rtnTypes = cp.Common.AnyTypeScheme
 		} else {
-			rtnTypes = cp.GetAlternateTypeFromTypeName("any?")
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 		}
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
@@ -883,7 +883,7 @@ NodeTypeSwitch:
 			_, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
 			errTok := cp.ReserveToken(node.GetToken())
 			cp.put(vm.Uwrp, cp.That(), errTok)
-			rtnTypes = AltType(values.ERROR).Union(cp.GetAlternateTypeFromTypeName("Error"))
+			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ERROR_OR_UNWRAPPED_ERROR)
 			break
 		}
 		if node.Token.Type == token.GLOBAL { // This is in effect a compiler directive, it doesn't need to emit any code besides `ok`, it just mutates the environment.
@@ -1058,19 +1058,12 @@ NodeTypeSwitch:
 		break
 	case *ast.TypeLiteral:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		typeName := node.Value
-		switch { // We special-case it a bit because otherwise a string would look like a varchar(0).
-		case typeName == "string":
-			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}, node.GetToken())
-		case typeName == "string?":
-			cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}, node.GetToken())
-		default:
-			abType := resolvingCompiler.P.GetAbstractType(typeName)
-			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
-				cp.Throw("comp/private/type", node.GetToken())
-			}
-			cp.Reserve(values.TYPE, abType, node.GetToken())
+		typeName := node.Value		
+		abType := resolvingCompiler.P.GetAbstractType(typeName)
+		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
+			cp.Throw("comp/private/type", node.GetToken())
 		}
+		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 		break
 	case *ast.UnfixExpression:
@@ -1330,7 +1323,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		}
 		lhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Left
 		rhsOfBoundVariables := node.BoundVariables.(*ast.AssignmentExpression).Right
-		boundSig, err := cp.P.RecursivelySlurpSignature(lhsOfBoundVariables, "*default*")
+		boundSig, err := cp.P.RecursivelySlurpSignature(lhsOfBoundVariables, ast.DEFAULT_TYPE_AST)
 		if err != nil {
 			cp.Throw("comp/for/bound/a", node.BoundVariables.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
@@ -1353,10 +1346,10 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			}
 			cp.Reserve(values.UNDEFINED_TYPE, nil, tok)
 			var types AlternateType
-			if pair.VarType == "*default*" {
+			if pair.VarType == ast.DEFAULT_TYPE_AST {
 				types = typesAtIndex(boundVariableTypes, i)
 			} else {
-				types = cp.GetAlternateTypeFromTypeName(pair.VarType)
+				types = cp.GetAlternateTypeFromTypeAst(pair.VarType)
 			}
 			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
 			boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
@@ -1375,7 +1368,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		}
 		lhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Left
 		rhsOfInitVariables := node.Initializer.(*ast.AssignmentExpression).Right
-		indexSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, "*default*")
+		indexSig, err := cp.P.RecursivelySlurpSignature(lhsOfInitVariables, ast.DEFAULT_TYPE_AST)
 		if err != nil {
 			cp.Throw("comp/for/bound/b", node.Initializer.GetToken())
 			return altType(values.COMPILE_TIME_ERROR)
@@ -1398,10 +1391,10 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			}
 			cp.Reserve(values.UNDEFINED_TYPE, nil, tok)
 			var types AlternateType
-			if pair.VarType == "*default*" {
+			if pair.VarType == ast.DEFAULT_TYPE_AST {
 				types = typesAtIndex(indexVariableTypes, i)
 			} else {
-				types = cp.GetAlternateTypeFromTypeName(pair.VarType)
+				types = cp.GetAlternateTypeFromTypeAst(pair.VarType)
 			}
 			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
 			indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
@@ -1455,7 +1448,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 						cp.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeName("any?"), rangeOver.GetToken()) // TODO --- narrow down.
+					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken()) // TODO --- narrow down.
 				}
 				if !keysOnly {
 					cp.Reserve(values.UNDEFINED_TYPE, nil, rangeOver.GetToken())
@@ -1465,7 +1458,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 						cp.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeName("any?"), rangeOver.GetToken())
+					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken())
 				}
 			}
 		} else {
@@ -1653,7 +1646,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	params := dtypes.Set[string]{}
 	for _, pair := range nameSig {
 		params = params.Add(pair.VarName)
-		if pair.VarType == "any?" {
+		if ast.IsAnyNullableType(pair.VarType) {
 			LF.Model.Sig = append(LF.Model.Sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
 			LF.Model.Sig = append(LF.Model.Sig, cp.P.GetAbstractType(pair.VarType))
@@ -1698,7 +1691,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	for _, pair := range nameSig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
 		cp.Cm("Adding parameter '"+pair.VarName+"' to lambda.", fnNode.GetToken())
-		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.GetAlternateTypeFromTypeName(pair.VarType), fnNode.GetToken())
+		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.GetAlternateTypeFromTypeAst(pair.VarType), fnNode.GetToken())
 	}
 	LF.Model.ParametersEnd = cp.MemTop()
 
@@ -1767,7 +1760,7 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 			break
 		}
 		assEx := chunk.(*ast.AssignmentExpression)
-		lhsSig, _ := cp.P.RecursivelySlurpSignature(assEx.Left, "*default*")
+		lhsSig, _ := cp.P.RecursivelySlurpSignature(assEx.Left, ast.DEFAULT_TYPE_AST)
 		rhs := ast.GetVariableNames(assEx.Right)
 		for _, pair := range lhsSig {
 			_, exists := ctxt.Env.GetVar(pair.VarName)
@@ -1831,7 +1824,7 @@ func (cp *Compiler) SplitOnNewlines(block ast.Node) []ast.Node {
 func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Context) {
 	cp.Cm("Compiling one 'given' block assignment.", node.GetToken())
 	oldThis, thisExists := ctxt.Env.GetVar("this")
-	sig, err := cp.P.RecursivelySlurpSignature(node.Left, "any?")
+	sig, err := cp.P.RecursivelySlurpSignature(node.Left, ast.ANY_NULLABLE_TYPE_AST)
 	if err != nil {
 		cp.Throw("comp/assign/lhs/b", node.Left.GetToken())
 		return
@@ -1858,7 +1851,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			}
 		}
 		var typeToUse AlternateType // TODO: we can extract more meaningful information about the tuple from the types.
-		if pair.VarType == "tuple" {
+		if t, ok := pair.VarType.(*ast.TypeWithName); ok && t.Name == "tuple" {
 			typeToUse = cp.Common.AnyTuple
 		} else {
 			typeToUse = typesAtIndex(types, i)
@@ -2150,7 +2143,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	if !isAttemptedFunc {
 		rhsConst = true
 		thatLoc = cp.Reserve(values.UNDEFINED_TYPE, DUMMY, rhs.GetToken())
-		envWithThat = &Environment{Data: map[string]variable{"that": {MLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.GetAlternateTypeFromTypeName("any?")}}, Ext: env}
+		envWithThat = &Environment{Data: map[string]variable{"that": {MLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}}, Ext: env}
 	}
 	counter := cp.Reserve(values.INT, 0, rhs.GetToken())
 	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
@@ -2167,7 +2160,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		cp.put(vm.IdxL, sourceList, counter, DUMMY)
 		inputElement = cp.That()
 		cp.put(vm.Dofn, v.MLoc, cp.That())
-		types = AltType(values.ERROR).Union(cp.GetAlternateTypeFromTypeName("any?")) // Very much TODO. Normally the function is constant and so we know its return types.
+		types = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR) // Very much TODO. Normally the function is constant and so we know its return types.
 	} else {
 		cp.Cm("The rhs is an expression presumably containing 'that'.", tok)
 		cp.Emit(vm.IdxL, thatLoc, sourceList, counter, DUMMY)

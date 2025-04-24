@@ -8,7 +8,6 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/vm"
-
 )
 
 // The serialization of the API belongs to the compiler, since this will if at all be demanded of the
@@ -30,9 +29,9 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 	for lineNo < len(lines) {
 		line := lines[lineNo]
 		parts := strings.Split(line, " | ")
-		if types.Contains(parts[0]) && !hasHappened["ENUM"] && !hasHappened["CLONE"] && 
-						!hasHappened["STRUCT"] && !hasHappened["ABSTRACT"] {
-				buf.WriteString("newtype\n\n")
+		if types.Contains(parts[0]) && !hasHappened["ENUM"] && !hasHappened["CLONE"] &&
+			!hasHappened["STRUCT"] && !hasHappened["ABSTRACT"] {
+			buf.WriteString("newtype\n\n")
 		}
 		switch parts[0] {
 		case "ENUM":
@@ -207,7 +206,7 @@ func (iz *initializer) deserializeTypescheme(s string) compiler.AlternateType { 
 				return nil
 			}
 		} else { // Otherwise we have a word denoting a SimpleType
-			aT := iz.cp.GetAlternateTypeFromTypeName(word) // TODO --- is this really the only way to convert a concrete type name to its type number?
+			aT := iz.cp.GetAlternateTypeFromConcreteTypeName(word) // TODO --- is this really the only way to convert a concrete type name to its type number?
 			if len(aT) != 1 {
 				iz.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
 				return nil

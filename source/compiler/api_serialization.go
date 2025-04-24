@@ -158,7 +158,7 @@ func (cp *Compiler) SerializeApi() string {
 					buf.WriteString(" | ")
 					buf.WriteString(ntp.VarName)
 					buf.WriteString(" ")
-					buf.WriteString(ntp.VarType)
+					buf.WriteString(ntp.VarType.String())
 				}
 				buf.WriteString(" | ")
 				buf.WriteString(cp.serializeTypescheme(cp.Fns[fn.Number].RtnTypes))

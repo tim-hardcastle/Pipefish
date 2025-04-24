@@ -84,12 +84,12 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
-					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.GetAlternateTypeFromTypeName("any?")}
+					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}
 					env.Data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
-			b.types[i] = cp.GetAlternateTypeFromTypeName("any?")
+			b.types[i] = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 			cst = false
 			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(vm.Asgm, v.MLoc)
@@ -413,9 +413,8 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		}
 	}
 	// It may be a plain old concrete type.
-	ty := cp.GetAlternateTypeFromTypeName(typeAsString)
-	if len(ty) == 1 {
-		cp.Emit(vm.Qtyp, mem, uint32(ty[0].(SimpleType)), DUMMY)
+	if ty, ok := cp.GetConcreteType(typeAsString); ok {
+		cp.Emit(vm.Qtyp, mem, uint32(ty), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
@@ -623,9 +622,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					case "tuple_of_tuple":
 						functionAndType.T = b.doneList
 					case "type_with":
-						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
+						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
 					case "struct_with":
-						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeName("struct")}.Union(AltType(values.ERROR))
+						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
 					}
 					functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 					return functionAndType.T
@@ -674,12 +673,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						}
 					}
 					if len(branch.Node.Fn.NameRets) == 1 {
-						return cp.GetAlternateTypeFromTypeName(branch.Node.Fn.NameRets[0].VarType)
+						return cp.GetAlternateTypeFromTypeAst(branch.Node.Fn.NameRets[0].VarType)
 					}
 					// Otherwise it's a tuple.
 					tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
 					for _, v := range branch.Node.Fn.NameRets {
-						tt = append(tt, cp.GetAlternateTypeFromTypeName(v.VarType))
+						tt = append(tt, cp.GetAlternateTypeFromTypeAst(v.VarType))
 					}
 					return AlternateType{FiniteTupleType{tt}}
 				}

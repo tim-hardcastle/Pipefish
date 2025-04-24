@@ -2,7 +2,6 @@ package parser
 
 import (
 	"reflect"
-	"strconv"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
@@ -16,11 +15,11 @@ import (
 // Slurps the parts of a function out of it. As the colon after a function definition has
 // extremely low precedence, we should find it at the root of the tree.
 // We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.StringSig, ast.StringSig, ast.Node, ast.Node) {
+func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node) {
 	var (
 		functionName          string
-		sig                   ast.StringSig
-		rTypes                ast.StringSig
+		sig                   ast.AstSig
+		rTypes                ast.AstSig
 		start, content, given ast.Node
 	)
 	if fn.GetToken().Type == token.GIVEN {
@@ -56,7 +55,7 @@ func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.Str
 	return functionName, pos, sig, rTypes, content, given
 }
 
-func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.StringSig) {
+func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.AstSig) {
 	switch start := start.(type) {
 	case *ast.PrefixExpression:
 		functionName = start.Operator
@@ -73,7 +72,7 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 	case *ast.UnfixExpression:
 		functionName = start.Operator
 		pos = 3
-		sig = ast.StringSig{}
+		sig = ast.AstSig{}
 	default:
 		prsr.Throw("parse/sig/malformed/d", start.GetToken())
 		return functionName, pos, sig
@@ -81,50 +80,37 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 	return functionName, pos, sig
 }
 
-func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
-	sig := ast.StringSig{}
+func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
+	sig := ast.AstSig{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
 		return sig
 	}
 	backTrackTo := 0
 	for j, arg := range args {
 		varName := ""
-		varType := "*"
+		var varType ast.TypeNode
 		switch arg := arg.(type) {
-		case *ast.SuffixExpression:
+		case *ast.TypeSuffixExpression:
 			switch inner := arg.Args[0].(type) {
 			case *ast.Identifier:
 				varName = inner.Value
 				varType = arg.Operator
-			case *ast.SuffixExpression:
-				if inner.Operator != "..." {
-					p.Throw("parse/sig/suffix", inner.GetToken())
-					return nil
-				}
-				switch innerer := inner.Args[0].(type) {
-				case *ast.Identifier:
-					varName = innerer.Value
-					varType = "..." + arg.Operator
-				default:
-					p.Throw("parse/sig/ident/d", innerer.GetToken())
-				}
 			default:
 				p.Throw("parse/sig/ident/a", inner.GetToken())
 				return nil
-
 			}
 		case *ast.Identifier:
 			if p.Endfixes.Contains(arg.Value) {
 				varName = arg.Value
-				varType = "bling"
+				varType = &ast.TypeBling{*arg.GetToken(), arg.Value}
 			} else {
 				varName = arg.Value
-				varType = "*"
+				varType = nil
 			}
 		case *ast.PrefixExpression:
 			if p.Forefixes.Contains(arg.Operator) {
 				varName = arg.Operator
-				varType = "bling"
+				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
 			} else {
 				// We may be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 				// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
@@ -132,84 +118,62 @@ func (p *Parser) extractSig(args []ast.Node) ast.StringSig {
 				// name under those circumstances. This tends to make the whole thing stupid, we should have
 				// done all this before it got near the Pratt parser.
 				switch inner := arg.Args[0].(type) {
-				case *ast.Identifier:
+				case *ast.TypeLiteral:
 					varName = arg.Operator
 					varType = inner.Value
-					if !(p.TypeExists(inner.Value) ||
-						arg.Operator == "ast" || arg.Operator == "ident") {
-						p.Throw("parse/sig/type/b", arg.GetToken())
-						return nil
-					}
 				default:
 					p.Throw("parse/sig/ident/b", inner.GetToken())
 					return nil
 				}
 			}
 		case *ast.InfixExpression:
-			if arg.Operator == "varchar" {
-				switch potentialVariable := arg.Args[0].(type) {
-				case *ast.Identifier:
-					varName = potentialVariable.Value
-				default:
-					p.Throw("parse/sig/ident/c", potentialVariable.GetToken())
-					return nil
-				}
-				switch potentialInteger := arg.Args[2].(type) {
-				case *ast.IntegerLiteral:
-					varType = "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
-				default:
-					p.Throw("parse/sig/varchar/int/a", potentialInteger.GetToken())
-					return nil
-				}
+			if p.Midfixes.Contains(arg.Operator) {
+				varName = arg.Operator
+				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
 			} else {
-				if p.Midfixes.Contains(arg.Operator) {
-					varName = arg.Operator
-					varType = "bling"
-				} else {
-					p.Throw("parse/sig/infix", arg.GetToken())
-					return nil
-				}
+				p.Throw("parse/sig/infix", arg.GetToken())
+				return nil
 			}
 		case *ast.Bling:
 			varName = arg.Value
-			varType = "bling"
+			varType = &ast.TypeBling{*arg.GetToken(), arg.Value}
 		}
-		if j == len(args)-1 && varType == "*" {
+		if j == len(args)-1 && varType == nil {
 			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = "any?"
+				sig[i].VarType = ast.ANY_NULLABLE_TYPE_AST
 			}
-			varType = "any?"
+			varType = ast.ANY_NULLABLE_TYPE_AST
 		}
-		if !(varType == "bling" || varType == "*") {
+		if _, ok := varType.(*ast.TypeBling); !(ok || varType == nil) {
 			for i := backTrackTo; i < len(sig); i++ {
 				sig[i].VarType = varType
 			}
 
 		}
-		if varType == "bling" {
-			if len(sig) > 0 && sig[len(sig)-1].VarType == "*" {
+		if _, ok := varType.(*ast.TypeBling); ok {
+			if len(sig) > 0 && sig[len(sig)-1].VarType == nil {
 				for i := backTrackTo; i < len(sig); i++ {
-					sig[i].VarType = "any?"
+					sig[i].VarType = ast.ANY_NULLABLE_TYPE_AST
 				}
 			}
 		}
-		sig = append(sig, ast.NameTypenamePair{VarName: varName, VarType: varType})
-		if !(varType == "*") {
+		sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
+		if !(varType == nil) {
 			backTrackTo = len(sig)
 		}
-		if varType == "bling" {
-			varType = "*"
+		if _, ok := varType.(*ast.TypeBling); ok {
+			varType = nil
 		}
 	}
 	return sig
 }
 
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
-func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *err.Error) {
-	sig := ast.StringSig{}
+func (p *Parser) getSigFromArgs(args []ast.Node, dflt ast.TypeNode) (ast.AstSig, *err.Error) {
+	sig := ast.AstSig{}
 	for _, arg := range args {
 		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
-			sig = append(sig, ast.NameTypenamePair{VarName: arg.GetToken().Literal, VarType: "bling"})
+			sig = append(sig, ast.NameTypeAstPair{VarName: arg.GetToken().Literal, VarType: &ast.TypeBling{*arg.GetToken(), arg.GetToken().Literal}})
 		} else {
 			partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
 			if err != nil {
@@ -223,7 +187,7 @@ func (p *Parser) getSigFromArgs(args []ast.Node, dflt string) (ast.StringSig, *e
 
 func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 	result := []string{}
-	sig, e := p.RecursivelySlurpSignature(node, "")
+	sig, e := p.RecursivelySlurpSignature(node, nil)
 	if e != nil {
 		return result
 	}
@@ -240,7 +204,7 @@ func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 // assignment until it reaches the equals sign, by which time it's already turned the relevant tokens into an AST. Rather than kludge
 // my way out of that, I kludged my way around it by writing this thing which extracts the signature from an AST, and which has grown steadily
 // more complex with the language.
-func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.StringSig, *err.Error) {
+func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (ast.AstSig, *err.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -253,14 +217,14 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Stri
 			if err != nil {
 				return nil, err
 			}
-			middle := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
+			middle := ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}
 			return append(append(LHS, middle), RHS...), nil
 		case typednode.Token.Type == token.COMMA:
 			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			if err != nil {
 				return nil, err
 			}
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], RHS.GetVarType(0).(string))
+			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], RHS.GetVarType(0).(ast.TypeNode))
 			if err != nil {
 				return nil, err
 			}
@@ -275,72 +239,54 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt string) (ast.Stri
 				return nil, err
 			}
 			return append(LHS, RHS...), nil
-		case typednode.Operator == "varchar":
-			switch potentialInteger := typednode.Args[2].(type) {
-			case *ast.IntegerLiteral:
-				varType := "varchar(" + strconv.Itoa(potentialInteger.Value) + ")"
-				return p.RecursivelySlurpSignature(typednode.Args[0], varType)
-			default:
-				return nil, newError("parse/sig/varchar/int/b", potentialInteger.GetToken())
-			}
 		case typednode.Operator == ".":
 			namespacedIdent, err := recursivelySlurpNamespace(typednode)
 			if err != nil {
 				return nil, err
 			}
-			return ast.StringSig{ast.NameTypenamePair{VarName: namespacedIdent, VarType: dflt}}, nil
+			return ast.AstSig{ast.NameTypeAstPair{VarName: namespacedIdent, VarType: dflt}}, nil
 		default:
 			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
+	case *ast.TypeSuffixExpression:
+		LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
+		if err != nil {
+			return nil, err
+		}
+		for k := range LHS {
+			LHS[k].VarType = typednode.Operator
+		}
+		return LHS, nil
 	case *ast.SuffixExpression:
-		switch {
-		case p.TypeExists(typednode.Operator):
-			LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
-			if err != nil {
-				return nil, err
-			}
-			for k := range LHS {
-				LHS[k].VarType = typednode.Operator
-			}
-			return LHS, nil
-		case typednode.Operator == "raw":
+		if p.Endfixes.Contains(typednode.Operator) {
 			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
 			if err != nil {
 				return nil, err
 			}
-			for k := range LHS {
-				LHS[k].VarType = LHS[k].VarType + " raw"
-			}
-			return LHS, nil
-		case p.Endfixes.Contains(typednode.Operator):
-			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			end := ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}
+			end := ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}
 			return append(LHS, end), nil
-		default:
+		} else {
 			return nil, newError("parse/sig/c", typednode.GetToken())
 		}
 	case *ast.Identifier:
 		if p.Endfixes.Contains(typednode.Value) {
-			return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: "bling"}}, nil
+			return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Value, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Value}}}, nil
 		}
-		return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Value, VarType: dflt}}, nil
+		return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
 		if p.Forefixes.Contains(typednode.Operator) {
 			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
 			if err != nil {
 				return nil, err
 			}
-			front := ast.StringSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: "bling"}}
+			front := ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}}
 			return append(front, RHS...), nil
 		} else {
 			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
 			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
 			// name under those circumstances.
-			return ast.StringSig{ast.NameTypenamePair{VarName: typednode.Operator, VarType: dflt}}, nil
+			return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: dflt}}, nil
 		}
 	}
 	return nil, newError("parse/sig/a", node.GetToken())
@@ -381,7 +327,7 @@ func recursivelySlurpNamespace(root *ast.InfixExpression) (string, *err.Error) {
 	return LHS + "." + RHS, nil
 }
 
-func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.StringSig {
+func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
@@ -393,7 +339,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.StringSig {
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeLiteral:
-		return ast.StringSig{ast.NameTypenamePair{VarName: "", VarType: typednode.Value}}
+		return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: typednode.Value}}
 	default:
 		p.Throw("parse/ret/b", typednode.GetToken())
 	}
@@ -423,47 +369,54 @@ func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.S
 	return LHS, RHS
 }
 
-func (p *Parser) MakeAbstractSigFromStringSig(sig ast.StringSig) ast.AbstractSig {
+func (p *Parser) MakeAbstractSigFromStringSig(sig ast.AstSig) ast.AbstractSig {
 	result := make(ast.AbstractSig, sig.Len())
 	for i, pair := range sig {
 		typename := pair.VarType
-		if len(typename) >= 3 && typename[:3] == "..." {
-			typename = typename[3:]
+		typeToUse := typename
+		if typename, ok := typename.(*ast.TypeDotDotDot); ok {
+			typeToUse = typename.Right
 		}
-		if len(typename) >= 4 && typename[len(typename)-4:] == " raw" {
-			typename = typename[:len(typename)-4]
-		}
-		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typename)}
+		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typeToUse)}
 	}
 	return result
 }
 
 func (p *Parser) TypeExists(name string) bool {
-	_, ok := p.SafeGetAbstractType(name)
+	// Check if it's a shared type: 'int', 'struct', 'listlike', 'any?' etc.
+	if _, ok := p.Common.Types[name]; ok {
+		return true
+	}
+	// ... or the result should just be in the parser's own type map.
+	_, ok := p.TypeMap[name]
 	return ok
 }
 
-func (p *Parser) GetAbstractType(name string) values.AbstractType {
-	abType, _ := p.SafeGetAbstractType(name)
-	return abType
+func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
+	switch typeNode := typeNode.(type) {
+	case *ast.TypeWithName:
+		return p.GetAbstractTypeFromTypeSys(typeNode.Name)
+	case *ast.TypeInfix:
+		LHS := p.GetAbstractType(typeNode.Left)
+		RHS := p.GetAbstractType(typeNode.Right)
+		if typeNode.Operator == "/" {
+			return LHS.Union(RHS)
+		}
+		if typeNode.Operator == "&" {
+			return LHS.Intersect(RHS)
+		}
+	}
+	panic("Can't compile type node.")
 }
 
-func (p *Parser) SafeGetAbstractType(name string) (values.AbstractType, bool) {
-	if varCharValue, ok := GetLengthFromType(name); ok { // We either special-case the varchars ...
-		result := values.MakeAbstractType(values.STRING)
-		if GetNullabilityFromType(name) {
-			result = result.Insert(values.NULL)
-		}
-		result.Varchar = uint32(varCharValue)
-		return result, true
-	}
+func (p *Parser) GetAbstractTypeFromTypeSys(name string) values.AbstractType {
 	// Check if it's a shared type: 'int', 'struct', 'listlike', 'any?' etc.
 	if result, ok := p.Common.Types[name]; ok {
-		return result, true
+		return result
 	}
 	// ... or the result should just be in the parser's own type map.
-	result, ok := p.TypeMap[name]
-	return result, ok
+	result, _ := p.TypeMap[name]
+	return result
 }
 
 // Finds whether an identifier is in the right place to be a function, or whether it's being used

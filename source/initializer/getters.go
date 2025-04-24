@@ -90,7 +90,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 				result = abSig[i].VarType
 			}
 		} else {
-			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(string)).IsSubtypeOf(abSig[i].VarType) ||
+			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
 				sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
 				return values.MakeAbstractType()
 			}
@@ -101,7 +101,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 		return values.MakeAbstractType()
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
-		if sigToMatch.rtnSig[i].VarType == "self" {
+		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.Name == "self" {
 			result = result.Intersect(abRets[i].VarType)
 		} else {
 			if !abRets[i].VarType.IsSubtypeOf(iz.p.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
@@ -125,7 +125,7 @@ func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	_, _, sig, _, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
 	sigNames := dtypes.Set[string]{}
 	for _, pair := range sig {
-		if pair.VarType != "bling" {
+		if _, ok := pair.VarType.(*ast.Bling); ok {
 			sigNames = sigNames.Add(pair.VarName)
 		}
 	}

@@ -10,11 +10,10 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 	"github.com/tim-hardcastle/Pipefish/source/vm"
-
 )
 
-func (cp *Compiler) getAbstractType(name string) (values.AbstractType, bool) {
-	return cp.P.SafeGetAbstractType(name)
+func (cp *Compiler) getAbstractType(name string) (values.AbstractType) {
+	return cp.P.GetAbstractTypeFromTypeSys(name)
 }
 
 func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
@@ -22,15 +21,15 @@ func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
 }
 
 func (cp *Compiler) GetConcreteType(name string) (values.ValueType, bool) {
-	abstractType, ok := cp.getAbstractType(name)
-	if !ok || abstractType.Len() != 1 {
+	abstractType := cp.getAbstractType(name)
+	if abstractType.Len() != 1 {
 		return values.UNDEFINED_TYPE, false
 	}
 	return abstractType.Types[0], true
 }
 
 func (cp *Compiler) ConcreteTypeNow(name string) values.ValueType {
-	abstractType, _ := cp.getAbstractType(name)
+	abstractType := cp.getAbstractType(name)
 	return abstractType.Types[0]
 }
 
@@ -129,13 +128,13 @@ func (cp *Compiler) alternateTypeIsOnlyAssortedStructs(aT AlternateType) bool {
 	return true
 }
 
-func (cp *Compiler) ReturnSigToAlternateType(sig ast.StringSig) FiniteTupleType {
+func (cp *Compiler) ReturnSigToAlternateType(sig ast.AstSig) FiniteTupleType {
 	if sig == nil {
 		return nil
 	}
 	ftt := FiniteTupleType{}
 	for _, pair := range sig {
-		ftt = append(ftt, cp.GetAlternateTypeFromTypeName(pair.VarType))
+		ftt = append(ftt, cp.GetAlternateTypeFromTypeAst(pair.VarType))
 	}
 	return ftt
 }
@@ -159,8 +158,8 @@ func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.AbstractSig) AlternateType {
 func (cp *Compiler) getTypes(s signature, i int) AlternateType {
 	typeRep := s.GetVarType(i)
 	switch typeRep := typeRep.(type) {
-	case string:
-		return cp.GetAlternateTypeFromTypeName(typeRep)
+	case ast.TypeNode:
+		return cp.GetAlternateTypeFromTypeAst(typeRep)
 	case AlternateType:
 		return typeRep
 	default:
@@ -189,26 +188,16 @@ func getVarNames(sig signature) string {
 	return strings.Join(names, ", ")
 }
 
-func (cp *Compiler) GetAlternateTypeFromTypeName(typename string) AlternateType {
-	varargs := len(typename) >= 3 && typename[:3] == "..."
-	if varargs {
-		typename = typename[3:]
+func (cp *Compiler) GetAlternateTypeFromTypeAst(typeNode ast.TypeNode) AlternateType {
+	if typeNode, ok := typeNode.(*ast.TypeDotDotDot); ok {
+		return AlternateType{TypedTupleType{cp.GetAlternateTypeFromTypeAst(typeNode.Right)}}
 	}
-	result, ok := cp.TypeNameToTypeScheme[typename]
-	if ok {
-		if varargs {
-			return AlternateType{TypedTupleType{result}}
-		}
-		return result
-	}
-	result, ok = cp.Common.SharedTypenameToTypeList[typename]
-	if ok {
-		if varargs {
-			return AlternateType{TypedTupleType{result}}
-		}
-		return result
-	}
-	return AlternateType{}
+	abType := cp.P.GetAbstractType(typeNode)
+	return AbstractTypeToAlternateType(abType)
+}
+
+func (cp *Compiler) GetAlternateTypeFromConcreteTypeName(name string) AlternateType {
+	return AlternateType{SimpleType(cp.ConcreteTypeNow(name))}
 }
 
 // Manufactures a value.

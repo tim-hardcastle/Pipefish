@@ -212,7 +212,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 		leftExp = p.parseContinue()
 	case token.ELSE:
 		leftExp = p.parseElse()
-	case token.EMDASH :
+	case token.EMDASH:
 		leftExp = p.parseSnippetLiteral()
 	case token.FALSE:
 		leftExp = p.parseBooleanLiteral()
@@ -277,8 +277,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			if !resolvingParser.isPositionallyFunctional() {
 				switch {
 				case resolvingParser.TypeExists(p.curToken.Literal):
-					// typeIs := resolvingParser.ParseType(T_LOWEST)
-					leftExp = &ast.TypeLiteral{Token: p.curToken, Value: p.curToken.Literal}
+					tok := p.curToken
+					typeIs := resolvingParser.ParseType(T_LOWEST)
+					leftExp = &ast.TypeLiteral{Token: tok, Value: typeIs}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
 					leftExp = p.parseUnfixExpression()
 				case p.topRParser().Bling.Contains(p.curToken.Literal):
@@ -317,7 +318,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 
 	if p.peekToken.Type == token.EMDASH {
 		right := &ast.SnippetLiteral{p.peekToken, p.peekToken.Literal}
-		tok := token.Token{token.COMMA, ",", p.peekToken.Line, p.peekToken.ChStart, 
+		tok := token.Token{token.COMMA, ",", p.peekToken.Line, p.peekToken.ChStart,
 			p.peekToken.ChEnd, p.peekToken.Source}
 		children := []ast.Node{leftExp, &ast.Bling{tok, ",", []string{}}, right}
 		result := &ast.InfixExpression{tok, ",", children, []string{}}
@@ -627,13 +628,13 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 			switch newLeft := left.Left.(type) {
 			case *ast.PrefixExpression:
 				expression.Left = &ast.Identifier{Token: *newLeft.GetToken(), Value: newLeft.GetToken().Literal}
-				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, "any?")
+				fn.NameSig, _ = p.getSigFromArgs(newLeft.Args, ast.ANY_NULLABLE_TYPE_AST)
 			default:
 				p.Throw("parse/inner/b", newLeft.GetToken())
 			}
 		case *ast.PrefixExpression:
 			expression.Left = &ast.Identifier{Token: *left.GetToken(), Value: left.GetToken().Literal}
-			fn.NameSig, _ = p.getSigFromArgs(left.Args, "any?")
+			fn.NameSig, _ = p.getSigFromArgs(left.Args, ast.ANY_NULLABLE_TYPE_AST)
 		default:
 			p.Throw("parse/inner/c", left.GetToken())
 			return nil
@@ -669,11 +670,11 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 }
 
 // Auxiliary fnction to the previous one for describing function calls for logging purposes.
-func DescribeFunctionCall(name string, sig *ast.StringSig) string {
+func DescribeFunctionCall(name string, sig *ast.AstSig) string {
 	result := "Called '" + name + "'"
 	vars := []string{}
 	for _, pair := range *sig {
-		if pair.VarType != "bling" {
+		if _, ok := pair.VarType.(*ast.TypeBling); !ok {
 			vars = append(vars, "||"+pair.VarName+"||")
 		}
 	}
@@ -700,7 +701,7 @@ func (p *Parser) parseLambdaExpression() ast.Node {
 		p.Throw("parse/colon", &p.curToken)
 		return nil
 	}
-	expression.NameSig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, "any?")
+	expression.NameSig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, ast.ANY_NULLABLE_TYPE_AST)
 	if p.ErrorsExist() {
 		return nil
 	}

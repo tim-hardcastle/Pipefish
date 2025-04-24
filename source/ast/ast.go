@@ -168,8 +168,8 @@ func (fe *FuncExpression) String() string {
 type GolangExpression struct {
 	Token       token.Token
 	GoFunction  reflect.Value
-	Sig         StringSig // TODO --- there's no reason why this and the following should be in a runtime object.
-	ReturnTypes StringSig
+	Sig         AstSig // TODO --- there's no reason why this and the following should be in a runtime object.
+	ReturnTypes AstSig
 }
 
 func (ge *GolangExpression) Children() []Node       { return []Node{} }
@@ -398,7 +398,7 @@ func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Litera
 
 type StructExpression struct {
 	Token token.Token
-	Sig   StringSig
+	Sig   AstSig
 	Check Node
 }
 
@@ -455,13 +455,74 @@ func (t *TryExpression) String() string {
 
 type TypeLiteral struct {
 	Token     token.Token
-	Value     string
+	Value     TypeNode
 	Namespace []string
 }
 
 func (t *TypeLiteral) Children() []Node       { return []Node{} }
 func (t *TypeLiteral) GetToken() *token.Token { return &t.Token }
-func (t *TypeLiteral) String() string         { return t.Value }
+func (t *TypeLiteral) String() string         { return t.Value.String() }
+
+type TypePrefixExpression struct {
+	Token     token.Token
+	Operator  TypeNode
+	Args      []Node
+	Namespace []string
+}
+
+func (tpe *TypePrefixExpression) Children() []Node       { return tpe.Args }
+func (tpe *TypePrefixExpression) GetArgs() []Node        { return tpe.Args }
+func (tpe *TypePrefixExpression) GetToken() *token.Token { return &tpe.Token }
+func (tpe *TypePrefixExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(tpe.Operator.String())
+	out.WriteString(" ")
+	for i, v := range tpe.Args {
+		out.WriteString(v.String())
+		if i < (len(tpe.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
+			!(reflect.TypeOf(tpe.Args[i+1]) == reflect.TypeOf(&Bling{})) {
+			out.WriteString(",")
+		}
+		if i < (len(tpe.Args) - 1) {
+			out.WriteString(" ")
+		}
+	}
+	out.WriteString(")")
+
+	return out.String()
+}
+
+type TypeSuffixExpression struct {
+	Token     token.Token
+	Operator  TypeNode
+	Args      []Node
+	Namespace []string
+}
+
+func (tse *TypeSuffixExpression) Children() []Node       { return tse.Args }
+func (tse *TypeSuffixExpression) GetArgs() []Node        { return tse.Args }
+func (tse *TypeSuffixExpression) GetToken() *token.Token { return &tse.Token }
+func (tse *TypeSuffixExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	for i, v := range tse.Args {
+		out.WriteString(v.String())
+		if i < (len(tse.Args)-1) && !(reflect.TypeOf(v) == reflect.TypeOf(&Bling{})) &&
+			!(reflect.TypeOf(tse.Args[i+1]) == reflect.TypeOf(&Bling{})) {
+			out.WriteString(",")
+		}
+		if i < (len(tse.Args) - 1) {
+			out.WriteString(" ")
+		}
+	}
+	out.WriteString(" ")
+	out.WriteString(tse.Operator.String())
+	out.WriteString(")")
+	return out.String()
+}
 
 type UnfixExpression struct {
 	Token     token.Token
@@ -635,8 +696,8 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 
 type PrsrFunction struct {
 	FName    string       // The name of the function.
-	NameSig  StringSig    // The same, but with names of types instead of abstract types.
-	NameRets StringSig    // The same, but with names of types instead of abstract types.
+	NameSig  AstSig       // The same, but with names of types instead of abstract types.
+	NameRets AstSig       // The same, but with names of types instead of abstract types.
 	Body     Node         // The body of the function.
 	Given    Node         // The 'given' block: nil if there isn't one.
 	Cmd      bool         // Whether it's a command or not.

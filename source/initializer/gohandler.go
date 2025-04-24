@@ -164,7 +164,7 @@ func (iz *initializer) compileGo() {
 			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
 			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
 			for i, pair := range function.NameSig {
-				if text.Head(pair.VarType, "...") {
+				if _, ok := pair.VarType.(*ast.TypeDotDotDot); ok {
 					if i < function.NameSig.Len()-1 {
 						iz.Throw("golang/variadic", function.Tok)
 					}
@@ -212,13 +212,14 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range iz.goBucket.functions[source] {
 		for _, v := range function.NameSig {
-			if !iz.cp.IsBuiltin(text.WithoutDots(v.VarType)) && text.WithoutDots(v.VarType) != "any" && text.WithoutDots(v.VarType) != "any?" {
-				userDefinedTypes.Add(text.WithoutDots(v.VarType))
+			name := text.WithoutDots(v.VarType.String())
+			if !iz.cp.IsBuiltin(name) && name != "any" && name != "any?" {
+				userDefinedTypes.Add(text.WithoutDots(name))
 			}
 		}
 		for _, v := range function.NameRets {
-			if !iz.cp.IsBuiltin(v.VarType) {
-				userDefinedTypes.Add(v.VarType)
+			if !iz.cp.IsBuiltin(v.VarType.String()) {
+				userDefinedTypes.Add(v.VarType.String())
 			}
 		}
 	}

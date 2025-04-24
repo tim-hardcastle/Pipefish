@@ -12,10 +12,19 @@ type TypeNode interface {
 	String() string
 }
 
+// TODO --- will this work if remived 'cos of them all being the same object?
+func IsAnyNullableType(t TypeNode) bool {
+	if t, ok := t.(*TypeSuffix); ok && t.Operator == "?" {
+		u, ok := t.Left.(*TypeWithName)
+		return ok && u.Name == "any"
+	}
+	return false
+}
+
 // Contains basic things like `int` and `string`
 type TypeWithName struct {
-	Token            token.Token
-	Name             string
+	Token token.Token
+	Name  string
 }
 
 func (tl *TypeWithName) String() string {
@@ -30,9 +39,9 @@ type Parameter struct {
 
 // Contains parameterized types, e.g. list[T type].
 type TypeWithParameters struct {
-	Token            token.Token
-	Name             string
-	Parameters       []*Parameter
+	Token      token.Token
+	Name       string
+	Parameters []*Parameter
 }
 
 func (twp *TypeWithParameters) String() string {
@@ -52,16 +61,16 @@ func (twp *TypeWithParameters) String() string {
 }
 
 type Argument struct {
-	Token   token.Token
-	Type    values.ValueType
-	Value   any
+	Token token.Token
+	Type  values.ValueType
+	Value any
 }
 
 // Contains types with arguments, e.g. list[int].
 type TypeWithArguments struct {
-	Token            token.Token
-	Name             string
-	Arguments        []*Argument
+	Token     token.Token
+	Name      string
+	Arguments []*Argument
 }
 
 func (twp *TypeWithArguments) String() string {
@@ -96,9 +105,9 @@ func (twp *TypeWithArguments) String() string {
 
 // Has '/' or '&' as an operator.
 type TypeInfix struct {
-	Token            token.Token
-	Operator         string
-	Left, Right      TypeNode
+	Token       token.Token
+	Operator    string
+	Left, Right TypeNode
 }
 
 func (ti *TypeInfix) String() string {
@@ -115,9 +124,9 @@ func (ti *TypeInfix) String() string {
 
 // Has '?' or '!' as an operator.
 type TypeSuffix struct {
-	Token            token.Token
-	Operator         string
-	Left             TypeNode
+	Token    token.Token
+	Operator string
+	Left     TypeNode
 }
 
 func (ts *TypeSuffix) String() string {
@@ -125,4 +134,73 @@ func (ts *TypeSuffix) String() string {
 	out.WriteString(ts.Left.String())
 	out.WriteString(ts.Operator)
 	return out.String()
+}
+
+// Has '...' as an operator.
+type TypeDotDotDot struct {
+	Token token.Token
+	Right TypeNode
+}
+
+func (td *TypeDotDotDot) String() string {
+	var out bytes.Buffer
+	out.WriteString("...")
+	out.WriteString(td.Right.String())
+	return out.String()
+}
+
+func MakeAstTypeFrom(s string) TypeNode {
+	return &TypeWithName{token.Token{}, s}
+}
+
+var (
+	DOTDOTDOT_PAIR                 = &TypeDotDotDot{token.Token{}, &TypeWithName{token.Token{}, "pair"}}
+	ANY_NULLABLE_TYPE_AST          = &TypeSuffix{token.Token{}, "?", &TypeWithName{token.Token{}, "any"}}
+	DOTDOTDOT_ANY_NULLABLE         = &TypeDotDotDot{token.Token{}, ANY_NULLABLE_TYPE_AST}
+	ANY_NULLABLE_TYPE_AST_OR_ERROR = &TypeSuffix{token.Token{}, "!", &TypeSuffix{token.Token{}, "?", &TypeWithName{token.Token{}, "any"}}}
+	STRUCT_TYPE_AST       		   = &TypeWithName{token.Token{}, "struct"}
+	INFERRED_TYPE_AST              = &TypeWithName{token.Token{}, "*inferred*"}
+	DEFAULT_TYPE_AST               = &TypeWithName{token.Token{}, "*defailt*"}
+	TUPLE_TYPE_AST                 = &TypeWithName{token.Token{}, "tuple"}
+	ERROR_OR_UNWRAPPED_ERROR       = &TypeSuffix{token.Token{}, "!", &TypeWithName{token.Token{}, "ERROR"}}
+)
+
+// Contains bling for when the parser needs to treat it as a type.
+type TypeBling struct {
+	Token token.Token
+	Bling string
+}
+
+func (tb *TypeBling) String() string {
+	return tb.Bling
+}
+
+func AsBling(s string) TypeNode {
+	return &TypeBling{token.Token{}, s}
+}
+
+func IsRef(t TypeNode) bool {
+	switch t := t.(type) {
+	case *TypeWithName:
+		return t.Name == "ref"
+	case *TypeWithArguments:
+		return t.Name == "ref"
+	default:
+		return false
+	}
+}
+
+func IsVarargs(node TypeNode) bool {
+	_, ok := node.(*TypeDotDotDot)
+	return ok
+}
+
+func IsAstBling(node TypeNode) bool {
+	_, ok := node.(*TypeBling)
+	return ok
+}
+
+func Is(node TypeNode, s string) bool {
+	t, ok := node.(*TypeWithName)
+	return ok && t.Name == s
 }

@@ -28,8 +28,8 @@ const (
 
 func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
 	var leftExp ast.TypeNode
-	if p.curToken.Type != token.IDENT || 
-			!(p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal)) {
+	if !((p.curToken.Type == token.DOTDOTDOT) || 
+			(p.curToken.Type == token.IDENT && (p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal)))) {
 		return leftExp
 	}
 	tok := p.curToken
@@ -37,7 +37,13 @@ func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
 	if p.peekToken.Type == token.LBRACK {
 		leftExp = p.parseParamsOrArgs()
 	} else {
-		leftExp = &ast.TypeWithName{tok, p.curToken.Literal}
+		if p.curToken.Type == token.DOTDOTDOT {
+			p.NextToken()
+			right := p.ParseType(T_LOWEST)
+			leftExp = &ast.TypeDotDotDot{tok, right}
+		} else {
+			leftExp = &ast.TypeWithName{tok, p.curToken.Literal}
+		}
 		p.NextToken()
 	}
 	// Infixes
