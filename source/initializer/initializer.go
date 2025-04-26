@@ -2161,10 +2161,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 			continue
 		}
 		typeName := pair.VarType
-		t, isVarargs := typeName.(*ast.TypeDotDotDot)
-		if isVarargs {
-			typeName = t.Right
-		}
+		_, isVarargs := typeName.(*ast.TypeDotDotDot)
 		if isVarargs {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, node.GetToken())
 		} else {

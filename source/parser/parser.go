@@ -131,9 +131,8 @@ func (p *Parser) ParseTypeFromString(source, input string) ast.TypeNode {
 	p.ResetAfterError()
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
-	// TODO --- the next two lines are to prime the relexer and would not be necessary in
+	// TODO --- the next line is to prime the relexer and would not be necessary in
 	// a saner world.
-	p.SafeNextToken()
 	p.SafeNextToken()
 	result := p.ParseType(T_LOWEST)
 	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
@@ -277,7 +276,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			if !resolvingParser.isPositionallyFunctional() {
 				switch {
 				case resolvingParser.TypeExists(p.curToken.Literal):
-					tok := p.curToken
+					tok := p.peekToken
 					typeIs := resolvingParser.ParseType(T_LOWEST)
 					leftExp = &ast.TypeLiteral{Token: tok, Value: typeIs}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
@@ -332,9 +331,18 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				p.Throw("parse/before/b", &p.curToken, &p.peekToken)
 				return nil
 			}
-			p.NextToken()
 			p.pushRParser(resolvingParser)
-			leftExp = p.parseSuffixExpression(leftExp)
+			maybeType := p.peekToken.Literal
+			if resolvingParser.TypeExists(maybeType) || PSEUDOTYPES.Contains(maybeType) || 
+					p.peekToken.Type == token.DOTDOTDOT {
+				tok := p.peekToken
+				typeAst := p.ParseType(LOWEST)
+				// TODO --- the namespace needs to be represented in the type ast.
+				leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
+			} else {
+				p.NextToken()
+				leftExp = p.parseSuffixExpression(leftExp)
+			}
 			p.popRParser()
 		}
 
@@ -888,7 +896,6 @@ func (p *Parser) parseStructExpression() ast.Node {
 	if p.curToken.Type == token.COLON {
 		p.NextToken()
 		expression.Check = p.parseExpression(COLON)
-		println("Found", p.prettyPrint(expression.Check, printContext{}))
 	}
 	return expression
 }

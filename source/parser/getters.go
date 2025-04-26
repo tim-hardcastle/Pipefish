@@ -405,8 +405,23 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 		if typeNode.Operator == "&" {
 			return LHS.Intersect(RHS)
 		}
+	case *ast.TypeSuffix:
+		LHS := p.GetAbstractType(typeNode.Left)
+		if typeNode.Operator == "?" {
+			return LHS.Insert(values.NULL)
+		}
+		if typeNode.Operator == "!" {
+			return LHS.Insert(values.ERROR)
+		}
+	case *ast.TypeBling:
+		return values.AbstractType{[]values.ValueType{values.BLING} , 0}
+	case *ast.TypeDotDotDot:
+		return p.GetAbstractType(typeNode.Right)
 	}
-	panic("Can't compile type node.")
+	if typeNode == nil {
+		panic("Type node is nil.")
+	}
+	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())
 }
 
 func (p *Parser) GetAbstractTypeFromTypeSys(name string) values.AbstractType {

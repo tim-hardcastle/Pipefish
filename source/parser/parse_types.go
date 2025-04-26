@@ -28,36 +28,36 @@ const (
 
 func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
 	var leftExp ast.TypeNode
-	if !((p.curToken.Type == token.DOTDOTDOT) || 
-			(p.curToken.Type == token.IDENT && (p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal)))) {
+	if !((p.peekToken.Type == token.DOTDOTDOT) || 
+			(p.peekToken.Type == token.IDENT && (p.TypeExists(p.peekToken.Literal) || 
+			PSEUDOTYPES.Contains(p.peekToken.Literal)))) {
 		return leftExp
 	}
+	p.NextToken()
 	tok := p.curToken
 	// Prefixes
 	if p.peekToken.Type == token.LBRACK {
 		leftExp = p.parseParamsOrArgs()
 	} else {
 		if p.curToken.Type == token.DOTDOTDOT {
-			p.NextToken()
 			right := p.ParseType(T_LOWEST)
 			leftExp = &ast.TypeDotDotDot{tok, right}
 		} else {
 			leftExp = &ast.TypeWithName{tok, p.curToken.Literal}
 		}
-		p.NextToken()
 	}
 	// Infixes
-	for prec < p.peekTypePrecedence() && p.curToken.Type == token.IDENT && 
-				(p.curToken.Literal == "/" || p.curToken.Literal == "&") {
-		infix := p.curToken.Literal
+	for prec < p.peekTypePrecedence() && p.peekToken.Type == token.IDENT && 
+				(p.peekToken.Literal == "/" || p.peekToken.Literal == "&") {
+		infix := p.peekToken.Literal
 		p.NextToken()
 		leftExp = &ast.TypeInfix{tok, infix, leftExp, p.ParseType(prec)}
 	}
 	// Suffixes
-	for p.curToken.Type == token.IDENT && 
-			(p.curToken.Literal == "?" || p.curToken.Literal == "!") {
-		leftExp = &ast.TypeSuffix{tok, p.curToken.Literal, leftExp}
+	for p.peekToken.Type == token.IDENT && 
+			(p.peekToken.Literal == "?" || p.peekToken.Literal == "!") {
 		p.NextToken()
+		leftExp = &ast.TypeSuffix{p.curToken, p.curToken.Literal, leftExp}
 	}
 	return leftExp
 }
@@ -78,13 +78,16 @@ func (p *Parser) peekTypePrecedence() typePrecedence {
 func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 	nameTok := p.curToken
 	p.NextToken() // The one with the name in.
-	p.NextToken() // Contains a left square bracket which we already know to be there.
-	if p.curToken.Type == token.IDENT && 
-			!(p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal)) {
+	// So we're now at the token with the `[`, which we won't skip over because sluriping
+	// the type needs to be done with a peek first and a NextToken afterwards.
+	if p.peekToken.Type == token.IDENT && 
+			!(p.TypeExists(p.peekToken.Literal) || PSEUDOTYPES.Contains(p.peekToken.Literal)) {
+		p.NextToken()
 		return p.parseParams(nameTok)
 	}
-	println("Calling parseargs; current token is", p.curToken.Literal)
-	return p.parseArgs(nameTok)
+	result := p.parseArgs(nameTok)
+	p.NextToken()
+	return result
 }
 
 var acceptableTypes = dtypes.MakeFromSlice([]string{"float", "int", "string", "rune", "bool", "type"})
@@ -128,9 +131,9 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 	result := ast.TypeWithArguments{nameTok, nameTok.Literal, []*ast.Argument{}}
 	for {
-		tok := p.curToken
+		tok := p.peekToken
 		var newArg *ast.Argument
-		switch p.curToken.Type {
+		switch p.peekToken.Type {
 		case token.FLOAT:
 			number, _ :=  strconv.ParseFloat(p.curToken.Literal, 64)
 			newArg = &ast.Argument{tok, values.FLOAT, number}
@@ -159,11 +162,11 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 		if tok.Type != token.IDENT { // In which case parsing the type will have moved us on to the next token.
 			p.NextToken()
 		}
-		if p.curToken.Type == token.COMMA {
+		if p.peekToken.Type == token.COMMA {
 			p.NextToken()
 			continue
 		}
-		if p.curToken.Type == token.RBRACK {
+		if p.peekToken.Type == token.RBRACK {
 			p.NextToken()
 			break
 		}
