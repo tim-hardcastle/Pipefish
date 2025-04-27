@@ -9,8 +9,8 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 	"github.com/tim-hardcastle/Pipefish/source/text"
-	
 )
+
 func TestEof(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`troz 42`, `42`},
@@ -158,8 +158,6 @@ func TestBuiltins(t *testing.T) {
 }
 func TestIndexing(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`Color[4]`, `BLUE`},
-		{`myType[5]`, `PURPLE`},
 		{`DARK_BLUE[shade]`, `DARK`},
 		{`myColor[shade]`, `LIGHT`},
 		{`DARK_BLUE[KEY]`, `DARK`},
@@ -171,8 +169,6 @@ func TestIndexing(t *testing.T) {
 		{`myWord[2::5]`, `"gel"`},
 		{`myList[2]`, `[5, 6]`},
 		{`myList[myNumber]`, `[5, 6]`},
-		{`Color[myNumber]`, `YELLOW`},
-		{`myType[myNumber]`, `YELLOW`},
 		{`myList[0::2]`, `[[1, 2], [3, 4]]`},
 		{`myList[myIntPair]`, `[[1, 2], [3, 4]]`},
 		{`("a", "b", "c", "d")[2]`, `"c"`},
@@ -181,7 +177,6 @@ func TestIndexing(t *testing.T) {
 		{`myWord[myIntPair]`, `"An"`},
 		{`myPair[0]`, `"foo"`},
 		{`myMap["a"]`, `[1, 2]`},
-		{`foo myType, myNumber`, `YELLOW`},
 		{`foo myMap, myIndex`, `[1, 2]`},
 		{`foo myList, myNumber`, `[5, 6]`},
 		{`foo myColor, key`, `LIGHT`},
@@ -224,7 +219,7 @@ func TestVariableAccessErrors(t *testing.T) {
 }
 func TestUserDefinedTypes(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`Color[4]`, `BLUE`},
+		{`Color(4)`, `BLUE`},
 		{`DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 		{`type DARK_BLUE`, `Tone`},
 		{`type RED`, `Color`},
@@ -322,7 +317,7 @@ func TestImports(t *testing.T) {
 		{`qux.RED`, `qux.RED`},
 		{`type qux.RED`, `qux.Color`},
 		{`qux.RED in qux.Color`, `true`},
-		{`qux.Color[4]`, `qux.BLUE`},
+		{`qux.Color(4)`, `qux.BLUE`},
 		{`qux.Person "John", 22`, `qux.Person with (name::"John", age::22)`},
 		{`qux.Tone LIGHT, BLUE`, `qux.Tone with (shade::qux.LIGHT, color::qux.BLUE)`},
 		{`qux.Time`, `Time`},
@@ -337,7 +332,7 @@ func TestExternals(t *testing.T) {
 		{`zort.RED`, `zort.RED`},
 		{`type zort.RED`, `zort.Color`},
 		{`zort.RED in zort.Color`, `true`},
-		{`zort.Color[4]`, `zort.BLUE`},
+		{`zort.Color(4)`, `zort.BLUE`},
 		{`zort.Person "John", 22`, `zort.Person with (name::"John", age::22)`},
 		{`zort.Tone LIGHT, BLUE`, `zort.Tone with (shade::zort.LIGHT, color::zort.BLUE)`},
 		{`zort.Qux 5`, `zort.Qux(5)`},
@@ -378,9 +373,7 @@ func TestClones(t *testing.T) {
 	test_helper.RunTest(t, "clone_test.pf", tests, test_helper.TestValues)
 }
 func TestSnippet(t *testing.T) {
-	tests := []test_helper.TestItem{
-	
-	}
+	tests := []test_helper.TestItem{}
 	test_helper.RunTest(t, "snippets_test.pf", tests, test_helper.TestValues)
 }
 func TestInterface(t *testing.T) {
@@ -493,5 +486,3 @@ func TestLogging(t *testing.T) {
 	}
 	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
 }
-
-

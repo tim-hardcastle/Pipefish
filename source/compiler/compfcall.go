@@ -671,6 +671,11 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Asgm, b.outLoc, typeCheck.ResultLoc)
 					return AltType(values.ERROR, typeNumber)
 				}
+				if ok && typeInfo.IsEnum() {
+					cp.cmP("Emitting enum constructor.", b.tok)
+					cp.Emit(vm.MkEn, b.outLoc, uint32(typeNumber), b.valLocs[0], cp.ReserveToken(b.tok))
+					return AltType(values.ERROR, typeNumber)
+				}
 				// It could have a Golang body.
 				if F.HasGo {
 					cp.cmP("Emitting Go function call.", b.tok)

@@ -11,4 +11,4 @@ Foo = clone string
 
 Zort = clone float 
 
-
+Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE

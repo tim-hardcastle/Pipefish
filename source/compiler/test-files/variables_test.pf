@@ -8,11 +8,11 @@ B = 99
 
 var
 
+y int? = 99
+
 v, w = true, 42
 
 x = 42
-
-y int? = 99
 
 private 
 

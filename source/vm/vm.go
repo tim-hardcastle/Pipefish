@@ -1012,25 +1012,6 @@ loop:
 						vm.Mem[args[0]] = vm.makeError("vm/index/m", args[3], ix, len(tuple), args[1], args[2])
 					}
 					break Switch
-				case values.TYPE:
-					abTyp := container.V.(values.AbstractType)
-					if len(abTyp.Types) != 1 {
-						vm.Mem[args[0]] = vm.makeError("vm/index/n", args[3])
-						break
-					}
-					typ := abTyp.Types[0]
-					if !vm.ConcreteTypeInfo[typ].IsEnum() {
-						vm.Mem[args[0]] = vm.makeError("vm/index/o", args[3])
-						break
-					}
-					ix := index.V.(int)
-					ok := 0 <= ix && ix < len(vm.ConcreteTypeInfo[typ].(EnumType).ElementNames)
-					if ok {
-						vm.Mem[args[0]] = values.Value{typ, ix}
-					} else {
-						vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3], vm.ConcreteTypeInfo[typ].GetName(LITERAL), ix)
-					}
-					break Switch
 				default:
 					vm.Mem[args[0]] = vm.makeError("vm/index/q", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DescribeType(vm.Mem[args[2]].T, LITERAL))
 					break Switch
@@ -1097,6 +1078,15 @@ loop:
 			vm.logging = false
 		case Logy:
 			vm.logging = true
+		case MkEn:
+			info := vm.ConcreteTypeInfo[args[1]].(EnumType)
+			ix := vm.Mem[args[2]].V.(int)
+			ok := 0 <= ix && ix < len(info.ElementNames)
+			if ok {
+				vm.Mem[args[0]] = values.Value{values.ValueType(args[1]), ix}
+			} else {
+				vm.Mem[args[0]] = vm.makeError("vm/index/p", args[3], info.GetName(LITERAL), ix)
+			}
 		case Mker:
 			vm.Mem[args[0]] = values.Value{values.ERROR, &err.Error{ErrorId: "vm/user", Message: vm.Mem[args[1]].V.(string), Token: vm.Tokens[args[2]]}}
 		case Mkfn:

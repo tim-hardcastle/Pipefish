@@ -755,6 +755,7 @@ func (iz *initializer) createEnums() {
 	for i, tokens := range iz.TokenizedDeclarations[enumDeclaration] {
 		tokens.ToStart()
 		tok1 := tokens.NextToken()
+		name := tok1.Literal
 		var typeNo values.ValueType
 		info, typeExists := iz.getDeclaration(decENUM, &tok1, DUMMY)
 		if typeExists {
@@ -794,8 +795,18 @@ func (iz *initializer) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
-		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.EnumType{Name: tok1.Literal, Path: iz.p.NamespacePath, ElementNames: elementNameList,
+		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.EnumType{Name: name, Path: iz.p.NamespacePath, ElementNames: elementNameList,
 			Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
+		
+		// We make the constructor function.
+		
+		iz.p.AllFunctionIdents.Add(name)
+		iz.p.Functions.Add(name)
+		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
+		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
+		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
+		iz.Add(name, fn)
+		iz.fnIndex[fnSource{enumDeclaration, i}] = fn
 	}
 }
 
@@ -1501,6 +1512,16 @@ func (iz *initializer) compileConstructors() {
 		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
 		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
 	}
+	// Enums
+	for i, dec := range iz.TokenizedDeclarations[enumDeclaration] {
+		dec.ToStart()
+		nameTok := dec.NextToken()
+		name := nameTok.Literal
+		typeNo := iz.cp.ConcreteTypeNow(name)
+		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(name)}}
+		iz.fnIndex[fnSource{enumDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &nameTok)
+		iz.fnIndex[fnSource{enumDeclaration, i}].Compiler = iz.cp
+	}
 }
 
 // Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
@@ -1842,7 +1863,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 								iz.p.Throw("init/depend/cmd", dec.chunk.GetToken())
 								return nil
 							}
-							if rhsDec.decType == variableDeclaration && dec.decType != variableDeclaration {
+							if rhsDec.decType == variableDeclaration && dec.decType == constantDeclaration {
 								iz.p.Throw("init/depend/var", dec.chunk.GetToken())
 								return nil
 							}

@@ -190,7 +190,7 @@ func (cp *Compiler) CompileNode(node ast.Node, ctxt Context) (AlternateType, boo
 	ac := ctxt.Access
 NodeTypeSwitch:
 	switch node := node.(type) {
-	// Note that assignments in `given` blocks and var and const initialization are taken care of by the vmmaker, so we only have to deal with the cases where
+	// Note that assignments in `given` blocks and var and const initialization are taken care of by the initializer, so we only have to deal with the cases where
 	// the assignment is in the body of a function or in the REPL.
 	case *ast.AssignmentExpression:
 		cp.Cm("Assignment from REPL or in 'cmd' section", node.GetToken())
@@ -397,7 +397,6 @@ NodeTypeSwitch:
 		// Strings, ditto.
 		// Pairs, by integers.
 		// Snippets, by integers.
-		// Names of enum types, by integers. Query, add slice too?
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
 

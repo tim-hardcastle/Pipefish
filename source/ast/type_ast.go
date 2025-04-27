@@ -162,7 +162,8 @@ var (
 	ANY_NULLABLE_TYPE_AST_OR_ERROR = &TypeSuffix{token.Token{}, "!", &TypeSuffix{token.Token{}, "?", &TypeWithName{token.Token{}, "any"}}}
 	STRUCT_TYPE_AST       		   = &TypeWithName{token.Token{}, "struct"}
 	INFERRED_TYPE_AST              = &TypeWithName{token.Token{}, "*inferred*"}
-	DEFAULT_TYPE_AST               = &TypeWithName{token.Token{}, "*defailt*"}
+	DEFAULT_TYPE_AST               = &TypeWithName{token.Token{}, "*default*"}
+	DUMMY_TYPE_AST               = &TypeWithName{token.Token{}, "*dummy*"}
 	TUPLE_TYPE_AST                 = &TypeWithName{token.Token{}, "tuple"}
 	ERROR_OR_UNWRAPPED_ERROR       = &TypeSuffix{token.Token{}, "!", &TypeWithName{token.Token{}, "ERROR"}}
 )

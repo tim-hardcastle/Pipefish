@@ -187,7 +187,7 @@ func (p *Parser) getSigFromArgs(args []ast.Node, dflt ast.TypeNode) (ast.AstSig,
 
 func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 	result := []string{}
-	sig, e := p.RecursivelySlurpSignature(node, nil)
+	sig, e := p.RecursivelySlurpSignature(node, ast.DUMMY_TYPE_AST)
 	if e != nil {
 		return result
 	}
