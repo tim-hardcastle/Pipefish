@@ -79,7 +79,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 	// 'self' position.
 	foundSelf := false
 	for i := 0; i < len(sigToMatch.sig); i++ {
-		if sigToMatch.sig.GetVarType(i).(string) == "self" {
+		if maybeSelf, ok := sigToMatch.sig.GetVarType(i).(*ast.TypeWithName); ok && maybeSelf.Name == "self" {
 			if foundSelf {
 				result = result.Intersect(abSig[i].VarType)
 				if len(result.Types) == 0 {
@@ -91,7 +91,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 			}
 		} else {
 			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
-				sigToMatch.sig.GetVarType(i).(string) == "bling" && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
+				ast.IsAstBling(sigToMatch.sig.GetVarType(i).(ast.TypeNode)) && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
 				return values.MakeAbstractType()
 			}
 		}

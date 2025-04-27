@@ -393,6 +393,9 @@ func (p *Parser) TypeExists(name string) bool {
 }
 
 func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
+	if typeNode == nil { // This can mark an absence of return types.
+		return values.AbstractType{}
+	}
 	switch typeNode := typeNode.(type) {
 	case *ast.TypeWithName:
 		return p.GetAbstractTypeFromTypeSys(typeNode.Name)
@@ -417,9 +420,6 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 		return values.AbstractType{[]values.ValueType{values.BLING} , 0}
 	case *ast.TypeDotDotDot:
 		return p.GetAbstractType(typeNode.Right)
-	}
-	if typeNode == nil {
-		panic("Type node is nil.")
 	}
 	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())
 }

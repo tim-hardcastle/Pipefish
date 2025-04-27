@@ -387,6 +387,10 @@ var TYPE_COMPARISONS = map[string]vm.Opcode{
 // reasonably bear. Hence a mass of pernickety little interfaces and functions try to conceal the fact that, again, I have like three-and-
 // a-half ways to represent types, in the parser, in the compiler, and in the VM.
 func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *token.Token) bkGoto {
+	if typeRepresentation == nil { // Then it is presumptively a nil ast.TypeNode.
+		// TODO, this is obviously brittle af.
+		return bkGoto(DUMMY)
+	}
 	switch typeRepresentation := typeRepresentation.(type) {
 	case string:
 		return cp.emitTypeComparisonFromTypeName(typeRepresentation, mem, tok)
@@ -394,6 +398,8 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 		return cp.emitTypeComparisonFromAltType(typeRepresentation, mem, tok)
 	case values.AbstractType:
 		return cp.emitTypeComparisonFromAbstractType(typeRepresentation, mem, tok)
+	case ast.TypeNode:
+		return cp.emitTypeComparisonFromTypeNode(typeRepresentation, mem, tok)
 	}
 	panic("Now this was not meant to happen.")
 }
@@ -465,6 +471,12 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 	args = append(args, DUMMY)
 	cp.Emit(vm.Qabt, args...)
 	return bkGoto(cp.CodeTop() - 1)
+}
+
+func (cp *Compiler) emitTypeComparisonFromTypeNode(tn ast.TypeNode, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
+	cp.Cm("Emitting type comparison from type node "+text.Emph(tn.String()), tok)
+	abType := cp.P.GetAbstractType(tn)
+	return cp.emitTypeComparisonFromAbstractType(abType, mem, tok)
 }
 
 func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractType, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.

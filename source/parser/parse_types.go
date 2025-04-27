@@ -14,7 +14,7 @@ import (
 
 // Things which are not type names but can be used for constructing types or for other
 // purposes:
-var PSEUDOTYPES = dtypes.MakeFromSlice[string]([]string{"clone", "like"})
+var PSEUDOTYPES = dtypes.MakeFromSlice[string]([]string{"clone", "like", "self"})
 
 
 type typePrecedence = int
@@ -27,13 +27,17 @@ const (
 )
 
 func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
-	var leftExp ast.TypeNode
 	if !((p.peekToken.Type == token.DOTDOTDOT) || 
 			(p.peekToken.Type == token.IDENT && (p.TypeExists(p.peekToken.Literal) || 
 			PSEUDOTYPES.Contains(p.peekToken.Literal)))) {
-		return leftExp
+		return nil
 	}
 	p.NextToken()
+	return p.ParseTypeFromCurTok(prec)
+}
+
+func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
+	var leftExp ast.TypeNode
 	tok := p.curToken
 	// Prefixes
 	if p.peekToken.Type == token.LBRACK {

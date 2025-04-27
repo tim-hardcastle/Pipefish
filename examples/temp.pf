@@ -6,3 +6,9 @@ Person = struct(name string, age int) :
 
 EvenNumber = clone int :
     that mod 2 == 0
+
+Foo = clone string 
+
+Zort = clone float 
+
+

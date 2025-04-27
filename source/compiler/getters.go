@@ -4,6 +4,7 @@ package compiler
 
 import (
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
@@ -157,13 +158,16 @@ func (cp *Compiler) rtnTypesToTypeScheme(rtnSig ast.AbstractSig) AlternateType {
 // can transform it into one.
 func (cp *Compiler) getTypes(s signature, i int) AlternateType {
 	typeRep := s.GetVarType(i)
+	if typeRep == nil {
+		return AltType()
+	}
 	switch typeRep := typeRep.(type) {
 	case ast.TypeNode:
 		return cp.GetAlternateTypeFromTypeAst(typeRep)
 	case AlternateType:
 		return typeRep
 	default:
-		panic("Tim, you messed up.")
+		panic("Found unexpected type " + reflect.TypeOf(typeRep).String())
 	}
 }
 

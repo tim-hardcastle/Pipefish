@@ -277,7 +277,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				switch {
 				case resolvingParser.TypeExists(p.curToken.Literal):
 					tok := p.peekToken
-					typeIs := resolvingParser.ParseType(T_LOWEST)
+					typeIs := p.ParseTypeFromCurTok(T_LOWEST)
 					leftExp = &ast.TypeLiteral{Token: tok, Value: typeIs}
 				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
 					leftExp = p.parseUnfixExpression()

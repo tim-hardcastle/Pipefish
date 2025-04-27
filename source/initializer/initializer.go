@@ -836,7 +836,7 @@ func (iz *initializer) createClones() {
 		iz.AddType(name, abType, typeNo)
 		iz.p.AllFunctionIdents.Add(name)
 		iz.p.Functions.Add(name)
-		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, name}}}
+		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
 		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
 		iz.Add(name, fn)
@@ -2165,7 +2165,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		if isVarargs {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, node.GetToken())
 		} else {
-			if ast.IsAstBling(pair.VarType) {
+			if !ast.IsAstBling(pair.VarType) {
 				iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), node.GetToken())
 			}
 		}
@@ -2238,7 +2238,6 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
 
 		}
-
 		// Now the main body of the function, just as a lagniappe.
 		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE}
 		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?

@@ -218,7 +218,7 @@ NodeTypeSwitch:
 			v, ok := env.GetVar(pair.VarName)
 			if ok {
 				cp.Cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
-				if sig.GetVarType(i) != "*inferred*" { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
+				if sig.GetVarType(i) != ast.INFERRED_TYPE_AST { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
 					if !Equals(v.types, cp.GetAlternateTypeFromTypeAst(sig[i].VarType)) {
 						cp.Throw("comp/assign/type/b", node.GetToken(), pair.VarName)
 						break NodeTypeSwitch
@@ -357,6 +357,7 @@ NodeTypeSwitch:
 		}
 		if !ok {
 			cp.Throw("comp/ident/known", node.GetToken(), node.Value)
+			panic("Here we are.")
 			break
 		}
 		if (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
@@ -1129,9 +1130,11 @@ NodeTypeSwitch:
 
 // A function auxiliary to the previous one that checks the return types of a function.
 func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typecheck FiniteTupleType, tok *token.Token) {
-	if typecheck == nil {
+	
+	if len(typecheck) == 0 {
 		return
 	}
+	
 	singles, _ := rtnTypes.splitSinglesAndTuples()
 	typeLengths := lengths(rtnTypes)
 
@@ -2268,6 +2271,9 @@ const (
 func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac CpAccess, tok *token.Token, flavor typeCheckFlavor) bkEarlyReturn {
 	cp.Cm("Emitting type checks.", tok)
 	cp.Cm("Sig names are "+text.Emph(getVarNames(sig))+".", tok)
+	if sig.Len() == 0 { // We have a function without specified return types
+		return bkEarlyReturn(DUMMY)
+	}
 	// The insert variable says whether we're just doing a typecheck against the sig or whether we're inserting values into variables.
 	insert := (flavor != CHECK_RETURN_TYPES)
 	// The earlyReturnOnFailure variable does what it sounds like. In the case when we are typechecking the arguments of a lambda or an assignment involving a global

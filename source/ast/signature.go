@@ -75,11 +75,18 @@ func (s AstSig) GetVarName(i int) string {
 }
 
 func (ns AstSig) String() (result string) {
+	if ns == nil {
+		return "nil sig ast"
+	}
 	for _, v := range ns {
 		if result != "" {
 			result = result + ", "
 		}
-		result = result + v.VarName + " " + v.VarType.String()
+		if v.VarType == nil {
+			result = result + v.VarName + " " + "no type"
+		} else {
+			result = result + v.VarName + " " + v.VarType.String()
+		}
 	}
 	result = "(" + result + ")"
 	return

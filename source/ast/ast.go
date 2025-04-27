@@ -461,7 +461,7 @@ type TypeLiteral struct {
 
 func (t *TypeLiteral) Children() []Node       { return []Node{} }
 func (t *TypeLiteral) GetToken() *token.Token { return &t.Token }
-func (t *TypeLiteral) String() string         { return t.Value.String() }
+func (t *TypeLiteral) String() string         { if t.Value == nil {return "nil"} else {return t.Value.String()}}
 
 type TypePrefixExpression struct {
 	Token     token.Token
