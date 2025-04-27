@@ -23,7 +23,7 @@ import (
 
 // To achieve this, we create a PODO called a "bindle", a miscellaneous collection of the data we need
 // to do the dispatch, some of which (e.g.) the token associated with the caller, are stable throughout
-// the construction of the function call, while others cahnge to keep track of where we are.
+// the construction of the function call, while others change to keep track of where we are.
 type bindle struct {
 	treePosition *ast.FnTreeNode // Our position on the function tree.
 	branchNo     int             // The number of the branch in the function tree.

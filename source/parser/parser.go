@@ -134,7 +134,8 @@ func (p *Parser) ParseTypeFromString(source, input string) ast.TypeNode {
 	// TODO --- the next line is to prime the relexer and would not be necessary in
 	// a saner world.
 	p.SafeNextToken()
-	result := p.ParseType(T_LOWEST)
+	p.SafeNextToken()
+	result := p.ParseTypeFromCurTok(T_LOWEST)
 	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
 	return result
 }

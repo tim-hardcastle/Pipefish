@@ -357,7 +357,6 @@ NodeTypeSwitch:
 		}
 		if !ok {
 			cp.Throw("comp/ident/known", node.GetToken(), node.Value)
-			panic("Here we are.")
 			break
 		}
 		if (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {

@@ -68,9 +68,9 @@ func TestFunctionSyntax(t *testing.T) {
 }
 func TestTypeParser(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`string`, `string`},
 		{`string/int`, `(string / int)`},
 		{`string&int`, `(string & int)`},
+		{`string`, `string`},
 		{`int?`, `int?`},
 		{`int!`, `int!`},
 		{`string[42]`, `string[42]`},
@@ -79,10 +79,10 @@ func TestTypeParser(t *testing.T) {
 		{`string[4.2]`, `string[4.2]`},
 		{`string["foo"]`, `string["foo"]`},
 		{`string['q']`, `string['q']`},
-		{`list[string]`, `list[string]`},
-		{`list[list[string]]`, `list[list[string]]`},
 		{`list[T type]`, `list[T type]`},
 		{`pair[K, V type]`, `pair[K type, V type]`},
+		{`list[string]`, `list[string]`},
+		{`list[list[string]]`, `list[list[string]]`},
 	}
 	test_helper.RunTest(t, "", tests, testTypeParserOutput)
 }

@@ -67,7 +67,7 @@ func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 }
 
 func (p *Parser) peekTypePrecedence() typePrecedence {
-	switch p.curToken.Literal {
+	switch p.peekToken.Literal {
 	case "/":
 		return T_OR 
 	case "&":
@@ -90,7 +90,6 @@ func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 		return p.parseParams(nameTok)
 	}
 	result := p.parseArgs(nameTok)
-	p.NextToken()
 	return result
 }
 
@@ -134,22 +133,24 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 
 func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 	result := ast.TypeWithArguments{nameTok, nameTok.Literal, []*ast.Argument{}}
+	println("Parseargs, current", p.curToken.Type, p.curToken.Literal)
+	println("Parseargs, peek", p.peekToken.Type, p.peekToken.Literal)
 	for {
 		tok := p.peekToken
 		var newArg *ast.Argument
-		switch p.peekToken.Type {
+		switch tok.Type {
 		case token.FLOAT:
-			number, _ :=  strconv.ParseFloat(p.curToken.Literal, 64)
+			number, _ :=  strconv.ParseFloat(tok.Literal, 64)
 			newArg = &ast.Argument{tok, values.FLOAT, number}
 		case token.INT:
-			number, _ :=  strconv.Atoi(p.curToken.Literal)
+			number, _ :=  strconv.Atoi(tok.Literal)
 			newArg = &ast.Argument{tok, values.INT, number}
 		case token.STRING:
-			newArg = &ast.Argument{tok, values.STRING, p.curToken.Literal}
+			newArg = &ast.Argument{tok, values.STRING, tok.Literal}
 		case token.RUNE:
-			newArg = &ast.Argument{tok, values.RUNE, p.curToken.Literal}
+			newArg = &ast.Argument{tok, values.RUNE, tok.Literal}
 		case token.IDENT:
-			if p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal) {
+			if p.TypeExists(tok.Literal) || PSEUDOTYPES.Contains(tok.Literal) {
 				newType := p.ParseType(T_LOWEST)
 				newArg = &ast.Argument{tok, values.TYPE, newType}
 			} else {
