@@ -133,8 +133,6 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 
 func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 	result := ast.TypeWithArguments{nameTok, nameTok.Literal, []*ast.Argument{}}
-	println("Parseargs, current", p.curToken.Type, p.curToken.Literal)
-	println("Parseargs, peek", p.peekToken.Type, p.peekToken.Literal)
 	for {
 		tok := p.peekToken
 		var newArg *ast.Argument

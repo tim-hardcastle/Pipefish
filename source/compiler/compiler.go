@@ -1066,6 +1066,9 @@ NodeTypeSwitch:
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 		break
+	case *ast.TypeSuffixExpression:
+		println("type is", node.Operator.String(), reflect.TypeOf(node.Operator).String())
+		panic("We're done.")
 	case *ast.UnfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler.P.Unfixes.Contains(node.Operator) {

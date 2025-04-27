@@ -339,7 +339,17 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				tok := p.peekToken
 				typeAst := p.ParseType(LOWEST)
 				// TODO --- the namespace needs to be represented in the type ast.
-				leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
+				ty := typeAst
+				if ty, ok := ty.(*ast.TypeDotDotDot); ok && ty.Right == nil {
+					p.CurrentNamespace = nil
+					leftExp = &ast.SuffixExpression{
+						Token:    p.curToken,
+						Operator: p.curToken.Literal,
+						Args:     p.recursivelyListify(leftExp),
+					}
+				} else {
+					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
+				}
 			} else {
 				p.NextToken()
 				leftExp = p.parseSuffixExpression(leftExp)

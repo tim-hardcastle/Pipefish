@@ -145,7 +145,9 @@ type TypeDotDotDot struct {
 func (td *TypeDotDotDot) String() string {
 	var out bytes.Buffer
 	out.WriteString("...")
-	out.WriteString(td.Right.String())
+	if td.Right != nil {
+		out.WriteString(td.Right.String())
+	}
 	return out.String()
 }
 
