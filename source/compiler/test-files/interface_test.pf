@@ -26,7 +26,7 @@ bar(q Qux) -> int :
     int q
 
 (p Qux) + (q Qux) -> Qux :
-    Qux[(int(p) + int(q)) mod 4]
+    Qux((int(p) + int(q)) mod 4)
 
 xuq(z Zort) :
     z
