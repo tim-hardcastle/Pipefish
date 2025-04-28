@@ -141,7 +141,7 @@ func (iz *initializer) printSig(sb *strings.Builder, sig ast.AstSig, tok token.T
 	fmt.Fprint(sb, "(")
 	sep := ""
 	for _, param := range sig {
-		goType, ok := getGoTypeFromTypeAst(param.VarType.(*ast.TypeWithName))
+		goType, ok := getGoTypeFromTypeAst(param.VarType)
 		if !ok {
 			iz.Throw("golang/type/b", &tok, param.VarType)
 		}
@@ -172,7 +172,7 @@ func getGoTypeFromTypeAst(pfTypeAst ast.TypeNode) (string, bool) {
 		}
 		return dots + goType, true
 	}
-	return dots + pfType, false
+	return dots + pfType, true
 }
 
 func getGoType(pfType string) (string, bool) {
@@ -188,7 +188,7 @@ func getGoType(pfType string) (string, bool) {
 		}
 		return dots + goType, true
 	}
-	return dots + pfType, false
+	return dots + pfType, true
 }
 
 var goTypes = map[string]string{

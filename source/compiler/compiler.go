@@ -1064,10 +1064,21 @@ NodeTypeSwitch:
 		}
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
-		break
-	case *ast.TypeSuffixExpression:
-		println("type is", node.Operator.String(), reflect.TypeOf(node.Operator).String())
-		panic("We're done.")
+	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
+		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
+			typeInfo, conc := cp.getTypeInformation(ty.Name)
+			if !conc || !typeInfo.IsClone() {
+				cp.Throw("comp/suffix/clone/a", node.GetToken())
+				break
+			} 
+			// The fact that we're compiling this node means that we're not in a signature. Hence
+			// the compiler can do what the parser can't, and turn it into a normal suffix expression,
+			// which can then be compiled.
+			suffix := &ast.SuffixExpression{node.Token, ty.Name, node.Args, node.Namespace}
+			rtnTypes, rtnConst = cp.CompileNode(suffix, ctxt)
+		} else {
+			cp.Throw("comp/suffix/clone/b", node.GetToken())
+		}
 	case *ast.UnfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler.P.Unfixes.Contains(node.Operator) {
@@ -1075,7 +1086,6 @@ NodeTypeSwitch:
 			break
 		}
 		cp.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
-		break
 	default:
 		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
 	}

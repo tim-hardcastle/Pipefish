@@ -771,6 +771,18 @@ func (iz *initializer) createEnums() {
 			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		iz.AddType(tok1.Literal, "enum", typeNo)
+
+		// We make the constructor function.
+				
+		iz.p.AllFunctionIdents.Add(name)
+		iz.p.Functions.Add(name)
+		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
+		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
+		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
+		iz.Add(name, fn)
+		iz.fnIndex[fnSource{enumDeclaration, i}] = fn
+
+
 		if typeExists {
 			continue
 		}
@@ -797,16 +809,6 @@ func (iz *initializer) createEnums() {
 		}
 		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.EnumType{Name: name, Path: iz.p.NamespacePath, ElementNames: elementNameList,
 			Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
-		
-		// We make the constructor function.
-		
-		iz.p.AllFunctionIdents.Add(name)
-		iz.p.Functions.Add(name)
-		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
-		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
-		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
-		iz.Add(name, fn)
-		iz.fnIndex[fnSource{enumDeclaration, i}] = fn
 	}
 }
 
@@ -1518,7 +1520,7 @@ func (iz *initializer) compileConstructors() {
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
 		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(name)}}
+		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom("int")}}
 		iz.fnIndex[fnSource{enumDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &nameTok)
 		iz.fnIndex[fnSource{enumDeclaration, i}].Compiler = iz.cp
 	}
