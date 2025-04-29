@@ -1055,7 +1055,6 @@ func (iz *initializer) createStructNames() {
 		if typeExists { // TODO --- can this in fact occur? Why?
 			typeNo = typeInfo.(structInfo).structNumber
 			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
-			println("Found", typeInfo.Name)
 			typeInfo.Path = iz.p.NamespacePath
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
@@ -1105,13 +1104,13 @@ func (iz *initializer) createStructLabels() {
 				iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
 				iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, iz.IsPrivate(int(structDeclaration), i))
 			}
-			typeNo := iz.structDeclarationNumberToTypeNumber[i]
-			iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i), sig})
-			stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
-				Private: iz.IsPrivate(int(structDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
-			stT = stT.AddLabels(labelsForStruct)
-			iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 		}
+		typeNo := iz.structDeclarationNumberToTypeNumber[i]
+		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i), sig})
+		stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+			Private: iz.IsPrivate(int(structDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
+		stT = stT.AddLabels(labelsForStruct)
+		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 	}
 }
 
