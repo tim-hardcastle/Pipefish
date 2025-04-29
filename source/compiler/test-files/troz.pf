@@ -10,5 +10,5 @@ double(x int) :
     2 * x
 
 sumOfSquares(x, y int) :
-    zort.square(x) + zort.square(y)
+    zort.square(x) + y * y
 

@@ -787,7 +787,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/private/label": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "trying to access an label " + emph(tok.Literal) + " that only belongs to private struct types"
+			return "trying to access a label " + emph(tok.Literal) + " that only belongs to private struct types"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A struct field label is not public unless at least one of the types it belongs to is public."
@@ -2437,6 +2437,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "At this point in the function declaration Pipefish was expecting an integer literal specifying the size of the 'varchar' type."
+		},
+	},
+
+	"parse/struct/form/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "found unexpected " + text.DescribeTok(tok) + " in struct expression"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish was expecting an identifier that could be the name of a struct label."
 		},
 	},
 

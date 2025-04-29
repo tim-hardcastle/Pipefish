@@ -2,7 +2,7 @@
 
 newtype
 
-Error = struct(errorCode, errorText string)
+Error = struct(errorCode string, errorText string)
 Time = struct(year, month, day, hour, minute, second, nanosecond int, location string)
 
 $OutputAs = enum $LITERAL, $STRING 

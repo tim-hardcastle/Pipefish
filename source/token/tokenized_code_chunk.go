@@ -30,6 +30,10 @@ func (tcc *TokenizedCodeChunk) Length() int {
 	return len(tcc.code)
 }
 
+func (tcc *TokenizedCodeChunk) IndexToken() *Token {
+	return &tcc.code[0]
+}
+
 func (tcc *TokenizedCodeChunk) NextToken() Token {
 	if tcc.position+1 < len(tcc.code) {
 		tcc.position++

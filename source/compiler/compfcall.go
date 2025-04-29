@@ -568,7 +568,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 		for _, branch := range b.treePosition.Branch {
 			if branch.Node.Fn != nil {
 				resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
-				fNo := branch.Node.Fn.Number
+				prsrFn := branch.Node.Fn
+				fNo := prsrFn.Number
 				if resolvingCompiler != cp && fNo == DUMMY {
 					cp.cmP("Emitting interface backtracks", b.tok)
 					cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
@@ -672,7 +673,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					return AltType(values.ERROR, typeNumber)
 				}
 				if ok && typeInfo.IsEnum() {
-					cp.cmP("Emitting enum constructor.", b.tok)
+					cp.cmP("Emitting enum constructor for " + typeInfo.GetName(vm.LITERAL), b.tok)
 					cp.Emit(vm.MkEn, b.outLoc, uint32(typeNumber), b.valLocs[0], cp.ReserveToken(b.tok))
 					return AltType(values.ERROR, typeNumber)
 				}

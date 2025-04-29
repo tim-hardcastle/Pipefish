@@ -69,6 +69,64 @@ type Parser struct {
 	Private         bool                   // Indicates if it's the parser of a private library/external/whatevs.
 }
 
+func (p *Parser) SeekColon() bool {
+	p.SafeNextToken()
+	p.SafeNextToken()
+	for ; p.peekToken.Type != token.EOF && p.peekToken.Type != token.COLON ; p.NextToken() {}
+	return p.peekToken.Type == token.COLON
+}
+
+func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
+	var sig ast.AstSig
+	tcc.ToStart()
+	p.TokenizedCode = tcc
+	p.SafeNextToken() // Flush out the parser.
+	p.SafeNextToken() //         ""
+	p.NextToken() // The type name
+	p.NextToken() // Assignment operator '='
+	p.NextToken() // 'struct'
+	p.NextToken() // The left parenthesis.
+	for p.curToken.Type != token.RPAREN {
+		tok := &p.curToken
+		if p.curToken.Type != token.IDENT {
+			p.Throw("parse/struct/form/a", tok)
+			break
+		}
+		sig = append(sig, ast.NameTypeAstPair{p.curToken.Literal, ast.DEFAULT_TYPE_AST})
+		p.NextToken()
+		if p.curToken.Type == token.IDENT {
+			if p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal) {
+				ty := p.ParseTypeFromCurTok(LOWEST)
+
+				for i, pair := range sig {
+					if pair.VarType == ast.DEFAULT_TYPE_AST {
+						sig[i].VarType = ty
+					}
+				}
+			} else {
+				p.Throw("parse/struct/form/b", tok)
+			}
+			p.NextToken()
+		}
+		if p.curToken.Type == token.COMMA {
+			p.NextToken()
+			continue
+		}
+		if p.curToken.Type == token.RPAREN {
+			p.NextToken()
+			break
+		}
+		p.Throw("parse/struct/form/c", tok)
+		break
+	}
+	for _, pair := range sig {
+		if pair.VarType == ast.DEFAULT_TYPE_AST {
+			pair.VarType = ast.ANY_NULLABLE_TYPE_AST
+		}
+	}
+	return sig
+}
+
 func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
 	p := &Parser{
 		Logging:           true,
@@ -334,8 +392,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			}
 			p.pushRParser(resolvingParser)
 			maybeType := p.peekToken.Literal
-			if resolvingParser.TypeExists(maybeType) || PSEUDOTYPES.Contains(maybeType) || 
-					p.peekToken.Type == token.DOTDOTDOT {
+			if resolvingParser.TypeExists(maybeType) || PSEUDOTYPES.Contains(maybeType) ||
+				p.peekToken.Type == token.DOTDOTDOT {
 				tok := p.peekToken
 				typeAst := p.ParseType(LOWEST)
 				// TODO --- the namespace needs to be represented in the type ast.
