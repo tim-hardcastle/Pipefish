@@ -994,8 +994,6 @@ NodeTypeSwitch:
 		cp.Reserve(values.STRING, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.STRING), true
 		break
-	case *ast.StructExpression:
-		panic("This is used only in the vmmaker and should never be compiled.")
 	case *ast.SuffixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if node.GetToken().Type == token.DOTDOTDOT {

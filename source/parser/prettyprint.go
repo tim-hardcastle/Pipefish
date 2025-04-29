@@ -264,8 +264,6 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		out.WriteString(strconv.QuoteRune(node.Value))
 	case *ast.StringLiteral:
 		out.WriteString(strconv.Quote(node.Value))
-	case *ast.StructExpression:
-		panic("Found struct definition in prettyprinter.")
 	case *ast.SuffixExpression:
 		if len(node.Args) > 1 || !isLeaf(node.Args[0]) {
 			out.WriteString("(")

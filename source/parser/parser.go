@@ -350,10 +350,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					leftExp = p.parseLambdaExpression()
 					return leftExp
 				}
-				if p.curToken.Literal == "struct" {
-					leftExp = p.parseStructExpression()
-					return leftExp
-				}
+
 				if p.curToken.Literal == "from" {
 					leftExp = p.parseFromExpression()
 					return leftExp
@@ -953,20 +950,6 @@ func (p *Parser) parseSnippetLiteral() ast.Node {
 
 func (p *Parser) parseStringLiteral() ast.Node {
 	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
-}
-
-func (p *Parser) parseStructExpression() ast.Node {
-	expression := &ast.StructExpression{
-		Token: p.curToken,
-	}
-	p.NextToken()
-	sigtree := p.parseExpression(FPREFIX)
-	expression.Sig = p.extractSig(p.recursivelyListify(sigtree))
-	if p.curToken.Type == token.COLON {
-		p.NextToken()
-		expression.Check = p.parseExpression(COLON)
-	}
-	return expression
 }
 
 func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {

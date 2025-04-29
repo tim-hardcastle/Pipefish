@@ -396,15 +396,6 @@ func (sl *StringLiteral) Children() []Node       { return []Node{} }
 func (sl *StringLiteral) GetToken() *token.Token { return &sl.Token }
 func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Literal + "\"" }
 
-type StructExpression struct {
-	Token token.Token
-	Sig   AstSig
-	Check Node
-}
-
-func (st *StructExpression) Children() []Node       { return []Node{} }
-func (st *StructExpression) GetToken() *token.Token { return &st.Token }
-func (st *StructExpression) String() string         { return "struct " + st.Sig.String() }
 
 type SuffixExpression struct {
 	Token     token.Token
