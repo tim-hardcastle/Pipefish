@@ -189,7 +189,7 @@ func (p *Parser) ParseTypeFromString(source, input string) ast.TypeNode {
 	p.ResetAfterError()
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
-	// TODO --- the next line is to prime the relexer and would not be necessary in
+	// TODO --- the next lines are to prime the relexer and would not be necessary in
 	// a saner world.
 	p.SafeNextToken()
 	p.SafeNextToken()

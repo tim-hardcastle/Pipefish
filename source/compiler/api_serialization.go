@@ -105,7 +105,8 @@ func (cp *Compiler) SerializeApi() string {
 	}
 
 	for ty := int(values.FIRST_DEFINED_TYPE); ty < len(cp.Vm.ConcreteTypeInfo); ty++ {
-		if !cp.Vm.ConcreteTypeInfo[ty].IsStruct() {
+		if !cp.Vm.ConcreteTypeInfo[ty].IsStruct() || 
+				cp.Vm.ConcreteTypeInfo[ty].(vm.StructType).Name == "" { // TODO --- this is a temporary kludge to override a bug.
 			continue
 		}
 		if !cp.Vm.ConcreteTypeInfo[ty].IsPrivate() && !cp.Vm.ConcreteTypeInfo[ty].IsMandatoryImport() {

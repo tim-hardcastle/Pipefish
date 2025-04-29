@@ -1055,6 +1055,7 @@ func (iz *initializer) createStructNames() {
 		if typeExists { // TODO --- can this in fact occur? Why?
 			typeNo = typeInfo.(structInfo).structNumber
 			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
+			println("Found", typeInfo.Name)
 			typeInfo.Path = iz.p.NamespacePath
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		} else {
