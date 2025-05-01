@@ -2325,7 +2325,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "malformed function declaration"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Charm is trying to interpret this as a function or command declaration, " +
+			return "Pipefish is trying to interpret this as a function or command declaration, " +
 				"but is having trouble working out which bits are the signature and which bits " +
 				"are the body."
 		},

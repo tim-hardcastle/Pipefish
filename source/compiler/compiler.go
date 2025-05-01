@@ -1052,16 +1052,24 @@ NodeTypeSwitch:
 		cp.Emit(vm.Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
 		cp.Emit(vm.Asgm, cp.That(), values.C_OK)
 		rtnTypes, rtnConst = AltType(values.UNSATISFIED_CONDITIONAL, values.SUCCESSFUL_VALUE), false
-		break
 	case *ast.TypeLiteral:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		typeName := node.Value		
 		abType := resolvingCompiler.P.GetAbstractType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 			cp.Throw("comp/private/type", node.GetToken())
+			break
 		}
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
+	case *ast.TypePrefixExpression: 
+		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		if abType := resolvingCompiler.P.GetAbstractType(node.Operator); abType.Len() != 1 {
+			resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
+			break
+		}
+		rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
 			typeInfo, conc := cp.getTypeInformation(ty.Name)
@@ -1073,7 +1081,8 @@ NodeTypeSwitch:
 			// the compiler can do what the parser can't, and turn it into a normal suffix expression,
 			// which can then be compiled.
 			suffix := &ast.SuffixExpression{node.Token, ty.Name, node.Args, node.Namespace}
-			rtnTypes, rtnConst = cp.CompileNode(suffix, ctxt)
+			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+			rtnTypes, rtnConst = resolvingCompiler.CompileNode(suffix, ctxt)
 		} else {
 			cp.Throw("comp/suffix/clone/b", node.GetToken())
 		}

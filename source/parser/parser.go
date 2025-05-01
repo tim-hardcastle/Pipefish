@@ -96,7 +96,7 @@ func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
 		p.NextToken()
 		if p.curToken.Type == token.IDENT {
 			if p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal) {
-				ty := p.ParseTypeFromCurTok(LOWEST)
+				ty := p.ParseTypeFromCurTok(T_LOWEST)
 
 				for i, pair := range sig {
 					if pair.VarType == ast.DEFAULT_TYPE_AST {
@@ -320,7 +320,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	// minus sign, that would be confusing, people can use parentheses.
 	// If so, then we will parse it as though it's a Function, and it had better turn out to be a lambda at
 	// runtime. If it isn't, then we'll treat it as an identifier.
-	// TODO -- why are builtin, func, and struct not native prefixes? Possibly func and struct aren't because they're types?
+	// TODO -- why is builtin not a native prefix?
 	// 'from' isn't because we want to be able to use it as an infix and 'for' may end up the same way for the same reason.
 	if noNativePrefix {
 		if p.curToken.Type == token.IDENT {
@@ -332,38 +332,59 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// Here we step in and deal with things that are functions and values, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
-			if !resolvingParser.isPositionallyFunctional() {
-				switch {
-				case resolvingParser.TypeExists(p.curToken.Literal):
-					tok := p.peekToken
-					typeIs := p.ParseTypeFromCurTok(T_LOWEST)
+			if resolvingParser.TypeExists(p.curToken.Literal) && !(p.curToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
+				tok := p.curToken
+				typeIs := p.ParseTypeFromCurTok(T_LOWEST)
+				if p.isPositionallyFunctional() {
+					p.NextToken()
+					var right ast.Node
+					p.pushRParser(resolvingParser)
+					p.CurrentNamespace = nil
+					if p.curToken.Type == token.LPAREN {
+						right = p.parseExpression(MINUS)
+					} else {
+						right = p.parseExpression(FPREFIX)
+					}
+					p.popRParser()
+					args := p.recursivelyListify(right)
+					leftExp = &ast.TypePrefixExpression{
+						Token:     tok,
+						Operator:  typeIs,
+						Args:      args,
+					}	
+				} else {
 					leftExp = &ast.TypeLiteral{Token: tok, Value: typeIs}
-				case resolvingParser.Unfixes.Contains(p.curToken.Literal):
-					leftExp = p.parseUnfixExpression()
-				case p.topRParser().Bling.Contains(p.curToken.Literal):
-					leftExp = &ast.Bling{Token: p.curToken, Value: p.curToken.Literal}
-				default:
-					leftExp = p.parseIdentifier()
 				}
 			} else {
-				if p.curToken.Literal == "func" {
-					leftExp = p.parseLambdaExpression()
-					return leftExp
-				}
+				if !resolvingParser.isPositionallyFunctional() {
+					switch {
+					case resolvingParser.Unfixes.Contains(p.curToken.Literal):
+						leftExp = p.parseUnfixExpression()
+					case p.topRParser().Bling.Contains(p.curToken.Literal):
+						leftExp = &ast.Bling{Token: p.curToken, Value: p.curToken.Literal}
+					default:
+						leftExp = p.parseIdentifier()
+					}
+				} else {
+					if p.curToken.Literal == "func" {
+						leftExp = p.parseLambdaExpression()
+						return leftExp // TODO --- don't.
+					}
 
-				if p.curToken.Literal == "from" {
-					leftExp = p.parseFromExpression()
-					return leftExp
-				}
-				switch {
-				case resolvingParser.Prefixes.Contains(p.curToken.Literal) || resolvingParser.Forefixes.Contains(p.curToken.Literal):
-					p.pushRParser(resolvingParser)
-					leftExp = p.parsePrefixExpression()
-					p.popRParser()
-				default:
-					p.pushRParser(resolvingParser)
-					leftExp = p.parseFunctionExpression() // That, at least, is what it is syntactictally.
-					p.popRParser()
+					if p.curToken.Literal == "from" {
+						leftExp = p.parseFromExpression()
+						return leftExp
+					}
+					switch {
+					case resolvingParser.Prefixes.Contains(p.curToken.Literal) || resolvingParser.Forefixes.Contains(p.curToken.Literal):
+						p.pushRParser(resolvingParser)
+						leftExp = p.parsePrefixExpression()
+						p.popRParser()
+					default:
+						p.pushRParser(resolvingParser)
+						leftExp = p.parseFunctionExpression() // That, at least, is what it is syntactictally.
+						p.popRParser()
+					}
 				}
 			}
 		} else {
@@ -392,7 +413,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			if resolvingParser.TypeExists(maybeType) || PSEUDOTYPES.Contains(maybeType) ||
 				p.peekToken.Type == token.DOTDOTDOT {
 				tok := p.peekToken
-				typeAst := p.ParseType(LOWEST)
+				typeAst := p.ParseType(T_LOWEST)
 				// TODO --- the namespace needs to be represented in the type ast.
 				ty := typeAst
 				if ty, ok := ty.(*ast.TypeDotDotDot); ok && ty.Right == nil {
@@ -846,7 +867,11 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		right.Namespace = append(right.Namespace, name)
 	case *ast.PrefixExpression:
 		right.Namespace = append(right.Namespace, name)
+	case *ast.TypePrefixExpression:
+		right.Namespace = append(right.Namespace, name)
 	case *ast.SuffixExpression:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.TypeSuffixExpression:
 		right.Namespace = append(right.Namespace, name)
 	case *ast.TypeLiteral:
 		right.Namespace = append(right.Namespace, name)
@@ -881,6 +906,7 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 		Operator: p.curToken.Literal,
 	}
 	p.NextToken()
+	p.CurrentNamespace = nil
 	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
 	return expression
 }

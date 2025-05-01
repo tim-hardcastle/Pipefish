@@ -635,6 +635,11 @@ func ExtractAllNames(node Node) dtypes.Set[string] {
 			result.AddSet(ExtractAllNames(v))
 		}
 		return result.Add(n.Operator)
+	case *TypePrefixExpression:
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result.Add(n.Operator.String())
 	case *InfixExpression:
 		for _, v := range n.Children() {
 			result.AddSet(ExtractAllNames(v))
@@ -645,6 +650,11 @@ func ExtractAllNames(node Node) dtypes.Set[string] {
 			result.AddSet(ExtractAllNames(v))
 		}
 		return result.Add(n.Operator)
+	case *TypeSuffixExpression:
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result.Add(n.Operator.String())
 	case *UnfixExpression:
 		return result.Add(n.Operator)
 	case *GolangExpression:

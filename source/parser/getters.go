@@ -61,12 +61,20 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 		functionName = start.Operator
 		pos = 0
 		sig = prsr.extractSig(start.Args)
+	case *ast.TypePrefixExpression:
+		functionName = start.Operator.String()
+		pos = 0
+		sig = prsr.extractSig(start.Args)
 	case *ast.InfixExpression:
 		functionName = start.Operator
 		pos = 1
 		sig = prsr.extractSig(start.Args)
 	case *ast.SuffixExpression:
 		functionName = start.Operator
+		pos = 2
+		sig = prsr.extractSig(start.Args)
+	case *ast.TypeSuffixExpression:
+		functionName = start.Operator.String()
 		pos = 2
 		sig = prsr.extractSig(start.Args)
 	case *ast.UnfixExpression:
