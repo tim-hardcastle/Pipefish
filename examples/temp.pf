@@ -1,11 +1,3 @@
 newtype
 
-Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
-
-def 
-
-qux(x Color/string) :
-    x in Color :
-        "Color"
-    x in string :
-        "string"
+Vec = clone[i int] list

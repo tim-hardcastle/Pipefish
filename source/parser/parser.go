@@ -69,64 +69,6 @@ type Parser struct {
 	Private         bool                   // Indicates if it's the parser of a private library/external/whatevs.
 }
 
-func (p *Parser) SeekColon() bool {
-	p.SafeNextToken()
-	p.SafeNextToken()
-	for ; p.peekToken.Type != token.EOF && p.peekToken.Type != token.COLON ; p.NextToken() {}
-	return p.peekToken.Type == token.COLON
-}
-
-func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
-	var sig ast.AstSig
-	tcc.ToStart()
-	p.TokenizedCode = tcc
-	p.SafeNextToken() // Flush out the parser.
-	p.SafeNextToken() //         ""
-	p.NextToken() // The type name
-	p.NextToken() // Assignment operator '='
-	p.NextToken() // 'struct'
-	p.NextToken() // The left parenthesis.
-	for p.curToken.Type != token.RPAREN {
-		tok := &p.curToken
-		if p.curToken.Type != token.IDENT {
-			p.Throw("parse/struct/form/a", tok)
-			break
-		}
-		sig = append(sig, ast.NameTypeAstPair{p.curToken.Literal, ast.DEFAULT_TYPE_AST})
-		p.NextToken()
-		if p.curToken.Type == token.IDENT {
-			if p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal) {
-				ty := p.ParseTypeFromCurTok(T_LOWEST)
-
-				for i, pair := range sig {
-					if pair.VarType == ast.DEFAULT_TYPE_AST {
-						sig[i].VarType = ty
-					}
-				}
-			} else {
-				p.Throw("parse/struct/form/b", tok)
-			}
-			p.NextToken()
-		}
-		if p.curToken.Type == token.COMMA {
-			p.NextToken()
-			continue
-		}
-		if p.curToken.Type == token.RPAREN {
-			p.NextToken()
-			break
-		}
-		p.Throw("parse/struct/form/c", tok)
-		break
-	}
-	for _, pair := range sig {
-		if pair.VarType == ast.DEFAULT_TYPE_AST {
-			pair.VarType = ast.ANY_NULLABLE_TYPE_AST
-		}
-	}
-	return sig
-}
-
 func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
 	p := &Parser{
 		Logging:           true,
@@ -348,10 +290,10 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					p.popRParser()
 					args := p.recursivelyListify(right)
 					leftExp = &ast.TypePrefixExpression{
-						Token:     tok,
-						Operator:  typeIs,
-						Args:      args,
-					}	
+						Token:    tok,
+						Operator: typeIs,
+						Args:     args,
+					}
 				} else {
 					leftExp = &ast.TypeLiteral{Token: tok, Value: typeIs}
 				}
@@ -1097,6 +1039,7 @@ func (p *Parser) NextToken() {
 	p.SafeNextToken()
 }
 
+// This is used to prime the parser without triggering 'checkNesting'.
 func (p *Parser) SafeNextToken() {
 	p.curToken = p.peekToken
 	p.peekToken = p.TokenizedCode.NextToken()
@@ -1198,4 +1141,75 @@ func newError(ident string, tok *token.Token, args ...any) *err.Error {
 	errorToReturn := err.CreateErr(ident, tok, args...)
 	errorToReturn.Trace = []*token.Token{tok}
 	return errorToReturn
+}
+
+func (p *Parser) ParseClone() (string, ast.TypeNode, string) {
+	p.SafeNextToken()
+	p.SafeNextToken()
+	name := p.curToken.Literal
+	p.NextToken()	
+	p.NextToken() // Skip over the '='.
+	// The next token says 'clone' or we wouldn't be here. It may be parameterized.
+	paramSig := p.ParseTypeFromCurTok(T_LOWEST)
+	typeToClone := p.peekToken.Literal
+	return name, paramSig, typeToClone
+}
+
+func (p *Parser) SeekColon() bool {
+	p.SafeNextToken()
+	p.SafeNextToken()
+	for ; p.peekToken.Type != token.EOF && p.peekToken.Type != token.COLON; p.NextToken() {
+	}
+	return p.peekToken.Type == token.COLON
+}
+
+func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
+	var sig ast.AstSig
+	tcc.ToStart()
+	p.TokenizedCode = tcc
+	p.SafeNextToken() // Flush out the parser.
+	p.SafeNextToken() //         ""
+	p.NextToken()     // The type name
+	p.NextToken()     // Assignment operator '='
+	p.NextToken()     // 'struct'
+	p.NextToken()     // The left parenthesis.
+	for p.curToken.Type != token.RPAREN {
+		tok := &p.curToken
+		if p.curToken.Type != token.IDENT {
+			p.Throw("parse/struct/form/a", tok)
+			break
+		}
+		sig = append(sig, ast.NameTypeAstPair{p.curToken.Literal, ast.DEFAULT_TYPE_AST})
+		p.NextToken()
+		if p.curToken.Type == token.IDENT {
+			if p.TypeExists(p.curToken.Literal) || PSEUDOTYPES.Contains(p.curToken.Literal) {
+				ty := p.ParseTypeFromCurTok(T_LOWEST)
+
+				for i, pair := range sig {
+					if pair.VarType == ast.DEFAULT_TYPE_AST {
+						sig[i].VarType = ty
+					}
+				}
+			} else {
+				p.Throw("parse/struct/form/b", tok)
+			}
+			p.NextToken()
+		}
+		if p.curToken.Type == token.COMMA {
+			p.NextToken()
+			continue
+		}
+		if p.curToken.Type == token.RPAREN {
+			p.NextToken()
+			break
+		}
+		p.Throw("parse/struct/form/c", tok)
+		break
+	}
+	for _, pair := range sig {
+		if pair.VarType == ast.DEFAULT_TYPE_AST {
+			pair.VarType = ast.ANY_NULLABLE_TYPE_AST
+		}
+	}
+	return sig
 }
