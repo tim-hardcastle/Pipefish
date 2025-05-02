@@ -1,3 +1,10 @@
 newtype
 
 Vec = clone[i int] list
+
+Vec = clone[i int, t type] list
+
+var
+
+// foo = Vec[3]([1, 2, 3])
+

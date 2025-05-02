@@ -265,12 +265,6 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	iz.cmI("Adding types to parser.")
-	iz.addTypesToParser()
-	if iz.ErrorsExist() {
-		return
-	}
-
 	iz.cmI("Adding constructors to parser, parsing struct declarations.")
 	iz.createStructNames()
 	if iz.ErrorsExist() {
@@ -814,6 +808,7 @@ func (iz *initializer) createEnums() {
 
 // Phase 1F of compilation. We compile the clone types.
 func (iz *initializer) createClones() {
+	mainLoop:
 	for i, tokens := range iz.TokenizedDeclarations[cloneDeclaration] {
 		tok1 := tokens.IndexToken()
 		private := iz.IsPrivate(int(cloneDeclaration), i)
@@ -828,9 +823,16 @@ func (iz *initializer) createClones() {
 	switch paramSig := paramSig.(type) {
 	case *ast.TypeWithName:
 	case *ast.TypeWithParameters:
-		println("name is", name, "sig is", paramSig.String(), "; type to clone is", typeToClone)
+		ok := iz.registerParameterizedType(paramSig)
+		if !ok {
+			iz.Throw("init/clone/exists", tokens.IndexToken())
+			continue mainLoop
+		}
+		println("registered", name, "with sig", paramSig.String(), "; type to clone is", typeToClone)
+		continue mainLoop
 	default:
 		iz.Throw("init/clone/type", tokens.IndexToken())
+		continue mainLoop
 	}
 		abType := typeToClone + "like"
 		var typeNo values.ValueType
@@ -858,7 +860,10 @@ func (iz *initializer) createClones() {
 		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: tok1}
 		iz.Add(name, fn)
 		iz.fnIndex[fnSource{cloneDeclaration, i}] = fn
-
+		if typeToClone == "int" || typeToClone == "float" {
+			iz.p.Suffixes.Add(name)
+			iz.p.Suffixes.Add(name + "?")
+		}
 		// We get the requested builtins.
 		var opList []string
 		usingOrEof := tokens.NextToken()
@@ -1018,32 +1023,6 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 	}
 }
 
-// **
-// ** TODO --- we don't need this any more.
-// **
-// Phase 1H of compilation. We declare all the types as suffixes for all the user-defined types.
-func (iz *initializer) addTypesToParser() { /// TODO --- some of this seems to replicate boilerplate in the parsing functions, so you should be able to remove the latter.
-	for kindOfType := enumDeclaration; kindOfType <= cloneDeclaration; kindOfType++ {
-		for chunk := 0; chunk < len(iz.TokenizedDeclarations[kindOfType]); chunk++ {
-			// Each of them should begin with the name of the type being declared, and then followed by an =..
-			iz.TokenizedDeclarations[kindOfType][chunk].ToStart()
-			tok1 := iz.TokenizedDeclarations[kindOfType][chunk].NextToken()
-			tok2 := iz.TokenizedDeclarations[kindOfType][chunk].NextToken()
-			if tok1.Type != token.IDENT || tok2.Type != token.ASSIGN {
-				iz.Throw("init/type/form/a", &tok1)
-				continue
-			}
-			name := tok1.Literal
-			if iz.p.Suffixes.Contains(name) {
-				iz.Throw("init/type/exists", &tok1)
-				continue
-			}
-			iz.p.Suffixes.Add(name)
-			iz.p.Suffixes.Add(name + "?")
-		}
-	}
-}
-
 // We create the structs as names and type numbers in the type system. We can't populate 
 // their fields yet because we haven't even declared the abstract and interface types
 // lexically yet.
@@ -1117,6 +1096,47 @@ func (iz *initializer) createStructLabels() {
 		stT = stT.AddLabels(labelsForStruct)
 		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 	}
+}
+
+func (iz *initializer) registerParameterizedType(ty *ast.TypeWithParameters) bool {
+	info, ok := iz.cp.ParameterizedTypes[ty.Name]
+	if ok {
+		if iz.paramTypeExists(ty) {
+			return false
+		}
+		info = append(info, compiler.ParameterInfo{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}})
+		iz.cp.ParameterizedTypes[ty.Name] = info
+		return true
+	}
+	info = []compiler.ParameterInfo{{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}}}
+	return true
+}
+
+func (iz *initializer) paramTypeExists(ty *ast.TypeWithParameters) bool {
+	typesToMatch := iz.astParamsToValueTypes(ty.Parameters)
+	for _, pty := range iz.cp.ParameterizedTypes[ty.Name] {
+		if iz.ParameterTypesMatch(typesToMatch, pty.Types) {
+			return true
+		}
+	}
+	return false
+}
+
+func (iz *initializer) astParamsToValueTypes(params []*ast.Parameter) []values.ValueType {
+	result := []values.ValueType{}
+	for _, v := range params {
+		result = append(result, iz.cp.ConcreteTypeNow(v.Type))
+	} 
+	return result
+}
+
+func (iz *initializer) ParameterTypesMatch(paramsToCheck, paramsToMatch []values.ValueType) bool {
+	for i, v := range paramsToCheck {
+		if v != paramsToMatch[i] {
+			return false
+		}
+	} 
+	return true
 }
 
 // Phase 1K of compilation. We create the abstract types as type names but don't populate them.

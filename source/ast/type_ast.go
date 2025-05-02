@@ -34,7 +34,8 @@ func (tl *TypeWithName) String() string {
 // Contains a parameter for parameterizing types
 // The types should be bool, float, int, rune, string or type.
 type Parameter struct {
-	Name, Type string
+	Name string
+	Type string
 }
 
 // Contains parameterized types, e.g. list[T type].

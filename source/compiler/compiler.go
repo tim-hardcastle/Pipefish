@@ -40,6 +40,7 @@ type Compiler struct {
 	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
+	ParameterizedTypes       map[string][]ParameterInfo           // Holds the definitions of parameterized types.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -61,6 +62,7 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		Modules:                  make(map[string]*Compiler),
 		CallHandlerNumbersByName: make(map[string]uint32),
 		TypeToCloneGroup:         make(map[values.ValueType]AlternateType),
+		ParameterizedTypes:       make(map[string][]ParameterInfo),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 		Common:                   ccb,
 	}
@@ -2814,4 +2816,76 @@ func (cp *Compiler) Store(k, v values.Value) {
 	hubStore, _ := cp.GlobalVars.GetVar("$hub")
 	storeMap := cp.Vm.Mem[hubStore.MLoc].V.(*values.Map)
 	cp.Vm.Mem[hubStore.MLoc].V = storeMap.Set(k, v)
+}
+
+type ParameterInfo struct{
+	Types []values.ValueType
+	Instances []ArgumentInfo
+}
+
+type ArgumentInfo struct{
+	VType values.ValueType
+	Args  []values.Value
+}
+
+// TODO --- there should be more performant ways of doing this but for now I'll just
+// settle for it working.
+func (cp *Compiler) FindArguments(name string, argsToCheck []values.Value, runtime bool, tok *token.Token) (values.ValueType, bool) {
+	argIndex := -1
+	for i, parType := range cp.ParameterizedTypes[name] {
+		if valueTypesMatch(argsToCheck, parType.Types) {
+			argIndex = i
+			break
+		}
+	}
+	if argIndex == -1 {
+		cp.Throw("cp/type/args", tok)
+		return DUMMY, false
+	}
+	parInfo := cp.ParameterizedTypes[name][argIndex]
+	parIndex := -1
+	for i, instance := range parInfo.Instances {
+		if argsMatch(argsToCheck, instance.Args) {
+			parIndex = i
+			break
+		}
+	}
+	if parIndex == -1 {
+		if runtime {
+			cp.Throw("cp/type/runtime", tok)
+		}
+		return DUMMY, !runtime
+	}
+	return parInfo.Instances[parIndex].VType, true
+}
+
+func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) bool {
+	for i, v := range argsToCheck {
+		if v.T != paramTypes[i] {
+			return false
+		}
+	} 
+	return true
+}
+
+func argsMatch(argsToCheck []values.Value, argsToMatch []values.Value) bool {
+	for i, v := range argsToCheck {
+		if v.T != argsToMatch[i].T {
+			return false
+		}
+		if v.T != values.TYPE {
+			if v.V != argsToMatch[i].V {
+				return false
+			} else {
+				if !astTypesMatch(v.V.(ast.TypeNode), argsToMatch[i].V.(ast.TypeNode)) {
+					return false
+				}
+			}
+		}
+	} 
+	return true
+}
+
+func astTypesMatch(x, y ast.TypeNode) bool {
+	panic("Unimplemented")
 }
