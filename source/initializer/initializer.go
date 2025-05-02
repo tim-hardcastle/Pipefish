@@ -1109,6 +1109,7 @@ func (iz *initializer) registerParameterizedType(ty *ast.TypeWithParameters) boo
 		return true
 	}
 	info = []compiler.ParameterInfo{{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}}}
+	iz.cp.ParameterizedTypes[ty.Name] = info
 	return true
 }
 
@@ -1132,6 +1133,9 @@ func (iz *initializer) astParamsToValueTypes(params []*ast.Parameter) []values.V
 
 func (iz *initializer) ParameterTypesMatch(paramsToCheck, paramsToMatch []values.ValueType) bool {
 	for i, v := range paramsToCheck {
+		if i >= len(paramsToMatch) {
+			return false
+		}
 		if v != paramsToMatch[i] {
 			return false
 		}
@@ -1483,6 +1487,9 @@ func (iz *initializer) compileConstructors() {
 	}
 	// Clones
 	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
+		if !isConcrete(dec) {
+			continue
+		}
 		dec.ToStart()
 		nameTok := dec.NextToken()
 		name := nameTok.Literal
@@ -1501,6 +1508,16 @@ func (iz *initializer) compileConstructors() {
 		iz.fnIndex[fnSource{enumDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &nameTok)
 		iz.fnIndex[fnSource{enumDeclaration, i}].Compiler = iz.cp
 	}
+}
+
+// TODO --- there ought to be a way of storing this in the interpreter's type info.
+func isConcrete(tcc *token.TokenizedCodeChunk) bool {
+	tcc.ToStart()
+	tcc.NextToken()
+	tcc.NextToken()
+	tcc.NextToken()
+	tok := tcc.NextToken()
+	return tok.Type != token.LBRACK
 }
 
 // Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
