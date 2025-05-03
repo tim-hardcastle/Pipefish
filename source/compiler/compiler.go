@@ -2860,6 +2860,9 @@ func (cp *Compiler) FindArguments(name string, argsToCheck []values.Value, runti
 }
 
 func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) bool {
+	if len(argsToCheck) != len(paramTypes) {
+		return false
+	}
 	for i, v := range argsToCheck {
 		if v.T != paramTypes[i] {
 			return false
@@ -2869,6 +2872,9 @@ func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) 
 }
 
 func argsMatch(argsToCheck []values.Value, argsToMatch []values.Value) bool {
+	if len(argsToCheck) != len(argsToMatch) {
+		return false
+	}
 	for i, v := range argsToCheck {
 		if v.T != argsToMatch[i].T {
 			return false

@@ -1,10 +1,10 @@
 newtype
 
-Vec = clone[i int] list
+Z = clone[i int] int
 
 Vec = clone[i int, t type] list
 
-Vec = clone[i int] list
+
 
 var
 
