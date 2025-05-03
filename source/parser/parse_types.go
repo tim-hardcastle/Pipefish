@@ -16,7 +16,6 @@ import (
 // purposes:
 var PSEUDOTYPES = dtypes.MakeFromSlice([]string{"clone", "like"})
 
-
 type typePrecedence = int
 
 const (
@@ -27,9 +26,9 @@ const (
 )
 
 func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
-	if !((p.peekToken.Type == token.DOTDOTDOT) || 
-			(p.peekToken.Type == token.IDENT && (p.TypeExists(p.peekToken.Literal) || 
-			PSEUDOTYPES.Contains(p.peekToken.Literal)))) {
+	if !((p.PeekToken.Type == token.DOTDOTDOT) ||
+		(p.PeekToken.Type == token.IDENT && (p.TypeExists(p.PeekToken.Literal) ||
+			PSEUDOTYPES.Contains(p.PeekToken.Literal) || p.ParameterizedTypes.Contains(p.PeekToken.Literal)))) {
 		return nil
 	}
 	p.NextToken()
@@ -38,55 +37,55 @@ func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
 
 func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 	var leftExp ast.TypeNode
-	tok := p.curToken
+	tok := p.CurToken
 	// Prefixes
-	if p.peekToken.Type == token.LBRACK {
+	if p.PeekToken.Type == token.LBRACK {
 		leftExp = p.parseParamsOrArgs()
 	} else {
-		if p.curToken.Type == token.DOTDOTDOT {
+		if p.CurToken.Type == token.DOTDOTDOT {
 			right := p.ParseType(T_LOWEST)
 			leftExp = &ast.TypeDotDotDot{tok, right}
 		} else {
-			leftExp = &ast.TypeWithName{tok, p.curToken.Literal}
+			leftExp = &ast.TypeWithName{tok, p.CurToken.Literal}
 		}
 	}
 	// Infixes
-	for prec < p.peekTypePrecedence() && p.peekToken.Type == token.IDENT && 
-				(p.peekToken.Literal == "/" || p.peekToken.Literal == "&") {
-		infix := p.peekToken.Literal
+	for prec < p.peekTypePrecedence() && p.PeekToken.Type == token.IDENT &&
+		(p.PeekToken.Literal == "/" || p.PeekToken.Literal == "&") {
+		infix := p.PeekToken.Literal
 		newPrec := p.peekTypePrecedence()
 		p.NextToken()
 		leftExp = &ast.TypeInfix{tok, infix, leftExp, p.ParseType(newPrec)}
 	}
 	// Suffixes
-	for p.peekToken.Type == token.IDENT && 
-			(p.peekToken.Literal == "?" || p.peekToken.Literal == "!") {
+	for p.PeekToken.Type == token.IDENT &&
+		(p.PeekToken.Literal == "?" || p.PeekToken.Literal == "!") {
 		p.NextToken()
-		leftExp = &ast.TypeSuffix{p.curToken, p.curToken.Literal, leftExp}
+		leftExp = &ast.TypeSuffix{p.CurToken, p.CurToken.Literal, leftExp}
 	}
 	return leftExp
 }
 
 func (p *Parser) peekTypePrecedence() typePrecedence {
-	switch p.peekToken.Literal {
+	switch p.PeekToken.Literal {
 	case "/":
-		return T_OR 
+		return T_OR
 	case "&":
 		return T_AND
 	case "?", "!":
 		return T_SUFFIX
-	default :
+	default:
 		return T_LOWEST
 	}
 }
 
 func (p *Parser) parseParamsOrArgs() ast.TypeNode {
-	nameTok := p.curToken
+	nameTok := p.CurToken
 	p.NextToken() // The one with the name in.
 	// So we're now at the token with the `[`, which we won't skip over because sluriping
 	// the type needs to be done with a peek first and a NextToken afterwards.
-	if p.peekToken.Type == token.IDENT && 
-			!(p.TypeExists(p.peekToken.Literal) || PSEUDOTYPES.Contains(p.peekToken.Literal)) {
+	if p.PeekToken.Type == token.IDENT &&
+		!(p.TypeExists(p.PeekToken.Literal) || PSEUDOTYPES.Contains(p.PeekToken.Literal) || p.ParameterizedTypes.Contains(p.PeekToken.Literal)) {
 		p.NextToken()
 		return p.parseParams(nameTok)
 	}
@@ -99,65 +98,65 @@ var acceptableTypes = dtypes.MakeFromSlice([]string{"float", "int", "string", "r
 func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 	result := ast.TypeWithParameters{nameTok, nameTok.Literal, []*ast.Parameter{}}
 	for {
-		tok := &p.curToken
-		if p.curToken.Type != token.IDENT {
+		tok := &p.CurToken
+		if p.CurToken.Type != token.IDENT {
 			p.Throw("parse/type/form/c", tok)
 			break
 		}
-		result.Parameters = append(result.Parameters, &ast.Parameter{p.curToken.Literal,""})
+		result.Parameters = append(result.Parameters, &ast.Parameter{p.CurToken.Literal, ""})
 		p.NextToken()
-		if p.curToken.Type == token.IDENT {
-			if acceptableTypes.Contains(p.curToken.Literal) {
+		if p.CurToken.Type == token.IDENT {
+			if acceptableTypes.Contains(p.CurToken.Literal) {
 				for _, v := range result.Parameters {
 					if v.Type == "" {
-						v.Type = p.curToken.Literal
+						v.Type = p.CurToken.Literal
 					}
 				}
-			} else { 
+			} else {
 				p.Throw("parse/type/form/d", tok)
 			}
 			p.NextToken()
 		}
-		if p.curToken.Type == token.COMMA {
+		if p.CurToken.Type == token.COMMA {
 			p.NextToken()
 			continue
 		}
-		if p.curToken.Type == token.RBRACK {
+		if p.CurToken.Type == token.RBRACK {
 			break
 		}
 		p.Throw("parse/type/form/e", tok)
 		break
-	}	
+	}
 	return &result
 }
 
 func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 	result := ast.TypeWithArguments{nameTok, nameTok.Literal, []*ast.Argument{}}
 	for {
-		tok := p.peekToken
+		tok := p.PeekToken
 		var newArg *ast.Argument
 		switch tok.Type {
 		case token.FLOAT:
-			number, _ :=  strconv.ParseFloat(tok.Literal, 64)
+			number, _ := strconv.ParseFloat(tok.Literal, 64)
 			newArg = &ast.Argument{tok, values.FLOAT, number}
 		case token.INT:
-			number, _ :=  strconv.Atoi(tok.Literal)
+			number, _ := strconv.Atoi(tok.Literal)
 			newArg = &ast.Argument{tok, values.INT, number}
 		case token.STRING:
 			newArg = &ast.Argument{tok, values.STRING, tok.Literal}
 		case token.RUNE:
 			newArg = &ast.Argument{tok, values.RUNE, tok.Literal}
 		case token.IDENT:
-			if p.TypeExists(tok.Literal) || PSEUDOTYPES.Contains(tok.Literal) {
+			if p.TypeExists(tok.Literal) || PSEUDOTYPES.Contains(tok.Literal) || p.ParameterizedTypes.Contains(tok.Literal) {
 				newType := p.ParseType(T_LOWEST)
 				newArg = &ast.Argument{tok, values.TYPE, newType}
 			} else {
 				p.Throw("parse/type/form/f", &tok)
 			}
 		case token.FALSE:
-				newArg = &ast.Argument{tok, values.BOOL, false}
+			newArg = &ast.Argument{tok, values.BOOL, false}
 		case token.TRUE:
-				newArg = &ast.Argument{tok, values.BOOL, true}
+			newArg = &ast.Argument{tok, values.BOOL, true}
 		default:
 			p.Throw("parse/type/form/g", &tok)
 		}
@@ -165,15 +164,15 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 		if tok.Type != token.IDENT { // In which case parsing the type will have moved us on to the next token.
 			p.NextToken()
 		}
-		if p.peekToken.Type == token.COMMA {
+		if p.PeekToken.Type == token.COMMA {
 			p.NextToken()
 			continue
 		}
-		if p.peekToken.Type == token.RBRACK {
+		if p.PeekToken.Type == token.RBRACK {
 			break
 		}
 		p.Throw("parse/type/form/h", &tok)
 		break
-	}	
+	}
 	return &result
 }

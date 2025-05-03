@@ -1,10 +1,13 @@
 newtype
 
-Z = clone[i int] int
+Z = clone[i int] int using + :
+    0 <= that
+    that < i
 
-Vec = clone[i int, t type] list
+Vec = clone[i int, t type] list :
+    len(that) == i
 
-
+make Vec[3], Z[5]
 
 var
 

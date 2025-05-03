@@ -1520,6 +1520,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+
+	"init/make/comma": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "After 'make', Pipefish expects a series of instances of parameterized types separated by commas."
+		},
+	},
+
 	"init/interface/self": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "'self' missing in clause of interface"

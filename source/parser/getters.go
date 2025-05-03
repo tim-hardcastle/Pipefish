@@ -425,7 +425,7 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 			return LHS.Insert(values.ERROR)
 		}
 	case *ast.TypeBling:
-		return values.AbstractType{[]values.ValueType{values.BLING} , 0}
+		return values.AbstractType{[]values.ValueType{values.BLING}, 0}
 	case *ast.TypeDotDotDot:
 		return p.GetAbstractType(typeNode.Right)
 	}
@@ -445,67 +445,67 @@ func (p *Parser) GetAbstractTypeFromTypeSys(name string) values.AbstractType {
 // Finds whether an identifier is in the right place to be a function, or whether it's being used
 // as though it's a variable or constant.
 func (p *Parser) isPositionallyFunctional() bool {
-	if assignmentTokens.Contains(p.peekToken.Type) {
+	if assignmentTokens.Contains(p.PeekToken.Type) {
 		return false
 	}
-	if p.peekToken.Type == token.RPAREN || p.peekToken.Type == token.PIPE ||
-		p.peekToken.Type == token.MAPPING || p.peekToken.Type == token.FILTER ||
-		p.peekToken.Type == token.COLON || p.peekToken.Type == token.MAGIC_COLON ||
-		p.peekToken.Type == token.COMMA {
+	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
+		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
+		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
+		p.PeekToken.Type == token.COMMA {
 		return false
 	}
-	if p.curToken.Literal == "type" && p.TypeExists(p.peekToken.Literal) {
+	if p.CurToken.Literal == "type" && p.TypeExists(p.PeekToken.Literal) {
 		return true
 	}
-	if p.Functions.Contains(p.curToken.Literal) && p.TypeExists(p.curToken.Literal) {
-		if p.peekToken.Type == token.EMDASH {
+	if p.Functions.Contains(p.CurToken.Literal) && p.TypeExists(p.CurToken.Literal) {
+		if p.PeekToken.Type == token.EMDASH {
 			return true
 		}
-		if literalsAndLParen.Contains(p.peekToken.Type) {
+		if literalsAndLParen.Contains(p.PeekToken.Type) {
 			return true
 		}
-		if p.peekToken.Literal == "from" {
+		if p.PeekToken.Literal == "from" {
 			return true
 		}
-		if p.Infixes.Contains(p.peekToken.Literal) {
+		if p.Infixes.Contains(p.PeekToken.Literal) {
 			return false
 		}
-		if p.nativeInfixes.Contains(p.peekToken.Type) {
+		if p.nativeInfixes.Contains(p.PeekToken.Type) {
 			return false
 		}
-		if p.Midfixes.Contains(p.peekToken.Literal) {
+		if p.Midfixes.Contains(p.PeekToken.Literal) {
 			return false
 		}
-		if p.Functions.Contains(p.peekToken.Literal) && p.peekToken.Type != token.EOF {
+		if p.Functions.Contains(p.PeekToken.Literal) && p.PeekToken.Type != token.EOF {
 			return true
 		}
-		if p.Prefixes.Contains(p.peekToken.Literal) {
-			return p.peekToken.Type != token.EOF
+		if p.Prefixes.Contains(p.PeekToken.Literal) {
+			return p.PeekToken.Type != token.EOF
 		}
 	}
 
-	if p.Functions.Contains(p.curToken.Literal) && p.peekToken.Type != token.EOF {
+	if p.Functions.Contains(p.CurToken.Literal) && p.PeekToken.Type != token.EOF {
 		return true
 	}
-	if p.Prefixes.Contains(p.curToken.Literal) {
-		return p.peekToken.Type != token.EOF
+	if p.Prefixes.Contains(p.CurToken.Literal) {
+		return p.PeekToken.Type != token.EOF
 	}
-	if literalsAndLParen.Contains(p.peekToken.Type) {
+	if literalsAndLParen.Contains(p.PeekToken.Type) {
 		return true
 	}
-	if p.peekToken.Type != token.IDENT {
+	if p.PeekToken.Type != token.IDENT {
 		return false
 	}
-	if p.Infixes.Contains(p.peekToken.Literal) {
+	if p.Infixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
-	if p.Midfixes.Contains(p.peekToken.Literal) {
+	if p.Midfixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
-	if p.Endfixes.Contains(p.peekToken.Literal) {
+	if p.Endfixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
-	if p.Suffixes.Contains(p.peekToken.Literal) {
+	if p.Suffixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
 	return true

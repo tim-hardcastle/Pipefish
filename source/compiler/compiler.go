@@ -2821,6 +2821,8 @@ func (cp *Compiler) Store(k, v values.Value) {
 type ParameterInfo struct{
 	Types []values.ValueType
 	Instances []ArgumentInfo
+	Operations []string       // TODO --- really this and the next field belong in the initializer
+	Typecheck  ast.Node
 }
 
 type ArgumentInfo struct{

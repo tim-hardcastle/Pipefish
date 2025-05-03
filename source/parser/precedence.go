@@ -105,7 +105,7 @@ var literalsAndLParen = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.
 var assignmentTokens = dtypes.MakeFromSlice([]token.TokenType{token.ASSIGN, token.GVN_ASSIGN})
 
 func (p *Parser) peekPrecedence() int {
-	return p.rightPrecedence(p.peekToken)
+	return p.rightPrecedence(p.PeekToken)
 }
 
 func (p *Parser) rightPrecedence(tok token.Token) int {
@@ -130,7 +130,7 @@ func (p *Parser) rightPrecedence(tok token.Token) int {
 }
 
 func (p *Parser) curPrecedence() int {
-	return p.leftPrecedence(p.curToken)
+	return p.leftPrecedence(p.CurToken)
 }
 
 func (p *Parser) leftPrecedence(tok token.Token) int {
@@ -168,7 +168,7 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FPREFIX
 		}
-		if p.Midfixes.Contains(tok.Literal) || p.Forefixes.Contains(p.peekToken.Literal) {
+		if p.Midfixes.Contains(tok.Literal) || p.Forefixes.Contains(p.PeekToken.Literal) {
 			return FMIDFIX
 		}
 		if p.Endfixes.Contains(tok.Literal) {

@@ -41,7 +41,7 @@ type initializer struct {
 	cp                                  *compiler.Compiler             // The compiler for the module being intitialized.
 	p                                   *parser.Parser                 // The parser for the module being initialized.
 	initializers                        map[string]*initializer        // The child initializers of this one, to initialize imports and external stubs.
-	TokenizedDeclarations               [13]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
+	TokenizedDeclarations               [14]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations                  [13]parser.ParsedCodeChunks    // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
 	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
@@ -50,6 +50,7 @@ type initializer struct {
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
+	
 }
 
 // Makes a new initializer.
@@ -265,6 +266,12 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	iz.cmI("Instantiating parameterized types.")
+	iz.instantiateParameterizedTypes()
+	if iz.ErrorsExist() {
+		return
+	}
+
 	iz.cmI("Adding constructors to parser, parsing struct declarations.")
 	iz.createStructNames()
 	if iz.ErrorsExist() {
@@ -382,9 +389,13 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			continue
 		}
 		if currentSection == TypesSection && tok.Type == token.IDENT {
-			tD, ok := typeMap[tok.Literal]
-			if ok {
-				typeDefined = tD
+			if tok.Literal == "make" {
+				typeDefined = makeDeclaration
+			} else {
+				tD, ok := typeMap[tok.Literal]
+				if ok {
+					typeDefined = tD
+				}
 			}
 		}
 		if tok.Type == token.LPAREN {
@@ -414,8 +425,7 @@ func (iz *initializer) MakeParserAndTokenizedProgram() {
 			switch currentSection {
 			case ImportSection:
 				iz.addTokenizedDeclaration(importDeclaration, line, IsPrivate)
-			case LanguagesSection:
-				iz.addTokenizedDeclaration(snippetDeclaration, line, IsPrivate)
+
 			case ExternalSection:
 				iz.addTokenizedDeclaration(externalDeclaration, line, IsPrivate)
 			case CmdSection:
@@ -767,7 +777,7 @@ func (iz *initializer) createEnums() {
 		iz.AddType(tok1.Literal, "enum", typeNo)
 
 		// We make the constructor function.
-				
+
 		iz.p.AllFunctionIdents.Add(name)
 		iz.p.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
@@ -775,7 +785,6 @@ func (iz *initializer) createEnums() {
 		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
 		iz.Add(name, fn)
 		iz.fnIndex[fnSource{enumDeclaration, i}] = fn
-
 
 		if typeExists {
 			continue
@@ -808,7 +817,7 @@ func (iz *initializer) createEnums() {
 
 // Phase 1F of compilation. We compile the clone types.
 func (iz *initializer) createClones() {
-	mainLoop:
+mainLoop:
 	for i, tokens := range iz.TokenizedDeclarations[cloneDeclaration] {
 		tok1 := tokens.IndexToken()
 		private := iz.IsPrivate(int(cloneDeclaration), i)
@@ -820,20 +829,22 @@ func (iz *initializer) createClones() {
 			iz.Throw("init/clone/type", tok1, typeToClone)
 			return
 		}
-	switch paramSig := paramSig.(type) {
-	case *ast.TypeWithName:
-	case *ast.TypeWithParameters:
-		ok := iz.registerParameterizedType(paramSig)
-		if !ok {
-			iz.Throw("init/clone/exists", tokens.IndexToken())
+		switch paramSig := paramSig.(type) {
+		case *ast.TypeWithName:
+		case *ast.TypeWithParameters:
+			opList, typeCheck := iz.getOpList(tokens)
+			ok := iz.registerParameterizedType(tok1.Literal, paramSig, opList, typeCheck)
+			if !ok {
+				iz.Throw("init/clone/exists", tokens.IndexToken())
+				continue mainLoop
+			}
+			iz.setDeclaration(decPARAMETERIZED, tok1, DUMMY, DUMMY)
+			println("registered", name, "with sig", paramSig.String(), "; type to clone is", typeToClone, "with", len(opList), "ops requested, and typecheck", typeCheck.String())
+			continue mainLoop
+		default:
+			iz.Throw("init/clone/type", tokens.IndexToken())
 			continue mainLoop
 		}
-		println("registered", name, "with sig", paramSig.String(), "; type to clone is", typeToClone)
-		continue mainLoop
-	default:
-		iz.Throw("init/clone/type", tokens.IndexToken())
-		continue mainLoop
-	}
 		abType := typeToClone + "like"
 		var typeNo values.ValueType
 		info, typeExists := iz.getDeclaration(decCLONE, tok1, DUMMY)
@@ -865,27 +876,7 @@ func (iz *initializer) createClones() {
 			iz.p.Suffixes.Add(name + "?")
 		}
 		// We get the requested builtins.
-		var opList []string
-		usingOrEof := tokens.NextToken()
-		if usingOrEof.Type != token.EOF && usingOrEof.Type != token.COLON {
-			if usingOrEof.Literal != "using" {
-				println("**************Found", usingOrEof.Literal)
-				iz.Throw("init/clone/using", &usingOrEof)
-				return
-			}
-			for {
-				op := tokens.NextToken()
-				sep := tokens.NextToken()
-				opList = append(opList, strings.Trim(op.Literal, "\n\r\t "))
-				if sep.Type == token.EOF || sep.Type == token.COLON {
-					break
-				}
-				if sep.Type != token.COMMA {
-					iz.Throw("init/clone/comma", &usingOrEof)
-					break
-				}
-			}
-		}
+		opList, _ := iz.getOpList(tokens)
 		if iz.ErrorsExist() {
 			return
 		}
@@ -911,7 +902,7 @@ func (iz *initializer) createClones() {
 					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
 				default:
-					iz.Throw("init/request/float", &usingOrEof, op)
+					iz.Throw("init/request/float", tok1, op)
 				}
 			case values.INT:
 				switch op {
@@ -933,7 +924,7 @@ func (iz *initializer) createClones() {
 					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"%", ast.AsBling("&")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("mod", sig, "modulo_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
 				default:
-					iz.p.Throw("init/request/int", &usingOrEof, op)
+					iz.p.Throw("init/request/int", tok1, op)
 				}
 			case values.LIST:
 				switch op {
@@ -956,7 +947,7 @@ func (iz *initializer) createClones() {
 					cloneData.IsSliceable = true
 					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 				default:
-					iz.Throw("init/request/list", &usingOrEof, op)
+					iz.Throw("init/request/list", tok1, op)
 				}
 			case values.MAP:
 				switch op {
@@ -967,10 +958,10 @@ func (iz *initializer) createClones() {
 					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"without", ast.AsBling("without")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_ANY_NULLABLE}}
 					iz.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
 				default:
-					iz.Throw("init/request/map", &usingOrEof, op)
+					iz.Throw("init/request/map", tok1, op)
 				}
 			case values.PAIR:
-				iz.Throw("init/request/pair", &usingOrEof)
+				iz.Throw("init/request/pair", tok1)
 			case values.SET:
 				switch op {
 				case "+":
@@ -983,7 +974,7 @@ func (iz *initializer) createClones() {
 					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/\\", ast.AsBling("/\\")}, ast.NameTypeAstPair{"y", nameAst}}
 					iz.makeCloneFunction("/\\", sig, "intersect_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
 				default:
-					iz.Throw("init/request/set", &usingOrEof, op)
+					iz.Throw("init/request/set", tok1, op)
 				}
 			case values.STRING:
 				switch op {
@@ -995,7 +986,7 @@ func (iz *initializer) createClones() {
 					cloneData.IsSliceable = true
 					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 				default:
-					iz.Throw("init/request/string", &usingOrEof, op)
+					iz.Throw("init/request/string", tok1, op)
 				}
 			}
 		}
@@ -1013,6 +1004,73 @@ func (iz *initializer) createClones() {
 	}
 }
 
+func (iz *initializer) getOpList(tokens *token.TokenizedCodeChunk) ([]string, ast.Node) {
+	var opList []string
+	var typeCheck ast.Node
+	sep := tokens.NextToken()
+	if sep.Type != token.EOF && sep.Type != token.COLON {
+		if sep.Literal != "using" {
+			iz.Throw("init/clone/using", &sep)
+			return opList, typeCheck
+		}
+		for {
+			op := tokens.NextToken()
+			sep = tokens.NextToken()
+			opList = append(opList, strings.Trim(op.Literal, "\n\r\t "))
+			if sep.Type == token.COLON || sep.Type == token.EOF {
+				break
+			}
+			if sep.Type != token.COMMA {
+				iz.Throw("init/clone/comma", &sep)
+				break
+			}
+		}
+	}
+	if sep.Type == token.COLON {
+		iz.cp.P.TokenizedCode = tokens
+		typeCheck = iz.cp.P.ParseTokenizedChunk()
+	}
+	return opList, typeCheck
+}
+
+func (iz *initializer) instantiateParameterizedTypes() {
+loop:
+	for _, dec := range iz.TokenizedDeclarations[makeDeclaration] {
+		dec.ToStart()
+		iz.cp.P.TokenizedCode = dec
+		iz.cp.P.SafeNextToken()
+		iz.cp.P.SafeNextToken()
+		if iz.cp.P.PeekToken.Type == token.EOF {
+			iz.Throw("init/make/empty", dec.IndexToken())
+			continue loop
+		}
+		for {
+			ty := iz.cp.P.ParseType(parser.T_LOWEST)
+			if ty == nil {
+				iz.Throw("init/make/type", dec.IndexToken())
+				continue loop
+			}
+			if ty, ok := ty.(*ast.TypeWithArguments); ok {
+				println("Type is", ty.String())
+				iz.cp.P.NextToken()
+			} else {
+				iz.Throw("init/make/instance", dec.IndexToken())
+				continue loop
+			}
+			iz.cp.P.NextToken()
+			switch iz.cp.P.CurToken.Type {
+			case token.EOF:
+				continue loop
+			case token.COMMA:
+			default:
+				tok := iz.cp.P.CurToken
+				iz.Throw("init/make/comma", &tok)
+				continue loop
+			}
+		}
+	}
+}
+
 // Function auxiliary to the previous one, to make constructors for the clone types.
 func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
@@ -1023,7 +1081,7 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 	}
 }
 
-// We create the structs as names and type numbers in the type system. We can't populate 
+// We create the structs as names and type numbers in the type system. We can't populate
 // their fields yet because we haven't even declared the abstract and interface types
 // lexically yet.
 func (iz *initializer) createStructNames() {
@@ -1079,11 +1137,11 @@ func (iz *initializer) createStructLabels() {
 			labelName := labelNameAndType.VarName
 			labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
 			if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-				labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))																																											
+				labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
 				iz.setDeclaration(decLABEL, indexToken, j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
 			} else {
-				iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexToken																																	)
-				iz.setDeclaration(decLABEL, indexToken, j, labelInfo{iz.cp.That(), true})																																						
+				iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexToken)
+				iz.setDeclaration(decLABEL, indexToken, j, labelInfo{iz.cp.That(), true})
 				labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 				iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
 				iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, iz.IsPrivate(int(structDeclaration), i))
@@ -1098,18 +1156,19 @@ func (iz *initializer) createStructLabels() {
 	}
 }
 
-func (iz *initializer) registerParameterizedType(ty *ast.TypeWithParameters) bool {
-	info, ok := iz.cp.ParameterizedTypes[ty.Name]
+func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []string, typeCheck ast.Node) bool {
+	info, ok := iz.cp.ParameterizedTypes[name]
 	if ok {
 		if iz.paramTypeExists(ty) {
 			return false
 		}
-		info = append(info, compiler.ParameterInfo{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}})
-		iz.cp.ParameterizedTypes[ty.Name] = info
+		info = append(info, compiler.ParameterInfo{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}, opList, typeCheck})
+		iz.cp.ParameterizedTypes[name] = info
 		return true
 	}
-	info = []compiler.ParameterInfo{{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}}}
-	iz.cp.ParameterizedTypes[ty.Name] = info
+	info = []compiler.ParameterInfo{{iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}, opList, typeCheck}}
+	iz.cp.ParameterizedTypes[name] = info
+	iz.cp.P.ParameterizedTypes = iz.cp.P.ParameterizedTypes.Add(name)
 	return true
 }
 
@@ -1127,7 +1186,7 @@ func (iz *initializer) astParamsToValueTypes(params []*ast.Parameter) []values.V
 	result := []values.ValueType{}
 	for _, v := range params {
 		result = append(result, iz.cp.ConcreteTypeNow(v.Type))
-	} 
+	}
 	return result
 }
 
@@ -1139,7 +1198,7 @@ func (iz *initializer) ParameterTypesMatch(paramsToCheck, paramsToMatch []values
 		if v != paramsToMatch[i] {
 			return false
 		}
-	} 
+	}
 	return true
 }
 
@@ -1338,8 +1397,8 @@ func (iz *initializer) shareable(f *ast.PrsrFunction) bool {
 		if t, ok := ty.(*ast.TypeDotDotDot); ok {
 			ty = t.Right
 		}
-		if t, ok := ty.(*ast.TypeWithName); ok && 
-				(t.Name == "struct" || t.Name == "enum") {
+		if t, ok := ty.(*ast.TypeWithName); ok &&
+			(t.Name == "struct" || t.Name == "enum") {
 			continue
 		}
 		abType := iz.p.GetAbstractType(ty)
@@ -1956,11 +2015,14 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				fCount++
 			}
 		}
-		for _, dec := range groupOfDeclarations {
+		loop:
+		for i, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case structDeclaration, cloneDeclaration:
+				if _, ok := iz.getDeclaration(decPARAMETERIZED, iz.TokenizedDeclarations[dec.decType][i].IndexToken(), DUMMY); ok {
+					continue loop
+				}
 				iz.compileTypecheck(dec.name, dec.chunk)
-
 				continue
 			case functionDeclaration:
 				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
@@ -2388,7 +2450,6 @@ const (
 	VarSection
 	CmdSection
 	DefSection
-	LanguagesSection
 	TypesSection
 	ConstSection
 	UndefinedSection
@@ -2411,7 +2472,7 @@ const (
 	functionDeclaration                  //
 	commandDeclaration                   //
 	golangDeclaration                    // Pure golang in a block; the Pipefish functions with golang bodies don't go here but under function or command as they were declared.
-
+	makeDeclaration                      // Instantiates parameterized types.
 )
 
 var tokenTypeToSection = map[token.TokenType]Section{
@@ -2457,6 +2518,7 @@ const (
 	decABSTRACT
 	decINTERFACE
 	decFUNCTION
+	decPARAMETERIZED // A placeholder/
 )
 
 type labelInfo struct {
