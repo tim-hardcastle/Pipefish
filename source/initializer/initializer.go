@@ -144,12 +144,6 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
-	iz.cmI("Compiling constructors.")
-	iz.compileAllConstructors()
-	if iz.ErrorsExist() {
-		iz.cp.P.Common.IsBroken = true
-		return result
-	}
 	iz.cmI("Making function tables.")
 	iz.MakeFunctionTables()
 	if iz.ErrorsExist() {
@@ -782,14 +776,12 @@ func (iz *initializer) createEnums() {
 		iz.p.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
-		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: &tok1}
+		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &tok1)
+		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: &tok1}
 		iz.Add(name, fn)
-		iz.fnIndex[fnSource{enumDeclaration, i}] = fn
-
 		if typeExists {
 			continue
 		}
-
 		tokens.NextToken() // Skip over the '='.
 		tokens.NextToken() // This says 'enum' or we wouldn't be here.
 		elementNameList := []string{}
@@ -846,7 +838,8 @@ mainLoop:
 		}
 		
 		typeNo, fn := iz.addTypeAndConstructor(name, typeToClone, private, tok1)
-		iz.fnIndex[fnSource{cloneDeclaration, i}] = fn
+		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
+		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), tok1)
 
 		// We get the requested builtins.
 		opList, _ := iz.getOpList(tokens)
@@ -1164,9 +1157,6 @@ func (iz *initializer) createStructLabels() {
 		name := indexToken.Literal
 		// We will now extract the AstSig lexically.
 		sig := iz.cp.P.ParseSigFromTcc(tcc)
-		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: indexToken}
-		iz.Add(name, fn)
-		iz.fnIndex[fnSource{structDeclaration, i}] = fn
 		labelsForStruct := make([]int, 0, len(sig))
 		for j, labelNameAndType := range sig {
 			labelName := labelNameAndType.VarName
@@ -1183,6 +1173,9 @@ func (iz *initializer) createStructLabels() {
 			}
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
+		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), tcc.IndexToken())
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
+		iz.Add(name, fn)
 		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i), sig})
 		stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
 			Private: iz.IsPrivate(int(structDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
@@ -1574,58 +1567,6 @@ func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
-func (iz *initializer) compileAllConstructors() {
-	// First we recursively call the method on all the dependencies of the module.
-	for _, dependencyIz := range iz.initializers {
-		dependencyIz.compileAllConstructors()
-	}
-	iz.compileConstructors()
-}
-
-func (iz *initializer) compileConstructors() {
-	// Struct declarations.
-	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
-		name := tcc.IndexToken().Literal
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		izStructInfo := iz.fnIndex[fnSource{structDeclaration, i}]
-		sig := izStructInfo.NameSig
-		iz.fnIndex[fnSource{structDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), tcc.IndexToken())
-		iz.fnIndex[fnSource{structDeclaration, i}].Compiler = iz.cp
-	}
-	// Clones
-	for i, dec := range iz.TokenizedDeclarations[cloneDeclaration] {
-		if !isConcrete(dec) {
-			continue
-		}
-		dec.ToStart()
-		nameTok := dec.NextToken()
-		name := nameTok.Literal
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-		iz.fnIndex[fnSource{cloneDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &nameTok)
-		iz.fnIndex[fnSource{cloneDeclaration, i}].Compiler = iz.cp
-	}
-	// Enums
-	for i, dec := range iz.TokenizedDeclarations[enumDeclaration] {
-		dec.ToStart()
-		nameTok := dec.NextToken()
-		name := nameTok.Literal
-		typeNo := iz.cp.ConcreteTypeNow(name)
-		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom("int")}}
-		iz.fnIndex[fnSource{enumDeclaration, i}].Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &nameTok)
-		iz.fnIndex[fnSource{enumDeclaration, i}].Compiler = iz.cp
-	}
-}
-
-// TODO --- there ought to be a way of storing this in the interpreter's type info.
-func isConcrete(tcc *token.TokenizedCodeChunk) bool {
-	tcc.ToStart()
-	tcc.NextToken()
-	tcc.NextToken()
-	tcc.NextToken()
-	tok := tcc.NextToken()
-	return tok.Type != token.LBRACK
-}
 
 // Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
 func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
