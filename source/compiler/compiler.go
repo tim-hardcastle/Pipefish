@@ -40,7 +40,7 @@ type Compiler struct {
 	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
-	ParameterizedTypes       map[string][]ParameterInfo           // Holds the definitions of parameterized types.
+	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -221,30 +221,30 @@ NodeTypeSwitch:
 			if ok {
 				cp.Cm("Inferring the type of a variable "+text.Emph(pair.VarName)+" already defined ", &node.Token)
 				if sig.GetVarType(i) != ast.INFERRED_TYPE_AST { // Then as we can't change the type of an existing variable, we must check that we're defining it the same way.
-					if !Equals(v.types, cp.GetAlternateTypeFromTypeAst(sig[i].VarType)) {
+					if !Equals(v.Types, cp.GetAlternateTypeFromTypeAst(sig[i].VarType)) {
 						cp.Throw("comp/assign/type/b", node.GetToken(), pair.VarName)
 						break NodeTypeSwitch
 					}
 				}
-				if v.access != REFERENCE_VARIABLE { // TODO --- THere's probably a more elgant way of dealing with the reference variable thing if I think about it, but as I intend to type them anyway and this will get refactored away it's not a big deal.
-					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.types})
+				if v.Access != REFERENCE_VARIABLE { // TODO --- THere's probably a more elgant way of dealing with the reference variable thing if I think about it, but as I intend to type them anyway and this will get refactored away it's not a big deal.
+					newSig = append(newSig, NameAlternateTypePair{pair.VarName, v.Types})
 				} else {
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)})
 				}
-				if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_CONSTANT || v.access == LOCAL_FUNCTION_CONSTANT ||
-					v.access == VERY_LOCAL_CONSTANT || v.access == VERY_LOCAL_VARIABLE || v.access == FUNCTION_ARGUMENT || v.access == LOCAL_FUNCTION_THUNK {
+				if v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_CONSTANT || v.Access == LOCAL_FUNCTION_CONSTANT ||
+					v.Access == VERY_LOCAL_CONSTANT || v.Access == VERY_LOCAL_VARIABLE || v.Access == FUNCTION_ARGUMENT || v.Access == LOCAL_FUNCTION_THUNK {
 					cp.Throw("comp/assign/immutable", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
-				if ac == REPL && (ALL_PRIVATE_ACCESS.Contains(v.access)) {
+				if ac == REPL && (ALL_PRIVATE_ACCESS.Contains(v.Access)) {
 					cp.Throw("comp/assign/private", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
-				if ac == REPL && (ALL_CONSTANT_ACCESS.Contains(v.access)) {
+				if ac == REPL && (ALL_CONSTANT_ACCESS.Contains(v.Access)) {
 					cp.Throw("comp/assign/const", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}
-				if v.access == GLOBAL_VARIABLE_PUBLIC {
+				if v.Access == GLOBAL_VARIABLE_PUBLIC {
 					flavor = CHECK_GLOBAL_ASSIGNMENTS
 				}
 			} else { // The variable doesn't already exist.
@@ -350,7 +350,7 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = AltType(values.LABEL), true
 			break
 		}
-		var v *variable
+		var v *Variable
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler != cp {
 			v, ok = resolvingCompiler.GlobalConsts.GetVar(node.Value)
@@ -361,21 +361,21 @@ NodeTypeSwitch:
 			cp.Throw("comp/ident/known", node.GetToken(), node.Value)
 			break
 		}
-		if (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
+		if (v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
 			cp.Throw("comp/ident/private", node.GetToken())
 			break
 		}
-		if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
+		if v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_FUNCTION_THUNK {
 			cp.Emit(vm.Untk, v.MLoc)
 		}
-		if v.access == REFERENCE_VARIABLE {
+		if v.Access == REFERENCE_VARIABLE {
 			cp.put(vm.Dref, v.MLoc)
 			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 		} else {
 			cp.put(vm.Asgm, v.MLoc)
-			rtnTypes = v.types
+			rtnTypes = v.Types
 		}
-		rtnConst = ALL_CONSTANT_ACCESS.Contains(v.access)
+		rtnConst = ALL_CONSTANT_ACCESS.Contains(v.Access)
 		break
 	case *ast.IndexExpression:
 		containerType, ctrConst := cp.CompileNode(node.Left, ctxt.x())
@@ -386,7 +386,7 @@ NodeTypeSwitch:
 		} else {
 			whatAccess = VERY_LOCAL_VARIABLE
 		}
-		envWithThat := &Environment{Data: map[string]variable{"that": {MLoc: cp.That(), access: whatAccess, types: containerType}}, Ext: env}
+		envWithThat := &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: whatAccess, Types: containerType}}, Ext: env}
 		newContext := ctxt.x()
 		newContext.Env = envWithThat
 		indexType, idxConst := cp.CompileNode(node.Index, newContext)
@@ -919,7 +919,7 @@ NodeTypeSwitch:
 			break
 		}
 		var (
-			v  *variable
+			v  *Variable
 			ok bool
 		)
 		if resolvingCompiler != cp {
@@ -930,13 +930,13 @@ NodeTypeSwitch:
 		if ok { // Then it is a variable which may contain a function which may or may not be wrapped in a thunk.
 			cp.Cm("Prefix is variable which may contain a lambda.", node.GetToken())
 			recursion := false
-			if v.access == LOCAL_FUNCTION_THUNK || v.access == LOCAL_FUNCTION_CONSTANT {
+			if v.Access == LOCAL_FUNCTION_THUNK || v.Access == LOCAL_FUNCTION_CONSTANT {
 				if cp.Vm.Mem[v.MLoc].V == nil { // Then it's uninitialized because we're doing recursion in a given block and we haven't compiled that function yet.
 					cp.Emit(vm.Rpsh, cp.getLambdaStart(), cp.MemTop())
 					recursion = true
 				}
 			}
-			if v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK {
+			if v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_FUNCTION_THUNK {
 				cp.Cm("Prefix variable is thunked. Unthunking.", node.GetToken())
 				cp.Emit(vm.Untk, v.MLoc)
 			}
@@ -949,13 +949,13 @@ NodeTypeSwitch:
 				break NodeTypeSwitch
 			}
 			switch {
-			case v.types.isOnly(values.FUNC):
+			case v.Types.isOnly(values.FUNC):
 				cp.Cm("Prefix variable can only be lambda.", node.GetToken())
 				cp.put(vm.Dofn, operands...)
 				if recursion {
 					cp.Emit(vm.Rpop)
 				}
-			case v.types.Contains(values.FUNC):
+			case v.Types.Contains(values.FUNC):
 				errorLoc := cp.reserveError("vm/apply/func", node.GetToken(), v.MLoc)
 				cp.Cm("Prefix variable might be lambda. Emitting type check.", node.GetToken())
 				funcTest := cp.vmIf(vm.Qtyp, v.MLoc, uint32(values.FUNC))
@@ -1031,8 +1031,8 @@ NodeTypeSwitch:
 	case *ast.TryExpression:
 		ident := node.VarName
 		v, exists := env.GetVar(ident)
-		if exists && (v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == GLOBAL_VARIABLE_PRIVATE ||
-			v.access == GLOBAL_VARIABLE_PUBLIC || v.access == LOCAL_VARIABLE_THUNK || v.access == LOCAL_FUNCTION_THUNK) {
+		if exists && (v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == GLOBAL_CONSTANT_PUBLIC || v.Access == GLOBAL_VARIABLE_PRIVATE ||
+			v.Access == GLOBAL_VARIABLE_PUBLIC || v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_FUNCTION_THUNK) {
 			cp.Throw("comp/try/var", node.GetToken())
 			break
 		}
@@ -1056,7 +1056,7 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.UNSATISFIED_CONDITIONAL, values.SUCCESSFUL_VALUE), false
 	case *ast.TypeLiteral:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		typeName := node.Value		
+		typeName := node.Value
 		abType := resolvingCompiler.P.GetAbstractType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 			cp.Throw("comp/private/type", node.GetToken())
@@ -1064,7 +1064,7 @@ NodeTypeSwitch:
 		}
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
-	case *ast.TypePrefixExpression: 
+	case *ast.TypePrefixExpression:
 		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if abType := resolvingCompiler.P.GetAbstractType(node.Operator); abType.Len() != 1 {
@@ -1078,7 +1078,7 @@ NodeTypeSwitch:
 			if !conc || !typeInfo.IsClone() {
 				cp.Throw("comp/suffix/clone/a", node.GetToken())
 				break
-			} 
+			}
 			// The fact that we're compiling this node means that we're not in a signature. Hence
 			// the compiler can do what the parser can't, and turn it into a normal suffix expression,
 			// which can then be compiled.
@@ -1150,11 +1150,11 @@ NodeTypeSwitch:
 
 // A function auxiliary to the previous one that checks the return types of a function.
 func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typecheck FiniteTupleType, tok *token.Token) {
-	
+
 	if len(typecheck) == 0 {
 		return
 	}
-	
+
 	singles, _ := rtnTypes.splitSinglesAndTuples()
 	typeLengths := lengths(rtnTypes)
 
@@ -1319,7 +1319,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 	// The parser so far has only broken the header up into its parts, but has not validated
 	// that they're in the proper form.
 
-	newEnv := &Environment{map[string]variable{}, ctxt.Env}
+	newEnv := &Environment{map[string]Variable{}, ctxt.Env}
 	newContext := ctxt.x()
 	newContext.Env = newEnv
 
@@ -1687,13 +1687,13 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 			cp.Throw("comp/body/known", tok, k)
 			return
 		}
-		if v.access == GLOBAL_CONSTANT_PRIVATE || v.access == GLOBAL_CONSTANT_PUBLIC || v.access == LOCAL_CONSTANT {
+		if v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == GLOBAL_CONSTANT_PUBLIC || v.Access == LOCAL_CONSTANT {
 			cp.Cm("Binding name "+text.Emph(k)+" in lambda to existing constant at location m"+strconv.Itoa(int(v.MLoc))+".", fnNode.GetToken())
 			newEnv.Data[k] = *v
 		} else {
 			cp.Reserve(values.UNDEFINED_TYPE, nil, fnNode.GetToken()) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
 			cp.Cm("Adding variable for lambda capture.", fnNode.GetToken())
-			cp.AddVariable(newEnv, k, v.access, v.types, fnNode.GetToken())
+			cp.AddVariable(newEnv, k, v.Access, v.Types, fnNode.GetToken())
 		}
 		// At the same time, the lambda factory need to know where they are in the calling vm.Vm.
 		LF.CaptureLocations = append(LF.CaptureLocations, v.MLoc)
@@ -1866,7 +1866,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		v, alreadyExists := ctxt.Env.GetVar(pair.VarName) // In that case we (should) have an inner function declaration and the sig will have length 1.
 		// We check that it isn't just the user redefining a variable.
 		if alreadyExists && pair.VarName != "_" {
-			if v.access == LOCAL_FUNCTION_THUNK && cp.Vm.Mem[v.MLoc].V == nil || v.access == LOCAL_FUNCTION_CONSTANT && cp.Vm.Mem[v.MLoc].V == nil {
+			if v.Access == LOCAL_FUNCTION_THUNK && cp.Vm.Mem[v.MLoc].V == nil || v.Access == LOCAL_FUNCTION_CONSTANT && cp.Vm.Mem[v.MLoc].V == nil {
 				ctxt.Env.Data["this"] = *v
 			} else {
 				cp.Throw("comp/given/redeclared", node.GetToken(), pair.VarName)
@@ -1892,11 +1892,11 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		} else {
 			if alreadyExists {
 				switch { // The case where neither of these is true has been checked for above.
-				case v.access == LOCAL_FUNCTION_THUNK:
+				case v.Access == LOCAL_FUNCTION_THUNK:
 					cp.Cm("Reassigning local function thunk "+text.Emph(pair.VarName)+" from dummy value.", node.GetToken())
 					cp.Vm.Mem[v.MLoc] = val(values.THUNK, values.ThunkValue{cp.That(), thunkStart})
 					cp.ThunkList = append(cp.ThunkList, ThunkData{v.MLoc, values.ThunkValue{cp.That(), thunkStart}})
-				case v.access == LOCAL_FUNCTION_CONSTANT:
+				case v.Access == LOCAL_FUNCTION_CONSTANT:
 					cp.Cm("Reassigning local function constant "+text.Emph(pair.VarName)+" from dummy value in compileOneGivenChunk.", node.GetToken())
 					cp.Vm.Mem[v.MLoc] = cp.Vm.Mem[cp.That()]
 				}
@@ -2050,7 +2050,7 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt Context) (uint32, b
 func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, ctxt Context) (AlternateType, bool) {
 	var envWithThat *Environment
 	var isAttemptedFunc bool
-	var v *variable
+	var v *Variable
 	var ok bool
 	typeIsNotFunc := bkEarlyReturn(DUMMY)
 	var rtnTypes AlternateType
@@ -2065,7 +2065,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 			return AltType(values.ERROR), true
 		}
 		isAttemptedFunc = true
-		if !v.types.Contains(values.FUNC) {
+		if !v.Types.Contains(values.FUNC) {
 			if rhs.GetToken().Literal == "that" { // Yeah it's a stupid corner case but the stupid user has a right to it.
 				isAttemptedFunc = false
 			} else {
@@ -2073,7 +2073,7 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 				return AltType(values.ERROR), true
 			}
 		}
-		if !v.types.isOnly(values.FUNC) {
+		if !v.Types.isOnly(values.FUNC) {
 			cp.reserveError("vm/pipe/pipe/func", rhs.GetToken())
 			cp.Emit(vm.Qntp, v.MLoc, uint32(values.FUNC), cp.CodeTop()+3)
 			typeIsNotFunc = cp.vmEarlyReturn(cp.That())
@@ -2085,11 +2085,11 @@ func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.N
 		} else {
 			whatAccess = VERY_LOCAL_VARIABLE
 		}
-		envWithThat = &Environment{Data: map[string]variable{"that": {MLoc: cp.That(), access: whatAccess, types: lhsTypes}}, Ext: env}
+		envWithThat = &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: whatAccess, Types: lhsTypes}}, Ext: env}
 	}
 	if isAttemptedFunc {
 		cp.put(vm.Dofn, v.MLoc, lhs)
-		rtnTypes, rtnConst = cp.Common.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.access)
+		rtnTypes, rtnConst = cp.Common.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.Access)
 	} else {
 		newContext := ctxt
 		newContext.Env = envWithThat
@@ -2110,7 +2110,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	cp.Cm("lhsTypes is "+text.Emph(lhsTypes.describe(cp.Vm)), tok)
 	var rhsConst bool
 	var isAttemptedFunc bool
-	var v *variable
+	var v *Variable
 	inputElement := uint32(DUMMY)
 	typeIsNotFunc := bkEarlyReturn(DUMMY)
 	resultIsError := bkEarlyReturn(DUMMY)
@@ -2152,11 +2152,11 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 				return AltType(values.ERROR), true
 			}
 			isAttemptedFunc = true
-			rhsConst = ALL_CONSTANT_ACCESS.Contains(v.access)
-			if !v.types.Contains(values.FUNC) {
+			rhsConst = ALL_CONSTANT_ACCESS.Contains(v.Access)
+			if !v.Types.Contains(values.FUNC) {
 				cp.Throw("comp/pipe/mf/func", rhs.GetToken())
 			}
-			if !v.types.isOnly(values.FUNC) {
+			if !v.Types.isOnly(values.FUNC) {
 				cp.reserveError("vm/pipe/mf/func", rhs.GetToken())
 				cp.Emit(vm.Qntp, v.MLoc, uint32(values.FUNC), cp.CodeTop()+3)
 				typeIsNotFunc = cp.vmEarlyReturn(cp.That())
@@ -2166,7 +2166,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	if !isAttemptedFunc {
 		rhsConst = true
 		thatLoc = cp.Reserve(values.UNDEFINED_TYPE, DUMMY, rhs.GetToken())
-		envWithThat = &Environment{Data: map[string]variable{"that": {MLoc: cp.That(), access: VERY_LOCAL_VARIABLE, types: cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}}, Ext: env}
+		envWithThat = &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: VERY_LOCAL_VARIABLE, Types: cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}}, Ext: env}
 	}
 	counter := cp.Reserve(values.INT, 0, rhs.GetToken())
 	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
@@ -2332,7 +2332,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 	}
 	if insert {
 		vData, _ := env.GetVar(sig.GetVarName(0)) // It is assumed that we've already made it exist.
-		if vData.access == REFERENCE_VARIABLE {
+		if vData.Access == REFERENCE_VARIABLE {
 			if lastIsTuple {
 				cp.put(vm.Cv1T, loc)
 				cp.Emit(vm.Aref, vData.MLoc, cp.That())
@@ -2414,7 +2414,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		if insert {
 			for i := 0; i < lookTo; i++ {
 				vr, _ := env.GetVar(sig.GetVarName(i))
-				if vr.access == REFERENCE_VARIABLE {
+				if vr.Access == REFERENCE_VARIABLE {
 					cp.put(vm.IxTn, loc, uint32(i))
 					cp.Emit(vm.Aref, vr.MLoc, cp.That())
 				} else {
@@ -2459,7 +2459,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 // Adds a variable to a given environment.
 func (cp *Compiler) AddVariable(env *Environment, name string, acc VarAccess, types AlternateType, tok *token.Token) {
 	cp.Cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That()))+" with type "+types.describe(cp.Vm), tok)
-	env.Data[name] = variable{MLoc: cp.That(), access: acc, types: types}
+	env.Data[name] = Variable{MLoc: cp.That(), Access: acc, Types: types}
 }
 
 // A couple of types to support thunking.
@@ -2818,29 +2818,37 @@ func (cp *Compiler) Store(k, v values.Value) {
 	cp.Vm.Mem[hubStore.MLoc].V = storeMap.Set(k, v)
 }
 
-type ParameterInfo struct{
-	Types []values.ValueType
-	Instances []ArgumentInfo
-	Operations []string       // TODO --- really this and the next field belong in the initializer
+type ParameterInfo struct {
+	Names      []string
+	Types      []values.ValueType
+	Instances  []ArgumentInfo
+	Operations []string // TODO --- really this and the following fields belong in the initializer
 	Typecheck  ast.Node
+	ParentType string
+	IsPrivate  bool
 }
 
-type ArgumentInfo struct{
+type ArgumentInfo struct {
 	VType values.ValueType
 	Args  []values.Value
 }
 
 // TODO --- there should be more performant ways of doing this but for now I'll just
 // settle for it working.
-func (cp *Compiler) FindArguments(name string, argsToCheck []values.Value, runtime bool, tok *token.Token) (values.ValueType, bool) {
-	argIndex := -1
+func (cp *Compiler) FindParameterizedType(name string, argsToCheck []values.Value) values.ValueType {
+	argIndex := DUMMY
 	for i, parType := range cp.ParameterizedTypes[name] {
 		if valueTypesMatch(argsToCheck, parType.Types) {
 			argIndex = i
 			break
 		}
 	}
-	if argIndex == -1 {
+	return values.ValueType(argIndex)
+}
+
+func (cp *Compiler) FindArguments(name string, argsToCheck []values.Value, runtime bool, tok *token.Token) (values.ValueType, bool) {
+	argIndex := cp.FindParameterizedType(name, argsToCheck)
+	if argIndex == DUMMY {
 		cp.Throw("cp/type/args", tok)
 		return DUMMY, false
 	}
@@ -2869,7 +2877,7 @@ func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) 
 		if v.T != paramTypes[i] {
 			return false
 		}
-	} 
+	}
 	return true
 }
 
@@ -2890,7 +2898,7 @@ func argsMatch(argsToCheck []values.Value, argsToMatch []values.Value) bool {
 				}
 			}
 		}
-	} 
+	}
 	return true
 }
 

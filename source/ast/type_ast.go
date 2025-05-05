@@ -74,12 +74,21 @@ type TypeWithArguments struct {
 	Arguments []*Argument
 }
 
-func (twp *TypeWithArguments) String() string {
+// TODO, we can probably replace the Arguments field with just this.
+func (twa *TypeWithArguments) Values() []values.Value {
+	result := []values.Value{}
+	for _, arg := range twa.Arguments {
+		result = append(result, values.Value{arg.Type, arg.Value})
+	}
+	return result
+}
+
+func (twa *TypeWithArguments) String() string {
 	var out bytes.Buffer
-	out.WriteString(twp.Name)
+	out.WriteString(twa.Name)
 	out.WriteString("[")
 	sep := ""
-	for _, v := range twp.Arguments {
+	for _, v := range twa.Arguments {
 		out.WriteString(sep)
 		if v.Type == values.STRING {
 			out.WriteRune('"')

@@ -76,7 +76,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 				cp.Throw("comp/ref/ident", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
-			var v *variable
+			var v *Variable
 			v, ok := env.GetVar(arg.GetToken().Literal)
 			if !ok {
 				if ac == REPL {
@@ -84,14 +84,14 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 					return AltType(values.COMPILE_TIME_ERROR), false
 				} else { // We must be in a command. We can create a local variable.
 					cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
-					newVar := variable{cp.That(), LOCAL_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}
+					newVar := Variable{cp.That(), LOCAL_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}
 					env.Data[arg.GetToken().Literal] = newVar
 					v = &newVar
 				}
 			}
 			b.types[i] = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 			cst = false
-			if v.access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
+			if v.Access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
 				cp.put(vm.Asgm, v.MLoc)
 				b.valLocs[i] = cp.That()
 			} else {
@@ -673,7 +673,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					return AltType(values.ERROR, typeNumber)
 				}
 				if ok && typeInfo.IsEnum() {
-					cp.cmP("Emitting enum constructor for " + typeInfo.GetName(vm.LITERAL), b.tok)
+					cp.cmP("Emitting enum constructor for "+typeInfo.GetName(vm.LITERAL), b.tok)
 					cp.Emit(vm.MkEn, b.outLoc, uint32(typeNumber), b.valLocs[0], cp.ReserveToken(b.tok))
 					return AltType(values.ERROR, typeNumber)
 				}

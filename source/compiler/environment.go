@@ -29,22 +29,22 @@ const (
 var ALL_CONSTANT_ACCESS = dtypes.MakeFromSlice([]VarAccess{GLOBAL_CONSTANT_PUBLIC, GLOBAL_CONSTANT_PRIVATE, LOCAL_CONSTANT, VERY_LOCAL_CONSTANT})
 var ALL_PRIVATE_ACCESS = dtypes.MakeFromSlice([]VarAccess{GLOBAL_CONSTANT_PRIVATE, GLOBAL_VARIABLE_PRIVATE})
 
-type variable struct {
+type Variable struct {
 	MLoc   uint32
-	access VarAccess
-	types  AlternateType
+	Access VarAccess
+	Types  AlternateType
 }
 
 type Environment struct {
-	Data map[string]variable
+	Data map[string]Variable
 	Ext  *Environment
 }
 
 func NewEnvironment() *Environment {
-	return &Environment{Data: make(map[string]variable), Ext: nil}
+	return &Environment{Data: make(map[string]Variable), Ext: nil}
 }
 
-func (env *Environment) GetVar(name string) (*variable, bool) {
+func (env *Environment) GetVar(name string) (*Variable, bool) {
 	if env == nil {
 		return nil, false
 	}
