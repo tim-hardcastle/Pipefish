@@ -811,36 +811,35 @@ func (iz *initializer) createEnums() {
 func (iz *initializer) createClones() {
 mainLoop:
 	for i, tokens := range iz.TokenizedDeclarations[cloneDeclaration] {
-		tok1 := tokens.IndexToken()
+		tok1 := *tokens.IndexToken()
 		private := iz.IsPrivate(int(cloneDeclaration), i)
 		tokens.ToStart()
 		iz.cp.P.TokenizedCode = tokens
 		name, paramSig, typeToClone := iz.cp.P.ParseClone()
 		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 		if !ok {
-			iz.Throw("init/clone/type/a", tok1, typeToClone)
+			iz.Throw("init/clone/type/a", &tok1, typeToClone)
 			return
 		}
 		switch paramSig := paramSig.(type) {
 		case *ast.TypeWithName:
 		case *ast.TypeWithParameters:
-			println("PT is", name)
 			opList, typeCheck := iz.getOpList(tokens)
 			ok := iz.registerParameterizedType(name, paramSig, opList, typeCheck, typeToClone, iz.IsPrivate(int(cloneDeclaration), i))
 			if !ok {
 				iz.Throw("init/clone/exists", tokens.IndexToken())
 				continue mainLoop
 			}
-			iz.setDeclaration(decPARAMETERIZED, tok1, DUMMY, DUMMY)
+			iz.setDeclaration(decPARAMETERIZED, &tok1, DUMMY, DUMMY)
 			continue mainLoop
 		default:
 			iz.Throw("init/clone/type", tokens.IndexToken())
 			continue mainLoop
 		}
 		
-		typeNo, fn := iz.addTypeAndConstructor(name, typeToClone, private, tok1)
+		typeNo, fn := iz.addTypeAndConstructor(name, typeToClone, private, &tok1)
 		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), tok1)
+		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &tok1)
 
 		// We get the requested builtins.
 		opList, _ := iz.getOpList(tokens)
@@ -848,7 +847,7 @@ mainLoop:
 			return
 		}
 		// And add them to the Common functions.
-		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, opList, parentTypeNo, private, tok1)
+		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, opList, parentTypeNo, private, &tok1)
 	}	
 }
 
@@ -1061,7 +1060,6 @@ loop:
 					continue loop
 				}
 				parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
-				println("Type is", ty.String(), "with typecheck", parTypeInfo.Typecheck.String(), "and requests", len(parTypeInfo.Operations), "ops") 
 				newEnv := compiler.NewEnvironment()
 				for i, name := range parTypeInfo.Names {
 					iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
@@ -1835,7 +1833,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 					iz.p.Throw("init/name/exists/a", dec.GetToken(), iz.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
 					return nil
 				}
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name}}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, iz.TokenizedDeclarations[dT][i].IndexToken()}}
 			}
 		}
 	}
@@ -1854,9 +1852,9 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 						iz.p.Throw("init/name/exists/c", dec.GetToken(), iz.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
 					}
 				}
-				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name})
+				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name, iz.TokenizedDeclarations[dT][i].IndexToken()})
 			} else {
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name}}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, iz.TokenizedDeclarations[dT][i].IndexToken()}}
 			}
 		}
 	}
@@ -1869,7 +1867,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		if iz.cp.P.SeekColon() {
 			ast := iz.cp.P.ParseTokenizedChunk()
 			name := "*" + tcc.IndexToken().Literal
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{ast, structDeclaration, i, name[1:]}}
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{ast, structDeclaration, i, name[1:], tcc.IndexToken()}}
 		}
 	}
 	iz.cmI("Adding clone typechecks to declarations.")
@@ -1881,7 +1879,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		iz.cp.P.TokenizedCode = tcc
 		if iz.cp.P.SeekColon() {
 			typecheck := iz.cp.P.ParseTokenizedChunk()
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:]}}
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:], tcc.IndexToken()}}
 		}
 	}
 
@@ -2008,12 +2006,11 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			}
 		}
 		loop:
-		for i, dec := range groupOfDeclarations {
+		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case structDeclaration, cloneDeclaration:
-				println("Looking at", dec.name)
-				if _, ok := iz.getDeclaration(decPARAMETERIZED, iz.TokenizedDeclarations[dec.decType][i].IndexToken(), DUMMY); ok {
-					println("It's parameterized")
+				tok := dec.indexTok
+				if _, ok := iz.getDeclaration(decPARAMETERIZED, tok, DUMMY); ok {
 					continue loop
 				}
 				iz.compileTypecheck(dec.name, dec.chunk)
@@ -2490,6 +2487,7 @@ type labeledParsedCodeChunk struct {
 	decType   declarationType
 	decNumber int
 	name      string
+	indexTok  *token.Token
 }
 
 func (iz *initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
