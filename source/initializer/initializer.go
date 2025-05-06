@@ -824,8 +824,9 @@ mainLoop:
 		switch paramSig := paramSig.(type) {
 		case *ast.TypeWithName:
 		case *ast.TypeWithParameters:
+			println("PT is", name)
 			opList, typeCheck := iz.getOpList(tokens)
-			ok := iz.registerParameterizedType(tok1.Literal, paramSig, opList, typeCheck, typeToClone, iz.IsPrivate(int(cloneDeclaration), i))
+			ok := iz.registerParameterizedType(name, paramSig, opList, typeCheck, typeToClone, iz.IsPrivate(int(cloneDeclaration), i))
 			if !ok {
 				iz.Throw("init/clone/exists", tokens.IndexToken())
 				continue mainLoop
@@ -1080,7 +1081,6 @@ loop:
 				typeNo, fn := iz.addTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
 				sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
 				fn.Number = iz.addToBuiltins(sig, newTypeName, altType(typeNo), false, dec.IndexToken())
-				println("Creating ops for", ty.String(), typeNo)
 				iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
 					parentTypeNo, parTypeInfo.IsPrivate, &tok)
 
@@ -2011,7 +2011,9 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		for i, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case structDeclaration, cloneDeclaration:
+				println("Looking at", dec.name)
 				if _, ok := iz.getDeclaration(decPARAMETERIZED, iz.TokenizedDeclarations[dec.decType][i].IndexToken(), DUMMY); ok {
+					println("It's parameterized")
 					continue loop
 				}
 				iz.compileTypecheck(dec.name, dec.chunk)

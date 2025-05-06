@@ -1,14 +1,16 @@
 newtype
 
-Z = clone[i int] int using + :
+Z = clone[i int] int :
     0 <= that
     that < i
 
-Foo = clone int using +
+Foo = clone int using + :
+    that < 8
 
 def
 
-//(x Z[5]) + (y Z[5]) -> Z[5] :
+(x Z[5]) + (y Z[5]) -> Z[5] :
+    Z[5](int(x) + int(y) mod 5)
 
 
 newtype
