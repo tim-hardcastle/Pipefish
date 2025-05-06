@@ -25,10 +25,14 @@ const (
 	T_SUFFIX
 )
 
+func (p *Parser) IsTypePrefix(s string) bool {
+	return s == "..." || (p.TypeExists(s) ||
+	PSEUDOTYPES.Contains(s) || p.ParameterizedTypes.Contains(s))
+}
+
 func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
 	if !((p.PeekToken.Type == token.DOTDOTDOT) ||
-		(p.PeekToken.Type == token.IDENT && (p.TypeExists(p.PeekToken.Literal) ||
-			PSEUDOTYPES.Contains(p.PeekToken.Literal) || p.ParameterizedTypes.Contains(p.PeekToken.Literal)))) {
+		(p.PeekToken.Type == token.IDENT && p.IsTypePrefix(p.PeekToken.Literal))) {
 		return nil
 	}
 	p.NextToken()
@@ -85,7 +89,7 @@ func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 	// So we're now at the token with the `[`, which we won't skip over because sluriping
 	// the type needs to be done with a peek first and a NextToken afterwards.
 	if p.PeekToken.Type == token.IDENT &&
-		!(p.TypeExists(p.PeekToken.Literal) || PSEUDOTYPES.Contains(p.PeekToken.Literal) || p.ParameterizedTypes.Contains(p.PeekToken.Literal)) {
+		!(p.IsTypePrefix(p.PeekToken.Literal)) {
 		p.NextToken()
 		return p.parseParams(nameTok)
 	}
@@ -147,7 +151,7 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 		case token.RUNE:
 			newArg = &ast.Argument{tok, values.RUNE, tok.Literal}
 		case token.IDENT:
-			if p.TypeExists(tok.Literal) || PSEUDOTYPES.Contains(tok.Literal) || p.ParameterizedTypes.Contains(tok.Literal) {
+			if p.IsTypePrefix(tok.Literal) {
 				newType := p.ParseType(T_LOWEST)
 				newArg = &ast.Argument{tok, values.TYPE, newType}
 			} else {

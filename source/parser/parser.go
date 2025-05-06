@@ -277,9 +277,12 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// Here we step in and deal with things that are functions and values, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
-			if resolvingParser.TypeExists(p.CurToken.Literal) && !(p.CurToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
+			if resolvingParser.IsTypePrefix(p.CurToken.Literal) && !(p.CurToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
 				tok := p.CurToken
 				typeIs := p.ParseTypeFromCurTok(T_LOWEST)
+				if _, ok := typeIs.(*ast.TypeWithArguments); ok {
+					p.NextToken()
+				}
 				if p.isPositionallyFunctional() {
 					p.NextToken()
 					var right ast.Node
@@ -355,8 +358,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			}
 			p.pushRParser(resolvingParser)
 			maybeType := p.PeekToken.Literal
-			if resolvingParser.TypeExists(maybeType) || PSEUDOTYPES.Contains(maybeType) ||
-				p.PeekToken.Type == token.DOTDOTDOT {
+			if p.IsTypePrefix(maybeType) {
 				tok := p.PeekToken
 				typeAst := p.ParseType(T_LOWEST)
 				// TODO --- the namespace needs to be represented in the type ast.
@@ -1185,7 +1187,7 @@ func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
 		sig = append(sig, ast.NameTypeAstPair{p.CurToken.Literal, ast.DEFAULT_TYPE_AST})
 		p.NextToken()
 		if p.CurToken.Type == token.IDENT {
-			if p.TypeExists(p.CurToken.Literal) || PSEUDOTYPES.Contains(p.CurToken.Literal) {
+			if p.IsTypePrefix(p.CurToken.Literal) {
 				ty := p.ParseTypeFromCurTok(T_LOWEST)
 
 				for i, pair := range sig {

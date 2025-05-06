@@ -57,7 +57,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	env := ctxt.Env
 	ac := ctxt.Access
 	b := &bindle{tok: node.GetToken(),
-		treePosition: cp.P.FunctionForest[node.GetToken().Literal].Tree,
+		treePosition: cp.P.FunctionForest[node.GetOperator()].Tree,
 		outLoc:       cp.reserveError("vm/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
@@ -71,7 +71,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cst := true
 	for i, arg := range args {
 		backtrackList[i] = DUMMY
-		if i < cp.P.FunctionForest[node.GetToken().Literal].RefCount { // It might be a reference variable
+		if i < cp.P.FunctionForest[node.GetOperator()].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
 				cp.Throw("comp/ref/ident", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false

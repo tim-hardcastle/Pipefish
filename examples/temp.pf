@@ -4,12 +4,20 @@ Z = clone[i int] int using + :
     0 <= that
     that < i
 
-Vec = clone[i int] list :
+Foo = clone int using +
+
+def
+
+//(x Z[5]) + (y Z[5]) -> Z[5] :
+
+
+newtype
+
+Vec = clone[i int] list using + :
     len(that) == i
+
+Qux = clone list using +
 
 make Vec[3], Z[5]
 
-var
-
-// foo = Vec[3]([1, 2, 3])
 

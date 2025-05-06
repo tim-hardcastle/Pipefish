@@ -19,6 +19,7 @@ type Node interface {
 
 type Callable interface {
 	Node
+	GetOperator() string
 	GetArgs() []Node
 }
 
@@ -215,6 +216,7 @@ type InfixExpression struct {
 
 func (ie *InfixExpression) Children() []Node       { return ie.Args }
 func (ie *InfixExpression) GetArgs() []Node        { return ie.Args }
+func (ie *InfixExpression) GetOperator() string    { return ie.Operator }
 func (ie *InfixExpression) GetToken() *token.Token { return &ie.Token }
 func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
@@ -326,6 +328,7 @@ type PrefixExpression struct {
 
 func (pe *PrefixExpression) Children() []Node       { return pe.Args }
 func (pe *PrefixExpression) GetArgs() []Node        { return pe.Args }
+func (pe *PrefixExpression) GetOperator() string    { return pe.Operator }
 func (pe *PrefixExpression) GetToken() *token.Token { return &pe.Token }
 func (pe *PrefixExpression) String() string {
 	var out bytes.Buffer
@@ -406,6 +409,7 @@ type SuffixExpression struct {
 
 func (se *SuffixExpression) Children() []Node       { return se.Args }
 func (se *SuffixExpression) GetArgs() []Node        { return se.Args }
+func (se *SuffixExpression) GetOperator() string    { return se.Operator }
 func (se *SuffixExpression) GetToken() *token.Token { return &se.Token }
 func (se *SuffixExpression) String() string {
 	var out bytes.Buffer
@@ -534,6 +538,7 @@ func (uf *UnfixExpression) String() string {
 }
 
 func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
+func (uf *UnfixExpression) GetOperator() string { return uf.Operator }
 
 // And other useful stuff.
 

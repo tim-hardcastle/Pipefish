@@ -46,7 +46,7 @@ type initializer struct {
 	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets                            []string                       // Names of snippet types visible to the module.
-	fnIndex                             map[fnSource]*ast.PrsrFunction // Map from sources to how the parser sees functions.
+	fnIndex                             map[fnSource]*ast.PrsrFunction // The point of this is that once we've compiled a function, we need to set the Number field of the PrsrFunction representation to be the number of the cpFunc in the cp.Fns list.
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
@@ -847,12 +847,11 @@ mainLoop:
 			return
 		}
 		// And add them to the Common functions.
-		iz.createOperations(name, typeNo, opList, parentTypeNo, private, tok1)
+		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, opList, parentTypeNo, private, tok1)
 	}	
 }
 
 func (iz *initializer) addTypeAndConstructor(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, *ast.PrsrFunction) {
-
 	parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 	if !ok {
 		iz.Throw("init/clone/type/a", decTok, typeToClone)
@@ -861,7 +860,7 @@ func (iz *initializer) addTypeAndConstructor(name, typeToClone string, private b
 	abType := typeToClone + "like"
 	var typeNo values.ValueType
 	info, typeExists := iz.getDeclaration(decCLONE, decTok, DUMMY)
-	if typeExists { // TODO --- is this possible and if so why?
+	if typeExists { 
 		typeNo = info.(values.ValueType)
 		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
 		typeInfo.Path = iz.p.NamespacePath
@@ -892,8 +891,7 @@ func (iz *initializer) addTypeAndConstructor(name, typeToClone string, private b
 	return typeNo, fn
 }
 
-func (iz *initializer) createOperations(name string, typeNo values.ValueType, opList []string, parentTypeNo values.ValueType, private bool, tok1 *token.Token) {
-	nameAst := &ast.TypeWithName{token.Token{}, name}
+func (iz *initializer) createOperations(nameAst ast.TypeNode, typeNo values.ValueType, opList []string, parentTypeNo values.ValueType, private bool, tok1 *token.Token) {
 		for _, op := range opList {
 			rtnSig := ast.AstSig{{"", nameAst}}
 			switch parentTypeNo {
@@ -1078,7 +1076,12 @@ loop:
 				// Now we have all our ducks in a row. We can compile the various bits 
 				// of the new type using the same apparatus as we used for plain old 
 				// clone types.
-				iz.createOperations(newTypeName, DUMMY, parTypeInfo.Operations, 
+
+				typeNo, fn := iz.addTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
+				sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
+				fn.Number = iz.addToBuiltins(sig, newTypeName, altType(typeNo), false, dec.IndexToken())
+				println("Creating ops for", ty.String(), typeNo)
+				iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
 					parentTypeNo, parTypeInfo.IsPrivate, &tok)
 
 			} else {
@@ -2411,11 +2414,12 @@ type decKey struct {
 	dOf declarationOf // A struct, a label, a function ...
 	src string        // The filepath to the source code.
 	lNo int           // Line number of the declaration.
+	chS int
 	ix  int           // If it's an element of an enum, the index of the element in its type.
 }
 
 func makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
-	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, ix: ix}
+	return decKey{dOf: dOf, src: tok.Source, lNo: tok.Line, chS: tok.ChStart, ix: ix}
 }
 
 func (iz *initializer) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {

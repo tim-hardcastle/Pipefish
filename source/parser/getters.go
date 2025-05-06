@@ -407,6 +407,8 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 	switch typeNode := typeNode.(type) {
 	case *ast.TypeWithName:
 		return p.GetAbstractTypeFromTypeSys(typeNode.Name)
+	case *ast.TypeWithArguments:
+		return p.GetAbstractTypeFromTypeSys(typeNode.String())
 	case *ast.TypeInfix:
 		LHS := p.GetAbstractType(typeNode.Left)
 		RHS := p.GetAbstractType(typeNode.Right)
@@ -454,7 +456,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 		p.PeekToken.Type == token.COMMA {
 		return false
 	}
-	if p.CurToken.Literal == "type" && p.TypeExists(p.PeekToken.Literal) {
+	if p.CurToken.Literal == "type" && p.IsTypePrefix(p.PeekToken.Literal) {
 		return true
 	}
 	if p.Functions.Contains(p.CurToken.Literal) && p.TypeExists(p.CurToken.Literal) {

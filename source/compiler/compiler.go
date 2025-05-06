@@ -472,28 +472,6 @@ NodeTypeSwitch:
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 		}
-		if containerType.isOnly(values.TYPE) {
-			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
-				cp.put(vm.Idxt, container, index, errTok)
-				break
-			}
-			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
-				cp.Throw("comp/index/type", node.GetToken())
-				break
-			}
-			if ctrConst {
-				rtnTypes = AltType(values.ERROR, cp.Vm.Mem[container].T)
-			} else {
-				allEnums := AlternateType{} // TODO --- you only need to calculate this once.
-				allEnums = append(allEnums, SimpleType(values.ERROR))
-				for i := int(values.FIRST_DEFINED_TYPE); i < len(cp.Vm.ConcreteTypeInfo); i++ {
-					if cp.Vm.ConcreteTypeInfo[i].IsEnum() {
-						allEnums = append(allEnums, SimpleType(i))
-					}
-				}
-				rtnTypes = allEnums
-			}
-		}
 		structT, ok := cp.alternateTypeIsOnlyStruct(containerType)
 		if ok {
 			structInfo := cp.Vm.ConcreteTypeInfo[structT].(vm.StructType)
