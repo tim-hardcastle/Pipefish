@@ -100,6 +100,8 @@ func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 var acceptableTypes = dtypes.MakeFromSlice([]string{"float", "int", "string", "rune", "bool", "type"})
 
 func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
+	indexTok := p.CurToken
+	blank := true
 	result := ast.TypeWithParameters{nameTok, nameTok.Literal, []*ast.Parameter{}}
 	for {
 		tok := &p.CurToken
@@ -108,6 +110,7 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 			break
 		}
 		result.Parameters = append(result.Parameters, &ast.Parameter{p.CurToken.Literal, ""})
+		blank = blank && p.CurToken.Literal == "_"
 		p.NextToken()
 		if p.CurToken.Type == token.IDENT {
 			if acceptableTypes.Contains(p.CurToken.Literal) {
@@ -130,6 +133,9 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 		}
 		p.Throw("parse/type/form/e", tok)
 		break
+	}
+	if blank {
+		return &ast.TypeWithName{indexTok, result.String()}
 	}
 	return &result
 }

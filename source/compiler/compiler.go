@@ -2824,28 +2824,7 @@ func (cp *Compiler) FindParameterizedType(name string, argsToCheck []values.Valu
 	return values.ValueType(argIndex)
 }
 
-func (cp *Compiler) FindArguments(name string, argsToCheck []values.Value, runtime bool, tok *token.Token) (values.ValueType, bool) {
-	argIndex := cp.FindParameterizedType(name, argsToCheck)
-	if argIndex == DUMMY {
-		cp.Throw("cp/type/args", tok)
-		return DUMMY, false
-	}
-	parInfo := cp.ParameterizedTypes[name][argIndex]
-	parIndex := -1
-	for i, instance := range parInfo.Instances {
-		if argsMatch(argsToCheck, instance.Args) {
-			parIndex = i
-			break
-		}
-	}
-	if parIndex == -1 {
-		if runtime {
-			cp.Throw("cp/type/runtime", tok)
-		}
-		return DUMMY, !runtime
-	}
-	return parInfo.Instances[parIndex].VType, true
-}
+
 
 func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) bool {
 	if len(argsToCheck) != len(paramTypes) {
@@ -2859,26 +2838,6 @@ func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) 
 	return true
 }
 
-func argsMatch(argsToCheck []values.Value, argsToMatch []values.Value) bool {
-	if len(argsToCheck) != len(argsToMatch) {
-		return false
-	}
-	for i, v := range argsToCheck {
-		if v.T != argsToMatch[i].T {
-			return false
-		}
-		if v.T != values.TYPE {
-			if v.V != argsToMatch[i].V {
-				return false
-			} else {
-				if !astTypesMatch(v.V.(ast.TypeNode), argsToMatch[i].V.(ast.TypeNode)) {
-					return false
-				}
-			}
-		}
-	}
-	return true
-}
 
 func astTypesMatch(x, y ast.TypeNode) bool {
 	panic("Unimplemented")

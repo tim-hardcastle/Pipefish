@@ -1211,6 +1211,15 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters), 
 		iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}, opList, 
 		typeCheck, parentType, private}
+		blankType := ty 
+		blankType.Name = name
+		for _, p := range(blankType.Parameters) {
+			if p.Name != "_" {
+				p.Name = "_"
+			}
+		}
+		supertype := blankType.String()
+		iz.cp.P.TypeMap[supertype] = values.AbstractType{}
 	if ok {
 		info = append(info, thingToAdd)
 		iz.cp.ParameterizedTypes[name] = info
