@@ -2804,6 +2804,7 @@ type ParameterInfo struct {
 	Typecheck  ast.Node
 	ParentType string
 	IsPrivate  bool
+	Supertype  string
 }
 
 type ArgumentInfo struct {

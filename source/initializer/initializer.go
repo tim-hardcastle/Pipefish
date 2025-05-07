@@ -1093,6 +1093,7 @@ loop:
 				// using the same apparatus as we used for plain old clone types.
 
 				typeNo, fn := iz.addTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
+				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 				sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
 				fn.Number = iz.addToBuiltins(sig, newTypeName, altType(typeNo), false, dec.IndexToken())
 				iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
@@ -1208,18 +1209,17 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 			return false
 		}
 	}
+	blankType := ast.TypeWithParameters{ty.Token, name, []*ast.Parameter{}}
+	blankType.Name = name
+	for _, p := range(ty.Parameters) {
+		q := ast.Parameter{"_", p.Type}
+		blankType.Parameters = append(blankType.Parameters, &q)
+	}
+	supertype := blankType.String()
 	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters), 
 		iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}, opList, 
-		typeCheck, parentType, private}
-		blankType := ty 
-		blankType.Name = name
-		for _, p := range(blankType.Parameters) {
-			if p.Name != "_" {
-				p.Name = "_"
-			}
-		}
-		supertype := blankType.String()
-		iz.cp.P.TypeMap[supertype] = values.AbstractType{}
+		typeCheck, parentType, private, supertype}
+	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
 	if ok {
 		info = append(info, thingToAdd)
 		iz.cp.ParameterizedTypes[name] = info
