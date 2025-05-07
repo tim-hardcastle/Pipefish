@@ -50,7 +50,8 @@ type initializer struct {
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
-	
+	parameterizedTypeMap                map[string]int                 // Maps names to the numbered type instances below.
+	parameterizedTypeInstances          []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
 }
 
 // Makes a new initializer.
@@ -60,6 +61,8 @@ func NewInitializer() *initializer {
 		localConcreteTypes:  make(dtypes.Set[values.ValueType]),
 		fnIndex:             make(map[fnSource]*ast.PrsrFunction),
 		unserializableTypes: make(dtypes.Set[string]),
+		parameterizedTypeMap: make(map[string]int),
+		parameterizedTypeInstances: make([]parameterizedTypeInstance, 0),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -82,6 +85,12 @@ func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
 		HubStore:       store,
 	}
 	return &b
+}
+
+type parameterizedTypeInstance struct{
+	astType   ast.TypeNode
+	env       *compiler.Environment
+	typeCheck ast.Node
 }
 
 // Initializes a compiler.
@@ -1072,9 +1081,16 @@ loop:
 					iz.Throw("init/clone/type", dec.IndexToken())
 					return
 				}
-				// Now we have all our ducks in a row. We can compile the various bits 
-				// of the new type using the same apparatus as we used for plain old 
-				// clone types.
+				// Now we have all our ducks in a row. We stash away the typechecking information
+				// for later.
+				 
+				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
+					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
+					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck})
+				}
+
+				// We can compile the constructors and requested operations for the new type 
+				// using the same apparatus as we used for plain old clone types.
 
 				typeNo, fn := iz.addTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
 				sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
@@ -1882,6 +1898,11 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:], tcc.IndexToken()}}
 		}
 	}
+	iz.cmI("Adding parameterized typechecks to declarations.")
+	for i, v := range iz.parameterizedTypeInstances {
+		name := "*" + v.astType.String() // Again we mangle the name with a '*' to distinguish is from the constructor.
+		namesToDeclarations[name] = []labeledParsedCodeChunk{{v.typeCheck, makeDeclaration, i, name[1:], v.typeCheck.GetToken()}}
+	}
 
 	iz.cmI("Building digraph of dependencies.")
 	// We build a digraph of the dependencies between the constant/variable/function/command declarations.
@@ -2013,7 +2034,10 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				if _, ok := iz.getDeclaration(decPARAMETERIZED, tok, DUMMY); ok {
 					continue loop
 				}
-				iz.compileTypecheck(dec.name, dec.chunk)
+				iz.compileTypecheck(dec.name, dec.chunk, compiler.NewEnvironment())
+				continue
+			case makeDeclaration:
+				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedTypeInstances[dec.decNumber].env)
 				continue
 			case functionDeclaration:
 				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
@@ -2153,7 +2177,7 @@ func (iz *initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationTyp
 }
 
 // Method for compiling the runtime typechecks on structs and clones
-func (iz *initializer) compileTypecheck(name string, node ast.Node) {
+func (iz *initializer) compileTypecheck(name string, node ast.Node, newEnv *compiler.Environment) {
 	typeNumber, _ := iz.cp.GetConcreteType(name)
 	typeInfo := iz.cp.TypeInfoNow(name)
 	thatType := typeNumber
@@ -2165,7 +2189,6 @@ func (iz *initializer) compileTypecheck(name string, node ast.Node) {
 	info := iz.cp.Vm.ConcreteTypeInfo[typeNumber]
 	resultLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
 	tokNumberLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
-	newEnv := compiler.NewEnvironment()
 	newEnv.Ext = iz.cp.GlobalConsts
 	inLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
 	iz.cp.AddVariable(newEnv, "that", compiler.VERY_LOCAL_VARIABLE, altType(thatType), node.GetToken())
