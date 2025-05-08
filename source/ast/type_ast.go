@@ -48,7 +48,7 @@ type TypeWithParameters struct {
 func (twp *TypeWithParameters) String() string {
 	var out bytes.Buffer
 	out.WriteString(twp.Name)
-	out.WriteString("[")
+	out.WriteString("{")
 	sep := ""
 	for _, v := range twp.Parameters {
 		out.WriteString(sep)
@@ -57,7 +57,7 @@ func (twp *TypeWithParameters) String() string {
 		out.WriteString(v.Type)
 		sep = ", "
 	}
-	out.WriteString("]")
+	out.WriteString("}")
 	return out.String()
 }
 
@@ -86,7 +86,7 @@ func (twa *TypeWithArguments) Values() []values.Value {
 func (twa *TypeWithArguments) String() string {
 	var out bytes.Buffer
 	out.WriteString(twa.Name)
-	out.WriteString("[")
+	out.WriteString("{")
 	sep := ""
 	for _, v := range twa.Arguments {
 		out.WriteString(sep)
@@ -109,7 +109,7 @@ func (twa *TypeWithArguments) String() string {
 		}
 		sep = ", "
 	}
-	out.WriteString("]")
+	out.WriteString("}")
 	return out.String()
 }
 

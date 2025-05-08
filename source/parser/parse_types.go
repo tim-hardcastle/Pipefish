@@ -43,7 +43,7 @@ func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 	var leftExp ast.TypeNode
 	tok := p.CurToken
 	// Prefixes
-	if p.PeekToken.Type == token.LBRACK {
+	if p.PeekToken.Type == token.LBRACE {
 		leftExp = p.parseParamsOrArgs()
 	} else {
 		if p.CurToken.Type == token.DOTDOTDOT {
@@ -128,7 +128,7 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 			p.NextToken()
 			continue
 		}
-		if p.CurToken.Type == token.RBRACK {
+		if p.CurToken.Type == token.RBRACE {
 			break
 		}
 		p.Throw("parse/type/form/e", tok)
@@ -178,7 +178,7 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 			p.NextToken()
 			continue
 		}
-		if p.PeekToken.Type == token.RBRACK {
+		if p.PeekToken.Type == token.RBRACE {
 			break
 		}
 		p.Throw("parse/type/form/h", &tok)

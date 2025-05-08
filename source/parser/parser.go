@@ -283,7 +283,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 				if _, ok := typeIs.(*ast.TypeWithArguments); ok {
 					p.NextToken()
 				}
-				if p.isPositionallyFunctional() {
+				if p.typeIsFunctional() {
 					p.NextToken()
 					var right ast.Node
 					p.pushRParser(resolvingParser)

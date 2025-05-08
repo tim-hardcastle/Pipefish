@@ -460,30 +460,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 		return true
 	}
 	if p.Functions.Contains(p.CurToken.Literal) && p.TypeExists(p.CurToken.Literal) {
-		if p.PeekToken.Type == token.EMDASH {
-			return true
-		}
-		if literalsAndLParen.Contains(p.PeekToken.Type) {
-			return true
-		}
-		if p.PeekToken.Literal == "from" {
-			return true
-		}
-		if p.Infixes.Contains(p.PeekToken.Literal) {
-			return false
-		}
-		if p.nativeInfixes.Contains(p.PeekToken.Type) {
-			return false
-		}
-		if p.Midfixes.Contains(p.PeekToken.Literal) {
-			return false
-		}
-		if p.Functions.Contains(p.PeekToken.Literal) && p.PeekToken.Type != token.EOF {
-			return true
-		}
-		if p.Prefixes.Contains(p.PeekToken.Literal) {
-			return p.PeekToken.Type != token.EOF
-		}
+		return p.typeIsFunctional()
 	}
 
 	if p.Functions.Contains(p.CurToken.Literal) && p.PeekToken.Type != token.EOF {
@@ -511,4 +488,39 @@ func (p *Parser) isPositionallyFunctional() bool {
 		return false
 	}
 	return true
+}
+
+// TODO --- there may at this point not be any need to have this different from any other function.
+func (p *Parser) typeIsFunctional() bool {
+	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
+		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
+		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
+		p.PeekToken.Type == token.COMMA {
+		return false
+	}
+	if p.PeekToken.Type == token.EMDASH {
+		return true
+	}
+	if literalsAndLParen.Contains(p.PeekToken.Type) {
+		return true
+	}
+	if p.PeekToken.Literal == "from" {
+		return true
+	}
+	if p.Infixes.Contains(p.PeekToken.Literal) {
+		return false
+	}
+	if p.nativeInfixes.Contains(p.PeekToken.Type) {
+		return false
+	}
+	if p.Midfixes.Contains(p.PeekToken.Literal) {
+		return false
+	}
+	if p.Functions.Contains(p.PeekToken.Literal) && p.PeekToken.Type != token.EOF {
+		return true
+	}
+	if p.Prefixes.Contains(p.PeekToken.Literal) {
+		return p.PeekToken.Type != token.EOF
+	}
+	return p.PeekToken.Type != token.EOF
 }
