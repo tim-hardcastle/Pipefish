@@ -99,9 +99,13 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		}
 		var buf strings.Builder
 		buf.WriteString(typeInfo.GetName(flavor))
-		buf.WriteString("(")
+		if typeInfo.(CloneType).Parent != values.LIST {
+			buf.WriteByte('(')
+		}
 		buf.WriteString(vm.StringifyValue(values.Value{typeInfo.(CloneType).Parent, v.V}, flavor))
-		buf.WriteByte(')')
+		if typeInfo.(CloneType).Parent != values.LIST {
+			buf.WriteByte(')')
+		}
 		return buf.String()
 	}
 	switch v.T {

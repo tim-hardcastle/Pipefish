@@ -498,7 +498,7 @@ func (p *Parser) typeIsFunctional() bool {
 		p.PeekToken.Type == token.COMMA {
 		return false
 	}
-	if p.PeekToken.Type == token.EMDASH {
+	if p.PeekToken.Type == token.EMDASH || p.PeekToken.Type == token.LBRACK {
 		return true
 	}
 	if literalsAndLParen.Contains(p.PeekToken.Type) {
