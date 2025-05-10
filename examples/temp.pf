@@ -18,8 +18,8 @@ newtype
 Vec = clone{i int} list using + :
     len(that) == i
 
-Qux = clone list using +
+Qux = struct{i int} (zort int)
 
-make Vec{3}, Z{5}
+make Vec{3}, Z{5}, Qux{11}
 
 

@@ -2799,17 +2799,11 @@ func (cp *Compiler) Store(k, v values.Value) {
 type ParameterInfo struct {
 	Names      []string
 	Types      []values.ValueType
-	Instances  []ArgumentInfo
 	Operations []string // TODO --- really this and the following fields belong in the initializer
 	Typecheck  ast.Node
 	ParentType string
 	IsPrivate  bool
 	Supertype  string
-}
-
-type ArgumentInfo struct {
-	VType values.ValueType
-	Args  []values.Value
 }
 
 // TODO --- there should be more performant ways of doing this but for now I'll just

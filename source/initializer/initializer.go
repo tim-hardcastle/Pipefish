@@ -269,14 +269,14 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	iz.cmI("Instantiating parameterized types.")
-	iz.instantiateParameterizedTypes()
+	iz.cmI("Assigning type numbers to struct names.")
+	iz.createStructNames()
 	if iz.ErrorsExist() {
 		return
 	}
 
-	iz.cmI("Adding constructors to parser, parsing struct declarations.")
-	iz.createStructNames()
+	iz.cmI("Instantiating parameterized types.")
+	iz.instantiateParameterizedTypes()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -842,7 +842,7 @@ mainLoop:
 			iz.setDeclaration(decPARAMETERIZED, &tok1, DUMMY, DUMMY)
 			continue mainLoop
 		default:
-			iz.Throw("init/clone/type", tokens.IndexToken())
+			iz.Throw("init/clone/type/a", tokens.IndexToken())
 			continue mainLoop
 		}
 		
@@ -1069,6 +1069,7 @@ loop:
 					continue loop
 				}
 				parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
+				isClone := !(parTypeInfo.ParentType == "struct")
 				newEnv := compiler.NewEnvironment()
 				for i, name := range parTypeInfo.Names {
 					iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
@@ -1077,7 +1078,7 @@ loop:
 				iz.cp.P.NextToken()
 				newTypeName := ty.String()
 				parentTypeNo, ok := parser.ClonableTypes[parTypeInfo.ParentType]
-				if !ok {
+				if !(ok || parTypeInfo.ParentType == "struct") {
 					iz.Throw("init/clone/type", dec.IndexToken())
 					return
 				}
@@ -1088,17 +1089,19 @@ loop:
 					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
 					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck})
 				}
-
 				// We can compile the constructors and requested operations for the new type 
 				// using the same apparatus as we used for plain old clone types.
-
-				typeNo, fn := iz.addTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
+				var typeNo values.ValueType
+				if isClone {
+					typeNo, fn := iz.addTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
+					sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
+					fn.Number = iz.addToBuiltins(sig, newTypeName, altType(typeNo), false, dec.IndexToken())
+					iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
+						parentTypeNo, parTypeInfo.IsPrivate, &tok)
+				} else {
+					println("Found a struct!")
+				}
 				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
-				sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-				fn.Number = iz.addToBuiltins(sig, newTypeName, altType(typeNo), false, dec.IndexToken())
-				iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
-					parentTypeNo, parTypeInfo.IsPrivate, &tok)
-
 			} else {
 				iz.Throw("init/make/instance", dec.IndexToken())
 				continue loop
@@ -1133,23 +1136,30 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 func (iz *initializer) createStructNames() {
 	iz.structDeclarationNumberToTypeNumber = map[int]values.ValueType{}
 	// First we need to make the struct types into types so the parser parses them properly.
-	for i := 0; i < len(iz.TokenizedDeclarations[structDeclaration]); i++ {
+	loop:
+	for i := range iz.TokenizedDeclarations[structDeclaration] {
 		indexToken := iz.TokenizedDeclarations[structDeclaration][i].IndexToken()
+		iz.p.TokenizedCode = iz.TokenizedDeclarations[structDeclaration][i]
+		iz.p.NextToken()
+		iz.p.NextToken()
+		iz.p.NextToken()
+		ty := iz.p.ParseType(parser.T_LOWEST)
 		name := indexToken.Literal
-		iz.p.AllFunctionIdents.Add(name)
-		iz.p.Functions.Add(name)
-		typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
-		typeInfo, typeExists := iz.getDeclaration(decSTRUCT, indexToken, DUMMY)
-		if typeExists { // TODO --- can this in fact occur? Why?
-			typeNo = typeInfo.(structInfo).structNumber
-			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
-			typeInfo.Path = iz.p.NamespacePath
-			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
-		} else {
-			iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.StructType{}) // As a placeholder.
-			iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i), nil})
+		switch ty := ty.(type) {
+		case *ast.TypeWithName:
+		case *ast.TypeWithParameters:
+			println(name, ty.String())
+			ok := iz.registerParameterizedType(name, ty, nil, nil, "struct", iz.IsPrivate(int(structDeclaration), i))
+			if !ok {
+				iz.Throw("init/struct/exists", indexToken)
+			}
+			continue loop
+		default:
+			iz.Throw("struct/define", indexToken)
+			continue loop
 		}
-		iz.AddType(name, "struct", typeNo)
+		private := iz.IsPrivate(int(structDeclaration), i)
+		typeNo := iz.addStructType(name, private, indexToken)
 		iz.structDeclarationNumberToTypeNumber[i] = typeNo
 		// The VM needs fast access to a few special types.
 		if name == "Error" {
@@ -1165,6 +1175,24 @@ func (iz *initializer) createStructNames() {
 			iz.cp.Vm.UsefulTypes.Output = typeNo
 		}
 	}
+}
+
+func (iz *initializer) addStructType(name string, private bool, indexToken *token.Token) values.ValueType {
+	iz.p.AllFunctionIdents.Add(name)
+	iz.p.Functions.Add(name)
+	typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
+	typeInfo, typeExists := iz.getDeclaration(decSTRUCT, indexToken, DUMMY)
+	if typeExists { // TODO --- can this in fact occur? Why?
+		typeNo = typeInfo.(structInfo).structNumber
+		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.StructType)
+		typeInfo.Path = iz.p.NamespacePath
+		iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
+	} else {
+		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.StructType{}) // As a placeholder.
+		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, private, nil})
+	}
+	iz.AddType(name, "struct", typeNo)
+	return typeNo
 }
 
 // We can now create the struct labels and define their type as an AstSig, though
@@ -1217,7 +1245,7 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	}
 	supertype := blankType.String()
 	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters), 
-		iz.astParamsToValueTypes(ty.Parameters), []compiler.ArgumentInfo{}, opList, 
+		iz.astParamsToValueTypes(ty.Parameters), opList, 
 		typeCheck, parentType, private, supertype}
 	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
 	if ok {
