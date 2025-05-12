@@ -1168,15 +1168,19 @@ func (p *Parser) SeekColon() bool {
 	return p.PeekToken.Type == token.COLON
 }
 
-func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
-	var sig ast.AstSig
+func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, ast.AstSig) {
+	var (
+		dec ast.TypeNode
+		sig ast.AstSig
+	)
 	tcc.ToStart()
 	p.TokenizedCode = tcc
 	p.SafeNextToken() // Flush out the parser.
 	p.SafeNextToken() //         ""
 	p.NextToken()     // The type name
 	p.NextToken()     // Assignment operator '='
-	p.NextToken()     // 'struct'
+	dec = p.ParseTypeFromCurTok(T_LOWEST)
+	p.NextToken()
 	p.NextToken()     // The left parenthesis.
 	for p.CurToken.Type != token.RPAREN {
 		tok := &p.CurToken
@@ -1189,7 +1193,6 @@ func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
 		if p.CurToken.Type == token.IDENT {
 			if p.IsTypePrefix(p.CurToken.Literal) {
 				ty := p.ParseTypeFromCurTok(T_LOWEST)
-
 				for i, pair := range sig {
 					if pair.VarType == ast.DEFAULT_TYPE_AST {
 						sig[i].VarType = ty
@@ -1216,5 +1219,5 @@ func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) ast.AstSig {
 			pair.VarType = ast.ANY_NULLABLE_TYPE_AST
 		}
 	}
-	return sig
+	return dec, sig
 }

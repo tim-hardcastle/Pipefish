@@ -2801,7 +2801,8 @@ type ParameterInfo struct {
 	Types      []values.ValueType
 	Operations []string // TODO --- really this and the following fields belong in the initializer
 	Typecheck  ast.Node
-	ParentType string
+	ParentType string // 'struct' if not a clone
+	Sig        *ast.AstSig // nil if not a struct (because the sig of a clone is implicit in the parent type).
 	IsPrivate  bool
 	Supertype  string
 }
