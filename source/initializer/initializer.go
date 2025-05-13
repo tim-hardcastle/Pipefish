@@ -275,12 +275,6 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	iz.cmI("Instantiating parameterized types.")
-	iz.instantiateParameterizedTypes()
-	if iz.ErrorsExist() {
-		return
-	}
-
 	iz.cmI("Creating abstract types.")
 	iz.createAbstractTypes()
 	if iz.ErrorsExist() {
@@ -295,6 +289,12 @@ func (iz *initializer) parseEverything(scriptFilepath, sourcecode string) {
 
 	iz.cmI("Creating struct labels.")
 	iz.createStructLabels()
+	if iz.ErrorsExist() {
+		return
+	}
+
+	iz.cmI("Instantiating parameterized types.")
+	iz.instantiateParameterizedTypes()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -1043,85 +1043,6 @@ func (iz *initializer) getOpList(tokens *token.TokenizedCodeChunk) ([]string, as
 	return opList, typeCheck
 }
 
-func (iz *initializer) instantiateParameterizedTypes() {
-loop:
-	for _, dec := range iz.TokenizedDeclarations[makeDeclaration] {
-		dec.ToStart()
-		iz.cp.P.TokenizedCode = dec
-		iz.cp.P.SafeNextToken()
-		iz.cp.P.SafeNextToken()
-		if iz.cp.P.PeekToken.Type == token.EOF {
-			iz.Throw("init/make/empty", dec.IndexToken())
-			continue loop
-		}
-		// First we slurp all the information we need out of the tokenized code.
-		for {
-			tok := iz.cp.P.CurToken
-			ty := iz.cp.P.ParseType(parser.T_LOWEST)
-			if ty == nil {
-				iz.Throw("init/make/type", dec.IndexToken())
-				continue loop
-			}
-			if ty, ok := ty.(*ast.TypeWithArguments); ok {
-				argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
-				if argIndex == DUMMY {
-					iz.Throw("init/type/args", &tok)
-					continue loop
-				}
-				parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
-				isClone := !(parTypeInfo.ParentType == "struct")
-				newEnv := compiler.NewEnvironment()
-				for i, name := range parTypeInfo.Names {
-					iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
-					newEnv.Data[name] = compiler.Variable{iz.cp.That(), compiler.LOCAL_CONSTANT, altType(ty.Arguments[i].Type)}
-				}
-				iz.cp.P.NextToken()
-				newTypeName := ty.String()
-				parentTypeNo, ok := parser.ClonableTypes[parTypeInfo.ParentType]
-				if !(ok || parTypeInfo.ParentType == "struct") {
-					iz.Throw("init/clone/type", dec.IndexToken())
-					return
-				}
-				// Now we have all our ducks in a row. We stash away the typechecking information
-				// for later.
-				 
-				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
-					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
-					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck})
-				}
-				// We can compile the clone constructors and requested operations for the new type 
-				// using the same apparatus as we used for plain old clone types.
-				var typeNo values.ValueType
-				if isClone {
-					typeNo, fn := iz.addCloneTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
-					sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-					fn.Number = iz.addToBuiltins(sig, newTypeName, altType(typeNo), false, dec.IndexToken())
-					iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
-						parentTypeNo, parTypeInfo.IsPrivate, &tok)
-				} else { // In this case we have a struct, and while we can give it a type number we can't 
-						 // make its constructor yet because we may not have defined its field types.
-					println("Found a struct!", ty.String())
-					typeNo = iz.addStructType(ty.String(), parTypeInfo.IsPrivate, &tok)
-				}
-				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
-			} else {
-				iz.Throw("init/make/instance", dec.IndexToken())
-				continue loop
-			}
-			iz.cp.P.NextToken()
-			switch iz.cp.P.CurToken.Type {
-			case token.EOF:
-				continue loop
-			case token.COMMA:
-			default:
-				tok := iz.cp.P.CurToken
-				iz.Throw("init/make/comma", &tok)
-				continue loop
-			}
-		}
-	}
-}
-
 // Function auxiliary to the previous one, to make constructors for the clone types.
 func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
@@ -1179,6 +1100,12 @@ func (iz *initializer) createStructNames() {
 	}
 }
 
+func (iz *initializer) addStructTypeAndConstructor(name string, sig ast.AstSig, private bool, indexToken *token.Token) (values.ValueType, *ast.PrsrFunction) {
+	typeNo := iz.addStructType(name, private, indexToken)
+	fn := iz.makeStructTypeAndConstructor(name, typeNo, sig, private, indexToken)
+	return typeNo, fn
+}
+
 func (iz *initializer) addStructType(name string, private bool, indexToken *token.Token) values.ValueType {
 	iz.p.AllFunctionIdents.Add(name)
 	iz.p.Functions.Add(name)
@@ -1223,23 +1150,34 @@ func (iz *initializer) createStructLabels() {
 		if ty, ok := dec.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type, but they need their own functions.
 			ty.Name = name
 			argIndex := iz.paramTypeExists(ty)
-			println("Found", ty.Name, ty.String(), argIndex)
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = &sig
 		    continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
-		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(structDeclaration), i), tcc.IndexToken())
-		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
-		iz.Add(name, fn)
-		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, iz.IsPrivate(int(structDeclaration), i), sig})
-		stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
-			Private: iz.IsPrivate(int(structDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
-		stT = stT.AddLabels(labelsForStruct)
-		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
+		private := iz.IsPrivate(int(structDeclaration), i)
+		iz.makeStructTypeAndConstructor(name, typeNo, sig, private, indexToken)
 	}
 }
 
-// This registers the abstract type declaration so that we can instantiate it later.
+// ****TODO --- make the return type of the builtin depend on whether there's a typecheck.
+func (iz initializer) makeStructTypeAndConstructor(name string, typeNo values.ValueType, sig ast.AstSig, private bool, indexToken *token.Token) *ast.PrsrFunction {
+	fnNo := iz.addToBuiltins(sig, name, altType(typeNo), private, indexToken)
+	fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
+	iz.Add(name, fn)
+	labelsForStruct := []int{}
+	for _, v := range sig {
+        index := iz.cp.Vm.FieldLabelsInMem[v.VarName]
+		indexNumber := iz.cp.Vm.Mem[index].V.(int)
+		labelsForStruct = append(labelsForStruct, indexNumber)
+	}
+	iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, private, sig})
+	stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+		Private: private, IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
+	stT = stT.AddLabels(labelsForStruct)
+	iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
+	return fn
+} 
+
 func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []string, typeCheck ast.Node, parentType string, private bool) bool {
 	info, ok := iz.cp.ParameterizedTypes[name]
 	if ok {
@@ -1423,6 +1361,96 @@ func (iz *initializer) createInterfaceTypes() {
 		}
 		iz.p.Suffixes.Add(newTypename)
 		iz.p.Suffixes.Add(newTypename + "?")
+	}
+}
+
+func (iz *initializer) instantiateParameterizedTypes() {
+loop:
+	for _, dec := range iz.TokenizedDeclarations[makeDeclaration] {
+		dec.ToStart()
+		iz.cp.P.TokenizedCode = dec
+		iz.cp.P.SafeNextToken()
+		iz.cp.P.SafeNextToken()
+		if iz.cp.P.PeekToken.Type == token.EOF {
+			iz.Throw("init/make/empty", dec.IndexToken())
+			continue loop
+		}
+		// First we slurp all the information we need out of the tokenized code.
+		for {
+			tok := iz.cp.P.CurToken
+			ty := iz.cp.P.ParseType(parser.T_LOWEST)
+			if ty == nil {
+				iz.Throw("init/make/type", dec.IndexToken())
+				continue loop
+			}
+			if ty, ok := ty.(*ast.TypeWithArguments); ok {
+				argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
+				if argIndex == DUMMY {
+					iz.Throw("init/type/args", &tok)
+					continue loop
+				}
+				parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
+				isClone := !(parTypeInfo.ParentType == "struct")
+				newEnv := compiler.NewEnvironment()
+				for i, name := range parTypeInfo.Names {
+					iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
+					newEnv.Data[name] = compiler.Variable{iz.cp.That(), compiler.LOCAL_CONSTANT, altType(ty.Arguments[i].Type)}
+				}
+				iz.cp.P.NextToken()
+				newTypeName := ty.String()
+				parentTypeNo, ok := parser.ClonableTypes[parTypeInfo.ParentType]
+				if !(ok || parTypeInfo.ParentType == "struct") {
+					iz.Throw("init/clone/type", dec.IndexToken())
+					return
+				}
+				// Now we have all our ducks in a row. We stash away the typechecking information
+				// for later.
+				 
+				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
+					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
+					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck})
+				}
+				// We can compile the clone constructors and requested operations for the new type 
+				// using the same apparatus as we used for plain old clone types.
+				var (
+					typeNo values.ValueType
+					sig ast.AstSig
+					resultType compiler.AlternateType
+					fn *ast.PrsrFunction
+				)
+				if parTypeInfo.Typecheck == nil {
+					resultType = altType(typeNo)
+				} else {
+					resultType = altType(values.ERROR, typeNo)
+				}
+				if isClone {
+					typeNo, fn = iz.addCloneTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
+					sig = ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
+					iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
+					parentTypeNo, parTypeInfo.IsPrivate, &tok)
+				} else { 
+					println("Found a struct!", ty.String())
+					sig = *parTypeInfo.Sig
+					typeNo, fn = iz.addStructTypeAndConstructor(ty.String(), sig, parTypeInfo.IsPrivate, &tok)
+				}
+				fn.Number = iz.addToBuiltins(sig, newTypeName, resultType, false, dec.IndexToken())
+				
+				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
+			} else {
+				iz.Throw("init/make/instance", dec.IndexToken())
+				continue loop
+			}
+			iz.cp.P.NextToken()
+			switch iz.cp.P.CurToken.Type {
+			case token.EOF:
+				continue loop
+			case token.COMMA:
+			default:
+				tok := iz.cp.P.CurToken
+				iz.Throw("init/make/comma", &tok)
+				continue loop
+			}
+		}
 	}
 }
 

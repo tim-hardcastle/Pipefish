@@ -21,6 +21,8 @@ Vec = clone{i int} list using + :
 Qux = struct{i int} (zort int) :
     that[zort] < i
 
+Moo = struct(zort int)
+
 make Vec{3}, Z{5}, Qux{11}
 
 
