@@ -113,7 +113,7 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 		blank = blank && p.CurToken.Literal == "_"
 		p.NextToken()
 		if p.CurToken.Type == token.IDENT {
-			if acceptableTypes.Contains(p.CurToken.Literal) {
+			if acceptableTypes.Contains(p.CurToken.Literal) || p.EnumTypeNames.Contains(p.CurToken.Literal) {
 				for _, v := range result.Parameters {
 					if v.Type == "" {
 						v.Type = p.CurToken.Literal
@@ -161,7 +161,7 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 				newType := p.ParseType(T_LOWEST)
 				newArg = &ast.Argument{tok, values.TYPE, newType}
 			} else {
-				p.Throw("parse/type/form/f", &tok)
+				newArg = &ast.Argument{tok, values.UNDEFINED_TYPE, tok.Literal} // This may or may not be an element of an enum and we're not going to sort that out in the parser.
 			}
 		case token.FALSE:
 			newArg = &ast.Argument{tok, values.BOOL, false}

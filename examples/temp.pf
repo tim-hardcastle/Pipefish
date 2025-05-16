@@ -26,4 +26,9 @@ Foo = clone int using + :
 
 make Vec{3}, Z{5}, Qux{11}
 
+Currency = enum EURO, GBP, USD
+
+Money = struct{c Currency}(L, S int) :
+    0 <= that[S]
+    that[S] < 100
 

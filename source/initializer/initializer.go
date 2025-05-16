@@ -779,6 +779,7 @@ func (iz *initializer) createEnums() {
 			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
 		}
 		iz.AddType(tok1.Literal, "enum", typeNo)
+		iz.cp.P.EnumTypeNames.Add(tok1.Literal)
 
 		// We make the constructor function.
 
