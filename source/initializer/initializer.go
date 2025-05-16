@@ -91,6 +91,7 @@ type parameterizedTypeInstance struct{
 	astType   ast.TypeNode
 	env       *compiler.Environment
 	typeCheck ast.Node
+	fields    ast.AstSig
 }
 
 // Initializes a compiler.
@@ -1131,7 +1132,7 @@ func (iz *initializer) createStructLabels() {
 		indexToken := tcc.IndexToken()
 		name := indexToken.Literal
 		// We will now extract the AstSig lexically.
-		dec, sig := iz.cp.P.ParseSigFromTcc(tcc)
+		dec, sig, typecheck := iz.cp.P.ParseSigFromTcc(tcc)
 		labelsForStruct := make([]int, 0, len(sig))
 		for j, labelNameAndType := range sig {
 			labelName := labelNameAndType.VarName
@@ -1151,6 +1152,7 @@ func (iz *initializer) createStructLabels() {
 			ty.Name = name
 			argIndex := iz.paramTypeExists(ty)
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = &sig
+			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = typecheck
 		    continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
@@ -1403,13 +1405,8 @@ loop:
 					iz.Throw("init/clone/type", dec.IndexToken())
 					return
 				}
-				// Now we have all our ducks in a row. We stash away the typechecking information
-				// for later.
-				 
-				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
-					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
-					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck})
-				}
+				// Now we have all our ducks in a row. 
+
 				// We can compile the clone constructors and requested operations for the new type 
 				// using the same apparatus as we used for plain old clone types.
 				var (
@@ -1429,12 +1426,16 @@ loop:
 					iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
 					parentTypeNo, parTypeInfo.IsPrivate, &tok)
 				} else { 
-					println("Found a struct!", ty.String())
 					sig = *parTypeInfo.Sig
 					typeNo, fn = iz.addStructTypeAndConstructor(ty.String(), sig, parTypeInfo.IsPrivate, &tok)
 				}
 				fn.Number = iz.addToBuiltins(sig, newTypeName, resultType, false, dec.IndexToken())
-				
+				// We stash away the typechecking information for later.
+				 
+				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
+					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
+					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig})
+				}
 				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 			} else {
 				iz.Throw("init/make/instance", dec.IndexToken())
@@ -1809,8 +1810,6 @@ func (iz *initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 	return tree
 }
 
-// Phase 3-1/2 of compilation.
-
 // We assign abstract types to the fields of the structs, and chek for consistency of
 // private types, i.e. a struct type declared public can't have field types declared private.
 func (iz *initializer) AddFieldsToStructsAndCheckForConsistency() {
@@ -1823,6 +1822,13 @@ func (iz *initializer) AddFieldsToStructsAndCheckForConsistency() {
 	if iz.ErrorsExist() {
 		return
 	}
+
+	iz.cmI("Adding abstract types of fields to perameterized structs.")
+	iz.addFieldsToParameterizedStructs()
+	if iz.ErrorsExist() {
+		return
+	}
+
 	// We want to ensure that no public type (whether a struct or abstract type) contains a private type.
 	iz.cmI("Checking types for consistency of encapsulation.")
 	iz.checkTypesForConsistency()
@@ -1831,7 +1837,7 @@ func (iz *initializer) AddFieldsToStructsAndCheckForConsistency() {
 	}
 }
 
-// Phase 3-1/2A, formerly phase 1M of compilation. Adds field types to structs.
+// Adds field types to structs.
 func (iz *initializer) addFieldsToStructs() {
 	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
 		izTypeInfo, _ := iz.getDeclaration(decSTRUCT, tcc.IndexToken(), DUMMY)
@@ -1840,20 +1846,33 @@ func (iz *initializer) addFieldsToStructs() {
 		}
 		izStructInfo := izTypeInfo.(structInfo)
 		typeNumber := iz.structDeclarationNumberToTypeNumber[i]
-		structInfo := iz.cp.Vm.ConcreteTypeInfo[typeNumber].(vm.StructType)
-		sig := izStructInfo.sig
-		structTypes := make([]values.AbstractType, 0, len(sig))
-		for _, labelNameAndType := range sig {
-			typeAst := labelNameAndType.VarType
-			abType := iz.p.GetAbstractType(typeAst)
-			structTypes = append(structTypes, abType)
-		}
-		structInfo.AbstractStructFields = structTypes
-		iz.cp.Vm.ConcreteTypeInfo[typeNumber] = structInfo
+		iz.addFields(typeNumber, izStructInfo.sig)
 	}
 }
 
-// Phase 3-1/2B, formerly phase 1N of compilation. We check that if a struct type is public, so are its fields.
+func (iz *initializer) addFieldsToParameterizedStructs() {
+	for _, ty := range iz.parameterizedTypeMap {
+		parTypeInfo := iz.parameterizedTypeInstances[ty]
+		typeNo := iz.cp.ConcreteTypeNow(parTypeInfo.astType.String())
+		if iz.cp.Vm.ConcreteTypeInfo[typeNo].IsStruct() {
+			iz.addFields(typeNo, parTypeInfo.fields)
+		}
+	}
+}
+
+func (iz *initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
+	structInfo := iz.cp.Vm.ConcreteTypeInfo[typeNumber].(vm.StructType)
+	structTypes := make([]values.AbstractType, 0, len(sig))
+	for _, labelNameAndType := range sig {
+		typeAst := labelNameAndType.VarType
+		abType := iz.p.GetAbstractType(typeAst)
+		structTypes = append(structTypes, abType)
+	}
+	structInfo.AbstractStructFields = structTypes
+	iz.cp.Vm.ConcreteTypeInfo[typeNumber] = structInfo
+}
+
+// We check that if a struct type is public, so are its fields.
 func (iz *initializer) checkTypesForConsistency() {
 	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
 		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsStruct() {
@@ -1885,7 +1904,6 @@ func (iz *initializer) checkTypesForConsistency() {
 	}
 }
 
-// Phase 3-3/4 of compilation.
 // We slurp the functions and converters out of the .so files, if necessary building or rebuilding
 // the .so files first.
 
@@ -1976,7 +1994,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:], tcc.IndexToken()}}
 		}
 	}
-	iz.cmI("Adding parameterized typechecks to declarations.")
+
 	for i, v := range iz.parameterizedTypeInstances {
 		if v.typeCheck == nil {
 			continue
@@ -2288,7 +2306,6 @@ func (iz *initializer) compileTypecheck(name string, node ast.Node, newEnv *comp
 	if info.IsClone() {
 		info = info.(vm.CloneType).AddTypeCheck(typeCheck)
 	} else {
-		println(name, typeNumber, info.GetName(vm.LITERAL), info.IsStruct())
 		info = info.(vm.StructType).AddTypeCheck(typeCheck)
 	}
 	iz.cp.Vm.ConcreteTypeInfo[typeNumber] = info

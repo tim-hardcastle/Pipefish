@@ -1168,10 +1168,11 @@ func (p *Parser) SeekColon() bool {
 	return p.PeekToken.Type == token.COLON
 }
 
-func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, ast.AstSig) {
+func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, ast.AstSig, ast.Node) {
 	var (
 		dec ast.TypeNode
 		sig ast.AstSig
+		typeCheck ast.Node
 	)
 	tcc.ToStart()
 	p.TokenizedCode = tcc
@@ -1219,5 +1220,9 @@ func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, a
 			pair.VarType = ast.ANY_NULLABLE_TYPE_AST
 		}
 	}
-	return dec, sig
+	if p.CurToken.Type == token.COLON {
+		p.NextToken()
+		typeCheck = p.parseExpression(LOWEST)
+	}
+	return dec, sig, typeCheck
 }

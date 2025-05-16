@@ -4,9 +4,6 @@ Z = clone{i int} int :
     0 <= that
     that < i
 
-Foo = clone int using + :
-    that < 8
-
 def
 
 (x Z{5}) + (y Z{5}) -> Z{5} :
@@ -21,7 +18,11 @@ Vec = clone{i int} list using + :
 Qux = struct{i int} (zort int) :
     that[zort] < i
 
-Moo = struct(zort int)
+Moo = struct(troz int) :
+    that[troz] != 4
+
+Foo = clone int using + :
+    that < 8
 
 make Vec{3}, Z{5}, Qux{11}
 
