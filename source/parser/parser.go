@@ -48,6 +48,7 @@ type Parser struct {
 	AllFunctionIdents dtypes.Set[string]
 	Typenames         dtypes.Set[string]
 	EnumTypeNames     dtypes.Set[string]
+	EnumElementNames  dtypes.Set[string]
 	ParameterizedTypes dtypes.Set[string]
 	nativeInfixes     dtypes.Set[token.TokenType]
 	lazyInfixes       dtypes.Set[token.TokenType]
@@ -87,6 +88,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		Bling:             make(dtypes.Set[string]),
 		Typenames:         make(dtypes.Set[string]),
 		EnumTypeNames:     make(dtypes.Set[string]),
+		EnumElementNames:  make(dtypes.Set[string]),
 		ParameterizedTypes:make(dtypes.Set[string]),
 		
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{

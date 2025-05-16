@@ -400,6 +400,11 @@ func (p *Parser) TypeExists(name string) bool {
 	return ok
 }
 
+func (p *Parser) IsEnumElement(name string) bool {
+	_, ok := p.EnumElementNames[name]
+	return ok
+}
+
 func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 	if typeNode == nil { // This can mark an absence of return types.
 		return values.AbstractType{}

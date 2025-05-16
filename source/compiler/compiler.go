@@ -2812,6 +2812,7 @@ type ParameterInfo struct {
 func (cp *Compiler) FindParameterizedType(name string, argsToCheck []values.Value) values.ValueType {
 	argIndex := DUMMY
 	for i, parType := range cp.ParameterizedTypes[name] {
+		println()
 		if valueTypesMatch(argsToCheck, parType.Types) {
 			argIndex = i
 			break

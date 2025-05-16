@@ -88,8 +88,8 @@ func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 	p.NextToken() // The one with the name in.
 	// So we're now at the token with the `[`, which we won't skip over because sluriping
 	// the type needs to be done with a peek first and a NextToken afterwards.
-	if p.PeekToken.Type == token.IDENT &&
-		!(p.IsTypePrefix(p.PeekToken.Literal)) {
+	if p.PeekToken.Type == token.IDENT && !(p.IsTypePrefix(p.PeekToken.Literal)) &&
+			!(p.IsEnumElement(p.PeekToken.Literal)){
 		p.NextToken()
 		return p.parseParams(nameTok)
 	}
@@ -171,7 +171,7 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 			p.Throw("parse/type/form/g", &tok)
 		}
 		result.Arguments = append(result.Arguments, newArg)
-		if tok.Type != token.IDENT { // In which case parsing the type will have moved us on to the next token.
+		if tok.Type != token.IDENT || p.EnumElementNames.Contains(tok.Literal) { // In which case parsing the type will have moved us on to the next token.
 			p.NextToken()
 		}
 		if p.PeekToken.Type == token.COMMA {

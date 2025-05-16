@@ -804,7 +804,7 @@ func (iz *initializer) createEnums() {
 			if alreadyExists { // Enums in the same namespace can't have overlapping elements or we wouldn't know their type.
 				iz.Throw("init/enum/element", &tok)
 			}
-
+			iz.cp.P.EnumElementNames.Add(tok.Literal)
 			iz.cp.EnumElements[tok.Literal] = values.Value{typeNo, len(elementNameList)}
 			elementNameList = append(elementNameList, tok.Literal)
 			tok = tokens.NextToken()

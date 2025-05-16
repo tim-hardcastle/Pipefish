@@ -32,3 +32,4 @@ Money = struct{c Currency}(L, S int) :
     0 <= that[S]
     that[S] < 100
 
+make Money{USD}
