@@ -2812,7 +2812,6 @@ type ParameterInfo struct {
 func (cp *Compiler) FindParameterizedType(name string, argsToCheck []values.Value) values.ValueType {
 	argIndex := DUMMY
 	for i, parType := range cp.ParameterizedTypes[name] {
-		println()
 		if valueTypesMatch(argsToCheck, parType.Types) {
 			argIndex = i
 			break
@@ -2820,8 +2819,6 @@ func (cp *Compiler) FindParameterizedType(name string, argsToCheck []values.Valu
 	}
 	return values.ValueType(argIndex)
 }
-
-
 
 func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) bool {
 	if len(argsToCheck) != len(paramTypes) {
@@ -2836,6 +2833,3 @@ func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) 
 }
 
 
-func astTypesMatch(x, y ast.TypeNode) bool {
-	panic("Unimplemented")
-}

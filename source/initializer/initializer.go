@@ -1184,7 +1184,7 @@ func (iz initializer) makeStructTypeAndConstructor(name string, typeNo values.Va
 func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []string, typeCheck ast.Node, parentType string, private bool) bool {
 	info, ok := iz.cp.ParameterizedTypes[name]
 	if ok {
-		if iz.paramTypeExists(ty) == DUMMY {
+		if iz.paramTypeExists(ty) == DUMMY { // TODO --- why?
 			return false
 		}
 	}
@@ -1223,7 +1223,7 @@ func (iz *initializer) paramTypeExists(ty *ast.TypeWithParameters) int {
 func (iz *initializer) astParamsToValueTypes(params []*ast.Parameter) []values.ValueType {
 	result := []values.ValueType{}
 	for _, v := range params {
-		result = append(result, iz.cp.ConcreteTypeNow(v.Type))
+		result = append(result, iz.cp.ConcreteTypeNow(v.Type))	
 	}
 	return result
 }
@@ -1387,6 +1387,15 @@ loop:
 				continue loop
 			}
 			if ty, ok := ty.(*ast.TypeWithArguments); ok {
+				// The parser doesn't know the types and values of enums, 'cos of being a
+				// parser. So we kludge them in here.
+				for i, v := range(ty.Values()) {
+					if maybeEnum, ok := v.V.(string); ok && v.T == 0 {
+						w := iz.cp.EnumElements[maybeEnum]
+						ty.Arguments[i].Type = w.T 
+						ty.Arguments[i].Value = w.V 
+					}
+				}
 				argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
 				if argIndex == DUMMY {
 					iz.Throw("init/type/args", &tok)
