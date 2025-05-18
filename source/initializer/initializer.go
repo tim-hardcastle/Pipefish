@@ -92,6 +92,7 @@ type parameterizedTypeInstance struct{
 	env       *compiler.Environment
 	typeCheck ast.Node
 	fields    ast.AstSig
+	vals      []values.Value
 }
 
 // Initializes a compiler.
@@ -1407,9 +1408,11 @@ loop:
 				parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
 				isClone := !(parTypeInfo.ParentType == "struct")
 				newEnv := compiler.NewEnvironment()
+				vals := []values.Value{}
 				for i, name := range parTypeInfo.Names {
 					iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
 					newEnv.Data[name] = compiler.Variable{iz.cp.That(), compiler.LOCAL_CONSTANT, altType(ty.Arguments[i].Type)}
+					vals = append(vals, values.Value{ty.Arguments[i].Type, ty.Arguments[i].Value})
 				}
 				iz.cp.P.NextToken()
 				newTypeName := ty.String()
@@ -1447,7 +1450,7 @@ loop:
 				 
 				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
 					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
-					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig})
+					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals})
 				}
 				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 			} else {
@@ -1885,8 +1888,9 @@ func (iz *initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
 	iz.cp.Vm.ConcreteTypeInfo[typeNumber] = structInfo
 }
 
-// We replace the astTypes in the parameters of a parmeterized type with AbstractTypes.
+
 func (iz *initializer) tweakParameterizedTypes() {
+	// We replace the astTypes in the environment for typechecking a parameterized type with AbstractTypes.
 	for _, pti := range iz.parameterizedTypeInstances {
 		for _, v := range pti.env.Data {
 			if iz.cp.Vm.Mem[v.MLoc].T == values.TYPE {
@@ -1894,6 +1898,31 @@ func (iz *initializer) tweakParameterizedTypes() {
 			}
 		}
 	}
+	// 
+	for typename, i := range iz.parameterizedTypeMap {
+		typeNo := iz.cp.ConcreteTypeNow(typename)
+		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo]
+		pti := iz.parameterizedTypeInstances[i]
+		vals := make([]values.Value, len(pti.vals))
+		for i, v := range pti.vals {
+			vals[i] = iz.tweakValue(v)
+		}
+		switch typeInfo := typeInfo.(type) {
+		case vm.CloneType:
+			typeInfo.TypeArguments = vals
+		case vm.StructType:
+			typeInfo.TypeArguments = vals
+		default:
+			panic("unhandled case")
+		}
+	}
+}
+
+func (iz *initializer) tweakValue(v values.Value) values.Value {
+	if v.T == values.TYPE {
+		v.V = iz.p.GetAbstractType(v.V.(ast.TypeNode))
+	}
+	return v
 }
 
 // We check that if a struct type is public, so are its fields.
@@ -2371,6 +2400,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	fnenv := compiler.NewEnvironment()
 	fnenv.Ext = outerEnv
 	cpF.LoReg = iz.cp.MemTop()
+	// First we do the local variables that are in the signature of the struct.
 	for _, pair := range sig {
 		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
 		if ast.IsRef(pair.VarType) {
@@ -2387,6 +2417,13 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 			}
 		}
 	}
+	// And then we take care of the arguments of a parameterized type.
+	for _, pair := range sig {
+		if ty, ok := pair.VarType.(*ast.TypeWithParameters); ok {
+			println("Found", ty.String())
+		}
+	}
+
 	cpF.HiReg = iz.cp.MemTop()
 	cpF.CallTo = iz.cp.CodeTop()
 	tupleData := make([]uint32, 0, len(sig))

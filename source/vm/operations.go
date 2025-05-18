@@ -242,13 +242,14 @@ var OPERANDS = map[Opcode]opDescriptor{
 	UntE: {"untE", operands{dst}},
 	Untk: {"untk", operands{dst}},
 	Uwrp: {"uwrp", operands{dst, mem, tok}},
-	Varc: {"wthL", operands{dst, mem, tok}},
+	Varc: {"varc", operands{dst, mem, tok}},
 	Vlid: {"vlid", operands{dst, mem}},
 	WthL: {"wthL", operands{dst, mem, mem, tok}},
 	WthM: {"wthM", operands{dst, mem, mem, tok}},
 	Wtht: {"wtht", operands{dst, mem, mem, tok}},
 	WthZ: {"wthZ", operands{dst, mem, mem, tok}},
 	WtoM: {"wthM", operands{dst, mem, mem, tok}},
+	Yeet: {"yeet", operands{dst, typ}},
 }
 
 func describe(op *Operation) string {
@@ -428,4 +429,5 @@ const (
 	Wtht
 	WthZ
 	WtoM
+	Yeet
 )

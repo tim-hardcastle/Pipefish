@@ -1731,6 +1731,20 @@ loop:
 				mp = (*mp).Delete(key)
 			}
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, mp}
+		case Yeet:
+			typeInfo := vm.ConcreteTypeInfo[args[1]]
+			var typeArgs []values.Value
+			switch typeInfo := typeInfo.(type) {
+			case StructType:
+				typeArgs = typeInfo.TypeArguments
+			case CloneType:
+				typeArgs = typeInfo.TypeArguments
+			default:
+				panic("Unhandled case.")
+			}
+			for i, v := range typeArgs {
+				vm.Mem[args[0] + uint32(i)] = v
+			}
 		default:
 			panic("Unhandled opcode '" + OPERANDS[vm.Code[loc].Opcode].oc + "'")
 		}
@@ -2050,6 +2064,7 @@ type CloneType struct {
 	IsMI         bool
 	Using        []string // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
 	TypeCheck    *TypeCheck
+	TypeArguments    []values.Value
 }
 
 func (t CloneType) GetName(flavor descriptionFlavor) string {
@@ -2102,6 +2117,7 @@ type StructType struct {
 	ResolvingMap         map[int]int // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
 	IsMI                 bool
 	TypeCheck            *TypeCheck
+	TypeArguments            []values.Value
 }
 
 func (t StructType) GetName(flavor descriptionFlavor) string {
