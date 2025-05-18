@@ -292,7 +292,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					var right ast.Node
 					p.pushRParser(resolvingParser)
 					p.CurrentNamespace = nil
-					if p.CurToken.Type == token.LPAREN {
+					if p.CurToken.Type == token.LPAREN || p.CurToken.Type == token.LBRACK {
 						right = p.parseExpression(MINUS)
 					} else {
 						right = p.parseExpression(FPREFIX)

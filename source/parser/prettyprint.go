@@ -280,6 +280,35 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 			out.WriteString(" ")
 		}
 		out.WriteString(node.Operator)
+	case *ast.TypeLiteral:
+		out.WriteString(node.String())
+	case *ast.TypePrefixExpression:
+		out.WriteString(node.Operator.String())
+		if ctxt.mustBracket {
+			out.WriteString("(")
+		} else {
+			out.WriteString(" ")
+		}
+		for i, arg := range node.Args {
+			if i == 0 {
+				if len(node.Args) > 1 {
+					out.WriteString(p.prettyPrint(arg, prefixCtxt))
+				} else {
+					out.WriteString(p.prettyPrint(arg, inlineCtxt))
+				}
+				continue
+			} else {
+				out.WriteString(", ")
+				if i+1 < len(node.Args) {
+					out.WriteString(p.prettyPrint(arg, prefixCtxt))
+				} else {
+					out.WriteString(p.prettyPrint(arg, inlineCtxt))
+				}
+				if ctxt.mustBracket {
+					out.WriteString(")")
+				}
+			}
+		}
 	case *ast.TryExpression:
 		out.WriteString("try ")
 		if node.VarName != "" {

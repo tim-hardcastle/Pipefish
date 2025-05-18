@@ -130,6 +130,7 @@ type Context struct {
 	LowMem         uint32          // Where the memory of the function we're compiling (if indeed we are) starts, and so the lowest point from which we may need to copy memory in case of recursion.
 	TrackingFlavor LogFlavor       // Whether we should be tracking something and if so what.
 	LogFlavor      LogFlavor       // Whether we should be logging something and if so what.
+	ForReturns     AlternateType   // What (besides an error) we may expect 'for' to return, and therefor the expected result of a 'continue' or a 'break' with out a value after it.
 }
 
 // Unless we're going down a branch, we want the new context for each node compilation to have no forward type-checking.
@@ -309,11 +310,11 @@ NodeTypeSwitch:
 		switch node.Value {
 		case "continue":
 			cp.emitContinue(&node.Token)
-			rtnTypes, rtnConst = AltType(), false
+			rtnTypes, rtnConst = ctxt.ForReturns, false
 			break NodeTypeSwitch
 		case "break":
 			cp.emitBreakWithoutValue(&node.Token)
-			rtnTypes, rtnConst = AltType(), false
+			rtnTypes, rtnConst = ctxt.ForReturns, false
 			break NodeTypeSwitch
 		case "NULL":
 			cp.Reserve(values.NULL, nil, &node.Token)
@@ -888,7 +889,8 @@ NodeTypeSwitch:
 				cp.Throw("comp/break/a", node.GetToken())
 				break NodeTypeSwitch
 			}
-			rtnTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt)
+			rtnTypes, _ = cp.CompileNode(node.Args[0], ctxt)
+			rtnConst = false // Or it might try to break out of the loop at compile time.
 			cp.addToForData(cp.vmBreakWithValue(cp.That()))
 			break
 		}
@@ -1332,6 +1334,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 		cp.Cm("Finding initial values of bound variables", tok)
 		var isConst bool
 		boundVariableTypes, isConst = cp.CompileNode(rhsOfBoundVariables, ctxt)
+		newContext.ForReturns = boundVariableTypes
 		if isConst { // Then we still need to initialize the index variables when we start the loop.
 			cp.put(vm.Asgm, cp.That())
 		}

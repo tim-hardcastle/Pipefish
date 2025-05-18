@@ -3282,7 +3282,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/typecheck/fail": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "failed runtime typecheck " + emph(args[0]) + " declared" + 
+			return "failed runtime typecheck declared" + 
 			    text.DescribePos(args[2].(*token.Token)) + " when constructing value of type " + emph(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {

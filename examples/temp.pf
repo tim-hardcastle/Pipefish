@@ -12,8 +12,20 @@ def
 
 newtype
 
-Vec = clone{i int} list using + :
+Vec = clone{i int} list:
     len(that) == i
+
+def
+
+(x Vec{3}) + (y Vec{3}) -> Vec{3} :
+    Vec{3} from a = [] for i::v = range x :
+        a + [v + y[i]]
+
+(x Vec{3}) ⋅ (y Vec{3}) :
+    from a = 0 for i::v = range x :
+        a + v * y[i]
+
+newtype
 
 Qux = struct{i int} (zort int) :
     that[zort] < i
@@ -21,15 +33,22 @@ Qux = struct{i int} (zort int) :
 Moo = struct(troz int) :
     that[troz] != 4
 
-Foo = clone int using + :
-    that < 8
+list = clone{T type} list using +, slice:
+    from a = true for i::v = range that :
+        v in T :
+            continue 
+        else :
+            error "can't put value of type '" + (string type v) + .. 
+               .. "' in container of type 'list{" + (string T) + "}'"
+
+newtype
 
 make Vec{3}, Z{5}, Qux{11}
 
 Currency = enum EURO, GBP, USD
 
-Money = struct{c Currency}(L, S int) :
-    0 <= that[S]
-    that[S] < 100
+Money = struct{c Currency}(large, small int) :
+    0 <= that[small]
+    that[small] < 100
 
-make Money{USD}
+make Money{USD}, list{int}

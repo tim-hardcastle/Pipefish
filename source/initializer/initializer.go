@@ -173,6 +173,13 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+	iz.cmI("Adding abstract types to parameterized types.")
+	iz.tweakParameterizedTypes()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+
 	iz.cmI("Compiling Go.")
 	iz.compileGoModules()
 	if iz.ErrorsExist() {
@@ -755,7 +762,7 @@ func (iz *initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 
 // Now we can start creating the user-defined types.
 
-// Phase 1E of compilation. We compile the enums.
+// We compile the enums.
 //
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
@@ -1882,6 +1889,17 @@ func (iz *initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
 	iz.cp.Vm.ConcreteTypeInfo[typeNumber] = structInfo
 }
 
+// We replace the astTypes in the parameters of a parmeterized type with AbstractTypes.
+func (iz *initializer) tweakParameterizedTypes() {
+	for _, pti := range iz.parameterizedTypeInstances {
+		for _, v := range pti.env.Data {
+			if iz.cp.Vm.Mem[v.MLoc].T == values.TYPE {
+				iz.cp.Vm.Mem[v.MLoc].V = iz.p.GetAbstractType(iz.cp.Vm.Mem[v.MLoc].V.(ast.TypeNode))
+			}
+		}
+	}
+}
+
 // We check that if a struct type is public, so are its fields.
 func (iz *initializer) checkTypesForConsistency() {
 	for typeNumber := int(values.FIRST_DEFINED_TYPE); typeNumber < len(iz.cp.Vm.ConcreteTypeInfo); typeNumber++ {
@@ -1991,6 +2009,9 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			name := "*" + tcc.IndexToken().Literal
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{ast, structDeclaration, i, name[1:], tcc.IndexToken()}}
 		}
+		if iz.ErrorsExist() {
+			return nil
+		}
 	}
 	iz.cmI("Adding clone typechecks to declarations.")
 	// Since the name of a type will appear already in the map as the name of the function
@@ -2002,6 +2023,9 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		if iz.cp.P.SeekColon() {
 			typecheck := iz.cp.P.ParseTokenizedChunk()
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:], tcc.IndexToken()}}
+		}
+		if iz.ErrorsExist() {
+			return nil
 		}
 	}
 
@@ -2413,7 +2437,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		}
 		if given != nil {
 			iz.cp.ThunkList = []compiler.ThunkData{}
-			givenContext := compiler.Context{fnenv, functionName, compiler.DEF, false, nil, cpF.LoReg, areWeTracking, compiler.LF_NONE}
+			givenContext := compiler.Context{fnenv, functionName, compiler.DEF, false, nil, cpF.LoReg, areWeTracking, compiler.LF_NONE, altType()}
 			iz.cp.CompileGivenBlock(given, givenContext)
 			cpF.CallTo = iz.cp.CodeTop()
 			if len(iz.cp.ThunkList) > 0 {
@@ -2436,7 +2460,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 
 		}
 		// Now the main body of the function, just as a lagniappe.
-		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE}
+		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE, altType()}
 		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		cpF.OutReg = iz.cp.That()
 
