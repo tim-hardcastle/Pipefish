@@ -43,7 +43,7 @@ list = clone{T type} list using +, slice:
 
 newtype
 
-make Vec{3}, Z{5}, Qux{11}
+make Vec{3}, Z{5}, Z{7}, Qux{11}
 
 Currency = enum EURO, GBP, USD
 
@@ -52,3 +52,8 @@ Money = struct{c Currency}(large, small int) :
     that[small] < 100
 
 make Money{USD}, list{int}
+
+def 
+
+spoo(x Z{i int}) :
+    x

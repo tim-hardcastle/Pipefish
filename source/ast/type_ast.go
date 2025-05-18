@@ -61,6 +61,15 @@ func (twp *TypeWithParameters) String() string {
 	return out.String()
 }
 
+func (twp *TypeWithParameters) Blank() *TypeWithParameters {
+	blankType := TypeWithParameters{twp.Token, twp.Name, []*Parameter{}}
+	for _, p := range(twp.Parameters) {
+		q := Parameter{"_", p.Type}
+		blankType.Parameters = append(blankType.Parameters, &q)
+	}
+	return &blankType
+}
+
 type Argument struct {
 	Token token.Token
 	Type  values.ValueType

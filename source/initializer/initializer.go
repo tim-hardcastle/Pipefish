@@ -1195,12 +1195,8 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 			return false
 		}
 	}
-	blankType := ast.TypeWithParameters{ty.Token, name, []*ast.Parameter{}}
+	blankType := ty.Blank()
 	blankType.Name = name
-	for _, p := range(ty.Parameters) {
-		q := ast.Parameter{"_", p.Type}
-		blankType.Parameters = append(blankType.Parameters, &q)
-	}
 	supertype := blankType.String()
 	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters), 
 		iz.astParamsToValueTypes(ty.Parameters), opList, 

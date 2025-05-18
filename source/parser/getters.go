@@ -435,6 +435,8 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 		return values.AbstractType{[]values.ValueType{values.BLING}, 0}
 	case *ast.TypeDotDotDot:
 		return p.GetAbstractType(typeNode.Right)
+	case *ast.TypeWithParameters:
+		return p.GetAbstractTypeFromTypeSys(typeNode.Blank().String())
 	}
 	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())
 }
