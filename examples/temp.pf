@@ -9,6 +9,8 @@ def
 (x Z{5}) + (y Z{5}) -> Z{5} :
     Z{5}(int(x) + int(y) mod 5)
 
+foo(x, y Z{i int}) :
+    i
 
 newtype
 
@@ -56,4 +58,4 @@ make Money{USD}, list{int}
 def 
 
 spoo(x Z{i int}) :
-    x
+    i

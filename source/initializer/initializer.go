@@ -1910,8 +1910,10 @@ func (iz *initializer) tweakParameterizedTypes() {
 		switch typeInfo := typeInfo.(type) {
 		case vm.CloneType:
 			typeInfo.TypeArguments = vals
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		case vm.StructType:
 			typeInfo.TypeArguments = vals
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
 		default:
 			panic("unhandled case")
 		}
@@ -2406,9 +2408,8 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		if ast.IsRef(pair.VarType) {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, node.GetToken())
 			continue
-		}
-		typeName := pair.VarType
-		_, isVarargs := typeName.(*ast.TypeDotDotDot)
+		}	
+		_, isVarargs := pair.VarType.(*ast.TypeDotDotDot)
 		if isVarargs {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, node.GetToken())
 		} else {
@@ -2417,15 +2418,39 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 			}
 		}
 	}
-	// And then we take care of the arguments of a parameterized type.
+	cpF.HiReg = iz.cp.MemTop()
+	cpF.CallTo = iz.cp.CodeTop()
+
+    // And then we take care of the arguments of a parameterized type.
+	vmap := map[string][]uint32{}
 	for _, pair := range sig {
-		if ty, ok := pair.VarType.(*ast.TypeWithParameters); ok {
-			println("Found", ty.String())
+		if twp, ok := pair.VarType.(*ast.TypeWithParameters); ok {
+			yeetTo := iz.cp.That() + 1
+			for _, param := range twp.Parameters {
+				variable, ok := fnenv.GetVar(param.Name)
+				if ok {
+					if variable.Access != compiler.TYPE_ARGUMENT {
+						iz.Throw("init/param/var", node.GetToken(), param.Name)
+						continue
+					}
+					if !compiler.Equals(variable.Types, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type)) {
+						iz.Throw("init/param/var", node.GetToken(), param.Name)
+						continue
+					}
+				}
+				iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
+				if _, ok := vmap[param.Name]; ok {
+					vmap[param.Name] = []uint32{iz.cp.That()}
+				} else {
+					vmap[param.Name] = append(vmap[param.Name], iz.cp.That())
+				}
+				iz.cp.AddVariable(fnenv, param.Name, compiler.TYPE_ARGUMENT, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type), node.GetToken())
+			}
+			variable, _ := fnenv.GetVar(pair.VarName)
+			iz.cp.Emit(vm.Yeet, yeetTo, variable.MLoc)
 		}
 	}
 
-	cpF.HiReg = iz.cp.MemTop()
-	cpF.CallTo = iz.cp.CodeTop()
 	tupleData := make([]uint32, 0, len(sig))
 	var foundTupleOrVarArgs bool
 	for _, param := range sig {

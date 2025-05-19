@@ -233,7 +233,8 @@ NodeTypeSwitch:
 					newSig = append(newSig, NameAlternateTypePair{pair.VarName, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)})
 				}
 				if v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_CONSTANT || v.Access == LOCAL_FUNCTION_CONSTANT ||
-					v.Access == VERY_LOCAL_CONSTANT || v.Access == VERY_LOCAL_VARIABLE || v.Access == FUNCTION_ARGUMENT || v.Access == LOCAL_FUNCTION_THUNK {
+					v.Access == VERY_LOCAL_CONSTANT || v.Access == VERY_LOCAL_VARIABLE || v.Access == FUNCTION_ARGUMENT || v.Access == LOCAL_FUNCTION_THUNK ||
+					v.Access == TYPE_ARGUMENT {
 					cp.Throw("comp/assign/immutable", node.Left.GetToken(), pair.VarName)
 					break NodeTypeSwitch
 				}

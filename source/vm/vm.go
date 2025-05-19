@@ -1732,7 +1732,7 @@ loop:
 			}
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, mp}
 		case Yeet:
-			typeInfo := vm.ConcreteTypeInfo[args[1]]
+			typeInfo := vm.ConcreteTypeInfo[vm.Mem[args[1]].T]
 			var typeArgs []values.Value
 			switch typeInfo := typeInfo.(type) {
 			case StructType:

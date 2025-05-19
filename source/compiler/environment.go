@@ -23,6 +23,7 @@ const (
 	UNDEFINED_THIS_VARIABLE // When 'this' hasn't been defined because we haven't finished compiling the lambda.
 	FOR_LOOP_BOUND_VARIABLE
 	FOR_LOOP_INDEX_VARIABLE
+	TYPE_ARGUMENT           // i.e. the 'i' in 'foo(x Z{i int})
 )
 
 // Update with:
