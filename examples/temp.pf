@@ -1,4 +1,4 @@
-newtype
+newtype // Some modular arithmetic.
 
 Z = clone{i int} int :
     0 <= that
@@ -9,8 +9,18 @@ def
 (x Z{5}) + (y Z{5}) -> Z{5} :
     Z{5}(int(x) + int(y) mod 5)
 
-foo(x, y Z{i int}) :
+modulus (x Z{i int}) :
     i
+
+newtype // Generic lists.
+
+list = clone{T type} list using +, slice:
+    from a = true for i::v = range that :
+        v in T :
+            continue 
+        else :
+            error "can't put value of type '" + (string type v) + .. 
+               .. "' in container of type 'list{" + (string T) + "}'"
 
 newtype
 
@@ -27,13 +37,9 @@ def
     from a = 0 for i::v = range x :
         a + v * y[i]
 
+
+
 newtype
-
-Qux = struct{i int} (zort int) :
-    that[zort] < i
-
-Moo = struct(troz int) :
-    that[troz] != 4
 
 list = clone{T type} list using +, slice:
     from a = true for i::v = range that :
@@ -42,6 +48,18 @@ list = clone{T type} list using +, slice:
         else :
             error "can't put value of type '" + (string type v) + .. 
                .. "' in container of type 'list{" + (string T) + "}'"
+
+
+
+
+newtype
+
+Qux = struct{i int} (zort int) :
+    that[zort] < i
+
+Moo = struct(troz int) :
+    that[troz] != 4
+
 
 newtype
 
@@ -57,5 +75,5 @@ make Money{USD}, list{int}
 
 def 
 
-spoo(x Z{i int}) :
+captureParam(x Z{i int}) :
     i

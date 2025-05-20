@@ -58,7 +58,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	ac := ctxt.Access
 	b := &bindle{tok: node.GetToken(),
 		treePosition: cp.P.FunctionForest[node.GetOperator()].Tree,
-		outLoc:       cp.reserveError("vm/oopsie", node.GetToken()),
+		outLoc:       cp.ReserveError("vm/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
 		types:        make(FiniteTupleType, len(args)),
@@ -92,7 +92,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			b.types[i] = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 			cst = false
 			if v.Access == REFERENCE_VARIABLE { // If the variable we're passing is already a reference variable, then we don't re-wrap it.
-				cp.put(vm.Asgm, v.MLoc)
+				cp.Put(vm.Asgm, v.MLoc)
 				b.valLocs[i] = cp.That()
 			} else {
 				cp.Reserve(values.REF, v.MLoc, node.GetToken())
@@ -132,7 +132,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Prepared bindle, making initial call into generateNewArgument.", b.tok)
 	returnTypes := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
-	cp.put(vm.Asgm, b.outLoc)
+	cp.Put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
 		cp.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 	}
@@ -224,7 +224,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	cp.cmP("Called generateBranch.", b.tok)
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
-		cp.reserveError("vm/types/a", b.tok)
+		cp.ReserveError("vm/types/a", b.tok)
 		for _, loc := range b.valLocs {
 			cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 		}
@@ -292,7 +292,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			cp.Emit(vm.Qsnq, b.valLocs[b.argNo], cp.CodeTop()+3)
 			singleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.tok)
 			cp.Emit(vm.Jmp, cp.CodeTop()+3)
-			cp.put(vm.IxTn, b.valLocs[b.argNo], uint32(b.index))
+			cp.Put(vm.IxTn, b.valLocs[b.argNo], uint32(b.index))
 			elementOfTupleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, cp.That(), b.tok)
 		}
 	}
@@ -325,7 +325,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		case len(acceptedSingleTypes) > 0 && len(acceptedTuples) == 0:
 			cp.cmP("Nothing but single types", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
-				cp.reserveError("vm/types/b", b.tok)
+				cp.ReserveError("vm/types/b", b.tok)
 				for _, loc := range b.valLocs {
 					cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 				}
@@ -347,12 +347,12 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.cmP("Generating branch to check out single values.", b.tok)
 				typesFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 				skipElse = cp.vmGoTo()
-				cp.vmComeFrom(singleCheck)
+				cp.VmComeFrom(singleCheck)
 				cp.cmP("Generating branch to move along one element of a tuple.", b.tok)
 				typesFromTuples = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 
-			cp.vmComeFrom(skipElse)
+			cp.VmComeFrom(skipElse)
 			typesFromGoingAcross = typesFromSingles.Union(typesFromTuples)
 		}
 	}
@@ -362,11 +362,11 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// And now we need to do the 'else' branch if there is one.
 	if needsLowerBranch && !acceptingTuple {
 		skipElse := cp.vmGoTo()
-		cp.vmComeFrom(singleTypeCheck, elementOfTupleTypeCheck, varargsSlurpingTupleTypeCheck)
+		cp.VmComeFrom(singleTypeCheck, elementOfTupleTypeCheck, varargsSlurpingTupleTypeCheck)
 		// We recurse on the next branch down.
 		cp.cmP("Function generateBranch calls generateNextBranchDown.", b.tok)
 		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
-		cp.vmComeFrom(skipElse)
+		cp.VmComeFrom(skipElse)
 	}
 	cp.cmP("We return from generateBranch.", b.tok)
 	cp.cmP("Types from going down are "+typesFromGoingDown.describe(cp.Vm), b.tok)
@@ -529,14 +529,14 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 		newArgumentBindle.argNo++
 		typesFromNextArgument = cp.generateNewArgument(&newArgumentBindle)
 		skipElse = cp.vmGoTo()
-		cp.vmComeFrom(lengthCheck)
+		cp.VmComeFrom(lengthCheck)
 	}
 
 	cp.cmP("Function generateMoveAlongBranchViaTupleElement calls generateFromTopBranchDown.", b.tok)
 	typesFromContinuingInTuple := cp.generateFromTopBranchDown(&newBindle)
 
 	if needsConditional {
-		cp.vmComeFrom(skipElse)
+		cp.VmComeFrom(skipElse)
 	}
 
 	return typesFromContinuingInTuple.Union(typesFromNextArgument)
@@ -680,7 +680,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				// It could have a Golang body.
 				if F.HasGo {
 					cp.cmP("Emitting Go function call.", b.tok)
-					convErrorLoc := cp.reserveError("golang/conv", b.tok)
+					convErrorLoc := cp.ReserveError("golang/conv", b.tok)
 					args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
 					cp.Emit(vm.Gofn, args...)
 					if len(branch.Node.Fn.NameRets) == 0 {
@@ -733,7 +733,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 		}
 	}
 	cp.cmP("Returning error.", b.tok)
-	cp.reserveError("vm/types/c", b.tok)
+	cp.ReserveError("vm/types/c", b.tok)
 	for _, loc := range b.valLocs {
 		cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 	}

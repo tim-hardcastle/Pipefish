@@ -2439,7 +2439,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 					}
 				}
 				iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
-				if _, ok := vmap[param.Name]; ok {
+				if _, ok := vmap[param.Name]; !ok {
 					vmap[param.Name] = []uint32{iz.cp.That()}
 				} else {
 					vmap[param.Name] = append(vmap[param.Name], iz.cp.That())
@@ -2448,6 +2448,16 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 			}
 			variable, _ := fnenv.GetVar(pair.VarName)
 			iz.cp.Emit(vm.Yeet, yeetTo, variable.MLoc)
+		}
+	}
+	paramChecks := []any{} // Though they will in fact all be early returns.
+	for k, locs := range vmap {
+		if len(locs) > 1 {
+			for _, v := range locs[1:] {
+				errLoc := iz.cp.ReserveError("vm/type/conflict", node.GetToken(), k)
+				iz.cp.Put(vm.Eqxx, locs[0], v) // TODO: you have specialized versions of this for speed.
+				paramChecks = append(paramChecks, iz.cp.VmConditionalEarlyReturn(vm.Qfls, iz.cp.That(), errLoc))
+			}
 		}
 	}
 
@@ -2520,12 +2530,15 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		// Now the main body of the function, just as a lagniappe.
 		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE, altType()}
 		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		if len(paramChecks) > 0 {
+			cpF.RtnTypes = cpF.RtnTypes.Union(altType(values.ERROR))
+		}
 		cpF.OutReg = iz.cp.That()
-
+		
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
 			iz.cp.EmitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES)
 		}
-
+		iz.cp.VmComeFrom(paramChecks...)
 		iz.cp.Emit(vm.Ret)
 	}
 	iz.cp.Fns = append(iz.cp.Fns, &cpF)
