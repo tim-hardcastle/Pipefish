@@ -9,8 +9,9 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
-// The descriptions of types are sufficiently complicated that they have their own little parser
-// to deal with them.
+// This parses descriptions of types (a) when they're defined (b) when they're mentioned
+// in type signatures. In the bodies of functions, the arguments of parameterized types are
+// just normal expressions.
 
 // Things which are not type names but can be used for constructing types or for other
 // purposes:
