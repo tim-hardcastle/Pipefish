@@ -32,6 +32,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/jsouthworth/immutable v0.0.0-20211114152620-e62b5e06fcf1 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
@@ -63,6 +64,10 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gotest.tools/gotestsum v1.8.2 // indirect
+	jsouthworth.net/go/dyn v0.0.0-20231219173705-75977ada6782 // indirect
+	jsouthworth.net/go/hash v0.0.0-20180721202112-cbf55bf79777 // indirect
+	jsouthworth.net/go/seq v0.0.0-20231219173654-f04f80c0bed4 // indirect
+	jsouthworth.net/go/transduce v0.0.0-20231219173633-6a0c4486d5d6 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 	modernc.org/libc v1.55.3 // indirect
 	modernc.org/mathutil v1.6.0 // indirect

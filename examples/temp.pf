@@ -4,76 +4,7 @@ Z = clone{i int} int :
     0 <= that
     that < i
 
-def
+Vec = clone{i int} list :
+    len that == i
 
-(x Z{5}) + (y Z{5}) -> Z{5} :
-    Z{5}(int(x) + int(y) mod 5)
-
-modulus (x Z{i int}) :
-    i
-
-newtype // Generic lists.
-
-list = clone{T type} list using +, slice:
-    from a = true for i::v = range that :
-        v in T :
-            continue 
-        else :
-            error "can't put value of type '" + (string type v) + .. 
-               .. "' in container of type 'list{" + (string T) + "}'"
-
-newtype
-
-Vec = clone{i int} list:
-    len(that) == i
-
-def
-
-(x Vec{3}) + (y Vec{3}) -> Vec{3} :
-    Vec{3} from a = [] for i::v = range x :
-        a + [v + y[i]]
-
-(x Vec{3}) ⋅ (y Vec{3}) :
-    from a = 0 for i::v = range x :
-        a + v * y[i]
-
-
-
-newtype
-
-list = clone{T type} list using +, slice:
-    from a = true for i::v = range that :
-        v in T :
-            continue 
-        else :
-            error "can't put value of type '" + (string type v) + .. 
-               .. "' in container of type 'list{" + (string T) + "}'"
-
-
-
-
-newtype
-
-Qux = struct{i int} (zort int) :
-    that[zort] < i
-
-Moo = struct(troz int) :
-    that[troz] != 4
-
-
-newtype
-
-make Vec{3}, Z{5}, Z{7}, Qux{11}
-
-Currency = enum EURO, GBP, USD
-
-Money = struct{c Currency}(large, small int) :
-    0 <= that[small]
-    that[small] < 100
-
-make Money{USD}, list{int}
-
-def 
-
-captureParam(x Z{i int}) :
-    i
+make Z{5}, Z{12}, Vec{3}
