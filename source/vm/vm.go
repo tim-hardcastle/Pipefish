@@ -11,6 +11,7 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
+	"github.com/jsouthworth/immutable/hashmap"
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
@@ -53,6 +54,7 @@ type Vm struct {
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter                [](func(t uint32, v any) any)
+	ParameterizedTypeInfo      []hashmap.Map    // A list of maps from type parameters to ValueTypes. The list is itself keyed by a map from type operators to the position in the list, which is stored in the compiler.
 }
 
 // In general, the VM can't convert from type names to type numbers, because it doesn't

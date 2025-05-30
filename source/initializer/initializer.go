@@ -9,6 +9,7 @@ import (
 
 	"strings"
 
+	"github.com/jsouthworth/immutable/hashmap"
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
@@ -155,6 +156,14 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+
+	iz.cmI("Adding parameterized types to VM.")
+	iz.addParameterizedTypesToVm()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+
 	iz.cmI("Making function tables.")
 	iz.MakeFunctionTables()
 	if iz.ErrorsExist() {
@@ -1689,6 +1698,27 @@ func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTy
 	cpF.Private = private
 	iz.cp.Fns = append(iz.cp.Fns, cpF)
 	return uint32(len(iz.cp.Fns) - 1)
+}
+
+// We have a map in the compiler associating each type operator to the number of a list
+// in the compiler containing maps from type arguments to concrete type numbers.
+// This allows us if necessary to dispatch on the arguments at runtime.
+// This method hooks them together.
+func (iz *initializer) addParameterizedTypesToVm() {
+	for _, ty := range iz.parameterizedTypeInstances { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
+		name := ty.astType.(*ast.TypeWithArguments).Name
+		typeArgs := values.ValueTypes{}
+		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
+			typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
+		}
+		if info, ok := iz.cp.ParTypes2[name]; ok {
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, iz.cp.ParTypes2[name].ReturnTypes.Union(altType(iz.cp.ConcreteTypeNow(ty.astType.String())))}
+		} else {
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), altType(values.ERROR)}
+			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, *hashmap.Empty())
+		}
+		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Conj(hashmap.EntryNew(typeArgs, iz.cp.ConcreteTypeNow(ty.astType.String())))
+	}
 }
 
 // Phase 4 of compilation. At this point we have our functions as parsed code chunks in the

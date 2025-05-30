@@ -1,6 +1,8 @@
 package values
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type ValueType uint32
 
@@ -242,6 +244,31 @@ func (a AbstractType) Equals(b AbstractType) bool {
 	}
 	return true
 }
+
+// For use with the 'github.com/jsouthworth/immutable/hashmap' hashmap implementation. Used for resolving parameterized types at runtime.
+type ValueTypes []Value
+
+// This is only required to work on strings, runes, bools, ints, floats, enums, and types.
+func (vs ValueTypes) Equal(ws any) bool {
+	xs := ws.(ValueTypes)
+	for i, x := range xs {
+		if x.T != vs[i].T {
+			return false
+		}
+		if x.T == TYPE {
+			if !x.V.(AbstractType).Equals(vs[i].V.(AbstractType)) {
+				return false
+			}
+		} else {
+			if x.V != vs[i].V {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+
 
 func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar {

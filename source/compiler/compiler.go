@@ -41,6 +41,8 @@ type Compiler struct {
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
+	ParTypes2                map[string]TypeExpressionInfo            // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	possibleTypesFromTypeOperator map[string] AlternateType     // Needed if it can't be resolved at compile time.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -63,6 +65,7 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		CallHandlerNumbersByName: make(map[string]uint32),
 		TypeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		ParameterizedTypes:       make(map[string][]ParameterInfo),
+		ParTypes2:                make(map[string]TypeExpressionInfo),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 		Common:                   ccb,
 	}
@@ -151,6 +154,11 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 	INIT                   // We're initializing the global variables.
 	LAMBDA                 // We're in a lambda function.
 )
+
+type TypeExpressionInfo struct {
+	VmTypeInfo uint32 
+	ReturnTypes AlternateType
+}
 
 // The `Do` function of the VM is what a Service calls to get it to evaluate a line of code from the REPL.
 // It parses the line to an AST, initializes the context, calls `CompileNode` with the AST and the context
