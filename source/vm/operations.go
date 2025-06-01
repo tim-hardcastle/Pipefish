@@ -21,6 +21,7 @@ const (
 	loc
 	mem
 	num
+	ptp
 	sfc
 	tok
 	trk
@@ -65,6 +66,8 @@ func (op *Operation) ppOperand(i int) string {
 		return " m" + opVal
 	case num:
 		return " %" + opVal
+	case ptp:
+		return " {" + opVal + "}"
 	case sfc:
 		return " Σ" + opVal
 	case trk:
@@ -190,6 +193,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	MkSn: {"mkSn", operands{dst, sfc}},
 	Mkst: {"mkst", operands{dst, mem, tok}},
 	Modi: {"modi", operands{dst, mem, mem, tok}},
+	Mpar: {"mpar", operands{dst, ptp, tok, tup}},
 	Mulf: {"mulf", operands{dst, mem, mem}},
 	Muli: {"muli", operands{dst, mem, mem}},
 	Negf: {"negf", operands{dst, mem}},
@@ -376,6 +380,7 @@ const (
 	Outp
 	Outt
 	Psql
+	Mpar
 	Qabt
 	Qfls
 	Qitr

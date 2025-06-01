@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"reflect"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
@@ -62,6 +63,22 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 		pos = 0
 		sig = prsr.extractSig(start.Args)
 	case *ast.TypePrefixExpression:
+		var out bytes.Buffer
+		out.WriteString(start.Operator)
+		if len(start.TypeArgs) != 0 {
+			out.WriteString("{")
+			sep := ""
+			for _, v := range start.Args {
+				out.WriteString(sep)
+				out.WriteString(prsr.prettyPrint(v, inlineCtxt))
+				sep = ", "
+			}
+			out.WriteString("}")
+		}
+		functionName = out.String()
+		pos = 0
+		sig = prsr.extractSig(start.Args)
+	case *ast.SigTypePrefixExpression: // TODO --- can this ever happen?
 		functionName = start.Operator.String()
 		pos = 0
 		sig = prsr.extractSig(start.Args)
@@ -126,11 +143,18 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				// name under those circumstances. This tends to make the whole thing stupid, we should have
 				// done all this before it got near the Pratt parser.
 				switch inner := arg.Args[0].(type) {
-				case *ast.TypeLiteral:
+				case *ast.TypeLiteral:  // TODO --- presumably this can't happen any more?
 					varName = arg.Operator
 					varType = inner.Value
+				case *ast.TypeExpression:  // TODO --- presumably this can't happen any more?
+					varName = arg.Operator
+					astType := p.ToAstType(inner)
+					if astType == nil {
+						p.Throw("parse/sig/ident/c", inner.GetToken())
+					}
+					varType = astType
 				default:
-					p.Throw("parse/sig/ident/b", inner.GetToken())
+					p.Throw("parse/sig/ident/c", inner.GetToken())
 					return nil
 				}
 			}
@@ -346,12 +370,23 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 		default:
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
-	case *ast.TypeLiteral:
-		return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: typednode.Value}}
+	case *ast.TypeExpression:
+		astType := p.ToAstType(typednode)
+		if astType == nil {
+			p.Throw("parse/ret/b", typednode.GetToken())
+		}
+		return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: astType}}
 	default:
-		p.Throw("parse/ret/b", typednode.GetToken())
+		p.Throw("parse/ret/c", typednode.GetToken())
 	}
 	return nil
+}
+
+func (p *Parser) ToAstType(te *ast.TypeExpression) ast.TypeNode {
+	if len(te.TypeArgs) == 0 {
+		return &ast.TypeWithName{Token: te.Token, Name: te.Operator}
+	}
+	panic("Not done that yet!")
 }
 
 // Gets the variable from the lhs and rhs of an assignment when it's still in the form of tokens.

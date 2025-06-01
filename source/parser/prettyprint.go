@@ -282,7 +282,7 @@ func (p *Parser) prettyPrint(node ast.Node, ctxt printContext) string {
 		out.WriteString(node.Operator)
 	case *ast.TypeLiteral:
 		out.WriteString(node.String())
-	case *ast.TypePrefixExpression:
+	case *ast.SigTypePrefixExpression:
 		out.WriteString(node.Operator.String())
 		if ctxt.mustBracket {
 			out.WriteString("(")

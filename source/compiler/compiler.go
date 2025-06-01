@@ -25,24 +25,24 @@ var TestFolder embed.FS
 
 type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
-	Vm                       *vm.Vm                             // The vm we're compiling to.
-	P                        *parser.Parser                     // The parser the compiler's using to parse with..
-	EnumElements             map[string]values.Value            // Map from the names of the enum elements the compiler knows about to their values.
-	GlobalConsts             *Environment                       // The global constants of the module.
-	GlobalVars               *Environment                       // The global variables of the module.
-	Fns                      []*CpFunc                          // The functions the compiler knows about, in a format it can use.
-	TypeNameToTypeScheme     map[string]AlternateType           // A map from the names of built-in or declared concrete or abstract types to an AlternateType typescheme representing them.
-	Modules                  map[string]*Compiler               // Both internal services, and stubs that call the externals.
-	CallHandlerNumbersByName map[string]uint32                  // Map from the names of external services to their index as stored in the vm.
-	Timestamp                int64                              // The timestamp from the source file. TODO --- "the" source file? Wat about NULL-imports?
-	ScriptFilepath           string                             // Where the script for the module is (where "the" script is the one that supplies the namespace, not the NULL-imports).
-	TypeToCloneGroup         map[values.ValueType]AlternateType // A map from any clonable or clone type to an alt type containing the parent type and its clones.
-	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
-	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
-	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
-	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
-	ParTypes2                map[string]TypeExpressionInfo            // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
-	possibleTypesFromTypeOperator map[string] AlternateType     // Needed if it can't be resolved at compile time.
+	Vm                            *vm.Vm                             // The vm we're compiling to.
+	P                             *parser.Parser                     // The parser the compiler's using to parse with..
+	EnumElements                  map[string]values.Value            // Map from the names of the enum elements the compiler knows about to their values.
+	GlobalConsts                  *Environment                       // The global constants of the module.
+	GlobalVars                    *Environment                       // The global variables of the module.
+	Fns                           []*CpFunc                          // The functions the compiler knows about, in a format it can use.
+	TypeNameToTypeScheme          map[string]AlternateType           // A map from the names of built-in or declared concrete or abstract types to an AlternateType typescheme representing them.
+	Modules                       map[string]*Compiler               // Both internal services, and stubs that call the externals.
+	CallHandlerNumbersByName      map[string]uint32                  // Map from the names of external services to their index as stored in the vm.
+	Timestamp                     int64                              // The timestamp from the source file. TODO --- "the" source file? Wat about NULL-imports?
+	ScriptFilepath                string                             // Where the script for the module is (where "the" script is the one that supplies the namespace, not the NULL-imports).
+	TypeToCloneGroup              map[values.ValueType]AlternateType // A map from any clonable or clone type to an alt type containing the parent type and its clones.
+	labelResolvingCompilers       []*Compiler                        // We use this to resolve the meaning of labels and enums.
+	TupleType                     uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
+	Common                        *CommonCompilerBindle              // Struct to hold info shared by the compilers.
+	ParameterizedTypes            map[string][]ParameterInfo         // Holds the definitions of parameterized types.
+	ParTypes2                     map[string]TypeExpressionInfo      // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	possibleTypesFromTypeOperator map[string]AlternateType           // Needed if it can't be resolved at compile time.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -156,7 +156,7 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 )
 
 type TypeExpressionInfo struct {
-	VmTypeInfo uint32 
+	VmTypeInfo  uint32
 	ReturnTypes AlternateType
 }
 
@@ -1043,17 +1043,39 @@ NodeTypeSwitch:
 		cp.Emit(vm.Qtyp, cp.That(), uint32(values.ERROR), cp.CodeTop()+2)
 		cp.Emit(vm.Asgm, cp.That(), values.C_OK)
 		rtnTypes, rtnConst = AltType(values.UNSATISFIED_CONDITIONAL, values.SUCCESSFUL_VALUE), false
-	case *ast.TypeLiteral:
+	case *ast.TypeExpression:
+		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		if len(node.TypeArgs) == 0 {
+			abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator)
+			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
+				cp.Throw("comp/private/type/a", node.GetToken())
+				break
+			}
+			cp.Reserve(values.TYPE, abType, node.GetToken())
+			rtnTypes, rtnConst = AltType(values.TYPE), true
+		} else {
+			rtnTypes = cp.possibleTypesFromTypeOperator[node.Operator]
+			rtnConst = true 
+			cp.ReserveToken(node.GetToken())
+			argsForVm := []uint32{cp.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
+			for _, arg := range node.TypeArgs {
+				_, cst := cp.CompileNode(arg, ctxt.x())
+				argsForVm = append(argsForVm, cp.That())
+				rtnConst = rtnConst && cst
+			}
+			cp.Put(vm.Mpar, argsForVm...)
+		}
+	case *ast.TypeLiteral: // TODO --- can this happen any more?
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		typeName := node.Value
 		abType := resolvingCompiler.P.GetAbstractType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
-			cp.Throw("comp/private/type", node.GetToken())
+			cp.Throw("comp/private/type/b", node.GetToken())
 			break
 		}
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
-	case *ast.TypePrefixExpression:
+	case *ast.SigTypePrefixExpression:
 		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if abType := resolvingCompiler.P.GetAbstractType(node.Operator); abType.Len() != 1 {
@@ -1061,6 +1083,18 @@ NodeTypeSwitch:
 			break
 		}
 		rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
+	case *ast.TypePrefixExpression:
+		if len(node.TypeArgs) == 0 {
+			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, []string{}}
+			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+			if abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
+				resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
+				break
+			}
+			rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
+		} else {
+			panic("Unimplemented case")
+		}
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
 			typeInfo, conc := cp.getTypeInformation(ty.Name)

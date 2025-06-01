@@ -11,7 +11,7 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
-	"github.com/jsouthworth/immutable/hashmap"
+	
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
@@ -54,7 +54,7 @@ type Vm struct {
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter                [](func(t uint32, v any) any)
-	ParameterizedTypeInfo      []hashmap.Map    // A list of maps from type parameters to ValueTypes. The list is itself keyed by a map from type operators to the position in the list, which is stored in the compiler.
+	ParameterizedTypeInfo      []*values.Map    // A list of maps from type parameters (as TUPLE values) to types (as TYPE values). The list is itself keyed by a map from type operators to the position in the list, which is stored in the compiler.
 }
 
 // In general, the VM can't convert from type names to type numbers, because it doesn't
@@ -1151,6 +1151,21 @@ loop:
 				vm.Mem[args[0]] = vm.makeError("vm/mod/int", args[3])
 			} else {
 				vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(int) % vm.Mem[args[2]].V.(int)}
+			}
+		case Mpar:
+			vals := []values.Value{}
+			for _, loc := range args[3:] {
+				vals = append(vals, vm.Mem[loc])
+			}
+			entry, ok := vm.ParameterizedTypeInfo[args[1]].Get(values.Value{values.TUPLE, vals})
+			if !ok {
+				argsAsAny := []any{}
+				for _, v := range vals {
+					argsAsAny = append(argsAsAny, v)
+				}
+				vm.Mem[args[0]] = vm.makeError("vm/type/params", args[2], argsAsAny...)
+			} else {
+				vm.Mem[args[0]] = entry
 			}
 		case Mulf:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(float64) * vm.Mem[args[2]].V.(float64)}

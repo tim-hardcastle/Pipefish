@@ -7,4 +7,9 @@ Z = clone{i int} int :
 Vec = clone{i int} list :
     len that == i
 
-make Z{5}, Z{12}, Vec{3}
+Foo = struct{i int}(name string, age int)
+
+make Z{5}, Z{12}, Vec{3}, Foo{0}
+
+
+

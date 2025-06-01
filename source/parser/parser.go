@@ -36,22 +36,22 @@ type Parser struct {
 	Common *CommonParserBindle
 
 	// Names/token types of identifiers.
-	Functions         dtypes.Set[string]
-	Prefixes          dtypes.Set[string]
-	Forefixes         dtypes.Set[string]
-	Midfixes          dtypes.Set[string]
-	Endfixes          dtypes.Set[string]
-	Infixes           dtypes.Set[string]
-	Suffixes          dtypes.Set[string]
-	Unfixes           dtypes.Set[string]
-	Bling             dtypes.Set[string]
-	AllFunctionIdents dtypes.Set[string]
-	Typenames         dtypes.Set[string]
-	EnumTypeNames     dtypes.Set[string]
-	EnumElementNames  dtypes.Set[string]
+	Functions          dtypes.Set[string]
+	Prefixes           dtypes.Set[string]
+	Forefixes          dtypes.Set[string]
+	Midfixes           dtypes.Set[string]
+	Endfixes           dtypes.Set[string]
+	Infixes            dtypes.Set[string]
+	Suffixes           dtypes.Set[string]
+	Unfixes            dtypes.Set[string]
+	Bling              dtypes.Set[string]
+	AllFunctionIdents  dtypes.Set[string]
+	Typenames          dtypes.Set[string]
+	EnumTypeNames      dtypes.Set[string]
+	EnumElementNames   dtypes.Set[string]
 	ParameterizedTypes dtypes.Set[string]
-	nativeInfixes     dtypes.Set[token.TokenType]
-	lazyInfixes       dtypes.Set[token.TokenType]
+	nativeInfixes      dtypes.Set[token.TokenType]
+	lazyInfixes        dtypes.Set[token.TokenType]
 
 	// Used for multiple dispatch. TODO --- neither of these should be in the parser.
 
@@ -74,23 +74,23 @@ type Parser struct {
 
 func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
 	p := &Parser{
-		Logging:           true,
-		nesting:           *dtypes.NewStack[token.Token](),
-		Functions:         make(dtypes.Set[string]),
-		Prefixes:          make(dtypes.Set[string]),
-		Forefixes:         make(dtypes.Set[string]),
-		Midfixes:          make(dtypes.Set[string]),
-		Endfixes:          make(dtypes.Set[string]),
-		Infixes:           make(dtypes.Set[string]),
-		Suffixes:          make(dtypes.Set[string]),
-		Unfixes:           make(dtypes.Set[string]),
-		AllFunctionIdents: make(dtypes.Set[string]),
-		Bling:             make(dtypes.Set[string]),
-		Typenames:         make(dtypes.Set[string]),
-		EnumTypeNames:     make(dtypes.Set[string]),
-		EnumElementNames:  make(dtypes.Set[string]),
-		ParameterizedTypes:make(dtypes.Set[string]),
-		
+		Logging:            true,
+		nesting:            *dtypes.NewStack[token.Token](),
+		Functions:          make(dtypes.Set[string]),
+		Prefixes:           make(dtypes.Set[string]),
+		Forefixes:          make(dtypes.Set[string]),
+		Midfixes:           make(dtypes.Set[string]),
+		Endfixes:           make(dtypes.Set[string]),
+		Infixes:            make(dtypes.Set[string]),
+		Suffixes:           make(dtypes.Set[string]),
+		Unfixes:            make(dtypes.Set[string]),
+		AllFunctionIdents:  make(dtypes.Set[string]),
+		Bling:              make(dtypes.Set[string]),
+		Typenames:          make(dtypes.Set[string]),
+		EnumTypeNames:      make(dtypes.Set[string]),
+		EnumElementNames:   make(dtypes.Set[string]),
+		ParameterizedTypes: make(dtypes.Set[string]),
+
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
 			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
@@ -283,9 +283,21 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 			// be sure that they're not in such a position that they're being used as literals.
 			if resolvingParser.IsTypePrefix(p.CurToken.Literal) && !(p.CurToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
 				tok := p.CurToken
-				typeIs := p.ParseTypeFromCurTok(T_LOWEST)
-				if _, ok := typeIs.(*ast.TypeWithArguments); ok {
+				operator := tok.Literal
+				var typeArgs []ast.Node
+				if p.PeekToken.Type == token.LBRACE {
 					p.NextToken()
+					p.NextToken()
+					p.pushRParser(resolvingParser)
+					p.CurrentNamespace = nil
+					typeArgsNode := p.parseExpression(FPREFIX)
+					typeArgs = p.recursivelyListify(typeArgsNode)
+					p.popRParser()
+					if p.PeekToken.Type == token.RBRACE {
+						p.NextToken()
+					} else {
+						p.Throw("parse/brace", &p.CurToken)
+					}
 				}
 				if p.typeIsFunctional() {
 					p.NextToken()
@@ -299,13 +311,9 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					}
 					p.popRParser()
 					args := p.recursivelyListify(right)
-					leftExp = &ast.TypePrefixExpression{
-						Token:    tok,
-						Operator: typeIs,
-						Args:     args,
-					}
+					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, Namespace: []string{}, TypeArgs: typeArgs}
 				} else {
-					leftExp = &ast.TypeLiteral{Token: tok, Value: typeIs}
+					leftExp = &ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs}
 				}
 			} else {
 				if !resolvingParser.isPositionallyFunctional() {
@@ -818,7 +826,7 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		right.Namespace = append(right.Namespace, name)
 	case *ast.PrefixExpression:
 		right.Namespace = append(right.Namespace, name)
-	case *ast.TypePrefixExpression:
+	case *ast.SigTypePrefixExpression:
 		right.Namespace = append(right.Namespace, name)
 	case *ast.SuffixExpression:
 		right.Namespace = append(right.Namespace, name)
@@ -1174,8 +1182,8 @@ func (p *Parser) SeekColon() bool {
 
 func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, ast.AstSig, ast.Node) {
 	var (
-		dec ast.TypeNode
-		sig ast.AstSig
+		dec       ast.TypeNode
+		sig       ast.AstSig
 		typeCheck ast.Node
 	)
 	tcc.ToStart()
@@ -1186,7 +1194,7 @@ func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, a
 	p.NextToken()     // Assignment operator '='
 	dec = p.ParseTypeFromCurTok(T_LOWEST)
 	p.NextToken()
-	p.NextToken()     // The left parenthesis.
+	p.NextToken() // The left parenthesis.
 	for p.CurToken.Type != token.RPAREN {
 		tok := &p.CurToken
 		if p.CurToken.Type != token.IDENT {

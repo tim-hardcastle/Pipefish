@@ -9,7 +9,6 @@ import (
 
 	"strings"
 
-	"github.com/jsouthworth/immutable/hashmap"
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
@@ -1349,6 +1348,9 @@ func (iz *initializer) createInterfaceTypes() {
 			iz.p.TokenizedCode = sig
 			lhs := sig
 			astOfSig := iz.p.ParseTokenizedChunk()
+			if iz.ErrorsExist() {
+				break
+			}
 			var astSig, retSig ast.AstSig
 			var functionName string
 			if astOfSig.GetToken().Type == token.PIPE {
@@ -1707,17 +1709,18 @@ func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTy
 func (iz *initializer) addParameterizedTypesToVm() {
 	for _, ty := range iz.parameterizedTypeInstances { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
 		name := ty.astType.(*ast.TypeWithArguments).Name
-		typeArgs := values.ValueTypes{}
+		typeArgs := []values.Value{}
 		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
 			typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
 		}
+		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
 		if info, ok := iz.cp.ParTypes2[name]; ok {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, iz.cp.ParTypes2[name].ReturnTypes.Union(altType(iz.cp.ConcreteTypeNow(ty.astType.String())))}
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, iz.cp.ParTypes2[name].ReturnTypes.Union(altType(concreteType))}
 		} else {
 			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), altType(values.ERROR)}
-			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, *hashmap.Empty())
+			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
 		}
-		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Conj(hashmap.EntryNew(typeArgs, iz.cp.ConcreteTypeNow(ty.astType.String())))
+		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
 	}
 }
 

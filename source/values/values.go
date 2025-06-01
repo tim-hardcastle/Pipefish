@@ -74,18 +74,28 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 		return false
 	}
 	switch v.T {
-	case NULL:
-		return false
-	case INT:
-		return v.V.(int) < w.V.(int)
 	case BOOL:
 		return (!v.V.(bool)) && w.V.(bool)
-	case STRING:
-		return v.V.(string) < w.V.(string)
-	case RUNE:
-		return v.V.(rune) < w.V.(rune)
 	case FLOAT:
 		return v.V.(float64) < w.V.(float64)
+	case INT:
+		return v.V.(int) < w.V.(int)
+	case NULL:
+		return false
+	case RUNE:
+		return v.V.(rune) < w.V.(rune)
+	case STRING:
+		return v.V.(string) < w.V.(string)
+	case TUPLE:
+		if len(v.V.([]Value)) == len(w.V.([]Value)) {
+			for i, vEl := range v.V.([]Value) {
+				if vEl.compare(w.V.([]Value)[i]) {
+					return true
+				}
+			}
+			return false
+		}
+		return len(v.V.([]Value)) < len(w.V.([]Value))
 	case TYPE:
 		lhs := v.V.(AbstractType)
 		rhs := w.V.(AbstractType)
@@ -104,6 +114,7 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 		return lhs.Varchar < rhs.Varchar
 	}
 	// So we're going to assume that it's an enum and that this has been checked elsewhere.
+	// TODO --- structs, maybe lists?
 	return v.V.(int) < w.V.(int)
 }
 
@@ -244,31 +255,6 @@ func (a AbstractType) Equals(b AbstractType) bool {
 	}
 	return true
 }
-
-// For use with the 'github.com/jsouthworth/immutable/hashmap' hashmap implementation. Used for resolving parameterized types at runtime.
-type ValueTypes []Value
-
-// This is only required to work on strings, runes, bools, ints, floats, enums, and types.
-func (vs ValueTypes) Equal(ws any) bool {
-	xs := ws.(ValueTypes)
-	for i, x := range xs {
-		if x.T != vs[i].T {
-			return false
-		}
-		if x.T == TYPE {
-			if !x.V.(AbstractType).Equals(vs[i].V.(AbstractType)) {
-				return false
-			}
-		} else {
-			if x.V != vs[i].V {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-
 
 func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar {

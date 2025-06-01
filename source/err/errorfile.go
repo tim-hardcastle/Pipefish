@@ -794,7 +794,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/private/type": {
+	"comp/private/type/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "trying to access private type " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A type declared private can only be accessed by the service that owns it."
+		},
+	},
+
+	"comp/private/type/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "trying to access private type " + emph(tok.Literal)
 		},

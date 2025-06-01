@@ -399,7 +399,6 @@ func (sl *StringLiteral) Children() []Node       { return []Node{} }
 func (sl *StringLiteral) GetToken() *token.Token { return &sl.Token }
 func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Literal + "\"" }
 
-
 type SuffixExpression struct {
 	Token     token.Token
 	Operator  string
@@ -448,6 +447,30 @@ func (t *TryExpression) String() string {
 
 }
 
+type TypeExpression struct {
+	Token     token.Token
+	Operator  string
+	Namespace []string
+	TypeArgs  []Node
+}
+
+func (t *TypeExpression) Children() []Node       { return []Node{} }
+func (t *TypeExpression) GetToken() *token.Token { return &t.Token }
+func (t *TypeExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(t.Operator)
+	if len(t.TypeArgs) != 0 {
+		out.WriteString("{")
+		sep := ""
+		for _, v := range t.TypeArgs {
+			out.WriteString(sep)
+			out.WriteString(v.String())
+		}
+		out.WriteString("}")
+	}
+	return out.String()
+}
+
 type TypeLiteral struct {
 	Token     token.Token
 	Value     TypeNode
@@ -456,19 +479,63 @@ type TypeLiteral struct {
 
 func (t *TypeLiteral) Children() []Node       { return []Node{} }
 func (t *TypeLiteral) GetToken() *token.Token { return &t.Token }
-func (t *TypeLiteral) String() string         { if t.Value == nil {return "nil"} else {return t.Value.String()}}
+func (t *TypeLiteral) String() string {
+	if t.Value == nil {
+		return "nil"
+	} else {
+		return t.Value.String()
+	}
+}
 
 type TypePrefixExpression struct {
+	Token     token.Token
+	Operator  string
+	Args      []Node
+	Namespace []string
+	TypeArgs  []Node
+}
+
+func (tpe *TypePrefixExpression) Children() []Node       { return append(tpe.Args, tpe.TypeArgs...) }
+func (tpe *TypePrefixExpression) GetArgs() []Node        { return tpe.Args }
+func (tpe *TypePrefixExpression) GetToken() *token.Token { return &tpe.Token }
+func (tpe *TypePrefixExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(tpe.Operator)
+	if len(tpe.TypeArgs) != 0 {
+		out.WriteString("{")
+		sep := ""
+		for _, v := range tpe.Args {
+			out.WriteString(sep)
+			out.WriteString(v.String())
+			sep = ", "
+		}
+		out.WriteString("}")
+	}
+	out.WriteString(" ")
+	sep := ""
+	for _, v := range tpe.Args {
+		out.WriteString(sep)
+		out.WriteString(v.String())
+		sep = ", "
+	}
+	
+	out.WriteString(")")
+
+	return out.String()
+}
+
+type SigTypePrefixExpression struct {
 	Token     token.Token
 	Operator  TypeNode
 	Args      []Node
 	Namespace []string
 }
 
-func (tpe *TypePrefixExpression) Children() []Node       { return tpe.Args }
-func (tpe *TypePrefixExpression) GetArgs() []Node        { return tpe.Args }
-func (tpe *TypePrefixExpression) GetToken() *token.Token { return &tpe.Token }
-func (tpe *TypePrefixExpression) String() string {
+func (tpe *SigTypePrefixExpression) Children() []Node       { return tpe.Args }
+func (tpe *SigTypePrefixExpression) GetArgs() []Node        { return tpe.Args }
+func (tpe *SigTypePrefixExpression) GetToken() *token.Token { return &tpe.Token }
+func (tpe *SigTypePrefixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
@@ -537,7 +604,7 @@ func (uf *UnfixExpression) String() string {
 	return out.String()
 }
 
-func (uf *UnfixExpression) GetArgs() []Node { return []Node{} }
+func (uf *UnfixExpression) GetArgs() []Node     { return []Node{} }
 func (uf *UnfixExpression) GetOperator() string { return uf.Operator }
 
 // And other useful stuff.
@@ -640,7 +707,12 @@ func ExtractAllNames(node Node) dtypes.Set[string] {
 			result.AddSet(ExtractAllNames(v))
 		}
 		return result.Add(n.Operator)
-	case *TypePrefixExpression:
+	case *TypePrefixExpression:             
+		for _, v := range n.Children() {
+			result.AddSet(ExtractAllNames(v))
+		}
+		return result.Add(n.Operator)
+	case *SigTypePrefixExpression:              // TODO --- presumably now obsolete.
 		for _, v := range n.Children() {
 			result.AddSet(ExtractAllNames(v))
 		}
