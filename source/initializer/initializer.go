@@ -890,13 +890,11 @@ mainLoop:
 }
 
 func (iz *initializer) addCloneTypeAndConstructor(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, *ast.PrsrFunction) {
-	typeNo, ok := iz.addCloneType(name, typeToClone,private, decTok)
+	typeNo, ok := iz.addCloneType(name, typeToClone, private, decTok)
 	if !ok {
 		return DUMMY, nil
 	}
-	abType := typeToClone + "like"
 	// We make the conversion function.
-	iz.AddType(name, abType, typeNo)
 	iz.p.AllFunctionIdents.Add(name)
 	iz.p.Functions.Add(name)
 	sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
@@ -935,6 +933,7 @@ func (iz *initializer) addCloneType(name, typeToClone string, private bool, decT
 	}
 	cloneGroup := iz.cp.Common.SharedTypenameToTypeList[abType]
 	iz.cp.TypeToCloneGroup[typeNo] = cloneGroup
+	iz.AddType(name, abType, typeNo)
 	return typeNo, true
 }
 
