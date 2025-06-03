@@ -90,7 +90,7 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 		functionName = start.Operator
 		pos = 2
 		sig = prsr.extractSig(start.Args)
-	case *ast.TypeSuffixExpression:
+	case *ast.SigTypeSuffixExpression:
 		functionName = start.Operator.String()
 		pos = 2
 		sig = prsr.extractSig(start.Args)
@@ -115,7 +115,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 		varName := ""
 		var varType ast.TypeNode
 		switch arg := arg.(type) {
-		case *ast.TypeSuffixExpression:
+		case *ast.SigTypeSuffixExpression:
 			switch inner := arg.Args[0].(type) {
 			case *ast.Identifier:
 				varName = inner.Value
@@ -137,16 +137,8 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				varName = arg.Operator
 				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
 			} else {
-				// We may be declaring a parameter which will have the same name as a function --- e.g. 'f'.
-				// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-				// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
-				// name under those circumstances. This tends to make the whole thing stupid, we should have
-				// done all this before it got near the Pratt parser.
 				switch inner := arg.Args[0].(type) {
-				case *ast.TypeLiteral:  // TODO --- presumably this can't happen any more?
-					varName = arg.Operator
-					varType = inner.Value
-				case *ast.TypeExpression:  // TODO --- presumably this can't happen any more?
+				case *ast.TypeExpression:  
 					varName = arg.Operator
 					astType := p.ToAstType(inner)
 					if astType == nil {
@@ -280,7 +272,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (as
 		default:
 			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
-	case *ast.TypeSuffixExpression:
+	case *ast.SigTypeSuffixExpression:
 		LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
 		if err != nil {
 			return nil, err
@@ -382,11 +374,56 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 	return nil
 }
 
+// Converts type expressions to ast.TypeNodes, i.e. the sort of description of a type
+// that we should be able to find in a function signature.
 func (p *Parser) ToAstType(te *ast.TypeExpression) ast.TypeNode {
 	if len(te.TypeArgs) == 0 {
 		return &ast.TypeWithName{Token: te.Token, Name: te.Operator}
 	}
-	panic("Not done that yet!")
+	// This is either a bool, float, int, rune, string, type or enum literal, in which
+	// case the whole thing should be, OR it's a type with parameters, or it's not well-
+	// formed and shouldn't be here at all.
+	indexArg := te.TypeArgs[0] 
+	if p.findTypeArgument(indexArg).T != values.ERROR {
+		return p.toTypeWithArguments(te)
+	}
+	p.Throw("parse/type/malformed/a", te.GetToken())
+	return nil
+}
+
+func (p *Parser) toTypeWithArguments(te *ast.TypeExpression) *ast.TypeWithArguments {
+	result := *&ast.TypeWithArguments{te.Token, te.Operator, []*ast.Argument{}}
+	for _, arg := range te.TypeArgs {
+		v := p.findTypeArgument(arg)
+		if v.T == values.ERROR {
+			p.Throw("parse/type/malformed/b", te.GetToken())
+			return &result
+		}
+		result.Arguments = append(result.Arguments, &ast.Argument{*arg.GetToken(), v.T, v.V})
+	}
+	return &result
+}
+
+func (p *Parser) findTypeArgument(arg ast.Node) values.Value {
+	switch arg := arg.(type) {
+	case *ast.Identifier:
+		if p.IsEnumElement(arg.Value) {
+			return values.Value{0, arg.Value} // We don't know the enum types yet so we kludge them in later.
+		}
+	case *ast.BooleanLiteral:
+		return values.Value{values.BOOL, arg.Value}
+	case *ast.FloatLiteral:
+		return values.Value{values.FLOAT, arg.Value}
+	case *ast.IntegerLiteral:
+		return values.Value{values.INT, arg.Value}
+	case *ast.RuneLiteral:
+		return values.Value{values.RUNE, arg.Value}
+	case *ast.StringLiteral:
+		return values.Value{values.STRING, arg.Value}
+	case *ast.TypeExpression:
+		return values.Value{values.TYPE, p.ToAstType(arg)}
+	}
+	return values.Value{values.ERROR, nil}
 }
 
 // Gets the variable from the lhs and rhs of an assignment when it's still in the form of tokens.

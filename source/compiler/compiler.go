@@ -42,7 +42,6 @@ type Compiler struct {
 	Common                        *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	ParameterizedTypes            map[string][]ParameterInfo         // Holds the definitions of parameterized types.
 	ParTypes2                     map[string]TypeExpressionInfo      // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
-	possibleTypesFromTypeOperator map[string]AlternateType           // Needed if it can't be resolved at compile time.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -156,8 +155,9 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 )
 
 type TypeExpressionInfo struct {
-	VmTypeInfo  uint32
-	IsClone     bool
+	VmTypeInfo uint32
+	IsClone    bool
+	PossibleReturnTypes AlternateType
 }
 
 // The `Do` function of the VM is what a Service calls to get it to evaluate a line of code from the REPL.
@@ -1054,8 +1054,8 @@ NodeTypeSwitch:
 			cp.Reserve(values.TYPE, abType, node.GetToken())
 			rtnTypes, rtnConst = AltType(values.TYPE), true
 		} else {
-			rtnTypes = resolvingCompiler.possibleTypesFromTypeOperator[node.Operator]
-			rtnConst = true 
+			rtnTypes = resolvingCompiler.ParTypes2[node.Operator].PossibleReturnTypes
+			rtnConst = true
 			cp.ReserveToken(node.GetToken())
 			argsForVm := []uint32{resolvingCompiler.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
 			for _, arg := range node.TypeArgs {
@@ -1095,12 +1095,12 @@ NodeTypeSwitch:
 		} else {
 			typeNode := &ast.TypeExpression{Token: node.Token, Operator: node.Operator, Namespace: node.Namespace, TypeArgs: node.TypeArgs}
 			argsWithType := append([]ast.Node{typeNode}, node.Args...)
-			// We arbitrarily use a '+' at the start of the constructor name to distinguish it from any non-parameterized type of the same name.
-			node.Token.Literal = "+" + node.Token.Literal // TODO --- this is heinous. Anything looking at a PrefixExpression should be looking at the operator, not the token literal.
-			constructor := &ast.PrefixExpression{node.Token, "+" + node.Operator, argsWithType, node.Namespace}
+			
+			node.Token.Literal = node.Token.Literal + "{}" // TODO --- this is heinous. Anything looking at a PrefixExpression should be looking at the operator, not the token literal.
+			constructor := &ast.PrefixExpression{node.Token, node.Operator+"{}", argsWithType, node.Namespace}
 			rtnTypes, rtnConst = cp.CompileNode(constructor, ctxt)
 		}
-	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
+	case *ast.SigTypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
 			typeInfo, conc := cp.getTypeInformation(ty.Name)
 			if !conc || !typeInfo.IsClone() {
@@ -2852,8 +2852,8 @@ type ParameterInfo struct {
 	Types      []values.ValueType
 	Operations []string // TODO --- really this and the following fields belong in the initializer
 	Typecheck  ast.Node
-	ParentType string      // 'struct' if not a clone
-	Sig        ast.AstSig  // nil if not a struct (because the sig of a clone is implicit in the parent type).
+	ParentType string     // 'struct' if not a clone
+	Sig        ast.AstSig // nil if not a struct (because the sig of a clone is implicit in the parent type).
 	IsPrivate  bool
 	Supertype  string
 	Token      *token.Token

@@ -1022,7 +1022,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/types": {
 		Message: func(tok *token.Token, args ...any) string {
-			// Note that emphasis of args[2] is done at source.
+			// Note that emphasis of args[1] is done at source.
+
 			return "function " + emph(args[0]) + " cannot accept arguments of type " + args[1].(string)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {

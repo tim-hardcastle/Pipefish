@@ -113,9 +113,9 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Bsql: {"bsql", operands{dst, mem}},
 	Call: {"call", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; and a tuple saying where to get them from.
 	CalT: {"calt", operands{loc, mem, mem, tup}}, // The location to call, the bottom and (exclusive) top of where to put the parameters; the memory location of a list of places where we capture tuples, and a tuple saying where to get them from.
-	CasP: {"cast", operands{dst, tok, mem, mem}},
+	CasP: {"casP", operands{dst, tok, mem, mem}},
 	Cast: {"cast", operands{dst, mem, typ}},
-	Casx: {"cast", operands{dst, mem, typ, tok}},
+	Casx: {"casx", operands{dst, mem, typ, tok}},
 	Cc11: {"cc11", operands{dst, mem, mem}},
 	Cc1T: {"cc1T", operands{dst, mem, mem}},
 	CcT1: {"ccT1", operands{dst, mem, mem}},

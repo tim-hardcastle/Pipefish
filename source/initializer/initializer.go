@@ -1490,7 +1490,7 @@ loop:
 	// Now we can make a constructor function for each of the type operators.
 	
 	for typeOperator, operatorInfo := range iz.typeOperators {
-		name := "+" + typeOperator
+		name := typeOperator + "{}"
 		sig := append(ast.AstSig{ast.NameTypeAstPair{"+t", &ast.TypeWithName{*operatorInfo.definedAt[0], "type"}}}, operatorInfo.constructorSig...)
 		fnNo := iz.addToBuiltins(sig, name, operatorInfo.returnTypes, false, operatorInfo.definedAt[0])
 		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: operatorInfo.definedAt[0]}
@@ -1732,9 +1732,9 @@ func (iz *initializer) addParameterizedTypesToVm() {
 		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
 		concreteTypeInfo := iz.cp.Vm.ConcreteTypeInfo[concreteType]
 		if info, ok := iz.cp.ParTypes2[name]; ok {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone()}
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.cp.ParTypes2[name].PossibleReturnTypes.Union(altType(concreteType))}
 		} else {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone()}
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), altType(values.ERROR, concreteType)}
 			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
 		}
 		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})

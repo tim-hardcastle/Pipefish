@@ -134,7 +134,11 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.Put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
-		cp.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
+		if text.Tail(b.tok.Literal, "{}") {
+			cp.Throw("comp/types", b.tok, b.tok.Literal, (b.types[1:]).describeWithPotentialInfix(cp.Vm, b.tok.Literal))	
+		} else {
+			cp.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
+		}
 	}
 	for _, v := range backtrackList {
 		if v != DUMMY {
@@ -647,8 +651,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					return functionAndType.T
 				}
 				// It could be a parameterized type constructor.
-				if builtinTag != "" && builtinTag[0] == '+' {
-					typeOperator := builtinTag[1:]
+				if text.Tail(builtinTag, "{}") {
+					typeOperator := builtinTag[:len(builtinTag)-2]
 					tokenOrdinal := cp.ReserveToken(b.tok)
 					if cp.ParTypes2[typeOperator].IsClone {
 						cp.Emit(vm.CasP, b.outLoc, tokenOrdinal, b.valLocs[0], b.valLocs[1])
@@ -657,7 +661,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						cp.cmP("Emitting parameterized struct constructor.", b.tok)
 						cp.Emit(vm.StrP, args...)
 					}
-					return cp.possibleTypesFromTypeOperator[typeOperator]
+					return cp.ParTypes2[typeOperator].PossibleReturnTypes
 				}
 				// It could be an ordinary type constructor.
 				typeNumber, ok := cp.GetConcreteType(builtinTag)

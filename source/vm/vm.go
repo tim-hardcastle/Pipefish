@@ -448,6 +448,8 @@ loop:
 				} else {
 					vm.Mem[args[0]] = values.Value{typeNo, vm.Mem[args[3]].V}
 				}
+			} else {
+				vm.Mem[args[0]] = values.Value{typeNo, vm.Mem[args[3]].V}
 			}
 		case Cast:
 			vm.Mem[args[0]] = values.Value{values.ValueType(args[2]), vm.Mem[args[1]].V}

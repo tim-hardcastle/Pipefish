@@ -363,7 +363,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 	}
 
 	for precedence < p.peekPrecedence() {
-		for resolvingParser.Suffixes.Contains(p.PeekToken.Literal) || resolvingParser.Endfixes.Contains(p.PeekToken.Literal) || p.PeekToken.Type == token.DOTDOTDOT {
+		for resolvingParser.IsTypePrefix(p.PeekToken.Literal) || resolvingParser.Suffixes.Contains(p.PeekToken.Literal) || resolvingParser.Endfixes.Contains(p.PeekToken.Literal) || p.PeekToken.Type == token.DOTDOTDOT {
 			if p.CurToken.Type == token.NOT || p.CurToken.Type == token.IDENT && p.CurToken.Literal == "-" || p.CurToken.Type == token.ELSE {
 				p.Throw("parse/before/b", &p.CurToken, &p.PeekToken)
 				return nil
@@ -383,7 +383,7 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 						Args:     p.recursivelyListify(leftExp),
 					}
 				} else {
-					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
+					leftExp = &ast.SigTypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
 				}
 			} else {
 				p.NextToken()
@@ -833,8 +833,8 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 	case *ast.TypeExpression:
 		right.Namespace = append(right.Namespace, name)
 	case *ast.TypePrefixExpression:
-		right.Namespace = append(right.Namespace, name)	
-	case *ast.TypeSuffixExpression:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.SigTypeSuffixExpression:
 		right.Namespace = append(right.Namespace, name)
 	case *ast.TypeLiteral:
 		right.Namespace = append(right.Namespace, name)

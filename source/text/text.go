@@ -351,6 +351,13 @@ func Head(s, substr string) bool {
 	return s[:len(substr)] == substr
 }
 
+func Tail(s, substr string) bool {
+	if len(s) < len(substr) {
+		return false
+	}
+	return s[len(s) - len(substr):] == substr
+}
+
 func WithoutDots(s string) string {
 	if Head(s, "...") {
 		return s[3:]
