@@ -1054,8 +1054,7 @@ NodeTypeSwitch:
 			cp.Reserve(values.TYPE, abType, node.GetToken())
 			rtnTypes, rtnConst = AltType(values.TYPE), true
 		} else {
-			rtnTypes = resolvingCompiler.ParTypes2[node.Operator].PossibleReturnTypes
-			rtnConst = true
+			rtnTypes, rtnConst = AltType(values.ERROR, values.TYPE), true
 			cp.ReserveToken(node.GetToken())
 			argsForVm := []uint32{resolvingCompiler.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
 			for _, arg := range node.TypeArgs {

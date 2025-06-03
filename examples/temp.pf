@@ -1,19 +1,18 @@
 var
 
-x = 3
+v = 5
+
+const
+
+C = 5
 
 newtype
 
-Z = clone{i int} int :
-    0 <= that
-    that < i
+Z = clone{i int} int 
 
-Foo = struct{i int}(name string, age int) :
-    that[age] < i
-
-make Z{5}, Foo{18}
+make Z{5}, Z{12}
 
 def
 
-(x Z{5}) + (y Z{5}) :
-    Z{5}(int(x) + int(y) mod 5)
+(x Z{i int}) + (y Z{i int}) :
+    Z{i}(int(x) + int(y) mod i)

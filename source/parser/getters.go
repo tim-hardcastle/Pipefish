@@ -387,8 +387,7 @@ func (p *Parser) ToAstType(te *ast.TypeExpression) ast.TypeNode {
 	if p.findTypeArgument(indexArg).T != values.ERROR {
 		return p.toTypeWithArguments(te)
 	}
-	p.Throw("parse/type/malformed/a", te.GetToken())
-	return nil
+	return p.toTypeWithParameters(te)
 }
 
 func (p *Parser) toTypeWithArguments(te *ast.TypeExpression) *ast.TypeWithArguments {
@@ -402,6 +401,16 @@ func (p *Parser) toTypeWithArguments(te *ast.TypeExpression) *ast.TypeWithArgume
 		result.Arguments = append(result.Arguments, &ast.Argument{*arg.GetToken(), v.T, v.V})
 	}
 	return &result
+}
+
+func (p *Parser) toTypeWithParameters(te *ast.TypeExpression) *ast.TypeWithParameters {
+	sig := p.extractSig(te.TypeArgs)
+	params := []*ast.Parameter{}
+	for _, pair := range sig {
+		newParameter := &ast.Parameter{pair.VarName, pair.VarType.String()}
+		params = append(params, newParameter)
+	}
+	return &ast.TypeWithParameters{te.Token, te.Operator, params}
 }
 
 func (p *Parser) findTypeArgument(arg ast.Node) values.Value {
