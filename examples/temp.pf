@@ -8,7 +8,10 @@ Z = clone{i int} int :
     0 <= that
     that < i
 
-make Z{5}
+Foo = struct{i int}(name string, age int) :
+    that[age] < i
+
+make Z{5}, Foo{18}
 
 def
 

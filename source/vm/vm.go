@@ -441,13 +441,9 @@ loop:
 			if typeCheck := vm.ConcreteTypeInfo[typeNo].(CloneType).TypeCheck; typeCheck != nil {
 				vm.Mem[typeCheck.TokNumberLoc] = values.Value{values.INT, int(args[1])}
 				vm.Mem[typeCheck.InLoc] = vm.Mem[args[3]]
+				vm.Mem[typeCheck.ResultLoc] = values.Value{typeNo, vm.Mem[args[3]].V}
 				vm.Run(typeCheck.CallAddress)
-				result := vm.Mem[typeCheck.ResultLoc]
-				if result.T == values.ERROR {
-					vm.Mem[args[0]] = result
-				} else {
-					vm.Mem[args[0]] = values.Value{typeNo, vm.Mem[args[3]].V}
-				}
+				vm.Mem[args[0]] = vm.Mem[typeCheck.ResultLoc]
 			} else {
 				vm.Mem[args[0]] = values.Value{typeNo, vm.Mem[args[3]].V}
 			}
@@ -1461,14 +1457,14 @@ loop:
 			for _, loc := range args[3:] {
 				fields = append(fields, vm.Mem[loc])
 			}
-			vm.Mem[args[0]] = values.Value{typeNo, fields}
 			if typeCheck := vm.ConcreteTypeInfo[typeNo].(StructType).TypeCheck; typeCheck != nil {
 				vm.Mem[typeCheck.TokNumberLoc] = values.Value{values.INT, int(args[1])}
-				vm.Mem[typeCheck.InLoc] = vm.Mem[args[0]]
+				vm.Mem[typeCheck.InLoc] = values.Value{typeNo, fields}
+				vm.Mem[typeCheck.ResultLoc] = values.Value{typeNo, fields}
 				vm.Run(typeCheck.CallAddress)
-				if vm.Mem[typeCheck.ResultLoc].T == values.ERROR {
-					vm.Mem[args[0]] = vm.Mem[typeCheck.ResultLoc]
-				}
+				vm.Mem[args[0]] = vm.Mem[typeCheck.ResultLoc]
+			} else {
+				vm.Mem[args[0]] = values.Value{typeNo, fields}
 			}
 		case Strc:
 			fields := make([]values.Value, 0, len(args)-2)
