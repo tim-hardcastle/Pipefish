@@ -541,7 +541,8 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
-		p.PeekToken.Type == token.COMMA {
+		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK || 
+		p.PeekToken.Type == token.RBRACE {
 		return false
 	}
 	if p.CurToken.Literal == "type" && p.IsTypePrefix(p.PeekToken.Literal) {
@@ -583,7 +584,8 @@ func (p *Parser) typeIsFunctional() bool {
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
-		p.PeekToken.Type == token.COMMA {
+		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK || 
+		p.PeekToken.Type == token.RBRACE {
 		return false
 	}
 	if p.PeekToken.Type == token.EMDASH || p.PeekToken.Type == token.LBRACK {

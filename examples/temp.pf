@@ -1,14 +1,7 @@
-var
-
-v = 5
-
-const
-
-C = 5
-
 newtype
 
-Z = clone{i int} int 
+Z = clone{i int} int :       // Some modular arithmetic.
+    0 <= that and that < i
 
 make Z{5}, Z{12}
 
@@ -16,3 +9,28 @@ def
 
 (x Z{i int}) + (y Z{i int}) :
     Z{i}(int(x) + int(y) mod i)
+
+newtype
+
+Vec = clone{i int} list :    // Vectors!
+    len(that) == i
+
+make Vec{2}, Vec{3}
+
+def
+
+(v Vec{i int}) + (w Vec{i int}) :
+    Vec{i} from a = [] for j::el = range v :
+        a + [el + w[j]] 
+
+newtype 
+
+list = clone{T type} list using +, slice :
+    from a = true for _::el = range that :
+        el in T :
+            continue 
+        else :
+            break false
+
+make list{int}
+

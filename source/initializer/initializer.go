@@ -167,13 +167,6 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 		return result
 	}
 
-	iz.cmI("Adding parameterized types to VM.")
-	iz.addParameterizedTypesToVm()
-	if iz.ErrorsExist() {
-		iz.cp.P.Common.IsBroken = true
-		return result
-	}
-
 	iz.cmI("Making function tables.")
 	iz.MakeFunctionTables()
 	if iz.ErrorsExist() {
@@ -195,6 +188,13 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 	}
 	iz.cmI("Adding abstract types to parameterized types.")
 	iz.tweakParameterizedTypes()
+	if iz.ErrorsExist() {
+		iz.cp.P.Common.IsBroken = true
+		return result
+	}
+
+	iz.cmI("Adding parameterized types to VM.")
+	iz.addParameterizedTypesToVm()
 	if iz.ErrorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -1719,28 +1719,6 @@ func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTy
 	return uint32(len(iz.cp.Fns) - 1)
 }
 
-// This initializes a map in the compiler associating each type operator to
-// the number of a list in the compiler containing maps from type arguments to concrete type numbers.
-// This method hooks them together.
-func (iz *initializer) addParameterizedTypesToVm() {
-	for _, ty := range iz.parameterizedTypeInstances { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
-		name := ty.astType.(*ast.TypeWithArguments).Name
-		typeArgs := []values.Value{}
-		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
-			typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
-		}
-		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
-		concreteTypeInfo := iz.cp.Vm.ConcreteTypeInfo[concreteType]
-		if info, ok := iz.cp.ParTypes2[name]; ok {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.cp.ParTypes2[name].PossibleReturnTypes.Union(altType(concreteType))}
-		} else {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), altType(values.ERROR, concreteType)}
-			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
-		}
-		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
-	}
-}
-
 // Phase 4 of compilation. At this point we have our functions as parsed code chunks in the
 // `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures
 // and order them according to specificity for the purposes of implementing overloading.
@@ -1967,6 +1945,33 @@ func (iz *initializer) tweakParameterizedTypes() {
 		default:
 			panic("unhandled case")
 		}
+	}
+}
+
+// This initializes a map in the compiler associating each type operator to
+// the number of a list in the compiler containing maps from type arguments to concrete type numbers.
+// This method hooks them together.
+// It also tweaks the arguments to convert the payload of TYPE from the improper AstType to the correct AbstractType.
+func (iz *initializer) addParameterizedTypesToVm() {
+	for _, ty := range iz.parameterizedTypeInstances { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
+		name := ty.astType.(*ast.TypeWithArguments).Name
+		typeArgs := []values.Value{}
+		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
+			if v.Type == values.TYPE {
+				typeArgs = append(typeArgs, values.Value{values.TYPE, iz.p.GetAbstractType(v.Value.(ast.TypeNode))})
+			} else {
+				typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
+			}
+		}
+		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
+		concreteTypeInfo := iz.cp.Vm.ConcreteTypeInfo[concreteType]
+		if info, ok := iz.cp.ParTypes2[name]; ok {
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.cp.ParTypes2[name].PossibleReturnTypes.Union(altType(concreteType))}
+		} else {
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), altType(values.ERROR, concreteType)}
+			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
+		}
+		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
 	}
 }
 
