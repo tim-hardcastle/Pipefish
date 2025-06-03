@@ -436,6 +436,19 @@ loop:
 			vm.callstack = append(vm.callstack, loc)
 			loc = args[0]
 			continue
+		case CasP:
+			typeNo := vm.Mem[args[2]].V.(values.AbstractType).Types[0]
+			if typeCheck := vm.ConcreteTypeInfo[typeNo].(CloneType).TypeCheck; typeCheck != nil {
+				vm.Mem[typeCheck.TokNumberLoc] = values.Value{values.INT, int(args[1])}
+				vm.Mem[typeCheck.InLoc] = vm.Mem[args[3]]
+				vm.Run(typeCheck.CallAddress)
+				result := vm.Mem[typeCheck.ResultLoc]
+				if result.T == values.ERROR {
+					vm.Mem[args[0]] = result
+				} else {
+					vm.Mem[args[0]] = values.Value{typeNo, vm.Mem[args[3]].V}
+				}
+			}
 		case Cast:
 			vm.Mem[args[0]] = values.Value{values.ValueType(args[2]), vm.Mem[args[1]].V}
 		case Casx:
@@ -502,6 +515,9 @@ loop:
 					errorInfo := vm.TypeCheckErrors[args[3]]
 					vm.Mem[args[0]] = vm.makeError("vm/typecheck/fail", tokNumber,
 					    errorInfo.Condition, errorInfo.Type, errorInfo.Tok, errorInfo.Value)
+					if len(vm.callstack) == stackHeight { // This is so that we can call "Run" when we have things on the stack and it will bottom out at the appropriate time.
+						break loop
+					}
 					loc = vm.callstack[len(vm.callstack)-1]
 					vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 				}
@@ -1437,6 +1453,21 @@ loop:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, tup[ix[0].V.(int):ix[1].V.(int)]}
 		case SlTn:
 			vm.Mem[args[0]] = values.Value{values.TUPLE, (vm.Mem[args[1]].V.([]values.Value))[args[2]:]}
+		case StrP:
+			typeNo := vm.Mem[args[2]].V.(values.AbstractType).Types[0]
+			fields := make([]values.Value, 0, len(args)-3)
+			for _, loc := range args[3:] {
+				fields = append(fields, vm.Mem[loc])
+			}
+			vm.Mem[args[0]] = values.Value{typeNo, fields}
+			if typeCheck := vm.ConcreteTypeInfo[typeNo].(StructType).TypeCheck; typeCheck != nil {
+				vm.Mem[typeCheck.TokNumberLoc] = values.Value{values.INT, int(args[1])}
+				vm.Mem[typeCheck.InLoc] = vm.Mem[args[0]]
+				vm.Run(typeCheck.CallAddress)
+				if vm.Mem[typeCheck.ResultLoc].T == values.ERROR {
+					vm.Mem[args[0]] = vm.Mem[typeCheck.ResultLoc]
+				}
+			}
 		case Strc:
 			fields := make([]values.Value, 0, len(args)-2)
 			for _, loc := range args[2:] {

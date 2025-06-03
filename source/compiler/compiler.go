@@ -157,7 +157,7 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 
 type TypeExpressionInfo struct {
 	VmTypeInfo  uint32
-	ReturnTypes AlternateType
+	IsClone     bool
 }
 
 // The `Do` function of the VM is what a Service calls to get it to evaluate a line of code from the REPL.
@@ -1075,7 +1075,7 @@ NodeTypeSwitch:
 		}
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
-	case *ast.SigTypePrefixExpression:
+	case *ast.SigTypePrefixExpression: //TODO --- or this?
 		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if abType := resolvingCompiler.P.GetAbstractType(node.Operator); abType.Len() != 1 {
@@ -1083,9 +1083,9 @@ NodeTypeSwitch:
 			break
 		}
 		rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
-	case *ast.TypePrefixExpression:
+	case *ast.TypePrefixExpression: // TODO --- since this ends up as a PrefixExpression eventually, could it not start off as one?
 		if len(node.TypeArgs) == 0 {
-			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, []string{}}
+			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 			if abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
 				resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
@@ -1093,7 +1093,13 @@ NodeTypeSwitch:
 			}
 			rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
 		} else {
-			panic("Unimplemented case")
+			typeNode := &ast.TypeExpression{Token: node.Token, Operator: node.Operator, Namespace: node.Namespace, TypeArgs: node.TypeArgs}
+			argsWithType := append([]ast.Node{typeNode}, node.Args...)
+			// We arbitrarily use a '+' at the start of the constructor name to distinguish it from any non-parameterized type of the same name.
+			node.Token.Literal = "+" + node.Token.Literal // TODO --- this is heinous. Anything looking at a PrefixExpression should be looking at the operator, not the token literal.
+			constructor := &ast.PrefixExpression{node.Token, "+" + node.Operator, argsWithType, node.Namespace}
+			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+			rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
 		}
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
@@ -2848,9 +2854,10 @@ type ParameterInfo struct {
 	Operations []string // TODO --- really this and the following fields belong in the initializer
 	Typecheck  ast.Node
 	ParentType string      // 'struct' if not a clone
-	Sig        *ast.AstSig // nil if not a struct (because the sig of a clone is implicit in the parent type).
+	Sig        ast.AstSig  // nil if not a struct (because the sig of a clone is implicit in the parent type).
 	IsPrivate  bool
 	Supertype  string
+	Token      *token.Token
 }
 
 // TODO --- there should be more performant ways of doing this but for now I'll just

@@ -31,6 +31,9 @@ func (cp *Compiler) GetConcreteType(name string) (values.ValueType, bool) {
 
 func (cp *Compiler) ConcreteTypeNow(name string) values.ValueType {
 	abstractType := cp.getAbstractType(name)
+	if len(abstractType.Types) == 0 {
+		panic("Name is " + name)
+	}
 	return abstractType.Types[0]
 }
 

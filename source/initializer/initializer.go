@@ -50,6 +50,9 @@ type initializer struct {
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
+	// This contains information about the operators of parameterized types, e.g. Z.
+	typeOperators                       map[string]typeOperatorInfo    
+	// Whereas these contain information about the instances of the types, e.g. Z{5}, Z{12}.
 	parameterizedTypeMap                map[string]int                 // Maps names to the numbered type instances below.
 	parameterizedTypeInstances          []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
 }
@@ -61,6 +64,7 @@ func NewInitializer() *initializer {
 		localConcreteTypes:  make(dtypes.Set[values.ValueType]),
 		fnIndex:             make(map[fnSource]*ast.PrsrFunction),
 		unserializableTypes: make(dtypes.Set[string]),
+		typeOperators:       make(map[string]typeOperatorInfo),
 		parameterizedTypeMap: make(map[string]int),
 		parameterizedTypeInstances: make([]parameterizedTypeInstance, 0),
 	}
@@ -93,6 +97,13 @@ type parameterizedTypeInstance struct{
 	typeCheck ast.Node
 	fields    ast.AstSig
 	vals      []values.Value
+}
+
+type typeOperatorInfo struct {
+	constructorSig ast.AstSig   // The signature of the constructor, before we prepend the secret-sauce `+t type` parameter.
+	isClone        bool
+	returnTypes    compiler.AlternateType
+	definedAt      []*token.Token
 }
 
 // Initializes a compiler.
@@ -852,7 +863,7 @@ mainLoop:
 		case *ast.TypeWithName:
 		case *ast.TypeWithParameters:
 			opList, typeCheck := iz.getOpList(tokens)
-			ok := iz.registerParameterizedType(name, paramSig, opList, typeCheck, typeToClone, iz.IsPrivate(int(cloneDeclaration), i))
+			ok := iz.registerParameterizedType(name, paramSig, opList, typeCheck, typeToClone, iz.IsPrivate(int(cloneDeclaration), i), &tok1)
 			if !ok {
 				iz.Throw("init/clone/exists", tokens.IndexToken())
 				continue mainLoop
@@ -879,10 +890,31 @@ mainLoop:
 }
 
 func (iz *initializer) addCloneTypeAndConstructor(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, *ast.PrsrFunction) {
+	typeNo, ok := iz.addCloneType(name, typeToClone,private, decTok)
+	if !ok {
+		return DUMMY, nil
+	}
+	abType := typeToClone + "like"
+	// We make the conversion function.
+	iz.AddType(name, abType, typeNo)
+	iz.p.AllFunctionIdents.Add(name)
+	iz.p.Functions.Add(name)
+	sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
+	rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
+	fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: decTok}
+	iz.Add(name, fn)
+	if typeToClone == "int" || typeToClone == "float" {
+		iz.p.Suffixes.Add(name)
+		iz.p.Suffixes.Add(name + "?")
+	}
+	return typeNo, fn
+}
+
+func (iz *initializer) addCloneType(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, bool) {
 	parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 	if !ok {
 		iz.Throw("init/clone/type/a", decTok, typeToClone)
-		return DUMMY, nil
+		return DUMMY, false
 	}
 	abType := typeToClone + "like"
 	var typeNo values.ValueType
@@ -903,19 +935,7 @@ func (iz *initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 	}
 	cloneGroup := iz.cp.Common.SharedTypenameToTypeList[abType]
 	iz.cp.TypeToCloneGroup[typeNo] = cloneGroup
-	// We make the conversion function.
-	iz.AddType(name, abType, typeNo)
-	iz.p.AllFunctionIdents.Add(name)
-	iz.p.Functions.Add(name)
-	sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
-	rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
-	fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: decTok}
-	iz.Add(name, fn)
-	if typeToClone == "int" || typeToClone == "float" {
-		iz.p.Suffixes.Add(name)
-		iz.p.Suffixes.Add(name + "?")
-	}
-	return typeNo, fn
+	return typeNo, true
 }
 
 func (iz *initializer) createOperations(nameAst ast.TypeNode, typeNo values.ValueType, opList []string, parentTypeNo values.ValueType, private bool, tok1 *token.Token) {
@@ -1089,7 +1109,7 @@ func (iz *initializer) createStructNames() {
 		switch ty := ty.(type) {
 		case *ast.TypeWithName:
 		case *ast.TypeWithParameters:
-			ok := iz.registerParameterizedType(name, ty, nil, nil, "struct", iz.IsPrivate(int(structDeclaration), i))
+			ok := iz.registerParameterizedType(name, ty, nil, nil, "struct", iz.IsPrivate(int(structDeclaration), i), indexToken)
 			if !ok {
 				iz.Throw("init/struct/exists", indexToken)
 			}
@@ -1118,12 +1138,6 @@ func (iz *initializer) createStructNames() {
 	}
 }
 
-func (iz *initializer) addStructTypeAndConstructor(name string, sig ast.AstSig, private bool, indexToken *token.Token) (values.ValueType, *ast.PrsrFunction) {
-	typeNo := iz.addStructType(name, private, indexToken)
-	fn := iz.makeStructTypeAndConstructor(name, typeNo, sig, private, indexToken)
-	return typeNo, fn
-}
-
 func (iz *initializer) addStructType(name string, private bool, indexToken *token.Token) values.ValueType {
 	iz.p.AllFunctionIdents.Add(name)
 	iz.p.Functions.Add(name)
@@ -1150,54 +1164,47 @@ func (iz *initializer) createStructLabels() {
 		name := indexToken.Literal
 		// We will now extract the AstSig lexically.
 		dec, sig, typecheck := iz.cp.P.ParseSigFromTcc(tcc)
-		labelsForStruct := make([]int, 0, len(sig))
-		for j, labelNameAndType := range sig {
-			labelName := labelNameAndType.VarName
-			labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
-			if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
-				labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
-				iz.setDeclaration(decLABEL, indexToken, j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
-			} else {
-				iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexToken)
-				iz.setDeclaration(decLABEL, indexToken, j, labelInfo{iz.cp.That(), true})
-				labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
-				iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
-				iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, iz.IsPrivate(int(structDeclaration), i))
-			}
-		}
-		if ty, ok := dec.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type, but they need their own functions.
+		labelsForStruct := iz.makeLabelsFromSig(sig, iz.IsPrivate(int(structDeclaration), i), indexToken)
+		if ty, ok := dec.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type.
 			ty.Name = name
 			argIndex := iz.paramTypeExists(ty)
-			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = &sig
+			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = sig
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = typecheck
 		    continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
 		private := iz.IsPrivate(int(structDeclaration), i)
-		iz.makeStructTypeAndConstructor(name, typeNo, sig, private, indexToken)
+		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, private, sig})
+		stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+			Private: private, IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
+		stT = stT.AddLabels(labelsForStruct)
+		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
+		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), private, indexToken)
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
+		iz.Add(name, fn)
 	}
 }
 
-// ****TODO --- make the return type of the builtin depend on whether there's a typecheck.
-func (iz initializer) makeStructTypeAndConstructor(name string, typeNo values.ValueType, sig ast.AstSig, private bool, indexToken *token.Token) *ast.PrsrFunction {
-	fnNo := iz.addToBuiltins(sig, name, altType(typeNo), private, indexToken)
-	fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
-	iz.Add(name, fn)
-	labelsForStruct := []int{}
-	for _, v := range sig {
-        index := iz.cp.Vm.FieldLabelsInMem[v.VarName]
-		indexNumber := iz.cp.Vm.Mem[index].V.(int)
-		labelsForStruct = append(labelsForStruct, indexNumber)
+func (iz *initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexToken *token.Token) []int {
+	labelsForStruct := make([]int, 0, len(sig))
+	for j, labelNameAndType := range sig {
+		labelName := labelNameAndType.VarName
+		labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
+		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
+			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
+			iz.setDeclaration(decLABEL, indexToken, j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
+		} else {
+			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexToken)
+			iz.setDeclaration(decLABEL, indexToken, j, labelInfo{iz.cp.That(), true})
+			labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
+			iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
+			iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, private)
+		}
 	}
-	iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, private, sig})
-	stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
-		Private: private, IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
-	stT = stT.AddLabels(labelsForStruct)
-	iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
-	return fn
-} 
+	return labelsForStruct
+}
 
-func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []string, typeCheck ast.Node, parentType string, private bool) bool {
+func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []string, typeCheck ast.Node, parentType string, private bool, tok *token.Token) bool {
 	info, ok := iz.cp.ParameterizedTypes[name]
 	if ok {
 		if iz.paramTypeExists(ty) == DUMMY { // TODO --- why?
@@ -1209,7 +1216,7 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	supertype := blankType.String()
 	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters), 
 		iz.astParamsToValueTypes(ty.Parameters), opList, 
-		typeCheck, parentType, nil, private, supertype}
+		typeCheck, parentType, nil, private, supertype, tok}
 	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
 	if ok {
 		info = append(info, thingToAdd)
@@ -1384,7 +1391,7 @@ func (iz *initializer) createInterfaceTypes() {
 
 func (iz *initializer) instantiateParameterizedTypes() {
 loop:
-	for _, dec := range iz.TokenizedDeclarations[makeDeclaration] {
+	for i, dec := range iz.TokenizedDeclarations[makeDeclaration] {
 		dec.ToStart()
 		iz.cp.P.TokenizedCode = dec
 		iz.cp.P.SafeNextToken()
@@ -1432,33 +1439,34 @@ loop:
 					iz.Throw("init/clone/type", dec.IndexToken())
 					return
 				}
-				// Now we have all our ducks in a row. 
-
-				// We can compile the clone constructors and requested operations for the new type 
-				// using the same apparatus as we used for plain old clone types.
 				var (
 					typeNo values.ValueType
 					sig ast.AstSig
-					resultType compiler.AlternateType
-					fn *ast.PrsrFunction
 				)
-				if parTypeInfo.Typecheck == nil {
-					resultType = altType(typeNo)
-				} else {
-					resultType = altType(values.ERROR, typeNo)
-				}
 				if isClone {
-					typeNo, fn = iz.addCloneTypeAndConstructor(newTypeName, parTypeInfo.ParentType, false, &tok)
+					typeNo, _ = iz.addCloneType(ty.String(), parTypeInfo.ParentType, false, &tok)
+					iz.createOperations(ty, typeNo, parTypeInfo.Operations, parentTypeNo, parTypeInfo.IsPrivate, &tok)
 					sig = ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-					iz.createOperations(ty, typeNo, parTypeInfo.Operations, 
-					parentTypeNo, parTypeInfo.IsPrivate, &tok)
 				} else { 
-					sig = *parTypeInfo.Sig
-					typeNo, fn = iz.addStructTypeAndConstructor(ty.String(), sig, parTypeInfo.IsPrivate, &tok)
+					typeNo = iz.addStructType(ty.String(), parTypeInfo.IsPrivate, &tok)
+					sig = parTypeInfo.Sig
+					private := iz.IsPrivate(int(makeDeclaration), i)
+					iz.setDeclaration(decSTRUCT, &ty.Token, DUMMY, structInfo{typeNo, private, sig})
+					labelsForStruct := iz.makeLabelsFromSig(sig, private, &ty.Token)
+					stT := vm.StructType{Name: newTypeName, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+						Private: private, IsMI: settings.MandatoryImportSet().Contains(ty.Token.Source)}
+					stT = stT.AddLabels(labelsForStruct)
+					iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 				}
-				fn.Number = iz.addToBuiltins(sig, newTypeName, resultType, false, dec.IndexToken())
-				// We stash away the typechecking information for later.
-				 
+				iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}, DUMMY}
+				if opInfo, ok := iz.typeOperators[ty.Name]; ok {
+					opInfo.returnTypes = opInfo.returnTypes.Union(altType(typeNo))
+					opInfo.definedAt = append(opInfo.definedAt, dec.IndexToken())
+					iz.typeOperators[ty.Name] = opInfo
+					// TODO --- Check for matching sigs, being a clone.
+				} else {
+					iz.typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{dec.IndexToken()}}
+				}
 				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
 					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
 					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals})
@@ -1479,6 +1487,16 @@ loop:
 				continue loop
 			}
 		}
+	}
+	// Now we can make a constructor function for each of the type operators.
+	
+	for typeOperator, operatorInfo := range iz.typeOperators {
+		name := "+" + typeOperator
+		sig := append(ast.AstSig{ast.NameTypeAstPair{"+t", &ast.TypeWithName{*operatorInfo.definedAt[0], "type"}}}, operatorInfo.constructorSig...)
+		fnNo := iz.addToBuiltins(sig, name, operatorInfo.returnTypes, false, operatorInfo.definedAt[0])
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: operatorInfo.definedAt[0]}
+		iz.cp.P.Functions.Add(name)
+		iz.Add(name, fn)
 	}
 }
 
@@ -1648,9 +1666,9 @@ func (iz *initializer) populateAbstractTypes() {
 	iz.makeAlternateTypesFromAbstractTypes()
 }
 
-// Phase 2A of compilation. We add the abstract types to the VM.
+// We add the abstract types to the VM.
 //
-// The service.Vm doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to
+// The VM doesn't *use* abstract types, but they are what values of type TYPE contain, and so it needs to
 // be able to describe them.
 func (iz *initializer) addAbstractTypesToVm() {
 	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
@@ -1668,7 +1686,7 @@ func (iz *initializer) addAbstractTypesToVm() {
 	}
 }
 
-// Phase 2B of compilation. We make the alternate types from the abstract types, because the compiler
+// We make the alternate types from the abstract types, because the compiler
 // is shortly going to need them.
 //
 // OTOH, we want the type information spread across the parsers and shared in the Common parser bindle to
@@ -1702,9 +1720,8 @@ func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTy
 	return uint32(len(iz.cp.Fns) - 1)
 }
 
-// We have a map in the compiler associating each type operator to the number of a list
-// in the compiler containing maps from type arguments to concrete type numbers.
-// This allows us if necessary to dispatch on the arguments at runtime.
+// This initializes a map in the compiler associating each type operator to
+// the number of a list in the compiler containing maps from type arguments to concrete type numbers.
 // This method hooks them together.
 func (iz *initializer) addParameterizedTypesToVm() {
 	for _, ty := range iz.parameterizedTypeInstances { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
@@ -1714,10 +1731,11 @@ func (iz *initializer) addParameterizedTypesToVm() {
 			typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
 		}
 		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
+		concreteTypeInfo := iz.cp.Vm.ConcreteTypeInfo[concreteType]
 		if info, ok := iz.cp.ParTypes2[name]; ok {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, iz.cp.ParTypes2[name].ReturnTypes.Union(altType(concreteType))}
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone()}
 		} else {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), altType(values.ERROR)}
+			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone()}
 			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
 		}
 		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
