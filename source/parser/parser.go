@@ -830,6 +830,10 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		right.Namespace = append(right.Namespace, name)
 	case *ast.SuffixExpression:
 		right.Namespace = append(right.Namespace, name)
+	case *ast.TypeExpression:
+		right.Namespace = append(right.Namespace, name)
+	case *ast.TypePrefixExpression:
+		right.Namespace = append(right.Namespace, name)	
 	case *ast.TypeSuffixExpression:
 		right.Namespace = append(right.Namespace, name)
 	case *ast.TypeLiteral:

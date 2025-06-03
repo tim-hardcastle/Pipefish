@@ -1054,10 +1054,10 @@ NodeTypeSwitch:
 			cp.Reserve(values.TYPE, abType, node.GetToken())
 			rtnTypes, rtnConst = AltType(values.TYPE), true
 		} else {
-			rtnTypes = cp.possibleTypesFromTypeOperator[node.Operator]
+			rtnTypes = resolvingCompiler.possibleTypesFromTypeOperator[node.Operator]
 			rtnConst = true 
 			cp.ReserveToken(node.GetToken())
-			argsForVm := []uint32{cp.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
+			argsForVm := []uint32{resolvingCompiler.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
 			for _, arg := range node.TypeArgs {
 				_, cst := cp.CompileNode(arg, ctxt.x())
 				argsForVm = append(argsForVm, cp.That())
@@ -1088,18 +1088,17 @@ NodeTypeSwitch:
 			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 			if abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
-				resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
+				cp.Throw("comp/type/concrete", node.GetToken())
 				break
 			}
-			rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
+			rtnTypes, rtnConst = cp.CompileNode(constructor, ctxt)
 		} else {
 			typeNode := &ast.TypeExpression{Token: node.Token, Operator: node.Operator, Namespace: node.Namespace, TypeArgs: node.TypeArgs}
 			argsWithType := append([]ast.Node{typeNode}, node.Args...)
 			// We arbitrarily use a '+' at the start of the constructor name to distinguish it from any non-parameterized type of the same name.
 			node.Token.Literal = "+" + node.Token.Literal // TODO --- this is heinous. Anything looking at a PrefixExpression should be looking at the operator, not the token literal.
 			constructor := &ast.PrefixExpression{node.Token, "+" + node.Operator, argsWithType, node.Namespace}
-			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-			rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
+			rtnTypes, rtnConst = cp.CompileNode(constructor, ctxt)
 		}
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {

@@ -1,3 +1,7 @@
+import 
+
+"zort.pf"
+
 newtype // Some modular arithmetic.
 
 Z = clone{i int} int :
