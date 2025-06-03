@@ -23,6 +23,9 @@ def
     Vec{i} from a = [] for j::el = range v :
         a + [el + w[j]] 
 
+(v Vec{3}) + (w Vec{3}) :
+    Vec{3}[]
+
 newtype 
 
 list = clone{T type} list using +, slice :
