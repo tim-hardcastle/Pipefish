@@ -2307,7 +2307,7 @@ const (
 	CHECK_GLOBAL_ASSIGNMENTS    // variable on the left makes it global.
 )
 
-// We take (a location of) a any or tuple, the type as an AlternateType, a signature, an environment, a token, and a
+// We take (a location of) a single value or tuple, the type as an AlternateType, a signature, an environment, a token, and a
 // 'flavor' which says what exactly we're doing and in particular whether the sig contains names we should be inserting the tuple
 // elements into or is just a return type signature in which case there will be no names and we can leave them as they are.
 // We generate code which emits as much type-checking as is necessary given the fit of the signature to the AlternateType,
@@ -2356,7 +2356,15 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		return errorCheck
 	}
 	if len(acceptedSingles) != len(singles) {
-		checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc, tok)
+		if tye, ok := sig.GetVarType(0).(*ast.TypeExpression); ok {
+			if tye.TypeArgs == nil {
+				checkSingleType = cp.emitTypeComparison(tye.Operator, loc, tok)
+			} else {
+				panic("Found " + tye.String())
+			}
+		} else {
+			checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc, tok)
+		}
 	}
 	if insert {
 		vData, _ := env.GetVar(sig.GetVarName(0)) // It is assumed that we've already made it exist.

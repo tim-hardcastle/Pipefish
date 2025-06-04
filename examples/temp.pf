@@ -1,68 +1,11 @@
 newtype
 
-Z = clone{i int} int :       // Some modular arithmetic.
-    0 <= that and that < i
-
+Z = clone{i int} int     
+   
 make Z{5}, Z{12}
 
 def
 
-(x Z{i int}) + (y Z{i int}) :
-    Z{i}(int(x) + int(y) mod i)
+// foo (x Z{i int}) -> Z{i} :
+//     x
 
-newtype
-
-Vec = clone{i int} list :    // Vectors!
-    len(that) == i
-
-make Vec{2}, Vec{3}
-
-def
-
-(v Vec{i int}) + (w Vec{i int}) :
-    Vec{i} from a = [] for j::el = range v :
-        a + [el + w[j]] 
-
-(v Vec{i int}) ⋅ (w Vec{i int}) :
-    from a = 0 for j::el = range v :
-        a + el * w[j] 
-
-(v Vec{3}) × (w Vec{3}) -> Vec{3} :
-    Vec{3}[v[1]*w[2] - v[2]*w[1],
-        .. v[2]*w[0] - v[0]*w[2],
-        .. v[0]*w[1] - v[1]*w[0]]
-
-newtype 
-
-list = clone{T type} list using +, slice :
-    from a = true for _::el = range that :
-        el in T :
-            continue 
-        else :
-            break false
-
-make list{int}
-
-Foo = clone list using +
-
-newtype 
-
-Currency = enum USD, EURO, GBP 
-
-Money = struct{c Currency}(large, small int) :
-    0 <= that[large]
-    0 <= that[small]
-    that[small] < 100
-
-make Money{USD}, Money{EURO}, Money{GBP}
-
-def
-
-(x Money{c Currency}) + (y Money{c Currency}) :
-    x[small] + y[small] < 100 :
-        Money{c}(x[large] + y[large], x[small] + y[small])
-    else :
-        Money{c}(x[large] + y[large] + 1, x[small] + y[small] - 100)
-
-string(x Money{c Currency}) :
-    string(c) + " " + string(x[large]) + "." + string(x[small])

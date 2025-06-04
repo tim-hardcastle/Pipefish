@@ -363,11 +363,10 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 			p.Throw("parse/ret/a", typednode.GetToken())
 		}
 	case *ast.TypeExpression:
-		astType := p.ToAstType(typednode)
-		if astType == nil {
-			p.Throw("parse/ret/b", typednode.GetToken())
+		if typednode.TypeArgs == nil {
+			return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: &ast.TypeWithName{typednode.Token, typednode.Operator}}}
 		}
-		return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: astType}}
+		return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: typednode}}
 	default:
 		p.Throw("parse/ret/c", typednode.GetToken())
 	}
@@ -518,6 +517,10 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 		return p.GetAbstractType(typeNode.Right)
 	case *ast.TypeWithParameters:
 		return p.GetAbstractTypeFromTypeSys(typeNode.Blank().String())
+	case *ast.TypeExpression :
+		if typeNode.TypeArgs == nil {
+			return p.GetAbstractTypeFromTypeSys(typeNode.Operator)
+		}
 	}
 	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())
 }

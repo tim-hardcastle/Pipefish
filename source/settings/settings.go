@@ -38,7 +38,7 @@ const (
 	SHOW_PARSER            = false // Note that this only applies to the REPL and not to code initialization. Use FUNCTION_TO_PEEK to look at the AST of a function.
 	SHOW_INITIALIZER       = false
 	SHOW_COMPILER          = false
-	SHOW_COMPILER_COMMENTS = false  // Note that SHOW_COMPILER must also be true for this to work.
+	SHOW_COMPILER_COMMENTS = false // Note that SHOW_COMPILER must also be true for this to work.
 	SHOW_RUNTIME           = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
 	SHOW_RUNTIME_VALUES    = false // Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
 	SHOW_XCALLS            = false
