@@ -654,14 +654,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				if text.Tail(builtinTag, "{}") {
 					typeOperator := builtinTag[:len(builtinTag)-2]
 					tokenOrdinal := cp.ReserveToken(b.tok)
-					if cp.ParTypes2[typeOperator].IsClone {
+					if cp.P.ParTypes2[typeOperator].IsClone {
 						cp.Emit(vm.CasP, b.outLoc, tokenOrdinal, b.valLocs[0], b.valLocs[1])
 					} else {
 						args := append([]uint32{b.outLoc, tokenOrdinal}, b.valLocs...)
 						cp.cmP("Emitting parameterized struct constructor.", b.tok)
 						cp.Emit(vm.StrP, args...)
 					}
-					return cp.ParTypes2[typeOperator].PossibleReturnTypes
+					return AbstractTypeToAlternateType(cp.P.ParTypes2[typeOperator].PossibleReturnTypes)
 				}
 				// It could be an ordinary type constructor.
 				typeNumber, ok := cp.GetConcreteType(builtinTag)

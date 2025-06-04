@@ -219,6 +219,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Qstq: {"qstq", operands{mem, loc}},
 	Qtpt: {"qtpt", operands{mem, num, tup, loc}},
 	Qtru: {"qtru", operands{mem, loc}},
+	Qtyl: {"qtyl", operands{mem, mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
 	Qvch: {"qvch", operands{mem, num, loc}},
 	Qvcq: {"qvcq", operands{mem, num, loc}},
@@ -400,6 +401,7 @@ const (
 	Qstq
 	Qtpt
 	Qtru
+	Qtyl
 	Qtyp
 	Qnvq
 	Qnvh

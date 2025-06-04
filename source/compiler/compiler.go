@@ -41,7 +41,7 @@ type Compiler struct {
 	TupleType                     uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                        *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	ParameterizedTypes            map[string][]ParameterInfo         // Holds the definitions of parameterized types.
-	ParTypes2                     map[string]TypeExpressionInfo      // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -64,7 +64,6 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		CallHandlerNumbersByName: make(map[string]uint32),
 		TypeToCloneGroup:         make(map[values.ValueType]AlternateType),
 		ParameterizedTypes:       make(map[string][]ParameterInfo),
-		ParTypes2:                make(map[string]TypeExpressionInfo),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 		Common:                   ccb,
 	}
@@ -153,12 +152,6 @@ const ( // We use this to keep track of what we're doing so we don't e.g. call a
 	INIT                   // We're initializing the global variables.
 	LAMBDA                 // We're in a lambda function.
 )
-
-type TypeExpressionInfo struct {
-	VmTypeInfo uint32
-	IsClone    bool
-	PossibleReturnTypes AlternateType
-}
 
 // The `Do` function of the VM is what a Service calls to get it to evaluate a line of code from the REPL.
 // It parses the line to an AST, initializes the context, calls `CompileNode` with the AST and the context
@@ -281,7 +274,7 @@ NodeTypeSwitch:
 			}
 		}
 		cp.Cm("Typechecking and inserting result into variables.", node.GetToken())
-		typeCheckFailed := cp.EmitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), flavor)
+		typeCheckFailed := cp.EmitTypeChecks(rhsResult, types, env, newSig, ac, node.GetToken(), flavor, ctxt.x())
 		cp.Put(vm.Asgm, values.C_OK)
 		cp.VmComeFrom(rhsIsError, typeCheckFailed)
 		break NodeTypeSwitch
@@ -1056,7 +1049,7 @@ NodeTypeSwitch:
 		} else {
 			rtnTypes, rtnConst = AltType(values.ERROR, values.TYPE), true
 			cp.ReserveToken(node.GetToken())
-			argsForVm := []uint32{resolvingCompiler.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
+			argsForVm := []uint32{resolvingCompiler.P.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
 			for _, arg := range node.TypeArgs {
 				_, cst := cp.CompileNode(arg, ctxt.x())
 				argsForVm = append(argsForVm, cp.That())
@@ -1539,11 +1532,11 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 
 	if hasBoundVariables {
 		cp.Cm("Typechecking bound variable result and putting it into bound variables.", tok)
-		cp.EmitTypeChecks(boundResultLoc, boundVariableTypes, newEnv, boundCpSig, ctxt.Access, tok, typeCheckFlavor(FOR_LOOP_BOUND_VARIABLE))
+		cp.EmitTypeChecks(boundResultLoc, boundVariableTypes, newEnv, boundCpSig, ctxt.Access, tok, typeCheckFlavor(FOR_LOOP_BOUND_VARIABLE), ctxt.x())
 	}
 	if flavor == TRIPARTITE {
 		cp.Cm("Typechecking index variable result and putting it into index variables.", tok)
-		cp.EmitTypeChecks(indexResultLoc, indexVariableTypes, newEnv, indexCpSig, ctxt.Access, tok, typeCheckFlavor(FOR_LOOP_INDEX_VARIABLE))
+		cp.EmitTypeChecks(indexResultLoc, indexVariableTypes, newEnv, indexCpSig, ctxt.Access, tok, typeCheckFlavor(FOR_LOOP_INDEX_VARIABLE), ctxt.x())
 	}
 	// The conditional for ending the loop, according to the flavor of the loop.
 	if flavor == TRIPARTITE || flavor == WHILE {
@@ -1779,7 +1772,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	LF.Model.ResultLocation = cp.That()
 	if fnNode.NameRets != nil {
 		cp.Cm("Typechecking returns from lambda.", fnNode.GetToken())
-		cp.EmitTypeChecks(LF.Model.ResultLocation, types, env, fnNode.NameRets, LAMBDA, tok, CHECK_RETURN_TYPES)
+		cp.EmitTypeChecks(LF.Model.ResultLocation, types, env, fnNode.NameRets, LAMBDA, tok, CHECK_RETURN_TYPES, ctxt.x())
 	}
 	cp.Emit(vm.Ret)
 	cp.popLambdaStart()
@@ -1943,7 +1936,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		return
 	}
 	cp.Cm("Typechecking and inserting result into local variables.", node.GetToken())
-	cp.EmitTypeChecks(resultLocation, types, ctxt.Env, sig, ctxt.Access, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS)
+	cp.EmitTypeChecks(resultLocation, types, ctxt.Env, sig, ctxt.Access, node.GetToken(), CHECK_GIVEN_ASSIGNMENTS, ctxt.x())
 	if thisExists {
 		ctxt.Env.Data["this"] = *oldThis
 	} else {
@@ -2316,7 +2309,7 @@ const (
 // equivalent is to fill the parameters up with an error value generated from the token.
 // If the sig is of an assignment in a command or a given block, then this is in fact all that needs to be done. If it's a
 // lambda, then the rest of the code in the lambda can then return an error if passed one.
-func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac CpAccess, tok *token.Token, flavor typeCheckFlavor) BkEarlyReturn {
+func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environment, sig signature, ac CpAccess, tok *token.Token, flavor typeCheckFlavor, ctxt Context) BkEarlyReturn {
 	cp.Cm("Emitting type checks.", tok)
 	cp.Cm("Sig names are "+text.Emph(getVarNames(sig))+".", tok)
 	if sig.Len() == 0 { // We have a function without specified return types
@@ -2360,7 +2353,10 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 			if tye.TypeArgs == nil {
 				checkSingleType = cp.emitTypeComparison(tye.Operator, loc, tok)
 			} else {
-				panic("Found " + tye.String())
+				cp.CompileNode(tye, ctxt)
+				typeLoc := cp.That()
+				cp.Emit(vm.Qtyl, typeLoc, loc, DUMMY)
+		        checkSingleType = bkGoto(cp.CodeTop() - 1)
 			}
 		} else {
 			checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc, tok)

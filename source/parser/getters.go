@@ -520,6 +520,8 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 	case *ast.TypeExpression :
 		if typeNode.TypeArgs == nil {
 			return p.GetAbstractTypeFromTypeSys(typeNode.Operator)
+		} else {
+			return p.ParTypes2[typeNode.Operator].PossibleReturnTypes
 		}
 	}
 	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())

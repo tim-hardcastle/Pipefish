@@ -66,6 +66,8 @@ type Parser struct {
 	// because there is a natural partial order on abstract types.
 	TypeMap TypeSys
 
+	ParTypes2                     map[string]TypeExpressionInfo      // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+
 	ExternalParsers map[string]*Parser     // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
 	NamespacePath   string                 // The chain of namespaces that got us to this parser, as a string.
@@ -100,6 +102,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		FunctionTable:   make(FunctionTable),
 		FunctionForest:  make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:         make(TypeSys),
+		ParTypes2:       make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
 		ExternalParsers: make(map[string]*Parser),
 		NamespacePath:   namespacePath,
@@ -121,6 +124,12 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	p.pushRParser(p)
 
 	return p
+}
+
+type TypeExpressionInfo struct {
+	VmTypeInfo uint32
+	IsClone    bool
+	PossibleReturnTypes values.AbstractType
 }
 
 // Parses one line of code supplied as a string.

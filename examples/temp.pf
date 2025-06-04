@@ -6,6 +6,6 @@ make Z{5}, Z{12}
 
 def
 
-// foo (x Z{i int}) -> Z{i} :
-//     x
+foo (x Z{i int}) -> Z{12} :
+    x
 

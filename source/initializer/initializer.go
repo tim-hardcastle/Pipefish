@@ -1965,13 +1965,13 @@ func (iz *initializer) addParameterizedTypesToVm() {
 		}
 		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
 		concreteTypeInfo := iz.cp.Vm.ConcreteTypeInfo[concreteType]
-		if info, ok := iz.cp.ParTypes2[name]; ok {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.cp.ParTypes2[name].PossibleReturnTypes.Union(altType(concreteType))}
+		if info, ok := iz.p.ParTypes2[name]; ok {
+			iz.p.ParTypes2[name] = parser.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.p.ParTypes2[name].PossibleReturnTypes.Union(values.MakeAbstractType(concreteType))}
 		} else {
-			iz.cp.ParTypes2[name] = compiler.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), altType(values.ERROR, concreteType)}
+			iz.p.ParTypes2[name] = parser.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), values.MakeAbstractType(values.ERROR, concreteType)}
 			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
 		}
-		iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.cp.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
+		iz.cp.Vm.ParameterizedTypeInfo[iz.p.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.p.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
 	}
 }
 
@@ -2591,7 +2591,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		cpF.OutReg = iz.cp.That()
 		
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
-			iz.cp.EmitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES)
+			iz.cp.EmitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES, bodyContext)
 		}
 		iz.cp.VmComeFrom(paramChecks...)
 		iz.cp.Emit(vm.Ret)
