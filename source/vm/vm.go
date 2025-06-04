@@ -1339,7 +1339,7 @@ loop:
 			}
 			continue
 		case Qtyl:
-			if vm.Mem[args[0]].V.(values.AbstractType).Types[0] == values.ValueType(args[1]) {
+			if vm.Mem[args[0]].T == vm.Mem[args[1]].V.(values.AbstractType).Types[0] {
 				loc = loc + 1
 			} else {
 				loc = args[2]

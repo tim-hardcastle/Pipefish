@@ -2344,19 +2344,21 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 		acceptedSingles = singles.intersect(cp.getTypes(sig, 0))
 	}
 	checkSingleType := bkGoto(DUMMY)
+	checkParameterizedType := bkGoto(DUMMY)
 	if len(singles) == 0 && sig.Len() == 1 {
 		cp.Throw("comp/typecheck/values/a", tok)
 		return errorCheck
+	}
+	if tye, ok := sig.GetVarType(0).(*ast.TypeExpression); ok && tye.TypeArgs != nil {
+		cp.CompileNode(tye, ctxt)
+		typeLoc := cp.That()
+		cp.Emit(vm.Qtyl, loc, typeLoc, DUMMY)
+		checkParameterizedType = bkGoto(cp.CodeTop() - 1)
 	}
 	if len(acceptedSingles) != len(singles) {
 		if tye, ok := sig.GetVarType(0).(*ast.TypeExpression); ok {
 			if tye.TypeArgs == nil {
 				checkSingleType = cp.emitTypeComparison(tye.Operator, loc, tok)
-			} else {
-				cp.CompileNode(tye, ctxt)
-				typeLoc := cp.That()
-				cp.Emit(vm.Qtyl, typeLoc, loc, DUMMY)
-		        checkSingleType = bkGoto(cp.CodeTop() - 1)
 			}
 		} else {
 			checkSingleType = cp.emitTypeComparison(sig.GetVarType(0), loc, tok)
@@ -2379,7 +2381,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 			}
 		}
 	}
-	cp.VmComeFrom(checkSingleType)
+	cp.VmComeFrom(checkSingleType, checkParameterizedType)
 	isTuple := bkIf(DUMMY)
 	if len(tuples) == 0 {
 		successfulSingleCheck = cp.vmGoTo()
@@ -2459,7 +2461,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 
 	cp.VmComeFrom(lengthCheck, inputIsError) // This is where we jump to if we fail any of the runtime tests.
 	if len(tuples) == 0 {
-		cp.VmComeFrom(checkSingleType)
+		cp.VmComeFrom(checkSingleType, checkParameterizedType) // TODO --- find out what this code is for, it smells.
 	}
 	for _, tc := range typeChecks {
 		cp.VmComeFrom(tc)
