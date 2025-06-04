@@ -131,6 +131,12 @@ func TestRuntimeTypecheck(t *testing.T) {
 	}
 	test_helper.RunTest(t, "runtime_typecheck_test.pf", tests, test_helper.TestValues)
 }
+func TestParameterizedTypes(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`Z{5}(3) + Z{5}(4)`, `Z{5}(2)`},
+	}
+	test_helper.RunTest(t, "parameterized_type_test.pf", tests, test_helper.TestValues)
+}
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return

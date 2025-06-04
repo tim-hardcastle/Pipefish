@@ -193,7 +193,7 @@ func (cp *Compiler) Do(line string) values.Value {
 // The node types in the switch are in alphabetical order.
 func (cp *Compiler) CompileNode(node ast.Node, ctxt Context) (AlternateType, bool) {
 	cp.Cm("Compiling node of type "+(reflect.TypeOf(node).String())[5:]+" with literal "+text.Emph(node.GetToken().Literal)+".", node.GetToken())
-	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source)) || testing.Testing()
+	cp.showCompile = settings.SHOW_COMPILER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(node.GetToken().Source))
 	rtnTypes, rtnConst := AlternateType{}, true
 	state := cp.GetState()
 	cT := cp.CodeTop()

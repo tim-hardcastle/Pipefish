@@ -2510,7 +2510,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		if len(locs) > 1 {
 			for _, v := range locs[1:] {
 				errLoc := iz.cp.ReserveError("vm/type/conflict", node.GetToken(), k)
-				iz.cp.Put(vm.Eqxx, locs[0], v) // TODO: you have specialized versions of this for speed.
+				iz.cp.Put(vm.Eqxx, locs[0], v, errLoc) // TODO: you have specialized versions of this for speed.
 				paramChecks = append(paramChecks, iz.cp.VmConditionalEarlyReturn(vm.Qfls, iz.cp.That(), errLoc))
 			}
 		}

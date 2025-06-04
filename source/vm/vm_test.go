@@ -420,6 +420,19 @@ func TestRuntimeTypecheck(t *testing.T) {
 	}
 	test_helper.RunTest(t, "runtime_typecheck_test.pf", tests, test_helper.TestValues)
 }
+func TestParameterizedTypes(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`Z{12}`, `Z{12}`},
+		{`Z{5} == Z{12}`, `false`},
+		{`Z{5}(3) + Z{5}(4)`, `Z{5}(2)`},
+		{`Vec{3}[1, 2, 3] + Vec{3}[4, 5, 6]`, `Vec{3}[5, 7, 9]`},
+		{`Money{USD} == Money{EURO}`, `false`},
+		{`list{int}[1, 2] + list{int}[3, 4]`, `list{int}[1, 2, 3, 4]`},
+		{`Z{5}(4) in Z{5}`, `true`},
+		{`Z{5}(4) in Z{12}`, `false`},
+	}
+	test_helper.RunTest(t, "parameterized_type_test.pf", tests, test_helper.TestValues)
+}
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return

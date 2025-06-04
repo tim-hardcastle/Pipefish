@@ -302,7 +302,7 @@ loop:
 				}
 				result = result.Conj(el)
 			}
-			vm.Mem[args[0]] = values.Value{values.LIST, result}
+			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case AddS:
 			result := vm.Mem[args[1]].V.(values.Set)
 			result.Union(vm.Mem[args[2]].V.(values.Set))
