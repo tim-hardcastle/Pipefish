@@ -70,6 +70,34 @@ func (twp *TypeWithParameters) Blank() *TypeWithParameters {
 	return &blankType
 }
 
+func (twp *TypeWithParameters) Equals (twq *TypeWithParameters) bool {
+	if twp.Name != twq.Name || len(twp.Parameters) != len(twq.Parameters) {
+		return false
+	}
+	for i, v := range twp.Parameters {
+		if v != twq.Parameters[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (twp *TypeWithParameters) Matches (te *TypeExpression) bool {
+	if twp.Name != te.Operator || len(twp.Parameters) != len(te.TypeArgs) {
+		return false
+	}
+	for i, v := range twp.Parameters {
+		if identifier, ok := te.TypeArgs[i].(*Identifier); ok {
+			if v.Name != identifier.Value {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
+}
+
 type Argument struct {
 	Token token.Token
 	Type  values.ValueType

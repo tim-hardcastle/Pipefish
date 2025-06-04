@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
@@ -65,7 +66,7 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	return "", ""
 }
 
-func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.AbstractSig, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
+func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
 	result := values.MakeAbstractType()
 	// Check that the sigs are the right length, the return sig being optional.
 	if sigToMatch.sig.Len() != len(fnToTry.NameSig) {
@@ -74,10 +75,16 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.NameRets) {
 		return result
 	}
+	abSig := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameSig)
+	abRets := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameRets)
 	// Once we have identified one set of types as being 'self' we need to fix that
 	// as 'self' and take its intersection with the other things that appear in the
 	// 'self' position.
 	foundSelf := false
+	// If it's a parameterized type, e.g. list{T type} then we need to match it against
+	// the same parameterized type in the call types and a corresponding type calculation
+	// (e.g. list{T}) in the return types.
+	var paramType *ast.TypeWithParameters
 	for i := 0; i < len(sigToMatch.sig); i++ {
 		if maybeSelf, ok := sigToMatch.sig.GetVarType(i).(*ast.TypeWithName); ok && maybeSelf.Name == "self" {
 			if foundSelf {
@@ -85,9 +92,17 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 				if len(result.Types) == 0 {
 					break
 				}
+				if twp, ok := fnToTry.NameSig.GetVarType(i).(*ast.TypeWithParameters); ok {
+					if paramType == nil || !paramType.Equals(twp) {
+						return values.MakeAbstractType()
+					}
+				}
 			} else {
 				foundSelf = true
 				result = abSig[i].VarType
+				if twp, ok := fnToTry.NameSig.GetVarType(i).(*ast.TypeWithParameters); ok {
+					paramType = twp
+				}
 			}
 		} else {
 			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
@@ -103,6 +118,15 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, abSig, abRets ast.Abstra
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
 		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.Name == "self" {
 			result = result.Intersect(abRets[i].VarType)
+			if paramType == nil && result.Len() != 1 {
+				// To explain. If we have types A and B which are subtypes of C, then having
+				// a function defined (x C) + (y C) -> C doesn't guarantee that A is addable.
+				return values.MakeAbstractType()
+			}
+			te, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeExpression)
+			if ok && paramType != nil && !paramType.Matches(te) {
+				return values.MakeAbstractType()
+			} 
 		} else {
 			if !abRets[i].VarType.IsSubtypeOf(iz.p.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()

@@ -1611,9 +1611,7 @@ func (iz *initializer) populateInterfaceTypes() {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range iz.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
-					abSig := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameSig)
-					abRets := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameRets)
-					matches := iz.getMatches(sigToMatch, abSig, abRets, fnToTry, &nameTok)
+					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet().Contains(fnToTry.Tok.Source) {
 						for _, ty := range matches.Types {
