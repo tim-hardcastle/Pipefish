@@ -90,7 +90,7 @@ func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint
 		functionName = start.Operator
 		pos = 2
 		sig = prsr.extractSig(start.Args)
-	case *ast.SigTypeSuffixExpression:
+	case *ast.TypeSuffixExpression:
 		functionName = start.Operator.String()
 		pos = 2
 		sig = prsr.extractSig(start.Args)
@@ -115,7 +115,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 		varName := ""
 		var varType ast.TypeNode
 		switch arg := arg.(type) {
-		case *ast.SigTypeSuffixExpression:
+		case *ast.TypeSuffixExpression:
 			switch inner := arg.Args[0].(type) {
 			case *ast.Identifier:
 				varName = inner.Value
@@ -132,13 +132,15 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				varName = arg.Value
 				varType = nil
 			}
+		// TODO --- we have to do something about this mess. Signatures and main bodies
+		// have different syntax and this is a wake-up call.
 		case *ast.PrefixExpression:
 			if p.Forefixes.Contains(arg.Operator) {
 				varName = arg.Operator
 				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
 			} else {
 				switch inner := arg.Args[0].(type) {
-				case *ast.TypeExpression:  
+				case *ast.TypeExpression:
 					varName = arg.Operator
 					astType := p.ToAstType(inner)
 					if astType == nil {
@@ -150,6 +152,15 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 					return nil
 				}
 			}
+			sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
+			if len(arg.Args) > 1 {
+				kludge := p.extractSig(arg.Args[1:])
+				sig = append(sig, kludge...)
+			}
+			if sig[len(sig)-1].VarType != nil {
+				backTrackTo = len(sig)
+			}
+			continue
 		case *ast.InfixExpression:
 			if p.Midfixes.Contains(arg.Operator) {
 				varName = arg.Operator
@@ -182,7 +193,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 			}
 		}
 		sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
-		if !(varType == nil) {
+		if sig[len(sig)-1].VarType != nil {
 			backTrackTo = len(sig)
 		}
 		if _, ok := varType.(*ast.TypeBling); ok {
@@ -272,7 +283,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (as
 		default:
 			return nil, newError("parse/sig/b", typednode.GetToken())
 		}
-	case *ast.SigTypeSuffixExpression:
+	case *ast.TypeSuffixExpression:
 		LHS, err := p.getSigFromArgs(typednode.Args, typednode.Operator)
 		if err != nil {
 			return nil, err
@@ -382,7 +393,7 @@ func (p *Parser) ToAstType(te *ast.TypeExpression) ast.TypeNode {
 	// This is either a bool, float, int, rune, string, type or enum literal, in which
 	// case the whole thing should be, OR it's a type with parameters, or it's not well-
 	// formed and shouldn't be here at all.
-	indexArg := te.TypeArgs[0] 
+	indexArg := te.TypeArgs[0]
 	if p.findTypeArgument(indexArg).T != values.ERROR {
 		return p.toTypeWithArguments(te)
 	}
@@ -517,7 +528,7 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 		return p.GetAbstractType(typeNode.Right)
 	case *ast.TypeWithParameters:
 		return p.GetAbstractTypeFromTypeSys(typeNode.Blank().String())
-	case *ast.TypeExpression :
+	case *ast.TypeExpression:
 		if typeNode.TypeArgs == nil {
 			return p.GetAbstractTypeFromTypeSys(typeNode.Operator)
 		} else {
@@ -546,7 +557,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
-		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK || 
+		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK ||
 		p.PeekToken.Type == token.RBRACE {
 		return false
 	}
@@ -589,7 +600,7 @@ func (p *Parser) typeIsFunctional() bool {
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
-		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK || 
+		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK ||
 		p.PeekToken.Type == token.RBRACE {
 		return false
 	}

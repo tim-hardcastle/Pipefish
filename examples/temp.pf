@@ -8,4 +8,7 @@ make Vec{2}, Vec{3}, Vec{4}
 def
 
 foo (v Vec{j int}, w Vec{k int}) :
-    j, k 
+    j
+
+bar(x ... any?) :
+    x

@@ -556,17 +556,17 @@ func (tpe *SigTypePrefixExpression) String() string {
 	return out.String()
 }
 
-type SigTypeSuffixExpression struct {
+type TypeSuffixExpression struct {
 	Token     token.Token
 	Operator  TypeNode
 	Args      []Node
 	Namespace []string
 }
 
-func (tse *SigTypeSuffixExpression) Children() []Node       { return tse.Args }
-func (tse *SigTypeSuffixExpression) GetArgs() []Node        { return tse.Args }
-func (tse *SigTypeSuffixExpression) GetToken() *token.Token { return &tse.Token }
-func (tse *SigTypeSuffixExpression) String() string {
+func (tse *TypeSuffixExpression) Children() []Node       { return tse.Args }
+func (tse *TypeSuffixExpression) GetArgs() []Node        { return tse.Args }
+func (tse *TypeSuffixExpression) GetToken() *token.Token { return &tse.Token }
+func (tse *TypeSuffixExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
@@ -727,7 +727,7 @@ func ExtractAllNames(node Node) dtypes.Set[string] {
 			result.AddSet(ExtractAllNames(v))
 		}
 		return result.Add(n.Operator)
-	case *SigTypeSuffixExpression:
+	case *TypeSuffixExpression:
 		for _, v := range n.Children() {
 			result.AddSet(ExtractAllNames(v))
 		}

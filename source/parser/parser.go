@@ -392,7 +392,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 						Args:     p.recursivelyListify(leftExp),
 					}
 				} else {
-					leftExp = &ast.SigTypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
+					println("Creating type suffix expression", typeAst.String())
+					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
 				}
 			} else {
 				p.NextToken()
@@ -843,7 +844,7 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		right.Namespace = append(right.Namespace, name)
 	case *ast.TypePrefixExpression:
 		right.Namespace = append(right.Namespace, name)
-	case *ast.SigTypeSuffixExpression:
+	case *ast.TypeSuffixExpression:
 		right.Namespace = append(right.Namespace, name)
 	case *ast.TypeLiteral:
 		right.Namespace = append(right.Namespace, name)
@@ -879,7 +880,8 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 	}
 	p.NextToken()
 	p.CurrentNamespace = nil
-	expression.Args = p.recursivelyListify(p.parseExpression(FPREFIX))
+	node := p.parseExpression(FPREFIX)
+	expression.Args = p.recursivelyListify(node)
 	return expression
 }
 

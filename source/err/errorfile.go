@@ -931,6 +931,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/suffix/a": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected type suffix " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish wasn't expecting to see that as a suffix. Only clones of 'float' " +
+			       "and 'int' have suffix constructors."
+		},
+	},
+
+	"comp/suffix/b": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected type suffix " + emph(tok.Literal)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The purpose of the splat operator '...' is to expand a list or " +
+			       "listlike value into a tuple. You're applying it to the wrong type."
+		},
+	},
+
 	"comp/typecheck/error": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "expression can only have error type"
