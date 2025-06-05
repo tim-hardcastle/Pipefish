@@ -2,7 +2,6 @@ package vm
 
 import (
 	"database/sql"
-	"strconv"
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/values"
@@ -103,25 +102,24 @@ func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 
 func getSqlType(pfType values.AbstractType) string {
 	switch {
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.INT}, 0}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.INT}}):
 		return "INTEGER NOT NULL"
-	case pfType.Equals((values.AbstractType{[]values.ValueType{values.NULL, values.INT}, 0})):
+	case pfType.Equals((values.AbstractType{[]values.ValueType{values.NULL, values.INT}})):
 		return "INTEGER"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.STRING}}):
 		return "STRING NOT NULL"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.STRING}, DUMMY}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.STRING}}):
 		return "STRING"
 	case pfType.IsVarchar():
-		return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ") NOT NULL"
+		// TODO again --- return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ") NOT NULL"
 	case pfType.IsVarcharOrNull():
-		return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ")"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.BOOL}, 0}):
+		// TODO again --- return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ")"
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.BOOL}}):
 		return "BOOL NOT NULL"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.BOOL}, 0}):
+	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.BOOL}}):
 		return "BOOL"
-	default:
-		return ""
 	}
+	return ""
 }
 
 func pfToGoPointers(pfValues []values.Value) []any {

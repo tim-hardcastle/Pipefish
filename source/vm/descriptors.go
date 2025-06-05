@@ -259,11 +259,7 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType, flavor descriptionFla
 		return "empty"
 	}
 	if len(aT.Types) == 1 {
-		if aT.Types[0] == values.STRING && T.Varchar < DUMMY {
-			return "varchar(" + strconv.Itoa(int(T.Varchar)) + ")"
-		} else {
-			return vm.DescribeType(aT.Types[0], flavor)
-		}
+		return vm.DescribeType(aT.Types[0], flavor)
 	}
 	// First we greedily remove the abstract types.
 	for {
@@ -294,11 +290,7 @@ func (vm *Vm) DescribeAbstractType(aT values.AbstractType, flavor descriptionFla
 		if t == values.NULL {
 			nullFlag = true
 		} else {
-			if t == values.STRING && T.Varchar < DUMMY {
-				result = append(result, "varchar("+strconv.Itoa(int(T.Varchar))+")")
-			} else {
-				result = append(result, vm.DescribeType(t, flavor))
-			}
+			result = append(result, vm.DescribeType(t, flavor))
 		}
 	}
 	// Deal with null

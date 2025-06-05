@@ -1690,7 +1690,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	for _, pair := range nameSig {
 		params = params.Add(pair.VarName)
 		if ast.IsAnyNullableType(pair.VarType) {
-			LF.Model.Sig = append(LF.Model.Sig, values.AbstractType{nil, DUMMY}) // 'nil' in a sig in this context means we don't need to typecheck.
+			LF.Model.Sig = append(LF.Model.Sig, values.AbstractType{nil}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
 			LF.Model.Sig = append(LF.Model.Sig, cp.P.GetAbstractType(pair.VarType))
 		}

@@ -1,6 +1,6 @@
 newtype
 
-Person = struct(name varchar(32), age int) 
+Person = struct(name Varchar{32}, age int) 
 
 cmd
 

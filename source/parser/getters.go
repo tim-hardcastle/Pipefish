@@ -523,7 +523,7 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 			return LHS.Insert(values.ERROR)
 		}
 	case *ast.TypeBling:
-		return values.AbstractType{[]values.ValueType{values.BLING}, 0}
+		return values.AbstractType{[]values.ValueType{values.BLING}}
 	case *ast.TypeDotDotDot:
 		return p.GetAbstractType(typeNode.Right)
 	case *ast.TypeWithParameters:

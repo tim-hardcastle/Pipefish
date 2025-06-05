@@ -1203,10 +1203,8 @@ loop:
 				fmt.Println(vm.DefaultDescription(vm.Mem[args[0]]))
 			}
 		case Qabt:
-			varcharLimit := args[1]
-			for _, t := range args[2 : len(args)-1] {
-				if vm.Mem[args[0]].T == values.ValueType(t) &&
-					!(values.ValueType(t) == values.STRING && uint32(len(vm.Mem[args[0]].V.(string))) > varcharLimit) {
+			for _, t := range args[1 : len(args)-1] {
+				if vm.Mem[args[0]].T == values.ValueType(t) {
 					loc = loc + 1
 					continue loop
 				}
@@ -1540,10 +1538,7 @@ loop:
 		case Typs:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
-				concType := values.AbstractType{[]values.ValueType{v}, DUMMY}
-				if v == values.STRING {
-					concType.Varchar = vm.Mem[args[1]].V.(values.AbstractType).Varchar
-				}
+				concType := values.AbstractType{[]values.ValueType{v}}
 				result = result.Add(values.Value{values.TYPE, concType})
 			}
 			vm.Mem[args[0]] = values.Value{values.SET, result}
@@ -1552,11 +1547,7 @@ loop:
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)
 			vm.Mem[args[0]] = values.Value{values.TYPE, lhs.Union(rhs)}
 		case Typx:
-			if vm.Mem[args[1]].T == values.STRING { // TODO --- you can get rid of this once you fix the parameterized types.
-				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, DUMMY}}
-			} else {
-				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}, 0}}
-			}
+			vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{vm.Mem[args[1]].T}}}
 		case UntE:
 			err := vm.Mem[args[0]].V.(*err.Error)
 			newArgs := []any{}
@@ -1585,13 +1576,6 @@ loop:
 				vm.Mem[args[0]] = values.Value{vm.UsefulTypes.UnwrappedError, []values.Value{{values.STRING, errWithMessage.ErrorId}, {values.STRING, errWithMessage.Message}}}
 			} else {
 				vm.Mem[args[0]] = vm.makeError("vm/unwrap", args[2], vm.DescribeType(vm.Mem[args[1]].T, LITERAL))
-			}
-		case Varc:
-			n := vm.Mem[args[1]].V.(int)
-			if n < 0 || n > DUMMY {
-				vm.Mem[args[0]] = vm.Mem[args[2]] // A prepared error. TODO --- do this by passing the token instead.
-			} else {
-				vm.Mem[args[0]] = values.Value{values.TYPE, values.AbstractType{[]values.ValueType{values.STRING}, uint32(n)}}
 			}
 		case Vlid:
 			vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].T != values.ERROR}

@@ -1822,7 +1822,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/type/form/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed type declaration"
+			return "malformed type declaration: unexpected occurrence of " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The type should begin with the name of the type being defined, followed by an " + emph("=") + "."
@@ -1831,7 +1831,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/type/form/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed abstract type declaration"
+			return "malformed abstract type declaration: unexpected occurrence of " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "An abstract type declaration should consist of types joined by the " + emph("/") + "operator."
@@ -1840,7 +1840,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"init/type/form/c": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "malformed abstract type declaration"
+			return "malformed abstract type declaration: unexpected occurrence of " + emph(tok.Literal)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "An abstract type declaration should consist of types joined by the " + emph("/") + "operator."
@@ -2462,24 +2462,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/sig/varchar/int/a": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "expected integer literal, found " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "At this point in the function declaration Pipefish was expecting an integer literal specifying the size of the 'varchar' type."
-		},
-	},
-
-	"parse/sig/varchar/int/b": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "expected integer literal, found " + text.DescribeTok(tok)
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "At this point in the function declaration Pipefish was expecting an integer literal specifying the size of the 'varchar' type."
-		},
-	},
-
 	"parse/struct/form/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "found unexpected " + text.DescribeTok(tok) + " in struct expression"
@@ -2541,7 +2523,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "unable to perform type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the int and bool types. This is because the author has had other things to do."
 		},
 	},
 
@@ -2586,7 +2568,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the int and bool types. This is because the author has had other things to do."
 		},
 	},
 
@@ -2613,7 +2595,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the int and bool types. This is because the author has had other things to do."
 		},
 	},
 
@@ -2622,7 +2604,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "failed type conversion"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "At present Pipefish only works with the varchar, int, and bool types. This is because the author has had other things to do."
+			return "At present Pipefish only works with the int and bool types. This is because the author has had other things to do."
 		},
 	},
 

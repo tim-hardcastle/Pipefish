@@ -241,8 +241,6 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	acceptedTypes := branch.Type
 	acceptingTuple := acceptedTypes.Contains(values.TUPLE) && b.index == 0
 	isVarargs := b.varargsTime || branch.IsVararg
-	isVarchar := acceptedTypes.Contains(values.STRING) && acceptedTypes.Varchar < DUMMY
-
 	cp.cmP("Accepted types are "+acceptedTypes.String(), b.tok)
 	cp.cmP("Target list is "+b.targetList.describe(cp.Vm), b.tok)
 	var overlap AlternateType
@@ -269,13 +267,6 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 
 	// So now the length of acceptedSingleTypes tells us whether some, none, or all of the ways to follow the branch involve single values,
 	// whereas the length of doneList tells us whether we need to recurse on the next branch or not.
-
-	// We may have found a match because any string is a match for a varchar at this point. In that case we do need to do a type check on the length and
-	// conditionally continue to the next branch. We can kludge this by taking STRING out of the doneList of the bindle.
-	if isVarchar {
-		newBindle.doneList = newBindle.doneList.without(SimpleType(values.STRING))
-	}
-
 	needsLowerBranch := len(newBindle.doneList) != len(newBindle.targetList)
 	singleTypeCheck := bkGoto(DUMMY)
 	elementOfTupleTypeCheck := bkGoto(DUMMY)
@@ -410,18 +401,6 @@ func (cp *Compiler) emitTypeComparison(typeRepresentation any, mem uint32, tok *
 
 func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint32, tok *token.Token) bkGoto {
 	cp.Cm("Emitting type comparison from typename "+text.Emph(typeAsString), tok)
-	// We may have a 'varchar'.
-	if len(typeAsString) >= 8 && typeAsString[0:8] == "varchar(" {
-		if typeAsString[len(typeAsString)-1] == '?' {
-			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-2])
-			cp.Emit(vm.Qvcq, mem, uint32(vChar), DUMMY)
-			return bkGoto(cp.CodeTop() - 1)
-		} else {
-			vChar, _ := strconv.Atoi(typeAsString[8 : len(typeAsString)-1])
-			cp.Emit(vm.Qvch, mem, uint32(vChar), DUMMY)
-			return bkGoto(cp.CodeTop() - 1)
-		}
-	}
 	// It may be a plain old concrete type.
 	if ty, ok := cp.GetConcreteType(typeAsString); ok {
 		cp.Emit(vm.Qtyp, mem, uint32(ty), DUMMY)
@@ -451,7 +430,7 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 		abType = group.ToAbstractType()
 	}
 	if abType.Types != nil {
-		args := []uint32{mem, abType.Varchar}
+		args := []uint32{mem}
 		for _, t := range abType.Types {
 			args = append(args, uint32(t))
 		}
@@ -468,7 +447,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 		cp.Emit(vm.Qtyp, mem, uint32(typeAsAlt[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	args := []uint32{DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
+	args := []uint32{} 
 	for _, t := range typeAsAlt {
 		args = append(args, uint32(t.(SimpleType)))
 	}
@@ -489,7 +468,7 @@ func (cp *Compiler) emitTypeComparisonFromAbstractType(abType values.AbstractTyp
 		cp.Emit(vm.Qtyp, mem, uint32(abType.Types[0]), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	args := []uint32{mem, DUMMY} // Qabt can use this to check for varchars but (TODO) I'd need to know what to pass it.
+	args := []uint32{mem, DUMMY}
 	for _, t := range abType.Types {
 		args = append(args, uint32(t))
 	}

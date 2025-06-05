@@ -152,7 +152,6 @@ func TestBuiltins(t *testing.T) {
 		{`tuple 1`, `tuple(1)`},
 		{`type true`, `bool`},
 		{`type bool`, `type`},
-		{`varchar(32)`, `varchar(32)`},
 	}
 	test_helper.RunTest(t, "", tests, test_helper.TestValues)
 }
@@ -427,6 +426,7 @@ func TestParameterizedTypes(t *testing.T) {
 		{`Z{5}(3) + Z{5}(4)`, `Z{5}(2)`},
 		{`Vec{3}[1, 2, 3] + Vec{3}[4, 5, 6]`, `Vec{3}[5, 7, 9]`},
 		{`Money{USD} == Money{EURO}`, `false`},
+		{`list{int}[1, 2]`, `list{int}[1, 2]`},
 		{`list{int}[1, 2] + list{int}[3, 4]`, `list{int}[1, 2, 3, 4]`},
 		{`Z{5}(4) in Z{5}`, `true`},
 		{`Z{5}(4) in Z{12}`, `false`},

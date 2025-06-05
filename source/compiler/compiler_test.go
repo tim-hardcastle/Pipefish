@@ -152,7 +152,6 @@ func TestBuiltins(t *testing.T) {
 		{`tuple 1`, `tuple(1)`},
 		{`type true`, `bool`},
 		{`type bool`, `type`},
-		{`varchar(32)`, `varchar(32)`},
 	}
 	test_helper.RunTest(t, "", tests, test_helper.TestValues)
 }

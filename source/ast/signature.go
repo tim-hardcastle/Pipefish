@@ -40,7 +40,7 @@ func (natp NameAbstractTypePair) GetType() any {
 }
 
 func (m NameAbstractTypePair) IsBling() bool {
-	return m.VarType.Equals(values.AbstractType{[]values.ValueType{values.BLING}, 0})
+	return m.VarType.Equals(values.MakeAbstractType(values.BLING))
 }
 
 func (m NameAbstractTypePair) Matches(n NameAbstractTypePair) bool {

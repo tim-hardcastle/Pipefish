@@ -112,7 +112,7 @@ func newCompiler(Common *parser.CommonParserBindle, ccb *compiler.CommonCompiler
 	cp := compiler.NewCompiler(p, ccb)
 	cp.ScriptFilepath = scriptFilepath
 	cp.Vm = mc
-	cp.TupleType = cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}, 0}, &token.Token{Source: "Builtin constant"})
+	cp.TupleType = cp.Reserve(values.TYPE, values.AbstractType{[]values.ValueType{values.TUPLE}}, &token.Token{Source: "Builtin constant"})
 	return cp
 }
 
@@ -1457,7 +1457,7 @@ loop:
 					stT = stT.AddLabels(labelsForStruct)
 					iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 				}
-				iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}, DUMMY}
+				iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}}
 				if opInfo, ok := iz.typeOperators[ty.Name]; ok {
 					opInfo.returnTypes = opInfo.returnTypes.Union(altType(typeNo))
 					opInfo.definedAt = append(opInfo.definedAt, dec.IndexToken())
@@ -1967,7 +1967,7 @@ func (iz *initializer) addParameterizedTypesToVm() {
 			iz.p.ParTypes2[name] = parser.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), values.MakeAbstractType(values.ERROR, concreteType)}
 			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
 		}
-		iz.cp.Vm.ParameterizedTypeInfo[iz.p.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.p.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}, DUMMY}})
+		iz.cp.Vm.ParameterizedTypeInfo[iz.p.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.p.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}}})
 	}
 }
 

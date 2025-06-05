@@ -1,14 +1,10 @@
 newtype
 
-Vec = clone{j int} list :    // Vectors!
-    len(that) == j
+list = clone{T type} list using +, slice :
+    from a = true for _::el = range that :
+        el in T :
+            continue 
+        else :
+            break false
 
-make Vec{2}, Vec{3}, Vec{4}
-
-def
-
-concat (v Vec{i int}, w Vec{j int}) -> Vec{i + j} :
-    Vec{i + j}(list(v) + list(w))
-
-bar(x ... any?) :
-    x
+make list{int}

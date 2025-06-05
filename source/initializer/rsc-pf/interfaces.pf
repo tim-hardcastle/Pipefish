@@ -27,5 +27,6 @@ Stringable = interface :
 Subtractable = interface :
     (x self) - (y self) -> self
 
-
+// Varchar = clone{i int} string :
+//   len that <= i 
 

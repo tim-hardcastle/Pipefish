@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strconv"
-
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 )
@@ -119,23 +117,8 @@ func (p *Parser) IsSameTypeOrSubtype(maybeSub, maybeSuper ast.TypeNode) bool {
 	return p.GetAbstractType(maybeSub).IsSubtypeOf(p.GetAbstractType(maybeSuper))
 }
 
-func GetLengthFromType(maybeVarchar string) (int, bool) {
-	if len(maybeVarchar) >= 10 {
-		if maybeVarchar[0:8] == "varchar(" {
-			vcLen, _ := strconv.Atoi(maybeVarchar[8 : len(maybeVarchar)-1])
-			return vcLen, true
-		}
-	}
-	return 0, false
-}
-
-func GetNullabilityFromType(maybeNullable string) bool {
-	return maybeNullable == "null" || (len(maybeNullable)-1) == '?' || len(maybeNullable) > 9 && maybeNullable[0:9] == "varchar?("
-}
-
-func TypeIsStringlike(maybeString string) bool {
-	return maybeString == "string" || maybeString == "string?" || (len(maybeString) >= 10 &&
-		(maybeString[0:8] == "varchar("))
+func GetNullabilityFromType(maybeNullable string) bool { // TODO --- presumably obsolete.
+	return maybeNullable == "null" || (len(maybeNullable)-1) == '?'
 }
 
 func UnnullType(maybeNulled string) string {

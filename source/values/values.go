@@ -108,10 +108,10 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 					return false
 				}
 			}
+			return false
 		} else {
 			return len(lhs.Types) < len(rhs.Types)
 		}
-		return lhs.Varchar < rhs.Varchar
 	}
 	// So we're going to assume that it's an enum and that this has been checked elsewhere.
 	// TODO --- structs, maybe lists?
@@ -154,16 +154,12 @@ func (a AbstractType) String() string {
 
 type AbstractType struct {
 	Types   []ValueType
-	Varchar uint32 // A kludge. if this has the maximum value (DUMMY), and there's a string in the types, then it's a string; otherwise it's a varchar with that value.
 }
 
 func MakeAbstractType(args ...ValueType) AbstractType {
-	result := AbstractType{[]ValueType{}, 0}
+	result := AbstractType{[]ValueType{}}
 	for _, t := range args {
 		result = result.Insert(t)
-		if t == STRING {
-			result.Varchar = DUMMY
-		}
 	}
 	return result
 }
@@ -192,18 +188,12 @@ func (lhs AbstractType) Union(rhs AbstractType) AbstractType {
 			j++
 		}
 	}
-	maxVc := uint32(0)
-	if lhs.Varchar > rhs.Varchar {
-		maxVc = lhs.Varchar
-	} else {
-		maxVc = rhs.Varchar
-	}
-	return AbstractType{result, maxVc}
+	return AbstractType{result}
 }
 
 func (a AbstractType) Insert(v ValueType) AbstractType {
 	if len(a.Types) == 0 {
-		return AbstractType{[]ValueType{v}, a.Varchar}
+		return AbstractType{[]ValueType{v}}
 	}
 	for i, t := range a.Types {
 		if v == t {
@@ -215,10 +205,10 @@ func (a AbstractType) Insert(v ValueType) AbstractType {
 			copy(lhs, a.Types[:i])
 			copy(rhs, a.Types[i:])
 			lhs = append(lhs, v)
-			return AbstractType{append(lhs, rhs...), a.Varchar}
+			return AbstractType{append(lhs, rhs...)}
 		}
 	}
-	return AbstractType{append(a.Types, v), a.Varchar}
+	return AbstractType{append(a.Types, v)}
 }
 
 // Because AbstractTypes are ordered we could use binary search for this and there is a threshold beyond which
@@ -236,16 +226,16 @@ func (a AbstractType) Len() int {
 	return len(a.Types)
 }
 
-func (a AbstractType) IsVarchar() bool {
-	return len(a.Types) == 1 && a.Types[0] == STRING && a.Varchar < DUMMY
+func (a AbstractType) IsVarchar() bool { // TODO --- either needs a body or deletion.
+	return false
 }
 
-func (a AbstractType) IsVarcharOrNull() bool {
-	return len(a.Types) == 1 && a.Types[0] == STRING && a.Types[1] == STRING && a.Varchar < DUMMY
+func (a AbstractType) IsVarcharOrNull() bool { // Ditto.
+	return false
 }
 
 func (a AbstractType) Equals(b AbstractType) bool {
-	if len(a.Types) != len(b.Types) || a.Varchar != b.Varchar {
+	if len(a.Types) != len(b.Types) {
 		return false
 	}
 	for i, v := range a.Types {
@@ -257,7 +247,7 @@ func (a AbstractType) Equals(b AbstractType) bool {
 }
 
 func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
-	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar {
+	if len(a.Types) > len(b.Types) {
 		return false
 	}
 	i := 0
@@ -275,8 +265,7 @@ func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 }
 
 func (a AbstractType) IsProperSubtypeOf(b AbstractType) bool {
-	if len(a.Types) > len(b.Types) || a.Varchar > b.Varchar ||
-		(len(a.Types) == len(b.Types) && a.Varchar >= b.Varchar) {
+	if len(a.Types) > len(b.Types) || len(a.Types) == len(b.Types) {
 		return false
 	}
 	i := 0
@@ -294,18 +283,11 @@ func (a AbstractType) IsProperSubtypeOf(b AbstractType) bool {
 }
 
 func (vL AbstractType) Intersect(wL AbstractType) AbstractType {
-	result := AbstractType{[]ValueType{}, 0}
+	result := AbstractType{[]ValueType{}}
 	var vix, wix int
 	for vix < vL.Len() && wix < wL.Len() {
 		if vL.Types[vix] == wL.Types[wix] {
 			result.Types = append(result.Types, vL.Types[vix])
-			if vL.Types[vix] == STRING {
-				if vL.Varchar < wL.Varchar {
-					result.Varchar = vL.Varchar
-				} else {
-					result.Varchar = wL.Varchar
-				}
-			}
 			vix++
 			wix++
 			continue
@@ -326,7 +308,6 @@ func (a AbstractType) PartlyIntersects(b AbstractType) bool {
 
 func (a AbstractType) Without(b AbstractType) AbstractType {
 	rTypes := make([]ValueType, 0, len(a.Types))
-	varCharFlag := false
 	i := 0
 	for _, t := range a.Types {
 		for ; i < len(b.Types) && b.Types[i] < t; i++ {
@@ -335,15 +316,11 @@ func (a AbstractType) Without(b AbstractType) AbstractType {
 			rTypes = append(rTypes, t)
 			continue
 		}
-		if (t != b.Types[i]) || (t == STRING && a.Varchar != b.Varchar) {
+		if (t != b.Types[i]) {
 			rTypes = append(rTypes, t)
-			varCharFlag = (t == STRING && a.Varchar == b.Varchar)
 		}
 	}
-	if varCharFlag { // Then we've removed a varchar(n) type.
-		return AbstractType{rTypes, 0}
-	}
-	return AbstractType{rTypes, a.Varchar}
+	return AbstractType{rTypes}
 }
 
 type AbstractTypeInfo struct {
