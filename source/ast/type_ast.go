@@ -75,7 +75,7 @@ func (twp *TypeWithParameters) Equals (twq *TypeWithParameters) bool {
 		return false
 	}
 	for i, v := range twp.Parameters {
-		if v != twq.Parameters[i] {
+		if v.Name != twq.Parameters[i].Name || v.Type != twq.Parameters[i].Type {
 			return false
 		}
 	}

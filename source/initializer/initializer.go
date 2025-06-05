@@ -51,21 +51,21 @@ type initializer struct {
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
 	// This contains information about the operators of parameterized types, e.g. Z.
-	typeOperators                       map[string]typeOperatorInfo    
+	typeOperators map[string]typeOperatorInfo
 	// Whereas these contain information about the instances of the types, e.g. Z{5}, Z{12}.
-	parameterizedTypeMap                map[string]int                 // Maps names to the numbered type instances below.
-	parameterizedTypeInstances          []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
+	parameterizedTypeMap       map[string]int              // Maps names to the numbered type instances below.
+	parameterizedTypeInstances []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
 }
 
 // Makes a new initializer.
 func NewInitializer() *initializer {
 	iz := initializer{
-		initializers:        make(map[string]*initializer),
-		localConcreteTypes:  make(dtypes.Set[values.ValueType]),
-		fnIndex:             make(map[fnSource]*ast.PrsrFunction),
-		unserializableTypes: make(dtypes.Set[string]),
-		typeOperators:       make(map[string]typeOperatorInfo),
-		parameterizedTypeMap: make(map[string]int),
+		initializers:               make(map[string]*initializer),
+		localConcreteTypes:         make(dtypes.Set[values.ValueType]),
+		fnIndex:                    make(map[fnSource]*ast.PrsrFunction),
+		unserializableTypes:        make(dtypes.Set[string]),
+		typeOperators:              make(map[string]typeOperatorInfo),
+		parameterizedTypeMap:       make(map[string]int),
 		parameterizedTypeInstances: make([]parameterizedTypeInstance, 0),
 	}
 	iz.newGoBucket()
@@ -91,7 +91,7 @@ func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
 	return &b
 }
 
-type parameterizedTypeInstance struct{
+type parameterizedTypeInstance struct {
 	astType   ast.TypeNode
 	env       *compiler.Environment
 	typeCheck ast.Node
@@ -100,7 +100,7 @@ type parameterizedTypeInstance struct{
 }
 
 type typeOperatorInfo struct {
-	constructorSig ast.AstSig   // The signature of the constructor, before we prepend the secret-sauce `+t type` parameter.
+	constructorSig ast.AstSig // The signature of the constructor, before we prepend the secret-sauce `+t type` parameter.
 	isClone        bool
 	returnTypes    compiler.AlternateType
 	definedAt      []*token.Token
@@ -871,10 +871,10 @@ mainLoop:
 			iz.setDeclaration(decPARAMETERIZED, &tok1, DUMMY, DUMMY)
 			continue mainLoop
 		default:
-			iz.Throw("init/clone/type/a", tokens.IndexToken())
+			iz.Throw("init/clone/type/b", tokens.IndexToken())
 			continue mainLoop
 		}
-		
+
 		typeNo, fn := iz.addCloneTypeAndConstructor(name, typeToClone, private, &tok1)
 		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
 		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &tok1)
@@ -886,7 +886,7 @@ mainLoop:
 		}
 		// And add them to the Common functions.
 		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, opList, parentTypeNo, private, &tok1)
-	}	
+	}
 }
 
 func (iz *initializer) addCloneTypeAndConstructor(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, *ast.PrsrFunction) {
@@ -911,13 +911,13 @@ func (iz *initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 func (iz *initializer) addCloneType(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, bool) {
 	parentTypeNo, ok := parser.ClonableTypes[typeToClone]
 	if !ok {
-		iz.Throw("init/clone/type/a", decTok, typeToClone)
+		iz.Throw("init/clone/type/c", decTok, typeToClone)
 		return DUMMY, false
 	}
 	abType := typeToClone + "like"
 	var typeNo values.ValueType
 	info, typeExists := iz.getDeclaration(decCLONE, decTok, DUMMY)
-	if typeExists { 
+	if typeExists {
 		typeNo = info.(values.ValueType)
 		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
 		typeInfo.Path = iz.p.NamespacePath
@@ -938,117 +938,117 @@ func (iz *initializer) addCloneType(name, typeToClone string, private bool, decT
 }
 
 func (iz *initializer) createOperations(nameAst ast.TypeNode, typeNo values.ValueType, opList []string, parentTypeNo values.ValueType, private bool, tok1 *token.Token) {
-		for _, op := range opList {
-			rtnSig := ast.AstSig{{"", nameAst}}
-			switch parentTypeNo {
-			case values.FLOAT:
-				switch op {
-				case "+":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "-":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-					sig = ast.AstSig{ast.NameTypeAstPair{"x", nameAst}}
-					iz.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, vm.PREFIX, tok1)
-				case "*":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"*", ast.AsBling("*")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "/":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				default:
-					iz.Throw("init/request/float", tok1, op)
-				}
-			case values.INT:
-				switch op {
-				case "+":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "-":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-					sig = ast.AstSig{ast.NameTypeAstPair{"x", nameAst}}
-					iz.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, vm.PREFIX, tok1)
-				case "*":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"*", ast.AsBling("*")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "div":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("div", sig, "divide_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "mod":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"%", ast.AsBling("&")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("mod", sig, "modulo_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				default:
-					iz.p.Throw("init/request/int", tok1, op)
-				}
-			case values.LIST:
-				switch op {
-				case "+":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "with":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"with", ast.AsBling("with")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_PAIR}}
-					iz.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "?>":
-					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
-					cloneData.IsFilterable = true
-					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
-				case ">>":
-					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
-					cloneData.IsMappable = true
-					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
-				case "slice":
-					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
-					cloneData.IsSliceable = true
-					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
-				default:
-					iz.Throw("init/request/list", tok1, op)
-				}
-			case values.MAP:
-				switch op {
-				case "with":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"with", ast.AsBling("with")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_PAIR}}
-					iz.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "without":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"without", ast.AsBling("without")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_ANY_NULLABLE}}
-					iz.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				default:
-					iz.Throw("init/request/map", tok1, op)
-				}
-			case values.PAIR:
-				iz.Throw("init/request/pair", tok1)
-			case values.SET:
-				switch op {
-				case "+":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "-":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("-", sig, "subtract_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "/\\":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/\\", ast.AsBling("/\\")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("/\\", sig, "intersect_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				default:
-					iz.Throw("init/request/set", tok1, op)
-				}
-			case values.STRING:
-				switch op {
-				case "+":
-					sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
-					iz.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
-				case "slice":
-					cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
-					cloneData.IsSliceable = true
-					iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
-				default:
-					iz.Throw("init/request/string", tok1, op)
-				}
+	for _, op := range opList {
+		rtnSig := ast.AstSig{{"", nameAst}}
+		switch parentTypeNo {
+		case values.FLOAT:
+			switch op {
+			case "+":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("+", sig, "add_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "-":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("-", sig, "subtract_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+				sig = ast.AstSig{ast.NameTypeAstPair{"x", nameAst}}
+				iz.makeCloneFunction("-", sig, "negate_float", altType(typeNo), rtnSig, private, vm.PREFIX, tok1)
+			case "*":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"*", ast.AsBling("*")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("*", sig, "multiply_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "/":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("/", sig, "divide_floats", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			default:
+				iz.Throw("init/request/float", tok1, op)
+			}
+		case values.INT:
+			switch op {
+			case "+":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("+", sig, "add_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "-":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("-", sig, "subtract_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+				sig = ast.AstSig{ast.NameTypeAstPair{"x", nameAst}}
+				iz.makeCloneFunction("-", sig, "negate_integer", altType(typeNo), rtnSig, private, vm.PREFIX, tok1)
+			case "*":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"*", ast.AsBling("*")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("*", sig, "multiply_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "div":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/", ast.AsBling("/")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("div", sig, "divide_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "mod":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"%", ast.AsBling("&")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("mod", sig, "modulo_integers", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			default:
+				iz.p.Throw("init/request/int", tok1, op)
+			}
+		case values.LIST:
+			switch op {
+			case "+":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("+", sig, "add_lists", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "with":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"with", ast.AsBling("with")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_PAIR}}
+				iz.makeCloneFunction("with", sig, "list_with", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "?>":
+				cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
+				cloneData.IsFilterable = true
+				iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
+			case ">>":
+				cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
+				cloneData.IsMappable = true
+				iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
+			case "slice":
+				cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
+				cloneData.IsSliceable = true
+				iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
+			default:
+				iz.Throw("init/request/list", tok1, op)
+			}
+		case values.MAP:
+			switch op {
+			case "with":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"with", ast.AsBling("with")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_PAIR}}
+				iz.makeCloneFunction("with", sig, "map_with", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "without":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"without", ast.AsBling("without")}, ast.NameTypeAstPair{"y", ast.DOTDOTDOT_ANY_NULLABLE}}
+				iz.makeCloneFunction("without", sig, "map_without", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			default:
+				iz.Throw("init/request/map", tok1, op)
+			}
+		case values.PAIR:
+			iz.Throw("init/request/pair", tok1)
+		case values.SET:
+			switch op {
+			case "+":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("+", sig, "add_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "-":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"-", ast.AsBling("-")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("-", sig, "subtract_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "/\\":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"/\\", ast.AsBling("/\\")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("/\\", sig, "intersect_sets", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			default:
+				iz.Throw("init/request/set", tok1, op)
+			}
+		case values.STRING:
+			switch op {
+			case "+":
+				sig := ast.AstSig{ast.NameTypeAstPair{"x", nameAst}, ast.NameTypeAstPair{"+", ast.AsBling("+")}, ast.NameTypeAstPair{"y", nameAst}}
+				iz.makeCloneFunction("+", sig, "add_strings", altType(typeNo), rtnSig, private, vm.INFIX, tok1)
+			case "slice":
+				cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
+				cloneData.IsSliceable = true
+				iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
+			default:
+				iz.Throw("init/request/string", tok1, op)
 			}
 		}
-		cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
-		cloneData.Using = opList
-		iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
+	}
+	cloneData := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType)
+	cloneData.Using = opList
+	iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 }
 
 func (iz *initializer) getOpList(tokens *token.TokenizedCodeChunk) ([]string, ast.Node) {
@@ -1096,7 +1096,7 @@ func (iz *initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 func (iz *initializer) createStructNames() {
 	iz.structDeclarationNumberToTypeNumber = map[int]values.ValueType{}
 	// First we need to make the struct types into types so the parser parses them properly.
-	loop:
+loop:
 	for i := range iz.TokenizedDeclarations[structDeclaration] {
 		indexToken := iz.TokenizedDeclarations[structDeclaration][i].IndexToken()
 		iz.p.TokenizedCode = iz.TokenizedDeclarations[structDeclaration][i]
@@ -1162,14 +1162,14 @@ func (iz *initializer) createStructLabels() {
 		indexToken := tcc.IndexToken()
 		name := indexToken.Literal
 		// We will now extract the AstSig lexically.
-		dec, sig, typecheck := iz.cp.P.ParseSigFromTcc(tcc)
+		dec, sig, typecheck := iz.cp.P.ParseStructSigFromTcc(tcc)
 		labelsForStruct := iz.makeLabelsFromSig(sig, iz.IsPrivate(int(structDeclaration), i), indexToken)
 		if ty, ok := dec.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type.
 			ty.Name = name
 			argIndex := iz.paramTypeExists(ty)
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = sig
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = typecheck
-		    continue
+			continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
 		private := iz.IsPrivate(int(structDeclaration), i)
@@ -1213,8 +1213,8 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	blankType := ty.Blank()
 	blankType.Name = name
 	supertype := blankType.String()
-	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters), 
-		iz.astParamsToValueTypes(ty.Parameters), opList, 
+	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters),
+		iz.astParamsToValueTypes(ty.Parameters), opList,
 		typeCheck, parentType, nil, private, supertype, tok}
 	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
 	if ok {
@@ -1241,7 +1241,7 @@ func (iz *initializer) paramTypeExists(ty *ast.TypeWithParameters) int {
 func (iz *initializer) astParamsToValueTypes(params []*ast.Parameter) []values.ValueType {
 	result := []values.ValueType{}
 	for _, v := range params {
-		result = append(result, iz.cp.ConcreteTypeNow(v.Type))	
+		result = append(result, iz.cp.ConcreteTypeNow(v.Type))
 	}
 	return result
 }
@@ -1410,11 +1410,11 @@ loop:
 			if ty, ok := ty.(*ast.TypeWithArguments); ok {
 				// The parser doesn't know the types and values of enums, 'cos of being a
 				// parser. So we kludge them in here.
-				for i, v := range(ty.Values()) {
+				for i, v := range ty.Values() {
 					if maybeEnum, ok := v.V.(string); ok && v.T == 0 {
 						w := iz.cp.EnumElements[maybeEnum]
-						ty.Arguments[i].Type = w.T 
-						ty.Arguments[i].Value = w.V 
+						ty.Arguments[i].Type = w.T
+						ty.Arguments[i].Value = w.V
 					}
 				}
 				argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
@@ -1440,13 +1440,13 @@ loop:
 				}
 				var (
 					typeNo values.ValueType
-					sig ast.AstSig
+					sig    ast.AstSig
 				)
 				if isClone {
 					typeNo, _ = iz.addCloneType(ty.String(), parTypeInfo.ParentType, false, &tok)
 					iz.createOperations(ty, typeNo, parTypeInfo.Operations, parentTypeNo, parTypeInfo.IsPrivate, &tok)
 					sig = ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-				} else { 
+				} else {
 					typeNo = iz.addStructType(ty.String(), parTypeInfo.IsPrivate, &tok)
 					sig = parTypeInfo.Sig
 					private := iz.IsPrivate(int(makeDeclaration), i)
@@ -1488,7 +1488,7 @@ loop:
 		}
 	}
 	// Now we can make a constructor function for each of the type operators.
-	
+
 	for typeOperator, operatorInfo := range iz.typeOperators {
 		name := typeOperator + "{}"
 		sig := append(ast.AstSig{ast.NameTypeAstPair{"+t", &ast.TypeWithName{*operatorInfo.definedAt[0], "type"}}}, operatorInfo.constructorSig...)
@@ -1702,7 +1702,6 @@ func (iz *initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
-
 // Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
 func (iz *initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
 	cpF := &compiler.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
@@ -1914,7 +1913,6 @@ func (iz *initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
 	iz.cp.Vm.ConcreteTypeInfo[typeNumber] = structInfo
 }
 
-
 func (iz *initializer) tweakParameterizedTypes() {
 	// We replace the astTypes in the environment for typechecking a parameterized type with AbstractTypes.
 	for _, pti := range iz.parameterizedTypeInstances {
@@ -1924,7 +1922,7 @@ func (iz *initializer) tweakParameterizedTypes() {
 			}
 		}
 	}
-	// 
+	//
 	for typename, i := range iz.parameterizedTypeMap {
 		typeNo := iz.cp.ConcreteTypeNow(typename)
 		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo]
@@ -2239,7 +2237,7 @@ func (iz *initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				fCount++
 			}
 		}
-		loop:
+	loop:
 		for _, dec := range groupOfDeclarations {
 			switch dec.decType {
 			case structDeclaration, cloneDeclaration:
@@ -2461,7 +2459,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		if ast.IsRef(pair.VarType) {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, node.GetToken())
 			continue
-		}	
+		}
 		_, isVarargs := pair.VarType.(*ast.TypeDotDotDot)
 		if isVarargs {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, node.GetToken())
@@ -2474,13 +2472,17 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	cpF.HiReg = iz.cp.MemTop()
 	cpF.CallTo = iz.cp.CodeTop()
 
-    // And then we take care of the arguments of a parameterized type.
+	// And then we take care of the arguments of a parameterized type.
 	vmap := map[string][]uint32{}
 	for _, pair := range sig {
 		if twp, ok := pair.VarType.(*ast.TypeWithParameters); ok {
 			yeetTo := iz.cp.That() + 1
+			// We range over the parameters of the type.
 			for _, param := range twp.Parameters {
+				// We may already have declared it.
 				variable, ok := fnenv.GetVar(param.Name)
+				// If we have, we check that it's also a type parameter, and of compatible
+				// type. If not, we skip the rest of the loop ...
 				if ok {
 					if variable.Access != compiler.TYPE_ARGUMENT {
 						iz.Throw("init/param/var", node.GetToken(), param.Name)
@@ -2491,6 +2493,8 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 						continue
 					}
 				}
+				// We use the 'vmap' to keep track of what type parameters have been declared
+				// and when, including duplicates.
 				iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
 				if _, ok := vmap[param.Name]; !ok {
 					vmap[param.Name] = []uint32{iz.cp.That()}
@@ -2587,7 +2591,7 @@ func (iz *initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 			cpF.RtnTypes = cpF.RtnTypes.Union(altType(values.ERROR))
 		}
 		cpF.OutReg = iz.cp.That()
-		
+
 		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
 			iz.cp.EmitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES, bodyContext)
 		}
@@ -2694,7 +2698,7 @@ type decKey struct {
 	src string        // The filepath to the source code.
 	lNo int           // Line number of the declaration.
 	chS int
-	ix  int           // If it's an element of an enum, the index of the element in its type.
+	ix  int // If it's an element of an enum, the index of the element in its type.
 }
 
 func makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {

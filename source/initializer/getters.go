@@ -117,16 +117,23 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
 		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.Name == "self" {
+			// First we deal with the possibility of a type expression matching a parameterized
+			// type.
+			te, ok := fnToTry.NameRets.GetVarType(i).(*ast.TypeExpression)
+			if ok && paramType != nil {
+				if paramType.Matches(te) {
+					continue
+				} else {
+					return values.MakeAbstractType()
+				}
+			} 
+			// If not ...
 			result = result.Intersect(abRets[i].VarType)
 			if paramType == nil && result.Len() != 1 {
 				// To explain. If we have types A and B which are subtypes of C, then having
 				// a function defined (x C) + (y C) -> C doesn't guarantee that A is addable.
 				return values.MakeAbstractType()
 			}
-			te, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeExpression)
-			if ok && paramType != nil && !paramType.Matches(te) {
-				return values.MakeAbstractType()
-			} 
 		} else {
 			if !abRets[i].VarType.IsSubtypeOf(iz.p.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()

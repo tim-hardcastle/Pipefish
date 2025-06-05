@@ -1,11 +1,11 @@
 newtype
 
-Z = clone{i int} int     
-   
-make Z{5}, Z{12}
+Vec = clone{j int} list :    // Vectors!
+    len(that) == j
+
+make Vec{2}, Vec{3}, Vec{4}
 
 def
 
-(x Z{i int}) + (y Z{i int}) -> Z{i} :
-    Z{i}(int(x) + int(y))
-
+foo (v Vec{j int}, w Vec{k int}) :
+    j, k 

@@ -66,7 +66,7 @@ type Parser struct {
 	// because there is a natural partial order on abstract types.
 	TypeMap TypeSys
 
-	ParTypes2                     map[string]TypeExpressionInfo      // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	ParTypes2 map[string]TypeExpressionInfo // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
 
 	ExternalParsers map[string]*Parser     // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
@@ -127,8 +127,8 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 }
 
 type TypeExpressionInfo struct {
-	VmTypeInfo uint32
-	IsClone    bool
+	VmTypeInfo          uint32
+	IsClone             bool
 	PossibleReturnTypes values.AbstractType
 }
 
@@ -1193,7 +1193,7 @@ func (p *Parser) SeekColon() bool {
 	return p.PeekToken.Type == token.COLON
 }
 
-func (p *Parser) ParseSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, ast.AstSig, ast.Node) {
+func (p *Parser) ParseStructSigFromTcc(tcc *token.TokenizedCodeChunk) (ast.TypeNode, ast.AstSig, ast.Node) {
 	var (
 		dec       ast.TypeNode
 		sig       ast.AstSig

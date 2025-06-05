@@ -92,7 +92,8 @@ func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 	if p.PeekToken.Type == token.IDENT && !(p.IsTypePrefix(p.PeekToken.Literal)) &&
 			!(p.IsEnumElement(p.PeekToken.Literal)){
 		p.NextToken()
-		return p.parseParams(nameTok)
+		result := p.parseParams(nameTok)
+		return result
 	}
 	result := p.parseArgs(nameTok)
 	return result
