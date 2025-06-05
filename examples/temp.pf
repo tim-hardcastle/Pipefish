@@ -7,8 +7,8 @@ make Vec{2}, Vec{3}, Vec{4}
 
 def
 
-foo (v Vec{j int}, w Vec{k int}) :
-    j
+concat (v Vec{i int}, w Vec{j int}) -> Vec{i + j} :
+    Vec{i + j}(list(v) + list(w))
 
 bar(x ... any?) :
     x

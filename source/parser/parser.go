@@ -392,7 +392,6 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 						Args:     p.recursivelyListify(leftExp),
 					}
 				} else {
-					println("Creating type suffix expression", typeAst.String())
 					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
 				}
 			} else {
