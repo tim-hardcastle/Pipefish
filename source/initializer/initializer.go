@@ -903,7 +903,6 @@ func (iz *initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 	iz.Add(name, fn)
 	if typeToClone == "int" || typeToClone == "float" {
 		iz.p.Suffixes.Add(name)
-		iz.p.Suffixes.Add(name + "?")
 	}
 	return typeNo, fn
 }
@@ -1300,13 +1299,11 @@ func (iz *initializer) createAbstractTypes() {
 				break
 			}
 		}
-		iz.p.TypeMap[newTypename+"?"] = iz.p.TypeMap[newTypename].Insert(values.NULL)
 		_, typeExists := iz.getDeclaration(decABSTRACT, &nameTok, DUMMY)
 		if !typeExists {
 			iz.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
 		}
 		iz.p.Suffixes.Add(newTypename)
-		iz.p.Suffixes.Add(newTypename + "?")
 	}
 }
 
@@ -1378,13 +1375,11 @@ func (iz *initializer) createInterfaceTypes() {
 			iz.addWordsToParser(lhs)
 		}
 		iz.p.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
-		iz.p.TypeMap[newTypename+"?"] = values.MakeAbstractType(values.NULL)
 		_, typeExists := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		if !typeExists {
 			iz.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
 		}
 		iz.p.Suffixes.Add(newTypename)
-		iz.p.Suffixes.Add(newTypename + "?")
 	}
 }
 
@@ -1632,8 +1627,6 @@ func (iz *initializer) populateInterfaceTypes() {
 		}
 		// We have created an abstract type from our interface! We put it in the type map.
 		iz.p.TypeMap[typename] = types
-		typesWithNull := types.Insert(values.NULL)
-		iz.p.TypeMap[typename+"?"] = typesWithNull
 		iz.AddTypeToVm(values.AbstractTypeInfo{typename, iz.p.NamespacePath, types, settings.MandatoryImportSet().Contains(nameTok.Source)})
 		// And we add all the implicated functions to the function table.
 		for _, ty := range types.Types {
@@ -2638,14 +2631,11 @@ func (iz *initializer) ResolveInterfaceBacktracks() {
 func (iz *initializer) AddType(name, supertype string, typeNo values.ValueType) {
 	iz.localConcreteTypes = iz.localConcreteTypes.Add(typeNo)
 	iz.p.TypeMap[name] = values.MakeAbstractType(typeNo)
-	iz.p.TypeMap[name+"?"] = values.MakeAbstractType(values.NULL, typeNo)
-	iz.unserializableTypes.Add(name).Add(name + "?")
 	types := []string{supertype}
 	iz.cp.Common.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "any")
 	for _, sT := range types {
 		iz.p.Common.Types[sT] = iz.p.Common.Types[sT].Insert(typeNo)
-		iz.p.Common.Types[sT+"?"] = iz.p.Common.Types[sT+"?"].Insert(typeNo)
 	}
 }
 

@@ -1,10 +1,3 @@
-newtype
+external
 
-list = clone{T type} list using +, slice :
-    from a = true for _::el = range that :
-        el in T :
-            continue 
-        else :
-            break false
-
-make list{int}
+"zort.pf"

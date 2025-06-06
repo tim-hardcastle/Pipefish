@@ -84,7 +84,6 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 		SharedTypenameToTypeList: map[string]AlternateType{
 			// TODO --- why can't we define one in terms of the other?
 			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET, values.SECRET),
-			"any?": AltType(values.NULL, values.INT, values.BOOL, values.STRING, values.RUNE, values.FLOAT, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET, values.SECRET),
 		},
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
@@ -92,15 +91,14 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 	}
 	for _, name := range parser.AbstractTypesOtherThanSingle {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
-		newBindle.SharedTypenameToTypeList[name+"?"] = AltType(values.NULL)
 	}
 	for name, ty := range parser.ClonableTypes {
 		newBindle.SharedTypenameToTypeList[name+"like"] = AltType(ty)
-		newBindle.SharedTypenameToTypeList[name+"like?"] = AltType(values.NULL, ty)
 	}
-	newBindle.AnyTuple = AlternateType{TypedTupleType{newBindle.SharedTypenameToTypeList["any?"]}}
-	newBindle.AnyTypeScheme = make(AlternateType, len(newBindle.SharedTypenameToTypeList["any?"]), 1+len(newBindle.SharedTypenameToTypeList["any?"]))
-	copy(newBindle.AnyTypeScheme, newBindle.SharedTypenameToTypeList["any?"])
+	anyOrNull := newBindle.SharedTypenameToTypeList["any"].Union(altType(values.NULL))
+	newBindle.AnyTuple = AlternateType{TypedTupleType{anyOrNull}}
+	newBindle.AnyTypeScheme = make(AlternateType, len(newBindle.SharedTypenameToTypeList["any"]), 2+len(newBindle.SharedTypenameToTypeList["any"]))
+	copy(newBindle.AnyTypeScheme, anyOrNull)
 	newBindle.AnyTypeScheme = newBindle.AnyTypeScheme.Union(newBindle.AnyTuple)
 	newBindle.SharedTypenameToTypeList["tuple"] = newBindle.AnyTuple
 	newBindle.IsRangeable = altType(values.TUPLE, values.STRING, values.TYPE, values.PAIR, values.LIST, values.MAP, values.SET, values.SNIPPET)
@@ -111,9 +109,8 @@ func (ccb *CommonCompilerBindle) AddTypeNumberToSharedAlternateTypes(typeNo valu
 	abTypes = append(abTypes, "any")
 	for _, ty := range abTypes {
 		ccb.SharedTypenameToTypeList[ty] = ccb.SharedTypenameToTypeList[ty].Union(altType(typeNo))
-		ccb.SharedTypenameToTypeList[ty+"?"] = ccb.SharedTypenameToTypeList[ty+"?"].Union(altType(typeNo))
 	}
-	ccb.AnyTuple = AlternateType{TypedTupleType{ccb.SharedTypenameToTypeList["any?"]}}
+	ccb.AnyTuple = AlternateType{TypedTupleType{ccb.SharedTypenameToTypeList["any"].Union(altType(values.NULL))}}
 	ccb.AnyTypeScheme = ccb.AnyTypeScheme.Union(altType(typeNo))
 	ccb.AnyTypeScheme[len(ccb.AnyTypeScheme)-1] = ccb.AnyTuple
 	ccb.SharedTypenameToTypeList["tuple"] = ccb.AnyTuple

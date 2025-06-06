@@ -378,8 +378,13 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 			return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: &ast.TypeWithName{typednode.Token, typednode.Operator}}}
 		}
 		return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: typednode}}
+	case *ast.SuffixExpression:
+		if typednode.Operator == "?" || typednode.Operator == "!" {
+			return ast.AstSig{ast.NameTypeAstPair{VarName: "", VarType: &ast.TypeSuffix{typednode.Token, typednode.Operator, p.RecursivelySlurpReturnTypes(typednode.Args[0])}}}
+		}
 	default:
-		p.Throw("parse/ret/c", typednode.GetToken())
+		println("node is", typednode.String(), reflect.TypeOf(typednode).String())
+		p.Throw("parse/ret/b", typednode.GetToken())
 	}
 	return nil
 }
@@ -601,7 +606,7 @@ func (p *Parser) typeIsFunctional() bool {
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
 		p.PeekToken.Type == token.COMMA || p.PeekToken.Type == token.RBRACK ||
-		p.PeekToken.Type == token.RBRACE {
+		p.PeekToken.Type == token.RBRACE || p.PeekToken.Literal == "?" {
 		return false
 	}
 	if p.PeekToken.Type == token.EMDASH || p.PeekToken.Type == token.LBRACK {

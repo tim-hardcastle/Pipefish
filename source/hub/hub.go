@@ -847,6 +847,10 @@ func (hub *Hub) help() {
 }
 
 func (hub *Hub) WritePretty(s string) {
+	_, ok := hub.services["hub"]
+	if !ok {
+		panic("Hub failed to initialize, error is '" + s + "'.")
+	}
 	if errorsExist, _ := hub.services["hub"].ErrorsExist(); errorsExist {
 		hub.WriteString(pf.PrettyString(s, 0, 92))
 		return

@@ -612,7 +612,7 @@ func isAlphanumeric(c rune) bool {
 }
 
 func isLetter(ch rune) bool {
-	return unicode.IsLetter(ch) || ch == '_' || ch == '^' || ch == '$' || ch == '?'
+	return unicode.IsLetter(ch) || ch == '_' || ch == '^' || ch == '$'
 }
 
 func isPeriod(ch rune) bool {
