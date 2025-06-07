@@ -913,7 +913,7 @@ func (iz *initializer) addCloneType(name, typeToClone string, private bool, decT
 		iz.Throw("init/clone/type/c", decTok, typeToClone)
 		return DUMMY, false
 	}
-	abType := typeToClone + "like"
+	abType := "clones{"+typeToClone+"}"
 	var typeNo values.ValueType
 	info, typeExists := iz.getDeclaration(decCLONE, decTok, DUMMY)
 	if typeExists {
@@ -1673,6 +1673,19 @@ func (iz *initializer) addAbstractTypesToVm() {
 	for _, typeName := range keys {
 		iz.AddTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.p.NamespacePath,
 			AT: iz.p.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
+	}
+	for _, v := range parser.ClonableTypes { // Clonable types are clones of themselves.
+		selfInfo := iz.cp.Vm.ConcreteTypeInfo[v].(vm.BuiltinType)
+		selfInfo = selfInfo.AddClone(values.ValueType(v))
+		iz.cp.Vm.ConcreteTypeInfo[v] = selfInfo
+	}
+	for i, v := range iz.cp.Vm.ConcreteTypeInfo {
+		if v.IsClone() {
+			parentType := v.(vm.CloneType).Parent
+			parentInfo := iz.cp.Vm.ConcreteTypeInfo[parentType].(vm.BuiltinType)
+			parentInfo = parentInfo.AddClone(values.ValueType(i))
+			iz.cp.Vm.ConcreteTypeInfo[parentType] = parentInfo
+		}
 	}
 }
 

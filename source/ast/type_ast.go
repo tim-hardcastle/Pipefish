@@ -12,7 +12,7 @@ type TypeNode interface {
 	String() string
 }
 
-// TODO --- will this work if remived 'cos of them all being the same object?
+// TODO --- will this work if removed 'cos of them all being the same object?
 func IsAnyNullableType(t TypeNode) bool {
 	if t, ok := t.(*TypeSuffix); ok && t.Operator == "?" {
 		u, ok := t.Left.(*TypeWithName)

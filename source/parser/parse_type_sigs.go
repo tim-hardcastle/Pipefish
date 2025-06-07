@@ -15,7 +15,7 @@ import (
 
 // Things which are not type names but can be used for constructing types or for other
 // purposes:
-var PSEUDOTYPES = dtypes.MakeFromSlice([]string{"clone", "like"})
+var PSEUDOTYPES = dtypes.MakeFromSlice([]string{"clone", "clones"})
 
 type typePrecedence = int
 

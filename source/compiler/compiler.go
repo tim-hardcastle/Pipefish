@@ -93,7 +93,7 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
 	}
 	for name, ty := range parser.ClonableTypes {
-		newBindle.SharedTypenameToTypeList[name+"like"] = AltType(ty)
+		newBindle.SharedTypenameToTypeList["clones{"+name+"}"] = AltType(ty)
 	}
 	anyOrNull := newBindle.SharedTypenameToTypeList["any"].Union(altType(values.NULL))
 	newBindle.AnyTuple = AlternateType{TypedTupleType{anyOrNull}}
@@ -1043,6 +1043,20 @@ NodeTypeSwitch:
 			cp.Reserve(values.TYPE, abType, node.GetToken())
 			rtnTypes, rtnConst = AltType(values.TYPE), true
 		} else {
+			if node.Operator == "clones" {
+				if len(node.TypeArgs) != 1 {
+					cp.Throw("comp/clones/arguments", node.GetToken())
+					break NodeTypeSwitch
+				}
+				var argType AlternateType
+				argType, rtnConst = cp.CompileNode(node.TypeArgs[0], ctxt.x())
+				if !argType.Contains(values.TYPE) {
+					cp.Throw("comp/clones", node.GetToken())
+					break NodeTypeSwitch
+				}
+				cp.Put(vm.Clon, cp.That(), cp.ReserveToken(node.GetToken()))
+				break NodeTypeSwitch
+			}
 			rtnTypes, rtnConst = AltType(values.ERROR, values.TYPE), true
 			cp.ReserveToken(node.GetToken())
 			argsForVm := []uint32{resolvingCompiler.P.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}

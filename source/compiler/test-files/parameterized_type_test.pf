@@ -56,7 +56,7 @@ make Money{USD}, Money{EURO}, Money{GBP}
 
 def
 
-(x Money{c Currency}) + (y Money{c Currency}) :
+(x Money{c Currency}) + (y Money{c Currency}) -> Money{c} :
     x[small] + y[small] < 100 :
         Money{c}(x[large] + y[large], x[small] + y[small])
     else :

@@ -43,7 +43,7 @@ func NewCommonTypeMap() TypeSys {
 		result[abType+"?"] = values.MakeAbstractType(values.NULL)
 	}
 	for name, baseType := range ClonableTypes {
-		result[name+"like"] = values.MakeAbstractType(baseType)
+		result["clones{"+name+"}"] = values.MakeAbstractType(baseType)
 		result[name+"like?"] = values.MakeAbstractType(values.NULL, baseType)
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)

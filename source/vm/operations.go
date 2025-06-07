@@ -122,6 +122,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	CcTT: {"ccTT", operands{dst, mem, mem}},
 	Ccxx: {"ccxx", operands{dst, mem, mem}},
 	Chck: {"chck", operands{dst, mem, mem, chk}},
+	Clon: {"chck", operands{dst, mem, tok}},
 	Cpnt: {"cpnt", operands{dst, mem}},
 	Cv1T: {"cv1T", operands{dst, mem}},
 	CvTT: {"cvTT", operands{dst, tup}},
@@ -301,6 +302,7 @@ const (
 	Cast
 	Casx
 	Chck
+	Clon
 	CoSn
 	Diif
 	Divf

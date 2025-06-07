@@ -7,8 +7,8 @@ Database = struct(driver DatabaseDrivers, name, host string, port int, username,
 var
 
 allServices = map(`hub`::`hub/hub.hub`,
-               .. `zort`::`/home/tim/Pipefish/examples/zort.pf`,
-               .. `temp`::`/home/tim/Pipefish/examples/temp.pf`)
+               .. `temp`::`/home/tim/Pipefish/examples/temp.pf`,
+               .. `zort`::`/home/tim/Pipefish/examples/zort.pf`)
 
 currentService string? = `temp`
 

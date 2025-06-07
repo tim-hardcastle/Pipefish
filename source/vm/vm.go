@@ -530,6 +530,21 @@ loop:
 				loc = vm.callstack[len(vm.callstack)-1]
 				vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 			}
+		case Clon:
+			if vm.Mem[args[1]].T != values.TYPE {
+				vm.Mem[args[0]] = vm.makeError("vm/clones/type", args[1])
+				break Switch
+			}
+			abType := values.AbstractType{}
+			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
+				clones := vm.ConcreteTypeInfo[v].IsClonedBy()
+				if len(clones.Types) == 0 {
+					vm.Mem[args[0]] = vm.makeError("vm/clones/clone", args[1])
+					break Switch
+				}
+				abType = abType.Union(clones)
+			}
+			vm.Mem[args[0]] = values.Value{values.TYPE, abType}
 		case CoSn:
 			vm.Mem[args[0]] = values.Value{values.SNIPPET, values.Snippet{vm.Mem[args[1]].V.([]values.Value), nil}}
 		case Cpnt:
@@ -1994,11 +2009,13 @@ type TypeInformation interface {
 	IsClone() bool
 	IsPrivate() bool
 	IsMandatoryImport() bool
+	IsClonedBy() values.AbstractType
 }
 
 type BuiltinType struct {
 	name string
 	path string
+	clones values.AbstractType
 }
 
 func (t BuiltinType) GetName(flavor descriptionFlavor) string {
@@ -2034,6 +2051,15 @@ func (t BuiltinType) getPath() string {
 
 func (t BuiltinType) IsMandatoryImport() bool {
 	return true
+}
+
+func (t BuiltinType) IsClonedBy() values.AbstractType {
+	return t.clones
+}
+
+func (t BuiltinType) AddClone(v values.ValueType) BuiltinType {
+	t.clones = t.clones.Insert(v)
+	return t
 }
 
 type EnumType struct {
@@ -2077,6 +2103,10 @@ func (t EnumType) getPath() string {
 
 func (t EnumType) IsMandatoryImport() bool {
 	return t.IsMI
+}
+
+func (EnumType) IsClonedBy() values.AbstractType {
+	return values.MakeAbstractType()
 }
 
 // Contains the information necessary to perform the runtime checks on type constructors
@@ -2139,6 +2169,10 @@ func (t CloneType) IsMandatoryImport() bool {
 	return t.IsMI
 }
 
+func (CloneType) IsClonedBy() values.AbstractType {
+	return values.MakeAbstractType()
+}
+
 func (t CloneType) AddTypeCheck(tc *TypeCheck) CloneType {
 	t.TypeCheck = tc
 	return t
@@ -2194,6 +2228,10 @@ func (t StructType) getPath() string {
 
 func (t StructType) IsMandatoryImport() bool {
 	return t.IsMI
+}
+
+func (StructType) IsClonedBy() values.AbstractType {
+	return values.MakeAbstractType()
 }
 
 func (t StructType) AddLabels(labels []int) StructType {

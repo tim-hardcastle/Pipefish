@@ -430,6 +430,7 @@ func TestParameterizedTypes(t *testing.T) {
 		{`list{int}[1, 2] + list{int}[3, 4]`, `list{int}[1, 2, 3, 4]`},
 		{`Z{5}(4) in Z{5}`, `true`},
 		{`Z{5}(4) in Z{12}`, `false`},
+		{`clones{int}`, `clones{int}`},
 	}
 	test_helper.RunTest(t, "parameterized_type_test.pf", tests, test_helper.TestValues)
 }
