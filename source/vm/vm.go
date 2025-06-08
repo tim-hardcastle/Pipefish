@@ -539,7 +539,7 @@ loop:
 			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
 				clones := vm.ConcreteTypeInfo[v].IsClonedBy()
 				if len(clones.Types) == 0 {
-					vm.Mem[args[0]] = vm.makeError("vm/clones/clone", args[1])
+					vm.Mem[args[0]] = vm.makeError("vm/clones/clone", args[2])
 					break Switch
 				}
 				abType = abType.Union(clones)

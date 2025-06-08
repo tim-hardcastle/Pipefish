@@ -6,23 +6,23 @@ import (
 )
 
 var baseTypes = map[string]values.ValueType{
-	"ok":     values.SUCCESSFUL_VALUE,
-	"int":    values.INT,
-	"string": values.STRING,
-	"rune":   values.RUNE,
-	"bool":   values.BOOL,
-	"float":  values.FLOAT,
-	"error":  values.ERROR,
-	"type":   values.TYPE,
-	"pair":   values.PAIR,
-	"list":   values.LIST,
-	"map":    values.MAP,
-	"set":    values.SET,
-	"label":  values.LABEL,
-	"func":   values.FUNC,
-	"null":   values.NULL,
+	"ok":      values.SUCCESSFUL_VALUE,
+	"int":     values.INT,
+	"string":  values.STRING,
+	"rune":    values.RUNE,
+	"bool":    values.BOOL,
+	"float":   values.FLOAT,
+	"error":   values.ERROR,
+	"type":    values.TYPE,
+	"pair":    values.PAIR,
+	"list":    values.LIST,
+	"map":     values.MAP,
+	"set":     values.SET,
+	"label":   values.LABEL,
+	"func":    values.FUNC,
+	"null":    values.NULL,
 	"snippet": values.SNIPPET,
-	"secret": values.SECRET,
+	"secret":  values.SECRET,
 }
 
 func NewCommonTypeMap() TypeSys {
@@ -32,19 +32,14 @@ func NewCommonTypeMap() TypeSys {
 		result[k] = values.MakeAbstractType(v)
 		if v != values.SUCCESSFUL_VALUE && v != values.NULL {
 			anyType = anyType.Insert(v)
-			result[k+"?"] = values.MakeAbstractType(values.NULL, v)
 		}
 	}
-	singleAndNull := anyType.Insert(values.NULL)
 	result["any"] = anyType
-	result["any?"] = singleAndNull
 	for _, abType := range []string{"enum", "struct"} {
 		result[abType] = values.MakeAbstractType()
-		result[abType+"?"] = values.MakeAbstractType(values.NULL)
 	}
 	for name, baseType := range ClonableTypes {
 		result["clones{"+name+"}"] = values.MakeAbstractType(baseType)
-		result[name+"like?"] = values.MakeAbstractType(values.NULL, baseType)
 	}
 	result["tuple"] = values.MakeAbstractType(values.TUPLE)
 	result["ref"] = values.MakeAbstractType(values.REF)
@@ -55,7 +50,7 @@ func NewCommonTypeMap() TypeSys {
 
 var ClonableTypes = map[string]values.ValueType{"float": values.FLOAT, "int": values.INT, "list": values.LIST, "map": values.MAP, "pair": values.PAIR, "rune": values.RUNE, "set": values.SET, "snippet": values.SNIPPET, "string": values.STRING}
 
-var AbstractTypesOtherThanSingle = []string{"struct", "enum"}
+var AbstractTypesOtherThanAny = []string{"struct", "enum"}
 
 func IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 	if len(sigB) == 0 {
@@ -116,18 +111,3 @@ func IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 func (p *Parser) IsSameTypeOrSubtype(maybeSub, maybeSuper ast.TypeNode) bool {
 	return p.GetAbstractType(maybeSub).IsSubtypeOf(p.GetAbstractType(maybeSuper))
 }
-
-func GetNullabilityFromType(maybeNullable string) bool { // TODO --- presumably obsolete.
-	return maybeNullable == "null" || (len(maybeNullable)-1) == '?'
-}
-
-func UnnullType(maybeNulled string) string {
-	if maybeNulled[len(maybeNulled)-1] == '?' {
-		return maybeNulled[0 : len(maybeNulled)-1]
-	} else {
-		return maybeNulled
-	}
-}
-
-
-

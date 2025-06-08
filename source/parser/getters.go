@@ -487,7 +487,7 @@ func (p *Parser) MakeAbstractSigFromStringSig(sig ast.AstSig) ast.AbstractSig {
 }
 
 func (p *Parser) TypeExists(name string) bool {
-	// Check if it's a shared type: 'int', 'struct', 'listlike', 'any?' etc.
+	// Check if it's a shared type: 'int', 'struct', 'like{list}', 'any?' etc.
 	if _, ok := p.Common.Types[name]; ok {
 		return true
 	}
@@ -544,7 +544,7 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 }
 
 func (p *Parser) GetAbstractTypeFromTypeSys(name string) values.AbstractType {
-	// Check if it's a shared type: 'int', 'struct', 'listlike', 'any?' etc.
+	// Check if it's a shared type: 'int', 'struct', 'clones{list}', 'any?' etc.
 	if result, ok := p.Common.Types[name]; ok {
 		return result
 	}

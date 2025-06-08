@@ -83,13 +83,13 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 	newBindle := &CommonCompilerBindle{
 		SharedTypenameToTypeList: map[string]AlternateType{
 			// TODO --- why can't we define one in terms of the other?
-			"any":  AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET, values.SECRET),
+			"any": AltType(values.INT, values.BOOL, values.STRING, values.RUNE, values.TYPE, values.FUNC, values.PAIR, values.LIST, values.MAP, values.SET, values.LABEL, values.SNIPPET, values.SECRET),
 		},
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
 	}
-	for _, name := range parser.AbstractTypesOtherThanSingle {
+	for _, name := range parser.AbstractTypesOtherThanAny {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
 	}
 	for name, ty := range parser.ClonableTypes {
@@ -401,7 +401,7 @@ NodeTypeSwitch:
 		// Maps, by any value we can Compare with another value.
 		// Structs, by a label, preferably an appropriate one.
 
-		if len(containerType.intersect(cp.Common.SharedTypenameToTypeList["listlike"])) == len(containerType) {
+		if len(containerType.intersect(cp.Common.SharedTypenameToTypeList["clones{list}"])) == len(containerType) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.Put(vm.IdxL, container, index, errTok)
 				rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
@@ -983,7 +983,7 @@ NodeTypeSwitch:
 			}
 			var leftTypes AlternateType
 			leftTypes, rtnConst = cp.CompileNode(node.Args[0], ctxt.x())
-			overlap := leftTypes.intersect(cp.Common.SharedTypenameToTypeList["listlike"])
+			overlap := leftTypes.intersect(cp.Common.SharedTypenameToTypeList["clones{list}"])
 			if len(overlap) == 0 {
 				cp.Throw("comp/splat/type", node.GetToken(), leftTypes)
 				rtnTypes = altType(values.COMPILE_TIME_ERROR)
@@ -2152,7 +2152,7 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	envWithThat := &Environment{}
 	thatLoc := uint32(DUMMY)
 
-	overlap := lhsTypes.intersect(cp.Common.SharedTypenameToTypeList["listlike"])
+	overlap := lhsTypes.intersect(cp.Common.SharedTypenameToTypeList["clones{list}"])
 	if len(overlap) == 0 {
 		cp.Throw("comp/pipe/mf/list", rhs.GetToken())
 		return AltType(values.ERROR), true

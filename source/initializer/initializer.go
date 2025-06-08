@@ -1671,6 +1671,9 @@ func (iz *initializer) addAbstractTypesToVm() {
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, typeName := range keys {
+		if text.Head(typeName, "clones{") && len(iz.p.GetAbstractTypeFromTypeSys(typeName).Types) == 1 {
+			continue
+		}
 		iz.AddTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.p.NamespacePath,
 			AT: iz.p.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
 	}
