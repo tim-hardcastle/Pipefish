@@ -1525,7 +1525,7 @@ loop:
 			if ct, ok := vm.ConcreteTypeInfo[ty.Types[0]].(CloneType); ok {
 				result = result.Conj(values.Value{values.TYPE, values.MakeAbstractType(ct.Parent)})
 			} else {
-				result = result.Conj(values.Value{values.UNDEFINED_TYPE, nil}) // TODO --- gt a token, return an error.
+				result = result.Conj(values.Value{values.NULL, nil})
 			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
 		case Tplf:
