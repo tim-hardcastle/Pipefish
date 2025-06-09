@@ -1522,7 +1522,7 @@ loop:
 			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsClone()})
 			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsEnum()})
 			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsStruct()})
-			if ct, ok := vm.ConcreteTypeInfo[ty.Types[0]].(*CloneType); ok {
+			if ct, ok := vm.ConcreteTypeInfo[ty.Types[0]].(CloneType); ok {
 				result = result.Conj(values.Value{values.TYPE, values.MakeAbstractType(ct.Parent)})
 			} else {
 				result = result.Conj(values.Value{values.UNDEFINED_TYPE, nil}) // TODO --- gt a token, return an error.
