@@ -124,7 +124,7 @@ func (cp *Compiler) SerializeApi() string {
 
 	for i := 0; i < len(cp.Vm.AbstractTypes); i++ {
 		ty := cp.Vm.AbstractTypes[i]
-		if !(cp.IsPrivate(ty.AT)) && !cp.IsMandatoryImport(ty) && 
+		if !(cp.IsPrivate(ty.AT)) && !cp.IsMandatoryImport(ty) && !cp.GeneratedAbstractTypes.Contains(ty.Name) &&
 				!((len(ty.AT.Types) == 1) && (cp.Vm.ConcreteTypeInfo[ty.AT.Types[0]].GetName(vm.DEFAULT) == ty.Name)) { // It may be the abstract type containing the concrete type of the same name, in which case we don't want to declare it twice.
 			buf.WriteString("ABSTRACT | ")
 			buf.WriteString(ty.Name)

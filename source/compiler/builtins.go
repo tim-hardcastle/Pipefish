@@ -40,6 +40,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"float_of_string":           {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
 	"get_from_input":            {(*Compiler).btGetFromInput, AltType(values.SUCCESSFUL_VALUE)},
 	"get_sql":                   {(*Compiler).btGetFromSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
+	"get_type_information":      {(*Compiler).btGetTypeInformation, AltType(values.LIST)},
 	"gt_floats":                 {(*Compiler).btGtFloats, AltType(values.BOOL)},
 	"gte_floats":                {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":                   {(*Compiler).btGtInts, AltType(values.BOOL)},
@@ -210,8 +211,12 @@ func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32)
 	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
-func (cp *Compiler) btGetFromSQL(tok *token.Token, dest uint32, args []uint32) {
+func (cp *Compiler) btGetFromSQL(tok *token.Token, dest uint32, args []uint32) { // TODO --- find ut why this works like this and make it stop.
 	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.ReserveToken(tok))
+}
+
+func (cp *Compiler) btGetTypeInformation(tok *token.Token, dest uint32, args []uint32) {
+	cp.Emit(vm.Tinf, dest, args[0])
 }
 
 func (cp *Compiler) btGtFloats(tok *token.Token, dest uint32, args []uint32) {

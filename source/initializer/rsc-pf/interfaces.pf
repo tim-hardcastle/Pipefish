@@ -27,6 +27,29 @@ Stringable = interface :
 Subtractable = interface :
     (x self) - (y self) -> self
 
-// Varchar = clone{i int} string :
-//   len that <= i 
+Varchar = clone{i int} string :
+    len that <= i 
 
+list = clone{T type} list using +, slice :
+    from a = true for _::el = range that :
+        el in T :
+            continue 
+        else :
+            break false
+
+set = clone{T type} set using + :
+    from a = true for _::el = range that :
+        el in T :
+            continue 
+        else :
+            break false
+
+pair = clone{K, V type} pair :
+    that[0] in K and that[1] in V
+
+map = clone{K, V type} map :
+    from a = true for k::v = range that :
+        k in K && v in V :
+            continue 
+        else :
+            break false

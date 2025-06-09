@@ -60,6 +60,8 @@ float(x string) -> float : builtin "float_of_string"
 (x any?) in (y tuple) -> bool : builtin "single_in_tuple"
 (x any?) in (y type) -> bool : builtin "single_in_type"
 first(x tuple) -> any? : builtin "first_in_tuple"
+// TODO --- like stringify, below, this is meant to be purely internal.
+getTypeInfo(t type) -> list : builtin "get_type_info"
 int(x clones{int}) -> int : builtin "cast_to_int"
 int(x string) -> int : builtin "int_of_string"
 int(x float) -> int : builtin "int_of_float"

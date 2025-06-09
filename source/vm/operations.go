@@ -240,6 +240,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Subi: {"subi", operands{dst, mem, mem}},
 	SubS: {"subS", operands{dst, mem, mem}},
 	Thnk: {"thnk", operands{dst, mem, loc}},
+	Tinf: {"tinf", operands{dst, mem}},
 	Tplf: {"tupf", operands{dst, mem, tok}},
 	Tpll: {"tupl", operands{dst, mem, tok}},
 	Trak: {"trak", operands{trk}},
@@ -423,6 +424,7 @@ const (
 	Subi
 	SubS
 	Thnk
+	Tinf
 	Tplf
 	Tpll
 	Trak

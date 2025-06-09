@@ -41,6 +41,7 @@ type Compiler struct {
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
+	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.          
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -65,6 +66,10 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		ParameterizedTypes:       make(map[string][]ParameterInfo),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 		Common:                   ccb,
+		GeneratedAbstractTypes:   make(dtypes.Set[string]),
+	}
+	for name := range parser.ClonableTypes {
+		newC.GeneratedAbstractTypes.Add("clones{"+name+"}")
 	}
 	newC.pushRCompiler(newC)
 	return newC

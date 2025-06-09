@@ -1504,6 +1504,17 @@ loop:
 			vm.Mem[args[0]] = values.Value{vm.Mem[args[1]].T, result}
 		case Thnk:
 			vm.Mem[args[0]] = values.Value{values.THUNK, values.ThunkValue{args[1], args[2]}}
+		case Tinf:
+			result := vector.Empty
+			ty := vm.Mem[args[1]].V.(values.AbstractType)
+			result = result.Conj(values.Value{values.STRING, vm.DescribeAbstractType(ty, DEFAULT)})
+			types := values.Set{}
+			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
+				concType := values.AbstractType{[]values.ValueType{v}}
+				types = types.Add(values.Value{values.TYPE, concType})
+			}
+			result = result.Conj(values.Value{values.SET, types})
+			vm.Mem[args[0]] = values.Value{values.LIST, result}
 		case Tplf:
 			tup := vm.Mem[args[1]].V.([]values.Value)
 			if len(tup) == 0 {
@@ -1551,12 +1562,12 @@ loop:
 			}
 			vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
 		case Typs:
-			result := values.Set{}
+			types := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
 				concType := values.AbstractType{[]values.ValueType{v}}
-				result = result.Add(values.Value{values.TYPE, concType})
+				types = types.Add(values.Value{values.TYPE, concType})
 			}
-			vm.Mem[args[0]] = values.Value{values.SET, result}
+			vm.Mem[args[0]] = values.Value{values.SET, types}
 		case Typu:
 			lhs := vm.Mem[args[1]].V.(values.AbstractType)
 			rhs := vm.Mem[args[2]].V.(values.AbstractType)

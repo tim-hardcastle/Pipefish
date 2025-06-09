@@ -1212,6 +1212,7 @@ func (iz *initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	blankType := ty.Blank()
 	blankType.Name = name
 	supertype := blankType.String()
+	iz.cp.GeneratedAbstractTypes.Add(supertype)
 	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters),
 		iz.astParamsToValueTypes(ty.Parameters), opList,
 		typeCheck, parentType, nil, private, supertype, tok}

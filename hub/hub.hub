@@ -9,7 +9,7 @@ var
 allServices = map(`hub`::`hub/hub.hub`,
                .. `temp`::`/home/tim/Pipefish/examples/temp.pf`)
 
-currentService string? = NULL
+currentService string? = `temp`
 
 isLive = true
 
