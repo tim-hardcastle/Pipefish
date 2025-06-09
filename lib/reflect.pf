@@ -13,14 +13,59 @@ given :
 isAbstract(t type) -> bool :
     len (getTypeInfo(t))[1] != 1
 
+isBuiltin(t type) -> bool :
+    concrete :
+        info[2]
+    else :
+        error "type is not concrete"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
+isClone(t type) -> bool :
+    concrete :
+        info[3]
+    else :
+        error "type is not concrete"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
 isConcrete(t type) -> bool :
     len (getTypeInfo(t))[1] == 1
 
 isEmpty(t type) -> bool :
     len (getTypeInfo(t))[1] == 0
 
+isEnum(t type) -> bool :
+    concrete :
+        info[4]
+    else :
+        error "type is not concrete"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
+isStruct(t type) -> bool :
+    concrete :
+        info[5]
+    else :
+        error "type is not concrete"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
 name(t type) -> string :
     (getTypeInfo(t))[0]
+
+parent(t type) -> type :
+    concrete and info[3] :
+        info[6]
+    else :
+        error "type is not clone"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
 
 subtypes(t type) -> set :
     (getTypeInfo(t))[1]

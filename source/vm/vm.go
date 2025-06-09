@@ -1507,13 +1507,26 @@ loop:
 		case Tinf:
 			result := vector.Empty
 			ty := vm.Mem[args[1]].V.(values.AbstractType)
+			conc := (ty.Len() == 1)
 			result = result.Conj(values.Value{values.STRING, vm.DescribeAbstractType(ty, DEFAULT)})
 			types := values.Set{}
-			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
+			for _, v := range ty.Types {
 				concType := values.AbstractType{[]values.ValueType{v}}
 				types = types.Add(values.Value{values.TYPE, concType})
 			}
 			result = result.Conj(values.Value{values.SET, types})
+			result = result.Conj(values.Value{values.BOOL, conc && 
+				!(vm.ConcreteTypeInfo[ty.Types[0]].IsClone() ||
+				  vm.ConcreteTypeInfo[ty.Types[0]].IsEnum() ||
+			      vm.ConcreteTypeInfo[ty.Types[0]].IsStruct())})
+			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsClone()})
+			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsEnum()})
+			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsStruct()})
+			if ct, ok := vm.ConcreteTypeInfo[ty.Types[0]].(*CloneType); ok {
+				result = result.Conj(values.Value{values.TYPE, values.MakeAbstractType(ct.Parent)})
+			} else {
+				result = result.Conj(values.Value{values.UNDEFINED_TYPE, nil}) // TODO --- gt a token, return an error.
+			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
 		case Tplf:
 			tup := vm.Mem[args[1]].V.([]values.Value)

@@ -40,7 +40,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"float_of_string":           {(*Compiler).btFloatOfString, AltType(values.ERROR, values.FLOAT)},
 	"get_from_input":            {(*Compiler).btGetFromInput, AltType(values.SUCCESSFUL_VALUE)},
 	"get_sql":                   {(*Compiler).btGetFromSQL, AltType(values.SUCCESSFUL_VALUE, values.ERROR)},
-	"get_type_information":      {(*Compiler).btGetTypeInformation, AltType(values.LIST)},
+	"get_type_info":             {(*Compiler).btGetTypeInformation, AltType(values.LIST)},
 	"gt_floats":                 {(*Compiler).btGtFloats, AltType(values.BOOL)},
 	"gte_floats":                {(*Compiler).btGteFloats, AltType(values.BOOL)},
 	"gt_ints":                   {(*Compiler).btGtInts, AltType(values.BOOL)},
