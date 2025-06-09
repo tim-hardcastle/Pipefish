@@ -1,14 +1,23 @@
 def
 
 contains(t, subtype type) -> bool :       //TODO --- it kinda seems like we should have a subset operator.
-    from a = true for _::el = range subtype :
-        el in t :
+    from a = true for _::el = range typesInSubtype :
+        el in typesInType :
             continue 
         else :
             break false 
 given :
     typesInType = (getTypeInfo(t))[1]
-    typesInSubType = (getTypeInfo(subtype))[1]
+    typesInSubtype = (getTypeInfo(subtype))[1]
+
+elements(t type) -> list :
+    concrete and info[4] :
+        info[7]
+    else :
+        error "type is not enum"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
 
 isAbstract(t type) -> bool :
     len (getTypeInfo(t))[1] != 1
@@ -51,6 +60,24 @@ isStruct(t type) -> bool :
         info[5]
     else :
         error "type is not concrete"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
+fieldLabels(t type) -> list :
+    concrete and info[5] :
+        info[8]
+    else :
+        error "type is not struct"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
+fieldTypes(t type) -> list :
+    concrete and info[5] :
+        info[9]
+    else :
+        error "type is not struct"
 given :
     info = getTypeInfo(t)
     concrete = len(info[1]) == 1

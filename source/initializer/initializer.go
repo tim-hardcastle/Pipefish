@@ -840,8 +840,12 @@ func (iz *initializer) createEnums() {
 			}
 			tok = tokens.NextToken()
 		}
+		vec := vector.Empty
+		for i := range len(elementNameList) {
+			vec = vec.Conj(values.Value{typeNo, i})
+		}
 		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.EnumType{Name: name, Path: iz.p.NamespacePath, ElementNames: elementNameList,
-			Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
+			ElementValues: values.Value{values.LIST, vec}, Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
 	}
 }
 
@@ -1174,6 +1178,7 @@ func (iz *initializer) createStructLabels() {
 		private := iz.IsPrivate(int(structDeclaration), i)
 		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, private, sig})
 		stT := vm.StructType{Name: name, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+			LabelValues: labelValuesFromLabelNumbers(labelsForStruct),
 			Private: private, IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
 		stT = stT.AddLabels(labelsForStruct)
 		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
@@ -1181,6 +1186,14 @@ func (iz *initializer) createStructLabels() {
 		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
 		iz.Add(name, fn)
 	}
+}
+
+func labelValuesFromLabelNumbers(numbers []int) values.Value {
+	vec := vector.Empty
+	for _, v := range numbers {
+		vec = vec.Conj(values.Value{values.LABEL, v})
+	}
+	return values.Value{values.LIST, vec}
 }
 
 func (iz *initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexToken *token.Token) []int {
@@ -1449,6 +1462,7 @@ loop:
 					iz.setDeclaration(decSTRUCT, &ty.Token, DUMMY, structInfo{typeNo, private, sig})
 					labelsForStruct := iz.makeLabelsFromSig(sig, private, &ty.Token)
 					stT := vm.StructType{Name: newTypeName, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+						LabelValues: labelValuesFromLabelNumbers(labelsForStruct),
 						Private: private, IsMI: settings.MandatoryImportSet().Contains(ty.Token.Source)}
 					stT = stT.AddLabels(labelsForStruct)
 					iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT

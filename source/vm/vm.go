@@ -1505,6 +1505,7 @@ loop:
 		case Thnk:
 			vm.Mem[args[0]] = values.Value{values.THUNK, values.ThunkValue{args[1], args[2]}}
 		case Tinf:
+			// TODO --- as this is permanent state, much of it could be stuck in the ConcreteTypeInfo.
 			result := vector.Empty
 			ty := vm.Mem[args[1]].V.(values.AbstractType)
 			conc := (ty.Len() == 1)
@@ -1525,6 +1526,22 @@ loop:
 			if ct, ok := vm.ConcreteTypeInfo[ty.Types[0]].(CloneType); ok {
 				result = result.Conj(values.Value{values.TYPE, values.MakeAbstractType(ct.Parent)})
 			} else {
+				result = result.Conj(values.Value{values.NULL, nil})
+			}
+			if et, ok := vm.ConcreteTypeInfo[ty.Types[0]].(EnumType); ok {
+				result = result.Conj(et.ElementValues)
+			} else {
+				result = result.Conj(values.Value{values.NULL, nil})
+			}
+			if st, ok := vm.ConcreteTypeInfo[ty.Types[0]].(StructType); ok {
+				result = result.Conj(st.LabelValues)
+				vec := vector.Empty
+				for _, ty := range st.AbstractStructFields {
+					vec = vec.Conj(values.Value{values.TYPE, ty})
+				}
+				result = result.Conj(values.Value{values.LIST, vec})
+			} else {
+				result = result.Conj(values.Value{values.NULL, nil})
 				result = result.Conj(values.Value{values.NULL, nil})
 			}
 			vm.Mem[args[0]] = values.Value{values.LIST, result}
@@ -2087,11 +2104,12 @@ func (t BuiltinType) AddClone(v values.ValueType) BuiltinType {
 }
 
 type EnumType struct {
-	Name         string
-	Path         string
-	ElementNames []string
-	Private      bool
-	IsMI         bool
+	Name          string
+	Path          string
+	ElementNames  []string
+	ElementValues values.Value // A list.
+	Private       bool
+	IsMI          bool
 }
 
 func (t EnumType) GetName(flavor descriptionFlavor) string {
@@ -2206,13 +2224,14 @@ type StructType struct {
 	Name                 string
 	Path                 string
 	LabelNumbers         []int
+	LabelValues          values.Value // A list.
 	Snippet              bool
 	Private              bool
 	AbstractStructFields []values.AbstractType
 	ResolvingMap         map[int]int // TODO --- it would probably be better to implment this as a linear search below a given threshhold and a binary search above it.
 	IsMI                 bool
 	TypeCheck            *TypeCheck
-	TypeArguments            []values.Value
+	TypeArguments        []values.Value
 }
 
 func (t StructType) GetName(flavor descriptionFlavor) string {
