@@ -1,0 +1,26 @@
+def
+
+contains(t, subtype type) -> bool :       //TODO --- it kinda seems like we should have a subset operator.
+    from a = true for _::el = range subtype :
+        el in t :
+            continue 
+        else :
+            break false 
+given :
+    typesInType = (getTypeInfo(t))[1]
+    typesInSubType = (getTypeInfo(subtype))[1]
+
+isAbstract(t type) -> bool :
+    len (getTypeInfo(t))[1] != 1
+
+isConcrete(t type) -> bool :
+    len (getTypeInfo(t))[1] == 1
+
+isEmpty(t type) -> bool :
+    len (getTypeInfo(t))[1] == 0
+
+name(t type) -> string :
+    (getTypeInfo(t))[0]
+
+subtypes(t type) -> set :
+    (getTypeInfo(t))[1]
