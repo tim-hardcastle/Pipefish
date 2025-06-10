@@ -85,6 +85,33 @@ given :
 name(t type) -> string :
     (getTypeInfo(t))[0]
 
+operator(t type) -> string :
+    concrete :
+        info[10]
+    else :
+        error "type is not concrete"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
+parameterTypes(t type) -> list :
+    concrete and (info[3] or info[5]) :
+        info[12]
+    else :
+        error "type is not clone or struct"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
+parameterValues(t type) -> list :
+    concrete and (info[3] or info[5]) :
+        info[11]
+    else :
+        error "type is not clone or struct"
+given :
+    info = getTypeInfo(t)
+    concrete = len(info[1]) == 1
+
 parent(t type) -> type :
     concrete and info[3] :
         info[6]

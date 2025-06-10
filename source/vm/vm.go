@@ -1509,7 +1509,15 @@ loop:
 			result := vector.Empty
 			ty := vm.Mem[args[1]].V.(values.AbstractType)
 			conc := (ty.Len() == 1)
-			result = result.Conj(values.Value{values.STRING, vm.DescribeAbstractType(ty, DEFAULT)})
+			name := vm.DescribeAbstractType(ty, LITERAL)
+			operator := ""
+			ix := strings.IndexRune(name, '{')
+			if ix == -1 {
+				operator = name 
+			} else {
+				operator = name[:ix]
+			}
+			result = result.Conj(values.Value{values.STRING, name})
 			types := values.Set{}
 			for _, v := range ty.Types {
 				concType := values.AbstractType{[]values.ValueType{v}}
@@ -1541,6 +1549,28 @@ loop:
 				}
 				result = result.Conj(values.Value{values.LIST, vec})
 			} else {
+				result = result.Conj(values.Value{values.NULL, nil})
+				result = result.Conj(values.Value{values.NULL, nil})
+			}
+			result = result.Conj(values.Value{values.STRING, operator})
+			pVals := vector.Empty
+			pTypes := vector.Empty
+			switch typeIs := vm.ConcreteTypeInfo[ty.Types[0]].(type) {
+			case CloneType:
+				for _, v := range typeIs.TypeArguments {
+					pVals = pVals.Conj(v)
+					pTypes = pTypes.Conj(values.Value{values.TYPE, values.MakeAbstractType(v.T)})
+				}
+				result = result.Conj(values.Value{values.LIST, pVals})
+				result = result.Conj(values.Value{values.LIST, pTypes})
+			case StructType:
+				for _, v := range typeIs.TypeArguments {
+					pVals = pVals.Conj(v)
+					pTypes = pTypes.Conj(values.Value{values.TYPE, values.MakeAbstractType(v.T)})
+				}
+				result = result.Conj(values.Value{values.LIST, pVals})
+				result = result.Conj(values.Value{values.LIST, pTypes})
+			default:
 				result = result.Conj(values.Value{values.NULL, nil})
 				result = result.Conj(values.Value{values.NULL, nil})
 			}

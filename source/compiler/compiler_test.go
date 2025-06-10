@@ -414,6 +414,12 @@ func TestParameterizedTypes(t *testing.T) {
 	}
 	test_helper.RunTest(t, "parameterized_type_test.pf", tests, test_helper.TestValues)
 }
+func TestReflection(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`reflect.isStruct Varchar{8}`, `false`},
+	}
+	test_helper.RunTest(t, "reflect_test.pf", tests, test_helper.TestValues)
+}
 func TestGocode(t *testing.T) {
 	if runtime.GOOS == "windows" { // Windows can't use the plugin package.
 		return
