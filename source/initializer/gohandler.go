@@ -98,10 +98,6 @@ func (iz *initializer) compileGo() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i, _ := range iz.ParsedDeclarations[j] {
 			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
-			if body == nil {
-				iz.p.Throw("init/func/body", body.GetToken())
-				return
-			}
 			if iz.ErrorsExist() {
 				return
 			}

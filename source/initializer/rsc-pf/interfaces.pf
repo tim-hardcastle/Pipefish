@@ -30,13 +30,6 @@ Subtractable = interface :
 Varchar = clone{i int} string :
     len that <= i 
 
-list = clone{T type} list using +, slice :
-    from a = true for _::el = range that :
-        el in T :
-            continue 
-        else :
-            break false
-
 set = clone{T type} set using + :
     from a = true for _::el = range that :
         el in T :
@@ -50,6 +43,13 @@ pair = clone{K, V type} pair :
 map = clone{K, V type} map :
     from a = true for k::v = range that :
         k in K && v in V :
+            continue 
+        else :
+            break false
+
+list = clone{T type} list using +, slice :
+    from a = true for _::el = range that :
+        el in T :
             continue 
         else :
             break false
