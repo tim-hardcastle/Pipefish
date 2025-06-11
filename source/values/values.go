@@ -226,14 +226,6 @@ func (a AbstractType) Len() int {
 	return len(a.Types)
 }
 
-func (a AbstractType) IsVarchar() bool { // TODO --- either needs a body or deletion.
-	return false
-}
-
-func (a AbstractType) IsVarcharOrNull() bool { // Ditto.
-	return false
-}
-
 func (a AbstractType) Equals(b AbstractType) bool {
 	if len(a.Types) != len(b.Types) {
 		return false

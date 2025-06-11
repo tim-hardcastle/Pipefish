@@ -2,8 +2,10 @@ package vm
 
 import (
 	"database/sql"
+	"strconv"
 	"strings"
 
+	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
@@ -86,7 +88,7 @@ func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 	buf.WriteString("(")
 	sep := ""
 	for i, v := range vm.ConcreteTypeInfo[pfStructType].(StructType).AbstractStructFields {
-		sqlType := getSqlType(v)
+		sqlType := vm.getSqlType(v)
 		if sqlType == "" {
 			return "", false
 		}
@@ -100,7 +102,8 @@ func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 	return buf.String(), true
 }
 
-func getSqlType(pfType values.AbstractType) string {
+func (vm *Vm) getSqlType(pfType values.AbstractType) string {
+	// TODO --- this could be attached to the abstract type informtion.
 	switch {
 	case pfType.Equals(values.AbstractType{[]values.ValueType{values.INT}}):
 		return "INTEGER NOT NULL"
@@ -110,16 +113,33 @@ func getSqlType(pfType values.AbstractType) string {
 		return "STRING NOT NULL"
 	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.STRING}}):
 		return "STRING"
-	case pfType.IsVarchar():
-		// TODO again --- return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ") NOT NULL"
-	case pfType.IsVarcharOrNull():
-		// TODO again --- return "VARCHAR(" + strconv.Itoa(int(pfType.Varchar)) + ")"
 	case pfType.Equals(values.AbstractType{[]values.ValueType{values.BOOL}}):
 		return "BOOL NOT NULL"
 	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.BOOL}}):
 		return "BOOL"
 	}
-	return ""
+	// Now we have to do something kludgy to find out if it's a varchar, and indeed one of 
+	// our varchars.
+	thingToCheck := values.UNDEFINED_TYPE
+	if pfType.Len() == 1 {
+		thingToCheck = pfType.Types[0]
+	}
+	if pfType.Len() == 2 && pfType.Types[0] == values.NULL {
+		thingToCheck = pfType.Types[1]
+	}
+	if thingToCheck == values.UNDEFINED_TYPE {
+		return ""
+	}
+	info, ok := vm.ConcreteTypeInfo[thingToCheck].(CloneType)
+	if !ok || !text.Head(info.Name, "Varchar{") || info.Parent != values.STRING || len(info.TypeArguments) != 1 ||
+			info.TypeArguments[0].T != values.INT {
+		return ""
+	}
+	vNo := info.TypeArguments[0].V.(int)
+	if pfType.Len() == 1 {
+		return "VARCHAR(" + strconv.Itoa(vNo) + ") NOT NULL"
+	}
+	return "VARCHAR(" + strconv.Itoa(vNo) + ")"
 }
 
 func pfToGoPointers(pfValues []values.Value) []any {
