@@ -52,7 +52,11 @@ type initializer struct {
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
 	// This contains information about the operators of parameterized types, e.g. Z.
 	typeOperators map[string]typeOperatorInfo
-	// Whereas these contain information about the instances of the types, e.g. Z{5}, Z{12}.
+	// This contains information about the parameterized types that we're going to instantiate when
+	// we scrape them out of signatures and 'make' statements.
+	parameterizedTypesToDeclare map[string]typeInstantiationInfo
+	// Whereas these contain information about the instances of the types after we've created them,
+	// e.g. Z{5}, Z{12}.
 	parameterizedTypeMap       map[string]int              // Maps names to the numbered type instances below.
 	parameterizedTypeInstances []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
 }
@@ -65,6 +69,7 @@ func NewInitializer() *initializer {
 		fnIndex:                    make(map[fnSource]*ast.PrsrFunction),
 		unserializableTypes:        make(dtypes.Set[string]),
 		typeOperators:              make(map[string]typeOperatorInfo),
+		parameterizedTypesToDeclare:make(map[string]typeInstantiationInfo),
 		parameterizedTypeMap:       make(map[string]int),
 		parameterizedTypeInstances: make([]parameterizedTypeInstance, 0),
 	}
@@ -91,6 +96,13 @@ func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
 	return &b
 }
 
+// Type instantiations as scraped out of signatures and make statements.
+type typeInstantiationInfo struct {
+	ty *ast.TypeWithArguments
+	private bool 
+}
+
+// After hooking it up with the parameterized type definitions.
 type parameterizedTypeInstance struct {
 	astType   ast.TypeNode
 	env       *compiler.Environment
@@ -1398,7 +1410,9 @@ func (iz *initializer) createInterfaceTypes() {
 }
 
 func (iz *initializer) instantiateParameterizedTypes() {
-loop:
+	// First, all the stuff in make statements needs adding to the implicitly instantiated 
+	// types.
+	loop:
 	for i, dec := range iz.TokenizedDeclarations[makeDeclaration] {
 		dec.ToStart()
 		iz.cp.P.TokenizedCode = dec
@@ -1408,88 +1422,26 @@ loop:
 			iz.Throw("init/make/empty", dec.IndexToken())
 			continue loop
 		}
-		// First we slurp all the information we need out of the tokenized code.
+		private := iz.IsPrivate(int(makeDeclaration), i)
 		for {
-			tok := iz.cp.P.CurToken
 			ty := iz.cp.P.ParseType(parser.T_LOWEST)
 			if ty == nil {
 				iz.Throw("init/make/type", dec.IndexToken())
 				continue loop
 			}
-			if ty, ok := ty.(*ast.TypeWithArguments); ok {
-				// The parser doesn't know the types and values of enums, 'cos of being a
-				// parser. So we kludge them in here.
-				for i, v := range ty.Values() {
-					if maybeEnum, ok := v.V.(string); ok && v.T == 0 {
-						w := iz.cp.EnumElements[maybeEnum]
-						ty.Arguments[i].Type = w.T
-						ty.Arguments[i].Value = w.V
-					}
-				}
-				argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
-				if argIndex == DUMMY {
-					iz.Throw("init/type/args", &tok)
-					continue loop
-				}
-				parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
-				isClone := !(parTypeInfo.ParentType == "struct")
-				newEnv := compiler.NewEnvironment()
-				vals := []values.Value{}
-				for i, name := range parTypeInfo.Names {
-					iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
-					newEnv.Data[name] = compiler.Variable{iz.cp.That(), compiler.LOCAL_CONSTANT, altType(ty.Arguments[i].Type)}
-					vals = append(vals, values.Value{ty.Arguments[i].Type, ty.Arguments[i].Value})
-				}
-				iz.cp.P.NextToken()
-				newTypeName := ty.String()
-				parentTypeNo, ok := parser.ClonableTypes[parTypeInfo.ParentType]
-				if !(ok || parTypeInfo.ParentType == "struct") {
-					iz.Throw("init/clone/type", dec.IndexToken())
-					return
-				}
-				var (
-					typeNo values.ValueType
-					sig    ast.AstSig
-				)
-				if isClone {
-					typeNo, _ = iz.addCloneType(ty.String(), parTypeInfo.ParentType, false, &tok)
-					iz.createOperations(ty, typeNo, parTypeInfo.Operations, parentTypeNo, parTypeInfo.IsPrivate, &tok)
-					sig = ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-				} else {
-					typeNo = iz.addStructType(ty.String(), parTypeInfo.IsPrivate, &tok)
-					sig = parTypeInfo.Sig
-					private := iz.IsPrivate(int(makeDeclaration), i)
-					iz.setDeclaration(decSTRUCT, &ty.Token, DUMMY, structInfo{typeNo, private, sig})
-					labelsForStruct := iz.makeLabelsFromSig(sig, private, &ty.Token)
-					stT := vm.StructType{Name: newTypeName, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
-						LabelValues: labelValuesFromLabelNumbers(labelsForStruct),
-						Private: private, IsMI: settings.MandatoryImportSet().Contains(ty.Token.Source)}
-					stT = stT.AddLabels(labelsForStruct)
-					iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
-				}
-				iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}}
-				if opInfo, ok := iz.typeOperators[ty.Name]; ok {
-					opInfo.returnTypes = opInfo.returnTypes.Union(altType(typeNo))
-					opInfo.definedAt = append(opInfo.definedAt, dec.IndexToken())
-					iz.typeOperators[ty.Name] = opInfo
-					// TODO --- Check for matching sigs, being a clone.
-				} else {
-					iz.typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{dec.IndexToken()}}
-				}
-				if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
-					iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
-					iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals})
-				}
-				iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
-			} else {
+			if ty, ok := ty.(*ast.TypeWithArguments); !ok {
 				iz.Throw("init/make/instance", dec.IndexToken())
 				continue loop
+			} else {
+				iz.parameterizedTypesToDeclare[ty.String()] = 
+					typeInstantiationInfo{ty, private}
 			}
 			iz.cp.P.NextToken()
-			switch iz.cp.P.CurToken.Type {
+			switch iz.cp.P.PeekToken.Type {
 			case token.EOF:
 				continue loop
 			case token.COMMA:
+				iz.cp.P.NextToken()
 			default:
 				tok := iz.cp.P.CurToken
 				iz.Throw("init/make/comma", &tok)
@@ -1497,8 +1449,73 @@ loop:
 			}
 		}
 	}
+	for _, info := range iz.parameterizedTypesToDeclare {
+		ty := info.ty
+		private := info.private
+		// The parser doesn't know the types and values of enums, 'cos of being a
+		// parser. So we kludge them in here.
+		for i, v := range ty.Values() {
+			if maybeEnum, ok := v.V.(string); ok && v.T == 0 {
+				w := iz.cp.EnumElements[maybeEnum]
+				ty.Arguments[i].Type = w.T
+				ty.Arguments[i].Value = w.V
+			}
+		}
+		argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
+		if argIndex == DUMMY {
+			iz.Throw("init/type/args", &ty.Token)
+			continue
+		}
+		parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
+		isClone := !(parTypeInfo.ParentType == "struct")
+		newEnv := compiler.NewEnvironment()
+		vals := []values.Value{}
+		for i, name := range parTypeInfo.Names {
+			iz.cp.Reserve(ty.Arguments[i].Type, ty.Arguments[i].Value, &ty.Arguments[i].Token)
+			newEnv.Data[name] = compiler.Variable{iz.cp.That(), compiler.LOCAL_CONSTANT, altType(ty.Arguments[i].Type)}
+			vals = append(vals, values.Value{ty.Arguments[i].Type, ty.Arguments[i].Value})
+		}
+		newTypeName := ty.String()
+		parentTypeNo, ok := parser.ClonableTypes[parTypeInfo.ParentType]
+		if !(ok || parTypeInfo.ParentType == "struct") {
+			iz.Throw("init/clone/type", &ty.Token)
+			return
+		}
+		var (
+			typeNo values.ValueType
+			sig    ast.AstSig
+		)
+		if isClone {
+			typeNo, _ = iz.addCloneType(ty.String(), parTypeInfo.ParentType, false, &ty.Token)
+			iz.createOperations(ty, typeNo, parTypeInfo.Operations, parentTypeNo, parTypeInfo.IsPrivate, &ty.Token)
+			sig = ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
+		} else {
+			typeNo = iz.addStructType(ty.String(), parTypeInfo.IsPrivate, &ty.Token)
+			sig = parTypeInfo.Sig
+			iz.setDeclaration(decSTRUCT, &ty.Token, DUMMY, structInfo{typeNo, private, sig})
+			labelsForStruct := iz.makeLabelsFromSig(sig, private, &ty.Token)
+			stT := vm.StructType{Name: newTypeName, Path: iz.p.NamespacePath, LabelNumbers: labelsForStruct,
+				LabelValues: labelValuesFromLabelNumbers(labelsForStruct),
+				Private: private, IsMI: settings.MandatoryImportSet().Contains(ty.Token.Source)}
+			stT = stT.AddLabels(labelsForStruct)
+			iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
+		}
+		iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}}
+		if opInfo, ok := iz.typeOperators[ty.Name]; ok {
+			opInfo.returnTypes = opInfo.returnTypes.Union(altType(typeNo))
+			opInfo.definedAt = append(opInfo.definedAt, &ty.Token)
+			iz.typeOperators[ty.Name] = opInfo
+			// TODO --- Check for matching sigs, being a clone.
+		} else {
+			iz.typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
+		}
+		if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
+			iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
+			iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals})
+		}
+		iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
+	} 
 	// Now we can make a constructor function for each of the type operators.
-
 	for typeOperator, operatorInfo := range iz.typeOperators {
 		name := typeOperator + "{}"
 		sig := append(ast.AstSig{ast.NameTypeAstPair{"+t", &ast.TypeWithName{*operatorInfo.definedAt[0], "type"}}}, operatorInfo.constructorSig...)
@@ -1509,7 +1526,7 @@ loop:
 	}
 }
 
-// Phase 1P of compilation. We parse the snippet types, abstract types, clone types, constants, variables,
+// We parse the snippet types, abstract types, clone types, constants, variables,
 // functions, commands.
 func (iz *initializer) parseEverythingElse() {
 	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
