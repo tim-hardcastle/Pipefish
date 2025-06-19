@@ -2499,6 +2499,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"sigs/expect": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "found " + text.DescribeTok(tok) + " in function declaration, expected ':' or '->'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "a function's call parameters should be followed either by a colon, or optionally by its return types."
+		},
+	},
+
 	"relex/indent": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "detatched indent"

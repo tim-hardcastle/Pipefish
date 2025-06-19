@@ -86,6 +86,36 @@ func TestTypeParser(t *testing.T) {
 	}
 	test_helper.RunTest(t, "", tests, testTypeParserOutput)
 }
+
+func TestChunkCallSignatures(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`(a int) :`, `(a int)`},
+		{`(a int) -> int :`, `(a int) -> int`},
+		{`(a int) -> int, string :`, `(a int) -> int, string`},
+		{`(a int) -> int?, string :`, `(a int) -> int ?, string`},
+		{`(a int, b string) :`, `(a int, b string)`},
+		{`(a, b int) :`, `(a int, b int)`},
+		{`(a, b) :`, `(a any ?, b any ?)`},
+		{`(a) :`, `(a any ?)`},
+		{`(a any ?) :`, `(a any ?)`},
+		{`(a Z{5}) :`, `(a Z { 5 })`},
+		{`(a Z{5, 6}) :`, `(a Z { 5 , 6 })`},
+		{`(a int/string) :`, `(a int / string)`},
+		{`(a Z{5, 6}, b int) :`, `(a Z { 5 , 6 }, b int)`},
+		{`(a int/string, b int) :`, `(a int / string, b int)`},
+		{`foo :`, `foo`},
+		{`foo (a int) :`, `foo (a int)`},
+		{`foo (a int, b string) :`, `foo (a int, b string)`},
+		{`(a int) foo (b string) :`, `(a int) foo (b string)`},
+		{`(a) foo (b string) :`, `(a any ?) foo (b string)`},
+		{`(a int) foo (b) :`, `(a int) foo (b any ?)`},
+		{`(a int) foo:`, `(a int) foo`},
+		{`(a int, b string) foo :`, `(a int, b string) foo`},
+		{`(a, b) foo :`, `(a any ?, b any ?) foo`},
+	}
+	test_helper.RunTest(t, "", tests, testChunkingSignatures)
+}
+
 func TestParserErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`2 +`, `parse/prefix`},
@@ -114,7 +144,7 @@ func testParserOutput(cp *compiler.Compiler, s string) (string, error) {
 }
 
 func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
-	astOfLine := cp.P.ParseTypeFromString("test", s)
+	astOfLine := cp.P.ParseTypeFromString(s)
 	if cp.P.ErrorsExist() {
 		return "", errors.New("compilation error")
 	}
@@ -122,6 +152,18 @@ func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
 		return "nil", nil
 	}
 	return astOfLine.String(), nil
+}
+
+func testChunkingSignatures(cp *compiler.Compiler, s string) (string, error) {
+	args, rets := cp.P.ChunkFunctionSignatureFromString(s)
+	if cp.P.ErrorsExist() {
+		return cp.P.Common.Errors[0].ErrorId + " : " + cp.P.Common.Errors[0].Message, errors.New("compilation error")
+	}
+	result := args.String()
+	if len(rets) > 0 {
+		result = result + " -> " + rets.String()
+	}
+	return result, nil
 }
 
 func testParserErrors(cp *compiler.Compiler, s string) (string, error) {

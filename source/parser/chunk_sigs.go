@@ -16,14 +16,37 @@ type tokSig []tokPair
 
 func (t tokSig) String() string {
 	result := ""
-	sep := ""
-	for _, pair := range t {
-		result = result + sep 
+	lastWasBling := true
+	for i, pair := range t {
+		currentIsBling := pair.typename[0].Literal == "bling"
+		if !(lastWasBling || currentIsBling) {
+			result = result + ", " 
+		}
+		if lastWasBling && !currentIsBling {
+			if i > 0 {
+				result = result + " "
+			}
+			result = result + "("
+		}
+		if currentIsBling && !lastWasBling {
+			result = result + ")"
+		}
+		if currentIsBling {
+			if i > 0 {
+				result = result + " "
+			}
+			result = result + pair.name.Literal
+			lastWasBling = true
+			continue
+		}
+		lastWasBling = false
 		result = result + pair.name.Literal
 		for _, tyTok := range pair.typename {
 			result = result + " " + tyTok.Literal
 		}
-		sep = ", "
+		if i == len(t) - 1 {
+			result = result + ")"
+		}
 	}
 	return result
 }
@@ -31,14 +54,40 @@ func (t tokSig) String() string {
 // Return types as strings.
 type tokReturns [][]token.Token
 
+func (r tokReturns) String() string {
+	sep := ""
+	result := ""
+	for _, ty := range r {
+		result = result + sep
+		spacer := ""
+		for _, tok := range ty {
+			result = result + spacer
+			result = result + tok.Literal
+			spacer = " "
+		}
+		sep = ", "
+	}
+	return result
+}
+
+type opPosition int 
+
+const (
+	prefix opPosition = iota 
+	infix 
+	suffix 
+)
+
 type tokDeclaration struct {
 	op  token.Token
+	pos  opPosition
 	sig tokSig
 	rets tokReturns
 }
 
 // This wraps around chunkFunctionSignature and extracts the right name.
 func (p *Parser) ChunkFunctionDeclaration() (tokDeclaration, bool) {
+	position := prefix
 	name := token.Token{Literal: "*dummy*"}
 	if p.curTokenIs(token.IDENT) {
 		name = p.CurToken
@@ -48,35 +97,39 @@ func (p *Parser) ChunkFunctionDeclaration() (tokDeclaration, bool) {
 	if !ok {
 		return tokDeclaration{}, false
 	}
-	if name.Literal == "*dummy*" { // Then it's an infix or suffix. It will have been processed as bling.
-		suffix := false
+	if name.Literal == "*dummy*" { // Then it's an infix or isSuffix. It will have been processed as bling.
+		isSuffix := false
 		for i, pair := range sig {
 			if i == len(sig) - 1 {
-				suffix = true
+				isSuffix = true
 			}
 			if pair.typename[0].Literal == "bling" {
 				name = pair.name
+				position = infix
 			}
 		}
 		if name.Literal == "*dummy*" { // Then we've found no bling. Disaster!
 			p.Throw("sigs/name", &p.CurToken)
 			return tokDeclaration{}, false
 		}
-		if suffix { // Then the suffix will have been classified as bling, and we need to remove it from the sig.
+		if isSuffix { // Then the suffix will have been classified as bling, and we need to remove it from the sig.
 			sig = sig[:len(sig)-1]
+			position = suffix
 		}
 	}
-	return tokDeclaration{name, sig, rets}, true
+	return tokDeclaration{name, position, sig, rets}, true
 }
 
+// The previous function wraps around this in various annoying ways.
+// This one is relatively simple, and calls the bit that chunks the call signature
+// followed optionally by the bit that chunks the return signature.
 func (p *Parser) ChunkFunctionSignature() (tokSig, tokReturns, bool) {
 	sig, ok := p.ChunkFunctionCallSignature()
 	if !ok {
 		return tokSig{}, tokReturns{}, false
 	}
 	rets := tokReturns{}
-	if p.peekTokenIs(token.PIPE) {
-		p.NextToken()
+	if p.curTokenIs(token.PIPE) {
 		rets, ok = p.ChunkReturns()
 	}
 	if !ok {
@@ -89,12 +142,13 @@ func (p *Parser) ChunkFunctionSignature() (tokSig, tokReturns, bool) {
 // been read by the ChunkFunctionDeclaration 
 // Hence we should now be looking either at an `(` or at a bling identifier. (Or a suffix
 // which will be treated as bling for now and remedied by ChunkFunctionDeclaration.)
-// It will end when the peekToken is either a COLON or a PIPE. 
+// It will end when the current token is either a COLON or a PIPE. 
 func (p *Parser) ChunkFunctionCallSignature() (tokSig, bool) {
 	result := tokSig{}
 	for {
 		switch p.CurToken.Type {
 		case token.LPAREN:
+			p.NextToken()
 			chunk, ok := p.ChunkNameTypePairs(ANY_OR_NULL)
 			if !ok {
 				return tokSig{}, false
@@ -104,19 +158,30 @@ func (p *Parser) ChunkFunctionCallSignature() (tokSig, bool) {
 				return tokSig{}, false
 			}
 			result = append(result, chunk...)
+			p.NextToken()
+			p.NextToken()
+			continue
 		case token.IDENT :
 			blingTok := p.CurToken
 			blingTok.Literal = "bling"
 			result = append(result, tokPair{p.CurToken, []token.Token{blingTok}})
+			p.NextToken()
+			continue
+		case token.COLON, token.PIPE :
+			return result, true
 		default :
-			p.Throw("sigs/expect", &p.PeekToken)
+			p.Throw("sigs/expect", &p.CurToken)
 			return tokSig{}, false
 		}
-		if p.peekTokenIs(token.COLON) || p.peekTokenIs(token. PIPE) {
-			return result, true
-		}
-		p.NextToken()
 	}
+}
+
+// Exists for testing purposes.
+func (p *Parser) ChunkFunctionSignatureFromString(input string) (tokSig, tokReturns) {
+	p.PrimeWithString("test", input)
+	args, rets, _ := p.ChunkFunctionSignature()
+	p.Common.Errors = append(p.TokenizedCode.(*lexer.Relexer).GetErrors(), p.Common.Errors...)
+	return args, rets
 }
 
 // Assumes the current token is PIPE.
@@ -205,19 +270,13 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (tokSig, bool) {
 	return sig, true
 }
 
-// Exists for testing purposes.
-func (p *Parser) ParseInnerChunksFromString(input string) tokSig {
-	p.PrimeWithString("test", input)
-	result, _ := p.ChunkNameTypePairs(ANY_OR_NULL)
-	p.Common.Errors = append(p.TokenizedCode.(*lexer.Relexer).GetErrors(), p.Common.Errors...)
-	return result
-}
+
 
 // Gets things of the form `int`, `Z{5}, string/int`, etc as a list of tokens.
 // Or indeed anything else, the tokens don't have to be a well-formed description of
 // a type at this point.
 // Starts with the assumption that the next token is the first token of the type.
-// Returns when the next token is a `)` or `=`, or a `,` outside of a `{..}`.
+// Returns when the next token is a `)` or `=`, or `or a `,` outside of a `{..}`.
 func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 	braces := 0
 	result := []token.Token{}
@@ -226,10 +285,11 @@ func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 				p.Throw("sigs/unfinished", &p.CurToken)
 				return []token.Token{}, false
 			}
-		if p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.ASSIGN) || p.peekTokenIs(token.GVN_ASSIGN) ||
+		if p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.ASSIGN) || 
+		   p.peekTokenIs(token.GVN_ASSIGN) || p.peekTokenIs(token.COLON) ||
 		    (p.peekTokenIs(token.COMMA) && braces == 0) {
 				return result, true
-			}
+			}  
 		p.NextToken()
 		result = append(result, p.CurToken)
 		if p.curTokenIs(token.LBRACE) {

@@ -142,17 +142,20 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 	return result
 }
 
-// Parses a type supplied as a string, for use in 'parser_test.go'.
-func (p *Parser) ParseTypeFromString(source, input string) ast.TypeNode {
+// Sets the parser up with the appropriate relexer and position to parse a string.
+func (p *Parser) PrimeWithString(source, input string) {
 	p.ResetAfterError()
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
-	// TODO --- the next lines are to prime the relexer and would not be necessary in
-	// a saner world.
 	p.SafeNextToken()
 	p.SafeNextToken()
+}
+
+// Parses a type supplied as a string, for use in 'parser_test.go'.
+func (p *Parser) ParseTypeFromString(input string) ast.TypeNode {
+	p.PrimeWithString("test", input)
 	result := p.ParseTypeFromCurTok(T_LOWEST)
-	p.Common.Errors = append(rl.GetErrors(), p.Common.Errors...)
+	p.Common.Errors = append(p.TokenizedCode.(*lexer.Relexer).GetErrors(), p.Common.Errors...)
 	return result
 }
 
