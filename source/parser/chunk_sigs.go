@@ -76,6 +76,7 @@ const (
 	prefix opPosition = iota 
 	infix 
 	suffix 
+	unfix
 )
 
 type tokDeclaration struct {
@@ -83,6 +84,24 @@ type tokDeclaration struct {
 	pos  opPosition
 	sig tokSig
 	rets tokReturns
+}
+
+func (dec *tokDeclaration) String() string {
+	result := ""
+	if dec.pos == prefix || dec.pos == unfix {
+		result = dec.op.Literal
+	}
+	if dec.pos == prefix {
+		result = result + " "
+	}
+	result = result + dec.sig.String()
+	if len(dec.rets) > 0 {
+		result = result + " -> " + dec.rets.String()
+	}
+	if dec.pos == suffix {
+		result = result + " " + dec.op.Literal
+	}
+	return result
 }
 
 // This wraps around chunkFunctionSignature and extracts the right name.
@@ -98,26 +117,33 @@ func (p *Parser) ChunkFunctionDeclaration() (tokDeclaration, bool) {
 		return tokDeclaration{}, false
 	}
 	if name.Literal == "*dummy*" { // Then it's an infix or isSuffix. It will have been processed as bling.
-		isSuffix := false
 		for i, pair := range sig {
-			if i == len(sig) - 1 {
-				isSuffix = true
-			}
 			if pair.typename[0].Literal == "bling" {
 				name = pair.name
-				position = infix
+				if i == len(sig) - 1 {
+					position = suffix
+				} else {
+					position = infix
+				}
 			}
 		}
 		if name.Literal == "*dummy*" { // Then we've found no bling. Disaster!
 			p.Throw("sigs/name", &p.CurToken)
 			return tokDeclaration{}, false
 		}
-		if isSuffix { // Then the suffix will have been classified as bling, and we need to remove it from the sig.
+		if position == suffix { // Then the suffix will have been classified as bling, and we need to remove it from the sig.
 			sig = sig[:len(sig)-1]
-			position = suffix
 		}
 	}
 	return tokDeclaration{name, position, sig, rets}, true
+}
+
+// Exists for testing purposes.
+func (p *Parser) ChunkFunctionDeclarationFromString(input string) string {
+	p.PrimeWithString("test", input)
+	dec, _ := p.ChunkFunctionDeclaration()
+	p.Common.Errors = append(p.TokenizedCode.(*lexer.Relexer).GetErrors(), p.Common.Errors...)
+	return dec.String()
 }
 
 // The previous function wraps around this in various annoying ways.
@@ -174,14 +200,6 @@ func (p *Parser) ChunkFunctionCallSignature() (tokSig, bool) {
 			return tokSig{}, false
 		}
 	}
-}
-
-// Exists for testing purposes.
-func (p *Parser) ChunkFunctionSignatureFromString(input string) (tokSig, tokReturns) {
-	p.PrimeWithString("test", input)
-	args, rets, _ := p.ChunkFunctionSignature()
-	p.Common.Errors = append(p.TokenizedCode.(*lexer.Relexer).GetErrors(), p.Common.Errors...)
-	return args, rets
 }
 
 // Assumes the current token is PIPE.

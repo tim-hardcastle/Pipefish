@@ -89,29 +89,34 @@ func TestTypeParser(t *testing.T) {
 
 func TestChunkCallSignatures(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`(a int) :`, `(a int)`},
-		{`(a int) -> int :`, `(a int) -> int`},
-		{`(a int) -> int, string :`, `(a int) -> int, string`},
-		{`(a int) -> int?, string :`, `(a int) -> int ?, string`},
-		{`(a int, b string) :`, `(a int, b string)`},
-		{`(a, b int) :`, `(a int, b int)`},
-		{`(a, b) :`, `(a any ?, b any ?)`},
-		{`(a) :`, `(a any ?)`},
-		{`(a any ?) :`, `(a any ?)`},
-		{`(a Z{5}) :`, `(a Z { 5 })`},
-		{`(a Z{5, 6}) :`, `(a Z { 5 , 6 })`},
-		{`(a int/string) :`, `(a int / string)`},
-		{`(a Z{5, 6}, b int) :`, `(a Z { 5 , 6 }, b int)`},
-		{`(a int/string, b int) :`, `(a int / string, b int)`},
-		{`foo :`, `foo`},
-		{`foo (a int) :`, `foo (a int)`},
-		{`foo (a int, b string) :`, `foo (a int, b string)`},
-		{`(a int) foo (b string) :`, `(a int) foo (b string)`},
-		{`(a) foo (b string) :`, `(a any ?) foo (b string)`},
-		{`(a int) foo (b) :`, `(a int) foo (b any ?)`},
-		{`(a int) foo:`, `(a int) foo`},
-		{`(a int, b string) foo :`, `(a int, b string) foo`},
-		{`(a, b) foo :`, `(a any ?, b any ?) foo`},
+		{`qux (a int) :`, `qux (a int)`},
+		{`qux (a int) -> int :`, `qux (a int) -> int`},
+		{`qux (a int) -> int, string :`, `qux (a int) -> int, string`},
+		{`qux (a int) -> int?, string :`, `qux (a int) -> int ?, string`},
+		{`qux (a int, b string) :`, `qux (a int, b string)`},
+		{`qux (a, b int) :`, `qux (a int, b int)`},
+		{`qux (a, b) :`, `qux (a any ?, b any ?)`},
+		{`qux (a) :`, `qux (a any ?)`},
+		{`qux (a any ?) :`, `qux (a any ?)`},
+		{`qux (a Z{5}) :`, `qux (a Z { 5 })`},
+		{`qux (a Z{5, 6}) :`, `qux (a Z { 5 , 6 })`},
+		{`qux (a int/string) :`, `qux (a int / string)`},
+		{`qux (a Z{5, 6}, b int) :`, `qux (a Z { 5 , 6 }, b int)`},
+		{`qux (a int/string, b int) :`, `qux (a int / string, b int)`},
+		{`qux foo :`, `qux foo`},
+		{`qux foo (a int) :`, `qux foo (a int)`},
+		{`(a int) qux (b string) :`, `(a int) qux (b string)`},
+		{`(a) qux (b string) :`, `(a any ?) qux (b string)`},
+		{`(a int) qux (b) :`, `(a int) qux (b any ?)`},
+		{`(a int) qux:`, `(a int) qux`},
+		{`(a int, b string) qux :`, `(a int, b string) qux`},
+		{`(a, b) qux :`, `(a any ?, b any ?) qux`},
+		{`qux (a int) foo (b string) :`, `qux (a int) foo (b string)`},
+		{`qux (a) foo (b string) :`, `qux (a any ?) foo (b string)`},
+		{`qux (a int) foo (b) :`, `qux (a int) foo (b any ?)`},
+		{`qux (a int) foo:`, `qux (a int) foo`},
+		{`qux (a int, b string) foo :`, `qux (a int, b string) foo`},
+		{`qux (a, b) foo :`, `qux (a any ?, b any ?) foo`},
 	}
 	test_helper.RunTest(t, "", tests, testChunkingSignatures)
 }
@@ -155,13 +160,9 @@ func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
 }
 
 func testChunkingSignatures(cp *compiler.Compiler, s string) (string, error) {
-	args, rets := cp.P.ChunkFunctionSignatureFromString(s)
+	result := cp.P.ChunkFunctionDeclarationFromString(s)
 	if cp.P.ErrorsExist() {
 		return cp.P.Common.Errors[0].ErrorId + " : " + cp.P.Common.Errors[0].Message, errors.New("compilation error")
-	}
-	result := args.String()
-	if len(rets) > 0 {
-		result = result + " -> " + rets.String()
 	}
 	return result, nil
 }
