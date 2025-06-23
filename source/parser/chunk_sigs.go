@@ -95,6 +95,9 @@ func (dec *tokDeclaration) String() string {
 		result = result + " "
 	}
 	result = result + dec.sig.String()
+	if dec.pos == prefix && len(dec.sig) == 0 {
+		result = result + "()"
+	}
 	if len(dec.rets) > 0 {
 		result = result + " -> " + dec.rets.String()
 	}
@@ -111,6 +114,9 @@ func (p *Parser) ChunkFunctionDeclaration() (tokDeclaration, bool) {
 	if p.curTokenIs(token.IDENT) {
 		name = p.CurToken
 		p.NextToken()
+	}
+	if p.curTokenIs(token.COLON) || p.curTokenIs(token.PIPE) {
+		position = unfix
 	}
 	sig, rets, ok := p.ChunkFunctionSignature()
 	if !ok {
@@ -174,8 +180,12 @@ func (p *Parser) ChunkFunctionCallSignature() (tokSig, bool) {
 	for {
 		switch p.CurToken.Type {
 		case token.LPAREN:
-			p.NextToken()
-			chunk, ok := p.ChunkNameTypePairs(ANY_OR_NULL)
+			var chunk tokSig
+			ok := true
+			if !p.peekTokenIs((token.RPAREN)) {
+				p.NextToken()
+				chunk, ok = p.ChunkNameTypePairs(ANY_OR_NULL)
+			}
 			if !ok {
 				return tokSig{}, false
 			}
@@ -284,6 +294,8 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (tokSig, bool) {
 			p.NextToken()
 			continue
 		}
+		p.Throw("sigs/expect/b", &p.CurToken)
+		return tokSig{}, false
 	}
 	return sig, true
 }
