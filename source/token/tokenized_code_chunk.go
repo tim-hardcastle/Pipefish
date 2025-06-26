@@ -18,6 +18,15 @@ func NewCodeChunk() *TokenizedCodeChunk {
 	return tcc
 }
 
+func MakeCodeChunk(code []Token, private bool) *TokenizedCodeChunk {
+	tcc := &TokenizedCodeChunk{
+		position: -1,
+		code:     code,
+		Private:  private,
+	}
+	return tcc
+}
+
 func (tcc *TokenizedCodeChunk) Change(newToken Token) {
 	tcc.code[tcc.position] = newToken
 }

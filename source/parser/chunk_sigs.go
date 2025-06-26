@@ -1,73 +1,20 @@
 package parser
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/lexer"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
 // The lowest level of signature representation. We just store everything as tokens until
 // we find out what to do with them.
-type tokPair struct {
-	name token.Token
-	typename []token.Token
-}
 
-type tokSig []tokPair
-
-func (t tokSig) String() string {
-	result := ""
-	lastWasBling := true
-	for i, pair := range t {
-		currentIsBling := pair.typename[0].Literal == "bling"
-		if !(lastWasBling || currentIsBling) {
-			result = result + ", " 
-		}
-		if lastWasBling && !currentIsBling {
-			if i > 0 {
-				result = result + " "
-			}
-			result = result + "("
-		}
-		if currentIsBling && !lastWasBling {
-			result = result + ")"
-		}
-		if currentIsBling {
-			if i > 0 {
-				result = result + " "
-			}
-			result = result + pair.name.Literal
-			lastWasBling = true
-			continue
-		}
-		lastWasBling = false
-		result = result + pair.name.Literal
-		for _, tyTok := range pair.typename {
-			result = result + " " + tyTok.Literal
-		}
-		if i == len(t) - 1 {
-			result = result + ")"
-		}
-	}
-	return result
-}
-
-// Return types as strings.
-type tokReturns [][]token.Token
-
-func (r tokReturns) String() string {
-	sep := ""
-	result := ""
-	for _, ty := range r {
-		result = result + sep
-		spacer := ""
-		for _, tok := range ty {
-			result = result + spacer
-			result = result + tok.Literal
-			spacer = " "
-		}
-		sep = ", "
-	}
-	return result
+// Type declarations.
+type tokDeclaration struct {
+	op  token.Token
+	pos  opPosition
+	sig tokSig
+	rets tokReturns
 }
 
 type opPosition int 
@@ -79,33 +26,12 @@ const (
 	unfix
 )
 
-type tokDeclaration struct {
-	op  token.Token
-	pos  opPosition
-	sig tokSig
-	rets tokReturns
+type tokPair struct {
+	name token.Token
+	typename []token.Token
 }
 
-func (dec *tokDeclaration) String() string {
-	result := ""
-	if dec.pos == prefix || dec.pos == unfix {
-		result = dec.op.Literal
-	}
-	if dec.pos == prefix {
-		result = result + " "
-	}
-	result = result + dec.sig.String()
-	if dec.pos == prefix && len(dec.sig) == 0 {
-		result = result + "()"
-	}
-	if len(dec.rets) > 0 {
-		result = result + " -> " + dec.rets.String()
-	}
-	if dec.pos == suffix {
-		result = result + " " + dec.op.Literal
-	}
-	return result
-}
+type tokSig []tokPair
 
 // This wraps around chunkFunctionSignature and extracts the right name.
 func (p *Parser) ChunkFunctionDeclaration() (tokDeclaration, bool) {
@@ -142,14 +68,6 @@ func (p *Parser) ChunkFunctionDeclaration() (tokDeclaration, bool) {
 		}
 	}
 	return tokDeclaration{name, position, sig, rets}, true
-}
-
-// Exists for testing purposes.
-func (p *Parser) ChunkFunctionDeclarationFromString(input string) string {
-	p.PrimeWithString("test", input)
-	dec, _ := p.ChunkFunctionDeclaration()
-	p.Common.Errors = append(p.TokenizedCode.(*lexer.Relexer).GetErrors(), p.Common.Errors...)
-	return dec.String()
 }
 
 // The previous function wraps around this in various annoying ways.
@@ -213,7 +131,7 @@ func (p *Parser) ChunkFunctionCallSignature() (tokSig, bool) {
 }
 
 // Assumes the current token is PIPE.
-// Returns when the next token is COLON.
+// Returns when the current token is COLON.
 func (p *Parser) ChunkReturns() (tokReturns, bool) {
 	result := tokReturns{}
 	for {
@@ -227,6 +145,7 @@ func (p *Parser) ChunkReturns() (tokReturns, bool) {
 		}
 		result = append(result, ty)
 		if p.peekTokenIs(token.COLON) {
+			p.NextToken()
 			return result, true
 		}
 		if p.peekTokenIs(token.COMMA) {
@@ -236,6 +155,37 @@ func (p *Parser) ChunkReturns() (tokReturns, bool) {
 		p.Throw("sigs/ident", &p.CurToken)
 		return tokReturns{}, false
 	}
+}
+
+// At this point the current token should be the colon that introduced the function body.
+func (p *Parser) SlurpBlock() TokenSupplier {
+	if !p.curTokenIs(token.COLON) {
+		panic("Unhandled ill-formed declaration: " + string(p.CurToken.Type) + ", " + p.CurToken.Literal)
+	}
+	code := []token.Token{}
+	indentCount := 0
+	p.NextToken()
+	for ; ; p.NextToken() {
+		tok := p.CurToken
+		if tok.Type == token.EOF {
+			break
+		}
+		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
+			println(text.PURPLE+tok.Type, tok.Literal+text.RESET)
+		}
+		if tok.Type == token.LPAREN && tok.Literal == "|->" {
+			indentCount++
+		}
+		if tok.Type == token.RPAREN && tok.Literal == "<-|" {
+			indentCount--
+		}
+		if indentCount == 0 && tok.Type == token.NEWLINE {
+			break
+		}
+		println("Appending", tok.Type, tok.Literal)
+		code = append(code, tok)
+	}
+	return token.MakeCodeChunk(code, false)
 }
 
 // Sometimes our type signatures will have `any?` as the default, but in assignment signatures
@@ -330,3 +280,84 @@ func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 		}
 	}
 }
+
+// String functions, mostly for tessting purposes.
+
+func (t tokSig) String() string {
+	result := ""
+	lastWasBling := true
+	for i, pair := range t {
+		currentIsBling := pair.typename[0].Literal == "bling"
+		if !(lastWasBling || currentIsBling) {
+			result = result + ", " 
+		}
+		if lastWasBling && !currentIsBling {
+			if i > 0 {
+				result = result + " "
+			}
+			result = result + "("
+		}
+		if currentIsBling && !lastWasBling {
+			result = result + ")"
+		}
+		if currentIsBling {
+			if i > 0 {
+				result = result + " "
+			}
+			result = result + pair.name.Literal
+			lastWasBling = true
+			continue
+		}
+		lastWasBling = false
+		result = result + pair.name.Literal
+		for _, tyTok := range pair.typename {
+			result = result + " " + tyTok.Literal
+		}
+		if i == len(t) - 1 {
+			result = result + ")"
+		}
+	}
+	return result
+}
+
+// Return types as strings.
+type tokReturns [][]token.Token
+
+func (r tokReturns) String() string {
+	sep := ""
+	result := ""
+	for _, ty := range r {
+		result = result + sep
+		spacer := ""
+		for _, tok := range ty {
+			result = result + spacer
+			result = result + tok.Literal
+			spacer = " "
+		}
+		sep = ", "
+	}
+	return result
+}
+
+func (dec *tokDeclaration) String() string {
+	result := ""
+	if dec.pos == prefix || dec.pos == unfix {
+		result = dec.op.Literal
+	}
+	if dec.pos == prefix {
+		result = result + " "
+	}
+	result = result + dec.sig.String()
+	if dec.pos == prefix && len(dec.sig) == 0 {
+		result = result + "()"
+	}
+	if len(dec.rets) > 0 {
+		result = result + " -> " + dec.rets.String()
+	}
+	if dec.pos == suffix {
+		result = result + " " + dec.op.Literal
+	}
+	return result
+}
+
+
