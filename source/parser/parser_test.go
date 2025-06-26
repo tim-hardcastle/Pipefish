@@ -2,13 +2,11 @@ package parser_test
 
 import (
 	"errors"
-	"strconv"
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/lexer"
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
-	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 func TestParser(t *testing.T) {
 	tests := []test_helper.TestItem{
@@ -129,8 +127,9 @@ func TestChunkCallSignatures(t *testing.T) {
 func TestChunkFunctions(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{"qux :", `qux : 0 tokens.`}, 
-		{"qux : zort", `qux : 1 tokens.`}, 
+		{"qux :\n", `qux : 0 tokens.`}, 
 		{"qux : 2 + 2", `qux : 3 tokens.`}, 
+		{"qux : 2 + 2\n", `qux : 3 tokens.`}, 
 		{"qux : \n\t2 + 2", `qux : 5 tokens.`},
 		{"qux : \n\t2 + 2\nfoobar : 42", `qux : 5 tokens.`},
 		{"qux : \n\t2 + 2\ngiven : 42", `qux : 7 tokens.`},
@@ -179,25 +178,21 @@ func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
 
 func testChunkingSignatures(cp *compiler.Compiler, s string) (string, error) {
 	cp.P.PrimeWithString("test", s)
-	dec, _ := cp.P.ChunkFunctionDeclaration()
+	dec, _ := cp.P.ChunkFunctionSignature()
 	cp.P.Common.Errors = append(cp.P.TokenizedCode.(*lexer.Relexer).GetErrors(), cp.P.Common.Errors...)
 	if cp.P.ErrorsExist() {
 		return cp.P.Common.Errors[0].ErrorId + " : " + cp.P.Common.Errors[0].Message, errors.New("compilation error")
 	}
-	return dec.String(), nil
+	return dec.SigAsString(), nil
 }
 
 func testChunkingFunctions(cp *compiler.Compiler, s string) (string, error) {
 	cp.P.PrimeWithString("test", s)
-	result := ""
-	dec, ok := cp.P.ChunkFunctionDeclaration()
+	dec, ok := cp.P.ChunkFunction(false, false)
 	if !ok {
 		return "", errors.New("Couldn't parse function sig.")
 	}
-	result = result + dec.String()
-	body := cp.P.SlurpBlock()
-	result = result + " : " + strconv.Itoa(body.(*token.TokenizedCodeChunk).Length()) + " tokens."
-	return result, nil
+	return cp.P.SummaryString(dec), nil
 }
 
 
