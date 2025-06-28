@@ -9,6 +9,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/initializer"
+	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
@@ -50,6 +51,23 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 	}
 }
 
+// NOTE: this is here to test some internal workings of the initializer. It only initializes
+// a blank service.
+func RunInitializerTest(t *testing.T, tests []TestItem, F func(iz *initializer.Initializer, s string) string) {
+	iz := initializer.NewInitializer()
+	iz.Common = initializer.NewCommonInitializerBindle(&values.Map{})
+	iz.ParseEverythingFromSourcecode(vm.BlankVm(), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), "", "", "")
+	for _, test := range tests {
+		if settings.SHOW_TESTS {
+			println(text.BULLET + "Running test " + text.Emph(test.Input))
+		}
+		got := F(iz, test.Input)
+		if !(test.Want == got) {
+			t.Fatalf("Test failed with input %s \nExp :\n%s\nGot :\n%s", test.Input, test.Want, got)
+		}
+	}
+}
+
 // These functions say in what to extract information from a compiler, given
 // a line to put in: do we want to look at the returned value; or what was posted
 // to output; or the errors in the compiler.
@@ -84,6 +102,34 @@ func TestCompilerErrors(cp *compiler.Compiler, s string) (string, error) {
 	} else {
 		return cp.P.Common.Errors[0].ErrorId, nil
 	}
+}
+
+// These functions test the internal workings of the initializer.
+func TestSigChunking(iz *initializer.Initializer, s string) string {
+	iz.P.PrimeWithString("test", s)
+	sig, ok := iz.ChunkFunctionSignature()
+	if !ok {
+		return "Couldn't parse sig."
+	}
+	return sig.SigAsString()
+}
+
+func TestFunctionChunking(iz *initializer.Initializer, s string) string {
+	iz.P.PrimeWithString("test", s)
+	fn, ok := iz.ChunkFunction(false, false)
+	if !ok {
+		return "Couldn't parse function."
+	}
+	return initializer.SummaryString(fn)
+}
+
+func TestTypeChunking(iz *initializer.Initializer, s string) string {
+	iz.P.PrimeWithString("test", s)
+	ty, ok := iz.ChunkTypeDeclaration(false)
+	if !ok {
+		return "Couldn't parse type."
+	}
+	return initializer.SummaryString(ty)
 }
 
 var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i = 8'[0m.

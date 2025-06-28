@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/lexer"
 	"github.com/tim-hardcastle/Pipefish/source/test_helper"
 )
 func TestParser(t *testing.T) {
@@ -88,56 +87,6 @@ func TestTypeParser(t *testing.T) {
 	test_helper.RunTest(t, "", tests, testTypeParserOutput)
 }
 
-func TestChunkCallSignatures(t *testing.T) {
-	tests := []test_helper.TestItem{
-		{`qux :`, `qux`}, 
-		{`qux () :`, `qux ()`},
-		{`qux (a int) :`, `qux (a int)`},
-		{`qux (a int) -> int :`, `qux (a int) -> int`},
-		{`qux (a int) -> int, string :`, `qux (a int) -> int, string`},
-		{`qux (a int) -> int?, string :`, `qux (a int) -> int ?, string`},
-		{`qux (a int, b string) :`, `qux (a int, b string)`},
-		{`qux (a, b int) :`, `qux (a int, b int)`},
-		{`qux (a, b) :`, `qux (a any ?, b any ?)`},
-		{`qux (a) :`, `qux (a any ?)`},
-		{`qux (a any ?) :`, `qux (a any ?)`},
-		{`qux (a Z{5}) :`, `qux (a Z { 5 })`},
-		{`qux (a Z{5, 6}) :`, `qux (a Z { 5 , 6 })`},
-		{`qux (a int/string) :`, `qux (a int / string)`},
-		{`qux (a Z{5, 6}, b int) :`, `qux (a Z { 5 , 6 }, b int)`},
-		{`qux (a int/string, b int) :`, `qux (a int / string, b int)`},
-		{`qux foo :`, `qux foo`},
-		{`qux foo (a int) :`, `qux foo (a int)`},
-		{`(a int) qux (b string) :`, `(a int) qux (b string)`},
-		{`(a) qux (b string) :`, `(a any ?) qux (b string)`},
-		{`(a int) qux (b) :`, `(a int) qux (b any ?)`},
-		{`(a int) qux:`, `(a int) qux`},
-		{`(a int, b string) qux :`, `(a int, b string) qux`},
-		{`(a, b) qux :`, `(a any ?, b any ?) qux`},
-		{`qux (a int) foo (b string) :`, `qux (a int) foo (b string)`},
-		{`qux (a) foo (b string) :`, `qux (a any ?) foo (b string)`},
-		{`qux (a int) foo (b) :`, `qux (a int) foo (b any ?)`},
-		{`qux (a int) foo:`, `qux (a int) foo`},
-		{`qux (a int, b string) foo :`, `qux (a int, b string) foo`},
-		{`qux (a, b) foo :`, `qux (a any ?, b any ?) foo`},
-	}
-	test_helper.RunTest(t, "", tests, testChunkingSignatures)
-}
-
-func TestChunkFunctions(t *testing.T) {
-	tests := []test_helper.TestItem{
-		{"qux :", `qux : 0 tokens.`}, 
-		{"qux :\n", `qux : 0 tokens.`}, 
-		{"qux : 2 + 2", `qux : 3 tokens.`}, 
-		{"qux : 2 + 2\n", `qux : 3 tokens.`}, 
-		{"qux : \n\t2 + 2", `qux : 5 tokens.`},
-		{"qux : \n\t2 + 2\nfoobar : 42", `qux : 5 tokens.`},
-		{"qux : \n\t2 + 2\ngiven : 42", `qux : 7 tokens.`},
-		{"qux : \n\t2 + 2\ngiven : 42\n", `qux : 7 tokens.`},
-	}
-	test_helper.RunTest(t, "", tests, testChunkingFunctions)
-}
-
 func TestParserErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`2 +`, `parse/prefix`},
@@ -176,24 +125,7 @@ func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
 	return astOfLine.String(), nil
 }
 
-func testChunkingSignatures(cp *compiler.Compiler, s string) (string, error) {
-	cp.P.PrimeWithString("test", s)
-	dec, _ := cp.P.ChunkFunctionSignature()
-	cp.P.Common.Errors = append(cp.P.TokenizedCode.(*lexer.Relexer).GetErrors(), cp.P.Common.Errors...)
-	if cp.P.ErrorsExist() {
-		return cp.P.Common.Errors[0].ErrorId + " : " + cp.P.Common.Errors[0].Message, errors.New("compilation error")
-	}
-	return dec.SigAsString(), nil
-}
 
-func testChunkingFunctions(cp *compiler.Compiler, s string) (string, error) {
-	cp.P.PrimeWithString("test", s)
-	dec, ok := cp.P.ChunkFunction(false, false)
-	if !ok {
-		return "", errors.New("Couldn't parse function sig.")
-	}
-	return cp.P.SummaryString(dec), nil
-}
 
 
 func testParserErrors(cp *compiler.Compiler, s string) (string, error) {

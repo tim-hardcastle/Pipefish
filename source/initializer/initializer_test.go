@@ -172,3 +172,64 @@ func TestLogging(t *testing.T) {
 	}
 	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
 }
+
+// While most of the tests are just to establish which lines are covered, and so get the
+// initializer to initialize the scripts used by the vm and compiler tests, the following
+// tests check the internals of the initializer.
+func TestSigChunking(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`qux :`, `qux`}, 
+		{`qux () :`, `qux ()`},
+		{`qux (a int) :`, `qux (a int)`},
+		{`qux (a int) -> int :`, `qux (a int) -> int`},
+		{`qux (a int) -> int, string :`, `qux (a int) -> int, string`},
+		{`qux (a int) -> int?, string :`, `qux (a int) -> int ?, string`},
+		{`qux (a int, b string) :`, `qux (a int, b string)`},
+		{`qux (a, b int) :`, `qux (a int, b int)`},
+		{`qux (a, b) :`, `qux (a any ?, b any ?)`},
+		{`qux (a) :`, `qux (a any ?)`},
+		{`qux (a any ?) :`, `qux (a any ?)`},
+		{`qux (a Z{5}) :`, `qux (a Z { 5 })`},
+		{`qux (a Z{5, 6}) :`, `qux (a Z { 5 , 6 })`},
+		{`qux (a int/string) :`, `qux (a int / string)`},
+		{`qux (a Z{5, 6}, b int) :`, `qux (a Z { 5 , 6 }, b int)`},
+		{`qux (a int/string, b int) :`, `qux (a int / string, b int)`},
+		{`qux foo :`, `qux foo`},
+		{`qux foo (a int) :`, `qux foo (a int)`},
+		{`(a int) qux (b string) :`, `(a int) qux (b string)`},
+		{`(a) qux (b string) :`, `(a any ?) qux (b string)`},
+		{`(a int) qux (b) :`, `(a int) qux (b any ?)`},
+		{`(a int) qux:`, `(a int) qux`},
+		{`(a int, b string) qux :`, `(a int, b string) qux`},
+		{`(a, b) qux :`, `(a any ?, b any ?) qux`},
+		{`qux (a int) foo (b string) :`, `qux (a int) foo (b string)`},
+		{`qux (a) foo (b string) :`, `qux (a any ?) foo (b string)`},
+		{`qux (a int) foo (b) :`, `qux (a int) foo (b any ?)`},
+		{`qux (a int) foo:`, `qux (a int) foo`},
+		{`qux (a int, b string) foo :`, `qux (a int, b string) foo`},
+		{`qux (a, b) foo :`, `qux (a any ?, b any ?) foo`},
+	}
+	test_helper.RunInitializerTest(t, tests, test_helper.TestSigChunking)
+}
+
+func TestFunctionChunking(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{"qux : 2 + 2", `qux : 3 tokens.`}, 
+		{"qux : 2 + 2\n", `qux : 3 tokens.`}, 
+		{"qux : \n\t2 + 2", `qux : 5 tokens.`},
+		{"qux : \n\t2 + 2\nfoobar : 42", `qux : 5 tokens.`},
+		{"qux : \n\t2 + 2\ngiven : 42", `qux : 7 tokens.`},
+		{"qux : \n\t2 + 2\ngiven : 42\n", `qux : 7 tokens.`},
+	}
+	test_helper.RunInitializerTest(t, tests, test_helper.TestFunctionChunking)
+}
+
+func TestTypeChunking(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
+		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
+		{"Number = abstract int/float", `Number = abstract int/float`}, 
+		{"Number = abstract int/float\n", `Number = abstract int/float`},  
+	}
+	test_helper.RunInitializerTest(t, tests, test_helper.TestTypeChunking)
+}

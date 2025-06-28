@@ -67,7 +67,7 @@ func thing(x int) (int, bool) {
 	return 99, true
 }
 
-func (iz *initializer) newGoBucket() {
+func (iz *Initializer) newGoBucket() {
 	gb := GoBucket{
 		sources:   make(dtypes.Set[string]),
 		imports:   make(map[string][]string),
@@ -79,7 +79,7 @@ func (iz *initializer) newGoBucket() {
 
 // This will if necessary compile or recompile the relevant .so files, and will extract from them
 // the functions and converter data needed by the compiler and vm and put it into its proper place.
-func (iz *initializer) compileGo() {
+func (iz *Initializer) compileGo() {
 	// The purpose of putting timestamps on the .so files is not that we ever read the timestamps
 	// from the filenames (we look either at the OS metadata of the file or at the 'gotimes' file),
 	// but simply because you can't re-use the names of .so files in the same Go runtime and since
@@ -93,11 +93,9 @@ func (iz *initializer) compileGo() {
 		iz.goBucket.pureGo[token.Source] = append(iz.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
 	}
 
-	
-
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i, _ := range iz.ParsedDeclarations[j] {
-			functionName, position, sig, rTypes, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
+			functionName, position, sig, rTypes, body, given := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
 			if iz.ErrorsExist() {
 				return
 			}
@@ -199,9 +197,9 @@ var BUILTIN_VALUE_CONVERTER = map[string]any{
 
 // This makes a new .so file, opens it, and returns the plugins.
 // Most of the code generation is in the `gogen.go` file in this same `service` package.
-func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
+func (iz *Initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugin {
 	sourceToken := &token.Token{Source: source}
-	iz.cmG("Making golang from source '" + source + "'\n\n", source)
+	iz.cmG("Making golang from source '"+source+"'\n\n", source)
 	var StringBuilder strings.Builder
 	sb := &StringBuilder
 	// We emit the package declaration and builtins.
@@ -250,14 +248,14 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 		os.Remove(filepath.Join(settings.PipefishHomeDirectory, filepath.FromSlash("pipefish-rsc/"+text.Flatten(source)+"_"+strconv.Itoa(int(oldTime))+".so")))
 	}
 	goFile := filepath.Join(settings.PipefishHomeDirectory, "gocode_"+strconv.Itoa(counter)+".go")
-	iz.cmG("Creating goFile with filepath '" + goFile + "'\n\n", source)
+	iz.cmG("Creating goFile with filepath '"+goFile+"'\n\n", source)
 	file, err := os.Create(goFile)
 	if err != nil {
 		iz.Throw("golang/create", sourceToken, err.Error())
 		return nil
 	}
 	file.WriteString(sb.String())
-	iz.cmG("*************GENERATED GO IS*************\n\n" + sb.String() + "*****************************************\n\n", source)
+	iz.cmG("*************GENERATED GO IS*************\n\n"+sb.String()+"*****************************************\n\n", source)
 	file.Close()
 	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
 		println("Creating soFile with filepath '" + soFile + "'\n\n")
@@ -282,7 +280,7 @@ func (iz *initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 // This makes sure that if  we're generating declarations for a struct type,
 // we're also generating declarations for the types of its fields if need be, and so on recursively. We do
 // a traditional non-recursive breadth-first search.
-func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) {
+func (iz *Initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string]) {
 	structsToCheck := dtypes.Set[string]{}
 	for name := range userDefinedTypes {
 		if iz.cp.IsStruct(name) {
@@ -313,7 +311,7 @@ func (iz *initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string
 	}
 }
 
-func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
+func (iz *Initializer) recordGoTimes(timeMap map[string]int64) {
 	f, err := os.Create(settings.PipefishHomeDirectory + "pipefish-rsc/gotimes.dat")
 	if err != nil {
 		panic("Can't create file gotimes.dat")
@@ -325,7 +323,7 @@ func (iz *initializer) recordGoTimes(timeMap map[string]int64) {
 	}
 }
 
-func (iz *initializer) getGoTimes() map[string]int64 {
+func (iz *Initializer) getGoTimes() map[string]int64 {
 	timeMap := make(map[string]int64)
 	pathToGoResourceDirectory := settings.PipefishHomeDirectory + "pipefish-rsc/"
 	os.Mkdir(pathToGoResourceDirectory, os.ModePerm) // We may be using Pipefish as a library and this needs creating. Will do nothing if the directory exists.
@@ -354,7 +352,7 @@ func (iz *initializer) getGoTimes() map[string]int64 {
 }
 
 // Creates comments on the gohandler and gogen when settings.SHOW_GOLANG is true.
-func (iz *initializer) cmG(text, source string) {
+func (iz *Initializer) cmG(text, source string) {
 	if settings.SHOW_GOLANG && !(settings.MandatoryImportSet()).Contains(source) {
 		println(text)
 	}

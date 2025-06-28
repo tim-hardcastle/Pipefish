@@ -14,7 +14,7 @@ import (
 
 // A miscellaneous collection of functions for extracting data from other data.
 
-func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (string, string) {
+func (iz *Initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (string, string) {
 	namespace := ""
 	scriptFilepath := ""
 	switch imp := (imp).(type) {
@@ -66,7 +66,7 @@ func (iz *initializer) getPartsOfImportOrExternalDeclaration(imp ast.Node) (stri
 	return "", ""
 }
 
-func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
+func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
 	result := values.MakeAbstractType()
 	// Check that the sigs are the right length, the return sig being optional.
 	if sigToMatch.sig.Len() != len(fnToTry.NameSig) {
@@ -105,14 +105,14 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 				}
 			}
 		} else {
-			if !iz.p.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
+			if !iz.P.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
 				ast.IsAstBling(sigToMatch.sig.GetVarType(i).(ast.TypeNode)) && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
 				return values.MakeAbstractType()
 			}
 		}
 	}
 	if !foundSelf {
-		iz.p.Throw("init/interface/self", tok)
+		iz.P.Throw("init/interface/self", tok)
 		return values.MakeAbstractType()
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
@@ -126,7 +126,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 				} else {
 					return values.MakeAbstractType()
 				}
-			} 
+			}
 			// If not ...
 			result = result.Intersect(abRets[i].VarType)
 			if paramType == nil && result.Len() != 1 {
@@ -135,7 +135,7 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 				return values.MakeAbstractType()
 			}
 		} else {
-			if !abRets[i].VarType.IsSubtypeOf(iz.p.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+			if !abRets[i].VarType.IsSubtypeOf(iz.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}
@@ -146,14 +146,14 @@ func (iz *initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 // This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
 // It is crude in that it will slurp other things too: type names, for example; bling; local true variables in cmds. We can live
 // with the false positives so long as there are no false negatives.
-func (iz *initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes.Set[string] {
+func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes.Set[string] {
 	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
 		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
 	}
 	if dec.decType == structDeclaration || dec.decType == cloneDeclaration || dec.decType == makeDeclaration {
 		return ast.ExtractAllNames(dec.chunk)
 	}
-	_, _, sig, _, body, given := iz.p.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
+	_, _, sig, _, body, given := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
 	sigNames := dtypes.Set[string]{}
 	for _, pair := range sig {
 		if _, ok := pair.VarType.(*ast.Bling); ok {

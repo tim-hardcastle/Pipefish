@@ -151,6 +151,17 @@ func (p *Parser) PrimeWithString(source, input string) {
 	p.SafeNextToken()
 }
 
+// Sets the parser up with the appropriate relexer and position to parse a string.
+func (p *Parser) PrimeWithTokenSupplier(source TokenSupplier) {
+	if tcc, ok := source.(*token.TokenizedCodeChunk); ok {
+		tcc.ToStart()
+	}
+	p.ResetAfterError()
+	p.TokenizedCode = source
+	p.SafeNextToken()
+	p.SafeNextToken()
+}
+
 // Parses a type supplied as a string, for use in 'parser_test.go'.
 func (p *Parser) ParseTypeFromString(input string) ast.TypeNode {
 	p.PrimeWithString("test", input)
@@ -476,7 +487,7 @@ func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseBooleanLiteral() ast.Node {
-	return &ast.BooleanLiteral{Token: p.CurToken, Value: p.curTokenIs(token.TRUE)}
+	return &ast.BooleanLiteral{Token: p.CurToken, Value: p.CurTokenIs(token.TRUE)}
 }
 
 func (p *Parser) parseBreak() ast.Node {
@@ -1122,7 +1133,7 @@ func checkConsistency(left, right token.Token) bool {
 	return false
 }
 
-func (p *Parser) curTokenIs(t token.TokenType) bool {
+func (p *Parser) CurTokenIs(t token.TokenType) bool {
 	return p.CurToken.Type == t
 }
 

@@ -30,7 +30,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
-func (iz *initializer) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {
+func (iz *Initializer) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {
 	for name := range userDefinedTypes {
 		switch typeInfo := iz.cp.TypeInfoNow(name).(type) {
 		case vm.CloneType:
@@ -103,7 +103,7 @@ var cloneConv = map[values.ValueType]string{
 // This is auxillary to 'generateDeclarations'. It produces the names of the
 // field types in the struct declarations generated for the Go code.
 // This produces the names of the field types in the struct declarations generated for the Go code.
-func (iz *initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
+func (iz *Initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string {
 	if aT.Len() > 1 {
 		iz.Throw("golang/concrete/a", INTEROP_TOKEN)
 		return ""
@@ -119,7 +119,7 @@ func (iz *initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string
 }
 
 // Since the signatures of each function is written in Pipefish, we must give each one a signature in Go.
-func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast.PrsrFunction) {
+func (iz *Initializer) generateGoFunctionCode(sb *strings.Builder, function *ast.PrsrFunction) {
 	fmt.Fprint(sb, "func ", text.Capitalize(function.FName))
 	iz.printSig(sb, function.NameSig, *function.Tok)
 	switch len(function.NameRets) {
@@ -137,7 +137,7 @@ func (iz *initializer) generateGoFunctionCode(sb *strings.Builder, function *ast
 	fmt.Fprint(sb, "{", function.Body.GetToken().Literal, "\n\n")
 }
 
-func (iz *initializer) printSig(sb *strings.Builder, sig ast.AstSig, tok token.Token) {
+func (iz *Initializer) printSig(sb *strings.Builder, sig ast.AstSig, tok token.Token) {
 	fmt.Fprint(sb, "(")
 	sep := ""
 	for _, param := range sig {
@@ -164,7 +164,7 @@ func getGoTypeFromTypeAst(pfTypeAst ast.TypeNode) (string, bool) {
 		pfType = pf.Right.String()
 	case *ast.TypeWithName:
 		pfType = pf.Name
-	} 
+	}
 	goType, ok := goTypes[pfType]
 	if ok {
 		if goType == "!" {

@@ -18,8 +18,7 @@ type TokPair struct {
 
 type TokSig []TokPair
 
-// The previous function wraps around this in various annoying ways.
-// This one is relatively simple, and calls the bit that chunks the call signature
+// Calls the bit that chunks the call signature
 // followed optionally by the bit that chunks the return signature.
 func (p *Parser) ChunkFunctionArguments() (TokSig, TokReturns, bool) {
 	sig, ok := p.ChunkFunctionCallSignature()
@@ -105,11 +104,12 @@ func (p *Parser) ChunkReturns() (TokReturns, bool) {
 	}
 }
 
-// At this point the current token should be the colon that introduced the function body.
+// At this point the current token should be the colon that introduces the block.
 func (p *Parser) SlurpBlock() *token.TokenizedCodeChunk {
 	if !p.CurTokenIs(token.COLON) {
 		panic("Unhandled ill-formed declaration: " + string(p.CurToken.Type) + ", " + p.CurToken.Literal)
 	}
+	indexToken := p.CurToken
 	code := []token.Token{}
 	indentCount := 0
 	p.NextToken()
@@ -132,6 +132,9 @@ func (p *Parser) SlurpBlock() *token.TokenizedCodeChunk {
 		}
 		println("Appending", tok.Type, tok.Literal)
 		code = append(code, tok)
+	}
+	if len(code) == 0 {
+		p.Throw("parse/block/empty", &indexToken)
 	}
 	return token.MakeCodeChunk(code, false)
 }
@@ -157,8 +160,7 @@ var defaultMap = map[DefaultTypeChunk]func(token.Token) []token.Token{
 // Chunks things of the form e.g. `a, b int` or `x, y` or `b string, c Z{5}` into pairs
 // where every variable name has a type given as a list of tokens.
 // It expects to begin with the first variable in the signature as the current token.
-// It stops when the peekToken is a `)` or `=`.
-
+// It stops when the peekToken is a `)` or `=` or an unmatched '}'.
 func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 	sig := TokSig{}
 	for {
@@ -213,7 +215,7 @@ func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 		}
 		if p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.ASSIGN) ||
 			p.peekTokenIs(token.GVN_ASSIGN) || p.peekTokenIs(token.COLON) ||
-			(p.peekTokenIs(token.COMMA) && braces == 0) {
+			((p.peekTokenIs(token.COMMA) || p.peekTokenIs(token.RBRACE)) && braces == 0) {
 			return result, true
 		}
 		p.NextToken()

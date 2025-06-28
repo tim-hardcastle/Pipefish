@@ -157,7 +157,7 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 }
 
 // Deserializes the type schemes. We can't trust the dependency, so we must check at every step that the description is well-formed.
-func (iz *initializer) deserializeTypescheme(s string) compiler.AlternateType { // If it is well-formed we know we must have been passed an AlternateType because all the function return information is stored in that form.
+func (iz *Initializer) deserializeTypescheme(s string) compiler.AlternateType { // If it is well-formed we know we must have been passed an AlternateType because all the function return information is stored in that form.
 	stack := dtypes.Stack[compiler.TypeScheme]{}
 	words := strings.Split(s, " ")
 	ix := 0
