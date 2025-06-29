@@ -5,7 +5,6 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // When we first scan the stream of tokens, it is convenient to break it down into chunks
@@ -37,7 +36,8 @@ type tokenizedCloneDeclaration struct {
 	private bool            // Whether it's declared private.
 	op token.Token          // The type operator.
 	params parser.TokSig    // The type parameters, if any.
-	parent values.ValueType // The type being cloned.
+	parentTok token.Token // The type being cloned.
+	body   *token.TokenizedCodeChunk // Validation, if any.
 }
 
 func (tc *tokenizedCloneDeclaration) getDeclarationType() declarationType {return cloneDeclaration}
@@ -175,7 +175,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 	case "abstract":
 		return iz.chunkAbstract(opTok, private)
 	case "clone":
-		panic("Not implemented!")
+		return iz.chunkClone(opTok, private)
 	case "enum":
 		return iz.chunkEnum(opTok, private)
 	case "interface":
@@ -189,6 +189,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 	}
 }
 
+// Starts after the word 'abstract', ends on NEWLINE or EOF.
 func (iz *Initializer) chunkAbstract(opTok token.Token, private bool) (tokenizedCode, bool) {
 	types := [][]token.Token{}
 	for {
@@ -222,6 +223,56 @@ func (iz *Initializer) chunkAbstract(opTok token.Token, private bool) (tokenized
 	return &tokenizedAbstractDeclaration{private, opTok, types}, true
 }
 
+// Starts after the word 'clone', ends on NEWLINE or EOF.
+func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCode, bool) {
+	params := parser.TokSig{}
+	if iz.P.CurTokenIs(token.LBRACE) {
+		iz.P.NextToken()
+		var ok bool
+		params, ok = iz.P.ChunkNameTypePairs(parser.MISSING_TYPE_ERROR)
+		if !ok {
+			iz.finishChunk()
+			return &tokenizedCloneDeclaration{}, false
+		}
+		if len(params) == 0 {
+			iz.Throw("init/clone/params", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedCloneDeclaration{}, false
+		}
+		if !iz.P.PeekTokenIs(token.RBRACE) {
+			iz.Throw("init/clone/rbrace", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedCloneDeclaration{}, false
+		}
+		iz.P.NextToken()
+		iz.P.NextToken()
+	}
+	if !iz.P.CurTokenIs(token.IDENT) {
+		iz.Throw("init/clone/ident", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedCloneDeclaration{}, false
+	}
+	typeTok := iz.P.CurToken
+	_, ok := parser.ClonableTypes[typeTok.Literal]
+	if !ok {
+		iz.Throw("init/clone/type", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedCloneDeclaration{}, false
+	}
+	iz.P.NextToken()
+	validation := token.NewCodeChunk()
+	if iz.P.CurTokenIs(token.COLON) {
+		validation = iz.P.SlurpBlock(false)
+	}
+	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
+		iz.Throw("init/clone/expect", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedCloneDeclaration{}, false
+	}
+	return &tokenizedCloneDeclaration{private, opTok, params, typeTok, validation}, true
+}
+
+// Starts after the word 'enum', ends on NEWLINE or EOF.
 func (iz *Initializer) chunkEnum(opTok token.Token, private bool) (tokenizedCode, bool) {
 	toks := []token.Token{}
 	for {
@@ -256,15 +307,16 @@ func (iz *Initializer) chunkEnum(opTok token.Token, private bool) (tokenizedCode
 // and get on to the next definition.
 // As it emulates slurping up a definition, it ends when the p.curToken is EOF or NEWLINE.
 func (iz *Initializer) finishChunk() {
+	iz.P.ResetNesting()
 	for {
 		if iz.P.CurTokenIs(token.EOF) || iz.P.CurTokenIs(token.NEWLINE) {
 			return
 		}
 		if iz.P.CurTokenIs(token.COLON) {
-			iz.P.SlurpBlock()
+			iz.P.SlurpBlock(true)
 			return
 		}
-		iz.P.NextToken()
+		iz.P.SafeNextToken()
 	}
 }
 
@@ -276,7 +328,7 @@ func (iz *Initializer) ChunkFunction(cmd, private bool) (*tokenizedFunctionDecla
 	if !ok {
 		return &tokenizedFunctionDeclaration{}, false
 	}
-	fn.body = iz.P.SlurpBlock()
+	fn.body = iz.P.SlurpBlock(false)
 	if fn.body.Length() > 0 && fn.body.IndexToken().Type == token.GOCODE {
 		fn.decType = golangDeclaration
 	} else {
@@ -352,8 +404,6 @@ func (dec *tokenizedFunctionDeclaration) SigAsString() string {
 // body of a function/interface/constrained type are just counted.
 func SummaryString(dec tokenizedCode) string {
 	switch dec := dec.(type) {
-	case *tokenizedFunctionDeclaration:
-		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 	case *tokenizedAbstractDeclaration:
 		result := dec.op.Literal + " = abstract "
 		typeSeperator := ""
@@ -367,6 +417,16 @@ func SummaryString(dec tokenizedCode) string {
 			typeSeperator = "/"
 		}
 		return result
+	case *tokenizedCloneDeclaration:
+		result := dec.op.Literal + " = clone"
+		if len(dec.params) > 0 {
+			result = result + "{" + dec.params.SimpleString() + "}"
+		}
+		result = result + " " + dec.parentTok.Literal
+		if dec.body.Length() > 0 {
+			result = result + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
+		}
+		return result
 	case *tokenizedEnumDeclaration:
 		result := dec.op.Literal + " = enum "
 		sep := ""
@@ -375,6 +435,8 @@ func SummaryString(dec tokenizedCode) string {
 			sep = ", "
 		}
 		return result
+	case *tokenizedFunctionDeclaration:
+		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 	default:
 		panic("Unhandled case!")
 	}

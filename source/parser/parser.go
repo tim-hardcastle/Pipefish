@@ -1137,12 +1137,12 @@ func (p *Parser) CurTokenIs(t token.TokenType) bool {
 	return p.CurToken.Type == t
 }
 
-func (p *Parser) peekTokenIs(t token.TokenType) bool {
+func (p *Parser) PeekTokenIs(t token.TokenType) bool {
 	return p.PeekToken.Type == t
 }
 
 func (p *Parser) expectPeek(t token.TokenType) bool {
-	if p.peekTokenIs(t) {
+	if p.PeekTokenIs(t) {
 		p.NextToken()
 		return true
 	}
@@ -1180,6 +1180,11 @@ func (p *Parser) ResetAfterError() {
 	p.Common.Errors = []*err.Error{}
 	p.CurrentNamespace = []string{}
 	p.enumResolvingParsers = []*Parser{p}
+	p.nesting = dtypes.Stack[token.Token]{}
+}
+
+func (p *Parser) ResetNesting() {
+	p.nesting = dtypes.Stack[token.Token]{}
 }
 
 func newError(ident string, tok *token.Token, args ...any) *err.Error {

@@ -47,14 +47,14 @@ func (p *Parser) ChunkFunctionCallSignature() (TokSig, bool) {
 		case token.LPAREN:
 			var chunk TokSig
 			ok := true
-			if !p.peekTokenIs((token.RPAREN)) {
+			if !p.PeekTokenIs((token.RPAREN)) {
 				p.NextToken()
 				chunk, ok = p.ChunkNameTypePairs(ANY_OR_NULL)
 			}
 			if !ok {
 				return TokSig{}, false
 			}
-			if !p.peekTokenIs(token.RPAREN) {
+			if !p.PeekTokenIs(token.RPAREN) {
 				p.Throw("sigs/paren", &p.PeekToken)
 				return TokSig{}, false
 			}
@@ -82,7 +82,7 @@ func (p *Parser) ChunkFunctionCallSignature() (TokSig, bool) {
 func (p *Parser) ChunkReturns() (TokReturns, bool) {
 	result := TokReturns{}
 	for {
-		if !p.peekTokenIs(token.IDENT) {
+		if !p.PeekTokenIs(token.IDENT) {
 			p.Throw("sigs/ident", &p.CurToken)
 			return TokReturns{}, false
 		}
@@ -91,11 +91,11 @@ func (p *Parser) ChunkReturns() (TokReturns, bool) {
 			return TokReturns{}, false
 		}
 		result = append(result, ty)
-		if p.peekTokenIs(token.COLON) {
+		if p.PeekTokenIs(token.COLON) {
 			p.NextToken()
 			return result, true
 		}
-		if p.peekTokenIs(token.COMMA) {
+		if p.PeekTokenIs(token.COMMA) {
 			p.NextToken()
 			continue
 		}
@@ -105,15 +105,23 @@ func (p *Parser) ChunkReturns() (TokReturns, bool) {
 }
 
 // At this point the current token should be the colon that introduces the block.
-func (p *Parser) SlurpBlock() *token.TokenizedCodeChunk {
+// If we've goven up on processing the block and we're calling this from 'finishChunk' then
+// 'safe' is turned on so that we don't produce bracket-matching errors.
+func (p *Parser) SlurpBlock(safe bool) *token.TokenizedCodeChunk {
+	var getToken func()
+	if safe {
+		getToken = p.SafeNextToken
+	} else {
+		getToken = p.NextToken
+	}
 	if !p.CurTokenIs(token.COLON) {
 		panic("Unhandled ill-formed declaration: " + string(p.CurToken.Type) + ", " + p.CurToken.Literal)
 	}
 	indexToken := p.CurToken
 	code := []token.Token{}
 	indentCount := 0
-	p.NextToken()
-	for ; ; p.NextToken() {
+	getToken()
+	for ; ; getToken() {
 		tok := p.CurToken
 		if tok.Type == token.EOF {
 			break
@@ -144,7 +152,8 @@ func (p *Parser) SlurpBlock() *token.TokenizedCodeChunk {
 type DefaultTypeChunk int
 
 const (
-	ANY_OR_NULL DefaultTypeChunk = iota
+	ANY_OR_NULL        DefaultTypeChunk = iota // For functions etc.
+	MISSING_TYPE_ERROR                         // The parameters of a type should be explicitly stated.
 )
 
 var defaultMap = map[DefaultTypeChunk]func(token.Token) []token.Token{
@@ -154,6 +163,11 @@ var defaultMap = map[DefaultTypeChunk]func(token.Token) []token.Token{
 		t2 := t
 		t2.Literal = "?"
 		return []token.Token{t1, t2}
+	},
+	MISSING_TYPE_ERROR: func(t token.Token) []token.Token {
+		t1 := t
+		t1.Literal = "*error*"
+		return []token.Token{t1}
 	},
 }
 
@@ -166,7 +180,7 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 	for {
 		if p.CurTokenIs(token.IDENT) {
 			sig = append(sig, TokPair{p.CurToken, nil})
-			if p.peekTokenIs(token.IDENT) {
+			if p.PeekTokenIs(token.IDENT) {
 				typeName, ok := p.slurpTypeExpressionAsTokens()
 				if !ok {
 					return TokSig{}, false
@@ -178,8 +192,8 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 				}
 			}
 		}
-		if p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.ASSIGN) ||
-			p.peekTokenIs(token.GVN_ASSIGN) {
+		if p.PeekTokenIs(token.RPAREN) || p.PeekTokenIs(token.ASSIGN) ||
+			p.PeekTokenIs(token.GVN_ASSIGN) || p.PeekTokenIs(token.RBRACE) {
 			for i, v := range sig {
 				if len(v.Typename) == 0 {
 					pair := v
@@ -189,7 +203,7 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 			}
 			break
 		}
-		if p.peekTokenIs(token.COMMA) {
+		if p.PeekTokenIs(token.COMMA) {
 			p.NextToken()
 			p.NextToken()
 			continue
@@ -213,9 +227,9 @@ func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 			p.Throw("sigs/unfinished", &p.CurToken)
 			return []token.Token{}, false
 		}
-		if p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.ASSIGN) ||
-			p.peekTokenIs(token.GVN_ASSIGN) || p.peekTokenIs(token.COLON) ||
-			((p.peekTokenIs(token.COMMA) || p.peekTokenIs(token.RBRACE)) && braces == 0) {
+		if p.PeekTokenIs(token.RPAREN) || p.PeekTokenIs(token.ASSIGN) ||
+			p.PeekTokenIs(token.GVN_ASSIGN) || p.PeekTokenIs(token.COLON) ||
+			((p.PeekTokenIs(token.COMMA) || p.PeekTokenIs(token.RBRACE)) && braces == 0) {
 			return result, true
 		}
 		p.NextToken()
@@ -268,6 +282,20 @@ func (t TokSig) String() string {
 	return result
 }
 
+// Assumes a sig with no bling and emits it without surrounding parentheses.
+func (t TokSig) SimpleString() string {
+	result := ""
+	sep := ""
+	for _, pair := range t {
+		result = result + sep + pair.Name.Literal
+		for _, tyTok := range pair.Typename {
+			result = result + " " + tyTok.Literal
+		}
+		sep = ", "
+	}
+	return result
+}
+
 // Return types as strings.
 type TokReturns [][]token.Token
 
@@ -286,5 +314,3 @@ func (r TokReturns) String() string {
 	}
 	return result
 }
-
-
