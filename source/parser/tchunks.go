@@ -153,6 +153,7 @@ type DefaultTypeChunk int
 
 const (
 	ANY_OR_NULL        DefaultTypeChunk = iota // For functions etc.
+	INFERRED
 	MISSING_TYPE_ERROR                         // The parameters of a type should be explicitly stated.
 )
 
@@ -163,6 +164,11 @@ var defaultMap = map[DefaultTypeChunk]func(token.Token) []token.Token{
 		t2 := t
 		t2.Literal = "?"
 		return []token.Token{t1, t2}
+	},
+	INFERRED: func(t token.Token) []token.Token {
+		t1 := t
+		t1.Literal = "*inferred*"
+		return []token.Token{t1}
 	},
 	MISSING_TYPE_ERROR: func(t token.Token) []token.Token {
 		t1 := t

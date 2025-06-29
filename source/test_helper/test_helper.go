@@ -132,6 +132,24 @@ func TestTypeChunking(iz *initializer.Initializer, s string) string {
 	return initializer.SummaryString(ty)
 }
 
+func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
+	iz.P.PrimeWithString("test", s)
+	ty, ok := iz.ChunkConstOrVarDeclaration(false , false)
+	if !ok {
+		return "Couldn't parse assignment."
+	}
+	return initializer.SummaryString(ty)
+}
+
+func TestExternalOrImportChunking(iz *initializer.Initializer, s string) string {
+	iz.P.PrimeWithString("test", s)
+	ty, ok := iz.ChunkImportOrExternalDeclaration(false , false)
+	if !ok {
+		return "Couldn't parse import/external declaration."
+	}
+	return initializer.SummaryString(ty)
+}
+
 var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i = 8'[0m.
 At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
 The [0mcondition [0msucceeded.

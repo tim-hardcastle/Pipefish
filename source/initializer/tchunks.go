@@ -139,7 +139,14 @@ func (iz *Initializer) tccToTokenizedCode(decType declarationType, private bool,
 	case commandDeclaration, functionDeclaration:
 		result, _ := iz.ChunkFunction(decType == commandDeclaration, private)
 		return result
-	case enumDeclaration, cloneDeclaration, structDeclaration:
+	case variableDeclaration, constantDeclaration:
+		result, _ := iz.ChunkConstOrVarDeclaration(decType == constantDeclaration, private)
+		return result
+	case importDeclaration, externalDeclaration:
+		result, _ := iz.ChunkImportOrExternalDeclaration(decType == externalDeclaration, private)
+		return result
+	case abstractDeclaration, cloneDeclaration, enumDeclaration, interfaceDeclaration,
+	        makeDeclaration, structDeclaration:
 		result, _ := iz.ChunkTypeDeclaration(private)
 		return result
 	default:
@@ -150,11 +157,83 @@ func (iz *Initializer) tccToTokenizedCode(decType declarationType, private bool,
 // As with all the chunkers, this assumes that the p.curToken is the first token of 
 // the thing we're trying to slurp.
 // It will end with the p.curTok being the EOF/NEWLINE terminating the declaration.
+func (iz *Initializer) ChunkConstOrVarDeclaration(isConst, private bool) (tokenizedCode, bool) {
+	sig, ok := iz.P.ChunkNameTypePairs(parser.INFERRED)
+	decType := variableDeclaration
+	if isConst {
+		decType = constantDeclaration
+	}
+	if !ok {
+		iz.finishChunk()
+		return &tokenizedConstOrVarDeclaration{}, false
+	}
+	iz.P.NextToken()
+	if !iz.P.CurTokenIs(token.ASSIGN) {
+		iz.Throw("init/assign", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedConstOrVarDeclaration{}, false
+	}
+	assignTok := iz.P.CurToken
+	toks := []token.Token{}
+	for {
+		iz.P.NextToken()
+		if iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF) {
+			break
+		}
+		toks = append(toks, iz.P.CurToken)
+	}
+	return &tokenizedConstOrVarDeclaration{decType, private, sig, assignTok, token.MakeCodeChunk(toks, private)}, true
+}
+
+// As with all the chunkers, this assumes that the p.curToken is the first token of 
+// the thing we're trying to slurp.
+// It will end with the p.curTok being the EOF/NEWLINE terminating the declaration.
+func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool) (tokenizedCode, bool) {
+	decType := importDeclaration
+	if isExternal {
+		decType = externalDeclaration
+	}
+	var name, path token.Token
+	switch iz.P.CurToken.Type {
+	case token.IDENT:
+		name = iz.P.CurToken
+		iz.P.NextToken()
+		if !(iz.P.CurTokenIs(token.IDENT) && iz.P.CurToken.Literal == "::") {
+			iz.Throw("init/impex/pair", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedExternalOrImportDeclaration{}, false
+		}
+		iz.P.NextToken()
+		if !iz.P.CurTokenIs(token.STRING) {
+			iz.Throw("init/impex/string", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedExternalOrImportDeclaration{}, false
+		}
+		path = iz.P.CurToken
+	case token.STRING:
+		path = iz.P.CurToken
+	default:
+		iz.Throw("init/impex/expect", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedExternalOrImportDeclaration{}, false
+	}
+	iz.P.NextToken()
+	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
+		iz.Throw("init/impex/end", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedExternalOrImportDeclaration{}, false
+	}
+	return &tokenizedExternalOrImportDeclaration{decType, private, name, path}, true
+}
+
+// As with all the chunkers, this assumes that the p.curToken is the first token of 
+// the thing we're trying to slurp.
+// It will end with the p.curTok being the EOF/NEWLINE terminating the declaration.
 func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) {
 	if !iz.P.CurTokenIs(token.IDENT) {
 		iz.Throw("init/type/ident", &iz.P.CurToken)
 		iz.finishChunk()
-		return &tokenizedEnumDeclaration{}, false
+		return &tokenizedEnumDeclaration{}, false // Just as a dummy value.
 	}
 	opTok := iz.P.CurToken
 	if opTok.Literal == "make" {
@@ -167,10 +246,9 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
-	// assignTok := iz.P.CurToken
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.IDENT) {
-		iz.Throw("init/type/assign", &iz.P.CurToken)
+		iz.Throw("init/type/define", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
@@ -557,6 +635,8 @@ func SummaryString(dec tokenizedCode) string {
 			result = result + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 		}
 		return result
+	case *tokenizedConstOrVarDeclaration:
+		return dec.sig.SimpleString() + " = " + strconv.Itoa(dec.body.Length()) + " tokens."
 	case *tokenizedEnumDeclaration:
 		result := dec.op.Literal + " = enum "
 		sep := ""
@@ -565,6 +645,11 @@ func SummaryString(dec tokenizedCode) string {
 			sep = ", "
 		}
 		return result
+	case *tokenizedExternalOrImportDeclaration:
+		if (dec.name == token.Token{}) {
+			return "\"" + dec.path.Literal + "\""
+		}
+		return dec.name.Literal + "::" + "\"" + dec.path.Literal + "\""
 	case *tokenizedFunctionDeclaration:
 		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 	case *tokenizedInterfaceDeclaration:
