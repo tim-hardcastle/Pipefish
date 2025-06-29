@@ -125,6 +125,7 @@ type tokenizedStructDeclaration struct {
 	op      token.Token      // The type operator.
 	params  parser.TokSig    // The type parameters, if any.
 	sig     parser.TokSig    // The signature of the struct.
+	body    *token.TokenizedCodeChunk // Validation logic, if any.
 }
 
 func (tc *tokenizedStructDeclaration) getDeclarationType() declarationType {return structDeclaration}
@@ -181,7 +182,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 	case "interface":
 		return iz.chunkInterface(opTok, private)
 	case "struct":
-		panic("Not implemented!")
+		return iz.chunkStruct(opTok, private)
 	default:
 		iz.Throw("init/type/expect", &iz.P.CurToken, decliteral)
 		iz.finishChunk()
@@ -243,6 +244,13 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 			iz.Throw("init/clone/rbrace", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedCloneDeclaration{}, false
+		}
+		for _, pair := range params {
+			if pair.Typename[0].Literal == "*error*" {
+			iz.Throw("init/struct/ptype", &pair.Name)
+			iz.finishChunk()
+			return &tokenizedCloneDeclaration{}, false
+			}
 		}
 		iz.P.NextToken()
 		iz.P.NextToken()
@@ -318,6 +326,70 @@ func (iz *Initializer) chunkInterface(opTok token.Token, private bool) (tokenize
 		return &tokenizedInterfaceDeclaration{}, false
 	}
 	return &tokenizedInterfaceDeclaration{private, opTok, body}, true
+}
+
+// Starts after the word 'struct', ends on NEWLINE or EOF.
+func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCode, bool) {
+	params := parser.TokSig{}
+	if iz.P.CurTokenIs(token.LBRACE) {
+		iz.P.NextToken()
+		var ok bool
+		params, ok = iz.P.ChunkNameTypePairs(parser.MISSING_TYPE_ERROR)
+		if !ok {
+			iz.finishChunk()
+			return &tokenizedStructDeclaration{}, false
+		}
+		if len(params) == 0 {
+			iz.Throw("init/struct/params", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedStructDeclaration{}, false
+		}
+		if !iz.P.PeekTokenIs(token.RBRACE) {
+			iz.Throw("init/struct/rbrace", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedStructDeclaration{}, false
+		}
+		for _, pair := range params {
+			if pair.Typename[0].Literal == "*error*" {
+			iz.Throw("init/struct/ptype", &pair.Name)
+			iz.finishChunk()
+			return &tokenizedStructDeclaration{}, false
+			}
+		}
+		iz.P.NextToken()
+		iz.P.NextToken()
+	}
+	if !iz.P.CurTokenIs(token.LPAREN) {
+		iz.Throw("init/struct/lparen", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedStructDeclaration{}, false
+	}
+	iz.P.NextToken()
+	args, ok := iz.P.ChunkNameTypePairs(parser.ANY_OR_NULL)
+	if !ok {
+		iz.finishChunk()
+		return &tokenizedStructDeclaration{}, false
+	}
+	iz.P.NextToken()
+	if !iz.P.CurTokenIs(token.RPAREN) {
+		iz.Throw("init/struct/rparen", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedStructDeclaration{}, false
+	}
+	iz.P.NextToken()
+	validation := token.NewCodeChunk()
+	if iz.P.CurTokenIs(token.COLON) {
+		validation, ok = iz.P.SlurpBlock(false)
+	}
+	if !ok {
+		return &tokenizedStructDeclaration{}, false
+	}
+	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
+		iz.Throw("init/struct/expect", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedStructDeclaration{}, false
+	}
+	return &tokenizedStructDeclaration{private, opTok, params, args, validation}, true
 }
 
 // This is called in case of a malformed definiion to try to skip over the rest of it
@@ -459,7 +531,16 @@ func SummaryString(dec tokenizedCode) string {
 		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 	case *tokenizedInterfaceDeclaration:
 		return dec.op.Literal + " = interface : " + strconv.Itoa(dec.body.Length()) + " tokens."
-	
+	case *tokenizedStructDeclaration:
+		result := dec.op.Literal + " = struct"
+		if len(dec.params) > 0 {
+			result = result + "{" + dec.params.SimpleString() + "}"
+		}
+		result = result + "(" + dec.sig.SimpleString() + ")"
+		if dec.body.Length() > 0 {
+			result = result + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
+		}
+		return result
 	default:
 		panic("Unhandled case!")
 	}

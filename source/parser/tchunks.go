@@ -138,7 +138,6 @@ func (p *Parser) SlurpBlock(safe bool) (*token.TokenizedCodeChunk, bool) {
 		if indentCount == 0 && tok.Type == token.NEWLINE {
 			break
 		}
-		println("Appending", tok.Type, tok.Literal)
 		code = append(code, tok)
 	}
 	if len(code) == 0 {

@@ -237,6 +237,10 @@ func TestTypeChunking(t *testing.T) {
 		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
 		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
 		{"Foo = interface : foo bar spong", `Foo = interface : 3 tokens.`},
+		{"Person = struct(name string, age int)", `Person = struct(name string, age int)`},
+		{"Person = struct{i int}(name string, age int)", `Person = struct{i int}(name string, age int)`},
+		{"Person = struct{i int}(name, age)", `Person = struct{i int}(name any ?, age any ?)`},
+		{"Person = struct(name, age) : foo bar spong", `Person = struct(name any ?, age any ?) : 3 tokens.`},
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestTypeChunking)
 }
