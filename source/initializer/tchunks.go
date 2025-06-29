@@ -113,7 +113,7 @@ func (tc *tokenizedInterfaceDeclaration) indexToken() token.Token {return tc.op}
 type tokenizedMakeDeclaration struct {
 	private   bool            // Whether it's declared private.
 	makeToken token.Token     // The token saying 'make'.
-	elements  [][]token.Token // The names of the types to declare.
+	types  [][]token.Token // The names of the types to declare.
 }
 
 func (tc *tokenizedMakeDeclaration) getDeclarationType() declarationType {return makeDeclaration}
@@ -157,6 +157,10 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 		return &tokenizedEnumDeclaration{}, false
 	}
 	opTok := iz.P.CurToken
+	if opTok.Literal == "make" {
+		iz.P.NextToken()
+		return iz.chunkMake(opTok, private)
+	}
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.ASSIGN) {
 		iz.Throw("init/type/assign", &iz.P.CurToken)
@@ -326,6 +330,40 @@ func (iz *Initializer) chunkInterface(opTok token.Token, private bool) (tokenize
 		return &tokenizedInterfaceDeclaration{}, false
 	}
 	return &tokenizedInterfaceDeclaration{private, opTok, body}, true
+}
+
+// Starts after the word 'make', ends on NEWLINE or EOF.
+func (iz *Initializer) chunkMake(opTok token.Token, private bool) (tokenizedCode, bool) {
+	types := [][]token.Token{}
+	for {
+		if !iz.P.CurTokenIs(token.IDENT) {
+			iz.Throw("init/make/ident", &iz.P.CurToken)
+			iz.finishChunk()
+			return &tokenizedMakeDeclaration{}, false
+		}
+		toks := []token.Token{}
+		braces := 0
+		for {
+			if iz.P.CurTokenIs(token.LBRACE) {
+				braces ++
+			}
+			if iz.P.CurTokenIs(token.RBRACE) {
+				braces --
+			}
+			if iz.P.CurTokenIs(token.EOF) || iz.P.CurTokenIs(token.NEWLINE) || 
+				(iz.P.CurTokenIs(token.COMMA) && braces == 0) {
+					break
+				}
+			toks = append(toks, iz.P.CurToken)
+			iz.P.NextToken()
+		}
+		types = append(types, toks)
+		if iz.P.CurTokenIs(token.EOF) || iz.P.CurTokenIs(token.NEWLINE) {
+			break
+		}
+		iz.P.NextToken()
+	}
+	return &tokenizedMakeDeclaration{private, opTok, types}, true
 }
 
 // Starts after the word 'struct', ends on NEWLINE or EOF.
@@ -531,6 +569,19 @@ func SummaryString(dec tokenizedCode) string {
 		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 	case *tokenizedInterfaceDeclaration:
 		return dec.op.Literal + " = interface : " + strconv.Itoa(dec.body.Length()) + " tokens."
+	case *tokenizedMakeDeclaration:
+		result := "make "
+		typeSeperator := ""
+		for _, ty := range dec.types {
+			result = result + typeSeperator
+			tokenSeparator := ""
+			for _, tok := range ty {
+				result = result + tokenSeparator + tok.Literal
+				tokenSeparator = " "
+			}
+			typeSeperator = ", "
+		}
+		return result
 	case *tokenizedStructDeclaration:
 		result := dec.op.Literal + " = struct"
 		if len(dec.params) > 0 {

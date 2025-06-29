@@ -237,6 +237,8 @@ func TestTypeChunking(t *testing.T) {
 		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
 		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
 		{"Foo = interface : foo bar spong", `Foo = interface : 3 tokens.`},
+		{"make foo, bar", `make foo, bar`},
+		{"make foo, bar\n", `make foo, bar`},
 		{"Person = struct(name string, age int)", `Person = struct(name string, age int)`},
 		{"Person = struct{i int}(name string, age int)", `Person = struct{i int}(name string, age int)`},
 		{"Person = struct{i int}(name, age)", `Person = struct{i int}(name any ?, age any ?)`},
