@@ -89,7 +89,7 @@ func (tc *tokenizedExternalOrImportDeclaration) getDeclarationType() declaration
 func (tc *tokenizedExternalOrImportDeclaration) indexToken() token.Token {return tc.name}
 
 type tokenizedFunctionDeclaration struct {
-	decType declarationType  // Can be commandDeclaration, functionDeclaration, or golangDeclaration.
+	decType declarationType  // Can be commandDeclaration, functionDeclaration.
 	private bool             // Whether it's private.
 	op      token.Token               // The name of the fumction/operation.
 	pos     opPosition                // Whether it's a prefix, infix, suffix, or unfix.
@@ -121,6 +121,15 @@ func (tc *tokenizedInterfaceDeclaration) getDeclarationType() declarationType {r
 
 func (tc *tokenizedInterfaceDeclaration) indexToken() token.Token {return tc.op}
 
+type tokenizedGolangDeclaration struct {
+	private   bool            // Whether it's declared private.
+	goCode    token.Token     // The code has already been squished into a single Pipefish token.
+}
+
+func (tc *tokenizedGolangDeclaration) getDeclarationType() declarationType {return golangDeclaration}
+
+func (tc *tokenizedGolangDeclaration) indexToken() token.Token {return tc.goCode}
+
 type tokenizedMakeDeclaration struct {
 	private   bool            // Whether it's declared private.
 	makeToken token.Token     // The token saying 'make'.
@@ -144,6 +153,15 @@ func (tc *tokenizedStructDeclaration) getDeclarationType() declarationType {retu
 func (tc *tokenizedStructDeclaration) indexToken() token.Token {return tc.op}
 
 // This is a temporary function to allow us to refactor from using TCCs to tokenizedCode.
+func (iz *Initializer) TranslateEverything() {
+	for decType := importDeclaration; decType <= makeDeclaration; decType++ {
+		for _, dec := range iz.TokenizedDeclarations[decType] {
+			iz.tokenizedCode[decType] = append(iz.tokenizedCode[decType], iz.tccToTokenizedCode(decType, dec.Private, dec))
+			dec.ToStart()
+		}
+	}
+}
+
 func (iz *Initializer) tccToTokenizedCode(decType declarationType, private bool, tcc *token.TokenizedCodeChunk) tokenizedCode {
 	iz.P.PrimeWithTokenSupplier(tcc)
 	switch decType {
@@ -159,6 +177,9 @@ func (iz *Initializer) tccToTokenizedCode(decType declarationType, private bool,
 	case abstractDeclaration, cloneDeclaration, enumDeclaration, interfaceDeclaration,
 	        makeDeclaration, structDeclaration:
 		result, _ := iz.ChunkTypeDeclaration(private)
+		return result
+	case golangDeclaration:
+		result, _ := iz.ChunkGolangDeclaration(private)
 		return result
 	default:
 		panic("Unhandled declaration type.")
@@ -194,6 +215,17 @@ func (iz *Initializer) ChunkConstOrVarDeclaration(isConst, private bool) (tokeni
 		toks = append(toks, iz.P.CurToken)
 	}
 	return &tokenizedConstOrVarDeclaration{decType, private, sig, assignTok, token.MakeCodeChunk(toks, private)}, true
+}
+
+func (iz *Initializer) ChunkGolangDeclaration(private bool) (tokenizedCode, bool) {
+	result := tokenizedGolangDeclaration{private, iz.P.CurToken}
+	iz.P.NextToken()
+	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
+		iz.Throw("init/golang", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedGolangDeclaration{}, false
+	}
+	return &result, true
 }
 
 // As with all the chunkers, this assumes that the p.curToken is the first token of 
@@ -547,15 +579,11 @@ func (iz *Initializer) ChunkFunction(cmd, private bool) (*tokenizedFunctionDecla
 	fn.body, ok = iz.P.SlurpBlock(false)
 	if !ok {
 		return &tokenizedFunctionDeclaration{}, false
-	}
-	if fn.body.Length() > 0 && fn.body.IndexToken().Type == token.GOCODE {
-		fn.decType = golangDeclaration
+	}	
+	if cmd {
+		fn.decType = commandDeclaration
 	} else {
-		if cmd {
-			fn.decType = commandDeclaration
-		} else {
-			fn.decType = golangDeclaration
-		}
+		fn.decType = functionDeclaration
 	}
 	fn.private = private
 	return &fn, true

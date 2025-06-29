@@ -43,6 +43,7 @@ type Initializer struct {
 	initializers                        map[string]*Initializer        // The child initializers of this one, to initialize imports and external stubs.
 	TokenizedDeclarations               [14]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations                  [13]parser.ParsedCodeChunks    // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
+	tokenizedCode                       [][]tokenizedCode            // Code arranged by declaration type and lightly chunked and validated.
 	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets                            []string                       // Names of snippet types visible to the module.
@@ -72,6 +73,7 @@ func NewInitializer() *Initializer {
 		parameterizedTypesToDeclare: make(map[string]typeInstantiationInfo),
 		parameterizedTypeMap:        make(map[string]int),
 		parameterizedTypeInstances:  make([]parameterizedTypeInstance, 0),
+		tokenizedCode:               make([][]tokenizedCode, 14),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -273,8 +275,15 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	// TEMPORARY until I get rid of the top-level tccs.
+	iz.cmI("Translating tccs to tcs.")
+	iz.TranslateEverything()
+	if iz.ErrorsExist() {
+		return
+	}
+
 	iz.cmI("Parsing import and external declarations.")
-	iz.ParseImportAndExternalDeclarations() // That is, parse the import declarations. The files being imported are imported by the method with the long name below.
+	iz.ParseImportAndExternalDeclarations() // The actual files are imported by the method with the long name below.
 	if iz.ErrorsExist() {
 		return
 	}
@@ -2659,7 +2668,10 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	return &cpF
 }
 
-// Phase 5 of compilation.
+// We left DUMMY values in the code for where we'd call a function which fits the interface but
+// hasn't been defined yet. Now we go back and fill in the gaps.
+// TODO --- why are these stored in the common parser bindle and not the common initializer
+// bindle?
 func (iz *Initializer) ResolveInterfaceBacktracks() {
 	for _, rDat := range iz.P.Common.InterfaceBacktracks {
 		prsrFunction := rDat.Fn
