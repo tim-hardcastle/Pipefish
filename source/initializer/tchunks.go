@@ -179,7 +179,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 	case "enum":
 		return iz.chunkEnum(opTok, private)
 	case "interface":
-		panic("Not implemented!")
+		return iz.chunkInterface(opTok, private)
 	case "struct":
 		panic("Not implemented!")
 	default:
@@ -262,7 +262,10 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 	iz.P.NextToken()
 	validation := token.NewCodeChunk()
 	if iz.P.CurTokenIs(token.COLON) {
-		validation = iz.P.SlurpBlock(false)
+		validation, ok = iz.P.SlurpBlock(false)
+	}
+	if !ok {
+		return &tokenizedCloneDeclaration{}, false
 	}
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
 		iz.Throw("init/clone/expect", &iz.P.CurToken)
@@ -303,6 +306,20 @@ func (iz *Initializer) chunkEnum(opTok token.Token, private bool) (tokenizedCode
 	}
 }
 
+// Starts after the word 'interface', ends on NEWLINE or EOF.
+func (iz *Initializer) chunkInterface(opTok token.Token, private bool) (tokenizedCode, bool) {
+	if !iz.P.CurTokenIs(token.COLON) {
+		iz.Throw("init/interface/colon", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedInterfaceDeclaration{}, false
+	}
+	body, ok := iz.P.SlurpBlock(false)
+	if !ok {
+		return &tokenizedInterfaceDeclaration{}, false
+	}
+	return &tokenizedInterfaceDeclaration{private, opTok, body}, true
+}
+
 // This is called in case of a malformed definiion to try to skip over the rest of it
 // and get on to the next definition.
 // As it emulates slurping up a definition, it ends when the p.curToken is EOF or NEWLINE.
@@ -328,7 +345,10 @@ func (iz *Initializer) ChunkFunction(cmd, private bool) (*tokenizedFunctionDecla
 	if !ok {
 		return &tokenizedFunctionDeclaration{}, false
 	}
-	fn.body = iz.P.SlurpBlock(false)
+	fn.body, ok = iz.P.SlurpBlock(false)
+	if !ok {
+		return &tokenizedFunctionDeclaration{}, false
+	}
 	if fn.body.Length() > 0 && fn.body.IndexToken().Type == token.GOCODE {
 		fn.decType = golangDeclaration
 	} else {
@@ -437,6 +457,9 @@ func SummaryString(dec tokenizedCode) string {
 		return result
 	case *tokenizedFunctionDeclaration:
 		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
+	case *tokenizedInterfaceDeclaration:
+		return dec.op.Literal + " = interface : " + strconv.Itoa(dec.body.Length()) + " tokens."
+	
 	default:
 		panic("Unhandled case!")
 	}

@@ -226,8 +226,6 @@ func TestFunctionChunking(t *testing.T) {
 
 func TestTypeChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
-		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
 		{"Number = abstract int/float", `Number = abstract int/float`}, 
 		{"Number = abstract int/float\n", `Number = abstract int/float`},
 		{"Foo = abstract int/list{float/int}", `Foo = abstract int/list { float / int }`},
@@ -236,6 +234,9 @@ func TestTypeChunking(t *testing.T) {
 		{"UID = clone{s string} int", `UID = clone{s string} int`},
 		{"UID = clone{s string} int : foo bar spong", `UID = clone{s string} int : 3 tokens.`},
 		{"UID = clone int : foo bar spong", `UID = clone int : 3 tokens.`},
+		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
+		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
+		{"Foo = interface : foo bar spong", `Foo = interface : 3 tokens.`},
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestTypeChunking)
 }
