@@ -12,8 +12,19 @@ import (
 // function declaration down into its call signature, return signature, and body, and indeed
 // analyse the function signatures into variables and types, using only lexical criteria.
 
-// This allows us to set up the parser with information about what things are functions, what
-// things are types, etc.
+// As we go, we validate some well-formedness properties:
+
+// * Functions and commands have non-empty bodies.
+// * If a validation block was present, it was non-empty.
+// * A parameterized type can't have an empty list of parameters.
+// * Every parameter of a parameterized type has (something that lexically could be) a type.
+// * 'make' statements contain a non-empty list of types.
+// * So do abstract type definitions.
+// * The parent type of a clone is cloneable.
+// * Every argument of a sig has been assigned a type.
+
+// This then allows us to set up the parser with information about what things are functions, 
+// what things are types, etc.
 
 // Since different declarations have different contents, we slap an interface over the top.
 
