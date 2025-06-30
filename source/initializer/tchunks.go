@@ -80,6 +80,7 @@ func (tc *tokenizedEnumDeclaration) indexToken() token.Token {return tc.op}
 type tokenizedExternalOrImportDeclaration struct {
 	decType declarationType // Either importDeclaration or externalDeclaration.
 	private bool            // Whether it's declared private.
+	golang  bool            // If we're importing a Go library.
 	name    token.Token     // The name of the service as an identifier.
 	path    token.Token     // The path as a string literal.
 }
@@ -237,7 +238,10 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 		decType = externalDeclaration
 	}
 	var name, path token.Token
+	golang := false
 	switch iz.P.CurToken.Type {
+	case token.GOCODE: // TODO --- the lexer shoves everything into the gocode token and it should only do that if followed by '{'.
+		path = iz.P.CurToken
 	case token.IDENT:
 		name = iz.P.CurToken
 		iz.P.NextToken()
@@ -266,7 +270,7 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 		iz.finishChunk()
 		return &tokenizedExternalOrImportDeclaration{}, false
 	}
-	return &tokenizedExternalOrImportDeclaration{decType, private, name, path}, true
+	return &tokenizedExternalOrImportDeclaration{decType, private, golang, name, path}, true
 }
 
 // As with all the chunkers, this assumes that the p.curToken is the first token of 
@@ -393,6 +397,29 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		return &tokenizedCloneDeclaration{}, false
 	}
 	iz.P.NextToken()
+	if iz.P.CurTokenIs(token.IDENT) && iz.P.CurToken.Literal == "using" {
+		loop:
+		for {
+			iz.P.NextToken()
+			if !iz.P.CurTokenIs(token.IDENT) {
+				println(iz.P.CurToken.Type, iz.P.CurToken.Literal)
+				iz.Throw("init/clone/ident", &iz.P.CurToken)
+				iz.finishChunk()
+				return &tokenizedCloneDeclaration{}, false
+			}
+			iz.P.NextToken()
+			switch iz.P.CurToken.Type {
+			case token.COMMA :
+				continue
+			case token.COLON, token.NEWLINE, token.EOF:
+				break loop
+			default:
+				iz.Throw("init/clone/expect/a", &iz.P.CurToken)
+				iz.finishChunk()
+				return &tokenizedCloneDeclaration{}, false
+			}
+		}
+	}
 	validation := token.NewCodeChunk()
 	if iz.P.CurTokenIs(token.COLON) {
 		validation, ok = iz.P.SlurpBlock(false)
@@ -401,7 +428,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		return &tokenizedCloneDeclaration{}, false
 	}
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
-		iz.Throw("init/clone/expect", &iz.P.CurToken)
+		iz.Throw("init/clone/expect/b", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
@@ -523,8 +550,12 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCo
 		iz.finishChunk()
 		return &tokenizedStructDeclaration{}, false
 	}
-	iz.P.NextToken()
-	args, ok := iz.P.ChunkNameTypePairs(parser.ANY_OR_NULL)
+	ok := true
+	args := parser.TokSig{}
+	if !iz.P.PeekTokenIs((token.RPAREN)) {
+		iz.P.NextToken()
+		args, ok = iz.P.ChunkNameTypePairs(parser.ANY_OR_NULL)
+	}
 	if !ok {
 		iz.finishChunk()
 		return &tokenizedStructDeclaration{}, false

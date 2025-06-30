@@ -1457,6 +1457,18 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/impex/expect": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected occurrence of " + text.DescribeTok(tok) +
+				" in the 'import'/'external' section"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The only thing you should be doing in the 'import' section is specifying " +
+				"files to import and, optionally, the namespaces to put them in." +
+				"\n\nFor more information about the 'import' section see 'hub help \"import\"'."
+		},
+	},
+
 	"init/import/file": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "couldn't open file " + emph(args[0]) + " with OS error " + emph(args[1])

@@ -144,7 +144,7 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 
 // Sets the parser up with the appropriate relexer and position to parse a string.
 func (p *Parser) PrimeWithString(source, input string) {
-	p.ResetAfterError()
+	p.ResetNesting()
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
 	p.SafeNextToken()
@@ -156,7 +156,7 @@ func (p *Parser) PrimeWithTokenSupplier(source TokenSupplier) {
 	if tcc, ok := source.(*token.TokenizedCodeChunk); ok {
 		tcc.ToStart()
 	}
-	p.ResetAfterError()
+	p.ResetNesting()
 	p.TokenizedCode = source
 	p.SafeNextToken()
 	p.SafeNextToken()

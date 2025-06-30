@@ -687,17 +687,23 @@ func (iz *Initializer) ParseImportAndExternalDeclarations() {
 func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
 	for i, imp := range iz.ParsedDeclarations[importDeclaration] {
+		dec := iz.tokenizedCode[importDeclaration][i].(*tokenizedExternalOrImportDeclaration)
 		namespace := ""
 		scriptFilepath := ""
 		switch imp := (imp).(type) {
 		case *ast.GolangExpression:
+			println("old --- source: '" + imp.Token.Source + "' sf: '" + imp.Token.Literal + "'")
+			println("new --- source: '" + dec.path.Source + "' sf: '" + dec.path.Literal + "'")
 			iz.goBucket.imports[imp.Token.Source] = append(iz.goBucket.imports[imp.Token.Source], imp.Token.Literal)
 			continue
 		default:
 			namespace, scriptFilepath = iz.getPartsOfImportOrExternalDeclaration(imp)
 		}
+		println("old --- ns: '" + namespace + "' sf: '" + scriptFilepath + "'")
+		println("new --- ns: '" + dec.name.Literal + "' sf: '" + dec.path.Literal + "'")
 		if namespace == "" {
 			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
+			continue
 		}
 		newIz := NewInitializer()
 		newIz.Common = iz.Common
