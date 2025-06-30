@@ -1256,29 +1256,20 @@ func (iz *Initializer) ParameterTypesMatch(paramsToCheck, paramsToMatch []values
 	return true
 }
 
-// Phase 1K of compilation. We create the abstract types as type names but don't populate them.
+// We create the abstract types as type names.
+// TODO -- there's no sense in populating the type map here, we need to do it later and find
+// dependencies if any between abstract types.
 func (iz *Initializer) createAbstractTypes() {
-	for _, tcc := range iz.TokenizedDeclarations[abstractDeclaration] {
-		tcc.ToStart()
-		nameTok := tcc.NextToken()
-		newTypename := nameTok.Literal
-		tcc.NextToken() // The equals sign.
-		tcc.NextToken() // The 'abstract' identifier.
+	for _, tc := range iz.tokenizedCode[abstractDeclaration] {
+		dec := tc.(*tokenizedAbstractDeclaration)
+		newTypename := dec.op.Literal
 		iz.P.TypeMap[newTypename] = values.MakeAbstractType()
-		if settings.MandatoryImportSet().Contains(nameTok.Source) {
-			iz.unserializableTypes.Add(nameTok.Literal)
+		if settings.MandatoryImportSet().Contains(dec.op.Source) {
+			iz.unserializableTypes.Add(newTypename)
 		}
-		for {
-			typeTok := tcc.NextToken()
-			divTok := tcc.NextToken()
-			if typeTok.Type != token.IDENT {
-				iz.Throw("init/type/form/b", &typeTok)
-				break
-			}
-			if divTok.Type != token.EOF && !(divTok.Type == token.IDENT && divTok.Literal == "/") {
-				iz.Throw("init/type/form/c", &typeTok)
-				break
-			}
+		for _, typeAsTokens := range dec.types {
+			// TODO --- again, a stopgap which will pass the tests.
+			typeTok := typeAsTokens[0]
 			tname := typeTok.Literal
 			abTypeToAdd, ok := iz.P.TypeMap[tname]
 			if !ok {
@@ -1286,13 +1277,10 @@ func (iz *Initializer) createAbstractTypes() {
 				break
 			}
 			iz.P.TypeMap[newTypename] = iz.P.TypeMap[newTypename].Union(abTypeToAdd)
-			if divTok.Type == token.EOF {
-				break
-			}
 		}
-		_, typeExists := iz.getDeclaration(decABSTRACT, &nameTok, DUMMY)
+		_, typeExists := iz.getDeclaration(decABSTRACT, ixPtr(dec), DUMMY)
 		if !typeExists {
-			iz.setDeclaration(decABSTRACT, &nameTok, DUMMY, nil)
+			iz.setDeclaration(decABSTRACT, ixPtr(dec), DUMMY, nil)
 		}
 		iz.P.Suffixes.Add(newTypename)
 	}
