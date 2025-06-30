@@ -33,6 +33,11 @@ type tokenizedCode interface {
 	indexToken() token.Token
 }
 
+func ixPtr(tc tokenizedCode) *token.Token {
+	t := tc.indexToken()
+	return &t
+}
+
 type tokenizedAbstractDeclaration struct {
 	private bool             // Whether it's declared private.
 	op token.Token           // The type operator.

@@ -824,12 +824,11 @@ func (iz *Initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
 func (iz *Initializer) createEnums() {
-	for i, tokens := range iz.TokenizedDeclarations[enumDeclaration] {
-		tokens.ToStart()
-		tok1 := tokens.NextToken()
-		name := tok1.Literal
+	for i, tc := range iz.tokenizedCode[enumDeclaration] {
+		dec := tc.(*tokenizedEnumDeclaration)
+		name := dec.op.Literal
 		var typeNo values.ValueType
-		info, typeExists := iz.getDeclaration(decENUM, &tok1, DUMMY)
+		info, typeExists := iz.getDeclaration(decENUM, &dec.op, DUMMY)
 		if typeExists {
 			typeNo = info.(values.ValueType)
 			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.EnumType)
@@ -840,10 +839,10 @@ func (iz *Initializer) createEnums() {
 			}
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
-			iz.setDeclaration(decENUM, &tok1, DUMMY, typeNo)
+			iz.setDeclaration(decENUM, &dec.op, DUMMY, typeNo)
 		}
-		iz.AddType(tok1.Literal, "enum", typeNo)
-		iz.cp.P.EnumTypeNames.Add(tok1.Literal)
+		iz.AddType(dec.op.Literal, "enum", typeNo)
+		iz.cp.P.EnumTypeNames.Add(dec.op.Literal)
 
 		// We make the constructor function.
 
@@ -851,38 +850,26 @@ func (iz *Initializer) createEnums() {
 		iz.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
-		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &tok1)
-		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: &tok1}
+		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &dec.op)
+		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: &dec.op}
 		iz.Add(name, fn)
 		if typeExists {
 			continue
 		}
-		tokens.NextToken() // Skip over the '='.
-		tokens.NextToken() // This says 'enum' or we wouldn't be here.
+		vec := vector.Empty
 		elementNameList := []string{}
-		for tok := tokens.NextToken(); tok.Type != token.EOF; {
-			if tok.Type != token.IDENT {
-				iz.Throw("init/enum/ident", &tok)
-			}
+		for ord, tok := range dec.elements {
 			_, alreadyExists := iz.cp.EnumElements[tok.Literal]
 			if alreadyExists { // Enums in the same namespace can't have overlapping elements or we wouldn't know their type.
 				iz.Throw("init/enum/element", &tok)
 			}
 			iz.cp.P.EnumElementNames.Add(tok.Literal)
-			iz.cp.EnumElements[tok.Literal] = values.Value{typeNo, len(elementNameList)}
+			iz.cp.EnumElements[tok.Literal] = values.Value{typeNo, ord}
+			vec = vec.Conj(values.Value{typeNo, ord})
 			elementNameList = append(elementNameList, tok.Literal)
-			tok = tokens.NextToken()
-			if tok.Type != token.COMMA && tok.Type != token.WEAK_COMMA && tok.Type != token.EOF {
-				iz.Throw("init/enum/comma", &tok)
-			}
-			tok = tokens.NextToken()
-		}
-		vec := vector.Empty
-		for i := range len(elementNameList) {
-			vec = vec.Conj(values.Value{typeNo, i})
 		}
 		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.EnumType{Name: name, Path: iz.P.NamespacePath, ElementNames: elementNameList,
-			ElementValues: values.Value{values.LIST, vec}, Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(tok1.Source)})
+			ElementValues: values.Value{values.LIST, vec}, Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(dec.op.Source)})
 	}
 }
 
