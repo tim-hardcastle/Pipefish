@@ -16,6 +16,10 @@ type TokPair struct {
 	Typename []token.Token
 }
 
+func (tp TokPair) IsBling() bool {
+	return tp.Typename[0].Literal == "bling"
+}
+
 type TokSig []TokPair
 
 // Calls the bit that chunks the call signature
@@ -186,7 +190,7 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 	for {
 		if p.CurTokenIs(token.IDENT) {
 			sig = append(sig, TokPair{p.CurToken, nil})
-			if p.PeekTokenIs(token.IDENT) {
+			if p.PeekTokenIs(token.IDENT) || p.PeekTokenIs(token.DOTDOTDOT) {
 				typeName, ok := p.slurpTypeExpressionAsTokens()
 				if !ok {
 					return TokSig{}, false
@@ -196,7 +200,7 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 						sig[i].Typename = typeName
 					}
 				}
-			}
+			} 
 		}
 		if p.PeekTokenIs(token.RPAREN) || p.PeekTokenIs(token.ASSIGN) ||
 			p.PeekTokenIs(token.GVN_ASSIGN) || p.PeekTokenIs(token.RBRACE) {

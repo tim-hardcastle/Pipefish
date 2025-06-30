@@ -180,6 +180,7 @@ func TestSigChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`qux :`, `qux`}, 
 		{`qux () :`, `qux ()`},
+		{`qux (i ... int) :`, `qux (i ... int)`},
 		{`qux (a int) :`, `qux (a int)`},
 		{`qux (a int) -> int :`, `qux (a int) -> int`},
 		{`qux (a int) -> int, string :`, `qux (a int) -> int, string`},

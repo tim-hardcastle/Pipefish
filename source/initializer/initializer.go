@@ -415,8 +415,7 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 	}
 
 	currentSection = tokenTypeToSection[tok.Type]
-	colonMeansFunctionOrCommand := (currentSection == CmdSection || currentSection == DefSection)
-
+	
 	line := token.NewCodeChunk()
 
 	for tok = iz.P.TokenizedCode.NextToken(); true; tok = iz.P.TokenizedCode.NextToken() {
@@ -430,7 +429,6 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 			currentSection = tokenTypeToSection[tok.Type]
 			IsPrivate = false
 			lastTokenWasColon = false
-			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
 		if tok.Type == token.PRIVATE {
@@ -471,7 +469,6 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 				iz.Throw("init/close", &tok)
 				beginCount = 0 // Prevents error storm.
 				typeDefined = declarationType(DUMMY)
-				colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 				continue
 			}
 			switch currentSection {
@@ -530,7 +527,6 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 			}
 			line = token.NewCodeChunk()
 			typeDefined = declarationType(DUMMY)
-			colonMeansFunctionOrCommand = (currentSection == CmdSection || currentSection == DefSection)
 			continue
 		}
 		if tok.Type == token.NEWLINE && line.Length() == 0 {
@@ -538,20 +534,15 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 		}
 
 		lastTokenWasColon = (tok.Type == token.COLON)
-
-		if (lastTokenWasColon || tok.Type == token.PIPE) && colonMeansFunctionOrCommand { // If we found the first : in a command/function declaration, then what is to the left of the colon is the command/function's signature.
-			colonMeansFunctionOrCommand = false
-			iz.addWordsToParser(line)
-		}
 		line.Append(tok)
 		if tok.Type == token.EOF {
 			break
 		}
 	}
-
 	iz.P.Common.Errors = err.MergeErrors(iz.P.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.P.Common.Errors)
 }
 
+// ****** TODO --- remove dependence of interface types on this and remove it.
 // Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
 // and decides on their "grammatical" role: are they prefixes, suffixes, bling?
 func (iz *Initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) {
@@ -632,6 +623,51 @@ func (iz *Initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) 
 		}
 	}
 }
+
+// Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
+// and decides on their "grammatical" role: are they prefixes, suffixes, bling?
+func (iz *Initializer) addWordsToParser2(tc *tokenizedFunctionDeclaration) {
+	startAt := 0
+	switch tc.pos {
+	case unfix:
+		iz.P.Unfixes.Add(tc.op.Literal)
+		return
+	case suffix:
+		iz.P.Suffixes.Add(tc.op.Literal)
+		return
+	case infix:
+		iz.P.Infixes.Add(tc.op.Literal)
+		for startAt = 2; !tc.sig[startAt-1].IsBling(); startAt++ {}
+	}
+	lastWasBling := true
+	hasBling := false
+	for ix := startAt; ix < len(tc.sig); ix++ {
+		if tc.sig[ix].IsBling() {
+			hasBling = true
+			word := tc.sig[ix].Name.Literal
+			if ix == len(tc.sig) - 1 {
+				iz.P.Endfixes.Add(word)
+				break
+			}
+			if lastWasBling {
+				iz.P.Forefixes.Add(word)
+			} else {
+				iz.P.Midfixes.Add((word))
+			}
+		}
+		lastWasBling = tc.sig[ix].IsBling()
+	}
+	// TODO --- I've retained this distinction for back-compatibility but don't know if
+	// it's important. It may be to do with using functions as first-class objects etc.
+	if tc.pos == prefix {
+		if hasBling {
+			iz.P.Prefixes.Add(tc.op.Literal)
+		} else {
+			iz.P.Functions.Add(tc.op.Literal)
+		}
+	}
+}
+
 
 // Phase 1B of compilation. At this point we parse the import and external declarations but then just stow away the
 // resulting ASTs for the next two steps, where we have to treat imports and externals very differently.

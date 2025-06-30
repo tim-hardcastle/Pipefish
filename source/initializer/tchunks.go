@@ -586,11 +586,12 @@ func (iz *Initializer) ChunkFunction(cmd, private bool) (*tokenizedFunctionDecla
 		fn.decType = functionDeclaration
 	}
 	fn.private = private
-	return &fn, true
+	iz.addWordsToParser2(fn)
+	return fn, true
 }
 
 // This wraps around chunkFunctionArguments and extracts the right name.
-func (iz *Initializer) ChunkFunctionSignature() (tokenizedFunctionDeclaration, bool) {
+func (iz *Initializer) ChunkFunctionSignature() (*tokenizedFunctionDeclaration, bool) {
 	position := prefix
 	name := token.Token{Literal: "*dummy*"}
 	if iz.P.CurTokenIs(token.IDENT) {
@@ -602,7 +603,7 @@ func (iz *Initializer) ChunkFunctionSignature() (tokenizedFunctionDeclaration, b
 	}
 	sig, rets, ok := iz.P.ChunkFunctionArguments()
 	if !ok {
-		return tokenizedFunctionDeclaration{}, false
+		return &tokenizedFunctionDeclaration{}, false
 	}
 	if name.Literal == "*dummy*" { // Then it's an infix or isSuffix. It will have been processed as bling.
 		for i, pair := range sig {
@@ -617,13 +618,13 @@ func (iz *Initializer) ChunkFunctionSignature() (tokenizedFunctionDeclaration, b
 		}
 		if name.Literal == "*dummy*" { // Then we've found no bling. Disaster!
 			iz.Throw("sigs/name", &iz.P.CurToken)
-			return tokenizedFunctionDeclaration{}, false
+			return &tokenizedFunctionDeclaration{}, false
 		}
 		if position == suffix { // Then the suffix will have been classified as bling, and we need to remove it from the sig.
 			sig = sig[:len(sig)-1]
 		}
 	}
-	return tokenizedFunctionDeclaration{op: name, pos: position, sig: sig, rets: rets}, true
+	return &tokenizedFunctionDeclaration{op: name, pos: position, sig: sig, rets: rets}, true
 }
 
 func (dec *tokenizedFunctionDeclaration) SigAsString() string {
