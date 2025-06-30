@@ -108,7 +108,7 @@ type typeInstantiationInfo struct {
 type parameterizedTypeInstance struct {
 	astType   ast.TypeNode
 	env       *compiler.Environment
-	typeCheck ast.Node
+	typeCheck *token.TokenizedCodeChunk
 	fields    ast.AstSig
 	vals      []values.Value
 }
@@ -873,47 +873,28 @@ func (iz *Initializer) createEnums() {
 	}
 }
 
-// Phase 1F of compilation. We compile the clone types.
+// We create the clone types.
 func (iz *Initializer) createClones() {
 mainLoop:
-	for i, tokens := range iz.TokenizedDeclarations[cloneDeclaration] {
-		tok1 := *tokens.IndexToken()
-		private := iz.IsPrivate(int(cloneDeclaration), i)
-		tokens.ToStart()
-		iz.cp.P.TokenizedCode = tokens
-		name, paramSig, typeToClone := iz.cp.P.ParseClone()
-		parentTypeNo, ok := parser.ClonableTypes[typeToClone]
-		if !ok {
-			iz.Throw("init/clone/type/a", &tok1, typeToClone)
-			return
-		}
-		switch paramSig := paramSig.(type) {
-		case *ast.TypeWithName:
-		case *ast.TypeWithParameters:
-			opList, typeCheck := iz.getOpList(tokens)
-			ok := iz.registerParameterizedType(name, paramSig, opList, typeCheck, typeToClone, iz.IsPrivate(int(cloneDeclaration), i), &tok1)
+	for _, tc := range iz.tokenizedCode[cloneDeclaration] {
+		dec := tc.(*tokenizedCloneDeclaration)
+		name := dec.op.Literal
+		typeToClone := dec.parentTok.Literal
+		parentTypeNo, _ := parser.ClonableTypes[typeToClone]
+		if len(dec.params) > 0 {
+			astType := iz.makeTypeWithParameters(dec.op, dec.params)
+			ok := iz.registerParameterizedType(name, astType, dec.requests, dec.body, typeToClone, dec.private, ixPtr(dec))
 			if !ok {
-				iz.Throw("init/clone/exists", tokens.IndexToken())
+				iz.Throw("init/clone/exists", ixPtr(dec))
 				continue mainLoop
 			}
-			iz.setDeclaration(decPARAMETERIZED, &tok1, DUMMY, DUMMY)
-			continue mainLoop
-		default:
-			iz.Throw("init/clone/type/b", tokens.IndexToken())
+			iz.setDeclaration(decPARAMETERIZED, ixPtr(dec), DUMMY, DUMMY)
 			continue mainLoop
 		}
-
-		typeNo, fn := iz.addCloneTypeAndConstructor(name, typeToClone, private, &tok1)
+		typeNo, fn := iz.addCloneTypeAndConstructor(name, typeToClone, dec.private, ixPtr(dec))
 		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(cloneDeclaration), i), &tok1)
-
-		// We get the requested builtins.
-		opList, _ := iz.getOpList(tokens)
-		if iz.ErrorsExist() {
-			return
-		}
-		// And add them to the Common functions.
-		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, opList, parentTypeNo, private, &tok1)
+		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), dec.private, ixPtr(dec))
+		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, dec.requests, parentTypeNo, dec.private)
 	}
 }
 
@@ -964,8 +945,10 @@ func (iz *Initializer) addCloneType(name, typeToClone string, private bool, decT
 	return typeNo, true
 }
 
-func (iz *Initializer) createOperations(nameAst ast.TypeNode, typeNo values.ValueType, opList []string, parentTypeNo values.ValueType, private bool, tok1 *token.Token) {
-	for _, op := range opList {
+func (iz *Initializer) createOperations(nameAst ast.TypeNode, typeNo values.ValueType, opList []token.Token, parentTypeNo values.ValueType, private bool) {
+	for i, opTok := range opList {
+		op := opTok.Literal
+		tok1 := &(opList[i])
 		rtnSig := ast.AstSig{{"", nameAst}}
 		switch parentTypeNo {
 		case values.FLOAT:
@@ -1078,35 +1061,6 @@ func (iz *Initializer) createOperations(nameAst ast.TypeNode, typeNo values.Valu
 	iz.cp.Vm.ConcreteTypeInfo[typeNo] = cloneData
 }
 
-func (iz *Initializer) getOpList(tokens *token.TokenizedCodeChunk) ([]string, ast.Node) {
-	var opList []string
-	var typeCheck ast.Node
-	sep := tokens.NextToken()
-	if sep.Type != token.EOF && sep.Type != token.COLON {
-		if sep.Literal != "using" {
-			iz.Throw("init/clone/using", &sep)
-			return opList, typeCheck
-		}
-		for {
-			op := tokens.NextToken()
-			sep = tokens.NextToken()
-			opList = append(opList, strings.Trim(op.Literal, "\n\r\t "))
-			if sep.Type == token.COLON || sep.Type == token.EOF {
-				break
-			}
-			if sep.Type != token.COMMA {
-				iz.Throw("init/clone/comma", &sep)
-				break
-			}
-		}
-	}
-	if sep.Type == token.COLON {
-		iz.cp.P.TokenizedCode = tokens
-		typeCheck = iz.cp.P.ParseTokenizedChunk()
-	}
-	return opList, typeCheck
-}
-
 // Function auxiliary to the previous one, to make constructors for the clone types.
 func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
@@ -1186,16 +1140,17 @@ func (iz *Initializer) addStructType(name string, private bool, indexToken *toke
 // we can't make an abstract sig yet because we haven't populated the abstract types.
 func (iz *Initializer) createStructLabels() {
 	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
+		sDec := iz.tokenizedCode[structDeclaration][i].(*tokenizedStructDeclaration)
 		indexToken := tcc.IndexToken()
 		name := indexToken.Literal
 		// We will now extract the AstSig lexically.
-		dec, sig, typecheck := iz.cp.P.ParseStructSigFromTcc(tcc)
+		dec, sig, _ := iz.cp.P.ParseStructSigFromTcc(tcc)
 		labelsForStruct := iz.makeLabelsFromSig(sig, iz.IsPrivate(int(structDeclaration), i), indexToken)
 		if ty, ok := dec.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type.
 			ty.Name = name
 			argIndex := iz.paramTypeExists(ty)
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = sig
-			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = typecheck
+			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = sDec.body
 			continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
@@ -1239,7 +1194,7 @@ func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexToke
 	return labelsForStruct
 }
 
-func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []string, typeCheck ast.Node, parentType string, private bool, tok *token.Token) bool {
+func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []token.Token, typeCheck *token.TokenizedCodeChunk, parentType string, private bool, tok *token.Token) bool {
 	info, ok := iz.cp.ParameterizedTypes[name]
 	if ok {
 		if iz.paramTypeExists(ty) == DUMMY { // TODO --- why?
@@ -1499,7 +1454,7 @@ loop:
 		)
 		if isClone {
 			typeNo, _ = iz.addCloneType(ty.String(), parTypeInfo.ParentType, false, &ty.Token)
-			iz.createOperations(ty, typeNo, parTypeInfo.Operations, parentTypeNo, parTypeInfo.IsPrivate, &ty.Token)
+			iz.createOperations(ty, typeNo, parTypeInfo.Operations, parentTypeNo, parTypeInfo.IsPrivate)
 			sig = ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
 		} else {
 			typeNo = iz.addStructType(ty.String(), parTypeInfo.IsPrivate, &ty.Token)
@@ -2161,11 +2116,14 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	}
 
 	for i, v := range iz.parameterizedTypeInstances {
-		if v.typeCheck == nil {
+		if v.typeCheck.Length() == 0 {
 			continue
 		}
 		name := "*" + v.astType.String() // Again we mangle the name with a '*' to distinguish is from the constructor.
-		namesToDeclarations[name] = []labeledParsedCodeChunk{{v.typeCheck, makeDeclaration, i, name[1:], v.typeCheck.GetToken()}}
+		v.typeCheck.ToStart()
+		iz.P.TokenizedCode = v.typeCheck
+		node := iz.P.ParseTokenizedChunk()
+		namesToDeclarations[name] = []labeledParsedCodeChunk{{node, makeDeclaration, i, name[1:], v.typeCheck.IndexToken()}}
 	}
 
 	iz.cmI("Building digraph of dependencies.")

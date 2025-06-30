@@ -98,7 +98,7 @@ func (cp *Compiler) SerializeApi() string {
 			buf.WriteString(cp.Vm.ConcreteTypeInfo[info.Parent].GetName(vm.DEFAULT))
 			for _, el := range info.Using {
 				buf.WriteString(" | ")
-				buf.WriteString(el)
+				buf.WriteString(el.Literal)
 			}
 			buf.WriteString("\n")
 		}

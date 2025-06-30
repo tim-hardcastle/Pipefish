@@ -1193,18 +1193,6 @@ func newError(ident string, tok *token.Token, args ...any) *err.Error {
 	return errorToReturn
 }
 
-func (p *Parser) ParseClone() (string, ast.TypeNode, string) {
-	p.SafeNextToken()
-	p.SafeNextToken()
-	name := p.CurToken.Literal
-	p.NextToken()
-	p.NextToken() // Skip over the '='.
-	// The next token says 'clone' or we wouldn't be here. It may be parameterized.
-	paramSig := p.ParseTypeFromCurTok(T_LOWEST)
-	typeToClone := p.PeekToken.Literal
-	return name, paramSig, typeToClone
-}
-
 func (p *Parser) SeekColon() bool {
 	p.SafeNextToken()
 	p.SafeNextToken()

@@ -52,7 +52,8 @@ type tokenizedCloneDeclaration struct {
 	private bool            // Whether it's declared private.
 	op token.Token          // The type operator.
 	params parser.TokSig    // The type parameters, if any.
-	parentTok token.Token // The type being cloned.
+	parentTok token.Token   // The type being cloned.
+	requests  []token.Token // Types requested by the 'using' clause
 	body   *token.TokenizedCodeChunk // Validation, if any.
 }
 
@@ -403,6 +404,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		return &tokenizedCloneDeclaration{}, false
 	}
 	iz.P.NextToken()
+	requests := []token.Token{}
 	if iz.P.CurTokenIs(token.IDENT) && iz.P.CurToken.Literal == "using" {
 		loop:
 		for {
@@ -413,6 +415,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false
 			}
+			requests = append(requests, iz.P.CurToken)
 			iz.P.NextToken()
 			switch iz.P.CurToken.Type {
 			case token.COMMA :
@@ -438,7 +441,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
-	return &tokenizedCloneDeclaration{private, opTok, params, typeTok, validation}, true
+	return &tokenizedCloneDeclaration{private, opTok, params, typeTok, requests, validation}, true
 }
 
 // Starts after the word 'enum', ends on NEWLINE or EOF.

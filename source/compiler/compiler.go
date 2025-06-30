@@ -2870,8 +2870,8 @@ func (cp *Compiler) Store(k, v values.Value) {
 type ParameterInfo struct {
 	Names      []string
 	Types      []values.ValueType
-	Operations []string // TODO --- really this and the following fields belong in the initializer
-	Typecheck  ast.Node
+	Operations []token.Token
+	Typecheck  *token.TokenizedCodeChunk
 	ParentType string     // 'struct' if not a clone
 	Sig        ast.AstSig // nil if not a struct (because the sig of a clone is implicit in the parent type).
 	IsPrivate  bool

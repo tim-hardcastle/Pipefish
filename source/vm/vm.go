@@ -2201,7 +2201,7 @@ type CloneType struct {
 	IsFilterable bool
 	IsMappable   bool
 	IsMI         bool
-	Using        []string // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
+	Using        []token.Token // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
 	TypeCheck    *TypeCheck
 	TypeArguments    []values.Value
 }

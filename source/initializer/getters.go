@@ -6,6 +6,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
@@ -141,6 +142,17 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 		}
 	}
 	return result
+}
+
+func (iz *Initializer) makeTypeWithParameters(op token.Token, tokSig parser.TokSig) *ast.TypeWithParameters {
+	params := []*ast.Parameter{}
+	for _, pair := range tokSig {
+		// TODO --- Checking on the well-formedness of types may have slipped through the
+		// cracks. The typename should only be one token, but this hasn't been verified.
+		newParam := &ast.Parameter{pair.Name.Literal, pair.Typename[0].Literal}
+		params = append(params, newParam)
+	}
+	return &ast.TypeWithParameters{op, op.Literal, params}
 }
 
 // This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
