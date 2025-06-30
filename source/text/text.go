@@ -382,3 +382,16 @@ func MakeFilepath(scriptFilepath string) string {
 	}
 	return doctoredFilepath
 }
+
+func TweakNameAndPath(name, path, source string) (string, string) {
+	if name == "" {
+		name = ExtractFileName(path)
+	}
+	if settings.StandardLibraries.Contains(path) {
+		path = settings.PipefishHomeDirectory + "lib/" + path + ".pf"
+	}
+	if filepath.IsLocal(path) {
+		path = filepath.Join(filepath.Dir(source), path)
+	}
+	return name, path
+}

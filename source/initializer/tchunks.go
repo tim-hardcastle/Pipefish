@@ -242,6 +242,7 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 	switch iz.P.CurToken.Type {
 	case token.GOCODE: // TODO --- the lexer shoves everything into the gocode token and it should only do that if followed by '{'.
 		path = iz.P.CurToken
+		golang = true
 	case token.IDENT:
 		name = iz.P.CurToken
 		iz.P.NextToken()

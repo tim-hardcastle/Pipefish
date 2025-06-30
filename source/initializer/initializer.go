@@ -282,12 +282,6 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
-	iz.cmI("Parsing import and external declarations.")
-	iz.ParseImportAndExternalDeclarations() // The actual files are imported by the method with the long name below.
-	if iz.ErrorsExist() {
-		return
-	}
-
 	iz.cmI("Initializing imports.")
 	unnamespacedImports := iz.ParseNamespacedImportsAndReturnUnnamespacedImports()
 	if iz.ErrorsExist() {
@@ -668,67 +662,44 @@ func (iz *Initializer) addWordsToParser2(tc *tokenizedFunctionDeclaration) {
 	}
 }
 
-
-// Phase 1B of compilation. At this point we parse the import and external declarations but then just stow away the
-// resulting ASTs for the next two steps, where we have to treat imports and externals very differently.
-func (iz *Initializer) ParseImportAndExternalDeclarations() {
-	for kindOfDeclarationToParse := importDeclaration; kindOfDeclarationToParse <= externalDeclaration; kindOfDeclarationToParse++ {
-		iz.ParsedDeclarations[kindOfDeclarationToParse] = parser.ParsedCodeChunks{}
-		for chunk := 0; chunk < len(iz.TokenizedDeclarations[kindOfDeclarationToParse]); chunk++ {
-			iz.P.TokenizedCode = iz.TokenizedDeclarations[kindOfDeclarationToParse][chunk]
-			iz.TokenizedDeclarations[kindOfDeclarationToParse][chunk].ToStart()
-			iz.ParsedDeclarations[kindOfDeclarationToParse] = append(iz.ParsedDeclarations[kindOfDeclarationToParse], iz.P.ParseTokenizedChunk())
-		}
-	}
-}
-
-// Phase 1C of compilation. We call ParseEverything on the namespaced imports, returning a
-// list of unnamespaced imports which the main phase 1 function will add to the parser.
+// We call ParseEverything on the namespaced imports, returning a list of unnamespaced 
+// imports which the main phase 1 function will add to the parser.
 func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
-	for i, imp := range iz.ParsedDeclarations[importDeclaration] {
-		dec := iz.tokenizedCode[importDeclaration][i].(*tokenizedExternalOrImportDeclaration)
-		namespace := ""
-		scriptFilepath := ""
-		switch imp := (imp).(type) {
-		case *ast.GolangExpression:
-			println("old --- source: '" + imp.Token.Source + "' sf: '" + imp.Token.Literal + "'")
-			println("new --- source: '" + dec.path.Source + "' sf: '" + dec.path.Literal + "'")
-			iz.goBucket.imports[imp.Token.Source] = append(iz.goBucket.imports[imp.Token.Source], imp.Token.Literal)
+	for i, tc := range iz.tokenizedCode[importDeclaration] {
+		dec := tc.(*tokenizedExternalOrImportDeclaration)
+		if dec.golang {
+			iz.goBucket.imports[dec.path.Source] = append(iz.goBucket.imports[dec.path.Source], dec.path.Literal)
 			continue
-		default:
-			namespace, scriptFilepath = iz.getPartsOfImportOrExternalDeclaration(imp)
 		}
-		println("old --- ns: '" + namespace + "' sf: '" + scriptFilepath + "'")
-		println("new --- ns: '" + dec.name.Literal + "' sf: '" + dec.path.Literal + "'")
-		if namespace == "" {
-			unnamespacedImports = append(unnamespacedImports, scriptFilepath)
+		name := dec.name.Literal
+		path := dec.path.Literal 
+		name, path = text.TweakNameAndPath(name, path, dec.path.Source)
+		if dec.name.Literal == "NULL" {
+			unnamespacedImports = append(unnamespacedImports, path)
 			continue
 		}
 		newIz := NewInitializer()
 		newIz.Common = iz.Common
-		iz.initializers[scriptFilepath] = newIz
-		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, scriptFilepath, namespace+"."+iz.P.NamespacePath)
+		iz.initializers[path] = newIz
+		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, name+"."+iz.P.NamespacePath)
 		if e != nil { // Then we couldn't open the file.
-			iz.Throw("init/import/file", imp.GetToken(), scriptFilepath, e)
+			iz.Throw("init/import/file", &dec.path, path, e)
 			return []string{}
 		}
-		iz.cp.Modules[namespace] = newCp
-		iz.P.NamespaceBranch[namespace] = &parser.ParserData{newCp.P, scriptFilepath}
+		iz.cp.Modules[name] = newCp
+		iz.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
 		newCp.P.Private = iz.IsPrivate(int(importDeclaration), i)
 	}
 	return unnamespacedImports
 }
 
-// Phase 1D of compilation. We add the external services, initializing them if necessary.
+// We add the external services, initializing them if necessary.
 //
 // There are three possibilities. Either we have a namespace without a path, in which case we're looking for
 // a service with that name already running on the hub. Or we have a namespace and a filename, in which case
 // we're looking for a service with that name running on the hub, checking that it has the same filename,
 // updating it if necessary, and if it doesn't exist, trying to launch it.
-//
-// Note that getPartsOfImportOrExternalDeclaration will guess the default service name from the file name if
-// one is not supplied, so there is no need to do it here.
 //
 // The third case is that we have a namespace and a path to a website. In that case, we need to find out whether
 // there is in fact a Pipefish service, or at least something emulating one, on the other end.
@@ -737,12 +708,15 @@ func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 //
 // Details of the external services are kept in the vm, because it will have to make the external calls.
 func (iz *Initializer) initializeExternals() {
-	for _, declaration := range iz.ParsedDeclarations[externalDeclaration] {
-		name, path := iz.getPartsOfImportOrExternalDeclaration(declaration)
+	for _, tc := range iz.tokenizedCode[externalDeclaration] {
+		dec := tc.(*tokenizedExternalOrImportDeclaration)
+		name := dec.name.Literal
+		path := dec.path.Literal
+		name, path = text.TweakNameAndPath(name, path, dec.path.Source)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
 			externalCP, ok := iz.Common.HubCompilers[name]
 			if !ok {
-				iz.Throw("init/external/exist/a", declaration.GetToken())
+				iz.Throw("init/external/exist/a", &dec.name)
 				continue
 			}
 			iz.addExternalOnSameHub(externalCP.ScriptFilepath, name)
@@ -751,18 +725,18 @@ func (iz *Initializer) initializeExternals() {
 		if len(path) >= 5 && path[0:5] == "http:" {
 			pos := strings.LastIndex(path, "/")
 			if pos == -1 {
-				iz.Throw("init/external/path/a", declaration.GetToken())
+				iz.Throw("init/external/path/a", &dec.path)
 				continue
 			}
 			hostpath := path[0:pos]
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
 			if pos == -1 {
-				iz.Throw("init/external/path/b", declaration.GetToken())
+				iz.Throw("init/external/path/b", &dec.path)
 				continue
 			}
 			hostname := hostpath[pos+1:]
-			// TODO --- there are doubtless reasons why I shouldn't do this with println and rline but I am too tired to remember what they are.
+			// TODO --- you need ways of doing this remotely at least in HubTalk.
 			rline := readline.NewInstance()
 			println("Please enter your username and password for hub " + text.CYAN + "'" + hostname + "'" + text.RESET + ".")
 			rline.SetPrompt("Username: ")
@@ -774,11 +748,11 @@ func (iz *Initializer) initializeExternals() {
 			continue
 		}
 
-		// Otherwise we have a path for which the getParts... function will have inferred a name if one was not supplied.
+		// Otherwise we have a path for which the Tweak function will have inferred a name if one was not supplied.
 		hubServiceCp, ok := iz.Common.HubCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubServiceCp.ScriptFilepath != path {
-				iz.Throw("init/external/exist/b", declaration.GetToken(), hubServiceCp.ScriptFilepath)
+				iz.Throw("init/external/exist/b", &dec.path, hubServiceCp.ScriptFilepath)
 			} else {
 				iz.addExternalOnSameHub(path, name)
 			}
@@ -787,7 +761,7 @@ func (iz *Initializer) initializeExternals() {
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
 		newServiceCp, e := StartCompilerFromFilepath(path, iz.Common.HubCompilers, iz.Common.HubStore)
 		if e != nil { // Then we couldn't open the file.
-			iz.Throw("init/external/file", declaration.GetToken(), path, e.Error())
+			iz.Throw("init/external/file", &dec.path, path, e.Error())
 		}
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
