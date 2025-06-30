@@ -875,21 +875,20 @@ func (iz *Initializer) createEnums() {
 
 // We create the clone types.
 func (iz *Initializer) createClones() {
-mainLoop:
 	for _, tc := range iz.tokenizedCode[cloneDeclaration] {
 		dec := tc.(*tokenizedCloneDeclaration)
 		name := dec.op.Literal
 		typeToClone := dec.parentTok.Literal
-		parentTypeNo, _ := parser.ClonableTypes[typeToClone]
+		parentTypeNo := parser.ClonableTypes[typeToClone]
 		if len(dec.params) > 0 {
 			astType := iz.makeTypeWithParameters(dec.op, dec.params)
 			ok := iz.registerParameterizedType(name, astType, dec.requests, dec.body, typeToClone, dec.private, ixPtr(dec))
 			if !ok {
 				iz.Throw("init/clone/exists", ixPtr(dec))
-				continue mainLoop
+				continue
 			}
 			iz.setDeclaration(decPARAMETERIZED, ixPtr(dec), DUMMY, DUMMY)
-			continue mainLoop
+			continue
 		}
 		typeNo, fn := iz.addCloneTypeAndConstructor(name, typeToClone, dec.private, ixPtr(dec))
 		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
@@ -1140,17 +1139,17 @@ func (iz *Initializer) addStructType(name string, private bool, indexToken *toke
 // we can't make an abstract sig yet because we haven't populated the abstract types.
 func (iz *Initializer) createStructLabels() {
 	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
-		sDec := iz.tokenizedCode[structDeclaration][i].(*tokenizedStructDeclaration)
+		dec := iz.tokenizedCode[structDeclaration][i].(*tokenizedStructDeclaration)
 		indexToken := tcc.IndexToken()
 		name := indexToken.Literal
 		// We will now extract the AstSig lexically.
-		dec, sig, _ := iz.cp.P.ParseStructSigFromTcc(tcc)
+		typeNode, sig, _ := iz.cp.P.ParseStructSigFromTcc(tcc)
 		labelsForStruct := iz.makeLabelsFromSig(sig, iz.IsPrivate(int(structDeclaration), i), indexToken)
-		if ty, ok := dec.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type.
+		if ty, ok := typeNode.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type.
 			ty.Name = name
 			argIndex := iz.paramTypeExists(ty)
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = sig
-			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = sDec.body
+			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = dec.body
 			continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
