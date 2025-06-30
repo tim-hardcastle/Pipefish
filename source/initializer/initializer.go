@@ -43,7 +43,7 @@ type Initializer struct {
 	initializers                        map[string]*Initializer        // The child initializers of this one, to initialize imports and external stubs.
 	TokenizedDeclarations               [14]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations                  [13]parser.ParsedCodeChunks    // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
-	tokenizedCode                       [][]tokenizedCode            // Code arranged by declaration type and lightly chunked and validated.
+	tokenizedCode                       [][]tokenizedCode              // Code arranged by declaration type and lightly chunked and validated.
 	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets                            []string                       // Names of snippet types visible to the module.
@@ -409,7 +409,7 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 	}
 
 	currentSection = tokenTypeToSection[tok.Type]
-	
+
 	line := token.NewCodeChunk()
 
 	for tok = iz.P.TokenizedCode.NextToken(); true; tok = iz.P.TokenizedCode.NextToken() {
@@ -631,7 +631,8 @@ func (iz *Initializer) addWordsToParser2(tc *tokenizedFunctionDeclaration) {
 		return
 	case infix:
 		iz.P.Infixes.Add(tc.op.Literal)
-		for startAt = 2; !tc.sig[startAt-1].IsBling(); startAt++ {}
+		for startAt = 2; !tc.sig[startAt-1].IsBling(); startAt++ {
+		}
 	}
 	lastWasBling := true
 	hasBling := false
@@ -639,7 +640,7 @@ func (iz *Initializer) addWordsToParser2(tc *tokenizedFunctionDeclaration) {
 		if tc.sig[ix].IsBling() {
 			hasBling = true
 			word := tc.sig[ix].Name.Literal
-			if ix == len(tc.sig) - 1 {
+			if ix == len(tc.sig)-1 {
 				iz.P.Endfixes.Add(word)
 				break
 			}
@@ -662,7 +663,7 @@ func (iz *Initializer) addWordsToParser2(tc *tokenizedFunctionDeclaration) {
 	}
 }
 
-// We call ParseEverything on the namespaced imports, returning a list of unnamespaced 
+// We call ParseEverything on the namespaced imports, returning a list of unnamespaced
 // imports which the main phase 1 function will add to the parser.
 func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
@@ -673,7 +674,7 @@ func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 			continue
 		}
 		name := dec.name.Literal
-		path := dec.path.Literal 
+		path := dec.path.Literal
 		name, path = text.TweakNameAndPath(name, path, dec.path.Source)
 		if dec.name.Literal == "NULL" {
 			unnamespacedImports = append(unnamespacedImports, path)
@@ -1138,29 +1139,27 @@ func (iz *Initializer) addStructType(name string, private bool, indexToken *toke
 // We can now create the struct labels and define their type as an AstSig, though
 // we can't make an abstract sig yet because we haven't populated the abstract types.
 func (iz *Initializer) createStructLabels() {
-	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
-		dec := iz.tokenizedCode[structDeclaration][i].(*tokenizedStructDeclaration)
-		indexToken := tcc.IndexToken()
-		name := indexToken.Literal
-		// We will now extract the AstSig lexically.
-		typeNode, sig, _ := iz.cp.P.ParseStructSigFromTcc(tcc)
-		labelsForStruct := iz.makeLabelsFromSig(sig, iz.IsPrivate(int(structDeclaration), i), indexToken)
-		if ty, ok := typeNode.(*ast.TypeWithParameters); ok { // The labels are common to all the instances of the type.
-			ty.Name = name
+	for i, tc := range iz.tokenizedCode[structDeclaration] {
+		dec := tc.(*tokenizedStructDeclaration)
+		name := dec.op.Literal
+		indexToken := ixPtr(dec)
+		labelsForStruct := iz.makeLabelsFromSig(iz.makeAstSigFromTokenizedSig(dec.sig), dec.private, indexToken)
+		sig := iz.makeAstSigFromTokenizedSig(dec.sig)
+		if len(dec.params) > 0 {
+			ty := iz.makeTypeWithParameters(dec.op, dec.params)
 			argIndex := iz.paramTypeExists(ty)
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = sig
 			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = dec.body
 			continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
-		private := iz.IsPrivate(int(structDeclaration), i)
-		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, private, sig})
+		iz.setDeclaration(decSTRUCT, indexToken, DUMMY, structInfo{typeNo, dec.private, sig})
 		stT := vm.StructType{Name: name, Path: iz.P.NamespacePath, LabelNumbers: labelsForStruct,
 			LabelValues: labelValuesFromLabelNumbers(labelsForStruct),
-			Private:     private, IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
+			Private:     dec.private, IsMI: settings.MandatoryImportSet().Contains(indexToken.Source)}
 		stT = stT.AddLabels(labelsForStruct)
 		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
-		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), private, indexToken)
+		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), dec.private, indexToken)
 		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
 		iz.Add(name, fn)
 	}
@@ -1174,17 +1173,17 @@ func labelValuesFromLabelNumbers(numbers []int) values.Value {
 	return values.Value{values.LIST, vec}
 }
 
-func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexToken *token.Token) []int {
+func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexTok *token.Token) []int {
 	labelsForStruct := make([]int, 0, len(sig))
 	for j, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
 		labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
 		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
 			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
-			iz.setDeclaration(decLABEL, indexToken, j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
+			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
 		} else {
-			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexToken)
-			iz.setDeclaration(decLABEL, indexToken, j, labelInfo{iz.cp.That(), true})
+			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexTok)
+			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{iz.cp.That(), true})
 			labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 			iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
 			iz.cp.Common.LabelIsPrivate = append(iz.cp.Common.LabelIsPrivate, private)

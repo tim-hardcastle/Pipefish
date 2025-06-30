@@ -155,6 +155,21 @@ func (iz *Initializer) makeTypeWithParameters(op token.Token, tokSig parser.TokS
 	return &ast.TypeWithParameters{op, op.Literal, params}
 }
 
+func (iz *Initializer) makeAstSigFromTokenizedSig(ts parser.TokSig) ast.AstSig {
+	as := ast.AstSig{}
+	for _, pair := range ts {
+		as = append(as, ast.NameTypeAstPair{pair.Name.Literal, iz.makeTypeAstFromTokens(pair.Typename)})
+	}
+	return as
+}
+
+func (iz *Initializer) makeTypeAstFromTokens(toks []token.Token) ast.TypeNode {
+	ts := token.MakeCodeChunk(toks, false)
+	iz.P.PrimeWithTokenSupplier(ts)
+	node := iz.P.ParseTypeFromCurTok(parser.LOWEST)
+	return node
+}
+
 // This is a fairly crude way of slurping the names of functions, commands, constants, and variables out of a declaration.
 // It is crude in that it will slurp other things too: type names, for example; bling; local true variables in cmds. We can live
 // with the false positives so long as there are no false negatives.
