@@ -536,91 +536,9 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 	iz.P.Common.Errors = err.MergeErrors(iz.P.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.P.Common.Errors)
 }
 
-// ****** TODO --- remove dependence of interface types on this and remove it.
 // Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
 // and decides on their "grammatical" role: are they prefixes, suffixes, bling?
-func (iz *Initializer) addWordsToParser(currentChunk *token.TokenizedCodeChunk) {
-	inParenthesis := false
-	hasPrefix := false
-	hasParams := false
-	hasMidOrEndfix := false
-	lastTokenWasFix := false
-	prefix := ""
-	tok := token.Token{}
-	currentChunk.ToStart()
-	for j := 0; j < currentChunk.Length(); j++ {
-		tok = currentChunk.NextToken()
-		if tok.Type == token.LPAREN {
-			hasParams = true
-			inParenthesis = true
-			lastTokenWasFix = false
-			continue
-		}
-
-		if tok.Type == token.RPAREN {
-			inParenthesis = false
-			continue
-		}
-
-		if inParenthesis {
-			continue
-		}
-
-		if tok.Type != token.IDENT {
-			iz.Throw("init/inexplicable", &tok)
-		}
-
-		if j == 0 {
-			prefix = tok.Literal
-			hasPrefix = true
-			lastTokenWasFix = true
-			continue
-		}
-
-		if j < currentChunk.Length()-1 {
-			if hasPrefix {
-				if lastTokenWasFix {
-					iz.P.Forefixes.Add(tok.Literal)
-				} else {
-					iz.P.Midfixes.Add(tok.Literal)
-				}
-			} else {
-				iz.P.Infixes.Add(tok.Literal)
-			}
-			hasMidOrEndfix = true
-			lastTokenWasFix = true
-			continue
-		}
-
-		if hasPrefix || hasMidOrEndfix {
-			iz.P.Endfixes.Add(tok.Literal)
-		} else {
-			iz.P.Suffixes.Add(tok.Literal)
-		}
-		hasMidOrEndfix = true
-		lastTokenWasFix = true
-	}
-
-	if hasPrefix {
-		if hasMidOrEndfix {
-			iz.P.Prefixes.Add(prefix)
-		} else {
-			if hasParams {
-				iz.P.Functions.Add(prefix)
-			} else {
-				iz.P.Unfixes.Add(prefix)
-			}
-		}
-	} else {
-		if hasMidOrEndfix && !inParenthesis && !(tok.Literal == ")") && !iz.P.Suffixes.Contains(tok.Literal) {
-			iz.P.Endfixes.Add(tok.Literal)
-		}
-	}
-}
-
-// Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
-// and decides on their "grammatical" role: are they prefixes, suffixes, bling?
-func (iz *Initializer) addWordsToParser2(tc *tokenizedFunctionDeclaration) {
+func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	startAt := 0
 	switch tc.pos {
 	case unfix:
@@ -1302,7 +1220,7 @@ func (iz *Initializer) createInterfaceTypes() {
 			astSig := iz.makeAstSigFromTokenizedSig(sig.sig)
 			retSig := iz.makeRetsFromTokenizedReturns(sig.rets)
 			typeInfo = append(typeInfo, fnSigInfo{functionName, astSig, retSig})
-			iz.addWordsToParser2(sig)
+			iz.addWordsToParser(sig)
 		}
 		iz.P.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
 		_, typeExists := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
