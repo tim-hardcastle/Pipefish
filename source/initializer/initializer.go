@@ -1333,17 +1333,14 @@ loop:
 // We parse the snippet types, abstract types, clone types, constants, variables,
 // functions, commands.
 func (iz *Initializer) parseEverythingElse() {
-	for declarations := snippetDeclaration; declarations <= commandDeclaration; declarations++ {
-		if declarations == cloneDeclaration || declarations == interfaceDeclaration { // TODO --- yeah, yeah, I am filled with shame.
-			continue
-		}
+	for declarations := constantDeclaration; declarations <= commandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(iz.TokenizedDeclarations[declarations]); chunk++ {
 			iz.P.TokenizedCode = iz.TokenizedDeclarations[declarations][chunk]
 			iz.TokenizedDeclarations[declarations][chunk].ToStart()
 			iz.ParsedDeclarations[declarations] = append(iz.ParsedDeclarations[declarations], iz.P.ParseTokenizedChunk())
 		}
 	}
-
+    // TODO --- why is this *here*?
 	iz.P.AllFunctionIdents.AddSet(iz.P.Functions)
 	iz.P.AllFunctionIdents.AddSet(iz.P.Prefixes)
 	iz.P.AllFunctionIdents.AddSet(iz.P.Forefixes)
@@ -2587,7 +2584,6 @@ const (
 	externalDeclaration                  //
 	enumDeclaration                      //
 	structDeclaration                    //
-	snippetDeclaration                   // TODO --- this no longer serves any purpose.
 	abstractDeclaration                  //
 	interfaceDeclaration                 //
 	cloneDeclaration                     //
