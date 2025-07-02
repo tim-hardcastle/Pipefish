@@ -119,9 +119,9 @@ func (tc *tokenizedFunctionDeclaration) getDeclarationType() declarationType {re
 func (tc *tokenizedFunctionDeclaration) indexToken() token.Token {return tc.op}
 
 type tokenizedInterfaceDeclaration struct {
-	private bool                        // Whether it's declared private.
-	op      token.Token                 // The type operator.
-	body    *token.TokenizedCodeChunk   // The definition of the interface.
+	private bool                              // Whether it's declared private.
+	op      token.Token                       // The type operator.
+	sigs    []*tokenizedFunctionDeclaration   // The signatures defining the interface.
 }
 
 func (tc *tokenizedInterfaceDeclaration) getDeclarationType() declarationType {return interfaceDeclaration}
@@ -482,11 +482,36 @@ func (iz *Initializer) chunkInterface(opTok token.Token, private bool) (tokenize
 		iz.finishChunk()
 		return &tokenizedInterfaceDeclaration{}, false
 	}
-	body, ok := iz.P.SlurpBlock(false)
-	if !ok {
-		return &tokenizedInterfaceDeclaration{}, false
+	iz.P.NextToken()
+	hasIndent := false
+	if iz.P.CurTokenMatches(token.LPAREN, "|->") {
+		hasIndent = true
+		iz.P.NextToken()
 	}
-	return &tokenizedInterfaceDeclaration{private, opTok, body}, true
+	sigs := []*tokenizedFunctionDeclaration{}
+	for {
+		sig, ok := iz.ChunkFunctionSignature()
+		if !ok {
+			iz.finishChunk()
+			return &tokenizedInterfaceDeclaration{}, false
+		}
+		sigs = append(sigs, sig)
+		if iz.P.CurTokenIs(token.EOF) {
+			break
+		}
+		if iz.P.CurTokenIs(token.NEWLINE) {
+			if !hasIndent {
+				break
+			}
+			iz.P.NextToken()
+			continue	
+		}	
+		if iz.P.CurTokenMatches(token.RPAREN, "<-|") {
+			iz.P.NextToken()
+			break
+		}	
+	}
+	return &tokenizedInterfaceDeclaration{private, opTok, sigs}, true
 }
 
 // Starts after the word 'make', ends on NEWLINE or EOF.
@@ -733,7 +758,7 @@ func SummaryString(dec tokenizedCode) string {
 	case *tokenizedFunctionDeclaration:
 		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
 	case *tokenizedInterfaceDeclaration:
-		return dec.op.Literal + " = interface : " + strconv.Itoa(dec.body.Length()) + " tokens."
+		return dec.op.Literal + " = interface : " + strconv.Itoa(len(dec.sigs)) + " sigs."
 	case *tokenizedMakeDeclaration:
 		result := "make "
 		typeSeperator := ""

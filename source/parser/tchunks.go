@@ -72,8 +72,13 @@ func (p *Parser) ChunkFunctionCallSignature() (TokSig, bool) {
 			result = append(result, TokPair{p.CurToken, []token.Token{blingTok}})
 			p.NextToken()
 			continue
-		case token.COLON, token.PIPE:
+		case token.COLON, token.PIPE, token.EOF, token.NEWLINE:
 			return result, true
+		case token.RPAREN:
+			if p.CurToken.Literal == "<-|" {
+				return result, true
+			}
+			fallthrough
 		default:
 			p.Throw("sigs/expect", &p.CurToken)
 			return TokSig{}, false
@@ -95,7 +100,8 @@ func (p *Parser) ChunkReturns() (TokReturns, bool) {
 			return TokReturns{}, false
 		}
 		result = append(result, ty)
-		if p.PeekTokenIs(token.COLON) {
+		if p.PeekTokenIs(token.COLON) || p.PeekTokenIs(token.EOF) ||
+				p.PeekTokenIs(token.NEWLINE) || p.PeekTokenMatches(token.RPAREN, "<-|") {
 			p.NextToken()
 			return result, true
 		}
@@ -239,7 +245,8 @@ func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 		}
 		if p.PeekTokenIs(token.RPAREN) || p.PeekTokenIs(token.ASSIGN) ||
 			p.PeekTokenIs(token.GVN_ASSIGN) || p.PeekTokenIs(token.COLON) ||
-			((p.PeekTokenIs(token.COMMA) || p.PeekTokenIs(token.RBRACE)) && braces == 0) {
+			((p.PeekTokenIs(token.COMMA) || p.PeekTokenIs(token.RBRACE)) && braces == 0) || 
+			p.PeekTokenIs(token.EOF) || p.PeekTokenIs(token.NEWLINE)  {
 			return result, true
 		}
 		p.NextToken()

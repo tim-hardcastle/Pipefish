@@ -163,6 +163,14 @@ func (iz *Initializer) makeAstSigFromTokenizedSig(ts parser.TokSig) ast.AstSig {
 	return as
 }
 
+func (iz *Initializer) makeRetsFromTokenizedReturns(ts parser.TokReturns) ast.AstSig {
+	as := ast.AstSig{}
+	for _, ty := range ts {
+		as = append(as, ast.NameTypeAstPair{"", iz.makeTypeAstFromTokens(ty)})
+	}
+	return as
+}
+
 func (iz *Initializer) makeTypeAstFromTokens(toks []token.Token) ast.TypeNode {
 	ts := token.MakeCodeChunk(toks, false)
 	iz.P.PrimeWithTokenSupplier(ts)

@@ -1137,8 +1137,16 @@ func (p *Parser) CurTokenIs(t token.TokenType) bool {
 	return p.CurToken.Type == t
 }
 
+func (p *Parser) CurTokenMatches(t token.TokenType, s string) bool {
+	return p.CurToken.Type == t && p.CurToken.Literal == s
+}
+
 func (p *Parser) PeekTokenIs(t token.TokenType) bool {
 	return p.PeekToken.Type == t
+}
+
+func (p *Parser) PeekTokenMatches(t token.TokenType, s string) bool {
+	return p.PeekToken.Type == t && p.PeekToken.Literal == s
 }
 
 func (p *Parser) expectPeek(t token.TokenType) bool {

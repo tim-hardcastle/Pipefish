@@ -237,7 +237,16 @@ func TestTypeChunking(t *testing.T) {
 		{"UID = clone int : foo bar spong", `UID = clone int : 3 tokens.`},
 		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
 		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
-		{"Foo = interface : foo bar spong", `Foo = interface : 3 tokens.`},
+		{"Foo = interface : foo ()", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : foo () -> int", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : foo ()\n", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : foo () -> int\n", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : \n\tfoo ()", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : \n\tfoo () -> int", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : \n\tfoo ()\n", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : \n\tfoo () -> int\n", `Foo = interface : 1 sigs.`},
+		{"Foo = interface : \n\tfoo ()\n\tbar ()", `Foo = interface : 2 sigs.`},
+		{"Foo = interface : \n\tfoo (x int, y string) -> int\n\t(x) + (y) -> self", `Foo = interface : 2 sigs.`},
 		{"make foo, bar", `make foo, bar`},
 		{"make foo, bar\n", `make foo, bar`},
 		{"Person = struct(name string, age int)", `Person = struct(name string, age int)`},
@@ -267,3 +276,4 @@ func TestExternalOrImportChunking(t *testing.T) {
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestExternalOrImportChunking)
 }
+

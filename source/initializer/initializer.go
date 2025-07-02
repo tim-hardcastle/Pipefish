@@ -1289,69 +1289,20 @@ func (iz *Initializer) createAbstractTypes() {
 // Phase 1L of compilation. Creates the interface types as names but doesn't populate them: parses the signatures
 // of the functions in the interface definitions.
 func (iz *Initializer) createInterfaceTypes() {
-	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
-		tcc.ToStart()
-		nameTok := tcc.NextToken()
+	for _, tc := range iz.tokenizedCode[interfaceDeclaration] {
+		dec := tc.(*tokenizedInterfaceDeclaration)
+		nameTok := dec.op
 		newTypename := nameTok.Literal
 		if settings.MandatoryImportSet().Contains(nameTok.Source) {
 			iz.unserializableTypes.Add(newTypename)
 		}
-		tcc.NextToken() // The equals sign. We know this must be the case from the MakeParserAndTokenizedProgram method putting it here.
-		tcc.NextToken() // The 'interface' identifier. Ditto.
-		if shouldBeColon := tcc.NextToken(); shouldBeColon.Type != token.COLON {
-			iz.P.Throw("init/interface/colon", &shouldBeColon)
-			continue
-		}
-		// Now we get the signatures in the interface as a list of tokenized code chunks.
-		tokenizedSigs := []*token.TokenizedCodeChunk{}
-		// For consistency, an interface with just one signature can be declared as a one-liner, though you really shouldn't.
-		tok := tcc.NextToken()
-		beginHappened := tok.Type == token.LPAREN && tok.Literal == "|->"
-		newSig := token.NewCodeChunk()
-		if !beginHappened {
-			newSig.Append(tok)
-		}
-		for {
-			for {
-				tok = tcc.NextToken()
-				if tok.Type == token.NEWLINE || tok.Type == token.SEMICOLON || tok.Type == token.RPAREN && tok.Literal == "<-|" || tok.Type == token.EOF {
-					break
-				}
-				newSig.Append(tok)
-			}
-			tokenizedSigs = append(tokenizedSigs, newSig)
-			if tok.Type == token.EOF || tok.Type == token.RPAREN && tok.Literal == "<-|" || tok.Type == token.NEWLINE && !beginHappened {
-				break
-			}
-			newSig = token.NewCodeChunk()
-		}
 		typeInfo := []fnSigInfo{}
-		for _, sig := range tokenizedSigs {
-			iz.P.TokenizedCode = sig
-			lhs := sig
-			astOfSig := iz.P.ParseTokenizedChunk()
-			if iz.ErrorsExist() {
-				break
-			}
-			var astSig, retSig ast.AstSig
-			var functionName string
-			if astOfSig.GetToken().Type == token.PIPE {
-				sig.ToStart()
-				lhs = token.NewCodeChunk()
-				for {
-					tok := sig.NextToken()
-					if tok.Type == token.PIPE {
-						break
-					}
-					lhs.Append(tok)
-				}
-				functionName, _, astSig = iz.P.GetPartsOfSig(astOfSig.(*ast.PipingExpression).Left)
-				retSig = iz.P.RecursivelySlurpReturnTypes(astOfSig.(*ast.PipingExpression).Right)
-			} else {
-				functionName, _, astSig = iz.P.GetPartsOfSig(astOfSig)
-			}
+		for _, sig := range dec.sigs {
+			functionName := sig.op.Literal
+			astSig := iz.makeAstSigFromTokenizedSig(sig.sig)
+			retSig := iz.makeRetsFromTokenizedReturns(sig.rets)
 			typeInfo = append(typeInfo, fnSigInfo{functionName, astSig, retSig})
-			iz.addWordsToParser(lhs)
+			iz.addWordsToParser2(sig)
 		}
 		iz.P.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
 		_, typeExists := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
