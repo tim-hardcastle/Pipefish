@@ -764,8 +764,6 @@ func (iz *Initializer) createEnums() {
 		iz.cp.P.EnumTypeNames.Add(dec.op.Literal)
 
 		// We make the constructor function.
-
-		iz.P.AllFunctionIdents.Add(name)
 		iz.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
@@ -822,7 +820,6 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 		return DUMMY, nil
 	}
 	// We make the conversion function.
-	iz.P.AllFunctionIdents.Add(name)
 	iz.P.Functions.Add(name)
 	sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
 	rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
@@ -1037,7 +1034,6 @@ loop:
 }
 
 func (iz *Initializer) addStructType(name string, private bool, indexToken *token.Token) values.ValueType {
-	iz.P.AllFunctionIdents.Add(name)
 	iz.P.Functions.Add(name)
 	typeNo := values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
 	typeInfo, typeExists := iz.getDeclaration(decSTRUCT, indexToken, DUMMY)
@@ -1340,19 +1336,6 @@ func (iz *Initializer) parseEverythingElse() {
 			iz.ParsedDeclarations[declarations] = append(iz.ParsedDeclarations[declarations], iz.P.ParseTokenizedChunk())
 		}
 	}
-    // TODO --- why is this *here*?
-	iz.P.AllFunctionIdents.AddSet(iz.P.Functions)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Prefixes)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Forefixes)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Midfixes)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Endfixes)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Infixes)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Suffixes)
-	iz.P.AllFunctionIdents.AddSet(iz.P.Unfixes)
-
-	iz.P.Bling.AddSet(iz.P.Forefixes)
-	iz.P.Bling.AddSet(iz.P.Midfixes)
-	iz.P.Bling.AddSet(iz.P.Endfixes)
 }
 
 // Phase 2. We find the shareable functions.

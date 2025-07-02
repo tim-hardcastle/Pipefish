@@ -45,7 +45,6 @@ type Parser struct {
 	Suffixes           dtypes.Set[string]
 	Unfixes            dtypes.Set[string]
 	Bling              dtypes.Set[string]
-	AllFunctionIdents  dtypes.Set[string]
 	Typenames          dtypes.Set[string]
 	EnumTypeNames      dtypes.Set[string]
 	EnumElementNames   dtypes.Set[string]
@@ -86,7 +85,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		Infixes:            make(dtypes.Set[string]),
 		Suffixes:           make(dtypes.Set[string]),
 		Unfixes:            make(dtypes.Set[string]),
-		AllFunctionIdents:  make(dtypes.Set[string]),
 		Bling:              make(dtypes.Set[string]),
 		Typenames:          make(dtypes.Set[string]),
 		EnumTypeNames:      make(dtypes.Set[string]),

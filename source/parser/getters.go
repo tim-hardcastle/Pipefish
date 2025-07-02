@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
@@ -448,29 +447,6 @@ func (p *Parser) findTypeArgument(arg ast.Node) values.Value {
 		return values.Value{values.TYPE, p.ToAstType(arg)}
 	}
 	return values.Value{values.ERROR, nil}
-}
-
-// Gets the variable from the lhs and rhs of an assignment when it's still in the form of tokens.
-func (p *Parser) ExtractVariables(T TokenSupplier) (dtypes.Set[string], dtypes.Set[string]) {
-	LHS := make(dtypes.Set[string])
-	RHS := make(dtypes.Set[string])
-	assignHasHappened := false
-	for tok := T.NextToken(); tok.Type != token.EOF; tok = T.NextToken() {
-		if tok.Type == token.IDENT &&
-			!p.AllFunctionIdents.Contains(tok.Literal) &&
-			!p.TypeExists(tok.Literal) {
-			if assignHasHappened {
-				RHS.Add(tok.Literal)
-			} else {
-				LHS.Add(tok.Literal)
-			}
-		}
-		if tok.Type == token.ASSIGN {
-			assignHasHappened = true
-		}
-
-	}
-	return LHS, RHS
 }
 
 func (p *Parser) MakeAbstractSigFromStringSig(sig ast.AstSig) ast.AbstractSig {
