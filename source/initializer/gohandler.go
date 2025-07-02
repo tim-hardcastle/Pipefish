@@ -51,22 +51,6 @@ type GoBucket struct {
 	pureGo    map[string][]string
 }
 
-func qux(i int, b bool) int {
-	x := 42
-	if b {
-		x, ok := thing(x)
-		if !ok {
-			panic("Oops")
-		}
-		println("x is ", x)
-	}
-	return x
-}
-
-func thing(x int) (int, bool) {
-	return 99, true
-}
-
 func (iz *Initializer) newGoBucket() {
 	gb := GoBucket{
 		sources:   make(dtypes.Set[string]),
