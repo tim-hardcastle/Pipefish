@@ -1235,42 +1235,24 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 	// First, all the stuff in make statements needs adding to the implicitly instantiated
 	// types.
 loop:
-	for i, dec := range iz.TokenizedDeclarations[makeDeclaration] {
-		dec.ToStart()
-		iz.cp.P.TokenizedCode = dec
-		iz.cp.P.SafeNextToken()
-		iz.cp.P.SafeNextToken()
-		if iz.cp.P.PeekToken.Type == token.EOF {
-			iz.Throw("init/make/empty", dec.IndexToken())
-			continue loop
-		}
-		private := iz.IsPrivate(int(makeDeclaration), i)
-		for {
-			ty := iz.cp.P.ParseType(parser.T_LOWEST)
+	for _, tc := range iz.tokenizedCode[makeDeclaration] {
+		dec := tc.(*tokenizedMakeDeclaration)
+		for _, tokType := range dec.types {
+			ty := iz.makeTypeAstFromTokens(tokType)
 			if ty == nil {
-				iz.Throw("init/make/type", dec.IndexToken())
+				iz.Throw("init/make/type", &tokType[0])
 				continue loop
 			}
 			if ty, ok := ty.(*ast.TypeWithArguments); !ok {
-				iz.Throw("init/make/instance", dec.IndexToken())
+				iz.Throw("init/make/instance", &tokType[0])
 				continue loop
 			} else {
 				iz.parameterizedTypesToDeclare[ty.String()] =
-					typeInstantiationInfo{ty, private}
-			}
-			iz.cp.P.NextToken()
-			switch iz.cp.P.PeekToken.Type {
-			case token.EOF:
-				continue loop
-			case token.COMMA:
-				iz.cp.P.NextToken()
-			default:
-				tok := iz.cp.P.CurToken
-				iz.Throw("init/make/comma", &tok)
-				continue loop
+					typeInstantiationInfo{ty, dec.private}
 			}
 		}
 	}
+	// Now everything we need to declare is in iz.parameterizedTypesToDeclare.
 	for _, info := range iz.parameterizedTypesToDeclare {
 		ty := info.ty
 		private := info.private
