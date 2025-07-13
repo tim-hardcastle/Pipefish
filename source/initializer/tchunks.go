@@ -106,7 +106,8 @@ type tokenizedFunctionDeclaration struct {
 	pos     opPosition                // Whether it's a prefix, infix, suffix, or unfix.
 	sig     parser.TokSig             // The call signature, with the names of arguments as tokens and the types as lists of tokens.
 	rets    parser.TokReturns         // The return types, as lists of tokens.
-	body    *token.TokenizedCodeChunk // The body of the function, including the 'given' block, if any.
+	body    *token.TokenizedCodeChunk // The body of the function.
+	given   *token.TokenizedCodeChunk // The 'given' block, if any.
 }
 
 type opPosition int
@@ -439,7 +440,9 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 	if iz.P.CurTokenIs(token.COLON) {
 		validation, ok = iz.P.SlurpBlock(false)
 	}
-	if !ok {
+	if iz.P.CurTokenIs(token.GIVEN) {
+		iz.Throw("init/clone/given", &iz.P.CurToken)
+		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
@@ -614,6 +617,11 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCo
 	if !ok {
 		return &tokenizedStructDeclaration{}, false
 	}
+	if iz.P.CurTokenIs(token.GIVEN) {
+		iz.Throw("init/struct/given", &iz.P.CurToken)
+		iz.finishChunk()
+		return &tokenizedCloneDeclaration{}, false
+	}
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
 		iz.Throw("init/struct/expect", &iz.P.CurToken)
 		iz.finishChunk()
@@ -633,7 +641,9 @@ func (iz *Initializer) finishChunk() {
 		}
 		if iz.P.CurTokenIs(token.COLON) {
 			iz.P.SlurpBlock(true)
-			return
+			if iz.P.CurTokenIs(token.GIVEN) {
+				iz.P.SlurpBlock(true)
+			}
 		}
 		iz.P.SafeNextToken()
 	}
@@ -647,9 +657,13 @@ func (iz *Initializer) ChunkFunction(cmd, private bool) (*tokenizedFunctionDecla
 	if !ok {
 		return &tokenizedFunctionDeclaration{}, false
 	}
-	fn.body, ok = iz.P.SlurpBlock(false)
-	if !ok {
+	if fn.body, ok = iz.P.SlurpBlock(false); !ok {
 		return &tokenizedFunctionDeclaration{}, false
+	}
+	if iz.P.CurTokenIs(token.GIVEN) {
+		if fn.given, ok = iz.P.SlurpBlock(false); !ok {
+			return &tokenizedFunctionDeclaration{}, false
+		}
 	}
 	if cmd {
 		fn.decType = commandDeclaration
@@ -762,7 +776,12 @@ func SummaryString(dec tokenizedCode) string {
 		}
 		return dec.name.Literal + "::" + "\"" + dec.path.Literal + "\""
 	case *tokenizedFunctionDeclaration:
-		return dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens."
+		result := dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens"
+		if dec.given != nil {
+			result = result +  "; given : " + strconv.Itoa(dec.given.Length()) + " tokens"
+		}
+		result = result + "."
+		return result
 	case *tokenizedInterfaceDeclaration:
 		return dec.op.Literal + " = interface : " + strconv.Itoa(len(dec.sigs)) + " sigs."
 	case *tokenizedMakeDeclaration:

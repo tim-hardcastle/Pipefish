@@ -1,1 +1,4 @@
 
+const
+
+FOO tuple = "foo"::42, "bar"::99

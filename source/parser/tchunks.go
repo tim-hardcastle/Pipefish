@@ -124,7 +124,7 @@ func (p *Parser) SlurpBlock(safe bool) (*token.TokenizedCodeChunk, bool) {
 	} else {
 		getToken = p.NextToken
 	}
-	if !p.CurTokenIs(token.COLON) {
+	if !(p.CurTokenIs(token.COLON) || p.CurTokenIs(token.GIVEN)) {
 		panic("Unhandled ill-formed declaration: " + string(p.CurToken.Type) + ", " + p.CurToken.Literal)
 	}
 	indexToken := p.CurToken
@@ -145,7 +145,7 @@ func (p *Parser) SlurpBlock(safe bool) (*token.TokenizedCodeChunk, bool) {
 		if tok.Type == token.RPAREN && tok.Literal == "<-|" {
 			indentCount--
 		}
-		if indentCount == 0 && tok.Type == token.NEWLINE {
+		if indentCount == 0 && (tok.Type == token.NEWLINE || tok.Type == token.GIVEN) {
 			break
 		}
 		code = append(code, tok)

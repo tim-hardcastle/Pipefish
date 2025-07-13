@@ -60,7 +60,6 @@ func (l *Lexer) getTokens() []token.Token {
 			for i := 0; i < level; i++ {
 				l.whitespaceStack.Pop()
 			}
-			println("Making end, 72.")
 			return []token.Token{l.MakeToken(token.END, fmt.Sprint(level))}
 		} else {
 			return []token.Token{l.NewToken(token.EOF, "EOF")}

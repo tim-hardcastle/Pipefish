@@ -135,7 +135,7 @@ func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	_, _, sig, _, body, given := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
 	sigNames := dtypes.Set[string]{}
 	for _, pair := range sig {
-		if _, ok := pair.VarType.(*ast.Bling); ok {
+		if _, ok := pair.VarType.(*ast.Bling); !ok {
 			sigNames = sigNames.Add(pair.VarName)
 		}
 	}

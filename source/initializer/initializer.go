@@ -44,6 +44,7 @@ type Initializer struct {
 	TokenizedDeclarations               [14]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
 	ParsedDeclarations                  [13]parser.ParsedCodeChunks    // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
 	tokenizedCode                       [][]tokenizedCode              // Code arranged by declaration type and lightly chunked and validated.
+	parsedCode                          [][]parsedCode                 // What you get by parsing that.
 	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets                            []string                       // Names of snippet types visible to the module.
@@ -338,6 +339,12 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 
 	iz.cmI("Instantiating parameterized types.")
 	iz.instantiateParameterizedTypes()
+	if iz.ErrorsExist() {
+		return
+	}
+
+	iz.cmI("New parse everything else.")
+	iz.newParseEverything()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -1172,7 +1179,8 @@ func (iz *Initializer) ParameterTypesMatch(paramsToCheck, paramsToMatch []values
 
 // We create the abstract types as type names.
 // TODO -- there's no sense in populating the type map here, we need to do it later and find
-// dependencies if any between abstract types.
+// dependencies if any between abstract types. However, at this point if we remove this then
+// stuff starts to break.
 func (iz *Initializer) createAbstractTypes() {
 	for _, tc := range iz.tokenizedCode[abstractDeclaration] {
 		dec := tc.(*tokenizedAbstractDeclaration)
@@ -1182,7 +1190,6 @@ func (iz *Initializer) createAbstractTypes() {
 			iz.unserializableTypes.Add(newTypename)
 		}
 		for _, typeAsTokens := range dec.types {
-			// TODO --- again, a stopgap which will pass the tests.
 			typeTok := typeAsTokens[0]
 			tname := typeTok.Literal
 			abTypeToAdd, ok := iz.P.TypeMap[tname]
@@ -1326,8 +1333,7 @@ loop:
 	}
 }
 
-// We parse the snippet types, abstract types, clone types, constants, variables,
-// functions, commands.
+// We parse the constants, variables, functions, commands.
 func (iz *Initializer) parseEverythingElse() {
 	for declarations := constantDeclaration; declarations <= commandDeclaration; declarations++ {
 		for chunk := 0; chunk < len(iz.TokenizedDeclarations[declarations]); chunk++ {

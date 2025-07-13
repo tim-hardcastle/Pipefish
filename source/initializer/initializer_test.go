@@ -219,8 +219,8 @@ func TestFunctionChunking(t *testing.T) {
 		{"qux : 2 + 2\n", `qux : 3 tokens.`}, 
 		{"qux : \n\t2 + 2", `qux : 5 tokens.`},
 		{"qux : \n\t2 + 2\nfoobar : 42", `qux : 5 tokens.`},
-		{"qux : \n\t2 + 2\ngiven : 42", `qux : 7 tokens.`},
-		{"qux : \n\t2 + 2\ngiven : 42\n", `qux : 7 tokens.`},
+		{"qux : \n\t2 + 2\ngiven : 42", `qux : 5 tokens; given : 1 tokens.`},
+		{"qux : \n\t2 + 2\ngiven : 42\n", `qux : 5 tokens; given : 1 tokens.`},
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestFunctionChunking)
 }
