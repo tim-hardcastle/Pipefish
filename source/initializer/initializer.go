@@ -1364,14 +1364,10 @@ func (iz *Initializer) findShareableFunctions() {
 		for i := 0; i < len(iz.parsedCode[j]); i++ {
 			fn := iz.parsedCode[j][i].(*parsedFunction)
 			tok := &fn.op
-			_, position, _, _, _, _ := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
-			if iz.ErrorsExist() {
-				return
-			}
-			functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: position, NameRets: fn.rets, Body: fn.body, Given: fn.given,
+			functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: uint32(fn.pos), NameRets: fn.rets, Body: fn.body, Given: fn.given,
 				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: tok}
-			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
-				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, position}] = functionToAdd
+			if iz.shareable(fn) || settings.MandatoryImportSet().Contains(tok.Source) {
+				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = functionToAdd
 				iz.fnIndex[fnSource{j, i}] = functionToAdd
 			}
 		}
@@ -1380,8 +1376,8 @@ func (iz *Initializer) findShareableFunctions() {
 
 // Function auxiliary to the above. A function is shareable if at least one of its parameters must be of a type
 // declared in the same module.
-func (iz *Initializer) shareable(f *ast.PrsrFunction) bool {
-	for _, pair := range f.NameSig {
+func (iz *Initializer) shareable(f *parsedFunction) bool {
+	for _, pair := range f.sig {
 		ty := pair.VarType
 		if _, ok := ty.(*ast.Bling); ok {
 			continue
