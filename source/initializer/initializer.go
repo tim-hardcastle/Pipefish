@@ -255,7 +255,7 @@ func (iz *Initializer) ParseEverythingFromSourcecode(mc *vm.Vm, cpb *parser.Comm
 }
 
 // This in the heart of phase 1 compilation, and does everything up to and including parsing the code chunks,
-// and then hands back flow of control to the StartService or RunTest method.
+// and then hands back flow of control to the StartCompiler method.
 func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	iz.cmI("Starting makeall for script " + scriptFilepath + ".")
 
@@ -1361,20 +1361,17 @@ func (iz *Initializer) findAllShareableFunctions() {
 // to the list of functions in the common initializer bindle.
 func (iz *Initializer) findShareableFunctions() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
-		for i := 0; i < len(iz.ParsedDeclarations[j]); i++ {
-			tok := iz.ParsedDeclarations[j][i].GetToken()
-			functionName, position, sig, rTypes, body, given := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
-			if body == nil {
-				iz.P.Throw("init/func/body", tok)
-				return
-			}
+		for i := 0; i < len(iz.parsedCode[j]); i++ {
+			fn := iz.parsedCode[j][i].(*parsedFunction)
+			tok := &fn.op
+			_, position, _, _, _, _ := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
 			if iz.ErrorsExist() {
 				return
 			}
-			functionToAdd := &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, NameRets: rTypes, Body: body, Given: given,
-				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
+			functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: position, NameRets: fn.rets, Body: fn.body, Given: fn.given,
+				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: tok}
 			if iz.shareable(functionToAdd) || settings.MandatoryImportSet().Contains(tok.Source) {
-				iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, position}] = functionToAdd
+				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, position}] = functionToAdd
 				iz.fnIndex[fnSource{j, i}] = functionToAdd
 			}
 		}
