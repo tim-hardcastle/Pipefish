@@ -17,11 +17,11 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 	if sigToMatch.sig.Len() != len(fnToTry.NameSig) {
 		return result
 	}
-	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.NameRets) {
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.CallInfo.(*compiler.CallInfo).ReturnTypes) {
 		return result
 	}
-	abSig := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameSig)
-	abRets := fnToTry.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(fnToTry.NameRets)
+	abSig := fnToTry.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(fnToTry.NameSig)
+	abRets := fnToTry.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(fnToTry.CallInfo.(*compiler.CallInfo).ReturnTypes)
 	// Once we have identified one set of types as being 'self' we need to fix that
 	// as 'self' and take its intersection with the other things that appear in the
 	// 'self' position.
@@ -64,7 +64,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.Name == "self" {
 			// First we deal with the possibility of a type expression matching a parameterized
 			// type.
-			te, ok := fnToTry.NameRets.GetVarType(i).(*ast.TypeExpression)
+			te, ok := fnToTry.CallInfo.(*compiler.CallInfo).ReturnTypes.GetVarType(i).(*ast.TypeExpression)
 			if ok && paramType != nil {
 				if paramType.Matches(te) {
 					continue

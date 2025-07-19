@@ -162,7 +162,7 @@ func (cp *Compiler) SerializeApi() string {
 					buf.WriteString(ntp.VarType.String())
 				}
 				buf.WriteString(" | ")
-				buf.WriteString(cp.serializeTypescheme(cp.Fns[fn.Number].RtnTypes))
+				buf.WriteString(cp.serializeTypescheme(cp.Fns[fn.CallInfo.(*CallInfo).Number].RtnTypes))
 				buf.WriteString("\n")
 			}
 		}

@@ -775,7 +775,7 @@ func (iz *Initializer) createEnums() {
 		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
 		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &dec.op)
-		fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: &dec.op}
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, CallInfo: &compiler.CallInfo{iz.cp, fnNo, rtnSig}, Tok: &dec.op}
 		iz.Add(name, fn)
 		if typeExists {
 			continue
@@ -816,7 +816,7 @@ func (iz *Initializer) createClones() {
 		}
 		typeNo, fn := iz.addCloneTypeAndConstructor(name, typeToClone, dec.private, ixPtr(dec))
 		sig := ast.AstSig{ast.NameTypeAstPair{VarName: "x", VarType: ast.MakeAstTypeFrom(iz.cp.Vm.ConcreteTypeInfo[iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.CloneType).Parent].GetName(vm.DEFAULT))}}
-		fn.Number = iz.addToBuiltins(sig, name, altType(typeNo), dec.private, ixPtr(dec))
+		fn.CallInfo.(*compiler.CallInfo).Number = iz.addToBuiltins(sig, name, altType(typeNo), dec.private, ixPtr(dec))
 		iz.createOperations(&ast.TypeWithName{token.Token{}, name}, typeNo, dec.requests, parentTypeNo, dec.private)
 	}
 }
@@ -830,7 +830,7 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 	iz.P.Functions.Add(name)
 	sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
 	rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
-	fn := &ast.PrsrFunction{NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{Name: name}, Number: DUMMY, Compiler: iz.cp, Tok: decTok}
+	fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, CallInfo: &compiler.CallInfo{iz.cp, DUMMY, rtnSig}, Tok: decTok}
 	iz.Add(name, fn)
 	if typeToClone == "int" || typeToClone == "float" {
 		iz.P.Suffixes.Add(name)
@@ -985,7 +985,8 @@ func (iz *Initializer) createOperations(nameAst ast.TypeNode, typeNo values.Valu
 
 // Function auxiliary to the previous one, to make constructors for the clone types.
 func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
-	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, NameRets: rtnSig, Body: &ast.BuiltInExpression{*tok, builtinTag}, Compiler: iz.cp, Number: iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)}
+	fnNo := iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)
+	fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, CallInfo: &compiler.CallInfo{iz.cp, fnNo, rtnSig}}
 	iz.Common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	conflictingFunction := iz.Add(fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
@@ -1081,7 +1082,7 @@ func (iz *Initializer) createStructLabels() {
 		stT = stT.AddLabels(labelsForStruct)
 		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), dec.private, indexToken)
-		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: indexToken}
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, CallInfo: &compiler.CallInfo{iz.cp, fnNo, nil}, Tok: indexToken}
 		iz.Add(name, fn)
 	}
 }
@@ -1327,7 +1328,7 @@ loop:
 		name := typeOperator + "{}"
 		sig := append(ast.AstSig{ast.NameTypeAstPair{"+t", &ast.TypeWithName{*operatorInfo.definedAt[0], "type"}}}, operatorInfo.constructorSig...)
 		fnNo := iz.addToBuiltins(sig, name, operatorInfo.returnTypes, false, operatorInfo.definedAt[0])
-		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, Number: fnNo, Compiler: iz.cp, Tok: operatorInfo.definedAt[0]}
+		fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, CallInfo: &compiler.CallInfo{iz.cp, fnNo, nil}, Tok: operatorInfo.definedAt[0]}
 		iz.cp.P.Functions.Add(name)
 		iz.Add(name, fn)
 	}
@@ -1364,8 +1365,8 @@ func (iz *Initializer) findShareableFunctions() {
 		for i := 0; i < len(iz.parsedCode[j]); i++ {
 			fn := iz.parsedCode[j][i].(*parsedFunction)
 			tok := &fn.op
-			functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: uint32(fn.pos), NameRets: fn.rets, Body: fn.body, Given: fn.given,
-				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: tok}
+			functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: uint32(fn.pos), Body: fn.body, Given: fn.given,
+				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), CallInfo: &compiler.CallInfo{iz.cp, DUMMY, fn.rets}, Tok: tok}
 			if iz.shareable(fn) || settings.MandatoryImportSet().Contains(tok.Source) {
 				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = functionToAdd
 				iz.fnIndex[fnSource{j, i}] = functionToAdd
@@ -1575,8 +1576,8 @@ func (iz *Initializer) makeFunctionTable() {
 				if iz.ErrorsExist() {
 					return
 				}
-				functionToAdd = &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, NameRets: rTypes, Body: body, Given: given,
-					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
+				functionToAdd = &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, Body: body, Given: given,
+					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), CallInfo: &compiler.CallInfo{iz.cp, DUMMY, rTypes}, Tok: body.GetToken()}
 			}
 			iz.fnIndex[fnSource{j, i}] = functionToAdd
 			conflictingFunction := iz.Add(functionName, functionToAdd)
@@ -1597,7 +1598,7 @@ func (iz *Initializer) MakeFunctionForests() {
 	// Now we turn the function tables into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
 	iz.MakeFunctionTrees()
-	if tree, ok := iz.P.FunctionForest[settings.FUNCTION_TO_PEEK]; ok && settings.FUNCTION_TO_PEEK != "" {
+	if tree, ok := iz.cp.FunctionForest[settings.FUNCTION_TO_PEEK]; ok && settings.FUNCTION_TO_PEEK != "" {
 		println("In namespace", iz.P.NamespacePath, "function tree for "+settings.FUNCTION_TO_PEEK)
 		println(tree.Tree.IndentString("") + "\n")
 	}
@@ -1607,10 +1608,10 @@ func (iz *Initializer) MakeFunctionForests() {
 // (partially) ordered list of associated functions such that a more specific type signature comes before a less
 // specific one. We will now re-represent this as a tree.
 func (iz *Initializer) MakeFunctionTrees() {
-	iz.P.FunctionForest = map[string]*ast.FunctionTree{}
+	iz.cp.FunctionForest = map[string]*compiler.FunctionTree{}
 	rc := 0
 	for k, v := range iz.P.FunctionTable {
-		tree := &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}
+		tree := &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.TypeNodePair{}}
 		for i := range v {
 			tree = iz.addSigToTree(tree, v[i], 0)
 
@@ -1626,14 +1627,14 @@ func (iz *Initializer) MakeFunctionTrees() {
 				}
 			}
 		}
-		iz.P.FunctionForest[k] = &ast.FunctionTree{Tree: tree, RefCount: rc}
+		iz.cp.FunctionForest[k] = &compiler.FunctionTree{Tree: tree, RefCount: rc}
 	}
 }
 
 // Note that the sigs have already been sorted on their specificity.
-func (iz *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, pos int) *ast.FnTreeNode {
+func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *ast.PrsrFunction, pos int) *compiler.FnTreeNode {
 	nameSig := fn.NameSig // TODO --- do we really need both of these?
-	sig := fn.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(nameSig)
+	sig := fn.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(nameSig)
 	if pos < len(sig) {
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType
@@ -1654,7 +1655,7 @@ func (iz *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 			}
 		}
 		if !isPresent {
-			tree.Branch = append(tree.Branch, &ast.TypeNodePair{Type: currentAbstractType, IsVararg: isVararg, Node: &ast.FnTreeNode{Fn: nil, Branch: []*ast.TypeNodePair{}}})
+			tree.Branch = append(tree.Branch, &compiler.TypeNodePair{Type: currentAbstractType, IsVararg: isVararg, Node: &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.TypeNodePair{}}})
 		}
 		for _, branch := range tree.Branch {
 			if branch.Type.IsSubtypeOf(currentAbstractType) {
@@ -1668,8 +1669,8 @@ func (iz *Initializer) addSigToTree(tree *ast.FnTreeNode, fn *ast.PrsrFunction, 
 			}
 		}
 	} else {
-		if tree.Fn == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
-			tree.Branch = append(tree.Branch, &ast.TypeNodePair{Type: values.MakeAbstractType(), Node: &ast.FnTreeNode{Fn: fn, Branch: []*ast.TypeNodePair{}}})
+		if tree.CallInfo == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
+			tree.Branch = append(tree.Branch, &compiler.TypeNodePair{Type: values.MakeAbstractType(), Node: &compiler.FnTreeNode{CallInfo: fn.CallInfo.(*compiler.CallInfo), Branch: []*compiler.TypeNodePair{}}})
 		}
 	}
 	return tree
@@ -2059,8 +2060,8 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		fCount := uint32(len(iz.cp.Fns))                // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
 		for _, dec := range groupOfDeclarations {
 			if dec.decType == functionDeclaration || dec.decType == commandDeclaration {
-				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = fCount
-				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Compiler = iz.cp
+				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].CallInfo.(*compiler.CallInfo).Number = fCount
+				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].CallInfo.(*compiler.CallInfo).Compiler = iz.cp
 				fCount++
 			}
 		}
@@ -2082,7 +2083,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			case commandDeclaration:
 				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
 			}
-			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
+			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].CallInfo.(*compiler.CallInfo).Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
 
@@ -2451,9 +2452,9 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 // bindle?
 func (iz *Initializer) ResolveInterfaceBacktracks() {
 	for _, rDat := range iz.P.Common.InterfaceBacktracks {
-		prsrFunction := rDat.Fn
-		resolvingCompiler := prsrFunction.Compiler.(*compiler.Compiler)
-		CpFunction := resolvingCompiler.Fns[prsrFunction.Number]
+		callInfo := rDat.Fn.(*compiler.CallInfo)
+		resolvingCompiler := callInfo.Compiler
+		CpFunction := resolvingCompiler.Fns[callInfo.Number]
 		addr := rDat.Addr
 		iz.cp.Vm.Code[addr].Args[0] = CpFunction.CallTo
 		iz.cp.Vm.Code[addr].Args[1] = CpFunction.LoReg
@@ -2686,9 +2687,9 @@ func (iz *Initializer) Add(functionName string, f *ast.PrsrFunction) *ast.PrsrFu
 }
 
 func (iz *Initializer) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
-	fSig := f.Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(f.NameSig)
+	fSig := f.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(f.NameSig)
 	for i := 0; i < len(S); i++ {
-		gSig := S[i].Compiler.(*compiler.Compiler).P.MakeAbstractSigFromStringSig(S[i].NameSig)
+		gSig := S[i].CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(S[i].NameSig)
 		yes, ok := parser.IsMoreSpecific(fSig, gSig)
 		if !ok {
 			return S, S[i]

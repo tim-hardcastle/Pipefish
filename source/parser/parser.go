@@ -59,8 +59,7 @@ type Parser struct {
 	FunctionTable FunctionTable
 	// Trees, one for each function identifier, for figuring out how to make function calls given the possibility
 	// of multiple dispatch.
-	FunctionForest map[string]*ast.FunctionTree
-
+	
 	// Maps names to abstract types. This *is* the type system, at least as far as the compiler knows about it,
 	// because there is a natural partial order on abstract types.
 	TypeMap TypeSys
@@ -98,7 +97,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		FunctionTable:   make(FunctionTable),
-		FunctionForest:  make(map[string]*ast.FunctionTree), // The logger needs to be able to see service variables and this is the simplest way.
 		TypeMap:         make(TypeSys),
 		ParTypes2:       make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
@@ -202,7 +200,7 @@ func NewCommonParserBindle() *CommonParserBindle {
 // When we dispatch on a function which is semantically available to us because it fulfills an interface, but we
 // haven't compiled it yet, this keeps track of where we backtrack to.
 type BkInterface struct {
-	Fn   *ast.PrsrFunction
+	Fn   any     // This will in fact always be of type *compiler.CallInfo.
 	Addr uint32
 }
 

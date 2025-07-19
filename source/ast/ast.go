@@ -7,7 +7,6 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // The base Node interface
@@ -152,7 +151,10 @@ func (fe *ForExpression) String() string {
 
 type FuncExpression struct {
 	Token token.Token
-	PrsrFunction
+	NameSig  AstSig       // The sig in AstSig form.
+	NameRets  AstSig      // The sig in AstSig form.
+	Body     Node         // The body of the function.
+	Given    Node         // The 'given' block: nil if there isn't one.
 }
 
 func (fe *FuncExpression) Children() []Node       { return []Node{fe.Body, fe.Given} }
@@ -774,59 +776,12 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 
 type PrsrFunction struct {
 	FName    string       // The name of the function.
-	NameSig  AstSig       // The same, but with names of types instead of abstract types.
-	NameRets AstSig       // The same, but with names of types instead of abstract types.
+	NameSig  AstSig       // The sig in AstSig form.
 	Body     Node         // The body of the function.
 	Given    Node         // The 'given' block: nil if there isn't one.
 	Cmd      bool         // Whether it's a command or not.
 	Private  bool         // Whether it's private or not.
-	Number   uint32       // The order in which the function was compiled by the initializer. Initialized as DUMMY.
-	Compiler any          // A vile kludge at the last minute to make the interfaces work without restructuring the whole program. TODO --- something else.
 	Position uint32       // PREFIX, INFIX, SUFFIX.
 	Tok      *token.Token // Where it was declared.
-}
-
-type FunctionTree = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.
-	Tree     *FnTreeNode
-	RefCount int // For reasons, the reference variables in a function's sig must (a) come at the start (b) be of the same number for each of the overloaded variants of the function.
-}
-
-type FnTreeNode struct {
-	Fn     *PrsrFunction
-	Branch []*TypeNodePair
-}
-
-type TypeNodePair struct { // This exists because we need an *ordered* collection of type-node pairs.
-	Type     values.AbstractType
-	IsVararg bool
-	Node     *FnTreeNode
-}
-
-func (tree FnTreeNode) String() string {
-	result := "["
-	for i, v := range tree.Branch {
-		result = result + v.Type.String()
-		if v.Node.Fn != nil {
-			result = result + "func " + v.Node.Fn.NameSig.String()
-		} else {
-			result = result + v.Node.String()
-		}
-		if i < len(tree.Branch)-1 {
-			result = result + ", "
-		}
-	}
-	return result + "]"
-}
-
-func (tree FnTreeNode) IndentString(indent string) string {
-	result := ""
-	for _, v := range tree.Branch {
-		result = result + "\n" + indent + v.Type.String()
-		if v.Node.Fn != nil {
-			result = result + "func" + v.Node.Fn.NameSig.String()
-		} else {
-			result = result + v.Node.IndentString(indent+"    ")
-		}
-	}
-	return result
+	CallInfo any
 }

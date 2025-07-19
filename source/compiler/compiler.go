@@ -42,6 +42,7 @@ type Compiler struct {
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.          
+	FunctionForest           map[string]*FunctionTree
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -67,6 +68,7 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 		Common:                   ccb,
 		GeneratedAbstractTypes:   make(dtypes.Set[string]),
+		FunctionForest:           make(map[string]*FunctionTree),
 	}
 	for name := range parser.ClonableTypes {
 		newC.GeneratedAbstractTypes.Add("clones{"+name+"}")
@@ -1777,7 +1779,8 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		}
 		cp.ThunkList = saveThunkList
 	}
-	newRets := cp.ReturnSigToAlternateType(fnNode.NameRets)
+	rTypes := fnNode.NameRets
+	newRets := cp.ReturnSigToAlternateType(rTypes)
 	newContext := ctxt
 	newContext.Env = newEnv
 	newContext.Access = LAMBDA
@@ -1787,7 +1790,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	LF.Model.ResultLocation = cp.That()
 	if fnNode.NameRets != nil {
 		cp.Cm("Typechecking returns from lambda.", fnNode.GetToken())
-		cp.EmitTypeChecks(LF.Model.ResultLocation, types, env, fnNode.NameRets, LAMBDA, tok, CHECK_RETURN_TYPES, ctxt.x())
+		cp.EmitTypeChecks(LF.Model.ResultLocation, types, env, rTypes, LAMBDA, tok, CHECK_RETURN_TYPES, ctxt.x())
 	}
 	cp.Emit(vm.Ret)
 	cp.popLambdaStart()
@@ -2797,18 +2800,18 @@ func (cp *Compiler) Rollback(vms vmState, tok *token.Token) {
 
 // For calling `init` or `main`.
 func (cp *Compiler) CallIfExists(name string) (values.Value, error) {
-	tree, ok := cp.P.FunctionForest[name]
+	tree, ok := cp.FunctionForest[name]
 	if !ok {
 		return values.UNDEF, errors.New("`" + name + "` command does not exist.")
 	}
 	for _, t := range tree.Tree.Branch {
-		if t.Type.Len() == 0 && t.Node.Fn != nil {
-			fn := cp.Fns[t.Node.Fn.Number]
+		if t.Type.Len() == 0 && t.Node.CallInfo != nil {
+			fn := cp.Fns[t.Node.CallInfo.Number]
 			if !fn.Command {
 				return values.UNDEF, errors.New("`" + name + "` is defined as a function, not a command.")
 			}
-			cp.Vm.Run(cp.Fns[t.Node.Fn.Number].CallTo)
-			return cp.Vm.Mem[cp.Fns[t.Node.Fn.Number].OutReg], nil
+			cp.Vm.Run(cp.Fns[t.Node.CallInfo.Number].CallTo)
+			return cp.Vm.Mem[cp.Fns[t.Node.CallInfo.Number].OutReg], nil
 		}
 	}
 	return values.UNDEF, errors.New("`" + name + "` is defined with parameters.")

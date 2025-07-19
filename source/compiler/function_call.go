@@ -25,7 +25,7 @@ import (
 // to do the dispatch, some of which (e.g.) the token associated with the caller, are stable throughout
 // the construction of the function call, while others change to keep track of where we are.
 type bindle struct {
-	treePosition *ast.FnTreeNode // Our position on the function tree.
+	treePosition *FnTreeNode // Our position on the function tree.
 	branchNo     int             // The number of the branch in the function tree.
 	argNo        int             // The number of the argument we're looking at.
 	index        int             // The index we're looking at in the argument we're looking at.
@@ -57,7 +57,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	env := ctxt.Env
 	ac := ctxt.Access
 	b := &bindle{tok: node.GetToken(),
-		treePosition: cp.P.FunctionForest[node.GetOperator()].Tree,
+		treePosition: cp.FunctionForest[node.GetOperator()].Tree,
 		outLoc:       cp.ReserveError("vm/oopsie", node.GetToken()),
 		env:          env,
 		valLocs:      make([]uint32, len(args)),
@@ -71,7 +71,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cst := true
 	for i, arg := range args {
 		backtrackList[i] = DUMMY
-		if i < cp.P.FunctionForest[node.GetOperator()].RefCount { // It might be a reference variable
+		if i < cp.FunctionForest[node.GetOperator()].RefCount { // It might be a reference variable
 			if arg.GetToken().Type != token.IDENT {
 				cp.Throw("comp/ref/ident", arg.GetToken())
 				return AltType(values.COMPILE_TIME_ERROR), false
@@ -552,19 +552,18 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	var finished bool
 	for !finished {
 		for _, branch := range b.treePosition.Branch {
-			if branch.Node.Fn != nil {
-				resolvingCompiler := branch.Node.Fn.Compiler.(*Compiler)
-				prsrFn := branch.Node.Fn
-				fNo := prsrFn.Number
+			if branch.Node.CallInfo != nil {
+				resolvingCompiler := branch.Node.CallInfo.Compiler
+				fNo := branch.Node.CallInfo.Number
 				if resolvingCompiler != cp && fNo == DUMMY {
 					cp.cmP("Emitting interface backtracks", b.tok)
-					cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.Fn, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
+					cp.P.Common.InterfaceBacktracks = append(cp.P.Common.InterfaceBacktracks, parser.BkInterface{branch.Node.CallInfo, cp.CodeTop()}) // So we can come back and doctor all the dummy variables.
 					cp.cmP("Emitting call opcode with dummy operands.", b.tok)
 					args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
 					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
 					b.override = true
-					return cp.rtnTypesToTypeScheme(branch.Node.Fn.Compiler.(*Compiler).P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.P.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
 				}
 				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 					cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -575,7 +574,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Rpop)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 					b.override = true                 // We can't do constant folding on a dummy function call.
-					return cp.rtnTypesToTypeScheme(branch.Node.Fn.Compiler.(*Compiler).P.MakeAbstractSigFromStringSig(branch.Node.Fn.NameRets))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.P.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
 				}
 				F := resolvingCompiler.Fns[fNo]
 				if (b.access == REPL || b.libcall) && F.Private {
@@ -684,19 +683,19 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					convErrorLoc := cp.ReserveError("golang/conv", b.tok)
 					args := append([]uint32{b.outLoc, convErrorLoc, F.GoNumber}, b.valLocs...)
 					cp.Emit(vm.Gofn, args...)
-					if len(branch.Node.Fn.NameRets) == 0 {
+					if len(branch.Node.CallInfo.ReturnTypes) == 0 {
 						if F.Command {
 							return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
 						} else {
 							return cp.Common.AnyTypeScheme
 						}
 					}
-					if len(branch.Node.Fn.NameRets) == 1 {
-						return cp.GetAlternateTypeFromTypeAst(branch.Node.Fn.NameRets[0].VarType)
+					if len(branch.Node.CallInfo.ReturnTypes) == 1 {
+						return cp.GetAlternateTypeFromTypeAst(branch.Node.CallInfo.ReturnTypes[0].VarType)
 					}
 					// Otherwise it's a tuple.
-					tt := make(AlternateType, 0, len(branch.Node.Fn.NameRets))
-					for _, v := range branch.Node.Fn.NameRets {
+					tt := make(AlternateType, 0, len(branch.Node.CallInfo.ReturnTypes))
+					for _, v := range branch.Node.CallInfo.ReturnTypes {
 						tt = append(tt, cp.GetAlternateTypeFromTypeAst(v.VarType))
 					}
 					return AlternateType{FiniteTupleType{tt}}
@@ -707,9 +706,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					var remainingNamespace string
 					vmArgs := make([]uint32, 0, len(b.valLocs)+5)
 					vmArgs = append(vmArgs, b.outLoc, F.Xcall.ExternalServiceOrdinal, F.Xcall.Position)
-					cp.Reserve(values.STRING, remainingNamespace, branch.Node.Fn.Body.GetToken())
+					cp.Reserve(values.STRING, remainingNamespace, b.tok)
 					vmArgs = append(vmArgs, cp.That())
-					cp.Reserve(values.STRING, F.Xcall.FunctionName, branch.Node.Fn.Body.GetToken())
+					cp.Reserve(values.STRING, F.Xcall.FunctionName, b.tok)
 					vmArgs = append(vmArgs, cp.That())
 					vmArgs = append(vmArgs, b.valLocs...)
 					cp.Emit(vm.Extn, vmArgs...)

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
@@ -84,8 +85,8 @@ func (iz *Initializer) compileGo() {
 				return
 			}
 			if body.GetToken().Type == token.GOCODE {
-				functionToAdd := &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, NameRets: rTypes, Body: body, Given: given,
-					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), Number: DUMMY, Compiler: iz.cp, Tok: body.GetToken()}
+				functionToAdd := &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, Body: body, Given: given,
+					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), CallInfo: &compiler.CallInfo{iz.cp, DUMMY, rTypes}, Tok: body.GetToken()}
 				functionToAdd.Body = body
 				iz.goBucket.sources.Add(functionToAdd.Body.GetToken().Source)
 				iz.goBucket.functions[functionToAdd.Body.GetToken().Source] = append(iz.goBucket.functions[functionToAdd.Body.GetToken().Source], functionToAdd)
@@ -205,7 +206,7 @@ func (iz *Initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 				userDefinedTypes.Add(text.WithoutDots(name))
 			}
 		}
-		for _, v := range function.NameRets {
+		for _, v := range function.CallInfo.(*compiler.CallInfo).ReturnTypes {
 			if !iz.cp.IsBuiltin(v.VarType.String()) {
 				userDefinedTypes.Add(v.VarType.String())
 			}
