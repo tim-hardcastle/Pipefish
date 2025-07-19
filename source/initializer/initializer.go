@@ -1366,7 +1366,7 @@ func (iz *Initializer) findShareableFunctions() {
 			fn := iz.parsedCode[j][i].(*parsedFunction)
 			tok := &fn.op
 			functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: uint32(fn.pos), Body: fn.body, Given: fn.given,
-				Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), CallInfo: &compiler.CallInfo{iz.cp, DUMMY, fn.rets}, Tok: tok}
+				Cmd: fn.decType == commandDeclaration, Private: fn.private, CallInfo: fn.callInfo, Tok: tok}
 			if iz.shareable(fn) || settings.MandatoryImportSet().Contains(tok.Source) {
 				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = functionToAdd
 				iz.fnIndex[fnSource{j, i}] = functionToAdd

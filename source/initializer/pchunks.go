@@ -17,14 +17,16 @@ type parsedCode interface {
 type parsedFunction struct {
 	decType    declarationType    // Function or command.
 	decNumber  int                // The order of declaration (with functions and commands counted separately.)
+	private    bool
 	op         token.Token        // The token where the function/operation name is declared.
 	pos        opPosition         // PREFIX / INFIX / SUFFIX / UNFIX.
 	sig        ast.AstSig         // The call signature.
-	rets       ast.AstSig         // The return signature (in the same format, but with the variable names unused. TODO --- todon't.)
 	body       ast.Node           // The parsed body of the function, non-empty by construction.
 	given      ast.Node           // The `given` block (nil if empty).
-	compiler   *compiler.Compiler // The compiler that compiled it, needed to cope with shared functions. Initialized as nil.
-	compNumber uint32             // The index of the compiled function data in the compiler. Initialized as DUMMY.
+	// Information shared with the function tree, needed to make a function call.
+	// This includes the return signatures because if recursion is involved we don't infer them
+	// and this is the next best thing.
+	callInfo   *compiler.CallInfo  
 }
 
 type parsedAssignment struct {
@@ -92,14 +94,19 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 		return &parsedFunction {
 			decType: decType,
 			decNumber: decNumber,
+			private: iz.IsPrivate(int(decType), decNumber),
 			op: tc.op,
 			pos: tc.pos,
 			sig: iz.makeAstSigFromTokenizedSig(tc.sig),
-			rets: iz.makeRetsFromTokenizedReturns(tc.rets),
+			
 			body: parsedBody,
 			given: parsedGiven,
-			compiler: nil,
-			compNumber: DUMMY,
+			callInfo: &compiler.CallInfo{
+				Compiler: iz.cp,
+				Number: DUMMY,
+				ReturnTypes: iz.makeRetsFromTokenizedReturns(tc.rets),
+			},
+			
 		}
 	case *tokenizedStructDeclaration:
 		var body ast.Node
