@@ -61,6 +61,7 @@ type Initializer struct {
 	// e.g. Z{5}, Z{12}.
 	parameterizedTypeMap       map[string]int              // Maps names to the numbered type instances below.
 	parameterizedTypeInstances []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
+	functionTable functionTable
 }
 
 // Makes a new initializer.
@@ -75,6 +76,7 @@ func NewInitializer() *Initializer {
 		parameterizedTypeMap:        make(map[string]int),
 		parameterizedTypeInstances:  make([]parameterizedTypeInstance, 0),
 		tokenizedCode:               make([][]tokenizedCode, 14),
+		functionTable:               make(functionTable),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -229,10 +231,16 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 	}
 	iz.cmI("Resolving interface backtracks.")
 	iz.ResolveInterfaceBacktracks()
+
+	iz.cmI("Serializing API")
+	iz.cp.API = iz.SerializeApi()
+
 	return result
+
+	
 }
 
-// This initializes the initializers compiler (which initializes its parser), and
+// This initializes the initializer's compiler (which initializes its parser), and
 // extracts the source code from the given file, and then calls the `parseEverything“
 // method, below.
 func (iz *Initializer) ParseEverythingFromSourcecode(mc *vm.Vm, cpb *parser.CommonParserBindle, ccb *compiler.CommonCompilerBindle, scriptFilepath, sourcecode, namespacePath string) *compiler.Compiler {
@@ -709,9 +717,9 @@ func (iz *Initializer) addExternalOnSameHub(path, name string) {
 		return hubService.P.ErrorsExist()
 	}
 	se := func() string {
-		return hubService.SerializeApi()
+		return hubService.API
 	}
-	serviceToAdd := compiler.ExternalCallToHubHandler{ev, pr, se}
+	serviceToAdd := ExternalCallToHubHandler{ev, pr, se}
 	iz.addAnyExternalService(serviceToAdd, path, name)
 }
 
@@ -719,7 +727,7 @@ func (iz *Initializer) addHttpService(path, name, username, password string) {
 	ds := func(valAsString string) values.Value {
 		return iz.cp.Do(valAsString)
 	}
-	serviceToAdd := compiler.ExternalHttpCallHandler{path, name, username, password, ds}
+	serviceToAdd := ExternalHttpCallHandler{path, name, username, password, ds}
 	iz.addAnyExternalService(serviceToAdd, path, name)
 }
 
@@ -1552,7 +1560,7 @@ func (iz *Initializer) MakeFunctionTables() {
 	iz.makeFunctionTable()
 	if settings.FUNCTION_TO_PEEK != "" {
 		println("In namespace", iz.P.NamespacePath)
-		println(iz.P.FunctionTable.Describe(iz.P, settings.FUNCTION_TO_PEEK))
+		println(iz.functionTable.Describe(settings.FUNCTION_TO_PEEK))
 	}
 }
 
@@ -1610,7 +1618,7 @@ func (iz *Initializer) MakeFunctionForests() {
 func (iz *Initializer) MakeFunctionTrees() {
 	iz.cp.FunctionForest = map[string]*compiler.FunctionTree{}
 	rc := 0
-	for k, v := range iz.P.FunctionTable {
+	for k, v := range iz.functionTable {
 		tree := &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.TypeNodePair{}}
 		for i := range v {
 			tree = iz.addSigToTree(tree, v[i], 0)
@@ -2674,40 +2682,3 @@ func (iz *Initializer) ErrorsExist() bool {
 	return iz.P.ErrorsExist()
 }
 
-// Methods for manipulating the function table.
-
-func (iz *Initializer) Add(functionName string, f *ast.PrsrFunction) *ast.PrsrFunction {
-	if functions, ok := iz.cp.P.FunctionTable[functionName]; ok {
-		functions, conflictingFunction := iz.AddInOrder(functions, f)
-		iz.cp.P.FunctionTable[functionName] = functions
-		return conflictingFunction
-	}
-	iz.cp.P.FunctionTable[functionName] = []*ast.PrsrFunction{f}
-	return nil
-}
-
-func (iz *Initializer) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
-	fSig := f.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(f.NameSig)
-	for i := 0; i < len(S); i++ {
-		gSig := S[i].CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(S[i].NameSig)
-		yes, ok := parser.IsMoreSpecific(fSig, gSig)
-		if !ok {
-			return S, S[i]
-		}
-		if yes {
-			S = insert(S, f, i)
-			return S, nil
-		}
-	}
-	S = append(S, f)
-	return S, nil
-}
-
-func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.PrsrFunction {
-	if len(a) == index { // nil or empty slice or after last element
-		return append(a, value)
-	}
-	a = append(a[:index+1], a[index:]...) // index < len(a)
-	a[index] = value
-	return a
-}

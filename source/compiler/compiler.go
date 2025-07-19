@@ -42,7 +42,8 @@ type Compiler struct {
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.          
-	FunctionForest           map[string]*FunctionTree
+	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
+	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.

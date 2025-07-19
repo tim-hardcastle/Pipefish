@@ -51,16 +51,7 @@ type Parser struct {
 	ParameterizedTypes dtypes.Set[string]
 	nativeInfixes      dtypes.Set[token.TokenType]
 	lazyInfixes        dtypes.Set[token.TokenType]
-
-	// Used for multiple dispatch. TODO --- neither of these should be in the parser.
-
-	// While this is mostly just used by the initializer to construct the function trees (below), it is also used
-	// to serialize the API and so may be needed at runtime.
-	FunctionTable FunctionTable
-	// Trees, one for each function identifier, for figuring out how to make function calls given the possibility
-	// of multiple dispatch.
-	
-	// Maps names to abstract types. This *is* the type system, at least as far as the compiler knows about it,
+	// Maps names to abstract types. This *is* the type system, at least as far as the parser knows about it,
 	// because there is a natural partial order on abstract types.
 	TypeMap TypeSys
 
@@ -96,7 +87,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
-		FunctionTable:   make(FunctionTable),
 		TypeMap:         make(TypeSys),
 		ParTypes2:       make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
