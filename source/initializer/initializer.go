@@ -1012,7 +1012,6 @@ func (iz *Initializer) createOperations(nameAst ast.TypeNode, typeNo values.Valu
 // Function auxiliary to the previous one, to make constructors for the clone types.
 func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fnNo := iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)
-	//fn := &ast.PrsrFunction{Tok: tok, NameSig: sig, Body: &ast.BuiltInExpression{*tok, builtinTag}, CallInfo: &compiler.CallInfo{iz.cp, fnNo, rtnSig}}
 	fn := &parsedFunction{
 		decType: functionDeclaration,
 		decNumber: DUMMY,
@@ -1118,7 +1117,6 @@ func (iz *Initializer) createStructLabels() {
 		stT = stT.AddLabels(labelsForStruct)
 		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), dec.private, indexToken)
-		//fn := &ast.PrsrFunction{NameSig: sig, Body: &ast.BuiltInExpression{Name: name}, CallInfo: &compiler.CallInfo{iz.cp, fnNo, nil}, Tok: indexToken}
 		fn := &parsedFunction{
 			decType: functionDeclaration,
 			decNumber: DUMMY,
@@ -1415,7 +1413,7 @@ func (iz *Initializer) findAllShareableFunctions() {
 }
 
 // If a function in the module must have at least one of its parameters some type
-// defined in the module, then we add an ast.PrsrFunction representation of it
+// defined in the module, then we add a parsedFunction representation of it
 // to the list of functions in the common initializer bindle.
 func (iz *Initializer) findShareableFunctions() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
