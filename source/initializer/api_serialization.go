@@ -144,11 +144,11 @@ func (iz *Initializer) SerializeApi() string {
 	for name, fns := range iz.functionTable {
 		for defOrCmd := 0; defOrCmd < 2; defOrCmd++ { // In the function table the commands and functions are all jumbled up. But we want the commands first, for neatness, so we'll do two passes.
 			for _, fn := range fns {
-				_, ok := fn.Body.(*ast.BuiltInExpression) // Which includes the constructors, which don't need exporting.
-				if fn.Private || settings.MandatoryImportSet().Contains(fn.Body.GetToken().Source) || ok {
+				_, ok := fn.body.(*ast.BuiltInExpression) // Which includes the constructors, which don't need exporting.
+				if fn.private || settings.MandatoryImportSet().Contains(fn.op.Source) || ok {
 					continue
 				}
-				if fn.Cmd {
+				if fn.decType == commandDeclaration {
 					if defOrCmd == 1 {
 						continue
 					}
@@ -161,15 +161,15 @@ func (iz *Initializer) SerializeApi() string {
 				}
 				buf.WriteString(name)
 				buf.WriteString(" | ")
-				buf.WriteString(strconv.Itoa(int(fn.Position)))
-				for _, ntp := range fn.NameSig {
+				buf.WriteString(strconv.Itoa(int(fn.pos)))
+				for _, ntp := range fn.sig {
 					buf.WriteString(" | ")
 					buf.WriteString(ntp.VarName)
 					buf.WriteString(" ")
 					buf.WriteString(ntp.VarType.String())
 				}
 				buf.WriteString(" | ")
-				buf.WriteString(iz.serializeTypescheme(iz.cp.Fns[fn.CallInfo.(*compiler.CallInfo).Number].RtnTypes))
+				buf.WriteString(iz.serializeTypescheme(iz.cp.Fns[fn.callInfo.Number].RtnTypes))
 				buf.WriteString("\n")
 			}
 		}

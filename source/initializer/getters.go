@@ -2,7 +2,6 @@ package initializer
 
 import (
 	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/token"
@@ -11,17 +10,17 @@ import (
 
 // A miscellaneous collection of functions for extracting data from other data.
 
-func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunction, tok *token.Token) values.AbstractType {
+func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction, tok *token.Token) values.AbstractType {
 	result := values.MakeAbstractType()
 	// Check that the sigs are the right length, the return sig being optional.
-	if sigToMatch.sig.Len() != len(fnToTry.NameSig) {
+	if sigToMatch.sig.Len() != len(fnToTry.sig) {
 		return result
 	}
-	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.CallInfo.(*compiler.CallInfo).ReturnTypes) {
+	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.callInfo.ReturnTypes) {
 		return result
 	}
-	abSig := fnToTry.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(fnToTry.NameSig)
-	abRets := fnToTry.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(fnToTry.CallInfo.(*compiler.CallInfo).ReturnTypes)
+	abSig := fnToTry.callInfo.Compiler.P.MakeAbstractSigFromStringSig(fnToTry.sig)
+	abRets := fnToTry.callInfo.Compiler.P.MakeAbstractSigFromStringSig(fnToTry.callInfo.ReturnTypes)
 	// Once we have identified one set of types as being 'self' we need to fix that
 	// as 'self' and take its intersection with the other things that appear in the
 	// 'self' position.
@@ -37,7 +36,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 				if len(result.Types) == 0 {
 					break
 				}
-				if twp, ok := fnToTry.NameSig.GetVarType(i).(*ast.TypeWithParameters); ok {
+				if twp, ok := fnToTry.sig.GetVarType(i).(*ast.TypeWithParameters); ok {
 					if paramType == nil || !paramType.Equals(twp) {
 						return values.MakeAbstractType()
 					}
@@ -45,7 +44,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 			} else {
 				foundSelf = true
 				result = abSig[i].VarType
-				if twp, ok := fnToTry.NameSig.GetVarType(i).(*ast.TypeWithParameters); ok {
+				if twp, ok := fnToTry.sig.GetVarType(i).(*ast.TypeWithParameters); ok {
 					paramType = twp
 				}
 			}
@@ -64,7 +63,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *ast.PrsrFunctio
 		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.Name == "self" {
 			// First we deal with the possibility of a type expression matching a parameterized
 			// type.
-			te, ok := fnToTry.CallInfo.(*compiler.CallInfo).ReturnTypes.GetVarType(i).(*ast.TypeExpression)
+			te, ok := fnToTry.callInfo.ReturnTypes.GetVarType(i).(*ast.TypeExpression)
 			if ok && paramType != nil {
 				if paramType.Matches(te) {
 					continue

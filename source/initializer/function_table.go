@@ -4,29 +4,27 @@ package initializer
 // which sorts overloaded functions in order of specificity as they're added to the table.
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/parser"
 )
 
-type functionTable map[string][]*ast.PrsrFunction
+type functionTable map[string][]*parsedFunction
 
 // Methods for manipulating the function table.
 
-func (iz *Initializer) Add(functionName string, f *ast.PrsrFunction) *ast.PrsrFunction {
+func (iz *Initializer) Add(functionName string, f *parsedFunction) *parsedFunction {
 	if functions, ok := iz.functionTable[functionName]; ok {
 		functions, conflictingFunction := iz.AddInOrder(functions, f)
 		iz.functionTable[functionName] = functions
 		return conflictingFunction
 	}
-	iz.functionTable[functionName] = []*ast.PrsrFunction{f}
+	iz.functionTable[functionName] = []*parsedFunction{f}
 	return nil
 }
 
-func (iz *Initializer) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([]*ast.PrsrFunction, *ast.PrsrFunction) {
-	fSig := f.CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(f.NameSig)
+func (iz *Initializer) AddInOrder(S []*parsedFunction, f *parsedFunction) ([]*parsedFunction, *parsedFunction) {
+	fSig := f.callInfo.Compiler.P.MakeAbstractSigFromStringSig(f.sig)
 	for i := 0; i < len(S); i++ {
-		gSig := S[i].CallInfo.(*compiler.CallInfo).Compiler.P.MakeAbstractSigFromStringSig(S[i].NameSig)
+		gSig := S[i].callInfo.Compiler.P.MakeAbstractSigFromStringSig(S[i].sig)
 		yes, ok := parser.IsMoreSpecific(fSig, gSig)
 		if !ok {
 			return S, S[i]
@@ -40,7 +38,7 @@ func (iz *Initializer) AddInOrder(S []*ast.PrsrFunction, f *ast.PrsrFunction) ([
 	return S, nil
 }
 
-func insert(a []*ast.PrsrFunction, value *ast.PrsrFunction, index int) []*ast.PrsrFunction {
+func insert(a []*parsedFunction, value *parsedFunction, index int) []*parsedFunction {
 	if len(a) == index { // nil or empty slice or after last element
 		return append(a, value)
 	}
@@ -53,7 +51,7 @@ func (ft functionTable) Describe(functionName string) string {
 	result := "Function table for " + functionName + "\n\n"
 	if functions, ok := ft[functionName]; ok {
 		for _, f := range functions {
-			result = result + f.NameSig.String() + " : " + f.Body.String() + "\n\n"
+			result = result + f.sig.String() + " : " + f.body.String() + "\n\n"
 		}
 		return result
 	} else {
