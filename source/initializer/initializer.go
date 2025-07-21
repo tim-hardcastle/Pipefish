@@ -2316,8 +2316,9 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	sig := fn.sig
 	given := fn.given
 	rtnSig := fn.callInfo.ReturnTypes
+	body := fn.body
 	
-	_, _, _, _, body, _ := iz.P.ExtractPartsOfFunction(node)
+	// _, _, _, _, body, _ := iz.P.ExtractPartsOfFunction(node)
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", body.GetToken())
 	if iz.ErrorsExist() {
 		return nil
