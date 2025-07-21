@@ -48,7 +48,6 @@ type Initializer struct {
 	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
 	Snippets                            []string                       // Names of snippet types visible to the module.
-	fnIndex                             map[fnSource]*parsedFunction   // The point of this is that once we've compiled a function, we need to set the Number field of the PrsrFunction representation to be the number of the cpFunc in the cp.Fns list.
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
@@ -69,7 +68,6 @@ func NewInitializer() *Initializer {
 	iz := Initializer{
 		initializers:                make(map[string]*Initializer),
 		localConcreteTypes:          make(dtypes.Set[values.ValueType]),
-		fnIndex:                     make(map[fnSource]*parsedFunction),
 		unserializableTypes:         make(dtypes.Set[string]),
 		typeOperators:               make(map[string]typeOperatorInfo),
 		parameterizedTypesToDeclare: make(map[string]typeInstantiationInfo),
@@ -1422,7 +1420,6 @@ func (iz *Initializer) findShareableFunctions() {
 			tok := &fn.op
 			if iz.shareable(fn) || settings.MandatoryImportSet().Contains(tok.Source) {
 				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = fn
-				iz.fnIndex[fnSource{j, i}] = fn
 			}
 		}
 	}
@@ -1624,7 +1621,7 @@ func (iz *Initializer) makeFunctionTable() {
 			} else {
 				functionToAdd = fn
 			}
-			iz.fnIndex[fnSource{j, i}] = functionToAdd
+			iz.parsedCode[j][i].(*parsedFunction).callInfo = functionToAdd.callInfo
 			conflictingFunction := iz.Add(functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
 				iz.P.Throw("init/overload/a", &fn.op, functionName, conflictingFunction.op)
@@ -2105,8 +2102,8 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		fCount := uint32(len(iz.cp.Fns))                // We can give the function data in the parser the right numbers for the group of functions in the parser before compiling them, since we know what order they come in.
 		for _, dec := range groupOfDeclarations {
 			if dec.decType == functionDeclaration || dec.decType == commandDeclaration {
-				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].callInfo.Number = fCount
-				iz.fnIndex[fnSource{dec.decType, dec.decNumber}].callInfo.Compiler = iz.cp
+				iz.parsedCode[dec.decType][dec.decNumber].(*parsedFunction).callInfo.Number = fCount
+				iz.parsedCode[dec.decType][dec.decNumber].(*parsedFunction).callInfo.Compiler = iz.cp
 				fCount++
 			}
 		}
