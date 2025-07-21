@@ -2128,7 +2128,6 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			case commandDeclaration:
 				iz.compileFunction(commandDeclaration, dec.decNumber, iz.cp.GlobalVars)
 			}
-			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].callInfo.Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
 
