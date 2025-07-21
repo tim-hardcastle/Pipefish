@@ -2302,39 +2302,34 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		iz.cp.Fns = append(iz.cp.Fns, info.(*compiler.CpFunc))
 		return info.(*compiler.CpFunc)
 	}
-	fn := iz.parsedCode[dec][decNo].(*parsedFunction)
-	cpF := compiler.CpFunc{}
+	izFn := iz.parsedCode[dec][decNo].(*parsedFunction)
+	cpFn := compiler.CpFunc{}
 	var ac compiler.CpAccess
 	if dec == functionDeclaration {
 		ac = compiler.DEF
 	} else {
 		ac = compiler.CMD
-		cpF.Command = true
+		cpFn.Command = true
 	}
-	cpF.Private = private
-	functionName := fn.op.Literal
-	sig := fn.sig
-	given := fn.given
-	rtnSig := fn.callInfo.ReturnTypes
-	body := fn.body
+	cpFn.Private = izFn.private
+	functionName := izFn.op.Literal
 	
-	// _, _, _, _, body, _ := iz.P.ExtractPartsOfFunction(node)
-	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", body.GetToken())
+	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+izFn.sig.String()+".", &izFn.op)
 	if iz.ErrorsExist() {
 		return nil
 	}
-	if body.GetToken().Type == token.XCALL {
-		Xargs := body.(*ast.PrefixExpression).Args
-		cpF.Xcall = &compiler.XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value),
+	if izFn.body.GetToken().Type == token.XCALL {
+		Xargs := izFn.body.(*ast.PrefixExpression).Args
+		cpFn.Xcall = &compiler.XBindle{ExternalServiceOrdinal: uint32(Xargs[0].(*ast.IntegerLiteral).Value),
 			FunctionName: Xargs[1].(*ast.StringLiteral).Value, Position: uint32(Xargs[2].(*ast.IntegerLiteral).Value)}
 		serializedTypescheme := Xargs[3].(*ast.StringLiteral).Value
-		cpF.RtnTypes = iz.deserializeTypescheme(serializedTypescheme)
+		cpFn.RtnTypes = iz.deserializeTypescheme(serializedTypescheme)
 	}
 	fnenv := compiler.NewEnvironment()
 	fnenv.Ext = outerEnv
-	cpF.LoReg = iz.cp.MemTop()
+	cpFn.LoReg = iz.cp.MemTop()
 	// First we do the local variables that are in the signature of the struct.
-	for _, pair := range sig {
+	for _, pair := range izFn.sig {
 		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
 		if ast.IsRef(pair.VarType) {
 			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, node.GetToken())
@@ -2349,12 +2344,12 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 			}
 		}
 	}
-	cpF.HiReg = iz.cp.MemTop()
-	cpF.CallTo = iz.cp.CodeTop()
+	cpFn.HiReg = iz.cp.MemTop()
+	cpFn.CallTo = iz.cp.CodeTop()
 
 	// And then we take care of the arguments of a parameterized type.
 	vmap := map[string][]uint32{}
-	for _, pair := range sig {
+	for _, pair := range izFn.sig {
 		if twp, ok := pair.VarType.(*ast.TypeWithParameters); ok {
 			yeetTo := iz.cp.That() + 1
 			// We range over the parameters of the type.
@@ -2398,9 +2393,9 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		}
 	}
 
-	tupleData := make([]uint32, 0, len(sig))
+	tupleData := make([]uint32, 0, len(izFn.sig))
 	var foundTupleOrVarArgs bool
-	for _, param := range sig {
+	for _, param := range izFn.sig {
 		switch {
 		case ast.IsVarargs(param.VarType):
 			tupleData = append(tupleData, 1)
@@ -2413,40 +2408,40 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		}
 	}
 	if foundTupleOrVarArgs {
-		cpF.LocOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
+		cpFn.LocOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
 	} else {
-		cpF.LocOfTupleAndVarargData = DUMMY
+		cpFn.LocOfTupleAndVarargData = DUMMY
 	}
-	switch body.GetToken().Type {
+	switch izFn.body.GetToken().Type {
 	case token.BUILTIN:
-		name := body.(*ast.BuiltInExpression).Name
+		name := izFn.body.(*ast.BuiltInExpression).Name
 		types, ok := compiler.BUILTINS[name]
 		if ok {
-			cpF.RtnTypes = types.T
+			cpFn.RtnTypes = types.T
 		} else {
 			typeNumber, ok := iz.cp.GetConcreteType(name) // We treat the clone constructors and short struct constructors as builtins. TODO --- todon't.
 			if ok {
-				cpF.RtnTypes = altType(typeNumber)
+				cpFn.RtnTypes = altType(typeNumber)
 			}
 		}
-		cpF.Builtin = name
+		cpFn.Builtin = name
 	case token.GOCODE:
-		cpF.GoNumber = uint32(len(iz.cp.Vm.GoFns))
-		cpF.HasGo = true
-		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: body.(*ast.GolangExpression).GoFunction})
+		cpFn.GoNumber = uint32(len(iz.cp.Vm.GoFns))
+		cpFn.HasGo = true
+		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: izFn.body.(*ast.GolangExpression).GoFunction})
 	case token.XCALL:
 	default:
 		areWeTracking := compiler.LF_NONE
 		if iz.cp.GetTrackingScope() == 2 {
 			areWeTracking = compiler.LF_TRACK
 		}
-		if given != nil {
+		if izFn.given != nil {
 			iz.cp.ThunkList = []compiler.ThunkData{}
-			givenContext := compiler.Context{fnenv, functionName, compiler.DEF, false, nil, cpF.LoReg, areWeTracking, compiler.LF_NONE, altType()}
-			iz.cp.CompileGivenBlock(given, givenContext)
-			cpF.CallTo = iz.cp.CodeTop()
+			givenContext := compiler.Context{fnenv, functionName, compiler.DEF, false, nil, cpFn.LoReg, areWeTracking, compiler.LF_NONE, altType()}
+			iz.cp.CompileGivenBlock(izFn.given, givenContext)
+			cpFn.CallTo = iz.cp.CodeTop()
 			if len(iz.cp.ThunkList) > 0 {
-				iz.cp.Cm("Initializing thunks for outer function.", body.GetToken())
+				iz.cp.Cm("Initializing thunks for outer function.", &izFn.op)
 			}
 			for _, thunks := range iz.cp.ThunkList {
 				iz.cp.Emit(vm.Thnk, thunks.Dest, thunks.Value.MLoc, thunks.Value.CAddr)
@@ -2456,45 +2451,45 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		// 'stringify' is secret sauce, users aren't meant to know it exists. TODO --- conceal it better.
 
 		trackingOn := areWeTracking == compiler.LF_TRACK && (functionName != "stringify")
-		log, nodeHasLog := body.(*ast.LogExpression)
+		log, nodeHasLog := izFn.body.(*ast.LogExpression)
 		autoOn := nodeHasLog && log.Token.Type == token.PRELOG && log.Value == ""
 		if trackingOn || autoOn {
-			iz.cp.TrackOrLog(vm.TR_FNCALL, trackingOn, autoOn, node.GetToken(), functionName, sig, cpF.LoReg)
+			iz.cp.TrackOrLog(vm.TR_FNCALL, trackingOn, autoOn, node.GetToken(), functionName, izFn.sig, cpFn.LoReg)
 		}
 		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
 
 		}
-		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE, altType()}
-		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
+		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(izFn.callInfo.ReturnTypes), cpFn.LoReg, areWeTracking, compiler.LF_NONE, altType()}
+		cpFn.RtnTypes, _ = iz.cp.CompileNode(izFn.body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		if len(paramChecks) > 0 {
-			cpF.RtnTypes = cpF.RtnTypes.Union(altType(values.ERROR))
+			cpFn.RtnTypes = cpFn.RtnTypes.Union(altType(values.ERROR))
 		}
-		cpF.OutReg = iz.cp.That()
+		cpFn.OutReg = iz.cp.That()
 
-		if rtnSig != nil && !(body.GetToken().Type == token.GOCODE) {
-			iz.cp.EmitTypeChecks(cpF.OutReg, cpF.RtnTypes, fnenv, rtnSig, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES, bodyContext)
+		if izFn.callInfo.ReturnTypes != nil && !(izFn.body.GetToken().Type == token.GOCODE) {
+			iz.cp.EmitTypeChecks(cpFn.OutReg, cpFn.RtnTypes, fnenv, izFn.callInfo.ReturnTypes, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES, bodyContext)
 		}
 		iz.cp.VmComeFrom(paramChecks...)
 		iz.cp.Emit(vm.Ret)
 	}
-	iz.cp.Fns = append(iz.cp.Fns, &cpF)
-	if ac == compiler.DEF && !cpF.RtnTypes.IsLegalDefReturn() {
+	iz.cp.Fns = append(iz.cp.Fns, &cpFn)
+	if ac == compiler.DEF && !cpFn.RtnTypes.IsLegalDefReturn() {
 		iz.P.Throw("comp/return/def", node.GetToken())
 	}
-	if ac == compiler.CMD && !cpF.RtnTypes.IsLegalCmdReturn() {
+	if ac == compiler.CMD && !cpFn.RtnTypes.IsLegalCmdReturn() {
 		iz.P.Throw("comp/return/cmd", node.GetToken())
 	}
-	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpF)
+	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpFn)
 
 	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
 
 	if functionName == "stringify" {
-		iz.cp.Vm.StringifyLoReg = cpF.LoReg
-		iz.cp.Vm.StringifyCallTo = cpF.CallTo
-		iz.cp.Vm.StringifyOutReg = cpF.OutReg
+		iz.cp.Vm.StringifyLoReg = cpFn.LoReg
+		iz.cp.Vm.StringifyCallTo = cpFn.CallTo
+		iz.cp.Vm.StringifyOutReg = cpFn.OutReg
 	}
 
-	return &cpF
+	return &cpFn
 }
 
 // We left DUMMY values in the code for where we'd call a function which fits the interface but
