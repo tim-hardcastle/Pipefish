@@ -107,7 +107,7 @@ func (iz *Initializer) makeAstSigFromTokenizedSig(ts parser.TokSig) ast.AstSig {
 }
 
 func (iz *Initializer) makeRetsFromTokenizedReturns(ts parser.TokReturns) ast.AstSig {
-	as := ast.AstSig{}
+	var as ast.AstSig
 	for _, ty := range ts {
 		as = append(as, ast.NameTypeAstPair{"", iz.makeTypeAstFromTokens(ty)})
 	}

@@ -2124,9 +2124,9 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedTypeInstances[dec.decNumber].env)
 				continue
 			case functionDeclaration:
-				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration)
+				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration, dec.decNumber)
 			case commandDeclaration:
-				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration)
+				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration, dec.decNumber)
 			}
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].callInfo.Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
@@ -2297,11 +2297,12 @@ func (iz *Initializer) compileTypecheck(name string, node ast.Node, newEnv *comp
 }
 
 // Method for compiling a top-level function.
-func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType) *compiler.CpFunc {
+func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType, decNo int) *compiler.CpFunc {
 	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
 		iz.cp.Fns = append(iz.cp.Fns, info.(*compiler.CpFunc))
 		return info.(*compiler.CpFunc)
 	}
+	fn := iz.parsedCode[dec][decNo].(*parsedFunction)
 	cpF := compiler.CpFunc{}
 	var ac compiler.CpAccess
 	if dec == functionDeclaration {
@@ -2311,7 +2312,19 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		cpF.Command = true
 	}
 	cpF.Private = private
-	functionName, _, sig, rtnSig, body, given := iz.P.ExtractPartsOfFunction(node)
+	functionName := fn.op.Literal
+	sig := fn.sig
+	given := fn.given
+	
+	_, _, _, rtnSig, body, _ := iz.P.ExtractPartsOfFunction(node)
+	// newRtn := fn.callInfo.ReturnTypes
+	// if newRtn != nil && rtnSig != nil && newRtn.String() != rtnSig.String() {
+	// 	old := rtnSig.GetVarType(0).(*ast.TypeSuffix)
+	// 	new := newRtn.GetVarType(0).(*ast.TypeSuffix)
+	// 	o2 := old.Left
+	// 	n2 := new.Left
+	// 	panic(functionName + ": " + old.String() + " " + reflect.TypeOf(o2).String() + "; " + new.String() + " " + reflect.TypeOf(n2).String() )
+	// }
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", body.GetToken())
 	if iz.ErrorsExist() {
 		return nil

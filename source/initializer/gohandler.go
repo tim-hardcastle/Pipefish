@@ -80,18 +80,26 @@ func (iz *Initializer) compileGo() {
 
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i, _ := range iz.ParsedDeclarations[j] {
-			functionName, position, sig, rTypes, body, given := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
+			_, _, _, _, body, _ := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[j][i])
 			if iz.ErrorsExist() {
 				return
 			}
+			fn := iz.parsedCode[j][i].(*parsedFunction)
 			if body.GetToken().Type == token.GOCODE {
-				functionToAdd := &ast.PrsrFunction{FName: functionName, NameSig: sig, Position: position, Body: body, Given: given,
-					Cmd: j == commandDeclaration, Private: iz.IsPrivate(int(j), i), CallInfo: &compiler.CallInfo{iz.cp, DUMMY, rTypes}, Tok: body.GetToken()}
-				functionToAdd.Body = body
+				functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: uint32(fn.pos), Body: fn.body, Given: fn.given,
+					Cmd: fn.decType == commandDeclaration, Private: fn.private, CallInfo: fn.callInfo, Tok: &fn.op}
+					
+				oldBody := body.(*ast.GolangExpression)
+				//newBody := fn.body.(*ast.GolangExpression)
+				//newerBody := *oldBody
+
+			
+				functionToAdd.Body = oldBody
+				
+			
+				
 				iz.goBucket.sources.Add(functionToAdd.Body.GetToken().Source)
 				iz.goBucket.functions[functionToAdd.Body.GetToken().Source] = append(iz.goBucket.functions[functionToAdd.Body.GetToken().Source], functionToAdd)
-				body.(*ast.GolangExpression).Sig = sig
-				body.(*ast.GolangExpression).ReturnTypes = rTypes
 			}
 		}
 	}

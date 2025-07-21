@@ -171,8 +171,6 @@ func (fe *FuncExpression) String() string {
 type GolangExpression struct {
 	Token       token.Token
 	GoFunction  reflect.Value
-	Sig         AstSig // TODO --- there's no reason why this and the following should be in a runtime object.
-	ReturnTypes AstSig
 }
 
 func (ge *GolangExpression) Children() []Node       { return []Node{} }

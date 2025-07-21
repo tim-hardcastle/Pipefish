@@ -122,7 +122,6 @@ func (iz *Initializer) SerializeApi() string {
 				buf.WriteString(" | ")
 				buf.WriteString(iz.cp.Vm.Labels[lb])
 				buf.WriteString(" ")
-				println(iz.cp.Vm.ConcreteTypeInfo[ty].GetName(vm.DEFAULT), iz.cp.Vm.Labels[lb], i)
 				buf.WriteString(iz.serializeAbstractType(iz.cp.Vm.ConcreteTypeInfo[ty].(vm.StructType).AbstractStructFields[i]))
 			}
 			buf.WriteString("\n")
