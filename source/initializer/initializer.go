@@ -2315,16 +2315,9 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	functionName := fn.op.Literal
 	sig := fn.sig
 	given := fn.given
+	rtnSig := fn.callInfo.ReturnTypes
 	
-	_, _, _, rtnSig, body, _ := iz.P.ExtractPartsOfFunction(node)
-	// newRtn := fn.callInfo.ReturnTypes
-	// if newRtn != nil && rtnSig != nil && newRtn.String() != rtnSig.String() {
-	// 	old := rtnSig.GetVarType(0).(*ast.TypeSuffix)
-	// 	new := newRtn.GetVarType(0).(*ast.TypeSuffix)
-	// 	o2 := old.Left
-	// 	n2 := new.Left
-	// 	panic(functionName + ": " + old.String() + " " + reflect.TypeOf(o2).String() + "; " + new.String() + " " + reflect.TypeOf(n2).String() )
-	// }
+	_, _, _, _, body, _ := iz.P.ExtractPartsOfFunction(node)
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+sig.String()+".", body.GetToken())
 	if iz.ErrorsExist() {
 		return nil
@@ -2470,7 +2463,6 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
 
 		}
-		// Now the main body of the function, just as a lagniappe.
 		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(rtnSig), cpF.LoReg, areWeTracking, compiler.LF_NONE, altType()}
 		cpF.RtnTypes, _ = iz.cp.CompileNode(body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
 		if len(paramChecks) > 0 {

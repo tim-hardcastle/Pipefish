@@ -207,7 +207,7 @@ type ParserData struct {
 // of another just if all the concrete types making up the former are found in the latter.
 type TypeSys map[string]values.AbstractType
 
-func (p *Parser) parseExpression(precedence int) ast.Node {
+func (p *Parser) ParseExpression(precedence int) ast.Node {
 
 	if literals.Contains(p.CurToken.Type) && literalsAndLParen.Contains(p.PeekToken.Type) {
 		p.Throw("parse/before/a", &p.CurToken, &p.PeekToken)
@@ -299,8 +299,8 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					p.NextToken()
 					p.pushRParser(resolvingParser)
 					p.CurrentNamespace = nil
-					typeArgsNode := p.parseExpression(FPREFIX)
-					typeArgs = p.recursivelyListify(typeArgsNode)
+					typeArgsNode := p.ParseExpression(FPREFIX)
+					typeArgs = p.RecursivelyListify(typeArgsNode)
 					p.popRParser()
 					if p.PeekToken.Type == token.RBRACE {
 						p.NextToken()
@@ -314,12 +314,12 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					p.pushRParser(resolvingParser)
 					p.CurrentNamespace = nil
 					if p.CurToken.Type == token.LPAREN || p.CurToken.Type == token.LBRACK {
-						right = p.parseExpression(MINUS)
+						right = p.ParseExpression(MINUS)
 					} else {
-						right = p.parseExpression(FPREFIX)
+						right = p.ParseExpression(FPREFIX)
 					}
 					p.popRParser()
-					args := p.recursivelyListify(right)
+					args := p.RecursivelyListify(right)
 					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, Namespace: []string{}, TypeArgs: typeArgs}
 				} else {
 					leftExp = &ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs}
@@ -389,10 +389,10 @@ func (p *Parser) parseExpression(precedence int) ast.Node {
 					leftExp = &ast.SuffixExpression{
 						Token:    p.CurToken,
 						Operator: p.CurToken.Literal,
-						Args:     p.recursivelyListify(leftExp),
+						Args:     p.RecursivelyListify(leftExp),
 					}
 				} else {
-					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.recursivelyListify(leftExp), []string{}}
+					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.RecursivelyListify(leftExp), []string{}}
 				}
 			} else {
 				p.NextToken()
@@ -468,7 +468,7 @@ func (p *Parser) parseAssignmentExpression(left ast.Node) ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.ParseExpression(precedence)
 	return expression
 }
 
@@ -480,7 +480,7 @@ func (p *Parser) parseBreak() ast.Node {
 	if p.isPositionallyFunctional() {
 		t := p.CurToken
 		p.NextToken()                  // Skips the 'break' token
-		exp := p.parseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
+		exp := p.ParseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
 		return &ast.PrefixExpression{t, "break", []ast.Node{exp}, []string{}}
 	}
 	return &ast.Identifier{Token: p.CurToken, Value: "break"}
@@ -508,7 +508,7 @@ func (p *Parser) parseComparisonExpression(left ast.Node) ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.ParseExpression(precedence)
 	return expression
 }
 
@@ -544,14 +544,14 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 	// We handle the 'for :' as "while true" case.
 	if p.CurToken.Type == token.COLON {
 		p.NextToken()
-		expression.Body = p.parseExpression(COLON)
+		expression.Body = p.ParseExpression(COLON)
 		if p.ErrorsExist() {
 			return nil
 		}
 		return expression
 	}
 
-	pieces := p.parseExpression(GIVEN)
+	pieces := p.ParseExpression(GIVEN)
 	if p.ErrorsExist() {
 		return nil
 	}
@@ -583,7 +583,7 @@ func (p *Parser) parseFromExpression() ast.Node {
 	p.CurrentNamespace = nil
 	fromToken := p.CurToken
 	p.NextToken()
-	expression := p.parseExpression(LOWEST)
+	expression := p.ParseExpression(LOWEST)
 	if p.ErrorsExist() {
 		return nil
 	}
@@ -610,11 +610,11 @@ func (p *Parser) parseFunctionExpression() ast.Node {
 	p.NextToken()
 	var right ast.Node
 	if p.CurToken.Type == token.LPAREN || expression.Operator == "-" {
-		right = p.parseExpression(MINUS)
+		right = p.ParseExpression(MINUS)
 	} else {
-		right = p.parseExpression(FPREFIX)
+		right = p.ParseExpression(FPREFIX)
 	}
-	expression.Args = p.recursivelyListify(right)
+	expression.Args = p.RecursivelyListify(right)
 	return expression
 }
 
@@ -631,7 +631,7 @@ func (p *Parser) parseGroupedExpression() ast.Node {
 	if p.CurToken.Type == token.RPAREN { // Then what we must have is an empty tuple.
 		return &ast.Nothing{Token: p.CurToken}
 	}
-	exp := p.parseExpression(LOWEST)
+	exp := p.ParseExpression(LOWEST)
 	if !p.expectPeek(token.RPAREN) {
 		p.NextToken() // Forces emission of the error.
 		return nil
@@ -652,14 +652,14 @@ func (p *Parser) parseIfLogExpression(left ast.Node) ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.ParseExpression(precedence)
 	return expression
 }
 
 func (p *Parser) parseIndexExpression(left ast.Node) ast.Node {
 	exp := &ast.IndexExpression{Token: p.CurToken, Left: left}
 	p.NextToken()
-	exp.Index = p.parseExpression(LOWEST)
+	exp.Index = p.ParseExpression(LOWEST)
 	if !p.expectPeek(token.RBRACK) {
 		p.NextToken() // Forces emission of error
 		return nil
@@ -679,7 +679,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 		newTok.Type = token.GVN_ASSIGN
 		newTok.Literal = "="
 		p.NextToken()
-		right := p.parseExpression(FUNC)
+		right := p.ParseExpression(FUNC)
 		fn := &ast.FuncExpression{Token: newTok}
 		expression := &ast.AssignmentExpression{Token: newTok}
 		switch left := left.(type) {
@@ -720,14 +720,14 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	right := p.parseExpression(precedence)
+	right := p.ParseExpression(precedence)
 	if expression.Operator == "," {
 		expression.Args = []ast.Node{left, &ast.Bling{Value: expression.Operator, Token: expression.Token}, right}
 		return expression
 	}
-	expression.Args = p.recursivelyListify(left)
+	expression.Args = p.RecursivelyListify(left)
 	expression.Args = append(expression.Args, &ast.Bling{Value: expression.Operator, Token: expression.Token})
-	rightArgs := p.recursivelyListify(right)
+	rightArgs := p.RecursivelyListify(right)
 	expression.Args = append(expression.Args, rightArgs...)
 	return expression
 }
@@ -757,7 +757,7 @@ func (p *Parser) parseLambdaExpression() ast.Node {
 		Token: p.CurToken,
 	}
 	p.NextToken()
-	RHS := p.parseExpression(WEAK_COLON)
+	RHS := p.ParseExpression(WEAK_COLON)
 	// At this point the root of the RHS should be the colon dividing the function sig from its body.
 	root := RHS
 	if root.GetToken().Type != token.COLON {
@@ -787,7 +787,7 @@ func (p *Parser) parseLazyInfixExpression(left ast.Node) ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.ParseExpression(precedence)
 	return expression
 }
 
@@ -796,7 +796,7 @@ func (p *Parser) parseListExpression() ast.Node {
 	if p.CurToken.Type == token.RBRACK { // Deals with the case where the list is []
 		return &ast.ListExpression{List: &ast.Nothing{Token: p.CurToken}, Token: p.CurToken}
 	}
-	exp := p.parseExpression(LOWEST)
+	exp := p.ParseExpression(LOWEST)
 	if !p.expectPeek(token.RBRACK) {
 		p.NextToken() // Forces emission of error.
 		return nil
@@ -822,7 +822,7 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 	}
 	name := left.GetToken().Literal
 	p.CurrentNamespace = append(p.CurrentNamespace, name)
-	right := p.parseExpression(NAMESPACE)
+	right := p.ParseExpression(NAMESPACE)
 	if p.ErrorsExist() {
 		return nil
 	}
@@ -863,7 +863,7 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 	}
 	prefix := p.CurToken
 	p.NextToken()
-	right := p.parseExpression(precedences[prefix.Type])
+	right := p.ParseExpression(precedences[prefix.Type])
 	if right == nil {
 		p.Throw("parse/follow", &prefix)
 	}
@@ -879,8 +879,8 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 	}
 	p.NextToken()
 	p.CurrentNamespace = nil
-	node := p.parseExpression(FPREFIX)
-	expression.Args = p.recursivelyListify(node)
+	node := p.ParseExpression(FPREFIX)
+	expression.Args = p.RecursivelyListify(node)
 	return expression
 }
 
@@ -892,7 +892,7 @@ func (p *Parser) parsePrelogExpression() ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.ParseExpression(precedence)
 	return expression
 }
 
@@ -910,7 +910,7 @@ func (p *Parser) parseStreamingExpression(left ast.Node) ast.Node {
 	}
 	precedence := p.curPrecedence()
 	p.NextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.ParseExpression(precedence)
 	expression.Right = p.recursivelyDesugarAst(expression.Right)
 	return expression
 }
@@ -956,7 +956,7 @@ func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
 	expression := &ast.SuffixExpression{
 		Token:    p.CurToken,
 		Operator: p.CurToken.Literal,
-		Args:     p.recursivelyListify(left),
+		Args:     p.RecursivelyListify(left),
 	}
 	return expression
 }
@@ -965,7 +965,7 @@ func (p *Parser) parseTryExpression() ast.Node {
 	p.NextToken()
 	if p.CurToken.Type == token.COLON {
 		p.NextToken()
-		exp := p.parseExpression(COLON)
+		exp := p.ParseExpression(COLON)
 		return &ast.TryExpression{Token: p.CurToken, Right: exp, VarName: ""}
 	}
 	if p.CurToken.Type == token.IDENT {
@@ -975,7 +975,7 @@ func (p *Parser) parseTryExpression() ast.Node {
 			p.Throw("parse/try/colon", &p.CurToken)
 		}
 		p.NextToken()
-		exp := p.parseExpression(COLON)
+		exp := p.ParseExpression(COLON)
 		return &ast.TryExpression{Token: p.CurToken, Right: exp, VarName: varName}
 	} else {
 		p.Throw("parse/try/ident", &p.CurToken)
@@ -990,12 +990,12 @@ func (p *Parser) parseUnfixExpression() ast.Node {
 
 // This takes the arguments at the call site of a function and puts them
 // into a list for us.
-func (p *Parser) recursivelyListify(start ast.Node) []ast.Node {
+func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 	switch start := start.(type) {
 	case *ast.InfixExpression:
 		if start.Operator == "," {
-			left := p.recursivelyListify(start.Args[0])
-			left = append(left, p.recursivelyListify(start.Args[2])...)
+			left := p.RecursivelyListify(start.Args[0])
+			left = append(left, p.RecursivelyListify(start.Args[2])...)
 			return left
 		}
 		if p.Midfixes.Contains(start.Operator) {
@@ -1147,7 +1147,7 @@ func (p *Parser) ParseTokenizedChunk() ast.Node {
 	p.nesting = *dtypes.NewStack[token.Token]()
 	p.SafeNextToken()
 	p.SafeNextToken()
-	expn := p.parseExpression(LOWEST)
+	expn := p.ParseExpression(LOWEST)
 	p.NextToken()
 	if p.CurToken.Type != token.EOF {
 		p.Throw("parse/expected", &p.CurToken)

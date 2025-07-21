@@ -109,9 +109,32 @@ func (iz *Initializer) makeAstSigFromTokenizedSig(ts parser.TokSig) ast.AstSig {
 func (iz *Initializer) makeRetsFromTokenizedReturns(ts parser.TokReturns) ast.AstSig {
 	var as ast.AstSig
 	for _, ty := range ts {
-		as = append(as, ast.NameTypeAstPair{"", iz.makeTypeAstFromTokens(ty)})
+		as = append(as, ast.NameTypeAstPair{"", iz.makeReturnTypeFromTokens(ty)})
 	}
 	return as
+}
+
+// If this has {...} in it, this could be anything, it's a type expression.
+func (iz *Initializer) makeReturnTypeFromTokens(toks []token.Token) ast.TypeNode {
+	var nilRtn ast.TypeNode
+	if len(toks) == 0 {
+		return nilRtn
+	}
+	if len(toks) == 1 {
+		return &ast.TypeWithName{toks[0], toks[0].Literal}
+	}
+	if toks[1].Type == token.LBRACE {
+		ts := token.MakeCodeChunk(toks[2:len(toks)-1], false)
+		if ts.Length() == 0 {
+			iz.P.Throw("init/interface/self", &toks[0])
+			return values.MakeAbstractType()
+		}
+		iz.P.PrimeWithTokenSupplier(ts)
+		typeArgsNode := iz.P.ParseExpression(parser.LOWEST)
+		typeArgs := iz.P.RecursivelyListify(typeArgsNode)				
+		return &ast.TypeExpression{Token: toks[0], Operator: toks[0].Literal, Namespace: []string{}, TypeArgs: typeArgs}
+	}
+	return iz.makeTypeAstFromTokens(toks)
 }
 
 func (iz *Initializer) makeTypeAstFromTokens(toks []token.Token) ast.TypeNode {
