@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/text"
@@ -48,7 +47,7 @@ var counter int // This variable is used to make a unique filename for each goco
 type GoBucket struct {
 	sources   dtypes.Set[string]
 	imports   map[string][]string
-	functions map[string][]*ast.PrsrFunction
+	functions map[string][]*parsedFunction
 	pureGo    map[string][]string
 }
 
@@ -56,7 +55,7 @@ func (iz *Initializer) newGoBucket() {
 	gb := GoBucket{
 		sources:   make(dtypes.Set[string]),
 		imports:   make(map[string][]string),
-		functions: make(map[string][]*ast.PrsrFunction),
+		functions: make(map[string][]*parsedFunction),
 		pureGo:    make(map[string][]string),
 	}
 	iz.goBucket = &gb
@@ -81,12 +80,9 @@ func (iz *Initializer) compileGo() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for i, _ := range iz.ParsedDeclarations[j] {
 			fn := iz.parsedCode[j][i].(*parsedFunction)
-			body := fn.body
-			if body.GetToken().Type == token.GOCODE {
-				functionToAdd := &ast.PrsrFunction{FName: fn.op.Literal, NameSig: fn.sig, Position: uint32(fn.pos), Body: fn.body, Given: fn.given,
-					Cmd: fn.decType == commandDeclaration, Private: fn.private, CallInfo: fn.callInfo, Tok: &fn.op}
-				iz.goBucket.sources.Add(functionToAdd.Body.GetToken().Source)
-				iz.goBucket.functions[functionToAdd.Body.GetToken().Source] = append(iz.goBucket.functions[functionToAdd.Body.GetToken().Source], functionToAdd)
+			if fn.body.GetToken().Type == token.GOCODE {
+				iz.goBucket.sources.Add(fn.op.Source)
+				iz.goBucket.functions[fn.op.Source] = append(iz.goBucket.functions[fn.op.Source], fn)
 			}
 		}
 	}
@@ -145,12 +141,12 @@ func (iz *Initializer) compileGo() {
 		// in the common parser bindle. I.e. we are returning our result by mutating the
 		// functions.
 		for _, function := range iz.goBucket.functions[source] {
-			goFunction, _ := plugins.Lookup(text.Capitalize(function.FName))
-			function.Body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
-			for i, pair := range function.NameSig {
+			goFunction, _ := plugins.Lookup(text.Capitalize(function.op.Literal))
+			function.body.(*ast.GolangExpression).GoFunction = reflect.ValueOf(goFunction)
+			for i, pair := range function.sig {
 				if _, ok := pair.VarType.(*ast.TypeDotDotDot); ok {
-					if i < function.NameSig.Len()-1 {
-						iz.Throw("golang/variadic", function.Tok)
+					if i < function.sig.Len()-1 {
+						iz.Throw("golang/variadic", &function.op)
 					}
 				}
 			}
@@ -195,13 +191,13 @@ func (iz *Initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	// TODO --- do we need guards here on the types?
 	userDefinedTypes := make(dtypes.Set[string])
 	for _, function := range iz.goBucket.functions[source] {
-		for _, v := range function.NameSig {
+		for _, v := range function.sig {
 			name := text.WithoutDots(v.VarType.String())
 			if !iz.cp.IsBuiltin(name) && name != "any" && name != "any?" {
 				userDefinedTypes.Add(text.WithoutDots(name))
 			}
 		}
-		for _, v := range function.CallInfo.(*compiler.CallInfo).ReturnTypes {
+		for _, v := range function.callInfo.ReturnTypes {
 			if !iz.cp.IsBuiltin(v.VarType.String()) {
 				userDefinedTypes.Add(v.VarType.String())
 			}

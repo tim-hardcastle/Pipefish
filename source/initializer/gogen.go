@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
@@ -120,22 +119,22 @@ func (iz *Initializer) convertFieldTypeFromPfToGo(aT values.AbstractType) string
 }
 
 // Since the signatures of each function is written in Pipefish, we must give each one a signature in Go.
-func (iz *Initializer) generateGoFunctionCode(sb *strings.Builder, function *ast.PrsrFunction) {
-	fmt.Fprint(sb, "func ", text.Capitalize(function.FName))
-	iz.printSig(sb, function.NameSig, *function.Tok)
-	switch len(function.CallInfo.(*compiler.CallInfo).ReturnTypes) {
+func (iz *Initializer) generateGoFunctionCode(sb *strings.Builder, function *parsedFunction) {
+	fmt.Fprint(sb, "func ", text.Capitalize(function.op.Literal))
+	iz.printSig(sb, function.sig, function.op)
+	switch len(function.callInfo.ReturnTypes) {
 	case 0:
 		fmt.Fprint(sb, "any ")
 	case 1:
-		goType, ok := getGoTypeFromTypeAst(function.CallInfo.(*compiler.CallInfo).ReturnTypes[0].VarType)
+		goType, ok := getGoTypeFromTypeAst(function.callInfo.ReturnTypes[0].VarType)
 		if !ok {
-			iz.Throw("golang/type/a", function.Tok, function.CallInfo.(*compiler.CallInfo).ReturnTypes[0].VarType)
+			iz.Throw("golang/type/a", &function.op, function.callInfo.ReturnTypes[0].VarType)
 		}
 		fmt.Fprint(sb, goType, " ")
 	default:
-		iz.printSig(sb, function.CallInfo.(*compiler.CallInfo).ReturnTypes, *function.Tok)
+		iz.printSig(sb, function.callInfo.ReturnTypes, *&function.op)
 	}
-	fmt.Fprint(sb, "{", function.Body.GetToken().Literal, "\n\n")
+	fmt.Fprint(sb, "{", function.body.GetToken().Literal, "\n\n")
 }
 
 func (iz *Initializer) printSig(sb *strings.Builder, sig ast.AstSig, tok token.Token) {
