@@ -2124,9 +2124,9 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedTypeInstances[dec.decNumber].env)
 				continue
 			case functionDeclaration:
-				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalConsts, functionDeclaration, dec.decNumber)
+				iz.compileFunction(functionDeclaration, dec.decNumber, iz.cp.GlobalConsts)
 			case commandDeclaration:
-				iz.compileFunction(dec.chunk, iz.IsPrivate(int(dec.decType), dec.decNumber), iz.cp.GlobalVars, commandDeclaration, dec.decNumber)
+				iz.compileFunction(commandDeclaration, dec.decNumber, iz.cp.GlobalVars)
 			}
 			iz.fnIndex[fnSource{dec.decType, dec.decNumber}].callInfo.Number = uint32(len(iz.cp.Fns) - 1) // TODO --- is this necessary given the line a little above which seems to do this pre-emptively?
 		}
@@ -2297,12 +2297,12 @@ func (iz *Initializer) compileTypecheck(name string, node ast.Node, newEnv *comp
 }
 
 // Method for compiling a top-level function.
-func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *compiler.Environment, dec declarationType, decNo int) *compiler.CpFunc {
-	if info, functionExists := iz.getDeclaration(decFUNCTION, node.GetToken(), DUMMY); functionExists {
+func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv *compiler.Environment) *compiler.CpFunc {
+	izFn := iz.parsedCode[dec][decNo].(*parsedFunction)
+	if info, functionExists := iz.getDeclaration(decFUNCTION, &izFn.op, DUMMY); functionExists {
 		iz.cp.Fns = append(iz.cp.Fns, info.(*compiler.CpFunc))
 		return info.(*compiler.CpFunc)
 	}
-	izFn := iz.parsedCode[dec][decNo].(*parsedFunction)
 	cpFn := compiler.CpFunc{}
 	var ac compiler.CpAccess
 	if dec == functionDeclaration {
@@ -2330,17 +2330,17 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	cpFn.LoReg = iz.cp.MemTop()
 	// First we do the local variables that are in the signature of the struct.
 	for _, pair := range izFn.sig {
-		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
+		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, &izFn.op)
 		if ast.IsRef(pair.VarType) {
-			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, node.GetToken())
+			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, &izFn.op)
 			continue
 		}
 		_, isVarargs := pair.VarType.(*ast.TypeDotDotDot)
 		if isVarargs {
-			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, node.GetToken())
+			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, &izFn.op)
 		} else {
 			if !ast.IsAstBling(pair.VarType) {
-				iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), node.GetToken())
+				iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), &izFn.op)
 			}
 		}
 	}
@@ -2360,23 +2360,23 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 				// type. If not, we skip the rest of the loop ...
 				if ok {
 					if variable.Access != compiler.TYPE_ARGUMENT {
-						iz.Throw("init/param/var", node.GetToken(), param.Name)
+						iz.Throw("init/param/var", &izFn.op, param.Name)
 						continue
 					}
 					if !compiler.Equals(variable.Types, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type)) {
-						iz.Throw("init/param/var", node.GetToken(), param.Name)
+						iz.Throw("init/param/var", &izFn.op, param.Name)
 						continue
 					}
 				}
 				// We use the 'vmap' to keep track of what type parameters have been declared
 				// and when, including duplicates.
-				iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
+				iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, &izFn.op)
 				if _, ok := vmap[param.Name]; !ok {
 					vmap[param.Name] = []uint32{iz.cp.That()}
 				} else {
 					vmap[param.Name] = append(vmap[param.Name], iz.cp.That())
 				}
-				iz.cp.AddVariable(fnenv, param.Name, compiler.TYPE_ARGUMENT, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type), node.GetToken())
+				iz.cp.AddVariable(fnenv, param.Name, compiler.TYPE_ARGUMENT, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type), &izFn.op)
 			}
 			variable, _ := fnenv.GetVar(pair.VarName)
 			iz.cp.Emit(vm.Yeet, yeetTo, variable.MLoc)
@@ -2386,7 +2386,7 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 	for k, locs := range vmap {
 		if len(locs) > 1 {
 			for _, v := range locs[1:] {
-				errLoc := iz.cp.ReserveError("vm/type/conflict", node.GetToken(), k)
+				errLoc := iz.cp.ReserveError("vm/type/conflict", &izFn.op, k)
 				iz.cp.Put(vm.Eqxx, locs[0], v, errLoc) // TODO: you have specialized versions of this for speed.
 				paramChecks = append(paramChecks, iz.cp.VmConditionalEarlyReturn(vm.Qfls, iz.cp.That(), errLoc))
 			}
@@ -2408,7 +2408,7 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		}
 	}
 	if foundTupleOrVarArgs {
-		cpFn.LocOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, node.GetToken())
+		cpFn.LocOfTupleAndVarargData = iz.cp.Reserve(values.INT_ARRAY, tupleData, &izFn.op)
 	} else {
 		cpFn.LocOfTupleAndVarargData = DUMMY
 	}
@@ -2454,7 +2454,7 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		log, nodeHasLog := izFn.body.(*ast.LogExpression)
 		autoOn := nodeHasLog && log.Token.Type == token.PRELOG && log.Value == ""
 		if trackingOn || autoOn {
-			iz.cp.TrackOrLog(vm.TR_FNCALL, trackingOn, autoOn, node.GetToken(), functionName, izFn.sig, cpFn.LoReg)
+			iz.cp.TrackOrLog(vm.TR_FNCALL, trackingOn, autoOn, &izFn.op, functionName, izFn.sig, cpFn.LoReg)
 		}
 		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
 
@@ -2467,19 +2467,19 @@ func (iz *Initializer) compileFunction(node ast.Node, private bool, outerEnv *co
 		cpFn.OutReg = iz.cp.That()
 
 		if izFn.callInfo.ReturnTypes != nil && !(izFn.body.GetToken().Type == token.GOCODE) {
-			iz.cp.EmitTypeChecks(cpFn.OutReg, cpFn.RtnTypes, fnenv, izFn.callInfo.ReturnTypes, ac, node.GetToken(), compiler.CHECK_RETURN_TYPES, bodyContext)
+			iz.cp.EmitTypeChecks(cpFn.OutReg, cpFn.RtnTypes, fnenv, izFn.callInfo.ReturnTypes, ac, &izFn.op, compiler.CHECK_RETURN_TYPES, bodyContext)
 		}
 		iz.cp.VmComeFrom(paramChecks...)
 		iz.cp.Emit(vm.Ret)
 	}
 	iz.cp.Fns = append(iz.cp.Fns, &cpFn)
 	if ac == compiler.DEF && !cpFn.RtnTypes.IsLegalDefReturn() {
-		iz.P.Throw("comp/return/def", node.GetToken())
+		iz.P.Throw("comp/return/def", &izFn.op)
 	}
 	if ac == compiler.CMD && !cpFn.RtnTypes.IsLegalCmdReturn() {
-		iz.P.Throw("comp/return/cmd", node.GetToken())
+		iz.P.Throw("comp/return/cmd", &izFn.op)
 	}
-	iz.setDeclaration(decFUNCTION, node.GetToken(), DUMMY, &cpFn)
+	iz.setDeclaration(decFUNCTION, &izFn.op, DUMMY, &cpFn)
 
 	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
 
