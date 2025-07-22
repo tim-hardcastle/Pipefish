@@ -1723,7 +1723,7 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 func (iz *Initializer) AddFieldsToStructsAndCheckForConsistency() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.MakeFunctionForests()
+		dependencyIz.AddFieldsToStructsAndCheckForConsistency()
 	}
 	iz.cmI("Adding abstract types of fields to structs.")
 	iz.addFieldsToStructs()

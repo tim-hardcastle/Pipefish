@@ -772,14 +772,3 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 	}
 }
 
-type PrsrFunction struct {
-	FName    string       // The name of the function.
-	NameSig  AstSig       // The sig in AstSig form.
-	Body     Node         // The body of the function.
-	Given    Node         // The 'given' block: nil if there isn't one.
-	Cmd      bool         // Whether it's a command or not.
-	Private  bool         // Whether it's private or not.
-	Position uint32       // PREFIX, INFIX, SUFFIX.
-	Tok      *token.Token // Where it was declared.
-	CallInfo any
-}
