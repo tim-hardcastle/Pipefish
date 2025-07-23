@@ -40,7 +40,6 @@ type Compiler struct {
 	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
-	ParameterizedTypes       map[string][]ParameterInfo         // Holds the definitions of parameterized types.
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.          
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
@@ -65,7 +64,6 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		Modules:                  make(map[string]*Compiler),
 		CallHandlerNumbersByName: make(map[string]uint32),
 		TypeToCloneGroup:         make(map[values.ValueType]AlternateType),
-		ParameterizedTypes:       make(map[string][]ParameterInfo),
 		TypeNameToTypeScheme:     INITIAL_TYPE_SCHEMES,
 		Common:                   ccb,
 		GeneratedAbstractTypes:   make(dtypes.Set[string]),
@@ -2871,39 +2869,3 @@ func (cp *Compiler) Store(k, v values.Value) {
 	cp.Vm.Mem[hubStore.MLoc].V = storeMap.Set(k, v)
 }
 
-type ParameterInfo struct {
-	Names      []string
-	Types      []values.ValueType
-	Operations []token.Token
-	Typecheck  *token.TokenizedCodeChunk
-	ParentType string     // 'struct' if not a clone
-	Sig        ast.AstSig // nil if not a struct (because the sig of a clone is implicit in the parent type).
-	IsPrivate  bool
-	Supertype  string
-	Token      *token.Token
-}
-
-// TODO --- there should be more performant ways of doing this but for now I'll just
-// settle for it working.
-func (cp *Compiler) FindParameterizedType(name string, argsToCheck []values.Value) values.ValueType {
-	argIndex := DUMMY
-	for i, parType := range cp.ParameterizedTypes[name] {
-		if valueTypesMatch(argsToCheck, parType.Types) {
-			argIndex = i
-			break
-		}
-	}
-	return values.ValueType(argIndex)
-}
-
-func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) bool {
-	if len(argsToCheck) != len(paramTypes) {
-		return false
-	}
-	for i, v := range argsToCheck {
-		if v.T != paramTypes[i] {
-			return false
-		}
-	}
-	return true
-}

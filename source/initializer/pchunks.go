@@ -45,6 +45,15 @@ type parsedTypecheck struct {
 	body       ast.Node
 }
 
+// When a parameterized type is instantiated, we monomorphize the typechecking because it
+// would be a waste of time to e.g. keep fetching the '3' to check that things are in a
+// type Vec{3}, etc.
+type parsedTypeInstance struct {
+	typeCheck       *parsedTypecheck      // Points to an instance of the struct above, where the parameterized types were declared.
+	instantiatedAt  *token.Token          // The place in the code (or one of the places) where the type instance is named.
+	env             *compiler.Environment // The values for the parameters, already put into an environment as named constants, ready for compilation.
+}
+
 var PARSEABLE = []declarationType{cloneDeclaration, structDeclaration, constantDeclaration,
 	variableDeclaration, functionDeclaration, commandDeclaration}
 

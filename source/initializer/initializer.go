@@ -51,16 +51,21 @@ type Initializer struct {
 	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
+	
+	functionTable functionTable   // Intermediate step towards constructing the FunctinTree used by the compiler.
+	
+    // Holds the definitions of parameterized types.
+	parameterizedTypes       map[string][]ParameterInfo         
 	// This contains information about the operators of parameterized types, e.g. Z.
 	typeOperators map[string]typeOperatorInfo
-	// This contains information about the parameterized types that we're going to instantiate when
-	// we scrape them out of signatures and 'make' statements.
-	parameterizedTypesToDeclare map[string]typeInstantiationInfo
-	// Whereas these contain information about the instances of the types after we've created them,
-	// e.g. Z{5}, Z{12}.
-	parameterizedTypeMap       map[string]int              // Maps names to the numbered type instances below.
-	parameterizedTypeInstances []parameterizedTypeInstance // Stores information we need to compile the runtime typechecks on parameterized type instances.
-	functionTable functionTable
+	// This contains information about the parameterized types that we're going to instantiate, which
+	// we scrape out of signatures and 'make' statements. etc.
+	parameterizedInstancesToDeclare map[string]typeInstantiationInfo
+	// Maps names to the numbered type instances below.
+	parameterizedInstanceMap       map[string]int    
+	// Stores information we need to compile the runtime typechecks on parameterized type instances.          
+	parameterizedTypeInstances []parameterizedTypeInstance 
+	
 }
 
 // Makes a new initializer.
@@ -69,12 +74,13 @@ func NewInitializer() *Initializer {
 		initializers:                make(map[string]*Initializer),
 		localConcreteTypes:          make(dtypes.Set[values.ValueType]),
 		unserializableTypes:         make(dtypes.Set[string]),
-		typeOperators:               make(map[string]typeOperatorInfo),
-		parameterizedTypesToDeclare: make(map[string]typeInstantiationInfo),
-		parameterizedTypeMap:        make(map[string]int),
-		parameterizedTypeInstances:  make([]parameterizedTypeInstance, 0),
 		tokenizedCode:               make([][]tokenizedCode, 14),
 		functionTable:               make(functionTable),
+		typeOperators:               make(map[string]typeOperatorInfo),
+		parameterizedInstancesToDeclare: make(map[string]typeInstantiationInfo),
+		parameterizedTypes:          make(map[string][]ParameterInfo),
+		parameterizedInstanceMap:        make(map[string]int),
+		parameterizedTypeInstances:  make([]parameterizedTypeInstance, 0),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -1103,8 +1109,8 @@ func (iz *Initializer) createStructLabels() {
 		if len(dec.params) > 0 {
 			ty := iz.makeTypeWithParameters(dec.op, dec.params)
 			argIndex := iz.paramTypeExists(ty)
-			iz.cp.ParameterizedTypes[ty.Name][argIndex].Sig = sig
-			iz.cp.ParameterizedTypes[ty.Name][argIndex].Typecheck = dec.body
+			iz.parameterizedTypes[ty.Name][argIndex].Sig = sig
+			iz.parameterizedTypes[ty.Name][argIndex].Typecheck = dec.body
 			continue
 		}
 		typeNo := iz.structDeclarationNumberToTypeNumber[i]
@@ -1157,7 +1163,7 @@ func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexTok 
 }
 
 func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []token.Token, typeCheck *token.TokenizedCodeChunk, parentType string, private bool, tok *token.Token) bool {
-	info, ok := iz.cp.ParameterizedTypes[name]
+	info, ok := iz.parameterizedTypes[name]
 	if ok {
 		if iz.paramTypeExists(ty) == DUMMY { // TODO --- why?
 			return false
@@ -1167,16 +1173,16 @@ func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	blankType.Name = name
 	supertype := blankType.String()
 	iz.cp.GeneratedAbstractTypes.Add(supertype)
-	thingToAdd := compiler.ParameterInfo{iz.astParamsToNames(ty.Parameters),
+	thingToAdd := ParameterInfo{iz.astParamsToNames(ty.Parameters),
 		iz.astParamsToValueTypes(ty.Parameters), opList,
 		typeCheck, parentType, nil, private, supertype, tok}
 	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
 	if ok {
 		info = append(info, thingToAdd)
-		iz.cp.ParameterizedTypes[name] = info
+		iz.parameterizedTypes[name] = info
 	} else {
-		info = []compiler.ParameterInfo{thingToAdd}
-		iz.cp.ParameterizedTypes[name] = info
+		info = []ParameterInfo{thingToAdd}
+		iz.parameterizedTypes[name] = info
 		iz.cp.P.ParameterizedTypes = iz.cp.P.ParameterizedTypes.Add(name)
 	}
 	return true
@@ -1184,7 +1190,7 @@ func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 
 func (iz *Initializer) paramTypeExists(ty *ast.TypeWithParameters) int {
 	typesToMatch := iz.astParamsToValueTypes(ty.Parameters)
-	for i, pty := range iz.cp.ParameterizedTypes[ty.Name] {
+	for i, pty := range iz.parameterizedTypes[ty.Name] {
 		if iz.ParameterTypesMatch(typesToMatch, pty.Types) {
 			return i
 		}
@@ -1293,13 +1299,13 @@ loop:
 				iz.Throw("init/make/instance", &tokType[0])
 				continue loop
 			} else {
-				iz.parameterizedTypesToDeclare[ty.String()] =
+				iz.parameterizedInstancesToDeclare[ty.String()] =
 					typeInstantiationInfo{ty, dec.private}
 			}
 		}
 	}
 	// Now everything we need to declare is in iz.parameterizedTypesToDeclare.
-	for _, info := range iz.parameterizedTypesToDeclare {
+	for _, info := range iz.parameterizedInstancesToDeclare {
 		ty := info.ty
 		private := info.private
 		// The parser doesn't know the types and values of enums, 'cos of being a
@@ -1311,12 +1317,12 @@ loop:
 				ty.Arguments[i].Value = w.V
 			}
 		}
-		argIndex := iz.cp.FindParameterizedType(ty.Name, ty.Values())
+		argIndex := iz.FindParameterizedType(ty.Name, ty.Values())
 		if argIndex == DUMMY {
 			iz.Throw("init/type/args", &ty.Token)
 			continue
 		}
-		parTypeInfo := iz.cp.ParameterizedTypes[ty.Name][argIndex]
+		parTypeInfo := iz.parameterizedTypes[ty.Name][argIndex]
 		isClone := !(parTypeInfo.ParentType == "struct")
 		newEnv := compiler.NewEnvironment()
 		vals := []values.Value{}
@@ -1359,8 +1365,8 @@ loop:
 		} else {
 			iz.typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
 		}
-		if _, ok := iz.parameterizedTypeMap[newTypeName]; !ok {
-			iz.parameterizedTypeMap[newTypeName] = len(iz.parameterizedTypeInstances)
+		if _, ok := iz.parameterizedInstanceMap[newTypeName]; !ok {
+			iz.parameterizedInstanceMap[newTypeName] = len(iz.parameterizedTypeInstances)
 			iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals})
 		}
 		iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
@@ -1759,7 +1765,7 @@ func (iz *Initializer) addFieldsToStructs() {
 }
 
 func (iz *Initializer) addFieldsToParameterizedStructs() {
-	for _, ty := range iz.parameterizedTypeMap {
+	for _, ty := range iz.parameterizedInstanceMap {
 		parTypeInfo := iz.parameterizedTypeInstances[ty]
 		typeNo := iz.cp.ConcreteTypeNow(parTypeInfo.astType.String())
 		if iz.cp.Vm.ConcreteTypeInfo[typeNo].IsStruct() {
@@ -1790,7 +1796,7 @@ func (iz *Initializer) tweakParameterizedTypes() {
 		}
 	}
 	//
-	for typename, i := range iz.parameterizedTypeMap {
+	for typename, i := range iz.parameterizedInstanceMap {
 		typeNo := iz.cp.ConcreteTypeNow(typename)
 		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo]
 		pti := iz.parameterizedTypeInstances[i]

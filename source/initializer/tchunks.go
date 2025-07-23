@@ -3,8 +3,10 @@ package initializer
 import (
 	"strconv"
 
+	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/Pipefish/source/values"
 )
 
 // When we first scan the stream of tokens, it is convenient to break it down into chunks
@@ -810,4 +812,16 @@ func SummaryString(dec tokenizedCode) string {
 	default:
 		panic("Unhandled case!")
 	}
+}
+
+type ParameterInfo struct {
+	Names      []string
+	Types      []values.ValueType
+	Operations []token.Token
+	Typecheck  *token.TokenizedCodeChunk
+	ParentType string     // 'struct' if not a clone
+	Sig        ast.AstSig // nil if not a struct (because the sig of a clone is implicit in the parent type).
+	IsPrivate  bool
+	Supertype  string
+	Token      *token.Token
 }

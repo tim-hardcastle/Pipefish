@@ -167,3 +167,30 @@ func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	bodyNames = bodyNames.SubtractSet(lhsG)
 	return bodyNames.SubtractSet(sigNames)
 }
+
+
+
+// TODO --- there should be more performant ways of doing this but for now I'll just
+// settle for it working.
+func (iz *Initializer) FindParameterizedType(name string, argsToCheck []values.Value) values.ValueType {
+	argIndex := DUMMY
+	for i, parType := range iz.parameterizedTypes[name] {
+		if valueTypesMatch(argsToCheck, parType.Types) {
+			argIndex = i
+			break
+		}
+	}
+	return values.ValueType(argIndex)
+}
+
+func valueTypesMatch(argsToCheck []values.Value, paramTypes []values.ValueType) bool {
+	if len(argsToCheck) != len(paramTypes) {
+		return false
+	}
+	for i, v := range argsToCheck {
+		if v.T != paramTypes[i] {
+			return false
+		}
+	}
+	return true
+}
