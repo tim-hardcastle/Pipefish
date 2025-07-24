@@ -1422,18 +1422,16 @@ func (iz *Initializer) populateInterfaceTypes() {
 	}
 	iz.addAbstractTypesToVm() // TODO --- this is the first of two times we're going to do this when what we really need is another topological sort.
 	// We pull in all the shared functions that fulfill the interface types, populating the types as we go.
-	for _, tcc := range iz.TokenizedDeclarations[interfaceDeclaration] {
-		tcc.ToStart()
-		nameTok := tcc.NextToken()
-		typename := nameTok.Literal
-		typeInfo, _ := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
+	for _, tc := range iz.tokenizedCode[interfaceDeclaration] {
+		dec := tc.(*tokenizedInterfaceDeclaration)
+		typeInfo, _ := iz.getDeclaration(decINTERFACE, &dec.op, DUMMY)
 		types := values.MakeAbstractType()
 		funcsToAdd := map[values.ValueType][]*parsedFunction{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range iz.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
-					matches := iz.getMatches(sigToMatch, fnToTry, &nameTok)
+					matches := iz.getMatches(sigToMatch, fnToTry, &dec.op)
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet().Contains(fnToTry.op.Source) {
 						for _, ty := range matches.Types {
@@ -1453,8 +1451,8 @@ func (iz *Initializer) populateInterfaceTypes() {
 			}
 		}
 		// We have created an abstract type from our interface! We put it in the type map.
-		iz.P.TypeMap[typename] = types
-		iz.AddTypeToVm(values.AbstractTypeInfo{typename, iz.P.NamespacePath, types, settings.MandatoryImportSet().Contains(nameTok.Source)})
+		iz.P.TypeMap[dec.op.Literal] = types
+		iz.AddTypeToVm(values.AbstractTypeInfo{dec.op.Literal, iz.P.NamespacePath, types, settings.MandatoryImportSet().Contains(dec.op.Source)})
 		// And we add all the implicated functions to the function table.
 		for _, ty := range types.Types {
 			for _, fn := range funcsToAdd[ty] {
