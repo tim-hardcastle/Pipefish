@@ -231,6 +231,14 @@ func (p *Parser) GetVariablesFromSig(node ast.Node) []string {
 	return result
 }
 
+func (p *Parser) GetVariablesFromAstSig(sig ast.AstSig) []string {
+	result := []string{}
+	for _, pair := range sig {
+		result = append(result, pair.VarName)
+	}
+	return result
+}
+
 // TODO --- is there any sensible alternative to this?
 // This is all rather horrible and basically exists as a result of two reasons. First, since all the signatures whether of assignment
 // or function definition or struct definition or whatever fit into the same mold, we would like to be able to keep our code DRY by

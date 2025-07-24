@@ -1858,15 +1858,12 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	result := [][]labeledParsedCodeChunk{}
 	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
 		for i, dec := range iz.ParsedDeclarations[dT] {
-			if _, ok := dec.(*ast.AssignmentExpression); !ok {
-				iz.P.Throw("init/assign", dec.GetToken())
-				continue
-			}
-			names := iz.P.GetVariablesFromSig(dec.(*ast.AssignmentExpression).Left)
+			parsedDec := iz.parsedCode[dT][i].(*parsedAssignment)
+			names := iz.P.GetVariablesFromAstSig(parsedDec.sig)
 			for _, name := range names {
 				existingName, alreadyExists := namesToDeclarations[name]
 				if alreadyExists {
-					iz.P.Throw("init/name/exists/a", dec.GetToken(), iz.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
+					iz.P.Throw("init/name/exists/a", dec.GetToken(), ixPtr(iz.tokenizedCode[existingName[0].decType][existingName[0].decNumber]), name)
 					return nil
 				}
 				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
@@ -1876,16 +1873,16 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	iz.cmI("Mapping names of functions to their declarations.")
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range iz.ParsedDeclarations[dT] {
-			name, _, _, _, _, _ := iz.P.ExtractPartsOfFunction(dec) // TODO --- refactor ExtractPartsOfFunction so there's a thing called ExtractNameOfFunction which you can call there and here.
+			name := iz.parsedCode[dT][i].(*parsedFunction).op.Literal
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
 				names := namesToDeclarations[name]
 				for _, existingName := range names {
 					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
-						iz.P.Throw("init/name/exists/b", dec.GetToken(), iz.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+						iz.P.Throw("init/name/exists/b", dec.GetToken(), ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
 					}
 					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be both a command and a function 'cos that would be weird.
-						iz.P.Throw("init/name/exists/c", dec.GetToken(), iz.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
+						iz.P.Throw("init/name/exists/c", dec.GetToken(), ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
 					}
 				}
 				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])})
