@@ -1897,13 +1897,11 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	iz.cmI("Adding struct typechecks to declarations.")
 	// Since the name of a type will appear already in the map as the name of the function
 	// constructing it, we'll mangle the names by adding a `*` to the front of each.
-	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
-		tcc.ToStart()
-		iz.cp.P.TokenizedCode = tcc
-		if iz.cp.P.SeekColon() {
-			ast := iz.cp.P.ParseTokenizedChunk()
-			name := "*" + tcc.IndexToken().Literal
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{ast, structDeclaration, i, name[1:], tcc.IndexToken()}}
+	for i, pc := range iz.parsedCode[structDeclaration] {
+		dec := pc.(*parsedTypecheck)
+		if dec.body != nil {
+			name := "*" + dec.indexTok.Literal
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec.body, structDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
 		}
 		if iz.ErrorsExist() {
 			return nil
@@ -1912,13 +1910,11 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	iz.cmI("Adding clone typechecks to declarations.")
 	// Since the name of a type will appear already in the map as the name of the function
 	// constructing it, we'll mangle the names by adding a `*` to the front of each.
-	for i, tcc := range iz.TokenizedDeclarations[cloneDeclaration] {
-		tcc.ToStart()
-		name := "*" + tcc.IndexToken().Literal
-		iz.cp.P.TokenizedCode = tcc
-		if iz.cp.P.SeekColon() {
-			typecheck := iz.cp.P.ParseTokenizedChunk()
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{typecheck, cloneDeclaration, i, name[1:], tcc.IndexToken()}}
+	for i, pc := range iz.parsedCode[cloneDeclaration] {
+		dec := pc.(*parsedTypecheck)
+		if dec.body != nil {
+			name := "*" + dec.indexTok.Literal
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec.body, cloneDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
 		}
 		if iz.ErrorsExist() {
 			return nil
