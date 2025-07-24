@@ -1873,16 +1873,17 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	iz.cmI("Mapping names of functions to their declarations.")
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
 		for i, dec := range iz.ParsedDeclarations[dT] {
-			name := iz.parsedCode[dT][i].(*parsedFunction).op.Literal
+			izFn := iz.parsedCode[dT][i].(*parsedFunction)
+			name := izFn.op.Literal
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
 				names := namesToDeclarations[name]
 				for _, existingName := range names {
 					if existingName.decType == variableDeclaration || existingName.decType == constantDeclaration { // We can't redeclare variables or constants.
-						iz.P.Throw("init/name/exists/b", dec.GetToken(), ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
+						iz.P.Throw("init/name/exists/b", &izFn.op, ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
 					}
 					if existingName.decType == functionDeclaration && dT == commandDeclaration { // We don't want to overload anything so it can be both a command and a function 'cos that would be weird.
-						iz.P.Throw("init/name/exists/c", dec.GetToken(), ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
+						iz.P.Throw("init/name/exists/c", &izFn.op, ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
 					}
 				}
 				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])})
