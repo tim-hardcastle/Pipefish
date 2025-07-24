@@ -59,11 +59,8 @@ type Initializer struct {
 	// This contains information about the parameterized types that we're going to instantiate, which
 	// we scrape out of signatures and 'make' statements. etc.
 	parameterizedInstancesToDeclare map[string]typeInstantiationInfo
-	// Maps names to the numbered type instances below.
-	parameterizedInstanceMap       map[string]int    
 	// Stores information we need to compile the runtime typechecks on parameterized type instances.          
-	parameterizedTypeInstances []parameterizedTypeInstance 
-	
+	parameterizedInstanceMap       map[string]parameterizedTypeInstance
 }
 
 // Makes a new initializer.
@@ -76,8 +73,7 @@ func NewInitializer() *Initializer {
 		functionTable:               make(functionTable),
 		parameterizedInstancesToDeclare: make(map[string]typeInstantiationInfo),
 		parameterizedTypes:          make(map[string][]ParameterInfo),
-		parameterizedInstanceMap:        make(map[string]int),
-		parameterizedTypeInstances:  make([]parameterizedTypeInstance, 0),
+		parameterizedInstanceMap:        make(map[string]parameterizedTypeInstance),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -1364,8 +1360,7 @@ loop:
 			typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
 		}
 		if _, ok := iz.parameterizedInstanceMap[newTypeName]; !ok {
-			iz.parameterizedInstanceMap[newTypeName] = len(iz.parameterizedTypeInstances)
-			iz.parameterizedTypeInstances = append(iz.parameterizedTypeInstances, parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals})
+			iz.parameterizedInstanceMap[newTypeName] = parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals}
 		}
 		iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 	}
@@ -1763,8 +1758,7 @@ func (iz *Initializer) addFieldsToStructs() {
 }
 
 func (iz *Initializer) addFieldsToParameterizedStructs() {
-	for _, ty := range iz.parameterizedInstanceMap {
-		parTypeInfo := iz.parameterizedTypeInstances[ty]
+	for _, parTypeInfo := range iz.parameterizedInstanceMap {
 		typeNo := iz.cp.ConcreteTypeNow(parTypeInfo.astType.String())
 		if iz.cp.Vm.ConcreteTypeInfo[typeNo].IsStruct() {
 			iz.addFields(typeNo, parTypeInfo.fields)
@@ -1786,7 +1780,7 @@ func (iz *Initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
 
 func (iz *Initializer) tweakParameterizedTypes() {
 	// We replace the astTypes in the environment for typechecking a parameterized type with AbstractTypes.
-	for _, pti := range iz.parameterizedTypeInstances {
+	for _, pti := range iz.parameterizedInstanceMap {
 		for _, v := range pti.env.Data {
 			if iz.cp.Vm.Mem[v.MLoc].T == values.TYPE {
 				iz.cp.Vm.Mem[v.MLoc].V = iz.P.GetAbstractType(iz.cp.Vm.Mem[v.MLoc].V.(ast.TypeNode))
@@ -1794,10 +1788,9 @@ func (iz *Initializer) tweakParameterizedTypes() {
 		}
 	}
 	//
-	for typename, i := range iz.parameterizedInstanceMap {
+	for typename, pti := range iz.parameterizedInstanceMap {
 		typeNo := iz.cp.ConcreteTypeNow(typename)
 		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo]
-		pti := iz.parameterizedTypeInstances[i]
 		vals := make([]values.Value, len(pti.vals))
 		for i, v := range pti.vals {
 			vals[i] = iz.tweakValue(v)
@@ -1815,12 +1808,10 @@ func (iz *Initializer) tweakParameterizedTypes() {
 	}
 }
 
-// This initializes a map in the compiler associating each type operator to
-// the number of a list in the compiler containing maps from type arguments to concrete type numbers.
-// This method hooks them together.
+// This adds information about the parameterized types to the VM.
 // It also tweaks the arguments to convert the payload of TYPE from the improper AstType to the correct AbstractType.
 func (iz *Initializer) addParameterizedTypesToVm() {
-	for _, ty := range iz.parameterizedTypeInstances { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
+	for _, ty := range iz.parameterizedInstanceMap { // TODO --- is there a reason why there aren't all *ast.TypeWithArguments?
 		name := ty.astType.(*ast.TypeWithArguments).Name
 		typeArgs := []values.Value{}
 		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
@@ -1977,8 +1968,8 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			return nil
 		}
 	}
-
-	for i, v := range iz.parameterizedTypeInstances {
+	i := 0
+	for _, v := range iz.parameterizedInstanceMap {
 		if v.typeCheck.Length() == 0 {
 			continue
 		}
@@ -1987,6 +1978,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		iz.P.TokenizedCode = v.typeCheck
 		node := iz.P.ParseTokenizedChunk()
 		namesToDeclarations[name] = []labeledParsedCodeChunk{{node, makeDeclaration, i, name[1:], v.typeCheck.IndexToken()}}
+		i++
 	}
 
 	iz.cmI("Building digraph of dependencies.")
@@ -2122,7 +2114,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				iz.compileTypecheck(dec.name, dec.chunk, compiler.NewEnvironment())
 				continue
 			case makeDeclaration:
-				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedTypeInstances[dec.decNumber].env)
+				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedInstanceMap[dec.name].env)
 				continue
 			case functionDeclaration:
 				iz.compileFunction(functionDeclaration, dec.decNumber, iz.cp.GlobalConsts)
