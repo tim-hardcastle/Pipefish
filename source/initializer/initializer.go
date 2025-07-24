@@ -1424,14 +1424,14 @@ func (iz *Initializer) populateInterfaceTypes() {
 	// We pull in all the shared functions that fulfill the interface types, populating the types as we go.
 	for _, tc := range iz.tokenizedCode[interfaceDeclaration] {
 		dec := tc.(*tokenizedInterfaceDeclaration)
-		typeInfo, _ := iz.getDeclaration(decINTERFACE, &dec.op, DUMMY)
+		typeInfo, _ := iz.getDeclaration(decINTERFACE, ixPtr(dec), DUMMY)
 		types := values.MakeAbstractType()
 		funcsToAdd := map[values.ValueType][]*parsedFunction{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range iz.Common.Functions {
 				if key.FunctionName == sigToMatch.name {
-					matches := iz.getMatches(sigToMatch, fnToTry, &dec.op)
+					matches := iz.getMatches(sigToMatch, fnToTry, ixPtr(dec))
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet().Contains(fnToTry.op.Source) {
 						for _, ty := range matches.Types {
@@ -1869,7 +1869,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 					iz.P.Throw("init/name/exists/a", dec.GetToken(), iz.ParsedDeclarations[existingName[0].decType][existingName[0].decNumber].GetToken(), name)
 					return nil
 				}
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, iz.TokenizedDeclarations[dT][i].IndexToken()}}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
 			}
 		}
 	}
