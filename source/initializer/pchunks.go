@@ -103,7 +103,7 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 		return &parsedFunction {
 			decType: decType,
 			decNumber: decNumber,
-			private: iz.IsPrivate(int(decType), decNumber),
+			private: iz.TokenizedDeclarations[decType][decNumber].Private,
 			op: tc.op,
 			pos: tc.pos,
 			sig: iz.makeAstSigFromTokenizedSig(tc.sig),

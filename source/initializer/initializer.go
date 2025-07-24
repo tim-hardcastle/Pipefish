@@ -586,7 +586,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 // imports which the main phase 1 function will add to the parser.
 func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []string {
 	unnamespacedImports := []string{}
-	for i, tc := range iz.tokenizedCode[importDeclaration] {
+	for _, tc := range iz.tokenizedCode[importDeclaration] {
 		dec := tc.(*tokenizedExternalOrImportDeclaration)
 		if dec.golang {
 			iz.goBucket.imports[dec.path.Source] = append(iz.goBucket.imports[dec.path.Source], dec.path.Literal)
@@ -609,7 +609,7 @@ func (iz *Initializer) ParseNamespacedImportsAndReturnUnnamespacedImports() []st
 		}
 		iz.cp.Modules[name] = newCp
 		iz.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
-		newCp.P.Private = iz.IsPrivate(int(importDeclaration), i)
+		newCp.P.Private = dec.private
 	}
 	return unnamespacedImports
 }
@@ -733,7 +733,7 @@ func (iz *Initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 	iz.initializers[name] = newIz
 	newCp := newIz.ParseEverythingFromSourcecode(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, sourcecode, name+"."+iz.P.NamespacePath)
 	iz.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
-	newCp.P.Private = iz.IsPrivate(int(externalDeclaration), int(externalServiceOrdinal))
+	newCp.P.Private = iz.tokenizedCode[externalDeclaration][externalServiceOrdinal].(*tokenizedExternalOrImportDeclaration).private
 	iz.cp.Modules[name] = newCp
 }
 
@@ -744,7 +744,7 @@ func (iz *Initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 // On the one hand, the VM must know the names of the enums and their elements so it can describe them.
 // Otoh, the compiler needs to know how to turn enum literals into values.
 func (iz *Initializer) createEnums() {
-	for i, tc := range iz.tokenizedCode[enumDeclaration] {
+	for _, tc := range iz.tokenizedCode[enumDeclaration] {
 		dec := tc.(*tokenizedEnumDeclaration)
 		name := dec.op.Literal
 		var typeNo values.ValueType
@@ -768,11 +768,11 @@ func (iz *Initializer) createEnums() {
 		iz.P.Functions.Add(name)
 		sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, "int"}}}
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
-		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &dec.op)
+		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), dec.private, &dec.op)
 		fn := &parsedFunction{
 			decType:   functionDeclaration,
 			decNumber: DUMMY,
-			private:   iz.IsPrivate(int(enumDeclaration), i),
+			private:   dec.private,
 			op:        dec.op,
 			pos:       prefix,
 			sig:       sig,
@@ -796,7 +796,7 @@ func (iz *Initializer) createEnums() {
 			elementNameList = append(elementNameList, tok.Literal)
 		}
 		iz.cp.Vm.ConcreteTypeInfo = append(iz.cp.Vm.ConcreteTypeInfo, vm.EnumType{Name: name, Path: iz.P.NamespacePath, ElementNames: elementNameList,
-			ElementValues: values.Value{values.LIST, vec}, Private: iz.IsPrivate(int(enumDeclaration), i), IsMI: settings.MandatoryImportSet().Contains(dec.op.Source)})
+			ElementValues: values.Value{values.LIST, vec}, Private: dec.private, IsMI: settings.MandatoryImportSet().Contains(dec.op.Source)})
 	}
 }
 
@@ -1092,7 +1092,7 @@ func (iz *Initializer) createStructLabels() {
 		fn := &parsedFunction{
 			decType:   functionDeclaration,
 			decNumber: DUMMY,
-			private:   iz.IsPrivate(int(structDeclaration), i),
+			private:   dec.private,
 			op:        dec.op,
 			pos:       prefix,
 			sig:       sig,
@@ -2184,7 +2184,7 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 
 // Function auxiliary to the above.
 func (iz *Initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationType, i int) (*compiler.Environment, compiler.VarAccess) {
-	IsPrivate := iz.IsPrivate(int(dT), i)
+	IsPrivate := iz.tokenizedCode[dT][i].(*tokenizedConstOrVarDeclaration).private
 	var vAcc compiler.VarAccess
 	envToAddTo := iz.cp.GlobalConsts
 	if dT == constantDeclaration {
@@ -2492,10 +2492,6 @@ func (iz *Initializer) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
 
 func altType(t ...values.ValueType) compiler.AlternateType {
 	return compiler.AltType(t...)
-}
-
-func (i Initializer) IsPrivate(x, y int) bool {
-	return i.TokenizedDeclarations[x][y].Private
 }
 
 // For indexing the functions in the common function map, to prevent duplication.
