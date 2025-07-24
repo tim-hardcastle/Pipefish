@@ -56,8 +56,6 @@ type Initializer struct {
 	
     // Holds the definitions of parameterized types.
 	parameterizedTypes       map[string][]ParameterInfo         
-	// This contains information about the operators of parameterized types, e.g. Z.
-	typeOperators map[string]typeOperatorInfo
 	// This contains information about the parameterized types that we're going to instantiate, which
 	// we scrape out of signatures and 'make' statements. etc.
 	parameterizedInstancesToDeclare map[string]typeInstantiationInfo
@@ -76,7 +74,6 @@ func NewInitializer() *Initializer {
 		unserializableTypes:         make(dtypes.Set[string]),
 		tokenizedCode:               make([][]tokenizedCode, 14),
 		functionTable:               make(functionTable),
-		typeOperators:               make(map[string]typeOperatorInfo),
 		parameterizedInstancesToDeclare: make(map[string]typeInstantiationInfo),
 		parameterizedTypes:          make(map[string][]ParameterInfo),
 		parameterizedInstanceMap:        make(map[string]int),
@@ -1304,7 +1301,8 @@ loop:
 			}
 		}
 	}
-	// Now everything we need to declare is in iz.parameterizedTypesToDeclare.
+	// Now everything we need to declare is in iz.parameterizedInstancesToDeclare.
+	typeOperators := make(map[string]typeOperatorInfo)
 	for _, info := range iz.parameterizedInstancesToDeclare {
 		ty := info.ty
 		private := info.private
@@ -1357,13 +1355,13 @@ loop:
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 		}
 		iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}}
-		if opInfo, ok := iz.typeOperators[ty.Name]; ok {
+		if opInfo, ok := typeOperators[ty.Name]; ok {
 			opInfo.returnTypes = opInfo.returnTypes.Union(altType(typeNo))
 			opInfo.definedAt = append(opInfo.definedAt, &ty.Token)
-			iz.typeOperators[ty.Name] = opInfo
+			typeOperators[ty.Name] = opInfo
 			// TODO --- Check for matching sigs, being a clone.
 		} else {
-			iz.typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
+			typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
 		}
 		if _, ok := iz.parameterizedInstanceMap[newTypeName]; !ok {
 			iz.parameterizedInstanceMap[newTypeName] = len(iz.parameterizedTypeInstances)
@@ -1372,7 +1370,7 @@ loop:
 		iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 	}
 	// Now we can make a constructor function for each of the type operators.
-	for typeOperator, operatorInfo := range iz.typeOperators {
+	for typeOperator, operatorInfo := range typeOperators {
 		name := typeOperator + "{}"
 		sig := append(ast.AstSig{ast.NameTypeAstPair{"+t", &ast.TypeWithName{*operatorInfo.definedAt[0], "type"}}}, operatorInfo.constructorSig...)
 		fnNo := iz.addToBuiltins(sig, name, operatorInfo.returnTypes, false, operatorInfo.definedAt[0])
