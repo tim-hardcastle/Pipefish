@@ -1814,18 +1814,15 @@ func (iz *Initializer) checkTypesForConsistency() {
 			}
 		}
 	}
-
-	for i, dec := range iz.TokenizedDeclarations[abstractDeclaration] {
-		if iz.IsPrivate(int(abstractDeclaration), i) {
+	for _, tc := range iz.tokenizedCode[abstractDeclaration] {
+		dec := tc.(*tokenizedAbstractDeclaration)
+		if dec.private {
 			continue
 		}
-		dec.ToStart()
-		tok := dec.NextToken()
-		name := tok.Literal
-		abType := iz.P.GetAbstractTypeFromTypeSys(name)
+		abType := iz.P.GetAbstractTypeFromTypeSys(dec.op.Literal)
 		for _, w := range abType.Types {
 			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
-				iz.Throw("init/private/abstract", &tok, name)
+				iz.Throw("init/private/abstract", ixPtr(dec), dec.op.Literal)
 			}
 		}
 	}
