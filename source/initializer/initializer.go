@@ -56,9 +56,6 @@ type Initializer struct {
 
 	// Holds the definitions of parameterized types.
 	parameterizedTypes map[string][]ParameterInfo
-	// This contains information about the parameterized types that we're going to instantiate, which
-	// we scrape out of signatures and 'make' statements. etc.
-	parameterizedInstancesToDeclare map[string]typeInstantiationInfo
 	// Stores information we need to compile the runtime typechecks on parameterized type instances.
 	parameterizedInstanceMap map[string]parameterizedTypeInstance
 }
@@ -71,7 +68,6 @@ func NewInitializer() *Initializer {
 		unserializableTypes:             make(dtypes.Set[string]),
 		tokenizedCode:                   make([][]tokenizedCode, 14),
 		functionTable:                   make(functionTable),
-		parameterizedInstancesToDeclare: make(map[string]typeInstantiationInfo),
 		parameterizedTypes:              make(map[string][]ParameterInfo),
 		parameterizedInstanceMap:        make(map[string]parameterizedTypeInstance),
 	}
@@ -96,12 +92,6 @@ func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
 		HubStore:       store,
 	}
 	return &b
-}
-
-// Type instantiations as scraped out of signatures and make statements.
-type typeInstantiationInfo struct {
-	ty      *ast.TypeWithArguments
-	private bool
 }
 
 // After hooking it up with the parameterized type definitions.
@@ -1276,29 +1266,22 @@ func (iz *Initializer) createInterfaceTypes() {
 }
 
 func (iz *Initializer) instantiateParameterizedTypes() {
-	// First, all the stuff in make statements needs adding to the implicitly instantiated
-	// types.
-loop:
-	for _, tc := range iz.tokenizedCode[makeDeclaration] {
-		dec := tc.(*tokenizedMakeDeclaration)	
-		ty := iz.makeTypeAstFromTokens(dec.typeToks)
-		if ty == nil {
-			iz.Throw("init/make/type", &dec.typeToks[0])
-			continue loop
-		}
-		if ty, ok := ty.(*ast.TypeWithArguments); !ok {
-			iz.Throw("init/make/instance", &dec.typeToks[0])
-			continue loop
-		} else {
-			iz.parameterizedInstancesToDeclare[ty.String()] =
-				typeInstantiationInfo{ty, dec.private}
-		}
-	}
+
 	// Now everything we need to declare is in iz.parameterizedInstancesToDeclare.
 	typeOperators := make(map[string]typeOperatorInfo)
-	for _, info := range iz.parameterizedInstancesToDeclare {
-		ty := info.ty
-		private := info.private
+	for _, tc := range iz.tokenizedCode[makeDeclaration] {
+		dec := tc.(*tokenizedMakeDeclaration)
+		typeAst := iz.makeTypeAstFromTokens(dec.typeToks)
+		if typeAst == nil {
+			iz.Throw("init/make/type", &dec.typeToks[0])
+			continue
+		}
+		ty, ok := typeAst.(*ast.TypeWithArguments)
+		if !ok {
+			iz.Throw("init/make/instance", &dec.typeToks[0])
+			continue
+		}
+		private := dec.private
 		// The parser doesn't know the types and values of enums, 'cos of being a
 		// parser. So we kludge them in here.
 		for i, v := range ty.Values() {
@@ -1865,7 +1848,6 @@ func (iz *Initializer) checkTypesForConsistency() {
 				iz.Throw("init/private/abstract", &tok, name)
 			}
 		}
-
 	}
 }
 
