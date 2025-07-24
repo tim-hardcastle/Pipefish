@@ -131,7 +131,7 @@ func (iz *Initializer) makeReturnTypeFromTokens(toks []token.Token) ast.TypeNode
 		}
 		iz.P.PrimeWithTokenSupplier(ts)
 		typeArgsNode := iz.P.ParseExpression(parser.LOWEST)
-		typeArgs := iz.P.RecursivelyListify(typeArgsNode)				
+		typeArgs := iz.P.RecursivelyListify(typeArgsNode)
 		return &ast.TypeExpression{Token: toks[0], Operator: toks[0].Literal, Namespace: []string{}, TypeArgs: typeArgs}
 	}
 	return iz.makeTypeAstFromTokens(toks)
@@ -167,8 +167,6 @@ func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	bodyNames = bodyNames.SubtractSet(lhsG)
 	return bodyNames.SubtractSet(sigNames)
 }
-
-
 
 // TODO --- there should be more performant ways of doing this but for now I'll just
 // settle for it working.

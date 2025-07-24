@@ -1,3 +1,33 @@
+Like the sea, Babylon proffers her yield,
+Like a garden of fruit, she flourishes in her charms,
+Like a wave, her swell brings her bounties rolling in.
+Marduk's star, delightful, precious sun, is her auspicious sign,
+Wherever the sun is, is her gate, the distant heavens.
+Imgur-Enlil is her primeval wall --- the mountain of the just,
+Alulu is her king --- the father of all generations.
+The Euphrates is her river --- established by wise lord Nudimud ---
+It quenches the lea, saturates the canebrake,
+Disgrgess its waters into lagoon and sea,
+Its fields burgeon with herbs and flowers,
+Its meadows, in brilliant bloom, sprout barley.
+from which, gathers, sheaves are stacked,
+Herds and flocks lie on verdant pastures,
+wealth and splendor --- what benefit mankind ---
+Are bestowed, multiplied, and regally granted.
+
+
+Far from dismissing erectus forms as being only large extinct apes or frauds, the pendulum is now swinging to the view that most, if not all erectus specimens are indeed full members of the human race. 
+
+https://answersingenesis.org/human-evolution/ape-man/homo-erectus-to-modern-man-evolution-or-human-variability/
+
+
+Why Pipeish is unique
+
+
+
+
+
+
 # The type system in theory
 
 ## Introduction
@@ -23,6 +53,11 @@ Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
 
 Dragon = struct(name string, color Color, valueOfHoard int)
 ```
+
+
+
+, lack of belief in one of the things that's important in someone else's philosophy, like not believing in reincarnation like Buddhists do, or not believing that a river is a living thing like animists do, or not believing human sacrifice is necessary to make the sun rise like the Aztecs did, or not believing in Santa like children do.
+
 
 ## Abstract types
 

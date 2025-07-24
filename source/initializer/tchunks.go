@@ -148,13 +148,22 @@ func (tc *tokenizedGolangDeclaration) indexToken() token.Token { return tc.goCod
 
 type tokenizedMakeDeclaration struct {
 	private   bool            // Whether it's declared private.
-	makeToken token.Token     // The token saying 'make'.
-	types     [][]token.Token // The names of the types to declare.
+	typeToks  []token.Token // The names of the types to declare.
 }
 
 func (tc *tokenizedMakeDeclaration) getDeclarationType() declarationType { return makeDeclaration }
 
-func (tc *tokenizedMakeDeclaration) indexToken() token.Token { return tc.makeToken }
+func (tc *tokenizedMakeDeclaration) indexToken() token.Token { return tc.typeToks[0] }
+
+type tokenizedMakeDeclarations struct {
+	private   bool            // Whether it's declared private.
+	makeToken token.Token     // The token saying 'make'.
+	types     [][]token.Token // The names of the types to declare.
+}
+
+func (tc *tokenizedMakeDeclarations) getDeclarationType() declarationType { return makeDeclarations }
+
+func (tc *tokenizedMakeDeclarations) indexToken() token.Token { return tc.makeToken }
 
 type tokenizedStructDeclaration struct {
 	private bool                      // Whether it's declared private.
@@ -170,9 +179,20 @@ func (tc *tokenizedStructDeclaration) indexToken() token.Token { return tc.op }
 
 // This is a temporary function to allow us to refactor from using TCCs to tokenizedCode.
 func (iz *Initializer) TranslateEverything() {
-	for decType := importDeclaration; decType <= makeDeclaration; decType++ {
+	for decType := importDeclaration; decType <= makeDeclarations; decType++ {
 		for _, dec := range iz.TokenizedDeclarations[decType] {
-			iz.tokenizedCode[decType] = append(iz.tokenizedCode[decType], iz.tccToTokenizedCode(decType, dec.Private, dec))
+			translation := iz.tccToTokenizedCode(decType, dec.Private, dec)
+			if decType == makeDeclarations {
+				for _, ty := range translation.(*tokenizedMakeDeclarations).types {
+					iz.tokenizedCode[makeDeclaration] = append(iz.tokenizedCode[makeDeclaration],
+					&tokenizedMakeDeclaration{
+						private: translation.(*tokenizedMakeDeclarations).private,
+						typeToks: ty,
+					})
+				}
+			} else {
+				iz.tokenizedCode[decType] = append(iz.tokenizedCode[decType], iz.tccToTokenizedCode(decType, dec.Private, dec))
+			}
 			dec.ToStart()
 		}
 	}
@@ -191,7 +211,7 @@ func (iz *Initializer) tccToTokenizedCode(decType declarationType, private bool,
 		result, _ := iz.ChunkImportOrExternalDeclaration(decType == externalDeclaration, private)
 		return result
 	case abstractDeclaration, cloneDeclaration, enumDeclaration, interfaceDeclaration,
-		makeDeclaration, structDeclaration:
+		makeDeclarations, structDeclaration:
 		result, _ := iz.ChunkTypeDeclaration(private)
 		return result
 	case golangDeclaration:
@@ -532,7 +552,7 @@ func (iz *Initializer) chunkMake(opTok token.Token, private bool) (tokenizedCode
 		if !iz.P.CurTokenIs(token.IDENT) {
 			iz.Throw("init/make/ident", &iz.P.CurToken)
 			iz.finishChunk()
-			return &tokenizedMakeDeclaration{}, false
+			return &tokenizedMakeDeclarations{}, false
 		}
 		toks := []token.Token{}
 		braces := 0
@@ -556,7 +576,7 @@ func (iz *Initializer) chunkMake(opTok token.Token, private bool) (tokenizedCode
 		}
 		iz.P.NextToken()
 	}
-	return &tokenizedMakeDeclaration{private, opTok, types}, true
+	return &tokenizedMakeDeclarations{private, opTok, types}, true
 }
 
 // Starts after the word 'struct', ends on NEWLINE or EOF.
@@ -780,13 +800,13 @@ func SummaryString(dec tokenizedCode) string {
 	case *tokenizedFunctionDeclaration:
 		result := dec.SigAsString() + " : " + strconv.Itoa(dec.body.Length()) + " tokens"
 		if dec.given != nil {
-			result = result +  "; given : " + strconv.Itoa(dec.given.Length()) + " tokens"
+			result = result + "; given : " + strconv.Itoa(dec.given.Length()) + " tokens"
 		}
 		result = result + "."
 		return result
 	case *tokenizedInterfaceDeclaration:
 		return dec.op.Literal + " = interface : " + strconv.Itoa(len(dec.sigs)) + " sigs."
-	case *tokenizedMakeDeclaration:
+	case *tokenizedMakeDeclarations:
 		result := "make "
 		typeSeperator := ""
 		for _, ty := range dec.types {

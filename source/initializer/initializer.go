@@ -38,41 +38,41 @@ var folder embed.FS
 
 // Definition of the Initializer type.
 type Initializer struct {
-	cp                                  *compiler.Compiler             // The compiler for the module being intitialized.
-	P                                   *parser.Parser                 // The parser for the module being initialized.
-	initializers                        map[string]*Initializer        // The child initializers of this one, to initialize imports and external stubs.
-	TokenizedDeclarations               [14]TokenizedCodeChunks        // The declarations in the script, converted from text to tokens and sorted by purpose.
-	ParsedDeclarations                  [13]parser.ParsedCodeChunks    // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
-	tokenizedCode                       [][]tokenizedCode              // Code arranged by declaration type and lightly chunked and validated.
-	parsedCode                          [][]parsedCode                 // What you get by parsing that.
-	localConcreteTypes                  dtypes.Set[values.ValueType]   // All the struct, enum, and clone types defined in a given module.
-	goBucket                            *GoBucket                      // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
-	Snippets                            []string                       // Names of snippet types visible to the module.
-	Common                              *CommonInitializerBindle       // The information all the initializers have in Common.
-	structDeclarationNumberToTypeNumber map[int]values.ValueType       // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
-	unserializableTypes                 dtypes.Set[string]             // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
-	
-	functionTable functionTable   // Intermediate step towards constructing the FunctinTree used by the compiler.
-	
-    // Holds the definitions of parameterized types.
-	parameterizedTypes       map[string][]ParameterInfo         
+	cp                                  *compiler.Compiler           // The compiler for the module being intitialized.
+	P                                   *parser.Parser               // The parser for the module being initialized.
+	initializers                        map[string]*Initializer      // The child initializers of this one, to initialize imports and external stubs.
+	TokenizedDeclarations               [14]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
+	ParsedDeclarations                  [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
+	tokenizedCode                       [][]tokenizedCode            // Code arranged by declaration type and lightly chunked and validated.
+	parsedCode                          [][]parsedCode               // What you get by parsing that.
+	localConcreteTypes                  dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
+	goBucket                            *GoBucket                    // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
+	Snippets                            []string                     // Names of snippet types visible to the module.
+	Common                              *CommonInitializerBindle     // The information all the initializers have in Common.
+	structDeclarationNumberToTypeNumber map[int]values.ValueType     // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
+	unserializableTypes                 dtypes.Set[string]           // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
+
+	functionTable functionTable // Intermediate step towards constructing the FunctinTree used by the compiler.
+
+	// Holds the definitions of parameterized types.
+	parameterizedTypes map[string][]ParameterInfo
 	// This contains information about the parameterized types that we're going to instantiate, which
 	// we scrape out of signatures and 'make' statements. etc.
 	parameterizedInstancesToDeclare map[string]typeInstantiationInfo
-	// Stores information we need to compile the runtime typechecks on parameterized type instances.          
-	parameterizedInstanceMap       map[string]parameterizedTypeInstance
+	// Stores information we need to compile the runtime typechecks on parameterized type instances.
+	parameterizedInstanceMap map[string]parameterizedTypeInstance
 }
 
 // Makes a new initializer.
 func NewInitializer() *Initializer {
 	iz := Initializer{
-		initializers:                make(map[string]*Initializer),
-		localConcreteTypes:          make(dtypes.Set[values.ValueType]),
-		unserializableTypes:         make(dtypes.Set[string]),
-		tokenizedCode:               make([][]tokenizedCode, 14),
-		functionTable:               make(functionTable),
+		initializers:                    make(map[string]*Initializer),
+		localConcreteTypes:              make(dtypes.Set[values.ValueType]),
+		unserializableTypes:             make(dtypes.Set[string]),
+		tokenizedCode:                   make([][]tokenizedCode, 14),
+		functionTable:                   make(functionTable),
 		parameterizedInstancesToDeclare: make(map[string]typeInstantiationInfo),
-		parameterizedTypes:          make(map[string][]ParameterInfo),
+		parameterizedTypes:              make(map[string][]ParameterInfo),
 		parameterizedInstanceMap:        make(map[string]parameterizedTypeInstance),
 	}
 	iz.newGoBucket()
@@ -81,9 +81,9 @@ func NewInitializer() *Initializer {
 
 // The CommonInitializerBindle contains information that all the initializers need to share.
 type CommonInitializerBindle struct {
-	Functions      map[FuncSource]*parsedFunction   // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
-	DeclarationMap map[decKey]any                   // This prevents redeclaration of types in the same sort of way.
-	HubCompilers   map[string]*compiler.Compiler    // This is a map of the compilers of all the (potential) external services on the same hub.
+	Functions      map[FuncSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
+	DeclarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
+	HubCompilers   map[string]*compiler.Compiler  // This is a map of the compilers of all the (potential) external services on the same hub.
 	HubStore       *values.Map
 }
 
@@ -234,7 +234,6 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 
 	return result
 
-	
 }
 
 // This initializes the initializer's compiler (which initializes its parser), and
@@ -446,7 +445,7 @@ func (iz *Initializer) MakeParserAndTokenizedProgram() {
 		}
 		if currentSection == TypesSection && tok.Type == token.IDENT {
 			if tok.Literal == "make" {
-				typeDefined = makeDeclaration
+				typeDefined = makeDeclarations
 			} else {
 				tD, ok := typeMap[tok.Literal]
 				if ok {
@@ -781,14 +780,14 @@ func (iz *Initializer) createEnums() {
 		rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
 		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), iz.IsPrivate(int(enumDeclaration), i), &dec.op)
 		fn := &parsedFunction{
-			decType: functionDeclaration,
+			decType:   functionDeclaration,
 			decNumber: DUMMY,
-			private: iz.IsPrivate(int(enumDeclaration), i),
-			op: dec.op,
-			pos: prefix,
-			sig: sig,
-			body: &ast.BuiltInExpression{Name: name},
-			callInfo: &compiler.CallInfo{iz.cp, fnNo, rtnSig},
+			private:   iz.IsPrivate(int(enumDeclaration), i),
+			op:        dec.op,
+			pos:       prefix,
+			sig:       sig,
+			body:      &ast.BuiltInExpression{Name: name},
+			callInfo:  &compiler.CallInfo{iz.cp, fnNo, rtnSig},
 		}
 		iz.Add(name, fn)
 		if typeExists {
@@ -845,14 +844,14 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 	sig := ast.AstSig{ast.NameTypeAstPair{"x", &ast.TypeWithName{token.Token{}, typeToClone}}}
 	rtnSig := ast.AstSig{ast.NameTypeAstPair{"*dummy*", &ast.TypeWithName{token.Token{}, name}}}
 	fn := &parsedFunction{
-		decType: functionDeclaration,
+		decType:   functionDeclaration,
 		decNumber: DUMMY,
-		private: private,
-		op: *decTok,
-		pos: prefix,
-		sig: sig,
-		body: &ast.BuiltInExpression{Name: name},
-		callInfo: &compiler.CallInfo{iz.cp, DUMMY, rtnSig},
+		private:   private,
+		op:        *decTok,
+		pos:       prefix,
+		sig:       sig,
+		body:      &ast.BuiltInExpression{Name: name},
+		callInfo:  &compiler.CallInfo{iz.cp, DUMMY, rtnSig},
 	}
 	iz.Add(name, fn)
 	if typeToClone == "int" || typeToClone == "float" {
@@ -1010,14 +1009,14 @@ func (iz *Initializer) createOperations(nameAst ast.TypeNode, typeNo values.Valu
 func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinTag string, rtnTypes compiler.AlternateType, rtnSig ast.AstSig, IsPrivate bool, pos uint32, tok *token.Token) {
 	fnNo := iz.addToBuiltins(sig, builtinTag, rtnTypes, IsPrivate, tok)
 	fn := &parsedFunction{
-		decType: functionDeclaration,
+		decType:   functionDeclaration,
 		decNumber: DUMMY,
-		private: IsPrivate,
-		op: *tok,
-		pos: prefix,
-		sig: sig,
-		body: &ast.BuiltInExpression{Name: fnName},
-		callInfo: &compiler.CallInfo{iz.cp, fnNo, rtnSig},
+		private:   IsPrivate,
+		op:        *tok,
+		pos:       prefix,
+		sig:       sig,
+		body:      &ast.BuiltInExpression{Name: fnName},
+		callInfo:  &compiler.CallInfo{iz.cp, fnNo, rtnSig},
 	}
 	iz.Common.Functions[FuncSource{tok.Source, tok.Line, fnName, pos}] = fn
 	conflictingFunction := iz.Add(fnName, fn)
@@ -1115,14 +1114,14 @@ func (iz *Initializer) createStructLabels() {
 		iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 		fnNo := iz.addToBuiltins(sig, name, altType(typeNo), dec.private, indexToken)
 		fn := &parsedFunction{
-			decType: functionDeclaration,
+			decType:   functionDeclaration,
 			decNumber: DUMMY,
-			private: iz.IsPrivate(int(structDeclaration), i),
-			op: dec.op,
-			pos: prefix,
-			sig: sig,
-			body: &ast.BuiltInExpression{Name: name},
-			callInfo: &compiler.CallInfo{iz.cp, fnNo, nil},
+			private:   iz.IsPrivate(int(structDeclaration), i),
+			op:        dec.op,
+			pos:       prefix,
+			sig:       sig,
+			body:      &ast.BuiltInExpression{Name: name},
+			callInfo:  &compiler.CallInfo{iz.cp, fnNo, nil},
 		}
 		iz.Add(name, fn)
 	}
@@ -1281,20 +1280,18 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 	// types.
 loop:
 	for _, tc := range iz.tokenizedCode[makeDeclaration] {
-		dec := tc.(*tokenizedMakeDeclaration)
-		for _, tokType := range dec.types {
-			ty := iz.makeTypeAstFromTokens(tokType)
-			if ty == nil {
-				iz.Throw("init/make/type", &tokType[0])
-				continue loop
-			}
-			if ty, ok := ty.(*ast.TypeWithArguments); !ok {
-				iz.Throw("init/make/instance", &tokType[0])
-				continue loop
-			} else {
-				iz.parameterizedInstancesToDeclare[ty.String()] =
-					typeInstantiationInfo{ty, dec.private}
-			}
+		dec := tc.(*tokenizedMakeDeclaration)	
+		ty := iz.makeTypeAstFromTokens(dec.typeToks)
+		if ty == nil {
+			iz.Throw("init/make/type", &dec.typeToks[0])
+			continue loop
+		}
+		if ty, ok := ty.(*ast.TypeWithArguments); !ok {
+			iz.Throw("init/make/instance", &dec.typeToks[0])
+			continue loop
+		} else {
+			iz.parameterizedInstancesToDeclare[ty.String()] =
+				typeInstantiationInfo{ty, dec.private}
 		}
 	}
 	// Now everything we need to declare is in iz.parameterizedInstancesToDeclare.
@@ -1372,14 +1369,14 @@ loop:
 		newOp := *operatorInfo.definedAt[0]
 		newOp.Literal = name
 		fn := &parsedFunction{
-			decType: functionDeclaration,
+			decType:   functionDeclaration,
 			decNumber: DUMMY,
-			private: false, // TODO --- why don't you know this?
-			op: newOp,
-			pos: prefix,
-			sig: sig,
-			body: &ast.BuiltInExpression{Name: name},
-			callInfo: &compiler.CallInfo{iz.cp, fnNo, nil},
+			private:   false, // TODO --- why don't you know this?
+			op:        newOp,
+			pos:       prefix,
+			sig:       sig,
+			body:      &ast.BuiltInExpression{Name: name},
+			callInfo:  &compiler.CallInfo{iz.cp, fnNo, nil},
 		}
 		iz.cp.P.Functions.Add(name)
 		iz.Add(name, fn)
@@ -2113,7 +2110,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				}
 				iz.compileTypecheck(dec.name, dec.chunk, compiler.NewEnvironment())
 				continue
-			case makeDeclaration:
+			case makeDeclarations:
 				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedInstanceMap[dec.name].env)
 				continue
 			case functionDeclaration:
@@ -2305,7 +2302,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 	}
 	cpFn.Private = izFn.private
 	functionName := izFn.op.Literal
-	
+
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+izFn.sig.String()+".", &izFn.op)
 	if iz.ErrorsExist() {
 		return nil
@@ -2613,7 +2610,8 @@ const (
 	functionDeclaration                  //
 	commandDeclaration                   //
 	golangDeclaration                    // Pure golang in a block; the Pipefish functions with golang bodies don't go here but under function or command as they were declared.
-	makeDeclaration                      // Instantiates parameterized types.
+	makeDeclarations                     // Instantiates parameterized types.
+	makeDeclaration                      // We break the makeDeclarations chunks down into this for convenience.
 )
 
 var tokenTypeToSection = map[token.TokenType]Section{
@@ -2711,4 +2709,3 @@ func (iz *Initializer) Throw(errorID string, tok *token.Token, args ...any) {
 func (iz *Initializer) ErrorsExist() bool {
 	return iz.P.ErrorsExist()
 }
-
