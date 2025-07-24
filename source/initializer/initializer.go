@@ -1021,42 +1021,28 @@ func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 func (iz *Initializer) createStructNames() {
 	iz.structDeclarationNumberToTypeNumber = map[int]values.ValueType{}
 	// First we need to make the struct types into types so the parser parses them properly.
-loop:
-	for i := range iz.TokenizedDeclarations[structDeclaration] {
-		indexToken := iz.TokenizedDeclarations[structDeclaration][i].IndexToken()
-		iz.P.TokenizedCode = iz.TokenizedDeclarations[structDeclaration][i]
-		iz.P.NextToken()
-		iz.P.NextToken()
-		iz.P.NextToken()
-		ty := iz.P.ParseType(parser.T_LOWEST)
-		name := indexToken.Literal
-		switch ty := ty.(type) {
-		case *ast.TypeWithName:
-		case *ast.TypeWithParameters:
-			ok := iz.registerParameterizedType(name, ty, nil, nil, "struct", iz.IsPrivate(int(structDeclaration), i), indexToken)
+	for i, tc := range iz.tokenizedCode[structDeclaration] {
+		dec := tc.(*tokenizedStructDeclaration)
+		if len(dec.params) != 0 {
+			ok := iz.registerParameterizedType(dec.op.Literal, iz.makeTypeWithParameters(dec.op, dec.params), nil, nil, "struct", dec.private, ixPtr(dec))
 			if !ok {
-				iz.Throw("init/struct/exists", indexToken)
+				iz.Throw("init/struct/exists", ixPtr(dec))
+				continue
 			}
-			iz.setDeclaration(decPARAMETERIZED, indexToken, DUMMY, DUMMY)
-			continue loop
-		default:
-			iz.Throw("init/struct/define", indexToken)
-			continue loop
+			iz.setDeclaration(decPARAMETERIZED, ixPtr(dec), DUMMY, DUMMY)
+			continue
 		}
-		private := iz.IsPrivate(int(structDeclaration), i)
-		typeNo := iz.addStructType(name, private, indexToken)
+		typeNo := iz.addStructType(dec.op.Literal, dec.private, ixPtr(dec))
 		iz.structDeclarationNumberToTypeNumber[i] = typeNo
 		// The VM needs fast access to a few special types.
-		if name == "Error" {
+		switch dec.op.Literal {
+		case "Error":
 			iz.cp.Vm.UsefulTypes.UnwrappedError = typeNo
-		}
-		if name == "File" {
+		case "File":
 			iz.cp.Vm.UsefulTypes.File = typeNo
-		}
-		if name == "Terminal" {
+		case "Terminal":
 			iz.cp.Vm.UsefulTypes.Terminal = typeNo
-		}
-		if name == "Output" {
+		case "Output":
 			iz.cp.Vm.UsefulTypes.Output = typeNo
 		}
 	}
