@@ -1863,7 +1863,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			for _, name := range names {
 				existingName, alreadyExists := namesToDeclarations[name]
 				if alreadyExists {
-					iz.P.Throw("init/name/exists/a", dec.GetToken(), ixPtr(iz.tokenizedCode[existingName[0].decType][existingName[0].decNumber]), name)
+					iz.P.Throw("init/name/exists/a", parsedDec.indexTok, ixPtr(iz.tokenizedCode[existingName[0].decType][existingName[0].decNumber]), name)
 					return nil
 				}
 				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
