@@ -70,11 +70,11 @@ func (iz *Initializer) compileGo() {
 	// we're looking up times anyway this is a reasonable way to achieve that.
 
 	// We get the blocks of pure Go, if any, and put them in the appropriate place in the goBucket.
-	for _, golang := range iz.TokenizedDeclarations[golangDeclaration] {
-		golang.ToStart()
-		token := golang.NextToken()
-		iz.goBucket.sources.Add(token.Source)
-		iz.goBucket.pureGo[token.Source] = append(iz.goBucket.pureGo[token.Source], token.Literal[:len(token.Literal)-2])
+	for _, tc := range iz.tokenizedCode[golangDeclaration] {
+		golang := tc.(*tokenizedGolangDeclaration)
+		iz.goBucket.sources.Add(golang.goCode.Source)
+		iz.goBucket.pureGo[golang.goCode.Source] = append(iz.goBucket.pureGo[golang.goCode.Source], 
+			golang.goCode.Literal[:len(golang.goCode.Literal)-2])
 	}
 
 	for j := functionDeclaration; j <= commandDeclaration; j++ {

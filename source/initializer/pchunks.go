@@ -85,11 +85,13 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 			body: body,
 		}
 	case *tokenizedConstOrVarDeclaration:
+		sig := iz.makeAstSigFromTokenizedSig(tc.sig)
 		iz.P.TokenizedCode = tc.body
 		return &parsedAssignment {
 			decType: decType,
 			decNumber: decNumber,
 			indexTok: ixPtr(tc),
+			sig: sig,
 			body: iz.P.ParseTokenizedChunk(),
 		}
 	case *tokenizedFunctionDeclaration:
@@ -103,7 +105,7 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 		return &parsedFunction {
 			decType: decType,
 			decNumber: decNumber,
-			private: iz.TokenizedDeclarations[decType][decNumber].Private,
+			private: tc.private,
 			op: tc.op,
 			pos: tc.pos,
 			sig: iz.makeAstSigFromTokenizedSig(tc.sig),
