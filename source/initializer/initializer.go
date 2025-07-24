@@ -1706,8 +1706,8 @@ func (iz *Initializer) AddFieldsToStructsAndCheckForConsistency() {
 
 // Adds field types to structs.
 func (iz *Initializer) addFieldsToStructs() {
-	for i, tcc := range iz.TokenizedDeclarations[structDeclaration] {
-		izTypeInfo, _ := iz.getDeclaration(decSTRUCT, tcc.IndexToken(), DUMMY)
+	for i, tc := range iz.tokenizedCode[structDeclaration] {
+		izTypeInfo, _ := iz.getDeclaration(decSTRUCT, ixPtr(tc), DUMMY)
 		if izTypeInfo == nil { // This will happen if it's a parameterized declaration.
 			continue
 		}
