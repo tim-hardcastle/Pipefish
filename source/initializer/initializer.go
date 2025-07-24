@@ -1266,8 +1266,6 @@ func (iz *Initializer) createInterfaceTypes() {
 }
 
 func (iz *Initializer) instantiateParameterizedTypes() {
-
-	// Now everything we need to declare is in iz.parameterizedInstancesToDeclare.
 	typeOperators := make(map[string]typeOperatorInfo)
 	for _, tc := range iz.tokenizedCode[makeDeclaration] {
 		dec := tc.(*tokenizedMakeDeclaration)
@@ -1339,9 +1337,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 		} else {
 			typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
 		}
-		if _, ok := iz.parameterizedInstanceMap[newTypeName]; !ok {
-			iz.parameterizedInstanceMap[newTypeName] = parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals}
-		}
+		iz.parameterizedInstanceMap[newTypeName] = parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals}
 		iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 	}
 	// Now we can make a constructor function for each of the type operators.
