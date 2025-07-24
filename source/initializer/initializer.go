@@ -1888,9 +1888,9 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 						iz.P.Throw("init/name/exists/c", dec.GetToken(), iz.ParsedDeclarations[existingName.decType][existingName.decNumber].GetToken(), name)
 					}
 				}
-				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name, iz.TokenizedDeclarations[dT][i].IndexToken()})
+				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])})
 			} else {
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, iz.TokenizedDeclarations[dT][i].IndexToken()}}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
 			}
 		}
 	}
