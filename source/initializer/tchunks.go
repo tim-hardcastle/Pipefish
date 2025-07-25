@@ -177,51 +177,6 @@ func (tc *tokenizedStructDeclaration) getDeclarationType() declarationType { ret
 
 func (tc *tokenizedStructDeclaration) indexToken() token.Token { return tc.op }
 
-// This is a temporary function to allow us to refactor from using TCCs to tokenizedCode.
-func (iz *Initializer) TranslateEverything() {
-	for decType := importDeclaration; decType <= makeDeclarations; decType++ {
-		for _, dec := range iz.TokenizedDeclarations[decType] {
-			translation := iz.tccToTokenizedCode(decType, dec.Private, dec)
-			if decType == makeDeclarations {
-				for _, ty := range translation.(*tokenizedMakeDeclarations).types {
-					iz.tokenizedCode[makeDeclaration] = append(iz.tokenizedCode[makeDeclaration],
-					&tokenizedMakeDeclaration{
-						private: translation.(*tokenizedMakeDeclarations).private,
-						typeToks: ty,
-					})
-				}
-			} else {
-				iz.tokenizedCode[decType] = append(iz.tokenizedCode[decType], iz.tccToTokenizedCode(decType, dec.Private, dec))
-			}
-			dec.ToStart()
-		}
-	}
-}
-
-func (iz *Initializer) tccToTokenizedCode(decType declarationType, private bool, tcc *token.TokenizedCodeChunk) tokenizedCode {
-	iz.P.PrimeWithTokenSupplier(tcc)
-	switch decType {
-	case commandDeclaration, functionDeclaration:
-		result, _ := iz.ChunkFunction(decType == commandDeclaration, private)
-		return result
-	case variableDeclaration, constantDeclaration:
-		result, _ := iz.ChunkConstOrVarDeclaration(decType == constantDeclaration, private)
-		return result
-	case importDeclaration, externalDeclaration:
-		result, _ := iz.ChunkImportOrExternalDeclaration(decType == externalDeclaration, private)
-		return result
-	case abstractDeclaration, cloneDeclaration, enumDeclaration, interfaceDeclaration,
-		makeDeclarations, structDeclaration:
-		result, _ := iz.ChunkTypeDeclaration(private)
-		return result
-	case golangDeclaration:
-		result, _ := iz.ChunkGolangDeclaration(private)
-		return result
-	default:
-		panic("Unhandled declaration type.")
-	}
-}
-
 // As with all the chunkers, this assumes that the p.curToken is the first token of
 // the thing we're trying to slurp.
 // It will end with the p.curTok being the EOF/NEWLINE terminating the declaration.

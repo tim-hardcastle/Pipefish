@@ -41,7 +41,6 @@ type Initializer struct {
 	cp                                  *compiler.Compiler           // The compiler for the module being intitialized.
 	P                                   *parser.Parser               // The parser for the module being initialized.
 	initializers                        map[string]*Initializer      // The child initializers of this one, to initialize imports and external stubs.
-	TokenizedDeclarations               [14]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
 	tokenizedCode                       [][]tokenizedCode            // Code arranged by declaration type and lightly chunked and validated.
 	parsedCode                          [][]parsedCode               // What you get by parsing that.
 	localConcreteTypes                  dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
@@ -264,14 +263,7 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	iz.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
 
 	iz.cmI("Making parser and tokenized program.")
-	iz.MakeParserAndTokenizedProgram()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	// TEMPORARY until I get rid of the top-level tccs.
-	iz.cmI("Translating tccs to tcs.")
-	iz.TranslateEverything()
+	iz.getTokenizedCode()
 	if iz.ErrorsExist() {
 		return
 	}
@@ -362,7 +354,7 @@ func (iz *Initializer) AddToNameSpace(thingsToImport []string) {
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
 		iz.cmI("Making new relexer with filepath '" + fname + "'")
 		iz.P.TokenizedCode = lexer.NewRelexer(fname, stdImp)
-		iz.MakeParserAndTokenizedProgram() // This is cumulative, it throws them all into the parser together.
+		iz.getTokenizedCode() // This is cumulative, it throws them all into the parser together.
 		iz.P.Common.Sources[fname] = strings.Split(stdImp, "\n")
 	}
 }
@@ -370,162 +362,56 @@ func (iz *Initializer) AddToNameSpace(thingsToImport []string) {
 // This method takes the tokens from the relexer and splits it up into
 // code types according  to the headword, which is discarded. It breaks these up into function
 // declarations, variable intializations, etc.
-
-// As it does so it checks out the signatures of the functions and commands and decides
-// what "grammatical" role the words in the function signature play, and deposits
-// lists of these into a Parser object: the Prefix, Forefix, Midfix, Suffix, Endfix etc classes.
-
-// We then have a tokenized program broken into parts, and a parser primed to
-// parse tokens into ASTs. We apply one to the other and produce ASTs from our
-// tokenized code.
-func (iz *Initializer) MakeParserAndTokenizedProgram() {
-	currentSection := UndefinedSection
-	beginCount := 0
-	indentCount := 0
-	lastTokenWasColon := false
-	typeDefined := declarationType(DUMMY)
-	IsPrivate := false
-	var (
-		tok token.Token
-	)
-
-	tok = iz.P.TokenizedCode.NextToken() // note that we've already removed leading newlines.
-	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-		println(text.PURPLE+tok.Type, tok.Literal+text.RESET)
-	}
-
-	if tok.Type == token.EOF { // An empty file should still initiate a service, but one with no data.
-		return
-	}
-	if !token.TokenTypeIsHeadword(tok.Type) {
-		iz.Throw("init/head", &tok)
-		return
-	}
-
-	currentSection = tokenTypeToSection[tok.Type]
-
-	line := token.NewCodeChunk()
-
-	for tok = iz.P.TokenizedCode.NextToken(); true; tok = iz.P.TokenizedCode.NextToken() {
-		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-			println(text.PURPLE+tok.Type, tok.Literal+text.RESET)
-		}
-		if token.TokenTypeIsHeadword(tok.Type) {
-			if tok.Literal == "import" {
-				iz.Throw("init/import/first", &tok)
-			}
-			currentSection = tokenTypeToSection[tok.Type]
-			IsPrivate = false
-			lastTokenWasColon = false
-			continue
-		}
-		if tok.Type == token.PRIVATE {
-			if IsPrivate {
-				iz.Throw("init/private", &tok)
-			}
-			IsPrivate = true
-			continue
-		}
-		if currentSection == TypesSection && tok.Type == token.IDENT {
-			if tok.Literal == "make" {
-				typeDefined = makeDeclarations
-			} else {
-				tD, ok := typeMap[tok.Literal]
-				if ok {
-					typeDefined = tD
-				}
-			}
-		}
-		if tok.Type == token.LPAREN {
-			beginCount++
-			if tok.Literal == "|->" {
-				indentCount++
-			}
-		}
-		if tok.Type == token.RPAREN {
-			beginCount--
-			if tok.Literal == "<-|" {
-				indentCount--
-			}
-		}
-		if ((tok.Type == token.NEWLINE || tok.Type == token.EOF) && !lastTokenWasColon && indentCount == 0 && line.Length() != 0) ||
-			tok.Type == token.GOCODE {
-			if tok.Type == token.GOCODE {
-				line.Append(tok)
-			}
-			if beginCount != 0 {
-				iz.Throw("init/close", &tok)
-				beginCount = 0 // Prevents error storm.
-				typeDefined = declarationType(DUMMY)
-				continue
-			}
-			switch currentSection {
-			case ImportSection:
-				iz.addTokenizedDeclaration(importDeclaration, line, IsPrivate)
-
-			case ExternalSection:
-				iz.addTokenizedDeclaration(externalDeclaration, line, IsPrivate)
-			case CmdSection:
-				line.ToStart()
-				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
-					iz.addTokenizedDeclaration(golangDeclaration, line, IsPrivate)
+func (iz *Initializer) getTokenizedCode() {
+	headword := token.ILLEGAL
+	private := false
+loop:
+	for iz.P.CurToken.Type != token.EOF {
+		var result tokenizedCode
+		switch {
+		case iz.P.CurToken.Type == "":            // We just continue.	
+		case iz.P.CurToken.Type == token.NEWLINE: // We just continue.
+		case token.TokenTypeIsHeadword(iz.P.CurToken.Type):
+			headword = string(iz.P.CurToken.Type)
+			private = false
+		case iz.P.CurToken.Type == token.PRIVATE:
+			private = true 
+		default:
+			switch headword {
+			case token.ILLEGAL:
+				iz.Throw("init/head", &iz.P.CurToken)
+				return
+			case token.CMD, token.DEF:
+				if iz.P.CurToken.Type == token.GOCODE { // Then we have a block of pure Go.
+					result = &tokenizedGolangDeclaration{private, iz.P.CurToken}
 				} else {
-					iz.addTokenizedDeclaration(commandDeclaration, line, IsPrivate)
+					result, _ = iz.ChunkFunction(headword == token.CMD, private)
 				}
-			case DefSection:
-				line.ToStart()
-				if line.Length() == 1 && line.NextToken().Type == token.GOCODE {
-					iz.addTokenizedDeclaration(golangDeclaration, line, IsPrivate)
-				} else {
-					iz.addTokenizedDeclaration(functionDeclaration, line, IsPrivate)
-				}
-
-			case VarSection, ConstSection:
-				// As a wretched kludge, we will now weaken some of the commas on the LHS of
-				// the assignment so that it parses properly. (TODO: at this point it would be much easier to
-				// do this in the relexer.)
-				lastWasType := false
-				lastWasVar := false
-				line.ToStart()
-				for t := line.NextToken(); !(t.Type == token.ASSIGN); t = line.NextToken() {
-					if t.Type == token.COMMA {
-						if lastWasType {
-							line.Change(token.Token{Type: token.WEAK_COMMA, Line: tok.Line, Literal: ","})
-						}
-						lastWasType = false
-						lastWasVar = false
-					} else {
-						lastWasType = lastWasVar
-						lastWasVar = !lastWasType
+			case token.VAR, token.CONST:
+				result, _ = iz.ChunkConstOrVarDeclaration(headword == token.CONST, private)
+			case token.IMPORT, token.EXTERN:
+				result, _ = iz.ChunkImportOrExternalDeclaration(headword == token.EXTERN, private)
+			case token.NEWTYPE:
+				result, _ = iz.ChunkTypeDeclaration(private)
+				if result.getDeclarationType() == makeDeclarations {
+					for _, ty := range result.(*tokenizedMakeDeclarations).types {
+						iz.tokenizedCode[makeDeclaration] = append(iz.tokenizedCode[makeDeclaration],
+						&tokenizedMakeDeclaration{
+							private: private,
+							typeToks: ty,
+						})
 					}
-				}
-				if currentSection == VarSection {
-					iz.addTokenizedDeclaration(variableDeclaration, line, IsPrivate)
-				} else {
-					iz.addTokenizedDeclaration(constantDeclaration, line, IsPrivate)
-				}
-			case TypesSection:
-				if typeDefined != declarationType(DUMMY) {
-					iz.addTokenizedDeclaration(typeDefined, line, IsPrivate)
-				} else {
-					iz.Throw("init/type/defined", &tok)
+					continue loop
 				}
 			default:
-				panic("Unhandled section type.")
+				panic("Unhandled headword.")
 			}
-			line = token.NewCodeChunk()
-			typeDefined = declarationType(DUMMY)
-			continue
 		}
-		if tok.Type == token.NEWLINE && line.Length() == 0 {
-			continue
+		if result != nil {
+			iz.tokenizedCode[result.getDeclarationType()] = 
+				append(iz.tokenizedCode[result.getDeclarationType()], result)
 		}
-
-		lastTokenWasColon = (tok.Type == token.COLON)
-		line.Append(tok)
-		if tok.Type == token.EOF {
-			break
-		}
+		iz.P.NextToken()
 	}
 	iz.P.Common.Errors = err.MergeErrors(iz.P.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.P.Common.Errors)
 }
@@ -2520,24 +2406,18 @@ func (iz *Initializer) setDeclaration(dOf declarationOf, tok *token.Token, ix in
 // Tokens to return when no token is available.
 var LINKING_TOKEN = &token.Token{Source: "Pipefish linker"}
 
-// Types and functions to assist the `MakeParserndTokenizedProgram` method.
-type Section int
-
-const (
-	ImportSection Section = iota
-	ExternalSection
-	VarSection
-	CmdSection
-	DefSection
-	TypesSection
-	ConstSection
-	UndefinedSection
-)
-
+// This is used to label things of type tokenizedCode and parsedCode, and also to index those
+// and other data structures in arrays.
+//
+// When it's used as an array index we can iterate from e.g. constantDeclatation to 
+// variableDeclaration in the same way.
+//
+// For this and other reasons some aspects of the initialization process are dependent on the 
+// order of the constants, which are therefore not mere labels and should not be re-ordered
+// without some care and forethought.
 type declarationType int
 
-// The fact that these things come in this order is used in the code and should not be changed without a great deal of forethought.
-const (
+const ( // Most of these names are self-explanatory.
 	importDeclaration    declarationType = iota
 	externalDeclaration                  //
 	enumDeclaration                      //
@@ -2554,21 +2434,6 @@ const (
 	makeDeclaration                      // We break the makeDeclarations chunks down into this for convenience.
 )
 
-var tokenTypeToSection = map[token.TokenType]Section{
-	token.IMPORT:  ImportSection,
-	token.EXTERN:  ExternalSection,
-	token.VAR:     VarSection,
-	token.CMD:     CmdSection,
-	token.DEF:     DefSection,
-	token.NEWTYPE: TypesSection,
-	token.CONST:   ConstSection,
-}
-
-type fnSource struct {
-	decType   declarationType
-	decNumber int
-}
-
 type labeledParsedCodeChunk struct {
 	chunk     parsedCode
 	decType   declarationType
@@ -2576,14 +2441,6 @@ type labeledParsedCodeChunk struct {
 	name      string
 	indexTok  *token.Token
 }
-
-func (iz *Initializer) addTokenizedDeclaration(decType declarationType, line *token.TokenizedCodeChunk, private bool) {
-	line.Private = private
-	iz.TokenizedDeclarations[decType] = append(iz.TokenizedDeclarations[decType], line)
-}
-
-var typeMap = map[string]declarationType{"struct": structDeclaration, "enum": enumDeclaration,
-	"abstract": abstractDeclaration, "clone": cloneDeclaration, "interface": interfaceDeclaration}
 
 // Types and functions to help with housekeeping. The initializer stores the declarations of types and functions
 // in a map keyed by their source and line number. This is to prevent the same source code being compiled twice onto
