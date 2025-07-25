@@ -148,24 +148,28 @@ func (iz *Initializer) makeTypeAstFromTokens(toks []token.Token) ast.TypeNode {
 // It is crude in that it will slurp other things too: type names, for example; bling; local true variables in cmds. We can live
 // with the false positives so long as there are no false negatives.
 func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dtypes.Set[string] {
-	if dec.decType == variableDeclaration || dec.decType == constantDeclaration {
-		return ast.ExtractAllNames(dec.chunk.(*ast.AssignmentExpression).Right)
-	}
-	if dec.decType == structDeclaration || dec.decType == cloneDeclaration || dec.decType == makeDeclaration {
-		return ast.ExtractAllNames(dec.chunk)
-	}
-	_, _, sig, _, body, given := iz.P.ExtractPartsOfFunction(iz.ParsedDeclarations[dec.decType][dec.decNumber])
-	sigNames := dtypes.Set[string]{}
-	for _, pair := range sig {
-		if _, ok := pair.VarType.(*ast.Bling); !ok {
-			sigNames = sigNames.Add(pair.VarName)
+	switch pc := dec.chunk.(type) {
+	case *parsedAssignment:
+		return ast.ExtractAllNames(pc.body)
+	case *parsedTypecheck:
+		return ast.ExtractAllNames(pc.body)
+	case *parsedTypeInstance:
+		return ast.ExtractAllNames(pc.typeCheck)
+	case *parsedFunction:
+		sigNames := dtypes.Set[string]{}
+		for _, pair := range pc.sig {
+			if _, ok := pair.VarType.(*ast.Bling); !ok {
+				sigNames = sigNames.Add(pair.VarName)
+			}
 		}
+		bodyNames := ast.ExtractAllNames(pc.body)
+		lhsG, rhsG := ast.ExtractNamesFromLhsAndRhsOfGivenBlock(pc.given)
+		bodyNames.AddSet(rhsG)
+		bodyNames = bodyNames.SubtractSet(lhsG)
+		return bodyNames.SubtractSet(sigNames)
+	default:
+		panic("Unhandled parsedCode type.")
 	}
-	bodyNames := ast.ExtractAllNames(body)
-	lhsG, rhsG := ast.ExtractNamesFromLhsAndRhsOfGivenBlock(given)
-	bodyNames.AddSet(rhsG)
-	bodyNames = bodyNames.SubtractSet(lhsG)
-	return bodyNames.SubtractSet(sigNames)
 }
 
 // TODO --- there should be more performant ways of doing this but for now I'll just

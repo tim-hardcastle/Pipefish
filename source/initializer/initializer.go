@@ -1857,23 +1857,23 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	namesToDeclarations := map[string][]labeledParsedCodeChunk{}
 	result := [][]labeledParsedCodeChunk{}
 	for dT := constantDeclaration; dT <= variableDeclaration; dT++ {
-		for i, dec := range iz.ParsedDeclarations[dT] {
-			parsedDec := iz.parsedCode[dT][i].(*parsedAssignment)
+		for i, pc := range iz.parsedCode[dT] {
+			parsedDec := pc.(*parsedAssignment)
 			names := iz.P.GetVariablesFromAstSig(parsedDec.sig)
 			for _, name := range names {
 				existingName, alreadyExists := namesToDeclarations[name]
 				if alreadyExists {
-					iz.P.Throw("init/name/exists/a", parsedDec.indexTok, ixPtr(iz.tokenizedCode[existingName[0].decType][existingName[0].decNumber]), name)
+					iz.P.Throw("init/name/exists/a", parsedDec.indexTok, existingName[0].chunk.getToken(), name)
 					return nil
 				}
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{parsedDec, dT, i, name, parsedDec.indexTok}}
 			}
 		}
 	}
 	iz.cmI("Mapping names of functions to their declarations.")
 	for dT := functionDeclaration; dT <= commandDeclaration; dT++ {
-		for i, dec := range iz.ParsedDeclarations[dT] {
-			izFn := iz.parsedCode[dT][i].(*parsedFunction)
+		for i, pc := range iz.parsedCode[dT] {
+			izFn := pc.(*parsedFunction)
 			name := izFn.op.Literal
 			_, alreadyExists := namesToDeclarations[name]
 			if alreadyExists {
@@ -1886,9 +1886,9 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 						iz.P.Throw("init/name/exists/c", &izFn.op, ixPtr(iz.tokenizedCode[existingName.decType][existingName.decNumber]), name)
 					}
 				}
-				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])})
+				namesToDeclarations[name] = append(names, labeledParsedCodeChunk{izFn, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])})
 			} else {
-				namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
+				namesToDeclarations[name] = []labeledParsedCodeChunk{{izFn, dT, i, name, ixPtr(iz.tokenizedCode[dT][i])}}
 			}
 		}
 	}
@@ -1899,7 +1899,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		dec := pc.(*parsedTypecheck)
 		if dec.body != nil {
 			name := "*" + dec.indexTok.Literal
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec.body, structDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, structDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
 		}
 		if iz.ErrorsExist() {
 			return nil
@@ -1912,7 +1912,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		dec := pc.(*parsedTypecheck)
 		if dec.body != nil {
 			name := "*" + dec.indexTok.Literal
-			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec.body, cloneDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
+			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, cloneDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
 		}
 		if iz.ErrorsExist() {
 			return nil
@@ -1927,7 +1927,12 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		v.typeCheck.ToStart()
 		iz.P.TokenizedCode = v.typeCheck
 		node := iz.P.ParseTokenizedChunk()
-		namesToDeclarations[name] = []labeledParsedCodeChunk{{node, makeDeclaration, i, name[1:], v.typeCheck.IndexToken()}}
+		pc := &parsedTypeInstance{
+			typeCheck: node,
+			instantiatedAt: v.typeCheck.IndexToken(), // TODO --- no it isn't.
+			env: nil,
+		}
+		namesToDeclarations[name] = []labeledParsedCodeChunk{{pc, makeDeclaration, i, name[1:], v.typeCheck.IndexToken()}}
 		i++
 	}
 
@@ -1948,11 +1953,11 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 						// We check for forbidden relationships.
 						for _, rhsDec := range rhsDecs {
 							if rhsDec.decType == commandDeclaration {
-								iz.P.Throw("init/depend/cmd", dec.chunk.GetToken())
+								iz.P.Throw("init/depend/cmd", dec.chunk.getToken())
 								return nil
 							}
 							if rhsDec.decType == variableDeclaration && dec.decType == constantDeclaration {
-								iz.P.Throw("init/depend/var", dec.chunk.GetToken())
+								iz.P.Throw("init/depend/var", dec.chunk.getToken())
 								return nil
 							}
 						}
@@ -2002,7 +2007,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
 		if ok && compilerDirectives.Contains(svName) { // Then we've declared a service variable which is also a compiler directive, and must compile the declaration.
-			tok := namesToDeclarations[svName][0].chunk.GetToken()
+			tok := namesToDeclarations[svName][0].chunk.getToken()
 			decType := namesToDeclarations[svName][0].decType
 			decNumber := namesToDeclarations[svName][0].decNumber
 			if len(rhs) > 0 {
@@ -2055,21 +2060,24 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		}
 	loop:
 		for _, dec := range groupOfDeclarations {
-			switch dec.decType {
-			case structDeclaration, cloneDeclaration:
-				tok := dec.indexTok
+			switch parsedCode := dec.chunk.(type) {
+			case *parsedTypecheck:
+				tok := parsedCode.getToken()
 				if _, ok := iz.getDeclaration(decPARAMETERIZED, tok, DUMMY); ok {
 					continue loop
 				}
-				iz.compileTypecheck(dec.name, dec.chunk, compiler.NewEnvironment())
+				iz.compileTypecheck(dec.name, parsedCode.body, compiler.NewEnvironment())
 				continue
-			case makeDeclarations:
-				iz.compileTypecheck(dec.name, dec.chunk, iz.parameterizedInstanceMap[dec.name].env)
+			case *parsedTypeInstance:
+				iz.compileTypecheck(dec.name, parsedCode.typeCheck, iz.parameterizedInstanceMap[dec.name].env)
 				continue
-			case functionDeclaration:
-				iz.compileFunction(functionDeclaration, dec.decNumber, iz.cp.GlobalConsts)
-			case commandDeclaration:
-				iz.compileFunction(commandDeclaration, dec.decNumber, iz.cp.GlobalVars)
+			case *parsedFunction:
+				switch parsedCode.decType { 
+				case functionDeclaration:
+					iz.compileFunction(functionDeclaration, dec.decNumber, iz.cp.GlobalConsts)
+				case commandDeclaration:
+					iz.compileFunction(commandDeclaration, dec.decNumber, iz.cp.GlobalVars)
+				}
 			}
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
@@ -2580,7 +2588,7 @@ type fnSource struct {
 }
 
 type labeledParsedCodeChunk struct {
-	chunk     ast.Node
+	chunk     parsedCode
 	decType   declarationType
 	decNumber int
 	name      string

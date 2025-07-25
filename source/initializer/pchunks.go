@@ -12,6 +12,7 @@ import (
 // and type validation logic.
 
 type parsedCode interface {
+	getToken() *token.Token
 }
 
 type parsedFunction struct {
@@ -29,6 +30,8 @@ type parsedFunction struct {
 	callInfo   *compiler.CallInfo  
 }
 
+func (pc *parsedFunction) getToken() *token.Token { return &pc.op }
+
 type parsedAssignment struct {
 	decType   declarationType    // Constant or variable
 	decNumber int
@@ -36,6 +39,8 @@ type parsedAssignment struct {
 	sig       ast.AstSig
 	body      ast.Node
 }
+
+func (pc *parsedAssignment) getToken() *token.Token { return pc.indexTok }
 
 type parsedTypecheck struct {
 	decType    declarationType    // Clone or struct
@@ -45,14 +50,18 @@ type parsedTypecheck struct {
 	body       ast.Node
 }
 
+func (pc *parsedTypecheck) getToken() *token.Token { return pc.indexTok }
+
 // When a parameterized type is instantiated, we monomorphize the typechecking because it
 // would be a waste of time to e.g. keep fetching the '3' to check that things are in a
 // type Vec{3}, etc.
 type parsedTypeInstance struct {
-	typeCheck       *parsedTypecheck      // Points to an instance of the struct above, where the parameterized types were declared.
+	typeCheck       ast.Node             // 
 	instantiatedAt  *token.Token          // The place in the code (or one of the places) where the type instance is named.
 	env             *compiler.Environment // The values for the parameters, already put into an environment as named constants, ready for compilation.
 }
+
+func (pc *parsedTypeInstance) getToken() *token.Token { return pc.instantiatedAt }
 
 var PARSEABLE = []declarationType{cloneDeclaration, structDeclaration, constantDeclaration,
 	variableDeclaration, functionDeclaration, commandDeclaration}
