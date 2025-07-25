@@ -42,7 +42,6 @@ type Initializer struct {
 	P                                   *parser.Parser               // The parser for the module being initialized.
 	initializers                        map[string]*Initializer      // The child initializers of this one, to initialize imports and external stubs.
 	TokenizedDeclarations               [14]TokenizedCodeChunks      // The declarations in the script, converted from text to tokens and sorted by purpose.
-	ParsedDeclarations                  [13]parser.ParsedCodeChunks  // ASTs produced by parsing the tokenized chunks in the field above, sorted in the same way.
 	tokenizedCode                       [][]tokenizedCode            // Code arranged by declaration type and lightly chunked and validated.
 	parsedCode                          [][]parsedCode               // What you get by parsing that.
 	localConcreteTypes                  dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
@@ -63,13 +62,13 @@ type Initializer struct {
 // Makes a new initializer.
 func NewInitializer() *Initializer {
 	iz := Initializer{
-		initializers:                    make(map[string]*Initializer),
-		localConcreteTypes:              make(dtypes.Set[values.ValueType]),
-		unserializableTypes:             make(dtypes.Set[string]),
-		tokenizedCode:                   make([][]tokenizedCode, 14),
-		functionTable:                   make(functionTable),
-		parameterizedTypes:              make(map[string][]ParameterInfo),
-		parameterizedInstanceMap:        make(map[string]parameterizedTypeInstance),
+		initializers:             make(map[string]*Initializer),
+		localConcreteTypes:       make(dtypes.Set[values.ValueType]),
+		unserializableTypes:      make(dtypes.Set[string]),
+		tokenizedCode:            make([][]tokenizedCode, 14),
+		functionTable:            make(functionTable),
+		parameterizedTypes:       make(map[string][]ParameterInfo),
+		parameterizedInstanceMap: make(map[string]parameterizedTypeInstance),
 	}
 	iz.newGoBucket()
 	return &iz
@@ -251,7 +250,7 @@ func (iz *Initializer) ParseEverythingFromSourcecode(mc *vm.Vm, cpb *parser.Comm
 // This in the heart of phase 1 compilation, and does everything up to and including parsing the code chunks,
 // and then hands back flow of control to the StartCompiler method.
 func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
-	iz.cmI("Starting makeall for script " + scriptFilepath + ".")
+	iz.cmI("Starting parseEverything for script " + scriptFilepath + ".")
 
 	if !settings.OMIT_BUILTINS {
 		iz.cmI("Adding mandatory imports to namespace.")
@@ -338,12 +337,6 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	}
 
 	iz.cmI("New parse everything else.")
-	iz.newParseEverything()
-	if iz.ErrorsExist() {
-		return
-	}
-
-	iz.cmI("Parsing everything else.")
 	iz.parseEverythingElse()
 	if iz.ErrorsExist() {
 		return
@@ -374,7 +367,7 @@ func (iz *Initializer) AddToNameSpace(thingsToImport []string) {
 	}
 }
 
-// Phase 1A of compilation. This method takes the tokens from the relexer and splits it up into
+// This method takes the tokens from the relexer and splits it up into
 // code types according  to the headword, which is discarded. It breaks these up into function
 // declarations, variable intializations, etc.
 
@@ -1348,17 +1341,6 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 	}
 }
 
-// We parse the constants, variables, functions, commands.
-func (iz *Initializer) parseEverythingElse() {
-	for declarations := constantDeclaration; declarations <= commandDeclaration; declarations++ {
-		for chunk := 0; chunk < len(iz.TokenizedDeclarations[declarations]); chunk++ {
-			iz.P.TokenizedCode = iz.TokenizedDeclarations[declarations][chunk]
-			iz.TokenizedDeclarations[declarations][chunk].ToStart()
-			iz.ParsedDeclarations[declarations] = append(iz.ParsedDeclarations[declarations], iz.P.ParseTokenizedChunk())
-		}
-	}
-}
-
 // Phase 2. We find the shareable functions.
 func (iz *Initializer) findAllShareableFunctions() {
 	// First we recursively call the method on all the dependencies of the module.
@@ -1928,9 +1910,9 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		iz.P.TokenizedCode = v.typeCheck
 		node := iz.P.ParseTokenizedChunk()
 		pc := &parsedTypeInstance{
-			typeCheck: node,
+			typeCheck:      node,
 			instantiatedAt: v.typeCheck.IndexToken(), // TODO --- no it isn't.
-			env: nil,
+			env:            nil,
 		}
 		namesToDeclarations[name] = []labeledParsedCodeChunk{{pc, makeDeclaration, i, name[1:], v.typeCheck.IndexToken()}}
 		i++
@@ -2072,7 +2054,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 				iz.compileTypecheck(dec.name, parsedCode.typeCheck, iz.parameterizedInstanceMap[dec.name].env)
 				continue
 			case *parsedFunction:
-				switch parsedCode.decType { 
+				switch parsedCode.decType {
 				case functionDeclaration:
 					iz.compileFunction(functionDeclaration, dec.decNumber, iz.cp.GlobalConsts)
 				case commandDeclaration:
