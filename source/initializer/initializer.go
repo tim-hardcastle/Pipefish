@@ -2100,11 +2100,12 @@ type serviceVariableData struct {
 
 // Function auxiliary to the above for compiling constant and variable declarations.
 func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationType, v int) {
-	dec := iz.ParsedDeclarations[declarations][v]
-	iz.cp.Cm("Compiling assignment "+dec.String(), dec.GetToken())
-	lhs := dec.(*ast.AssignmentExpression).Left
-	rhs := dec.(*ast.AssignmentExpression).Right
-	sig, _ := iz.P.RecursivelySlurpSignature(lhs, ast.INFERRED_TYPE_AST)
+	// dec := iz.ParsedDeclarations[declarations][v]
+	asgn := iz.parsedCode[declarations][v].(*parsedAssignment)
+	iz.cp.Cm("Compiling assignment", asgn.indexTok)
+	// lhs := dec.(*ast.AssignmentExpression).Left
+	rhs := asgn.body
+	sig := asgn.sig
 	if iz.ErrorsExist() {
 		return
 	}
@@ -2115,11 +2116,11 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 		return
 	}
 	iz.cp.Emit(vm.Ret)
-	iz.cp.Cm("Calling Run from initializer's compileGlobalConstantOrVariable method.", dec.GetToken())
+	iz.cp.Cm("Calling Run from initializer's compileGlobalConstantOrVariable method.", asgn.indexTok)
 	iz.cp.Vm.Run(uint32(rollbackTo.Code))
 	result := iz.cp.Vm.Mem[iz.cp.That()]
 	if !iz.cp.Common.CodeGeneratingTypes.Contains(result.T) { // We don't want to roll back the code generated when we make a lambda or a snippet.
-		iz.cp.Rollback(rollbackTo, dec.GetToken())
+		iz.cp.Rollback(rollbackTo, asgn.indexTok)
 	}
 
 	envToAddTo, vAcc := iz.getEnvAndAccessForConstOrVarDeclaration(declarations, v)
@@ -2133,15 +2134,15 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 		tupleLen = len(result.V.([]values.Value))
 	}
 	if !lastIsTuple && tupleLen > len(sig) {
-		iz.P.Throw("comp/assign/a", dec.GetToken(), tupleLen, len(sig))
+		iz.P.Throw("comp/assign/a", asgn.indexTok, tupleLen, len(sig))
 		return
 	}
 	if !lastIsTuple && tupleLen < len(sig) {
-		iz.P.Throw("comp/assign/b", dec.GetToken(), tupleLen, len(sig))
+		iz.P.Throw("comp/assign/b", asgn.indexTok, tupleLen, len(sig))
 		return
 	}
 	if lastIsTuple && tupleLen < len(sig)-1 {
-		iz.P.Throw("comp/assign/c", dec.GetToken(), tupleLen, len(sig))
+		iz.P.Throw("comp/assign/c", asgn.indexTok, tupleLen, len(sig))
 		return
 	}
 	loopTop := len(sig)
@@ -2166,12 +2167,12 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 	}
 	for i := 0; i < loopTop; i++ {
 		iz.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
-		if sig[i].VarType == ast.INFERRED_TYPE_AST {
+		if varType, ok := sig[i].VarType.(*ast.TypeWithName); ok && varType.Name == "*inferred*" {
 			iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 		} else {
 			allowedTypes := iz.cp.GetAlternateTypeFromTypeAst(sig[i].VarType)
 			if allowedTypes.IsNoneOf(head[i].T) {
-				iz.P.Throw("comp/assign/type/a", dec.GetToken(), sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
+				iz.P.Throw("comp/assign/type/a", asgn.indexTok, sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
 				return
 			} else {
 				iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
