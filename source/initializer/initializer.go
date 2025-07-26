@@ -362,20 +362,30 @@ func (iz *Initializer) AddToNameSpace(thingsToImport []string) {
 // This method takes the tokens from the relexer and splits it up into
 // code types according  to the headword, which is discarded. It breaks these up into function
 // declarations, variable intializations, etc.
+// This method takes the tokens from the relexer and splits it up into
+// code types according  to the headword, which is discarded. It breaks these up into function
+// declarations, variable intializations, etc.
 func (iz *Initializer) getTokenizedCode() {
-	headword := token.ILLEGAL
+	var headword token.TokenType
+	headword = token.ILLEGAL
 	private := false
+	if iz.P.CurToken.Type == token.EOF {
+		iz.P.SafeNextToken()
+	}
+	if iz.P.CurToken.Type == token.EOF {
+		iz.P.SafeNextToken()
+	}
 loop:
 	for iz.P.CurToken.Type != token.EOF {
 		var result tokenizedCode
 		switch {
-		case iz.P.CurToken.Type == "":            // We just continue.	
+		case iz.P.CurToken.Type == "": // We just continue.
 		case iz.P.CurToken.Type == token.NEWLINE: // We just continue.
 		case token.TokenTypeIsHeadword(iz.P.CurToken.Type):
-			headword = string(iz.P.CurToken.Type)
+			headword = iz.P.CurToken.Type
 			private = false
 		case iz.P.CurToken.Type == token.PRIVATE:
-			private = true 
+			private = true
 		default:
 			switch headword {
 			case token.ILLEGAL:
@@ -396,10 +406,10 @@ loop:
 				if result.getDeclarationType() == makeDeclarations {
 					for _, ty := range result.(*tokenizedMakeDeclarations).types {
 						iz.tokenizedCode[makeDeclaration] = append(iz.tokenizedCode[makeDeclaration],
-						&tokenizedMakeDeclaration{
-							private: private,
-							typeToks: ty,
-						})
+							&tokenizedMakeDeclaration{
+								private:  private,
+								typeToks: ty,
+							})
 					}
 					continue loop
 				}
@@ -408,8 +418,9 @@ loop:
 			}
 		}
 		if result != nil {
-			iz.tokenizedCode[result.getDeclarationType()] = 
+			iz.tokenizedCode[result.getDeclarationType()] =
 				append(iz.tokenizedCode[result.getDeclarationType()], result)
+			println(result.getDeclarationType(), result.indexToken().Literal)
 		}
 		iz.P.NextToken()
 	}
