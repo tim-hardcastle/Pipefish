@@ -134,7 +134,7 @@ func (iz *Initializer) generateGoFunctionCode(sb *strings.Builder, function *par
 	default:
 		iz.printSig(sb, function.callInfo.ReturnTypes, *&function.op)
 	}
-	fmt.Fprint(sb, "{", function.body.GetToken().Literal, "\n\n")
+	fmt.Fprint(sb, "{", function.body.GetToken().Literal, "}\n\n")
 }
 
 func (iz *Initializer) printSig(sb *strings.Builder, sig ast.AstSig, tok token.Token) {

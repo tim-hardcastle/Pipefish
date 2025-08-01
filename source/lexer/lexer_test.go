@@ -108,6 +108,7 @@ func TestGolang(t *testing.T) {
 	input :=
 	
 `golang "qux"
+golang "foo"
 
 golang {
     foo
@@ -115,11 +116,15 @@ golang {
 	
 	items := []testItem{
 		{token.EOF, "EOF", 1},
-		{token.GOCODE, "qux", 2},
+		{token.GOCODE, "qux", 1},
+		{token.NEWLINE, ";", 2},
+		{token.NO_INDENT, "|||", 2},
+		{token.GOCODE, "foo", 2},
 		{token.NEWLINE, ";", 3},
-		{token.NO_INDENT, "|||", 3},
-		{token.GOCODE, "\n    foo\n", 5},
-		{token.NEWLINE, ";", 5},
+		{token.NO_INDENT, "|||", 4},
+		{token.NO_INDENT, "|||", 4},
+		{token.GOCODE, "\n    foo\n", 6},
+		{token.NEWLINE, ";", 6},
 	}
 	testLexingString(t, input, items)
 }
@@ -139,13 +144,13 @@ func testLexingString(t *testing.T, input string, items []testItem) {
 func runTest(t *testing.T, ts TokenSupplier, items []testItem) {
 	for i, tt := range items {
 		tok := ts.NextToken()
-		if tok.Type != tt.expectedType {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
-				i, tt.expectedType, tok.Type)
-		}
 		if tok.Literal != tt.expectedLiteral {
 			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
 				i, tt.expectedLiteral, tok.Literal)
+		}
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
+				i, tt.expectedType, tok.Type)
 		}
 		if tok.Line != tt.expectedLine {
 			t.Fatalf("tests[%d] - line wrong. expected=%d, got=%d",

@@ -74,7 +74,7 @@ func (iz *Initializer) compileGo() {
 		golang := tc.(*tokenizedGolangDeclaration)
 		iz.goBucket.sources.Add(golang.goCode.Source)
 		iz.goBucket.pureGo[golang.goCode.Source] = append(iz.goBucket.pureGo[golang.goCode.Source], 
-			golang.goCode.Literal[:len(golang.goCode.Literal)-2])
+			golang.goCode.Literal)
 	}
 
 	for j := functionDeclaration; j <= commandDeclaration; j++ {

@@ -194,7 +194,6 @@ func (l *Lexer) getTokens() []token.Token {
 		switch tType {
 		case token.GOCODE:
 			text := l.readGolang()
-			l.readChar()
 			return []token.Token{l.NewToken(tType, text), l.NewToken(token.NEWLINE, ";")}
 		case token.EMDASH:
 			str, outdent := l.readSnippet()

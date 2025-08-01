@@ -44,8 +44,8 @@ golang {
 }`
 	
 	items := []testItem{
-		{token.GOCODE, "qux", 2},
-		{token.NEWLINE, ";", 3},
+		{token.GOCODE, "qux", 1},
+		{token.NEWLINE, ";", 2},
 		{token.GOCODE, "\n    foo\n", 5},
 		{token.NEWLINE, ";", 5},
 	}
