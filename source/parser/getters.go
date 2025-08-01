@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"bytes"
 	"reflect"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
@@ -12,97 +11,6 @@ import (
 
 // Auxiliary functions that extract data from data.
 
-// Slurps the parts of a function out of it. As the colon after a function definition has
-// extremely low precedence, we should find it at the root of the tree.
-// We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node) {
-	var (
-		functionName          string
-		sig                   ast.AstSig
-		rTypes                ast.AstSig
-		start, content, given ast.Node
-	)
-	if fn.GetToken().Type == token.GIVEN {
-		given = fn.(*ast.InfixExpression).Args[2]
-		fn = fn.(*ast.InfixExpression).Args[0]
-	}
-
-	switch fn := fn.(type) {
-	case *ast.LazyInfixExpression:
-		if !(fn.Token.Type == token.COLON) {
-			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given
-		}
-		start = fn.Left
-		content = fn.Right
-	case *ast.InfixExpression:
-		if fn.Token.Type != token.MAGIC_COLON {
-			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given
-		}
-		start = fn.Args[0]
-		content = fn.Args[2]
-	default:
-		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
-		return functionName, 0, sig, rTypes, content, given
-	}
-
-	if start.GetToken().Type == token.PIPE {
-		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.PipingExpression).Right)
-		start = start.(*ast.PipingExpression).Left
-	}
-	functionName, pos, sig := prsr.GetPartsOfSig(start)
-	return functionName, pos, sig, rTypes, content, given
-}
-
-func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.AstSig) {
-	switch start := start.(type) {
-	case *ast.PrefixExpression:
-		functionName = start.Operator
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.TypePrefixExpression:
-		var out bytes.Buffer
-		out.WriteString(start.Operator)
-		if len(start.TypeArgs) != 0 {
-			out.WriteString("{")
-			sep := ""
-			for _, v := range start.Args {
-				out.WriteString(sep)
-				out.WriteString(prsr.prettyPrint(v, inlineCtxt))
-				sep = ", "
-			}
-			out.WriteString("}")
-		}
-		functionName = out.String()
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.SigTypePrefixExpression: // TODO --- can this ever happen?
-		functionName = start.Operator.String()
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.InfixExpression:
-		functionName = start.Operator
-		pos = 1
-		sig = prsr.extractSig(start.Args)
-	case *ast.SuffixExpression:
-		functionName = start.Operator
-		pos = 2
-		sig = prsr.extractSig(start.Args)
-	case *ast.TypeSuffixExpression:
-		functionName = start.Operator.String()
-		pos = 2
-		sig = prsr.extractSig(start.Args)
-	case *ast.UnfixExpression:
-		functionName = start.Operator
-		pos = 3
-		sig = ast.AstSig{}
-	default:
-		prsr.Throw("parse/sig/malformed/d", start.GetToken())
-		return functionName, pos, sig
-	}
-	return functionName, pos, sig
-}
 
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 	sig := ast.AstSig{}
