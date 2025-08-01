@@ -233,6 +233,7 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 	case token.GOCODE: // TODO --- the lexer shoves everything into the gocode token and it should only do that if followed by '{'.
 		path = iz.P.CurToken
 		golang = true
+		// return &tokenizedExternalOrImportDeclaration{decType, private, golang, name, path}, true
 	case token.IDENT:
 		name = iz.P.CurToken
 		iz.P.NextToken()
@@ -394,7 +395,6 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		for {
 			iz.P.NextToken()
 			if !iz.P.CurTokenIs(token.IDENT) {
-				println(iz.P.CurToken.Type, iz.P.CurToken.Literal)
 				iz.Throw("init/clone/ident", &iz.P.CurToken)
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false

@@ -18,7 +18,7 @@ type Parser struct {
 
 	// Temporary state: things that are used to parse one line.
 
-	TokenizedCode    TokenSupplier
+	TokenizedCode    lexer.TokenSupplier
 	nesting          dtypes.Stack[token.Token]
 	CurToken         token.Token
 	PeekToken        token.Token
@@ -138,7 +138,7 @@ func (p *Parser) PrimeWithString(source, input string) {
 }
 
 // Sets the parser up with the appropriate relexer and position to parse a string.
-func (p *Parser) PrimeWithTokenSupplier(source TokenSupplier) {
+func (p *Parser) PrimeWithTokenSupplier(source lexer.TokenSupplier) {
 	if tcc, ok := source.(*token.TokenizedCodeChunk); ok {
 		tcc.ToStart()
 	}
@@ -1052,18 +1052,7 @@ func (p *Parser) getResolvingParser() *Parser {
 
 // Some functions for interacting with a `TokenSupplier`.
 
-// This interface allows the parser to get its supply of tokens either from the relexer directly or from
-// a `TokenizedCodeChunk`.
-type TokenSupplier interface{ NextToken() token.Token }
 
-// Dumps the contents of a `TokenSupplier` into a string.
-func String(t TokenSupplier) string {
-	result := ""
-	for tok := t.NextToken(); tok.Type != "EOF"; tok = t.NextToken() {
-		result = result + fmt.Sprintf("%+v\n", tok)
-	}
-	return result
-}
 
 func (p *Parser) NextToken() {
 	p.checkNesting()

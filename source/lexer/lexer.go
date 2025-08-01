@@ -195,7 +195,7 @@ func (l *Lexer) getTokens() []token.Token {
 		case token.GOCODE:
 			text := l.readGolang()
 			l.readChar()
-			return []token.Token{l.NewToken(tType, text)}
+			return []token.Token{l.NewToken(tType, text), l.NewToken(token.NEWLINE, ";")}
 		case token.EMDASH:
 			str, outdent := l.readSnippet()
 			if outdent <= 0 {
@@ -496,7 +496,7 @@ func (l *Lexer) readGolang() string {
 		l.readChar()
 		result = result + string(l.ch)
 	}
-	return result + "}"
+	return result
 }
 
 func (l *Lexer) readRune() (string, bool) {

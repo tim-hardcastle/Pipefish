@@ -1,6 +1,10 @@
 package lexer
 
-import "github.com/tim-hardcastle/Pipefish/source/token"
+import (
+	"fmt"
+
+	"github.com/tim-hardcastle/Pipefish/source/token"
+)
 
 // Between the lexer and the parser we "relex" the lexer's output to make it easier for
 // the parser to process.
@@ -9,24 +13,37 @@ import "github.com/tim-hardcastle/Pipefish/source/token"
 // we arrange it on the bucket chain principle. We make lots of relexers, each of which
 // processes the stream of tokens in simple way.
 
+// This interface allows the parser to get its supply of tokens either from the relexer directly or from
+// a `TokenizedCodeChunk`.
+type TokenSupplier interface{ NextToken() token.Token }
+
+// Dumps the contents of a `TokenSupplier` into a string.
+func String(t TokenSupplier) string {
+	result := ""
+	for tok := t.NextToken(); tok.Type != "EOF"; tok = t.NextToken() {
+		result = result + fmt.Sprintf("%+v\n", tok)
+	}
+	return result
+}
+
 // We may be getting tokens from either the lexer or from another relexer.
-type tokenSupplier interface {
+type tokensSupplier interface {
 	getTokens() []token.Token
 }
 
 // The tokenSupplier may supply us with any non-negative number of tokens.
 type tokenAccessor struct {
-	supplier tokenSupplier
-	buffer   []token.Token 
+	supplier tokensSupplier
+	buffer   []token.Token
 }
 
 // Makes a pointer to an accessor with an empty buffer.
-func newAccessor(supplier tokenSupplier) *tokenAccessor {
+func newAccessor(supplier tokensSupplier) *tokenAccessor {
 	return &tokenAccessor{supplier, []token.Token{}}
 }
 
 // We can ask to look at the ith token, where 0 is the current one. The accessor
-// will keep asking the supplier for 
+// will keep asking the supplier for
 func (ta *tokenAccessor) tok(i int) token.Token {
 	for len(ta.buffer) <= i {
 		ta.buffer = append(ta.buffer, ta.supplier.getTokens()...)
@@ -42,7 +59,7 @@ func (ta *tokenAccessor) next() {
 // The relexer needs to be an interface because some of them are going to need to
 // have state.
 type relexer interface {
-	chain(ts tokenSupplier)
+	chain(ts tokensSupplier)
 	getTokens() []token.Token
 }
 
@@ -51,7 +68,7 @@ type monotokenizer struct {
 	accessor *tokenAccessor
 }
 
-func newMonotokenizer(ts tokenSupplier) *monotokenizer {
+func newMonotokenizer(ts tokensSupplier) *monotokenizer {
 	return &monotokenizer{newAccessor(ts)}
 }
 
@@ -61,13 +78,11 @@ func (mt *monotokenizer) NextToken() token.Token {
 	return result
 }
 
-func chain(ts tokenSupplier, relexers ... relexer) *monotokenizer {
+func chain(ts tokensSupplier, relexers ...relexer) *monotokenizer {
 	sup := ts
-	for _,rl := range relexers {
+	for _, rl := range relexers {
 		rl.chain(ts)
 		sup = rl
 	}
 	return newMonotokenizer(sup)
 }
-
-

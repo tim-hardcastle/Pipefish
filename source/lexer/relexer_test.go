@@ -8,16 +8,12 @@ import (
 
 func TestNextTokenForRelexer(t *testing.T) {
 	input :=
-		`foo(x):
+`foo(x):
 	x : 1
 	else : 2
 `
 
-	tests := []struct {
-		expectedType    token.TokenType
-		expectedLiteral string
-		expectedLine    int
-	}{
+	items := []testItem{
 		{token.IDENT, "foo", 1},
 		{token.LPAREN, "(", 1},
 		{token.IDENT, "x", 1},
@@ -27,27 +23,36 @@ func TestNextTokenForRelexer(t *testing.T) {
 		{token.IDENT, "x", 2},
 		{token.COLON, ":", 2},
 		{token.INT, "1", 2},
-		{token.NEWLINE, ";", 2},
+		{token.NEWLINE, ";", 3},
 		{token.ELSE, "else", 3},
 		{token.COLON, ":", 3},
 		{token.INT, "2", 3},
 		{token.RPAREN, "<-|", 4},
-		{token.EOF, ";", 0},
+		{token.EOF, ";", 4},
 	}
 
-	rl := NewRelexer("", input)
+	testRelexingString(t, input, items)
+}
 
-	for i, tt := range tests {
-		tok := rl.NextToken()
+func TestRlGolang(t *testing.T) {
+	input :=
+	
+`golang "qux"
 
-		if tok.Type != tt.expectedType {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
-				i, tt.expectedType, tok.Type)
-		}
-
-		if tok.Literal != tt.expectedLiteral {
-			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
-				i, tt.expectedLiteral, tok.Literal)
-		}
+golang {
+    foo
+}`
+	
+	items := []testItem{
+		{token.GOCODE, "qux", 2},
+		{token.NEWLINE, ";", 3},
+		{token.GOCODE, "\n    foo\n", 5},
+		{token.NEWLINE, ";", 5},
 	}
+	testRelexingString(t, input, items)
+}
+
+func testRelexingString(t *testing.T, input string, items []testItem) {
+	rl := NewRelexer("dummy source", input)
+	runTest(t, rl, items)
 }

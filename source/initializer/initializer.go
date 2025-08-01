@@ -420,7 +420,7 @@ loop:
 		if result != nil {
 			iz.tokenizedCode[result.getDeclarationType()] =
 				append(iz.tokenizedCode[result.getDeclarationType()], result)
-			println(result.getDeclarationType(), result.indexToken().Literal)
+			// println(result.getDeclarationType(), SummaryString(result))
 		}
 		iz.P.NextToken()
 	}
