@@ -13,7 +13,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
-type Lexer struct {
+type lexer struct {
 	reader          strings.Reader
 	input           string
 	ch              rune                 // current rune under examination
@@ -27,11 +27,11 @@ type Lexer struct {
 	source          string
 }
 
-func NewLexer(source, input string) *Lexer {
+func NewLexer(source, input string) *lexer {
 	r := *strings.NewReader(input)
 	stack := dtypes.NewStack[string]()
 	stack.Push("")
-	l := &Lexer{reader: r,
+	l := &lexer{reader: r,
 		input:           input,
 		line:            1,
 		char:            -1,
@@ -42,7 +42,7 @@ func NewLexer(source, input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) getTokens() []token.Token {
+func (l *lexer) getTokens() []token.Token {
 
 	if l.newline {
 		l.afterWhitespace = true
@@ -214,7 +214,7 @@ func (l *Lexer) getTokens() []token.Token {
 	return []token.Token{l.Throw("lex/ill", l.ch)}
 }
 
-func (l *Lexer) interpretWhitespace() []token.Token {
+func (l *lexer) interpretWhitespace() []token.Token {
 
 	l.newline = false
 	whitespace := ""
@@ -289,13 +289,13 @@ func describeWhitespace(s string) string {
 	return result
 }
 
-func (l *Lexer) skipWhitespace() {
+func (l *lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\r' {
 		l.readChar()
 	}
 }
 
-func (l *Lexer) skipWhitespaceAfterPotentialContinuation() bool {
+func (l *lexer) skipWhitespaceAfterPotentialContinuation() bool {
 	for l.peekChar() == ' ' || l.peekChar() == '\t' || l.peekChar() == '\r' {
 		l.readChar()
 	}
@@ -317,7 +317,7 @@ func (l *Lexer) skipWhitespaceAfterPotentialContinuation() bool {
 	return true
 }
 
-func (l *Lexer) readChar() {
+func (l *lexer) readChar() {
 
 	l.char++
 	if l.ch == '\n' {
@@ -333,7 +333,7 @@ func (l *Lexer) readChar() {
 	}
 }
 
-func (l *Lexer) peekChar() rune {
+func (l *lexer) peekChar() rune {
 	if l.reader.Len() == 0 {
 		return 0
 	} else {
@@ -343,7 +343,7 @@ func (l *Lexer) peekChar() rune {
 	}
 }
 
-func (l *Lexer) readNumber() string {
+func (l *lexer) readNumber() string {
 	result := string(l.ch)
 	for isDigit(l.peekChar()) || l.peekChar() == '.' {
 		l.readChar()
@@ -352,7 +352,7 @@ func (l *Lexer) readNumber() string {
 	return result
 }
 
-func (l *Lexer) readBinaryNumber() string {
+func (l *lexer) readBinaryNumber() string {
 	result := ""
 	l.readChar()
 	for isBinaryDigit(l.peekChar()) {
@@ -362,7 +362,7 @@ func (l *Lexer) readBinaryNumber() string {
 	return result
 }
 
-func (l *Lexer) readOctalNumber() string {
+func (l *lexer) readOctalNumber() string {
 	result := ""
 	l.readChar()
 	for isOctalDigit(l.peekChar()) {
@@ -372,7 +372,7 @@ func (l *Lexer) readOctalNumber() string {
 	return result
 }
 
-func (l *Lexer) readHexNumber() string {
+func (l *lexer) readHexNumber() string {
 	result := ""
 	l.readChar()
 	for isHexDigit(l.peekChar()) {
@@ -382,7 +382,7 @@ func (l *Lexer) readHexNumber() string {
 	return result
 }
 
-func (l *Lexer) readComment() string {
+func (l *lexer) readComment() string {
 	result := ""
 	for !(l.peekChar() == '\n' || l.peekChar() == 0) {
 		result = result + string(l.peekChar())
@@ -391,7 +391,7 @@ func (l *Lexer) readComment() string {
 	return result
 }
 
-func (l *Lexer) readSnippet() (string, int) {
+func (l *lexer) readSnippet() (string, int) {
 	// Note --- what we return from this is followed by makeToken, which doesn't read a character, rather than NewToken, which does.
 	// This is because we may end up in a position where we've just realized that we've unindented. (See other use of MakeChar.)
 	result := ""
@@ -461,7 +461,7 @@ func (l *Lexer) readSnippet() (string, int) {
 	}
 }
 
-func (l *Lexer) readGolang() string {
+func (l *lexer) readGolang() string {
 	result := ""
 	for l.peekChar() == ' ' || l.peekChar() == '\t' { // Get rid of the whitespace between 'golang' and whatever follows it.
 		l.readChar()
@@ -498,7 +498,7 @@ func (l *Lexer) readGolang() string {
 	return result
 }
 
-func (l *Lexer) readRune() (string, bool) {
+func (l *lexer) readRune() (string, bool) {
 	escape := false
 	result := ""
 	for {
@@ -541,7 +541,7 @@ func (l *Lexer) readRune() (string, bool) {
 	return result, true
 }
 
-func (l *Lexer) readFormattedString() (string, bool) {
+func (l *lexer) readFormattedString() (string, bool) {
 	escape := false
 	result := ""
 	for {
@@ -581,7 +581,7 @@ func (l *Lexer) readFormattedString() (string, bool) {
 	return result, true
 }
 
-func (l *Lexer) readPlaintextString() (string, bool) {
+func (l *lexer) readPlaintextString() (string, bool) {
 	result := ""
 	for {
 		l.readChar()
@@ -596,7 +596,7 @@ func (l *Lexer) readPlaintextString() (string, bool) {
 	return result, true
 }
 
-func (l *Lexer) readIdentifier() string {
+func (l *lexer) readIdentifier() string {
 	result := string(l.ch) // i.e. the character that suggested this was an identifier.
 	for !l.atBoundary() {
 		l.readChar()
@@ -643,7 +643,7 @@ func isLegalStart(ch rune) bool {
 }
 
 // Finds if we're at the end of an identifier.
-func (l *Lexer) atBoundary() bool {
+func (l *lexer) atBoundary() bool {
 	pc := l.peekChar()
 	return isProtectedPunctuationOrWhitespace(pc) ||
 		isLetter(l.ch) && !(isLetter(pc) || isUnderscore(pc)) ||
@@ -651,20 +651,20 @@ func (l *Lexer) atBoundary() bool {
 		isSymbol(l.ch) && !(isSymbol(pc) || isUnderscore(pc))
 }
 
-func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {
+func (l *lexer) NewToken(tokenType token.TokenType, st string) token.Token {
 	l.readChar()
 	l.afterWhitespace = false
 	return l.MakeToken(tokenType, st)
 }
 
-func (l *Lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
+func (l *lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 	if settings.SHOW_LEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(l.source)) {
 		fmt.Println(tokenType, st)
 	}
 	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.line, ChStart: l.tstart, ChEnd: l.char}
 }
 
-func (l *Lexer) Throw(errorID string, args ...any) token.Token {
+func (l *lexer) Throw(errorID string, args ...any) token.Token {
 	tok := l.MakeToken(token.ILLEGAL, errorID)
 	l.Ers = err.Throw(errorID, l.Ers, &tok, args...)
 	return tok

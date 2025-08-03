@@ -12,6 +12,9 @@ package lexer
 // It is stupidly written. I shouldn't have tried to do this all in one big loop,
 // but in lots of small passes.
 
+// There is now a system in this module which allows me to do it sensibly and to
+// which I'm transferring the functionality. Slowly.
+
 import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
@@ -37,29 +40,25 @@ type keepTrack struct {
 type Relexer struct {
 	stack                  *dtypes.Stack[keepTrack]
 	source                 string
-	lexer                  Lexer
+	lexer                  lexer
 	mt                     *monotokenizer
 	preTok, curTok, nexTok token.Token
 	ifLogHappened          bool
 	nestingLevel           int
 	Errors                 err.Errors
-	funcDef                bool
-	structDef              bool
 }
 
 func NewRelexer(source, input string) *Relexer {
 	l := *NewLexer(source, input)
 	mt := makeChain(&l)
 	rl := &Relexer{lexer: l,
-		mt:        mt,
-		source:    source,
-		preTok:    l.NewToken(token.NEWLINE, ";"),
-		curTok:    mt.NextToken(),
-		nexTok:    mt.NextToken(),
-		funcDef:   false,
-		structDef: false,
-		Errors:    []*err.Error{},
-		stack:     dtypes.NewStack[keepTrack](),
+		mt:     mt,
+		source: source,
+		preTok: l.NewToken(token.NEWLINE, ";"),
+		curTok: mt.NextToken(),
+		nexTok: mt.NextToken(),
+		Errors: []*err.Error{},
+		stack:  dtypes.NewStack[keepTrack](),
 	}
 	return rl
 }
@@ -67,7 +66,7 @@ func NewRelexer(source, input string) *Relexer {
 func (rl *Relexer) NextToken() token.Token {
 	// In this we call NextSemanticToken, which, as its name implies, returns a stream from which the syntactic
 	// whitespace has been stripped.
-	tok := rl.NextSemanticToken()
+	tok := rl.nextSemanticToken()
 
 	switch tok.Type {
 	case token.ASSIGN:
@@ -105,7 +104,6 @@ func (rl *Relexer) NextToken() token.Token {
 			tok.Type = token.MAGIC_SEMICOLON
 		}
 	}
-
 	for {
 		top, ok := rl.stack.HeadValue()
 		if tok.Type == token.NEWLINE && ok && rl.nestingLevel <= top.depth {
@@ -115,16 +113,10 @@ func (rl *Relexer) NextToken() token.Token {
 		}
 
 	}
-
-	if tok.Type == token.NEWLINE {
-		rl.structDef = false
-	}
-
 	return tok
-
 }
 
-func (rl *Relexer) NextSemanticToken() token.Token {
+func (rl *Relexer) nextSemanticToken() token.Token {
 	// So, this is almost all a big case switch on the current token.
 	// Depending on what it is, we may return it () as the default, or "burn" it, in which
 	// case it disappears so completely it doesn't even become the preTok, the previous token,
@@ -137,7 +129,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.PRELOG || rl.curTok.Type == token.COLON ||
 			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON)) ||
 				(rl.preTok.Type == token.GIVEN)) || rl.curTok.Type == token.GOLANG) {
-		rl.Throw("relex/indent", rl.curTok)
+		rl.throw("relex/indent", rl.curTok)
 	}
 
 	if rl.preTok.Type == token.GIVEN && rl.curTok.Type == token.LOG {
@@ -173,13 +165,6 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			return rl.burnToken()
 		}
 
-	case token.IDENT:
-		if rl.curTok.Literal == "struct" {
-			rl.structDef = true
-		}
-		if rl.curTok.Literal == "func" {
-			rl.funcDef = true
-		}
 	case token.ILLEGAL:
 		return rl.burnToken()
 	case token.COLON:
@@ -240,7 +225,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 		}
 	case token.LOG:
 		if rl.preTok.Type == token.COMMA || rl.preTok.Type == token.DOTDOT {
-			rl.Throw("relex/log", rl.curTok)
+			rl.throw("relex/log", rl.curTok)
 		}
 	}
 
@@ -259,28 +244,28 @@ func (rl *Relexer) getToken() {
 func (rl *Relexer) burnToken() token.Token {
 	rl.curTok = rl.nexTok
 	rl.nexTok = rl.mt.NextToken()
-	return rl.NextSemanticToken()
+	return rl.nextSemanticToken()
 }
 
 func (rl *Relexer) burnNextToken() token.Token {
 	rl.nexTok = rl.mt.NextToken()
-	return rl.NextSemanticToken()
+	return rl.nextSemanticToken()
 }
 
-func (rl *Relexer) PeekToken() token.Token {
+func (rl *Relexer) peekToken() token.Token {
 	return rl.curTok
 }
 
-func RelexDump(input string) {
+func relexDump(input string) {
 	fmt.Print("Relexer output: \n\n")
 	rl := NewRelexer("", input)
-	for tok := rl.NextSemanticToken(); tok.Type != token.EOF; tok = rl.NextSemanticToken() {
+	for tok := rl.nextSemanticToken(); tok.Type != token.EOF; tok = rl.nextSemanticToken() {
 		fmt.Println(tok)
 	}
 	fmt.Println()
 }
 
-func (rl *Relexer) Throw(errorID string, tok token.Token, args ...any) {
+func (rl *Relexer) throw(errorID string, tok token.Token, args ...any) {
 	rl.Errors = err.Throw(errorID, rl.Errors, &tok, args...)
 }
 
