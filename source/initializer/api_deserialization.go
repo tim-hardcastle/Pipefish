@@ -166,19 +166,19 @@ func (iz *Initializer) deserializeTypescheme(s string) compiler.AlternateType { 
 		ix++
 		if word[0] == '*' { // Then we have a constructor *TT, *AT, or *FT.
 			if ix == len(words) { // Then the number we were expecting to find after the constructor can't be there.
-				iz.Throw("ext/deserialize/a", &token.Token{Source: "Pipefish builder"})
+				iz.throw("ext/deserialize/a", &token.Token{Source: "Pipefish builder"})
 				return nil
 			}
 			numAsString := words[ix]
 			ix++
 			num, err := strconv.Atoi(numAsString)
 			if err != nil {
-				iz.Throw("ext/deserialize/b", &token.Token{Source: "Pipefish builder"})
+				iz.throw("ext/deserialize/b", &token.Token{Source: "Pipefish builder"})
 				return nil
 			}
 			types, ok := stack.Take(num) // We try and take that many things off the stack.
 			if !ok {
-				iz.Throw("ext/deserialize/c", &token.Token{Source: "Pipefish builder"})
+				iz.throw("ext/deserialize/c", &token.Token{Source: "Pipefish builder"})
 				return nil
 			}
 			// If we've gotten this far, then it's well-formed so far, and we can construct a compound type and stick it on the stack.
@@ -202,13 +202,13 @@ func (iz *Initializer) deserializeTypescheme(s string) compiler.AlternateType { 
 				}
 				stack.Push(compiler.TypedTupleType{res})
 			default:
-				iz.Throw("ext/deserialize/d", &token.Token{Source: "Pipefish builder"})
+				iz.throw("ext/deserialize/d", &token.Token{Source: "Pipefish builder"})
 				return nil
 			}
 		} else { // Otherwise we have a word denoting a SimpleType
 			aT := iz.cp.GetAlternateTypeFromConcreteTypeName(word) // TODO --- is this really the only way to convert a concrete type name to its type number?
 			if len(aT) != 1 {
-				iz.Throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
+				iz.throw("ext/deserialize/e", &token.Token{Source: "Pipefish builder"})
 				return nil
 			}
 			ty := aT[0]
@@ -216,21 +216,21 @@ func (iz *Initializer) deserializeTypescheme(s string) compiler.AlternateType { 
 			case compiler.SimpleType:
 				stack.Push(ty)
 			default:
-				iz.Throw("ext/deserialize/f", &token.Token{Source: "Pipefish builder"})
+				iz.throw("ext/deserialize/f", &token.Token{Source: "Pipefish builder"})
 			}
 		}
 	}
 	// We're done.
 	result, ok := stack.Pop() // We should have one thing left on the stack, which is the answer.
 	if !ok {
-		iz.Throw("ext/deserialize/g", &token.Token{Source: "Pipefish builder"})
+		iz.throw("ext/deserialize/g", &token.Token{Source: "Pipefish builder"})
 		return nil
 	}
 	switch result := result.(type) { // And it should be an AlternateType.
 	case compiler.AlternateType:
 		return result
 	default:
-		iz.Throw("ext/deserialize/h", &token.Token{Source: "Pipefish builder"})
+		iz.throw("ext/deserialize/h", &token.Token{Source: "Pipefish builder"})
 		return nil
 
 	}

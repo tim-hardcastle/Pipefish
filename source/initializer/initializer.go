@@ -42,7 +42,7 @@ type Initializer struct {
 	parsedCode                          [][]parsedCode               // What you get by parsing that.
 	localConcreteTypes                  dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                    // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
-	Snippets                            []string                     // Names of snippet types visible to the module.
+	snippets                            []string                     // Names of snippet types visible to the module.
 	Common                              *CommonInitializerBindle     // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType     // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]           // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
@@ -72,7 +72,7 @@ func NewInitializer() *Initializer {
 
 // The CommonInitializerBindle contains information that all the initializers need to share.
 type CommonInitializerBindle struct {
-	Functions      map[FuncSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
+	Functions      map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
 	DeclarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
 	HubCompilers   map[string]*compiler.Compiler  // This is a map of the compilers of all the (potential) external services on the same hub.
 	HubStore       *values.Map
@@ -81,7 +81,7 @@ type CommonInitializerBindle struct {
 // Initializes the `CommonInitializerBindle`
 func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
 	b := CommonInitializerBindle{
-		Functions:      make(map[FuncSource]*parsedFunction),
+		Functions:      make(map[funcSource]*parsedFunction),
 		DeclarationMap: make(map[decKey]any),
 		HubCompilers:   make(map[string]*compiler.Compiler),
 		HubStore:       store,
@@ -115,6 +115,7 @@ func newCompiler(Common *parser.CommonParserBindle, ccb *compiler.CommonCompiler
 	return cp
 }
 
+// The public function serving as a way in.
 func StartCompilerFromFilepath(filepath string, svs map[string]*compiler.Compiler, store *values.Map) (*compiler.Compiler, error) {
 	sourcecode, e := compiler.GetSourceCode(filepath)
 	if e != nil {
@@ -135,76 +136,76 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
 	iz.cmI("Parsing everything.")
 	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Finding shareable functions.")
 	iz.findAllShareableFunctions()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Populating interface types.")
 	iz.populateInterfaceTypes()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Populating abstract types and creating alternate types.")
 	iz.populateAbstractTypes()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 
 	iz.cmI("Making function tables.")
 	iz.MakeFunctionTables()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 
 	iz.cmI("Making function forest.")
 	iz.MakeFunctionForests()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Adding abstract types to struct fields.")
-	iz.AddFieldsToStructsAndCheckForConsistency()
-	if iz.ErrorsExist() {
+	iz.addFieldsToStructsAndCheckForConsistency()
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Adding abstract types to parameterized types.")
 	iz.tweakParameterizedTypes()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 
 	iz.cmI("Adding parameterized types to VM.")
 	iz.addParameterizedTypesToVm()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 
 	iz.cmI("Compiling Go.")
 	iz.compileGoModules()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Compiling everything else.")
-	iz.CompileEverything()
-	if iz.ErrorsExist() {
+	iz.compileEverythingElse()
+	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 	iz.cmI("Resolving interface backtracks.")
-	iz.ResolveInterfaceBacktracks()
+	iz.resolveInterfaceBacktracks()
 
 	iz.cmI("Serializing API")
 	iz.cp.API = iz.SerializeApi()
@@ -226,7 +227,7 @@ func (iz *Initializer) ParseEverythingFromSourcecode(mc *vm.Vm, cpb *parser.Comm
 		!testing.Testing() && !(len(scriptFilepath) >= 11 && scriptFilepath[:11] == "test-files/") {
 		file, err := os.Stat(text.MakeFilepath(scriptFilepath))
 		if err != nil {
-			iz.Throw("init/source", LINKING_TOKEN, scriptFilepath)
+			iz.throw("init/source", LINKING_TOKEN, scriptFilepath)
 			return nil
 		}
 		iz.cp.Timestamp = file.ModTime().UnixMilli()
@@ -256,7 +257,7 @@ func (iz *Initializer) findShareableFunctions() {
 			fn := iz.parsedCode[j][i].(*parsedFunction)
 			tok := &fn.op
 			if iz.shareable(fn) || settings.MandatoryImportSet().Contains(tok.Source) {
-				iz.Common.Functions[FuncSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = fn
+				iz.Common.Functions[funcSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = fn
 			}
 		}
 	}
@@ -306,7 +307,7 @@ func (iz *Initializer) populateInterfaceTypes() {
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
 			for key, fnToTry := range iz.Common.Functions {
-				if key.FunctionName == sigToMatch.name {
+				if key.functionName == sigToMatch.name {
 					matches := iz.getMatches(sigToMatch, fnToTry, ixPtr(dec))
 					typesMatched = typesMatched.Union(matches)
 					if !settings.MandatoryImportSet().Contains(fnToTry.op.Source) {
@@ -328,7 +329,7 @@ func (iz *Initializer) populateInterfaceTypes() {
 		}
 		// We have created an abstract type from our interface! We put it in the type map.
 		iz.P.TypeMap[dec.op.Literal] = types
-		iz.AddTypeToVm(values.AbstractTypeInfo{dec.op.Literal, iz.P.NamespacePath, types, settings.MandatoryImportSet().Contains(dec.op.Source)})
+		iz.addTypeToVm(values.AbstractTypeInfo{dec.op.Literal, iz.P.NamespacePath, types, settings.MandatoryImportSet().Contains(dec.op.Source)})
 		// And we add all the implicated functions to the function table.
 		for _, ty := range types.Types {
 			for _, fn := range funcsToAdd[ty] {
@@ -348,7 +349,7 @@ func (iz *Initializer) populateAbstractTypes() {
 	}
 	// The vm needs to know how to describe the abstract types in words.
 	iz.addAbstractTypesToVm()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return
 	}
 
@@ -375,7 +376,7 @@ func (iz *Initializer) addAbstractTypesToVm() {
 		if text.Head(typeName, "clones{") && len(iz.P.GetAbstractTypeFromTypeSys(typeName).Types) == 1 {
 			continue
 		}
-		iz.AddTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.P.NamespacePath,
+		iz.addTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.P.NamespacePath,
 			AT: iz.P.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
 	}
 	for _, v := range parser.ClonableTypes { // Clonable types are clones of themselves.
@@ -412,22 +413,7 @@ func (iz *Initializer) makeAlternateTypesFromAbstractTypes() {
 	}
 }
 
-// Function auxiliary to the above and to `makeCloneFunction` which adds the constructors to the builtins.
-func (iz *Initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTypes compiler.AlternateType, private bool, tok *token.Token) uint32 {
-	cpF := &compiler.CpFunc{RtnTypes: returnTypes, Builtin: builtinTag}
-	fnenv := compiler.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
-	cpF.LoReg = iz.cp.MemTop()
-	for _, pair := range sig {
-		iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), tok)
-	}
-	cpF.HiReg = iz.cp.MemTop()
-	cpF.Private = private
-	iz.cp.Fns = append(iz.cp.Fns, cpF)
-	return uint32(len(iz.cp.Fns) - 1)
-}
-
-// Phase 4 of compilation. At this point we have our functions as parsed code chunks in the
-// `uP.Parser.ParsedDeclarations(<function/command>Declaration)` slice. We want to read their signatures
+// At this point we have our functions as `parsedCode`. We want to read their signatures
 // and order them according to specificity for the purposes of implementing overloading.
 func (iz *Initializer) MakeFunctionTables() {
 	// First we recursively call the method on all the dependencies of the module.
@@ -452,7 +438,7 @@ func (iz *Initializer) makeFunctionTable() {
 				ok            bool
 				functionToAdd *parsedFunction
 			)
-			if functionToAdd, ok = iz.Common.Functions[FuncSource{tok.Source, tok.Line, functionName, uint32(fn.pos)}]; ok {
+			if functionToAdd, ok = iz.Common.Functions[funcSource{tok.Source, tok.Line, functionName, uint32(fn.pos)}]; ok {
 			} else {
 				functionToAdd = fn
 			}
@@ -555,27 +541,27 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 
 // We assign abstract types to the fields of the structs, and chek for consistency of
 // private types, i.e. a struct type declared public can't have field types declared private.
-func (iz *Initializer) AddFieldsToStructsAndCheckForConsistency() {
+func (iz *Initializer) addFieldsToStructsAndCheckForConsistency() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.AddFieldsToStructsAndCheckForConsistency()
+		dependencyIz.addFieldsToStructsAndCheckForConsistency()
 	}
 	iz.cmI("Adding abstract types of fields to structs.")
 	iz.addFieldsToStructs()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return
 	}
 
 	iz.cmI("Adding abstract types of fields to perameterized structs.")
 	iz.addFieldsToParameterizedStructs()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return
 	}
 
 	// We want to ensure that no public type (whether a struct or abstract type) contains a private type.
 	iz.cmI("Checking types for consistency of encapsulation.")
 	iz.checkTypesForConsistency()
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return
 	}
 }
@@ -623,7 +609,6 @@ func (iz *Initializer) tweakParameterizedTypes() {
 			}
 		}
 	}
-	//
 	for typename, pti := range iz.parameterizedInstanceMap {
 		typeNo := iz.cp.ConcreteTypeNow(typename)
 		typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo]
@@ -685,7 +670,7 @@ func (iz *Initializer) checkTypesForConsistency() {
 		if !iz.cp.Vm.ConcreteTypeInfo[typeNumber].IsPrivate() {
 			for _, ty := range iz.cp.Vm.ConcreteTypeInfo[typeNumber].(vm.StructType).AbstractStructFields {
 				if iz.cp.IsPrivate(ty) {
-					iz.Throw("init/private/struct", &token.Token{}, iz.cp.Vm.ConcreteTypeInfo[typeNumber], iz.cp.Vm.DescribeAbstractType(ty, vm.LITERAL))
+					iz.throw("init/private/struct", &token.Token{}, iz.cp.Vm.ConcreteTypeInfo[typeNumber], iz.cp.Vm.DescribeAbstractType(ty, vm.LITERAL))
 				}
 			}
 		}
@@ -698,7 +683,7 @@ func (iz *Initializer) checkTypesForConsistency() {
 		abType := iz.P.GetAbstractTypeFromTypeSys(dec.op.Literal)
 		for _, w := range abType.Types {
 			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
-				iz.Throw("init/private/abstract", ixPtr(dec), dec.op.Literal)
+				iz.throw("init/private/abstract", ixPtr(dec), dec.op.Literal)
 			}
 		}
 	}
@@ -716,11 +701,11 @@ func (iz *Initializer) compileGoModules() {
 	iz.compileGo() // This is in 'gohandler.go' in this package.
 }
 
-// Phase 4 of compilation. We compile the constants, variables, functions, and commands.
-func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO --- do we do anything with the return type?
+// We compile the constants, variables, functions, and commands.
+func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // TODO --- do we do anything with the return type?
 	// First of all, the recursion.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.CompileEverything()
+		dependencyIz.compileEverythingElse()
 	}
 	// And now we compile the module.
 	//
@@ -777,7 +762,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			name := "*" + dec.indexTok.Literal
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, structDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
 		}
-		if iz.ErrorsExist() {
+		if iz.errorsExist() {
 			return nil
 		}
 	}
@@ -790,7 +775,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 			name := "*" + dec.indexTok.Literal
 			namesToDeclarations[name] = []labeledParsedCodeChunk{{dec, cloneDeclaration, i, dec.indexTok.Literal, dec.indexTok}}
 		}
-		if iz.ErrorsExist() {
+		if iz.errorsExist() {
 			return nil
 		}
 	}
@@ -958,7 +943,7 @@ func (iz *Initializer) CompileEverything() [][]labeledParsedCodeChunk { // TODO 
 		}
 		// We've reached the end of the group and can go back and put the recursion in.
 
-		if iz.ErrorsExist() {
+		if iz.errorsExist() {
 			continue
 		}
 
@@ -990,13 +975,13 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 	// lhs := dec.(*ast.AssignmentExpression).Left
 	rhs := asgn.body
 	sig := asgn.sig
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return
 	}
 	rollbackTo := iz.cp.GetState() // Unless the assignment generates code, i.e. we're creating a lambda function or a snippet, then we can roll back the declarations afterwards.
 	ctxt := compiler.Context{Env: iz.cp.GlobalVars, Access: compiler.INIT, LowMem: DUMMY, TrackingFlavor: compiler.LF_INIT}
 	iz.cp.CompileNode(rhs, ctxt)
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return
 	}
 	iz.cp.Emit(vm.Ret)
@@ -1108,7 +1093,7 @@ func (iz *Initializer) compileTypecheck(name string, node ast.Node, newEnv *comp
 		context := compiler.Context{Env: newEnv}
 		rTypes, _ := iz.cp.CompileNode(chunk, context)
 		if !rTypes.Contains(values.BOOL) {
-			iz.Throw("init/typecheck/bool", chunk.GetToken(), iz.cp.P.PrettyPrint(chunk), name)
+			iz.throw("init/typecheck/bool", chunk.GetToken(), iz.cp.P.PrettyPrint(chunk), name)
 		}
 		errNo := iz.cp.ReserveTypeCheckError(chunk, name, inLoc)
 		iz.cp.Emit(vm.Chck, resultLoc, iz.cp.That(), tokNumberLoc, errNo) // This will do its own early return from the typecheck.
@@ -1142,7 +1127,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 	functionName := izFn.op.Literal
 
 	iz.cp.Cm("Compiling function '"+functionName+"' with sig "+izFn.sig.String()+".", &izFn.op)
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return nil
 	}
 	if izFn.body.GetToken().Type == token.XCALL {
@@ -1187,11 +1172,11 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 				// type. If not, we skip the rest of the loop ...
 				if ok {
 					if variable.Access != compiler.TYPE_ARGUMENT {
-						iz.Throw("init/param/var", &izFn.op, param.Name)
+						iz.throw("init/param/var", &izFn.op, param.Name)
 						continue
 					}
 					if !compiler.Equals(variable.Types, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type)) {
-						iz.Throw("init/param/var", &izFn.op, param.Name)
+						iz.throw("init/param/var", &izFn.op, param.Name)
 						continue
 					}
 				}
@@ -1323,7 +1308,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 // hasn't been defined yet. Now we go back and fill in the gaps.
 // TODO --- why are these stored in the common parser bindle and not the common initializer
 // bindle?
-func (iz *Initializer) ResolveInterfaceBacktracks() {
+func (iz *Initializer) resolveInterfaceBacktracks() {
 	for _, rDat := range iz.P.Common.InterfaceBacktracks {
 		callInfo := rDat.Fn.(*compiler.CallInfo)
 		resolvingCompiler := callInfo.Compiler
@@ -1339,7 +1324,7 @@ func (iz *Initializer) ResolveInterfaceBacktracks() {
 // Various miscellaneous types and functions supporting compilation.
 
 // Adds a concrete type to the parser, and to the common types it falls under (at least `any` and `any?`).
-func (iz *Initializer) AddType(name, supertype string, typeNo values.ValueType) {
+func (iz *Initializer) addType(name, supertype string, typeNo values.ValueType) {
 	iz.localConcreteTypes = iz.localConcreteTypes.Add(typeNo)
 	iz.P.TypeMap[name] = values.MakeAbstractType(typeNo)
 	types := []string{supertype}
@@ -1354,7 +1339,7 @@ func (iz *Initializer) AddType(name, supertype string, typeNo values.ValueType) 
 //
 // For reasons, it's a good idea to have the type info stored as an ordered list rather than a set or hashmap.
 // So we need to do insertion by hand to avoid duplication.
-func (iz *Initializer) AddTypeToVm(typeInfo values.AbstractTypeInfo) {
+func (iz *Initializer) addTypeToVm(typeInfo values.AbstractTypeInfo) {
 	for i, existingTypeInfo := range iz.cp.Vm.AbstractTypes {
 		if typeInfo.Name == existingTypeInfo.Name {
 			if typeInfo.Path == existingTypeInfo.Path {
@@ -1378,15 +1363,12 @@ func altType(t ...values.ValueType) compiler.AlternateType {
 }
 
 // For indexing the functions in the common function map, to prevent duplication.
-type FuncSource struct {
-	Filename     string
-	LineNo       int
-	FunctionName string
-	Pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
+type funcSource struct {
+	filename     string
+	lineNo       int
+	functionName string
+	pos          uint32 // Exists to distinguish '-' as a prefix from '-' as an infix when defining clone types
 }
-
-// Stores pretokenized chunks of code for later parsing.
-type TokenizedCodeChunks []*token.TokenizedCodeChunk
 
 // You may wonder why the declarationMap is stored in the initializer and copied from one to the other rather than held
 // in the Common initializer and shared. So do I, but we get all sorts of weird bugs if we try. TODO --- investigate.
@@ -1417,10 +1399,10 @@ var LINKING_TOKEN = &token.Token{Source: "Pipefish linker"}
 // This is used to label things of type tokenizedCode and parsedCode, and also to index those
 // and other data structures in arrays.
 //
-// When it's used as an array index we can iterate from e.g. constantDeclatation to 
+// When it's used as an array index we can iterate from e.g. constantDeclatation to
 // variableDeclaration in the same way.
 //
-// For this and other reasons some aspects of the initialization process are dependent on the 
+// For this and other reasons some aspects of the initialization process are dependent on the
 // order of the constants, which are therefore not mere labels and should not be re-ordered
 // without some care and forethought.
 type declarationType int
@@ -1506,11 +1488,11 @@ func (iz *Initializer) cmI(s string) {
 }
 
 // Like everything else, the initializer sends its errors to the Common parser bindle via the parser.
-func (iz *Initializer) Throw(errorID string, tok *token.Token, args ...any) {
+func (iz *Initializer) throw(errorID string, tok *token.Token, args ...any) {
 	iz.P.Throw(errorID, tok, args...)
 }
 
 // Return whether the initializer has encountered errors.
-func (iz *Initializer) ErrorsExist() bool {
+func (iz *Initializer) errorsExist() bool {
 	return iz.P.ErrorsExist()
 }

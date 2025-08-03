@@ -147,8 +147,8 @@ func (tc *tokenizedGolangDeclaration) getDeclarationType() declarationType { ret
 func (tc *tokenizedGolangDeclaration) indexToken() token.Token { return tc.goCode }
 
 type tokenizedMakeDeclaration struct {
-	private   bool            // Whether it's declared private.
-	typeToks  []token.Token // The names of the types to declare.
+	private  bool          // Whether it's declared private.
+	typeToks []token.Token // The names of the types to declare.
 }
 
 func (tc *tokenizedMakeDeclaration) getDeclarationType() declarationType { return makeDeclaration }
@@ -192,7 +192,7 @@ func (iz *Initializer) ChunkConstOrVarDeclaration(isConst, private bool) (tokeni
 	}
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.ASSIGN) {
-		iz.Throw("init/assign", &iz.P.CurToken)
+		iz.throw("init/assign", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedConstOrVarDeclaration{}, false
 	}
@@ -212,7 +212,7 @@ func (iz *Initializer) ChunkGolangDeclaration(private bool) (tokenizedCode, bool
 	result := tokenizedGolangDeclaration{private, iz.P.CurToken}
 	iz.P.NextToken()
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
-		iz.Throw("init/golang", &iz.P.CurToken)
+		iz.throw("init/golang", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedGolangDeclaration{}, false
 	}
@@ -238,13 +238,13 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 		name = iz.P.CurToken
 		iz.P.NextToken()
 		if !(iz.P.CurTokenIs(token.IDENT) && iz.P.CurToken.Literal == "::") {
-			iz.Throw("init/impex/pair", &iz.P.CurToken)
+			iz.throw("init/impex/pair", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedExternalOrImportDeclaration{}, false
 		}
 		iz.P.NextToken()
 		if !iz.P.CurTokenIs(token.STRING) {
-			iz.Throw("init/impex/string", &iz.P.CurToken)
+			iz.throw("init/impex/string", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedExternalOrImportDeclaration{}, false
 		}
@@ -252,13 +252,13 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 	case token.STRING:
 		path = iz.P.CurToken
 	default:
-		iz.Throw("init/impex/expect", &iz.P.CurToken)
+		iz.throw("init/impex/expect", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedExternalOrImportDeclaration{}, false
 	}
 	iz.P.NextToken()
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
-		iz.Throw("init/impex/end", &iz.P.CurToken)
+		iz.throw("init/impex/end", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedExternalOrImportDeclaration{}, false
 	}
@@ -270,7 +270,7 @@ func (iz *Initializer) ChunkImportOrExternalDeclaration(isExternal, private bool
 // It will end with the p.curTok being the EOF/NEWLINE terminating the declaration.
 func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) {
 	if !iz.P.CurTokenIs(token.IDENT) {
-		iz.Throw("init/type/ident", &iz.P.CurToken)
+		iz.throw("init/type/ident", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false // Just as a dummy value.
 	}
@@ -281,13 +281,13 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 	}
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.ASSIGN) {
-		iz.Throw("init/type/assign", &iz.P.CurToken)
+		iz.throw("init/type/assign", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.IDENT) {
-		iz.Throw("init/type/define", &iz.P.CurToken)
+		iz.throw("init/type/define", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
@@ -305,7 +305,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool) (tokenizedCode, bool) 
 	case "struct":
 		return iz.chunkStruct(opTok, private)
 	default:
-		iz.Throw("init/type/expect", &iz.P.CurToken, decliteral)
+		iz.throw("init/type/expect", &iz.P.CurToken, decliteral)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
@@ -316,7 +316,7 @@ func (iz *Initializer) chunkAbstract(opTok token.Token, private bool) (tokenized
 	types := [][]token.Token{}
 	for {
 		if !iz.P.CurTokenIs(token.IDENT) {
-			iz.Throw("init/abstract/ident", &iz.P.CurToken)
+			iz.throw("init/abstract/ident", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedAbstractDeclaration{}, false
 		}
@@ -357,18 +357,18 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 			return &tokenizedCloneDeclaration{}, false
 		}
 		if len(params) == 0 {
-			iz.Throw("init/clone/params", &iz.P.CurToken)
+			iz.throw("init/clone/params", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedCloneDeclaration{}, false
 		}
 		if !iz.P.PeekTokenIs(token.RBRACE) {
-			iz.Throw("init/clone/rbrace", &iz.P.CurToken)
+			iz.throw("init/clone/rbrace", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedCloneDeclaration{}, false
 		}
 		for _, pair := range params {
 			if pair.Typename[0].Literal == "*error*" {
-				iz.Throw("init/struct/ptype", &pair.Name)
+				iz.throw("init/struct/ptype", &pair.Name)
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false
 			}
@@ -377,14 +377,14 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		iz.P.NextToken()
 	}
 	if !iz.P.CurTokenIs(token.IDENT) {
-		iz.Throw("init/clone/ident", &iz.P.CurToken)
+		iz.throw("init/clone/ident", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
 	typeTok := iz.P.CurToken
 	_, ok := parser.ClonableTypes[typeTok.Literal]
 	if !ok {
-		iz.Throw("init/clone/type", &iz.P.CurToken)
+		iz.throw("init/clone/type", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
@@ -395,7 +395,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		for {
 			iz.P.NextToken()
 			if !iz.P.CurTokenIs(token.IDENT) {
-				iz.Throw("init/clone/ident", &iz.P.CurToken)
+				iz.throw("init/clone/ident", &iz.P.CurToken)
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false
 			}
@@ -407,7 +407,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 			case token.COLON, token.NEWLINE, token.EOF:
 				break loop
 			default:
-				iz.Throw("init/clone/expect/a", &iz.P.CurToken)
+				iz.throw("init/clone/expect/a", &iz.P.CurToken)
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false
 			}
@@ -418,12 +418,12 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		validation, ok = iz.P.SlurpBlock(false)
 	}
 	if iz.P.CurTokenIs(token.GIVEN) {
-		iz.Throw("init/clone/given", &iz.P.CurToken)
+		iz.throw("init/clone/given", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
-		iz.Throw("init/clone/expect/b", &iz.P.CurToken)
+		iz.throw("init/clone/expect/b", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
@@ -437,14 +437,14 @@ func (iz *Initializer) chunkEnum(opTok token.Token, private bool) (tokenizedCode
 		if iz.P.CurTokenIs(token.IDENT) {
 			toks = append(toks, iz.P.CurToken)
 		} else {
-			iz.Throw("init/enum/ident", &iz.P.CurToken)
+			iz.throw("init/enum/ident", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedEnumDeclaration{}, false
 		}
 		iz.P.NextToken()
 		if iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF) {
 			if len(toks) == 0 {
-				iz.Throw("init/enum/empty", &iz.P.CurToken)
+				iz.throw("init/enum/empty", &iz.P.CurToken)
 				iz.finishChunk()
 				return &tokenizedEnumDeclaration{}, false
 			} else {
@@ -455,7 +455,7 @@ func (iz *Initializer) chunkEnum(opTok token.Token, private bool) (tokenizedCode
 			iz.P.NextToken()
 			continue
 		}
-		iz.Throw("init/enum/expect", &iz.P.CurToken)
+		iz.throw("init/enum/expect", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
@@ -464,7 +464,7 @@ func (iz *Initializer) chunkEnum(opTok token.Token, private bool) (tokenizedCode
 // Starts after the word 'interface', ends on NEWLINE or EOF.
 func (iz *Initializer) chunkInterface(opTok token.Token, private bool) (tokenizedCode, bool) {
 	if !iz.P.CurTokenIs(token.COLON) {
-		iz.Throw("init/interface/colon", &iz.P.CurToken)
+		iz.throw("init/interface/colon", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedInterfaceDeclaration{}, false
 	}
@@ -505,7 +505,7 @@ func (iz *Initializer) chunkMake(opTok token.Token, private bool) (tokenizedCode
 	types := [][]token.Token{}
 	for {
 		if !iz.P.CurTokenIs(token.IDENT) {
-			iz.Throw("init/make/ident", &iz.P.CurToken)
+			iz.throw("init/make/ident", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedMakeDeclarations{}, false
 		}
@@ -546,18 +546,18 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCo
 			return &tokenizedStructDeclaration{}, false
 		}
 		if len(params) == 0 {
-			iz.Throw("init/struct/params", &iz.P.CurToken)
+			iz.throw("init/struct/params", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedStructDeclaration{}, false
 		}
 		if !iz.P.PeekTokenIs(token.RBRACE) {
-			iz.Throw("init/struct/rbrace", &iz.P.CurToken)
+			iz.throw("init/struct/rbrace", &iz.P.CurToken)
 			iz.finishChunk()
 			return &tokenizedStructDeclaration{}, false
 		}
 		for _, pair := range params {
 			if pair.Typename[0].Literal == "*error*" {
-				iz.Throw("init/struct/ptype", &pair.Name)
+				iz.throw("init/struct/ptype", &pair.Name)
 				iz.finishChunk()
 				return &tokenizedStructDeclaration{}, false
 			}
@@ -566,7 +566,7 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCo
 		iz.P.NextToken()
 	}
 	if !iz.P.CurTokenIs(token.LPAREN) {
-		iz.Throw("init/struct/lparen", &iz.P.CurToken)
+		iz.throw("init/struct/lparen", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedStructDeclaration{}, false
 	}
@@ -582,7 +582,7 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCo
 	}
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.RPAREN) {
-		iz.Throw("init/struct/rparen", &iz.P.CurToken)
+		iz.throw("init/struct/rparen", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedStructDeclaration{}, false
 	}
@@ -595,12 +595,12 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool) (tokenizedCo
 		return &tokenizedStructDeclaration{}, false
 	}
 	if iz.P.CurTokenIs(token.GIVEN) {
-		iz.Throw("init/struct/given", &iz.P.CurToken)
+		iz.throw("init/struct/given", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
 	if !(iz.P.CurTokenIs(token.NEWLINE) || iz.P.CurTokenIs(token.EOF)) {
-		iz.Throw("init/struct/expect", &iz.P.CurToken)
+		iz.throw("init/struct/expect", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedStructDeclaration{}, false
 	}
@@ -679,7 +679,7 @@ func (iz *Initializer) ChunkFunctionSignature() (*tokenizedFunctionDeclaration, 
 			}
 		}
 		if name.Literal == "*dummy*" { // Then we've found no bling. Disaster!
-			iz.Throw("sigs/name", &iz.P.CurToken)
+			iz.throw("sigs/name", &iz.P.CurToken)
 			return &tokenizedFunctionDeclaration{}, false
 		}
 		if position == suffix { // Then the suffix will have been classified as bling, and we need to remove it from the sig.
