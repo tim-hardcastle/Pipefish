@@ -20,7 +20,6 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 
-	"fmt"
 	"strconv"
 )
 
@@ -64,8 +63,8 @@ func NewRelexer(source, input string) *Relexer {
 }
 
 func (rl *Relexer) NextToken() token.Token {
-	// In this we call NextSemanticToken, which, as its name implies, returns a stream from which the syntactic
-	// whitespace has been stripped.
+	// In this we call NextSemanticToken, which, as its name implies, returns a stream from which the superfluous
+	// whitespace has been stripped, and the comments.
 	tok := rl.nextSemanticToken()
 
 	switch tok.Type {
@@ -244,19 +243,6 @@ func (rl *Relexer) burnToken() token.Token {
 func (rl *Relexer) burnNextToken() token.Token {
 	rl.nexTok = rl.mt.NextToken()
 	return rl.nextSemanticToken()
-}
-
-func (rl *Relexer) peekToken() token.Token {
-	return rl.curTok
-}
-
-func relexDump(input string) {
-	fmt.Print("Relexer output: \n\n")
-	rl := NewRelexer("", input)
-	for tok := rl.nextSemanticToken(); tok.Type != token.EOF; tok = rl.nextSemanticToken() {
-		fmt.Println(tok)
-	}
-	fmt.Println()
 }
 
 func (rl *Relexer) throw(errorID string, tok token.Token, args ...any) {
