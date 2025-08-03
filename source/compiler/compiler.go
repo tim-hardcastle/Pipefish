@@ -40,7 +40,7 @@ type Compiler struct {
 	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
-	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.          
+	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
 
@@ -70,7 +70,7 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		FunctionForest:           make(map[string]*FunctionTree),
 	}
 	for name := range parser.ClonableTypes {
-		newC.GeneratedAbstractTypes.Add("clones{"+name+"}")
+		newC.GeneratedAbstractTypes.Add("clones{" + name + "}")
 	}
 	newC.pushRCompiler(newC)
 	return newC
@@ -2864,8 +2864,7 @@ func (cp *Compiler) Store(k, v values.Value) {
 	for _, child := range cp.Modules {
 		child.Store(k, v)
 	}
-	hubStore, _ := cp.GlobalVars.GetVar("$hub")
+	hubStore, _ := cp.GlobalVars.GetVar("$_hub")
 	storeMap := cp.Vm.Mem[hubStore.MLoc].V.(*values.Map)
 	cp.Vm.Mem[hubStore.MLoc].V = storeMap.Set(k, v)
 }
-

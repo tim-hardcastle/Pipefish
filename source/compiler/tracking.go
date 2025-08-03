@@ -30,7 +30,7 @@ func (cp *Compiler) TrackOrLog(tf vm.TrackingFlavor, trackingOn, autoOn bool, to
 	if settings.MandatoryImportSet().Contains(tok.Source) {
 		return
 	}
-	logToVar, _ := cp.GlobalVars.GetVar("$logTo")
+	logToVar, _ := cp.GlobalVars.GetVar("$_logTo")
 	logToLoc := logToVar.MLoc
 	var newData vm.TrackingData
 	switch tf {
@@ -103,7 +103,7 @@ func (cp *Compiler) autoOn(ctxt Context) bool {
 }
 
 func (cp *Compiler) GetTrackingScope() int {
-	return cp.getValueOfVariable("$logging").(int)
+	return cp.getValueOfVariable("$_logging").(int)
 }
 
 func (cp *Compiler) getValueOfVariable(s string) any {

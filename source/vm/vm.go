@@ -11,7 +11,6 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
-	
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/settings"
@@ -54,7 +53,7 @@ type Vm struct {
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
 	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
 	GoConverter                [](func(t uint32, v any) any)
-	ParameterizedTypeInfo      []*values.Map    // A list of maps from type parameters (as TUPLE values) to types (as TYPE values). The list is itself keyed by a map from type operators to the position in the list, which is stored in the compiler.
+	ParameterizedTypeInfo      []*values.Map // A list of maps from type parameters (as TUPLE values) to types (as TYPE values). The list is itself keyed by a map from type operators to the position in the list, which is stored in the compiler.
 }
 
 // In general, the VM can't convert from type names to type numbers, because it doesn't
@@ -341,7 +340,7 @@ loop:
 				case vm.UsefulTypes.Output:
 					vm.OutHandle.Write(text.Pretty(prettyString, 0, 90))
 				case vm.UsefulTypes.File:
-					// TODO --- this is obviously very wasteful. Make $logTo into a constant?
+					// TODO --- this is obviously very wasteful. Make $_logTo into a constant?
 					filename := vm.Mem[staticData.LogToLoc].V.([]values.Value)[0].V.(string)
 					path := filename
 					if filepath.IsLocal(path) {
@@ -512,7 +511,7 @@ loop:
 					tokNumber := uint32(vm.Mem[args[2]].V.(int))
 					errorInfo := vm.TypeCheckErrors[args[3]]
 					vm.Mem[args[0]] = vm.makeError("vm/typecheck/fail", tokNumber,
-					    errorInfo.Condition, errorInfo.Type, errorInfo.Tok, errorInfo.Value)
+						errorInfo.Condition, errorInfo.Type, errorInfo.Tok, errorInfo.Value)
 					if len(vm.callstack) == stackHeight { // This is so that we can call "Run" when we have things on the stack and it will bottom out at the appropriate time.
 						break loop
 					}
@@ -525,8 +524,8 @@ loop:
 				tokNumber := uint32(vm.Mem[args[2]].V.(int))
 				errorInfo := vm.TypeCheckErrors[args[3]]
 				vm.Mem[args[0]] = vm.makeError("vm/typecheck/bool", tokNumber,
-				    errorInfo.Condition, errorInfo.Type, errorInfo.Tok,
-				    vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.Mem[args[1]], errorInfo.Tok)
+					errorInfo.Condition, errorInfo.Type, errorInfo.Tok,
+					vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.Mem[args[1]], errorInfo.Tok)
 				loc = vm.callstack[len(vm.callstack)-1]
 				vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 			}
@@ -1513,7 +1512,7 @@ loop:
 			operator := ""
 			ix := strings.IndexRune(name, '{')
 			if ix == -1 {
-				operator = name 
+				operator = name
 			} else {
 				operator = name[:ix]
 			}
@@ -1524,10 +1523,10 @@ loop:
 				types = types.Add(values.Value{values.TYPE, concType})
 			}
 			result = result.Conj(values.Value{values.SET, types})
-			result = result.Conj(values.Value{values.BOOL, conc && 
+			result = result.Conj(values.Value{values.BOOL, conc &&
 				!(vm.ConcreteTypeInfo[ty.Types[0]].IsClone() ||
-				  vm.ConcreteTypeInfo[ty.Types[0]].IsEnum() ||
-			      vm.ConcreteTypeInfo[ty.Types[0]].IsStruct())})
+					vm.ConcreteTypeInfo[ty.Types[0]].IsEnum() ||
+					vm.ConcreteTypeInfo[ty.Types[0]].IsStruct())})
 			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsClone()})
 			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsEnum()})
 			result = result.Conj(values.Value{values.BOOL, conc && vm.ConcreteTypeInfo[ty.Types[0]].IsStruct()})
@@ -1866,7 +1865,7 @@ loop:
 				panic("Unhandled case.")
 			}
 			for i, v := range typeArgs {
-				vm.Mem[args[0] + uint32(i)] = v
+				vm.Mem[args[0]+uint32(i)] = v
 			}
 		default:
 			panic("Unhandled opcode '" + OPERANDS[vm.Code[loc].Opcode].oc + "'")
@@ -2084,8 +2083,8 @@ type TypeInformation interface {
 }
 
 type BuiltinType struct {
-	name string
-	path string
+	name   string
+	path   string
 	clones values.AbstractType
 }
 
@@ -2193,17 +2192,17 @@ type TypeCheck struct {
 }
 
 type CloneType struct {
-	Name         string
-	Path         string
-	Parent       values.ValueType
-	Private      bool
-	IsSliceable  bool
-	IsFilterable bool
-	IsMappable   bool
-	IsMI         bool
-	Using        []token.Token // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
-	TypeCheck    *TypeCheck
-	TypeArguments    []values.Value
+	Name          string
+	Path          string
+	Parent        values.ValueType
+	Private       bool
+	IsSliceable   bool
+	IsFilterable  bool
+	IsMappable    bool
+	IsMI          bool
+	Using         []token.Token // TODO --- this is used during API serialization only and can be stored somewhere else once we move that to initialization time.
+	TypeCheck     *TypeCheck
+	TypeArguments []values.Value
 }
 
 func (t CloneType) GetName(flavor descriptionFlavor) string {

@@ -125,15 +125,15 @@ func StartCompilerFromFilepath(filepath string, svs map[string]*compiler.Compile
 }
 
 // We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
-// `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down to the
-// "children" of the intitializer and the parser when new modules are created.
+// `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down
+// to the "children" of the intitializer and the parser when new modules are created.
 func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*compiler.Compiler, store *values.Map) *compiler.Compiler {
 	iz := NewInitializer()
 	iz.Common = NewCommonInitializerBindle(store)
 	iz.Common.HubCompilers = hubServices
-	// We then carry out eleven phases of initialization each of which is performed recursively on all of the
-	// modules in the dependency tree before moving on to the next. (The need to do this is in fact what
-	// defines the phases, so you shouldn't bother looking for some deeper logic in that.)
+	// We then carry out several phases of initialization each of which is performed recursively on
+	// all of the modules in the dependency tree before moving on to the next. (The need to do this is
+	// in fact what defines the phases.)
 	iz.cmI("Parsing everything.")
 	result := iz.ParseEverythingFromSourcecode(vm.BlankVm(), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), scriptFilepath, sourcecode, "")
 	if iz.errorsExist() {
@@ -160,14 +160,14 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 	}
 
 	iz.cmI("Making function tables.")
-	iz.MakeFunctionTables()
+	iz.makeFunctionTables()
 	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
 
 	iz.cmI("Making function forest.")
-	iz.MakeFunctionForests()
+	iz.makeFunctionForests()
 	if iz.errorsExist() {
 		iz.cp.P.Common.IsBroken = true
 		return result
@@ -415,10 +415,10 @@ func (iz *Initializer) makeAlternateTypesFromAbstractTypes() {
 
 // At this point we have our functions as `parsedCode`. We want to read their signatures
 // and order them according to specificity for the purposes of implementing overloading.
-func (iz *Initializer) MakeFunctionTables() {
+func (iz *Initializer) makeFunctionTables() {
 	// First we recursively call the method on all the dependencies of the module.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.MakeFunctionTables()
+		dependencyIz.makeFunctionTables()
 	}
 	iz.makeFunctionTable()
 	if settings.FUNCTION_TO_PEEK != "" {
@@ -452,15 +452,15 @@ func (iz *Initializer) makeFunctionTable() {
 	}
 }
 
-func (iz *Initializer) MakeFunctionForests() {
+func (iz *Initializer) makeFunctionForests() {
 	// First we recurse.
 	for _, dependencyIz := range iz.initializers {
-		dependencyIz.MakeFunctionForests()
+		dependencyIz.makeFunctionForests()
 	}
 
 	// Now we turn the function tables into a different data structure, a "function tree" with its branches labeled
 	// with types. Following it tells us which version of an overloaded function to use.
-	iz.MakeFunctionTrees()
+	iz.makeFunctionTrees()
 	if tree, ok := iz.cp.FunctionForest[settings.FUNCTION_TO_PEEK]; ok && settings.FUNCTION_TO_PEEK != "" {
 		println("In namespace", iz.P.NamespacePath, "function tree for "+settings.FUNCTION_TO_PEEK)
 		println(tree.Tree.IndentString("") + "\n")
@@ -470,7 +470,7 @@ func (iz *Initializer) MakeFunctionForests() {
 // Function auxiliary to the above. Having made the parsers FunctionTable, each function name is associated with a
 // (partially) ordered list of associated functions such that a more specific type signature comes before a less
 // specific one. We will now re-represent this as a tree.
-func (iz *Initializer) MakeFunctionTrees() {
+func (iz *Initializer) makeFunctionTrees() {
 	iz.cp.FunctionForest = map[string]*compiler.FunctionTree{}
 	rc := 0
 	for k, v := range iz.functionTable {
@@ -831,8 +831,8 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 	}
 	iz.cmI("Initializing service variables.")
 	// $We need a few bits and pieeces to assemble the types and content of the variables.
-	loggingOptionsType, _ := iz.cp.GetConcreteType("$Logging")
-	outputOptionsType, _ := iz.cp.GetConcreteType("$OutputAs")
+	loggingOptionsType, _ := iz.cp.GetConcreteType("$_Logging")
+	outputOptionsType, _ := iz.cp.GetConcreteType("$_OutputAs")
 	outputStructType, _ := iz.cp.GetConcreteType("Output")
 	terminalStructType, _ := iz.cp.GetConcreteType("Terminal")
 	fileStructType, _ := iz.cp.GetConcreteType("File")
@@ -852,18 +852,18 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 	}
 
 	serviceVariables := map[string]serviceVariableData{
-		"$logging":         {loggingOptionsType, 1, altType(loggingOptionsType)},
-		"$logTo":           {terminalStructType, []values.Value{}, logToTypes},
-		"$outputAs":        {outputOptionsType, 1, altType(outputOptionsType)},
-		"$cliDirectory":    {values.STRING, dir, altType(values.STRING)},
-		"$cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
-		"$moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
-		"$hub":             {values.MAP, iz.Common.HubStore, altType(values.MAP)},
+		"$_logging":         {loggingOptionsType, 1, altType(loggingOptionsType)},
+		"$_logTo":           {terminalStructType, []values.Value{}, logToTypes},
+		"$_outputAs":        {outputOptionsType, 1, altType(outputOptionsType)},
+		"$_cliDirectory":    {values.STRING, dir, altType(values.STRING)},
+		"$_cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
+		"$_moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
+		"$_hub":             {values.MAP, iz.Common.HubStore, altType(values.MAP)},
 	}
 	// Service variables which tell the compiler how to compile things must be
 	// set before we compile the functions, and so can't be calculated but must
 	// be literal.
-	compilerDirectives := dtypes.MakeFromSlice([]string{"$logging", "$logTo"})
+	compilerDirectives := dtypes.MakeFromSlice([]string{"$_logging", "$_logTo"})
 	// Add variables to environment.
 	for svName, svData := range serviceVariables {
 		rhs, ok := graph[svName]
@@ -889,7 +889,7 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 		// The third possibility here is that we've declared a service variable which isn't
 		// a compiler directive. In that case, it can be compiled in the usual way.
 	}
-	iz.cp.Vm.UsefulValues.OutputAs = iz.cp.GlobalVars.Data["$outputAs"].MLoc
+	iz.cp.Vm.UsefulValues.OutputAs = iz.cp.GlobalVars.Data["$_outputAs"].MLoc
 	iz.cmI("Performing sort on digraph.")
 	order := graph.Tarjan()
 

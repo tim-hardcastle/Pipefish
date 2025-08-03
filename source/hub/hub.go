@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/pbkdf2"
 	"github.com/lmorg/readline"
+	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/pf"
@@ -428,7 +428,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 	case "listen":
 		hub.WriteString(GREEN_OK)
 		hub.WriteString("\nHub is listening.\n\n")
-		hub.StartHttp("/"+ toStr(args[0]), toStr(args[1]))
+		hub.StartHttp("/"+toStr(args[0]), toStr(args[1]))
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -579,8 +579,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			snapService := hub.services["#snap"]
-			ty, _ := snapService.TypeNameToType("$OutputAs")
-			snapService.SetVariable("$outputAs",  ty, 0)
+			ty, _ := snapService.TypeNameToType("$_OutputAs")
+			snapService.SetVariable("$_outputAs", ty, 0)
 			hub.WriteString("Serialization is ON.\n")
 			in, out := MakeSnapIo(snapService, hub.out, hub.snap)
 			currentService := snapService
@@ -638,7 +638,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			storekey, _ := rline.Readline()
 			if storekey != hub.storekey {
 				hub.WriteError("incorrect store key.")
-			    return false
+				return false
 			}
 		}
 		rline := readline.NewInstance()
@@ -669,7 +669,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 				hub.setServiceName(sname)
 				return false
 			}
-		} 
+		}
 		hub.WriteError("service '" + sname + "' doesn't exist")
 		return false
 	case "test":
@@ -981,7 +981,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
 		if name == "hub" {
-			fmt.Println("Pipefish: unable to compile hub: " +text.Red(newService.GetErrors()[0].ErrorId) + ".")
+			fmt.Println("Pipefish: unable to compile hub: " + text.Red(newService.GetErrors()[0].ErrorId) + ".")
 		}
 		if !newService.IsInitialized() {
 			hub.WriteError("unable to open '" + scriptFilepath + "' with error '" + e.Error() + "'")
@@ -999,7 +999,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 func StartServiceFromCli() {
 	filename := os.Args[2]
 	newService := pf.NewService()
-	// TODO --- probably this ought to get the `$hub` settings.
+	// TODO --- probably this ought to get the `$_hub` settings.
 	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
@@ -1134,8 +1134,8 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		if err != nil {
 			panic("Can't open hub data store")
 		}
-  		s := string(b)
-		for ; s[0:9] != "PLAINTEXT" ; println("Invalid storekey. Enter a valid one or press return to continue without loading the store.") {
+		s := string(b)
+		for ; s[0:9] != "PLAINTEXT"; println("Invalid storekey. Enter a valid one or press return to continue without loading the store.") {
 			salt := s[0:32]
 			ciphertext := s[32:]
 			rline := readline.NewInstance()
@@ -1267,8 +1267,8 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	if testOutputType == ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
-	ty, _ := testService.TypeNameToType("$OutputAs")
-	testService.SetVariable("$outputAs",  ty, 0)
+	ty, _ := testService.TypeNameToType("$_OutputAs")
+	testService.SetVariable("$_outputAs", ty, 0)
 	_ = scanner.Scan() // eats the newline
 	executionMatchesTest := true
 	for scanner.Scan() {
@@ -1331,8 +1331,8 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	scanner.Scan()
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	testService := (*hub).services["#test"]
-	ty, _ := testService.TypeNameToType("$OutputAs")
-	testService.SetVariable("$outputAs",  ty, 0)
+	ty, _ := testService.TypeNameToType("$_OutputAs")
+	testService.SetVariable("$_outputAs", ty, 0)
 	in, out := MakeTestIoHandler(testService, hub.out, scanner, SHOW_ALL)
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)

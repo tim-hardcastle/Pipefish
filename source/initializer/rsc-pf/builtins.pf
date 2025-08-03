@@ -5,8 +5,8 @@ newtype
 Error = struct(errorCode string, errorText string)
 Time = struct(year, month, day, hour, minute, second, nanosecond int, location string)
 
-$OutputAs = enum $LITERAL, $STRING 
-$Logging = enum LOG_NONE, LOG_SELECTED, LOG_ALL
+$_OutputAs = enum $LITERAL, $STRING 
+$_Logging = enum LOG_NONE, LOG_SELECTED, LOG_ALL
 
 def
 

@@ -19,8 +19,8 @@ FALSE_POSITIVES = set(`"database/sql"`, `"encoding/json"`, `"math/rand"`, `"net/
 cmd
 
 main :
-    global $moduleDirectory
-    get filenames from Filenames($moduleDirectory, RECURSIVE)
+    global $_moduleDirectory
+    get filenames from Filenames($_moduleDirectory, RECURSIVE)
     errorFile = ""
     allTheOtherCode = ""
     for _::filename = range filenames :
