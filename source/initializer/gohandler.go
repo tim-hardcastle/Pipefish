@@ -80,7 +80,7 @@ func (iz *Initializer) compileGo() {
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for _, pc := range iz.parsedCode[j] {
 			fn := pc.(*parsedFunction)
-			if fn.body.GetToken().Type == token.GOCODE {
+			if fn.body.GetToken().Type == token.GOLANG {
 				iz.goBucket.sources.Add(fn.op.Source)
 				iz.goBucket.functions[fn.op.Source] = append(iz.goBucket.functions[fn.op.Source], fn)
 			}

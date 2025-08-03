@@ -28,7 +28,7 @@ w :
 else : 6
 			`
 	items := []testItem{
-		{token.EOF, "EOF", 1},      //0
+		{token.EOF, "EOF", 1}, //0
 		{token.IDENT, "line", 1},
 		{token.IDENT, "one", 1},
 		{token.NEWLINE, ";", 2},
@@ -103,22 +103,22 @@ else : 6
 
 func TestGolang(t *testing.T) {
 	input :=
-	
-`golang "qux"
+
+		`golang "qux"
 golang "foo"
 
 golang {
     foo
 }`
-	
+
 	items := []testItem{
 		{token.EOF, "EOF", 1},
-		{token.GOCODE, "qux", 1},
+		{token.GOLANG, "qux", 1},
 		{token.NEWLINE, ";", 2},
-		{token.GOCODE, "foo", 2},
+		{token.GOLANG, "foo", 2},
 		{token.NEWLINE, ";", 3},
 		{token.NEWLINE, ";", 4},
-		{token.GOCODE, "\n    foo\n", 6},
+		{token.GOLANG, "\n    foo\n", 6},
 		{token.NEWLINE, ";", 6},
 	}
 	testLexingString(t, input, items)
@@ -153,4 +153,3 @@ func runTest(t *testing.T, ts TokenSupplier, items []testItem) {
 		}
 	}
 }
-

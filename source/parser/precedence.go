@@ -76,7 +76,6 @@ var precedences = map[token.TokenType]int{
 	token.EQ:              EQUALS,
 	token.NOT_EQ:          EQUALS,
 	// LESSGREATER
-	token.WEAK_COMMA: WEAK_COMMA,
 	token.VALID:      FPREFIX,
 	token.UNWRAP:     FPREFIX,
 	token.GLOBAL:     FPREFIX,

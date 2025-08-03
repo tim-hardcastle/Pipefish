@@ -1236,7 +1236,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 			}
 		}
 		cpFn.Builtin = name
-	case token.GOCODE:
+	case token.GOLANG:
 		cpFn.GoNumber = uint32(len(iz.cp.Vm.GoFns))
 		cpFn.HasGo = true
 		iz.cp.Vm.GoFns = append(iz.cp.Vm.GoFns, vm.GoFn{Code: izFn.body.(*ast.GolangExpression).GoFunction})
@@ -1277,7 +1277,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 		}
 		cpFn.OutReg = iz.cp.That()
 
-		if izFn.callInfo.ReturnTypes != nil && !(izFn.body.GetToken().Type == token.GOCODE) {
+		if izFn.callInfo.ReturnTypes != nil && !(izFn.body.GetToken().Type == token.GOLANG) {
 			iz.cp.EmitTypeChecks(cpFn.OutReg, cpFn.RtnTypes, fnenv, izFn.callInfo.ReturnTypes, ac, &izFn.op, compiler.CHECK_RETURN_TYPES, bodyContext)
 		}
 		iz.cp.VmComeFrom(paramChecks...)

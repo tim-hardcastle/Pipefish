@@ -14,17 +14,17 @@ import (
 )
 
 type Lexer struct {
-	reader            strings.Reader
-	input             string
-	ch                rune                 // current rune under examination
-	line              int                  // the line number
-	char              int                  // the character number
-	tstart            int                  // the value of char at the start of a token
-	newline           bool                 // whether we are at the start of a line and so should be treating whitespace syntactically
-	afterWhitespace   bool                 // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
-	whitespaceStack   dtypes.Stack[string] // levels of whitespace to unindent to
-	Ers               err.Errors
-	source            string
+	reader          strings.Reader
+	input           string
+	ch              rune                 // current rune under examination
+	line            int                  // the line number
+	char            int                  // the character number
+	tstart          int                  // the value of char at the start of a token
+	newline         bool                 // whether we are at the start of a line and so should be treating whitespace syntactically
+	afterWhitespace bool                 // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
+	whitespaceStack dtypes.Stack[string] // levels of whitespace to unindent to
+	Ers             err.Errors
+	source          string
 }
 
 func NewLexer(source, input string) *Lexer {
@@ -192,7 +192,7 @@ func (l *Lexer) getTokens() []token.Token {
 		lit := l.readIdentifier()
 		tType := token.LookupIdent(lit)
 		switch tType {
-		case token.GOCODE:
+		case token.GOLANG:
 			text := l.readGolang()
 			return []token.Token{l.NewToken(tType, text), l.NewToken(token.NEWLINE, ";")}
 		case token.EMDASH:
@@ -201,7 +201,7 @@ func (l *Lexer) getTokens() []token.Token {
 				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)),
 					l.MakeToken(token.NEWLINE, ";")}
 			} else {
-				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)), 
+				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)),
 					l.MakeToken(token.END, fmt.Sprint(outdent)),
 					l.MakeToken(token.NEWLINE, ";")}
 			}
@@ -606,7 +606,7 @@ func (l *Lexer) readIdentifier() string {
 }
 
 func isLetter(ch rune) bool {
-	return unicode.IsLetter(ch) 
+	return unicode.IsLetter(ch)
 }
 
 func isUnderscore(ch rune) bool {
@@ -645,7 +645,7 @@ func isLegalStart(ch rune) bool {
 // Finds if we're at the end of an identifier.
 func (l *Lexer) atBoundary() bool {
 	pc := l.peekChar()
-	return isProtectedPunctuationOrWhitespace(pc) || 
+	return isProtectedPunctuationOrWhitespace(pc) ||
 		isLetter(l.ch) && !(isLetter(pc) || isUnderscore(pc)) ||
 		isDigit(l.ch) && !(isDigit(pc) || isUnderscore(pc)) ||
 		isSymbol(l.ch) && !(isSymbol(pc) || isUnderscore(pc))
@@ -669,5 +669,3 @@ func (l *Lexer) Throw(errorID string, args ...any) token.Token {
 	l.Ers = err.Throw(errorID, l.Ers, &tok, args...)
 	return tok
 }
-
-

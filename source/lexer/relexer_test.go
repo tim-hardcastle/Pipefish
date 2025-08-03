@@ -8,7 +8,7 @@ import (
 
 func TestNextTokenForRelexer(t *testing.T) {
 	input :=
-`foo(x):
+		`foo(x):
 	x : 1
 	else : 2
 `
@@ -36,17 +36,17 @@ func TestNextTokenForRelexer(t *testing.T) {
 
 func TestRlGolang(t *testing.T) {
 	input :=
-	
-`golang "qux"
+
+		`golang "qux"
 
 golang {
     foo
 }`
-	
+
 	items := []testItem{
-		{token.GOCODE, "qux", 1},
+		{token.GOLANG, "qux", 1},
 		{token.NEWLINE, ";", 3},
-		{token.GOCODE, "\n    foo\n", 5},
+		{token.GOLANG, "\n    foo\n", 5},
 		{token.NEWLINE, ";", 5},
 	}
 	testRelexingString(t, input, items)

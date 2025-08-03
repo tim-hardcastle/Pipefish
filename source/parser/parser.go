@@ -82,7 +82,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		ParameterizedTypes: make(dtypes.Set[string]),
 
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
-			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
+			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
 			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
@@ -190,7 +190,7 @@ func NewCommonParserBindle() *CommonParserBindle {
 // When we dispatch on a function which is semantically available to us because it fulfills an interface, but we
 // haven't compiled it yet, this keeps track of where we backtrack to.
 type BkInterface struct {
-	Fn   any     // This will in fact always be of type *compiler.CallInfo.
+	Fn   any // This will in fact always be of type *compiler.CallInfo.
 	Addr uint32
 }
 
@@ -236,7 +236,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		leftExp = p.parseFloatLiteral()
 	case token.FOR:
 		leftExp = p.parseForExpression()
-	case token.GOCODE:
+	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
 	case token.INT:
 		leftExp = p.parseIntegerLiteral()
@@ -1052,8 +1052,6 @@ func (p *Parser) getResolvingParser() *Parser {
 
 // Some functions for interacting with a `TokenSupplier`.
 
-
-
 func (p *Parser) NextToken() {
 	p.checkNesting()
 	p.SafeNextToken()
@@ -1183,5 +1181,3 @@ func (p *Parser) SeekColon() bool {
 	}
 	return p.PeekToken.Type == token.COLON
 }
-
-

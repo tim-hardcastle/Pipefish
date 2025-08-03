@@ -136,7 +136,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	if rl.nexTok.Type == token.BEGIN &&
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.PRELOG || rl.curTok.Type == token.COLON ||
 			(rl.curTok.Type == token.NEWLINE && (rl.ifLogHappened || (rl.preTok.Type == token.COLON) || (rl.preTok.Type == token.MAGIC_COLON)) ||
-				(rl.preTok.Type == token.GIVEN)) || rl.curTok.Type == token.GOCODE) {
+				(rl.preTok.Type == token.GIVEN)) || rl.curTok.Type == token.GOLANG) {
 		rl.Throw("relex/indent", rl.curTok)
 	}
 
@@ -223,7 +223,7 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 					ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
 			} else {
 				return token.Token{Type: token.NEWLINE, Literal: ";", Line: rl.curTok.Line,
-				ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
+					ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
 			}
 		default:
 			rl.nestingLevel = rl.nestingLevel - 1

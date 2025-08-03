@@ -341,15 +341,15 @@ loop:
 				iz.throw("init/head", &iz.P.CurToken)
 				return
 			case token.CMD, token.DEF:
-				if iz.P.CurToken.Type == token.GOCODE { // Then we have a block of pure Go.
+				if iz.P.CurToken.Type == token.GOLANG { // Then we have a block of pure Go.
 					result = &tokenizedGolangDeclaration{private, iz.P.CurToken}
 				} else {
 					result, _ = iz.ChunkFunction(headword == token.CMD, private)
 				}
 			case token.VAR, token.CONST:
 				result, _ = iz.ChunkConstOrVarDeclaration(headword == token.CONST, private)
-			case token.IMPORT, token.EXTERN:
-				result, _ = iz.ChunkImportOrExternalDeclaration(headword == token.EXTERN, private)
+			case token.IMPORT, token.EXTERNAL:
+				result, _ = iz.ChunkImportOrExternalDeclaration(headword == token.EXTERNAL, private)
 			case token.NEWTYPE:
 				result, _ = iz.ChunkTypeDeclaration(private)
 				if result.getDeclarationType() == makeDeclarations {

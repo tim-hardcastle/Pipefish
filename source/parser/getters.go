@@ -179,16 +179,6 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (as
 				return nil, err
 			}
 			return append(LHS, RHS...), nil
-		case typednode.Token.Type == token.WEAK_COMMA:
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			if err != nil {
-				return nil, err
-			}
-			return append(LHS, RHS...), nil
 		case typednode.Operator == ".":
 			namespacedIdent, err := recursivelySlurpNamespace(typednode)
 			if err != nil {
