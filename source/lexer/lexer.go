@@ -605,20 +605,16 @@ func (l *Lexer) readIdentifier() string {
 	return result
 }
 
-func isAlphanumeric(c rune) bool {
-	return isLetter(c) || isDigit(c)
-}
-
 func isLetter(ch rune) bool {
-	return unicode.IsLetter(ch) || ch == '_' || ch == '^' || ch == '$'
+	return unicode.IsLetter(ch) 
 }
 
-func isPeriod(ch rune) bool {
-	return ch == '.'
+func isUnderscore(ch rune) bool {
+	return ch == '_'
 }
 
 func isDigit(ch rune) bool {
-	return '0' <= ch && ch <= '9'
+	return unicode.IsNumber(ch)
 }
 
 func isBinaryDigit(ch rune) bool {
@@ -635,21 +631,24 @@ func isHexDigit(ch rune) bool {
 
 func isProtectedPunctuationOrWhitespace(ch rune) bool {
 	return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' || ch == ' ' || ch == ',' ||
-		ch == ':' || ch == ';' || ch == '\t' || ch == '\n' || ch == '\r' || ch == 0
+		ch == ':' || ch == ';' || ch == '.' || ch == '\t' || ch == '\n' || ch == '\r' || ch == 0
 }
 
 func isSymbol(ch rune) bool {
-	return !(ch == '_') && !(isLetter(ch) || isDigit(ch) || isProtectedPunctuationOrWhitespace(ch))
+	return !(isUnderscore(ch) || isLetter(ch) || isDigit(ch) || isProtectedPunctuationOrWhitespace(ch))
 }
 
 func isLegalStart(ch rune) bool {
-	return !(isProtectedPunctuationOrWhitespace(ch) || isDigit(ch) || isPeriod(ch))
+	return !(isProtectedPunctuationOrWhitespace(ch) || isDigit(ch))
 }
 
-// FInds if we're at the end of an identifier.
+// Finds if we're at the end of an identifier.
 func (l *Lexer) atBoundary() bool {
 	pc := l.peekChar()
-	return isProtectedPunctuationOrWhitespace(pc) || (isAlphanumeric(l.ch) && isSymbol(pc)) || (isSymbol(l.ch) && isAlphanumeric(pc))
+	return isProtectedPunctuationOrWhitespace(pc) || 
+		isLetter(l.ch) && !(isLetter(pc) || isUnderscore(pc)) ||
+		isDigit(l.ch) && !(isDigit(pc) || isUnderscore(pc)) ||
+		isSymbol(l.ch) && !(isSymbol(pc) || isUnderscore(pc))
 }
 
 func (l *Lexer) NewToken(tokenType token.TokenType, st string) token.Token {

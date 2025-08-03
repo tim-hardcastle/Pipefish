@@ -1349,16 +1349,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/enum/comma": {
+	"init/enum/expect": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "expected comma, got " + text.DescribeTok(tok)
+			return "wasn't expecting " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish expects an enum declaration to take the form:" +
 				"\n\n|-----------------------------------------------\n\n" +
 				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
-				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
-				"Pipefish was expecting to find a comma between elements of the enum."
+				"you have supplied is defective because it has an unxpected " + text.DescribeTok(tok) + "."
 		},
 	},
 
