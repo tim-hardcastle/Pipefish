@@ -55,7 +55,6 @@ else : 6
 		{token.IDENT, "line", 8},
 		{token.IDENT, "five", 8},
 		{token.NEWLINE, ";", 9},
-		{token.NO_INDENT, "|||", 9},
 		{token.IDENT, "w", 9},
 		{token.COLON, ":", 9},
 		{token.NEWLINE, ";", 10}, //30
@@ -72,7 +71,6 @@ else : 6
 		{token.COLON, ":", 12},
 		{token.INT, "1", 12},
 		{token.NEWLINE, ";", 13},
-		{token.NO_INDENT, "|||", 13},
 		{token.ELSE, "else", 13},
 		{token.COLON, ":", 13},
 		{token.INT, "2", 13},
@@ -86,7 +84,6 @@ else : 6
 		{token.COLON, ":", 15},
 		{token.INT, "3", 15},
 		{token.NEWLINE, ";", 16},
-		{token.NO_INDENT, "|||", 16},
 		{token.ELSE, "else", 16},
 		{token.COLON, ":", 16}, //60
 		{token.INT, "4", 16},
@@ -118,11 +115,9 @@ golang {
 		{token.EOF, "EOF", 1},
 		{token.GOCODE, "qux", 1},
 		{token.NEWLINE, ";", 2},
-		{token.NO_INDENT, "|||", 2},
 		{token.GOCODE, "foo", 2},
 		{token.NEWLINE, ";", 3},
-		{token.NO_INDENT, "|||", 4},
-		{token.NO_INDENT, "|||", 4},
+		{token.NEWLINE, ";", 4},
 		{token.GOCODE, "\n    foo\n", 6},
 		{token.NEWLINE, ";", 6},
 	}
@@ -144,13 +139,13 @@ func testLexingString(t *testing.T, input string, items []testItem) {
 func runTest(t *testing.T, ts TokenSupplier, items []testItem) {
 	for i, tt := range items {
 		tok := ts.NextToken()
-		if tok.Literal != tt.expectedLiteral {
-			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
-				i, tt.expectedLiteral, tok.Literal)
-		}
 		if tok.Type != tt.expectedType {
 			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
 				i, tt.expectedType, tok.Type)
+		}
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
+				i, tt.expectedLiteral, tok.Literal)
 		}
 		if tok.Line != tt.expectedLine {
 			t.Fatalf("tests[%d] - line wrong. expected=%d, got=%d",

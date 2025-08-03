@@ -80,7 +80,6 @@ const (
 	LOG             = "LOG"             // What we turn \\ into.
 	MAGIC_COLON     = "MAGIC COLON"     // What the relexer turns a colon into when it comes after the signature of an inner function.
 	MAGIC_SEMICOLON = "MAGIC_SEMICOLON" // What the semicolons in C-like for loops get turned into by the relexer.
-	NO_INDENT       = "|||"             // What we turn whitespace into when it isn't a new indent or outdent.
 	PRELOG          = "PRELOG"          // What we turn \\ into when it's the first thing after the function signature.
 	WEAK_COMMA      = ",,"              // What we turn commas after type names into in function signatures.
 	XCALL           = "XCALL"           // Used in generated code to supply hooks to the external calls.

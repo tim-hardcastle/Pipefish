@@ -47,7 +47,7 @@ func (l *Lexer) getTokens() []token.Token {
 	if l.newline {
 		l.afterWhitespace = true
 		l.newline = false
-		return []token.Token{l.interpretWhitespace()}
+		return l.interpretWhitespace()
 	}
 	l.newline = false
 	l.skipWhitespace()
@@ -214,7 +214,7 @@ func (l *Lexer) getTokens() []token.Token {
 	return []token.Token{l.Throw("lex/ill", l.ch)}
 }
 
-func (l *Lexer) interpretWhitespace() token.Token {
+func (l *Lexer) interpretWhitespace() []token.Token {
 
 	l.newline = false
 	whitespace := ""
@@ -224,35 +224,35 @@ func (l *Lexer) interpretWhitespace() token.Token {
 		l.readChar()
 	}
 	if l.ch == '\n' {
-		return l.NewToken(token.NO_INDENT, "|||")
+		return []token.Token{}
 	}
 	if l.ch == '/' && l.peekChar() == '/' {
 		l.readChar()
 		comment := l.readComment()
 		l.readChar()
-		return l.NewToken(token.COMMENT, comment)
+		return []token.Token{l.NewToken(token.COMMENT, comment)}
 	}
 	if l.ch == '.' && l.peekChar() == '.' {
 		l.readChar()
 		l.readChar()
-		return l.Throw("lex/cont/b")
+		return []token.Token{l.Throw("lex/cont/b")}
 	}
 	previousWhitespace, _ := l.whitespaceStack.HeadValue()
 	if whitespace == previousWhitespace {
-		return l.MakeToken(token.NO_INDENT, "|||")
+		return []token.Token{}
 	}
 	if strings.HasPrefix(whitespace, previousWhitespace) {
 		l.whitespaceStack.Push(whitespace)
-		return l.MakeToken(token.BEGIN, "|->")
+		return []token.Token{l.MakeToken(token.BEGIN, "|->")}
 	}
 	level := l.whitespaceStack.Find(whitespace)
 	if level > 0 {
 		for i := 0; i < level; i++ {
 			l.whitespaceStack.Pop()
 		}
-		return l.MakeToken(token.END, fmt.Sprint(level))
+		return []token.Token{l.MakeToken(token.END, fmt.Sprint(level))}
 	}
-	return l.Throw("lex/wsp", describeWhitespace(whitespace))
+	return []token.Token{l.Throw("lex/wsp", describeWhitespace(whitespace))}
 }
 
 var whitespaceDescriptions = map[rune]string{' ': "space", '\n': "newline", '\t': "tab"}

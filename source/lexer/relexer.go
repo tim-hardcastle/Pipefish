@@ -146,12 +146,9 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 
 	switch rl.curTok.Type {
 	case token.PRELOG:
-		if rl.nexTok.Type == token.NO_INDENT ||
-			rl.nexTok.Type == token.NEWLINE {
+		if rl.nexTok.Type == token.NEWLINE {
 			return rl.burnNextToken()
 		}
-	case token.NO_INDENT:
-		return rl.burnToken()
 	case token.DOTDOT:
 		return rl.burnToken()
 	case token.COMMENT:
@@ -160,11 +157,6 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 	case token.NEWLINE:
 
 		rl.ifLogHappened = false
-
-		if rl.nexTok.Type == token.NO_INDENT ||
-			rl.nexTok.Type == token.NEWLINE {
-			return rl.burnNextToken()
-		}
 
 		if rl.preTok.Type == token.NEWLINE ||
 			rl.preTok.Type == token.IFLOG ||
@@ -176,7 +168,8 @@ func (rl *Relexer) NextSemanticToken() token.Token {
 			rl.preTok.Type == token.COLON ||
 			rl.preTok.Type == token.MAGIC_COLON ||
 			rl.nexTok.Type == token.END ||
-			rl.nexTok.Type == token.RPAREN {
+			rl.nexTok.Type == token.RPAREN ||
+			rl.nexTok.Type == token.NEWLINE {
 			return rl.burnToken()
 		}
 
