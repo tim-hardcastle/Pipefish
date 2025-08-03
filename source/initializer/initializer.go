@@ -72,19 +72,21 @@ func NewInitializer(common *commonInitializerBindle) *Initializer {
 
 // The commonInitializerBindle contains information that all the initializers need to share.
 type commonInitializerBindle struct {
-	functions      map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
-	declarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
-	hubCompilers   map[string]*compiler.Compiler  // This is a map of the compilers of all the (potential) external services on the same hub.
-	hubStore       *values.Map                    // The hub store --- see wiki.
+	functions        map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
+	declarationMap   map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
+	// This is a map of the compilers of all the (potential) external services on the same hub.
+	// They're stored as compilers because the initializer can't see the `Service` class.
+	serviceCompilers map[string]*compiler.Compiler 
+	hubStore         *values.Map                    // The hub store --- see wiki.
 }
 
 // Initializes the `CommonInitializerBindle`
 func NewCommonInitializerBindle(store *values.Map, services map[string]*compiler.Compiler) *commonInitializerBindle {
 	b := commonInitializerBindle{
-		functions:      make(map[funcSource]*parsedFunction),
-		declarationMap: make(map[decKey]any),
-		hubCompilers:   services,
-		hubStore:       store,
+		functions:        make(map[funcSource]*parsedFunction),
+		declarationMap:   make(map[decKey]any),
+		serviceCompilers: services,
+		hubStore:         store,
 	}
 	return &b
 }

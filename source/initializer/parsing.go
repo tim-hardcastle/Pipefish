@@ -204,7 +204,7 @@ func (iz *Initializer) initializeExternals() {
 		path := dec.path.Literal
 		name, path = text.TweakNameAndPath(name, path, dec.path.Source)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
-			externalCP, ok := iz.Common.hubCompilers[name]
+			externalCP, ok := iz.Common.serviceCompilers[name]
 			if !ok {
 				iz.throw("init/external/exist/a", &dec.name)
 				continue
@@ -239,7 +239,7 @@ func (iz *Initializer) initializeExternals() {
 		}
 
 		// Otherwise we have a path for which the Tweak function will have inferred a name if one was not supplied.
-		hubServiceCp, ok := iz.Common.hubCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
+		hubServiceCp, ok := iz.Common.serviceCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubServiceCp.ScriptFilepath != path {
 				iz.throw("init/external/exist/b", &dec.path, hubServiceCp.ScriptFilepath)
@@ -249,21 +249,21 @@ func (iz *Initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp, e := StartCompilerFromFilepath(path, iz.Common.hubCompilers, iz.Common.hubStore)
+		newServiceCp, e := StartCompilerFromFilepath(path, iz.Common.serviceCompilers, iz.Common.hubStore)
 		if e != nil { // Then we couldn't open the file.
 			iz.throw("init/external/file", &dec.path, path, e.Error())
 		}
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
 		}
-		iz.Common.hubCompilers[name] = newServiceCp
+		iz.Common.serviceCompilers[name] = newServiceCp
 		iz.addExternalOnSameHub(path, name)
 	}
 }
 
 // Functions auxiliary to the above.
 func (iz *Initializer) addExternalOnSameHub(path, name string) {
-	hubService := iz.Common.hubCompilers[name]
+	hubService := iz.Common.serviceCompilers[name]
 	ev := func(line string) values.Value {
 		exVal := hubService.Do(line)
 		serialize := hubService.Vm.Literal(exVal)
