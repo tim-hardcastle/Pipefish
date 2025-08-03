@@ -136,7 +136,8 @@ func (l *lexer) getTokens() []token.Token {
 				return []token.Token{l.NewToken(token.DOTDOTDOT, "...")}
 			}
 			if l.skipWhitespaceAfterPotentialContinuation() {
-				return []token.Token{l.NewToken(token.DOTDOT, "..")}
+				l.readChar()
+				return []token.Token{}
 			} else {
 				return []token.Token{l.Throw("lex/cont/a")}
 			}

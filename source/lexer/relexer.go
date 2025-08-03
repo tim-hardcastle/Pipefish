@@ -141,15 +141,9 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		if rl.nexTok.Type == token.NEWLINE {
 			return rl.burnNextToken()
 		}
-	case token.DOTDOT:
-		return rl.burnToken()
-	case token.COMMENT:
-		return rl.burnToken()
 
 	case token.NEWLINE:
-
 		rl.ifLogHappened = false
-
 		if rl.preTok.Type == token.NEWLINE ||
 			rl.preTok.Type == token.IFLOG ||
 			rl.preTok.Type == token.PRELOG ||
@@ -224,7 +218,7 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 			rl.getToken()
 		}
 	case token.LOG:
-		if rl.preTok.Type == token.COMMA || rl.preTok.Type == token.DOTDOT {
+		if rl.preTok.Type == token.COMMA {
 			rl.throw("relex/log", rl.curTok)
 		}
 	}

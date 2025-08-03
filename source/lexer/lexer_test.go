@@ -39,7 +39,6 @@ else : 6
 		{token.BEGIN, "|->", 3},
 		{token.IDENT, "line", 3},
 		{token.IDENT, "three", 3}, //10
-		{token.DOTDOT, "..", 4},
 		{token.IDENT, "line", 4},
 		{token.IDENT, "threeandahalf", 4},
 		{token.COMMA, ",", 5},
@@ -48,8 +47,8 @@ else : 6
 		{token.NEWLINE, ";", 6},
 		{token.COMMENT, "This is a comment", 7},
 		{token.ILLEGAL, "lex/wsp", 7},
-		{token.IDENT, "line", 7}, //20
-		{token.IDENT, "four", 7},
+		{token.IDENT, "line", 7}, 
+		{token.IDENT, "four", 7}, //20
 		{token.NEWLINE, ";", 8},
 		{token.END, "2", 8},
 		{token.IDENT, "line", 8},
@@ -57,8 +56,8 @@ else : 6
 		{token.NEWLINE, ";", 9},
 		{token.IDENT, "w", 9},
 		{token.COLON, ":", 9},
-		{token.NEWLINE, ";", 10}, //30
-		{token.BEGIN, "|->", 10},
+		{token.NEWLINE, ";", 10}, 
+		{token.BEGIN, "|->", 10}, //30
 		{token.IDENT, "x", 10},
 		{token.COLON, ":", 10},
 		{token.NEWLINE, ";", 11},
@@ -67,8 +66,8 @@ else : 6
 		{token.COLON, ":", 11},
 		{token.NEWLINE, ";", 12},
 		{token.BEGIN, "|->", 12},
-		{token.IDENT, "z", 12}, //40
-		{token.COLON, ":", 12},
+		{token.IDENT, "z", 12}, 
+		{token.COLON, ":", 12}, //40
 		{token.INT, "1", 12},
 		{token.NEWLINE, ";", 13},
 		{token.ELSE, "else", 13},
@@ -76,8 +75,8 @@ else : 6
 		{token.INT, "2", 13},
 		{token.NEWLINE, ";", 14},
 		{token.END, "1", 14},
-		{token.ELSE, "else", 14}, //50
-		{token.COLON, ":", 14},
+		{token.ELSE, "else", 14}, 
+		{token.COLON, ":", 14}, //50
 		{token.NEWLINE, ";", 15},
 		{token.BEGIN, "|->", 15},
 		{token.IDENT, "v", 15},
@@ -85,8 +84,8 @@ else : 6
 		{token.INT, "3", 15},
 		{token.NEWLINE, ";", 16},
 		{token.ELSE, "else", 16},
-		{token.COLON, ":", 16}, //60
-		{token.INT, "4", 16},
+		{token.COLON, ":", 16}, 
+		{token.INT, "4", 16}, //60
 		{token.NEWLINE, ";", 17},
 		{token.END, "2", 17},
 		{token.ELSE, "else", 17},
@@ -95,8 +94,8 @@ else : 6
 		{token.NEWLINE, ";", 18},
 		{token.END, "1", 18},
 		{token.ELSE, "else", 18},
-		{token.COLON, ":", 18}, //70
-		{token.INT, "6", 18},
+		{token.COLON, ":", 18}, 
+		{token.INT, "6", 18}, //70
 	}
 	testLexingString(t, input, items)
 }

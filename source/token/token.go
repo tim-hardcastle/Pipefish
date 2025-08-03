@@ -45,7 +45,6 @@ const (
 
 	// The protected punctuation.
 	COLON               = ":"
-	DOTDOT              = ".."
 	DOTDOTDOT           = "..."
 	COMMA               = ","
 	LPAREN              = "("
