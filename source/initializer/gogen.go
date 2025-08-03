@@ -132,7 +132,7 @@ func (iz *Initializer) generateGoFunctionCode(sb *strings.Builder, function *par
 		}
 		fmt.Fprint(sb, goType, " ")
 	default:
-		iz.printSig(sb, function.callInfo.ReturnTypes, *&function.op)
+		iz.printSig(sb, function.callInfo.ReturnTypes, function.op)
 	}
 	fmt.Fprint(sb, "{", function.body.GetToken().Literal, "}\n\n")
 }

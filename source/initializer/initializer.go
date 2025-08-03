@@ -42,7 +42,6 @@ type Initializer struct {
 	parsedCode                          [][]parsedCode               // What you get by parsing that.
 	localConcreteTypes                  dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
 	goBucket                            *GoBucket                    // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
-	snippets                            []string                     // Names of snippet types visible to the module.
 	Common                              *CommonInitializerBindle     // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType     // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]           // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
