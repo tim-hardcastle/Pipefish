@@ -44,7 +44,7 @@ var counter int // This variable is used to make a unique filename for each goco
 // build a `.go` file or files. There is one per compiler. The "sources" are as given in the `Source`
 // field of any GOCODE token encountered. The sources may be plural because of NULL-imports.
 // The `imports`, `functions`, and `pureGo` maps are indexed by these sources.
-type GoBucket struct {
+type goBucket struct {
 	sources   dtypes.Set[string]
 	imports   map[string][]string
 	functions map[string][]*parsedFunction
@@ -52,7 +52,7 @@ type GoBucket struct {
 }
 
 func (iz *Initializer) newGoBucket() {
-	gb := GoBucket{
+	gb := goBucket{
 		sources:   make(dtypes.Set[string]),
 		imports:   make(map[string][]string),
 		functions: make(map[string][]*parsedFunction),

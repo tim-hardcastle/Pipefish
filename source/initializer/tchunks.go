@@ -789,7 +789,7 @@ func SummaryString(dec tokenizedCode) string {
 	}
 }
 
-type ParameterInfo struct {
+type parameterInfo struct {
 	Names      []string
 	Types      []values.ValueType
 	Operations []token.Token

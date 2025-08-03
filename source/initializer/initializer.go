@@ -41,54 +41,55 @@ type Initializer struct {
 	tokenizedCode                       [][]tokenizedCode            // Code arranged by declaration type and lightly chunked and validated.
 	parsedCode                          [][]parsedCode               // What you get by parsing that.
 	localConcreteTypes                  dtypes.Set[values.ValueType] // All the struct, enum, and clone types defined in a given module.
-	goBucket                            *GoBucket                    // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
-	Common                              *CommonInitializerBindle     // The information all the initializers have in Common.
+	goBucket                            *goBucket                    // Where the initializer keeps information gathered during parsing the script that will be needed to compile the Go modules.
+	Common                              *commonInitializerBindle     // The information all the initializers have in Common.
 	structDeclarationNumberToTypeNumber map[int]values.ValueType     // Maps the order of the declaration of the struct in the script to its type number in the VM. TODO --- there must be something better than this.
 	unserializableTypes                 dtypes.Set[string]           // Keeps track of which abstract types are mandatory imports/singletons of a concrete type so we don't try to serialize them.
 
 	functionTable functionTable // Intermediate step towards constructing the FunctinTree used by the compiler.
 
 	// Holds the definitions of parameterized types.
-	parameterizedTypes map[string][]ParameterInfo
+	parameterizedTypes map[string][]parameterInfo
 	// Stores information we need to compile the runtime typechecks on parameterized type instances.
 	parameterizedInstanceMap map[string]parameterizedTypeInstance
 }
 
 // Makes a new initializer.
-func NewInitializer() *Initializer {
+func NewInitializer(common *commonInitializerBindle) *Initializer {
 	iz := Initializer{
 		initializers:             make(map[string]*Initializer),
 		localConcreteTypes:       make(dtypes.Set[values.ValueType]),
 		unserializableTypes:      make(dtypes.Set[string]),
 		tokenizedCode:            make([][]tokenizedCode, 14),
 		functionTable:            make(functionTable),
-		parameterizedTypes:       make(map[string][]ParameterInfo),
+		parameterizedTypes:       make(map[string][]parameterInfo),
 		parameterizedInstanceMap: make(map[string]parameterizedTypeInstance),
+		Common:                   common,
 	}
 	iz.newGoBucket()
 	return &iz
 }
 
-// The CommonInitializerBindle contains information that all the initializers need to share.
-type CommonInitializerBindle struct {
-	Functions      map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
-	DeclarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
-	HubCompilers   map[string]*compiler.Compiler  // This is a map of the compilers of all the (potential) external services on the same hub.
-	HubStore       *values.Map
+// The commonInitializerBindle contains information that all the initializers need to share.
+type commonInitializerBindle struct {
+	functions      map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
+	declarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
+	hubCompilers   map[string]*compiler.Compiler  // This is a map of the compilers of all the (potential) external services on the same hub.
+	hubStore       *values.Map                    // The hub store --- see wiki.
 }
 
 // Initializes the `CommonInitializerBindle`
-func NewCommonInitializerBindle(store *values.Map) *CommonInitializerBindle {
-	b := CommonInitializerBindle{
-		Functions:      make(map[funcSource]*parsedFunction),
-		DeclarationMap: make(map[decKey]any),
-		HubCompilers:   make(map[string]*compiler.Compiler),
-		HubStore:       store,
+func NewCommonInitializerBindle(store *values.Map, services map[string]*compiler.Compiler) *commonInitializerBindle {
+	b := commonInitializerBindle{
+		functions:      make(map[funcSource]*parsedFunction),
+		declarationMap: make(map[decKey]any),
+		hubCompilers:   services,
+		hubStore:       store,
 	}
 	return &b
 }
 
-// After hooking it up with the parameterized type definitions.
+// A reference to a specific instance of a parameterized type.
 type parameterizedTypeInstance struct {
 	astType   ast.TypeNode
 	env       *compiler.Environment
@@ -104,7 +105,7 @@ type typeOperatorInfo struct {
 	definedAt      []*token.Token
 }
 
-// Initializes a compiler.
+// Initializes a compiler given the filepath and sourcecode.
 func newCompiler(Common *parser.CommonParserBindle, ccb *compiler.CommonCompilerBindle, scriptFilepath, sourcecode string, mc *vm.Vm, namespacePath string) *compiler.Compiler {
 	p := parser.New(Common, scriptFilepath, sourcecode, namespacePath)
 	cp := compiler.NewCompiler(p, ccb)
@@ -114,7 +115,7 @@ func newCompiler(Common *parser.CommonParserBindle, ccb *compiler.CommonCompiler
 	return cp
 }
 
-// The public function serving as a way in.
+// Initializes a compiler given the filepath.
 func StartCompilerFromFilepath(filepath string, svs map[string]*compiler.Compiler, store *values.Map) (*compiler.Compiler, error) {
 	sourcecode, e := compiler.GetSourceCode(filepath)
 	if e != nil {
@@ -123,14 +124,10 @@ func StartCompilerFromFilepath(filepath string, svs map[string]*compiler.Compile
 	return StartCompiler(filepath, sourcecode, svs, store), nil
 }
 
-// We begin by manufacturing a blank VM, a `CommonParserBindle` for all the parsers to share, and a
-// `CommonInitializerBindle` for the initializers to share. These Common bindles are then passed down
-// to the "children" of the intitializer and the parser when new modules are created.
 func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*compiler.Compiler, store *values.Map) *compiler.Compiler {
-	iz := NewInitializer()
-	iz.Common = NewCommonInitializerBindle(store)
-	iz.Common.HubCompilers = hubServices
-	// We then carry out several phases of initialization each of which is performed recursively on
+	// We begin by creating an initializer and injecting a new CommonInitializerBindle into it.
+	iz := NewInitializer(NewCommonInitializerBindle(store, hubServices))
+	// We carry out several phases of initialization each of which is performed recursively on
 	// all of the modules in the dependency tree before moving on to the next. (The need to do this is
 	// in fact what defines the phases.)
 	iz.cmI("Parsing everything.")
@@ -256,7 +253,7 @@ func (iz *Initializer) findShareableFunctions() {
 			fn := iz.parsedCode[j][i].(*parsedFunction)
 			tok := &fn.op
 			if iz.shareable(fn) || settings.MandatoryImportSet().Contains(tok.Source) {
-				iz.Common.Functions[funcSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = fn
+				iz.Common.functions[funcSource{tok.Source, tok.Line, fn.op.Literal, uint32(fn.pos)}] = fn
 			}
 		}
 	}
@@ -305,7 +302,7 @@ func (iz *Initializer) populateInterfaceTypes() {
 		funcsToAdd := map[values.ValueType][]*parsedFunction{}
 		for i, sigToMatch := range typeInfo.(interfaceInfo).sigs {
 			typesMatched := values.MakeAbstractType()
-			for key, fnToTry := range iz.Common.Functions {
+			for key, fnToTry := range iz.Common.functions {
 				if key.functionName == sigToMatch.name {
 					matches := iz.getMatches(sigToMatch, fnToTry, ixPtr(dec))
 					typesMatched = typesMatched.Union(matches)
@@ -437,7 +434,7 @@ func (iz *Initializer) makeFunctionTable() {
 				ok            bool
 				functionToAdd *parsedFunction
 			)
-			if functionToAdd, ok = iz.Common.Functions[funcSource{tok.Source, tok.Line, functionName, uint32(fn.pos)}]; ok {
+			if functionToAdd, ok = iz.Common.functions[funcSource{tok.Source, tok.Line, functionName, uint32(fn.pos)}]; ok {
 			} else {
 				functionToAdd = fn
 			}
@@ -857,7 +854,7 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 		"$_cliDirectory":    {values.STRING, dir, altType(values.STRING)},
 		"$_cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
 		"$_moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
-		"$_hub":             {values.MAP, iz.Common.HubStore, altType(values.MAP)},
+		"$_hub":             {values.MAP, iz.Common.hubStore, altType(values.MAP)},
 	}
 	// Service variables which tell the compiler how to compile things must be
 	// set before we compile the functions, and so can't be calculated but must
@@ -1384,12 +1381,12 @@ func makeKey(dOf declarationOf, tok *token.Token, ix int) decKey {
 }
 
 func (iz *Initializer) getDeclaration(dOf declarationOf, tok *token.Token, ix int) (any, bool) {
-	result, ok := iz.Common.DeclarationMap[makeKey(dOf, tok, ix)]
+	result, ok := iz.Common.declarationMap[makeKey(dOf, tok, ix)]
 	return result, ok
 }
 
 func (iz *Initializer) setDeclaration(dOf declarationOf, tok *token.Token, ix int, v any) {
-	iz.Common.DeclarationMap[makeKey(dOf, tok, ix)] = v
+	iz.Common.declarationMap[makeKey(dOf, tok, ix)] = v
 }
 
 // Tokens to return when no token is available.

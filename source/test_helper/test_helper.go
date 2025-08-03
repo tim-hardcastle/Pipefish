@@ -54,8 +54,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 // NOTE: this is here to test some internal workings of the initializer. It only initializes
 // a blank service.
 func RunInitializerTest(t *testing.T, tests []TestItem, F func(iz *initializer.Initializer, s string) string) {
-	iz := initializer.NewInitializer()
-	iz.Common = initializer.NewCommonInitializerBindle(&values.Map{})
+	iz := initializer.NewInitializer(initializer.NewCommonInitializerBindle(&values.Map{}, map[string]*compiler.Compiler{}))
 	iz.ParseEverythingFromSourcecode(vm.BlankVm(), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), "", "", "")
 	for _, test := range tests {
 		if settings.SHOW_TESTS {

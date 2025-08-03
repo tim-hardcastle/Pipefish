@@ -170,8 +170,7 @@ func (iz *Initializer) recursivelyParseImports() []string {
 			unnamespacedImports = append(unnamespacedImports, path)
 			continue
 		}
-		newIz := NewInitializer()
-		newIz.Common = iz.Common
+		newIz := NewInitializer(iz.Common)
 		iz.initializers[path] = newIz
 		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, name+"."+iz.P.NamespacePath)
 		if e != nil { // Then we couldn't open the file.
@@ -205,7 +204,7 @@ func (iz *Initializer) initializeExternals() {
 		path := dec.path.Literal
 		name, path = text.TweakNameAndPath(name, path, dec.path.Source)
 		if path == "" { // Then this will work only if there's already an instance of a service of that name running on the hub.
-			externalCP, ok := iz.Common.HubCompilers[name]
+			externalCP, ok := iz.Common.hubCompilers[name]
 			if !ok {
 				iz.throw("init/external/exist/a", &dec.name)
 				continue
@@ -240,7 +239,7 @@ func (iz *Initializer) initializeExternals() {
 		}
 
 		// Otherwise we have a path for which the Tweak function will have inferred a name if one was not supplied.
-		hubServiceCp, ok := iz.Common.HubCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
+		hubServiceCp, ok := iz.Common.hubCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {
 			if hubServiceCp.ScriptFilepath != path {
 				iz.throw("init/external/exist/b", &dec.path, hubServiceCp.ScriptFilepath)
@@ -250,21 +249,21 @@ func (iz *Initializer) initializeExternals() {
 			continue // Either we've thrown an error or we don't need to do anything.
 		}
 		// Otherwise we need to start up the service, add it to the hub, and then declare it as external.
-		newServiceCp, e := StartCompilerFromFilepath(path, iz.Common.HubCompilers, iz.Common.HubStore)
+		newServiceCp, e := StartCompilerFromFilepath(path, iz.Common.hubCompilers, iz.Common.hubStore)
 		if e != nil { // Then we couldn't open the file.
 			iz.throw("init/external/file", &dec.path, path, e.Error())
 		}
 		if len(newServiceCp.P.Common.Errors) > 0 {
 			newServiceCp.P.Common.IsBroken = true
 		}
-		iz.Common.HubCompilers[name] = newServiceCp
+		iz.Common.hubCompilers[name] = newServiceCp
 		iz.addExternalOnSameHub(path, name)
 	}
 }
 
 // Functions auxiliary to the above.
 func (iz *Initializer) addExternalOnSameHub(path, name string) {
-	hubService := iz.Common.HubCompilers[name]
+	hubService := iz.Common.hubCompilers[name]
 	ev := func(line string) values.Value {
 		exVal := hubService.Do(line)
 		serialize := hubService.Vm.Literal(exVal)
@@ -299,8 +298,7 @@ func (iz *Initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 		println(sourcecode)
 		println("\n\n")
 	}
-	newIz := NewInitializer()
-	newIz.Common = iz.Common
+	newIz := NewInitializer(iz.Common)
 	iz.initializers[name] = newIz
 	newCp := newIz.ParseEverythingFromSourcecode(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, sourcecode, name+"."+iz.P.NamespacePath)
 	iz.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
@@ -692,7 +690,7 @@ func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 		body:      &ast.BuiltInExpression{Name: fnName},
 		callInfo:  &compiler.CallInfo{iz.cp, fnNo, rtnSig},
 	}
-	iz.Common.Functions[funcSource{tok.Source, tok.Line, fnName, pos}] = fn
+	iz.Common.functions[funcSource{tok.Source, tok.Line, fnName, pos}] = fn
 	conflictingFunction := iz.Add(fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
 		iz.P.Throw("init/overload/c", tok, fnName, conflictingFunction.op)
@@ -825,7 +823,7 @@ func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	blankType.Name = name
 	supertype := blankType.String()
 	iz.cp.GeneratedAbstractTypes.Add(supertype)
-	thingToAdd := ParameterInfo{iz.astParamsToNames(ty.Parameters),
+	thingToAdd := parameterInfo{iz.astParamsToNames(ty.Parameters),
 		iz.astParamsToValueTypes(ty.Parameters), opList,
 		typeCheck, parentType, nil, private, supertype, tok}
 	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
@@ -833,7 +831,7 @@ func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 		info = append(info, thingToAdd)
 		iz.parameterizedTypes[name] = info
 	} else {
-		info = []ParameterInfo{thingToAdd}
+		info = []parameterInfo{thingToAdd}
 		iz.parameterizedTypes[name] = info
 		iz.cp.P.ParameterizedTypes = iz.cp.P.ParameterizedTypes.Add(name)
 	}
