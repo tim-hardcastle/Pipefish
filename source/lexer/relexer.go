@@ -213,9 +213,6 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		if rl.nexTok.Type == token.COLON {
 			return rl.burnNextToken()
 		}
-		if rl.preTok.Type == token.NEWLINE {
-			rl.getToken()
-		}
 	case token.LOG:
 		if rl.preTok.Type == token.COMMA {
 			rl.throw("relex/log", rl.curTok)
