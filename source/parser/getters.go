@@ -11,6 +11,7 @@ import (
 
 // Auxiliary functions that extract data from data.
 
+// TODO --- at this point this is used only once to do something which isn't actually this hard.
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 	sig := ast.AstSig{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {

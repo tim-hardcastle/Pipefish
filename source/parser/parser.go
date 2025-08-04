@@ -328,8 +328,20 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					p.popRParser()
 					args := p.RecursivelyListify(right)
 					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, Namespace: []string{}, TypeArgs: typeArgs}
+					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
+						astType := p.ToAstType(&ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs})
+						if astType, ok := astType.(*ast.TypeWithArguments); ok {
+							p.ParTypeInstances[astType.String()] = astType
+						}
+					}
 				} else {
 					leftExp = &ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs}
+					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
+						astType := p.ToAstType(leftExp.(*ast.TypeExpression))
+						if astType, ok := astType.(*ast.TypeWithArguments); ok {
+							p.ParTypeInstances[astType.String()] = astType
+						}
+					}
 				}
 			} else {
 				if !resolvingParser.isPositionallyFunctional() {
