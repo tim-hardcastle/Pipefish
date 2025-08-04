@@ -2,6 +2,7 @@ package initializer
 
 import (
 	"embed"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -72,12 +73,12 @@ func NewInitializer(common *commonInitializerBindle) *Initializer {
 
 // The commonInitializerBindle contains information that all the initializers need to share.
 type commonInitializerBindle struct {
-	functions        map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
-	declarationMap   map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
+	functions      map[funcSource]*parsedFunction // This is to ensure that the same function (i.e. from the same place in source code) isn't parsed more than once.
+	declarationMap map[decKey]any                 // This prevents redeclaration of types in the same sort of way.
 	// This is a map of the compilers of all the (potential) external services on the same hub.
 	// They're stored as compilers because the initializer can't see the `Service` class.
-	serviceCompilers map[string]*compiler.Compiler 
-	hubStore         *values.Map                    // The hub store --- see wiki.
+	serviceCompilers map[string]*compiler.Compiler
+	hubStore         *values.Map // The hub store --- see wiki.
 }
 
 // Initializes the `CommonInitializerBindle`.
@@ -245,7 +246,10 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 	for _, dependencyIz := range iz.initializers {
 		dependencyIz.instantiateParameterizedTypes()
 	}
-	typeOperators := make(map[string]typeOperatorInfo)
+	twas := map[string]*ast.TypeWithArguments{}
+	// We get these from three different places. Either they're in `make` statements in
+	// a `newtype` section, or the initializer stashed them away while making type signatures,
+	// or the parser stashed them away while parsing.
 	for _, tc := range iz.tokenizedCode[makeDeclaration] {
 		dec := tc.(*tokenizedMakeDeclaration)
 		typeAst := iz.makeTypeAstFromTokens(dec.typeToks)
@@ -258,7 +262,12 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 			iz.throw("init/make/instance", &dec.typeToks[0])
 			continue
 		}
-		private := dec.private
+		twas[ty.String()] = ty
+	}
+	maps.Copy(twas, iz.P.ParTypeInstances)
+	iz.P.ParTypeInstances = nil    // Having to keep this in the parser is an annoying kludge, so we remove the data manually now we've used it.
+	typeOperators := make(map[string]typeOperatorInfo)
+	for _, ty := range twas {
 		// The parser doesn't know the types and values of enums, 'cos of being a
 		// parser. So we kludge them in here.
 		for i, v := range ty.Values() {
@@ -274,6 +283,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 			continue
 		}
 		parTypeInfo := iz.parameterizedTypes[ty.Name][argIndex]
+		private := parTypeInfo.IsPrivate
 		isClone := !(parTypeInfo.ParentType == "struct")
 		newEnv := compiler.NewEnvironment()
 		vals := []values.Value{}
@@ -749,13 +759,13 @@ func (iz *Initializer) addParameterizedTypesToVm() {
 		}
 		concreteType := iz.cp.ConcreteTypeNow(ty.astType.String())
 		concreteTypeInfo := iz.cp.Vm.ConcreteTypeInfo[concreteType]
-		if info, ok := iz.P.ParTypes2[name]; ok {
-			iz.P.ParTypes2[name] = parser.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.P.ParTypes2[name].PossibleReturnTypes.Union(values.MakeAbstractType(concreteType))}
+		if info, ok := iz.P.ParTypes[name]; ok {
+			iz.P.ParTypes[name] = parser.TypeExpressionInfo{info.VmTypeInfo, concreteTypeInfo.IsClone(), iz.P.ParTypes[name].PossibleReturnTypes.Union(values.MakeAbstractType(concreteType))}
 		} else {
-			iz.P.ParTypes2[name] = parser.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), values.MakeAbstractType(values.ERROR, concreteType)}
+			iz.P.ParTypes[name] = parser.TypeExpressionInfo{uint32(len(iz.cp.Vm.ParameterizedTypeInfo)), concreteTypeInfo.IsClone(), values.MakeAbstractType(values.ERROR, concreteType)}
 			iz.cp.Vm.ParameterizedTypeInfo = append(iz.cp.Vm.ParameterizedTypeInfo, &values.Map{})
 		}
-		iz.cp.Vm.ParameterizedTypeInfo[iz.P.ParTypes2[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.P.ParTypes2[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}}})
+		iz.cp.Vm.ParameterizedTypeInfo[iz.P.ParTypes[name].VmTypeInfo] = iz.cp.Vm.ParameterizedTypeInfo[iz.P.ParTypes[name].VmTypeInfo].Set(values.Value{values.TUPLE, typeArgs}, values.Value{values.TYPE, values.AbstractType{[]values.ValueType{concreteType}}})
 	}
 }
 

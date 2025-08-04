@@ -1065,7 +1065,7 @@ NodeTypeSwitch:
 			}
 			rtnTypes, rtnConst = AltType(values.ERROR, values.TYPE), true
 			cp.ReserveToken(node.GetToken())
-			argsForVm := []uint32{resolvingCompiler.P.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
+			argsForVm := []uint32{resolvingCompiler.P.ParTypes[node.Operator].VmTypeInfo, cp.ThatToken()}
 			for _, arg := range node.TypeArgs {
 				_, cst := cp.CompileNode(arg, ctxt.x())
 				argsForVm = append(argsForVm, cp.That())

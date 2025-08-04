@@ -55,7 +55,13 @@ type Parser struct {
 	// because there is a natural partial order on abstract types.
 	TypeMap TypeSys
 
-	ParTypes2 map[string]TypeExpressionInfo // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	ParTypes map[string]TypeExpressionInfo     // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	// Something of a kludge. We want instances of parameterized types to be made if they're mentioned in the code.
+	// Since only the parser is in a position to notice this, we pile up such mentions in this list.
+	// Since we only want the parser to do this during initialization, we have a guard saying that 
+	// we don't do this if the list is `nil`, and then the intializer sets the list to `nil` as soon
+	// as it's used it, thus discarding the data.
+	ParTypeInstances map[string]*ast.TypeWithArguments   
 
 	ExternalParsers map[string]*Parser     // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
@@ -80,6 +86,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		EnumTypeNames:      make(dtypes.Set[string]),
 		EnumElementNames:   make(dtypes.Set[string]),
 		ParameterizedTypes: make(dtypes.Set[string]),
+		ParTypeInstances:	map[string]*ast.TypeWithArguments{},
 
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
@@ -88,7 +95,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		TypeMap:         make(TypeSys),
-		ParTypes2:       make(map[string]TypeExpressionInfo),
+		ParTypes:        make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
 		ExternalParsers: make(map[string]*Parser),
 		NamespacePath:   namespacePath,

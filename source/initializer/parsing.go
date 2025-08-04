@@ -686,7 +686,7 @@ func (iz *Initializer) makeCloneFunction(fnName string, sig ast.AstSig, builtinT
 	iz.Common.functions[funcSource{tok.Source, tok.Line, fnName, pos}] = fn
 	conflictingFunction := iz.Add(fnName, fn)
 	if conflictingFunction != nil && conflictingFunction != fn {
-		iz.P.Throw("init/overload/c", tok, fnName, conflictingFunction.op)
+		iz.P.Throw("init/overload/c", tok, fnName, &conflictingFunction.op)
 	}
 }
 

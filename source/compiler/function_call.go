@@ -25,7 +25,7 @@ import (
 // to do the dispatch, some of which (e.g.) the token associated with the caller, are stable throughout
 // the construction of the function call, while others change to keep track of where we are.
 type bindle struct {
-	treePosition *FnTreeNode // Our position on the function tree.
+	treePosition *FnTreeNode     // Our position on the function tree.
 	branchNo     int             // The number of the branch in the function tree.
 	argNo        int             // The number of the argument we're looking at.
 	index        int             // The index we're looking at in the argument we're looking at.
@@ -135,7 +135,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.Put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
 		if text.Tail(b.tok.Literal, "{}") {
-			cp.Throw("comp/types", b.tok, b.tok.Literal, (b.types[1:]).describeWithPotentialInfix(cp.Vm, b.tok.Literal))	
+			cp.Throw("comp/types", b.tok, b.tok.Literal, (b.types[1:]).describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 		} else {
 			cp.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 		}
@@ -447,7 +447,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 		cp.Emit(vm.Qtyp, mem, uint32(typeAsAlt[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	args := []uint32{} 
+	args := []uint32{}
 	for _, t := range typeAsAlt {
 		args = append(args, uint32(t.(SimpleType)))
 	}
@@ -632,14 +632,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				if text.Tail(builtinTag, "{}") {
 					typeOperator := builtinTag[:len(builtinTag)-2]
 					tokenOrdinal := cp.ReserveToken(b.tok)
-					if cp.P.ParTypes2[typeOperator].IsClone {
+					if cp.P.ParTypes[typeOperator].IsClone {
 						cp.Emit(vm.CasP, b.outLoc, tokenOrdinal, b.valLocs[0], b.valLocs[1])
 					} else {
 						args := append([]uint32{b.outLoc, tokenOrdinal}, b.valLocs...)
 						cp.cmP("Emitting parameterized struct constructor.", b.tok)
 						cp.Emit(vm.StrP, args...)
 					}
-					return AbstractTypeToAlternateType(cp.P.ParTypes2[typeOperator].PossibleReturnTypes)
+					return AbstractTypeToAlternateType(cp.P.ParTypes[typeOperator].PossibleReturnTypes)
 				}
 				// It could be an ordinary type constructor.
 				typeNumber, ok := cp.GetConcreteType(builtinTag)

@@ -11,7 +11,6 @@ import (
 
 // Auxiliary functions that extract data from data.
 
-
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 	sig := ast.AstSig{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
@@ -419,7 +418,7 @@ func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
 		if typeNode.TypeArgs == nil {
 			return p.GetAbstractTypeFromTypeSys(typeNode.Operator)
 		} else {
-			return p.ParTypes2[typeNode.Operator].PossibleReturnTypes
+			return p.ParTypes[typeNode.Operator].PossibleReturnTypes
 		}
 	}
 	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())

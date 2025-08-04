@@ -1,4 +1,17 @@
 
-const
+newtype
 
-FOO tuple = "foo"::42, "bar"::99
+Z = clone{i int} int :
+    0 <= that
+    that < i
+
+make Z{12}, Z{12}
+
+Qux = struct(zort Z{7})
+
+def
+
+foo(z Z{5}) :
+    z
+
+

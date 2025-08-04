@@ -141,6 +141,11 @@ func (iz *Initializer) makeTypeAstFromTokens(toks []token.Token) ast.TypeNode {
 	ts := token.MakeCodeChunk(toks, false)
 	iz.P.PrimeWithTokenSupplier(ts)
 	node := iz.P.ParseTypeFromCurTok(parser.LOWEST)
+	if node, ok := node.(*ast.TypeWithArguments); ok {
+		if !parser.PSEUDOTYPES.Contains(node.Name) {
+			iz.P.ParTypeInstances[node.String()] = node
+		}
+	}
 	return node
 }
 
