@@ -367,11 +367,15 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Prefixes.Contains(p.CurToken.Literal) || resolvingParser.Forefixes.Contains(p.CurToken.Literal):
 						p.pushRParser(resolvingParser)
+						p.BlingManager.startFunction(p.CurToken.Literal)
 						leftExp = p.parsePrefixExpression()
+						p.BlingManager.stopFunction()
 						p.popRParser()
 					default:
 						p.pushRParser(resolvingParser)
-						leftExp = p.parseFunctionExpression() // That, at least, is what it is syntactictally.
+						p.BlingManager.startFunction(p.CurToken.Literal)
+						leftExp = p.parseFunctionExpression()
+						p.BlingManager.stopFunction()
 						p.popRParser()
 					}
 				}
@@ -458,7 +462,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				p.pushRParser(resolvingParser)
+				p.BlingManager.startFunction(p.CurToken.Literal)
 				leftExp = p.parseInfixExpression(leftExp)
+				p.BlingManager.stopFunction()
 				p.popRParser()
 			}
 		}
