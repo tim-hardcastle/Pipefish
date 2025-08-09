@@ -35,22 +35,17 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 			varName = arg.Value
 			varType = nil
 		case *ast.PrefixExpression:
-			if p.Forefixes.Contains(arg.Operator) {
+			switch inner := arg.Args[0].(type) {
+			case *ast.TypeExpression:
 				varName = arg.Operator
-				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
-			} else {
-				switch inner := arg.Args[0].(type) {
-				case *ast.TypeExpression:
-					varName = arg.Operator
-					astType := p.ToAstType(inner)
-					if astType == nil {
-						p.Throw("parse/sig/ident/c", inner.GetToken())
-					}
-					varType = astType
-				default:
+				astType := p.ToAstType(inner)
+				if astType == nil {
 					p.Throw("parse/sig/ident/c", inner.GetToken())
-					return nil
 				}
+				varType = astType
+			default:
+				p.Throw("parse/sig/ident/c", inner.GetToken())
+				return nil
 			}
 			sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
 			if len(arg.Args) > 1 {
