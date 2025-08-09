@@ -125,9 +125,6 @@ func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
 	return astOfLine.String(), nil
 }
 
-
-
-
 func testParserErrors(cp *compiler.Compiler, s string) (string, error) {
 	cp.P.ParseLine("test", s)
 	if cp.P.ErrorsExist() {

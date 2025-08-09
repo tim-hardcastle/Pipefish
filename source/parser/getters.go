@@ -32,15 +32,8 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				return nil
 			}
 		case *ast.Identifier:
-			if p.Endfixes.Contains(arg.Value) {
-				varName = arg.Value
-				varType = &ast.TypeBling{*arg.GetToken(), arg.Value}
-			} else {
-				varName = arg.Value
-				varType = nil
-			}
-		// TODO --- we have to do something about this mess. Signatures and main bodies
-		// have different syntax and this is a wake-up call.
+			varName = arg.Value
+			varType = nil
 		case *ast.PrefixExpression:
 			if p.Forefixes.Contains(arg.Operator) {
 				varName = arg.Operator
@@ -68,17 +61,6 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				backTrackTo = len(sig)
 			}
 			continue
-		case *ast.InfixExpression:
-			if p.Midfixes.Contains(arg.Operator) {
-				varName = arg.Operator
-				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
-			} else {
-				p.Throw("parse/sig/infix", arg.GetToken())
-				return nil
-			}
-		case *ast.Bling:
-			varName = arg.Value
-			varType = &ast.TypeBling{*arg.GetToken(), arg.Value}
 		}
 		if j == len(args)-1 && varType == nil {
 			for i := backTrackTo; i < len(sig); i++ {
@@ -86,25 +68,9 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 			}
 			varType = ast.ANY_NULLABLE_TYPE_AST
 		}
-		if _, ok := varType.(*ast.TypeBling); !(ok || varType == nil) {
-			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = varType
-			}
-
-		}
-		if _, ok := varType.(*ast.TypeBling); ok {
-			if len(sig) > 0 && sig[len(sig)-1].VarType == nil {
-				for i := backTrackTo; i < len(sig); i++ {
-					sig[i].VarType = ast.ANY_NULLABLE_TYPE_AST
-				}
-			}
-		}
 		sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
 		if sig[len(sig)-1].VarType != nil {
 			backTrackTo = len(sig)
-		}
-		if _, ok := varType.(*ast.TypeBling); ok {
-			varType = nil
 		}
 	}
 	return sig
@@ -148,27 +114,10 @@ func (p *Parser) GetVariablesFromAstSig(sig ast.AstSig) []string {
 }
 
 // TODO --- is there any sensible alternative to this?
-// This is all rather horrible and basically exists as a result of two reasons. First, since all the signatures whether of assignment
-// or function definition or struct definition or whatever fit into the same mold, we would like to be able to keep our code DRY by
-// extracting them all in the same way. However, as we don't have anything like a `let` command, the parser doesn't know that it's parsing an
-// assignment until it reaches the equals sign, by which time it's already turned the relevant tokens into an AST. Rather than kludge
-// my way out of that, I kludged my way around it by writing this thing which extracts the signature from an AST, and which has grown steadily
-// more complex with the language.
 func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (ast.AstSig, *err.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
-		case p.Midfixes.Contains(typednode.Operator):
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			if err != nil {
-				return nil, err
-			}
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			middle := ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}
-			return append(append(LHS, middle), RHS...), nil
 		case typednode.Token.Type == token.COMMA:
 			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			if err != nil {
@@ -198,36 +147,15 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (as
 		}
 		return LHS, nil
 	case *ast.SuffixExpression:
-		if p.Endfixes.Contains(typednode.Operator) {
-			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			end := ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}
-			return append(LHS, end), nil
-		} else {
-			return nil, newError("parse/sig/c", typednode.GetToken())
-		}
+		return nil, newError("parse/sig/c", typednode.GetToken())
 	case *ast.Identifier:
-		if p.Endfixes.Contains(typednode.Value) {
-			return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Value, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Value}}}, nil
-		}
 		return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
-		if p.Forefixes.Contains(typednode.Operator) {
-			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			front := ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}}
-			return append(front, RHS...), nil
-		} else {
-			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
-			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
-			// name under those circumstances.
-			return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: dflt}}, nil
-		}
+		// We may be declaring a parameter which has the same name as a function --- e.g. 'f'.
+		// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
+		// 'foo (f func) : <function body>'.
+		return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: dflt}}, nil
+	
 	}
 	return nil, newError("parse/sig/a", node.GetToken())
 }

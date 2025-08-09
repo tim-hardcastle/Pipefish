@@ -8,10 +8,17 @@ make Z{12}
 
 Qux = struct(zort Z{7})
 
-def foo(z Z{5}) :
-    z
+def
+
+(x Z{i int}) + (y Z{i int}) -> Z{i} :
+    Z{i}(int(x) + int(y) mod i)
+
+(x Z{i int}) * (y Z{i int}) -> Z{i} :
+    Z{i}(int(x) * int(y) mod i)
+
+foo(z Z{5}) :
+    int(z)
 
 bar(i int) :
     Z{3}(i)
-
 

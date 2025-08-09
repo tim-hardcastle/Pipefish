@@ -25,6 +25,10 @@ type Parser struct {
 	Logging          bool
 	CurrentNamespace []string
 
+	// This helps keep track of the bling and --- TODO --- will eventually replace pretty much
+	// everything else that handles bling.
+	BlingManager     *BlingManager
+
 	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
 	// in that namespace without being namespaced.
 	enumResolvingParsers []*Parser
@@ -73,6 +77,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	p := &Parser{
 		Logging:            true,
 		nesting:            *dtypes.NewStack[token.Token](),
+		BlingManager:       newBlingManager(),
 		Functions:          make(dtypes.Set[string]),
 		Prefixes:           make(dtypes.Set[string]),
 		Forefixes:          make(dtypes.Set[string]),
@@ -107,10 +112,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	for k := range p.Common.Types {
 		p.Suffixes.Add(k)
 	}
-	p.Suffixes.Add("ref")
-	p.Suffixes.Add("self")
-
-	p.Infixes.Add("varchar")
 
 	p.Functions.Add("builtin")
 

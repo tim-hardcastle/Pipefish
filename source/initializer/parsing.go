@@ -369,6 +369,10 @@ loop:
 
 // Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
 // and decides on their "grammatical" role: are they prefixes, suffixes, bling?
+//
+// TODO --- it should be easy enough now to replace the whole system of `Forefixes` and `Midfixes`
+// and so on with treating them basically as commas and using the BlingManager to help the parser
+// consume them.
 func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	startAt := 0
 	switch tc.pos {
@@ -383,12 +387,15 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		for startAt = 2; !tc.sig[startAt-1].IsBling(); startAt++ {
 		}
 	}
+	blingList := []string{}
+	if tc.pos == prefix {
+		blingList = append(blingList, tc.op.Literal)
+	}
 	lastWasBling := true
-	hasBling := false
 	for ix := startAt; ix < len(tc.sig); ix++ {
 		if tc.sig[ix].IsBling() {
-			hasBling = true
 			word := tc.sig[ix].Name.Literal
+			blingList = append(blingList, word)
 			if ix == len(tc.sig)-1 {
 				iz.P.Endfixes.Add(word)
 				break
@@ -404,12 +411,13 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	// TODO --- I've retained this distinction for back-compatibility but don't know if
 	// it's important. It may be to do with using functions as first-class objects etc.
 	if tc.pos == prefix {
-		if hasBling {
+		if len(blingList) > 1 {
 			iz.P.Prefixes.Add(tc.op.Literal)
 		} else {
 			iz.P.Functions.Add(tc.op.Literal)
 		}
 	}
+	iz.P.BlingManager.AddBling(blingList)
 }
 
 // Now we can start creating the user-defined types.
