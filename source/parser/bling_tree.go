@@ -11,6 +11,9 @@ package parser
 // (Parentheses would of course distinguish the case where it's not bling but that would
 // be vary rare in any case.)
 
+// TODO --- this could replace pretty much all of the ways we presently handle bling in the 
+// parser.
+
 type BlingManager struct {
 	navigators []*blingNavigator // As functions compose, we need a stack of navigators to keep track of where we are. 
 	tree       blingTree         // Filled up by the `AddWordsToParser` method and then used by the manager.
@@ -39,10 +42,6 @@ func (bm *BlingManager) canBling(s string) bool {
 		return false
 	}
 	return bm.navigators[len(bm.navigators)-1].canBling(s)
-}
-
-func (bm *BlingManager) doBling(s string) {
-	bm.navigators[len(bm.navigators)-1].doBling(s)
 }
 
 func (b BlingManager) String() string {
@@ -86,9 +85,8 @@ func (b blingTree) newBlingNavigator(s string) *blingNavigator {
 
 func (bn *blingNavigator) canBling(s string) bool {
 	_, ok := (bn.position)[s]
+	if ok {
+		bn.position, _ = (bn.position)[s].(blingTree)
+	}
 	return ok
-}
-
-func (bn *blingNavigator) doBling(s string) {
-	bn.position, _ = (bn.position)[s].(blingTree)
 }

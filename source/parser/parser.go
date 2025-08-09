@@ -349,7 +349,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case p.topRParser().Bling.Contains(p.CurToken.Literal):
+					case p.topRParser().BlingManager.canBling(p.CurToken.Literal):
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
 						leftExp = p.parseIdentifier()
@@ -437,7 +437,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
 			resolvingParser.Infixes.Contains(p.PeekToken.Literal) ||
-			resolvingParser.Midfixes.Contains(p.PeekToken.Literal)
+			resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
 		if !foundInfix {
 			return leftExp
 		}
