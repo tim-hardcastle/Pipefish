@@ -44,6 +44,10 @@ func (bm *BlingManager) canBling(s string) bool {
 	return bm.navigators[len(bm.navigators)-1].canBling(s)
 }
 
+func (bm *BlingManager) doBling(s string) {
+	bm.navigators[len(bm.navigators)-1].doBling(s)
+}
+
 func (b BlingManager) String() string {
 	return b.tree.recursiveString("")
 }
@@ -89,4 +93,8 @@ func (bn *blingNavigator) canBling(s string) bool {
 		bn.position, _ = (bn.position)[s].(blingTree)
 	}
 	return ok
+}
+
+func (bn *blingNavigator) doBling(s string) {
+	bn.position, _ = (bn.position)[s].(blingTree)
 }
