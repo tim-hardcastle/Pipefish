@@ -89,9 +89,6 @@ func (b blingTree) newBlingNavigator(s string) *blingNavigator {
 
 func (bn *blingNavigator) canBling(s string) bool {
 	_, ok := (bn.position)[s]
-	if ok {
-		bn.position, _ = (bn.position)[s].(blingTree)
-	}
 	return ok
 }
 

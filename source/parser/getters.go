@@ -364,6 +364,9 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if assignmentTokens.Contains(p.PeekToken.Type) {
 		return false
 	}
+	if p.BlingManager.canBling(p.PeekToken.Literal) {
+		return false
+	}
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
@@ -393,12 +396,6 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.Infixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
-	if p.Midfixes.Contains(p.PeekToken.Literal) {
-		return false
-	}
-	if p.Endfixes.Contains(p.PeekToken.Literal) {
-		return false
-	}
 	if p.Suffixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
@@ -407,6 +404,9 @@ func (p *Parser) isPositionallyFunctional() bool {
 
 // TODO --- there may at this point not be any need to have this different from any other function.
 func (p *Parser) typeIsFunctional() bool {
+	if p.BlingManager.canBling(p.PeekToken.Literal) {
+		return false
+	}
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||
