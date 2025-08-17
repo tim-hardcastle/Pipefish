@@ -180,9 +180,9 @@ loop:
 		switch vm.Code[loc].Opcode {
 		case Gsql:
 			// Arguments:
-			// 0: the destination
-			// 1: the address of the reference variable
-			// 2: the type of the result
+			// 0: the destination, which ends up as OK or an error, i.e. it's what the command returns.
+			// 1: the address of the reference variable: where we put what we get from SQL.
+			// 2: the desired type of the result
 			// 3: the database
 			// 4: the snippet
 			// 5: the token
@@ -236,6 +236,10 @@ loop:
 			} else {
 				vm.Mem[args[0]] = values.OK
 			}
+
+
+
+
 		case Psql:
 			dbValue := vm.Mem[args[1]].V.([]values.Value)
 			driverNo := dbValue[0].V.(int)

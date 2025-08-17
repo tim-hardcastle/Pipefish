@@ -2,6 +2,7 @@ package vm
 
 import (
 	"database/sql"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -30,34 +31,19 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 	goArgs := pfToGoPointers(pfArgs)
 	rows, err := (db).Query(query, goArgs...)
 	if err != nil {
-		return values.Value{values.ERROR, vm.makeError("vm/sql/get", tok, err.Error())}
+		return vm.makeError("vm/sql/get", tok, err.Error())
 	}
 	defer rows.Close()
 
-	targetStrings := []string{} 
-	targetInts := []int{}
-	targetBools := []bool{}
-	pointerList := []any{}
-	for _, v := range vm.ConcreteTypeInfo[structTypeNumber].(StructType).AbstractStructFields {
-		switch {
-		case v.Contains(values.INT):
-			targetInts = append(targetInts, 0)
-			pointerList = append(pointerList, &targetInts[len(targetInts)-1])
-		case v.Contains(values.BOOL):
-			targetBools = append(targetBools, false)
-			pointerList = append(pointerList, &targetBools[len(targetBools)-1])
-		case v.Contains(values.STRING):
-			targetStrings = append(targetStrings, "")
-			pointerList = append(pointerList, &targetStrings[len(targetStrings)-1])
-		default:
-			return values.Value{values.ERROR, nil}
-		}
+	pointerList, errorOrOK := vm.getPointerList(vm.ConcreteTypeInfo[structTypeNumber].(StructType).AbstractStructFields, tok)
+	if errorOrOK.T == values.ERROR {
+		return errorOrOK
 	}
 
 	vec := vector.Empty
 	for rows.Next() {
 		if err := rows.Scan(pointerList...); err != nil {
-			return values.Value{values.ERROR, nil}
+			return vm.makeError("vm/sql/scan", tok, err.Error())
 		}
 		fields := make([]values.Value, 0, len(pointerList))
 		for _, p := range pointerList {
@@ -73,7 +59,7 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 				case *bool:
 					pfVal = values.Value{values.BOOL, *goValue}
 				default:
-					return values.Value{values.ERROR, nil}
+					return vm.makeError("vm/sql/goval", tok, reflect.TypeOf(goValue).String())
 				}
 			}
 			fields = append(fields, pfVal)
@@ -82,6 +68,29 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 	}
 	return values.Value{values.LIST, vec}
 }
+
+func (vm *Vm) getPointerList(types []values.AbstractType, tok uint32) ([]any, values.Value) {
+	targetStrings := []string{} 
+	targetInts := []int{}
+	targetBools := []bool{}
+	pointerList := []any{}
+	for _, v := range types {
+		switch {
+		case v.Contains(values.INT):
+			targetInts = append(targetInts, 0)
+			pointerList = append(pointerList, &targetInts[len(targetInts)-1])
+		case v.Contains(values.BOOL):
+			targetBools = append(targetBools, false)
+			pointerList = append(pointerList, &targetBools[len(targetBools)-1])
+		case v.Contains(values.STRING):
+			targetStrings = append(targetStrings, "")
+			pointerList = append(pointerList, &targetStrings[len(targetStrings)-1])
+		default:
+			return nil, vm.makeError("vm/sql/field", tok, vm.DescribeAbstractType(v, LITERAL))
+		}
+	}
+	return pointerList, values.OK
+} 
 
 func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 	var buf strings.Builder
