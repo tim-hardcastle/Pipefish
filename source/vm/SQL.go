@@ -35,7 +35,7 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 	}
 	defer rows.Close()
 
-	pointerList, errorOrOK := vm.getPointerList(vm.ConcreteTypeInfo[structTypeNumber].(StructType).AbstractStructFields, tok)
+	pointerList, errorOrOK := vm.getPointers(values.MakeAbstractType(structTypeNumber), tok)
 	if errorOrOK.T == values.ERROR {
 		return errorOrOK
 	}
@@ -69,28 +69,59 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 	return values.Value{values.LIST, vec}
 }
 
-func (vm *Vm) getPointerList(types []values.AbstractType, tok uint32) ([]any, values.Value) {
-	targetStrings := []string{} 
-	targetInts := []int{}
-	targetBools := []bool{}
-	pointerList := []any{}
-	for _, v := range types {
-		switch {
-		case v.Contains(values.INT):
-			targetInts = append(targetInts, 0)
-			pointerList = append(pointerList, &targetInts[len(targetInts)-1])
-		case v.Contains(values.BOOL):
-			targetBools = append(targetBools, false)
-			pointerList = append(pointerList, &targetBools[len(targetBools)-1])
-		case v.Contains(values.STRING):
-			targetStrings = append(targetStrings, "")
-			pointerList = append(pointerList, &targetStrings[len(targetStrings)-1])
-		default:
-			return nil, vm.makeError("vm/sql/field", tok, vm.DescribeAbstractType(v, LITERAL))
+// Given a Pipefish type, we want to convert it into a flat list of pointers that we can try to cast
+// a SQL row to.
+func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values.Value) {
+	concreteType := values.ERROR
+		switch abType.Len() {
+		case 1 :
+			concreteType = abType.Types[0]
+		case 2 : 
+			if abType.Types[0] == values.NULL {
+				concreteType = abType.Types[1]
+				break
+			}
+			fallthrough
+		default :
+			return nil, vm.makeError("vm/sql/abstract", tok, vm.DescribeAbstractType(abType, LITERAL))
 		}
+	info := vm.ConcreteTypeInfo[concreteType]
+	baseType := concreteType
+	baseInfo := info
+	if info, ok := info.(CloneType); ok {
+		baseInfo = vm.ConcreteTypeInfo[info.Parent].(BuiltinType)
+		baseType = info.Parent
 	}
-	return pointerList, values.OK
-} 
+	switch baseInfo := baseInfo.(type) {
+	case BuiltinType:
+		switch baseType {
+		case values.BOOL:
+			var b bool
+			return []any{&b}, values.OK
+		case values.INT:
+			var i int 
+			return []any{&i}, values.OK
+		case values.STRING:
+			var s string 
+			return []any{&s}, values.OK
+		}
+	case StructType:
+		pointerList := []any{}
+		for _, fieldType := range baseInfo.AbstractStructFields {
+			pointers, err := vm.getPointers(fieldType, tok)
+			if err.T == values.ERROR {
+				return nil, err
+			}
+			pointerList = append(pointerList, pointers...)
+		}
+		return pointerList, values.OK
+	case EnumType:
+		var i int 
+		return []any{&i}, values.OK
+	}
+	return nil, vm.makeError("vm/sql/type", tok, vm.DescribeAbstractType(abType, LITERAL))
+}
+
 
 func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 	var buf strings.Builder

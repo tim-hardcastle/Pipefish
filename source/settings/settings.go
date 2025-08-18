@@ -39,13 +39,13 @@ const (
 	SHOW_INITIALIZER       = false
 	SHOW_COMPILER          = false
 	SHOW_COMPILER_COMMENTS = false // Note that SHOW_COMPILER must also be true for this to work.
-	SHOW_RUNTIME           = true // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
+	SHOW_RUNTIME           = false // Note that this will show the hub's runtime too at present 'cos it can't tell the difference. TODO.
 	SHOW_RUNTIME_VALUES    = false // Shows the contents of memory locations on the rhs of anything (i.e. not the dest).
 	SHOW_XCALLS            = false
 	SHOW_GOLANG            = false
 	SHOW_API_SERIALIZATION = false
 	SHOW_EXTERNAL_STUBS    = false
-	SHOW_TESTS             = true // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
+	SHOW_TESTS             = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
 )
 
 var PipefishHomeDirectory string

@@ -3285,6 +3285,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/slice/tuple/e": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("upper bound %v of tuple slice is strictly greater than list length %v", emph(args[0]), args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
+		},
+	},
+
 	"vm/splat/type": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "expected value of type 'list'"
@@ -3292,6 +3301,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The value on the left-hand side of the splat operator '...' " +
 				   "should always be of type 'list'."
+		},
+	},
+
+	"vm/sql/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't coerce SQL data to " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish can only coerce SQL rows into a limited number of types, and " +
+			"this isn't one of them"
 		},
 	},
 
@@ -3358,15 +3377,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have supplied the function with arguments of types for which no function of that name is defined."
-		},
-	},
-
-	"vm/slice/tuple/e": {
-		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("upper bound %v of tuple slice is strictly greater than list length %v", emph(args[0]), args[1])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
 		},
 	},
 
