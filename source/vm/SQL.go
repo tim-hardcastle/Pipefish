@@ -19,16 +19,22 @@ import (
 // 'database.go' file.
 
 func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value, tok uint32) values.Value {
-	goArgs := pfToGoPointers(pfArgs)
+	goArgs, pfErr := vm.pfValuesToGoPtrValues(pfArgs, tok)
+	if pfErr.T == values.ERROR {
+		return pfErr
+	}
 	_, err := (db).Exec(query, goArgs...)
 	if err != nil {
-		return vm.makeError("vm/sql/get", tok, err.Error())
+		return vm.makeError("vm/sql/post", tok, err.Error())
 	}
 	return values.Value{values.SUCCESSFUL_VALUE, nil}
 }
 
 func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query string, pfArgs []values.Value, tok uint32) values.Value {
-	goArgs := pfToGoPointers(pfArgs)
+	goArgs, pfErr := vm.pfValuesToGoPtrValues(pfArgs, tok)
+	if pfErr.T == values.ERROR {
+		return pfErr
+	}
 	rows, err := (db).Query(query, goArgs...)
 	if err != nil {
 		return vm.makeError("vm/sql/get", tok, err.Error())
@@ -73,18 +79,18 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 // a SQL row to.
 func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values.Value) {
 	concreteType := values.ERROR
-		switch abType.Len() {
-		case 1 :
-			concreteType = abType.Types[0]
-		case 2 : 
-			if abType.Types[0] == values.NULL {
-				concreteType = abType.Types[1]
-				break
-			}
-			fallthrough
-		default :
-			return nil, vm.makeError("vm/sql/abstract", tok, vm.DescribeAbstractType(abType, LITERAL))
+	switch abType.Len() {
+	case 1 :
+		concreteType = abType.Types[0]
+	case 2 : 
+		if abType.Types[0] == values.NULL {
+			concreteType = abType.Types[1]
+			break
 		}
+		fallthrough
+	default :
+		return nil, vm.makeError("vm/sql/abstract", tok, vm.DescribeAbstractType(abType, LITERAL))
+	}
 	info := vm.ConcreteTypeInfo[concreteType]
 	baseType := concreteType
 	baseInfo := info
@@ -143,7 +149,7 @@ func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
 }
 
 func (vm *Vm) getSqlType(pfType values.AbstractType) string {
-	// TODO --- this could be attached to the abstract type informtion.
+	// TODO --- this could be attached to the abstract type information.
 	switch {
 	case pfType.Equals(values.AbstractType{[]values.ValueType{values.INT}}):
 		return "INTEGER NOT NULL"
@@ -182,30 +188,59 @@ func (vm *Vm) getSqlType(pfType values.AbstractType) string {
 	return "VARCHAR(" + strconv.Itoa(vNo) + ")"
 }
 
-func pfToGoPointers(pfValues []values.Value) []any {
-	goValues := make([]any, 0, len(pfValues))
-	for _, pfV := range pfValues {
-		result := getGoValue(pfV)
-		if result == nil {
-			goValues = append(goValues, nil)
-		} else {
-			goValues = append(goValues, &result)
+// This takes a Pipefish value and turns it into a flattened list of pointers to Go values of the
+// appropriate type.
+func (vm *Vm) pfValueToGoPtrValues(v values.Value, tok uint32) ([]any, values.Value){ // The value being OK or an ERROR.
+	switch typeInfo := vm.ConcreteTypeInfo[v.T].(type) {
+	case BuiltinType:
+		switch v.T {
+		case values.BOOL:
+			b := v.V.(bool)
+			return []any{&b}, values.OK
+		case values.INT:
+			i := v.V.(int)
+			return []any{&i}, values.OK
+		case values.NULL:
+			return []any{nil}, values.OK
+		case values.STRING:
+			i := v.V.(string)
+			return []any{&i}, values.OK
+		case values.TUPLE:
+			return vm.pfValuesToGoPtrValues(v.V.([]values.Value), tok)
+		default:
+			return nil, vm.makeError("vm/conv/type", tok)
 		}
+	case CloneType:
+		switch typeInfo.Parent {
+		case values.BOOL:
+			b := v.V.(bool)
+			return []any{&b}, values.OK
+		case values.INT:
+			i := v.V.(int)
+			return []any{&i}, values.OK
+		case values.STRING:
+			i := v.V.(string)
+			return []any{&i}, values.OK
+		}
+	case EnumType:
+		i := v.V.(int)
+		return []any{&i}, values.OK
+	case StructType:
+		return vm.pfValuesToGoPtrValues(v.V.([]values.Value), tok)
 	}
-	return goValues
-}
+	return nil, vm.makeError("vm/go/type", tok, vm.DescribeType(v.T, LITERAL))
+} 
 
-func getGoValue(pfValue values.Value) any {
-	switch pfValue.T {
-	case values.NULL:
-		return nil
-	case values.STRING:
-		return pfValue.V.(string)
-	case values.INT:
-		return pfValue.V.(int)
-	case values.BOOL:
-		return pfValue.V.(bool)
-	default:
-		return nil
+// This calls the preceding function on a list of Pipefish values such as the payload of a tuple
+// or struc.
+func (vm *Vm) pfValuesToGoPtrValues(vs []values.Value, tok uint32) ([]any, values.Value) { // The value being OK or an ERROR.
+	result := []any{}
+	for _, v := range vs {
+		newGo, err := vm.pfValueToGoPtrValues(v, tok)
+		if err.T == values.ERROR {
+			return nil, err
+		}
+		result = append(result, newGo...)
 	}
+	return result, values.OK
 }
