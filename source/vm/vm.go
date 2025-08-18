@@ -277,9 +277,9 @@ loop:
 							vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
 							break Switch
 						}
-						sqlSig, ok := vm.GetSqlSig(cType)
-						if !ok {
-							vm.Mem[args[0]] = vm.makeError("vm/post/sig", args[3])
+						sqlSig, err := vm.getTableSigFromStructType(cType, args[3])
+						if err.T == values.ERROR {
+							vm.Mem[args[0]] = err
 							break Switch
 						}
 						buf.WriteString(sqlSig)

@@ -25,6 +25,7 @@ func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value, tok u
 	}
 	_, err := (db).Exec(query, goArgs...)
 	if err != nil {
+		println(query, err.Error())
 		return vm.makeError("vm/sql/post", tok, err.Error())
 	}
 	return values.Value{values.SUCCESSFUL_VALUE, nil}
@@ -128,64 +129,104 @@ func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values
 	return nil, vm.makeError("vm/sql/type", tok, vm.DescribeAbstractType(abType, LITERAL))
 }
 
-
-func (vm *Vm) GetSqlSig(pfStructType values.ValueType) (string, bool) {
+// We want a struct type to be turned into the sig of an appropriate table. The entry point must
+// be a struct type because the table needs names for the columns; and for the same reason the 
+// fields of the struct must be either base types, clones of base types, their ullable twins, or 
+// structs but *not* their nulllable twins because what would that even mean?
+//
+// We then join the results together and put parentheses around them before returning.
+func (vm *Vm) getTableSigFromStructType(concreteType values.ValueType, tok uint32) (string, values.Value) { // As usual in this part of the program, the value is an ERROR or OK.
+	if !vm.ConcreteTypeInfo[concreteType].IsStruct() {
+		return "", vm.makeError("vm/sql/sig/b", tok, vm.DescribeType(concreteType, LITERAL))
+	}
+	sig, err := vm.getSQLSigFromStructType(concreteType, tok)
+	if err.T == values.ERROR {
+		return "", err
+	}
 	var buf strings.Builder
 	buf.WriteString("(")
-	sep := ""
-	for i, v := range vm.ConcreteTypeInfo[pfStructType].(StructType).AbstractStructFields {
-		sqlType := vm.getSqlType(v)
-		if sqlType == "" {
-			return "", false
-		}
-		buf.WriteString(sep)
-		buf.WriteString(vm.Labels[vm.ConcreteTypeInfo[pfStructType].(StructType).LabelNumbers[i]])
-		buf.WriteString(" ")
-		buf.WriteString(sqlType)
-		sep = ", "
-	}
+	buf.WriteString(strings.Join(sig, ", "))
 	buf.WriteString(")")
-	return buf.String(), true
+	return buf.String(), values.OK
 }
 
-func (vm *Vm) getSqlType(pfType values.AbstractType) string {
-	// TODO --- this could be attached to the abstract type information.
-	switch {
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.INT}}):
-		return "INTEGER NOT NULL"
-	case pfType.Equals((values.AbstractType{[]values.ValueType{values.NULL, values.INT}})):
-		return "INTEGER"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.STRING}}):
-		return "STRING NOT NULL"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.STRING}}):
-		return "STRING"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.BOOL}}):
-		return "BOOL NOT NULL"
-	case pfType.Equals(values.AbstractType{[]values.ValueType{values.NULL, values.BOOL}}):
-		return "BOOL"
+func (vm *Vm) getSQLSigFromStructType(concreteType values.ValueType, tok uint32) ([]string, values.Value) { // As usual in this part of the program, the value is an ERROR or OK.
+	result := []string{} // We return a list of names seperated from types by spaces.
+	info := vm.ConcreteTypeInfo[concreteType].(StructType)
+	for i, labelNo := range(info.LabelNumbers) {
+		abType := info.AbstractStructFields[i]
+		if abType.Len() == 1 && vm.ConcreteTypeInfo[abType.Types[0]].IsStruct() {
+			bitOfSig, err := vm.getSQLSigFromStructType(abType.Types[0], tok)
+			if err.T == values.ERROR {
+				return nil, err
+			}
+			result = append(result, bitOfSig...)
+			continue
+		}
+		sqlType, err := vm.getSQLType(abType, tok)
+		if err.T == values.ERROR {
+			return nil, err
+		}
+		result = append(result, vm.Labels[labelNo] + " " + sqlType)
 	}
-	// Now we have to do something kludgy to find out if it's a varchar, and indeed one of 
-	// our varchars.
-	thingToCheck := values.UNDEFINED_TYPE
-	if pfType.Len() == 1 {
-		thingToCheck = pfType.Types[0]
+	return result, values.OK
+}
+
+func (vm *Vm) getSQLType(abType values.AbstractType, tok uint32) (string, values.Value) { // As usual in this part of the program, the value is an ERROR or OK.
+	nulled := false    // Whether the abstract type contains NULL.
+	concreteType := values.ERROR
+	switch abType.Len() {
+	case 1 :
+		concreteType = abType.Types[0]
+	case 2 : 
+		nulled = abType.Types[0] == values.NULL
+		if nulled {
+			concreteType = abType.Types[1]
+			break
+		}
+		fallthrough
+	default :
+		return "", vm.makeError("vm/sql/abstract", tok, vm.DescribeAbstractType(abType, LITERAL))
 	}
-	if pfType.Len() == 2 && pfType.Types[0] == values.NULL {
-		thingToCheck = pfType.Types[1]
+	info := vm.ConcreteTypeInfo[concreteType]
+	// We special-case the varchars.
+    if info, ok := vm.ConcreteTypeInfo[concreteType].(CloneType); ok && 
+	        text.Head(info.Name, "Varchar{") && info.Parent == values.STRING && 
+			len(info.TypeArguments) == 1 && info.TypeArguments[0].T == values.INT {
+		vNo := info.TypeArguments[0].V.(int)
+		if nulled {
+			return "VARCHAR(" + strconv.Itoa(vNo) + ")", values.OK
+		}
+		return "VARCHAR(" + strconv.Itoa(vNo) + ") NOT NULL", values.OK
 	}
-	if thingToCheck == values.UNDEFINED_TYPE {
-		return ""
+	// Otherwise it's not a varchar and we move on.
+	plainSQLType := "" // What we set it to before adding (or not adding) NOT NULL.
+	baseType := concreteType
+	if info, ok := info.(CloneType); ok {
+		baseType = info.Parent
 	}
-	info, ok := vm.ConcreteTypeInfo[thingToCheck].(CloneType)
-	if !ok || !text.Head(info.Name, "Varchar{") || info.Parent != values.STRING || len(info.TypeArguments) != 1 ||
-			info.TypeArguments[0].T != values.INT {
-		return ""
+	baseInfo := vm.ConcreteTypeInfo[baseType]
+	// Now clone types will be treated like their base types, 
+	switch baseInfo.(type) {
+	case BuiltinType:
+		switch baseType {
+		case values.BOOL :
+			plainSQLType = "BOOL"
+		case values.INT :
+			plainSQLType = "INTEGER"
+		case values.STRING :
+			plainSQLType = "TEXT"
+		}
+	case EnumType:
+		plainSQLType = "INTEGER"
 	}
-	vNo := info.TypeArguments[0].V.(int)
-	if pfType.Len() == 1 {
-		return "VARCHAR(" + strconv.Itoa(vNo) + ") NOT NULL"
+	if plainSQLType == "" {
+		return "", vm.makeError("sql/sig", tok, vm.DescribeAbstractType(abType, LITERAL))
 	}
-	return "VARCHAR(" + strconv.Itoa(vNo) + ")"
+	if !nulled {
+		return plainSQLType + " NOT NULL", values.OK
+	}
+	return plainSQLType, values.OK
 }
 
 // This takes a Pipefish value and turns it into a flattened list of pointers to Go values of the
