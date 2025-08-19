@@ -93,6 +93,21 @@ func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values
 		return nil, vm.makeError("vm/sql/abstract", tok, vm.DescribeAbstractType(abType, LITERAL))
 	}
 	info := vm.ConcreteTypeInfo[concreteType]
+	// We special-case the built-in parameterized 'pair' type.
+	if info, ok := vm.ConcreteTypeInfo[concreteType].(CloneType); ok && 
+	        text.Head(info.Name, "pair{") && info.Parent == values.PAIR && 
+			len(info.TypeArguments) == 2 && info.TypeArguments[0].T == values.TYPE && 
+			info.TypeArguments[1].T == values.TYPE {
+		result := []any{}
+		for _, ty := range info.TypeArguments {
+			ptrs, err := vm.getPointers(ty.V.(values.AbstractType), tok)
+			if err.T == values.ERROR {
+				return nil, err
+			}
+			result = append(result, ptrs...)
+		}
+		return result, values.OK
+	}
 	baseType := concreteType
 	baseInfo := info
 	if info, ok := info.(CloneType); ok {
@@ -262,6 +277,13 @@ func (vm *Vm) pfValueToGoPtrValues(v values.Value, tok uint32) ([]any, values.Va
 		case values.STRING:
 			i := v.V.(string)
 			return []any{&i}, values.OK
+		case values.PAIR:
+			// We check that this is the built-in parameterized 'pair' type.
+			if text.Head(typeInfo.Name, "pair{") && 
+					len(typeInfo.TypeArguments) == 2 && typeInfo.TypeArguments[0].T == values.TYPE && 
+					typeInfo.TypeArguments[1].T == values.TYPE {
+				return vm.pfValuesToGoPtrValues(v.V.([]values.Value), tok)
+			}
 		}
 	case EnumType:
 		i := v.V.(int)

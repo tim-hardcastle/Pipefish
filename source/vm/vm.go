@@ -188,14 +188,10 @@ loop:
 			// 5: the token
 			rType := vm.Mem[args[2]].V.(values.AbstractType)
 			if rType.Len() != 1 {
-				vm.Mem[args[0]] = vm.makeError("vm/post/type", args[3])
+				vm.Mem[args[0]] = vm.makeError("vm/post/type", args[5])
 				break Switch
 			}
 			cType := rType.Types[0]
-			if !vm.ConcreteTypeInfo[cType].IsStruct() {
-				vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
-				break Switch
-			}
 			dbValue := vm.Mem[args[3]].V.([]values.Value)
 			driverNo := dbValue[0].V.(int)
 			host := dbValue[1].V.(string)
@@ -236,10 +232,6 @@ loop:
 			} else {
 				vm.Mem[args[0]] = values.OK
 			}
-
-
-
-
 		case Psql:
 			dbValue := vm.Mem[args[1]].V.([]values.Value)
 			driverNo := dbValue[0].V.(int)
@@ -273,10 +265,6 @@ loop:
 							break Switch
 						}
 						cType := v.V.(values.AbstractType).Types[0]
-						if !vm.ConcreteTypeInfo[cType].IsStruct() {
-							vm.Mem[args[0]] = vm.makeError("vm/post/struct", args[3])
-							break Switch
-						}
 						sqlSig, err := vm.getTableSigFromStructType(cType, args[3])
 						if err.T == values.ERROR {
 							vm.Mem[args[0]] = err
