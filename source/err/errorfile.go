@@ -2604,6 +2604,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"sql/map/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "duplicate key in map: " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When you turn the rows returned from SQL into a map, this error shows that one of the key values has been repeated."
+		},
+	},
+
 	"sql/out": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't write to SQL database; error was \"" + args[0].(string) + "\""
@@ -3304,13 +3313,23 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	// TODO --- this is for debugging and can presumably be removed when I've done all the types.
+	"vm/sql/goval": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't convert Go type " + emph(args[0]) + " to Pipefish"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return ""
+		},
+	},
+
 	"vm/sql/type": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't coerce SQL data to " + emph(args[0])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish can only coerce SQL rows into a limited number of types, and " +
-			"this isn't one of them"
+			"this isn't one of them."
 		},
 	},
 

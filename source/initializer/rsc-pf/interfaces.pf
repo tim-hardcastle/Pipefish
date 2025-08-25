@@ -42,7 +42,7 @@ pair = clone{K, V type} pair :
 
 map = clone{K, V type} map :
     from a = true for k::v = range that :
-        k in K && v in V :
+        k in K and v in V :
             continue 
         else :
             break false

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 
@@ -31,7 +32,7 @@ func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value, tok u
 	return values.Value{values.SUCCESSFUL_VALUE, nil}
 }
 
-func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query string, pfArgs []values.Value, tok uint32) values.Value {
+func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, pfArgs []values.Value, tok uint32) values.Value {
 	goArgs, pfErr := vm.pfValuesToGoPtrValues(pfArgs, tok)
 	if pfErr.T == values.ERROR {
 		return pfErr
@@ -41,44 +42,194 @@ func (vm *Vm) evalGetSQL(db *sql.DB, structTypeNumber values.ValueType, query st
 		return vm.makeError("vm/sql/get", tok, err.Error())
 	}
 	defer rows.Close()
-
-	pointerList, errorOrOK := vm.getPointers(values.MakeAbstractType(structTypeNumber), tok)
-	if errorOrOK.T == values.ERROR {
-		return errorOrOK
+	// It could be of type map{T}
+	if info, ok := vm.ConcreteTypeInfo[typeNumber].(CloneType); ok && 
+	        text.Head(info.Name, "map{") && len(info.TypeArguments) == 2 && 
+			info.TypeArguments[0].T == values.TYPE && info.TypeArguments[1].T == values.TYPE {
+		abType := info.TypeArguments[0].V.(values.AbstractType)
+		if abType.Len() != 1 {
+			return vm.makeError("sql/abstract/list", tok)
+		}
+		valAbType := info.TypeArguments[0].V.(values.AbstractType)
+		if valAbType.Len() != 1 {
+			return vm.makeError("sql/abstract/list", tok)
+		}
+		innerType := abType.Types[0]
+		secondType := valAbType.Types[0]
+		pointerListA, errorA := vm.getPointers(values.MakeAbstractType(innerType), rows, tok)
+		if errorA.T == values.ERROR {
+			return errorA
+		}
+		pointerListB, errorB := vm.getPointers(values.MakeAbstractType(secondType), rows, tok)
+		if errorB.T == values.ERROR {
+			return errorB
+		}
+		pointerList := append(pointerListA, pointerListB...)
+		mp := &values.Map{}
+		for rows.Next() {
+			rowVals, pfErr := vm.getFields(pointerList, tok)
+			if pfErr.T == values.ERROR {
+				return pfErr
+			}
+			keyVals := rowVals[:len(pointerListA)]
+			valVals := rowVals[len(pointerListA):]
+			var keyVal, valVal values.Value
+			if NON_CONTAINERS.Contains(innerType) {
+				keyVal = keyVals[0]
+			} else {
+				keyVal = values.Value{innerType, keyVals}
+			}
+			if NON_CONTAINERS.Contains(secondType) {
+				valVal = valVals[0]
+			} else {
+				valVal = values.Value{secondType, valVals}
+			}
+			println("Key is", vm.DescribeTypeAndValue(keyVal, LITERAL))
+			println("Value is", vm.DescribeTypeAndValue(valVal, LITERAL))
+			if _, ok := mp.Get(keyVal); ok {
+				return vm.makeError("sql/map/exists", tok, vm.toString(keyVal, LITERAL))
+			}
+			mp = mp.Set(keyVal, valVal)
+		}
+		return values.Value{values.MAP, mp}
 	}
+	// The outer structure could be a parameterized list.
+	if info, ok := vm.ConcreteTypeInfo[typeNumber].(CloneType); ok && 
+	        text.Head(info.Name, "list{") && len(info.TypeArguments) == 1 && 
+			info.TypeArguments[0].T == values.TYPE {
+		abType := info.TypeArguments[0].V.(values.AbstractType)
+		if abType.Len() != 1 {
+			return vm.makeError("sql/abstract/list", tok)
+		}
+		innerType := abType.Types[0]
+		pointerList, pfErr := vm.getPointers(values.MakeAbstractType(innerType), rows, tok)
+		if pfErr.T == values.ERROR {
+			return pfErr
+		}
+		vec := vector.Empty
+		for rows.Next() {
+			val := vm.getPfRow(rows, pointerList, innerType, tok)
+			if val.T == values.ERROR {
+				return val
+			}
+			vec = vec.Conj(val)
+		}
+		return values.Value{values.LIST, vec}
+	}
+	// Or a set.
+	if info, ok := vm.ConcreteTypeInfo[typeNumber].(CloneType); ok && 
+	        text.Head(info.Name, "set{") && len(info.TypeArguments) == 1 && 
+			info.TypeArguments[0].T == values.TYPE {
+		abType := info.TypeArguments[0].V.(values.AbstractType)
+		if abType.Len() != 1 {
+			return vm.makeError("sql/abstract/set", tok)
+		}
+		innerType := abType.Types[0]
+		pointerList, pfErr := vm.getPointers(values.MakeAbstractType(innerType), rows, tok)
+		if pfErr.T == values.ERROR {
+			return pfErr
+		}
+		setVal := values.Set{}
+		for rows.Next() {
+			val := vm.getPfRow(rows, pointerList, innerType, tok)
+			if val.T == values.ERROR {
+				return val
+			}
+			if exists := setVal.Contains(val); exists {
+				return vm.makeError("sql/set/exists", tok)
+			}
+			setVal = setVal.Add(val)
+		}
+		return values.Value{values.SET, setVal}
+	}
+	// Otherwise we must be trying to get a single row.
+	if !rows.Next() {
+			return vm.makeError("sql/one/zero", tok)
+		}
+	pointerList, pfErr := vm.getPointers(values.MakeAbstractType(typeNumber), rows, tok)
+	if pfErr.T == values.ERROR {
+		return pfErr
+	}
+	val := vm.getPfRow(rows, pointerList, typeNumber, tok)
+	if rows.Next() {
+		return vm.makeError("sql/one/many", tok)
+	}
+	return val
+}
 
-	vec := vector.Empty
-	for rows.Next() {
-		if err := rows.Scan(pointerList...); err != nil {
+func (vm *Vm) getPfRow(rows *sql.Rows, pointerList []any, typeNumber values.ValueType, tok uint32) values.Value {
+	if err := rows.Scan(pointerList...); err != nil {
 			return vm.makeError("vm/sql/scan", tok, err.Error())
 		}
-		fields := make([]values.Value, 0, len(pointerList))
-		for _, p := range pointerList {
-			var pfVal values.Value
-			if p == nil {
-				pfVal = values.Value{values.NULL, nil}
-			} else {
-				switch goValue := p.(type) {
-				case *string:
-					pfVal = values.Value{values.STRING, *goValue}
-				case *int:
-					pfVal = values.Value{values.INT, *goValue}
-				case *bool:
-					pfVal = values.Value{values.BOOL, *goValue}
-				default:
-					return vm.makeError("vm/sql/goval", tok, reflect.TypeOf(goValue).String())
+	if typeNumber == values.MAP {
+		result := &values.Map{}
+		cols, _ := rows.Columns()
+		for i, p := range(pointerList) {
+			pfKey := values.Value{values.STRING, cols[i]}
+			pfValue := values.Value{values.NULL, nil}
+			if p != nil {
+				goValue := (p.(*any))
+				pfValue = vm.goToPfVal(*goValue, tok)
+				if pfValue.T == values.ERROR {
+					return pfValue
 				}
 			}
-			fields = append(fields, pfVal)
+			result = result.Set(pfKey, pfValue)
 		}
-		vec = vec.Conj(values.Value{structTypeNumber, fields})
+		return values.Value{values.MAP, result}
 	}
-	return values.Value{values.LIST, vec}
+	// Otherwise it's not a map.
+	fields, pfErr := vm.getFields(pointerList, tok)
+	if pfErr.T == values.ERROR {
+		return pfErr
+	}
+	if NON_CONTAINERS.Contains(typeNumber) {
+		return fields[0]
+	}
+	return values.Value{typeNumber, fields}
+}
+
+var NON_CONTAINERS = dtypes.MakeFromSlice([]values.ValueType{values.STRING, values.INT, values.BOOL})
+
+func (vm *Vm) getFields(pointerList []any, tok uint32) ([]values.Value, values.Value) {
+	fields := make([]values.Value, 0, len(pointerList))
+	for _, p := range pointerList {
+		pfValue := values.Value{values.NULL, nil}
+		if p != nil {
+			pfValue = vm.goToPfVal(p, tok)
+			if pfValue.T == values.ERROR {
+				return nil, pfValue
+			}
+		}
+		fields = append(fields, pfValue)
+	}
+	return fields, values.OK
+}
+
+func (vm *Vm) goToPfVal(pfVal any, tok uint32) values.Value {
+	name := ""
+	switch goValue := pfVal.(type) {
+	case *string:
+		return values.Value{values.STRING, *goValue}
+	case *int:
+		return values.Value{values.INT, *goValue}
+	case *bool:
+		return values.Value{values.BOOL, *goValue}
+	case string:
+		return values.Value{values.STRING, goValue}
+	case int64:
+		return values.Value{values.INT, int(goValue)}
+	case bool:
+		return values.Value{values.BOOL, goValue}
+	default:
+		name = reflect.TypeOf(goValue).String()
+	}
+	return vm.makeError("vm/sql/goval", tok, name)
 }
 
 // Given a Pipefish type, we want to convert it into a flat list of pointers that we can try to cast
 // a SQL row to.
-func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values.Value) {
+func (vm *Vm) getPointers(abType values.AbstractType, rows *sql.Rows, tok uint32) ([]any, values.Value) {
 	concreteType := values.ERROR
 	switch abType.Len() {
 	case 1 :
@@ -100,7 +251,7 @@ func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values
 			info.TypeArguments[1].T == values.TYPE {
 		result := []any{}
 		for _, ty := range info.TypeArguments {
-			ptrs, err := vm.getPointers(ty.V.(values.AbstractType), tok)
+			ptrs, err := vm.getPointers(ty.V.(values.AbstractType), rows, tok)
 			if err.T == values.ERROR {
 				return nil, err
 			}
@@ -123,6 +274,14 @@ func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values
 		case values.INT:
 			var i int 
 			return []any{&i}, values.OK
+		case values.MAP:
+			cols, _ := rows.Columns()
+			result := make([]any, len(cols))
+			for i := range len(cols) {
+				var v any
+				result[i] = &v
+			}
+			return result, values.OK
 		case values.STRING:
 			var s string 
 			return []any{&s}, values.OK
@@ -130,7 +289,7 @@ func (vm *Vm) getPointers(abType values.AbstractType, tok uint32) ([]any, values
 	case StructType:
 		pointerList := []any{}
 		for _, fieldType := range baseInfo.AbstractStructFields {
-			pointers, err := vm.getPointers(fieldType, tok)
+			pointers, err := vm.getPointers(fieldType, rows, tok)
 			if err.T == values.ERROR {
 				return nil, err
 			}
