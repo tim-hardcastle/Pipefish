@@ -50,7 +50,7 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 		if abType.Len() != 1 {
 			return vm.makeError("sql/abstract/list", tok)
 		}
-		valAbType := info.TypeArguments[0].V.(values.AbstractType)
+		valAbType := info.TypeArguments[1].V.(values.AbstractType)
 		if valAbType.Len() != 1 {
 			return vm.makeError("sql/abstract/list", tok)
 		}
@@ -67,6 +67,9 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 		pointerList := append(pointerListA, pointerListB...)
 		mp := &values.Map{}
 		for rows.Next() {
+			if err := rows.Scan(pointerList...); err != nil {
+				return vm.makeError("vm/sql/scan/b", tok, err.Error())
+			}
 			rowVals, pfErr := vm.getFields(pointerList, tok)
 			if pfErr.T == values.ERROR {
 				return pfErr
@@ -84,8 +87,6 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 			} else {
 				valVal = values.Value{secondType, valVals}
 			}
-			println("Key is", vm.DescribeTypeAndValue(keyVal, LITERAL))
-			println("Value is", vm.DescribeTypeAndValue(valVal, LITERAL))
 			if _, ok := mp.Get(keyVal); ok {
 				return vm.makeError("sql/map/exists", tok, vm.toString(keyVal, LITERAL))
 			}
@@ -160,7 +161,7 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 func (vm *Vm) getPfRow(rows *sql.Rows, pointerList []any, typeNumber values.ValueType, tok uint32) values.Value {
 	if err := rows.Scan(pointerList...); err != nil {
 			return vm.makeError("vm/sql/scan", tok, err.Error())
-		}
+	}
 	if typeNumber == values.MAP {
 		result := &values.Map{}
 		cols, _ := rows.Columns()
@@ -206,9 +207,9 @@ func (vm *Vm) getFields(pointerList []any, tok uint32) ([]values.Value, values.V
 	return fields, values.OK
 }
 
-func (vm *Vm) goToPfVal(pfVal any, tok uint32) values.Value {
+func (vm *Vm) goToPfVal(goValue any, tok uint32) values.Value {
 	name := ""
-	switch goValue := pfVal.(type) {
+	switch goValue := goValue.(type) {
 	case *string:
 		return values.Value{values.STRING, *goValue}
 	case *int:
