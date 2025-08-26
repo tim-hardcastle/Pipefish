@@ -3132,6 +3132,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/ping/get": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to ping the database with error " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Either the database is not currently available, or you used the wrong credentials. Hopefully the nature of the problem will be clarified by the error returned by the database."
+		},
+	},
+
 	"vm/pipe/filter/bool": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "right-hand side of filter expression cannot return boolean"

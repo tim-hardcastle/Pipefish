@@ -1,5 +1,5 @@
-def
+cmd 
 
-foo (T type) from (i int) :
-    string(T)
+doIt :
+    post $_hub
 
