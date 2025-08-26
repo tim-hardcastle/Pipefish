@@ -617,12 +617,14 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 	if pos < len(sig) {
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType
-		currentTypeName = nameSig[pos].VarType.String()
+		if _, ok := nameSig[pos].VarType.(*ast.Bling); ok {
+			currentTypeName = nameSig[pos].VarName
+			bling = currentTypeName
+		} else {
+			currentTypeName = nameSig[pos].VarType.String()
+		}
 		if currentTypeName == "bling" {      // There's no reason why these should both exist.
 			bling = nameSig.GetVarName(pos)                         //
-		}                                                           //
-		if astT, ok := nameSig[pos].VarType.(*ast.Bling); ok {      //
-			bling = astT.Value                                      //
 		}                                                           //
 		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
 		if isVararg {
