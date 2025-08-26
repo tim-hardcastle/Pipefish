@@ -265,7 +265,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 		twas[ty.String()] = ty
 	}
 	maps.Copy(twas, iz.P.ParTypeInstances)
-	iz.P.ParTypeInstances = nil    // Having to keep this in the parser is an annoying kludge, so we remove the data manually now we've used it.
+	iz.P.ParTypeInstances = nil // Having to keep this in the parser is an annoying kludge, so we remove the data manually now we've used it.
 	typeOperators := make(map[string]typeOperatorInfo)
 	for _, ty := range twas {
 		// The parser doesn't know the types and values of enums, 'cos of being a
@@ -589,7 +589,7 @@ func (iz *Initializer) makeFunctionTrees() {
 	iz.cp.FunctionForest = map[string]*compiler.FunctionTree{}
 	rc := 0
 	for k, v := range iz.functionTable {
-		tree := &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.TypeNodePair{}}
+		tree := &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.NodeInfo{}}
 		for i := range v {
 			tree = iz.addSigToTree(tree, v[i], 0)
 
@@ -613,13 +613,13 @@ func (iz *Initializer) makeFunctionTrees() {
 func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunction, pos int) *compiler.FnTreeNode {
 	nameSig := fn.sig // TODO --- do we really need both of these?
 	sig := fn.callInfo.Compiler.P.MakeAbstractSigFromStringSig(nameSig)
+	bling := ""
 	if pos < len(sig) {
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType
-		if _, ok := nameSig[pos].VarType.(*ast.Bling); ok {
-			currentTypeName = nameSig[pos].VarName
-		} else {
-			currentTypeName = nameSig[pos].VarType.String()
+		currentTypeName = nameSig[pos].VarType.String()
+		if currentTypeName == "bling" {
+			bling = nameSig.GetVarName(pos)
 		}
 		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
 		if isVararg {
@@ -627,13 +627,13 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 		}
 		isPresent := false
 		for _, v := range tree.Branch {
-			if currentAbstractType.Equals(v.Type) {
+			if currentAbstractType.Equals(v.Type) && bling == v.Bling {
 				isPresent = true
 				break
 			}
 		}
 		if !isPresent {
-			tree.Branch = append(tree.Branch, &compiler.TypeNodePair{Type: currentAbstractType, IsVararg: isVararg, Node: &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.TypeNodePair{}}})
+			tree.Branch = append(tree.Branch, &compiler.NodeInfo{Type: currentAbstractType, IsVararg: isVararg, Bling: bling, Node: &compiler.FnTreeNode{CallInfo: nil, Branch: []*compiler.NodeInfo{}}})
 		}
 		for _, branch := range tree.Branch {
 			if branch.Type.IsSubtypeOf(currentAbstractType) {
@@ -648,7 +648,7 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 		}
 	} else {
 		if tree.CallInfo == nil { // If it is non-nil then a sig of greater specificity has already led us here and we're good.
-			tree.Branch = append(tree.Branch, &compiler.TypeNodePair{Type: values.MakeAbstractType(), Node: &compiler.FnTreeNode{CallInfo: fn.callInfo, Branch: []*compiler.TypeNodePair{}}})
+			tree.Branch = append(tree.Branch, &compiler.NodeInfo{Type: values.MakeAbstractType(), Bling: bling, Node: &compiler.FnTreeNode{CallInfo: fn.callInfo, Branch: []*compiler.NodeInfo{}}})
 		}
 	}
 	return tree

@@ -1,7 +1,7 @@
-cmd
+def
 
-foo p :
-    post "TROZ"
+foo p (i int):
+    42
 
-foo q :
-    post "ZORT"
+foo q (i int):
+    99

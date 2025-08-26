@@ -192,6 +192,8 @@ func TestFunctionSyntaxCalls(t *testing.T) {
 		{`moo "bing" goo`, `"moo bing goo"`},
 		{`flerp "bing" blerp "bong"`, `"flerp bing blerp bong"`},
 		{`qux`, `"qux"`},
+		{`foo p 7`, `"foo p"`},
+		{`foo q 7`, `"foo q"`},
 	}
 	test_helper.RunTest(t, "function_call_test.pf", tests, test_helper.TestValues)
 }

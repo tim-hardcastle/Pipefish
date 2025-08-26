@@ -26,11 +26,12 @@ type CallInfo struct {
 
 type FnTreeNode struct {
 	CallInfo *CallInfo
-	Branch   []*TypeNodePair
+	Branch   []*NodeInfo
 }
 
-type TypeNodePair struct { // This exists because we need an *ordered* collection of type-node pairs.
+type NodeInfo struct {
 	Type     values.AbstractType
+	Bling    string // If it's bling, we need to dispatch on this too.
 	IsVararg bool
 	Node     *FnTreeNode
 }

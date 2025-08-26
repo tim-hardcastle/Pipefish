@@ -193,7 +193,7 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 	cp.cmP("Called seekBling.", b.tok)
 	for i, branch := range b.treePosition.Branch {
-		if branch.Type.Contains(values.BLING) {
+		if branch.Type.Contains(values.BLING) && branch.Bling == bling {
 			newBindle := *b
 			newBindle.branchNo = i
 			newBindle.varargsTime = false
