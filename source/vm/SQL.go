@@ -32,7 +32,7 @@ func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value, tok u
 	return values.Value{values.SUCCESSFUL_VALUE, nil}
 }
 
-func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, pfArgs []values.Value, tok uint32) values.Value {
+func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, pfArgs []values.Value, likeFlag uint32, tok uint32) values.Value {
 	goArgs, pfErr := vm.pfValuesToGoPtrValues(pfArgs, tok)
 	if pfErr.T == values.ERROR {
 		return pfErr
@@ -42,7 +42,7 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 		return vm.makeError("vm/sql/get", tok, err.Error())
 	}
 	defer rows.Close()
-	// It could be of type map{T}
+	// It could be of type map{K, V type}
 	if info, ok := vm.ConcreteTypeInfo[typeNumber].(CloneType); ok && 
 	        text.Head(info.Name, "map{") && len(info.TypeArguments) == 2 && 
 			info.TypeArguments[0].T == values.TYPE && info.TypeArguments[1].T == values.TYPE {
@@ -92,7 +92,11 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 			}
 			mp = mp.Set(keyVal, valVal)
 		}
-		return values.Value{values.MAP, mp}
+		if likeFlag == 1 {
+			return values.Value{values.MAP, mp}
+		} else {
+			return values.Value{typeNumber , mp}
+		}
 	}
 	// The outer structure could be a parameterized list.
 	if info, ok := vm.ConcreteTypeInfo[typeNumber].(CloneType); ok && 
@@ -107,15 +111,24 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 		if pfErr.T == values.ERROR {
 			return pfErr
 		}
+		klugeType := innerType // TODO --- yuck.
+		if text.Head(vm.ConcreteTypeInfo[innerType].GetName(DEFAULT), "pair{") && likeFlag == 1 { 
+			klugeType = values.PAIR
+		}
 		vec := vector.Empty
 		for rows.Next() {
-			val := vm.getPfRow(rows, pointerList, innerType, tok)
+			val := vm.getPfRow(rows, pointerList, klugeType, tok)
 			if val.T == values.ERROR {
 				return val
 			}
 			vec = vec.Conj(val)
 		}
-		return values.Value{values.LIST, vec}
+		if likeFlag == 1 {
+			return values.Value{values.LIST, vec}
+		} else {
+			return values.Value{typeNumber , vec}
+		}
+		
 	}
 	// Or a set.
 	if info, ok := vm.ConcreteTypeInfo[typeNumber].(CloneType); ok && 
@@ -130,9 +143,13 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 		if pfErr.T == values.ERROR {
 			return pfErr
 		}
+		klugeType := innerType // TODO --- yuck.
+		if text.Head(vm.ConcreteTypeInfo[innerType].GetName(DEFAULT), "pair{") && likeFlag == 1 { 
+			klugeType = values.PAIR
+		}
 		setVal := values.Set{}
 		for rows.Next() {
-			val := vm.getPfRow(rows, pointerList, innerType, tok)
+			val := vm.getPfRow(rows, pointerList, klugeType, tok)
 			if val.T == values.ERROR {
 				return val
 			}
@@ -141,7 +158,11 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 			}
 			setVal = setVal.Add(val)
 		}
-		return values.Value{values.SET, setVal}
+		if likeFlag == 1 {
+			return values.Value{values.SET, setVal}
+		} else {
+			return values.Value{typeNumber , setVal}
+		}
 	}
 	// Otherwise we must be trying to get a single row.
 	if !rows.Next() {
@@ -151,7 +172,11 @@ func (vm *Vm) evalGetSQL(db *sql.DB, typeNumber values.ValueType, query string, 
 	if pfErr.T == values.ERROR {
 		return pfErr
 	}
-	val := vm.getPfRow(rows, pointerList, typeNumber, tok)
+	klugeType := typeNumber // TODO --- yuck.
+	if text.Head(vm.ConcreteTypeInfo[typeNumber].GetName(DEFAULT), "pair{") && likeFlag == 1 { 
+		klugeType = values.PAIR
+	}
+	val := vm.getPfRow(rows, pointerList, klugeType, tok)
 	if rows.Next() {
 		return vm.makeError("sql/one/many", tok)
 	}

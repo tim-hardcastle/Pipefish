@@ -185,7 +185,8 @@ loop:
 			// 2: the desired type of the result
 			// 3: the database
 			// 4: the snippet
-			// 5: the token
+			// 5: 0 for `as`, 1 for `like`.
+			// 6: the token
 			rType := vm.Mem[args[2]].V.(values.AbstractType)
 			if rType.Len() != 1 {
 				vm.Mem[args[0]] = vm.makeError("vm/post/type", args[5])
@@ -203,13 +204,13 @@ loop:
 				host, port, name, user, password)
 			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
 			if connectionError != nil {
-				vm.Mem[args[0]] = vm.makeError("vm/connect/get", args[5], connectionError.Error())
+				vm.Mem[args[0]] = vm.makeError("vm/connect/get", args[6], connectionError.Error())
 				vm.Mem[args[1]] = vm.Mem[args[0]]
 				break Switch
 			}
 			pingError := sqlObj.Ping()
 			if pingError != nil {
-				vm.Mem[args[0]] = vm.makeError("vm/ping/get", args[5], pingError.Error())
+				vm.Mem[args[0]] = vm.makeError("vm/ping/get", args[6], pingError.Error())
 				vm.Mem[args[1]] = vm.Mem[args[0]]
 				break Switch
 			}
@@ -225,7 +226,7 @@ loop:
 					buf.WriteString(strconv.Itoa(1 + i/2))
 				}
 			}
-			result := vm.evalGetSQL(sqlObj, cType, buf.String(), vals, args[5])
+			result := vm.evalGetSQL(sqlObj, cType, buf.String(), vals, args[5], args[6])
 			vm.Mem[args[1]] = result
 			if result.T == values.ERROR {
 				vm.Mem[args[0]] = result

@@ -212,12 +212,12 @@ func (cp *Compiler) btGetFromInput(tok *token.Token, dest uint32, args []uint32)
 	cp.Emit(vm.Asgm, dest, values.C_OK)
 }
 
-func (cp *Compiler) btGetFromSQLAs(tok *token.Token, dest uint32, args []uint32) { // TODO --- find ut why this works like this and make it stop.
-	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.ReserveToken(tok))
+func (cp *Compiler) btGetFromSQLAs(tok *token.Token, dest uint32, args []uint32) { 
+	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], 0, cp.ReserveToken(tok))
 }
 
-func (cp *Compiler) btGetFromSQLLike(tok *token.Token, dest uint32, args []uint32) { // TODO --- find ut why this works like this and make it stop.
-	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], cp.ReserveToken(tok))
+func (cp *Compiler) btGetFromSQLLike(tok *token.Token, dest uint32, args []uint32) { 
+	cp.Emit(vm.Gsql, dest, cp.Vm.Mem[args[0]].V.(uint32), args[2], args[4], args[5], 1, cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btGetTypeInformation(tok *token.Token, dest uint32, args []uint32) {
