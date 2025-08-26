@@ -618,9 +618,12 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 		var currentTypeName string
 		currentAbstractType := sig[pos].VarType
 		currentTypeName = nameSig[pos].VarType.String()
-		if currentTypeName == "bling" {
-			bling = nameSig.GetVarName(pos)
-		}
+		if currentTypeName == "bling" {      // There's no reason why these should both exist.
+			bling = nameSig.GetVarName(pos)                         //
+		}                                                           //
+		if astT, ok := nameSig[pos].VarType.(*ast.Bling); ok {      //
+			bling = astT.Value                                      //
+		}                                                           //
 		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
 		if isVararg {
 			currentTypeName = currentTypeName[3:]
