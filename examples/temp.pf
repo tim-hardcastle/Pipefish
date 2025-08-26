@@ -1,5 +1,7 @@
-cmd 
+cmd
 
-doIt :
-    post $_hub
+foo p :
+    post "TROZ"
 
+foo q :
+    post "ZORT"

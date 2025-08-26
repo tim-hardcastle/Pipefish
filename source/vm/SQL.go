@@ -26,7 +26,6 @@ func (vm *Vm) evalPostSQL(db *sql.DB, query string, pfArgs []values.Value, tok u
 	}
 	_, err := (db).Exec(query, goArgs...)
 	if err != nil {
-		println(query, err.Error())
 		return vm.makeError("vm/sql/post", tok, err.Error())
 	}
 	return values.Value{values.SUCCESSFUL_VALUE, nil}

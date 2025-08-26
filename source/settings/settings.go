@@ -30,7 +30,7 @@ const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
 	IGNORE_BOILERPLATE = true  // Should usually be left true. Means that the flags below won't show instrumentation when compiling buitins.pf, world.pf, etc.
 
-	FUNCTION_TO_PEEK = "" // Shows the function table entry and function tree associated with the function named in the string, if non-empty.
+	FUNCTION_TO_PEEK = "foo" // Shows the function table entry and function tree associated with the function named in the string, if non-empty.
 
 	// These do what it sounds like.
 	SHOW_LEXER             = false
