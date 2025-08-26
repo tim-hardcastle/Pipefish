@@ -1,7 +1,4 @@
 def
 
-foo p (i int):
-    42
-
-foo q (i int):
-    99
+foo (i int) boo (T type) from (j int) :
+    "foo boo from " + string(T) 
