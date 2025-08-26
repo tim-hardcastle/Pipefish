@@ -1582,7 +1582,7 @@ var (
 	WAS            = Green("was") + ": "
 	GOT            = Red("got") + ": "
 	TEST_PASSED    = Green("Test passed!") + "\n"
-	VERSION        = "0.5.9"
+	VERSION        = "0.6.9"
 	BULLET         = "  ▪ "
 	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
 	GOOD_BULLET    = Green("  ▪ ")

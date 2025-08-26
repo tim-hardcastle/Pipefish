@@ -3164,7 +3164,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("can't put value of type %v in a set", emphStr(args[0]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("To be an element of a set, a value must have a type which is not a struct.")
+			return fmt.Sprintf("Some values can't be put in sets, including functions, maps, lists, and other sets.")
 		},
 	},
 

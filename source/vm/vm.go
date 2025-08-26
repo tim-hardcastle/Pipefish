@@ -1149,10 +1149,7 @@ loop:
 		case Mkst:
 			result := values.Set{}
 			for _, v := range vm.Mem[args[1]].V.([]values.Value) {
-				if !((values.NULL <= v.T && v.T < values.PAIR) || vm.ConcreteTypeInfo[v.T].IsEnum()) {
-					vm.Mem[args[0]] = vm.makeError("vm/set", args[2], v, vm.DescribeType(v.T, LITERAL))
-					break Switch
-				}
+				// TODO --- whether a type can be put in a set should be extractable from its concrete type information.
 				result = result.Add(v)
 			}
 			vm.Mem[args[0]] = values.Value{values.SET, result}

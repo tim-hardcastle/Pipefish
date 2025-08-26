@@ -26,7 +26,8 @@ SqlDb = struct(driver SqlDriver, host string, port int, name string, username, p
 cmd
 
 post to (sql SqlDb, S snippet) : builtin "post_sql"
-get(x ref) as (t type) from (y SqlDb, z snippet) : builtin "get_sql"
+get(x ref) as (t type) from (y SqlDb, z snippet) : builtin "get_sql_as"
+get(x ref) as (t type) like (y SqlDb, z snippet) : builtin "get_sql_like"
 
 posttooutputmaker(x any?) : builtin "post_to_output"
 post (x any?) to (o Output): posttooutputmaker(x)
