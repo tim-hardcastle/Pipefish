@@ -434,16 +434,15 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		if precedence >= p.peekPrecedence() {
 			break
 		}
-
+        isBling := resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
+		if isBling {
+			resolvingParser.BlingManager.doBling(p.PeekToken.Literal)
+		}
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
-			resolvingParser.Infixes.Contains(p.PeekToken.Literal) ||
-			resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
+			resolvingParser.Infixes.Contains(p.PeekToken.Literal) || isBling
 		if !foundInfix {
 			return leftExp
-		}
-		if resolvingParser.BlingManager.canBling(p.PeekToken.Literal) {
-			resolvingParser.BlingManager.doBling(p.PeekToken.Literal)
 		}
 		p.NextToken()
 
@@ -466,9 +465,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				p.pushRParser(resolvingParser)
-				p.BlingManager.startFunction(p.CurToken.Literal)
+				if !isBling {
+					p.BlingManager.startFunction(p.CurToken.Literal)
+				}
 				leftExp = p.parseInfixExpression(leftExp)
-				p.BlingManager.stopFunction()
+				if !isBling {
+					p.BlingManager.stopFunction()
+				}
 				p.popRParser()
 			}
 		}
@@ -702,6 +705,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	if assignmentTokens.Contains(p.CurToken.Type) {
 		return p.parseAssignmentExpression(left)
 	}
+	// TODO --- NOTE. This is basically the Last Of The Shotgun Parsing and there's no reason why the whole species shouldn't go extinct.
 	if p.CurToken.Type == token.MAGIC_COLON {
 		// Then we will magically convert a function declaration into an assignment of a lambda to a
 		// constant.

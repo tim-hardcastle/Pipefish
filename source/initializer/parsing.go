@@ -119,6 +119,10 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	if iz.errorsExist() {
 		return
 	}
+
+	if settings.SHOW_BLING_TREE {
+		println(iz.P.BlingManager.String())
+	}
 	// We hand back flow of control to initializer.go.
 }
 

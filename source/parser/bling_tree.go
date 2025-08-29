@@ -44,6 +44,8 @@ func (bm *BlingManager) canBling(s string) bool {
 	return bm.navigators[len(bm.navigators)-1].canBling(s)
 }
 
+
+
 func (bm *BlingManager) doBling(s string) {
 	bm.navigators[len(bm.navigators)-1].doBling(s)
 }
