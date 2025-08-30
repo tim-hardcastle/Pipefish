@@ -29,9 +29,10 @@ type Parser struct {
 	// everything else that handles bling.
 	BlingManager     *BlingManager
 
-	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
-	// in that namespace without being namespaced.
-	enumResolvingParsers []*Parser
+	// When we call a function in a namespace, we need to use the bling manager of that namespace.
+	// TODO --- this should really be a stack of BlingManagers since that's all we're using the
+	// parsers for at this point.
+	blingResolvingParsers []*Parser
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -1055,13 +1056,13 @@ func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 
 // Functions for keeping track of the `resolving parser`, i.e. the one that knows about the namespace we're in.
 func (p *Parser) pushRParser(q *Parser) {
-	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
+	p.blingResolvingParsers = append(p.blingResolvingParsers, q)
 }
 func (p *Parser) topRParser() *Parser {
-	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
+	return p.blingResolvingParsers[len(p.blingResolvingParsers)-1]
 }
 func (p *Parser) popRParser() {
-	p.enumResolvingParsers = p.enumResolvingParsers[1:]
+	p.blingResolvingParsers = p.blingResolvingParsers[1:]
 }
 
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
@@ -1194,7 +1195,7 @@ func (p *Parser) ReturnErrors() string {
 func (p *Parser) ResetAfterError() {
 	p.Common.Errors = []*err.Error{}
 	p.CurrentNamespace = []string{}
-	p.enumResolvingParsers = []*Parser{p}
+	p.blingResolvingParsers = []*Parser{p}
 	p.nesting = dtypes.Stack[token.Token]{}
 }
 
