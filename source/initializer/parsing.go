@@ -447,12 +447,12 @@ func (iz *Initializer) createEnums() {
 				acc = compiler.GLOBAL_CONSTANT_PRIVATE
 			}
 			for i, elementName := range typeInfo.ElementNames {
-				iz.cp.GlobalConsts.Data[elementName] = 
-				compiler.Variable{
-					MLoc: iz.cp.Reserve(typeNo, i, &dec.op),
-					Access: acc,
-					Types: altType(typeNo),
-				}
+				iz.cp.GlobalConsts.Data[elementName] =
+					compiler.Variable{
+						MLoc:   iz.cp.Reserve(typeNo, i, &dec.op),
+						Access: acc,
+						Types:  altType(typeNo),
+					}
 			}
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
@@ -493,12 +493,12 @@ func (iz *Initializer) createEnums() {
 			}
 			elementName := tok.Literal
 			iz.cp.P.EnumElementNames.Add(elementName)
-			iz.cp.GlobalConsts.Data[elementName] = 
-			compiler.Variable{
-				MLoc: iz.cp.Reserve(typeNo, ord, &dec.op),
-				Access: acc,
-				Types: altType(typeNo),
-			}
+			iz.cp.GlobalConsts.Data[elementName] =
+				compiler.Variable{
+					MLoc:   iz.cp.Reserve(typeNo, ord, &dec.op),
+					Access: acc,
+					Types:  altType(typeNo),
+				}
 			vec = vec.Conj(values.Value{typeNo, ord})
 			elementNameList = append(elementNameList, tok.Literal)
 		}
@@ -830,30 +830,30 @@ func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexTok 
 		global, alreadyExists := iz.cp.GlobalConsts.Data[labelName]
 		switch {
 		case alreadyDeclared: // That is, we're parsing the same piece of code a second time.
-		mLoc := info.(labelInfo).loc
+			mLoc := info.(labelInfo).loc
 			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[mLoc].V.(int))
-			iz.cp.GlobalConsts.Data[labelName] = 
-			compiler.Variable{
-				MLoc: mLoc,
-				Access: acc,
-				Types: altType(values.LABEL),
-			}
-		case alreadyExists : // Structs can of course have overlapping fields but we don't want to declare them twice.
+			iz.cp.GlobalConsts.Data[labelName] =
+				compiler.Variable{
+					MLoc:   mLoc,
+					Access: acc,
+					Types:  altType(values.LABEL),
+				}
+		case alreadyExists: // Structs can of course have overlapping fields but we don't want to declare them twice.
 			labelLocation := global.MLoc
 			if iz.cp.Vm.Mem[labelLocation].T != values.LABEL {
 				iz.throw("init/label/exists", indexTok, labelName)
 			}
 			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
 			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{labelLocation, private})
-		default :
+		default:
 			mLoc := iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexTok)
-			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.That()		
-			iz.cp.GlobalConsts.Data[labelName] = 
-			compiler.Variable{
-				MLoc: mLoc,
-				Access: acc,
-				Types: altType(values.LABEL),
-			}
+			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.That()
+			iz.cp.GlobalConsts.Data[labelName] =
+				compiler.Variable{
+					MLoc:   mLoc,
+					Access: acc,
+					Types:  altType(values.LABEL),
+				}
 			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{iz.cp.That(), true})
 			labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 			iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)
@@ -990,7 +990,7 @@ func (iz *Initializer) addToBuiltins(sig ast.AstSig, builtinTag string, returnTy
 	fnenv := compiler.NewEnvironment() // Note that we don't use this for anything, we just need some environment to pass to addVariables.
 	cpF.LoReg = iz.cp.MemTop()
 	for _, pair := range sig {
-		iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), tok)
+		iz.cp.AddThatAsVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), tok)
 	}
 	cpF.HiReg = iz.cp.MemTop()
 	cpF.Private = private

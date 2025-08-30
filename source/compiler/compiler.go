@@ -259,12 +259,12 @@ NodeTypeSwitch:
 				cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
 				if vType, ok := pair.VarType.(*ast.TypeWithName); ok && vType.Name == "tuple" {
 					cp.Cm("Adding variable in ASSIGN, 1", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Common.AnyTuple, node.GetToken())
+					cp.AddThatAsVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Common.AnyTuple, node.GetToken())
 					newSig = append(newSig, ast.NameTypeAstPair{pair.VarName, ast.TUPLE_TYPE_AST})
 				} else {
 					typesAtIndex := typesAtIndex(types, i)
 					cp.Cm("Adding variable in ASSIGN, 2", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
+					cp.AddThatAsVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
 					if sig[i].VarType == ast.INFERRED_TYPE_AST {
 						newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
 					} else {
@@ -304,7 +304,7 @@ NodeTypeSwitch:
 	case *ast.FuncExpression:
 		cp.compileLambda(env, ctxt, node, node.GetToken())
 		rtnTypes = AltType(values.FUNC) // In the case where the function is a constant (i.e. has no captures), the compileLambda function will emit an assignment rather than a lambda factory.)
-		rtnConst = false // Things that return functions and snippets are not folded, even if they are constant.
+		rtnConst = false                // Things that return functions and snippets are not folded, even if they are constant.
 	case *ast.Identifier:
 		switch node.Value {
 		case "continue":
@@ -332,7 +332,7 @@ NodeTypeSwitch:
 		}
 		// If we're parsing the parameters of a namespaced function, then we are allowed a
 		// window through to its public global constants, which will be in the enumCompiler.
-		// If we tack it on as the Ext of the resolving compiler's global variables, then 
+		// If we tack it on as the Ext of the resolving compiler's global variables, then
 		// since that would usually be the backstop of all the environments, it will normally
 		// be nil and we won't break anything. These constants will therefore be shadowed by
 		// anything more local, preventing surprising behaviors.
@@ -1011,7 +1011,7 @@ NodeTypeSwitch:
 		var err uint32
 		if !exists {
 			err = cp.Reserve(values.NULL, nil, node.GetToken())
-			cp.AddVariable(env, ident, LOCAL_VARIABLE, AltType(values.NULL, values.ERROR), node.GetToken())
+			cp.AddThatAsVariable(env, ident, LOCAL_VARIABLE, AltType(values.NULL, values.ERROR), node.GetToken())
 		} else {
 			err = v.MLoc
 		}
@@ -1399,7 +1399,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			} else {
 				types = cp.GetAlternateTypeFromTypeAst(pair.VarType)
 			}
-			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
+			cp.AddThatAsVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
 			boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
 		}
 	}
@@ -1444,7 +1444,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			} else {
 				types = cp.GetAlternateTypeFromTypeAst(pair.VarType)
 			}
-			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
+			cp.AddThatAsVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
 			indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
 		}
 	case node.ConditionOrRange == nil:
@@ -1496,7 +1496,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 						cp.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken()) // TODO --- narrow down.
+					cp.AddThatAsVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken()) // TODO --- narrow down.
 				}
 				if !keysOnly {
 					cp.Reserve(values.UNDEFINED_TYPE, nil, rangeOver.GetToken())
@@ -1506,7 +1506,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 						cp.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken())
+					cp.AddThatAsVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken())
 				}
 			}
 		} else {
@@ -1718,7 +1718,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		} else {
 			cp.Reserve(values.UNDEFINED_TYPE, nil, fnNode.GetToken()) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
 			cp.Cm("Adding variable for lambda capture.", fnNode.GetToken())
-			cp.AddVariable(newEnv, k, v.Access, v.Types, fnNode.GetToken())
+			cp.AddThatAsVariable(newEnv, k, v.Access, v.Types, fnNode.GetToken())
 		}
 		// At the same time, the lambda factory need to know where they are in the calling vm.Vm.
 		LF.CaptureLocations = append(LF.CaptureLocations, v.MLoc)
@@ -1739,7 +1739,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	for _, pair := range nameSig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
 		cp.Cm("Adding parameter '"+pair.VarName+"' to lambda.", fnNode.GetToken())
-		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.GetAlternateTypeFromTypeAst(pair.VarType), fnNode.GetToken())
+		cp.AddThatAsVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.GetAlternateTypeFromTypeAst(pair.VarType), fnNode.GetToken())
 	}
 	LF.Model.ParametersEnd = cp.MemTop()
 
@@ -1822,11 +1822,11 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 				if len(rhs) == 0 { // Then the lambda has no captures and so is a constant.
 					cp.Cm("Reserving dummy local function "+text.Emph(pair.VarName)+".", assEx.GetToken())
 					cp.Reserve(values.FUNC, nil, chunk.GetToken())
-					cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_CONSTANT, altType(values.FUNC), assEx.GetToken())
+					cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_CONSTANT, altType(values.FUNC), assEx.GetToken())
 				} else {
 					cp.Cm("Reserving dummy local function thunk "+text.Emph(pair.VarName)+".", assEx.GetToken())
 					cp.Reserve(values.THUNK, nil, chunk.GetToken())
-					cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
+					cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
 				}
 			}
 			for v := range rhs {
@@ -1909,11 +1909,11 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		if cst {                                                // TODO --- we should implement constant folding of course, but there's no big hurry because hardly enyone will declare constant here, why would they?
 			if !types.containsAnyOf(cp.Common.CodeGeneratingTypes.ToSlice()...) {
 				cp.Cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
-				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
+				cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 				continue
 			} else {
 				cp.Cm("Adding unfoldable constant from compileOneGivenChunk.", node.GetToken())
-				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
+				cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 			}
 		} else {
 			if alreadyExists {
@@ -1929,7 +1929,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			} else {
 				cp.Cm("Reserving local thunk in compileOneGivenChunk.", node.GetToken())
 				cp.Reserve(values.THUNK, values.ThunkValue{cp.That(), thunkStart}, node.GetToken())
-				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
+				cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
 				cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), values.ThunkValue{cp.That(), thunkStart}})
 			}
 		}
@@ -2496,7 +2496,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 }
 
 // Adds a variable to a given environment.
-func (cp *Compiler) AddVariable(env *Environment, name string, acc VarAccess, types AlternateType, tok *token.Token) {
+func (cp *Compiler) AddThatAsVariable(env *Environment, name string, acc VarAccess, types AlternateType, tok *token.Token) {
 	cp.Cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That()))+" with type "+types.describe(cp.Vm), tok)
 	env.Data[name] = Variable{MLoc: cp.That(), Access: acc, Types: types}
 }

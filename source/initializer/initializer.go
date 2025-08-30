@@ -275,13 +275,13 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 				if w, ok := iz.cp.GlobalConsts.GetVar(maybeEnum); ok {
 					global := iz.cp.Vm.Mem[w.MLoc]
 					if iz.cp.Vm.ConcreteTypeInfo[global.T].IsEnum() {
-							ty.Arguments[i].Type = global.T
-							ty.Arguments[i].Value = global.V
+						ty.Arguments[i].Type = global.T
+						ty.Arguments[i].Value = global.V
 					}
 				}
 			}
 		}
-		
+
 		argIndex := iz.findParameterizedType(ty.Name, ty.Values())
 		if argIndex == DUMMY {
 			iz.throw("init/type/args", &ty.Token)
@@ -624,13 +624,13 @@ func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunctio
 		currentAbstractType := sig[pos].VarType
 		currentTypeName = nameSig[pos].VarName
 		if blingIs, ok := nameSig[pos].VarType.(*ast.TypeBling); ok { // There's no reason why these should both exist.
-			bling = blingIs.Bling                                     //
-		} else {                                                      //
-			currentTypeName = nameSig[pos].VarType.String()           //
-		}                                                             //
-		if currentTypeName == "bling" {                               //
-			bling = nameSig.GetVarName(pos)                           //
-		}                                                             //
+			bling = blingIs.Bling //
+		} else { //
+			currentTypeName = nameSig[pos].VarType.String() //
+		} //
+		if currentTypeName == "bling" { //
+			bling = nameSig.GetVarName(pos) //
+		} //
 		isVararg := len(currentTypeName) >= 3 && currentTypeName[:3] == "..."
 		if isVararg {
 			currentTypeName = currentTypeName[3:]
@@ -1009,7 +1009,7 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 		} else if !ok { // Then the service variable isn't declared, and we need to stick in a default value.
 			dummyTok := token.Token{}
 			iz.cp.Reserve(svData.t, svData.v, &dummyTok)
-			iz.cp.AddVariable(iz.cp.GlobalVars, svName, compiler.GLOBAL_VARIABLE_PRIVATE, svData.alt, &dummyTok)
+			iz.cp.AddThatAsVariable(iz.cp.GlobalVars, svName, compiler.GLOBAL_VARIABLE_PRIVATE, svData.alt, &dummyTok)
 		}
 		// The third possibility here is that we've declared a service variable which isn't
 		// a compiler directive. In that case, it can be compiled in the usual way.
@@ -1153,7 +1153,7 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 				iz.cp.Reserve(values.TUPLE, result.V, rhs.GetToken())
 			}
 		}
-		iz.cp.AddVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
+		iz.cp.AddThatAsVariable(envToAddTo, sig[last].VarName, vAcc, altType(values.TUPLE), rhs.GetToken())
 	} else {
 		if rhsIsTuple {
 			head = result.V.([]values.Value)
@@ -1162,14 +1162,14 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 	for i := 0; i < loopTop; i++ {
 		iz.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
 		if varType, ok := sig[i].VarType.(*ast.TypeWithName); ok && varType.Name == "*inferred*" {
-			iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
+			iz.cp.AddThatAsVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 		} else {
 			allowedTypes := iz.cp.GetAlternateTypeFromTypeAst(sig[i].VarType)
 			if allowedTypes.IsNoneOf(head[i].T) {
 				iz.P.Throw("comp/assign/type/a", asgn.indexTok, sig[i].VarName, iz.cp.GetTypeNameFromNumber(head[i].T))
 				return
 			} else {
-				iz.cp.AddVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
+				iz.cp.AddThatAsVariable(envToAddTo, sig[i].VarName, vAcc, allowedTypes, rhs.GetToken())
 			}
 		}
 	}
@@ -1201,9 +1201,19 @@ func (iz *Initializer) getEnvAndAccessForConstOrVarDeclaration(dT declarationTyp
 func (iz *Initializer) compileTypecheck(name string, node ast.Node, newEnv *compiler.Environment) {
 	typeNumber, _ := iz.cp.GetConcreteType(name)
 	typeInfo := iz.cp.TypeInfoNow(name)
-	thatType := typeNumber
+	var inLoc uint32
 	if typeInfo.IsClone() {
-		thatType = typeInfo.(vm.CloneType).Parent
+		inLoc = iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
+		iz.cp.AddThatAsVariable(newEnv, "that", compiler.VERY_LOCAL_VARIABLE, altType(typeInfo.(vm.CloneType).Parent), node.GetToken())
+	} else {
+		inLoc = iz.cp.That() + 1
+		structInfo := typeInfo.(vm.StructType)
+		for i, field := range structInfo.LabelNumbers {
+			iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
+			name := iz.cp.Vm.Labels[field]
+			altType := compiler.AbstractTypeToAlternateType(structInfo.AbstractStructFields[i])
+			iz.cp.AddThatAsVariable(newEnv, name, compiler.VERY_LOCAL_VARIABLE, altType, node.GetToken())
+		}
 	}
 	iz.cmI("Compiling typecheck for '" + name + "'")
 	callAddress := iz.cp.CodeTop()
@@ -1211,8 +1221,7 @@ func (iz *Initializer) compileTypecheck(name string, node ast.Node, newEnv *comp
 	resultLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
 	tokNumberLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
 	newEnv.Ext = iz.cp.GlobalConsts
-	inLoc := iz.cp.Reserve(values.UNDEFINED_TYPE, nil, node.GetToken())
-	iz.cp.AddVariable(newEnv, "that", compiler.VERY_LOCAL_VARIABLE, altType(thatType), node.GetToken())
+
 	chunks := iz.cp.SplitOnNewlines(node)
 	for _, chunk := range chunks {
 		context := compiler.Context{Env: newEnv}
@@ -1269,15 +1278,15 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 	for _, pair := range izFn.sig {
 		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, &izFn.op)
 		if ast.IsRef(pair.VarType) {
-			iz.cp.AddVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, &izFn.op)
+			iz.cp.AddThatAsVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, &izFn.op)
 			continue
 		}
 		_, isVarargs := pair.VarType.(*ast.TypeDotDotDot)
 		if isVarargs {
-			iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, &izFn.op)
+			iz.cp.AddThatAsVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, compiler.AlternateType{compiler.TypedTupleType{iz.cp.GetAlternateTypeFromTypeAst(pair.VarType)}}, &izFn.op)
 		} else {
 			if !ast.IsAstBling(pair.VarType) {
-				iz.cp.AddVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), &izFn.op)
+				iz.cp.AddThatAsVariable(fnenv, pair.VarName, compiler.FUNCTION_ARGUMENT, iz.cp.GetAlternateTypeFromTypeAst(pair.VarType), &izFn.op)
 			}
 		}
 	}
@@ -1313,7 +1322,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 				} else {
 					vmap[param.Name] = append(vmap[param.Name], iz.cp.That())
 				}
-				iz.cp.AddVariable(fnenv, param.Name, compiler.TYPE_ARGUMENT, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type), &izFn.op)
+				iz.cp.AddThatAsVariable(fnenv, param.Name, compiler.TYPE_ARGUMENT, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type), &izFn.op)
 			}
 			variable, _ := fnenv.GetVar(pair.VarName)
 			iz.cp.Emit(vm.Yeet, yeetTo, variable.MLoc)

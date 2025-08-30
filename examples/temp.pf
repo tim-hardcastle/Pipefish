@@ -1,4 +1,6 @@
-import
+newtype
 
-"troz.pf"
-
+Person = struct(b bool, name string, age int) :
+    name != ""
+    age >= 0
+    b == true

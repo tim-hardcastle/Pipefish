@@ -661,11 +661,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						return AltType(typeNumber)
 					}
 					cp.Emit(vm.Asgm, typeCheck.ResultLoc, b.outLoc)
-					if typeInfo.IsClone() {
-						cp.Emit(vm.Asgm, typeCheck.InLoc, b.valLocs[0])
-					} else {
-						cp.Emit(vm.Asgm, typeCheck.InLoc, b.outLoc)
-					} // TODO --- now I know what I'm doing, there should be some way to clean this up.
+					for i , loc := range b.valLocs {
+						cp.Emit(vm.Asgm, typeCheck.InLoc + uint32(i), loc)
+					}
 					cp.Reserve(values.INT, int(cp.ReserveToken(b.tok)), b.tok)
 					cp.Emit(vm.Asgm, typeCheck.TokNumberLoc, cp.That())
 					cp.Emit(vm.Jsr, typeCheck.CallAddress)
