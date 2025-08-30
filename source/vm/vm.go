@@ -51,7 +51,7 @@ type Vm struct {
 	StringifyCallTo            uint32           // | These are so the vm knows how to call the stringify function.
 	StringifyOutReg            uint32           // |
 	GoToPipefishTypes          map[reflect.Type]values.ValueType
-	FieldLabelsInMem           map[string]uint32 // TODO --- remove, possibly? We have these so that we can introduce a label by putting Asgm location of label and then transitively squishing.
+	FieldLabelsInMem           map[string]uint32 // Used to turn a string into a label.
 	GoConverter                [](func(t uint32, v any) any)
 	ParameterizedTypeInfo      []*values.Map // A list of maps from type parameters (as TUPLE values) to types (as TYPE values). The list is itself keyed by a map from type operators to the position in the list, which is stored in the compiler.
 }

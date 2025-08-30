@@ -820,14 +820,40 @@ func labelValuesFromLabelNumbers(numbers []int) values.Value {
 
 func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexTok *token.Token) []int {
 	labelsForStruct := make([]int, 0, len(sig))
+	acc := compiler.GLOBAL_CONSTANT_PUBLIC
+	if private {
+		acc = compiler.GLOBAL_CONSTANT_PRIVATE
+	}
 	for j, labelNameAndType := range sig {
 		labelName := labelNameAndType.VarName
-		labelLocation, alreadyExists := iz.cp.Vm.FieldLabelsInMem[labelName]
-		if alreadyExists { // Structs can of course have overlapping fields but we don't want to declare them twice.
+		info, alreadyDeclared := iz.getDeclaration(decLABEL, indexTok, j)
+		global, alreadyExists := iz.cp.GlobalConsts.Data[labelName]
+		switch {
+		case alreadyDeclared: // That is, we're parsing the same piece of code a second time.
+		mLoc := info.(labelInfo).loc
+			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[mLoc].V.(int))
+			iz.cp.GlobalConsts.Data[labelName] = 
+			compiler.Variable{
+				MLoc: mLoc,
+				Access: acc,
+				Types: altType(values.LABEL),
+			}
+		case alreadyExists : // Structs can of course have overlapping fields but we don't want to declare them twice.
+			labelLocation := global.MLoc
+			if iz.cp.Vm.Mem[labelLocation].T != values.LABEL {
+				iz.throw("init/label/exists", indexTok, labelName)
+			}
 			labelsForStruct = append(labelsForStruct, iz.cp.Vm.Mem[labelLocation].V.(int))
-			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{labelLocation, true}) // 'true' because we can't tell if it's private or not until we've defined all the structs.
-		} else {
-			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexTok)
+			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{labelLocation, private})
+		default :
+			mLoc := iz.cp.Reserve(values.LABEL, len(iz.cp.Vm.Labels), indexTok)
+			iz.cp.Vm.FieldLabelsInMem[labelName] = iz.cp.That()		
+			iz.cp.GlobalConsts.Data[labelName] = 
+			compiler.Variable{
+				MLoc: mLoc,
+				Access: acc,
+				Types: altType(values.LABEL),
+			}
 			iz.setDeclaration(decLABEL, indexTok, j, labelInfo{iz.cp.That(), true})
 			labelsForStruct = append(labelsForStruct, len(iz.cp.Vm.Labels))
 			iz.cp.Vm.Labels = append(iz.cp.Vm.Labels, labelName)

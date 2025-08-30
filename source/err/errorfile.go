@@ -1586,6 +1586,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"init/label/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "identifier " + emph(args[0]) + " has already been defined as something other " +
+			"than a label"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can't declare the same identifier twice!"
+		},
+	},
+
 	"init/name/exists/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "definition of " + emph(args[1]) + text.DescribePos((args[0]).(*token.Token)) +

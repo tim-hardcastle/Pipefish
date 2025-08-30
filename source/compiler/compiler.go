@@ -330,17 +330,6 @@ NodeTypeSwitch:
 		} else {
 			argumentCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
 		}
-		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
-		if ok {
-			if ac == REPL && cp.Common.LabelIsPrivate[cp.Vm.Mem[labelNumberLocation].V.(int)] {
-				cp.Throw("comp/private/label", node.GetToken())
-				break
-			}
-			cp.Put(vm.Asgm, labelNumberLocation)
-			rtnTypes, rtnConst = AltType(values.LABEL), true
-			break
-		}
-		var v *Variable
 		// If we're parsing the parameters of a namespaced function, then we are allowed a
 		// window through to its public global constants, which will be in the enumCompiler.
 		// If we tack it on as the Ext of the resolving compiler's global variables, then 
@@ -352,6 +341,8 @@ NodeTypeSwitch:
 		}
 		// Here we get the compiler suitable to the namespace of the identifier.
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		var v *Variable
+		var ok bool
 		if resolvingCompiler != cp {
 			v, ok = resolvingCompiler.GlobalConsts.GetVar(node.Value)
 		} else {
