@@ -300,16 +300,13 @@ NodeTypeSwitch:
 	case *ast.FloatLiteral:
 		cp.Reserve(values.FLOAT, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
-		break
 	case *ast.ForExpression:
 		rtnTypes = cp.compileForExpression(node, ctxt)
 		rtnConst = false // If anyone misses out on an optimization because they manage to write a constant for loop this should if anything be a warning rather than an oportunity for optimization.
-		break
 	case *ast.FuncExpression:
 		cp.compileLambda(env, ctxt, node, node.GetToken())
 		rtnTypes = AltType(values.FUNC) // In the case where the function is a constant (i.e. has no captures), the compileLambda function will emit an assignment rather than a lambda factory.)
-		rtnConst = false
-		break // Things that return functions and snippets are not folded, even if they are constant.
+		rtnConst = false // Things that return functions and snippets are not folded, even if they are constant.
 	case *ast.Identifier:
 		switch node.Value {
 		case "continue":
@@ -356,6 +353,16 @@ NodeTypeSwitch:
 			break
 		}
 		var v *Variable
+		// If we're parsing the parameters of a namespaced function, then we are allowed a
+		// window through to its public global constants, which will be in the enumCompiler.
+		// If we tack it on as the Ext of the resolving compiler's global variables, then 
+		// since that would usually be the backstop of all the environments, it will normally
+		// be nil and we won't break anything. These constants will therefore be shadowed by
+		// anything more local, preventing surprising behaviors.
+		if enumCompiler != cp {
+			cp.GlobalConsts.Ext = enumCompiler.GlobalConsts
+		}
+		// Here we get the compiler suitable to the namespace of the identifier.
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if resolvingCompiler != cp {
 			v, ok = resolvingCompiler.GlobalConsts.GetVar(node.Value)
@@ -364,10 +371,12 @@ NodeTypeSwitch:
 		}
 		if !ok {
 			cp.Throw("comp/ident/known", node.GetToken(), node.Value)
+			cp.GlobalConsts.Ext = nil
 			break
 		}
 		if (v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
 			cp.Throw("comp/ident/private", node.GetToken())
+			cp.GlobalConsts.Ext = nil
 			break
 		}
 		if v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_FUNCTION_THUNK {
@@ -381,7 +390,7 @@ NodeTypeSwitch:
 			rtnTypes = v.Types
 		}
 		rtnConst = ALL_CONSTANT_ACCESS.Contains(v.Access)
-		break
+		cp.GlobalConsts.Ext = nil
 	case *ast.IndexExpression:
 		containerType, ctrConst := cp.CompileNode(node.Left, ctxt.x())
 		container := cp.That()

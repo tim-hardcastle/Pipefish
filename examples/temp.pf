@@ -1,8 +1,7 @@
-def
+import
 
-foo (i int) boo (T type) from (j int) :
-    "foo boo from " + string(T) 
+"troz.pf"
 
+const 
 
-moo (T type) from (j int) :
-    "moo from " + string(T) 
+X = 69
