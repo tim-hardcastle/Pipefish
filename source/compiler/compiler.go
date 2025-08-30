@@ -27,7 +27,6 @@ type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
 	Vm                       *vm.Vm                             // The vm we're compiling to.
 	P                        *parser.Parser                     // The parser the compiler's using to parse with..
-	EnumElements             map[string]values.Value            // Map from the names of the enum elements the compiler knows about to their values.
 	GlobalConsts             *Environment                       // The global constants of the module.
 	GlobalVars               *Environment                       // The global variables of the module.
 	Fns                      []*CpFunc                          // The functions the compiler knows about, in a format it can use.
@@ -56,7 +55,6 @@ type Compiler struct {
 func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 	newC := &Compiler{
 		P:                        p,
-		EnumElements:             make(map[string]values.Value),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
 		ThunkList:                []ThunkData{},
@@ -326,21 +324,11 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
 			break NodeTypeSwitch
 		}
-		var enumCompiler *Compiler
+		var argumentCompiler *Compiler
 		if node.Namespace == nil {
-			enumCompiler = cp.topRCompiler()
+			argumentCompiler = cp.topRCompiler()
 		} else {
-			enumCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
-		}
-		enumElement, ok := enumCompiler.EnumElements[node.Value]
-		if ok {
-			if cp.Vm.ConcreteTypeInfo[enumElement.T].IsPrivate() {
-				cp.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(enumElement.T, vm.LITERAL))
-				break
-			}
-			cp.Reserve(enumElement.T, enumElement.V, &node.Token)
-			rtnTypes, rtnConst = AltType(enumElement.T), true
-			break
+			argumentCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
 		}
 		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
 		if ok {
@@ -359,8 +347,8 @@ NodeTypeSwitch:
 		// since that would usually be the backstop of all the environments, it will normally
 		// be nil and we won't break anything. These constants will therefore be shadowed by
 		// anything more local, preventing surprising behaviors.
-		if enumCompiler != cp {
-			cp.GlobalConsts.Ext = enumCompiler.GlobalConsts
+		if argumentCompiler != cp {
+			cp.GlobalConsts.Ext = argumentCompiler.GlobalConsts
 		}
 		// Here we get the compiler suitable to the namespace of the identifier.
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)

@@ -441,8 +441,18 @@ func (iz *Initializer) createEnums() {
 			typeInfo := iz.cp.Vm.ConcreteTypeInfo[typeNo].(vm.EnumType)
 			typeInfo.Path = iz.P.NamespacePath
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = typeInfo
+			// TODO --- clearly this doesn't need to be reserved once for each compiler.
+			acc := compiler.GLOBAL_CONSTANT_PUBLIC
+			if typeInfo.Private {
+				acc = compiler.GLOBAL_CONSTANT_PRIVATE
+			}
 			for i, elementName := range typeInfo.ElementNames {
-				iz.cp.EnumElements[elementName] = values.Value{typeNo, i}
+				iz.cp.GlobalConsts.Data[elementName] = 
+				compiler.Variable{
+					MLoc: iz.cp.Reserve(typeNo, i, &dec.op),
+					Access: acc,
+					Types: altType(typeNo),
+				}
 			}
 		} else {
 			typeNo = values.ValueType(len(iz.cp.Vm.ConcreteTypeInfo))
@@ -472,13 +482,23 @@ func (iz *Initializer) createEnums() {
 		}
 		vec := vector.Empty
 		elementNameList := []string{}
+		acc := compiler.GLOBAL_CONSTANT_PUBLIC
+		if dec.private {
+			acc = compiler.GLOBAL_CONSTANT_PRIVATE
+		}
 		for ord, tok := range dec.elements {
-			_, alreadyExists := iz.cp.EnumElements[tok.Literal]
+			_, alreadyExists := iz.cp.GlobalConsts.Data[tok.Literal]
 			if alreadyExists { // Enums in the same namespace can't have overlapping elements or we wouldn't know their type.
 				iz.throw("init/enum/element", &tok)
 			}
-			iz.cp.P.EnumElementNames.Add(tok.Literal)
-			iz.cp.EnumElements[tok.Literal] = values.Value{typeNo, ord}
+			elementName := tok.Literal
+			iz.cp.P.EnumElementNames.Add(elementName)
+			iz.cp.GlobalConsts.Data[elementName] = 
+			compiler.Variable{
+				MLoc: iz.cp.Reserve(typeNo, ord, &dec.op),
+				Access: acc,
+				Types: altType(typeNo),
+			}
 			vec = vec.Conj(values.Value{typeNo, ord})
 			elementNameList = append(elementNameList, tok.Literal)
 		}

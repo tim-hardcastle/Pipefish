@@ -244,7 +244,7 @@ func TestTypeAccessErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
 		{`Suit`, `comp/private/type/a`},
-		{`HEARTS`, `comp/private/enum`},
+		{`HEARTS`, `comp/ident/private`},
 		{`one`, `comp/private/label`},
 	}
 	test_helper.RunTest(t, "user_types_test.pf", tests, test_helper.TestCompilerErrors)

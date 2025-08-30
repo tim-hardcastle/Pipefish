@@ -272,11 +272,16 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 		// parser. So we kludge them in here.
 		for i, v := range ty.Values() {
 			if maybeEnum, ok := v.V.(string); ok && v.T == 0 {
-				w := iz.cp.EnumElements[maybeEnum]
-				ty.Arguments[i].Type = w.T
-				ty.Arguments[i].Value = w.V
+				if w, ok := iz.cp.GlobalConsts.GetVar(maybeEnum); ok {
+					global := iz.cp.Vm.Mem[w.MLoc]
+					if iz.cp.Vm.ConcreteTypeInfo[global.T].IsEnum() {
+							ty.Arguments[i].Type = global.T
+							ty.Arguments[i].Value = global.V
+					}
+				}
 			}
 		}
+		
 		argIndex := iz.findParameterizedType(ty.Name, ty.Values())
 		if argIndex == DUMMY {
 			iz.throw("init/type/args", &ty.Token)

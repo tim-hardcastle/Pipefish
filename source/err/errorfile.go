@@ -776,15 +776,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"comp/private/enum": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "trying to access an enum of private type " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When an enumerated type is declared private, so are all its elements."
-		},
-	},
-
 	"comp/private/label": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "trying to access a label " + emph(tok.Literal) + " that only belongs to private struct types"
