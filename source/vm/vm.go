@@ -1136,7 +1136,8 @@ loop:
 				}
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
-				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.ConcreteTypeInfo[v.T].IsEnum()) {
+				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.ConcreteTypeInfo[k.T].IsEnum() || // TODO, we can just have a simple filter and/or a method of the interface.
+					 vm.ConcreteTypeInfo[k.T].IsStruct() ) {                                           // Or hand it off to the Set method to return an error.
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T, LITERAL))
 					break Switch
 				}

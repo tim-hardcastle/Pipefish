@@ -1,13 +1,10 @@
-newtype
+import
 
-DatabaseDrivers = enum FEE, FIE, FO, FOO
-
-Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
+NULL::"sql"
 
 var
 
-allServices = map(`SQL`::`/home/tim/Pf/Pipefish/examples/sql3.pf`,
-               .. `temp`::`/home/tim/Pf/Pipefish/examples/temp.pf`,
+allServices = map(`temp`::`/home/tim/Pf/Pipefish/examples/temp.pf`,
                .. `hub`::`hub/hub.hub`)
 
 currentService string? = `temp`

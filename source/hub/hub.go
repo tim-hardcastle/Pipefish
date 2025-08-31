@@ -880,7 +880,7 @@ var helpTopics = []string{}
 var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
 
 func init() {
-	for _, v := range []string{"filepath", "fmt", "math", "path", "reflect", "regexp", "strings", "time", "unicode"} {
+	for _, v := range []string{"filepath", "fmt", "math", "path", "reflect", "regexp", "sql", "strings", "time", "unicode"} {
 		StandardLibraries[v] = struct{}{}
 	}
 	cwd, _ := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -1029,11 +1029,9 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 	return hub.services[hub.currentServiceName()].IsBroken()
 }
 
-var prefix = `newtype
+var prefix = `import
 
-DatabaseDrivers = enum FEE, FIE, FO, FOO
-
-Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
+NULL::"sql"
 
 var
 

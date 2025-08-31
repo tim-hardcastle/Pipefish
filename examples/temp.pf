@@ -1,4 +1,10 @@
+import 
+
+NULL::"sql"
+
 newtype
+
+Foo = enum FOO, BAR
 
 Person = struct(b bool, name string, age int) :
     name != ""
