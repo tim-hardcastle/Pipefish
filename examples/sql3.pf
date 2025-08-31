@@ -1,0 +1,41 @@
+
+
+const private // Making this private stops the user from accessing the naked DB from the REPL.
+// The information we need to make the connection is obtained from the environment.
+SQL = SqlDb($_hub["SQL driver"], $_hub["SQL host"], $_hub["SQL port"], 
+         .. $_hub["SQL name"], $_hub["SQL username"], $_hub["SQL password"])
+
+newtype 
+
+Person = struct(name Varchar{32}, age int) :
+    len(name) > 0
+    age >= 0
+
+cmd 
+
+add(name string, age int) :
+    post to SQL -- INSERT INTO People VALUES(|name|, |age|)
+
+show(name string) :
+    get person as Person from SQL --
+        SELECT * FROM People
+        WHERE name=|name| 
+    post person to Output()
+
+show all :
+    get peopleList like list{Person} from SQL -- SELECT * FROM People
+    post peopleList to Output()
+
+private 
+
+init : // The `init` command of a module is run immediately after it compiles.
+    post to SQL --
+        CREATE TABLE IF NOT EXISTS People |Person|
+
+cmd 
+
+clear :
+    post to SQL --
+        DROP TABLE People
+    init
+
