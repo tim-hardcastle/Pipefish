@@ -4,11 +4,8 @@ NULL::"sql" // `NULL` means it isn't namespaced.
 
 const private // Making this private stops the user from accessing the naked DB from the REPL.
 // The information we need to make the connection is obtained from the environment.
-// SQL = SqlDb($_hub["SQL driver"], $_hub["SQL host"], $_hub["SQL port"], 
-//          .. $_hub["SQL name"], $_hub["SQL username"], $_hub["SQL password"])
-
 SQL = SqlDb($_hub["SQL driver"], $_hub["SQL host"], $_hub["SQL port"], 
-         .. $_hub["SQL name"], $_hub["SQL username"], $_hub["SQL password"])
+         .. $_hub["SQL database"], $_hub["SQL username"], $_hub["SQL password"])
 
 newtype 
 

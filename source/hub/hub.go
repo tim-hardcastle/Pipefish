@@ -1121,6 +1121,7 @@ func (hub *Hub) saveHubFile() string {
 
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("", "")
+	hub.createService("hub", hubFilepath)
 	storePath := hubFilepath[0:len(hubFilepath)-len(filepath.Ext(hubFilepath))] + ".str"
 	_, err := os.Stat(storePath)
 	if err == nil {
@@ -1163,11 +1164,10 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		}
 		bits := strings.Split(strings.TrimSpace(s), "\n")[1:]
 		for _, bit := range bits {
-			pair, _ := hub.services[""].Do(bit)
+			pair, _ := hub.services["hub"].Do(bit)
 			hub.store = *hub.store.Set(pair.V.([]pf.Value)[0], pair.V.([]pf.Value)[1])
 		}
 	}
-	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
 	v, _ := hubService.GetVariable("allServices")
@@ -1191,7 +1191,7 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 
 func (hub *Hub) SaveHubStore() {
 	storePath := hub.hubFilepath[0:len(hub.hubFilepath)-len(filepath.Ext(hub.hubFilepath))] + ".str"
-	storeDump := hub.services[""].WriteSecret(hub.store, hub.storekey)
+	storeDump := hub.services["hub"].WriteSecret(hub.store, hub.storekey)
 	file, _ := os.Create(storePath)
 	file.WriteString(storeDump)
 }
