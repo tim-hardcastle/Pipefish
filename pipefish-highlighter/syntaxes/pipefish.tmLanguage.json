@@ -31,11 +31,11 @@
 			}]
 		},
 		"headwords": {
-                        "patterns": [{
-                                "name": "constant.other.pipefish",
-                                "match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
-                        }]
-                },
+			"patterns": [{
+					"name": "keyword.pipefish",
+					"match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
+			}]
+		},
 		"strings": {
 			"patterns": [
 				{
@@ -59,29 +59,29 @@
 			]
 		},
 		"logging": {
-                        "patterns": [
-                                {
-                                "name": "variable.other.pipefish",
-                                "match": "\\\\\\\\([^\\/]|\/[^\\/])*"
-                                }
-                        ]
-                },
+			"patterns": [
+				{
+				"name": "variable.other.pipefish",
+				"match": "\\\\\\\\([^\\/]|\/[^\\/])*"
+				}
+			]
+		},
 		"punctuation": {
 			"patterns": [
 				{
 				"name": "keyword.pipefish",
-				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|\\.\\.\\.)"
+				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|,|\\||\\.\\.\\.)"
 				}
 			]
 		},
 		"continuations": {
-                        "patterns": [
-                                {
-                                "name": "constant.other.pipefish",
-                                "match": "(,)\\s*$|(\\.\\.)\\s*$|^\\s*(\\.\\.)"
-                                }
-                        ]
-                } 
+			"patterns": [
+				{
+				"name": "keyword.pipefish",
+				"match": "(,)\\s*$|(\\.\\.)\\s*$|^\\s*(\\.\\.)"
+				}
+			]
+		} 
 	},
 	"scopeName": "source.pipefish"
 }

@@ -16,7 +16,8 @@ Person = struct(name Varchar{32}, age int) :
 cmd 
 
 add(name string, age int) :
-    post to SQL -- INSERT INTO People VALUES(|name|, |age|)
+    post to SQL -- 
+        INSERT INTO People VALUES(|name|, |age|)
 
 show(name string) :
     get person as Person from SQL --
@@ -25,7 +26,8 @@ show(name string) :
     post person to Output()
 
 show all :
-    get peopleList like list{Person} from SQL -- SELECT * FROM People
+    get peopleList as list{Person} from SQL -- 
+        SELECT * FROM People
     post peopleList to Output()
 
 private 
