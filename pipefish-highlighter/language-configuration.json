@@ -28,7 +28,7 @@
         ["`", "`"]
     ],
     "indentationRules": {
-        "increaseIndentPattern": "^.*:[ \\t]*$",
+        "increaseIndentPattern": "^.*(:|--)[ \\t]*$",
         "decreaseIndentPattern": "// dummy, placeholder, you have to put something here //"
     },
     "onEnterRules": [
