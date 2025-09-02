@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lmorg/readline"
+	"github.com/lmorg/readline/v4"
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/tim-hardcastle/Pipefish/source/database"

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lmorg/readline"
+	"github.com/lmorg/readline/v4"
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/err"

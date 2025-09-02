@@ -6,7 +6,7 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/values"
 
-	"github.com/lmorg/readline"
+	"github.com/lmorg/readline/v4"
 )
 
 type InHandler interface {
