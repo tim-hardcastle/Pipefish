@@ -32,7 +32,7 @@
 		},
 		"headwords": {
 			"patterns": [{
-					"name": "keyword.pipefish",
+					"name": "entity.name.type",
 					"match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
 			}]
 		},
@@ -61,7 +61,7 @@
 		"logging": {
 			"patterns": [
 				{
-				"name": "variable.other.pipefish",
+				"name": "entity.name.function",
 				"match": "\\\\\\\\([^\\/]|\/[^\\/])*"
 				}
 			]

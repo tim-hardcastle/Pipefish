@@ -42,4 +42,3 @@ clear :
     post to SQL --
         DROP TABLE People
     init
-
