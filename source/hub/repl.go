@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lmorg/readline/v4"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
 func StartHub(hub *Hub, in io.Reader, out io.Writer) {
@@ -71,18 +72,18 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 }
 
 func makePrompt(hub *Hub, indented bool) string {
-	symbol := PROMPT 
+	symbol := PROMPT + text.YELLOW + text.ITALIC
 	left := hub.currentServiceName()
 	if indented {
-		symbol = INDENT_PROMPT
+		symbol = INDENT_PROMPT + text.YELLOW + text.ITALIC
 		left = strings.Repeat(" ", len(left))
 	}
 	if hub.currentServiceName() == "" {
-		return symbol
+		return symbol 
 	}
-	promptText := left + " " + symbol
+	promptText := text.RESET + text.Cyan(left) + " " + symbol
 	if hub.CurrentServiceIsBroken() {
-		promptText = Red(promptText)
+		promptText = text.RESET + text.Red(left) + " " + symbol
 	}
 	return promptText
 }

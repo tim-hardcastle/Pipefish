@@ -26,7 +26,7 @@ show(name string) :
     post person to Output()
 
 show all :
-    get peopleList as list{Person} from SQL -- 
+    get peopleList like list{Person} from SQL -- 
         SELECT * FROM People
     post peopleList to Output()
 
