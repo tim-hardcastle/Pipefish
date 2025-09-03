@@ -1,12 +1,10 @@
-import 
+var z = 42
 
-NULL::"sql"
+cmd 
 
-newtype
+foo(x ref) :
+    x = x + 1
 
-Foo = enum FOO, BAR
+bar(y ref) :
+    foo y
 
-Person = struct(b bool, name string, age int) :
-    name != ""
-    age >= 0
-    b == true
