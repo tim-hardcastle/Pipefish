@@ -1,19 +1,8 @@
 package lexer
 
-// A general sanitation operation and a bit of a kludge: if I wrote it again
-// from scratch I'm sure I could make the lexer and relexer into one thing.
-//
-// The relexer gets tokens from the lexer, throws away the non-semantic ones,
-// expands the END statements, turns BEGIN and END into parentheses. It removes
-// superfluous newlines and also the colon after GIVEN, since the lexer will
-// treat both of these as infix operators.
-//
-
-// It is stupidly written. I shouldn't have tried to do this all in one big loop,
-// but in lots of small passes.
-
-// There is now a system in this module which allows me to do it sensibly and to
-// which I'm transferring the functionality. Slowly.
+// The original relexer. Most of its functions have been transferred either to the bucket chain in
+// trelexers.go in this package; or to the parser and initializer. Eventually it should be possible
+// to eliminate it completely by dispersing it in this way.
 
 import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
@@ -115,12 +104,8 @@ func (rl *Relexer) NextToken() token.Token {
 
 func (rl *Relexer) nextSemanticToken() token.Token {
 	// So, this is almost all a big case switch on the current token.
-	// Depending on what it is, we may return it () as the default, or "burn" it, in which
-	// case it disappears so completely it doesn't even become the preTok, the previous token,
-	// and we return what we would have gotten did it not exist, or we can insert before it, emitting
-	// a fresh token and making that the preTok.
-	//
-	// We use this last facility to expand out the END statements.
+	// Depending on what it is, we may return it (as the default), or "burn" it, in which
+	// case it disappears so completely it doesn't even become the preTok.
 
 	if rl.nexTok.Type == token.BEGIN &&
 		!(rl.curTok.Type == token.GIVEN || rl.curTok.Type == token.PRELOG || rl.curTok.Type == token.COLON ||
@@ -134,7 +119,6 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		if rl.nexTok.Type == token.NEWLINE {
 			return rl.burnNextToken()
 		}
-
 	case token.NEWLINE:
 		rl.ifLogHappened = false
 		if rl.preTok.Type == token.IFLOG ||
@@ -158,11 +142,9 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		}
 	case token.BEGIN:
 		rl.curTok.Type = token.LPAREN
-		rl.curTok.Literal = "|->"
 		rl.nestingLevel = rl.nestingLevel + 1
 	case token.END:
 		rl.curTok.Type = token.RPAREN
-		rl.curTok.Literal = "<-|"
 		rl.nestingLevel = rl.nestingLevel - 1
 	case token.LPAREN:
 		rl.nestingLevel = rl.nestingLevel + 1
@@ -173,9 +155,7 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 			rl.throw("relex/log", rl.curTok)
 		}
 	}
-
 	rl.getToken() // We shuffle them all along before returning 'cos we sure can't do it afterwards.
-
 	return rl.preTok // Which up until now has been the curTok
 }
 
