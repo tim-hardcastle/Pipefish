@@ -50,7 +50,9 @@ else : 6
 		{token.IDENT, "line", 7}, 
 		{token.IDENT, "four", 7}, //20
 		{token.NEWLINE, ";", 8},
-		{token.END, "2", 8},
+		{token.END, "<-|", 8},
+		{token.END, "<-|", 8},
+		{token.NEWLINE, ";", 8},
 		{token.IDENT, "line", 8},
 		{token.IDENT, "five", 8},
 		{token.NEWLINE, ";", 9},
@@ -74,7 +76,8 @@ else : 6
 		{token.COLON, ":", 13},
 		{token.INT, "2", 13},
 		{token.NEWLINE, ";", 14},
-		{token.END, "1", 14},
+		{token.END, "<-|", 14},
+		{token.NEWLINE, ";", 14},
 		{token.ELSE, "else", 14}, 
 		{token.COLON, ":", 14}, //50
 		{token.NEWLINE, ";", 15},
@@ -87,12 +90,15 @@ else : 6
 		{token.COLON, ":", 16}, 
 		{token.INT, "4", 16}, //60
 		{token.NEWLINE, ";", 17},
-		{token.END, "2", 17},
+		{token.END, "<-|", 17},
+		{token.END, "<-|", 17},
+		{token.NEWLINE, ";", 17},
 		{token.ELSE, "else", 17},
 		{token.COLON, ":", 17},
 		{token.INT, "5", 17},
 		{token.NEWLINE, ";", 18},
-		{token.END, "1", 18},
+		{token.END, "<-|", 18},
+		{token.NEWLINE, ";", 18},
 		{token.ELSE, "else", 18},
 		{token.COLON, ":", 18}, 
 		{token.INT, "6", 18}, //70

@@ -60,7 +60,7 @@ func (l *lexer) getTokens() []token.Token {
 			for i := 0; i < level; i++ {
 				l.whitespaceStack.Pop()
 			}
-			return []token.Token{l.MakeToken(token.END, fmt.Sprint(level))}
+			return l.makeEnds(level)
 		} else {
 			return []token.Token{l.NewToken(token.EOF, "EOF")}
 		}
@@ -202,9 +202,9 @@ func (l *lexer) getTokens() []token.Token {
 				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)),
 					l.MakeToken(token.NEWLINE, ";")}
 			} else {
-				return []token.Token{l.MakeToken(tType, strings.TrimSpace(str)),
-					l.MakeToken(token.END, fmt.Sprint(outdent)),
-					l.MakeToken(token.NEWLINE, ";")}
+				result := []token.Token{l.MakeToken(tType, strings.TrimSpace(str))}
+				result = append(result, l.makeEnds(outdent)...)
+				result = append(result, l.MakeToken(token.NEWLINE, ";"))
 			}
 		default:
 			return []token.Token{l.NewToken(tType, lit)}
@@ -248,10 +248,11 @@ func (l *lexer) interpretWhitespace() []token.Token {
 	}
 	level := l.whitespaceStack.Find(whitespace)
 	if level > 0 {
-		for i := 0; i < level; i++ {
+		for range level {
 			l.whitespaceStack.Pop()
 		}
-		return []token.Token{l.MakeToken(token.END, fmt.Sprint(level))}
+		result := append(l.makeEnds(level), l.MakeToken(token.NEWLINE, ";"))
+		return result
 	}
 	return []token.Token{l.Throw("lex/wsp", describeWhitespace(whitespace))}
 }
@@ -669,4 +670,12 @@ func (l *lexer) Throw(errorID string, args ...any) token.Token {
 	tok := l.MakeToken(token.ILLEGAL, errorID)
 	l.Ers = err.Throw(errorID, l.Ers, &tok, args...)
 	return tok
+}
+
+func (l *lexer) makeEnds(n int) []token.Token {
+	result := []token.Token{}
+	for range n {
+		result = append(result, l.MakeToken(token.END, "<-|"))
+	}
+	return result
 }

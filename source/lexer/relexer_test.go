@@ -28,7 +28,7 @@ func TestNextTokenForRelexer(t *testing.T) {
 		{token.COLON, ":", 3},
 		{token.INT, "2", 3},
 		{token.RPAREN, "<-|", 4},
-		{token.EOF, ";", 4},
+		{token.EOF, "EOF", 4},
 	}
 
 	testRelexingString(t, input, items)

@@ -19,8 +19,6 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/token"
-
-	"strconv"
 )
 
 var (
@@ -162,33 +160,14 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		rl.curTok.Type = token.LPAREN
 		rl.curTok.Literal = "|->"
 		rl.nestingLevel = rl.nestingLevel + 1
+	case token.END:
+		rl.curTok.Type = token.RPAREN
+		rl.curTok.Literal = "<-|"
+		rl.nestingLevel = rl.nestingLevel - 1
 	case token.LPAREN:
 		rl.nestingLevel = rl.nestingLevel + 1
 	case token.RPAREN:
 		rl.nestingLevel = rl.nestingLevel - 1
-	case token.END:
-		n, _ := strconv.Atoi(rl.curTok.Literal)
-		switch {
-		case n == -1:
-			return rl.burnToken()
-		case n == 0:
-			if rl.nexTok.Type == token.GIVEN {
-				return rl.burnToken()
-			}
-			rl.curTok.Literal = strconv.Itoa(n - 1)
-			if rl.nexTok.Type == token.EOF {
-				return token.Token{Type: token.EOF, Literal: ";", Line: rl.curTok.Line,
-					ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
-			} else {
-				return token.Token{Type: token.NEWLINE, Literal: ";", Line: rl.curTok.Line,
-					ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
-			}
-		default:
-			rl.nestingLevel = rl.nestingLevel - 1
-			rl.curTok.Literal = strconv.Itoa(n - 1)
-			return token.Token{Type: token.RPAREN, Literal: "<-|", Line: rl.curTok.Line,
-				ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
-		}
 	case token.LOG:
 		if rl.preTok.Type == token.COMMA {
 			rl.throw("relex/log", rl.curTok)
