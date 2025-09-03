@@ -205,6 +205,7 @@ func (l *lexer) getTokens() []token.Token {
 				result := []token.Token{l.MakeToken(tType, strings.TrimSpace(str))}
 				result = append(result, l.makeEnds(outdent)...)
 				result = append(result, l.MakeToken(token.NEWLINE, ";"))
+				return result
 			}
 		default:
 			return []token.Token{l.NewToken(tType, lit)}

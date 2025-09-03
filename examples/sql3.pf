@@ -6,7 +6,7 @@ const private // We make an accessor object.
 SQL = SqlDb(POSTGRESQL, "localhost", 5432, "postgres", $_hub["SQL username"], $_hub["SQL password"])
 // (The username and password are obtained from the environment.)
 newtype 
-// This will correspond to and define the structure of our SQL table.
+// This will correspond to the structure of our SQL table.
 Person = struct(name Varchar{32}, age int) :
     len(name) > 0
     age >= 0
@@ -31,7 +31,7 @@ show all :
 private 
 // The `init` command of a module is run immediately after it compiles.
 init :
-    post to SQL --
+    post to SQL -- 
         CREATE TABLE IF NOT EXISTS People |Person|
 
 cmd 
@@ -40,3 +40,4 @@ clear :
     post to SQL --
         DROP TABLE People
     init
+

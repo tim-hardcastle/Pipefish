@@ -163,7 +163,6 @@ func (rl *Relexer) getToken() {
 	rl.preTok = rl.curTok
 	rl.curTok = rl.nexTok
 	rl.nexTok = rl.mt.NextToken()
-
 }
 
 func (rl *Relexer) burnToken() token.Token {
