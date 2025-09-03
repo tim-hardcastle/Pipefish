@@ -47,7 +47,7 @@ golang {
 		{token.GOLANG, "qux", 1},
 		{token.NEWLINE, ";", 3},
 		{token.GOLANG, "\n    foo\n", 5},
-		{token.NEWLINE, ";", 5},
+		{token.EOF, "EOF", 5},
 	}
 	testRelexingString(t, input, items)
 }

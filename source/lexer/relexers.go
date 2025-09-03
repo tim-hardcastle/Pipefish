@@ -16,7 +16,7 @@ import "github.com/tim-hardcastle/Pipefish/source/token"
 
 // The chain is assembled by the following function.
 func makeChain(ts tokensSupplier) *monotokenizer {
-	return chain(ts, &commentRelexer{})
+	return chain(ts, &commentRelexer{}, &whitespaceRelexer{})
 }
 
 // A relexer for removing comment tokens
@@ -36,7 +36,30 @@ func (r *commentRelexer) getTokens() []token.Token {
 	return result
 }
 
+// A relexer for removing non-syntactic whitespace.
+type whitespaceRelexer struct {
+	acc *tokenAccessor
+}
+
+func (r *whitespaceRelexer) chain(ts tokensSupplier) {
+	r.acc = newAccessor(ts)
+}
+
+func (r *whitespaceRelexer) getTokens() []token.Token {
+	if r.acc.tok(0).Type == token.NEWLINE {
+		peekType := r.acc.tok(1).Type
+		if peekType == token.EOF {
+			r.acc.next()
+		}
+	}
+	result := []token.Token{r.acc.tok(0)}
+	r.acc.next()
+	return result
+}
+
+
 // A relexer that just passes the tokens on unaltered, for testing purposes.
+// NOTE --- this doesn't work!!!!!!!!
 type iotaRelexer struct {
 	acc *tokenAccessor
 }

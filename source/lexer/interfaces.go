@@ -81,7 +81,7 @@ func (mt *monotokenizer) NextToken() token.Token {
 func chain(ts tokensSupplier, relexers ...relexer) *monotokenizer {
 	sup := ts
 	for _, rl := range relexers {
-		rl.chain(ts)
+		rl.chain(sup)
 		sup = rl
 	}
 	return newMonotokenizer(sup)
