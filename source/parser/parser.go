@@ -10,6 +10,8 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/lexer"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 )
@@ -1094,6 +1096,9 @@ func (p *Parser) NextToken() {
 
 // This is used to prime the parser without triggering 'checkNesting'.
 func (p *Parser) SafeNextToken() {
+	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(p.CurToken.Source)) {
+			println(text.PURPLE+p.CurToken.Type, p.CurToken.Literal+text.RESET)
+		}
 	p.CurToken = p.PeekToken
 	p.PeekToken = p.TokenizedCode.NextToken()
 }

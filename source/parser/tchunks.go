@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
@@ -135,9 +133,6 @@ func (p *Parser) SlurpBlock(safe bool) (*token.TokenizedCodeChunk, bool) {
 		tok := p.CurToken
 		if tok.Type == token.EOF {
 			break
-		}
-		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-			println(text.PURPLE+tok.Type, tok.Literal+text.RESET)
 		}
 		if tok.Type == token.LPAREN && tok.Literal == "|->" {
 			indentCount++

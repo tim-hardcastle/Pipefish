@@ -109,7 +109,7 @@ toUpper(s string) -> string : golang {
     return strings.ToUpper(s)
 }
 
-toValidUTF8(s, replacementString string) -> string : golang {
+toValidUTF_8(s, replacementString string) -> string : golang {
     return strings.ToValidUTF8(s, replacementString)
 }
 

@@ -14,3 +14,6 @@ post to (sql SqlDb, S snippet) : builtin "post_sql"
 
 get(x ref) as (t type) from (y SqlDb, z snippet) : builtin "get_sql_as"
 get(x ref) like (t type) from (y SqlDb, z snippet) : builtin "get_sql_like"
+
+ping (db SqlDb) :
+    get _ as int from db -- SELECT 1

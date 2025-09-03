@@ -565,7 +565,7 @@ func (iz *Initializer) makeFunctionTable() {
 			iz.parsedCode[j][i].(*parsedFunction).callInfo = functionToAdd.callInfo
 			conflictingFunction := iz.Add(functionName, functionToAdd)
 			if conflictingFunction != nil && conflictingFunction != functionToAdd {
-				iz.P.Throw("init/overload/a", &fn.op, functionName, conflictingFunction.op)
+				iz.P.Throw("init/overload/a", &fn.op, functionName, &conflictingFunction.op)
 				return
 			}
 		}

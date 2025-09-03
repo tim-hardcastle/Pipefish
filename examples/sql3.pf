@@ -1,19 +1,17 @@
 import 
 
-NULL::"sql" // `NULL` means it isn't namespaced.
+NULL::"sql" // `NULL` means we're importing the library without a namespace.
 
-const private // Making this private stops the user from accessing the naked DB from the REPL.
-// The information we need to make the connection is obtained from the environment.
-SQL = SqlDb($_hub["SQL driver"], $_hub["SQL host"], $_hub["SQL port"], 
-         .. $_hub["SQL database"], $_hub["SQL username"], $_hub["SQL password"])
-
+const private // We make an accessor object.
+SQL = SqlDb(POSTGRESQL, "localhost", 5432, "postgres", $_hub["SQL username"], $_hub["SQL password"])
+// (The username and password are obtained from the environment.)
 newtype 
-
+// This will correspond to and define the structure of our SQL table.
 Person = struct(name Varchar{32}, age int) :
     len(name) > 0
     age >= 0
 
-cmd 
+cmd // Now let's add some public commands.
 
 add(name string, age int) :
     post to SQL -- 
@@ -31,8 +29,8 @@ show all :
     post peopleList to Output()
 
 private 
-
-init : // The `init` command of a module is run immediately after it compiles.
+// The `init` command of a module is run immediately after it compiles.
+init :
     post to SQL --
         CREATE TABLE IF NOT EXISTS People |Person|
 
