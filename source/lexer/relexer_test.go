@@ -45,7 +45,7 @@ golang {
 
 	items := []testItem{
 		{token.GOLANG, "qux", 1},
-		{token.NEWLINE, ";", 3},
+		{token.NEWLINE, ";", 2},
 		{token.GOLANG, "\n    foo\n", 5},
 		{token.EOF, "EOF", 5},
 	}

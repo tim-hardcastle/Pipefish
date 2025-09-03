@@ -131,10 +131,6 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		rl.throw("relex/indent", rl.curTok)
 	}
 
-	if rl.preTok.Type == token.GIVEN && rl.curTok.Type == token.LOG {
-		return rl.burnToken() // Since a log after given is syntactically absurb and semantically meaningless.
-	}
-
 	switch rl.curTok.Type {
 	case token.PRELOG:
 		if rl.nexTok.Type == token.NEWLINE {
@@ -143,21 +139,10 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 
 	case token.NEWLINE:
 		rl.ifLogHappened = false
-		if rl.preTok.Type == token.NEWLINE ||
-			rl.preTok.Type == token.IFLOG ||
-			rl.preTok.Type == token.PRELOG ||
-			rl.preTok.Type == token.GIVEN ||
-			token.TokenTypeIsHeadword(rl.preTok.Type) ||
-			rl.preTok.Type == token.PRIVATE ||
-			rl.preTok.Type == token.COLON ||
-			rl.preTok.Type == token.MAGIC_COLON ||
-			rl.nexTok.Type == token.END ||
-			rl.nexTok.Type == token.NEWLINE {
+		if rl.preTok.Type == token.IFLOG ||
+			rl.preTok.Type == token.PRELOG {
 			return rl.burnToken()
 		}
-
-	case token.ILLEGAL:
-		return rl.burnToken()
 	case token.COLON:
 		if rl.nexTok.Type == token.LOG {
 			if rl.nestingLevel == 0 {
@@ -172,9 +157,6 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 					return rl.burnToken()
 				}
 			}
-		}
-		if rl.preTok.Type == token.GIVEN {
-			return rl.burnToken()
 		}
 	case token.BEGIN:
 		rl.curTok.Type = token.LPAREN
@@ -206,10 +188,6 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 			rl.curTok.Literal = strconv.Itoa(n - 1)
 			return token.Token{Type: token.RPAREN, Literal: "<-|", Line: rl.curTok.Line,
 				ChStart: 0, ChEnd: 0, Source: rl.curTok.Source}
-		}
-	case token.GIVEN:
-		if rl.nexTok.Type == token.COLON {
-			return rl.burnNextToken()
 		}
 	case token.LOG:
 		if rl.preTok.Type == token.COMMA {
