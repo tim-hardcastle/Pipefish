@@ -1,6 +1,9 @@
 package lexer
 
-import "github.com/tim-hardcastle/Pipefish/source/token"
+import (
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/Pipefish/source/token"
+)
 
 // What we have here is a collection of types, each with a single implementation,
 // fulfilling the `relexer` interface.
@@ -16,19 +19,23 @@ import "github.com/tim-hardcastle/Pipefish/source/token"
 
 // The chain is assembled by the following function.
 func makeChain(ts tokensSupplier) *monotokenizer {
-	return chain(ts, &commentRelexer{}, &whitespaceRelexer{})
+	return chain(
+		ts,
+		&removeComments{},
+		&removeNewlineBefore{},
+	)
 }
 
 // A relexer for removing comment tokens
-type commentRelexer struct {
+type removeComments struct {
 	acc *tokenAccessor
 }
 
-func (r *commentRelexer) chain(ts tokensSupplier) {
+func (r *removeComments) chain(ts tokensSupplier) {
 	r.acc = newAccessor(ts)
 }
 
-func (r *commentRelexer) getTokens() []token.Token {
+func (r *removeComments) getTokens() []token.Token {
 	for ; r.acc.tok(0).Type == token.COMMENT; r.acc.next() {
 	}
 	result := []token.Token{r.acc.tok(0)}
@@ -37,18 +44,22 @@ func (r *commentRelexer) getTokens() []token.Token {
 }
 
 // A relexer for removing non-syntactic whitespace.
-type whitespaceRelexer struct {
+type removeNewlineBefore struct {
 	acc *tokenAccessor
 }
 
-func (r *whitespaceRelexer) chain(ts tokensSupplier) {
+func (r *removeNewlineBefore) chain(ts tokensSupplier) {
 	r.acc = newAccessor(ts)
 }
 
-func (r *whitespaceRelexer) getTokens() []token.Token {
+var REMOVE_NEWLINE_BEFORE = dtypes.From[token.TokenType](
+	token.EOF, token.END, token.GIVEN, token.NEWLINE, token.RPAREN,
+)
+
+func (r *removeNewlineBefore) getTokens() []token.Token {
 	if r.acc.tok(0).Type == token.NEWLINE {
 		peekType := r.acc.tok(1).Type
-		if peekType == token.EOF {
+		if REMOVE_NEWLINE_BEFORE.Contains(peekType)  {
 			r.acc.next()
 		}
 	}
@@ -56,7 +67,6 @@ func (r *whitespaceRelexer) getTokens() []token.Token {
 	r.acc.next()
 	return result
 }
-
 
 // A relexer that just passes the tokens on unaltered, for testing purposes.
 // NOTE --- this doesn't work!!!!!!!!

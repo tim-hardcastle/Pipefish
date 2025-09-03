@@ -146,14 +146,12 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 		if rl.preTok.Type == token.NEWLINE ||
 			rl.preTok.Type == token.IFLOG ||
 			rl.preTok.Type == token.PRELOG ||
-			rl.nexTok.Type == token.GIVEN || // Because 'given' is really an infix.
 			rl.preTok.Type == token.GIVEN ||
 			token.TokenTypeIsHeadword(rl.preTok.Type) ||
 			rl.preTok.Type == token.PRIVATE ||
 			rl.preTok.Type == token.COLON ||
 			rl.preTok.Type == token.MAGIC_COLON ||
 			rl.nexTok.Type == token.END ||
-			rl.nexTok.Type == token.RPAREN ||
 			rl.nexTok.Type == token.NEWLINE {
 			return rl.burnToken()
 		}
