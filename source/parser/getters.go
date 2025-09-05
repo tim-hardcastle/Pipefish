@@ -278,85 +278,12 @@ func (p *Parser) findTypeArgument(arg ast.Node) values.Value {
 	return values.Value{values.ERROR, nil}
 }
 
-func (p *Parser) MakeAbstractSigFromStringSig(sig ast.AstSig) ast.AbstractSig {
-	result := make(ast.AbstractSig, sig.Len())
-	for i, pair := range sig {
-		typename := pair.VarType
-		typeToUse := typename
-		if typename, ok := typename.(*ast.TypeDotDotDot); ok {
-			typeToUse = typename.Right
-		}
-		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typeToUse)}
-	}
-	return result
-}
-
-func (p *Parser) TypeExists(name string) bool {
-	// Check if it's a shared type: 'int', 'struct', 'like{list}', 'any?' etc.
-	if _, ok := p.Common.Types[name]; ok {
-		return true
-	}
-	// ... or the result should just be in the parser's own type map.
-	_, ok := p.TypeMap[name]
-	return ok
-}
-
 func (p *Parser) IsEnumElement(name string) bool {
 	_, ok := p.EnumElementNames[name]
 	return ok
 }
 
-func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
-	if typeNode == nil { // This can mark an absence of return types.
-		return values.AbstractType{}
-	}
-	switch typeNode := typeNode.(type) {
-	case *ast.TypeWithName:
-		return p.GetAbstractTypeFromTypeSys(typeNode.Name)
-	case *ast.TypeWithArguments:
-		return p.GetAbstractTypeFromTypeSys(typeNode.String())
-	case *ast.TypeInfix:
-		LHS := p.GetAbstractType(typeNode.Left)
-		RHS := p.GetAbstractType(typeNode.Right)
-		if typeNode.Operator == "/" {
-			return LHS.Union(RHS)
-		}
-		if typeNode.Operator == "&" {
-			return LHS.Intersect(RHS)
-		}
-	case *ast.TypeSuffix:
-		LHS := p.GetAbstractType(typeNode.Left)
-		if typeNode.Operator == "?" {
-			return LHS.Insert(values.NULL)
-		}
-		if typeNode.Operator == "!" {
-			return LHS.Insert(values.ERROR)
-		}
-	case *ast.TypeBling:
-		return values.AbstractType{[]values.ValueType{values.BLING}}
-	case *ast.TypeDotDotDot:
-		return p.GetAbstractType(typeNode.Right)
-	case *ast.TypeWithParameters:
-		return p.GetAbstractTypeFromTypeSys(typeNode.Blank().String())
-	case *ast.TypeExpression:
-		if typeNode.TypeArgs == nil {
-			return p.GetAbstractTypeFromTypeSys(typeNode.Operator)
-		} else {
-			return p.ParTypes[typeNode.Operator].PossibleReturnTypes
-		}
-	}
-	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())
-}
 
-func (p *Parser) GetAbstractTypeFromTypeSys(name string) values.AbstractType {
-	// Check if it's a shared type: 'int', 'struct', 'clones{list}', 'any?' etc.
-	if result, ok := p.Common.Types[name]; ok {
-		return result
-	}
-	// ... or the result should just be in the parser's own type map.
-	result, _ := p.TypeMap[name]
-	return result
-}
 
 // Finds whether an identifier is in the right place to be a function, or whether it's being used
 // as though it's a variable or constant.
@@ -377,7 +304,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.CurToken.Literal == "type" && p.IsTypePrefix(p.PeekToken.Literal) {
 		return true
 	}
-	if p.Functions.Contains(p.CurToken.Literal) && p.TypeExists(p.CurToken.Literal) {
+	if p.Functions.Contains(p.CurToken.Literal) && p.Typenames.Contains(p.CurToken.Literal) {
 		return p.typeIsFunctional()
 	}
 

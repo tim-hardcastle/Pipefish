@@ -458,7 +458,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 
 func (cp *Compiler) emitTypeComparisonFromTypeNode(tn ast.TypeNode, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
 	cp.Cm("Emitting type comparison from type node "+text.Emph(tn.String()), tok)
-	abType := cp.P.GetAbstractType(tn)
+	abType := cp.GetAbstractType(tn)
 	return cp.emitTypeComparisonFromAbstractType(abType, mem, tok)
 }
 
@@ -563,7 +563,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
 					b.override = true
-					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.P.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
 				}
 				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 					cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -574,7 +574,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Rpop)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 					b.override = true                 // We can't do constant folding on a dummy function call.
-					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.P.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
 				}
 				F := resolvingCompiler.Fns[fNo]
 				if (b.access == REPL || b.libcall) && F.Private {

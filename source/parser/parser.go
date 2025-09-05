@@ -58,9 +58,6 @@ type Parser struct {
 	ParameterizedTypes dtypes.Set[string]
 	nativeInfixes      dtypes.Set[token.TokenType]
 	lazyInfixes        dtypes.Set[token.TokenType]
-	// Maps names to abstract types. This *is* the type system, at least as far as the parser knows about it,
-	// because there is a natural partial order on abstract types.
-	TypeMap TypeSys
 
 	ParTypes map[string]TypeExpressionInfo     // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
 	// Something of a kludge. We want instances of parameterized types to be made if they're mentioned in the code.
@@ -102,7 +99,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
-		TypeMap:         make(TypeSys),
 		ParTypes:        make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
 		ExternalParsers: make(map[string]*Parser),
@@ -111,10 +107,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
-
-	for k := range p.Common.Types {
-		p.Suffixes.Add(k)
-	}
 
 	p.Functions.Add("builtin")
 
@@ -181,7 +173,6 @@ func (p *Parser) ParseDump(source, input string) {
 // For data that needs to be shared by all parsers. It is initialized when we start initializing a service
 // and passed to the first parser, which then passes it down to its children.
 type CommonParserBindle struct {
-	Types               TypeSys
 	InterfaceBacktracks []BkInterface
 	Errors              []*err.Error
 	IsBroken            bool
@@ -190,7 +181,7 @@ type CommonParserBindle struct {
 
 // Initializes the common parser bindle.
 func NewCommonParserBindle() *CommonParserBindle {
-	result := CommonParserBindle{Types: NewCommonTypeMap(),
+	result := CommonParserBindle{
 		Errors:              []*err.Error{},            // This is where all the errors emitted by enything end up.
 		Sources:             make(map[string][]string), // Source code --- TODO: remove.
 		InterfaceBacktracks: []BkInterface{},           // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
@@ -213,10 +204,6 @@ type ParserData struct {
 	Parser         *Parser
 	ScriptFilepath string
 }
-
-// This is indeed the whole of the type system as the parser sees it, because one abstract type is a subtype
-// of another just if all the concrete types making up the former are found in the latter.
-type TypeSys map[string]values.AbstractType
 
 func (p *Parser) ParseExpression(precedence int) ast.Node {
 

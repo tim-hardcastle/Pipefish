@@ -27,7 +27,7 @@ const (
 )
 
 func (p *Parser) IsTypePrefix(s string) bool {
-	return s == "..." || (p.TypeExists(s) ||
+	return s == "..." || (p.Typenames.Contains(s) ||
 	PSEUDOTYPES.Contains(s) || p.ParameterizedTypes.Contains(s))
 }
 

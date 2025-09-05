@@ -19,8 +19,8 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 	if sigToMatch.rtnSig.Len() != 0 && sigToMatch.rtnSig.Len() != len(fnToTry.callInfo.ReturnTypes) {
 		return result
 	}
-	abSig := fnToTry.callInfo.Compiler.P.MakeAbstractSigFromStringSig(fnToTry.sig)
-	abRets := fnToTry.callInfo.Compiler.P.MakeAbstractSigFromStringSig(fnToTry.callInfo.ReturnTypes)
+	abSig := fnToTry.callInfo.Compiler.MakeAbstractSigFromStringSig(fnToTry.sig)
+	abRets := fnToTry.callInfo.Compiler.MakeAbstractSigFromStringSig(fnToTry.callInfo.ReturnTypes)
 	// Once we have identified one set of types as being 'self' we need to fix that
 	// as 'self' and take its intersection with the other things that appear in the
 	// 'self' position.
@@ -49,7 +49,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 				}
 			}
 		} else {
-			if !iz.P.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
+			if !iz.cp.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
 				ast.IsAstBling(sigToMatch.sig.GetVarType(i).(ast.TypeNode)) && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
 				return values.MakeAbstractType()
 			}
@@ -79,7 +79,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 				return values.MakeAbstractType()
 			}
 		} else {
-			if !abRets[i].VarType.IsSubtypeOf(iz.P.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+			if !abRets[i].VarType.IsSubtypeOf(iz.cp.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}

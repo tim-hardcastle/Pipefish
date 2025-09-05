@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/parser"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
@@ -382,7 +383,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool) (tokenizedCod
 		return &tokenizedCloneDeclaration{}, false
 	}
 	typeTok := iz.P.CurToken
-	_, ok := parser.ClonableTypes[typeTok.Literal]
+	_, ok := compiler.ClonableTypes[typeTok.Literal]
 	if !ok {
 		iz.throw("init/clone/type", &iz.P.CurToken)
 		iz.finishChunk()

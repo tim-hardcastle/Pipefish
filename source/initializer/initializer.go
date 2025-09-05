@@ -298,7 +298,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 			vals = append(vals, values.Value{ty.Arguments[i].Type, ty.Arguments[i].Value})
 		}
 		newTypeName := ty.String()
-		parentTypeNo, ok := parser.ClonableTypes[parTypeInfo.ParentType]
+		parentTypeNo, ok :=compiler.ClonableTypes[parTypeInfo.ParentType]
 		if !(ok || parTypeInfo.ParentType == "struct") {
 			iz.throw("init/clone/type", &ty.Token)
 			return
@@ -322,7 +322,8 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 			stT = stT.AddLabels(labelsForStruct)
 			iz.cp.Vm.ConcreteTypeInfo[typeNo] = stT
 		}
-		iz.cp.P.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}}
+		iz.cp.TypeMap[ty.String()] = values.AbstractType{[]values.ValueType{typeNo}}
+		iz.cp.P.Typenames = iz.cp.P.Typenames.Add(ty.Token.Literal)
 		if opInfo, ok := typeOperators[ty.Name]; ok {
 			opInfo.returnTypes = opInfo.returnTypes.Union(altType(typeNo))
 			opInfo.definedAt = append(opInfo.definedAt, &ty.Token)
@@ -332,7 +333,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 			typeOperators[ty.Name] = typeOperatorInfo{sig, isClone, altType(values.ERROR, typeNo), []*token.Token{&ty.Token}}
 		}
 		iz.parameterizedInstanceMap[newTypeName] = parameterizedTypeInstance{ty, newEnv, parTypeInfo.Typecheck, sig, vals}
-		iz.cp.P.TypeMap[parTypeInfo.Supertype] = iz.cp.P.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
+		iz.cp.TypeMap[parTypeInfo.Supertype] = iz.cp.TypeMap[parTypeInfo.Supertype].Insert(typeNo)
 	}
 	// Now we can make a constructor function for each of the type operators.
 	for typeOperator, operatorInfo := range typeOperators {
@@ -398,7 +399,7 @@ func (iz *Initializer) shareable(f *parsedFunction) bool {
 			(t.Name == "struct" || t.Name == "enum") {
 			continue
 		}
-		abType := iz.P.GetAbstractType(ty)
+		abType := iz.cp.GetAbstractType(ty)
 		ok := true
 		for _, concType := range abType.Types {
 			if !iz.localConcreteTypes.Contains(concType) {
@@ -448,7 +449,7 @@ func (iz *Initializer) populateInterfaceTypes() {
 			}
 		}
 		// We have created an abstract type from our interface! We put it in the type map.
-		iz.P.TypeMap[dec.op.Literal] = types
+		iz.cp.TypeMap[dec.op.Literal] = types
 		iz.addTypeToVm(values.AbstractTypeInfo{dec.op.Literal, iz.P.NamespacePath, types, settings.MandatoryImportSet().Contains(dec.op.Source)})
 		// And we add all the implicated functions to the function table.
 		for _, ty := range types.Types {
@@ -485,21 +486,21 @@ func (iz *Initializer) populateAbstractTypes() {
 func (iz *Initializer) addAbstractTypesToVm() {
 	// For consistent results for tests, it is desirable that the types should be listed in a fixed order.
 	keys := []string{}
-	for typeName, _ := range iz.P.TypeMap {
+	for typeName, _ := range iz.cp.TypeMap {
 		keys = append(keys, typeName)
 	}
-	for typeName, _ := range iz.P.Common.Types {
+	for typeName, _ := range iz.cp.Common.Types {
 		keys = append(keys, typeName)
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, typeName := range keys {
-		if text.Head(typeName, "clones{") && len(iz.P.GetAbstractTypeFromTypeSys(typeName).Types) == 1 {
+		if text.Head(typeName, "clones{") && len(iz.cp.GetAbstractTypeFromTypeSys(typeName).Types) == 1 {
 			continue
 		}
 		iz.addTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.P.NamespacePath,
-			AT: iz.P.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
+			AT: iz.cp.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
 	}
-	for _, v := range parser.ClonableTypes { // Clonable types are clones of themselves.
+	for _, v := range compiler.ClonableTypes { // Clonable types are clones of themselves.
 		selfInfo := iz.cp.Vm.ConcreteTypeInfo[v].(vm.BuiltinType)
 		selfInfo = selfInfo.AddClone(values.ValueType(v))
 		iz.cp.Vm.ConcreteTypeInfo[v] = selfInfo
@@ -525,10 +526,10 @@ func (iz *Initializer) addAbstractTypesToVm() {
 // entirely finished generating the data in the parsers.
 func (iz *Initializer) makeAlternateTypesFromAbstractTypes() {
 	iz.cp.TypeNameToTypeScheme = make(map[string]compiler.AlternateType)
-	for typename, abType := range iz.P.TypeMap {
+	for typename, abType := range iz.cp.TypeMap {
 		iz.cp.TypeNameToTypeScheme[typename] = compiler.AbstractTypeToAlternateType(abType)
 	}
-	for typename, abType := range iz.P.Common.Types {
+	for typename, abType := range iz.cp.Common.Types {
 		iz.cp.TypeNameToTypeScheme[typename] = compiler.AbstractTypeToAlternateType(abType)
 	}
 }
@@ -617,7 +618,7 @@ func (iz *Initializer) makeFunctionTrees() {
 // Note that the sigs have already been sorted on their specificity.
 func (iz *Initializer) addSigToTree(tree *compiler.FnTreeNode, fn *parsedFunction, pos int) *compiler.FnTreeNode {
 	nameSig := fn.sig // TODO --- do we really need both of these?
-	sig := fn.callInfo.Compiler.P.MakeAbstractSigFromStringSig(nameSig)
+	sig := fn.callInfo.Compiler.MakeAbstractSigFromStringSig(nameSig)
 	bling := ""
 	if pos < len(sig) {
 		var currentTypeName string
@@ -718,7 +719,7 @@ func (iz *Initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
 	structTypes := make([]values.AbstractType, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		typeAst := labelNameAndType.VarType
-		abType := iz.P.GetAbstractType(typeAst)
+		abType := iz.cp.GetAbstractType(typeAst)
 		structTypes = append(structTypes, abType)
 	}
 	structInfo.AbstractStructFields = structTypes
@@ -730,7 +731,7 @@ func (iz *Initializer) tweakParameterizedTypes() {
 	for _, pti := range iz.parameterizedInstanceMap {
 		for _, v := range pti.env.Data {
 			if iz.cp.Vm.Mem[v.MLoc].T == values.TYPE {
-				iz.cp.Vm.Mem[v.MLoc].V = iz.P.GetAbstractType(iz.cp.Vm.Mem[v.MLoc].V.(ast.TypeNode))
+				iz.cp.Vm.Mem[v.MLoc].V = iz.cp.GetAbstractType(iz.cp.Vm.Mem[v.MLoc].V.(ast.TypeNode))
 			}
 		}
 	}
@@ -762,7 +763,7 @@ func (iz *Initializer) addParameterizedTypesToVm() {
 		typeArgs := []values.Value{}
 		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
 			if v.Type == values.TYPE {
-				typeArgs = append(typeArgs, values.Value{values.TYPE, iz.P.GetAbstractType(v.Value.(ast.TypeNode))})
+				typeArgs = append(typeArgs, values.Value{values.TYPE, iz.cp.GetAbstractType(v.Value.(ast.TypeNode))})
 			} else {
 				typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
 			}
@@ -781,7 +782,7 @@ func (iz *Initializer) addParameterizedTypesToVm() {
 
 func (iz *Initializer) tweakValue(v values.Value) values.Value {
 	if v.T == values.TYPE {
-		v.V = iz.P.GetAbstractType(v.V.(ast.TypeNode))
+		v.V = iz.cp.GetAbstractType(v.V.(ast.TypeNode))
 	}
 	return v
 }
@@ -805,7 +806,7 @@ func (iz *Initializer) checkTypesForConsistency() {
 		if dec.private {
 			continue
 		}
-		abType := iz.P.GetAbstractTypeFromTypeSys(dec.op.Literal)
+		abType := iz.cp.GetAbstractTypeFromTypeSys(dec.op.Literal)
 		for _, w := range abType.Types {
 			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
 				iz.throw("init/private/abstract", ixPtr(dec), dec.op.Literal)
@@ -1460,12 +1461,13 @@ func (iz *Initializer) resolveInterfaceBacktracks() {
 // Adds a concrete type to the parser, and to the common types it falls under (at least `any` and `any?`).
 func (iz *Initializer) addType(name, supertype string, typeNo values.ValueType) {
 	iz.localConcreteTypes = iz.localConcreteTypes.Add(typeNo)
-	iz.P.TypeMap[name] = values.MakeAbstractType(typeNo)
+	iz.cp.TypeMap[name] = values.MakeAbstractType(typeNo)
+	iz.cp.P.Typenames = iz.cp.P.Typenames.Add(name)
 	types := []string{supertype}
 	iz.cp.Common.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "any")
 	for _, sT := range types {
-		iz.P.Common.Types[sT] = iz.P.Common.Types[sT].Insert(typeNo)
+		iz.cp.Common.Types[sT] = iz.cp.Common.Types[sT].Insert(typeNo)
 	}
 }
 

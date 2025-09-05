@@ -14,7 +14,7 @@ import (
 )
 
 func (cp *Compiler) getAbstractType(name string) (values.AbstractType) {
-	return cp.P.GetAbstractTypeFromTypeSys(name)
+	return cp.GetAbstractTypeFromTypeSys(name)
 }
 
 func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
@@ -199,7 +199,7 @@ func (cp *Compiler) GetAlternateTypeFromTypeAst(typeNode ast.TypeNode) Alternate
 	if typeNode, ok := typeNode.(*ast.TypeDotDotDot); ok {
 		return AlternateType{TypedTupleType{cp.GetAlternateTypeFromTypeAst(typeNode.Right)}}
 	}
-	abType := cp.P.GetAbstractType(typeNode)
+	abType := cp.GetAbstractType(typeNode)
 	return AbstractTypeToAlternateType(abType)
 }
 

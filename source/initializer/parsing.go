@@ -54,6 +54,12 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	iz.cmI("Making new relexer with filepath '" + scriptFilepath + "'")
 	iz.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
 
+	// TODO --- this was moved here during refactoring and may well now be cruft.
+	for k := range iz.cp.Common.Types {
+		iz.cp.P.Suffixes.Add(k)
+	}
+
+
 	iz.cmI("Making parser and tokenized program.")
 	iz.getTokenizedCode()
 	if iz.errorsExist() {
@@ -513,7 +519,7 @@ func (iz *Initializer) createClones() {
 		dec := tc.(*tokenizedCloneDeclaration)
 		name := dec.op.Literal
 		typeToClone := dec.parentTok.Literal
-		parentTypeNo := parser.ClonableTypes[typeToClone]
+		parentTypeNo := compiler.ClonableTypes[typeToClone]
 		if len(dec.params) > 0 {
 			astType := iz.makeTypeWithParameters(dec.op, dec.params)
 			ok := iz.registerParameterizedType(name, astType, dec.requests, dec.body, typeToClone, dec.private, ixPtr(dec))
@@ -558,7 +564,7 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 }
 
 func (iz *Initializer) addCloneType(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, bool) {
-	parentTypeNo, ok := parser.ClonableTypes[typeToClone]
+	parentTypeNo, ok := compiler.ClonableTypes[typeToClone]
 	if !ok {
 		iz.throw("init/clone/type/c", decTok, typeToClone)
 		return DUMMY, false
@@ -877,7 +883,7 @@ func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithPa
 	thingToAdd := parameterInfo{iz.astParamsToNames(ty.Parameters),
 		iz.astParamsToValueTypes(ty.Parameters), opList,
 		typeCheck, parentType, nil, private, supertype, tok}
-	iz.cp.P.TypeMap[supertype] = values.AbstractType{}
+	iz.cp.TypeMap[supertype] = values.AbstractType{}
 	if ok {
 		info = append(info, thingToAdd)
 		iz.parameterizedTypes[name] = info
@@ -935,19 +941,19 @@ func (iz *Initializer) createAbstractTypes() {
 	for _, tc := range iz.tokenizedCode[abstractDeclaration] {
 		dec := tc.(*tokenizedAbstractDeclaration)
 		newTypename := dec.op.Literal
-		iz.P.TypeMap[newTypename] = values.MakeAbstractType()
+		iz.cp.TypeMap[newTypename] = values.MakeAbstractType()
 		if settings.MandatoryImportSet().Contains(dec.op.Source) {
 			iz.unserializableTypes.Add(newTypename)
 		}
 		for _, typeAsTokens := range dec.types {
 			typeTok := typeAsTokens[0]
 			tname := typeTok.Literal
-			abTypeToAdd, ok := iz.P.TypeMap[tname]
+			abTypeToAdd, ok := iz.cp.TypeMap[tname]
 			if !ok {
 				iz.throw("init/type/known", &typeTok)
 				break
 			}
-			iz.P.TypeMap[newTypename] = iz.P.TypeMap[newTypename].Union(abTypeToAdd)
+			iz.cp.TypeMap[newTypename] = iz.cp.TypeMap[newTypename].Union(abTypeToAdd)
 		}
 		_, typeExists := iz.getDeclaration(decABSTRACT, ixPtr(dec), DUMMY)
 		if !typeExists {
@@ -975,7 +981,7 @@ func (iz *Initializer) createInterfaceTypes() {
 			typeInfo = append(typeInfo, fnSigInfo{functionName, astSig, retSig})
 			iz.addWordsToParser(sig)
 		}
-		iz.P.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
+		iz.cp.TypeMap[newTypename] = values.MakeAbstractType() // We can't populate the interface types before we've parsed everything.
 		_, typeExists := iz.getDeclaration(decINTERFACE, &nameTok, DUMMY)
 		if !typeExists {
 			iz.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})

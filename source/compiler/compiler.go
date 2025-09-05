@@ -42,6 +42,7 @@ type Compiler struct {
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
+	TypeMap					 TypeSys                            // Abstract types indexed by name.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -66,8 +67,9 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		Common:                   ccb,
 		GeneratedAbstractTypes:   make(dtypes.Set[string]),
 		FunctionForest:           make(map[string]*FunctionTree),
+		TypeMap:                  TypeSys{},
 	}
-	for name := range parser.ClonableTypes {
+	for name := range ClonableTypes {
 		newC.GeneratedAbstractTypes.Add("clones{" + name + "}")
 	}
 	newC.pushRCompiler(newC)
@@ -81,6 +83,7 @@ type CommonCompilerBindle struct {
 	IsRangeable              AlternateType
 	CodeGeneratingTypes      dtypes.Set[values.ValueType]
 	LabelIsPrivate           []bool
+	Types                    TypeSys
 }
 
 func NewCommonCompilerBindle() *CommonCompilerBindle {
@@ -92,11 +95,12 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
+		Types :              NewCommonTypeMap(),
 	}
-	for _, name := range parser.AbstractTypesOtherThanAny {
+	for _, name := range AbstractTypesOtherThanAny {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
 	}
-	for name, ty := range parser.ClonableTypes {
+	for name, ty := range ClonableTypes {
 		newBindle.SharedTypenameToTypeList["clones{"+name+"}"] = AltType(ty)
 	}
 	anyOrNull := newBindle.SharedTypenameToTypeList["any"].Union(altType(values.NULL))
@@ -1029,7 +1033,7 @@ NodeTypeSwitch:
 	case *ast.TypeExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if len(node.TypeArgs) == 0 {
-			abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator)
+			abType := resolvingCompiler.GetAbstractTypeFromTypeSys(node.Operator)
 			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 				cp.Throw("comp/private/type/a", node.GetToken())
 				break
@@ -1064,7 +1068,7 @@ NodeTypeSwitch:
 	case *ast.TypeLiteral: // TODO --- can this happen any more?
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		typeName := node.Value
-		abType := resolvingCompiler.P.GetAbstractType(typeName)
+		abType := resolvingCompiler.GetAbstractType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 			cp.Throw("comp/private/type/b", node.GetToken())
 			break
@@ -1074,7 +1078,7 @@ NodeTypeSwitch:
 	case *ast.SigTypePrefixExpression: //TODO --- or this?
 		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		if abType := resolvingCompiler.P.GetAbstractType(node.Operator); abType.Len() != 1 {
+		if abType := resolvingCompiler.GetAbstractType(node.Operator); abType.Len() != 1 {
 			resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
 			break
 		}
@@ -1083,7 +1087,7 @@ NodeTypeSwitch:
 		if len(node.TypeArgs) == 0 {
 			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-			if abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
+			if abType := resolvingCompiler.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
 				cp.Throw("comp/type/concrete", node.GetToken())
 				break
 			}
@@ -1697,7 +1701,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		if ast.IsAnyNullableType(pair.VarType) {
 			LF.Model.Sig = append(LF.Model.Sig, values.AbstractType{nil}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
-			LF.Model.Sig = append(LF.Model.Sig, cp.P.GetAbstractType(pair.VarType))
+			LF.Model.Sig = append(LF.Model.Sig, cp.GetAbstractType(pair.VarType))
 		}
 	}
 	LF.Model.Tok = &fnNode.Token
