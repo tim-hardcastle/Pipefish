@@ -13,8 +13,8 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/vm"
 )
 
-func (cp *Compiler) getAbstractType(name string) (values.AbstractType) {
-	return cp.GetAbstractTypeFromTypeSys(name)
+func (cp *Compiler) getAbstractType(name string) values.AbstractType {
+	return cp.GetAbstractTypeFromTypeName(name)
 }
 
 func (cp *Compiler) GetTypeNameFromNumber(typeNumber values.ValueType) string {
@@ -199,7 +199,7 @@ func (cp *Compiler) GetAlternateTypeFromTypeAst(typeNode ast.TypeNode) Alternate
 	if typeNode, ok := typeNode.(*ast.TypeDotDotDot); ok {
 		return AlternateType{TypedTupleType{cp.GetAlternateTypeFromTypeAst(typeNode.Right)}}
 	}
-	abType := cp.GetAbstractType(typeNode)
+	abType := cp.GetAbstractTypeFromAstType(typeNode)
 	return AbstractTypeToAlternateType(abType)
 }
 

@@ -16,19 +16,19 @@ type TypeNode interface {
 func IsAnyNullableType(t TypeNode) bool {
 	if t, ok := t.(*TypeSuffix); ok && t.Operator == "?" {
 		u, ok := t.Left.(*TypeWithName)
-		return ok && u.Name == "any"
+		return ok && u.OperatorName == "any"
 	}
 	return false
 }
 
 // Contains basic things like `int` and `string`
 type TypeWithName struct {
-	Token token.Token
-	Name  string
+	Token        token.Token
+	OperatorName string
 }
 
 func (tl *TypeWithName) String() string {
-	return tl.Name
+	return tl.OperatorName
 }
 
 // Contains a parameter for parameterizing types
@@ -63,14 +63,14 @@ func (twp *TypeWithParameters) String() string {
 
 func (twp *TypeWithParameters) Blank() *TypeWithParameters {
 	blankType := TypeWithParameters{twp.Token, twp.Name, []*Parameter{}}
-	for _, p := range(twp.Parameters) {
+	for _, p := range twp.Parameters {
 		q := Parameter{"_", p.Type}
 		blankType.Parameters = append(blankType.Parameters, &q)
 	}
 	return &blankType
 }
 
-func (twp *TypeWithParameters) Equals (twq *TypeWithParameters) bool {
+func (twp *TypeWithParameters) Equals(twq *TypeWithParameters) bool {
 	if twp.Name != twq.Name || len(twp.Parameters) != len(twq.Parameters) {
 		return false
 	}
@@ -82,7 +82,7 @@ func (twp *TypeWithParameters) Equals (twq *TypeWithParameters) bool {
 	return true
 }
 
-func (twp *TypeWithParameters) Matches (te *TypeExpression) bool {
+func (twp *TypeWithParameters) Matches(te *TypeExpression) bool {
 	if twp.Name != te.Operator || len(twp.Parameters) != len(te.TypeArgs) {
 		return false
 	}
@@ -207,10 +207,10 @@ var (
 	ANY_NULLABLE_TYPE_AST          = &TypeSuffix{token.Token{}, "?", &TypeWithName{token.Token{}, "any"}}
 	DOTDOTDOT_ANY_NULLABLE         = &TypeDotDotDot{token.Token{}, ANY_NULLABLE_TYPE_AST}
 	ANY_NULLABLE_TYPE_AST_OR_ERROR = &TypeSuffix{token.Token{}, "!", &TypeSuffix{token.Token{}, "?", &TypeWithName{token.Token{}, "any"}}}
-	STRUCT_TYPE_AST       		   = &TypeWithName{token.Token{}, "struct"}
+	STRUCT_TYPE_AST                = &TypeWithName{token.Token{}, "struct"}
 	INFERRED_TYPE_AST              = &TypeWithName{token.Token{}, "*inferred*"}
 	DEFAULT_TYPE_AST               = &TypeWithName{token.Token{}, "*default*"}
-	DUMMY_TYPE_AST               = &TypeWithName{token.Token{}, "*dummy*"}
+	DUMMY_TYPE_AST                 = &TypeWithName{token.Token{}, "*dummy*"}
 	TUPLE_TYPE_AST                 = &TypeWithName{token.Token{}, "tuple"}
 	ERROR_OR_UNWRAPPED_ERROR       = &TypeSuffix{token.Token{}, "!", &TypeWithName{token.Token{}, "ERROR"}}
 )
@@ -232,7 +232,7 @@ func AsBling(s string) TypeNode {
 func IsRef(t TypeNode) bool {
 	switch t := t.(type) {
 	case *TypeWithName:
-		return t.Name == "ref"
+		return t.OperatorName == "ref"
 	case *TypeWithArguments:
 		return t.Name == "ref"
 	default:
@@ -252,5 +252,5 @@ func IsAstBling(node TypeNode) bool {
 
 func Is(node TypeNode, s string) bool {
 	t, ok := node.(*TypeWithName)
-	return ok && t.Name == s
+	return ok && t.OperatorName == s
 }

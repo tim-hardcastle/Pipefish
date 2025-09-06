@@ -43,6 +43,10 @@ func (iz *Initializer) ParseEverythingFromFilePath(mc *vm.Vm, cpb *parser.Common
 func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	iz.cmI("Starting parseEverything for script " + scriptFilepath + ".")
 
+	for k, _ := range compiler.BASE_TYPES {
+		iz.cp.P.Typenames = iz.cp.P.Typenames.Add(k)
+	}
+
 	if !settings.OMIT_BUILTINS {
 		iz.cmI("Adding mandatory imports to namespace.")
 		iz.addToNameSpace(settings.MandatoryImports)
@@ -58,7 +62,6 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	for k := range iz.cp.Common.Types {
 		iz.cp.P.Suffixes.Add(k)
 	}
-
 
 	iz.cmI("Making parser and tokenized program.")
 	iz.getTokenizedCode()
@@ -370,7 +373,6 @@ loop:
 		if result != nil {
 			iz.tokenizedCode[result.getDeclarationType()] =
 				append(iz.tokenizedCode[result.getDeclarationType()], result)
-			// println(result.getDeclarationType(), SummaryString(result))
 		}
 		iz.P.NextToken()
 	}
@@ -569,7 +571,7 @@ func (iz *Initializer) addCloneType(name, typeToClone string, private bool, decT
 		iz.throw("init/clone/type/c", decTok, typeToClone)
 		return DUMMY, false
 	}
-	abType := "clones{" + typeToClone + "}"
+	supertype := "clones{" + typeToClone + "}"
 	var typeNo values.ValueType
 	info, typeExists := iz.getDeclaration(decCLONE, decTok, DUMMY)
 	if typeExists {
@@ -586,9 +588,9 @@ func (iz *Initializer) addCloneType(name, typeToClone string, private bool, decT
 			iz.cp.Common.IsRangeable = iz.cp.Common.IsRangeable.Union(altType(typeNo))
 		}
 	}
-	cloneGroup := iz.cp.Common.SharedTypenameToTypeList[abType]
+	cloneGroup := iz.cp.Common.SharedTypenameToTypeList[supertype]
 	iz.cp.TypeToCloneGroup[typeNo] = cloneGroup
-	iz.addType(name, abType, typeNo)
+	iz.addType(name, supertype, typeNo)
 	return typeNo, true
 }
 
@@ -942,6 +944,7 @@ func (iz *Initializer) createAbstractTypes() {
 		dec := tc.(*tokenizedAbstractDeclaration)
 		newTypename := dec.op.Literal
 		iz.cp.TypeMap[newTypename] = values.MakeAbstractType()
+		iz.cp.P.Typenames = iz.cp.P.Typenames.Add(newTypename)
 		if settings.MandatoryImportSet().Contains(dec.op.Source) {
 			iz.unserializableTypes.Add(newTypename)
 		}
@@ -1054,7 +1057,7 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 			iz.P.TokenizedCode = tc.given
 			parsedGiven = iz.P.ParseTokenizedChunk()
 		}
-		return &parsedFunction{
+		result := &parsedFunction{
 			decType:   decType,
 			decNumber: decNumber,
 			private:   tc.private,
@@ -1070,6 +1073,7 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 				ReturnTypes: iz.makeRetsFromTokenizedReturns(tc.rets),
 			},
 		}
+		return result
 	case *tokenizedStructDeclaration:
 		var body ast.Node
 		if tc.body.Length() != 0 {

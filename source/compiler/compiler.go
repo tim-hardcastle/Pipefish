@@ -42,7 +42,7 @@ type Compiler struct {
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
-	TypeMap					 TypeSys                            // Abstract types indexed by name.
+	TypeMap                  TypeSys                            // Abstract types indexed by name.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -95,7 +95,7 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
-		Types :              NewCommonTypeMap(),
+		Types:               NewCommonTypeMap(),
 	}
 	for _, name := range AbstractTypesOtherThanAny {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
@@ -261,7 +261,7 @@ NodeTypeSwitch:
 					break NodeTypeSwitch
 				}
 				cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
-				if vType, ok := pair.VarType.(*ast.TypeWithName); ok && vType.Name == "tuple" {
+				if vType, ok := pair.VarType.(*ast.TypeWithName); ok && vType.OperatorName == "tuple" {
 					cp.Cm("Adding variable in ASSIGN, 1", node.GetToken())
 					cp.AddThatAsVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Common.AnyTuple, node.GetToken())
 					newSig = append(newSig, ast.NameTypeAstPair{pair.VarName, ast.TUPLE_TYPE_AST})
@@ -1033,7 +1033,7 @@ NodeTypeSwitch:
 	case *ast.TypeExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if len(node.TypeArgs) == 0 {
-			abType := resolvingCompiler.GetAbstractTypeFromTypeSys(node.Operator)
+			abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator)
 			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 				cp.Throw("comp/private/type/a", node.GetToken())
 				break
@@ -1068,7 +1068,7 @@ NodeTypeSwitch:
 	case *ast.TypeLiteral: // TODO --- can this happen any more?
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		typeName := node.Value
-		abType := resolvingCompiler.GetAbstractType(typeName)
+		abType := resolvingCompiler.GetAbstractTypeFromAstType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 			cp.Throw("comp/private/type/b", node.GetToken())
 			break
@@ -1078,7 +1078,7 @@ NodeTypeSwitch:
 	case *ast.SigTypePrefixExpression: //TODO --- or this?
 		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		if abType := resolvingCompiler.GetAbstractType(node.Operator); abType.Len() != 1 {
+		if abType := resolvingCompiler.GetAbstractTypeFromAstType(node.Operator); abType.Len() != 1 {
 			resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
 			break
 		}
@@ -1087,7 +1087,7 @@ NodeTypeSwitch:
 		if len(node.TypeArgs) == 0 {
 			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-			if abType := resolvingCompiler.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
+			if abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator); abType.Len() != 1 {
 				cp.Throw("comp/type/concrete", node.GetToken())
 				break
 			}
@@ -1102,7 +1102,7 @@ NodeTypeSwitch:
 		}
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
-			typeInfo, conc := cp.getTypeInformation(ty.Name)
+			typeInfo, conc := cp.getTypeInformation(ty.OperatorName)
 			if !conc || !typeInfo.IsClone() {
 				cp.Throw("comp/suffix/a", node.GetToken())
 				break
@@ -1110,7 +1110,7 @@ NodeTypeSwitch:
 			// The fact that we're compiling this node means that we're not in a signature. Hence
 			// the compiler can do what the parser can't, and turn it into a normal suffix expression,
 			// which can then be compiled.
-			suffix := &ast.SuffixExpression{node.Token, ty.Name, node.Args, node.Namespace}
+			suffix := &ast.SuffixExpression{node.Token, ty.OperatorName, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 			rtnTypes, rtnConst = resolvingCompiler.CompileNode(suffix, ctxt)
 		} else {
@@ -1701,7 +1701,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		if ast.IsAnyNullableType(pair.VarType) {
 			LF.Model.Sig = append(LF.Model.Sig, values.AbstractType{nil}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
-			LF.Model.Sig = append(LF.Model.Sig, cp.GetAbstractType(pair.VarType))
+			LF.Model.Sig = append(LF.Model.Sig, cp.GetAbstractTypeFromAstType(pair.VarType))
 		}
 	}
 	LF.Model.Tok = &fnNode.Token
@@ -1904,7 +1904,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			}
 		}
 		var typeToUse AlternateType // TODO: we can extract more meaningful information about the tuple from the types.
-		if t, ok := pair.VarType.(*ast.TypeWithName); ok && t.Name == "tuple" {
+		if t, ok := pair.VarType.(*ast.TypeWithName); ok && t.OperatorName == "tuple" {
 			typeToUse = cp.Common.AnyTuple
 		} else {
 			typeToUse = typesAtIndex(types, i)

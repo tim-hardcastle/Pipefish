@@ -30,7 +30,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 	// (e.g. list{T}) in the return types.
 	var paramType *ast.TypeWithParameters
 	for i := 0; i < len(sigToMatch.sig); i++ {
-		if maybeSelf, ok := sigToMatch.sig.GetVarType(i).(*ast.TypeWithName); ok && maybeSelf.Name == "self" {
+		if maybeSelf, ok := sigToMatch.sig.GetVarType(i).(*ast.TypeWithName); ok && maybeSelf.OperatorName == "self" {
 			if foundSelf {
 				result = result.Intersect(abSig[i].VarType)
 				if len(result.Types) == 0 {
@@ -49,7 +49,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 				}
 			}
 		} else {
-			if !iz.cp.GetAbstractType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
+			if !iz.cp.GetAbstractTypeFromAstType(sigToMatch.sig.GetVarType(i).(ast.TypeNode)).IsSubtypeOf(abSig[i].VarType) ||
 				ast.IsAstBling(sigToMatch.sig.GetVarType(i).(ast.TypeNode)) && sigToMatch.sig.GetVarName(i) != abSig[i].VarName {
 				return values.MakeAbstractType()
 			}
@@ -60,7 +60,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 		return values.MakeAbstractType()
 	}
 	for i := 0; i < sigToMatch.rtnSig.Len(); i++ {
-		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.Name == "self" {
+		if t, ok := sigToMatch.rtnSig[i].VarType.(*ast.TypeWithName); ok && t.OperatorName == "self" {
 			// First we deal with the possibility of a type expression matching a parameterized
 			// type.
 			te, ok := fnToTry.callInfo.ReturnTypes.GetVarType(i).(*ast.TypeExpression)
@@ -79,7 +79,7 @@ func (iz *Initializer) getMatches(sigToMatch fnSigInfo, fnToTry *parsedFunction,
 				return values.MakeAbstractType()
 			}
 		} else {
-			if !abRets[i].VarType.IsSubtypeOf(iz.cp.GetAbstractType(sigToMatch.rtnSig[i].VarType)) {
+			if !abRets[i].VarType.IsSubtypeOf(iz.cp.GetAbstractTypeFromAstType(sigToMatch.rtnSig[i].VarType)) {
 				return values.MakeAbstractType()
 			}
 		}
@@ -101,7 +101,8 @@ func (iz *Initializer) makeTypeWithParameters(op token.Token, tokSig parser.TokS
 func (iz *Initializer) makeAstSigFromTokenizedSig(ts parser.TokSig) ast.AstSig {
 	as := ast.AstSig{}
 	for _, pair := range ts {
-		as = append(as, ast.NameTypeAstPair{pair.Name.Literal, iz.makeTypeAstFromTokens(pair.Typename)})
+		typeAst := iz.makeTypeAstFromTokens(pair.Typename)
+		as = append(as, ast.NameTypeAstPair{pair.Name.Literal, typeAst})
 	}
 	return as
 }

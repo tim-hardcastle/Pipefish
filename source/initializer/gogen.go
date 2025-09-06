@@ -163,7 +163,7 @@ func getGoTypeFromTypeAst(pfTypeAst ast.TypeNode) (string, bool) {
 		dots = "..."
 		pfType = pf.Right.String()
 	case *ast.TypeWithName:
-		pfType = pf.Name
+		pfType = pf.OperatorName
 	}
 	goType, ok := goTypes[pfType]
 	if ok {

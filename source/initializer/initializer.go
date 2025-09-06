@@ -139,6 +139,7 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 		iz.cp.P.Common.IsBroken = true
 		return result
 	}
+
 	iz.cmI("Instantiating parameterized types.")
 	iz.instantiateParameterizedTypes()
 	if iz.errorsExist() {
@@ -298,7 +299,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 			vals = append(vals, values.Value{ty.Arguments[i].Type, ty.Arguments[i].Value})
 		}
 		newTypeName := ty.String()
-		parentTypeNo, ok :=compiler.ClonableTypes[parTypeInfo.ParentType]
+		parentTypeNo, ok := compiler.ClonableTypes[parTypeInfo.ParentType]
 		if !(ok || parTypeInfo.ParentType == "struct") {
 			iz.throw("init/clone/type", &ty.Token)
 			return
@@ -396,10 +397,10 @@ func (iz *Initializer) shareable(f *parsedFunction) bool {
 			ty = t.Right
 		}
 		if t, ok := ty.(*ast.TypeWithName); ok &&
-			(t.Name == "struct" || t.Name == "enum") {
+			(t.OperatorName == "struct" || t.OperatorName == "enum") {
 			continue
 		}
-		abType := iz.cp.GetAbstractType(ty)
+		abType := iz.cp.GetAbstractTypeFromAstType(ty)
 		ok := true
 		for _, concType := range abType.Types {
 			if !iz.localConcreteTypes.Contains(concType) {
@@ -494,11 +495,11 @@ func (iz *Initializer) addAbstractTypesToVm() {
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, typeName := range keys {
-		if text.Head(typeName, "clones{") && len(iz.cp.GetAbstractTypeFromTypeSys(typeName).Types) == 1 {
+		if text.Head(typeName, "clones{") && len(iz.cp.GetAbstractTypeFromTypeName(typeName).Types) == 1 {
 			continue
 		}
 		iz.addTypeToVm(values.AbstractTypeInfo{Name: typeName, Path: iz.P.NamespacePath,
-			AT: iz.cp.GetAbstractTypeFromTypeSys(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
+			AT: iz.cp.GetAbstractTypeFromTypeName(typeName), IsMI: iz.unserializableTypes.Contains(typeName)})
 	}
 	for _, v := range compiler.ClonableTypes { // Clonable types are clones of themselves.
 		selfInfo := iz.cp.Vm.ConcreteTypeInfo[v].(vm.BuiltinType)
@@ -719,7 +720,7 @@ func (iz *Initializer) addFields(typeNumber values.ValueType, sig ast.AstSig) {
 	structTypes := make([]values.AbstractType, 0, len(sig))
 	for _, labelNameAndType := range sig {
 		typeAst := labelNameAndType.VarType
-		abType := iz.cp.GetAbstractType(typeAst)
+		abType := iz.cp.GetAbstractTypeFromAstType(typeAst)
 		structTypes = append(structTypes, abType)
 	}
 	structInfo.AbstractStructFields = structTypes
@@ -731,7 +732,7 @@ func (iz *Initializer) tweakParameterizedTypes() {
 	for _, pti := range iz.parameterizedInstanceMap {
 		for _, v := range pti.env.Data {
 			if iz.cp.Vm.Mem[v.MLoc].T == values.TYPE {
-				iz.cp.Vm.Mem[v.MLoc].V = iz.cp.GetAbstractType(iz.cp.Vm.Mem[v.MLoc].V.(ast.TypeNode))
+				iz.cp.Vm.Mem[v.MLoc].V = iz.cp.GetAbstractTypeFromAstType(iz.cp.Vm.Mem[v.MLoc].V.(ast.TypeNode))
 			}
 		}
 	}
@@ -763,7 +764,7 @@ func (iz *Initializer) addParameterizedTypesToVm() {
 		typeArgs := []values.Value{}
 		for _, v := range ty.astType.(*ast.TypeWithArguments).Arguments {
 			if v.Type == values.TYPE {
-				typeArgs = append(typeArgs, values.Value{values.TYPE, iz.cp.GetAbstractType(v.Value.(ast.TypeNode))})
+				typeArgs = append(typeArgs, values.Value{values.TYPE, iz.cp.GetAbstractTypeFromAstType(v.Value.(ast.TypeNode))})
 			} else {
 				typeArgs = append(typeArgs, values.Value{v.Type, v.Value})
 			}
@@ -782,7 +783,7 @@ func (iz *Initializer) addParameterizedTypesToVm() {
 
 func (iz *Initializer) tweakValue(v values.Value) values.Value {
 	if v.T == values.TYPE {
-		v.V = iz.cp.GetAbstractType(v.V.(ast.TypeNode))
+		v.V = iz.cp.GetAbstractTypeFromAstType(v.V.(ast.TypeNode))
 	}
 	return v
 }
@@ -806,7 +807,7 @@ func (iz *Initializer) checkTypesForConsistency() {
 		if dec.private {
 			continue
 		}
-		abType := iz.cp.GetAbstractTypeFromTypeSys(dec.op.Literal)
+		abType := iz.cp.GetAbstractTypeFromTypeName(dec.op.Literal)
 		for _, w := range abType.Types {
 			if iz.cp.Vm.ConcreteTypeInfo[w].IsPrivate() {
 				iz.throw("init/private/abstract", ixPtr(dec), dec.op.Literal)
@@ -1122,7 +1123,7 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 
 	last := len(sig) - 1
 	t, ok := sig[last].VarType.(*ast.TypeWithName)
-	lastIsTuple := ok && t.Name == "tuple"
+	lastIsTuple := ok && t.OperatorName == "tuple"
 	rhsIsTuple := result.T == values.TUPLE
 	tupleLen := 1
 	if rhsIsTuple {
@@ -1162,7 +1163,7 @@ func (iz *Initializer) compileGlobalConstantOrVariable(declarations declarationT
 	}
 	for i := 0; i < loopTop; i++ {
 		iz.cp.Reserve(head[i].T, head[i].V, rhs.GetToken())
-		if varType, ok := sig[i].VarType.(*ast.TypeWithName); ok && varType.Name == "*inferred*" {
+		if varType, ok := sig[i].VarType.(*ast.TypeWithName); ok && varType.OperatorName == "*inferred*" {
 			iz.cp.AddThatAsVariable(envToAddTo, sig[i].VarName, vAcc, altType(head[i].T), rhs.GetToken())
 		} else {
 			allowedTypes := iz.cp.GetAlternateTypeFromTypeAst(sig[i].VarType)
@@ -1464,6 +1465,7 @@ func (iz *Initializer) addType(name, supertype string, typeNo values.ValueType) 
 	iz.cp.TypeMap[name] = values.MakeAbstractType(typeNo)
 	iz.cp.P.Typenames = iz.cp.P.Typenames.Add(name)
 	types := []string{supertype}
+	iz.cp.TypeMap[supertype] = iz.cp.TypeMap[supertype].Insert(typeNo)
 	iz.cp.Common.AddTypeNumberToSharedAlternateTypes(typeNo, types...)
 	types = append(types, "any")
 	for _, sT := range types {
@@ -1618,7 +1620,12 @@ func val(T values.ValueType, V any) values.Value {
 func (iz *Initializer) cmI(s string) {
 	if settings.SHOW_INITIALIZER {
 		if iz.cp != nil && iz.cp.P != nil {
-			println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")
+			if iz.cp.P.NamespacePath == "" {
+				println(text.UNDERLINE + s + text.RESET)
+			} else {
+				println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")	
+			}
+			
 		}
 	}
 }

@@ -458,7 +458,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 
 func (cp *Compiler) emitTypeComparisonFromTypeNode(tn ast.TypeNode, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
 	cp.Cm("Emitting type comparison from type node "+text.Emph(tn.String()), tok)
-	abType := cp.GetAbstractType(tn)
+	abType := cp.GetAbstractTypeFromAstType(tn)
 	return cp.emitTypeComparisonFromAbstractType(abType, mem, tok)
 }
 
@@ -661,8 +661,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						return AltType(typeNumber)
 					}
 					cp.Emit(vm.Asgm, typeCheck.ResultLoc, b.outLoc)
-					for i , loc := range b.valLocs {
-						cp.Emit(vm.Asgm, typeCheck.InLoc + uint32(i), loc)
+					for i, loc := range b.valLocs {
+						cp.Emit(vm.Asgm, typeCheck.InLoc+uint32(i), loc)
 					}
 					cp.Reserve(values.INT, int(cp.ReserveToken(b.tok)), b.tok)
 					cp.Emit(vm.Asgm, typeCheck.TokNumberLoc, cp.That())

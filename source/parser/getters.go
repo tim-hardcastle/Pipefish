@@ -150,7 +150,7 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (as
 		// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
 		// 'foo (f func) : <function body>'.
 		return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: dflt}}, nil
-	
+
 	}
 	return nil, newError("parse/sig/a", node.GetToken())
 }
@@ -221,7 +221,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 // that we should be able to find in a function signature.
 func (p *Parser) ToAstType(te *ast.TypeExpression) ast.TypeNode {
 	if len(te.TypeArgs) == 0 {
-		return &ast.TypeWithName{Token: te.Token, Name: te.Operator}
+		return &ast.TypeWithName{Token: te.Token, OperatorName: te.Operator}
 	}
 	// This is either a bool, float, int, rune, string, type or enum literal, in which
 	// case the whole thing should be, OR it's a type with parameters, or it's not well-
@@ -282,8 +282,6 @@ func (p *Parser) IsEnumElement(name string) bool {
 	_, ok := p.EnumElementNames[name]
 	return ok
 }
-
-
 
 // Finds whether an identifier is in the right place to be a function, or whether it's being used
 // as though it's a variable or constant.
