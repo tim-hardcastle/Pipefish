@@ -107,6 +107,9 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
+	p.Typenames = p.Typenames.Add("any")
+	p.Typenames = p.Typenames.Add("enum")
+	p.Typenames = p.Typenames.Add("struct")
 
 	p.Functions.Add("builtin")
 

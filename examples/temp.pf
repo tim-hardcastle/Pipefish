@@ -1,10 +1,10 @@
-var z = 42
+newtype
 
-cmd 
+Foo = clone int 
 
-foo(x ref) :
-    x = x + 1
+def 
 
-bar(y ref) :
-    foo y
+qux(x any?) :
+    x
+
 

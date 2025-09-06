@@ -973,6 +973,7 @@ func (iz *Initializer) createInterfaceTypes() {
 		dec := tc.(*tokenizedInterfaceDeclaration)
 		nameTok := dec.op
 		newTypename := nameTok.Literal
+		iz.cp.P.Typenames.Add(newTypename)
 		if settings.MandatoryImportSet().Contains(nameTok.Source) {
 			iz.unserializableTypes.Add(newTypename)
 		}
