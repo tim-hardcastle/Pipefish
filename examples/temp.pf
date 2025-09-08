@@ -1,10 +1,5 @@
-newtype
+var 
 
-Foo = clone int 
-
-def 
-
-qux(x any?) :
-    x
-
+s = -- foo
+t = s[0] + "bar"
 

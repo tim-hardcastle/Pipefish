@@ -461,6 +461,7 @@ NodeTypeSwitch:
 		if containerType.isOnlyCloneOf(cp.Vm, values.SNIPPET) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.Put(vm.IxSn, container, index, errTok)
+				rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
