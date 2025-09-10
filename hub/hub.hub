@@ -4,10 +4,10 @@ NULL::"sql"
 
 var
 
-allServices = map(`HTML`::`/home/tim/Pf/Pipefish/examples/html.pf`,
-               .. `SQL`::`/home/tim/Pf/Pipefish/examples/sql3.pf`,
-               .. `temp`::`/home/tim/Pf/Pipefish/examples/temp.pf`,
-               .. `hub`::`hub/hub.hub`)
+allServices = map(`temp`::`/home/tim/Pf/Pipefish/examples/temp.pf`,
+               .. `hub`::`hub/hub.hub`,
+               .. `HTML`::`/home/tim/Pf/Pipefish/examples/html.pf`,
+               .. `SQL`::`/home/tim/Pf/Pipefish/examples/sql3.pf`)
 
 currentService string? = `HTML`
 

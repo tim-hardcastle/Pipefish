@@ -1083,6 +1083,15 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 			iz.cp.Vm.Code[addr+2].Args[1] = iz.cp.Fns[funcNumber].OutReg
 		}
 	}
+
+	// We make a note of where "stringify" is.
+	callInfoForStringify := iz.cp.FunctionForest["stringify"].Tree.Branch[0].Node.Branch[0].Node.CallInfo
+	stringifyFn := callInfoForStringify.Compiler.Fns[callInfoForStringify.Number]
+	iz.cp.Vm.StringifyLoReg = stringifyFn.LoReg
+	iz.cp.Vm.StringifyCallTo = stringifyFn.CallTo
+	iz.cp.Vm.StringifyOutReg = stringifyFn.OutReg
+
+	// We call `init`.
 	iz.cmI("Calling 'init' if it exists.")
 	iz.cp.CallIfExists("init")
 	return result
@@ -1428,14 +1437,6 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 		iz.P.Throw("comp/return/cmd", &izFn.op)
 	}
 	iz.setDeclaration(decFUNCTION, &izFn.op, DUMMY, &cpFn)
-
-	// We capture the 'stringify' function for use by the VM. TODO --- somewhere else altogether.
-
-	if functionName == "stringify" {
-		iz.cp.Vm.StringifyLoReg = cpFn.LoReg
-		iz.cp.Vm.StringifyCallTo = cpFn.CallTo
-		iz.cp.Vm.StringifyOutReg = cpFn.OutReg
-	}
 
 	return &cpFn
 }
