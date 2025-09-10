@@ -1,0 +1,45 @@
+import private 
+
+golang "github.com/microcosm-cc/bluemonday"
+
+newtype 
+
+Html = clone string using +
+
+Qux = struct(i int, foo string)
+
+def
+
+Html(sn snippet) -> Html:
+    toHtml sn
+
+toHtml(sn snippet) -> Html :
+    from a = Html("") for _::v = range sn :
+        a + toHtml(v)
+
+toHtml(L clones{list}) -> Html :
+    Html("<ul>\n") + htmlList + Html("</ul>")
+given :
+    htmlList = from a = Html("") for _::v = range L :
+        a + Html("<li>") + toHtml(v) + Html("</li>\n")
+
+toHtml(s string) -> Html : 
+    Html sanitize s
+
+toHtml(h Html) -> Html :
+    h
+
+toHtml(S struct) -> Html :
+    from a = Html("") for j::k = range keys(S) :
+        a + Html(`<font style="color:DodgerBlue;"><i>` + string(k) + "</i></font>") ..
+          + Html(" : ") + toHtml(S[k]) + (j != len(keys S) -1 : Html(", ") ; else : Html(""))
+
+toHtml(x any?) :
+    Html(string x)
+
+string(h Html) -> string : 
+    cast h, string
+
+sanitize(s string) -> string : golang {
+    return bluemonday.UGCPolicy().Sanitize(s)
+}
