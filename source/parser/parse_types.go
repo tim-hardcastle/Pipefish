@@ -46,6 +46,7 @@ func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 	// Prefixes
 	if p.PeekToken.Type == token.LBRACE {
 		leftExp = p.parseParamsOrArgs()
+		p.NextToken()
 	} else {
 		if p.CurToken.Type == token.DOTDOTDOT {
 			right := p.ParseType(T_LOWEST)
@@ -54,6 +55,7 @@ func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 			leftExp = &ast.TypeWithName{tok, p.CurToken.Literal}
 		}
 	}
+
 	// Infixes
 	for prec < p.peekTypePrecedence() && p.PeekToken.Type == token.IDENT &&
 		(p.PeekToken.Literal == "/" || p.PeekToken.Literal == "&") {

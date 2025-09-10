@@ -68,6 +68,7 @@ func TestFunctionSyntax(t *testing.T) {
 }
 func TestTypeParser(t *testing.T) {
 	tests := []test_helper.TestItem{
+		{`clones{int}/string`, `(clones{int} / string)`},
 		{`string/int`, `(string / int)`},
 		{`string&int`, `(string & int)`},
 		{`string`, `string`},
