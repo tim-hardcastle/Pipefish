@@ -88,7 +88,6 @@ secret(x any?) -> secret : builtin "secret"
 set(x clones{set}) -> set : builtin "cast_to_set"
 set(x ... any?) -> set : makeSet(x)
 makeSet(x tuple) -> set : builtin "make_set"   
-// string(x stringlike) -> string : builtin "cast_to_string" // TODO --- why is this commented out?
 snippet(x ... any?) -> snippet : snippetmaker(x)
 snippetmaker(x tuple) : builtin "make_snippet" 
 snippet(x clones{snippet}) -> snippet : builtin "cast_to_snippet"      
@@ -99,7 +98,6 @@ type(x any?) -> type : builtin "type"
 type(x ok) -> type : builtin "type"
 type(x tuple) -> type : builtin "type_of_tuple"
 types(x type) -> set : builtin "types_of_type"
-varchar(x int) -> type : builtin "varchar"
 (x list) with (y ... pair) -> list : builtin "list_with"
 (x map) with (y ... pair) -> map : builtin "map_with"
 (x struct) with (y ... pair) -> struct : builtin "struct_with"

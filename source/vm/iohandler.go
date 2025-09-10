@@ -52,7 +52,7 @@ func (oH *SimpleOutHandler) Out(v values.Value) {
 	if oH.vm.Mem[oH.vm.UsefulValues.OutputAs].V.(int) == 0 {
 		oH.output.Write([]byte(oH.vm.Literal(v)))
 	} else {
-		oH.output.Write([]byte(oH.vm.DefaultDescription(v)))
+		oH.output.Write([]byte(oH.vm.StringifyValue(v, DEFAULT)))
 	}
 	oH.output.Write([]byte{'\n'})
 }
