@@ -315,7 +315,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/eq/types": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't compare values of different types"
+			return "can't compare values of types " + emph(args[0]) + " and " + emph(args[1]) 
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish doesn't let you compare values of different types, on the grounds that " +

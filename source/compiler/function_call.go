@@ -587,7 +587,6 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				// It could be a builtin from the builtins file.
 				functionAndType, ok := BUILTINS[builtinTag]
 				if ok {
-					cp.cmP("Emitting builtin.", b.tok)
 					switch builtinTag { // Then for these we need to special-case their return types.
 					case "get_from_sql":
 						functionAndType.T = cp.Common.AnyTypeScheme
@@ -624,6 +623,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
 					case "struct_with":
 						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
+					default : // TODO --- at this point functionAndType.T is entirely cruft, never used for permanent storage.
+						functionAndType.T = F.RtnTypes
 					}
 					functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 					return functionAndType.T

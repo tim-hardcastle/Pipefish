@@ -1127,6 +1127,11 @@ NodeTypeSwitch:
 	default:
 		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
 	}
+	if rtnConst {
+		cp.Cm("Expression "+node.String()+" is constant with return types "+rtnTypes.describe(cp.Vm)+".", node.GetToken())
+	} else {
+		cp.Cm("Expression "+node.String()+" is non-constant with return types "+rtnTypes.describe(cp.Vm)+".", node.GetToken())
+	}
 	// We're done with the typeswitch. We perform some sanity checks to ensure that our functions aren't behaving
 	// like commands or vice versa.
 	if !rtnTypes.IsLegalCmdReturn() && !rtnTypes.IsLegalDefReturn() && !rtnTypes.Contains(values.COMPILE_TIME_ERROR) {
@@ -2005,7 +2010,7 @@ func (cp *Compiler) compileEquals(node *ast.ComparisonExpression, ctxt Context) 
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 0 {
-		cp.Throw("comp/eq/types", node.GetToken())
+		cp.Throw("comp/eq/types", node.GetToken(), lTypes.describe(cp.Vm), rTypes.describe(cp.Vm))
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {

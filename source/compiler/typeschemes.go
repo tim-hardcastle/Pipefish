@@ -306,7 +306,6 @@ func (aT AlternateType) describe(mc *vm.Vm) string {
 	return buf.String()
 }
 
-
 func (vL AlternateType) Union(wL AlternateType) AlternateType {
 	x := AlternateType{}
 	var vix, wix int
@@ -382,18 +381,18 @@ func (aT AlternateType) isOnlyCloneOf(mc *vm.Vm, vts ...values.ValueType) bool {
 		case SimpleType:
 			typeNumber := values.ValueType(el)
 			switch typeInfo := mc.ConcreteTypeInfo[typeNumber].(type) {
-			case vm.BuiltinType :
+			case vm.BuiltinType:
 				if !types.Contains(typeNumber) {
 					return false
 				}
-			case vm.CloneType :
+			case vm.CloneType:
 				if !types.Contains(typeInfo.Parent) {
 					return false
 				}
-			default :
+			default:
 				return false
 			}
-			
+
 		default:
 			return false
 		}
@@ -409,11 +408,11 @@ func (aT AlternateType) cannotBeACloneOf(mc *vm.Vm, vts ...values.ValueType) boo
 		case SimpleType:
 			typeNumber := values.ValueType(el)
 			switch typeInfo := mc.ConcreteTypeInfo[typeNumber].(type) {
-			case vm.BuiltinType :
+			case vm.BuiltinType:
 				if types.Contains(typeNumber) {
 					return false
 				}
-			case vm.CloneType :
+			case vm.CloneType:
 				if types.Contains(typeInfo.Parent) {
 					return false
 				}
@@ -421,7 +420,7 @@ func (aT AlternateType) cannotBeACloneOf(mc *vm.Vm, vts ...values.ValueType) boo
 		}
 	}
 	return true
-	
+
 }
 
 func (aT AlternateType) IsPrivate(mc *vm.Vm) bool {
