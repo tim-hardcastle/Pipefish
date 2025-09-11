@@ -2832,7 +2832,7 @@ func (cp *Compiler) cmP(comment string, tok *token.Token) {
 }
 
 // The same as the previous methods but in red. Used to draw attention to new comments which will either be downgraded to cyan or purple or removed.
-func (cp *Compiler) cmR(comment string, tok *token.Token) {
+func (cp *Compiler) CmR(comment string, tok *token.Token) {
 	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(text.RED + "// " + comment + text.RESET)
 	}

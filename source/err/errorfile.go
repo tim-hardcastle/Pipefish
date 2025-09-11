@@ -2082,7 +2082,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"lex/quote/rune": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "rune litereal unterminated by end of line"
+			return "rune literal unterminated by end of line"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Having begun a rune literal with an opening quote, you haven't concluded it with a matching " +

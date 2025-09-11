@@ -1,19 +1,4 @@
-newtype 
+def 
 
-Qux = clone string using +
-
-Zort = clone int using +
-
-// var
-
-// x = toQux -- foo 
-
-def
-
-toQux(sn snippet) -> Qux :
-    from a = Qux("") for _::v = range sn :
-        a + toQux(v)
-
-toQux(s string) -> Qux : 
-    Qux(s)
-
+foo(x string/int/rune) :
+    x
