@@ -13,10 +13,12 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 	colonOrEmdash, _ := regexp.Compile(`.*[\w\s]*(:|--)[\s]*$`)
 	rline := readline.NewInstance()
 	highlightComments, _ := regexp.Compile(`//`)
+	highlightStringLiterals, _ := regexp.Compile("(\"[^\"\\\\]*(\\\\.[^\"\\\\]*)*\"|`*`)")
 	rline.SyntaxHighlighter = func(r []rune) string {
 		start := string(r)
 		withHighlightedComments := highlightComments.ReplaceAllString(start, text.GREEN + "//" + text.ITALIC)
-		return withHighlightedComments
+		withHighlightedStringLiterals := highlightStringLiterals.ReplaceAllString(withHighlightedComments, text.PURPLE + "$1" + text.CYAN)
+		return withHighlightedStringLiterals
 	}
 	for {
 		// The hub's CurrentForm setting allows it to ask for information from the user instead of
