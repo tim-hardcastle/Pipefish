@@ -7,8 +7,8 @@
 // accompanying code, and although his language and mine differ very much in their syntax, semantics,
 // implementation, and ambitions, I still owe him a considerable debt.
 //
-// I owe thanks to Laurence Morgan (lmorg on Github) for adding features to his debug library for my
-// sake.
+// I owe thanks to Laurence Morgan (lmorg on Github) for adding features to his readline library for 
+// my sake.
 //
 // Much gratitude is due to r/programminglanguages collectively for advice and encouragement.
 //
