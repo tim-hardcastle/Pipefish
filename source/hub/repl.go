@@ -12,12 +12,10 @@ import (
 func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 	colonOrEmdash, _ := regexp.Compile(`.*[\w\s]*(:|--)[\s]*$`)
 	rline := readline.NewInstance()
-	removeColor, _ := regexp.Compile(`\033\[[0-9;]+m`)
 	highlightComments, _ := regexp.Compile(`//`)
 	rline.SyntaxHighlighter = func(r []rune) string {
 		start := string(r)
-		withoutColor := removeColor.ReplaceAllString(start, "")
-		withHighlightedComments := highlightComments.ReplaceAllString(withoutColor, text.GREEN + "//")
+		withHighlightedComments := highlightComments.ReplaceAllString(start, text.GREEN + "//" + text.ITALIC)
 		return withHighlightedComments
 	}
 	for {
@@ -80,10 +78,10 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 }
 
 func makePrompt(hub *Hub, indented bool) string {
-	symbol := PROMPT + text.YELLOW + text.ITALIC
+	symbol := PROMPT + text.CYAN
 	left := hub.currentServiceName()
 	if indented {
-		symbol = INDENT_PROMPT + text.YELLOW + text.ITALIC
+		symbol = INDENT_PROMPT + text.CYAN
 		left = strings.Repeat(" ", len(left))
 	}
 	if hub.currentServiceName() == "" {

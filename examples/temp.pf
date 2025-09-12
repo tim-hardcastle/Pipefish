@@ -2,3 +2,5 @@ def
 
 foo(x string/int/rune) :
     x
+
+
