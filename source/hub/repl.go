@@ -12,6 +12,14 @@ import (
 func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 	colonOrEmdash, _ := regexp.Compile(`.*[\w\s]*(:|--)[\s]*$`)
 	rline := readline.NewInstance()
+	removeColor, _ := regexp.Compile(`\033\[[0-9;]+m`)
+	highlightComments, _ := regexp.Compile(`//`)
+	rline.SyntaxHighlighter = func(r []rune) string {
+		start := string(r)
+		withoutColor := removeColor.ReplaceAllString(start, "")
+		withHighlightedComments := highlightComments.ReplaceAllString(withoutColor, text.GREEN + "//")
+		return withHighlightedComments
+	}
 	for {
 		// The hub's CurrentForm setting allows it to ask for information from the user instead of
 		// just sitting waiting to be told. If CurrentForm is not nil then it contains a structured
