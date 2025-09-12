@@ -47,8 +47,6 @@ init :
     post to SQL -- 
         CREATE TABLE IF NOT EXISTS People |Person|
 
-cmd 
-
 clear :
     post to SQL --
         DROP TABLE People
