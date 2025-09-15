@@ -187,6 +187,7 @@ const (
 	GRAY      = "\033[37m"
 	WHITE     = "\033[97m"
 	ITALIC    = "\033[3m"
+	BOLD      = "\033[1m"
 	BULLET    = "  ▪ "
 	RT_ERROR  = "$Error$"
 	ERROR     = "$Error$"

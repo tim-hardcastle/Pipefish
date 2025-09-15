@@ -1611,18 +1611,13 @@ func Cyan(s string) string {
 }
 
 func Logo() string {
-	var padding string
-	if len(VERSION)%2 == 1 {
-		padding = ","
-	}
-	titleText := " Pipefish" + padding + " version " + VERSION + " "
-	loveHeart := Red("♥")
+	titleText := " 🧿 Pipefish version " + VERSION + " "
 	leftMargin := "  "
-	bar := strings.Repeat("═", len(titleText)/2)
+	bar := strings.Repeat("═", len(titleText) - 2)
 	logoString := "\n" +
-		leftMargin + "╔" + bar + loveHeart + bar + "╗\n" +
+		leftMargin + "╔" + bar + "╗\n" +
 		leftMargin + "║" + titleText + "║\n" +
-		leftMargin + "╚" + bar + loveHeart + bar + "╝\n\n"
+		leftMargin + "╚" + bar + "╝\n\n"
 	return logoString
 }
 

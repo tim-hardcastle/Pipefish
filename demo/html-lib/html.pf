@@ -1,5 +1,7 @@
+// This is the html library I made for this demo.
+// It's only 35 sloc.
 import private 
-
+// I cheated by importing a HTML sanitizer.
 golang "github.com/microcosm-cc/bluemonday"
 
 newtype 
@@ -15,6 +17,10 @@ string(h Html) -> string :
     cast h, string
 
 private
+// A Pipefish function can have its body written in Go.
+sanitize(s string) -> string : golang {
+    return bluemonday.StrictPolicy().Sanitize(s)
+}
 
 toHtml(sn snippet) -> Html :
     from a = Html("") for j::v = range sn :
@@ -38,11 +44,8 @@ toHtml(h Html) -> Html :
 toHtml(S struct/clones{map}) -> Html :
     from a = Html("") for j::k = range keys(S) :
         a + Html(`<font style="color:Blue;"><i>` + string(k) + "</i></font>") ..
-      ..  + Html(" : ") + toHtml(S[k]) + (j != len(keys S) -1 : Html(", ") ; else : Html(""))
+       .. + Html(" : ") + toHtml(S[k]) ..
+       .. + (j != len(keys S) -1 : Html(", ") ; else : Html(""))
 
 toHtml(x any?) :
     Html(string x)
-
-sanitize(s string) -> string : golang {
-    return bluemonday.StrictPolicy().Sanitize(s)
-}

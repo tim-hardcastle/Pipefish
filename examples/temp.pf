@@ -1,6 +1,3 @@
-def 
+import 
 
-foo(x string/int/rune) :
-    x
-
-
+"math"

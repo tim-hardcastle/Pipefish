@@ -19,7 +19,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		start := string(r)
 		withHighlightedComments := highlightComments.ReplaceAllString(start, text.GREEN + "//" + text.ITALIC)
 		withHighlightedStringLiterals := highlightStringLiterals.ReplaceAllString(withHighlightedComments, text.PURPLE + "$1" + text.CYAN)
-		withHighlightedHub := highlightHub.ReplaceAllString(withHighlightedStringLiterals, text.ITALIC + "hub")
+		withHighlightedHub := highlightHub.ReplaceAllString(withHighlightedStringLiterals, text.BOLD + text.ITALIC + "hub")
 		return withHighlightedHub
 	}
 	for {
