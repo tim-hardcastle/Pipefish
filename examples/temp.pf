@@ -1,3 +1,15 @@
 import 
 
+newtype
+
+else 0 0 0.9
+
+Qux = clone string
+
 "math"
+
+// A docstring:
+~~ Doubles any value of a type for which `+` is implemented.
+
+
+BAH 

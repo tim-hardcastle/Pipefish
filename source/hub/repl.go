@@ -17,7 +17,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 	highlightHub, _ := regexp.Compile(`^hub`)
 	rline.SyntaxHighlighter = func(r []rune) string {
 		start := string(r)
-		withHighlightedComments := highlightComments.ReplaceAllString(start, text.GREEN + "//" + text.ITALIC)
+		withHighlightedComments := highlightComments.ReplaceAllString(start, "\033[38;2;23;147;20m//" + text.ITALIC)
 		withHighlightedStringLiterals := highlightStringLiterals.ReplaceAllString(withHighlightedComments, text.PURPLE + "$1" + text.CYAN)
 		withHighlightedHub := highlightHub.ReplaceAllString(withHighlightedStringLiterals, text.BOLD + text.ITALIC + "hub")
 		return withHighlightedHub

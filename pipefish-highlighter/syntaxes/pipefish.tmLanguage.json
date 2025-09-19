@@ -4,6 +4,12 @@
 		{
 			"include": "#keywords"
 		},
+		{
+			"include": "#control"
+		},
+		{
+			"include": "#numbers"
+		},
 		{	
 			"include": "#headwords"
 		},
@@ -27,8 +33,22 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.pipefish",
-				"match": "\\b(and|break|continue|else|false|for|given|global|golang|not|or|ref|true)\\b"
+				"match": "\\b(and|false|for|given|global|golang|not|or|ref|true)\\b"
 			}]
+		},
+		"control": {
+			"patterns": [{
+				"name": "keyword.control",
+				"match": "\\b(break|continue|else|try)\\b"
+			}]
+		},
+		"numbers": {
+			"patterns": [
+				{
+				"name":"constant.numeric",
+				"match": "((^|[^_0-9])[0-9]+\\.[0-9]+)|((^|[^_0-9])[0-9]+)|([^_0-9]0[xboXBO][0-9]+)"
+				}
+			]
 		},
 		"headwords": {
 			"patterns": [{
