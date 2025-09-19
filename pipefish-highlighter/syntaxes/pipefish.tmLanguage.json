@@ -19,6 +19,9 @@
 		{	
 			"include": "#comments"
 		},
+		{	
+			"include": "#documentation"
+		},
 		{
 			"include": "#punctuation"
 		},
@@ -75,6 +78,22 @@
 				"name": "comment.pipefish",
 				"begin": "//",
 				"end": "\n"
+				}
+			]
+		},
+		"documentation": {
+			"patterns": [				
+				{
+					"name": "constant.other.option",
+					"begin": "^(\\s)*~~",
+					"end": "$",
+					"patterns": [
+						{
+						"name":"keyword.operator",
+						"begin": "`",
+						"end": "`"
+						}
+					]
 				}
 			]
 		},
