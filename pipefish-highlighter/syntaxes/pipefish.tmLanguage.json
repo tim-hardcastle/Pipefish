@@ -10,6 +10,9 @@
 		{
 			"include": "#numbers"
 		},
+		{
+			"include": "#constants"
+		},
 		{	
 			"include": "#headwords"
 		},
@@ -24,6 +27,9 @@
 		},
 		{
 			"include": "#punctuation"
+		},
+		{
+			"include": "#types"
 		},
 		{
 			"include": "#continuations"
@@ -53,10 +59,24 @@
 				}
 			]
 		},
+		"constants": {
+			"patterns": [
+				{
+				"name":"variable.other.constant",
+				"match": "[A-Z][A-Z_]+"
+				}
+			]
+		},
 		"headwords": {
 			"patterns": [{
 					"name": "keyword.control",
 					"match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
+			}]
+		},
+		"types": {
+			"patterns": [{
+					"name": "entity.name.type",
+					"match": "\\b(clone|clones|def|float|string|int|bool|type|secret|snippet|pair|list|map|set|error|null)\\b|\\b[A-Z][a-z][A-Za-z]*\\b"
 			}]
 		},
 		"strings": {
