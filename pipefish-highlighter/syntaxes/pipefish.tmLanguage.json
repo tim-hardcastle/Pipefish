@@ -35,13 +35,13 @@
 	"repository": {
 		"keywords": {
 			"patterns": [{
-				"name": "keyword.pipefish",
+				"name": "keyword",
 				"match": "\\b(and|false|for|given|global|golang|not|or|ref|true)\\b"
 			}]
 		},
 		"control": {
 			"patterns": [{
-				"name": "keyword.control",
+				"name": "keyword",
 				"match": "\\b(break|continue|else|try)\\b"
 			}]
 		},
@@ -55,7 +55,7 @@
 		},
 		"headwords": {
 			"patterns": [{
-					"name": "entity.name.type",
+					"name": "keyword.control",
 					"match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
 			}]
 		},
