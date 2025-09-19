@@ -1,0 +1,51 @@
+// Constants that can be assigned to the hub's THEME constant at compile time.
+
+newtype 
+
+Theme = enum ABYSS, DARK_MODERN, QUIET_LIGHT
+
+private
+
+Style = enum REGULAR, BOLD, ITALIC, UNDERLINE
+Font = struct(r, g, b int, style Style)
+
+const
+
+THEMES = map( ..
+.. ABYSS::map( ..
+    .. "comment"::Font(0x38, 0x48, 0x87, REGULAR),
+    .. "constant"::Font(0x66, 0x88, 0xCC, REGULAR),
+    .. "function"::Font(0xDD, 0xBB, 0x88, REGULAR), 
+    .. "number"::Font(0xF2, 0x80, 0xD0, REGULAR),
+    .. "reserved"::Font(0x22, 0x55, 0x88, REGULAR),
+    .. "string"::Font(0x22, 0xAA, 0x44, REGULAR),
+    .. "type"::Font(0xFF, 0xEE, 0xBB, UNDERLINE),
+    .. "variable"::Font(0x66, 0x88, 0xCC, REGULAR)), 
+.. DARK_MODERN::map( ..
+    .. "comment"::Font(0x6A, 0x99, 0x55, REGULAR),
+    .. "constant"::Font(0x4F, 0xC1, 0xFF, REGULAR),
+    .. "function"::Font(0xDC, 0xDC, 0xAA, REGULAR),
+    .. "number"::Font(0xB5, 0xCE, 0xA8, REGULAR),
+    .. "reserved"::Font(0x56, 0x9C, 0xD6, REGULAR),
+    .. "string"::Font(0xCE, 0x91, 0x78, REGULAR),
+    .. "type"::Font(0x4E, 0xC9, 0xB0, REGULAR),
+    .. "variable"::Font(0x9C, 0xDC, 0xFE, REGULAR)),
+.. QUIET_LIGHT::map( ..
+    .. "comment"::Font(0xAA, 0xAA, 0xAA, ITALIC),
+    .. "constant"::Font(0x9C, 0x5D, 0x27, REGULAR),
+    .. "function"::Font(0xAA, 0x37, 0x31, BOLD),
+    .. "number"::Font(0x9C, 0x5D, 0x27, REGULAR),
+    .. "reserved"::Font(0x4B, 0x69, 0xC6, REGULAR),
+    .. "string"::Font(0x44, 0x8C, 0x27, REGULAR),
+    .. "type"::Font(0x7A, 0x3E, 0x9D, BOLD),
+    .. "variable"::Font(0x7A, 0x3E, 0x9D, REGULAR)))
+
+// .. ::map( ..
+//     .. "comment"::Font(0x, 0x, 0x, REGULAR),
+//     .. "constant"::Font(0x, 0x, 0x, REGULAR),
+//     .. "function"::Font(0x, 0x, 0x, REGULAR),
+//     .. "number"::Font(0x, 0x, 0x, REGULAR),
+//     .. "reserved"::Font(0x, 0x, 0x, REGULAR),
+//     .. "string"::Font(0x, 0x, 0x, REGULAR),
+//     .. "type"::Font(0x, 0x, 0x, REGULAR),
+//     .. "variable"::Font(0x, 0x, 0x, REGULAR)),
