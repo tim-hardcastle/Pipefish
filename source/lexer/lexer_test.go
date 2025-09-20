@@ -28,8 +28,7 @@ w :
 else : 6
 			`
 	items := []testItem{
-		{token.EOF, "EOF", 1}, //0
-		{token.IDENT, "line", 1},
+		{token.IDENT, "line", 1},//0
 		{token.IDENT, "one", 1},
 		{token.NEWLINE, ";", 2},
 		{token.BEGIN, "|->", 2},
@@ -38,8 +37,8 @@ else : 6
 		{token.NEWLINE, ";", 3},
 		{token.BEGIN, "|->", 3},
 		{token.IDENT, "line", 3},
-		{token.IDENT, "three", 3}, //10
-		{token.IDENT, "line", 4},
+		{token.IDENT, "three", 3}, 
+		{token.IDENT, "line", 4}, //10
 		{token.IDENT, "threeandahalf", 4},
 		{token.COMMA, ",", 5},
 		{token.IDENT, "line", 5},
@@ -48,8 +47,8 @@ else : 6
 		{token.COMMENT, "This is a comment", 7},
 		{token.ILLEGAL, "lex/wsp", 7},
 		{token.IDENT, "line", 7}, 
-		{token.IDENT, "four", 7}, //20
-		{token.NEWLINE, ";", 8},
+		{token.IDENT, "four", 7}, 
+		{token.NEWLINE, ";", 8}, //20
 		{token.END, "<-|", 8},
 		{token.END, "<-|", 8},
 		{token.NEWLINE, ";", 8},
@@ -59,8 +58,8 @@ else : 6
 		{token.IDENT, "w", 9},
 		{token.COLON, ":", 9},
 		{token.NEWLINE, ";", 10}, 
-		{token.BEGIN, "|->", 10}, //30
-		{token.IDENT, "x", 10},
+		{token.BEGIN, "|->", 10}, 
+		{token.IDENT, "x", 10}, // 30
 		{token.COLON, ":", 10},
 		{token.NEWLINE, ";", 11},
 		{token.BEGIN, "|->", 11},
@@ -69,8 +68,8 @@ else : 6
 		{token.NEWLINE, ";", 12},
 		{token.BEGIN, "|->", 12},
 		{token.IDENT, "z", 12}, 
-		{token.COLON, ":", 12}, //40
-		{token.INT, "1", 12},
+		{token.COLON, ":", 12}, 
+		{token.INT, "1", 12}, // 40
 		{token.NEWLINE, ";", 13},
 		{token.ELSE, "else", 13},
 		{token.COLON, ":", 13},
@@ -79,8 +78,8 @@ else : 6
 		{token.END, "<-|", 14},
 		{token.NEWLINE, ";", 14},
 		{token.ELSE, "else", 14}, 
-		{token.COLON, ":", 14}, //50
-		{token.NEWLINE, ";", 15},
+		{token.COLON, ":", 14}, 
+		{token.NEWLINE, ";", 15}, // 50
 		{token.BEGIN, "|->", 15},
 		{token.IDENT, "v", 15},
 		{token.COLON, ":", 15},
@@ -88,8 +87,8 @@ else : 6
 		{token.NEWLINE, ";", 16},
 		{token.ELSE, "else", 16},
 		{token.COLON, ":", 16}, 
-		{token.INT, "4", 16}, //60
-		{token.NEWLINE, ";", 17},
+		{token.INT, "4", 16}, 
+		{token.NEWLINE, ";", 17}, // 60
 		{token.END, "<-|", 17},
 		{token.END, "<-|", 17},
 		{token.NEWLINE, ";", 17},
@@ -101,7 +100,7 @@ else : 6
 		{token.NEWLINE, ";", 18},
 		{token.ELSE, "else", 18},
 		{token.COLON, ":", 18}, 
-		{token.INT, "6", 18}, //70
+		{token.INT, "6", 18}, 
 	}
 	testLexingString(t, input, items)
 }
@@ -117,7 +116,6 @@ golang {
 }`
 
 	items := []testItem{
-		{token.EOF, "EOF", 1},
 		{token.GOLANG, "qux", 1},
 		{token.NEWLINE, ";", 2},
 		{token.GOLANG, "foo", 2},
@@ -145,8 +143,8 @@ func runTest(t *testing.T, ts TokenSupplier, items []testItem) {
 	for i, tt := range items {
 		tok := ts.NextToken()
 		if tok.Type != tt.expectedType {
-			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
-				i, tt.expectedType, tok.Type)
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q with literal %q, got=%q with literal %q",
+				i, tt.expectedType, tt.expectedLiteral, tok.Type, tok.Literal)
 		}
 		if tok.Literal != tt.expectedLiteral {
 			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",

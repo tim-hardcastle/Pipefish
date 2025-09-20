@@ -36,11 +36,12 @@ type Relexer struct {
 
 func NewRelexer(source, input string) *Relexer {
 	l := *NewLexer(source, input)
+	println("Current rune when lexer is made is", string(l.runes.CurrentRune()))
 	mt := makeChain(&l)
 	rl := &Relexer{lexer: l,
 		mt:     mt,
 		source: source,
-		preTok: l.NewToken(token.NEWLINE, ";"),
+		preTok: token.Token{token.NEWLINE, ";", 0, 0, 0, ""},
 		curTok: mt.NextToken(),
 		nexTok: mt.NextToken(),
 		Errors: []*err.Error{},

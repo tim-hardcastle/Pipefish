@@ -119,37 +119,18 @@ func (hub *Hub) setSV(sv string, ty pf.Type, v any) {
 // This converts a string identifying the color of a token (e.g. `type`,
 // `number`, to Linux control codes giving the correct coloring according
 // to the color theme of the hub.)
-func (hub *Hub) getColor(tokenIs string) string {
+func (hub *Hub) getFonts() *values.Map {
 	theme := hub.getSV("theme")
 	if theme.V == nil {
-		println("No theme")
-		return ""
+		return nil
 	}
 	mapOfThemes := hub.getSV("THEMES").V.(*values.Map)
 	mapForTheme, themeExists := mapOfThemes.Get(theme)
 	if !themeExists {
-		return ""
+		return nil
 	}
-	colorMap := mapForTheme.V.(*values.Map)
-	pfFont, colorExists := colorMap.Get(values.Value{values.STRING, tokenIs})
-	if !colorExists {
-		return ""
-	}
-	fontValues := pfFont.V.([]values.Value)
-	result := "\033[38;2"
-	for i := range 3 {
-		result = result + ";" + strconv.Itoa(fontValues[i].V.(int))
-	}
-	result = result + "m"
-	switch fontValues[3].V.(int) {
-	case 1:
-		result = result + text.BOLD
-	case 2:
-		result = result + text.ITALIC
-	case 3:
-		result = result + text.UNDERLINE
-	}
-	return result
+	fonts := mapForTheme.V.(*values.Map)
+	return fonts
 }
 
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
@@ -1654,7 +1635,7 @@ func Cyan(s string) string {
 func Logo() string {
 	titleText := " 🧿 Pipefish version " + VERSION + " "
 	leftMargin := "  "
-	bar := strings.Repeat("═", len(titleText) - 2)
+	bar := strings.Repeat("═", len(titleText)-2)
 	logoString := "\n" +
 		leftMargin + "╔" + bar + "╗\n" +
 		leftMargin + "║" + titleText + "║\n" +

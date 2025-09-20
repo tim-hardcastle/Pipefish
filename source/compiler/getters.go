@@ -3,11 +3,14 @@
 package compiler
 
 import (
+	"bytes"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/lexer"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 	"github.com/tim-hardcastle/Pipefish/source/vm"
@@ -227,4 +230,69 @@ func GetSourceCode(scriptFilepath string) (string, error) {
 	}
 	sourcebytes = append(sourcebytes, '\n')
 	return string(sourcebytes), nil
+}
+
+// We can't just lex it beause we need the whitespace intact. OTOH, this means
+// we are going to duplicate some logic.
+func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
+	var out bytes.Buffer
+	pos := 0
+	for pos < len(code) {
+		// We initilize our variables.
+		ch := code[pos]
+		next := rune(0)
+		if pos + 1 < len(code) {
+			next = code[pos+1]
+		}
+		// We could be looking at protected punctuation.
+		if lexer.IsProtectedPunctuation(ch) || (ch == '!' && next == '=') {
+			out.WriteString(getFont("reserved", fonts))
+			out.WriteRune(ch)
+			out.WriteString(text.RESET)
+			pos++
+			continue
+		}
+		if lexer.IsLegalStart(ch) {
+			var identifier bytes.Buffer
+			for {
+				identifier.WriteRune(ch)
+				pos++
+				if pos == len(code) {
+					break
+				}
+				
+
+			}
+
+		}
+		// Or, by default (e.g. if it's whitespace)
+		out.WriteRune(ch)
+		pos++
+	}
+	return out.String()
+}
+
+func getFont(tokenIs string, fonts *values.Map) string {
+	if fonts == nil {
+		return ""
+	}
+	pfFont, colorExists := fonts.Get(values.Value{values.STRING, tokenIs})
+	if !colorExists {
+		return ""
+	}
+	fontValues := pfFont.V.([]values.Value)
+	result := "\033[38;2"
+	for i := range 3 {
+		result = result + ";" + strconv.Itoa(fontValues[i].V.(int))
+	}
+	result = result + "m"
+	switch fontValues[3].V.(int) {
+	case 1:
+		result = result + text.BOLD
+	case 2:
+		result = result + text.ITALIC
+	case 3:
+		result = result + text.UNDERLINE
+	}
+	return result
 }

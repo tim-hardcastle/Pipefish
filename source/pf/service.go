@@ -669,3 +669,9 @@ var DEFAULT_TYPE_FOR = map[Type]reflect.Type{
 func (sv *Service) WriteSecret(store values.Map, password string) string {
 	return sv.cp.Vm.DumpStore(store, password)
 }
+
+// This highlights the given string on the assumption that it's Pipefish
+// code, and that the `fonts` map is a theme like in `user/themes.pf``.
+func (sv *Service) Highlight(code []rune, fonts Map) string {
+	return sv.cp.Highlight(code, fonts)
+}

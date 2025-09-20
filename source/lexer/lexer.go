@@ -14,14 +14,12 @@ import (
 )
 
 type lexer struct {
+	runes           *RuneSupplier
 	reader          strings.Reader
-	input           string
-	ch              rune                 // current rune under examination
-	line            int                  // the line number
-	char            int                  // the character number
 	tstart          int                  // the value of char at the start of a token
-	newline         bool                 // whether we are at the start of a line and so should be treating whitespace syntactically
+	lineNo          int
 	afterWhitespace bool                 // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
+	continuation    bool
 	whitespaceStack dtypes.Stack[string] // levels of whitespace to unindent to
 	Ers             err.Errors
 	source          string
@@ -32,28 +30,26 @@ func NewLexer(source, input string) *lexer {
 	stack := dtypes.NewStack[string]()
 	stack.Push("")
 	l := &lexer{reader: r,
-		input:           input,
-		line:            1,
-		char:            -1,
+		runes:           NewRuneSupplier([]rune(input)),
 		whitespaceStack: *stack,
 		Ers:             []*err.Error{},
 		source:          source,
+		lineNo:          1,
 	}
 	return l
 }
 
 func (l *lexer) getTokens() []token.Token {
-
-	if l.newline {
+	if l.lineNo < l.runes.lineNo && !l.continuation {
 		l.afterWhitespace = true
-		l.newline = false
+		l.lineNo = l.runes.lineNo
 		return l.interpretWhitespace()
 	}
-	l.newline = false
+	l.lineNo = l.runes.lineNo
+	l.continuation = false
 	l.skipWhitespace()
-	l.tstart = l.char
-
-	switch l.ch {
+	_, l.tstart = l.runes.Position()
+	switch l.runes.CurrentRune() {
 	case 0:
 		level := l.whitespaceStack.Find("")
 		if level > 0 {
@@ -67,29 +63,29 @@ func (l *lexer) getTokens() []token.Token {
 	case '\n':
 		return []token.Token{l.NewToken(token.NEWLINE, ";")}
 	case '\\':
-		if l.peekChar() == '\\' {
-			l.readChar()
+		if l.runes.PeekRune() == '\\' {
+			l.runes.Next()
 			return []token.Token{l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))}
 		}
 	case ';':
 		return []token.Token{l.NewToken(token.SEMICOLON, ";")}
 	case ':':
-		if l.peekChar() == ':' {
-			l.readChar()
+		if l.runes.PeekRune() == ':' {
+			l.runes.Next()
 			return []token.Token{l.NewToken(token.IDENT, "::")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
 			return []token.Token{l.NewToken(token.COLON, ":")}
 		}
 	case '=':
-		if l.peekChar() == '=' {
-			l.readChar()
+		if l.runes.PeekRune() == '=' {
+			l.runes.Next()
 			return []token.Token{l.NewToken(token.EQ, "==")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		} else {
 			return []token.Token{l.NewToken(token.ASSIGN, "=")}
 		}
 	case '?':
-		if l.peekChar() == '>' {
-			l.readChar()
+		if l.runes.PeekRune() == '>' {
+			l.runes.Next()
 			return []token.Token{l.NewToken(token.FILTER, "?>")} // We return []token.Token{this as a regular identifier so we can define the '::' operator as a builtin.
 		}
 	case ',':
@@ -129,14 +125,14 @@ func (l *lexer) getTokens() []token.Token {
 		}
 		return []token.Token{l.NewToken(token.RUNE, r)}
 	case '.':
-		if l.peekChar() == '.' {
-			l.readChar()
-			if l.peekChar() == '.' {
-				l.readChar()
+		if l.runes.PeekRune() == '.' {
+			l.runes.Next()
+			if l.runes.PeekRune() == '.' {
+				l.runes.Next()
 				return []token.Token{l.NewToken(token.DOTDOTDOT, "...")}
 			}
 			if l.skipWhitespaceAfterPotentialContinuation() {
-				l.readChar()
+				l.runes.Next()
 				return []token.Token{}
 			} else {
 				return []token.Token{l.Throw("lex/cont/a")}
@@ -147,27 +143,27 @@ func (l *lexer) getTokens() []token.Token {
 	}
 
 	// We may have a comment.
-	if l.ch == '/' && l.peekChar() == '/' {
-		l.readChar()
+	if l.runes.CurrentRune() == '/' && l.runes.PeekRune() == '/' {
+		l.runes.Next()
 		return []token.Token{l.NewToken(token.COMMENT, l.readComment())}
 	}
 
 	// We may have a binary, octal, or hex literal.
-	if l.ch == '0' {
-		switch l.peekChar() {
-		case 'b':
+	if l.runes.CurrentRune() == '0' {
+		switch l.runes.PeekRune() {
+		case 'b', 'B':
 			numString := l.readBinaryNumber()
 			if num, err := strconv.ParseInt(numString, 2, 64); err == nil {
 				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
 			return []token.Token{l.Throw("lex/bin", numString)}
-		case 'o':
+		case 'o', 'O':
 			numString := l.readOctalNumber()
 			if num, err := strconv.ParseInt(numString, 8, 64); err == nil {
 				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
 			return []token.Token{l.Throw("lex/oct", numString)}
-		case 'x':
+		case 'x', 'X':
 			numString := l.readHexNumber()
 			if num, err := strconv.ParseInt(numString, 16, 64); err == nil {
 				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
@@ -177,7 +173,7 @@ func (l *lexer) getTokens() []token.Token {
 	}
 
 	// We may have a normal base-ten literal.
-	if isDigit(l.ch) {
+	if IsDigit(l.runes.CurrentRune()) {
 		numString := l.readNumber()
 		if _, err := strconv.ParseInt(numString, 0, 64); err == nil {
 			return []token.Token{l.NewToken(token.INT, numString)}
@@ -189,7 +185,7 @@ func (l *lexer) getTokens() []token.Token {
 	}
 
 	// We may have an identifier, a golang block, or a snippet.
-	if isLegalStart(l.ch) {
+	if IsLegalStart(l.runes.CurrentRune()) {
 		lit := l.readIdentifier()
 		tType := token.LookupIdent(lit)
 		switch tType {
@@ -213,30 +209,27 @@ func (l *lexer) getTokens() []token.Token {
 	}
 
 	// Or we have nothing recognizable.
-	return []token.Token{l.Throw("lex/ill", l.ch)}
+	return []token.Token{l.Throw("lex/ill", l.runes.CurrentRune())}
 }
 
 func (l *lexer) interpretWhitespace() []token.Token {
-
-	l.newline = false
 	whitespace := ""
-
-	for l.ch == ' ' || l.ch == '\t' {
-		whitespace = whitespace + string(l.ch)
-		l.readChar()
+	for l.runes.CurrentRune() == ' ' || l.runes.CurrentRune() == '\t' {
+		whitespace = whitespace + string(l.runes.CurrentRune())
+		l.runes.Next()
 	}
-	if l.ch == '\n' {
+	if l.runes.CurrentRune() == '\n' {
 		return []token.Token{}
 	}
-	if l.ch == '/' && l.peekChar() == '/' {
-		l.readChar()
+	if l.runes.CurrentRune() == '/' && l.runes.PeekRune() == '/' {
+		l.runes.Next()
 		comment := l.readComment()
-		l.readChar()
+		l.runes.Next()
 		return []token.Token{l.NewToken(token.COMMENT, comment)}
 	}
-	if l.ch == '.' && l.peekChar() == '.' {
-		l.readChar()
-		l.readChar()
+	if l.runes.CurrentRune() == '.' && l.runes.PeekRune() == '.' {
+		l.runes.Next()
+		l.runes.Next()
 		return []token.Token{l.Throw("lex/cont/b")}
 	}
 	previousWhitespace, _ := l.whitespaceStack.HeadValue()
@@ -293,103 +286,80 @@ func describeWhitespace(s string) string {
 }
 
 func (l *lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\r' {
-		l.readChar()
+	for l.runes.CurrentRune() == ' ' || l.runes.CurrentRune() == '\t' || l.runes.CurrentRune() == '\r' {
+		l.runes.Next()
 	}
 }
 
 func (l *lexer) skipWhitespaceAfterPotentialContinuation() bool {
-	for l.peekChar() == ' ' || l.peekChar() == '\t' || l.peekChar() == '\r' {
-		l.readChar()
+	for l.runes.PeekRune() == ' ' || l.runes.PeekRune() == '\t' || l.runes.PeekRune() == '\r' {
+		l.runes.Next()
 	}
-	if l.peekChar() != '\n' {
+	if l.runes.PeekRune() != '\n' {
+		l.continuation = true
 		return true
 	}
-	for l.peekChar() == '\n' || l.peekChar() == ' ' || l.peekChar() == '\t' || l.peekChar() == '\r' {
-		l.readChar()
+	for l.runes.PeekRune() == '\n' || l.runes.PeekRune() == ' ' || l.runes.PeekRune() == '\t' || l.runes.PeekRune() == '\r' {
+		l.runes.Next()
 	}
-	if l.peekChar() != '.' {
+	if l.runes.PeekRune() != '.' {
 		return false
 	}
-	l.readChar()
-	if l.peekChar() != '.' {
+	l.runes.Next()
+	if l.runes.PeekRune() != '.' {
 		return false
 	}
-	l.readChar()
-	l.newline = false
+	l.runes.Next()
+	l.continuation = true
 	return true
 }
 
-func (l *lexer) readChar() {
 
-	l.char++
-	if l.ch == '\n' {
-		l.line++
-		l.newline = true
-		l.char = 0
-		l.tstart = 0
-	}
-	if l.reader.Len() == 0 {
-		l.ch = 0
-	} else {
-		l.ch, _, _ = l.reader.ReadRune()
-	}
-}
-
-func (l *lexer) peekChar() rune {
-	if l.reader.Len() == 0 {
-		return 0
-	} else {
-		ru, _, _ := l.reader.ReadRune()
-		l.reader.UnreadRune()
-		return ru
-	}
-}
 
 func (l *lexer) readNumber() string {
-	result := string(l.ch)
-	for isDigit(l.peekChar()) || l.peekChar() == '.' {
-		l.readChar()
-		result = result + string(l.ch)
+	result := string(l.runes.CurrentRune())
+	for IsDigit(l.runes.PeekRune()) || l.runes.PeekRune() == '.' {
+		l.runes.Next()
+		result = result + string(l.runes.CurrentRune())
 	}
 	return result
 }
 
 func (l *lexer) readBinaryNumber() string {
 	result := ""
-	l.readChar()
-	for isBinaryDigit(l.peekChar()) {
-		l.readChar()
-		result = result + string(l.ch)
+	l.runes.Next()
+	for IsBinaryDigit(l.runes.PeekRune()) {
+		l.runes.Next()
+		result = result + string(l.runes.CurrentRune())
 	}
 	return result
 }
 
 func (l *lexer) readOctalNumber() string {
 	result := ""
-	l.readChar()
-	for isOctalDigit(l.peekChar()) {
-		l.readChar()
-		result = result + string(l.ch)
+	l.runes.Next()
+	for IsOctalDigit(l.runes.PeekRune()) {
+		l.runes.Next()
+		result = result + string(l.runes.CurrentRune())
 	}
 	return result
 }
 
 func (l *lexer) readHexNumber() string {
 	result := ""
-	l.readChar()
-	for isHexDigit(l.peekChar()) {
-		l.readChar()
-		result = result + string(l.ch)
+	l.runes.Next()
+	for IsHexDigit(l.runes.PeekRune()) {
+		l.runes.Next()
+		result = result + string(l.runes.CurrentRune())
 	}
 	return result
 }
 
 func (l *lexer) readComment() string {
 	result := ""
-	for !(l.peekChar() == '\n' || l.peekChar() == 0) {
-		result = result + string(l.peekChar())
-		l.readChar()
+	for !(l.runes.PeekRune() == '\n' || l.runes.PeekRune() == 0) {
+		result = result + string(l.runes.PeekRune())
+		l.runes.Next()
 	}
 	return result
 }
@@ -398,14 +368,14 @@ func (l *lexer) readSnippet() (string, int) {
 	// Note --- what we return from this is followed by makeToken, which doesn't read a character, rather than NewToken, which does.
 	// This is because we may end up in a position where we've just realized that we've unindented. (See other use of MakeChar.)
 	result := ""
-	for l.peekChar() == ' ' || l.peekChar() == '\t' { // We consume the whitespace between the emdash and either a non-whitespace character or a newline.
-		l.readChar()
+	for l.runes.PeekRune() == ' ' || l.runes.PeekRune() == '\t' { // We consume the whitespace between the emdash and either a non-whitespace character or a newline.
+		l.runes.Next()
 	}
 	// There are two possibilities. Either we found a non-whitespace character, and the whole snippet is on the same line as the
 	// `---` token, or we found a newline and the snippet is an indent on the succeeding lines. Just like with a colon.
-	if l.peekChar() == '\n' || l.peekChar() == '\r' { // --- then we have to mess with whitespace.
-		for l.peekChar() == '\n' || l.peekChar() == '\r' {
-			l.readChar()
+	if l.runes.PeekRune() == '\n' || l.runes.PeekRune() == '\r' { // --- then we have to mess with whitespace.
+		for l.runes.PeekRune() == '\n' || l.runes.PeekRune() == '\r' {
+			l.runes.Next()
 		}
 		langIndent := ""
 		stackTop, ok := l.whitespaceStack.HeadValue()
@@ -414,9 +384,9 @@ func (l *lexer) readSnippet() (string, int) {
 		}
 		for {
 			currentWhitespace := ""
-			for (l.peekChar() == '\t' || l.peekChar() == ' ') && !(langIndent != "" && currentWhitespace == langIndent) {
-				l.readChar()
-				currentWhitespace = currentWhitespace + string(l.ch)
+			for (l.runes.PeekRune() == '\t' || l.runes.PeekRune() == ' ') && !(langIndent != "" && currentWhitespace == langIndent) {
+				l.runes.Next()
+				currentWhitespace = currentWhitespace + string(l.runes.CurrentRune())
 			}
 			if langIndent == "" { // Then this is the first time around.
 				if currentWhitespace == "" {
@@ -441,62 +411,61 @@ func (l *lexer) readSnippet() (string, int) {
 				l.Throw("lex/emdash/indent/c", l.NewToken(token.ILLEGAL, "bad emdash"))
 				return result, -1
 			}
-			for l.peekChar() != '\n' && l.peekChar() != '\r' && l.peekChar() != 0 {
-				l.readChar()
-				result = result + string(l.ch)
+			for l.runes.PeekRune() != '\n' && l.runes.PeekRune() != '\r' && l.runes.PeekRune() != 0 {
+				l.runes.Next()
+				result = result + string(l.runes.CurrentRune())
 			}
-			if l.peekChar() == 0 {
-				l.readChar()
+			if l.runes.PeekRune() == 0 {
+				l.runes.Next()
 				cstackHeight := l.whitespaceStack.Find("")
 				l.whitespaceStack.Take(cstackHeight)
 				return result, cstackHeight
 			}
-			l.readChar()
+			l.runes.Next()
 			result = result + "\n"
 		}
 	} else {
-		for l.peekChar() != '\n' && l.peekChar() != '\r' && l.peekChar() != 0 {
-			l.readChar()
-			result = result + string(l.ch)
+		for l.runes.PeekRune() != '\n' && l.runes.PeekRune() != '\r' && l.runes.PeekRune() != 0 {
+			l.runes.Next()
+			result = result + string(l.runes.CurrentRune())
 		}
-		l.readChar()
+		l.runes.Next()
 		return result, -1
 	}
 }
 
 func (l *lexer) readGolang() string {
 	result := ""
-	for l.peekChar() == ' ' || l.peekChar() == '\t' { // Get rid of the whitespace between 'golang' and whatever follows it.
-		l.readChar()
+	for l.runes.PeekRune() == ' ' || l.runes.PeekRune() == '\t' { // Get rid of the whitespace between 'golang' and whatever follows it.
+		l.runes.Next()
 	}
 	// We expect a brace or quotes after the golang keyword. (The quotes if it's in the import section, import golang "foo".)
-	if l.peekChar() != '{' && l.peekChar() != '"' && l.peekChar() != '`' {
+	if l.runes.PeekRune() != '{' && l.runes.PeekRune() != '"' && l.runes.PeekRune() != '`' {
 		l.Throw("lex/golang", l.NewToken(token.ILLEGAL, "bad golang"))
 		return ""
 	}
-	if l.peekChar() == '"' {
-		l.readChar()
+	if l.runes.PeekRune() == '"' {
+		l.runes.Next()
 		s, ok := l.readFormattedString()
 		if !ok {
 			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
 		return s
 	}
-	if l.peekChar() == '`' {
-		l.readChar()
+	if l.runes.PeekRune() == '`' {
+		l.runes.Next()
 		s, ok := l.readPlaintextString()
 		if !ok {
 			l.Throw("lex/quote/d", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
 		return s
 	}
-
-	l.readChar() // Skips over the opening brace.
+	l.runes.Next() // Skips over the opening brace.
 
 	// We just have to look for a closing brace on the left of a line.
-	for !(l.ch == 0) && !(l.ch == '\n' && l.peekChar() == '}') {
-		l.readChar()
-		result = result + string(l.ch)
+	for !(l.runes.CurrentRune() == 0) && !(l.runes.CurrentRune() == '\n' && l.runes.PeekRune() == '}') {
+		l.runes.Next()
+		result = result + string(l.runes.CurrentRune())
 	}
 	return result
 }
@@ -505,20 +474,18 @@ func (l *lexer) readRune() (string, bool) {
 	escape := false
 	result := ""
 	for {
-		l.readChar()
-		if (l.ch == '\'' && !escape) || l.ch == 0 || l.ch == 13 || l.ch == 10 {
+		l.runes.Next()
+		if (l.runes.CurrentRune() == '\'' && !escape) || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 10 {
 			break
 		}
-		if l.ch == '\\' && !escape {
+		if l.runes.CurrentRune() == '\\' && !escape {
 			escape = true
 			continue
 		}
-
-		charToAdd := l.ch
-
+		charToAdd := l.runes.CurrentRune()
 		if escape {
 			escape = false
-			switch l.ch {
+			switch l.runes.CurrentRune() {
 			case 'n':
 				charToAdd = '\n'
 			case 'r':
@@ -535,7 +502,7 @@ func (l *lexer) readRune() (string, bool) {
 		}
 		result = result + string(charToAdd)
 	}
-	if l.ch == 13 || l.ch == 0 || l.ch == 10 {
+	if l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 10 {
 		return result, false
 	}
 	if utf8.RuneCountInString(result) != 1 {
@@ -548,20 +515,20 @@ func (l *lexer) readFormattedString() (string, bool) {
 	escape := false
 	result := ""
 	for {
-		l.readChar()
-		if (l.ch == '"' && !escape) || l.ch == 0 || l.ch == 13 || l.ch == 10 {
+		l.runes.Next()
+		if (l.runes.CurrentRune() == '"' && !escape) || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 10 {
 			break
 		}
-		if l.ch == '\\' {
+		if l.runes.CurrentRune() == '\\' {
 			escape = true
 			continue
 		}
 
-		charToAdd := l.ch
+		charToAdd := l.runes.CurrentRune()
 
 		if escape {
 			escape = false
-			switch l.ch {
+			switch l.runes.CurrentRune() {
 			case 'n':
 				charToAdd = '\n'
 			case 'r':
@@ -578,7 +545,7 @@ func (l *lexer) readFormattedString() (string, bool) {
 		}
 		result = result + string(charToAdd)
 	}
-	if l.ch == 13 || l.ch == 0 || l.ch == 10 {
+	if l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 10 {
 		return result, false
 	}
 	return result, true
@@ -587,75 +554,86 @@ func (l *lexer) readFormattedString() (string, bool) {
 func (l *lexer) readPlaintextString() (string, bool) {
 	result := ""
 	for {
-		l.readChar()
-		if l.ch == '`' || l.ch == 0 || l.ch == 13 || l.ch == 10 {
+		l.runes.Next()
+		if l.runes.CurrentRune() == '`' || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 10 {
 			break
 		}
-		result = result + string(l.ch)
+		result = result + string(l.runes.CurrentRune())
 	}
-	if l.ch == 13 || l.ch == 0 || l.ch == 10 {
+	if l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 10 {
 		return result, false
 	}
 	return result, true
 }
 
 func (l *lexer) readIdentifier() string {
-	result := string(l.ch) // i.e. the character that suggested this was an identifier.
+	result := string(l.runes.CurrentRune()) // i.e. the character that suggested this was an identifier.
 	for !l.atBoundary() {
-		l.readChar()
-		result = result + string(l.ch)
+		l.runes.Next()
+		result = result + string(l.runes.CurrentRune())
 	}
 	return result
 }
 
-func isLetter(ch rune) bool {
+func IsLetter(ch rune) bool {
 	return unicode.IsLetter(ch)
 }
 
-func isUnderscore(ch rune) bool {
+func IsUnderscore(ch rune) bool {
 	return ch == '_'
 }
 
-func isDigit(ch rune) bool {
+func IsDigit(ch rune) bool {
 	return unicode.IsNumber(ch)
 }
 
-func isBinaryDigit(ch rune) bool {
+func IsBinaryDigit(ch rune) bool {
 	return ch == '0' || ch == '1'
 }
 
-func isOctalDigit(ch rune) bool {
+func IsOctalDigit(ch rune) bool {
 	return '0' <= ch && ch <= '7'
 }
 
-func isHexDigit(ch rune) bool {
+func IsHexDigit(ch rune) bool {
 	return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
 }
 
-func isProtectedPunctuationOrWhitespace(ch rune) bool {
+func IsProtectedPunctuationBracketOrWhitespace(ch rune) bool {
 	return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}' || ch == ' ' || ch == ',' ||
 		ch == ':' || ch == ';' || ch == '.' || ch == '\t' || ch == '\n' || ch == '\r' || ch == 0
 }
 
-func isSymbol(ch rune) bool {
-	return !(isUnderscore(ch) || isLetter(ch) || isDigit(ch) || isProtectedPunctuationOrWhitespace(ch))
+func IsProtectedPunctuation(ch rune) bool {
+	return ch == ',' || ch == ':' || ch == ';' || ch == '.' || ch == '='
 }
 
-func isLegalStart(ch rune) bool {
-	return !(isProtectedPunctuationOrWhitespace(ch) || isDigit(ch))
+func IsWhitespace(ch rune) bool {
+	return ch == '\t' || ch == '\n' || ch == '\r' || ch == 0
+}
+
+func IsSymbol(ch rune) bool {
+	return !(IsUnderscore(ch) || IsLetter(ch) || IsDigit(ch) || IsProtectedPunctuationBracketOrWhitespace(ch))
+}
+
+func IsLegalStart(ch rune) bool {
+	return !(IsProtectedPunctuationBracketOrWhitespace(ch) || IsDigit(ch))
+}
+
+func IsBoundary(ch, pc rune) bool {
+	return IsProtectedPunctuationBracketOrWhitespace(pc) ||
+		IsLetter(ch) && !(IsLetter(pc) || IsUnderscore(pc)) ||
+		IsDigit(ch) && !(IsDigit(pc) || IsUnderscore(pc)) ||
+		IsSymbol(ch) && !(IsSymbol(pc) || IsUnderscore(pc))
 }
 
 // Finds if we're at the end of an identifier.
 func (l *lexer) atBoundary() bool {
-	pc := l.peekChar()
-	return isProtectedPunctuationOrWhitespace(pc) ||
-		isLetter(l.ch) && !(isLetter(pc) || isUnderscore(pc)) ||
-		isDigit(l.ch) && !(isDigit(pc) || isUnderscore(pc)) ||
-		isSymbol(l.ch) && !(isSymbol(pc) || isUnderscore(pc))
+	return IsBoundary(l.runes.CurrentRune(), l.runes.PeekRune())
 }
 
 func (l *lexer) NewToken(tokenType token.TokenType, st string) token.Token {
-	l.readChar()
+	l.runes.Next()
 	l.afterWhitespace = false
 	return l.MakeToken(tokenType, st)
 }
@@ -664,7 +642,8 @@ func (l *lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 	if settings.SHOW_LEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(l.source)) {
 		fmt.Println(tokenType, st)
 	}
-	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.line, ChStart: l.tstart, ChEnd: l.char}
+	lineNo, chNo := l.runes.Position()
+	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: lineNo, ChStart: l.tstart, ChEnd: chNo}
 }
 
 func (l *lexer) Throw(errorID string, args ...any) token.Token {
