@@ -252,19 +252,6 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 			pos++
 			continue
 		}
-		if lexer.IsLegalStart(ch) {
-			var identifier bytes.Buffer
-			for {
-				identifier.WriteRune(ch)
-				pos++
-				if pos == len(code) {
-					break
-				}
-				
-
-			}
-
-		}
 		// Or, by default (e.g. if it's whitespace)
 		out.WriteRune(ch)
 		pos++

@@ -36,7 +36,6 @@ type Relexer struct {
 
 func NewRelexer(source, input string) *Relexer {
 	l := *NewLexer(source, input)
-	println("Current rune when lexer is made is", string(l.runes.CurrentRune()))
 	mt := makeChain(&l)
 	rl := &Relexer{lexer: l,
 		mt:     mt,
