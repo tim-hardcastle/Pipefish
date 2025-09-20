@@ -52,8 +52,8 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 		iz.addToNameSpace(settings.MandatoryImports)
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
-		iz.cmI("Adding hub.pf to hub namespace.")
-		iz.addToNameSpace([]string{"rsc-pf/hub.pf"})
+		iz.cmI("Adding hub.pf and themes.pf to hub namespace.")
+		iz.addToNameSpace([]string{"rsc-pf/hub.pf", "user/themes.pf"})
 	}
 	iz.cmI("Making new relexer with filepath '" + scriptFilepath + "'")
 	iz.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)

@@ -47,7 +47,7 @@
 		},
 		"control": {
 			"patterns": [{
-				"name": "keyword",
+				"name": "keyword.control",
 				"match": "\\b(break|continue|else|try)\\b"
 			}]
 		},
@@ -55,7 +55,7 @@
 			"patterns": [
 				{
 				"name":"constant.numeric",
-				"match": "((^|[^_0-9])[0-9]+\\.[0-9]+)|((^|[^_0-9])[0-9]+)|([^_0-9]0[xboXBO][0-9]+)"
+				"match": "(?<![_0-9])[0][bB][01]+|(?<![_0-9])[0][oO][0-7]+|(?<![_0-9])[0][xX][0-9A-Fa-f]+|(?<![_0-9])[0-9]+"
 				}
 			]
 		},
@@ -63,7 +63,7 @@
 			"patterns": [
 				{
 				"name":"variable.other.constant",
-				"match": "[A-Z][A-Z_]+"
+				"match": "\\b[A-Z][A-Z_]+\\b"
 				}
 			]
 		},
@@ -76,7 +76,7 @@
 		"types": {
 			"patterns": [{
 					"name": "entity.name.type",
-					"match": "\\b(clone|clones|def|float|string|int|bool|type|secret|snippet|pair|list|map|set|error|null)\\b|\\b[A-Z][a-z][A-Za-z]*\\b"
+					"match": "\\b(clone|clones|enum|struct|def|float|string|int|bool|type|secret|snippet|pair|list|map|set|error|null)\\b\\??|\\b[A-Z][a-z][A-Za-z]*\\b\\??"
 			}]
 		},
 		"strings": {
@@ -129,7 +129,7 @@
 			"patterns": [
 				{
 				"name": "keyword.pipefish",
-				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|,|\\||\\.\\.\\.)"
+				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|,|\\.|\\||\\.\\.\\.)"
 				}
 			]
 		},

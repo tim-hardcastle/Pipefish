@@ -3,13 +3,12 @@ import
 "math"
 
 newtype
-
-Qux = clone string
-
-
+ 
+Person = struct(name string, age int) :
+    age > 0
 
 // A docstring:
 ~~ Doubles any value of a type for which `+` is implemented.
 
+FOO
 
-BAH 

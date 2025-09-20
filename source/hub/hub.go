@@ -116,6 +116,42 @@ func (hub *Hub) setSV(sv string, ty pf.Type, v any) {
 	hub.services["hub"].SetVariable(sv, ty, v)
 }
 
+// This converts a string identifying the color of a token (e.g. `type`,
+// `number`, to Linux control codes giving the correct coloring according
+// to the color theme of the hub.)
+func (hub *Hub) getColor(tokenIs string) string {
+	theme := hub.getSV("theme")
+	if theme.V == nil {
+		println("No theme")
+		return ""
+	}
+	mapOfThemes := hub.getSV("THEMES").V.(*values.Map)
+	mapForTheme, themeExists := mapOfThemes.Get(theme)
+	if !themeExists {
+		return ""
+	}
+	colorMap := mapForTheme.V.(*values.Map)
+	pfFont, colorExists := colorMap.Get(values.Value{values.STRING, tokenIs})
+	if !colorExists {
+		return ""
+	}
+	fontValues := pfFont.V.([]values.Value)
+	result := "\033[38;2"
+	for i := range 3 {
+		result = result + ";" + strconv.Itoa(fontValues[i].V.(int))
+	}
+	result = result + "m"
+	switch fontValues[3].V.(int) {
+	case 1:
+		result = result + text.BOLD
+	case 2:
+		result = result + text.ITALIC
+	case 3:
+		result = result + text.UNDERLINE
+	}
+	return result
+}
+
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
 // as an instruction to the os if it begins with 'os', and as an expression to be passed to
 // the current service if none of the above hold.
@@ -1041,6 +1077,8 @@ func (hub *Hub) saveHubFile() string {
 	hubService := hub.services["hub"]
 	var buf strings.Builder
 	buf.WriteString(prefix)
+	buf.WriteString("var")
+	buf.WriteString("\n\n")
 	buf.WriteString("allServices = map(")
 	serviceList := []string{}
 	for k := range hub.services {
@@ -1077,6 +1115,9 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString("\n\n")
 	buf.WriteString("isLive = ")
 	buf.WriteString(hubService.ToLiteral(hub.getSV("isLive")))
+	buf.WriteString("\n\n")
+	buf.WriteString("theme Theme? = ")
+	buf.WriteString(hubService.ToLiteral(hub.getSV("theme")))
 	buf.WriteString("\n\n")
 	buf.WriteString("width = ")
 	buf.WriteString(hubService.ToLiteral(hub.getSV("width")))
