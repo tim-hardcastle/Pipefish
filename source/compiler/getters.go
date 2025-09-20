@@ -6,14 +6,17 @@ import (
 	"bytes"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/lexer"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"src.elv.sh/pkg/persistent/vector"
 )
 
 func (cp *Compiler) getAbstractType(name string) values.AbstractType {
@@ -232,32 +235,132 @@ func GetSourceCode(scriptFilepath string) (string, error) {
 	return string(sourcebytes), nil
 }
 
+var (
+	nondecimalIndicators = dtypes.MakeFromSlice([]rune{'b', 'B', 'o', 'O', 'x', 'X'})
+	control = dtypes.MakeFromSlice([]string{"break", "continue", "else", "try"})
+	reserved = dtypes.MakeFromSlice([]string{"and", "false", "given", "not", "or", "true", "->", ">>", "?>", "--"})
+	illegalInRepl = dtypes.MakeFromSlice([]string{"cmd", "const", "def", "external", "global", "golang", "import", "newtype", "private", "var", "\\\\", "~~"})
+	nativeTypes = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret"})
+	enumlike, _ = regexp.Compile(`^[A-Z][A-Z_]+$`)
+	typelike, _ = regexp.Compile(`^[A-Z][A-Z]*[a-z]+[A-Za-z]*$`)
+	bracketMatch = map[rune]rune{'(':')', '[':']', '{':'}'}
+	leftBrackets = dtypes.MakeFromSlice([]rune{'(', '[', '{'})
+	rightBrackets = dtypes.MakeFromSlice([]rune{')', ']', '}'})
+)
+
 // We can't just lex it beause we need the whitespace intact. OTOH, this means
 // we are going to duplicate some logic.
 func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 	var out bytes.Buffer
-	pos := 0
-	for pos < len(code) {
-		// We initilize our variables.
-		ch := code[pos]
-		next := rune(0)
-		if pos + 1 < len(code) {
-			next = code[pos+1]
-		}
-		// We could be looking at protected punctuation.
-		if lexer.IsProtectedPunctuation(ch) || (ch == '!' && next == '=') {
-			out.WriteString(getFont("reserved", fonts))
-			out.WriteRune(ch)
+	brackets := []rune{}
+	runes := lexer.NewRuneSupplier(code)
+	for runes.CurrentRune() != '\n' && runes.CurrentRune() != 0 {
+		switch {
+		// First we deal with the brackets, which have their own rules.
+		case leftBrackets.Contains(runes.CurrentRune()) :
+			font := getFontForBrackets(len(brackets), fonts)
+			brackets = append(brackets, runes.CurrentRune())
+			out.WriteString(font)
+			out.WriteRune(runes.CurrentRune())
 			out.WriteString(text.RESET)
-			pos++
-			continue
-		}
+		case rightBrackets.Contains(runes.CurrentRune()) :
+			font := text.RED
+			if len(brackets) > 0 && bracketMatch[brackets[len(brackets)-1]] == runes.CurrentRune() {
+				brackets = brackets[:len(brackets)-1]
+				font = getFontForBrackets(len(brackets), fonts)
+			}
+			out.WriteString(font)
+			out.WriteRune(runes.CurrentRune())
+			out.WriteString(text.RESET)
+		// We could be looking at protected punctuation.
+		case lexer.IsProtectedPunctuation(runes.CurrentRune()) || 
+				(runes.CurrentRune() == '!' && runes.PeekRune() == '=') :
+			out.WriteString(wrapFont(string(runes.CurrentRune()), "reserved", fonts))
+		// A formatted string literal.
+		case runes.CurrentRune() == '"' :
+			result, ok := runes.ReadFormattedString()
+			result = `"` + result
+			if ok {
+				result = result + `"`
+			}
+			out.WriteString(wrapFont(result, "string", fonts))
+		// A plaintext string literal.
+		case runes.CurrentRune() == '`' :
+			result, ok := runes.ReadPlaintextString()
+			result = "`" + result
+			if ok {
+				result = result + "`"
+			}
+			out.WriteString(wrapFont(result, "string", fonts))
+		// A rune literal.
+		case runes.CurrentRune() == '\'' :
+			result, hasSingleQuote, hasLengthOne := runes.ReadRuneLiteral()
+			result = "'" + result
+			if hasSingleQuote {
+				result = result + "'"
+			}
+			if !hasLengthOne {
+				out.WriteString(text.Red(result))
+			} else {
+				out.WriteString(wrapFont(result, "string", fonts))
+			}
+		// A comment.
+		case runes.CurrentRune() == '/' && runes.PeekRune() == '/' :
+			result := "/" + runes.ReadComment()
+			out.WriteString(wrapFont(result, "comment", fonts))
+		// A nondecimal integer literal.
+		case runes.CurrentRune() == '0' && nondecimalIndicators.Contains(runes.PeekRune()) :
+			result := ""
+			indicator := runes.PeekRune()
+			switch indicator {
+			case 'b', 'B':
+				result = runes.ReadBinaryNumber()
+			case 'o', 'O':
+				result = runes.ReadOctalNumber()
+			case 'x', 'X':
+				result = runes.ReadHexNumber()
+			}
+			out.WriteString(wrapFont("0" + string(indicator) + result, "number", fonts))
+		// It could be a perfectly ordinary number.
+		case lexer.IsDigit(runes.CurrentRune()) :
+			result := runes.ReadNumber()
+			out.WriteString(wrapFont(result, "number", fonts))
+		case lexer.IsLegalStart(runes.CurrentRune()) :
+			result := runes.ReadIdentifier()
+			switch {
+			case control.Contains(result):
+				out.WriteString(wrapFont(result, "control", fonts))
+			case reserved.Contains(result):
+				out.WriteString(wrapFont(result, "reserved", fonts))
+			case illegalInRepl.Contains(result):
+				out.WriteString(text.Red(result))
+			case enumlike.Match([]byte(result)):
+				out.WriteString(wrapFont(result, "constant", fonts))
+			case nativeTypes.Contains(result) || typelike.Match([]byte(result)):
+				for runes.PeekRune() == '?' || runes.PeekRune() == '!' {
+					runes.Next()
+					result = result + string(runes.CurrentRune())
+				}
+				out.WriteString(wrapFont(result, "type", fonts))
+			default:
+				out.WriteString(result)
+			}
 		// Or, by default (e.g. if it's whitespace)
-		out.WriteRune(ch)
-		pos++
+		default:
+			out.WriteRune(runes.CurrentRune())
+		}
+		runes.Next()
 	}
 	return out.String()
 }
+
+func wrapFont(body, tokenIs string, fonts *values.Map) string {
+	var out bytes.Buffer
+	out.WriteString(getFont(tokenIs, fonts))
+	out.WriteString(body)
+	out.WriteString(text.RESET)	
+	return out.String()
+}	
 
 func getFont(tokenIs string, fonts *values.Map) string {
 	if fonts == nil {
@@ -267,6 +370,24 @@ func getFont(tokenIs string, fonts *values.Map) string {
 	if !colorExists {
 		return ""
 	}
+	return fontFromFontValue(pfFont)
+}
+
+func getFontForBrackets(depth int, fonts *values.Map) string {
+	if fonts == nil {
+		return ""
+	}
+	brackets, bracketsExist := fonts.Get(values.Value{values.STRING, "brackets"})
+	if !bracketsExist {
+		return ""
+	}
+	bracketList := brackets.V.(vector.Vector)
+	font, _ := bracketList.Index(depth % bracketList.Len())
+	pfFont := font.(values.Value)
+	return fontFromFontValue(pfFont)
+}
+
+func fontFromFontValue(pfFont values.Value) string {
 	fontValues := pfFont.V.([]values.Value)
 	result := "\033[38;2"
 	for i := range 3 {

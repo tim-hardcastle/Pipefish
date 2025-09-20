@@ -1,9 +1,1 @@
-import 
-
-"math"
-
-newtype
- 
-Person = struct(name string, age int) :
-    age > 0
-
+foo(x) in int/string : "zort" ; else : 99 // This is a comment.

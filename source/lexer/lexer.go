@@ -53,7 +53,7 @@ func (l *lexer) getTokens() []token.Token {
 	case 0:
 		level := l.whitespaceStack.Find("")
 		if level > 0 {
-			for i := 0; i < level; i++ {
+			for range level {
 				l.whitespaceStack.Pop()
 			}
 			return l.makeEnds(level)
@@ -65,7 +65,7 @@ func (l *lexer) getTokens() []token.Token {
 	case '\\':
 		if l.runes.PeekRune() == '\\' {
 			l.runes.Next()
-			return []token.Token{l.NewToken(token.LOG, strings.TrimSpace(l.readComment()))}
+			return []token.Token{l.NewToken(token.LOG, strings.TrimSpace(l.runes.ReadComment()))}
 		}
 	case ';':
 		return []token.Token{l.NewToken(token.SEMICOLON, ";")}
@@ -106,24 +106,28 @@ func (l *lexer) getTokens() []token.Token {
 		return []token.Token{l.NewToken(token.LPAREN, "(")}
 	case ')':
 		return []token.Token{l.NewToken(token.RPAREN, ")")}
+	// We may have a formated string.
 	case '"':
-		s, ok := l.runes.readFormattedString()
+		s, ok := l.runes.ReadFormattedString()
 		if !ok {
 			return []token.Token{l.Throw("lex/quote/a")}
 		}
 		return []token.Token{l.NewToken(token.STRING, s)}
+	// Or a plaintext string.
 	case '`':
-		s, ok := l.readPlaintextString()
+		s, ok := l.runes.ReadPlaintextString()
 		if !ok {
 			return []token.Token{l.Throw("lex/quote/b")}
 		}
 		return []token.Token{l.NewToken(token.STRING, s)}
+	// Or a rune.
 	case '\'':
-		r, ok := l.readRune()
-		if !ok {
+		r, hasSingleQuote, hasLengthOne := l.runes.ReadRuneLiteral()
+		if !(hasSingleQuote && hasLengthOne) {
 			return []token.Token{l.Throw("lex/quote/rune")}
 		}
 		return []token.Token{l.NewToken(token.RUNE, r)}
+	// We deal with the `.`, `..` and `...` cases.
 	case '.':
 		if l.runes.PeekRune() == '.' {
 			l.runes.Next()
@@ -145,26 +149,26 @@ func (l *lexer) getTokens() []token.Token {
 	// We may have a comment.
 	if l.runes.CurrentRune() == '/' && l.runes.PeekRune() == '/' {
 		l.runes.Next()
-		return []token.Token{l.NewToken(token.COMMENT, l.readComment())}
+		return []token.Token{l.NewToken(token.COMMENT, l.runes.ReadComment())}
 	}
 
 	// We may have a binary, octal, or hex literal.
 	if l.runes.CurrentRune() == '0' {
 		switch l.runes.PeekRune() {
 		case 'b', 'B':
-			numString := l.readBinaryNumber()
+			numString := l.runes.ReadBinaryNumber()
 			if num, err := strconv.ParseInt(numString, 2, 64); err == nil {
 				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
 			return []token.Token{l.Throw("lex/bin", numString)}
 		case 'o', 'O':
-			numString := l.readOctalNumber()
+			numString := l.runes.ReadOctalNumber()
 			if num, err := strconv.ParseInt(numString, 8, 64); err == nil {
 				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
 			return []token.Token{l.Throw("lex/oct", numString)}
 		case 'x', 'X':
-			numString := l.readHexNumber()
+			numString := l.runes.ReadHexNumber()
 			if num, err := strconv.ParseInt(numString, 16, 64); err == nil {
 				return []token.Token{l.NewToken(token.INT, strconv.FormatInt(num, 10))}
 			}
@@ -174,7 +178,7 @@ func (l *lexer) getTokens() []token.Token {
 
 	// We may have a normal base-ten literal.
 	if IsDigit(l.runes.CurrentRune()) {
-		numString := l.readNumber()
+		numString := l.runes.ReadNumber()
 		if _, err := strconv.ParseInt(numString, 0, 64); err == nil {
 			return []token.Token{l.NewToken(token.INT, numString)}
 		}
@@ -186,7 +190,7 @@ func (l *lexer) getTokens() []token.Token {
 
 	// We may have an identifier, a golang block, or a snippet.
 	if IsLegalStart(l.runes.CurrentRune()) {
-		lit := l.readIdentifier()
+		lit := l.runes.ReadIdentifier()
 		tType := token.LookupIdent(lit)
 		switch tType {
 		case token.GOLANG:
@@ -223,7 +227,7 @@ func (l *lexer) interpretWhitespace() []token.Token {
 	}
 	if l.runes.CurrentRune() == '/' && l.runes.PeekRune() == '/' {
 		l.runes.Next()
-		comment := l.readComment()
+		comment := l.runes.ReadComment()
 		l.runes.Next()
 		return []token.Token{l.NewToken(token.COMMENT, comment)}
 	}
@@ -316,50 +320,50 @@ func (l *lexer) skipWhitespaceAfterPotentialContinuation() bool {
 
 
 
-func (l *lexer) readNumber() string {
-	result := string(l.runes.CurrentRune())
-	for IsDigit(l.runes.PeekRune()) || l.runes.PeekRune() == '.' {
-		l.runes.Next()
-		result = result + string(l.runes.CurrentRune())
+func (runes *RuneSupplier) ReadNumber() string {
+	result := string(runes.CurrentRune())
+	for IsDigit(runes.PeekRune()) || runes.PeekRune() == '.' {
+		runes.Next()
+		result = result + string(runes.CurrentRune())
 	}
 	return result
 }
 
-func (l *lexer) readBinaryNumber() string {
+func (runes *RuneSupplier) ReadBinaryNumber() string {
 	result := ""
-	l.runes.Next()
-	for IsBinaryDigit(l.runes.PeekRune()) {
-		l.runes.Next()
-		result = result + string(l.runes.CurrentRune())
+	runes.Next()
+	for IsBinaryDigit(runes.PeekRune()) {
+		runes.Next()
+		result = result + string(runes.CurrentRune())
 	}
 	return result
 }
 
-func (l *lexer) readOctalNumber() string {
+func (runes *RuneSupplier) ReadOctalNumber() string {
 	result := ""
-	l.runes.Next()
-	for IsOctalDigit(l.runes.PeekRune()) {
-		l.runes.Next()
-		result = result + string(l.runes.CurrentRune())
+	runes.Next()
+	for IsOctalDigit(runes.PeekRune()) {
+		runes.Next()
+		result = result + string(runes.CurrentRune())
 	}
 	return result
 }
 
-func (l *lexer) readHexNumber() string {
+func (runes *RuneSupplier) ReadHexNumber() string {
 	result := ""
-	l.runes.Next()
-	for IsHexDigit(l.runes.PeekRune()) {
-		l.runes.Next()
-		result = result + string(l.runes.CurrentRune())
+	runes.Next()
+	for IsHexDigit(runes.PeekRune()) {
+		runes.Next()
+		result = result + string(runes.CurrentRune())
 	}
 	return result
 }
 
-func (l *lexer) readComment() string {
+func (runes *RuneSupplier) ReadComment() string {
 	result := ""
-	for !(l.runes.PeekRune() == '\n' || l.runes.PeekRune() == 0) {
-		result = result + string(l.runes.PeekRune())
-		l.runes.Next()
+	for !(runes.PeekRune() == '\n' || runes.PeekRune() == 0) {
+		result = result + string(runes.PeekRune())
+		runes.Next()
 	}
 	return result
 }
@@ -446,7 +450,7 @@ func (l *lexer) readGolang() string {
 	}
 	if l.runes.PeekRune() == '"' {
 		l.runes.Next()
-		s, ok := l.runes.readFormattedString()
+		s, ok := l.runes.ReadFormattedString()
 		if !ok {
 			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
@@ -454,7 +458,7 @@ func (l *lexer) readGolang() string {
 	}
 	if l.runes.PeekRune() == '`' {
 		l.runes.Next()
-		s, ok := l.readPlaintextString()
+		s, ok := l.runes.ReadPlaintextString()
 		if !ok {
 			l.Throw("lex/quote/d", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
@@ -470,22 +474,22 @@ func (l *lexer) readGolang() string {
 	return result
 }
 
-func (l *lexer) readRune() (string, bool) {
+func (runes *RuneSupplier) ReadRuneLiteral() (string, bool, bool) {
 	escape := false
 	result := ""
 	for {
-		l.runes.Next()
-		if (l.runes.CurrentRune() == '\'' && !escape) || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 10 {
+		runes.Next()
+		if (runes.CurrentRune() == '\'' && !escape) || runes.CurrentRune() == 0 || runes.CurrentRune() == 13 || runes.CurrentRune() == 10 {
 			break
 		}
-		if l.runes.CurrentRune() == '\\' && !escape {
+		if runes.CurrentRune() == '\\' && !escape {
 			escape = true
 			continue
 		}
-		charToAdd := l.runes.CurrentRune()
+		charToAdd := runes.CurrentRune()
 		if escape {
 			escape = false
-			switch l.runes.CurrentRune() {
+			switch runes.CurrentRune() {
 			case 'n':
 				charToAdd = '\n'
 			case 'r':
@@ -502,16 +506,16 @@ func (l *lexer) readRune() (string, bool) {
 		}
 		result = result + string(charToAdd)
 	}
-	if l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 10 {
-		return result, false
+	if runes.CurrentRune() == 13 || runes.CurrentRune() == 0 || runes.CurrentRune() == 10 {
+		return result + string(runes.CurrentRune()), false, utf8.RuneCountInString(result) == 1
 	}
 	if utf8.RuneCountInString(result) != 1 {
-		return result, false
+		return result, true, false
 	}
-	return result, true
+	return result, true, true
 }
 
-func (runes *RuneSupplier) readFormattedString() (string, bool) {
+func (runes *RuneSupplier) ReadFormattedString() (string, bool) {
 	escape := false
 	result := ""
 	for {
@@ -551,26 +555,26 @@ func (runes *RuneSupplier) readFormattedString() (string, bool) {
 	return result, true
 }
 
-func (l *lexer) readPlaintextString() (string, bool) {
+func (runes *RuneSupplier) ReadPlaintextString() (string, bool) {
 	result := ""
 	for {
-		l.runes.Next()
-		if l.runes.CurrentRune() == '`' || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 10 {
+		runes.Next()
+		if runes.CurrentRune() == '`' || runes.CurrentRune() == 0 || runes.CurrentRune() == 13 || runes.CurrentRune() == 10 {
 			break
 		}
-		result = result + string(l.runes.CurrentRune())
+		result = result + string(runes.CurrentRune())
 	}
-	if l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 10 {
+	if runes.CurrentRune() == 13 || runes.CurrentRune() == 0 || runes.CurrentRune() == 10 {
 		return result, false
 	}
 	return result, true
 }
 
-func (l *lexer) readIdentifier() string {
-	result := string(l.runes.CurrentRune()) // i.e. the character that suggested this was an identifier.
-	for !l.atBoundary() {
-		l.runes.Next()
-		result = result + string(l.runes.CurrentRune())
+func (runes *RuneSupplier) ReadIdentifier() string {
+	result := string(runes.CurrentRune()) // i.e. the character that suggested this was an identifier.
+	for !runes.atBoundary() {
+		runes.Next()
+		result = result + string(runes.CurrentRune())
 	}
 	return result
 }
@@ -628,8 +632,8 @@ func IsBoundary(ch, pc rune) bool {
 }
 
 // Finds if we're at the end of an identifier.
-func (l *lexer) atBoundary() bool {
-	return IsBoundary(l.runes.CurrentRune(), l.runes.PeekRune())
+func (runes *RuneSupplier) atBoundary() bool {
+	return IsBoundary(runes.CurrentRune(), runes.PeekRune())
 }
 
 func (l *lexer) NewToken(tokenType token.TokenType, st string) token.Token {

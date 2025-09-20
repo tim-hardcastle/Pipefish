@@ -1058,8 +1058,6 @@ func (hub *Hub) saveHubFile() string {
 	hubService := hub.services["hub"]
 	var buf strings.Builder
 	buf.WriteString(prefix)
-	buf.WriteString("var")
-	buf.WriteString("\n\n")
 	buf.WriteString("allServices = map(")
 	serviceList := []string{}
 	for k := range hub.services {
