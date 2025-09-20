@@ -107,7 +107,7 @@ func (l *lexer) getTokens() []token.Token {
 	case ')':
 		return []token.Token{l.NewToken(token.RPAREN, ")")}
 	case '"':
-		s, ok := l.readFormattedString()
+		s, ok := l.runes.readFormattedString()
 		if !ok {
 			return []token.Token{l.Throw("lex/quote/a")}
 		}
@@ -446,7 +446,7 @@ func (l *lexer) readGolang() string {
 	}
 	if l.runes.PeekRune() == '"' {
 		l.runes.Next()
-		s, ok := l.readFormattedString()
+		s, ok := l.runes.readFormattedString()
 		if !ok {
 			l.Throw("lex/quote/c", l.NewToken(token.ILLEGAL, "bad quote"))
 		}
@@ -511,24 +511,24 @@ func (l *lexer) readRune() (string, bool) {
 	return result, true
 }
 
-func (l *lexer) readFormattedString() (string, bool) {
+func (runes *RuneSupplier) readFormattedString() (string, bool) {
 	escape := false
 	result := ""
 	for {
-		l.runes.Next()
-		if (l.runes.CurrentRune() == '"' && !escape) || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 10 {
+		runes.Next()
+		if (runes.CurrentRune() == '"' && !escape) || runes.CurrentRune() == 0 || runes.CurrentRune() == 13 || runes.CurrentRune() == 10 {
 			break
 		}
-		if l.runes.CurrentRune() == '\\' {
+		if runes.CurrentRune() == '\\' {
 			escape = true
 			continue
 		}
 
-		charToAdd := l.runes.CurrentRune()
+		charToAdd := runes.CurrentRune()
 
 		if escape {
 			escape = false
-			switch l.runes.CurrentRune() {
+			switch runes.CurrentRune() {
 			case 'n':
 				charToAdd = '\n'
 			case 'r':
@@ -545,7 +545,7 @@ func (l *lexer) readFormattedString() (string, bool) {
 		}
 		result = result + string(charToAdd)
 	}
-	if l.runes.CurrentRune() == 13 || l.runes.CurrentRune() == 0 || l.runes.CurrentRune() == 10 {
+	if runes.CurrentRune() == 13 || runes.CurrentRune() == 0 || runes.CurrentRune() == 10 {
 		return result, false
 	}
 	return result, true
