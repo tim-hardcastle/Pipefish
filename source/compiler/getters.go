@@ -237,19 +237,19 @@ func GetSourceCode(scriptFilepath string) (string, error) {
 
 var (
 	nondecimalIndicators = dtypes.MakeFromSlice([]rune{'b', 'B', 'o', 'O', 'x', 'X'})
-	control = dtypes.MakeFromSlice([]string{"break", "continue", "else", "try"})
-	reserved = dtypes.MakeFromSlice([]string{"and", "false", "given", "not", "or", "true", "->", ">>", "?>", "--"})
-	illegalInRepl = dtypes.MakeFromSlice([]string{"cmd", "const", "def", "external", "global", "golang", "import", "newtype", "private", "var", "\\\\", "~~"})
-	nativeTypes = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret"})
-	enumlike, _ = regexp.Compile(`^[A-Z][A-Z_]+$`)
-	typelike, _ = regexp.Compile(`^[A-Z][A-Z]*[a-z]+[A-Za-z]*$`)
-	bracketMatch = map[rune]rune{'(':')', '[':']', '{':'}'}
-	leftBrackets = dtypes.MakeFromSlice([]rune{'(', '[', '{'})
-	rightBrackets = dtypes.MakeFromSlice([]rune{')', ']', '}'})
+	control              = dtypes.MakeFromSlice([]string{"break", "continue", "else", "try"})
+	reserved             = dtypes.MakeFromSlice([]string{"and", "false", "given", "not", "or", "true", "->", ">>", "?>", "--"})
+	illegalInRepl        = dtypes.MakeFromSlice([]string{"cmd", "const", "def", "external", "global", "golang", "import", "newtype", "private", "var", "\\\\", "~~"})
+	nativeTypes          = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret"})
+	enumlike, _          = regexp.Compile(`^[A-Z][A-Z_]+$`)
+	typelike, _          = regexp.Compile(`^[A-Z][A-Z]*[a-z]+[A-Za-z]*$`)
+	bracketMatch         = map[rune]rune{'(': ')', '[': ']', '{': '}'}
+	leftBrackets         = dtypes.MakeFromSlice([]rune{'(', '[', '{'})
+	rightBrackets        = dtypes.MakeFromSlice([]rune{')', ']', '}'})
 )
 
-// We can't just lex it beause we need the whitespace intact. OTOH, this means
-// we are going to duplicate some logic.
+// We can't just lex it beause we need the whitespace intact. But we can
+// use the lexer logic.
 func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 	var out bytes.Buffer
 	brackets := []rune{}
@@ -257,14 +257,14 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 	for runes.CurrentRune() != '\n' && runes.CurrentRune() != 0 {
 		switch {
 		// First we deal with the brackets, which have their own rules.
-		case leftBrackets.Contains(runes.CurrentRune()) :
+		case leftBrackets.Contains(runes.CurrentRune()):
 			font := getFontForBrackets(len(brackets), fonts)
 			brackets = append(brackets, runes.CurrentRune())
 			out.WriteString(font)
 			out.WriteRune(runes.CurrentRune())
 			out.WriteString(text.RESET)
-		case rightBrackets.Contains(runes.CurrentRune()) :
-			font := text.RED
+		case rightBrackets.Contains(runes.CurrentRune()):
+			font := text.BAD_RED + text.UNDERLINE
 			if len(brackets) > 0 && bracketMatch[brackets[len(brackets)-1]] == runes.CurrentRune() {
 				brackets = brackets[:len(brackets)-1]
 				font = getFontForBrackets(len(brackets), fonts)
@@ -273,11 +273,11 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 			out.WriteRune(runes.CurrentRune())
 			out.WriteString(text.RESET)
 		// We could be looking at protected punctuation.
-		case lexer.IsProtectedPunctuation(runes.CurrentRune()) || 
-				(runes.CurrentRune() == '!' && runes.PeekRune() == '=') :
+		case lexer.IsProtectedPunctuation(runes.CurrentRune()) ||
+			(runes.CurrentRune() == '!' && runes.PeekRune() == '='):
 			out.WriteString(wrapFont(string(runes.CurrentRune()), "reserved", fonts))
 		// A formatted string literal.
-		case runes.CurrentRune() == '"' :
+		case runes.CurrentRune() == '"':
 			result, ok := runes.ReadFormattedString()
 			result = `"` + result
 			if ok {
@@ -285,7 +285,7 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 			}
 			out.WriteString(wrapFont(result, "string", fonts))
 		// A plaintext string literal.
-		case runes.CurrentRune() == '`' :
+		case runes.CurrentRune() == '`':
 			result, ok := runes.ReadPlaintextString()
 			result = "`" + result
 			if ok {
@@ -293,23 +293,23 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 			}
 			out.WriteString(wrapFont(result, "string", fonts))
 		// A rune literal.
-		case runes.CurrentRune() == '\'' :
+		case runes.CurrentRune() == '\'':
 			result, hasSingleQuote, hasLengthOne := runes.ReadRuneLiteral()
 			result = "'" + result
 			if hasSingleQuote {
 				result = result + "'"
 			}
 			if !hasLengthOne {
-				out.WriteString(text.Red(result))
+				out.WriteString(text.ErrorFont(result))
 			} else {
 				out.WriteString(wrapFont(result, "string", fonts))
 			}
 		// A comment.
-		case runes.CurrentRune() == '/' && runes.PeekRune() == '/' :
+		case runes.CurrentRune() == '/' && runes.PeekRune() == '/':
 			result := "/" + runes.ReadComment()
 			out.WriteString(wrapFont(result, "comment", fonts))
 		// A nondecimal integer literal.
-		case runes.CurrentRune() == '0' && nondecimalIndicators.Contains(runes.PeekRune()) :
+		case runes.CurrentRune() == '0' && nondecimalIndicators.Contains(runes.PeekRune()):
 			result := ""
 			indicator := runes.PeekRune()
 			switch indicator {
@@ -320,12 +320,12 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 			case 'x', 'X':
 				result = runes.ReadHexNumber()
 			}
-			out.WriteString(wrapFont("0" + string(indicator) + result, "number", fonts))
+			out.WriteString(wrapFont("0"+string(indicator)+result, "number", fonts))
 		// It could be a perfectly ordinary number.
-		case lexer.IsDigit(runes.CurrentRune()) :
+		case lexer.IsDigit(runes.CurrentRune()):
 			result := runes.ReadNumber()
 			out.WriteString(wrapFont(result, "number", fonts))
-		case lexer.IsLegalStart(runes.CurrentRune()) :
+		case lexer.IsLegalStart(runes.CurrentRune()):
 			result := runes.ReadIdentifier()
 			switch {
 			case control.Contains(result):
@@ -333,7 +333,7 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 			case reserved.Contains(result):
 				out.WriteString(wrapFont(result, "reserved", fonts))
 			case illegalInRepl.Contains(result):
-				out.WriteString(text.Red(result))
+				out.WriteString(text.ErrorFont(result))
 			case enumlike.Match([]byte(result)):
 				out.WriteString(wrapFont(result, "constant", fonts))
 			case nativeTypes.Contains(result) || typelike.Match([]byte(result)):
@@ -358,9 +358,9 @@ func wrapFont(body, tokenIs string, fonts *values.Map) string {
 	var out bytes.Buffer
 	out.WriteString(getFont(tokenIs, fonts))
 	out.WriteString(body)
-	out.WriteString(text.RESET)	
+	out.WriteString(text.RESET)
 	return out.String()
-}	
+}
 
 func getFont(tokenIs string, fonts *values.Map) string {
 	if fonts == nil {

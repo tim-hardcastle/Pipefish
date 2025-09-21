@@ -81,6 +81,10 @@ func Yellow(s string) string {
 	return YELLOW + s + RESET
 }
 
+func ErrorFont(s string) string {
+	return BAD_RED + UNDERLINE + s + RESET
+}
+
 func DescribePos(token *token.Token) string {
 	if token == nil {
 		return ""
@@ -177,8 +181,9 @@ func DescribeOpposite(tok *token.Token) string {
 
 const (
 	RESET     = "\033[0m"
-	UNDERLINE = "\033[3m"
+	UNDERLINE = "\033[4m"
 	RED       = "\033[31m"
+	BAD_RED   = "\033[38;2;244;71;71m"
 	GREEN     = "\033[32m"
 	YELLOW    = "\033[33m"
 	BLUE      = "\033[34m"
@@ -327,7 +332,7 @@ func GetTextWithBarsAsList(text string) ([]string, bool) {
 	return strList, true
 }
 
-// Removes the last two folders in a filepath. TODO --- is there a more principled way of doing this?
+// Removes the last two folders in a filepath. TODO --- don't.
 func Trim(path string) string {
 	sep := "/"
 	if runtime.GOOS == "windows" {
@@ -357,7 +362,7 @@ func Tail(s, substr string) bool {
 	if len(s) < len(substr) {
 		return false
 	}
-	return s[len(s) - len(substr):] == substr
+	return s[len(s)-len(substr):] == substr
 }
 
 func WithoutDots(s string) string {
