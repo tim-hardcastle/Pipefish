@@ -52,7 +52,7 @@ func main() {
 	
 	fmt.Print(hub.Logo())
 	// Test
-	testString := "Lorem ipsum <blue>dolor<plain> sit amet, consectetur adipiscing elit, sed do eiusmod <purple>tempor incididunt ut labore<plain> et dolore magna aliqua." 
+	testString := "Lorem ipsum <blue>dolor<plain> sit amet, consectetur adipiscing elit, `sed` do eiusmod <purple>tempor incididunt ut labore<plain> et dolore magna aliqua." 
 	dummyFunc := func(r []rune) string {return string(r)}
 	md := text.NewMarkdown("| ", 50, dummyFunc)
 	println(md.Render([]rune(testString)))

@@ -190,6 +190,7 @@ const (
 	PURPLE    = "\033[35m"
 	CYAN      = "\033[36m"
 	GRAY      = "\033[37m"
+	GRAY_BACKGROUND = "\033[48;5;239m"
 	WHITE     = "\033[97m"
 	ITALIC    = "\033[3m"
 	BOLD      = "\033[1m"

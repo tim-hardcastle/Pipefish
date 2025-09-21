@@ -37,6 +37,7 @@ func (md *Markdown) RenderLeftPad(pad string, r []rune) string {
 	ix := 0
 	r = append(r, 0)
 	font := ""
+	currentStyle := ""
 	for ix < len(r) - 1 {
 		// We remove leading whitespace.
 		for r[ix] == ' ' {
@@ -48,8 +49,8 @@ func (md *Markdown) RenderLeftPad(pad string, r []rune) string {
 		// we want to put the space into the text, except that might push a <plain> 
 		// control code onto the next line together with the space, which screws things
 		// up. Therefore, when all we have is a control code which may have a space
-		// after it, we don't try to justify it because no-one can tell anyway.
-		controlCode := false 
+		// after it, we don't try to justify it because no-one can tell anyway. 
+		controlCode := false
 		slurp :
 		for {
 			switch r[ix] {
@@ -81,34 +82,65 @@ func (md *Markdown) RenderLeftPad(pad string, r []rune) string {
 				} else {
 					break slurp
 				}
+			case '`' :
+				if word == "" {
+					word = "`"
+					ix++
+					break slurp
+				} else {
+					break slurp
+				}
+			case '*' :
+				if word == "" {
+					for r[ix] == '*' {
+						word = word + "*"
+						ix++
+					}
+					break slurp
+				} else {
+					break slurp
+				}
 			default:
 				word = word + string(r[ix])
 				ix++
 			}
 		}
-		// We replace things like `**` and `<red>` with suitable control codes.
-		replacement := ""
-		if replacement, controlCode = replacements[word]; controlCode {
+		if word != "" && currentStyle == word {
+			controlCode = true
+			word = RESET
+			font = ""
+		}
+		if word == "`" || word == "*" || word == "**" || word == "***" {
+			currentStyle = word
+		}
+		// We replace things like `<red>` with suitable control codes.
+		if replacement, ok := replacements[word]; ok {
 			word = replacement
+			controlCode = true
+		}
+		wordWidth := len(word)
+		if controlCode {
 			if word == RESET {
 				font = ""
 			} else {
 				font = font + word
 			}
 			if r[ix] == ' ' {
+				wordWidth = 1
 				word = word + " "
 				ix++
+			} else {
+				wordWidth = 0
 			}
 		}
 		// We check if the length of the word puts it over the right margin.
-		wordWidth := runewidth.StringWidth(word)
 		newOx := ox + wordWidth
 		if newOx > md.rightMargin {
 			if controlCode {
-				fmt.Fprint(sb, word, "\n", RESET, md.leftMargin, font)
+				fmt.Fprint(sb, word, RESET, "\n", md.leftMargin, font)
 				ox = leftMarginWidth
 			} else {
-				fmt.Fprint(sb, "\n", RESET, md.leftMargin, font, word)
+				fmt.Fprint(sb, RESET, "\n", md.leftMargin, font, word)
 				ox = leftMarginWidth + wordWidth
 			}
 			
@@ -128,5 +160,9 @@ var (
 		"<blue>":BLUE,
 		"<purple>":PURPLE,
 		"<plain>":RESET,
+		"*":ITALIC,
+		"**":BOLD,
+		"***":BOLD + ITALIC,
+		"`":RESET + GRAY_BACKGROUND + CYAN,
 	}
 )
