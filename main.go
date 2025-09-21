@@ -7,7 +7,7 @@
 // accompanying code, and although his language and mine differ very much in their syntax, semantics,
 // implementation, and ambitions, I still owe him a considerable debt.
 //
-// I owe thanks to Laurence Morgan (lmorg on Github) for adding features to his readline library for 
+// I owe thanks to Laurence Morgan (lmorg on Github) for adding features to his readline library for
 // my sake.
 //
 // Much gratitude is due to r/programminglanguages collectively for advice and encouragement.
@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/tim-hardcastle/Pipefish/source/hub"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
 func main() {
@@ -48,9 +49,15 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
+	
 	fmt.Print(hub.Logo())
-
+	// Test
+	testString := "Lorem ipsum <blue>dolor<plain> sit amet, consectetur adipiscing elit, sed do eiusmod <purple>tempor incididunt ut labore<plain> et dolore magna aliqua." 
+	dummyFunc := func(r []rune) string {return string(r)}
+	md := text.NewMarkdown("| ", 50, dummyFunc)
+	println(md.Render([]rune(testString)))
+	println()
+	// Test
 	h := hub.New(os.Stdin, os.Stdout)
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	f, err := os.Open(filepath.Join(appDir, filepath.FromSlash("/user/hub.dat")))

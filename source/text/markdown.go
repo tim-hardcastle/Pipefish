@@ -36,6 +36,7 @@ func (md *Markdown) RenderLeftPad(pad string, r []rune) string {
 	}
 	ix := 0
 	r = append(r, 0)
+	font := ""
 	for ix < len(r) - 1 {
 		// We remove leading whitespace.
 		for r[ix] == ' ' {
@@ -43,6 +44,12 @@ func (md *Markdown) RenderLeftPad(pad string, r []rune) string {
 		}
 		// We slurp one word
 		word := ""
+		// A kludge on a kludge. If we find a control code with a space after it 
+		// we want to put the space into the text, except that might push a <plain> 
+		// control code onto the next line together with the space, which screws things
+		// up. Therefore, when all we have is a control code which may have a space
+		// after it, we don't try to justify it because no-one can tell anyway.
+		controlCode := false 
 		slurp :
 		for {
 			switch r[ix] {
@@ -59,24 +66,52 @@ func (md *Markdown) RenderLeftPad(pad string, r []rune) string {
 			case 0:
 				ix++
 				break slurp
+			case '>':
+				word = word + ">"
+				ix++
+				break slurp
 			case '-', '/', ' ':
 				word = word + string(r[ix])
 				ix++
 				break slurp
+			case '<' :
+				if word == "" {
+					word = "<"
+					ix++
+				} else {
+					break slurp
+				}
 			default:
 				word = word + string(r[ix])
 				ix++
 			}
 		}
-		if replacement, ok := replacements[word]; ok {
+		// We replace things like `**` and `<red>` with suitable control codes.
+		replacement := ""
+		if replacement, controlCode = replacements[word]; controlCode {
 			word = replacement
+			if word == RESET {
+				font = ""
+			} else {
+				font = font + word
+			}
+			if r[ix] == ' ' {
+				word = word + " "
+				ix++
+			}
 		}
 		// We check if the length of the word puts it over the right margin.
 		wordWidth := runewidth.StringWidth(word)
 		newOx := ox + wordWidth
 		if newOx > md.rightMargin {
-			fmt.Fprint(sb, "\n", md.leftMargin, word)
-			ox = leftMarginWidth + wordWidth
+			if controlCode {
+				fmt.Fprint(sb, word, "\n", RESET, md.leftMargin, font)
+				ox = leftMarginWidth
+			} else {
+				fmt.Fprint(sb, "\n", RESET, md.leftMargin, font, word)
+				ox = leftMarginWidth + wordWidth
+			}
+			
 		} else {
 			fmt.Fprint(sb, word)
 			ox = newOx

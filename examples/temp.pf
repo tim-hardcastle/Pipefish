@@ -1,1 +1,1 @@
-foo(x) in int/string : "zort" ; else : 99 // This is a comment.
+//foo(x) in int/string : "zort" ; else : 99 // This is a comment.
