@@ -158,6 +158,9 @@ line:
 							word = word + "*"
 							ix++
 						}
+						if currentStyle == "`" && r[ix] == ' ' {
+							word = word + " "
+						}
 						break slurp
 					} else {
 						break slurp
@@ -167,16 +170,20 @@ line:
 					ix++
 				}
 			}
+			inlineCode := currentStyle == "`"
 			if word != "" && currentStyle == word {
 				controlCode = true
 				word = RESET
 				font = ""
-			}
-			if word == "`" || word == "*" || word == "**" || word == "***" {
-				currentStyle = word
+				currentStyle = ""
+			} else {
+				if word == "`" || word == "*" || word == "**" || word == "***" {
+					currentStyle = word
+					controlCode = true
+				}
 			}
 			// We replace things like `<red>` with suitable control codes.
-			if replacement, ok := replacements[word]; ok {
+			if replacement, ok := replacements[word]; ok && !inlineCode {
 				word = replacement
 				controlCode = true
 			}
