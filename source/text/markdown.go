@@ -9,10 +9,10 @@ import (
 type Markdown struct {
 	leftMargin  string              // Left margin as a string.
 	rightMargin int                 // Right margin as a width to render to.
-	highlight   func([]rune) string // Syntax highlighter for code in fenced blocks.
+	highlight   func(string) string // Syntax highlighter for code in fenced blocks.
 }
 
-func NewMarkdown(leftMargin string, rightMargin int, highlight func([]rune) string) *Markdown {
+func NewMarkdown(leftMargin string, rightMargin int, highlight func(string) string) *Markdown {
 	md := Markdown{leftMargin: leftMargin, rightMargin: rightMargin, highlight: highlight}
 	return &md
 }
@@ -35,8 +35,23 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 	}
 	font := ""
 	blockQuote := false
+	codeBlock := false
 line:
 	for i, s := range text {
+		if s == "```" {
+			if codeBlock {
+				fmt.Fprint(sb, md.leftMargin)
+				ox = leftMarginWidth
+			} else {
+				fmt.Fprint(sb, "\n")
+			}
+			codeBlock = !codeBlock
+			continue line
+		} 
+		if codeBlock {
+			fmt.Fprint(sb, md.leftMargin, codeBar, md.highlight(s), "\n")
+			continue line
+		}
 		// A number of empty lines adds up to one empty line.
 		if s == "" && (i > 0 || text[i-1] != "") {
 			fmt.Fprint(sb, "\n", md.leftMargin)
@@ -238,6 +253,7 @@ func applyFont(s, font string) string {
 }
 
 var (
+	codeBar = "  ¦ "
 	stripColorCodes, _ = regexp.Compile("\033\\[[0-9;]*m")
 	findResets, _      = regexp.Compile("\033\\[[0|39|49|22|23|24]m")
 	captureHeading, _  = regexp.Compile("^#{1,4} ")

@@ -11,7 +11,7 @@ currentService string? = `temp`
 
 isLive = true
 
-theme Theme? = DARK
+theme Theme? = DARK_MODERN
 
 width = 92
 

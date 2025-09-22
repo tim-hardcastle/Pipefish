@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 
 	"github.com/tim-hardcastle/Pipefish/source/hub"
-	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
 func main() {
@@ -51,18 +50,6 @@ func main() {
 	}
 	
 	fmt.Print(hub.Logo())
-	// Test
-	 file, _ := os.Open("markdownTest.md")
-    var lines []string
-    mdScan := bufio.NewScanner(file)
-    for mdScan.Scan() {
-        lines = append(lines, mdScan.Text())
-    }
-	dummyFunc := func(r []rune) string {return string(r)}
-	md := text.NewMarkdown("", 70, dummyFunc)
-	println(md.Render(lines))
-	println()
-	// Test
 	h := hub.New(os.Stdin, os.Stdout)
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	f, err := os.Open(filepath.Join(appDir, filepath.FromSlash("/user/hub.dat")))
