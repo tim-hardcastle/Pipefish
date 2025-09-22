@@ -172,9 +172,13 @@ line:
 			}
 			inlineCode := currentStyle == "`"
 			if word != "" && currentStyle == word {
-				controlCode = true
-				word = RESET
-				font = ""
+				if word == "`" {
+					controlCode = true
+					word = RESET
+				} else {
+					controlCode = true
+					word = RESET_BOLD + RESET_ITALIC
+				}
 				currentStyle = ""
 			} else {
 				if word == "`" || word == "*" || word == "**" || word == "***" {
@@ -182,7 +186,7 @@ line:
 					controlCode = true
 				}
 			}
-			// We replace things like `<red>` with suitable control codes.
+			// We replace things like `<R>` with suitable control codes.
 			if replacement, ok := replacements[word]; ok && !inlineCode {
 				word = replacement
 				controlCode = true
@@ -235,7 +239,7 @@ func applyFont(s, font string) string {
 
 var (
 	stripColorCodes, _ = regexp.Compile("\033\\[[0-9;]*m")
-	findResets, _      = regexp.Compile("\033\\[0m")
+	findResets, _      = regexp.Compile("\033\\[[0|39|49|22|23|24]m")
 	captureHeading, _  = regexp.Compile("^#{1,4} ")
 	deco               = []string{"≡", "═", "―", "┈"}
 	style              = []string{BOLD + ITALIC, BOLD, ITALIC, ""}
@@ -246,7 +250,7 @@ var (
 		"<C>": CYAN,
 		"<B>": BLUE,
 		"<P>": PURPLE,
-		"</>": RESET,
+		"</>": RESET_FOREGROUND,
 		"*":   ITALIC,
 		"**":  BOLD,
 		"***": BOLD + ITALIC,

@@ -181,6 +181,11 @@ func DescribeOpposite(tok *token.Token) string {
 
 const (
 	RESET     = "\033[0m"
+	RESET_FOREGROUND = "\033[39m"
+	RESET_BACKGROUND = "\033[49m"
+	RESET_BOLD = "\033[22m"
+	RESET_ITALIC = "\033[23m"
+	RESET_UNDERLINE = "\033[24m"
 	UNDERLINE = "\033[4m"
 	RED       = "\033[31m"
 	BAD_RED   = "\033[38;2;244;71;71m"
