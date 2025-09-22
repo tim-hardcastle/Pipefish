@@ -52,10 +52,20 @@ func main() {
 	
 	fmt.Print(hub.Logo())
 	// Test
-	testString := "Lorem ipsum <blue>dolor<plain> sit amet, consectetur adipiscing elit, `sed` do eiusmod <purple>tempor incididunt ut labore<plain> et dolore magna aliqua." 
+	headString1 := "# Heading 1"
+	headString2 := "## Heading 2"
+	headString3 := "### Heading 3"
+	headString4 := "#### Heading 4"
+	normieString := "Here's a block quote, with some color, bold, italics, etc, to show what we can do."
+	testString := "> Lorem ipsum <green>dolor<plain> sit amet, `consectetur adipiscing` elit, sed do eiusmod <purple>tempor incididunt ut labore<plain> et *dolore magna* aliqua." 
+	testString2 := "> Ut enim ad **minim** veniam, quis <yellow>nostrud exercitation<plain> ullamco laboris nisi ut aliquip ex ea commodo consequat."
+	normieString2 := "And now a block of code."
+	
 	dummyFunc := func(r []rune) string {return string(r)}
-	md := text.NewMarkdown("| ", 50, dummyFunc)
-	println(md.Render([]rune(testString)))
+	md := text.NewMarkdown("  ", 70, dummyFunc)
+	println(md.Render([]string{headString1, "", headString2, "", headString3, "", 
+		headString4, "", normieString, "", testString, testString2, "", normieString2,
+		}))
 	println()
 	// Test
 	h := hub.New(os.Stdin, os.Stdout)
