@@ -29,13 +29,13 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 	if len(pad) > 0 {
 		fmt.Fprint(sb, pad)
 		ox = colorlessLength(pad)
-	}  else  {
+	} else {
 		fmt.Fprint(sb, md.leftMargin)
 		ox = leftMarginWidth
 	}
 	font := ""
 	blockQuote := false
-	line:
+line:
 	for i, s := range text {
 		// A number of empty lines adds up to one empty line.
 		if s == "" && (i > 0 || text[i-1] != "") {
@@ -58,7 +58,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 			lengthIs := colorlessLength(textIs)
 			paddingLength := md.rightMargin - (leftMarginWidth + 6 + lengthIs)
 			if paddingLength < 0 {
-				return(ErrorFont("Can't render markdown."))
+				return (ErrorFont("Can't render markdown."))
 			}
 			padding := strings.Repeat(decoration, paddingLength)
 			leftPaddingIs := strings.Repeat(decoration, 4)
@@ -66,7 +66,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 			fmt.Fprint(sb, applyFont(headingIs, font))
 			ox = leftMarginWidth
 			continue line
-		
+
 		}
 		ix := 0
 		sidebar := "" // Contains the block quote sidebar if it exists.
@@ -80,7 +80,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 				ox = leftMarginWidth
 			}
 			if ox == leftMarginWidth {
-				fmt.Fprint(sb, sidebar, font) 
+				fmt.Fprint(sb, sidebar, font)
 				ox = ox + len(sidebar)
 			}
 		} else {
@@ -93,20 +93,20 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 		r := []rune(s)
 		r = append(r, 0)
 		currentStyle := ""
-		for ix < len(r) - 1 {
+		for ix < len(r)-1 {
 			// We remove leading whitespace.
 			for r[ix] == ' ' {
 				ix++
 			}
 			// We slurp one word
 			word := ""
-			// A kludge on a kludge. If we find a control code with a space after it 
-			// we want to put the space into the text, except that might push a <plain> 
+			// A kludge on a kludge. If we find a control code with a space after it
+			// we want to put the space into the text, except that might push a <plain>
 			// control code onto the next line together with the space, which screws things
 			// up. Therefore, when all we have is a control code which may have a space
-			// after it, we don't try to justify it because no-one can tell anyway. 
+			// after it, we don't try to justify it because no-one can tell anyway.
 			controlCode := false
-			slurp :
+		slurp:
 			for {
 				switch r[ix] {
 				case '\n':
@@ -127,18 +127,24 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 					word = word + ">"
 					ix++
 					break slurp
-				case '-', '/', ' ':
+				case '/':
+					word = word + string(r[ix])
+					ix++
+					if word != "</" {
+						break slurp
+					}
+				case '-', ' ':
 					word = word + string(r[ix])
 					ix++
 					break slurp
-				case '<' :
+				case '<':
 					if word == "" {
 						word = "<"
 						ix++
 					} else {
 						break slurp
 					}
-				case '`' :
+				case '`':
 					if word == "" {
 						word = "`"
 						ix++
@@ -146,7 +152,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 					} else {
 						break slurp
 					}
-				case '*' :
+				case '*':
 					if word == "" {
 						for r[ix] == '*' {
 							word = word + "*"
@@ -198,7 +204,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 				} else {
 					fmt.Fprint(sb, RESET, "\n", md.leftMargin, sidebar, font, word)
 					ox = leftMarginWidth + len(sidebar) + len(word)
-				}	
+				}
 			} else {
 				fmt.Fprint(sb, word)
 				ox = newOx
@@ -213,30 +219,30 @@ func stripColors(s string) string {
 }
 
 func colorlessLength(s string) int {
-	return len(stripColors(s)) 
+	return len(stripColors(s))
 }
 
 func applyFont(s, font string) string {
-	return font + findResets.ReplaceAllString(s, RESET + font) + RESET
+	return font + findResets.ReplaceAllString(s, RESET+font) + RESET
 }
 
 var (
 	stripColorCodes, _ = regexp.Compile("\033\\[[0-9;]*m")
-	findResets, _ = regexp.Compile("\033\\[0m")
-	captureHeading, _ = regexp.Compile("^#{1,4} ")
-	deco = []string{"≡", "═", "―", "┈"}
-	style = []string{BOLD + ITALIC, BOLD, ITALIC, ""}
-	replacements = map[string]string{
-		"<R>":RED,
-		"<Y>":YELLOW,
-		"<G>":GREEN,
-		"<C>":CYAN,
-		"<B>":BLUE,
-		"<P>":PURPLE,
-		"<0>":RESET,
-		"*":ITALIC,
-		"**":BOLD,
-		"***":BOLD + ITALIC,
-		"`":RESET + GRAY_BACKGROUND + CYAN,
+	findResets, _      = regexp.Compile("\033\\[0m")
+	captureHeading, _  = regexp.Compile("^#{1,4} ")
+	deco               = []string{"≡", "═", "―", "┈"}
+	style              = []string{BOLD + ITALIC, BOLD, ITALIC, ""}
+	replacements       = map[string]string{
+		"<R>": RED,
+		"<Y>": YELLOW,
+		"<G>": GREEN,
+		"<C>": CYAN,
+		"<B>": BLUE,
+		"<P>": PURPLE,
+		"</>": RESET,
+		"*":   ITALIC,
+		"**":  BOLD,
+		"***": BOLD + ITALIC,
+		"`":   RESET + GRAY_BACKGROUND + CYAN,
 	}
 )
