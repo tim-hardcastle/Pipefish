@@ -64,7 +64,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 			leftPaddingIs := strings.Repeat(decoration, 4)
 			headingIs := leftPaddingIs + " " + textIs + padding + "\n" + md.leftMargin
 			fmt.Fprint(sb, applyFont(headingIs, font))
-			ox = 0
+			ox = leftMarginWidth
 			continue line
 		
 		}
@@ -194,10 +194,11 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 			if newOx >= md.rightMargin {
 				if controlCode {
 					fmt.Fprint(sb, word, RESET, "\n", md.leftMargin, sidebar, font)
+					ox = leftMarginWidth + len(sidebar)
 				} else {
 					fmt.Fprint(sb, RESET, "\n", md.leftMargin, sidebar, font, word)
+					ox = leftMarginWidth + len(sidebar) + len(word)
 				}	
-				ox = leftMarginWidth + len(sidebar)
 			} else {
 				fmt.Fprint(sb, word)
 				ox = newOx

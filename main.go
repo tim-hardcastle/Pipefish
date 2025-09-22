@@ -59,7 +59,7 @@ func main() {
         lines = append(lines, mdScan.Text())
     }
 	dummyFunc := func(r []rune) string {return string(r)}
-	md := text.NewMarkdown("  ", 70, dummyFunc)
+	md := text.NewMarkdown("", 70, dummyFunc)
 	println(md.Render(lines))
 	println()
 	// Test
