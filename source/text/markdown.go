@@ -37,12 +37,17 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 	blockQuote := false
 	line:
 	for i, s := range text {
+		// A number of empty lines adds up to one empty line.
 		if s == "" && (i > 0 || text[i-1] != "") {
 			fmt.Fprint(sb, "\n", md.leftMargin)
+			ox = leftMarginWidth
 		}
 		// We do the headings.
 		heading := captureHeading.FindString(s)
 		if heading != "" {
+			if i > 0 {
+				fmt.Fprint(sb, "\n", RESET, md.leftMargin, font)
+			}
 			headingIndex := len(heading) - 2
 			decoration := deco[headingIndex]
 			font := style[headingIndex]
@@ -59,6 +64,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 			leftPaddingIs := strings.Repeat(decoration, 4)
 			headingIs := leftPaddingIs + " " + textIs + padding + "\n" + md.leftMargin
 			fmt.Fprint(sb, applyFont(headingIs, font))
+			ox = 0
 			continue line
 		
 		}
@@ -220,12 +226,13 @@ var (
 	deco = []string{"≡", "═", "―", "┈"}
 	style = []string{BOLD + ITALIC, BOLD, ITALIC, ""}
 	replacements = map[string]string{
-		"<red>":RED,
-		"<yellow>":YELLOW,
-		"<green>":GREEN,
-		"<blue>":BLUE,
-		"<purple>":PURPLE,
-		"<plain>":RESET,
+		"<R>":RED,
+		"<Y>":YELLOW,
+		"<G>":GREEN,
+		"<C>":CYAN,
+		"<B>":BLUE,
+		"<P>":PURPLE,
+		"<0>":RESET,
 		"*":ITALIC,
 		"**":BOLD,
 		"***":BOLD + ITALIC,
