@@ -36,6 +36,7 @@ func (md *Markdown) RenderLeftPad(pad string, text []string) string {
 	font := ""
 	blockQuote := false
 	codeBlock := false
+	listItem := false
 line:
 	for i, s := range text {
 		if s == "```" {
@@ -105,6 +106,29 @@ line:
 				blockQuote = false
 			}
 		}
+
+		// TODO --- this is a very undry repetition of what just happened and it would be nice not to.
+		if Head(s, "- ") {
+			ix = ix + 2
+			sidebar = "    "
+			if !listItem {
+				listItem = true
+				fmt.Fprint(sb, "\n", RESET, md.leftMargin)
+				ox = leftMarginWidth
+			}
+			if ox == leftMarginWidth {
+				fmt.Fprint(sb, "  - ", font)
+				ox = ox + len(sidebar)
+			}
+		} else {
+			if listItem {
+				fmt.Fprint(sb, "\n", RESET, md.leftMargin, font)
+				ox = leftMarginWidth
+				listItem = false
+			}
+		}
+
+
 		r := []rune(s)
 		r = append(r, 0)
 		currentStyle := ""

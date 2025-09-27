@@ -1571,6 +1571,15 @@ type labeledParsedCodeChunk struct {
 	indexTok  *token.Token
 }
 
+// This is brittlely couples with the desccriptionTypes in the api.go file of the compiler module.
+var declarationDescriptors = [][]declarationType{
+	{importDeclaration, externalDeclaration},
+	{enumDeclaration, cloneDeclaration, structDeclaration, abstractDeclaration, interfaceDeclaration},
+    {constantDeclaration},
+    {variableDeclaration},
+	{commandDeclaration},
+	{functionDeclaration}}
+
 // Types and functions to help with housekeeping. The initializer stores the declarations of types and functions
 // in a map keyed by their source and line number. This is to prevent the same source code being compiled twice onto
 // the same VM, which only needs it once.

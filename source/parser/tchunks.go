@@ -283,10 +283,7 @@ func (t TokSig) String() string {
 			continue
 		}
 		lastWasBling = false
-		result = result + pair.Name.Literal
-		for _, tyTok := range pair.Typename {
-			result = result + " " + tyTok.Literal
-		}
+		result = result + pair.Name.Literal + " " + StringifyTypeName(pair.Typename)
 		if i == len(t)-1 {
 			result = result + ")"
 		}
@@ -299,10 +296,7 @@ func (t TokSig) SimpleString() string {
 	result := ""
 	sep := ""
 	for _, pair := range t {
-		result = result + sep + pair.Name.Literal
-		for _, tyTok := range pair.Typename {
-			result = result + " " + tyTok.Literal
-		}
+		result = result + sep + pair.Name.Literal + " " + StringifyTypeName(pair.Typename)
 		sep = ", "
 	}
 	return result
@@ -315,14 +309,25 @@ func (r TokReturns) String() string {
 	sep := ""
 	result := ""
 	for _, ty := range r {
-		result = result + sep
-		spacer := ""
-		for _, tok := range ty {
-			result = result + spacer
-			result = result + tok.Literal
-			spacer = " "
-		}
+		result = result + sep + StringifyTypeName(ty)
 		sep = ", "
+	}
+	return result
+}
+
+func StringifyTypeName(toks []token.Token) string {
+	result := ""
+	for i, tok := range toks {
+		result = result + tok.Literal
+		if i == len(toks) - 1 {
+			continue
+		}
+		if tok.Type == token.COMMA ||
+		(tok.Type == token.IDENT && toks[i+1].Type == token.IDENT && !(toks[i+1].Literal == "?" || toks[i+1].Literal == "!")) ||
+		tok.Type == token.DOTDOTDOT || 
+		toks[i+1].Type == token.DOTDOTDOT {
+			result = result + " "
+		}
 	}
 	return result
 }

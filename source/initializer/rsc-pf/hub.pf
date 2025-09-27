@@ -12,6 +12,9 @@ def
 add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
 
+api :
+    HubResponse("api", [])
+
 config admin :
     HubResponse("config-admin", [])
 

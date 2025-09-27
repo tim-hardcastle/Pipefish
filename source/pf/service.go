@@ -675,3 +675,7 @@ func (sv *Service) WriteSecret(store values.Map, password string) string {
 func (sv *Service) Highlight(code []rune, fonts Map) string {
 	return sv.cp.Highlight(code, fonts)
 }
+
+func (sv *Service) Api(fonts *values.Map, width int) string {
+	return sv.cp.Api(fonts, width)
+}

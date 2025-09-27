@@ -6,6 +6,7 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/compiler"
 	"github.com/tim-hardcastle/Pipefish/source/parser"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 )
@@ -34,6 +35,7 @@ import (
 type tokenizedCode interface {
 	getDeclarationType() declarationType
 	indexToken() token.Token
+	api() (string, bool)
 }
 
 func ixPtr(tc tokenizedCode) *token.Token {
@@ -53,6 +55,19 @@ func (tc *tokenizedAbstractDeclaration) getDeclarationType() declarationType {
 
 func (tc *tokenizedAbstractDeclaration) indexToken() token.Token { return tc.op }
 
+func(tc *tokenizedAbstractDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
+		return "", false
+	}
+	result := tc.op.Literal + " = "
+	sep := ""
+	for _, ty := range tc.types {
+		result = result + sep + parser.StringifyTypeName(ty)
+		sep = "/"
+	}
+	return result, false
+}
+
 type tokenizedCloneDeclaration struct {
 	private   bool                      // Whether it's declared private.
 	op        token.Token               // The type operator.
@@ -66,6 +81,26 @@ func (tc *tokenizedCloneDeclaration) getDeclarationType() declarationType { retu
 
 func (tc *tokenizedCloneDeclaration) indexToken() token.Token { return tc.op }
 
+func(tc *tokenizedCloneDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
+		return "", false
+	}
+	result := tc.op.Literal + " = clone" 
+	if len(tc.params) > 0 {
+		result = result + "{" 
+	}
+	result = result + " " + tc.parentTok.Literal
+	if len(tc.requests) > 0 {
+		result = result + " using "
+		sep := ""
+		for _, req := range tc.requests {
+			result = result + sep + req.Literal
+			sep = ", "
+		}
+	}
+	return result, true
+}
+
 type tokenizedConstOrVarDeclaration struct {
 	decType     declarationType           // Either constantDeclaration or variableDeclaration.
 	private     bool                      // Whether it's declared private.
@@ -78,6 +113,13 @@ func (tc *tokenizedConstOrVarDeclaration) getDeclarationType() declarationType {
 
 func (tc *tokenizedConstOrVarDeclaration) indexToken() token.Token { return tc.assignToken }
 
+func(tc *tokenizedConstOrVarDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.assignToken.Source) {
+		return "", false
+	}
+	return tc.sig.String(), true
+}
+
 type tokenizedEnumDeclaration struct {
 	private  bool          // Whether it's declared private.
 	op       token.Token   // The type operator.
@@ -87,6 +129,19 @@ type tokenizedEnumDeclaration struct {
 func (tc *tokenizedEnumDeclaration) getDeclarationType() declarationType { return enumDeclaration }
 
 func (tc *tokenizedEnumDeclaration) indexToken() token.Token { return tc.op }
+
+func(tc *tokenizedEnumDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
+		return "", false
+	}
+	result := tc.op.Literal + " = "
+	sep := ""
+	for _, el := range tc.elements {
+		result = result + sep + el.Literal
+		sep = ", "
+	}
+	return result, true
+}
 
 type tokenizedExternalOrImportDeclaration struct {
 	decType declarationType // Either importDeclaration or externalDeclaration.
@@ -101,6 +156,13 @@ func (tc *tokenizedExternalOrImportDeclaration) getDeclarationType() declaration
 }
 
 func (tc *tokenizedExternalOrImportDeclaration) indexToken() token.Token { return tc.name }
+
+func(tc *tokenizedExternalOrImportDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.name.Source) {
+		return "", false
+	}
+	return tc.name.Literal, true
+}
 
 type tokenizedFunctionDeclaration struct {
 	decType declarationType           // Can be commandDeclaration, functionDeclaration.
@@ -126,6 +188,24 @@ func (tc *tokenizedFunctionDeclaration) getDeclarationType() declarationType { r
 
 func (tc *tokenizedFunctionDeclaration) indexToken() token.Token { return tc.op }
 
+func (tc *tokenizedFunctionDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
+		return "", false
+	}
+	result := ""
+	if tc.pos == prefix || tc.pos == unfix {
+		result = tc.op.Literal
+	}
+	result = result + tc.sig.String()
+	if len(tc.rets) > 0 {
+		result = result + " -> " + tc.rets.String()
+	}
+	if tc.pos == suffix {
+		result = result + tc.op.Literal
+	}
+	return result, true
+}
+
 type tokenizedInterfaceDeclaration struct {
 	private bool                            // Whether it's declared private.
 	op      token.Token                     // The type operator.
@@ -138,6 +218,13 @@ func (tc *tokenizedInterfaceDeclaration) getDeclarationType() declarationType {
 
 func (tc *tokenizedInterfaceDeclaration) indexToken() token.Token { return tc.op }
 
+func (tc *tokenizedInterfaceDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
+		return "", false
+	}
+	return tc.op.Literal, true
+}
+
 type tokenizedGolangDeclaration struct {
 	private bool        // Whether it's declared private.
 	goCode  token.Token // The code has already been squished into a single Pipefish token.
@@ -146,6 +233,10 @@ type tokenizedGolangDeclaration struct {
 func (tc *tokenizedGolangDeclaration) getDeclarationType() declarationType { return golangDeclaration }
 
 func (tc *tokenizedGolangDeclaration) indexToken() token.Token { return tc.goCode }
+
+func (tc *tokenizedGolangDeclaration) api() (string, bool) {
+	panic("This doesn't need an api description.")
+}
 
 type tokenizedMakeDeclaration struct {
 	private  bool          // Whether it's declared private.
@@ -156,6 +247,10 @@ func (tc *tokenizedMakeDeclaration) getDeclarationType() declarationType { retur
 
 func (tc *tokenizedMakeDeclaration) indexToken() token.Token { return tc.typeToks[0] }
 
+func (tc *tokenizedMakeDeclaration) api() (string, bool) {
+	panic("This doesn't need an api description.")
+}
+
 type tokenizedMakeDeclarations struct {
 	private   bool            // Whether it's declared private.
 	makeToken token.Token     // The token saying 'make'.
@@ -165,6 +260,10 @@ type tokenizedMakeDeclarations struct {
 func (tc *tokenizedMakeDeclarations) getDeclarationType() declarationType { return makeDeclarations }
 
 func (tc *tokenizedMakeDeclarations) indexToken() token.Token { return tc.makeToken }
+
+func (tc *tokenizedMakeDeclarations) api() (string, bool) {
+	panic("This doesn't need an api description.")
+}
 
 type tokenizedStructDeclaration struct {
 	private bool                      // Whether it's declared private.
@@ -177,6 +276,18 @@ type tokenizedStructDeclaration struct {
 func (tc *tokenizedStructDeclaration) getDeclarationType() declarationType { return structDeclaration }
 
 func (tc *tokenizedStructDeclaration) indexToken() token.Token { return tc.op }
+
+func(tc *tokenizedStructDeclaration) api() (string, bool) {
+	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
+		return "", false
+	}
+	result := tc.op.Literal + " = struct" 
+	if len(tc.params) > 0 {
+		result = result + "{" + tc.params.SimpleString() + "}"
+	}
+	result = result + " " + tc.sig.String()
+	return result, true
+}
 
 // As with all the chunkers, this assumes that the p.curToken is the first token of
 // the thing we're trying to slurp.
@@ -713,6 +824,9 @@ func (dec *tokenizedFunctionDeclaration) SigAsString() string {
 
 // Gives a summary of the contents of a tokenizedCode object in which the tokens in the
 // body of a function/interface/constrained type are just counted.
+
+// TODO --- we could fiddle with the api() method of the tokenized chunks to get most of this done
+// byt that too.
 func SummaryString(dec tokenizedCode) string {
 	switch dec := dec.(type) {
 	case *tokenizedAbstractDeclaration:
