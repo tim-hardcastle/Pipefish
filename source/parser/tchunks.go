@@ -296,7 +296,11 @@ func (t TokSig) SimpleString() string {
 	result := ""
 	sep := ""
 	for _, pair := range t {
-		result = result + sep + pair.Name.Literal + " " + StringifyTypeName(pair.Typename)
+		result = result + sep + pair.Name.Literal
+		tn := StringifyTypeName(pair.Typename)
+		if tn != "*inferred*" {
+			result = result + " " + tn
+		}
 		sep = ", "
 	}
 	return result

@@ -117,7 +117,7 @@ func(tc *tokenizedConstOrVarDeclaration) api() (string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.assignToken.Source) {
 		return "", false
 	}
-	return tc.sig.String(), true
+	return tc.sig.SimpleString(), true
 }
 
 type tokenizedEnumDeclaration struct {
