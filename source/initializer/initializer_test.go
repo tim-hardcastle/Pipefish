@@ -267,7 +267,7 @@ func TestConstOrVarChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{"a int = 2 + 2", `a int = 3 tokens.`}, 
 		{"a int = 2 + 2\n", `a int = 3 tokens.`}, 
-		{"a = 2 + 2", `a *inferred* = 3 tokens.`}, 
+		{"a = 2 + 2", `a = 3 tokens.`}, 
 		{"a, b int = 2 + 2", `a int, b int = 3 tokens.`},
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestConstOrVarChunking)

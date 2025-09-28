@@ -8,6 +8,7 @@ type RuneSupplier struct {
 	code        []rune
 	pos         int 
 	lineNo      int
+	lineStart   int
 }
 
 func NewRuneSupplier(code []rune) *RuneSupplier {
@@ -41,10 +42,11 @@ func (rs *RuneSupplier) Next() {
 	}
 	if rs.pos >= 0 && rs.code[rs.pos] == '\n' {
 		rs.lineNo++
+		rs.lineStart = rs.pos + 1
 	}
 	rs.pos++
 }
 
 func (rs *RuneSupplier) Position() (int, int) {
-	return rs.lineNo, rs.pos
+	return rs.lineNo, rs.pos - rs.lineStart
 }

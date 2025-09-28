@@ -45,10 +45,9 @@ func (l *lexer) getTokens() []token.Token {
 		l.lineNo = l.runes.lineNo
 		return l.interpretWhitespace()
 	}
-	l.lineNo = l.runes.lineNo
 	l.continuation = false
 	l.skipWhitespace()
-	_, l.tstart = l.runes.Position()
+	l.lineNo, l.tstart = l.runes.Position()
 	switch l.runes.CurrentRune() {
 	case 0:
 		level := l.whitespaceStack.Find("")
@@ -230,6 +229,12 @@ func (l *lexer) interpretWhitespace() []token.Token {
 		comment := l.runes.ReadComment()
 		l.runes.Next()
 		return []token.Token{l.NewToken(token.COMMENT, comment)}
+	}
+	if l.runes.CurrentRune() == '~' && l.runes.PeekRune() == '~' {
+		l.runes.Next()
+		docString := l.runes.ReadComment()
+		l.runes.Next()
+		return []token.Token{l.NewToken(token.DOCSTRING, docString + "\n")}
 	}
 	if l.runes.CurrentRune() == '.' && l.runes.PeekRune() == '.' {
 		l.runes.Next()
@@ -646,8 +651,8 @@ func (l *lexer) MakeToken(tokenType token.TokenType, st string) token.Token {
 	if settings.SHOW_LEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(l.source)) {
 		fmt.Println(tokenType, st)
 	}
-	lineNo, chNo := l.runes.Position()
-	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: lineNo, ChStart: l.tstart, ChEnd: chNo}
+	_, chNo := l.runes.Position()
+	return token.Token{Type: tokenType, Literal: st, Source: l.source, Line: l.lineNo, ChStart: l.tstart, ChEnd: chNo}
 }
 
 func (l *lexer) Throw(errorID string, args ...any) token.Token {

@@ -23,7 +23,7 @@ func TestNextTokenForRelexer(t *testing.T) {
 		{token.IDENT, "x", 2},
 		{token.COLON, ":", 2},
 		{token.INT, "1", 2},
-		{token.NEWLINE, ";", 3},
+		{token.NEWLINE, ";", 2},
 		{token.ELSE, "else", 3},
 		{token.COLON, ":", 3},
 		{token.INT, "2", 3},
@@ -45,8 +45,8 @@ golang {
 
 	items := []testItem{
 		{token.GOLANG, "qux", 1},
-		{token.NEWLINE, ";", 2},
-		{token.GOLANG, "\n    foo\n", 5},
+		{token.NEWLINE, ";", 1},
+		{token.GOLANG, "\n    foo\n", 3},
 		{token.EOF, "EOF", 5},
 	}
 	testRelexingString(t, input, items)

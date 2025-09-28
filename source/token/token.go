@@ -58,12 +58,13 @@ const (
 	SEMICOLON           = ";"
 
 	// Literals, comments, and identifiers.
-	COMMENT = "COMMENT"
-	FLOAT   = "FLOAT LITERAL"
-	IDENT   = "IDENT"
-	INT     = "INTEGER LITERAL"
-	STRING  = "STRING LITERAL"
-	RUNE    = "RUNE LITERAL"
+	COMMENT   = "COMMENT"
+	DOCSTRING = "DOCSTRING"
+	FLOAT     = "FLOAT LITERAL"
+	IDENT     = "IDENT"
+	INT       = "INTEGER LITERAL"
+	STRING    = "STRING LITERAL"
+	RUNE      = "RUNE LITERAL"
 
 	// False and true.
 	FALSE = "false"

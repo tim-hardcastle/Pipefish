@@ -4,11 +4,13 @@ Color = enum RED, YELLOW, GREEN, BLUE
 
 def
 
-//~~ Has no effect.
+~~ Has no effect.
 foo(x string) -> string : 
     x
 
-//~~ Doubles a given value *by multiplication*, not addition.
+~~ Doubles a given value *by multiplication*, not addition.
+
+
 zort(i) : 
     2 * i
 

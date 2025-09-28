@@ -328,12 +328,15 @@ func (iz *Initializer) getTokenizedCode() {
 	if iz.P.CurToken.Type == token.EOF {
 		iz.P.SafeNextToken()
 	}
+	docString := ""
 loop:
 	for iz.P.CurToken.Type != token.EOF {
 		var result tokenizedCode
 		switch {
 		case iz.P.CurToken.Type == "": // We just continue.
 		case iz.P.CurToken.Type == token.NEWLINE: // We just continue.
+		case iz.P.CurToken.Type == token.DOCSTRING:
+			docString = docString + iz.P.CurToken.Literal
 		case token.TokenTypeIsHeadword(iz.P.CurToken.Type):
 			headword = iz.P.CurToken.Type
 			private = false
