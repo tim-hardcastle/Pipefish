@@ -1,5 +1,8 @@
+~~ A module to demonstrate documentation.
+
 newtype
 
+~~ All four colors of the new standard rainbow.
 Color = enum RED, YELLOW, GREEN, BLUE
 
 def
@@ -9,8 +12,6 @@ foo(x string) -> string :
     x
 
 ~~ Doubles a given value *by multiplication*, not addition.
-
-
 zort(i) : 
     2 * i
 

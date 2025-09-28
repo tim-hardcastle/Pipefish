@@ -115,7 +115,7 @@ func TestSigChunking(iz *initializer.Initializer, s string) string {
 
 func TestFunctionChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	fn, ok := iz.ChunkFunction(false, false)
+	fn, ok := iz.ChunkFunction(false, false, "")
 	if !ok {
 		return "Couldn't parse function."
 	}
@@ -124,7 +124,7 @@ func TestFunctionChunking(iz *initializer.Initializer, s string) string {
 
 func TestTypeChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkTypeDeclaration(false)
+	ty, ok := iz.ChunkTypeDeclaration(false, "")
 	if !ok {
 		return "Couldn't parse type."
 	}
@@ -133,7 +133,7 @@ func TestTypeChunking(iz *initializer.Initializer, s string) string {
 
 func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkConstOrVarDeclaration(false , false)
+	ty, ok := iz.ChunkConstOrVarDeclaration(false , false, "")
 	if !ok {
 		return "Couldn't parse assignment."
 	}
@@ -142,7 +142,7 @@ func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
 
 func TestExternalOrImportChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkImportOrExternalDeclaration(false , false)
+	ty, ok := iz.ChunkImportOrExternalDeclaration(false , false, "")
 	if !ok {
 		return "Couldn't parse import/external declaration."
 	}

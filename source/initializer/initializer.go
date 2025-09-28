@@ -805,9 +805,9 @@ func (iz *Initializer) describeApi() {
 		iz.cp.ApiDescription = append(iz.cp.ApiDescription, []compiler.ApiItem{})
 		for _, decType := range descriptionGroup {
 			for _, tc := range iz.tokenizedCode[decType] {
-				decString, ok  := tc.api()
+				decString, docString, ok  := tc.api()
 				if ok && decString != "" {
-					item := compiler.ApiItem{[]rune(decString), ""}
+					item := compiler.ApiItem{[]rune(decString), docString}
 					iz.cp.ApiDescription[i] = append(iz.cp.ApiDescription[i], item)
 				}
 			}

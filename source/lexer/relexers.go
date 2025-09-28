@@ -122,19 +122,3 @@ func (r *removeNewlineBefore) getTokens() []token.Token {
 	r.acc.next()
 	return result
 }
-
-// A relexer that just passes the tokens on unaltered, for testing purposes.
-// NOTE --- this doesn't work!!!!!!!!
-type iotaRelexer struct {
-	acc *tokenAccessor
-}
-
-func (r *iotaRelexer) chain(ts tokensSupplier) {
-	r.acc = newAccessor(ts)
-}
-
-func (r *iotaRelexer) getTokens() []token.Token {
-	result := r.acc.buffer
-	r.acc.buffer = []token.Token{}
-	return result
-}

@@ -105,6 +105,13 @@ func (l *lexer) getTokens() []token.Token {
 		return []token.Token{l.NewToken(token.LPAREN, "(")}
 	case ')':
 		return []token.Token{l.NewToken(token.RPAREN, ")")}
+	case '~':
+		if l.runes.PeekRune() == '~' {
+			l.runes.Next()
+			docString := l.runes.ReadComment()
+			l.runes.Next()
+			return []token.Token{l.NewToken(token.DOCSTRING, strings.TrimSpace(docString) + "\n")}
+		}
 	// We may have a formated string.
 	case '"':
 		s, ok := l.runes.ReadFormattedString()
@@ -229,12 +236,6 @@ func (l *lexer) interpretWhitespace() []token.Token {
 		comment := l.runes.ReadComment()
 		l.runes.Next()
 		return []token.Token{l.NewToken(token.COMMENT, comment)}
-	}
-	if l.runes.CurrentRune() == '~' && l.runes.PeekRune() == '~' {
-		l.runes.Next()
-		docString := l.runes.ReadComment()
-		l.runes.Next()
-		return []token.Token{l.NewToken(token.DOCSTRING, docString + "\n")}
 	}
 	if l.runes.CurrentRune() == '.' && l.runes.PeekRune() == '.' {
 		l.runes.Next()

@@ -336,7 +336,11 @@ loop:
 		case iz.P.CurToken.Type == "": // We just continue.
 		case iz.P.CurToken.Type == token.NEWLINE: // We just continue.
 		case iz.P.CurToken.Type == token.DOCSTRING:
-			docString = docString + iz.P.CurToken.Literal
+			if headword == token.ILLEGAL {
+				iz.cp.DocString = iz.cp.DocString + iz.P.CurToken.Literal
+			} else {
+				docString = docString + iz.P.CurToken.Literal
+			}
 		case token.TokenTypeIsHeadword(iz.P.CurToken.Type):
 			headword = iz.P.CurToken.Type
 			private = false
@@ -351,14 +355,18 @@ loop:
 				if iz.P.CurToken.Type == token.GOLANG { // Then we have a block of pure Go.
 					result = &tokenizedGolangDeclaration{private, iz.P.CurToken}
 				} else {
-					result, _ = iz.ChunkFunction(headword == token.CMD, private)
+					result, _ = iz.ChunkFunction(headword == token.CMD, private, docString)
 				}
+				docString = ""
 			case token.VAR, token.CONST:
-				result, _ = iz.ChunkConstOrVarDeclaration(headword == token.CONST, private)
+				result, _ = iz.ChunkConstOrVarDeclaration(headword == token.CONST, private, docString)
+				docString = ""
 			case token.IMPORT, token.EXTERNAL:
-				result, _ = iz.ChunkImportOrExternalDeclaration(headword == token.EXTERNAL, private)
+				result, _ = iz.ChunkImportOrExternalDeclaration(headword == token.EXTERNAL, private, docString)
+				docString = ""
 			case token.NEWTYPE:
-				result, _ = iz.ChunkTypeDeclaration(private)
+				result, _ = iz.ChunkTypeDeclaration(private, docString)
+				docString = ""
 				if result.getDeclarationType() == makeDeclarations {
 					for _, ty := range result.(*tokenizedMakeDeclarations).types {
 						iz.tokenizedCode[makeDeclaration] = append(iz.tokenizedCode[makeDeclaration],

@@ -41,6 +41,7 @@ type Compiler struct {
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
+	DocString                string                             // Doctring for the module.
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
 	ApiDescription           [][]ApiItem                        // Data used to generate a description of the API.
 	TypeMap                  TypeSys                            // Abstract types indexed by name.
