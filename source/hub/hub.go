@@ -146,6 +146,30 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
+	// Otherwise, we're talking to the current service.
+
+	serviceToUse, ok := hub.services[passedServiceName]
+	if !ok {
+		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
+		return passedServiceName, false
+	}
+
+	// The service may be broken, in which case we'll let the empty service handle the input.
+
+	if serviceToUse.IsBroken() {
+		serviceToUse = hub.services[""]
+	}
+	hub.Sources["REPL input"] = []string{line}
+	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName())
+	if hub.isLive() && needsUpdate {
+		path, _ := hub.services[hub.currentServiceName()].GetFilepath()
+		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), path)
+		serviceToUse = hub.services[hub.currentServiceName()]
+		if serviceToUse.IsBroken() {
+			return passedServiceName, false
+		}
+	}
+
 	// We may be talking to the hub itself.
 
 	hubWords := strings.Fields(line)
@@ -194,30 +218,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		}
 		hub.WriteString(string(out))
 		return passedServiceName, false
-	}
-
-	// Otherwise, we're talking to the current service.
-
-	serviceToUse, ok := hub.services[passedServiceName]
-	if !ok {
-		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
-		return passedServiceName, false
-	}
-
-	// The service may be broken, in which case we'll let the empty service handle the input.
-
-	if serviceToUse.IsBroken() {
-		serviceToUse = hub.services[""]
-	}
-	hub.Sources["REPL input"] = []string{line}
-	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName())
-	if hub.isLive() && needsUpdate {
-		path, _ := hub.services[hub.currentServiceName()].GetFilepath()
-		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), path)
-		serviceToUse = hub.services[hub.currentServiceName()]
-		if serviceToUse.IsBroken() {
-			return passedServiceName, false
-		}
 	}
 
 	if match, _ := regexp.MatchString(`^\s*(|\/\/.*)$`, line); match {

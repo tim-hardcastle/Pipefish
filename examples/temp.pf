@@ -1,1 +1,14 @@
-//foo(x) in int/string : "zort" ; else : 99 // This is a comment.
+newtype
+
+Color = enum RED, YELLOW, GREEN, BLUE
+
+def
+
+//~~ Has no effect.
+foo(x string) -> string : 
+    x
+
+//~~ Doubles a given value *by multiplication*, not addition.
+zort(i) : 
+    2 * i
+

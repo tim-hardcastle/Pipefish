@@ -240,7 +240,7 @@ var (
 	control              = dtypes.MakeFromSlice([]string{"break", "continue", "else", "try"})
 	reserved             = dtypes.MakeFromSlice([]string{"and", "false", "given", "not", "or", "true", "->", ">>", "?>", "--"})
 	illegalInRepl        = dtypes.MakeFromSlice([]string{"cmd", "const", "def", "external", "global", "golang", "import", "newtype", "private", "var", "\\\\", "~~"})
-	nativeTypes          = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret"})
+	nativeTypes          = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret", "clone", "clones", "enum", "struct", "any"})
 	enumlike, _          = regexp.Compile(`^[A-Z][A-Z_]+$`)
 	typelike, _          = regexp.Compile(`^[A-Z][A-Z]*[a-z]+[A-Za-z]*$`)
 	bracketMatch         = map[rune]rune{'(': ')', '[': ']', '{': '}'}

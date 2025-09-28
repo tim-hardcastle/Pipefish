@@ -42,7 +42,7 @@ type Compiler struct {
 	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
-	ApiDescription           [][]apiItem                        // Data used to generate a description of the API.
+	ApiDescription           [][]ApiItem                        // Data used to generate a description of the API.
 	TypeMap                  TypeSys                            // Abstract types indexed by name.
 
 	// Temporary state.

@@ -198,6 +198,9 @@ func StartCompiler(scriptFilepath, sourcecode string, hubServices map[string]*co
 		return result
 	}
 
+	iz.cmI("Making description of API for compiler.")
+	iz.describeApi()
+
 	iz.cmI("Compiling Go.")
 	iz.compileGoModules()
 	if iz.errorsExist() {
@@ -786,6 +789,30 @@ func (iz *Initializer) tweakValue(v values.Value) values.Value {
 		v.V = iz.cp.GetAbstractTypeFromAstType(v.V.(ast.TypeNode))
 	}
 	return v
+}
+
+// This is brittlely couples with the descriptionTypes in the api.go file of the compiler module.
+var declarationDescriptors = [][]declarationType{
+	{importDeclaration, externalDeclaration},
+	{enumDeclaration, cloneDeclaration, structDeclaration, abstractDeclaration, interfaceDeclaration},
+    {constantDeclaration},
+    {variableDeclaration},
+	{commandDeclaration},
+	{functionDeclaration}}
+
+func (iz *Initializer) describeApi() {
+	for i, descriptionGroup := range declarationDescriptors {
+		iz.cp.ApiDescription = append(iz.cp.ApiDescription, []compiler.ApiItem{})
+		for _, decType := range descriptionGroup {
+			for _, tc := range iz.tokenizedCode[decType] {
+				decString, ok  := tc.api()
+				if ok && decString != "" {
+					item := compiler.ApiItem{[]rune(decString), ""}
+					iz.cp.ApiDescription[i] = append(iz.cp.ApiDescription[i], item)
+				}
+			}
+		}
+	}
 }
 
 // We check that if a struct type is public, so are its fields.
@@ -1570,15 +1597,6 @@ type labeledParsedCodeChunk struct {
 	name      string
 	indexTok  *token.Token
 }
-
-// This is brittlely couples with the desccriptionTypes in the api.go file of the compiler module.
-var declarationDescriptors = [][]declarationType{
-	{importDeclaration, externalDeclaration},
-	{enumDeclaration, cloneDeclaration, structDeclaration, abstractDeclaration, interfaceDeclaration},
-    {constantDeclaration},
-    {variableDeclaration},
-	{commandDeclaration},
-	{functionDeclaration}}
 
 // Types and functions to help with housekeeping. The initializer stores the declarations of types and functions
 // in a map keyed by their source and line number. This is to prevent the same source code being compiled twice onto
