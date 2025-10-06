@@ -44,7 +44,7 @@ type Hub struct {
 	Db                     *sql.DB
 	administered           bool
 	listeningToHttp        bool
-	port, path             string
+	port                   string
 	Username               string
 	Password               string
 	pipefishHomeDirectory  string
@@ -445,10 +445,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		hub.WriteString(GREEN_OK + "\n")
 		return false
-	case "listen":
+	case "http":
 		hub.WriteString(GREEN_OK)
-		hub.WriteString("\nHub is listening.\n\n")
-		hub.StartHttp("/"+toStr(args[0]), toStr(args[1]))
+		go hub.StartHttp(toStr(args[0]))
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -568,6 +567,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.WritePretty("Starting script '" + filepath.Base(fname) + "' as service '" + sname + "'.\n")
 		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
+		return false
+	case "serialize":
+		hub.WriteString(hub.services[toStr(args[0])].SerializeApi())
 		return false
 	case "services-of-user":
 		result, err := database.GetServicesOfUser(hub.Db, toStr(args[0]), false)
@@ -1385,15 +1387,10 @@ func valToString(srv *pf.Service, val pf.Value) string {
 	return srv.ToLiteral(val)
 }
 
-func (h *Hub) StartHttp(path, port string) {
-	h.path = path
+func (h *Hub) StartHttp(port string) {
 	h.port = port
 	h.listeningToHttp = true
-	if h.administered {
-		http.HandleFunc(path, h.handleJsonRequest)
-	} else {
-		http.HandleFunc(path, h.handleSimpleRequest)
-	}
+	http.HandleFunc("/", h.handleJsonRequest)
 	err := http.ListenAndServe(":"+port, nil)
 	if errors.Is(err, http.ErrServerClosed) {
 		h.WriteError("server closed.")
@@ -1403,23 +1400,11 @@ func (h *Hub) StartHttp(path, port string) {
 	}
 }
 
-// This will simply feed text to the REPL of the hub, and will happen if you
-// tell the interpreter to turn into a server but don't ask for administration.
-func (h *Hub) handleSimpleRequest(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		h.WriteError("could not read body: %s\n")
-	}
-	input := string(body[:])
-	h.out = w
-	h.Do(input, "", "", h.currentServiceName())
-	io.WriteString(w, "\n")
-}
-
-// By contrast, once the hub is administered it expects an HTTP request to consist of JSON
+// The hub expects an HTTP request to consist of JSON
 // containing the line to be executed and the username and password of the user.
 type jsonRequest = struct {
 	Body     string
+	Service  string
 	Username string
 	Password string
 }
@@ -1442,7 +1427,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	var serviceName string
 
 	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
-		serviceName, err = database.ValidateUser(h.Db, request.Username, request.Password)
+		_, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
 			h.WriteError("D/ " + err.Error())
 			return
@@ -1451,10 +1436,11 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 
 	var buf bytes.Buffer
 	h.out = &buf
-	serviceName, _ = h.Do(request.Body, request.Username, request.Password, serviceName)
-
+	sv := h.services[request.Service]
+	sv.SetOutHandler(sv.MakeWritingOutHandler(&buf))
+	serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service)
+    h.out = os.Stdout
 	response := jsonResponse{Body: buf.String(), Service: serviceName}
-
 	json.NewEncoder(w).Encode(response)
 
 }
@@ -1536,11 +1522,6 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 	h.WritePretty("You are logged in as '" + h.Username + "'.\n")
 
 	h.administered = true
-
-	// If the hub's already an HTTP server we should restart it to tell it to expect Json.
-	if h.listeningToHttp {
-		h.StartHttp(h.path, h.port)
-	}
 }
 
 func (h *Hub) getLogin() {

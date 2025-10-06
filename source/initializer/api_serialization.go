@@ -51,7 +51,7 @@ func (es ExternalHttpCallHandler) Evaluate(line string) values.Value {
 	if settings.SHOW_XCALLS {
 		println("Line is", line)
 	}
-	exValAsString := Do(es.Host, line, es.Username, es.Password)
+	exValAsString := Do(es.Host, es.Service, line, es.Username, es.Password)
 	val := es.Deserializer(exValAsString)
 	return val
 }
@@ -61,7 +61,7 @@ func (es ExternalHttpCallHandler) Problem() *err.Error {
 }
 
 func (es ExternalHttpCallHandler) GetAPI() string {
-	return Do(es.Host, "hub serialize \""+es.Service+"\"", es.Username, es.Password)
+	return Do(es.Host, "", "hub serialize \""+es.Service+"\"", es.Username, es.Password)
 }
 
 // TODO --- the serializer doesn't send details of the sources, and until it does, 

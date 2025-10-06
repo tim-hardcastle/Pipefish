@@ -218,7 +218,7 @@ func (iz *Initializer) initializeExternals() {
 			iz.addExternalOnSameHub(externalCP.ScriptFilepath, name)
 			continue
 		}
-		if len(path) >= 5 && path[0:5] == "http:" {
+		if text.Head(path, "http:") {
 			pos := strings.LastIndex(path, "/")
 			if pos == -1 {
 				iz.throw("init/external/path/a", &dec.path)
@@ -243,7 +243,6 @@ func (iz *Initializer) initializeExternals() {
 			iz.addHttpService(hostpath, serviceName, username, password)
 			continue
 		}
-
 		// Otherwise we have a path for which the Tweak function will have inferred a name if one was not supplied.
 		hubServiceCp, ok := iz.Common.serviceCompilers[name] // If the service already exists, then we just need to check that it uses the same source file.
 		if ok {

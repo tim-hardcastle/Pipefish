@@ -403,7 +403,7 @@ func TweakNameAndPath(name, path, source string) (string, string) {
 	if settings.StandardLibraries.Contains(path) {
 		path = settings.PipefishHomeDirectory + "lib/" + path + ".pf"
 	}
-	if filepath.IsLocal(path) {
+	if !Head(path, "http:") && filepath.IsLocal(path) {
 		path = filepath.Join(filepath.Dir(source), path)
 	}
 	return name, path

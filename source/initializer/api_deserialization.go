@@ -85,7 +85,7 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 		case "":
 			lineNo++
 		default:
-			panic("Oops, found" + parts[0] + "instead. Drat.")
+			panic("Oops, found " + parts[0] + " instead. Drat.")
 		}
 		hasHappened[parts[0]] = true
 	}

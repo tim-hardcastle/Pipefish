@@ -161,8 +161,8 @@ func (sv *Service) MakeWritingOutHandler(out io.Writer) *SimpleOutHandler {
 }
 
 // Method makes an `OutHandler` which applies Pipefish's `literal` or `string`
-// function to the value and then writes the result to the supplied `io.Writer`.
-func (sv *Service) MakeTerminalOutHandler(out io.Writer) *SimpleOutHandler {
+// function to the value and then writes the result to Stdout.
+func (sv *Service) MakeTerminalOutHandler() *SimpleOutHandler {
 	return vm.MakeSimpleOutHandler(os.Stdout, sv.cp.Vm)
 }
 
@@ -451,7 +451,7 @@ func (sv *Service) GetTrackingReport() (string, error) {
 	return sv.cp.Vm.TrackingToString(sv.cp.Vm.LiveTracking), nil
 }
 
-// Says whether pot happened when we called Do.
+// Says whether post happened when we called Do.
 func (sv *Service) PostHappened() bool {
 	return sv.cp.Vm.PostHappened
 }
@@ -678,4 +678,8 @@ func (sv *Service) Highlight(code []rune, fonts Map) string {
 
 func (sv *Service) Api(fonts *values.Map, width int) string {
 	return sv.cp.Api(fonts, width)
+}
+
+func (sv *Service) SerializeApi() string {
+	return sv.cp.API
 }
