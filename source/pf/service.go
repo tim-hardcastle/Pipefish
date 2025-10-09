@@ -105,9 +105,13 @@ type OutHandler = vm.OutHandler
 // An InHandler which just gets an input from an io.Reader supplied at its construction.
 type SimpleInHandler = vm.SimpleInHandler
 
-// An OutHandler which serializes the given value and writes it to an io.Writer supplied
+// An OutHandler which stringifies/serializes the given value and writes it to an io.Writer supplied
 // at its construction.
 type SimpleOutHandler = vm.SimpleOutHandler
+
+// An OutHandler which serializes the given value and writes it to an io.Writer supplied
+// at its construction.
+type LiteralOutHandler = vm.LiteralOutHandler
 
 // An InHandler which supplies a prompt and then gets its input from the terminal.
 type TerminalInHandler = vm.StandardInHandler
@@ -158,6 +162,11 @@ func MakeSimpleInHandler(in io.Reader) *SimpleInHandler {
 // function to the value and then writes the result to the supplied `io.Writer`.
 func (sv *Service) MakeWritingOutHandler(out io.Writer) *SimpleOutHandler {
 	return vm.MakeSimpleOutHandler(out, sv.cp.Vm)
+}
+
+// An outhandler which always serializes the value, for use by external services.
+func (sv *Service) MakeLiteralOutHandler(out io.Writer) *LiteralOutHandler {
+	return vm.MakeLiteralOutHandler(out, sv.cp.Vm)
 }
 
 // Method makes an `OutHandler` which applies Pipefish's `literal` or `string`

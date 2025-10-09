@@ -70,7 +70,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		input = strings.TrimSpace(input)
 		sv := hub.services[hub.currentServiceName()]
 		sv.SetOutHandler(sv.MakeTerminalOutHandler())
-		_, quit := hub.Do(input, hub.Username, hub.Password, hub.currentServiceName())
+		_, quit := hub.Do(input, hub.Username, hub.Password, hub.currentServiceName(), false)
 		if quit {
 			break
 		}

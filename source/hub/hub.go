@@ -136,7 +136,7 @@ func (hub *Hub) getFonts() *values.Map {
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
 // as an instruction to the os if it begins with 'os', and as an expression to be passed to
 // the current service if none of the above hold.
-func (hub *Hub) Do(line, username, password, passedServiceName string) (string, bool) {
+func (hub *Hub) Do(line, username, password, passedServiceName string, external bool) (string, bool) {
 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
 		!(line == "hub register" || line == "hub log on" || line == "hub quit") {
@@ -238,7 +238,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
-	if val.T == pf.ERROR {
+	if val.T == pf.ERROR && !external {
 		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
 		hub.ers = []*pf.Error{val.V.(*pf.Error)}
@@ -1437,8 +1437,8 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	h.out = &buf
 	sv := h.services[request.Service]
-	sv.SetOutHandler(sv.MakeWritingOutHandler(&buf))
-	serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service)
+	sv.SetOutHandler(sv.MakeLiteralOutHandler(&buf))
+	serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service, true)
     h.out = os.Stdout
 	response := jsonResponse{Body: buf.String(), Service: serviceName}
 	json.NewEncoder(w).Encode(response)

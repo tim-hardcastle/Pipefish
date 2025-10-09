@@ -61,6 +61,24 @@ func (oH *SimpleOutHandler) Write(s string) {
 	oH.output.Write([]byte(s))
 }
 
+type LiteralOutHandler struct {
+	output  io.Writer
+	vm      *Vm
+}
+
+func MakeLiteralOutHandler(out io.Writer, vm *Vm) *LiteralOutHandler {
+	return &LiteralOutHandler{out, vm}
+}
+
+func (oH *LiteralOutHandler) Out(v values.Value) {
+	oH.output.Write([]byte(oH.vm.Literal(v)))
+	oH.output.Write([]byte{'\n'})
+}
+
+func (oH *LiteralOutHandler) Write(s string) {
+	oH.output.Write([]byte(s))
+}
+
 func MakeCapturingOutHandler(vm *Vm) *CapturingOutHandler {
 	buffer := bytes.NewBuffer(nil)
 	simpleHandler := MakeSimpleOutHandler(buffer, vm)
