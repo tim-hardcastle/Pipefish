@@ -1,0 +1,17 @@
+newtype
+
+Z = clone{i int} int :
+    0 <= that
+    that < i
+
+make Z{12}
+
+Qux = struct(zort Z{7})
+
+def
+
+foo(z Z{5}) :
+    z
+
+bar(i int) :
+    Z{3}(i)

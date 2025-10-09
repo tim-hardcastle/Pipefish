@@ -3,6 +3,12 @@ def
 foo(x string) :
     "foo " + x
 
+foo p (i int):
+    "foo p"
+
+foo q (i int):
+    "foo q"
+
 (x string) zort : 
     x + " zort"
 

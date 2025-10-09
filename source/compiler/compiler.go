@@ -27,7 +27,6 @@ type Compiler struct {
 	// Permanent state, i.e. it is unchanged after initialization.
 	Vm                       *vm.Vm                             // The vm we're compiling to.
 	P                        *parser.Parser                     // The parser the compiler's using to parse with..
-	EnumElements             map[string]values.Value            // Map from the names of the enum elements the compiler knows about to their values.
 	GlobalConsts             *Environment                       // The global constants of the module.
 	GlobalVars               *Environment                       // The global variables of the module.
 	Fns                      []*CpFunc                          // The functions the compiler knows about, in a format it can use.
@@ -40,9 +39,12 @@ type Compiler struct {
 	labelResolvingCompilers  []*Compiler                        // We use this to resolve the meaning of labels and enums.
 	TupleType                uint32                             // Location of a constant saying {TYPE, <type number of tuples>}, so that 'type (x tuple)' in the builtins has something to return. Query, why not just define 'type (x tuple) : tuple' ?
 	Common                   *CommonCompilerBindle              // Struct to hold info shared by the compilers.
-	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.          
+	GeneratedAbstractTypes   dtypes.Set[string]                 // Types such as clone{int} which are automatically generated, and so shouldn't be part of the API serialization.
 	FunctionForest           map[string]*FunctionTree           // Used for type dispatch
+	DocString                string                             // Doctring for the module.
 	API                      string                             // If the compiler is the root of the service, this will contain the serialized API of the service.
+	ApiDescription           [][]ApiItem                        // Data used to generate a description of the API.
+	TypeMap                  TypeSys                            // Abstract types indexed by name.
 
 	// Temporary state.
 	ThunkList       []ThunkData   // Records what thunks we made so we know what to unthunk at the top of the function.
@@ -56,7 +58,6 @@ type Compiler struct {
 func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 	newC := &Compiler{
 		P:                        p,
-		EnumElements:             make(map[string]values.Value),
 		GlobalConsts:             NewEnvironment(),
 		GlobalVars:               NewEnvironment(),
 		ThunkList:                []ThunkData{},
@@ -68,9 +69,10 @@ func NewCompiler(p *parser.Parser, ccb *CommonCompilerBindle) *Compiler {
 		Common:                   ccb,
 		GeneratedAbstractTypes:   make(dtypes.Set[string]),
 		FunctionForest:           make(map[string]*FunctionTree),
+		TypeMap:                  TypeSys{},
 	}
-	for name := range parser.ClonableTypes {
-		newC.GeneratedAbstractTypes.Add("clones{"+name+"}")
+	for name := range ClonableTypes {
+		newC.GeneratedAbstractTypes.Add("clones{" + name + "}")
 	}
 	newC.pushRCompiler(newC)
 	return newC
@@ -83,6 +85,7 @@ type CommonCompilerBindle struct {
 	IsRangeable              AlternateType
 	CodeGeneratingTypes      dtypes.Set[values.ValueType]
 	LabelIsPrivate           []bool
+	Types                    TypeSys
 }
 
 func NewCommonCompilerBindle() *CommonCompilerBindle {
@@ -94,11 +97,12 @@ func NewCommonCompilerBindle() *CommonCompilerBindle {
 		AnyTypeScheme:       AlternateType{},
 		AnyTuple:            AlternateType{},
 		CodeGeneratingTypes: (make(dtypes.Set[values.ValueType])).Add(values.FUNC),
+		Types:               NewCommonTypeMap(),
 	}
-	for _, name := range parser.AbstractTypesOtherThanAny {
+	for _, name := range AbstractTypesOtherThanAny {
 		newBindle.SharedTypenameToTypeList[name] = AltType()
 	}
-	for name, ty := range parser.ClonableTypes {
+	for name, ty := range ClonableTypes {
 		newBindle.SharedTypenameToTypeList["clones{"+name+"}"] = AltType(ty)
 	}
 	anyOrNull := newBindle.SharedTypenameToTypeList["any"].Union(altType(values.NULL))
@@ -259,14 +263,14 @@ NodeTypeSwitch:
 					break NodeTypeSwitch
 				}
 				cp.Reserve(values.UNDEFINED_TYPE, DUMMY, node.GetToken())
-				if vType, ok := pair.VarType.(*ast.TypeWithName); ok && vType.Name == "tuple" {
+				if vType, ok := pair.VarType.(*ast.TypeWithName); ok && vType.OperatorName == "tuple" {
 					cp.Cm("Adding variable in ASSIGN, 1", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Common.AnyTuple, node.GetToken())
+					cp.AddThatAsVariable(env, pair.VarName, LOCAL_VARIABLE, cp.Common.AnyTuple, node.GetToken())
 					newSig = append(newSig, ast.NameTypeAstPair{pair.VarName, ast.TUPLE_TYPE_AST})
 				} else {
 					typesAtIndex := typesAtIndex(types, i)
 					cp.Cm("Adding variable in ASSIGN, 2", node.GetToken())
-					cp.AddVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
+					cp.AddThatAsVariable(env, pair.VarName, LOCAL_VARIABLE, typesAtIndex, node.GetToken())
 					if sig[i].VarType == ast.INFERRED_TYPE_AST {
 						newSig = append(newSig, NameAlternateTypePair{pair.VarName, typesAtIndex})
 					} else {
@@ -300,16 +304,13 @@ NodeTypeSwitch:
 	case *ast.FloatLiteral:
 		cp.Reserve(values.FLOAT, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.FLOAT), true
-		break
 	case *ast.ForExpression:
 		rtnTypes = cp.compileForExpression(node, ctxt)
 		rtnConst = false // If anyone misses out on an optimization because they manage to write a constant for loop this should if anything be a warning rather than an oportunity for optimization.
-		break
 	case *ast.FuncExpression:
 		cp.compileLambda(env, ctxt, node, node.GetToken())
 		rtnTypes = AltType(values.FUNC) // In the case where the function is a constant (i.e. has no captures), the compileLambda function will emit an assignment rather than a lambda factory.)
-		rtnConst = false
-		break // Things that return functions and snippets are not folded, even if they are constant.
+		rtnConst = false                // Things that return functions and snippets are not folded, even if they are constant.
 	case *ast.Identifier:
 		switch node.Value {
 		case "continue":
@@ -329,34 +330,25 @@ NodeTypeSwitch:
 			rtnTypes, rtnConst = altType(values.SUCCESSFUL_VALUE), false
 			break NodeTypeSwitch
 		}
-		var enumCompiler *Compiler
+		var argumentCompiler *Compiler
 		if node.Namespace == nil {
-			enumCompiler = cp.topRCompiler()
+			argumentCompiler = cp.topRCompiler()
 		} else {
-			enumCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
+			argumentCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
 		}
-		enumElement, ok := enumCompiler.EnumElements[node.Value]
-		if ok {
-			if cp.Vm.ConcreteTypeInfo[enumElement.T].IsPrivate() {
-				cp.Throw("comp/private/enum", node.GetToken(), cp.Vm.DescribeType(enumElement.T, vm.LITERAL))
-				break
-			}
-			cp.Reserve(enumElement.T, enumElement.V, &node.Token)
-			rtnTypes, rtnConst = AltType(enumElement.T), true
-			break
+		// If we're parsing the parameters of a namespaced function, then we are allowed a
+		// window through to its public global constants, which will be in the enumCompiler.
+		// If we tack it on as the Ext of the resolving compiler's global variables, then
+		// since that would usually be the backstop of all the environments, it will normally
+		// be nil and we won't break anything. These constants will therefore be shadowed by
+		// anything more local, preventing surprising behaviors.
+		if argumentCompiler != cp {
+			cp.GlobalConsts.Ext = argumentCompiler.GlobalConsts
 		}
-		labelNumberLocation, ok := cp.Vm.FieldLabelsInMem[node.Value]
-		if ok {
-			if ac == REPL && cp.Common.LabelIsPrivate[cp.Vm.Mem[labelNumberLocation].V.(int)] {
-				cp.Throw("comp/private/label", node.GetToken())
-				break
-			}
-			cp.Put(vm.Asgm, labelNumberLocation)
-			rtnTypes, rtnConst = AltType(values.LABEL), true
-			break
-		}
-		var v *Variable
+		// Here we get the compiler suitable to the namespace of the identifier.
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		var v *Variable
+		var ok bool
 		if resolvingCompiler != cp {
 			v, ok = resolvingCompiler.GlobalConsts.GetVar(node.Value)
 		} else {
@@ -364,10 +356,12 @@ NodeTypeSwitch:
 		}
 		if !ok {
 			cp.Throw("comp/ident/known", node.GetToken(), node.Value)
+			cp.GlobalConsts.Ext = nil
 			break
 		}
 		if (v.Access == GLOBAL_CONSTANT_PRIVATE || v.Access == GLOBAL_VARIABLE_PRIVATE) && ac == REPL {
 			cp.Throw("comp/ident/private", node.GetToken())
+			cp.GlobalConsts.Ext = nil
 			break
 		}
 		if v.Access == LOCAL_VARIABLE_THUNK || v.Access == LOCAL_FUNCTION_THUNK {
@@ -381,7 +375,7 @@ NodeTypeSwitch:
 			rtnTypes = v.Types
 		}
 		rtnConst = ALL_CONSTANT_ACCESS.Contains(v.Access)
-		break
+		cp.GlobalConsts.Ext = nil
 	case *ast.IndexExpression:
 		containerType, ctrConst := cp.CompileNode(node.Left, ctxt.x())
 		container := cp.That()
@@ -469,6 +463,7 @@ NodeTypeSwitch:
 		if containerType.isOnlyCloneOf(cp.Vm, values.SNIPPET) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.Put(vm.IxSn, container, index, errTok)
+				rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 				break
 			}
 			if indexType.cannotBeACloneOf(cp.Vm, values.INT) {
@@ -1023,7 +1018,7 @@ NodeTypeSwitch:
 		var err uint32
 		if !exists {
 			err = cp.Reserve(values.NULL, nil, node.GetToken())
-			cp.AddVariable(env, ident, LOCAL_VARIABLE, AltType(values.NULL, values.ERROR), node.GetToken())
+			cp.AddThatAsVariable(env, ident, LOCAL_VARIABLE, AltType(values.NULL, values.ERROR), node.GetToken())
 		} else {
 			err = v.MLoc
 		}
@@ -1041,7 +1036,7 @@ NodeTypeSwitch:
 	case *ast.TypeExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		if len(node.TypeArgs) == 0 {
-			abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator)
+			abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator)
 			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 				cp.Throw("comp/private/type/a", node.GetToken())
 				break
@@ -1065,7 +1060,7 @@ NodeTypeSwitch:
 			}
 			rtnTypes, rtnConst = AltType(values.ERROR, values.TYPE), true
 			cp.ReserveToken(node.GetToken())
-			argsForVm := []uint32{resolvingCompiler.P.ParTypes2[node.Operator].VmTypeInfo, cp.ThatToken()}
+			argsForVm := []uint32{resolvingCompiler.P.ParTypes[node.Operator].VmTypeInfo, cp.ThatToken()}
 			for _, arg := range node.TypeArgs {
 				_, cst := cp.CompileNode(arg, ctxt.x())
 				argsForVm = append(argsForVm, cp.That())
@@ -1076,7 +1071,7 @@ NodeTypeSwitch:
 	case *ast.TypeLiteral: // TODO --- can this happen any more?
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 		typeName := node.Value
-		abType := resolvingCompiler.P.GetAbstractType(typeName)
+		abType := resolvingCompiler.GetAbstractTypeFromAstType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
 			cp.Throw("comp/private/type/b", node.GetToken())
 			break
@@ -1086,7 +1081,7 @@ NodeTypeSwitch:
 	case *ast.SigTypePrefixExpression: //TODO --- or this?
 		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		if abType := resolvingCompiler.P.GetAbstractType(node.Operator); abType.Len() != 1 {
+		if abType := resolvingCompiler.GetAbstractTypeFromAstType(node.Operator); abType.Len() != 1 {
 			resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
 			break
 		}
@@ -1095,7 +1090,7 @@ NodeTypeSwitch:
 		if len(node.TypeArgs) == 0 {
 			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-			if abType := resolvingCompiler.P.GetAbstractTypeFromTypeSys(node.Operator); abType.Len() != 1 {
+			if abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator); abType.Len() != 1 {
 				cp.Throw("comp/type/concrete", node.GetToken())
 				break
 			}
@@ -1110,7 +1105,7 @@ NodeTypeSwitch:
 		}
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
 		if ty, ok := node.Operator.(*ast.TypeWithName); ok {
-			typeInfo, conc := cp.getTypeInformation(ty.Name)
+			typeInfo, conc := cp.getTypeInformation(ty.OperatorName)
 			if !conc || !typeInfo.IsClone() {
 				cp.Throw("comp/suffix/a", node.GetToken())
 				break
@@ -1118,7 +1113,7 @@ NodeTypeSwitch:
 			// The fact that we're compiling this node means that we're not in a signature. Hence
 			// the compiler can do what the parser can't, and turn it into a normal suffix expression,
 			// which can then be compiled.
-			suffix := &ast.SuffixExpression{node.Token, ty.Name, node.Args, node.Namespace}
+			suffix := &ast.SuffixExpression{node.Token, ty.OperatorName, node.Args, node.Namespace}
 			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
 			rtnTypes, rtnConst = resolvingCompiler.CompileNode(suffix, ctxt)
 		} else {
@@ -1133,6 +1128,11 @@ NodeTypeSwitch:
 		cp.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
 	default:
 		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
+	}
+	if rtnConst {
+		cp.Cm("Expression "+node.String()+" is constant with return types "+rtnTypes.describe(cp.Vm)+".", node.GetToken())
+	} else {
+		cp.Cm("Expression "+node.String()+" is non-constant with return types "+rtnTypes.describe(cp.Vm)+".", node.GetToken())
 	}
 	// We're done with the typeswitch. We perform some sanity checks to ensure that our functions aren't behaving
 	// like commands or vice versa.
@@ -1411,7 +1411,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			} else {
 				types = cp.GetAlternateTypeFromTypeAst(pair.VarType)
 			}
-			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
+			cp.AddThatAsVariable(newEnv, pair.VarName, FOR_LOOP_BOUND_VARIABLE, types, tok)
 			boundCpSig = append(boundCpSig, NameAlternateTypePair{pair.VarName, types})
 		}
 	}
@@ -1456,7 +1456,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 			} else {
 				types = cp.GetAlternateTypeFromTypeAst(pair.VarType)
 			}
-			cp.AddVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
+			cp.AddThatAsVariable(newEnv, pair.VarName, FOR_LOOP_INDEX_VARIABLE, types, tok)
 			indexCpSig = append(indexCpSig, NameAlternateTypePair{pair.VarName, types})
 		}
 	case node.ConditionOrRange == nil:
@@ -1508,7 +1508,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 						cp.Throw("comp/for/exists/key", rangeOver.GetToken(), leftName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken()) // TODO --- narrow down.
+					cp.AddThatAsVariable(newEnv, leftName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken()) // TODO --- narrow down.
 				}
 				if !keysOnly {
 					cp.Reserve(values.UNDEFINED_TYPE, nil, rangeOver.GetToken())
@@ -1518,7 +1518,7 @@ func (cp *Compiler) compileForExpression(node *ast.ForExpression, ctxt Context) 
 						cp.Throw("comp/for/exists/value", rangeOver.GetToken(), rightName)
 						return altType(values.COMPILE_TIME_ERROR)
 					}
-					cp.AddVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken())
+					cp.AddThatAsVariable(newEnv, rightName, FOR_LOOP_INDEX_VARIABLE, cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST), rangeOver.GetToken())
 				}
 			}
 		} else {
@@ -1709,7 +1709,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		if ast.IsAnyNullableType(pair.VarType) {
 			LF.Model.Sig = append(LF.Model.Sig, values.AbstractType{nil}) // 'nil' in a sig in this context means we don't need to typecheck.
 		} else {
-			LF.Model.Sig = append(LF.Model.Sig, cp.P.GetAbstractType(pair.VarType))
+			LF.Model.Sig = append(LF.Model.Sig, cp.GetAbstractTypeFromAstType(pair.VarType))
 		}
 	}
 	LF.Model.Tok = &fnNode.Token
@@ -1730,7 +1730,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 		} else {
 			cp.Reserve(values.UNDEFINED_TYPE, nil, fnNode.GetToken()) // It doesn't matter what we put in here 'cos we copy the values any time we call the LambdaFactory.
 			cp.Cm("Adding variable for lambda capture.", fnNode.GetToken())
-			cp.AddVariable(newEnv, k, v.Access, v.Types, fnNode.GetToken())
+			cp.AddThatAsVariable(newEnv, k, v.Access, v.Types, fnNode.GetToken())
 		}
 		// At the same time, the lambda factory need to know where they are in the calling vm.Vm.
 		LF.CaptureLocations = append(LF.CaptureLocations, v.MLoc)
@@ -1751,7 +1751,7 @@ func (cp *Compiler) compileLambda(env *Environment, ctxt Context, fnNode *ast.Fu
 	for _, pair := range nameSig { // It doesn't matter what we put in here either, because we're going to have to copy the values any time we call the function.
 		cp.Reserve(0, DUMMY, fnNode.GetToken())
 		cp.Cm("Adding parameter '"+pair.VarName+"' to lambda.", fnNode.GetToken())
-		cp.AddVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.GetAlternateTypeFromTypeAst(pair.VarType), fnNode.GetToken())
+		cp.AddThatAsVariable(newEnv, pair.VarName, FUNCTION_ARGUMENT, cp.GetAlternateTypeFromTypeAst(pair.VarType), fnNode.GetToken())
 	}
 	LF.Model.ParametersEnd = cp.MemTop()
 
@@ -1834,11 +1834,11 @@ func (cp *Compiler) CompileGivenBlock(given ast.Node, ctxt Context) {
 				if len(rhs) == 0 { // Then the lambda has no captures and so is a constant.
 					cp.Cm("Reserving dummy local function "+text.Emph(pair.VarName)+".", assEx.GetToken())
 					cp.Reserve(values.FUNC, nil, chunk.GetToken())
-					cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_CONSTANT, altType(values.FUNC), assEx.GetToken())
+					cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_CONSTANT, altType(values.FUNC), assEx.GetToken())
 				} else {
 					cp.Cm("Reserving dummy local function thunk "+text.Emph(pair.VarName)+".", assEx.GetToken())
 					cp.Reserve(values.THUNK, nil, chunk.GetToken())
-					cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
+					cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_FUNCTION_THUNK, altType(values.FUNC), assEx.GetToken())
 				}
 			}
 			for v := range rhs {
@@ -1912,7 +1912,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			}
 		}
 		var typeToUse AlternateType // TODO: we can extract more meaningful information about the tuple from the types.
-		if t, ok := pair.VarType.(*ast.TypeWithName); ok && t.Name == "tuple" {
+		if t, ok := pair.VarType.(*ast.TypeWithName); ok && t.OperatorName == "tuple" {
 			typeToUse = cp.Common.AnyTuple
 		} else {
 			typeToUse = typesAtIndex(types, i)
@@ -1921,11 +1921,11 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 		if cst {                                                // TODO --- we should implement constant folding of course, but there's no big hurry because hardly enyone will declare constant here, why would they?
 			if !types.containsAnyOf(cp.Common.CodeGeneratingTypes.ToSlice()...) {
 				cp.Cm("Adding foldable constant from compileOneGivenChunk.", node.GetToken())
-				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
+				cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 				continue
 			} else {
 				cp.Cm("Adding unfoldable constant from compileOneGivenChunk.", node.GetToken())
-				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
+				cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_CONSTANT, typeToUse, node.GetToken())
 			}
 		} else {
 			if alreadyExists {
@@ -1941,7 +1941,7 @@ func (cp *Compiler) compileOneGivenChunk(node *ast.AssignmentExpression, ctxt Co
 			} else {
 				cp.Cm("Reserving local thunk in compileOneGivenChunk.", node.GetToken())
 				cp.Reserve(values.THUNK, values.ThunkValue{cp.That(), thunkStart}, node.GetToken())
-				cp.AddVariable(ctxt.Env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
+				cp.AddThatAsVariable(ctxt.Env, pair.VarName, LOCAL_VARIABLE_THUNK, typeToUse, node.GetToken())
 				cp.ThunkList = append(cp.ThunkList, ThunkData{cp.That(), values.ThunkValue{cp.That(), thunkStart}})
 			}
 		}
@@ -2012,7 +2012,7 @@ func (cp *Compiler) compileEquals(node *ast.ComparisonExpression, ctxt Context) 
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 0 {
-		cp.Throw("comp/eq/types", node.GetToken())
+		cp.Throw("comp/eq/types", node.GetToken(), lTypes.describe(cp.Vm), rTypes.describe(cp.Vm))
 		return AltType(values.ERROR), true
 	}
 	if len(oL) == 1 && len(lTypes) == 1 && len(rTypes) == 1 {
@@ -2508,7 +2508,7 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 }
 
 // Adds a variable to a given environment.
-func (cp *Compiler) AddVariable(env *Environment, name string, acc VarAccess, types AlternateType, tok *token.Token) {
+func (cp *Compiler) AddThatAsVariable(env *Environment, name string, acc VarAccess, types AlternateType, tok *token.Token) {
 	cp.Cm("Adding variable name "+text.Emph(name)+" bound to memory location m"+strconv.Itoa(int(cp.That()))+" with type "+types.describe(cp.Vm), tok)
 	env.Data[name] = Variable{MLoc: cp.That(), Access: acc, Types: types}
 }
@@ -2834,7 +2834,7 @@ func (cp *Compiler) cmP(comment string, tok *token.Token) {
 }
 
 // The same as the previous methods but in red. Used to draw attention to new comments which will either be downgraded to cyan or purple or removed.
-func (cp *Compiler) cmR(comment string, tok *token.Token) {
+func (cp *Compiler) CmR(comment string, tok *token.Token) {
 	if settings.SHOW_COMPILER_COMMENTS && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
 		println(text.RED + "// " + comment + text.RESET)
 	}
@@ -2864,8 +2864,7 @@ func (cp *Compiler) Store(k, v values.Value) {
 	for _, child := range cp.Modules {
 		child.Store(k, v)
 	}
-	hubStore, _ := cp.GlobalVars.GetVar("$hub")
+	hubStore, _ := cp.GlobalVars.GetVar("$_hub")
 	storeMap := cp.Vm.Mem[hubStore.MLoc].V.(*values.Map)
 	cp.Vm.Mem[hubStore.MLoc].V = storeMap.Set(k, v)
 }
-

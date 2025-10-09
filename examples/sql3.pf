@@ -1,0 +1,54 @@
+import private
+
+NULL::"sql" // `NULL` means we're importing the library without a namespace.
+"html.pf"
+
+const private // We make an accessor object.
+SQL = SqlDb(POSTGRESQL, "localhost", 5432, "postgres", $_hub["SQL username"], $_hub["SQL password"])
+// (The username and password are obtained from the environment.)
+newtype 
+// This will correspond to the structure of our SQL table.
+Person = struct(name Varchar{32}, age int) :
+    len(name) > 0
+    age >= 0
+
+cmd // Now let's add some public commands.
+
+add(name string, age int) :
+    post to SQL -- 
+        INSERT INTO People VALUES(|name|, |age|)
+
+show(name string) :
+    get person as Person from SQL --
+        SELECT * FROM People
+        WHERE name=|name| 
+    post person to Output()
+
+show all :
+    get peopleList like set{Person} from SQL -- 
+        SELECT * FROM People
+        ORDER BY name
+    post string html.Html --
+        <h3>List of all people</h3>
+        |peopleList|
+
+show under (age int) :
+    get peopleList like list{Person} from SQL -- 
+        SELECT * FROM People
+        WHERE age < |age|
+        ORDER BY name
+    post string html.Html --
+        <h3>List of people under <font style="color:Green;">|age|</font></h3>
+        |peopleList|
+
+private 
+// The `init` command of a module is run immediately after it compiles.
+init :
+    post to SQL -- 
+        CREATE TABLE IF NOT EXISTS People |Person|
+
+clear :
+    post to SQL --
+        DROP TABLE People
+    init
+

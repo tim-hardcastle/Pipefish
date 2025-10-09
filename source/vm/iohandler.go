@@ -6,7 +6,7 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/values"
 
-	"github.com/lmorg/readline"
+	"github.com/lmorg/readline/v4"
 )
 
 type InHandler interface {
@@ -52,12 +52,30 @@ func (oH *SimpleOutHandler) Out(v values.Value) {
 	if oH.vm.Mem[oH.vm.UsefulValues.OutputAs].V.(int) == 0 {
 		oH.output.Write([]byte(oH.vm.Literal(v)))
 	} else {
-		oH.output.Write([]byte(oH.vm.DefaultDescription(v)))
+		oH.output.Write([]byte(oH.vm.StringifyValue(v, DEFAULT)))
 	}
 	oH.output.Write([]byte{'\n'})
 }
 
 func (oH *SimpleOutHandler) Write(s string) {
+	oH.output.Write([]byte(s))
+}
+
+type LiteralOutHandler struct {
+	output  io.Writer
+	vm      *Vm
+}
+
+func MakeLiteralOutHandler(out io.Writer, vm *Vm) *LiteralOutHandler {
+	return &LiteralOutHandler{out, vm}
+}
+
+func (oH *LiteralOutHandler) Out(v values.Value) {
+	oH.output.Write([]byte(oH.vm.Literal(v)))
+	oH.output.Write([]byte{'\n'})
+}
+
+func (oH *LiteralOutHandler) Write(s string) {
 	oH.output.Write([]byte(s))
 }
 

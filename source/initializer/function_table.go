@@ -4,7 +4,7 @@ package initializer
 // which sorts overloaded functions in order of specificity as they're added to the table.
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/parser"
+	"github.com/tim-hardcastle/Pipefish/source/compiler"
 )
 
 type functionTable map[string][]*parsedFunction
@@ -22,10 +22,10 @@ func (iz *Initializer) Add(functionName string, f *parsedFunction) *parsedFuncti
 }
 
 func (iz *Initializer) AddInOrder(S []*parsedFunction, f *parsedFunction) ([]*parsedFunction, *parsedFunction) {
-	fSig := f.callInfo.Compiler.P.MakeAbstractSigFromStringSig(f.sig)
+	fSig := f.callInfo.Compiler.MakeAbstractSigFromStringSig(f.sig)
 	for i := 0; i < len(S); i++ {
-		gSig := S[i].callInfo.Compiler.P.MakeAbstractSigFromStringSig(S[i].sig)
-		yes, ok := parser.IsMoreSpecific(fSig, gSig)
+		gSig := S[i].callInfo.Compiler.MakeAbstractSigFromStringSig(S[i].sig)
+		yes, ok := compiler.IsMoreSpecific(fSig, gSig)
 		if !ok {
 			return S, S[i]
 		}

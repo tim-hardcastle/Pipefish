@@ -41,9 +41,9 @@ newtype
 Currency = enum USD, EURO, GBP 
 
 Money = struct{c Currency}(large, small int) :
-    0 <= that[large]
-    0 <= that[small]
-    that[small] < 100
+    0 <= large
+    0 <= small
+    small < 100
 
 make Money{USD}, Money{EURO}, Money{GBP}
 

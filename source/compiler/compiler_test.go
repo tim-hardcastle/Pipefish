@@ -244,8 +244,8 @@ func TestTypeAccessErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
 		{`Suit`, `comp/private/type/a`},
-		{`HEARTS`, `comp/private/enum`},
-		{`one`, `comp/private/label`},
+		{`HEARTS`, `comp/ident/private`},
+		{`one`, `comp/ident/private`},
 	}
 	test_helper.RunTest(t, "user_types_test.pf", tests, test_helper.TestCompilerErrors)
 }
@@ -413,6 +413,12 @@ func TestParameterizedTypes(t *testing.T) {
 		{`Z{5}(3) + Z{5}(4)`, `Z{5}(2)`},
 	}
 	test_helper.RunTest(t, "parameterized_type_test.pf", tests, test_helper.TestValues)
+}
+func TestTypeInstances(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`Z{3}(2) in Z{3}`, `true`},
+	}
+	test_helper.RunTest(t, "type_instances_test.pf", tests, test_helper.TestValues)
 }
 func TestReflection(t *testing.T) {
 	tests := []test_helper.TestItem{

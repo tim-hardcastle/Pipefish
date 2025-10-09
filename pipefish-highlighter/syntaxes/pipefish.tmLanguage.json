@@ -4,6 +4,15 @@
 		{
 			"include": "#keywords"
 		},
+		{
+			"include": "#control"
+		},
+		{
+			"include": "#numbers"
+		},
+		{
+			"include": "#constants"
+		},
 		{	
 			"include": "#headwords"
 		},
@@ -13,8 +22,14 @@
 		{	
 			"include": "#comments"
 		},
+		{	
+			"include": "#documentation"
+		},
 		{
 			"include": "#punctuation"
+		},
+		{
+			"include": "#types"
 		},
 		{
 			"include": "#continuations"
@@ -26,16 +41,44 @@
 	"repository": {
 		"keywords": {
 			"patterns": [{
-				"name": "keyword.pipefish",
-				"match": "\\b(and|break|continue|else|false|for|given|global|golang|not|or|ref|true)\\b"
+				"name": "keyword",
+				"match": "\\b(and|false|given|global|golang|not|or|true)\\b"
 			}]
 		},
+		"control": {
+			"patterns": [{
+				"name": "keyword.control",
+				"match": "\\b(break|continue|else|try)\\b"
+			}]
+		},
+		"numbers": {
+			"patterns": [
+				{
+				"name":"constant.numeric",
+				"match": "(?<![_0-9])[0][bB][01]+|(?<![_0-9])[0][oO][0-7]+|(?<![_0-9])[0][xX][0-9A-Fa-f]+|(?<![_0-9])[0-9]+"
+				}
+			]
+		},
+		"constants": {
+			"patterns": [
+				{
+				"name":"variable.other.constant",
+				"match": "\\b[A-Z][A-Z_]+\\b"
+				}
+			]
+		},
 		"headwords": {
-                        "patterns": [{
-                                "name": "constant.other.pipefish",
-                                "match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
-                        }]
-                },
+			"patterns": [{
+					"name": "keyword.control",
+					"match": "\\b(cmd|const|def|external|import|newtype|private|var)\\b"
+			}]
+		},
+		"types": {
+			"patterns": [{
+					"name": "entity.name.type",
+					"match": "\\b(clone|clones|enum|struct|def|float|string|int|bool|type|secret|snippet|pair|list|map|set|error|null)\\b\\??|\\b[A-Z][a-z][A-Za-z]*\\b\\??"
+			}]
+		},
 		"strings": {
 			"patterns": [
 				{
@@ -58,30 +101,46 @@
 				}
 			]
 		},
+		"documentation": {
+			"patterns": [				
+				{
+					"name": "constant.other.option",
+					"begin": "^(\\s)*~~",
+					"end": "$",
+					"patterns": [
+						{
+						"name":"keyword.operator",
+						"begin": "`",
+						"end": "`"
+						}
+					]
+				}
+			]
+		},
 		"logging": {
-                        "patterns": [
-                                {
-                                "name": "variable.other.pipefish",
-                                "match": "\\\\\\\\([^\\/]|\/[^\\/])*"
-                                }
-                        ]
-                },
+			"patterns": [
+				{
+				"name": "entity.name.function",
+				"match": "\\\\\\\\([^\\/]|\/[^\\/])*"
+				}
+			]
+		},
 		"punctuation": {
 			"patterns": [
 				{
 				"name": "keyword.pipefish",
-				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|\\.\\.\\.)"
+				"match": "(==|!=| = |->|\\?>|\\>>|:|::|->|;|--|,|\\.|\\||\\.\\.\\.)"
 				}
 			]
 		},
 		"continuations": {
-                        "patterns": [
-                                {
-                                "name": "constant.other.pipefish",
-                                "match": "(,)\\s*$|(\\.\\.)\\s*$|^\\s*(\\.\\.)"
-                                }
-                        ]
-                } 
+			"patterns": [
+				{
+				"name": "keyword.pipefish",
+				"match": "(,)\\s*$|(\\.\\.)\\s*$|^\\s*(\\.\\.)"
+				}
+			]
+		} 
 	},
 	"scopeName": "source.pipefish"
 }

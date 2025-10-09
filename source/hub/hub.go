@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lmorg/readline/v4"
 	"golang.org/x/crypto/pbkdf2"
-	"github.com/lmorg/readline"
 
 	"github.com/tim-hardcastle/Pipefish/source/database"
 	"github.com/tim-hardcastle/Pipefish/source/pf"
@@ -44,7 +44,7 @@ type Hub struct {
 	Db                     *sql.DB
 	administered           bool
 	listeningToHttp        bool
-	port, path             string
+	port                   string
 	Username               string
 	Password               string
 	pipefishHomeDirectory  string
@@ -116,10 +116,27 @@ func (hub *Hub) setSV(sv string, ty pf.Type, v any) {
 	hub.services["hub"].SetVariable(sv, ty, v)
 }
 
+// This converts a string identifying the color of a token (e.g. `type`,
+// `number`, to Linux control codes giving the correct coloring according
+// to the color theme of the hub.)
+func (hub *Hub) getFonts() *values.Map {
+	theme := hub.getSV("theme")
+	if theme.V == nil {
+		return nil
+	}
+	mapOfThemes := hub.getSV("THEMES").V.(*values.Map)
+	mapForTheme, themeExists := mapOfThemes.Get(theme)
+	if !themeExists {
+		return nil
+	}
+	fonts := mapForTheme.V.(*values.Map)
+	return fonts
+}
+
 // This takes the input from the REPL, interprets it as a hub command if it begins with 'hub';
 // as an instruction to the os if it begins with 'os', and as an expression to be passed to
 // the current service if none of the above hold.
-func (hub *Hub) Do(line, username, password, passedServiceName string) (string, bool) {
+func (hub *Hub) Do(line, username, password, passedServiceName string, external bool) (string, bool) {
 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
 		!(line == "hub register" || line == "hub log on" || line == "hub quit") {
@@ -127,6 +144,30 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
 			"with this hub.")
 		return passedServiceName, false
+	}
+
+	// Otherwise, we're talking to the current service.
+
+	serviceToUse, ok := hub.services[passedServiceName]
+	if !ok {
+		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
+		return passedServiceName, false
+	}
+
+	// The service may be broken, in which case we'll let the empty service handle the input.
+
+	if serviceToUse.IsBroken() {
+		serviceToUse = hub.services[""]
+	}
+	hub.Sources["REPL input"] = []string{line}
+	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName())
+	if hub.isLive() && needsUpdate {
+		path, _ := hub.services[hub.currentServiceName()].GetFilepath()
+		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), path)
+		serviceToUse = hub.services[hub.currentServiceName()]
+		if serviceToUse.IsBroken() {
+			return passedServiceName, false
+		}
 	}
 
 	// We may be talking to the hub itself.
@@ -179,30 +220,6 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
-	// Otherwise, we're talking to the current service.
-
-	serviceToUse, ok := hub.services[passedServiceName]
-	if !ok {
-		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
-		return passedServiceName, false
-	}
-
-	// The service may be broken, in which case we'll let the empty service handle the input.
-
-	if serviceToUse.IsBroken() {
-		serviceToUse = hub.services[""]
-	}
-	hub.Sources["REPL input"] = []string{line}
-	needsUpdate := hub.serviceNeedsUpdate(hub.currentServiceName())
-	if hub.isLive() && needsUpdate {
-		path, _ := hub.services[hub.currentServiceName()].GetFilepath()
-		hub.StartAndMakeCurrent(hub.Username, hub.currentServiceName(), path)
-		serviceToUse = hub.services[hub.currentServiceName()]
-		if serviceToUse.IsBroken() {
-			return passedServiceName, false
-		}
-	}
-
 	if match, _ := regexp.MatchString(`^\s*(|\/\/.*)$`, line); match {
 		hub.WriteString("")
 		return passedServiceName, false
@@ -221,7 +238,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string) (string, 
 		return passedServiceName, false
 	}
 
-	if val.T == pf.ERROR {
+	if val.T == pf.ERROR && !external {
 		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
 		hub.WriteString("\n")
 		hub.ers = []*pf.Error{val.V.(*pf.Error)}
@@ -327,6 +344,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		hub.WriteString(GREEN_OK + "\n")
 		return false
+	case "api":
+		hub.WriteString(hub.services[hub.currentServiceName()].Api(hub.getFonts(), hub.getSV("width").V.(int)))
+		return false
 	case "config-admin":
 		if !hub.isAdministered() {
 			hub.configAdmin()
@@ -425,10 +445,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		hub.WriteString(GREEN_OK + "\n")
 		return false
-	case "listen":
+	case "http":
 		hub.WriteString(GREEN_OK)
-		hub.WriteString("\nHub is listening.\n\n")
-		hub.StartHttp("/"+ toStr(args[0]), toStr(args[1]))
+		go hub.StartHttp(toStr(args[0]))
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -549,6 +568,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
 		return false
+	case "serialize":
+		hub.WriteString(hub.services[toStr(args[0])].SerializeApi())
+		return false
 	case "services-of-user":
 		result, err := database.GetServicesOfUser(hub.Db, toStr(args[0]), false)
 		if err != nil {
@@ -579,8 +601,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.oldServiceName = hub.currentServiceName()
 		if hub.StartAndMakeCurrent(username, "#snap", scriptFilepath) {
 			snapService := hub.services["#snap"]
-			ty, _ := snapService.TypeNameToType("$OutputAs")
-			snapService.SetVariable("$outputAs",  ty, 0)
+			ty, _ := snapService.TypeNameToType("$_OutputAs")
+			snapService.SetVariable("$_outputAs", ty, 0)
 			hub.WriteString("Serialization is ON.\n")
 			in, out := MakeSnapIo(snapService, hub.out, hub.snap)
 			currentService := snapService
@@ -638,7 +660,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			storekey, _ := rline.Readline()
 			if storekey != hub.storekey {
 				hub.WriteError("incorrect store key.")
-			    return false
+				return false
 			}
 		}
 		rline := readline.NewInstance()
@@ -669,7 +691,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 				hub.setServiceName(sname)
 				return false
 			}
-		} 
+		}
 		hub.WriteError("service '" + sname + "' doesn't exist")
 		return false
 	case "test":
@@ -880,7 +902,7 @@ var helpTopics = []string{}
 var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
 
 func init() {
-	for _, v := range []string{"filepath", "fmt", "math", "path", "reflect", "regexp", "strings", "time", "unicode"} {
+	for _, v := range []string{"filepath", "fmt", "math", "path", "reflect", "regexp", "sql", "strings", "time", "unicode"} {
 		StandardLibraries[v] = struct{}{}
 	}
 	cwd, _ := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -981,7 +1003,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
 		if name == "hub" {
-			fmt.Println("Pipefish: unable to compile hub: " +text.Red(newService.GetErrors()[0].ErrorId) + ".")
+			fmt.Println("Pipefish: unable to compile hub: " + text.Red(newService.GetErrors()[0].ErrorId) + ".")
 		}
 		if !newService.IsInitialized() {
 			hub.WriteError("unable to open '" + scriptFilepath + "' with error '" + e.Error() + "'")
@@ -999,7 +1021,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 func StartServiceFromCli() {
 	filename := os.Args[2]
 	newService := pf.NewService()
-	// TODO --- probably this ought to get the `$hub` settings.
+	// TODO --- probably this ought to get the `$_hub` settings.
 	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
 		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
@@ -1029,11 +1051,9 @@ func (hub *Hub) CurrentServiceIsBroken() bool {
 	return hub.services[hub.currentServiceName()].IsBroken()
 }
 
-var prefix = `newtype
+var prefix = `import
 
-DatabaseDrivers = enum FEE, FIE, FO, FOO
-
-Database = struct(driver DatabaseDrivers, name, host string, port int, username, password string)
+NULL::"sql"
 
 var
 
@@ -1080,6 +1100,9 @@ func (hub *Hub) saveHubFile() string {
 	buf.WriteString("isLive = ")
 	buf.WriteString(hubService.ToLiteral(hub.getSV("isLive")))
 	buf.WriteString("\n\n")
+	buf.WriteString("theme Theme? = ")
+	buf.WriteString(hubService.ToLiteral(hub.getSV("theme")))
+	buf.WriteString("\n\n")
 	buf.WriteString("width = ")
 	buf.WriteString(hubService.ToLiteral(hub.getSV("width")))
 	buf.WriteString("\n\n")
@@ -1123,6 +1146,7 @@ func (hub *Hub) saveHubFile() string {
 
 func (hub *Hub) OpenHubFile(hubFilepath string) {
 	hub.createService("", "")
+	hub.createService("hub", hubFilepath)
 	storePath := hubFilepath[0:len(hubFilepath)-len(filepath.Ext(hubFilepath))] + ".str"
 	_, err := os.Stat(storePath)
 	if err == nil {
@@ -1134,8 +1158,8 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		if err != nil {
 			panic("Can't open hub data store")
 		}
-  		s := string(b)
-		for ; s[0:9] != "PLAINTEXT" ; println("Invalid storekey. Enter a valid one or press return to continue without loading the store.") {
+		s := string(b)
+		for ; s[0:9] != "PLAINTEXT"; println("Invalid storekey. Enter a valid one or press return to continue without loading the store.") {
 			salt := s[0:32]
 			ciphertext := s[32:]
 			rline := readline.NewInstance()
@@ -1165,11 +1189,10 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		}
 		bits := strings.Split(strings.TrimSpace(s), "\n")[1:]
 		for _, bit := range bits {
-			pair, _ := hub.services[""].Do(bit)
+			pair, _ := hub.services["hub"].Do(bit)
 			hub.store = *hub.store.Set(pair.V.([]pf.Value)[0], pair.V.([]pf.Value)[1])
 		}
 	}
-	hub.createService("hub", hubFilepath)
 	hubService := hub.services["hub"]
 	hub.hubFilepath = hub.MakeFilepath(hubFilepath)
 	v, _ := hubService.GetVariable("allServices")
@@ -1193,7 +1216,7 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 
 func (hub *Hub) SaveHubStore() {
 	storePath := hub.hubFilepath[0:len(hub.hubFilepath)-len(filepath.Ext(hub.hubFilepath))] + ".str"
-	storeDump := hub.services[""].WriteSecret(hub.store, hub.storekey)
+	storeDump := hub.services["hub"].WriteSecret(hub.store, hub.storekey)
 	file, _ := os.Create(storePath)
 	file.WriteString(storeDump)
 }
@@ -1267,8 +1290,8 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	if testOutputType == ERROR_CHECK {
 		hub.WritePretty("Running test '" + testFilepath + "'.\n")
 	}
-	ty, _ := testService.TypeNameToType("$OutputAs")
-	testService.SetVariable("$outputAs",  ty, 0)
+	ty, _ := testService.TypeNameToType("$_OutputAs")
+	testService.SetVariable("$_outputAs", ty, 0)
 	_ = scanner.Scan() // eats the newline
 	executionMatchesTest := true
 	for scanner.Scan() {
@@ -1331,8 +1354,8 @@ func (hub *Hub) playTest(testFilepath string, diffOn bool) {
 	scanner.Scan()
 	hub.StartAndMakeCurrent("", "#test", scriptFilepath)
 	testService := (*hub).services["#test"]
-	ty, _ := testService.TypeNameToType("$OutputAs")
-	testService.SetVariable("$outputAs",  ty, 0)
+	ty, _ := testService.TypeNameToType("$_OutputAs")
+	testService.SetVariable("$_outputAs", ty, 0)
 	in, out := MakeTestIoHandler(testService, hub.out, scanner, SHOW_ALL)
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)
@@ -1364,15 +1387,10 @@ func valToString(srv *pf.Service, val pf.Value) string {
 	return srv.ToLiteral(val)
 }
 
-func (h *Hub) StartHttp(path, port string) {
-	h.path = path
+func (h *Hub) StartHttp(port string) {
 	h.port = port
 	h.listeningToHttp = true
-	if h.administered {
-		http.HandleFunc(path, h.handleJsonRequest)
-	} else {
-		http.HandleFunc(path, h.handleSimpleRequest)
-	}
+	http.HandleFunc("/", h.handleJsonRequest)
 	err := http.ListenAndServe(":"+port, nil)
 	if errors.Is(err, http.ErrServerClosed) {
 		h.WriteError("server closed.")
@@ -1382,23 +1400,11 @@ func (h *Hub) StartHttp(path, port string) {
 	}
 }
 
-// This will simply feed text to the REPL of the hub, and will happen if you
-// tell the interpreter to turn into a server but don't ask for administration.
-func (h *Hub) handleSimpleRequest(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		h.WriteError("could not read body: %s\n")
-	}
-	input := string(body[:])
-	h.out = w
-	h.Do(input, "", "", h.currentServiceName())
-	io.WriteString(w, "\n")
-}
-
-// By contrast, once the hub is administered it expects an HTTP request to consist of JSON
+// The hub expects an HTTP request to consist of JSON
 // containing the line to be executed and the username and password of the user.
 type jsonRequest = struct {
 	Body     string
+	Service  string
 	Username string
 	Password string
 }
@@ -1421,7 +1427,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	var serviceName string
 
 	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
-		serviceName, err = database.ValidateUser(h.Db, request.Username, request.Password)
+		_, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
 			h.WriteError("D/ " + err.Error())
 			return
@@ -1430,10 +1436,11 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 
 	var buf bytes.Buffer
 	h.out = &buf
-	serviceName, _ = h.Do(request.Body, request.Username, request.Password, serviceName)
-
+	sv := h.services[request.Service]
+	sv.SetOutHandler(sv.MakeLiteralOutHandler(&buf))
+	serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service, true)
+    h.out = os.Stdout
 	response := jsonResponse{Body: buf.String(), Service: serviceName}
-
 	json.NewEncoder(w).Encode(response)
 
 }
@@ -1515,11 +1522,6 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 	h.WritePretty("You are logged in as '" + h.Username + "'.\n")
 
 	h.administered = true
-
-	// If the hub's already an HTTP server we should restart it to tell it to expect Json.
-	if h.listeningToHttp {
-		h.StartHttp(h.path, h.port)
-	}
 }
 
 func (h *Hub) getLogin() {
@@ -1582,7 +1584,7 @@ var (
 	WAS            = Green("was") + ": "
 	GOT            = Red("got") + ": "
 	TEST_PASSED    = Green("Test passed!") + "\n"
-	VERSION        = "0.5.9"
+	VERSION        = "0.6.8"
 	BULLET         = "  ▪ "
 	BULLET_SPACING = "    " // I.e. whitespace the same width as BULLET.
 	GOOD_BULLET    = Green("  ▪ ")
@@ -1613,18 +1615,13 @@ func Cyan(s string) string {
 }
 
 func Logo() string {
-	var padding string
-	if len(VERSION)%2 == 1 {
-		padding = ","
-	}
-	titleText := " Pipefish" + padding + " version " + VERSION + " "
-	loveHeart := Red("♥")
+	titleText := " 🧿 Pipefish version " + VERSION + " "
 	leftMargin := "  "
-	bar := strings.Repeat("═", len(titleText)/2)
+	bar := strings.Repeat("═", len(titleText)-2)
 	logoString := "\n" +
-		leftMargin + "╔" + bar + loveHeart + bar + "╗\n" +
+		leftMargin + "╔" + bar + "╗\n" +
 		leftMargin + "║" + titleText + "║\n" +
-		leftMargin + "╚" + bar + loveHeart + bar + "╝\n\n"
+		leftMargin + "╚" + bar + "╝\n\n"
 	return logoString
 }
 

@@ -10,6 +10,8 @@ import (
 	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/lexer"
+	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
 )
@@ -25,9 +27,14 @@ type Parser struct {
 	Logging          bool
 	CurrentNamespace []string
 
-	// When we call a function in a namespace, we wish to parse it so that literal enum elements and bling are looked for
-	// in that namespace without being namespaced.
-	enumResolvingParsers []*Parser
+	// This helps keep track of the bling and --- TODO --- will eventually replace pretty much
+	// everything else that handles bling.
+	BlingManager     *BlingManager
+
+	// When we call a function in a namespace, we need to use the bling manager of that namespace.
+	// TODO --- this should really be a stack of BlingManagers since that's all we're using the
+	// parsers for at this point.
+	blingResolvingParsers []*Parser
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
@@ -51,11 +58,14 @@ type Parser struct {
 	ParameterizedTypes dtypes.Set[string]
 	nativeInfixes      dtypes.Set[token.TokenType]
 	lazyInfixes        dtypes.Set[token.TokenType]
-	// Maps names to abstract types. This *is* the type system, at least as far as the parser knows about it,
-	// because there is a natural partial order on abstract types.
-	TypeMap TypeSys
 
-	ParTypes2 map[string]TypeExpressionInfo // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	ParTypes map[string]TypeExpressionInfo     // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	// Something of a kludge. We want instances of parameterized types to be made if they're mentioned in the code.
+	// Since only the parser is in a position to notice this, we pile up such mentions in this list.
+	// Since we only want the parser to do this during initialization, we have a guard saying that 
+	// we don't do this if the list is `nil`, and then the intializer sets the list to `nil` as soon
+	// as it's used it, thus discarding the data.
+	ParTypeInstances map[string]*ast.TypeWithArguments   
 
 	ExternalParsers map[string]*Parser     // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
@@ -67,6 +77,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	p := &Parser{
 		Logging:            true,
 		nesting:            *dtypes.NewStack[token.Token](),
+		BlingManager:       newBlingManager(),
 		Functions:          make(dtypes.Set[string]),
 		Prefixes:           make(dtypes.Set[string]),
 		Forefixes:          make(dtypes.Set[string]),
@@ -80,15 +91,15 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		EnumTypeNames:      make(dtypes.Set[string]),
 		EnumElementNames:   make(dtypes.Set[string]),
 		ParameterizedTypes: make(dtypes.Set[string]),
+		ParTypeInstances:	map[string]*ast.TypeWithArguments{},
 
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
-			token.COMMA, token.EQ, token.NOT_EQ, token.WEAK_COMMA, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
+			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
 			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
 			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
 		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
 			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
-		TypeMap:         make(TypeSys),
-		ParTypes2:       make(map[string]TypeExpressionInfo),
+		ParTypes:        make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
 		ExternalParsers: make(map[string]*Parser),
 		NamespacePath:   namespacePath,
@@ -96,14 +107,9 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
-
-	for k := range p.Common.Types {
-		p.Suffixes.Add(k)
-	}
-	p.Suffixes.Add("ref")
-	p.Suffixes.Add("self")
-
-	p.Infixes.Add("varchar")
+	p.Typenames = p.Typenames.Add("any")
+	p.Typenames = p.Typenames.Add("enum")
+	p.Typenames = p.Typenames.Add("struct")
 
 	p.Functions.Add("builtin")
 
@@ -170,7 +176,6 @@ func (p *Parser) ParseDump(source, input string) {
 // For data that needs to be shared by all parsers. It is initialized when we start initializing a service
 // and passed to the first parser, which then passes it down to its children.
 type CommonParserBindle struct {
-	Types               TypeSys
 	InterfaceBacktracks []BkInterface
 	Errors              []*err.Error
 	IsBroken            bool
@@ -179,7 +184,7 @@ type CommonParserBindle struct {
 
 // Initializes the common parser bindle.
 func NewCommonParserBindle() *CommonParserBindle {
-	result := CommonParserBindle{Types: NewCommonTypeMap(),
+	result := CommonParserBindle{
 		Errors:              []*err.Error{},            // This is where all the errors emitted by enything end up.
 		Sources:             make(map[string][]string), // Source code --- TODO: remove.
 		InterfaceBacktracks: []BkInterface{},           // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
@@ -190,7 +195,7 @@ func NewCommonParserBindle() *CommonParserBindle {
 // When we dispatch on a function which is semantically available to us because it fulfills an interface, but we
 // haven't compiled it yet, this keeps track of where we backtrack to.
 type BkInterface struct {
-	Fn   any     // This will in fact always be of type *compiler.CallInfo.
+	Fn   any // This will in fact always be of type *compiler.CallInfo.
 	Addr uint32
 }
 
@@ -202,10 +207,6 @@ type ParserData struct {
 	Parser         *Parser
 	ScriptFilepath string
 }
-
-// This is indeed the whole of the type system as the parser sees it, because one abstract type is a subtype
-// of another just if all the concrete types making up the former are found in the latter.
-type TypeSys map[string]values.AbstractType
 
 func (p *Parser) ParseExpression(precedence int) ast.Node {
 
@@ -236,7 +237,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		leftExp = p.parseFloatLiteral()
 	case token.FOR:
 		leftExp = p.parseForExpression()
-	case token.GOCODE:
+	case token.GOLANG:
 		leftExp = p.parseGolangExpression()
 	case token.INT:
 		leftExp = p.parseIntegerLiteral()
@@ -321,15 +322,28 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					p.popRParser()
 					args := p.RecursivelyListify(right)
 					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, Namespace: []string{}, TypeArgs: typeArgs}
+					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
+						astType := p.ToAstType(&ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs})
+						if astType, ok := astType.(*ast.TypeWithArguments); ok {
+							p.ParTypeInstances[astType.String()] = astType
+						}
+					}
 				} else {
 					leftExp = &ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs}
+					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
+						astType := p.ToAstType(leftExp.(*ast.TypeExpression))
+						if astType, ok := astType.(*ast.TypeWithArguments); ok {
+							p.ParTypeInstances[astType.String()] = astType
+						}
+					}
 				}
 			} else {
 				if !resolvingParser.isPositionallyFunctional() {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case p.topRParser().Bling.Contains(p.CurToken.Literal):
+					case p.topRParser().BlingManager.canBling(p.CurToken.Literal):
+						p.topRParser().BlingManager.doBling(p.CurToken.Literal)
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
 						leftExp = p.parseIdentifier()
@@ -347,11 +361,15 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Prefixes.Contains(p.CurToken.Literal) || resolvingParser.Forefixes.Contains(p.CurToken.Literal):
 						p.pushRParser(resolvingParser)
+						p.BlingManager.startFunction(p.CurToken.Literal)
 						leftExp = p.parsePrefixExpression()
+						p.BlingManager.stopFunction()
 						p.popRParser()
 					default:
 						p.pushRParser(resolvingParser)
-						leftExp = p.parseFunctionExpression() // That, at least, is what it is syntactictally.
+						p.BlingManager.startFunction(p.CurToken.Literal)
+						leftExp = p.parseFunctionExpression()
+						p.BlingManager.stopFunction()
 						p.popRParser()
 					}
 				}
@@ -409,11 +427,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		if precedence >= p.peekPrecedence() {
 			break
 		}
-
+        isBling := resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
+		if isBling {
+			resolvingParser.BlingManager.doBling(p.PeekToken.Literal)
+		}
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
-			resolvingParser.Infixes.Contains(p.PeekToken.Literal) ||
-			resolvingParser.Midfixes.Contains(p.PeekToken.Literal)
+			resolvingParser.Infixes.Contains(p.PeekToken.Literal) || isBling
 		if !foundInfix {
 			return leftExp
 		}
@@ -438,7 +458,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				p.pushRParser(resolvingParser)
+				if !isBling {
+					p.BlingManager.startFunction(p.CurToken.Literal)
+				}
 				leftExp = p.parseInfixExpression(leftExp)
+				if !isBling {
+					p.BlingManager.stopFunction()
+				}
 				p.popRParser()
 			}
 		}
@@ -672,6 +698,7 @@ func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
 	if assignmentTokens.Contains(p.CurToken.Type) {
 		return p.parseAssignmentExpression(left)
 	}
+	// TODO --- NOTE. This is basically the Last Of The Shotgun Parsing and there's no reason why the whole species shouldn't go extinct.
 	if p.CurToken.Type == token.MAGIC_COLON {
 		// Then we will magically convert a function declaration into an assignment of a lambda to a
 		// constant.
@@ -1021,13 +1048,13 @@ func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 
 // Functions for keeping track of the `resolving parser`, i.e. the one that knows about the namespace we're in.
 func (p *Parser) pushRParser(q *Parser) {
-	p.enumResolvingParsers = append(p.enumResolvingParsers, q)
+	p.blingResolvingParsers = append(p.blingResolvingParsers, q)
 }
 func (p *Parser) topRParser() *Parser {
-	return p.enumResolvingParsers[len(p.enumResolvingParsers)-1]
+	return p.blingResolvingParsers[len(p.blingResolvingParsers)-1]
 }
 func (p *Parser) popRParser() {
-	p.enumResolvingParsers = p.enumResolvingParsers[1:]
+	p.blingResolvingParsers = p.blingResolvingParsers[1:]
 }
 
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
@@ -1052,8 +1079,6 @@ func (p *Parser) getResolvingParser() *Parser {
 
 // Some functions for interacting with a `TokenSupplier`.
 
-
-
 func (p *Parser) NextToken() {
 	p.checkNesting()
 	p.SafeNextToken()
@@ -1061,6 +1086,9 @@ func (p *Parser) NextToken() {
 
 // This is used to prime the parser without triggering 'checkNesting'.
 func (p *Parser) SafeNextToken() {
+	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(p.CurToken.Source)) {
+			println(text.PURPLE+p.CurToken.Type, p.CurToken.Literal+text.RESET)
+		}
 	p.CurToken = p.PeekToken
 	p.PeekToken = p.TokenizedCode.NextToken()
 }
@@ -1162,7 +1190,7 @@ func (p *Parser) ReturnErrors() string {
 func (p *Parser) ResetAfterError() {
 	p.Common.Errors = []*err.Error{}
 	p.CurrentNamespace = []string{}
-	p.enumResolvingParsers = []*Parser{p}
+	p.blingResolvingParsers = []*Parser{p}
 	p.nesting = dtypes.Stack[token.Token]{}
 }
 
@@ -1183,5 +1211,3 @@ func (p *Parser) SeekColon() bool {
 	}
 	return p.PeekToken.Type == token.COLON
 }
-
-

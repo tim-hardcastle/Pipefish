@@ -1,6 +1,6 @@
 var
 
-$logTo = Output()
+$_logTo = Output()
 
 def
 
@@ -19,7 +19,7 @@ foo(i int) :          \\
 cmd
 
 show :
-    global $logTo
-    post $logTo 
+    global $_logTo
+    post $_logTo 
 
 

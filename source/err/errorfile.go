@@ -315,7 +315,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/eq/types": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't compare values of different types"
+			return "can't compare values of types " + emph(args[0]) + " and " + emph(args[1]) 
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish doesn't let you compare values of different types, on the grounds that " +
@@ -773,15 +773,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When a service declares something as private, that means that this is for its own use and cannot be used by a client service or from the REPL."
-		},
-	},
-
-	"comp/private/enum": {
-		Message: func(tok *token.Token, args ...any) string {
-			return "trying to access an enum of private type " + emph(args[0])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "When an enumerated type is declared private, so are all its elements."
 		},
 	},
 
@@ -1349,16 +1340,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"init/enum/comma": {
+	"init/enum/expect": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "expected comma, got " + text.DescribeTok(tok)
+			return "wasn't expecting " + text.DescribeTok(tok)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish expects an enum declaration to take the form:" +
 				"\n\n|-----------------------------------------------\n\n" +
 				"def\n\nMyEnumName = enum FOO, BAR, TROZ\n\n|-\n\n" + "The right hand side of the expression that " +
-				"you have supplied is defective because it has a " + text.DescribeTok(tok) + " where " +
-				"Pipefish was expecting to find a comma between elements of the enum."
+				"you have supplied is defective because it has an unxpected " + text.DescribeTok(tok) + "."
 		},
 	},
 
@@ -1593,6 +1583,16 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			       "behavior of a pseudotype called 'self'. Any clause of this definition that " +
 				   "doesn't refer to 'self' would not in fact contribute to the definition of " +
 				   "the interface."
+		},
+	},
+
+	"init/label/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "identifier " + emph(args[0]) + " has already been defined as something other " +
+			"than a label"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "You can't declare the same identifier twice!"
 		},
 	},
 
@@ -2082,7 +2082,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"lex/quote/rune": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "rune litereal unterminated by end of line"
+			return "rune literal unterminated by end of line"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Having begun a rune literal with an opening quote, you haven't concluded it with a matching " +
@@ -2605,6 +2605,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"sql/map/exists": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "duplicate key in map: " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When you turn the rows returned from SQL into a map, this error shows that one of the key values has been repeated."
+		},
+	},
+
 	"sql/out": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "can't write to SQL database; error was \"" + args[0].(string) + "\""
@@ -3124,6 +3133,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/ping/get": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "failed to ping the database with error " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Either the database is not currently available, or you used the wrong credentials. Hopefully the nature of the problem will be clarified by the error returned by the database."
+		},
+	},
+
 	"vm/pipe/filter/bool": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "right-hand side of filter expression cannot return boolean"
@@ -3156,7 +3174,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return fmt.Sprintf("can't put value of type %v in a set", emphStr(args[0]))
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("To be an element of a set, a value must have a type which is not a struct.")
+			return fmt.Sprintf("Some values can't be put in sets, including functions, maps, lists, and other sets.")
 		},
 	},
 
@@ -3286,6 +3304,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/slice/tuple/e": {
+		Message: func(tok *token.Token, args ...any) string {
+			return fmt.Sprintf("upper bound %v of tuple slice is strictly greater than list length %v", emph(args[0]), args[1])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
+		},
+	},
+
 	"vm/splat/type": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "expected value of type 'list'"
@@ -3293,6 +3320,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The value on the left-hand side of the splat operator '...' " +
 				   "should always be of type 'list'."
+		},
+	},
+
+	// TODO --- this is for debugging and can presumably be removed when I've done all the types.
+	"vm/sql/goval": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't convert Go type " + emph(args[0]) + " to Pipefish"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return ""
+		},
+	},
+
+	"vm/sql/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "can't coerce SQL data to " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish can only coerce SQL rows into a limited number of types, and " +
+			"this isn't one of them."
 		},
 	},
 
@@ -3359,15 +3406,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have supplied the function with arguments of types for which no function of that name is defined."
-		},
-	},
-
-	"vm/slice/tuple/e": {
-		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("upper bound %v of tuple slice is strictly greater than list length %v", emph(args[0]), args[1])
-		},
-		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return fmt.Sprintf("The greatest value the upper bound of a slice can have is the length of the thing being sliced.")
 		},
 	},
 

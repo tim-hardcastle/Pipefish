@@ -44,7 +44,7 @@ var counter int // This variable is used to make a unique filename for each goco
 // build a `.go` file or files. There is one per compiler. The "sources" are as given in the `Source`
 // field of any GOCODE token encountered. The sources may be plural because of NULL-imports.
 // The `imports`, `functions`, and `pureGo` maps are indexed by these sources.
-type GoBucket struct {
+type goBucket struct {
 	sources   dtypes.Set[string]
 	imports   map[string][]string
 	functions map[string][]*parsedFunction
@@ -52,7 +52,7 @@ type GoBucket struct {
 }
 
 func (iz *Initializer) newGoBucket() {
-	gb := GoBucket{
+	gb := goBucket{
 		sources:   make(dtypes.Set[string]),
 		imports:   make(map[string][]string),
 		functions: make(map[string][]*parsedFunction),
@@ -73,14 +73,14 @@ func (iz *Initializer) compileGo() {
 	for _, tc := range iz.tokenizedCode[golangDeclaration] {
 		golang := tc.(*tokenizedGolangDeclaration)
 		iz.goBucket.sources.Add(golang.goCode.Source)
-		iz.goBucket.pureGo[golang.goCode.Source] = append(iz.goBucket.pureGo[golang.goCode.Source], 
+		iz.goBucket.pureGo[golang.goCode.Source] = append(iz.goBucket.pureGo[golang.goCode.Source],
 			golang.goCode.Literal)
 	}
 
 	for j := functionDeclaration; j <= commandDeclaration; j++ {
 		for _, pc := range iz.parsedCode[j] {
 			fn := pc.(*parsedFunction)
-			if fn.body.GetToken().Type == token.GOCODE {
+			if fn.body.GetToken().Type == token.GOLANG {
 				iz.goBucket.sources.Add(fn.op.Source)
 				iz.goBucket.functions[fn.op.Source] = append(iz.goBucket.functions[fn.op.Source], fn)
 			}
@@ -93,7 +93,7 @@ func (iz *Initializer) compileGo() {
 		sourceToken := &token.Token{Source: source}
 		f, err := os.Stat(text.MakeFilepath(source))
 		if err != nil {
-			iz.Throw("golang/file", sourceToken, source, err.Error())
+			iz.throw("golang/file", sourceToken, source, err.Error())
 			break
 		}
 		var plugins *plugin.Plugin
@@ -105,12 +105,12 @@ func (iz *Initializer) compileGo() {
 			soFile := settings.PipefishHomeDirectory + "pipefish-rsc/" + text.Flatten(source) + "_" + strconv.Itoa(int(sourceCodeModified)) + ".so"
 			plugins, err = plugin.Open(soFile)
 			if err != nil {
-				iz.Throw("golang/open/b", sourceToken, err.Error())
+				iz.throw("golang/open/b", sourceToken, err.Error())
 				return
 			}
 		}
 		if plugins == nil { // Then the Go has failed to compile.
-			iz.Throw("golang/compile", sourceToken)
+			iz.throw("golang/compile", sourceToken)
 			return
 		}
 
@@ -146,7 +146,7 @@ func (iz *Initializer) compileGo() {
 			for i, pair := range function.sig {
 				if _, ok := pair.VarType.(*ast.TypeDotDotDot); ok {
 					if i < function.sig.Len()-1 {
-						iz.Throw("golang/variadic", &function.op)
+						iz.throw("golang/variadic", &function.op)
 					}
 				}
 			}
@@ -204,7 +204,7 @@ func (iz *Initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 		}
 	}
 	iz.transitivelyCloseTypes(userDefinedTypes)
-	if iz.ErrorsExist() {
+	if iz.errorsExist() {
 		return nil
 	}
 	// We emit the type declarations and converters.
@@ -227,7 +227,7 @@ func (iz *Initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	iz.cmG("Creating goFile with filepath '"+goFile+"'\n\n", source)
 	file, err := os.Create(goFile)
 	if err != nil {
-		iz.Throw("golang/create", sourceToken, err.Error())
+		iz.throw("golang/create", sourceToken, err.Error())
 		return nil
 	}
 	file.WriteString(sb.String())
@@ -240,12 +240,12 @@ func (iz *Initializer) makeNewSoFile(source string, newTime int64) *plugin.Plugi
 	// cmd := exec.Command("go", "build", "-gcflags=all=-N -l", "-buildmode=plugin", "-o", soFile, goFile) // Version to use with debugger.
 	output, err := cmd.Output()
 	if err != nil {
-		iz.Throw("golang/build", sourceToken, err.Error()+": "+string(output))
+		iz.throw("golang/build", sourceToken, err.Error()+": "+string(output))
 		return nil
 	}
 	plugins, err := plugin.Open(soFile)
 	if err != nil {
-		iz.Throw("golang/open/a", sourceToken, err.Error())
+		iz.throw("golang/open/a", sourceToken, err.Error())
 		return nil
 	}
 	timeMap[source] = newTime
@@ -267,7 +267,7 @@ func (iz *Initializer) transitivelyCloseTypes(userDefinedTypes dtypes.Set[string
 		for structName := range structsToCheck {
 			for _, fieldType := range iz.cp.TypeInfoNow(structName).(vm.StructType).AbstractStructFields {
 				if fieldType.Len() != 1 {
-					iz.Throw("golang/concrete/b", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, vm.LITERAL))
+					iz.throw("golang/concrete/b", INTEROP_TOKEN, iz.cp.Vm.DescribeAbstractType(fieldType, vm.LITERAL))
 				}
 				typeOfField := iz.cp.GetTypeNameFromNumber(fieldType.Types[0])
 				switch fieldData := iz.cp.TypeInfoNow(typeOfField).(type) {

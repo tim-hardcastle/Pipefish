@@ -11,28 +11,28 @@ const (
 	FOR      = "for"
 	GIVEN    = "given"
 	GLOBAL   = "global"
-	GOCODE   = "golang"
+	GOLANG   = "golang"
 	RANGE    = "range"
 	TRY      = "try"
 	UNWRAP   = "unwrap"
 	VALID    = "valid"
 
 	// Headwords
-	IMPORT  = "import"
-	VAR     = "var"
-	CMD     = "cmd"
-	DEF     = "def"
-	PRIVATE = "private"
-	EXTERN  = "external"
-	CONST   = "const"
-	NEWTYPE = "newtype"
+	IMPORT   = "import"
+	VAR      = "var"
+	CMD      = "cmd"
+	DEF      = "def"
+	PRIVATE  = "private"
+	EXTERNAL = "external"
+	CONST    = "const"
+	NEWTYPE  = "newtype"
 
 	// Special operations
 	AND = "and"
 	OR  = "or"
 	NOT = "not"
 
-	EMDASH  = "---"
+	EMDASH  = "--"
 	EQ      = "=="
 	FILTER  = "?>"
 	MAPPING = ">>"
@@ -45,26 +45,26 @@ const (
 
 	// The protected punctuation.
 	COLON               = ":"
-	DOTDOT              = ".."
 	DOTDOTDOT           = "..."
 	COMMA               = ","
 	LPAREN              = "("
 	LBRACE              = "{"
 	LBRACK              = "["
 	NAMESPACE_SEPARATOR = "."
-	NEWLINE             = "\n"
+	NEWLINE             = "NEWLINE"
 	RBRACE              = "}"
 	RBRACK              = "]"
 	RPAREN              = ")"
-	SEMICOLON           = "SEMICOLON"
+	SEMICOLON           = ";"
 
 	// Literals, comments, and identifiers.
-	COMMENT = "COMMENT"
-	FLOAT   = "FLOAT LITERAL"
-	IDENT   = "IDENT"
-	INT     = "INTEGER LITERAL"
-	STRING  = "STRING LITERAL"
-	RUNE    = "RUNE LITERAL"
+	COMMENT   = "COMMENT"
+	DOCSTRING = "DOCSTRING"
+	FLOAT     = "FLOAT LITERAL"
+	IDENT     = "IDENT"
+	INT       = "INTEGER LITERAL"
+	STRING    = "STRING LITERAL"
+	RUNE      = "RUNE LITERAL"
 
 	// False and true.
 	FALSE = "false"
@@ -80,9 +80,7 @@ const (
 	LOG             = "LOG"             // What we turn \\ into.
 	MAGIC_COLON     = "MAGIC COLON"     // What the relexer turns a colon into when it comes after the signature of an inner function.
 	MAGIC_SEMICOLON = "MAGIC_SEMICOLON" // What the semicolons in C-like for loops get turned into by the relexer.
-	NO_INDENT       = "|||"             // What we turn whitespace into when it isn't a new indent or outdent.
 	PRELOG          = "PRELOG"          // What we turn \\ into when it's the first thing after the function signature.
-	WEAK_COMMA      = ",,"              // What we turn commas after type names into in function signatures.
 	XCALL           = "XCALL"           // Used in generated code to supply hooks to the external calls.
 )
 
@@ -103,7 +101,7 @@ var keywords = map[string]TokenType{
 	"eval":     EVAL,
 	"for":      FOR,
 	"given":    GIVEN,
-	"golang":   GOCODE,
+	"golang":   GOLANG,
 	"global":   GLOBAL,
 	"range":    RANGE,
 	"try":      TRY,
@@ -114,7 +112,7 @@ var keywords = map[string]TokenType{
 	"cmd":      CMD,
 	"const":    CONST,
 	"def":      DEF,
-	"external": EXTERN,
+	"external": EXTERNAL,
 	"import":   IMPORT,
 	"newtype":  NEWTYPE,
 	"private":  PRIVATE,
@@ -147,5 +145,5 @@ func LookupIdent(ident string) TokenType {
 }
 
 func TokenTypeIsHeadword(t TokenType) bool {
-	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == EXTERN || t == NEWTYPE || t == CONST
+	return t == IMPORT || t == VAR || t == CMD || t == DEF || t == EXTERNAL || t == NEWTYPE || t == CONST
 }

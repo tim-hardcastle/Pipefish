@@ -5,29 +5,34 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/chzyer/readline"
+	"github.com/lmorg/readline/v4"
+	"github.com/tim-hardcastle/Pipefish/source/text"
 )
 
+// TODO --- once the highlighting is semantic and not syntactic, we'll
+// need a different highlighter for each service.
 func StartHub(hub *Hub, in io.Reader, out io.Writer) {
-	var rline *readline.Instance
 	colonOrEmdash, _ := regexp.Compile(`.*[\w\s]*(:|--)[\s]*$`)
+	rline := readline.NewInstance()
+	rline.SyntaxHighlighter = func(code []rune) string {
+		return hub.services[hub.currentServiceName()].Highlight(code, hub.getFonts())
+	}
 	for {
-
 		// The hub's CurrentForm setting allows it to ask for information from the user instead of
 		// just sitting waiting to be told. If CurrentForm is not nil then it contains a structured
-		// request for information which must be completed before returnng to the regular REPL.
+		// request for information which must be completed before returning to the regular REPL.
 		// TODO --- this can now be replaced by Pipefish's own facilities for IO.
 		if hub.CurrentForm != nil {
 
 			for {
 				queryString := hub.CurrentForm.Fields[len(hub.CurrentForm.Result)]
-				// The readln utility doesn't like multiline prompts, so we must kludge a little.
 				pos := strings.LastIndex(queryString, "\n")
+				rline := readline.NewInstance()
 				if pos == -1 {
-					rline, _ = readline.New(queryString + ": ")
+					rline.SetPrompt(queryString + ": ")
 				} else {
 					hub.WriteString(queryString[:pos+1])
-					rline, _ = readline.New(queryString[pos+1:] + ": ")
+					rline.SetPrompt(queryString[pos+1:] + ": ")
 				}
 				line, _ := rline.Readline()
 				hub.CurrentForm.Result[hub.CurrentForm.Fields[len(hub.CurrentForm.Result)]] = line
@@ -43,7 +48,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		input := ""
 		c := 0
 		for {
-			rline, _ = readline.New(makePrompt(hub, ws != ""))
+			rline.SetPrompt(makePrompt(hub, ws != ""))
 			line, _ := rline.ReadlineWithDefault(ws)
 			c++
 			input = input + line + "\n"
@@ -56,15 +61,16 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 				}
 			}
 			if colonOrEmdash.Match([]byte(line)) {
-				ws = ws + "\t"
+				ws = ws + "  "
 			}
 			if ws == "" {
 				break
 			}
 		}
 		input = strings.TrimSpace(input)
-
-		_, quit := hub.Do(input, hub.Username, hub.Password, hub.currentServiceName())
+		sv := hub.services[hub.currentServiceName()]
+		sv.SetOutHandler(sv.MakeTerminalOutHandler())
+		_, quit := hub.Do(input, hub.Username, hub.Password, hub.currentServiceName(), false)
 		if quit {
 			break
 		}
@@ -72,7 +78,7 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 }
 
 func makePrompt(hub *Hub, indented bool) string {
-	symbol := PROMPT 
+	symbol := PROMPT
 	left := hub.currentServiceName()
 	if indented {
 		symbol = INDENT_PROMPT
@@ -81,11 +87,9 @@ func makePrompt(hub *Hub, indented bool) string {
 	if hub.currentServiceName() == "" {
 		return symbol
 	}
-	promptText := left + " " + symbol
+	promptText := text.RESET + text.Cyan(left) + " " + symbol
 	if hub.CurrentServiceIsBroken() {
-		promptText = Red(promptText)
+		promptText = text.RESET + text.Red(left) + " " + symbol
 	}
 	return promptText
 }
-
-

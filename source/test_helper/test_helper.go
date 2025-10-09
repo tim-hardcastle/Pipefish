@@ -54,8 +54,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 // NOTE: this is here to test some internal workings of the initializer. It only initializes
 // a blank service.
 func RunInitializerTest(t *testing.T, tests []TestItem, F func(iz *initializer.Initializer, s string) string) {
-	iz := initializer.NewInitializer()
-	iz.Common = initializer.NewCommonInitializerBindle(&values.Map{})
+	iz := initializer.NewInitializer(initializer.NewCommonInitializerBindle(&values.Map{}, map[string]*compiler.Compiler{}))
 	iz.ParseEverythingFromSourcecode(vm.BlankVm(), parser.NewCommonParserBindle(), compiler.NewCommonCompilerBindle(), "", "", "")
 	for _, test := range tests {
 		if settings.SHOW_TESTS {
@@ -116,7 +115,7 @@ func TestSigChunking(iz *initializer.Initializer, s string) string {
 
 func TestFunctionChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	fn, ok := iz.ChunkFunction(false, false)
+	fn, ok := iz.ChunkFunction(false, false, "")
 	if !ok {
 		return "Couldn't parse function."
 	}
@@ -125,7 +124,7 @@ func TestFunctionChunking(iz *initializer.Initializer, s string) string {
 
 func TestTypeChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkTypeDeclaration(false)
+	ty, ok := iz.ChunkTypeDeclaration(false, "")
 	if !ok {
 		return "Couldn't parse type."
 	}
@@ -134,7 +133,7 @@ func TestTypeChunking(iz *initializer.Initializer, s string) string {
 
 func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkConstOrVarDeclaration(false , false)
+	ty, ok := iz.ChunkConstOrVarDeclaration(false , false, "")
 	if !ok {
 		return "Couldn't parse assignment."
 	}
@@ -143,20 +142,20 @@ func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
 
 func TestExternalOrImportChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkImportOrExternalDeclaration(false , false)
+	ty, ok := iz.ChunkImportOrExternalDeclaration(false , false, "")
 	if !ok {
 		return "Couldn't parse import/external declaration."
 	}
 	return initializer.SummaryString(ty)
 }
 
-var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i = 8'[0m.
+var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i'[0m [0m= [0m[36m'8'[0m.
 At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
 The [0mcondition [0msucceeded.
 At [33mline 15 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"even"[0m.
 `
 
-var Foo13Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i = 13'[0m.
+var Foo13Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i'[0m [0m= [0m[36m'13'[0m.
 At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
 The [0mcondition [0mfailed.
 At [33mline 16 [0mwe [0mtook [0mthe [0m[36m'else'[0m [0mbranch.

@@ -143,7 +143,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	Flti: {"flti", operands{dst, mem}},
 	Flts: {"flts", operands{dst, mem}},
 	Gofn: {"gofn", operands{dst, mem, gfn, tup}}, // Mem contains the location of a *mutable* error, i.e. we will copy its token but change its contents when returning it. 
-	Gsql: {"gsql", operands{dst, mem, mem, mem, mem, tok}},
+	Gsql: {"gsql", operands{dst, mem, mem, mem, mem, num, tok}},
 	Gtef: {"gtef", operands{dst, mem, mem}},
 	Gtei: {"gtei", operands{dst, mem, mem}},
 	Gthf: {"gthf", operands{dst, mem, mem}},

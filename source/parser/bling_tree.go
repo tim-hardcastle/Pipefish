@@ -11,18 +11,54 @@ package parser
 // (Parentheses would of course distinguish the case where it's not bling but that would
 // be vary rare in any case.)
 
-// I am only slightly ashamed of this.
+// TODO --- this could replace pretty much all of the ways we presently handle bling in the 
+// parser.
+
+type BlingManager struct {
+	navigators []*blingNavigator // As functions compose, we need a stack of navigators to keep track of where we are. 
+	tree       blingTree         // Filled up by the `AddWordsToParser` method and then used by the manager.
+}
+
+func newBlingManager() *BlingManager {
+	newBm := &BlingManager{[]*blingNavigator{}, make(blingTree)}
+	newBm.AddBling([]string{"="})
+	return newBm
+}
+
+func (bm BlingManager) AddBling(bling []string) {
+	bm.tree.addBling(bling)
+}
+
+func (bm *BlingManager) startFunction(s string) {
+	bm.navigators = append(bm.navigators, bm.tree.newBlingNavigator(s))
+}
+
+func (bm *BlingManager) stopFunction() {
+	bm.navigators = bm.navigators[0:len(bm.navigators)-1]
+}
+
+func (bm *BlingManager) canBling(s string) bool {
+	if len(bm.navigators) == 0 {
+		return false
+	}
+	return bm.navigators[len(bm.navigators)-1].canBling(s)
+}
+
+
+
+func (bm *BlingManager) doBling(s string) {
+	bm.navigators[len(bm.navigators)-1].doBling(s)
+}
+
+func (b BlingManager) String() string {
+	return b.tree.recursiveString("")
+}
 
 // Go doesn't allow recursive definitions, so ...
 type blingTree map[string]any
 
 type blingNavigator struct {
 	position blingTree
-}
-
-type BlingManager struct {
-	navigators []*blingNavigator
-	tree       blingTree
 }
 
 func (b blingTree) addBling(bling []string) {
@@ -60,37 +96,4 @@ func (bn *blingNavigator) canBling(s string) bool {
 
 func (bn *blingNavigator) doBling(s string) {
 	bn.position, _ = (bn.position)[s].(blingTree)
-}
-
-func newBlingManager() *BlingManager {
-	newBm := &BlingManager{[]*blingNavigator{}, make(blingTree)}
-	newBm.AddBling([]string{"="})
-	return newBm
-}
-
-func (bm BlingManager) AddBling(bling []string) {
-	bm.tree.addBling(bling)
-}
-
-func (b BlingManager) String() string {
-	return b.tree.recursiveString("")
-}
-
-func (bm *BlingManager) startFunction(s string) {
-	bm.navigators = append(bm.navigators, bm.tree.newBlingNavigator(s))
-}
-
-func (bm *BlingManager) stopFunction() {
-	bm.navigators = bm.navigators[0:len(bm.navigators)-1]
-}
-
-func (bm *BlingManager) canBling(s string) bool {
-	if len(bm.navigators) == 0 {
-		return false
-	}
-	return bm.navigators[len(bm.navigators)-1].canBling(s)
-}
-
-func (bm *BlingManager) doBling(s string) {
-	bm.navigators[len(bm.navigators)-1].doBling(s)
 }

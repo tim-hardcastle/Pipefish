@@ -27,7 +27,7 @@ const (
 )
 
 func (p *Parser) IsTypePrefix(s string) bool {
-	return s == "..." || (p.TypeExists(s) ||
+	return s == "..." || (p.Typenames.Contains(s) ||
 	PSEUDOTYPES.Contains(s) || p.ParameterizedTypes.Contains(s))
 }
 
@@ -46,6 +46,7 @@ func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 	// Prefixes
 	if p.PeekToken.Type == token.LBRACE {
 		leftExp = p.parseParamsOrArgs()
+		p.NextToken()
 	} else {
 		if p.CurToken.Type == token.DOTDOTDOT {
 			right := p.ParseType(T_LOWEST)
@@ -55,7 +56,7 @@ func (p *Parser) ParseTypeFromCurTok(prec typePrecedence) ast.TypeNode {
 		}
 	}
 	// Infixes
-	for prec < p.peekTypePrecedence() && p.PeekToken.Type == token.IDENT &&
+	for prec <= p.peekTypePrecedence() && p.PeekToken.Type == token.IDENT &&
 		(p.PeekToken.Literal == "/" || p.PeekToken.Literal == "&") {
 		infix := p.PeekToken.Literal
 		newPrec := p.peekTypePrecedence()
@@ -87,7 +88,7 @@ func (p *Parser) peekTypePrecedence() typePrecedence {
 func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 	nameTok := p.CurToken
 	p.NextToken() // The one with the name in.
-	// So we're now at the token with the `[`, which we won't skip over because sluriping
+	// So we're now at the token with the `{}`, which we won't skip over because sluriping
 	// the type needs to be done with a peek first and a NextToken afterwards.
 	if p.PeekToken.Type == token.IDENT && !(p.IsTypePrefix(p.PeekToken.Literal)) &&
 			!(p.IsEnumElement(p.PeekToken.Literal)){

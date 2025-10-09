@@ -1,4 +1,7 @@
-package p2p
+package initializer
+
+// Just a function and a couple of types for making an external service call, used by
+// `api_serialization.go` in this package to construct an external service.
 
 import (
 	"bytes"
@@ -11,6 +14,7 @@ import (
 
 type jsonRequest = struct {
 	Body     string
+	Service  string
 	Username string
 	Password string
 }
@@ -20,8 +24,8 @@ type jsonResponse = struct {
 	Service string
 }
 
-func Do(host, line, username, password string) string {
-	jRq := jsonRequest{Body: line, Username: username, Password: password}
+func Do(host, service, line, username, password string) string {
+	jRq := jsonRequest{Body: line, Service: service, Username: username, Password: password}
 	body, _ := json.Marshal(jRq)
 	request, err := http.NewRequest("POST", host, bytes.NewBuffer(body))
 	if err != nil {
@@ -36,7 +40,10 @@ func Do(host, line, username, password string) string {
 	}
 
 	defer response.Body.Close()
-	rBody, _ := io.ReadAll(response.Body)
+	rBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "error: " + err.Error()
+	}
 	if settings.SHOW_XCALLS {
 		rawJ := ""
 		for _, c := range rBody {
@@ -45,6 +52,9 @@ func Do(host, line, username, password string) string {
 		println("Raw json is", rawJ)
 	}
 	var jRsp jsonResponse
-	json.Unmarshal(rBody, &jRsp)
+	err = json.Unmarshal(rBody, &jRsp)
+	if err != nil {
+		return "error: " + err.Error()
+	}
 	return jRsp.Body
 }

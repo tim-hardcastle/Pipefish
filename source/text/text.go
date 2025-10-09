@@ -81,6 +81,10 @@ func Yellow(s string) string {
 	return YELLOW + s + RESET
 }
 
+func ErrorFont(s string) string {
+	return BAD_RED + UNDERLINE + s + RESET
+}
+
 func DescribePos(token *token.Token) string {
 	if token == nil {
 		return ""
@@ -177,15 +181,24 @@ func DescribeOpposite(tok *token.Token) string {
 
 const (
 	RESET     = "\033[0m"
-	UNDERLINE = "\033[3m"
+	RESET_FOREGROUND = "\033[39m"
+	RESET_BACKGROUND = "\033[49m"
+	RESET_BOLD = "\033[22m"
+	RESET_ITALIC = "\033[23m"
+	RESET_UNDERLINE = "\033[24m"
+	UNDERLINE = "\033[4m"
 	RED       = "\033[31m"
-	GREEN     = "\033[32m"
+	BAD_RED   = "\033[38;2;244;71;71m"
 	YELLOW    = "\033[33m"
+	GREEN     = "\033[32m"
 	BLUE      = "\033[34m"
 	PURPLE    = "\033[35m"
 	CYAN      = "\033[36m"
 	GRAY      = "\033[37m"
+	GRAY_BACKGROUND = "\033[48;5;239m"
 	WHITE     = "\033[97m"
+	ITALIC    = "\033[3m"
+	BOLD      = "\033[1m"
 	BULLET    = "  ▪ "
 	RT_ERROR  = "$Error$"
 	ERROR     = "$Error$"
@@ -325,7 +338,7 @@ func GetTextWithBarsAsList(text string) ([]string, bool) {
 	return strList, true
 }
 
-// Removes the last two folders in a filepath. TODO --- is there a more principled way of doing this?
+// Removes the last two folders in a filepath. TODO --- don't.
 func Trim(path string) string {
 	sep := "/"
 	if runtime.GOOS == "windows" {
@@ -355,7 +368,7 @@ func Tail(s, substr string) bool {
 	if len(s) < len(substr) {
 		return false
 	}
-	return s[len(s) - len(substr):] == substr
+	return s[len(s)-len(substr):] == substr
 }
 
 func WithoutDots(s string) string {
@@ -390,7 +403,7 @@ func TweakNameAndPath(name, path, source string) (string, string) {
 	if settings.StandardLibraries.Contains(path) {
 		path = settings.PipefishHomeDirectory + "lib/" + path + ".pf"
 	}
-	if filepath.IsLocal(path) {
+	if !Head(path, "http:") && filepath.IsLocal(path) {
 		path = filepath.Join(filepath.Dir(source), path)
 	}
 	return name, path

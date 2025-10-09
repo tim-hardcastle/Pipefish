@@ -192,6 +192,8 @@ func TestFunctionSyntaxCalls(t *testing.T) {
 		{`moo "bing" goo`, `"moo bing goo"`},
 		{`flerp "bing" blerp "bong"`, `"flerp bing blerp bong"`},
 		{`qux`, `"qux"`},
+		{`foo p 7`, `"foo p"`},
+		{`foo q 7`, `"foo q"`},
 	}
 	test_helper.RunTest(t, "function_call_test.pf", tests, test_helper.TestValues)
 }
@@ -218,6 +220,7 @@ func TestVariableAccessErrors(t *testing.T) {
 }
 func TestUserDefinedTypes(t *testing.T) {
 	tests := []test_helper.TestItem{
+		{`Tone with (shade::LIGHT, color::RED)`, `Tone with (shade::LIGHT, color::RED)`},
 		{`Color(4)`, `BLUE`},
 		{`DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 		{`type DARK_BLUE`, `Tone`},
@@ -236,7 +239,6 @@ func TestUserDefinedTypes(t *testing.T) {
 		{`Tone(LIGHT, GREEN) != DARK_BLUE`, `true`},
 		{`troz DARK_BLUE`, `Tone with (shade::DARK, color::BLUE)`},
 		{`foo 3, 5`, `8`},
-		{`Tone with (shade::LIGHT, color::RED)`, `Tone with (shade::LIGHT, color::RED)`},
 	}
 	test_helper.RunTest(t, "user_types_test.pf", tests, test_helper.TestValues)
 }
@@ -244,8 +246,8 @@ func TestTypeAccessErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
 		{`Suit`, `comp/private/type/a`},
-		{`HEARTS`, `comp/private/enum`},
-		{`one`, `comp/private/label`},
+		{`HEARTS`, `comp/ident/private`},
+		{`one`, `comp/ident/private`},
 	}
 	test_helper.RunTest(t, "user_types_test.pf", tests, test_helper.TestCompilerErrors)
 }
@@ -433,6 +435,15 @@ func TestParameterizedTypes(t *testing.T) {
 		{`clones{int}`, `clones{int}`},
 	}
 	test_helper.RunTest(t, "parameterized_type_test.pf", tests, test_helper.TestValues)
+}
+func TestTypeInstances(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`Z{3}(2) in Z{3}`, `true`},
+		{`Z{5}(2) in Z{5}`, `true`},
+		{`Z{7}(2) in Z{7}`, `true`},
+		{`Z{12}(2) in Z{12}`, `true`},
+	}
+	test_helper.RunTest(t, "type_instances_test.pf", tests, test_helper.TestValues)
 }
 func TestReflection(t *testing.T) {
 	tests := []test_helper.TestItem{

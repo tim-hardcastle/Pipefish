@@ -21,10 +21,12 @@ func MandatoryImportSet() dtypes.Set[string] {
 	return dtypes.MakeFromSlice(MandatoryImports)
 }
 
-var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).Add("rsc-pf/hub.pf").Add("Builtin constant").Add("rsc-pf/worldlite.pf")
+var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).
+Add("rsc-pf/hub.pf").Add("Builtin constant").
+Add("rsc-pf/worldlite.pf").Add("user/themes.pf")
 
 // This is replicated in the hub and any changes made here must be reflected there. TODO --- don't.
-var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "math", "path", "reflect", "regexp", "strings", "time", "unicode"})
+var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "math", "path", "reflect", "regexp", "sql", "strings", "time", "unicode"})
 
 const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
@@ -45,7 +47,8 @@ const (
 	SHOW_GOLANG            = false
 	SHOW_API_SERIALIZATION = false
 	SHOW_EXTERNAL_STUBS    = false
-	SHOW_TESTS             = true // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
+	SHOW_TESTS             = false // Says whether the tests should say what is being tested, useful if one of them crashes and we don't know which.
+	SHOW_BLING_TREE        = false
 )
 
 var PipefishHomeDirectory string

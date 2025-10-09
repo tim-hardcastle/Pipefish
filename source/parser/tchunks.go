@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 )
 
@@ -135,9 +133,6 @@ func (p *Parser) SlurpBlock(safe bool) (*token.TokenizedCodeChunk, bool) {
 		tok := p.CurToken
 		if tok.Type == token.EOF {
 			break
-		}
-		if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(tok.Source)) {
-			println(text.PURPLE+tok.Type, tok.Literal+text.RESET)
 		}
 		if tok.Type == token.LPAREN && tok.Literal == "|->" {
 			indentCount++
@@ -288,10 +283,7 @@ func (t TokSig) String() string {
 			continue
 		}
 		lastWasBling = false
-		result = result + pair.Name.Literal
-		for _, tyTok := range pair.Typename {
-			result = result + " " + tyTok.Literal
-		}
+		result = result + pair.Name.Literal + " " + StringifyTypeName(pair.Typename)
 		if i == len(t)-1 {
 			result = result + ")"
 		}
@@ -305,8 +297,9 @@ func (t TokSig) SimpleString() string {
 	sep := ""
 	for _, pair := range t {
 		result = result + sep + pair.Name.Literal
-		for _, tyTok := range pair.Typename {
-			result = result + " " + tyTok.Literal
+		tn := StringifyTypeName(pair.Typename)
+		if tn != "*inferred*" {
+			result = result + " " + tn
 		}
 		sep = ", "
 	}
@@ -320,14 +313,25 @@ func (r TokReturns) String() string {
 	sep := ""
 	result := ""
 	for _, ty := range r {
-		result = result + sep
-		spacer := ""
-		for _, tok := range ty {
-			result = result + spacer
-			result = result + tok.Literal
-			spacer = " "
-		}
+		result = result + sep + StringifyTypeName(ty)
 		sep = ", "
+	}
+	return result
+}
+
+func StringifyTypeName(toks []token.Token) string {
+	result := ""
+	for i, tok := range toks {
+		result = result + tok.Literal
+		if i == len(toks) - 1 {
+			continue
+		}
+		if tok.Type == token.COMMA ||
+		(tok.Type == token.IDENT && toks[i+1].Type == token.IDENT && !(toks[i+1].Literal == "?" || toks[i+1].Literal == "!")) ||
+		tok.Type == token.DOTDOTDOT || 
+		toks[i+1].Type == token.DOTDOTDOT {
+			result = result + " "
+		}
 	}
 	return result
 }

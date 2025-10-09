@@ -14,6 +14,14 @@ func MakeFromSlice[E comparable](slice []E) Set[E] {
 	return S
 }
 
+func From[E comparable](slice ... E) Set[E] {
+	S := Set[E]{}
+	for _, v := range slice {
+		S.Add(v)
+	}
+	return S
+}
+
 func (S Set[E]) String() string {
 	result := "{ "
 	for e := range S {

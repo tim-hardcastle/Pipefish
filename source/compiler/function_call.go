@@ -25,7 +25,7 @@ import (
 // to do the dispatch, some of which (e.g.) the token associated with the caller, are stable throughout
 // the construction of the function call, while others change to keep track of where we are.
 type bindle struct {
-	treePosition *FnTreeNode // Our position on the function tree.
+	treePosition *FnTreeNode     // Our position on the function tree.
 	branchNo     int             // The number of the branch in the function tree.
 	argNo        int             // The number of the argument we're looking at.
 	index        int             // The index we're looking at in the argument we're looking at.
@@ -135,7 +135,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	cp.Put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
 		if text.Tail(b.tok.Literal, "{}") {
-			cp.Throw("comp/types", b.tok, b.tok.Literal, (b.types[1:]).describeWithPotentialInfix(cp.Vm, b.tok.Literal))	
+			cp.Throw("comp/types", b.tok, b.tok.Literal, (b.types[1:]).describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 		} else {
 			cp.Throw("comp/types", b.tok, b.tok.Literal, b.types.describeWithPotentialInfix(cp.Vm, b.tok.Literal))
 		}
@@ -193,7 +193,7 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 	cp.cmP("Called seekBling.", b.tok)
 	for i, branch := range b.treePosition.Branch {
-		if branch.Type.Contains(values.BLING) {
+		if branch.Type.Contains(values.BLING) && branch.Bling == bling {
 			newBindle := *b
 			newBindle.branchNo = i
 			newBindle.varargsTime = false
@@ -447,7 +447,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 		cp.Emit(vm.Qtyp, mem, uint32(typeAsAlt[0].(SimpleType)), DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
-	args := []uint32{} 
+	args := []uint32{}
 	for _, t := range typeAsAlt {
 		args = append(args, uint32(t.(SimpleType)))
 	}
@@ -458,7 +458,7 @@ func (cp *Compiler) emitTypeComparisonFromAltType(typeAsAlt AlternateType, mem u
 
 func (cp *Compiler) emitTypeComparisonFromTypeNode(tn ast.TypeNode, mem uint32, tok *token.Token) bkGoto { // TODO --- more of this.
 	cp.Cm("Emitting type comparison from type node "+text.Emph(tn.String()), tok)
-	abType := cp.P.GetAbstractType(tn)
+	abType := cp.GetAbstractTypeFromAstType(tn)
 	return cp.emitTypeComparisonFromAbstractType(abType, mem, tok)
 }
 
@@ -563,7 +563,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
 					b.override = true
-					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.P.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
 				}
 				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 					cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -574,7 +574,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Rpop)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
 					b.override = true                 // We can't do constant folding on a dummy function call.
-					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.P.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
 				}
 				F := resolvingCompiler.Fns[fNo]
 				if (b.access == REPL || b.libcall) && F.Private {
@@ -587,7 +587,6 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				// It could be a builtin from the builtins file.
 				functionAndType, ok := BUILTINS[builtinTag]
 				if ok {
-					cp.cmP("Emitting builtin.", b.tok)
 					switch builtinTag { // Then for these we need to special-case their return types.
 					case "get_from_sql":
 						functionAndType.T = cp.Common.AnyTypeScheme
@@ -624,6 +623,8 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
 					case "struct_with":
 						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
+					default : // TODO --- at this point functionAndType.T is entirely cruft, never used for permanent storage.
+						functionAndType.T = F.RtnTypes
 					}
 					functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
 					return functionAndType.T
@@ -632,14 +633,14 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 				if text.Tail(builtinTag, "{}") {
 					typeOperator := builtinTag[:len(builtinTag)-2]
 					tokenOrdinal := cp.ReserveToken(b.tok)
-					if cp.P.ParTypes2[typeOperator].IsClone {
+					if cp.P.ParTypes[typeOperator].IsClone {
 						cp.Emit(vm.CasP, b.outLoc, tokenOrdinal, b.valLocs[0], b.valLocs[1])
 					} else {
 						args := append([]uint32{b.outLoc, tokenOrdinal}, b.valLocs...)
 						cp.cmP("Emitting parameterized struct constructor.", b.tok)
 						cp.Emit(vm.StrP, args...)
 					}
-					return AbstractTypeToAlternateType(cp.P.ParTypes2[typeOperator].PossibleReturnTypes)
+					return AbstractTypeToAlternateType(cp.P.ParTypes[typeOperator].PossibleReturnTypes)
 				}
 				// It could be an ordinary type constructor.
 				typeNumber, ok := cp.GetConcreteType(builtinTag)
@@ -661,11 +662,9 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						return AltType(typeNumber)
 					}
 					cp.Emit(vm.Asgm, typeCheck.ResultLoc, b.outLoc)
-					if typeInfo.IsClone() {
-						cp.Emit(vm.Asgm, typeCheck.InLoc, b.valLocs[0])
-					} else {
-						cp.Emit(vm.Asgm, typeCheck.InLoc, b.outLoc)
-					} // TODO --- now I know what I'm doing, there should be some way to clean this up.
+					for i, loc := range b.valLocs {
+						cp.Emit(vm.Asgm, typeCheck.InLoc+uint32(i), loc)
+					}
 					cp.Reserve(values.INT, int(cp.ReserveToken(b.tok)), b.tok)
 					cp.Emit(vm.Asgm, typeCheck.TokNumberLoc, cp.That())
 					cp.Emit(vm.Jsr, typeCheck.CallAddress)

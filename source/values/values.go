@@ -66,38 +66,45 @@ type SnippetBindle struct {
 	ValueLocs []uint32 // The locations where we put the computed values to inject into SQL or HTML snippets.
 }
 
-func (v Value) compare(w Value) bool { // To implement the set and hash structures. It doesn't really matter which order
-	if v.T < w.T { // these things are in, so long as there is one.
+// To implement the set and hash structures.
+// If the type of the value is not comparable, we return that values so we can use it to
+// make an error as required. We return OK for success (this is in fact comparable.)
+func (v Value) compare(w Value) bool { 
+	//It doesn't really matter which order these things are in, so long as there is one.
+	// TODO --- these next few lines will, alas, let us compare things that can't be compared, we need a filter, possibly at the VM end.
+	if v.T < w.T { 
 		return true
 	}
 	if w.T < v.T {
 		return false
 	}
-	switch v.T {
-	case BOOL:
-		return (!v.V.(bool)) && w.V.(bool)
-	case FLOAT:
-		return v.V.(float64) < w.V.(float64)
-	case INT:
-		return v.V.(int) < w.V.(int)
-	case NULL:
+	// At this point since the two values must have the same internal representation we can
+	// compare them without knowing what the type is, which is a good thing because we don't
+	// have access to the ConcreteTypeInfo in the VM.
+	switch lhs := v.V.(type) {
+	case bool:
+		return (!lhs) && w.V.(bool)
+	case float64:
+		return lhs < w.V.(float64)
+	case int:
+		return lhs < w.V.(int)
+	case nil:
 		return false
-	case RUNE:
-		return v.V.(rune) < w.V.(rune)
-	case STRING:
-		return v.V.(string) < w.V.(string)
-	case TUPLE:
-		if len(v.V.([]Value)) == len(w.V.([]Value)) {
-			for i, vEl := range v.V.([]Value) {
+	case rune:
+		return lhs < w.V.(rune)
+	case string:
+		return lhs < w.V.(string)
+	case []Value:
+		if len(lhs) == len(w.V.([]Value)) {
+			for i, vEl := range lhs {
 				if vEl.compare(w.V.([]Value)[i]) {
 					return true
 				}
 			}
 			return false
 		}
-		return len(v.V.([]Value)) < len(w.V.([]Value))
-	case TYPE:
-		lhs := v.V.(AbstractType)
+		return len(lhs) < len(w.V.([]Value))
+	case AbstractType:
 		rhs := w.V.(AbstractType)
 		if len(lhs.Types) == len(rhs.Types) {
 			for i, ty := range lhs.Types {
@@ -113,9 +120,7 @@ func (v Value) compare(w Value) bool { // To implement the set and hash structur
 			return len(lhs.Types) < len(rhs.Types)
 		}
 	}
-	// So we're going to assume that it's an enum and that this has been checked elsewhere.
-	// TODO --- structs, maybe lists?
-	return v.V.(int) < w.V.(int)
+	panic("This is why you need to implement guards on the types.")
 }
 
 // Cross-reference with CONSTANTS in vm.go.

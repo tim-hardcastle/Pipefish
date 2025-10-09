@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"bytes"
 	"reflect"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
@@ -12,98 +11,7 @@ import (
 
 // Auxiliary functions that extract data from data.
 
-// Slurps the parts of a function out of it. As the colon after a function definition has
-// extremely low precedence, we should find it at the root of the tree.
-// We extract the function name first and then hand its branch or branches off to a recursive tree-slurper.
-func (prsr *Parser) ExtractPartsOfFunction(fn ast.Node) (string, uint32, ast.AstSig, ast.AstSig, ast.Node, ast.Node) {
-	var (
-		functionName          string
-		sig                   ast.AstSig
-		rTypes                ast.AstSig
-		start, content, given ast.Node
-	)
-	if fn.GetToken().Type == token.GIVEN {
-		given = fn.(*ast.InfixExpression).Args[2]
-		fn = fn.(*ast.InfixExpression).Args[0]
-	}
-
-	switch fn := fn.(type) {
-	case *ast.LazyInfixExpression:
-		if !(fn.Token.Type == token.COLON) {
-			prsr.Throw("parse/sig/malformed/a", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given
-		}
-		start = fn.Left
-		content = fn.Right
-	case *ast.InfixExpression:
-		if fn.Token.Type != token.MAGIC_COLON {
-			prsr.Throw("parse/sig/malformed/b", fn.GetToken())
-			return functionName, 0, sig, rTypes, content, given
-		}
-		start = fn.Args[0]
-		content = fn.Args[2]
-	default:
-		prsr.Throw("parse/sig/malformed/c", fn.GetToken())
-		return functionName, 0, sig, rTypes, content, given
-	}
-
-	if start.GetToken().Type == token.PIPE {
-		rTypes = prsr.RecursivelySlurpReturnTypes(start.(*ast.PipingExpression).Right)
-		start = start.(*ast.PipingExpression).Left
-	}
-	functionName, pos, sig := prsr.GetPartsOfSig(start)
-	return functionName, pos, sig, rTypes, content, given
-}
-
-func (prsr *Parser) GetPartsOfSig(start ast.Node) (functionName string, pos uint32, sig ast.AstSig) {
-	switch start := start.(type) {
-	case *ast.PrefixExpression:
-		functionName = start.Operator
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.TypePrefixExpression:
-		var out bytes.Buffer
-		out.WriteString(start.Operator)
-		if len(start.TypeArgs) != 0 {
-			out.WriteString("{")
-			sep := ""
-			for _, v := range start.Args {
-				out.WriteString(sep)
-				out.WriteString(prsr.prettyPrint(v, inlineCtxt))
-				sep = ", "
-			}
-			out.WriteString("}")
-		}
-		functionName = out.String()
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.SigTypePrefixExpression: // TODO --- can this ever happen?
-		functionName = start.Operator.String()
-		pos = 0
-		sig = prsr.extractSig(start.Args)
-	case *ast.InfixExpression:
-		functionName = start.Operator
-		pos = 1
-		sig = prsr.extractSig(start.Args)
-	case *ast.SuffixExpression:
-		functionName = start.Operator
-		pos = 2
-		sig = prsr.extractSig(start.Args)
-	case *ast.TypeSuffixExpression:
-		functionName = start.Operator.String()
-		pos = 2
-		sig = prsr.extractSig(start.Args)
-	case *ast.UnfixExpression:
-		functionName = start.Operator
-		pos = 3
-		sig = ast.AstSig{}
-	default:
-		prsr.Throw("parse/sig/malformed/d", start.GetToken())
-		return functionName, pos, sig
-	}
-	return functionName, pos, sig
-}
-
+// TODO --- at this point this is used only once to do something which isn't actually this hard.
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 	sig := ast.AstSig{}
 	if len(args) == 0 || (len(args) == 1 && reflect.TypeOf(args[0]) == reflect.TypeOf(&ast.Nothing{})) {
@@ -124,32 +32,20 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				return nil
 			}
 		case *ast.Identifier:
-			if p.Endfixes.Contains(arg.Value) {
-				varName = arg.Value
-				varType = &ast.TypeBling{*arg.GetToken(), arg.Value}
-			} else {
-				varName = arg.Value
-				varType = nil
-			}
-		// TODO --- we have to do something about this mess. Signatures and main bodies
-		// have different syntax and this is a wake-up call.
+			varName = arg.Value
+			varType = nil
 		case *ast.PrefixExpression:
-			if p.Forefixes.Contains(arg.Operator) {
+			switch inner := arg.Args[0].(type) {
+			case *ast.TypeExpression:
 				varName = arg.Operator
-				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
-			} else {
-				switch inner := arg.Args[0].(type) {
-				case *ast.TypeExpression:
-					varName = arg.Operator
-					astType := p.ToAstType(inner)
-					if astType == nil {
-						p.Throw("parse/sig/ident/c", inner.GetToken())
-					}
-					varType = astType
-				default:
+				astType := p.ToAstType(inner)
+				if astType == nil {
 					p.Throw("parse/sig/ident/c", inner.GetToken())
-					return nil
 				}
+				varType = astType
+			default:
+				p.Throw("parse/sig/ident/c", inner.GetToken())
+				return nil
 			}
 			sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
 			if len(arg.Args) > 1 {
@@ -160,17 +56,6 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				backTrackTo = len(sig)
 			}
 			continue
-		case *ast.InfixExpression:
-			if p.Midfixes.Contains(arg.Operator) {
-				varName = arg.Operator
-				varType = &ast.TypeBling{*arg.GetToken(), arg.Operator}
-			} else {
-				p.Throw("parse/sig/infix", arg.GetToken())
-				return nil
-			}
-		case *ast.Bling:
-			varName = arg.Value
-			varType = &ast.TypeBling{*arg.GetToken(), arg.Value}
 		}
 		if j == len(args)-1 && varType == nil {
 			for i := backTrackTo; i < len(sig); i++ {
@@ -178,25 +63,9 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 			}
 			varType = ast.ANY_NULLABLE_TYPE_AST
 		}
-		if _, ok := varType.(*ast.TypeBling); !(ok || varType == nil) {
-			for i := backTrackTo; i < len(sig); i++ {
-				sig[i].VarType = varType
-			}
-
-		}
-		if _, ok := varType.(*ast.TypeBling); ok {
-			if len(sig) > 0 && sig[len(sig)-1].VarType == nil {
-				for i := backTrackTo; i < len(sig); i++ {
-					sig[i].VarType = ast.ANY_NULLABLE_TYPE_AST
-				}
-			}
-		}
 		sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})
 		if sig[len(sig)-1].VarType != nil {
 			backTrackTo = len(sig)
-		}
-		if _, ok := varType.(*ast.TypeBling); ok {
-			varType = nil
 		}
 	}
 	return sig
@@ -240,43 +109,16 @@ func (p *Parser) GetVariablesFromAstSig(sig ast.AstSig) []string {
 }
 
 // TODO --- is there any sensible alternative to this?
-// This is all rather horrible and basically exists as a result of two reasons. First, since all the signatures whether of assignment
-// or function definition or struct definition or whatever fit into the same mold, we would like to be able to keep our code DRY by
-// extracting them all in the same way. However, as we don't have anything like a `let` command, the parser doesn't know that it's parsing an
-// assignment until it reaches the equals sign, by which time it's already turned the relevant tokens into an AST. Rather than kludge
-// my way out of that, I kludged my way around it by writing this thing which extracts the signature from an AST, and which has grown steadily
-// more complex with the language.
 func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (ast.AstSig, *err.Error) {
 	switch typednode := node.(type) {
 	case *ast.InfixExpression:
 		switch {
-		case p.Midfixes.Contains(typednode.Operator):
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
-			if err != nil {
-				return nil, err
-			}
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			middle := ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}
-			return append(append(LHS, middle), RHS...), nil
 		case typednode.Token.Type == token.COMMA:
 			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
 			if err != nil {
 				return nil, err
 			}
 			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], RHS.GetVarType(0).(ast.TypeNode))
-			if err != nil {
-				return nil, err
-			}
-			return append(LHS, RHS...), nil
-		case typednode.Token.Type == token.WEAK_COMMA:
-			RHS, err := p.RecursivelySlurpSignature(typednode.Args[2], dflt)
-			if err != nil {
-				return nil, err
-			}
-			LHS, err := p.RecursivelySlurpSignature(typednode.Args[0], dflt)
 			if err != nil {
 				return nil, err
 			}
@@ -300,36 +142,15 @@ func (p *Parser) RecursivelySlurpSignature(node ast.Node, dflt ast.TypeNode) (as
 		}
 		return LHS, nil
 	case *ast.SuffixExpression:
-		if p.Endfixes.Contains(typednode.Operator) {
-			LHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			end := ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}
-			return append(LHS, end), nil
-		} else {
-			return nil, newError("parse/sig/c", typednode.GetToken())
-		}
+		return nil, newError("parse/sig/c", typednode.GetToken())
 	case *ast.Identifier:
-		if p.Endfixes.Contains(typednode.Value) {
-			return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Value, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Value}}}, nil
-		}
 		return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Value, VarType: dflt}}, nil
 	case *ast.PrefixExpression:
-		if p.Forefixes.Contains(typednode.Operator) {
-			RHS, err := p.getSigFromArgs(typednode.Args, dflt)
-			if err != nil {
-				return nil, err
-			}
-			front := ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: &ast.TypeBling{*typednode.GetToken(), typednode.Operator}}}
-			return append(front, RHS...), nil
-		} else {
-			// We may well be declaring a parameter which will have the same name as a function --- e.g. 'f'.
-			// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
-			// 'foo (f func) : <function body>'. We ought therefore to be interpreting it as a parameter
-			// name under those circumstances.
-			return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: dflt}}, nil
-		}
+		// We may be declaring a parameter which has the same name as a function --- e.g. 'f'.
+		// The parser will have parsed this as a prefix expression if it was followed by a type, e.g.
+		// 'foo (f func) : <function body>'.
+		return ast.AstSig{ast.NameTypeAstPair{VarName: typednode.Operator, VarType: dflt}}, nil
+
 	}
 	return nil, newError("parse/sig/a", node.GetToken())
 }
@@ -400,7 +221,7 @@ func (p *Parser) RecursivelySlurpReturnTypes(node ast.Node) ast.AstSig {
 // that we should be able to find in a function signature.
 func (p *Parser) ToAstType(te *ast.TypeExpression) ast.TypeNode {
 	if len(te.TypeArgs) == 0 {
-		return &ast.TypeWithName{Token: te.Token, Name: te.Operator}
+		return &ast.TypeWithName{Token: te.Token, OperatorName: te.Operator}
 	}
 	// This is either a bool, float, int, rune, string, type or enum literal, in which
 	// case the whole thing should be, OR it's a type with parameters, or it's not well-
@@ -457,90 +278,18 @@ func (p *Parser) findTypeArgument(arg ast.Node) values.Value {
 	return values.Value{values.ERROR, nil}
 }
 
-func (p *Parser) MakeAbstractSigFromStringSig(sig ast.AstSig) ast.AbstractSig {
-	result := make(ast.AbstractSig, sig.Len())
-	for i, pair := range sig {
-		typename := pair.VarType
-		typeToUse := typename
-		if typename, ok := typename.(*ast.TypeDotDotDot); ok {
-			typeToUse = typename.Right
-		}
-		result[i] = ast.NameAbstractTypePair{pair.VarName, p.GetAbstractType(typeToUse)}
-	}
-	return result
-}
-
-func (p *Parser) TypeExists(name string) bool {
-	// Check if it's a shared type: 'int', 'struct', 'like{list}', 'any?' etc.
-	if _, ok := p.Common.Types[name]; ok {
-		return true
-	}
-	// ... or the result should just be in the parser's own type map.
-	_, ok := p.TypeMap[name]
-	return ok
-}
-
 func (p *Parser) IsEnumElement(name string) bool {
 	_, ok := p.EnumElementNames[name]
 	return ok
-}
-
-func (p *Parser) GetAbstractType(typeNode ast.TypeNode) values.AbstractType {
-	if typeNode == nil { // This can mark an absence of return types.
-		return values.AbstractType{}
-	}
-	switch typeNode := typeNode.(type) {
-	case *ast.TypeWithName:
-		return p.GetAbstractTypeFromTypeSys(typeNode.Name)
-	case *ast.TypeWithArguments:
-		return p.GetAbstractTypeFromTypeSys(typeNode.String())
-	case *ast.TypeInfix:
-		LHS := p.GetAbstractType(typeNode.Left)
-		RHS := p.GetAbstractType(typeNode.Right)
-		if typeNode.Operator == "/" {
-			return LHS.Union(RHS)
-		}
-		if typeNode.Operator == "&" {
-			return LHS.Intersect(RHS)
-		}
-	case *ast.TypeSuffix:
-		LHS := p.GetAbstractType(typeNode.Left)
-		if typeNode.Operator == "?" {
-			return LHS.Insert(values.NULL)
-		}
-		if typeNode.Operator == "!" {
-			return LHS.Insert(values.ERROR)
-		}
-	case *ast.TypeBling:
-		return values.AbstractType{[]values.ValueType{values.BLING}}
-	case *ast.TypeDotDotDot:
-		return p.GetAbstractType(typeNode.Right)
-	case *ast.TypeWithParameters:
-		return p.GetAbstractTypeFromTypeSys(typeNode.Blank().String())
-	case *ast.TypeExpression:
-		if typeNode.TypeArgs == nil {
-			return p.GetAbstractTypeFromTypeSys(typeNode.Operator)
-		} else {
-			return p.ParTypes2[typeNode.Operator].PossibleReturnTypes
-		}
-	}
-	panic("Can't compile type node " + typeNode.String() + " with type " + reflect.TypeOf(typeNode).String())
-}
-
-func (p *Parser) GetAbstractTypeFromTypeSys(name string) values.AbstractType {
-	// Check if it's a shared type: 'int', 'struct', 'clones{list}', 'any?' etc.
-	if result, ok := p.Common.Types[name]; ok {
-		return result
-	}
-	// ... or the result should just be in the parser's own type map.
-	result, _ := p.TypeMap[name]
-	return result
 }
 
 // Finds whether an identifier is in the right place to be a function, or whether it's being used
 // as though it's a variable or constant.
 func (p *Parser) isPositionallyFunctional() bool {
 	if assignmentTokens.Contains(p.PeekToken.Type) {
+		return false
+	}
+	if p.BlingManager.canBling(p.PeekToken.Literal) {
 		return false
 	}
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
@@ -553,7 +302,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.CurToken.Literal == "type" && p.IsTypePrefix(p.PeekToken.Literal) {
 		return true
 	}
-	if p.Functions.Contains(p.CurToken.Literal) && p.TypeExists(p.CurToken.Literal) {
+	if p.Functions.Contains(p.CurToken.Literal) && p.Typenames.Contains(p.CurToken.Literal) {
 		return p.typeIsFunctional()
 	}
 
@@ -572,12 +321,6 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.Infixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
-	if p.Midfixes.Contains(p.PeekToken.Literal) {
-		return false
-	}
-	if p.Endfixes.Contains(p.PeekToken.Literal) {
-		return false
-	}
 	if p.Suffixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
@@ -586,6 +329,9 @@ func (p *Parser) isPositionallyFunctional() bool {
 
 // TODO --- there may at this point not be any need to have this different from any other function.
 func (p *Parser) typeIsFunctional() bool {
+	if p.BlingManager.canBling(p.PeekToken.Literal) {
+		return false
+	}
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
 		p.PeekToken.Type == token.MAPPING || p.PeekToken.Type == token.FILTER ||
 		p.PeekToken.Type == token.COLON || p.PeekToken.Type == token.MAGIC_COLON ||

@@ -83,6 +83,8 @@ func TestTypeParser(t *testing.T) {
 		{`pair{K, V type}`, `pair{K type, V type}`},
 		{`list{string}`, `list{string}`},
 		{`list{list{string}}`, `list{list{string}}`},
+		{`clones{int}/string`, `(clones{int} / string)`},
+		{`clones{int}/clones{string}`, `(clones{int} / clones{string})`},
 	}
 	test_helper.RunTest(t, "", tests, testTypeParserOutput)
 }
@@ -124,9 +126,6 @@ func testTypeParserOutput(cp *compiler.Compiler, s string) (string, error) {
 	}
 	return astOfLine.String(), nil
 }
-
-
-
 
 func testParserErrors(cp *compiler.Compiler, s string) (string, error) {
 	cp.P.ParseLine("test", s)

@@ -12,6 +12,9 @@ def
 add(usr string) to (grp string) :
     HubResponse("add", [usr, grp])
 
+api :
+    HubResponse("api", [])
+
 config admin :
     HubResponse("config-admin", [])
 
@@ -45,14 +48,17 @@ help :
 help(topic string) :
     HubResponse("help", [topic])
 
+http :
+    HubResponse("http", ["6245"])
+
+http(port int) :
+    HubResponse("http", [string port])
+
 let(usr string) own (grp string) :
     HubResponse("let-own", [usr, grp])
 
 let(grp string) use (srv string) :
     HubResponse("let", [grp, srv])
-
-listen(path string, port int) :
-    HubResponse("listen", [path, string port])
 
 live on :
     HubResponse("live-on", [])
@@ -92,6 +98,9 @@ run(filename string) :
 
 run(filename string) as (srv string) :
     HubResponse("run", [filename, srv])
+
+serialize(srv string) :
+    HubResponse("serialize", [srv])
 
 services :
     HubResponse("services", [])
