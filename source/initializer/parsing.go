@@ -228,7 +228,7 @@ func (iz *Initializer) initializeExternals() {
 			}
 			hostpath := path[0:pos]
 			if !hasPort.Match([]byte(hostpath)) {
-				hostpath = hostpath + ":6245"
+				hostpath = hostpath + ":50005"
 			}
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
