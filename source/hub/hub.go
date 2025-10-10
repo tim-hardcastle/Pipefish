@@ -1400,8 +1400,8 @@ func (h *Hub) StartHttp(port string) {
 	}
 }
 
-// The hub expects an HTTP request to consist of JSON
-// containing the line to be executed and the username and password of the user.
+// The hub expects an HTTP request to consist of JSON containing the line to be executed,
+// the service to execute it, and the username and password of the user.
 type jsonRequest = struct {
 	Body     string
 	Service  string
@@ -1429,7 +1429,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
 		_, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
-			h.WriteError("D/ " + err.Error())
+			h.WriteError(err.Error())
 			return
 		}
 	}

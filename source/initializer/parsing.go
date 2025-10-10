@@ -2,6 +2,7 @@ package initializer
 
 import (
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/lmorg/readline/v4"
@@ -204,6 +205,7 @@ func (iz *Initializer) recursivelyParseImports() []string {
 //
 // Details of the external services are kept in the vm, because it will have to make the external calls.
 func (iz *Initializer) initializeExternals() {
+	hasPort, _ := regexp.Compile(":[0-9]+$")
 	for _, tc := range iz.tokenizedCode[externalDeclaration] {
 		dec := tc.(*tokenizedExternalOrImportDeclaration)
 		name := dec.name.Literal
@@ -225,6 +227,9 @@ func (iz *Initializer) initializeExternals() {
 				continue
 			}
 			hostpath := path[0:pos]
+			if !hasPort.Match([]byte(hostpath)) {
+				hostpath = hostpath + ":6245"
+			}
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
 			if pos == -1 {
