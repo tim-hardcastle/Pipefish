@@ -141,7 +141,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string, external 
 	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
 		!(line == "hub register" || line == "hub log on" || line == "hub quit") {
 		hub.WriteError("this is an administered hub and you aren't logged on. Please enter either " +
-			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
+			"`hub register` to register as a user, or `hub log on` to log on if you're already registered " +
 			"with this hub.")
 		return passedServiceName, false
 	}
@@ -150,7 +150,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string, external 
 
 	serviceToUse, ok := hub.services[passedServiceName]
 	if !ok {
-		hub.WriteError("the hub can't find the service '" + passedServiceName + "'.")
+		hub.WriteError("the hub can't find the service \"" + passedServiceName + "\".")
 		return passedServiceName, false
 	}
 
@@ -198,7 +198,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string, external 
 
 	if len(hubWords) > 0 && hubWords[0] == "os" {
 		if hub.isAdministered() {
-			hub.WriteError("for reasons of safety and sanity, the 'os' prefix doesn't work in administered hubs.")
+			hub.WriteError("for reasons of safety and sanity, the `os` prefix doesn't work in administered hubs.")
 			return passedServiceName, false
 		}
 		if len(hubWords) == 3 && hubWords[1] == "cd" { // Because cd changes the directory for the current
@@ -243,7 +243,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string, external 
 		hub.WriteString("\n")
 		hub.ers = []*pf.Error{val.V.(*pf.Error)}
 		if len(val.V.(*pf.Error).Values) > 0 {
-			hub.WritePretty("Values are available with 'hub values'.\n\n")
+			hub.WritePretty("Values are available with `hub values`.\n\n")
 		}
 	} else if !serviceToUse.PostHappened() {
 		serviceToUse.Output(val)
@@ -302,8 +302,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			verb == "groups-of-user" || verb == "groups-of-service" || verb == "services of group" ||
 			verb == "services-of-user" || verb == "users-of-service" || verb == "users-of-group" ||
 			verb == "let-use" || verb == "let-own") {
-		hub.WriteError("this is not an administered hub. To initialize it as one, first do 'hub config db' " +
-			"(if you haven't already) and then 'hub config admin'.")
+		hub.WriteError("this is not an administered hub. To initialize it as one, first do `hub config db` " +
+			"(if you haven't already) and then `hub config admin`.")
 		return false
 	}
 	if hub.isAdministered() {
@@ -325,7 +325,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		if username == "" && !(verb == "log-on" || verb == "register" || verb == "quit") {
 			hub.WriteError("\nThis is an administered hub and you aren't logged on. Please enter either " +
-				"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
+				"`hub register` to register as a user, or `hub log on` to log on if you're already registered " +
 				"with this hub.\n\n")
 			return false
 		}
@@ -406,7 +406,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		if ok {
 			name = toStr(args[0])
 		} else {
-			hub.WriteError("the hub can't find the service '" + toStr(args[0]) + "'.")
+			hub.WriteError("the hub can't find the service \"" + toStr(args[0]) + "\".")
 			return false
 		}
 		if name == "" || name == "hub" {
@@ -424,8 +424,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			hub.WritePretty(helpMessage + "\n")
 			return false
 		} else {
-			hub.WriteError("the 'hub help' command doesn't accept " +
-				"'" + toStr(args[0]) + "' as a parameter.")
+			hub.WriteError("the `hub help` command doesn't accept " +
+				"\"" + toStr(args[0]) + "\" as a parameter.")
 			return false
 		}
 	case "let":
@@ -469,7 +469,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.makeEmptyServiceCurrent()
 		hub.WriteString("\n" + GREEN_OK + "\n")
 		hub.WritePretty("\nThis is an administered hub and you aren't logged on. Please enter either " +
-			"'hub register' to register as a user, or 'hub log on' to log on if you're already registered " +
+			"`hub register` to register as a user, or `hub log on` to log on if you're already registered " +
 			"with this hub.\n\n")
 		return false
 	case "groups":
@@ -525,7 +525,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 	case "reset":
 		serviceToReset, ok := hub.services[hub.currentServiceName()]
 		if !ok {
-			hub.WriteError("the hub can't find the service '" + hub.currentServiceName() + "'.")
+			hub.WriteError("the hub can't find the service \"" + hub.currentServiceName() + "\".")
 			return false
 		}
 		if hub.currentServiceName() == "" {
@@ -533,8 +533,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		}
 		filepath, _ := serviceToReset.GetFilepath()
-		hub.WritePretty("Restarting script '" + filepath +
-			"' as service '" + hub.currentServiceName() + "'.\n")
+		hub.WritePretty("Restarting script \"" + filepath +
+			"\" as service \"" + hub.currentServiceName() + "\".\n")
 		hub.StartAndMakeCurrent(username, hub.currentServiceName(), filepath)
 		hub.lastRun = []string{hub.currentServiceName()}
 		return false
@@ -544,8 +544,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		}
 		filepath, _ := hub.services[hub.lastRun[0]].GetFilepath()
-		hub.WritePretty("Rerunning script '" + filepath +
-			"' as service '" + hub.lastRun[0] + "'.\n")
+		hub.WritePretty("Rerunning script \"" + filepath +
+			"\" as service \"" + hub.lastRun[0] + "\".\n")
 		hub.StartAndMakeCurrent(username, hub.lastRun[0], filepath)
 		hub.tryMain()
 		return false
@@ -558,13 +558,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		hub.lastRun = []string{fname, sname}
 		if sname == "" {
-			hub.WritePretty("Starting script '" + filepath.Base(fname) +
-				"' as service '#" + strconv.Itoa(hub.anonymousServiceNumber) + "'.\n")
+			hub.WritePretty("Starting script \"" + filepath.Base(fname) +
+				"\" as service \"#" + strconv.Itoa(hub.anonymousServiceNumber) + "\".\n")
 			hub.StartAnonymous(fname)
 			hub.tryMain()
 			return false
 		}
-		hub.WritePretty("Starting script '" + filepath.Base(fname) + "' as service '" + sname + "'.\n")
+		hub.WritePretty("Starting script \"" + filepath.Base(fname) + "\" as service \"" + sname + "\".\n")
 		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
 		return false
@@ -682,7 +682,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 					return false
 				}
 				if !access {
-					hub.WriteError("you don't have access to service '" + sname + "'.")
+					hub.WriteError("you don't have access to service \"" + sname + "\".")
 					return false
 				}
 				database.UpdateService(hub.Db, username, sname)
@@ -692,7 +692,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 				return false
 			}
 		}
-		hub.WriteError("service '" + sname + "' doesn't exist")
+		hub.WriteError("service \"" + sname + "\" doesn't exist")
 		return false
 	case "test":
 		fname := toStr(args[0])
@@ -786,7 +786,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 	case "where":
 		num := args[0].V.(int)
 		if num < 0 {
-			hub.WriteError("the 'where' keyword can't take a negative number as a parameter.")
+			hub.WriteError("the `where` keyword can't take a negative number as a parameter.")
 			return false
 		}
 		if num >= len(hub.ers) {
@@ -814,9 +814,9 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		}
 		exp, _ := pf.ExplainError(hub.ers, num)
-		hub.WritePretty("\n$Error$" + hub.ers[num].Message +
+		hub.WritePretty("\n<R>Error</>" + hub.ers[num].Message +
 			".\n\n" + exp + "\n")
-		refLine := "Error has reference '" + hub.ers[num].ErrorId + "'."
+		refLine := "Error has reference `" + hub.ers[num].ErrorId + "`."
 		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")
@@ -869,15 +869,13 @@ func (hub *Hub) help() {
 }
 
 func (hub *Hub) WritePretty(s string) {
-	_, ok := hub.services["hub"]
+	// This shouldn't be happening here.
+	hubService, ok := hub.services["hub"]
 	if !ok {
-		panic("Hub failed to initialize, error is '" + s + "'.")
+		panic("Hub failed to initialize, error is `" + s + "`.")
 	}
-	if errorsExist, _ := hub.services["hub"].ErrorsExist(); errorsExist {
-		hub.WriteString(pf.PrettyString(s, 0, 92))
-		return
-	}
-	hub.WriteString(pf.PrettyString(s, 0, hub.getSV("width").V.(int)))
+	mdFunc := hubService.GetMarkdowner("", hub.getSV("width").V.(int), hub.getFonts())
+	hub.WriteString(mdFunc(s))
 }
 
 func (hub *Hub) isAdministered() bool {
@@ -886,8 +884,9 @@ func (hub *Hub) isAdministered() bool {
 }
 
 func (hub *Hub) WriteError(s string) {
-	hub.WritePretty("\n$Hub error$" + s)
 	hub.WriteString("\n")
+	hub.WritePretty(HUB_ERROR + s)
+	hub.WriteString("\n\n")
 }
 
 func (hub *Hub) WriteString(s string) {
@@ -931,7 +930,7 @@ func init() {
 	}
 	helpTopics = append(helpTopics, "topics")
 	sort.Strings(helpTopics)
-	helpStringForHelp := "\nYou can get help on a subject by typing 'hub help \"<topic name>\"' into the REPL.\n\n" +
+	helpStringForHelp := "\nYou can get help on a subject by typing `hub help \"<topic name>\"` into the REPL.\n\n" +
 		"Help topics are: \n\n"
 	for _, v := range helpTopics {
 		helpStringForHelp = helpStringForHelp + BULLET + "\"" + v + "\"\n"
@@ -1006,7 +1005,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 			fmt.Println("Pipefish: unable to compile hub: " + text.Red(newService.GetErrors()[0].ErrorId) + ".")
 		}
 		if !newService.IsInitialized() {
-			hub.WriteError("unable to open '" + scriptFilepath + "' with error '" + e.Error() + "'")
+			hub.WriteError("unable to open \"" + scriptFilepath + "\" with error `" + e.Error() + "`")
 		} else {
 			hub.GetAndReportErrors(newService)
 		}
@@ -1021,30 +1020,33 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 func StartServiceFromCli() {
 	filename := os.Args[2]
 	newService := pf.NewService()
-	// TODO --- probably this ought to get the `$_hub` settings.
+	// This ought to get the `$_hub` settings.
+	// Then we could do proper markdown in the errors.
 	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
-		fmt.Println("\nThere were errors running the script " + Cyan("'"+filename+"'") + ".")
+		fmt.Println("\nThere were errors running the script \"" +filename+ "\".")
 		s, _ := newService.GetErrorReport()
-		fmt.Println(pf.PrettyString(s, 0, 92))
+		fmt.Println(s)
 		fmt.Print("Closing Pipefish.\n\n")
 		os.Exit(3)
 	}
 	val, _ := newService.CallMain()
 	if val.T == pf.UNDEFINED_TYPE {
-		s := "\nScript " + Cyan("'"+filename) + " has no " + Cyan("'main'") + " command.\n\n"
-		fmt.Println(pf.PrettyString(s, 0, 92))
+		s := "\nScript \""+ filename + "\" has no `main` command.\n\n"
+		fmt.Println(s)
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
 	}
-	fmt.Println(newService.ToLiteral(val) + "\n")
+	fmt.Println(newService.ToString(val) + "\n")
 	os.Exit(0)
 }
 
 func (hub *Hub) GetAndReportErrors(sv *pf.Service) {
 	hub.ers = sv.GetErrors()
 	r, _ := sv.GetErrorReport()
+	hub.WriteString("\n")
 	hub.WritePretty(r)
+	hub.WriteString("\n")
 }
 
 func (hub *Hub) CurrentServiceIsBroken() bool {
@@ -1233,13 +1235,13 @@ func (hub *Hub) list() {
 		fpath, _ := hub.services[k].GetFilepath()
 		if hub.services[k].IsBroken() {
 			hub.WriteString(BROKEN)
-			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")
+			hub.WritePretty("Service \"" + k + "\" running script \"" + filepath.Base(fpath) + "\".")
 		} else {
 			hub.WriteString(GOOD_BULLET)
-			hub.WritePretty("Service '" + k + "' running script '" + filepath.Base(fpath) + "'.")
+			hub.WritePretty("Service \"" + k + "\" running script \"" + filepath.Base(fpath) + "\".")
 		}
 	}
-	hub.WriteString("\n")
+	hub.WriteString("\n\n")
 }
 
 func (hub *Hub) TestScript(scriptFilepath string, testOutputType TestOutputType) {
@@ -1280,7 +1282,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	}
 	scanner.Scan()
 	if !hub.StartAndMakeCurrent("", "#test", scriptFilepath) {
-		hub.WriteError("Can't initialize script '" + scriptFilepath + "'")
+		hub.WriteError("Can't initialize script \"" + scriptFilepath + "\"")
 		return
 	}
 	testService := hub.services["#test"]
@@ -1288,7 +1290,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)
 	if testOutputType == ERROR_CHECK {
-		hub.WritePretty("Running test '" + testFilepath + "'.\n")
+		hub.WritePretty("Running test \"" + testFilepath + "\".\n")
 	}
 	ty, _ := testService.TypeNameToType("$_OutputAs")
 	testService.SetVariable("$_outputAs", ty, 0)
@@ -1491,7 +1493,7 @@ func (h *Hub) handleConfigUserForm(f *Form) {
 	}
 	h.Username = f.Result["Username"]
 	h.Password = f.Result["*Password"]
-	h.WritePretty("You are logged in as '" + h.Username + "'.\n")
+	h.WriteString("You are logged in as " + h.Username + ".\n")
 }
 
 func (h *Hub) configAdmin() {
@@ -1503,7 +1505,7 @@ func (h *Hub) configAdmin() {
 func (h *Hub) handleConfigAdminForm(f *Form) {
 	h.CurrentForm = nil
 	if h.Db == nil {
-		h.WriteError("database has not been configured: do 'hub config db' first.")
+		h.WriteError("database has not been configured: edit the hub file or do `hub config db` first.")
 		return
 	}
 	if f.Result["*Password"] != f.Result["*Confirm password"] {
@@ -1519,7 +1521,7 @@ func (h *Hub) handleConfigAdminForm(f *Form) {
 	h.WriteString(GREEN_OK + "\n")
 	h.Username = f.Result["Username"]
 	h.Password = f.Result["*Password"]
-	h.WritePretty("You are logged in as '" + h.Username + "'.\n")
+	h.WritePretty("You are logged in as " + h.Username + ".\n")
 
 	h.administered = true
 }
@@ -1591,16 +1593,16 @@ var (
 	BROKEN         = Red("  ✖ ")
 	PROMPT         = "→ "
 	INDENT_PROMPT  = "  "
-	ERROR          = "$Error$"
-	RT_ERROR       = "$Error$"
-	HUB_ERROR      = "$Hub error$"
+	ERROR          = text.ERROR
+	RT_ERROR       = text.ERROR
+	HUB_ERROR      = "<R>Hub error</>: "
 )
 
 const HELP = "\nUsage: pipefish [-v | --version] [-h | --help]\n" +
 	"                <command> [args]\n\n" +
 	"Commands are:\n\n" +
 	"  tui           Starts the Pipfish TUI (text user interface).\n" +
-	"  run <file>    Runs a Pipefish script if it has a 'main' command.\n\n"
+	"  run <file>    Runs a Pipefish script if it has a `main` command.\n\n"
 
 func Red(s string) string {
 	return "\033[31m" + s + "\033[0m"

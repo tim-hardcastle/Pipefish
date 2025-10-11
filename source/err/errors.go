@@ -50,11 +50,11 @@ func GetList(ers Errors) string {
 	if len(ers) == 0 {
 		return "\nCurrent service has no recent errors.\n"
 	}
-	result := "\n"
+	result := ""
 	for i, v := range ers {
 		result = result + "[" + strconv.Itoa(i) + "] " + text.ERROR + (v.Message) + text.DescribePos(v.Token) + ".\n"
 	}
-	return result + "\n"
+	return result
 }
 
 func AddErr(err *Error, ers Errors, tok *token.Token) Errors {

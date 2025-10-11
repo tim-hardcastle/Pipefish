@@ -62,11 +62,11 @@ func Cyan(s string) string {
 }
 
 func Emph(s string) string {
-	return "'" + s + "'"
+	return "`" + s + "`"
 }
 
 func EmphType(s string) string {
-	return "'" + s + "'"
+	return "`" + s + "`"
 }
 
 func Red(s string) string {
@@ -94,15 +94,14 @@ func DescribePos(token *token.Token) string {
 		return ""
 	}
 	if prettySource != "REPL input" {
-		prettySource = "'" + prettySource + "'"
+		prettySource = "\"" + prettySource + "\""
 	}
 	if token.Line > 0 {
 		result := strconv.Itoa(token.Line) + ":" + strconv.Itoa(token.ChStart)
 		if token.ChStart != token.ChEnd {
 			result = result + "-" + strconv.Itoa(token.ChEnd)
 		}
-		result = " at line" + "@" + result + "@"
-
+		result = " at line <Y>" + result + "</> "
 		return result + "of " + prettySource
 	}
 	return " in " + prettySource
@@ -200,8 +199,8 @@ const (
 	ITALIC    = "\033[3m"
 	BOLD      = "\033[1m"
 	BULLET    = "  ▪ "
-	RT_ERROR  = "$Error$"
-	ERROR     = "$Error$"
+	RT_ERROR  = "<R>Error</>: "
+	ERROR     = "<R>Error</>: "
 )
 
 func HighlightLine(plainLine string, highlighter rune) (string, rune) {

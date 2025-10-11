@@ -250,7 +250,7 @@ var (
 
 // We can't just lex it beause we need the whitespace intact. But we can
 // use the lexer logic.
-func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
+func (cp *Compiler) Highlight(code []rune, fonts *values.Map) string {
 	var out bytes.Buffer
 	brackets := []rune{}
 	runes := lexer.NewRuneSupplier(code)
@@ -352,6 +352,16 @@ func (sv *Compiler) Highlight(code []rune, fonts *values.Map) string {
 		runes.Next()
 	}
 	return out.String()
+}
+
+func (cp *Compiler) GetMarkdowner(leftMargin string, rightMargin int, fonts *values.Map) func(string) string {
+	hl := func(s string) string {
+		return cp.Highlight([]rune(s), fonts)
+	}
+	md := text.NewMarkdown(leftMargin, rightMargin, hl)
+	return func(s string) string {
+		return md.Render([]string{s})
+	}
 }
 
 func wrapFont(body, tokenIs string, fonts *values.Map) string {

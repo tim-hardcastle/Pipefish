@@ -230,16 +230,15 @@ func (iz *Initializer) initializeExternals() {
 			if !hasPort.Match([]byte(hostpath)) {
 				hostpath = hostpath + ":50005"
 			}
+			pathWithoutPort := strings.Split(hostpath, ":")[1]
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
 			if pos == -1 {
 				iz.throw("init/external/path/b", &dec.path)
 				continue
 			}
-			hostname := hostpath[pos+1:]
-			// TODO --- you need ways of doing this remotely at least in HubTalk.
 			rline := readline.NewInstance()
-			println("Please enter your username and password for hub " + text.CYAN + "'" + hostname + "'" + text.RESET + ".")
+			println("Please enter your username and password for hub at " + text.CYAN + "'" + pathWithoutPort + "'" + text.RESET + ".")
 			rline.SetPrompt("Username: ")
 			username, _ := rline.Readline()
 			rline.SetPrompt("Password: ")

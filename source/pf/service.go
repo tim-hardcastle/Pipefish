@@ -465,9 +465,9 @@ func (sv *Service) PostHappened() bool {
 	return sv.cp.Vm.PostHappened
 }
 
-// Turns the markup Pipefish uses internally into highlighting.
-func PrettyString(s string, left, right int) string {
-	return text.Pretty(s, left, right)
+// Gets markdown with appropriate highlighting.
+func (sv *Service) GetMarkdowner(leftMargin string, rightMargin int, fonts *values.Map) func(string) string {
+	return sv.cp.GetMarkdowner(leftMargin, rightMargin, fonts)
 }
 
 // Tries to turn a given Pipefish value into a given Go type. As it necessarily has return

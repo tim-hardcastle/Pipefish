@@ -2852,10 +2852,6 @@ func (cp *Compiler) ErrorsExist() bool {
 	return len(cp.P.Common.Errors) > 0
 }
 
-func (cp *Compiler) ReturnErrors() string {
-	return cp.P.ReturnErrors()
-}
-
 func altType(t ...values.ValueType) AlternateType {
 	return AltType(t...)
 }

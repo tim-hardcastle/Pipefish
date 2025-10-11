@@ -3630,7 +3630,7 @@ func emph(s any) string {
 	if t, ok := s.(string); ok {
 		s = strings.TrimSpace(t)
 	}
-	return fmt.Sprintf("'%v'", s)
+	return fmt.Sprintf("`%v`", s)
 }
 
 func emphStr(s any) string {
@@ -3638,7 +3638,7 @@ func emphStr(s any) string {
 }
 
 func EmphType(v values.Value) string {
-	return "'" + strconv.Itoa(int(v.T)) + "'" // TODO.
+	return "`" + strconv.Itoa(int(v.T)) + "`" // TODO.
 }
 
 func DescribeParams(vL []values.Value) string {
