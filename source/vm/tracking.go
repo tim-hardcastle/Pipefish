@@ -62,11 +62,11 @@ func (vm *Vm) TrackingToString(tdL []TrackingData) string {
 		case TR_FNCALL:
 			out.WriteString("We called function ")
 			out.WriteString(text.Emph(args[0].(string)))
-			out.WriteString(" — defined at@line ")
+			out.WriteString(" - defined at@line ")
 			out.WriteString(strconv.Itoa(td.Tok.Line))
 			out.WriteString("@")
 			if len(args) > 1 {
-				out.WriteString("— with ")
+				out.WriteString("- with ")
 				sep := ""
 				for i := 1; i < len(args); i = i + 2 {
 					out.WriteString(sep)

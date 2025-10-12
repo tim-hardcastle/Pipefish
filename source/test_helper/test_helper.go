@@ -46,6 +46,11 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 			println("There were errors parsing the line: \n" + r + "\n")
 		}
 		if !(test.Want == got) {
+			// if len(test.Want) != len(got) {
+			// 	for i, ch := range test.Want {
+			// 		println(ch, string(ch), got[i], string(got[i]))
+			// 	}
+			// }
 			t.Fatalf("Test failed with input %s \nExp :\n%s\nGot :\n%s", test.Input, test.Want, got)
 		}
 	}
@@ -91,7 +96,7 @@ func TestOutput(cp *compiler.Compiler, s string) (string, error) {
 	if cp.ErrorsExist() {
 		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
-	return cp.Vm.OutHandle.(*vm.CapturingOutHandler).Dump(), nil
+	return text.StripColors(cp.Vm.OutHandle.(*vm.CapturingOutHandler).Dump()), nil
 }
 
 func TestCompilerErrors(cp *compiler.Compiler, s string) (string, error) {
@@ -149,26 +154,23 @@ func TestExternalOrImportChunking(iz *initializer.Initializer, s string) string 
 	return initializer.SummaryString(ty)
 }
 
-var Foo8Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i'[0m [0m= [0m[36m'8'[0m.
-At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
-The [0mcondition [0msucceeded.
-At [33mline 15 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"even"[0m.
-`
+var Foo8Result = "We called function `foo` - defined at line 13 - with `i` = `8`.\n" +
+        "At line 14 we evaluated the condition `i mod 2 == 0`. \n" + 
+        "The condition succeeded.\n" +
+        "At line 15 function `foo` returned \"even\".\n"
 
-var Foo13Result = `We [0mcalled [0mfunction [0m[36m'foo'[0m [0m— [0mdefined [0mat [33mline 13 [0m— [0mwith [0m[36m'i'[0m [0m= [0m[36m'13'[0m.
-At [33mline 14 [0mwe [0mevaluated [0mthe [0mcondition [0m[36m'i mod 2 == 0'[0m. [0m
-The [0mcondition [0mfailed.
-At [33mline 16 [0mwe [0mtook [0mthe [0m[36m'else'[0m [0mbranch.
-At [33mline 17 [0mfunction [0m[36m'foo'[0m [0mreturned [0m[36m"odd"[0m.
-`
+var Foo13Result = "We called function `foo` - defined at line 13 - with `i` = `13`.\n" +
+        "At line 14 we evaluated the condition `i mod 2 == 0`. \n" +
+        "The condition failed.\n" +
+        "At line 16 we took the `else` branch.\n" +
+        "At line 17 function `foo` returned \"odd\".\n"
 
-var Qux8Result = `Log [0mat [33mline 7 [0m: [0mWe're [0mhere.
-Log [0mat [33mline 8 [0m: [0mWe [0mtest [0mto [0msee [0mif [0mi [0m(8) [0mis [0meven, [0mwhich [0mis [0mtrue.
-Log [0mat [33mline 9 [0m: [0mWe [0mreturn [0m[36m"even"[0m, [0mbecause [0m8 [0mis [0meven.
-`
+var Qux8Result = "Log at line 7 : We're here.\n" +
+        "Log at line 8 : We test to see if i (8) is even, which is true.\n" +
+        "Log at line 9 : We return \"even\", because 8 is even.\n"
 
-var Qux13Result = `Log [0mat [33mline 7 [0m: [0mWe're [0mhere.
-Log [0mat [33mline 8 [0m: [0mWe [0mtest [0mto [0msee [0mif [0mi [0m(13) [0mis [0meven, [0mwhich [0mis [0mfalse.
-Log [0mat [33mline 10 [0m: [0mGuess [0mwe're [0mtaking [0mthe [0m[36m'else'[0m [0mbranch.
-Log [0mat [33mline 11 [0m: [0mAnd [0mwe [0mreturn [0m[36m"odd"[0m.
-`
+var Qux13Result = "Log at line 7 : We're here.\n" +
+        "Log at line 8 : We test to see if i (13) is even, which is false.\n" +
+        "Log at line 10 : Guess we're taking the 'else' branch.\n" +
+        "Log at line 11 : And we return \"odd\".\n"
+

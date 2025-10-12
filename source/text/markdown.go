@@ -264,12 +264,12 @@ line:
 	return sb.String()
 }
 
-func stripColors(s string) string {
+func StripColors(s string) string {
 	return string(stripColorCodes.ReplaceAllString(s, ""))
 }
 
 func colorlessLength(s string) int {
-	return len(stripColors(s))
+	return len(StripColors(s))
 }
 
 func applyFont(s, font string) string {
