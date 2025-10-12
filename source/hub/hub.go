@@ -150,7 +150,7 @@ func (hub *Hub) Do(line, username, password, passedServiceName string, external 
 
 	serviceToUse, ok := hub.services[passedServiceName]
 	if !ok {
-		hub.WriteError("the hub can't find the service \"" + passedServiceName + "\".")
+		hub.WriteError("the hub can't find the service <C>\"" + passedServiceName + "\"</>.")
 		return passedServiceName, false
 	}
 
@@ -406,7 +406,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		if ok {
 			name = toStr(args[0])
 		} else {
-			hub.WriteError("the hub can't find the service \"" + toStr(args[0]) + "\".")
+			hub.WriteError("the hub can't find the service <C>\"" + toStr(args[0]) + "\"</>.")
 			return false
 		}
 		if name == "" || name == "hub" {
@@ -425,7 +425,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		} else {
 			hub.WriteError("the `hub help` command doesn't accept " +
-				"\"" + toStr(args[0]) + "\" as a parameter.")
+				"`\"" + toStr(args[0]) + "\"` as a parameter.")
 			return false
 		}
 	case "let":
@@ -525,7 +525,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 	case "reset":
 		serviceToReset, ok := hub.services[hub.currentServiceName()]
 		if !ok {
-			hub.WriteError("the hub can't find the service \"" + hub.currentServiceName() + "\".")
+			hub.WriteError("the hub can't find the service <C>\"" + hub.currentServiceName() + "\".")
 			return false
 		}
 		if hub.currentServiceName() == "" {
@@ -533,8 +533,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		}
 		filepath, _ := serviceToReset.GetFilepath()
-		hub.WritePretty("Restarting script \"" + filepath +
-			"\" as service \"" + hub.currentServiceName() + "\".\n")
+		hub.WritePretty("Restarting script <C>\"" + filepath +
+			"\" as service <C>\"" + hub.currentServiceName() + "\"</>.\n")
 		hub.StartAndMakeCurrent(username, hub.currentServiceName(), filepath)
 		hub.lastRun = []string{hub.currentServiceName()}
 		return false
@@ -544,8 +544,8 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		}
 		filepath, _ := hub.services[hub.lastRun[0]].GetFilepath()
-		hub.WritePretty("Rerunning script \"" + filepath +
-			"\" as service \"" + hub.lastRun[0] + "\".\n")
+		hub.WritePretty("Rerunning script <C>\"" + filepath +
+			"</>\" as service <C>\"" + hub.lastRun[0] + "\"</>.\n")
 		hub.StartAndMakeCurrent(username, hub.lastRun[0], filepath)
 		hub.tryMain()
 		return false
@@ -558,13 +558,13 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		hub.lastRun = []string{fname, sname}
 		if sname == "" {
-			hub.WritePretty("Starting script \"" + filepath.Base(fname) +
-				"\" as service \"#" + strconv.Itoa(hub.anonymousServiceNumber) + "\".\n")
+			hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) +
+				"\" as service <C>\"#" + strconv.Itoa(hub.anonymousServiceNumber) + "\"</>.\n")
 			hub.StartAnonymous(fname)
 			hub.tryMain()
 			return false
 		}
-		hub.WritePretty("Starting script \"" + filepath.Base(fname) + "\" as service \"" + sname + "\".\n")
+		hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) + "\"</> as service <C>\"" + sname + "\"</>.\n")
 		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
 		return false
@@ -682,7 +682,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 					return false
 				}
 				if !access {
-					hub.WriteError("you don't have access to service \"" + sname + "\".")
+					hub.WriteError("you don't have access to service <C>\"" + sname + "\"</>.")
 					return false
 				}
 				database.UpdateService(hub.Db, username, sname)
@@ -692,7 +692,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 				return false
 			}
 		}
-		hub.WriteError("service \"" + sname + "\" doesn't exist")
+		hub.WriteError("service <C>\"" + sname + "\"</> doesn't exist")
 		return false
 	case "test":
 		fname := toStr(args[0])
@@ -1005,7 +1005,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 			fmt.Println("Pipefish: unable to compile hub: " + text.Red(newService.GetErrors()[0].ErrorId) + ".")
 		}
 		if !newService.IsInitialized() {
-			hub.WriteError("unable to open \"" + scriptFilepath + "\" with error `" + e.Error() + "`")
+			hub.WriteError("unable to open <C>\"" + scriptFilepath + "\"</> with error `" + e.Error() + "`")
 		} else {
 			hub.GetAndReportErrors(newService)
 		}
@@ -1024,7 +1024,7 @@ func StartServiceFromCli() {
 	// Then we could do proper markdown in the errors.
 	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
-		fmt.Println("\nThere were errors running the script \"" +filename+ "\".")
+		fmt.Println("\nThere were errors running the script <C>\"" +filename+ "\"</>.")
 		s, _ := newService.GetErrorReport()
 		fmt.Println(s)
 		fmt.Print("Closing Pipefish.\n\n")
@@ -1032,7 +1032,7 @@ func StartServiceFromCli() {
 	}
 	val, _ := newService.CallMain()
 	if val.T == pf.UNDEFINED_TYPE {
-		s := "\nScript \""+ filename + "\" has no `main` command.\n\n"
+		s := "\nScript <C>\""+ filename + "\"</> has no `main` command.\n\n"
 		fmt.Println(s)
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
@@ -1235,10 +1235,10 @@ func (hub *Hub) list() {
 		fpath, _ := hub.services[k].GetFilepath()
 		if hub.services[k].IsBroken() {
 			hub.WriteString(BROKEN)
-			hub.WritePretty("Service \"" + k + "\" running script \"" + filepath.Base(fpath) + "\".")
+			hub.WritePretty("Service <C>\"" + k + "\"</> running script <C>\"" + filepath.Base(fpath) + "\"</>.")
 		} else {
 			hub.WriteString(GOOD_BULLET)
-			hub.WritePretty("Service \"" + k + "\" running script \"" + filepath.Base(fpath) + "\".")
+			hub.WritePretty("Service <C>\"" + k + "\"</> running script <C>\"" + filepath.Base(fpath) + "\"</>.")
 		}
 	}
 	hub.WriteString("\n\n")
@@ -1282,7 +1282,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	}
 	scanner.Scan()
 	if !hub.StartAndMakeCurrent("", "#test", scriptFilepath) {
-		hub.WriteError("Can't initialize script \"" + scriptFilepath + "\"")
+		hub.WriteError("Can't initialize script <C>\"" + scriptFilepath + "\"</>")
 		return
 	}
 	testService := hub.services["#test"]
@@ -1290,7 +1290,7 @@ func (hub *Hub) RunTest(scriptFilepath, testFilepath string, testOutputType Test
 	testService.SetInHandler(in)
 	testService.SetOutHandler(out)
 	if testOutputType == ERROR_CHECK {
-		hub.WritePretty("Running test \"" + testFilepath + "\".\n")
+		hub.WritePretty("Running test <C>\"" + testFilepath + "\"</>.\n")
 	}
 	ty, _ := testService.TypeNameToType("$_OutputAs")
 	testService.SetVariable("$_outputAs", ty, 0)
