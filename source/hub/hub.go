@@ -447,7 +447,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		return false
 	case "http":
 		hub.WriteString(GREEN_OK)
-		go hub.StartHttp(toStr(args[0]))
+		go hub.StartHttp(toStr(args[0]), false)
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -1389,10 +1389,10 @@ func valToString(srv *pf.Service, val pf.Value) string {
 	return srv.ToLiteral(val)
 }
 
-func (h *Hub) StartHttp(port string) {
+func (h *Hub) StartHttp(port string, isHttps bool) {
 	h.port = port
 	h.listeningToHttp = true
-	http.HandleFunc("/", h.handleJsonRequest)
+	http.HandleFunc("/", h.getHandler(isHttps))
 	err := http.ListenAndServe(":"+port, nil)
 	if errors.Is(err, http.ErrServerClosed) {
 		h.WriteError("server closed.")
@@ -1416,18 +1416,41 @@ type jsonResponse = struct {
 	Service string
 }
 
+func (h *Hub) getHandler(isHttps bool) func(http.ResponseWriter, *http.Request) {
+	return func (w http.ResponseWriter, r *http.Request) {
+		var request jsonRequest
+		err := json.NewDecoder(r.Body).Decode(&request)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		var serviceName string
+		if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
+			_, err = database.ValidateUser(h.Db, request.Username, request.Password)
+			if err != nil {
+				h.WriteError(err.Error())
+				return
+			}
+		}
+		var buf bytes.Buffer
+		h.out = &buf
+		sv := h.services[request.Service]
+		sv.SetOutHandler(sv.MakeLiteralOutHandler(&buf))
+		serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service, true)
+		h.out = os.Stdout
+		response := jsonResponse{Body: buf.String(), Service: serviceName}
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
 func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
-
 	var request jsonRequest
-
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	var serviceName string
-
 	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
 		_, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
@@ -1435,7 +1458,6 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 	var buf bytes.Buffer
 	h.out = &buf
 	sv := h.services[request.Service]
@@ -1444,13 +1466,12 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
     h.out = os.Stdout
 	response := jsonResponse{Body: buf.String(), Service: serviceName}
 	json.NewEncoder(w).Encode(response)
-
 }
 
 // So, the Form type. Yes, I basically am reinventing the object here because the fields of
 // a struct aren't first-class objects in Go, unlike other superior langages I could name.
 // I can get rid of the whole thing when I do SQL integration and can just make the hub into
-// a regular Charm service. TODO --- you can do this now!
+// a regular Pipefish service. TODO --- you can do this now!
 type Form struct { // For when the hub wants to initiate structured input.
 	Fields []string
 	Result map[string]string

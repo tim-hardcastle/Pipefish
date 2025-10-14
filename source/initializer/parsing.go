@@ -238,7 +238,7 @@ func (iz *Initializer) initializeExternals() {
 				continue
 			}
 			rline := readline.NewInstance()
-			println("Please enter your username and password for hub at " + text.CYAN + "'" + pathWithoutPort + "'" + text.RESET + ".")
+			println("\n\nPlease enter your username and password for hub at " + text.CYAN + "'" + pathWithoutPort + "'" + text.RESET + ".")
 			rline.SetPrompt("Username: ")
 			username, _ := rline.Readline()
 			rline.SetPrompt("Password: ")
