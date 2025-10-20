@@ -179,7 +179,7 @@ func (iz *Initializer) recursivelyParseImports() []string {
 		}
 		newIz := NewInitializer(iz.Common)
 		iz.initializers[path] = newIz
-		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, name+"."+iz.P.NamespacePath)
+		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, iz.P.NamespacePath + name+".")
 		if e != nil { // Then we couldn't open the file.
 			iz.throw("init/import/file", &dec.path, path, e)
 			return []string{}

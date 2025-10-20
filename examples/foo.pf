@@ -1,3 +1,7 @@
+import 
+
+"bar.pf"
+
 newtype
 
 Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE

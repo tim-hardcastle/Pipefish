@@ -1,7 +1,5 @@
-// This is the html library I made for this demo.
-// It's only 35 sloc.
 import private 
-// I cheated by importing a HTML sanitizer.
+
 golang "github.com/microcosm-cc/bluemonday"
 
 newtype 
@@ -49,3 +47,4 @@ toHtml(S struct/clones{map}) -> Html :
 
 toHtml(x any?) :
     Html(string x)
+

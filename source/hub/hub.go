@@ -1240,8 +1240,9 @@ func (hub *Hub) list() {
 			hub.WriteString(GOOD_BULLET)
 			hub.WritePretty("Service <C>\"" + k + "\"</> running script <C>\"" + filepath.Base(fpath) + "\"</>.")
 		}
+		hub.WriteString("\n")
 	}
-	hub.WriteString("\n\n")
+	hub.WriteString("\n")
 }
 
 func (hub *Hub) TestScript(scriptFilepath string, testOutputType TestOutputType) {
