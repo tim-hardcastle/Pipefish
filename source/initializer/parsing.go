@@ -220,7 +220,7 @@ func (iz *Initializer) initializeExternals() {
 			iz.addExternalOnSameHub(externalCP.ScriptFilepath, name)
 			continue
 		}
-		if text.Head(path, "http:") {
+		if text.Head(path, "http:") || text.Head(path, "https:") {
 			pos := strings.LastIndex(path, "/")
 			if pos == -1 {
 				iz.throw("init/external/path/a", &dec.path)

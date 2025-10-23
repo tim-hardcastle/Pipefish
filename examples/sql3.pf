@@ -3,7 +3,7 @@ import private
 NULL::"sql" // `NULL` means we're importing the library without a namespace.
 NULL::"html.pf"
 
-const private // We make an accessor object.
+const private// We make an accessor object.
 SQL = SqlDb(POSTGRESQL, "localhost", 5432, "postgres", $_hub["SQL username"], $_hub["SQL password"])
 // (The username and password are obtained from the environment.)
 newtype 
@@ -28,7 +28,7 @@ show all :
     get peopleList like set{Person} from SQL -- 
         SELECT * FROM People
         ORDER BY name
-    post string Html --
+    post Html --
         <h3>List of all people</h3>
         |peopleList|
 
@@ -37,7 +37,7 @@ show < (age int) :
         SELECT * FROM People
         WHERE age < |age|
         ORDER BY name
-    post string Html --
+    post Html --
         <h3>List of people under <font style="color:Green;">|age|</font></h3>
         |peopleList|
 
