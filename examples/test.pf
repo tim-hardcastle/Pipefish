@@ -1,40 +1,8 @@
-def 
-
-foo(i int) :
-    "foo"
-
-troz(i, j, k int) :
-    "troz"
-
-qux(i int, s snippet) :
-    i, len s
-
-glue(sn snippet) :
-    from str = "" for _::el = range sn :
-        str + string(el)
-
 newtype 
 
-gorp = clone snippet
+SqlDriver = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, 
+    .. ORACLE, POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
-var 
-
-sn = -- foo |2 + 2| bar
-
-T tuple = ()
-U tuple = 1, 2, 3
-V tuple = tuple(1)
-W tuple = tuple("zort")
-X tuple = "a", "b", "c"
-
-x = set(1, 2, 3, 4, 5, 6)
-y = set(2, 3, 4)
-z = set(6, 5, 4)
-
-a = set("a", "b", "c", "d", "e", "f")
-b = set("a", "b", "c")
-c = set("c", "f", "d")
-
-const 
-
-Z tuple = "a", "b", "c"
+  // BOOOOOOOOOOOOOOOOOOOOOOO, COOOOOOOOOOOOO, FOOOOOOOOOOOOOOOOOOOO, ZOOOOOO, 
+  // .. GOOOOOOOOOOOOO, WOOOOOOOOOO, HOOOOOOOOOOO, DOOOOOOOOO, JOOOOOOOOO, 
+  // .. KOOOOOOOOOOOOOOOOOOOOOOO, LOOOOOOOOOOOOO, MOOOOOOOOOOOOOOOOOOOOOOOO

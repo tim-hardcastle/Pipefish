@@ -246,13 +246,8 @@ line:
 			// We check if the length of the word puts it over the right margin.
 			newOx := ox + wordWidth
 			if newOx >= md.rightMargin {
-				if controlCode {
-					fmt.Fprint(sb, word, RESET, "\n", md.leftMargin, sidebar, font)
-					ox = leftMarginWidth + len(sidebar)
-				} else {
-					fmt.Fprint(sb, RESET, "\n", md.leftMargin, sidebar, font, word)
-					ox = leftMarginWidth + len(sidebar) + len(word)
-				}
+				fmt.Fprint(sb, RESET, "\n", md.leftMargin, sidebar, font, word)
+				ox = leftMarginWidth + len(sidebar) + wordWidth
 			} else {
 				fmt.Fprint(sb, word)
 				ox = newOx

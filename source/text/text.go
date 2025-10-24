@@ -125,19 +125,9 @@ func DescribeTok(tok *token.Token) string {
 	case token.EOF:
 		return "end of line"
 	case token.STRING:
-		return "<string>"
-	case token.INT:
-		return "<int>"
-	case token.FLOAT:
-		return "<float64>"
-	case token.TRUE:
-		return "<bool>"
-	case token.FALSE:
-		return "<bool>"
-	case token.IDENT:
-		return "'" + tok.Literal + "'"
+		return "`\"" +  tok.Literal + "`\""
 	}
-	return "'" + tok.Literal + "'"
+	return "`" + tok.Literal + "`"
 }
 
 func DescribeOpposite(tok *token.Token) string {
