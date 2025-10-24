@@ -202,6 +202,9 @@ func (tc *tokenizedFunctionDeclaration) api() (string, string, bool) {
 	if tc.pos == prefix || tc.pos == unfix {
 		result = tc.op.Literal
 	}
+	if len(tc.sig) > 0 && tc.sig[0].IsBling() {
+		result = result + " "
+	}
 	result = result + tc.sig.String()
 	if len(tc.rets) > 0 {
 		result = result + " -> " + tc.rets.String()

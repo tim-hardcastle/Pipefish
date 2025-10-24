@@ -230,7 +230,9 @@ func (iz *Initializer) initializeExternals() {
 			if !hasPort.Match([]byte(hostpath)) {
 				hostpath = hostpath + ":50005"
 			}
-			pathWithoutPort := strings.Split(hostpath, ":")[1]
+			// At this point one way or another a port has been attached to it, which we now remove again. TODO, ugh.
+			portIsAt := strings.LastIndex(hostpath, ":")
+			pathWithoutPort := hostpath[:portIsAt]
 			serviceName := path[pos+1:]
 			pos = strings.LastIndex(hostpath, "/")
 			if pos == -1 {

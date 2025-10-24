@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/lmorg/readline/v4"
 	"golang.org/x/crypto/pbkdf2"
 
@@ -43,7 +44,7 @@ type Hub struct {
 	CurrentForm            *Form // TODO!!! --- deprecate, you've had IO for a while.
 	Db                     *sql.DB
 	administered           bool
-	listeningToHttp        bool
+	listeningToHttpOrHttps        bool
 	port                   string
 	Username               string
 	Password               string
@@ -138,7 +139,7 @@ func (hub *Hub) getFonts() *values.Map {
 // the current service if none of the above hold.
 func (hub *Hub) Do(line, username, password, passedServiceName string, external bool) (string, bool) {
 
-	if hub.administered && !hub.listeningToHttp && hub.Password == "" &&
+	if hub.administered && !hub.listeningToHttpOrHttps && hub.Password == "" &&
 		!(line == "hub register" || line == "hub log on" || line == "hub quit") {
 		hub.WriteError("this is an administered hub and you aren't logged on. Please enter either " +
 			"`hub register` to register as a user, or `hub log on` to log on if you're already registered " +
@@ -447,7 +448,19 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		return false
 	case "http":
 		hub.WriteString(GREEN_OK)
-		go hub.StartHttp(toStr(args[0]), false)
+		go hub.StartHttp([]string{toStr(args[0])}, false)
+		return false
+	case "https":
+		if len(args) == 0 {
+			hub.WriteError("list of domain names cannot be empty")
+			return false
+		}
+		hub.WriteString(GREEN_OK)
+		domains := []string{}
+		for _, arg := range args {
+			domains = append(domains, toStr(arg))
+		}
+		go hub.StartHttp(domains, true)
 		return false
 	case "live-on":
 		hub.setLive(true)
@@ -1044,9 +1057,7 @@ func StartServiceFromCli() {
 func (hub *Hub) GetAndReportErrors(sv *pf.Service) {
 	hub.ers = sv.GetErrors()
 	r, _ := sv.GetErrorReport()
-	hub.WriteString("\n")
 	hub.WritePretty(r)
-	hub.WriteString("\n")
 }
 
 func (hub *Hub) CurrentServiceIsBroken() bool {
@@ -1390,14 +1401,20 @@ func valToString(srv *pf.Service, val pf.Value) string {
 	return srv.ToLiteral(val)
 }
 
-func (h *Hub) StartHttp(port string, isHttps bool) {
-	h.port = port
-	h.listeningToHttp = true
-	http.HandleFunc("/", h.getHandler(isHttps))
-	err := http.ListenAndServe(":"+port, nil)
+func (h *Hub) StartHttp(args []string, isHttps bool) {
+	// TODO --- everything that depends on this should depend on something else.
+	h.listeningToHttpOrHttps = true
+	var err error
+	http.HandleFunc("/", h.handleJsonRequest)
+	if isHttps {
+		handler := http.NewServeMux()
+		err = certmagic.HTTPS(args, handler)
+	} else {
+		err = http.ListenAndServe(":"+args[0], nil)
+	}
 	if errors.Is(err, http.ErrServerClosed) {
 		h.WriteError("server closed.")
-	} else if err != nil {
+	} else { // err is always non-nil.
 		h.WriteError("error starting server: " + err.Error())
 		return
 	}
@@ -1417,33 +1434,6 @@ type jsonResponse = struct {
 	Service string
 }
 
-func (h *Hub) getHandler(isHttps bool) func(http.ResponseWriter, *http.Request) {
-	return func (w http.ResponseWriter, r *http.Request) {
-		var request jsonRequest
-		err := json.NewDecoder(r.Body).Decode(&request)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		var serviceName string
-		if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
-			_, err = database.ValidateUser(h.Db, request.Username, request.Password)
-			if err != nil {
-				h.WriteError(err.Error())
-				return
-			}
-		}
-		var buf bytes.Buffer
-		h.out = &buf
-		sv := h.services[request.Service]
-		sv.SetOutHandler(sv.MakeLiteralOutHandler(&buf))
-		serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service, true)
-		h.out = os.Stdout
-		response := jsonResponse{Body: buf.String(), Service: serviceName}
-		json.NewEncoder(w).Encode(response)
-	}
-}
-
 func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	var request jsonRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -1452,7 +1442,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var serviceName string
-	if h.administered && !((!h.listeningToHttp) && (request.Body == "hub register" || request.Body == "hub log in")) {
+	if h.administered && !((!h.listeningToHttpOrHttps) && (request.Body == "hub register" || request.Body == "hub log in")) {
 		_, err = database.ValidateUser(h.Db, request.Username, request.Password)
 		if err != nil {
 			h.WriteError(err.Error())

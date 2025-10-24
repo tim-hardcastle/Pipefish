@@ -54,6 +54,9 @@ http :
 http(port int) :
     HubResponse("http", [string port])
 
+https(domains ... string) :
+    HubResponse("https", [domains])
+
 let(usr string) own (grp string) :
     HubResponse("let-own", [usr, grp])
 

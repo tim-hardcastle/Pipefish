@@ -29,7 +29,7 @@ func (cp *Compiler) Api(fonts *values.Map, width int) string {
 			decString := text.BULLET + cp.Highlight(item.Declaration, fonts)
 			if item.DocString != "" {
 				decString = decString + " — "
-				result = result + markdowner.RenderLeftPad(decString, []string{item.DocString})
+				result = result + markdowner.Render([]string{decString, item.DocString})
 			} else {
 				result = result + decString 
 			}
