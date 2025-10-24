@@ -125,7 +125,7 @@ func DescribeTok(tok *token.Token) string {
 	case token.EOF:
 		return "end of line"
 	case token.STRING:
-		return "`\"" +  tok.Literal + "`\""
+		return "`\"" + tok.Literal + "`\""
 	}
 	return "`" + tok.Literal + "`"
 }
@@ -169,28 +169,28 @@ func DescribeOpposite(tok *token.Token) string {
 }
 
 const (
-	RESET     = "\033[0m"
-	RESET_FOREGROUND = "\033[39m"
-	RESET_BACKGROUND = "\033[49m"
-	RESET_BOLD = "\033[22m"
-	RESET_ITALIC = "\033[23m"
-	RESET_UNDERLINE = "\033[24m"
-	UNDERLINE = "\033[4m"
-	RED       = "\033[31m"
-	BAD_RED   = "\033[38;2;244;71;71m"
-	YELLOW    = "\033[33m"
-	GREEN     = "\033[32m"
-	BLUE      = "\033[34m"
-	PURPLE    = "\033[35m"
-	CYAN      = "\033[36m"
-	GRAY      = "\033[37m"
-	GRAY_BACKGROUND = "\033[48;5;239m"
-	WHITE     = "\033[97m"
-	ITALIC    = "\033[3m"
-	BOLD      = "\033[1m"
-	BULLET    = "  ▪ "
-	RT_ERROR  = "<R>Error</>: "
-	ERROR     = "<R>Error</>: "
+	RESET                  = "\033[0m"
+	RESET_FOREGROUND       = "\033[39m"
+	RESET_BACKGROUND       = "\033[49m"
+	RESET_BOLD             = "\033[22m"
+	RESET_ITALIC           = "\033[23m"
+	RESET_UNDERLINE        = "\033[24m"
+	UNDERLINE              = "\033[4m"
+	RED                    = "\033[31m"
+	BAD_RED                = "\033[38;2;244;71;71m"
+	YELLOW                 = "\033[33m"
+	GREEN                  = "\033[32m"
+	BLUE                   = "\033[34m"
+	PURPLE                 = "\033[35m"
+	CYAN                   = "\033[36m"
+	GRAY                   = "\033[37m"
+	INLINE_CODE_BACKGROUND = "\033[48;2;0;0;128m"
+	WHITE                  = "\033[97m"
+	ITALIC                 = "\033[3m"
+	BOLD                   = "\033[1m"
+	BULLET                 = "  ▪ "
+	RT_ERROR               = "<R>Error</>: "
+	ERROR                  = "<R>Error</>: "
 )
 
 func HighlightLine(plainLine string, highlighter rune) (string, rune) {

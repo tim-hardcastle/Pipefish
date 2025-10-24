@@ -48,7 +48,7 @@ line:
 			}
 			codeBlock = !codeBlock
 			continue line
-		} 
+		}
 		if codeBlock {
 			fmt.Fprint(sb, md.leftMargin, codeBar, md.highlight(s), "\n")
 			continue line
@@ -125,7 +125,6 @@ line:
 				listItem = false
 			}
 		}
-
 
 		r := []rune(s)
 		r = append(r, 0)
@@ -270,7 +269,7 @@ func applyFont(s, font string) string {
 }
 
 var (
-	codeBar = "  ¦ "
+	codeBar            = "  ¦ "
 	stripColorCodes, _ = regexp.Compile("\033\\[[0-9;]*m")
 	findResets, _      = regexp.Compile("\033\\[[0|39|49|22|23|24]m")
 	captureHeading, _  = regexp.Compile("^#{1,4} ")
@@ -287,6 +286,6 @@ var (
 		"*":   ITALIC,
 		"**":  BOLD,
 		"***": BOLD + ITALIC,
-		"`":   RESET + GRAY_BACKGROUND + CYAN,
+		"`":   RESET + INLINE_CODE_BACKGROUND + WHITE,
 	}
 )
