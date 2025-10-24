@@ -106,8 +106,6 @@ line:
 				blockQuote = false
 			}
 		}
-
-		// TODO --- this is a very undry repetition of what just happened and it would be nice not to.
 		if Head(s, "- ") {
 			ix = ix + 2
 			sidebar = "    "
@@ -117,8 +115,8 @@ line:
 				ox = leftMarginWidth
 			}
 			if ox == leftMarginWidth {
-				fmt.Fprint(sb, "  - ", font)
-				ox = ox + len(sidebar)
+				fmt.Fprint(sb, BULLET, font)
+				ox = ox + len(BULLET)
 			}
 		} else {
 			if listItem {
@@ -230,7 +228,7 @@ line:
 				word = replacement
 				controlCode = true
 			}
-			wordWidth := len(word)
+			wordWidth := len(StripColors(word))
 			if controlCode {
 				if word == RESET {
 					font = ""

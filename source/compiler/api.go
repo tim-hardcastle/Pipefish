@@ -12,34 +12,31 @@ import (
 // we could get the font and width from a desktop client.
 
 func (cp *Compiler) Api(fonts *values.Map, width int) string {
-	headliner := text.NewMarkdown("", width, func(s string) string {return cp.Highlight([]rune(s), fonts)})
-	markdowner := text.NewMarkdown("    ", width, func(s string) string {return cp.Highlight([]rune(s), fonts)})
+	markdowner := text.NewMarkdown("", width, func(s string) string {return cp.Highlight([]rune(s), fonts)})
 	hasContents := false
-	result := "\n"
+	result := ""
 	if cp.DocString != "" {
-		result = "\n" + headliner.Render([]string{"# " + strings.TrimSpace(cp.DocString)}) + "\n"
+		result = "\n" + markdowner.Render([]string{"# " + strings.TrimSpace(cp.DocString)}) + "\n"
 	}
 	for i, items := range cp.ApiDescription {
 		if len(items) == 0 {
 			continue
 		}
 		hasContents = true
-		result = result + headliner.Render([]string{"### " + headings[i]}) + "\n"
+		result = result + "\n" + markdowner.Render([]string{"### " + headings[i]})
 		for _, item := range items {
-			decString := text.BULLET + cp.Highlight(item.Declaration, fonts)
+			stringToRender := "- " + cp.Highlight(item.Declaration, fonts)
 			if item.DocString != "" {
-				decString = decString + " — "
-				result = result + markdowner.Render([]string{decString, item.DocString})
-			} else {
-				result = result + decString 
+				stringToRender = stringToRender + " — "  + item.DocString
 			}
-			result = result + "\n"
+			result = result + markdowner.Render([]string{stringToRender})
 		}
 		result = result + "\n"
 	}
 	if !hasContents {
-		return("API is empty.")
+		return("API is empty.\n")
 	}
+	result = result + "\n"
 	return result
 }
 
