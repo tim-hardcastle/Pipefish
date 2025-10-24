@@ -50,11 +50,11 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 
 	if !settings.OMIT_BUILTINS {
 		iz.cmI("Adding mandatory imports to namespace.")
-		iz.addToNameSpace(settings.MandatoryImports)
+		iz.addToNameSpaceByFilename(settings.MandatoryImports)
 	}
 	if len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] == ".hub" {
 		iz.cmI("Adding hub.pf and themes.pf to hub namespace.")
-		iz.addToNameSpace([]string{"rsc-pf/hub.pf", "user/themes.pf"})
+		iz.addToNameSpaceByFilename([]string{"rsc-pf/hub.pf", "user/themes.pf"})
 	}
 	iz.cmI("Making new relexer with filepath '" + scriptFilepath + "'")
 	iz.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
@@ -65,7 +65,7 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	}
 
 	iz.cmI("Making parser and tokenized program.")
-	iz.getTokenizedCode()
+	iz.getTokenizedCode(false)
 	if iz.errorsExist() {
 		return
 	}
@@ -136,34 +136,48 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	// We hand back flow of control to initializer.go.
 }
 
+func (iz *Initializer) addToNameSpaceByFilename(thingsToImport []string) {
+	for _, path := range thingsToImport {
+		dummyToken := token.Token{Literal: path}
+		importObect := tokenizedExternalOrImportDeclaration{
+			decType: importDeclaration,
+			name: dummyToken,
+			path: dummyToken,
+		}
+		iz.addToNameSpace([]*tokenizedExternalOrImportDeclaration{&importObect})
+	}
+}
+
 // Besides the script being initialized, we want its namespace to contain NULL-namespaced
 // imports and the built-in Pipefish functions, interfaces, generics, etc.
-func (iz *Initializer) addToNameSpace(thingsToImport []string) {
-	for _, fname := range thingsToImport {
-		iz.cmI("Adding '" + fname + "' to namespace")
+func (iz *Initializer) addToNameSpace(thingsToImport []*tokenizedExternalOrImportDeclaration) {
+	for _, dec := range thingsToImport {
+		path := dec.path.Literal
+		_, path = text.TweakNameAndPath("", path, dec.path.Source)
+		iz.cmI("Adding '" + path + "' to namespace")
 		var libDat []byte
 		var err error
-		if len(fname) >= 7 && fname[:7] == "rsc-pf/" {
-			libDat, err = folder.ReadFile(fname)
+		if len(path) >= 7 && path[:7] == "rsc-pf/" {
+			libDat, err = folder.ReadFile(path)
 		} else {
-			libDat, err = os.ReadFile(fname)
+			libDat, err = os.ReadFile(path)
 		}
 		if err != nil {
-			iz.P.Throw("init/import/found", &token.Token{}, fname)
+			iz.P.Throw("init/import/found", &token.Token{}, path)
 		}
 		stdImp := strings.TrimRight(string(libDat), "\n") + "\n"
-		iz.cmI("Making new relexer with filepath '" + fname + "'")
-		iz.P.TokenizedCode = lexer.NewRelexer(fname, stdImp)
-		iz.getTokenizedCode() // This is cumulative, it throws them all into the parser together.
-		iz.P.Common.Sources[fname] = strings.Split(stdImp, "\n")
+		iz.cmI("Making new relexer with filepath '" + path + "'")
+		iz.P.TokenizedCode = lexer.NewRelexer(path, stdImp)
+		iz.getTokenizedCode(dec.private) // This is cumulative, it throws them all into the parser together.
+		iz.P.Common.Sources[path] = strings.Split(stdImp, "\n")
 	}
 }
 
 // This spawns a child initializer for each namespaced import and then calls its
 // `parseEverythingFromFilepath` method. It returns a list of `NULL`-namespaced imports which
 // can then be thrown into the parent initializer's namespace using the `addToNamespace` method.
-func (iz *Initializer) recursivelyParseImports() []string {
-	unnamespacedImports := []string{}
+func (iz *Initializer) recursivelyParseImports() []*tokenizedExternalOrImportDeclaration {
+	unnamespacedImports := []*tokenizedExternalOrImportDeclaration{}
 	for _, tc := range iz.tokenizedCode[importDeclaration] {
 		dec := tc.(*tokenizedExternalOrImportDeclaration)
 		if dec.golang {
@@ -174,7 +188,7 @@ func (iz *Initializer) recursivelyParseImports() []string {
 		path := dec.path.Literal
 		name, path = text.TweakNameAndPath(name, path, dec.path.Source)
 		if dec.name.Literal == "NULL" {
-			unnamespacedImports = append(unnamespacedImports, path)
+			unnamespacedImports = append(unnamespacedImports, dec)
 			continue
 		}
 		newIz := NewInitializer(iz.Common)
@@ -182,7 +196,7 @@ func (iz *Initializer) recursivelyParseImports() []string {
 		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, iz.P.NamespacePath + name+".")
 		if e != nil { // Then we couldn't open the file.
 			iz.throw("init/import/file", &dec.path, path, e)
-			return []string{}
+			return []*tokenizedExternalOrImportDeclaration{}
 		}
 		iz.cp.Modules[name] = newCp
 		iz.P.NamespaceBranch[name] = &parser.ParserData{newCp.P, path}
@@ -323,10 +337,10 @@ func (iz *Initializer) addAnyExternalService(handlerForService vm.ExternalCallHa
 // chunks of tokesn as a pre-parsing step, e.g. we will distinguish between a function name,
 // its bling, its parameters, their types, its body, its `given` block, and validate that they
 // have at least the correct lexical form.
-func (iz *Initializer) getTokenizedCode() {
+func (iz *Initializer) getTokenizedCode(forcePrivate bool) { // `forceprivate`` allows us to suppress things privately imported into the namespace.
 	var headword token.TokenType
 	headword = token.ILLEGAL
-	private := false
+	private := forcePrivate
 	if iz.P.CurToken.Type == token.EOF {
 		iz.P.SafeNextToken()
 	}
@@ -348,7 +362,7 @@ loop:
 			}
 		case token.TokenTypeIsHeadword(iz.P.CurToken.Type):
 			headword = iz.P.CurToken.Type
-			private = false
+			private = forcePrivate
 		case iz.P.CurToken.Type == token.PRIVATE:
 			private = true
 		default:

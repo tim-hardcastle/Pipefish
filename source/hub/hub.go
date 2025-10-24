@@ -346,7 +346,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.WriteString(GREEN_OK + "\n")
 		return false
 	case "api":
-		hub.WriteString(hub.services[hub.currentServiceName()].Api(hub.getFonts(), hub.getSV("width").V.(int)))
+		hub.WriteString(hub.services[hub.currentServiceName()].Api(hub.currentServiceName(), hub.getFonts(), hub.getSV("width").V.(int)))
 		return false
 	case "config-admin":
 		if !hub.isAdministered() {

@@ -688,8 +688,8 @@ func (sv *Service) Highlight(code []rune, fonts Map) string {
 // Returns a description of the API in rendered markdown.
 // The `fonts` field is only used for rendering Pipefish code in code blocks, and
 // so may be omitted if you don't want to do that.
-func (sv *Service) Api(fonts *values.Map, width int) string {
-	return sv.cp.Api(fonts, width)
+func (sv *Service) Api(title string, fonts *values.Map, width int) string {
+	return sv.cp.Api(title, fonts, width)
 }
 
 // Describes the API of a service in a custom reverse polish notation format.

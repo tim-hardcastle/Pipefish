@@ -11,12 +11,17 @@ import (
 // We're doing this here and now rather than at initialization so that in principle
 // we could get the font and width from a desktop client.
 
-func (cp *Compiler) Api(fonts *values.Map, width int) string {
+func (cp *Compiler) Api(name string, fonts *values.Map, width int) string {
 	markdowner := text.NewMarkdown("", width, func(s string) string {return cp.Highlight([]rune(s), fonts)})
 	hasContents := false
 	result := ""
-	if cp.DocString != "" {
-		result = "\n" + markdowner.Render([]string{"# " + strings.TrimSpace(cp.DocString)}) + "\n"
+	if name != "" || cp.DocString != "" {
+		title := "# " + name
+		if name != "" && cp.DocString != "" {
+			title = title + " — "
+		}
+		title = title + strings.TrimSpace(cp.DocString)
+		result = "\n" + markdowner.Render([]string{title})
 	}
 	for i, items := range cp.ApiDescription {
 		if len(items) == 0 {

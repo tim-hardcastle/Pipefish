@@ -12,17 +12,6 @@ Person = struct(name Varchar{32}, age int) :
     len(name) > 0
     age >= 0
 
-~~ <R>Now</> <R>is</> <R>the</> <R>time</> <R>for</> <R>all</> <R>good</> <R>men</> <R>to</> <R>come</> <R>to</> <R>the</> <R>aid</> <R>of</> <R>the</> <R>party.</> <R>Now</> <R>is</> <R>the</> <R>time</> <R>for</> <R>all</> <R>good</> <R>men</> <R>to</> <R>come</> <R>to</> <R>the</> <R>aid</> <R>of</> <R>the</> <R>party.</> <R>Now</> <R>is</> <R>the</> <R>time</> <R>for</> <R>all</> <R>good</> <R>men</> <R>to</> <R>come</> <R>to</> <R>the</> <R>aid</> <R>of</> <R>the</> <R>party.</> 
-Foo = enum BOO, COO, FOO
-
-MOOOOO = struct()
-
-Qux = struct(THINGA MOOOOO, THINGB MOOOOO, THINGC MOOOOO, THINGD MOOOOO, THINGE MOOOOO, THINGF MOOOOO, THINGG MOOOOO, THINGH MOOOOO, THINGI MOOOOO, THINGJ MOOOOO)
-
-const 
-
-QUX = []
-
 cmd // Now let's add some public commands.
 
 add(name string, age int) :
