@@ -125,7 +125,7 @@ func DescribeTok(tok *token.Token) string {
 	case token.EOF:
 		return "end of line"
 	case token.STRING:
-		return "`\"" + tok.Literal + "`\""
+		return "`\"" + tok.Literal + "\"`"
 	}
 	return "`" + tok.Literal + "`"
 }

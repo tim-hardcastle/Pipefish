@@ -2860,7 +2860,7 @@ func (cp *Compiler) Store(k, v values.Value) {
 	for _, child := range cp.Modules {
 		child.Store(k, v)
 	}
-	hubStore, _ := cp.GlobalVars.GetVar("$_hub")
+	hubStore, _ := cp.GlobalVars.GetVar("$_env")
 	storeMap := cp.Vm.Mem[hubStore.MLoc].V.(*values.Map)
 	cp.Vm.Mem[hubStore.MLoc].V = storeMap.Set(k, v)
 }

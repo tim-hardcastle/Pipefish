@@ -29,7 +29,7 @@ type Parser struct {
 
 	// This helps keep track of the bling and --- TODO --- will eventually replace pretty much
 	// everything else that handles bling.
-	BlingManager     *BlingManager
+	BlingManager *BlingManager
 
 	// When we call a function in a namespace, we need to use the bling manager of that namespace.
 	// TODO --- this should really be a stack of BlingManagers since that's all we're using the
@@ -59,13 +59,13 @@ type Parser struct {
 	nativeInfixes      dtypes.Set[token.TokenType]
 	lazyInfixes        dtypes.Set[token.TokenType]
 
-	ParTypes map[string]TypeExpressionInfo     // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
+	ParTypes map[string]TypeExpressionInfo // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
 	// Something of a kludge. We want instances of parameterized types to be made if they're mentioned in the code.
 	// Since only the parser is in a position to notice this, we pile up such mentions in this list.
-	// Since we only want the parser to do this during initialization, we have a guard saying that 
+	// Since we only want the parser to do this during initialization, we have a guard saying that
 	// we don't do this if the list is `nil`, and then the intializer sets the list to `nil` as soon
 	// as it's used it, thus discarding the data.
-	ParTypeInstances map[string]*ast.TypeWithArguments   
+	ParTypeInstances map[string]*ast.TypeWithArguments
 
 	ExternalParsers map[string]*Parser     // A map from the name of the external service to the parser of the service. This should be the same as the one in the vm.
 	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
@@ -91,7 +91,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		EnumTypeNames:      make(dtypes.Set[string]),
 		EnumElementNames:   make(dtypes.Set[string]),
 		ParameterizedTypes: make(dtypes.Set[string]),
-		ParTypeInstances:	map[string]*ast.TypeWithArguments{},
+		ParTypeInstances:   map[string]*ast.TypeWithArguments{},
 
 		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
 			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
@@ -136,7 +136,7 @@ func (p *Parser) ParseLine(source, input string) ast.Node {
 
 // Sets the parser up with the appropriate relexer and position to parse a string.
 func (p *Parser) PrimeWithString(source, input string) {
-	p.ResetNesting()
+	p.ResetParser()
 	rl := lexer.NewRelexer(source, input)
 	p.TokenizedCode = rl
 	p.SafeNextToken()
@@ -148,7 +148,6 @@ func (p *Parser) PrimeWithTokenSupplier(source lexer.TokenSupplier) {
 	if tcc, ok := source.(*token.TokenizedCodeChunk); ok {
 		tcc.ToStart()
 	}
-	p.ResetNesting()
 	p.TokenizedCode = source
 	p.SafeNextToken()
 	p.SafeNextToken()
@@ -215,7 +214,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	}
 	var leftExp ast.Node
 	noNativePrefix := false
-
 	switch p.CurToken.Type {
 
 	// These just need a rhs.
@@ -270,9 +268,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	// We're looking at an identifier.
 	// If we're in a namespace, we need the symbol to be resolved by the appropriate parser.
 	resolvingParser := p.getResolvingParser()
-	if p.ErrorsExist() {
-		return nil
-	}
 
 	// So what we're going to do is find out if the identifier *thinks* it's a function, i.e. if it precedes
 	// something that's a prefix (in the broader sense, i.e. an identifier, literal, LPAREN, etc). But not a
@@ -376,6 +371,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			}
 		} else {
 			p.Throw("parse/prefix", &p.CurToken)
+			return nil
 		}
 	}
 
@@ -427,7 +423,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		if precedence >= p.peekPrecedence() {
 			break
 		}
-        isBling := resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
+		isBling := resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
 		if isBling {
 			resolvingParser.BlingManager.doBling(p.PeekToken.Literal)
 		}
@@ -554,9 +550,6 @@ func (p *Parser) parseFloatLiteral() ast.Node {
 
 func (p *Parser) parseForAsInfix(left ast.Node) *ast.ForExpression {
 	expression := p.parseForExpression()
-	if p.ErrorsExist() {
-		return nil
-	}
 	expression.BoundVariables = left
 	return expression
 }
@@ -571,16 +564,10 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 	if p.CurToken.Type == token.COLON {
 		p.NextToken()
 		expression.Body = p.ParseExpression(COLON)
-		if p.ErrorsExist() {
-			return nil
-		}
 		return expression
 	}
 
 	pieces := p.ParseExpression(GIVEN)
-	if p.ErrorsExist() {
-		return nil
-	}
 	if pieces.GetToken().Type == token.COLON {
 		expression.Body = pieces.(*ast.LazyInfixExpression).Right
 		header := pieces.(*ast.LazyInfixExpression).Left
@@ -610,9 +597,6 @@ func (p *Parser) parseFromExpression() ast.Node {
 	fromToken := p.CurToken
 	p.NextToken()
 	expression := p.ParseExpression(LOWEST)
-	if p.ErrorsExist() {
-		return nil
-	}
 	var givenBlock ast.Node
 	if expression.GetToken().Type == token.GIVEN {
 		givenBlock = expression.(*ast.InfixExpression).Args[2]
@@ -792,9 +776,6 @@ func (p *Parser) parseLambdaExpression() ast.Node {
 		return nil
 	}
 	expression.NameSig, _ = p.RecursivelySlurpSignature(root.(*ast.LazyInfixExpression).Left, ast.ANY_NULLABLE_TYPE_AST)
-	if p.ErrorsExist() {
-		return nil
-	}
 	bodyRoot := root.(*ast.LazyInfixExpression).Right
 	if bodyRoot.GetToken().Type == token.GIVEN {
 		expression.Body = bodyRoot.(*ast.InfixExpression).Args[0]
@@ -850,9 +831,6 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 	name := left.GetToken().Literal
 	p.CurrentNamespace = append(p.CurrentNamespace, name)
 	right := p.ParseExpression(NAMESPACE)
-	if p.ErrorsExist() {
-		return nil
-	}
 	switch right := right.(type) {
 	case *ast.Bling:
 		right.Namespace = append(right.Namespace, name)
@@ -1087,8 +1065,8 @@ func (p *Parser) NextToken() {
 // This is used to prime the parser without triggering 'checkNesting'.
 func (p *Parser) SafeNextToken() {
 	if settings.SHOW_RELEXER && !(settings.IGNORE_BOILERPLATE && settings.ThingsToIgnore.Contains(p.CurToken.Source)) {
-			println(text.PURPLE+p.CurToken.Type, p.CurToken.Literal+text.RESET)
-		}
+		println(text.PURPLE+p.CurToken.Type, p.CurToken.Literal+text.RESET)
+	}
 	p.CurToken = p.PeekToken
 	p.PeekToken = p.TokenizedCode.NextToken()
 }
@@ -1161,7 +1139,6 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 }
 
 func (p *Parser) ParseTokenizedChunk() ast.Node {
-	p.nesting = *dtypes.NewStack[token.Token]()
 	p.SafeNextToken()
 	p.SafeNextToken()
 	expn := p.ParseExpression(LOWEST)
@@ -1189,12 +1166,12 @@ func (p *Parser) ReturnErrors() string {
 
 func (p *Parser) ResetAfterError() {
 	p.Common.Errors = []*err.Error{}
-	p.CurrentNamespace = []string{}
-	p.blingResolvingParsers = []*Parser{p}
-	p.nesting = dtypes.Stack[token.Token]{}
+	p.ResetParser()
 }
 
-func (p *Parser) ResetNesting() {
+func (p *Parser) ResetParser() {
+	p.CurrentNamespace = []string{}
+	p.blingResolvingParsers = []*Parser{p}
 	p.nesting = dtypes.Stack[token.Token]{}
 }
 

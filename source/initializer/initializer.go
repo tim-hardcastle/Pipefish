@@ -795,8 +795,8 @@ func (iz *Initializer) tweakValue(v values.Value) values.Value {
 var declarationDescriptors = [][]declarationType{
 	{importDeclaration, externalDeclaration},
 	{enumDeclaration, cloneDeclaration, structDeclaration, abstractDeclaration, interfaceDeclaration},
-    {constantDeclaration},
-    {variableDeclaration},
+	{constantDeclaration},
+	{variableDeclaration},
 	{commandDeclaration},
 	{functionDeclaration}}
 
@@ -805,7 +805,11 @@ func (iz *Initializer) describeApi() {
 		iz.cp.ApiDescription = append(iz.cp.ApiDescription, []compiler.ApiItem{})
 		for _, decType := range descriptionGroup {
 			for _, tc := range iz.tokenizedCode[decType] {
-				decString, docString, ok  := tc.api()
+				if decType == importDeclaration || decType == externalDeclaration &&
+					tc.(*tokenizedExternalOrImportDeclaration).name.Literal == "NULL" {
+						continue
+					}
+				decString, docString, ok := tc.api()
 				if ok && decString != "" {
 					item := compiler.ApiItem{[]rune(decString), docString}
 					iz.cp.ApiDescription[i] = append(iz.cp.ApiDescription[i], item)
@@ -1012,7 +1016,7 @@ func (iz *Initializer) compileEverythingElse() [][]labeledParsedCodeChunk { // T
 		"$_cliDirectory":    {values.STRING, dir, altType(values.STRING)},
 		"$_cliArguments":    {values.LIST, cliArgs, altType(values.LIST)},
 		"$_moduleDirectory": {values.STRING, filepath.Dir(iz.cp.ScriptFilepath), altType(values.STRING)},
-		"$_hub":             {values.MAP, iz.Common.hubStore, altType(values.MAP)},
+		"$_env":             {values.MAP, iz.Common.hubStore, altType(values.MAP)},
 	}
 	// Service variables which tell the compiler how to compile things must be
 	// set before we compile the functions, and so can't be calculated but must
@@ -1651,9 +1655,9 @@ func (iz *Initializer) cmI(s string) {
 			if iz.cp.P.NamespacePath == "" {
 				println(text.UNDERLINE + s + text.RESET)
 			} else {
-				println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")	
+				println(text.UNDERLINE + s + text.RESET + " (" + iz.cp.P.NamespacePath + ")")
 			}
-			
+
 		}
 	}
 }

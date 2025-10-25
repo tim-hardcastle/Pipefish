@@ -141,8 +141,8 @@ func (iz *Initializer) addToNameSpaceByFilename(thingsToImport []string) {
 		dummyToken := token.Token{Literal: path}
 		importObect := tokenizedExternalOrImportDeclaration{
 			decType: importDeclaration,
-			name: dummyToken,
-			path: dummyToken,
+			name:    dummyToken,
+			path:    dummyToken,
 		}
 		iz.addToNameSpace([]*tokenizedExternalOrImportDeclaration{&importObect})
 	}
@@ -193,7 +193,7 @@ func (iz *Initializer) recursivelyParseImports() []*tokenizedExternalOrImportDec
 		}
 		newIz := NewInitializer(iz.Common)
 		iz.initializers[path] = newIz
-		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, iz.P.NamespacePath + name+".")
+		newCp, e := newIz.ParseEverythingFromFilePath(iz.cp.Vm, iz.P.Common, iz.cp.Common, path, iz.P.NamespacePath+name+".")
 		if e != nil { // Then we couldn't open the file.
 			iz.throw("init/import/file", &dec.path, path, e)
 			return []*tokenizedExternalOrImportDeclaration{}
@@ -1049,7 +1049,7 @@ func (iz *Initializer) parseEverythingElse() {
 		iz.parsedCode[decType] = make([]parsedCode, len(iz.tokenizedCode[decType]))
 		for i, _ := range iz.tokenizedCode[decType] {
 			iz.parsedCode[decType][i] = iz.parse(decType, i)
-			iz.P.ResetNesting()
+			iz.P.ResetParser()
 		}
 	}
 }

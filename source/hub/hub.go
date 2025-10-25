@@ -44,7 +44,7 @@ type Hub struct {
 	CurrentForm            *Form // TODO!!! --- deprecate, you've had IO for a while.
 	Db                     *sql.DB
 	administered           bool
-	listeningToHttpOrHttps        bool
+	listeningToHttpOrHttps bool
 	port                   string
 	Username               string
 	Password               string
@@ -1033,11 +1033,11 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 func StartServiceFromCli() {
 	filename := os.Args[2]
 	newService := pf.NewService()
-	// This ought to get the `$_hub` settings.
+	// This ought to get the `$_env` settings.
 	// Then we could do proper markdown in the errors.
 	newService.InitializeFromFilepathWithStore(filename, &values.Map{})
 	if newService.IsBroken() {
-		fmt.Println("\nThere were errors running the script <C>\"" +filename+ "\"</>.")
+		fmt.Println("\nThere were errors running the script <C>\"" + filename + "\"</>.")
 		s, _ := newService.GetErrorReport()
 		fmt.Println(s)
 		fmt.Print("Closing Pipefish.\n\n")
@@ -1045,7 +1045,7 @@ func StartServiceFromCli() {
 	}
 	val, _ := newService.CallMain()
 	if val.T == pf.UNDEFINED_TYPE {
-		s := "\nScript <C>\""+ filename + "\"</> has no `main` command.\n\n"
+		s := "\nScript <C>\"" + filename + "\"</> has no `main` command.\n\n"
 		fmt.Println(s)
 		fmt.Print("\n\nClosing Pipefish.\n\n")
 		os.Exit(4)
@@ -1219,10 +1219,18 @@ func (hub *Hub) OpenHubFile(hubFilepath string) {
 		hub.Db, _ = database.GetdB(driver, host, name, port, username, password)
 	}
 
+	errors := false
 	for _, pair := range services {
 		serviceName := pair.Key.V.(string)
 		serviceFilepath := pair.Val.V.(string)
 		hub.createService(serviceName, serviceFilepath)
+		errorsExist, _ := hub.services[serviceName].ErrorsExist()
+		if errorsExist {
+			errors = true
+		}
+	}
+	if errors {
+		hub.WriteString("\n\n")
 	}
 	hub.list()
 }
@@ -1454,7 +1462,7 @@ func (h *Hub) handleJsonRequest(w http.ResponseWriter, r *http.Request) {
 	sv := h.services[request.Service]
 	sv.SetOutHandler(sv.MakeLiteralOutHandler(&buf))
 	serviceName, _ = h.Do(request.Body, request.Username, request.Password, request.Service, true)
-    h.out = os.Stdout
+	h.out = os.Stdout
 	response := jsonResponse{Body: buf.String(), Service: serviceName}
 	json.NewEncoder(w).Encode(response)
 }

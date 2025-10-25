@@ -1,10 +1,13 @@
-import private
+import 
 
 NULL::"sql" // `NULL` means we're importing the library without a namespace.
+
+private
+
 NULL::"html.pf"
 
-const private // We make an accessor object.
-SQL = SqlDb(POSTGRESQL, "localhost", 5432, "postgres", $_hub["SQL username"], $_hub["SQL password"])
+const // We make an accessor object.
+SQL = SqlDb(POSTGRESQL, "localhost", 5432, "postgres", $_env["SQL username"], $_env["SQL password"])
 // (The username and password are obtained from the environment.)
 newtype 
 // This will correspond to the structure of our SQL table.

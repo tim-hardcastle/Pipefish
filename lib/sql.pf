@@ -3,13 +3,10 @@ newtype
 SqlDriver = enum COCKROACHDB, FIREBIRD_SQL, MARIADB, MICROSOFT_SQL_SERVER, MYSQL, ORACLE, 
               .. POSTGRESQL, SNOWFLAKE, SQLITE, TIDB
 
-SqlDb = struct(driver SqlDriver, host string, port int, name string, username, password secret)
-
-Sql = clone string
+SqlDb = struct(driver SqlDriver, hostpath string, port int, hostname string, username, password secret)
 
 cmd
 
-post to (sql SqlDb, S snippet) : builtin "post_sql"
 get(x ref) as (t type) from (y SqlDb, z snippet) : builtin "get_sql_as"
 get(x ref) like (t type) from (y SqlDb, z snippet) : builtin "get_sql_like"
 
@@ -21,4 +18,7 @@ get(r ref) from (y SqlDb, z snippet) :
 
 ping (db SqlDb) :
     get _ as int from db -- SELECT 1
+
+post to (sql SqlDb, S snippet) : builtin "post_sql"
+
 

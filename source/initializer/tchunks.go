@@ -44,10 +44,10 @@ func ixPtr(tc tokenizedCode) *token.Token {
 }
 
 type tokenizedAbstractDeclaration struct {
-	private bool            // Whether it's declared private.
-	op      token.Token     // The type operator.
-	types   [][]token.Token // The names of the constituent types.
-	docString string        // Documents what it does.
+	private   bool            // Whether it's declared private.
+	op        token.Token     // The type operator.
+	types     [][]token.Token // The names of the constituent types.
+	docString string          // Documents what it does.
 }
 
 func (tc *tokenizedAbstractDeclaration) getDeclarationType() declarationType {
@@ -56,7 +56,7 @@ func (tc *tokenizedAbstractDeclaration) getDeclarationType() declarationType {
 
 func (tc *tokenizedAbstractDeclaration) indexToken() token.Token { return tc.op }
 
-func(tc *tokenizedAbstractDeclaration) api() (string,string, bool) {
+func (tc *tokenizedAbstractDeclaration) api() (string, string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
 		return "", "", false
 	}
@@ -76,20 +76,20 @@ type tokenizedCloneDeclaration struct {
 	parentTok token.Token               // The type being cloned.
 	requests  []token.Token             // Types requested by the 'using' clause
 	body      *token.TokenizedCodeChunk // Validation, if any.
-	docString string        // Documents what it does.
+	docString string                    // Documents what it does.
 }
 
 func (tc *tokenizedCloneDeclaration) getDeclarationType() declarationType { return cloneDeclaration }
 
 func (tc *tokenizedCloneDeclaration) indexToken() token.Token { return tc.op }
 
-func(tc *tokenizedCloneDeclaration) api() (string, string, bool) {
+func (tc *tokenizedCloneDeclaration) api() (string, string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
 		return "", "", false
 	}
-	result := tc.op.Literal + " = clone" 
+	result := tc.op.Literal + " = clone"
 	if len(tc.params) > 0 {
-		result = result + "{" 
+		result = result + "{"
 	}
 	result = result + " " + tc.parentTok.Literal
 	if len(tc.requests) > 0 {
@@ -109,14 +109,14 @@ type tokenizedConstOrVarDeclaration struct {
 	sig         parser.TokSig             // The signature of the assignment
 	assignToken token.Token               // The assignment operator '='.
 	body        *token.TokenizedCodeChunk // The rhs of the assignment.
-	docString string        // Documents what it does.
+	docString   string                    // Documents what it does.
 }
 
 func (tc *tokenizedConstOrVarDeclaration) getDeclarationType() declarationType { return tc.decType }
 
 func (tc *tokenizedConstOrVarDeclaration) indexToken() token.Token { return tc.assignToken }
 
-func(tc *tokenizedConstOrVarDeclaration) api() (string, string, bool) {
+func (tc *tokenizedConstOrVarDeclaration) api() (string, string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.assignToken.Source) {
 		return "", "", false
 	}
@@ -124,9 +124,9 @@ func(tc *tokenizedConstOrVarDeclaration) api() (string, string, bool) {
 }
 
 type tokenizedEnumDeclaration struct {
-	private  bool          // Whether it's declared private.
-	op       token.Token   // The type operator.
-	elements []token.Token // The elements of the enum.
+	private   bool          // Whether it's declared private.
+	op        token.Token   // The type operator.
+	elements  []token.Token // The elements of the enum.
 	docString string        // Documents what it does.
 }
 
@@ -134,7 +134,7 @@ func (tc *tokenizedEnumDeclaration) getDeclarationType() declarationType { retur
 
 func (tc *tokenizedEnumDeclaration) indexToken() token.Token { return tc.op }
 
-func(tc *tokenizedEnumDeclaration) api() (string, string, bool) {
+func (tc *tokenizedEnumDeclaration) api() (string, string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
 		return "", "", false
 	}
@@ -148,12 +148,12 @@ func(tc *tokenizedEnumDeclaration) api() (string, string, bool) {
 }
 
 type tokenizedExternalOrImportDeclaration struct {
-	decType declarationType // Either importDeclaration or externalDeclaration.
-	private bool            // Whether it's declared private.
-	golang  bool            // If we're importing a Go library.
-	name    token.Token     // The name of the service as an identifier.
-	path    token.Token     // The path as a string literal.
-	docString string        // Documents what it does.
+	decType   declarationType // Either importDeclaration or externalDeclaration.
+	private   bool            // Whether it's declared private.
+	golang    bool            // If we're importing a Go library.
+	name      token.Token     // The name of the service as an identifier.
+	path      token.Token     // The path as a string literal.
+	docString string          // Documents what it does.
 }
 
 func (tc *tokenizedExternalOrImportDeclaration) getDeclarationType() declarationType {
@@ -162,7 +162,7 @@ func (tc *tokenizedExternalOrImportDeclaration) getDeclarationType() declaration
 
 func (tc *tokenizedExternalOrImportDeclaration) indexToken() token.Token { return tc.name }
 
-func(tc *tokenizedExternalOrImportDeclaration) api() (string, string, bool) {
+func (tc *tokenizedExternalOrImportDeclaration) api() (string, string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.name.Source) {
 		return "", "", false
 	}
@@ -170,15 +170,15 @@ func(tc *tokenizedExternalOrImportDeclaration) api() (string, string, bool) {
 }
 
 type tokenizedFunctionDeclaration struct {
-	decType declarationType           // Can be commandDeclaration, functionDeclaration.
-	private bool                      // Whether it's private.
-	op      token.Token               // The name of the fumction/operation.
-	pos     opPosition                // Whether it's a prefix, infix, suffix, or unfix.
-	sig     parser.TokSig             // The call signature, with the names of arguments as tokens and the types as lists of tokens.
-	rets    parser.TokReturns         // The return types, as lists of tokens.
-	body    *token.TokenizedCodeChunk // The body of the function.
-	given   *token.TokenizedCodeChunk // The 'given' block, if any.
-	docString string        // Documents what it does.
+	decType   declarationType           // Can be commandDeclaration, functionDeclaration.
+	private   bool                      // Whether it's private.
+	op        token.Token               // The name of the fumction/operation.
+	pos       opPosition                // Whether it's a prefix, infix, suffix, or unfix.
+	sig       parser.TokSig             // The call signature, with the names of arguments as tokens and the types as lists of tokens.
+	rets      parser.TokReturns         // The return types, as lists of tokens.
+	body      *token.TokenizedCodeChunk // The body of the function.
+	given     *token.TokenizedCodeChunk // The 'given' block, if any.
+	docString string                    // Documents what it does.
 }
 
 type opPosition int
@@ -216,10 +216,10 @@ func (tc *tokenizedFunctionDeclaration) api() (string, string, bool) {
 }
 
 type tokenizedInterfaceDeclaration struct {
-	private bool                            // Whether it's declared private.
-	op      token.Token                     // The type operator.
-	sigs    []*tokenizedFunctionDeclaration // The signatures defining the interface.
-	docString string        // Documents what it does.
+	private   bool                            // Whether it's declared private.
+	op        token.Token                     // The type operator.
+	sigs      []*tokenizedFunctionDeclaration // The signatures defining the interface.
+	docString string                          // Documents what it does.
 }
 
 func (tc *tokenizedInterfaceDeclaration) getDeclarationType() declarationType {
@@ -276,23 +276,23 @@ func (tc *tokenizedMakeDeclarations) api() (string, string, bool) {
 }
 
 type tokenizedStructDeclaration struct {
-	private bool                      // Whether it's declared private.
-	op      token.Token               // The type operator.
-	params  parser.TokSig             // The type parameters, if any.
-	sig     parser.TokSig             // The signature of the struct.
-	body    *token.TokenizedCodeChunk // Validation logic, if any.
-	docString string        // Documents what it does.
+	private   bool                      // Whether it's declared private.
+	op        token.Token               // The type operator.
+	params    parser.TokSig             // The type parameters, if any.
+	sig       parser.TokSig             // The signature of the struct.
+	body      *token.TokenizedCodeChunk // Validation logic, if any.
+	docString string                    // Documents what it does.
 }
 
 func (tc *tokenizedStructDeclaration) getDeclarationType() declarationType { return structDeclaration }
 
 func (tc *tokenizedStructDeclaration) indexToken() token.Token { return tc.op }
 
-func(tc *tokenizedStructDeclaration) api() (string, string, bool) {
+func (tc *tokenizedStructDeclaration) api() (string, string, bool) {
 	if tc.private || settings.MandatoryImportSet().Contains(tc.op.Source) {
 		return "", "", false
 	}
-	result := tc.op.Literal + " = struct" 
+	result := tc.op.Literal + " = struct"
 	if len(tc.params) > 0 {
 		result = result + "{" + tc.params.SimpleString() + "}"
 	}
@@ -733,7 +733,6 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool, docString st
 // and get on to the next definition.
 // As it emulates slurping up a definition, it ends when the p.curToken is EOF or NEWLINE.
 func (iz *Initializer) finishChunk() {
-	iz.P.ResetNesting()
 	for {
 		if iz.P.CurTokenIs(token.EOF) || iz.P.CurTokenIs(token.NEWLINE) {
 			return

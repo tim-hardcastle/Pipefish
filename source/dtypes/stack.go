@@ -6,6 +6,10 @@ type Stack[T comparable] struct {
 
 func NewStack[T comparable]() *Stack[T] { return &Stack[T]{vals: []T{}} }
 
+func (s *Stack[T]) Len() int {
+	return len(s.vals)
+}
+
 func (s *Stack[T]) Push(val T) {
 	s.vals = append(s.vals, val)
 }
