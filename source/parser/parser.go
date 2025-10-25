@@ -268,6 +268,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	// We're looking at an identifier.
 	// If we're in a namespace, we need the symbol to be resolved by the appropriate parser.
 	resolvingParser := p.getResolvingParser()
+	if resolvingParser == nil {
+		return nil
+	}
 
 	// So what we're going to do is find out if the identifier *thinks* it's a function, i.e. if it precedes
 	// something that's a prefix (in the broader sense, i.e. an identifier, literal, LPAREN, etc). But not a
@@ -286,6 +289,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			// Here we step in and deal with things that are functions and values, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
+
 			if resolvingParser.IsTypePrefix(p.CurToken.Literal) && !(p.CurToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
 				tok := p.CurToken
 				operator := tok.Literal
@@ -855,7 +859,7 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 	case *ast.UnfixExpression:
 		right.Namespace = append(right.Namespace, name)
 	default:
-		p.Throw("parse/namespace/rhs", right.GetToken())
+		p.Throw("parse/namespace/rhs", left.GetToken())
 	}
 	return right
 }
