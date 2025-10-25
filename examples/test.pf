@@ -1,13 +1,13 @@
-def
+var 
 
-qux(nnn int) :
-    nnn == 0
+z any? = NULL
 
-foo(iii int) :
-    iii == 
+cmd 
 
-bar(jjj int) :
-    jjj == 
+post get (x any?) from (i Input):
+    get (x) from (i)
+    post x
+
 
 
 

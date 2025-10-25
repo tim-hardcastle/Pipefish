@@ -101,8 +101,13 @@ func (iz *Initializer) makeTypeWithParameters(op token.Token, tokSig parser.TokS
 func (iz *Initializer) makeAstSigFromTokenizedSig(ts parser.TokSig) ast.AstSig {
 	as := ast.AstSig{}
 	for _, pair := range ts {
-		typeAst := iz.makeTypeAstFromTokens(pair.Typename)
-		as = append(as, ast.NameTypeAstPair{pair.Name.Literal, typeAst})
+		if len(pair.Typename) == 1 && (pair.Typename[0].Literal == "bling") {
+			bling := ast.TypeBling{pair.Typename[0], pair.Name.Literal}
+			as = append(as, ast.NameTypeAstPair{pair.Name.Literal, &bling})
+		} else {
+			typeAst := iz.makeTypeAstFromTokens(pair.Typename)
+			as = append(as, ast.NameTypeAstPair{pair.Name.Literal, typeAst})
+		}
 	}
 	return as
 }
@@ -164,7 +169,7 @@ func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 	case *parsedFunction:
 		sigNames := dtypes.Set[string]{}
 		for _, pair := range pc.sig {
-			if _, ok := pair.VarType.(*ast.Bling); !ok {
+			if _, ok := pair.VarType.(*ast.TypeBling); !ok {
 				sigNames = sigNames.Add(pair.VarName)
 			}
 		}
@@ -172,7 +177,8 @@ func (iz *Initializer) extractNamesFromCodeChunk(dec labeledParsedCodeChunk) dty
 		lhsG, rhsG := ast.ExtractNamesFromLhsAndRhsOfGivenBlock(pc.given)
 		bodyNames.AddSet(rhsG)
 		bodyNames = bodyNames.SubtractSet(lhsG)
-		return bodyNames.SubtractSet(sigNames)
+		result := bodyNames.SubtractSet(sigNames)
+		return result
 	default:
 		panic("Unhandled parsedCode type.")
 	}
