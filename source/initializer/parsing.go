@@ -475,6 +475,7 @@ func (iz *Initializer) createBoilerplate() {
 			body:    &newBody,
 			given:   nil,
 			docString: "",
+			isBoilerplate: true,
 		}
 		iz.addWordsToParser(&newCmd)
 		newCmd.body.ToStart()
@@ -1177,6 +1178,7 @@ func (iz *Initializer) parse(decType declarationType, decNumber int) parsedCode 
 				Number:      DUMMY,
 				ReturnTypes: iz.makeRetsFromTokenizedReturns(tc.rets),
 			},
+			isBoilerplate: tc.isBoilerplate,
 		}
 		return result
 	case *tokenizedStructDeclaration:

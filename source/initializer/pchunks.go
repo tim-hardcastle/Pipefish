@@ -28,6 +28,7 @@ type parsedFunction struct {
 	// This includes the return signatures because if recursion is involved we don't infer them
 	// and this is the next best thing.
 	callInfo *compiler.CallInfo
+	isBoilerplate bool    // If the function has a body generated in Pipefish, i.e. presently only the `post` boilerplate around commands with refs.
 }
 
 func (pc *parsedFunction) getToken() *token.Token { return &pc.op }

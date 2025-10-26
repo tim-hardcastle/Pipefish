@@ -805,10 +805,12 @@ func (iz *Initializer) describeApi() {
 		iz.cp.ApiDescription = append(iz.cp.ApiDescription, []compiler.ApiItem{})
 		for _, decType := range descriptionGroup {
 			for _, tc := range iz.tokenizedCode[decType] {
-				if decType == importDeclaration || decType == externalDeclaration &&
-					tc.(*tokenizedExternalOrImportDeclaration).name.Literal == "NULL" {
-						continue
-					}
+				if impex, ok := tc.(*tokenizedExternalOrImportDeclaration); ok && impex.name.Literal == "NULL" {
+					continue
+				}
+				if fncmd, ok := tc.(*tokenizedFunctionDeclaration); ok && fncmd.isBoilerplate {
+					continue
+				}
 				decString, docString, ok := tc.api()
 				if ok && decString != "" {
 					item := compiler.ApiItem{[]rune(decString), docString}

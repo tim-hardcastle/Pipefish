@@ -179,6 +179,7 @@ type tokenizedFunctionDeclaration struct {
 	body      *token.TokenizedCodeChunk // The body of the function.
 	given     *token.TokenizedCodeChunk // The 'given' block, if any.
 	docString string                    // Documents what it does.
+	isBoilerplate bool                  // If the function has a body generated in Pipefish, i.e. presently only the `post` boilerplate around commands with refs.
 }
 
 type opPosition int
