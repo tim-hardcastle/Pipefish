@@ -9,4 +9,4 @@ cmd
     x == 42 :
         error "Well that didn't work."
     else :
-        post "Success!"
+        OK

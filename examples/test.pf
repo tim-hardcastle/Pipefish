@@ -1,13 +1,13 @@
+var 
+
+x = 42
+
 cmd 
 
-post get (x any?) from (i Input):
-    get (x) from (i)
-    post x
-
-
-moo :
-    post 1, 2
-
-
-
+(x ref) ++ :
+    x = x + 1
+    x == 42 :
+        error "Well that didn't work."
+    else :
+        OK
 

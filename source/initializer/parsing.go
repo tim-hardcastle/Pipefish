@@ -70,6 +70,9 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 		return
 	}
 
+	iz.cmI("Making boilerplate in tokenized function form.")
+	iz.createBoilerplate()
+
 	iz.cmI("Initializing imports.")
 	unnamespacedImports := iz.recursivelyParseImports()
 	if iz.errorsExist() {
@@ -409,7 +412,78 @@ loop:
 	iz.P.Common.Errors = err.MergeErrors(iz.P.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.P.Common.Errors)
 }
 
-// Function auxiliary to the above and to `createInterfaceTypes`. This extracts the words from a function definition
+// Most boilerplate (constructors of types) can be generated and compiled along the same path 
+// as builtin functions. However, here we want to write the body of the function in Pipefish.
+func (iz *Initializer) createBoilerplate() {
+	thingsToAdd := []tokenizedCode{}
+	for _, dec := range iz.tokenizedCode[commandDeclaration] {
+		cmd := dec.(*tokenizedFunctionDeclaration)
+		if cmd.private {
+			continue
+		}
+		hasRef := false
+		for _, pair := range cmd.sig {
+			if len(pair.Typename) == 1 && pair.Typename[0].Literal == "ref" {
+				hasRef = true
+				break
+			}
+		}
+		if !hasRef{
+			continue
+		}
+		// So we have at least one reference variable.
+		newSig := parser.TokSig{}
+		newBody := token.TokenizedCodeChunk{}
+		newBody.Append(token.Token{Type: token.LPAREN, Literal: "|->"})
+		if cmd.pos == prefix {
+			newSig = append(newSig, parser.TokPair{cmd.op, 
+					[]token.Token{{Type: token.IDENT, Literal: "bling"}}})
+			newBody.Append(cmd.op)
+		}
+		refNames := []token.Token{}
+		for _, pair := range cmd.sig {
+			newBody.Append(pair.Name)
+			if len(pair.Typename) == 1 && pair.Typename[0].Literal == "ref" {
+				refNames = append(refNames, pair.Name)
+				newSig = append(newSig, parser.TokPair{pair.Name, 
+					[]token.Token{{Type: token.IDENT, Literal: "any"}, {Type: token.IDENT, Literal: "?"}}})
+			} else {
+				newSig = append(newSig, pair)
+			}
+		}
+		if cmd.pos == suffix {
+			newSig = append(newSig, parser.TokPair{cmd.op, 
+					[]token.Token{{Type: token.IDENT, Literal: "bling"}}})
+			newBody.Append(cmd.op)
+		}
+		for _, name := range refNames {
+			newBody.Append(token.Token{Type: token.NEWLINE, Literal: ";"})
+			newBody.Append(token.Token{Type: token.IDENT, Literal: "post"})
+			newBody.Append(name)
+		}
+		newBody.Append(token.Token{Type: token.RPAREN, Literal: "<-|"})
+		newOp := cmd.op
+		newOp.Source = newOp.Source + "/boilerplate"
+		newOp.Literal = "post"
+		newCmd := tokenizedFunctionDeclaration{
+			decType: commandDeclaration,
+			private: false,
+			op:      newOp,
+			pos:     prefix,
+			sig:     newSig,
+			rets:    nil,
+			body:    &newBody,
+			given:   nil,
+			docString: "",
+		}
+		iz.addWordsToParser(&newCmd)
+		newCmd.body.ToStart()
+		thingsToAdd = append(thingsToAdd, &newCmd)
+	}
+	iz.tokenizedCode[commandDeclaration] = append(iz.tokenizedCode[commandDeclaration], thingsToAdd...)
+}
+
+// Function auxiliary to the above two functions and to `createInterfaceTypes`. This extracts the words from a function definition
 // and decides on their "grammatical" role: are they prefixes, suffixes, bling?
 //
 // TODO --- it should be easy enough now to replace the whole system of `Forefixes` and `Midfixes`
