@@ -1,12 +1,12 @@
-var 
-
-z any? = NULL
-
 cmd 
 
 post get (x any?) from (i Input):
     get (x) from (i)
     post x
+
+
+moo :
+    post 1, 2
 
 
 

@@ -1035,7 +1035,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		Message: func(tok *token.Token, args ...any) string {
 			// Note that emphasis of args[1] is done at source.
 
-			return "function " + emph(args[0]) + " cannot accept arguments of type " + args[1].(string)
+			return "function " + emph(args[0]) + " cannot accept arguments of type " + emph(args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While this function or command does exist, there is no version of it accepting the types you have supplied."

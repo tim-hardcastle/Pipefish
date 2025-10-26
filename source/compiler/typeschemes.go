@@ -613,7 +613,7 @@ func (fT FiniteTupleType) describe(mc *vm.Vm) string {
 // The sole use of this is to produce good error essages from bad function calls.
 func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) string {
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "'")
+	fmt.Fprintf(&buf, "`")
 	specialBlingHasHappened := false
 	specialBlingJustHappened := false
 	lastWasBling := true // Which is a lie, but stops us from putting a comma right at the start.
@@ -629,7 +629,7 @@ func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) st
 		}
 		if thisIsBling && bling.tag == infix {
 			specialBlingHasHappened = true
-			fmt.Fprint(&buf, "' on the left of it and '") // The ' characters will sneakily interact with emph in the errorfile.
+			fmt.Fprint(&buf, "` on the left of it and `") // The ' characters will sneakily interact with emph in the errorfile.
 		} else {
 			if i > 0 && !specialBlingJustHappened {
 				fmt.Fprint(&buf, " ")
@@ -639,7 +639,7 @@ func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) st
 		lastWasBling = thisIsBling
 		specialBlingJustHappened = thisIsBling && bling.tag == infix
 	}
-	fmt.Fprint(&buf, "'")
+	fmt.Fprint(&buf, "`")
 	if specialBlingHasHappened {
 		fmt.Fprint(&buf, " on the right")
 	}
