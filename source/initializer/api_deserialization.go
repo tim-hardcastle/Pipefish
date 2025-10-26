@@ -101,15 +101,19 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 	posInt, _ := strconv.Atoi(parts[1])
 	position := uint32(posInt)
 	params := parts[2 : len(parts)-1]
+	lastWasBling := false
 	if position == vm.UNFIX {
-		return functionName
+		buf.WriteString(functionName)
+		buf.WriteString(" ")
 	}
 	if position == vm.PREFIX {
 		buf.WriteString(functionName)
 		buf.WriteString(" ")
+		lastWasBling = true
+		if len(params) == 0 {
+			buf.WriteString("(")
+		}
 	}
-	buf.WriteString("(")
-	lastWasBling := false
 	for i, param := range params {
 		bits := strings.Split(param, " ")
 		if bits[1] == "bling" {
@@ -133,7 +137,9 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 		buf.WriteString(" ")
 		buf.WriteString(bits[1])
 	}
-	buf.WriteString(")")
+	if position != vm.UNFIX {
+		buf.WriteString(")")
+	}
 	if position == vm.SUFFIX {
 		buf.WriteString(" ")
 		buf.WriteString(functionName)

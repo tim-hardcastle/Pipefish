@@ -22,9 +22,10 @@ type ExternalCallToHubHandler struct {
 	SerializeApi func() string
 }
 
-// There is a somewhat faster way of doing this when the services are on the same hub, since we would just need
-// to change the type numbers. TODO. Until then, this serves as a good test bed for the external services on other hubs.
 func (ex ExternalCallToHubHandler) Evaluate(line string) values.Value {
+	if settings.SHOW_XCALLS {
+		println("Line is", line)
+	}
 	return ex.Evaluator(line)
 }
 
@@ -164,7 +165,11 @@ func (iz *Initializer) SerializeApi() string {
 					buf.WriteString(" | ")
 					buf.WriteString(ntp.VarName)
 					buf.WriteString(" ")
-					buf.WriteString(ntp.VarType.String())
+					if _, ok := ntp.VarType.(*ast.TypeBling); ok {
+						buf.WriteString("bling")
+					} else {
+						buf.WriteString(ntp.VarType.String())
+					}
 				}
 				buf.WriteString(" | ")
 				buf.WriteString(iz.serializeTypescheme(iz.cp.Fns[fn.callInfo.Number].RtnTypes))

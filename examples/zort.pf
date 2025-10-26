@@ -1,20 +1,18 @@
-// Exists to be imported by the import_test.pf and external_test.pf files.
+// Exists to be imported by external.pf for testing purposes.
 
-def
+cmd 
 
-square(x int) :
-    x * x
+foo (i int) :
+    post "Hello!"
 
-newtype
+blerp :
+    OK
 
-Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE
+spong() :
+    OK
 
-Shade = enum LIGHT, MEDIUM, DARK
+moo boo (i int) :
+    OK 
 
-Tone = struct(shade Shade, color Color)
 
-MyType = abstract Shade/Color/Tone
 
-Person = struct(name string, age int)
-
-Qux = clone int 

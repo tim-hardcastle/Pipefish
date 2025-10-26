@@ -680,29 +680,47 @@ loop:
 			remainingNamespace := vm.Mem[args[3]].V.(string)
 			name := vm.Mem[args[4]].V.(string)
 			argLocs := args[5:]
+			lastWasBling := false
 			var buf strings.Builder
-			if operatorType == PREFIX {
+			if operatorType == PREFIX || operatorType == UNFIX {
 				buf.WriteString(remainingNamespace)
 				buf.WriteString(name)
+				lastWasBling = true
 			}
-			buf.WriteString("(")
+			if operatorType == PREFIX {
+				if len(argLocs) == 0 {
+					buf.WriteString("(")
+				}
+				lastWasBling = len(argLocs) > 0
+			}
 			for i, loc := range argLocs {
-				serialize := vm.Literal(vm.Mem[loc])
-				if vm.Mem[loc].T == values.BLING && serialize == name {
-					buf.WriteString(") ")
+				serializedValue := vm.Literal(vm.Mem[loc])
+				if operatorType == INFIX && vm.Mem[loc].T == values.BLING && serializedValue == name { // Then we need to attach the namespace to the operator.
 					buf.WriteString(remainingNamespace)
-					buf.WriteString(serialize)
-					buf.WriteString(" (")
+				}
+				if vm.Mem[loc].T == values.BLING {
+					if !lastWasBling {
+						buf.WriteString(")")
+					}
+					buf.WriteString(" ")
+					buf.WriteString(serializedValue)
+					lastWasBling = true
 					continue
 				}
-				buf.WriteString(serialize)
-				if vm.Mem[loc].T == values.BLING || i+1 == len(argLocs) || vm.Mem[argLocs[i+1]].T == values.BLING {
-					buf.WriteString(" ")
+				// So it's non-bling
+				if lastWasBling {
+					buf.WriteString(" (")
 				} else {
-					buf.WriteString(", ")
+					if i > 0 {
+						buf.WriteString(", ")
+					}
 				}
+				lastWasBling = false
+				buf.WriteString(serializedValue)
 			}
-			buf.WriteString(")")
+			if !lastWasBling { 
+				buf.WriteString(")")
+			}
 			if operatorType == SUFFIX {
 				buf.WriteString(remainingNamespace)
 				buf.WriteString(name)

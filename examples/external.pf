@@ -1,3 +1,8 @@
-external
+import
 
 "zort.pf"
+
+var 
+
+z = 42
+
