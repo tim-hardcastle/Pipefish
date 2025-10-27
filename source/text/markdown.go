@@ -270,7 +270,7 @@ func applyFont(s, font string) string {
 
 var (
 	codeBar            = "  ¦ "
-	stripColorCodes, _ = regexp.Compile("\033\\[[[0-9]+;]*m")
+	stripColorCodes, _ = regexp.Compile("\033\\[[0-9;]*m")
 	findResets, _      = regexp.Compile("\033\\[[0|39|49|22|23|24]m")
 	captureHeading, _  = regexp.Compile("^#{1,4} ")
 	deco               = []string{"≡", "═", "―", "┈"}

@@ -27,20 +27,11 @@ type Parser struct {
 	Logging          bool
 	CurrentNamespace []string
 
-	// This helps keep track of the bling and --- TODO --- will eventually replace pretty much
-	// everything else that handles bling.
-	BlingManager *BlingManager
-
-	// When we call a function in a namespace, we need to use the bling manager of that namespace.
-	// TODO --- this should really be a stack of BlingManagers since that's all we're using the
-	// parsers for at this point.
-	blingResolvingParsers []*Parser
+	// Things that need to be attached to every parser: common information about the type system, functions, etc.
+	Common *CommonParserBindle
 
 	// Permanent state: things set up by the initializer which are
 	// then constant for the lifetime of the service.
-
-	// Things that need to be attached to every parser: common information about the type system, functions, etc.
-	Common *CommonParserBindle
 
 	// Names/token types of identifiers.
 	Functions          dtypes.Set[string]
@@ -71,13 +62,15 @@ type Parser struct {
 	NamespaceBranch map[string]*ParserData // Map from the namespaces immediately available to this parser to the parsers they access.
 	NamespacePath   string                 // The chain of namespaces that got us to this parser, as a string.
 	Private         bool                   // Indicates if it's the parser of a private library/external/whatevs.
+
+	BlingTree       blingTree         // Filled up by the `AddWordsToParser` method and then used by the bling manager in the Common Parser Bindle.
+
 }
 
 func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *Parser {
 	p := &Parser{
 		Logging:            true,
 		nesting:            *dtypes.NewStack[token.Token](),
-		BlingManager:       newBlingManager(),
 		Functions:          make(dtypes.Set[string]),
 		Prefixes:           make(dtypes.Set[string]),
 		Forefixes:          make(dtypes.Set[string]),
@@ -104,6 +97,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		ExternalParsers: make(map[string]*Parser),
 		NamespacePath:   namespacePath,
 		Common:          common,
+		BlingTree: 			 newBlingTree(),
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
@@ -112,8 +106,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 	p.Typenames = p.Typenames.Add("struct")
 
 	p.Functions.Add("builtin")
-
-	p.pushRParser(p)
 
 	return p
 }
@@ -179,6 +171,9 @@ type CommonParserBindle struct {
 	Errors              []*err.Error
 	IsBroken            bool
 	Sources             map[string][]string
+	// This helps keep track of the bling and --- TODO --- will eventually replace pretty much
+	// everything else that handles bling.
+	BlingManager *BlingManager
 }
 
 // Initializes the common parser bindle.
@@ -187,6 +182,7 @@ func NewCommonParserBindle() *CommonParserBindle {
 		Errors:              []*err.Error{},            // This is where all the errors emitted by enything end up.
 		Sources:             make(map[string][]string), // Source code --- TODO: remove.
 		InterfaceBacktracks: []BkInterface{},           // Although these are only ever used at compile time, they are emited by the `seekFunctionCall` method, which belongs to the compiler.
+		BlingManager:        newBlingManager(),
 	}
 	return &result
 }
@@ -297,11 +293,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				if p.PeekToken.Type == token.LBRACE {
 					p.NextToken()
 					p.NextToken()
-					p.pushRParser(resolvingParser)
 					p.CurrentNamespace = nil
 					typeArgsNode := p.ParseExpression(FPREFIX)
 					typeArgs = p.RecursivelyListify(typeArgsNode)
-					p.popRParser()
 					if p.PeekToken.Type == token.RBRACE {
 						p.NextToken()
 					} else {
@@ -311,14 +305,12 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				if p.typeIsFunctional() {
 					p.NextToken()
 					var right ast.Node
-					p.pushRParser(resolvingParser)
 					p.CurrentNamespace = nil
 					if p.CurToken.Type == token.LPAREN || p.CurToken.Type == token.LBRACK {
 						right = p.ParseExpression(MINUS)
 					} else {
 						right = p.ParseExpression(FPREFIX)
 					}
-					p.popRParser()
 					args := p.RecursivelyListify(right)
 					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, Namespace: []string{}, TypeArgs: typeArgs}
 					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
@@ -341,8 +333,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case resolvingParser.topRParser().BlingManager.canBling(p.CurToken.Literal):
-						resolvingParser.topRParser().BlingManager.doBling(p.CurToken.Literal)
+					case p.Common.BlingManager.canBling(p.CurToken.Literal):
+						p.Common.BlingManager.doBling(p.CurToken.Literal)
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
 						leftExp = p.parseIdentifier()
@@ -357,16 +349,14 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						leftExp = p.parseFromExpression()
 						return leftExp
 					}
+					p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
 					switch {
 					case resolvingParser.Prefixes.Contains(p.CurToken.Literal) || resolvingParser.Forefixes.Contains(p.CurToken.Literal):
-						resolvingParser.BlingManager.startFunction(p.CurToken.Literal)
 						leftExp = p.parsePrefixExpression()
-						resolvingParser.BlingManager.stopFunction()
 					default:
-						resolvingParser.BlingManager.startFunction(p.CurToken.Literal)
 						leftExp = p.parseFunctionExpression()
-						resolvingParser.BlingManager.stopFunction()
 					}
+					p.Common.BlingManager.stopFunction()
 				}
 			}
 		} else {
@@ -391,9 +381,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				p.Throw("parse/before/b", &p.CurToken, &p.PeekToken)
 				return nil
 			}
-			p.pushRParser(resolvingParser)
 			maybeType := p.PeekToken.Literal
-			if p.IsTypePrefix(maybeType) {
+			if resolvingParser.IsTypePrefix(maybeType) {
 				tok := p.PeekToken
 				typeAst := p.ParseType(T_LOWEST)
 				// TODO --- the namespace needs to be represented in the type ast.
@@ -412,7 +401,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				p.NextToken()
 				leftExp = p.parseSuffixExpression(leftExp)
 			}
-			p.popRParser()
 		}
 
 		if p.PeekToken.Type == token.LOG {
@@ -423,9 +411,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		if precedence >= p.peekPrecedence() {
 			break
 		}
-		isBling := resolvingParser.BlingManager.canBling(p.PeekToken.Literal)
+		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal)
 		if isBling {
-			resolvingParser.BlingManager.doBling(p.PeekToken.Literal)
+			p.Common.BlingManager.doBling(p.PeekToken.Literal)
 		}
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
@@ -454,11 +442,11 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
 				if !isBling {
-					resolvingParser.BlingManager.startFunction(p.CurToken.Literal)
+					p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
 				}
 				leftExp = p.parseInfixExpression(leftExp)
 				if !isBling {
-					resolvingParser.BlingManager.stopFunction()
+					p.Common.BlingManager.stopFunction()
 				}
 			}
 		}
@@ -1022,16 +1010,7 @@ func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 	return []ast.Node{start}
 }
 
-// Functions for keeping track of the `resolving parser`, i.e. the one that knows about the namespace we're in.
-func (p *Parser) pushRParser(q *Parser) {
-	p.blingResolvingParsers = append(p.blingResolvingParsers, q)
-}
-func (p *Parser) topRParser() *Parser {
-	return p.blingResolvingParsers[len(p.blingResolvingParsers)-1]
-}
-func (p *Parser) popRParser() {
-	p.blingResolvingParsers = p.blingResolvingParsers[1:]
-}
+
 
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
 // to find which parser should resolve the symbol.
@@ -1169,7 +1148,6 @@ func (p *Parser) ResetAfterError() {
 
 func (p *Parser) ResetParser() {
 	p.CurrentNamespace = []string{}
-	p.blingResolvingParsers = []*Parser{p}
 	p.nesting = dtypes.Stack[token.Token]{}
 }
 

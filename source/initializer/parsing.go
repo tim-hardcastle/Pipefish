@@ -134,7 +134,7 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	}
 
 	if settings.SHOW_BLING_TREE {
-		println(iz.P.BlingManager.String())
+		println(iz.P.BlingTree.String())
 	}
 	// We hand back flow of control to initializer.go.
 }
@@ -534,7 +534,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 			iz.P.Functions.Add(tc.op.Literal)
 		}
 	}
-	iz.P.BlingManager.AddBling(blingList)
+	iz.P.BlingTree.AddBling(blingList)
 }
 
 // Now we can start creating the user-defined types.

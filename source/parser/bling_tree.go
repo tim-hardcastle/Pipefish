@@ -16,21 +16,17 @@ package parser
 
 type BlingManager struct {
 	navigators []*blingNavigator // As functions compose, we need a stack of navigators to keep track of where we are. 
-	tree       blingTree         // Filled up by the `AddWordsToParser` method and then used by the manager.
 }
 
 func newBlingManager() *BlingManager {
-	newBm := &BlingManager{[]*blingNavigator{}, make(blingTree)}
-	newBm.AddBling([]string{"="})
+	newBm := &BlingManager{[]*blingNavigator{}}
 	return newBm
 }
 
-func (bm BlingManager) AddBling(bling []string) {
-	bm.tree.addBling(bling)
-}
 
-func (bm *BlingManager) startFunction(s string) {
-	bm.navigators = append(bm.navigators, bm.tree.newBlingNavigator(s))
+
+func (bm *BlingManager) startFunction(s string, tree blingTree) {
+	bm.navigators = append(bm.navigators, tree.newBlingNavigator(s))
 }
 
 func (bm *BlingManager) stopFunction() {
@@ -50,9 +46,6 @@ func (bm *BlingManager) doBling(s string) {
 	bm.navigators[len(bm.navigators)-1].doBling(s)
 }
 
-func (b BlingManager) String() string {
-	return b.tree.recursiveString("")
-}
 
 // Go doesn't allow recursive definitions, so ...
 type blingTree map[string]any
@@ -61,7 +54,13 @@ type blingNavigator struct {
 	position blingTree
 }
 
-func (b blingTree) addBling(bling []string) {
+func newBlingTree() blingTree {
+	bt := make(blingTree, 0)
+	bt.AddBling([]string{"="})
+	return bt
+}
+
+func (b blingTree) AddBling(bling []string) {
 	if len(bling) == 0 {
 		return
 	}
@@ -70,7 +69,11 @@ func (b blingTree) addBling(bling []string) {
 	if !ok {
 		b[head] = make(blingTree)
 	}
-	b[head].(blingTree).addBling(bling[1:])
+	b[head].(blingTree).AddBling(bling[1:])
+}
+
+func (b blingTree) String() string {
+	return b.recursiveString("")
 }
 
 func (b blingTree) recursiveString(s string) string {
