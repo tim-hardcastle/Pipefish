@@ -821,16 +821,18 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.WriteString(Red(strings.Repeat("▔", lenUnderline)))
 		return false
 	case "why":
+		hub.WriteString("\n")
 		num := args[0].V.(int)
 		if num >= len(hub.ers) {
 			hub.WriteError("there aren't that many errors.")
 			return false
 		}
 		exp, _ := pf.ExplainError(hub.ers, num)
-		hub.WritePretty("\n<R>Error</>" + hub.ers[num].Message +
-			".\n\n" + exp + "\n")
-		refLine := "Error has reference `" + hub.ers[num].ErrorId + "`."
-		refLine = "\n" + strings.Repeat(" ", MARGIN-len(refLine)-2) + refLine
+		hub.WritePretty("<R>Error</>: " + hub.ers[num].Message +
+			".\n\n" + exp + "\n\n")
+		refLine := hub.GetPretty("Error has reference `" + hub.ers[num].ErrorId + "`.")
+		padding :=  strings.Repeat(" ", hub.getSV("width").V.(int) - len(text.StripColors(refLine))-2)
+		hub.WriteString(padding)
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")
 		return false
@@ -889,6 +891,12 @@ func (hub *Hub) WritePretty(s string) {
 	}
 	mdFunc := hubService.GetMarkdowner("", hub.getSV("width").V.(int), hub.getFonts())
 	hub.WriteString(mdFunc(s))
+}
+
+func (hub *Hub) GetPretty(s string) string {
+	hubService, _ := hub.services["hub"]
+	mdFunc := hubService.GetMarkdowner("", hub.getSV("width").V.(int), hub.getFonts())
+	return mdFunc(s)
 }
 
 func (hub *Hub) isAdministered() bool {

@@ -3,16 +3,18 @@
 cmd 
 
 foo (i int) :
-    post "Hello!"
+    post "Foo!"
 
 blerp :
-    OK
+    post "Blerp!"
 
 spong() :
-    OK
+    post "Spong!"
 
 moo boo (i int) :
-    OK 
+    post "Boo!"
+
+
 
 
 

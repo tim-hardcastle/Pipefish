@@ -3634,7 +3634,7 @@ func emph(s any) string {
 }
 
 func emphStr(s any) string {
-	return fmt.Sprintf("\"%v\"", s)
+	return fmt.Sprintf("`\"%v\"`", s)
 }
 
 func EmphType(v values.Value) string {
