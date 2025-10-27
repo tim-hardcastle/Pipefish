@@ -1,5 +1,16 @@
 // Exists to be imported by the import_test.pf and external_test.pf files.
 
+cmd 
+
+foo :
+    post "foo"
+
+bar() :
+    post "bar"
+
+qux(i) :
+    post "qux"
+
 def
 
 square(x int) :

@@ -71,15 +71,11 @@ func SerializedAPIToDeclarations(serializedAPI string, xserve uint32) string {
 			buf.WriteString("\n\n")
 			lineNo++
 		case "COMMAND":
-			if !hasHappened["COMMAND"] {
-				buf.WriteString("\ncmd\n\n")
-			}
+			buf.WriteString("\ncmd\n\n")
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
 			lineNo++
 		case "FUNCTION":
-			if !hasHappened["FUNCTION"] {
-				buf.WriteString("\ndef\n\n")
-			}
+			buf.WriteString("\ndef\n\n")
 			buf.WriteString(makeCommandOrFunctionDeclarationFromParts(parts[1:], xserve))
 			lineNo++
 		case "":

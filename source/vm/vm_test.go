@@ -341,6 +341,7 @@ func TestExternals(t *testing.T) {
 	}
 	test_helper.RunTest(t, "external_test.pf", tests, test_helper.TestValues)
 }
+
 func TestRef(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`x ++`, `OK`},
