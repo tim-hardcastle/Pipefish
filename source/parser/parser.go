@@ -341,8 +341,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case p.topRParser().BlingManager.canBling(p.CurToken.Literal):
-						p.topRParser().BlingManager.doBling(p.CurToken.Literal)
+					case resolvingParser.topRParser().BlingManager.canBling(p.CurToken.Literal):
+						resolvingParser.topRParser().BlingManager.doBling(p.CurToken.Literal)
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
 						leftExp = p.parseIdentifier()
@@ -359,17 +359,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					}
 					switch {
 					case resolvingParser.Prefixes.Contains(p.CurToken.Literal) || resolvingParser.Forefixes.Contains(p.CurToken.Literal):
-						p.pushRParser(resolvingParser)
-						p.BlingManager.startFunction(p.CurToken.Literal)
+						resolvingParser.BlingManager.startFunction(p.CurToken.Literal)
 						leftExp = p.parsePrefixExpression()
-						p.BlingManager.stopFunction()
-						p.popRParser()
+						resolvingParser.BlingManager.stopFunction()
 					default:
-						p.pushRParser(resolvingParser)
-						p.BlingManager.startFunction(p.CurToken.Literal)
+						resolvingParser.BlingManager.startFunction(p.CurToken.Literal)
 						leftExp = p.parseFunctionExpression()
-						p.BlingManager.stopFunction()
-						p.popRParser()
+						resolvingParser.BlingManager.stopFunction()
 					}
 				}
 			}
@@ -457,15 +453,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			case p.CurToken.Type == token.EQ || p.CurToken.Type == token.NOT_EQ:
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
-				p.pushRParser(resolvingParser)
 				if !isBling {
-					p.BlingManager.startFunction(p.CurToken.Literal)
+					resolvingParser.BlingManager.startFunction(p.CurToken.Literal)
 				}
 				leftExp = p.parseInfixExpression(leftExp)
 				if !isBling {
-					p.BlingManager.stopFunction()
+					resolvingParser.BlingManager.stopFunction()
 				}
-				p.popRParser()
 			}
 		}
 	}
