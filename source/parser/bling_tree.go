@@ -45,7 +45,13 @@ func (bm *BlingManager) canBling(s string) bool {
 	return result
 }
 
-
+func (bm *BlingManager) canEndfix(s string) bool {
+	if len(bm.navigators) == 0 {
+		return false
+	}
+	result := bm.navigators[len(bm.navigators)-1].canEndfix(s)
+	return result
+}
 
 func (bm *BlingManager) doBling(s string) {
 	bm.navigators[len(bm.navigators)-1].doBling(s)
@@ -100,6 +106,14 @@ func (b blingTree) newBlingNavigator(s string) *blingNavigator {
 func (bn *blingNavigator) canBling(s string) bool {
 	_, ok := (bn.position)[s]
 	return ok
+}
+
+func (bn *blingNavigator) canEndfix(s string) bool {
+	t, ok := (bn.position)[s]
+	if ok {
+		return len(t.(blingTree)) == 0
+	}
+	return false
 }
 
 func (bn *blingNavigator) doBling(s string) {

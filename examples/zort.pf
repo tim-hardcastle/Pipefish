@@ -1,20 +1,32 @@
 // Exists to be imported by external.pf for testing purposes.
 
-cmd 
+def
 
 foo (i int) :
-    post "Foo!"
+    "Foo"
 
 blerp :
-    post "Blerp!"
+    "Blerp"
 
 spong() :
-    post "Spong!"
+    "Spong"
 
 moo boo (i int) :
-    post "Boo!"
+    "Moo boo"
 
+moo boo coo (i int) :
+    "Moo boo coo"
 
+moo zoo :
+    "Moo zoo"
 
+(x) qux (y) :
+    "qux"
+
+(x) spoit :
+    "spoit"
+
+xuq (x) mip :
+    "xuq _ mip"
 
 

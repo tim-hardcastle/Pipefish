@@ -384,12 +384,23 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		p.NextToken()
 		return result
 	}
-
+	if p.Common.BlingManager.canEndfix(p.PeekToken.Literal) {
+		p.NextToken()
+		p.Common.BlingManager.doBling(p.CurToken.Literal)
+		blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
+		dummyCommaTok := p.CurToken 
+		dummyCommaTok.Literal = ","
+		leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{leftExp, &ast.Bling{Value: ",", Token: dummyCommaTok}, blingIs}, []string{}}
+	}	
 	for precedence < p.peekPrecedence() {
-		for resolvingParser.IsTypePrefix(p.PeekToken.Literal) || resolvingParser.Suffixes.Contains(p.PeekToken.Literal) || resolvingParser.Endfixes.Contains(p.PeekToken.Literal) || p.PeekToken.Type == token.DOTDOTDOT {
+		// We look for suffixes.
+		for resolvingParser.IsTypePrefix(p.PeekToken.Literal) || resolvingParser.Suffixes.Contains(p.PeekToken.Literal) || p.Common.BlingManager.canEndfix(p.PeekToken.Literal) || p.PeekToken.Type == token.DOTDOTDOT {
 			if p.CurToken.Type == token.NOT || p.CurToken.Type == token.IDENT && p.CurToken.Literal == "-" || p.CurToken.Type == token.ELSE {
 				p.Throw("parse/before/b", &p.CurToken, &p.PeekToken)
 				return nil
+			}
+			if p.Common.BlingManager.canEndfix(p.PeekToken.Literal) {
+				println("B Can endfix", p.PeekToken.Literal)
 			}
 			maybeType := p.PeekToken.Literal
 			if resolvingParser.IsTypePrefix(maybeType) {
@@ -412,7 +423,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				leftExp = p.parseSuffixExpression(leftExp)
 			}
 		}
-
 		if p.PeekToken.Type == token.LOG {
 			p.NextToken()
 			leftExp = p.parseLogExpression(leftExp)
@@ -421,6 +431,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		if precedence >= p.peekPrecedence() {
 			break
 		}
+		// We move on to infixes.
 		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal)
 		if isBling {
 			p.Common.BlingManager.doBling(p.PeekToken.Literal)

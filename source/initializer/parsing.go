@@ -534,6 +534,9 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 			iz.P.Functions.Add(tc.op.Literal)
 		}
 	}
+	if len(tc.sig) > 0 && !tc.sig[len(tc.sig) - 1].IsBling() {
+		blingList = append(blingList, "*more values*") // A hack so that it can tell when things aren't endfixes.
+	}
 	iz.P.BlingTree.AddBling(blingList)
 }
 

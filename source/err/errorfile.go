@@ -1033,9 +1033,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/types": {
 		Message: func(tok *token.Token, args ...any) string {
-			// Note that emphasis of args[1] is done at source.
-
-			return "function " + emph(args[0]) + " cannot accept arguments of type " + emph(args[1])
+			return "function " + emph(args[0]) + " cannot accept arguments of type " + args[1].(string)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While this function or command does exist, there is no version of it accepting the types you have supplied."
@@ -2158,7 +2156,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "This error occurs when an otherwise well-formed expression " +
-				"is followed by some stray bit of code that shouldn't be there, e.g. '(2 + 2) \"wombat\"'." + blame(errors, pos, "lex/comma")
+				"is followed by some stray bit of code that shouldn't be there, e.g. `(2 + 2) \"wombat\"`." + blame(errors, pos, "lex/comma")
 		},
 	},
 

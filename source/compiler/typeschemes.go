@@ -629,7 +629,7 @@ func (fT FiniteTupleType) describeWithPotentialInfix(mc *vm.Vm, infix string) st
 		}
 		if thisIsBling && bling.tag == infix {
 			specialBlingHasHappened = true
-			fmt.Fprint(&buf, "` on the left of it and `") // The ' characters will sneakily interact with emph in the errorfile.
+			fmt.Fprint(&buf, "` on the left of it and `") // The ` characters will sneakily interact with emph in the errorfile.
 		} else {
 			if i > 0 && !specialBlingJustHappened {
 				fmt.Fprint(&buf, " ")
