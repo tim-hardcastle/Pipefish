@@ -26,18 +26,23 @@ func newBlingManager() *BlingManager {
 
 
 func (bm *BlingManager) startFunction(s string, tree blingTree) {
+	//println("Starting function", s)
 	bm.navigators = append(bm.navigators, tree.newBlingNavigator(s))
 }
 
 func (bm *BlingManager) stopFunction() {
+	//println("stopping")
 	bm.navigators = bm.navigators[0:len(bm.navigators)-1]
 }
 
 func (bm *BlingManager) canBling(s string) bool {
 	if len(bm.navigators) == 0 {
+		//println("canBling: no navigator")
 		return false
 	}
-	return bm.navigators[len(bm.navigators)-1].canBling(s)
+	result := bm.navigators[len(bm.navigators)-1].canBling(s)
+	//println("canBling", s, false)
+	return result
 }
 
 

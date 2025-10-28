@@ -286,6 +286,7 @@ func (p *Parser) IsEnumElement(name string) bool {
 // Finds whether an identifier is in the right place to be a function, or whether it's being used
 // as though it's a variable or constant.
 func (p *Parser) isPositionallyFunctional() bool {
+	// println("Testing IPF with", p.CurToken.Literal, p.PeekToken.Literal)
 	if assignmentTokens.Contains(p.PeekToken.Type) {
 		return false
 	}

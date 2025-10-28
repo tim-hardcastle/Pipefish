@@ -340,23 +340,33 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						leftExp = p.parseIdentifier()
 					}
 				} else {
-					if p.CurToken.Literal == "func" {
+					switch {
+					case p.CurToken.Literal == "func" :
 						leftExp = p.parseLambdaExpression()
 						return leftExp // TODO --- don't.
-					}
-
-					if p.CurToken.Literal == "from" {
+					case p.CurToken.Literal == "from" :
 						leftExp = p.parseFromExpression()
 						return leftExp
+					default :				
+						switch {
+						case p.Common.BlingManager.canBling(p.CurToken.Literal) :
+							p.Common.BlingManager.doBling(p.CurToken.Literal)
+							blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
+							dummyCommaTok := p.CurToken 
+							dummyCommaTok.Literal = ","
+							p.NextToken()
+							restOfExpIs := p.ParseExpression(FPREFIX)
+							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}, []string{}}
+						case resolvingParser.Prefixes.Contains(p.CurToken.Literal) :
+							p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
+							leftExp = p.parsePrefixExpression()
+							p.Common.BlingManager.stopFunction()
+						default:
+							p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
+							leftExp = p.parseFunctionExpression()
+							p.Common.BlingManager.stopFunction()
+						}
 					}
-					p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
-					switch {
-					case resolvingParser.Prefixes.Contains(p.CurToken.Literal) || resolvingParser.Forefixes.Contains(p.CurToken.Literal):
-						leftExp = p.parsePrefixExpression()
-					default:
-						leftExp = p.parseFunctionExpression()
-					}
-					p.Common.BlingManager.stopFunction()
 				}
 			}
 		} else {
@@ -869,7 +879,6 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 		Operator: p.CurToken.Literal,
 	}
 	p.NextToken()
-	p.CurrentNamespace = nil
 	node := p.ParseExpression(FPREFIX)
 	expression.Args = p.RecursivelyListify(node)
 	return expression
