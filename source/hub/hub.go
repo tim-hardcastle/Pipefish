@@ -831,7 +831,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.WritePretty("<R>Error</>: " + hub.ers[num].Message + ".")
 		hub.WriteString("\n\n")
 		hub.WritePretty(exp + "\n\n")
-		refLine := hub.GetPretty("Error has reference `" + hub.ers[num].ErrorId + "`.")
+		refLine := hub.GetPretty("Error has reference `\"" + hub.ers[num].ErrorId + "\"`.")
 		padding :=  strings.Repeat(" ", hub.getSV("width").V.(int) - len(text.StripColors(refLine))-2)
 		hub.WriteString(padding)
 		hub.WritePretty(refLine)
