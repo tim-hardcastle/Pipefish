@@ -428,14 +428,15 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			leftExp = p.parseLogExpression(leftExp)
 		}
 
-		if precedence >= p.peekPrecedence() {
-			break
-		}
-		// We move on to infixes.
 		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal)
 		if isBling {
 			p.Common.BlingManager.doBling(p.PeekToken.Literal)
 		}
+
+		if precedence >= p.peekPrecedence() {
+			break
+		}
+		// We move on to infixes.
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
 			resolvingParser.Infixes.Contains(p.PeekToken.Literal) || isBling

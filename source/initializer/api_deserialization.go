@@ -129,12 +129,15 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 				buf.WriteString(", ")
 			}
 		}
+		lastWasBling = false
 		buf.WriteString(bits[0])
 		buf.WriteString(" ")
 		buf.WriteString(bits[1])
 	}
 	if position != vm.UNFIX {
-		buf.WriteString(")")
+		if len(params) == 0 || len(params) > 0 && (strings.Split(params[len(params)-1]," "))[1] != "bling" {
+			buf.WriteString(")")
+		}
 	}
 	if position == vm.SUFFIX {
 		buf.WriteString(" ")

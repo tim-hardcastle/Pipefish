@@ -336,6 +336,12 @@ func TestExternals(t *testing.T) {
 		{`zort.Tone LIGHT, BLUE`, `zort.Tone with (shade::zort.LIGHT, color::zort.BLUE)`},
 		{`zort.Qux 5`, `zort.Qux(5)`},
 		{`zort.Time`, `Time`},
+		{`zort.blerp`, `"Blerp"`},
+		{`zort.spong()`, `"Spong"`},
+		{`zort.moo boo 8`, `"Moo boo"`},
+		{`zort.moo boo coo 8`, `"Moo boo coo"`},
+		{`zort.moo zoo`, `"Moo zoo"`},
+		{`zort.xuq 9 mip`, `"Xuq _ mip"`},
 	}
 	test_helper.RunTest(t, "external_test.pf", tests, test_helper.TestValues)
 }

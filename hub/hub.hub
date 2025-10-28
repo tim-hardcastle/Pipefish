@@ -8,7 +8,7 @@ allServices = map(`hub`::`hub/hub.hub`,
                .. `extern`::`/home/tim/Pf/Pipefish/examples/external.pf`,
                .. `zort`::`/home/tim/Pf/Pipefish/examples/zort.pf`)
 
-currentService string? = `zort`
+currentService string? = `extern`
 
 isLive = true
 
