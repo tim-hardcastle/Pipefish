@@ -504,15 +504,15 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		for startAt = 2; !tc.sig[startAt-1].IsBling(); startAt++ {
 		}
 	}
-	blingList := []string{}
+	blingList := []parser.BlingData{}
 	if tc.pos == prefix {
-		blingList = append(blingList, tc.op.Literal)
+		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.BLING})
 	}
 	lastWasBling := true
 	for ix := startAt; ix < len(tc.sig); ix++ {
 		if tc.sig[ix].IsBling() {
 			word := tc.sig[ix].Name.Literal
-			blingList = append(blingList, word)
+			blingList = append(blingList, parser.BlingData{word, parser.BLING})
 			if ix == len(tc.sig)-1 {
 				iz.P.Endfixes.Add(word)
 				break
@@ -535,7 +535,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		}
 	}
 	if len(tc.sig) > 0 && !tc.sig[len(tc.sig) - 1].IsBling() {
-		blingList = append(blingList, "*more values*") // A hack so that it can tell when things aren't endfixes.
+		blingList = append(blingList, parser.BlingData{"*more values*", parser.BLING}) // A hack so that it can tell when things aren't endfixes.
 	}
 	iz.P.BlingTree.AddBling(blingList)
 }

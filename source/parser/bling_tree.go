@@ -14,6 +14,17 @@ package parser
 // TODO --- this could replace pretty much all of the ways we presently handle bling in the 
 // parser.
 
+type IdentifierPosition int 
+
+const (
+	BLING IdentifierPosition = iota 
+)
+
+type BlingData struct {
+	Bling string
+	Pos   IdentifierPosition
+}
+
 type BlingManager struct {
 	navigators []*blingNavigator // As functions compose, we need a stack of navigators to keep track of where we are. 
 }
@@ -35,12 +46,12 @@ func (bm *BlingManager) stopFunction() {
 	bm.navigators = bm.navigators[0:len(bm.navigators)-1]
 }
 
-func (bm *BlingManager) canBling(s string) bool {
+func (bm *BlingManager) canBling(s string, pos IdentifierPosition) bool {
 	if len(bm.navigators) == 0 {
 		//println("canBling: no navigator")
 		return false
 	}
-	result := bm.navigators[len(bm.navigators)-1].canBling(s)
+	result := bm.navigators[len(bm.navigators)-1].canBling(s, pos)
 	//println("canBling", s, false)
 	return result
 }
@@ -59,7 +70,7 @@ func (bm *BlingManager) doBling(s string) {
 
 
 // Go doesn't allow recursive definitions, so ...
-type blingTree map[string]any
+type blingTree map[BlingData]any
 
 type blingNavigator struct {
 	position blingTree
@@ -67,11 +78,11 @@ type blingNavigator struct {
 
 func newBlingTree() blingTree {
 	bt := make(blingTree, 0)
-	bt.AddBling([]string{"="})
+	bt.AddBling([]BlingData{{"=", BLING}})
 	return bt
 }
 
-func (b blingTree) AddBling(bling []string) {
+func (b blingTree) AddBling(bling []BlingData) {
 	if len(bling) == 0 {
 		return
 	}
@@ -90,32 +101,43 @@ func (b blingTree) String() string {
 func (b blingTree) recursiveString(s string) string {
 	result := ""
 	for k, v := range b {
-		result = result + s + "'" + k + "'" + "\n" + v.(blingTree).recursiveString(s + "    ")
+		result = result + s + "'" + k.Bling + "'" + "\n" + v.(blingTree).recursiveString(s + "    ")
 	}
 	return result
 }
 
 func (b blingTree) newBlingNavigator(s string) *blingNavigator {
-	result, ok := b[s]
+	result, ok := b[BlingData{s, BLING}]
 	if !ok { // TODO --- this is a temporary hack around type declarations and so on again and can be sorted out by separating them from the ordinary parsing.
 		return &blingNavigator{position: make(blingTree)}
 	}
 	return &blingNavigator{position: result.(blingTree)}
 }
 
-func (bn *blingNavigator) canBling(s string) bool {
-	_, ok := (bn.position)[s]
-	return ok
+func (bn *blingNavigator) canBling(s string, poss ... IdentifierPosition) bool {
+	for _, pos := range poss {
+	_, ok := (bn.position)[BlingData{s, pos}]
+		if ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (bn *blingNavigator) canEndfix(s string) bool {
-	t, ok := (bn.position)[s]
+	t, ok := (bn.position)[BlingData{s, BLING}]
 	if ok {
 		return len(t.(blingTree)) == 0
 	}
 	return false
 }
 
-func (bn *blingNavigator) doBling(s string) {
-	bn.position, _ = (bn.position)[s].(blingTree)
+func (bn *blingNavigator) doBling(s string, poss ... IdentifierPosition) {
+	for _, pos := range poss {
+		newPosition, ok := (bn.position)[BlingData{s, pos}].(blingTree)
+		if ok {
+			bn.position = newPosition
+			return
+		}
+	}
 }

@@ -333,7 +333,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case p.Common.BlingManager.canBling(p.CurToken.Literal):
+					case p.Common.BlingManager.canBling(p.CurToken.Literal, BLING):
 						p.Common.BlingManager.doBling(p.CurToken.Literal)
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
@@ -349,7 +349,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						return leftExp
 					default :				
 						switch {
-						case p.Common.BlingManager.canBling(p.CurToken.Literal) :
+						case p.Common.BlingManager.canBling(p.CurToken.Literal, BLING) :
 							p.Common.BlingManager.doBling(p.CurToken.Literal)
 							blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 							dummyCommaTok := p.CurToken 
@@ -428,7 +428,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			leftExp = p.parseLogExpression(leftExp)
 		}
 
-		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal)
+		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal, BLING)
 		if isBling {
 			p.Common.BlingManager.doBling(p.PeekToken.Literal)
 		}
