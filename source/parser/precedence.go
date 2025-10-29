@@ -140,7 +140,7 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 		return p
 	}
 	if tok.Type == token.IDENT {
-		if p.Infixes.Contains(tok.Literal) {
+		if p.getResolvingParser().Infixes.Contains(tok.Literal) {
 			if tok.Literal == "+" || tok.Literal == "-" {
 				return SUM
 			}
@@ -161,19 +161,21 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FINFIX
 		}
-		if p.Prefixes.Contains(tok.Literal) || p.Functions.Contains(tok.Literal) {
+		if p.getResolvingParser().Prefixes.Contains(tok.Literal) || p.getResolvingParser().Functions.Contains(tok.Literal) {
 			if tok.Literal == "func" {
 				return LOWEST
 			}
 			return FPREFIX
 		}
-		if p.Midfixes.Contains(tok.Literal) || p.Forefixes.Contains(p.PeekToken.Literal) {
+		if p.Midfixes.Contains(tok.Literal) || 
+		   p.Common.BlingManager.canBling(p.CurToken.Literal, MIDFIX) ||
+		   p.Common.BlingManager.canBling(p.PeekToken.Literal, FOREFIX) {
 			return FMIDFIX
 		}
-		if p.Endfixes.Contains(tok.Literal) {
+		if p.Common.BlingManager.canEndfix(tok.Literal) {
 			return FENDFIX
 		}
-		if p.Suffixes.Contains(tok.Literal) {
+		if p.getResolvingParser().Suffixes.Contains(tok.Literal) {
 			return FSUFFIX
 		}
 	}
