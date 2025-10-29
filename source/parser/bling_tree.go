@@ -20,10 +20,11 @@ const (
 	BLING IdentifierPosition = iota 
 	OPERATION
 	FOREFIX
+	MIDFIX
 	ENDFIX 
 )
 
-var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, ENDFIX}
+var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, MIDFIX, ENDFIX}
 
 type BlingData struct {
 	Bling string

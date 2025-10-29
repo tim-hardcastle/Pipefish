@@ -525,7 +525,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 				if ix == startAt {
 					blingList = append(blingList, parser.BlingData{word, parser.OPERATION})
 				} else {
-					blingList = append(blingList, parser.BlingData{word, parser.BLING})
+					blingList = append(blingList, parser.BlingData{word, parser.MIDFIX})
 				}
 			}
 		}

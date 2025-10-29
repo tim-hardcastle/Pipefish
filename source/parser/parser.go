@@ -428,9 +428,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			leftExp = p.parseLogExpression(leftExp)
 		}
 
-		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal, ANY_BLING...)
+		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal, MIDFIX)
 		if isBling {
-			p.Common.BlingManager.doBling(p.PeekToken.Literal, ANY_BLING...)
+			p.Common.BlingManager.doBling(p.PeekToken.Literal, MIDFIX)
 		}
 
 		if precedence >= p.peekPrecedence() {
