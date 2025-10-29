@@ -23,7 +23,7 @@ const (
 	ENDFIX 
 )
 
-var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, ENDFIX, OPERATION}
+var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, ENDFIX}
 
 type BlingData struct {
 	Bling string
