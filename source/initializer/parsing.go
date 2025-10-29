@@ -512,11 +512,12 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	for ix := startAt; ix < len(tc.sig); ix++ {
 		if tc.sig[ix].IsBling() {
 			word := tc.sig[ix].Name.Literal
-			blingList = append(blingList, parser.BlingData{word, parser.BLING})
 			if ix == len(tc.sig)-1 {
 				iz.P.Endfixes.Add(word)
+				blingList = append(blingList, parser.BlingData{word, parser.ENDFIX})
 				break
 			}
+			blingList = append(blingList, parser.BlingData{word, parser.BLING})
 			if lastWasBling {
 				iz.P.Forefixes.Add(word)
 			} else {

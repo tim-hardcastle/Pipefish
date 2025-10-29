@@ -127,11 +127,8 @@ func (bn *blingNavigator) canBling(s string, poss ... IdentifierPosition) bool {
 }
 
 func (bn *blingNavigator) canEndfix(s string) bool {
-	t, ok := (bn.position)[BlingData{s, BLING}]
-	if ok {
-		return len(t.(blingTree)) == 0
-	}
-	return false
+	_, ok := (bn.position)[BlingData{s, ENDFIX}]
+	return ok
 }
 
 func (bn *blingNavigator) doBling(s string, poss ... IdentifierPosition) {
