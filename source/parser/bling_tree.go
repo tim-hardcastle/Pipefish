@@ -18,11 +18,12 @@ type IdentifierPosition int
 
 const (
 	BLING IdentifierPosition = iota 
+	OPERATION
 	FOREFIX
 	ENDFIX 
 )
 
-var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, ENDFIX}
+var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, ENDFIX, OPERATION}
 
 type BlingData struct {
 	Bling string
@@ -79,7 +80,7 @@ type blingNavigator struct {
 
 func newBlingTree() blingTree {
 	bt := make(blingTree, 0)
-	bt.AddBling([]BlingData{{"=", BLING}})
+	bt.AddBling([]BlingData{{"=", OPERATION}})
 	return bt
 }
 
@@ -108,7 +109,7 @@ func (b blingTree) recursiveString(s string) string {
 }
 
 func (b blingTree) newBlingNavigator(s string) *blingNavigator {
-	result, ok := b[BlingData{s, BLING}]
+	result, ok := b[BlingData{s, OPERATION}]
 	if !ok { // TODO --- this is a temporary hack around type declarations and so on again and can be sorted out by separating them from the ordinary parsing.
 		return &blingNavigator{position: make(blingTree)}
 	}

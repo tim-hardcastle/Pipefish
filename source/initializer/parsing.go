@@ -506,7 +506,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	}
 	blingList := []parser.BlingData{}
 	if tc.pos == prefix {
-		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.BLING})
+		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.OPERATION})
 	}
 	lastWasBling := true
 	for ix := startAt; ix < len(tc.sig); ix++ {
@@ -522,7 +522,11 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 				blingList = append(blingList, parser.BlingData{word, parser.FOREFIX})
 			} else {
 				iz.P.Midfixes.Add((word))
-				blingList = append(blingList, parser.BlingData{word, parser.BLING})
+				if ix == startAt {
+					blingList = append(blingList, parser.BlingData{word, parser.OPERATION})
+				} else {
+					blingList = append(blingList, parser.BlingData{word, parser.BLING})
+				}
 			}
 		}
 		lastWasBling = tc.sig[ix].IsBling()
