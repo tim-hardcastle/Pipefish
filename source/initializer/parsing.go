@@ -517,11 +517,12 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 				blingList = append(blingList, parser.BlingData{word, parser.ENDFIX})
 				break
 			}
-			blingList = append(blingList, parser.BlingData{word, parser.BLING})
 			if lastWasBling {
 				iz.P.Forefixes.Add(word)
+				blingList = append(blingList, parser.BlingData{word, parser.FOREFIX})
 			} else {
 				iz.P.Midfixes.Add((word))
+				blingList = append(blingList, parser.BlingData{word, parser.BLING})
 			}
 		}
 		lastWasBling = tc.sig[ix].IsBling()

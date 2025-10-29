@@ -349,8 +349,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						return leftExp
 					default :				
 						switch {
-						case p.Common.BlingManager.canBling(p.CurToken.Literal, ANY_BLING...) :
-							p.Common.BlingManager.doBling(p.CurToken.Literal, ANY_BLING...)
+						case p.Common.BlingManager.canBling(p.CurToken.Literal, FOREFIX) :
+							p.Common.BlingManager.doBling(p.CurToken.Literal, FOREFIX)
 							blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 							dummyCommaTok := p.CurToken 
 							dummyCommaTok.Literal = ","

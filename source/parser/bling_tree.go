@@ -18,10 +18,11 @@ type IdentifierPosition int
 
 const (
 	BLING IdentifierPosition = iota 
+	FOREFIX
 	ENDFIX 
 )
 
-var ANY_BLING = []IdentifierPosition{BLING, ENDFIX}
+var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, ENDFIX}
 
 type BlingData struct {
 	Bling string
@@ -36,8 +37,6 @@ func newBlingManager() *BlingManager {
 	newBm := &BlingManager{[]*blingNavigator{}}
 	return newBm
 }
-
-
 
 func (bm *BlingManager) startFunction(s string, tree blingTree) {
 	//println("Starting function", s)
