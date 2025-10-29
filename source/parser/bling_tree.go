@@ -18,7 +18,10 @@ type IdentifierPosition int
 
 const (
 	BLING IdentifierPosition = iota 
+	ENDFIX 
 )
+
+var ANY_BLING = []IdentifierPosition{BLING, ENDFIX}
 
 type BlingData struct {
 	Bling string
@@ -46,12 +49,12 @@ func (bm *BlingManager) stopFunction() {
 	bm.navigators = bm.navigators[0:len(bm.navigators)-1]
 }
 
-func (bm *BlingManager) canBling(s string, pos IdentifierPosition) bool {
+func (bm *BlingManager) canBling(s string, pos ... IdentifierPosition) bool {
 	if len(bm.navigators) == 0 {
 		//println("canBling: no navigator")
 		return false
 	}
-	result := bm.navigators[len(bm.navigators)-1].canBling(s, pos)
+	result := bm.navigators[len(bm.navigators)-1].canBling(s, pos...)
 	//println("canBling", s, false)
 	return result
 }
@@ -64,10 +67,9 @@ func (bm *BlingManager) canEndfix(s string) bool {
 	return result
 }
 
-func (bm *BlingManager) doBling(s string) {
-	bm.navigators[len(bm.navigators)-1].doBling(s)
+func (bm *BlingManager) doBling(s string, pos ... IdentifierPosition) {
+	bm.navigators[len(bm.navigators)-1].doBling(s, pos ...)
 }
-
 
 // Go doesn't allow recursive definitions, so ...
 type blingTree map[BlingData]any

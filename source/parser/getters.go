@@ -290,7 +290,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if assignmentTokens.Contains(p.PeekToken.Type) {
 		return false
 	}
-	if p.Common.BlingManager.canBling(p.PeekToken.Literal, BLING) {
+	if p.Common.BlingManager.canBling(p.PeekToken.Literal, ANY_BLING...) {
 		return false
 	}
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||
@@ -330,7 +330,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 
 // TODO --- there may at this point not be any need to have this different from any other function.
 func (p *Parser) typeIsFunctional() bool {
-	if p.Common.BlingManager.canBling(p.PeekToken.Literal, BLING) {
+	if p.Common.BlingManager.canBling(p.PeekToken.Literal, ANY_BLING...) {
 		return false
 	}
 	if p.PeekToken.Type == token.RPAREN || p.PeekToken.Type == token.PIPE ||

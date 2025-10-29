@@ -333,8 +333,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case p.Common.BlingManager.canBling(p.CurToken.Literal, BLING):
-						p.Common.BlingManager.doBling(p.CurToken.Literal)
+					case p.Common.BlingManager.canBling(p.CurToken.Literal, ANY_BLING...):
+						p.Common.BlingManager.doBling(p.CurToken.Literal, ANY_BLING...)
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
 						leftExp = p.parseIdentifier()
@@ -349,8 +349,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						return leftExp
 					default :				
 						switch {
-						case p.Common.BlingManager.canBling(p.CurToken.Literal, BLING) :
-							p.Common.BlingManager.doBling(p.CurToken.Literal)
+						case p.Common.BlingManager.canBling(p.CurToken.Literal, ANY_BLING...) :
+							p.Common.BlingManager.doBling(p.CurToken.Literal, ANY_BLING...)
 							blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 							dummyCommaTok := p.CurToken 
 							dummyCommaTok.Literal = ","
@@ -386,7 +386,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	}
 	if p.Common.BlingManager.canEndfix(p.PeekToken.Literal) {
 		p.NextToken()
-		p.Common.BlingManager.doBling(p.CurToken.Literal)
+		p.Common.BlingManager.doBling(p.CurToken.Literal, ANY_BLING...)
 		blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 		dummyCommaTok := p.CurToken 
 		dummyCommaTok.Literal = ","
@@ -428,9 +428,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			leftExp = p.parseLogExpression(leftExp)
 		}
 
-		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal, BLING)
+		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal, ANY_BLING...)
 		if isBling {
-			p.Common.BlingManager.doBling(p.PeekToken.Literal)
+			p.Common.BlingManager.doBling(p.PeekToken.Literal, ANY_BLING...)
 		}
 
 		if precedence >= p.peekPrecedence() {
