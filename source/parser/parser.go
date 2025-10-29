@@ -333,8 +333,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					switch {
 					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
 						leftExp = p.parseUnfixExpression()
-					case p.Common.BlingManager.canBling(p.CurToken.Literal, ANY_BLING...):
-						p.Common.BlingManager.doBling(p.CurToken.Literal, ANY_BLING...)
+					case p.Common.BlingManager.canBling(p.CurToken.Literal, ENDFIX):
+						p.Common.BlingManager.doBling(p.CurToken.Literal, ENDFIX)
 						leftExp = &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 					default:
 						leftExp = p.parseIdentifier()
