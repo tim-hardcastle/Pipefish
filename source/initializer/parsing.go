@@ -505,7 +505,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		}
 	}
 	blingList := []parser.BlingData{}
-	if tc.pos == prefix {
+	if tc.pos == prefix || tc.pos == infix {
 		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.OPERATION})
 	}
 	lastWasBling := true

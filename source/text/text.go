@@ -184,7 +184,7 @@ const (
 	PURPLE                 = "\033[35m"
 	CYAN                   = "\033[36m"
 	GRAY                   = "\033[37m"
-	INLINE_CODE_BACKGROUND = "\033[48;2;0;0;128m"
+	INLINE_CODE_BACKGROUND = "\033[48;2;0;0;64m"
 	WHITE                  = "\033[97m"
 	ITALIC                 = "\033[3m"
 	BOLD                   = "\033[1m"

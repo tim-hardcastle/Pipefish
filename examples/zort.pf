@@ -42,5 +42,9 @@ gee (x) hee (y) spee :
 gah (x) hah (y) spah blah :
     "gah hah spah blah"
 
-(x) bing (y) bong:
+(x) bing (y) bong :
     "bing bong"
+
+(x) ding (y) dong (z dang):
+    "bing bong"
+
