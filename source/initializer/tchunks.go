@@ -795,9 +795,10 @@ func (iz *Initializer) ChunkFunctionSignature() (*tokenizedFunctionDeclaration, 
 			if pair.Typename[0].Literal == "bling" {
 				name = pair.Name
 				if i == len(sig)-1 {
-					position = suffix
+					position = suffix 
 				} else {
 					position = infix
+					break
 				}
 			}
 		}

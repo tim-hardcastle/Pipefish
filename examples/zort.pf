@@ -32,5 +32,15 @@ xuq (x) mip :
 troz (x) nerf (y) :
     "troz _ nerf _"
 
+goo (x) hoo(y) spoo (z) :
+    "goo hoo spoo"
 
 
+gee (x) hee (y) spee :
+    "gee hee spee"
+
+gah (x) hah (y) spah blah :
+    "gah hah spah blah"
+
+(x) bing (y) bong:
+    "bing bong"
