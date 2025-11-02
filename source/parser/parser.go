@@ -392,6 +392,11 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		dummyCommaTok.Literal = ","
 		leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{leftExp, &ast.Bling{Value: ",", Token: dummyCommaTok}, blingIs}, []string{}}
 	}	
+	for p.Common.BlingManager.canBling(p.PeekToken.Literal, MIDFIX) {
+		p.Common.BlingManager.doBling(p.PeekToken.Literal, MIDFIX)
+		p.NextToken()
+		leftExp = p.parseInfixExpression(leftExp)
+	}
 	for precedence < p.peekPrecedence() {
 		// We look for suffixes.
 		for resolvingParser.IsTypePrefix(p.PeekToken.Literal) || resolvingParser.Suffixes.Contains(p.PeekToken.Literal) || p.Common.BlingManager.canEndfix(p.PeekToken.Literal) || p.PeekToken.Type == token.DOTDOTDOT {
@@ -428,18 +433,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			leftExp = p.parseLogExpression(leftExp)
 		}
 
-		isBling := p.Common.BlingManager.canBling(p.PeekToken.Literal, MIDFIX)
-		if isBling {
-			p.Common.BlingManager.doBling(p.PeekToken.Literal, MIDFIX)
-		}
-
 		if precedence >= p.peekPrecedence() {
 			break
 		}
 		// We move on to infixes.
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
-			resolvingParser.Infixes.Contains(p.PeekToken.Literal) || isBling
+			resolvingParser.Infixes.Contains(p.PeekToken.Literal) 
 		if !foundInfix {
 			return leftExp
 		}
@@ -463,13 +463,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			case p.CurToken.Type == token.EQ || p.CurToken.Type == token.NOT_EQ:
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
-				if !isBling {
-					p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
-				}
+				p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
 				leftExp = p.parseInfixExpression(leftExp)
-				if !isBling {
-					p.Common.BlingManager.stopFunction()
-				}
+				p.Common.BlingManager.stopFunction()
 			}
 		}
 	}

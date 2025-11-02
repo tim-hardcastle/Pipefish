@@ -210,6 +210,7 @@ func TestFancyFunctions(t *testing.T) {
 		{`gee 8 hee 9 spee`, `"gee _ hee _ spee"`},
 		{`gah 8 hah 9 spah blah`, `"gah _ hah _ spah blah"`},
 		{`8 bing 9 bong`, `"_ bing _ bong"`},
+		{`8 ding 9 dong 0 dang`, `"_ ding _ dong _ dang"`},
 	}
 	test_helper.RunTest(t, "fancy_function_test.pf", tests, test_helper.TestValues)
 }
