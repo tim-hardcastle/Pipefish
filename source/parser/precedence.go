@@ -167,13 +167,11 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FPREFIX
 		}
-		if p.Midfixes.Contains(tok.Literal) || 
-		   p.Common.BlingManager.canBling(p.CurToken.Literal, MIDFIX) ||
-		   p.Common.BlingManager.canBling(p.PeekToken.Literal, FOREFIX) {
+		if p.Midfixes.Contains(tok.Literal)  {
+			if !p.Common.BlingManager.canBling(tok.Literal, MIDFIX) {
+				println("Can't bling", tok.Literal)
+			}
 			return FMIDFIX
-		}
-		if p.Common.BlingManager.canEndfix(tok.Literal) {
-			return FENDFIX
 		}
 		if p.getResolvingParser().Suffixes.Contains(tok.Literal) {
 			return FSUFFIX
