@@ -33,17 +33,16 @@ troz (x) nerf (y) :
     "troz _ nerf _"
 
 goo (x) hoo(y) spoo (z) :
-    "goo hoo spoo"
-
+    "goo _ hoo _ spoo _"
 
 gee (x) hee (y) spee :
-    "gee hee spee"
+    "gee _ hee _ spee"
 
 gah (x) hah (y) spah blah :
-    "gah hah spah blah"
+    "gah _ hah _ spah blah"
 
 (x) bing (y) bong :
-    "bing bong"
+    "_ bing _ bong"
 
 (x) ding (y) dong (z dang):
     "bing bong"

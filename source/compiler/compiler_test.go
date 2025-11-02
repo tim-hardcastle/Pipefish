@@ -195,6 +195,24 @@ func TestFunctionSyntaxCalls(t *testing.T) {
 	}
 	test_helper.RunTest(t, "function_call_test.pf", tests, test_helper.TestValues)
 }
+func TestFancyFunctions(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`foo 99`, `"foo _"`},
+		{`spong()`, `"spong _"`},
+		{`blerp`, `"blerp"`},
+		{`moo boo 8`, `"moo boo _"`},
+		{`moo boo coo 8`, `"moo boo coo _"`},
+		{`moo zoo`, `"moo zoo"`},
+		{`9 spoit`, `"_ spoit"`},
+		{`xuq 9 mip`, `"xuq _ mip"`},
+		{`troz 8 nerf 9`, `"troz _ nerf _"`},
+		{`goo 8 hoo 9 spoo 0`, `"goo _ hoo _ spoo _"`},
+		{`gee 8 hee 9 spee`, `"gee _ hee _ spee"`},
+		{`gah 8 hah 9 spah blah`, `"gah _ hah _ spah blah"`},
+		{`8 bing 9 bong`, `"_ bing _ bong"`},
+	}
+	test_helper.RunTest(t, "fancy_function_test.pf", tests, test_helper.TestValues)
+}
 func TestVariablesAndConsts(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`A`, `42`},
