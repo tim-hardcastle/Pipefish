@@ -1,0 +1,43 @@
+def
+
+foo (i int) :
+    "foo _"
+
+blerp :
+    "blerp"
+
+spong() :
+    "spong _"
+
+moo boo (i int) :
+    "moo boo _"
+
+moo boo coo (i int) :
+    "moo boo coo _"
+
+moo zoo :
+    "moo zoo"
+
+(x) qux (y) :
+    "qux"
+
+(x) spoit :
+    "spoit"
+
+xuq (x) mip :
+    "xuq _ mip"
+
+troz (x) nerf (y) :
+    "troz _ nerf _"
+
+goo (x) hoo(y) spoo (z) :
+    "goo _ hoo _ spoo _"
+
+gee (x) hee (y) spee :
+    "gee _ hee _ spee"
+
+gah (x) hah (y) spah blah :
+    "gah _ hah _ spah blah"
+
+(x) bing (y) bong :
+    "_ bing _ bong"
