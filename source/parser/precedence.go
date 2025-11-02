@@ -111,6 +111,9 @@ func (p *Parser) rightPrecedence(tok token.Token) int {
 	if p, ok := precedences[tok.Type]; ok {
 		return p
 	}
+	if p.Common.BlingManager.canBling(tok.Literal, MIDFIX)  {
+			return FMIDFIX
+		}
 	if p.Suffixes.Contains(tok.Literal) {
 		return FSUFFIX
 	}
@@ -167,7 +170,7 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FPREFIX
 		}
-		if p.Midfixes.Contains(tok.Literal)  {
+		if p.Common.BlingManager.didBling(tok.Literal, MIDFIX) {
 			return FMIDFIX
 		}
 		if p.getResolvingParser().Suffixes.Contains(tok.Literal) {

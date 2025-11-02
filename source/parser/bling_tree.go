@@ -1,17 +1,19 @@
 package parser
 
-// So the problem is this. If we have bit of bling which is the same as an operator (as is 
+import "strconv"
+
+// So the problem is this. If we have bit of bling which is the same as an operator (as is
 // perfectly reasonable especially as I have 'for' and 'from' as prefixes as part of the core
-// language) then if we have something which might be a function or a value (e.g. a type 
+// language) then if we have something which might be a function or a value (e.g. a type
 // operator/expression or a variable of type 'func') then it will by default assume that it's
 // followed by the prefix and is "positionally functional".
 
-// The way round this is for the parser to know from the point where it starts parsing a 
+// The way round this is for the parser to know from the point where it starts parsing a
 // function which bling might be upcoming, and to treat that presumptively as bling.
 // (Parentheses would of course distinguish the case where it's not bling but that would
 // be vary rare in any case.)
 
-// TODO --- this could replace pretty much all of the ways we presently handle bling in the 
+// TODO --- this could replace pretty much all of the ways we presently handle bling in the
 // parser.
 
 type IdentifierPosition int 
@@ -41,23 +43,33 @@ func newBlingManager() *BlingManager {
 }
 
 func (bm *BlingManager) startFunction(s string, tree blingTree) {
-	//println("Starting function", s)
 	bm.navigators = append(bm.navigators, tree.newBlingNavigator(s))
 }
 
 func (bm *BlingManager) stopFunction() {
-	//println("stopping")
 	bm.navigators = bm.navigators[0:len(bm.navigators)-1]
 }
 
 func (bm *BlingManager) canBling(s string, pos ... IdentifierPosition) bool {
 	if len(bm.navigators) == 0 {
-		//println("canBling: no navigator")
 		return false
 	}
-	result := bm.navigators[len(bm.navigators)-1].canBling(s, pos...)
-	//println("canBling", s, false)
-	return result
+	return bm.navigators[len(bm.navigators)-1].canBling(s, pos...)
+}
+
+func (bm *BlingManager) didBling(s string, pos ... IdentifierPosition) bool {
+	if len(bm.navigators) == 0 {
+		return false
+	}
+	return bm.navigators[len(bm.navigators)-1].didBling(s, pos...)
+}
+
+func (bm *BlingManager) wasBling() string {
+	if len(bm.navigators) == 0 {
+		return "no navigator"
+	}
+	result := bm.navigators[len(bm.navigators)-1].wasBling
+	return(result.Bling + " " + strconv.Itoa(int(result.Pos)))
 }
 
 func (bm *BlingManager) canEndfix(s string) bool {
@@ -77,6 +89,7 @@ type blingTree map[BlingData]any
 
 type blingNavigator struct {
 	position blingTree
+	wasBling BlingData
 }
 
 func newBlingTree() blingTree {
@@ -114,13 +127,22 @@ func (b blingTree) newBlingNavigator(s string) *blingNavigator {
 	if !ok { // TODO --- this is a temporary hack around type declarations and so on again and can be sorted out by separating them from the ordinary parsing.
 		return &blingNavigator{position: make(blingTree)}
 	}
-	return &blingNavigator{position: result.(blingTree)}
+	return &blingNavigator{position: result.(blingTree), wasBling: BlingData{s, OPERATION}}
 }
 
 func (bn *blingNavigator) canBling(s string, poss ... IdentifierPosition) bool {
 	for _, pos := range poss {
 	_, ok := (bn.position)[BlingData{s, pos}]
 		if ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (bn *blingNavigator) didBling(s string, poss ... IdentifierPosition) bool {
+	for _, pos := range poss {
+		if bn.wasBling.Bling == s && bn.wasBling.Pos == pos {
 			return true
 		}
 	}
@@ -136,6 +158,7 @@ func (bn *blingNavigator) doBling(s string, poss ... IdentifierPosition) {
 	for _, pos := range poss {
 		newPosition, ok := (bn.position)[BlingData{s, pos}].(blingTree)
 		if ok {
+			bn.wasBling = BlingData{s, pos}
 			bn.position = newPosition
 			return
 		}
