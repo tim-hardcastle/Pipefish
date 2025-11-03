@@ -108,12 +108,9 @@ func (p *Parser) peekPrecedence() int {
 }
 
 func (p *Parser) rightPrecedence(tok token.Token) int {
-	if p, ok := precedences[tok.Type]; ok {
-		return p
+	if prec, ok := precedences[tok.Type]; ok {
+		return prec
 	}
-	if p.Common.BlingManager.canBling(tok.Literal, MIDFIX)  {
-			return FMIDFIX
-		}
 	if p.Suffixes.Contains(tok.Literal) {
 		return FSUFFIX
 	}
