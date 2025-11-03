@@ -20,7 +20,8 @@ type IdentifierPosition int
 
 const (
 	BLING IdentifierPosition = iota 
-	OPERATION
+	FUNCTION_OR_PREFIX
+	INFIX
 	FOREFIX
 	MIDFIX
 	ENDFIX 
@@ -42,8 +43,8 @@ func newBlingManager() *BlingManager {
 	return newBm
 }
 
-func (bm *BlingManager) startFunction(s string, tree blingTree) {
-	bm.navigators = append(bm.navigators, tree.newBlingNavigator(s))
+func (bm *BlingManager) startFunction(s string, pos IdentifierPosition, tree blingTree) {
+	bm.navigators = append(bm.navigators, tree.newBlingNavigator(s, pos))
 }
 
 func (bm *BlingManager) stopFunction() {
@@ -94,7 +95,7 @@ type blingNavigator struct {
 
 func newBlingTree() blingTree {
 	bt := make(blingTree, 0)
-	bt.AddBling([]BlingData{{"=", OPERATION}})
+	bt.AddBling([]BlingData{{"=", INFIX}})
 	return bt
 }
 
@@ -122,12 +123,12 @@ func (b blingTree) recursiveString(s string) string {
 	return result
 }
 
-func (b blingTree) newBlingNavigator(s string) *blingNavigator {
-	result, ok := b[BlingData{s, OPERATION}]
+func (b blingTree) newBlingNavigator(s string, pos IdentifierPosition) *blingNavigator {
+	result, ok := b[BlingData{s, pos}]
 	if !ok { // TODO --- this is a temporary hack around type declarations and so on again and can be sorted out by separating them from the ordinary parsing.
 		return &blingNavigator{position: make(blingTree)}
 	}
-	return &blingNavigator{position: result.(blingTree), wasBling: BlingData{s, OPERATION}}
+	return &blingNavigator{position: result.(blingTree), wasBling: BlingData{s, pos}}
 }
 
 func (bn *blingNavigator) canBling(s string, poss ... IdentifierPosition) bool {

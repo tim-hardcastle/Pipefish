@@ -358,11 +358,11 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 							restOfExpIs := p.ParseExpression(FPREFIX)
 							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}, []string{}}
 						case resolvingParser.Prefixes.Contains(p.CurToken.Literal) :
-							p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
+							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
 							leftExp = p.parsePrefixExpression()
 							p.Common.BlingManager.stopFunction()
 						default:
-							p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
+							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
 							leftExp = p.parseFunctionExpression()
 							p.Common.BlingManager.stopFunction()
 						}
@@ -463,7 +463,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			case p.CurToken.Type == token.EQ || p.CurToken.Type == token.NOT_EQ:
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
-				p.Common.BlingManager.startFunction(p.CurToken.Literal, resolvingParser.BlingTree)
+				p.Common.BlingManager.startFunction(p.CurToken.Literal, INFIX, resolvingParser.BlingTree)
 				leftExp = p.parseInfixExpression(leftExp)
 				p.Common.BlingManager.stopFunction()
 			}
