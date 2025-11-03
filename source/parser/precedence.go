@@ -161,7 +161,8 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FINFIX
 		}
-		if p.getResolvingParser().Prefixes.Contains(tok.Literal) || p.getResolvingParser().Functions.Contains(tok.Literal) {
+		_, ok := p.getResolvingParser().BlingTree[BlingData{tok.Literal, FUNCTION_OR_PREFIX}]
+		if ok {
 			if tok.Literal == "func" {
 				return LOWEST
 			}
