@@ -376,7 +376,7 @@ func (p *Parser) typeIsFunctional() bool {
 	if p.nativeInfixes.Contains(p.PeekToken.Type) {
 		return false
 	}
-	if p.Midfixes.Contains(p.PeekToken.Literal) {
+	if p.canBling(p.PeekToken.Literal, MIDFIX) {
 		return false
 	}
 	if p.Functions.Contains(p.PeekToken.Literal) && p.PeekToken.Type != token.EOF {

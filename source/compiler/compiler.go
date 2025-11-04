@@ -1122,11 +1122,7 @@ NodeTypeSwitch:
 		}
 	case *ast.UnfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		if resolvingCompiler.P.Unfixes.Contains(node.Operator) {
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(resolvingCompiler, node, ctxt.x(), len(node.Namespace) > 0)
-			break
-		}
-		cp.Throw("comp/known/unfix", node.GetToken()) // TODO --- can errors like this even arise or must they be caught in the parser?
+		rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(resolvingCompiler, node, ctxt.x(), len(node.Namespace) > 0)
 	default:
 		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
 	}

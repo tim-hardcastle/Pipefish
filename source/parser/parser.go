@@ -40,7 +40,6 @@ type Parser struct {
 	Midfixes           dtypes.Set[string]
 	Endfixes           dtypes.Set[string]
 	Infixes            dtypes.Set[string]
-	Unfixes            dtypes.Set[string]
 	Bling              dtypes.Set[string]
 	Typenames          dtypes.Set[string]
 	EnumTypeNames      dtypes.Set[string]
@@ -76,7 +75,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		Midfixes:           make(dtypes.Set[string]),
 		Endfixes:           make(dtypes.Set[string]),
 		Infixes:            make(dtypes.Set[string]),
-		Unfixes:            make(dtypes.Set[string]),
 		Bling:              make(dtypes.Set[string]),
 		Typenames:          make(dtypes.Set[string]),
 		EnumTypeNames:      make(dtypes.Set[string]),
@@ -327,9 +325,12 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					}
 				}
 			} else {
+				ok, rp := p.CanParse(p.CurToken, UNFIX)
+				rp.CurToken = p.CurToken
+				rp.PeekToken = p.PeekToken
 				if !resolvingParser.isPositionallyFunctional() {
 					switch {
-					case resolvingParser.Unfixes.Contains(p.CurToken.Literal):
+					case ok:
 						leftExp = p.parseUnfixExpression()
 					case p.Common.BlingManager.canBling(p.CurToken.Literal, ENDFIX):
 						p.Common.BlingManager.doBling(p.CurToken.Literal, ENDFIX)

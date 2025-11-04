@@ -489,7 +489,6 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	startAt := 0
 	switch tc.pos {
 	case unfix:
-		iz.P.Unfixes.Add(tc.op.Literal)
 		iz.P.BlingTree.AddBling([]parser.BlingData{{tc.op.Literal, parser.UNFIX}})
 		return
 	case suffix:
