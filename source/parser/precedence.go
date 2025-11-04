@@ -49,8 +49,6 @@ const (
 	FSUFFIX         // user-defined suffix, or type in type declaration
 	MINUS           //  - as a prefix
 	INDEX           // after [
-	BELOW_NAMESPACE // What it says: this is a precedence just below NAMESPACE, for kludging purposes.
-	NAMESPACE       // 'foo.bar'
 )
 
 var precedences = map[token.TokenType]int{
@@ -94,8 +92,6 @@ var precedences = map[token.TokenType]int{
 	token.DOTDOTDOT: FSUFFIX,
 	// MINUS     (as prefix)
 	token.LBRACK: INDEX,
-	// BELOW_NAMESPACE
-	token.NAMESPACE_SEPARATOR: NAMESPACE,
 }
 
 var literals = dtypes.MakeFromSlice([]token.TokenType{token.INT, token.FLOAT, token.STRING, token.RUNE, token.TRUE, token.FALSE, token.ELSE})
@@ -124,9 +120,6 @@ func (p *Parser) curPrecedence() int {
 }
 
 func (p *Parser) leftPrecedence(tok token.Token) int {
-	if tok.Type == token.NAMESPACE_SEPARATOR {
-		return BELOW_NAMESPACE
-	}
 	if p, ok := precedences[tok.Type]; ok {
 		return p
 	}

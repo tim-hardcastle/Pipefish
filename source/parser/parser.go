@@ -438,8 +438,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				leftExp = p.parseStreamingExpression(leftExp)
 			case p.CurToken.Type == token.IFLOG:
 				leftExp = p.parseIfLogExpression(leftExp)
-			case p.CurToken.Type == token.NAMESPACE_SEPARATOR:
-				leftExp = p.parseNamespaceExpression(leftExp)
 			case p.CurToken.Type == token.FOR:
 				leftExp = p.parseForAsInfix(leftExp) // For the (usual) case where the 'for' is inside a 'from' and the leftExp is, or should be, the bound variables of the loop.
 			case p.CurToken.Type == token.EQ || p.CurToken.Type == token.NOT_EQ:
@@ -792,16 +790,6 @@ func (p *Parser) parseLogExpression(left ast.Node) ast.Node {
 	return expression
 }
 
-func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
-	p.NextToken()
-	if left.GetToken().Type != token.IDENT {
-		p.Throw("parse/namespace/lhs", left.GetToken())
-		return nil
-	}
-	right := p.ParseExpression(NAMESPACE)
-	return right
-}
-
 // For things like NOT, UNWRAP, VALID where we don't want to treat it as a function but to evaluate the RHS and then handle it.
 func (p *Parser) parseNativePrefixExpression() ast.Node {
 	expression := &ast.PrefixExpression{
@@ -883,15 +871,6 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 			exp = &ast.SuffixExpression{Token: *typedExp.GetToken(),
 				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
-		}
-	case *ast.InfixExpression:
-		if typedExp.GetToken().Type == token.NAMESPACE_SEPARATOR {
-			if typedExp.Args[0].GetToken().Type == token.IDENT {
-				service, ok := p.NamespaceBranch[typedExp.Args[0].(*ast.Identifier).Value]
-				if ok {
-					exp.(*ast.InfixExpression).Args[2] = service.Parser.recursivelyDesugarAst(typedExp.Args[2])
-				}
-			}
 		}
 	}
 	return exp
