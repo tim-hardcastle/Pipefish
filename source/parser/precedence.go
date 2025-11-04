@@ -169,7 +169,7 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FPREFIX
 		}
-		if p.Common.BlingManager.didBling(tok.Literal, MIDFIX) {
+		if p.didBling(tok.Literal, MIDFIX) {
 			return FMIDFIX
 		}
 		if p.getResolvingParser().Suffixes.Contains(tok.Literal) {
