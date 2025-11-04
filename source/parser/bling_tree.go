@@ -11,14 +11,10 @@ package parser
 // (Parentheses would of course distinguish the case where it's not bling but that would
 // be vary rare in any case.)
 
-// TODO --- this could replace pretty much all of the ways we presently handle bling in the
-// parser.
-
 type IdentifierPosition int
 
 const (
-	BLING IdentifierPosition = iota
-	PREFIX
+	PREFIX IdentifierPosition = iota
 	INFIX
 	SUFFIX
 	UNFIX
@@ -27,7 +23,7 @@ const (
 	ENDFIX
 )
 
-var ANY_BLING = []IdentifierPosition{BLING, FOREFIX, MIDFIX, ENDFIX}
+var ANY_BLING = []IdentifierPosition{FOREFIX, MIDFIX, ENDFIX}
 
 type BlingData struct {
 	Bling string
