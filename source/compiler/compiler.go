@@ -542,7 +542,7 @@ NodeTypeSwitch:
 		}
 	case *ast.InfixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
-		if resolvingCompiler.P.Infixes.Contains(node.Operator) {
+		if ok, _ := cp.P.CanParse(node.Token, parser.INFIX); ok {
 			cp.pushRCompiler(resolvingCompiler)
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.popRCompiler()

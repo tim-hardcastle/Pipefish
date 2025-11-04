@@ -38,7 +38,6 @@ type Parser struct {
 	Forefixes          dtypes.Set[string]
 	Midfixes           dtypes.Set[string]
 	Endfixes           dtypes.Set[string]
-	Infixes            dtypes.Set[string]
 	Bling              dtypes.Set[string]
 	Typenames          dtypes.Set[string]
 	EnumTypeNames      dtypes.Set[string]
@@ -72,7 +71,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		Forefixes:          make(dtypes.Set[string]),
 		Midfixes:           make(dtypes.Set[string]),
 		Endfixes:           make(dtypes.Set[string]),
-		Infixes:            make(dtypes.Set[string]),
 		Bling:              make(dtypes.Set[string]),
 		Typenames:          make(dtypes.Set[string]),
 		EnumTypeNames:      make(dtypes.Set[string]),
@@ -435,9 +433,13 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			break
 		}
 		// We move on to infixes.
+		ok, rp := p.CanParse(p.PeekToken, INFIX)
+		if rp == nil {
+			p.Throw("parse/namespace/infix", &p.PeekToken)
+		}
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
-			resolvingParser.Infixes.Contains(p.PeekToken.Literal)
+			ok
 		if !foundInfix {
 			return leftExp
 		}

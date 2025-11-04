@@ -337,7 +337,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.PeekToken.Type != token.IDENT {
 		return false
 	}
-	if p.Infixes.Contains(p.PeekToken.Literal) {
+	if ok, _ := p.CanParse(p.PeekToken, INFIX); ok {
 		return false
 	}
 	if ok, _ := p.CanParse(p.PeekToken, SUFFIX); ok {
@@ -367,7 +367,7 @@ func (p *Parser) typeIsFunctional() bool {
 	if p.PeekToken.Literal == "from" {
 		return true
 	}
-	if p.Infixes.Contains(p.PeekToken.Literal) {
+	if ok, _ := p.CanParse(p.PeekToken, INFIX); ok {
 		return false
 	}
 	if p.nativeInfixes.Contains(p.PeekToken.Type) {

@@ -495,7 +495,6 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		iz.P.BlingTree.AddBling([]parser.BlingData{{tc.op.Literal, parser.SUFFIX}})
 		return
 	case infix:
-		iz.P.Infixes.Add(tc.op.Literal)
 		for startAt = 2; !tc.sig[startAt-1].IsBling(); startAt++ {
 		}
 	}
