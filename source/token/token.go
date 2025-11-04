@@ -91,6 +91,7 @@ type Token struct {
 	ChStart int
 	ChEnd   int
 	Source  string
+	Namespace string
 }
 
 var keywords = map[string]TokenType{

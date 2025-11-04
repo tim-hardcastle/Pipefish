@@ -40,7 +40,7 @@ func NewRelexer(source, input string) *Relexer {
 	rl := &Relexer{lexer: l,
 		mt:     mt,
 		source: source,
-		preTok: token.Token{token.NEWLINE, ";", 0, 0, 0, ""},
+		preTok: token.Token{token.NEWLINE, ";", 0, 0, 0, "", ""},
 		curTok: mt.NextToken(),
 		nexTok: mt.NextToken(),
 		Errors: []*err.Error{},

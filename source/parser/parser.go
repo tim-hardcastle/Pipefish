@@ -359,7 +359,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}, []string{}}
 						case resolvingParser.Prefixes.Contains(p.CurToken.Literal) :
 							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
-							leftExp = p.parsePrefixExpression()
+							leftExp = p.parseFunctionExpression()
 							p.Common.BlingManager.stopFunction()
 						default:
 							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
@@ -378,7 +378,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	if p.PeekToken.Type == token.EMDASH {
 		right := &ast.SnippetLiteral{p.PeekToken, p.PeekToken.Literal}
 		tok := token.Token{token.COMMA, ",", p.PeekToken.Line, p.PeekToken.ChStart,
-			p.PeekToken.ChEnd, p.PeekToken.Source}
+			p.PeekToken.ChEnd, p.PeekToken.Source, ""}
 		children := []ast.Node{leftExp, &ast.Bling{tok, ",", []string{}}, right}
 		result := &ast.InfixExpression{tok, ",", children, []string{}}
 		p.NextToken()
@@ -1032,8 +1032,12 @@ func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
 // to find which parser should resolve the symbol.
 func (p *Parser) getResolvingParser() *Parser {
+	return p.getParserFromNamespace(p.CurrentNamespace)
+}
+
+func (p *Parser) getParserFromNamespace(namespace []string) *Parser {
 	lP := p
-	for _, name := range p.CurrentNamespace {
+	for _, name := range namespace {
 		s, ok := lP.NamespaceBranch[name]
 		if ok {
 			lP = s.Parser

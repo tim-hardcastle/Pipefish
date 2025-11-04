@@ -3,22 +3,22 @@
 def
 
 foo (i int) :
-    "Foo"
+    "foo"
 
 blerp :
-    "Blerp"
+    "blerp"
 
 spong() :
-    "Spong"
+    "spong"
 
 moo boo (i int) :
-    "Moo boo"
+    "moo boo"
 
 moo boo coo (i int) :
-    "Moo boo coo"
+    "moo boo coo"
 
 moo zoo :
-    "Moo zoo"
+    "moo zoo"
 
 (x) qux (y) :
     "qux"
@@ -44,6 +44,5 @@ gah (x) hah (y) spah blah :
 (x) bing (y) bong :
     "_ bing _ bong"
 
-(x) ding (y) dong (z) dang:
-    "_ ding _ dong _ dang"
+
 

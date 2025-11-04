@@ -2,6 +2,7 @@ package parser
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
 	"github.com/tim-hardcastle/Pipefish/source/err"
@@ -10,6 +11,26 @@ import (
 )
 
 // Auxiliary functions that extract data from data.
+func (p *Parser) canParse(tok token.Token, pos IdentifierPosition) (bool, *Parser) {
+	resolvingParser := p
+	if tok.Namespace != "" {
+		namespaceAsList := strings.Split(tok.Namespace[:len(tok.Namespace)-1], ".")
+		resolvingParser = p.getParserFromNamespace(namespaceAsList)
+		if resolvingParser == nil {
+			return false, nil
+		}
+	}
+	_, ok := resolvingParser.BlingTree[BlingData{tok.Literal, pos}] 
+	return ok, resolvingParser
+}
+
+func (p *Parser) canBling(identifier string, pos IdentifierPosition) bool {
+	return p.Common.BlingManager.canBling(identifier, pos)
+}
+
+func (p *Parser) didBling(identifier string, pos IdentifierPosition) bool {
+	return p.Common.BlingManager.didBling(identifier, pos)
+}
 
 // TODO --- at this point this is used only once to do something which isn't actually this hard.
 func (p *Parser) extractSig(args []ast.Node) ast.AstSig {

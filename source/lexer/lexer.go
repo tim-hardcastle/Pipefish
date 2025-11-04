@@ -23,6 +23,7 @@ type lexer struct {
 	whitespaceStack dtypes.Stack[string] // levels of whitespace to unindent to
 	Ers             err.Errors
 	source          string
+	currentNamespace string
 }
 
 func NewLexer(source, input string) *lexer {
@@ -214,7 +215,23 @@ func (l *lexer) getTokens() []token.Token {
 				return result
 			}
 		default:
-			return []token.Token{l.NewToken(tType, lit)}
+			if l.runes.PeekRune() == '.' {
+				if tType != token.IDENT {
+					l.Throw("lex/namespace/ident/left")
+				}
+				l.currentNamespace = l.currentNamespace + lit + "."
+				return []token.Token{l.NewToken(tType, lit)}
+			} else {
+				tokenIs := l.NewToken(tType, lit)
+				if l.currentNamespace != "" {
+					if tType != token.IDENT {
+						l.Throw("lex/namespace/ident/right")
+					} 
+					tokenIs.Namespace = l.currentNamespace
+					l.currentNamespace = ""
+				}
+				return []token.Token{tokenIs}
+			}
 		}
 	}
 
