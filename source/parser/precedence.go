@@ -37,7 +37,6 @@ const (
 	NOT             // not
 	EQUALS          // == or !=
 	LESSGREATER     // > or < or <= or >=
-	WEAK_COMMA      // a kludge to let me use Go-like syntax in function definitions --- change to FMIDFIX?
 	FPREFIX         // user-defined prefix or function
 	FMIDFIX         // user-defined midfix or forefix
 	FENDFIX         // user-defined endfix
