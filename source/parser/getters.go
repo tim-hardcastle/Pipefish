@@ -95,16 +95,12 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
 func (p *Parser) getSigFromArgs(args []ast.Node, dflt ast.TypeNode) (ast.AstSig, *err.Error) {
 	sig := ast.AstSig{}
-	for _, arg := range args {
-		if arg.GetToken().Type == token.IDENT && p.Bling.Contains(arg.GetToken().Literal) {
-			sig = append(sig, ast.NameTypeAstPair{VarName: arg.GetToken().Literal, VarType: &ast.TypeBling{*arg.GetToken(), arg.GetToken().Literal}})
-		} else {
-			partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
-			if err != nil {
-				return nil, err
-			}
-			sig = append(sig, partialSig...)
+	for _, arg := range args {		
+		partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
+		if err != nil {
+			return nil, err
 		}
+		sig = append(sig, partialSig...)
 	}
 	return sig, nil
 }
