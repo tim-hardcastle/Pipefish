@@ -220,7 +220,9 @@ func (l *lexer) getTokens() []token.Token {
 					l.Throw("lex/namespace/ident/left")
 				}
 				l.currentNamespace = l.currentNamespace + lit + "."
-				return []token.Token{l.NewToken(tType, lit)}
+				l.runes.Next()
+				l.runes.Next()
+				return []token.Token{}
 			} else {
 				tokenIs := l.NewToken(tType, lit)
 				if l.currentNamespace != "" {
