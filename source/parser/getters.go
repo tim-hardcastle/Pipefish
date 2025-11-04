@@ -331,9 +331,6 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.Functions.Contains(p.CurToken.Literal) && p.PeekToken.Type != token.EOF {
 		return true
 	}
-	if p.Prefixes.Contains(p.CurToken.Literal) {
-		return p.PeekToken.Type != token.EOF
-	}
 	if literalsAndLParen.Contains(p.PeekToken.Type) {
 		return true
 	}
@@ -382,7 +379,7 @@ func (p *Parser) typeIsFunctional() bool {
 	if p.Functions.Contains(p.PeekToken.Literal) && p.PeekToken.Type != token.EOF {
 		return true
 	}
-	if p.Prefixes.Contains(p.PeekToken.Literal) {
+	if ok, _ := p.CanParse(p.PeekToken, PREFIX); ok {
 		return p.PeekToken.Type != token.EOF
 	}
 	return p.PeekToken.Type != token.EOF

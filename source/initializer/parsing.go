@@ -529,14 +529,9 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		}
 		lastWasBling = tc.sig[ix].IsBling()
 	}
-	// TODO --- I've retained this distinction for back-compatibility but don't know if
-	// it's important. It may be to do with using functions as first-class objects etc.
 	if tc.pos == prefix {
-		if len(blingList) > 1 {
-			iz.P.Prefixes.Add(tc.op.Literal)
-		} else {
-			iz.P.Functions.Add(tc.op.Literal)
-		}
+		iz.P.Functions.Add(tc.op.Literal)
+		
 	}
 	iz.P.BlingTree.AddBling(blingList)
 }

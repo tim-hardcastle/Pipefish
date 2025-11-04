@@ -35,7 +35,6 @@ type Parser struct {
 
 	// Names/token types of identifiers.
 	Functions          dtypes.Set[string]
-	Prefixes           dtypes.Set[string]
 	Forefixes          dtypes.Set[string]
 	Midfixes           dtypes.Set[string]
 	Endfixes           dtypes.Set[string]
@@ -70,7 +69,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		Logging:            true,
 		nesting:            *dtypes.NewStack[token.Token](),
 		Functions:          make(dtypes.Set[string]),
-		Prefixes:           make(dtypes.Set[string]),
 		Forefixes:          make(dtypes.Set[string]),
 		Midfixes:           make(dtypes.Set[string]),
 		Endfixes:           make(dtypes.Set[string]),

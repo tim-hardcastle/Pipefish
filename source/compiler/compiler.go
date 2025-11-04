@@ -954,14 +954,14 @@ NodeTypeSwitch:
 			rtnTypes = cp.Common.AnyTypeScheme
 			break NodeTypeSwitch
 		}
-		if resolvingCompiler.P.Prefixes.Contains(node.Operator) || resolvingCompiler.P.Functions.Contains(node.Operator) {
+		ok, _ = cp.P.CanParse(node.Token, parser.PREFIX)
+		if ok || resolvingCompiler.P.Functions.Contains(node.Operator) {
 			cp.pushRCompiler(resolvingCompiler)
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.popRCompiler()
 			break
 		}
 		cp.Throw("comp/known/prefix", node.GetToken())
-		break
 	case *ast.RuneLiteral:
 		cp.Reserve(values.RUNE, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.RUNE), true
