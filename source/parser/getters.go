@@ -343,7 +343,7 @@ func (p *Parser) isPositionallyFunctional() bool {
 	if p.Infixes.Contains(p.PeekToken.Literal) {
 		return false
 	}
-	if p.Suffixes.Contains(p.PeekToken.Literal) {
+	if ok, _ := p.CanParse(p.PeekToken, SUFFIX); ok {
 		return false
 	}
 	return true

@@ -59,11 +59,6 @@ func (iz *Initializer) parseEverything(scriptFilepath, sourcecode string) {
 	iz.cmI("Making new relexer with filepath '" + scriptFilepath + "'")
 	iz.P.TokenizedCode = lexer.NewRelexer(scriptFilepath, sourcecode)
 
-	// TODO --- this was moved here during refactoring and may well now be cruft.
-	for k := range iz.cp.Common.Types {
-		iz.cp.P.Suffixes.Add(k)
-	}
-
 	iz.cmI("Making parser and tokenized program.")
 	iz.getTokenizedCode(false)
 	if iz.errorsExist() {
@@ -498,7 +493,6 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 		iz.P.BlingTree.AddBling([]parser.BlingData{{tc.op.Literal, parser.UNFIX}})
 		return
 	case suffix:
-		iz.P.Suffixes.Add(tc.op.Literal)
 		iz.P.BlingTree.AddBling([]parser.BlingData{{tc.op.Literal, parser.SUFFIX}})
 		return
 	case infix:
@@ -676,7 +670,6 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 	}
 	iz.Add(name, fn)
 	if typeToClone == "int" || typeToClone == "float" {
-		iz.P.Suffixes.Add(name)
 		iz.P.BlingTree.AddBling([]parser.BlingData{{name, parser.SUFFIX}})
 	}
 	return typeNo, fn
@@ -1079,7 +1072,6 @@ func (iz *Initializer) createAbstractTypes() {
 		if !typeExists {
 			iz.setDeclaration(decABSTRACT, ixPtr(dec), DUMMY, nil)
 		}
-		iz.P.Suffixes.Add(newTypename)
 	}
 }
 
@@ -1107,7 +1099,6 @@ func (iz *Initializer) createInterfaceTypes() {
 		if !typeExists {
 			iz.setDeclaration(decINTERFACE, &nameTok, DUMMY, interfaceInfo{typeInfo})
 		}
-		iz.P.Suffixes.Add(newTypename)
 	}
 }
 

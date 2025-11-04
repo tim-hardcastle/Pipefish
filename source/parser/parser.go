@@ -40,7 +40,6 @@ type Parser struct {
 	Midfixes           dtypes.Set[string]
 	Endfixes           dtypes.Set[string]
 	Infixes            dtypes.Set[string]
-	Suffixes           dtypes.Set[string]
 	Unfixes            dtypes.Set[string]
 	Bling              dtypes.Set[string]
 	Typenames          dtypes.Set[string]
@@ -77,7 +76,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		Midfixes:           make(dtypes.Set[string]),
 		Endfixes:           make(dtypes.Set[string]),
 		Infixes:            make(dtypes.Set[string]),
-		Suffixes:           make(dtypes.Set[string]),
 		Unfixes:            make(dtypes.Set[string]),
 		Bling:              make(dtypes.Set[string]),
 		Typenames:          make(dtypes.Set[string]),
@@ -395,16 +393,21 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	}
 	for precedence < p.peekPrecedence() {
 		// We look for suffixes.
-		for resolvingParser.IsTypePrefix(p.PeekToken.Literal) || resolvingParser.Suffixes.Contains(p.PeekToken.Literal) || p.Common.BlingManager.canEndfix(p.PeekToken.Literal) || p.PeekToken.Type == token.DOTDOTDOT {
+		for {
+			ok, rp := p.CanParse(p.PeekToken, SUFFIX)
+			if rp == nil {
+				p.Throw("parse/namespace/suffix", &p.PeekToken)
+				return nil
+			}
+			if !(rp.IsTypePrefix(p.PeekToken.Literal) || ok || p.PeekToken.Type == token.DOTDOTDOT) {
+				break
+			}
 			if p.CurToken.Type == token.NOT || p.CurToken.Type == token.IDENT && p.CurToken.Literal == "-" || p.CurToken.Type == token.ELSE {
 				p.Throw("parse/before/b", &p.CurToken, &p.PeekToken)
 				return nil
 			}
-			if p.Common.BlingManager.canEndfix(p.PeekToken.Literal) {
-				println("B Can endfix", p.PeekToken.Literal)
-			}
 			maybeType := p.PeekToken.Literal
-			if resolvingParser.IsTypePrefix(maybeType) {
+			if rp.IsTypePrefix(maybeType) {
 				tok := p.PeekToken
 				typeAst := p.ParseType(T_LOWEST)
 				// TODO --- the namespace needs to be represented in the type ast.
@@ -917,7 +920,11 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
 		}
-		if p.Suffixes.Contains(exp.GetToken().Literal) {
+		ok, rp := p.CanParse(*exp.GetToken(), SUFFIX)
+		if rp == nil {
+			p.Throw("parse/pipe/namespace", exp.GetToken())
+		}
+		if ok {
 			exp = &ast.SuffixExpression{Token: *typedExp.GetToken(),
 				Operator: exp.GetToken().Literal,
 				Args:     []ast.Node{&ast.Identifier{Value: "that"}}}
