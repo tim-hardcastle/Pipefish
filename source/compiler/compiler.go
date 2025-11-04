@@ -999,7 +999,8 @@ NodeTypeSwitch:
 			rtnTypes = altType(values.ERROR, values.TUPLE)
 			break NodeTypeSwitch
 		}
-		if resolvingCompiler.P.Suffixes.Contains(node.Operator) {
+		ok, _ := cp.P.CanParse(node.Token, parser.SUFFIX)
+		if ok {
 			cp.pushRCompiler(resolvingCompiler)
 			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
 			cp.popRCompiler()

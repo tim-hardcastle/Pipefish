@@ -63,7 +63,7 @@ type Parser struct {
 	NamespacePath   string                 // The chain of namespaces that got us to this parser, as a string.
 	Private         bool                   // Indicates if it's the parser of a private library/external/whatevs.
 
-	BlingTree       blingTree         // Filled up by the `AddWordsToParser` method and then used by the bling manager in the Common Parser Bindle.
+	BlingTree blingTree // Filled up by the `AddWordsToParser` method and then used by the bling manager in the Common Parser Bindle.
 
 }
 
@@ -97,7 +97,7 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		ExternalParsers: make(map[string]*Parser),
 		NamespacePath:   namespacePath,
 		Common:          common,
-		BlingTree: 			 newBlingTree(),
+		BlingTree:       newBlingTree(),
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
@@ -341,24 +341,24 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					}
 				} else {
 					switch {
-					case p.CurToken.Literal == "func" :
+					case p.CurToken.Literal == "func":
 						leftExp = p.parseLambdaExpression()
 						return leftExp // TODO --- don't.
-					case p.CurToken.Literal == "from" :
+					case p.CurToken.Literal == "from":
 						leftExp = p.parseFromExpression()
 						return leftExp
-					default :				
+					default:
 						switch {
-						case p.Common.BlingManager.canBling(p.CurToken.Literal, FOREFIX) :
+						case p.Common.BlingManager.canBling(p.CurToken.Literal, FOREFIX):
 							p.Common.BlingManager.doBling(p.CurToken.Literal, FOREFIX)
 							blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
-							dummyCommaTok := p.CurToken 
+							dummyCommaTok := p.CurToken
 							dummyCommaTok.Literal = ","
 							p.NextToken()
 							restOfExpIs := p.ParseExpression(FPREFIX)
 							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}, []string{}}
 						default:
-							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
+							p.Common.BlingManager.startFunction(p.CurToken.Literal, PREFIX, resolvingParser.BlingTree)
 							leftExp = p.parsePrefixExpression()
 							p.Common.BlingManager.stopFunction()
 						}
@@ -384,10 +384,10 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		p.NextToken()
 		p.Common.BlingManager.doBling(p.CurToken.Literal, ANY_BLING...)
 		blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
-		dummyCommaTok := p.CurToken 
+		dummyCommaTok := p.CurToken
 		dummyCommaTok.Literal = ","
 		leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{leftExp, &ast.Bling{Value: ",", Token: dummyCommaTok}, blingIs}, []string{}}
-	}	
+	}
 	for p.Common.BlingManager.canBling(p.PeekToken.Literal, MIDFIX) {
 		p.Common.BlingManager.doBling(p.PeekToken.Literal, MIDFIX)
 		p.NextToken()
@@ -435,7 +435,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		// We move on to infixes.
 		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
 			p.lazyInfixes.Contains(p.PeekToken.Type) ||
-			resolvingParser.Infixes.Contains(p.PeekToken.Literal) 
+			resolvingParser.Infixes.Contains(p.PeekToken.Literal)
 		if !foundInfix {
 			return leftExp
 		}
@@ -1010,8 +1010,6 @@ func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 	}
 	return []ast.Node{start}
 }
-
-
 
 // The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
 // to find which parser should resolve the symbol.

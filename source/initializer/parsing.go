@@ -412,7 +412,7 @@ loop:
 	iz.P.Common.Errors = err.MergeErrors(iz.P.TokenizedCode.(*lexer.Relexer).GetErrors(), iz.P.Common.Errors)
 }
 
-// Most boilerplate (constructors of types) can be generated and compiled along the same path 
+// Most boilerplate (constructors of types) can be generated and compiled along the same path
 // as builtin functions. However, here we want to write the body of the function in Pipefish.
 func (iz *Initializer) createBoilerplate() {
 	thingsToAdd := []tokenizedCode{}
@@ -428,7 +428,7 @@ func (iz *Initializer) createBoilerplate() {
 				break
 			}
 		}
-		if !hasRef{
+		if !hasRef {
 			continue
 		}
 		// So we have at least one reference variable.
@@ -436,8 +436,8 @@ func (iz *Initializer) createBoilerplate() {
 		newBody := token.TokenizedCodeChunk{}
 		newBody.Append(token.Token{Type: token.LPAREN, Literal: "|->"})
 		if cmd.pos == prefix {
-			newSig = append(newSig, parser.TokPair{cmd.op, 
-					[]token.Token{{Type: token.IDENT, Literal: "bling"}}})
+			newSig = append(newSig, parser.TokPair{cmd.op,
+				[]token.Token{{Type: token.IDENT, Literal: "bling"}}})
 			newBody.Append(cmd.op)
 		}
 		refNames := []token.Token{}
@@ -445,15 +445,15 @@ func (iz *Initializer) createBoilerplate() {
 			newBody.Append(pair.Name)
 			if len(pair.Typename) == 1 && pair.Typename[0].Literal == "ref" {
 				refNames = append(refNames, pair.Name)
-				newSig = append(newSig, parser.TokPair{pair.Name, 
+				newSig = append(newSig, parser.TokPair{pair.Name,
 					[]token.Token{{Type: token.IDENT, Literal: "any"}, {Type: token.IDENT, Literal: "?"}}})
 			} else {
 				newSig = append(newSig, pair)
 			}
 		}
 		if cmd.pos == suffix {
-			newSig = append(newSig, parser.TokPair{cmd.op, 
-					[]token.Token{{Type: token.IDENT, Literal: "bling"}}})
+			newSig = append(newSig, parser.TokPair{cmd.op,
+				[]token.Token{{Type: token.IDENT, Literal: "bling"}}})
 			newBody.Append(cmd.op)
 		}
 		for _, name := range refNames {
@@ -466,15 +466,15 @@ func (iz *Initializer) createBoilerplate() {
 		newOp.Source = newOp.Source + "/boilerplate"
 		newOp.Literal = "post"
 		newCmd := tokenizedFunctionDeclaration{
-			decType: commandDeclaration,
-			private: false,
-			op:      newOp,
-			pos:     prefix,
-			sig:     newSig,
-			rets:    nil,
-			body:    &newBody,
-			given:   nil,
-			docString: "",
+			decType:       commandDeclaration,
+			private:       false,
+			op:            newOp,
+			pos:           prefix,
+			sig:           newSig,
+			rets:          nil,
+			body:          &newBody,
+			given:         nil,
+			docString:     "",
 			isBoilerplate: true,
 		}
 		iz.addWordsToParser(&newCmd)
@@ -495,9 +495,11 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	switch tc.pos {
 	case unfix:
 		iz.P.Unfixes.Add(tc.op.Literal)
+		iz.P.BlingTree.AddBling([]parser.BlingData{{tc.op.Literal, parser.UNFIX}})
 		return
 	case suffix:
 		iz.P.Suffixes.Add(tc.op.Literal)
+		iz.P.BlingTree.AddBling([]parser.BlingData{{tc.op.Literal, parser.SUFFIX}})
 		return
 	case infix:
 		iz.P.Infixes.Add(tc.op.Literal)
@@ -506,7 +508,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	}
 	blingList := []parser.BlingData{}
 	if tc.pos == prefix {
-		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.FUNCTION_OR_PREFIX})
+		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.PREFIX})
 	}
 	if tc.pos == infix {
 		blingList = append(blingList, parser.BlingData{tc.op.Literal, parser.INFIX})
@@ -675,6 +677,7 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 	iz.Add(name, fn)
 	if typeToClone == "int" || typeToClone == "float" {
 		iz.P.Suffixes.Add(name)
+		iz.P.BlingTree.AddBling([]parser.BlingData{{name, parser.SUFFIX}})
 	}
 	return typeNo, fn
 }

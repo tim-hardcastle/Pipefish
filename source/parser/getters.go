@@ -11,7 +11,7 @@ import (
 )
 
 // Auxiliary functions that extract data from data.
-func (p *Parser) canParse(tok token.Token, pos IdentifierPosition) (bool, *Parser) {
+func (p *Parser) CanParse(tok token.Token, pos IdentifierPosition) (bool, *Parser) {
 	resolvingParser := p
 	if tok.Namespace != "" {
 		namespaceAsList := strings.Split(tok.Namespace[:len(tok.Namespace)-1], ".")
@@ -20,7 +20,7 @@ func (p *Parser) canParse(tok token.Token, pos IdentifierPosition) (bool, *Parse
 			return false, nil
 		}
 	}
-	_, ok := resolvingParser.BlingTree[BlingData{tok.Literal, pos}] 
+	_, ok := resolvingParser.BlingTree[BlingData{tok.Literal, pos}]
 	return ok, resolvingParser
 }
 

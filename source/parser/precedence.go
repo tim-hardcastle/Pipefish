@@ -76,14 +76,14 @@ var precedences = map[token.TokenType]int{
 	token.EQ:              EQUALS,
 	token.NOT_EQ:          EQUALS,
 	// LESSGREATER
-	token.VALID:      FPREFIX,
-	token.UNWRAP:     FPREFIX,
-	token.GLOBAL:     FPREFIX,
-	token.EVAL:       FPREFIX,
-	token.XCALL:      FPREFIX,
-	token.RANGE:      FPREFIX,
-	token.CONTINUE:   FPREFIX,
-	token.BREAK:      FPREFIX,
+	token.VALID:    FPREFIX,
+	token.UNWRAP:   FPREFIX,
+	token.GLOBAL:   FPREFIX,
+	token.EVAL:     FPREFIX,
+	token.XCALL:    FPREFIX,
+	token.RANGE:    FPREFIX,
+	token.CONTINUE: FPREFIX,
+	token.BREAK:    FPREFIX,
 	// FMIDFIX
 	// FENDFIX,
 	token.COMMA: COMMA,
@@ -111,20 +111,11 @@ func (p *Parser) rightPrecedence(tok token.Token) int {
 	if prec, ok := precedences[tok.Type]; ok {
 		return prec
 	}
-	if p.Suffixes.Contains(tok.Literal) {
+	ok, _ := p.CanParse(tok, SUFFIX)
+	if ok {
 		return FSUFFIX
 	}
-	ok, _ := p.canParse(tok, FUNCTION_OR_PREFIX)
-	if ok {
-		if tok.Literal == "with" || tok.Literal == "without" {
-			return WITH
-		}
-		return p.leftPrecedence(tok)
-	}
-	ok, _ = p.canParse(tok, FUNCTION_OR_PREFIX)
-	if ok {
-		return FPREFIX
-	}
+
 	return p.leftPrecedence(tok)
 }
 
@@ -140,7 +131,7 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 		return p
 	}
 	if tok.Type == token.IDENT {
-		ok, _ :=  p.canParse(tok, INFIX)
+		ok, _ := p.CanParse(tok, INFIX)
 		if ok {
 			if tok.Literal == "+" || tok.Literal == "-" {
 				return SUM
@@ -162,7 +153,7 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 			}
 			return FINFIX
 		}
-		ok, _ = p.canParse(tok, FUNCTION_OR_PREFIX)
+		ok, _ = p.CanParse(tok, PREFIX)
 		if ok {
 			if tok.Literal == "func" {
 				return LOWEST
@@ -172,7 +163,8 @@ func (p *Parser) leftPrecedence(tok token.Token) int {
 		if p.didBling(tok.Literal, MIDFIX) {
 			return FMIDFIX
 		}
-		if p.getResolvingParser().Suffixes.Contains(tok.Literal) {
+		ok, _ = p.CanParse(tok, SUFFIX)
+		if ok {
 			return FSUFFIX
 		}
 	}
