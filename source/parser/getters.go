@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
+	"github.com/tim-hardcastle/Pipefish/source/dtypes"
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/token"
 	"github.com/tim-hardcastle/Pipefish/source/values"
@@ -342,6 +343,14 @@ func (p *Parser) isPositionallyFunctional() bool {
 	return true
 }
 
+var (nativeInfixes = dtypes.MakeFromSlice([]token.TokenType{
+			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
+			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
+			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG})
+	lazyInfixes = dtypes.MakeFromSlice([]token.TokenType{token.AND,
+		token.OR, token.COLON, token.SEMICOLON, token.NEWLINE})
+)
+
 // TODO --- there may at this point not be any need to have this different from any other function.
 func (p *Parser) typeIsFunctional() bool {
 	if p.Common.BlingManager.canBling(p.PeekToken.Literal, ANY_BLING...) {
@@ -366,7 +375,7 @@ func (p *Parser) typeIsFunctional() bool {
 	if ok, _ := p.CanParse(p.PeekToken, INFIX); ok {
 		return false
 	}
-	if p.nativeInfixes.Contains(p.PeekToken.Type) {
+	if nativeInfixes.Contains(p.PeekToken.Type) {
 		return false
 	}
 	if p.canBling(p.PeekToken.Literal, MIDFIX) {

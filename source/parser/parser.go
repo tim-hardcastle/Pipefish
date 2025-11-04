@@ -42,8 +42,6 @@ type Parser struct {
 	EnumTypeNames      dtypes.Set[string]
 	EnumElementNames   dtypes.Set[string]
 	ParameterizedTypes dtypes.Set[string]
-	nativeInfixes      dtypes.Set[token.TokenType]
-	lazyInfixes        dtypes.Set[token.TokenType]
 
 	ParTypes map[string]TypeExpressionInfo // Maps type operators to their numbers in the ParameterizedTypeInfo map in the VM.
 	// Something of a kludge. We want instances of parameterized types to be made if they're mentioned in the code.
@@ -75,13 +73,6 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		EnumElementNames:   make(dtypes.Set[string]),
 		ParameterizedTypes: make(dtypes.Set[string]),
 		ParTypeInstances:   map[string]*ast.TypeWithArguments{},
-
-		nativeInfixes: dtypes.MakeFromSlice([]token.TokenType{
-			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
-			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
-			token.FILTER, token.NAMESPACE_SEPARATOR, token.IFLOG}),
-		lazyInfixes: dtypes.MakeFromSlice([]token.TokenType{token.AND,
-			token.OR, token.COLON, token.SEMICOLON, token.NEWLINE}),
 		ParTypes:        make(map[string]TypeExpressionInfo),
 		NamespaceBranch: make(map[string]*ParserData),
 		ExternalParsers: make(map[string]*Parser),
@@ -435,8 +426,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		if rp == nil {
 			p.Throw("parse/namespace/infix", &p.PeekToken)
 		}
-		foundInfix := p.nativeInfixes.Contains(p.PeekToken.Type) ||
-			p.lazyInfixes.Contains(p.PeekToken.Type) ||
+		foundInfix := nativeInfixes.Contains(p.PeekToken.Type) ||
+			lazyInfixes.Contains(p.PeekToken.Type) ||
 			ok
 		if !foundInfix {
 			return leftExp
@@ -445,7 +436,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 
 		if foundInfix {
 			switch {
-			case p.lazyInfixes.Contains(p.CurToken.Type):
+			case lazyInfixes.Contains(p.CurToken.Type):
 				leftExp = p.parseLazyInfixExpression(leftExp)
 			case p.CurToken.Type == token.LBRACK:
 				leftExp = p.parseIndexExpression(leftExp)
