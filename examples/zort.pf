@@ -20,18 +20,6 @@ moo boo coo (i int) :
 moo zoo :
     "moo zoo"
 
-(x) qux (y) :
-    "qux"
-
-(x) spoit :
-    "spoit"
-
-xuq (x) mip :
-    "xuq _ mip"
-
-troz (x) nerf (y) :
-    "troz _ nerf _"
-
 goo (x) hoo(y) spoo (z) :
     "goo _ hoo _ spoo _"
 
@@ -44,5 +32,16 @@ gah (x) hah (y) spah blah :
 (x) bing (y) bong :
     "_ bing _ bong"
 
+(x) spoit :
+    "_ spoit"
+
+(x) qux (y) :
+    "_ qux _"
+
+xuq (x) mip :
+    "xuq _ mip"
+
+troz (x) nerf (y) :
+    "troz _ nerf _"
 
 

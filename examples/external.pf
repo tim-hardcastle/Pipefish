@@ -1,8 +1,9 @@
-import
+external
 
 "zort.pf"
 
 var 
 
 z = 42
+
 

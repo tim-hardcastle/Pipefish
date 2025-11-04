@@ -5,8 +5,8 @@ NULL::"sql"
 var
 
 allServices = map(`hub`::`hub/hub.hub`,
-               .. `extern`::`/home/tim/Pf/Pipefish/examples/external.pf`,
-               .. `zort`::`/home/tim/Pf/Pipefish/examples/zort.pf`)
+               .. `zort`::`/home/tim/Pf/Pipefish/examples/zort.pf`,
+               .. `extern`::`/home/tim/Pf/Pipefish/examples/external.pf`)
 
 currentService string? = `extern`
 

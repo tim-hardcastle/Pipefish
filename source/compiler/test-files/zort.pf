@@ -26,6 +26,15 @@ moo zoo :
 xuq (x) mip :
     "Xuq _ mip"
 
+(x) bing (y) bong :
+    "_ bing _ bong"
+
+(x) spoit :
+    "_ spoit"
+
+(x) qux (y) :
+    "_ qux _"
+
 newtype
 
 Color = enum RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE

@@ -110,6 +110,9 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 			buf.WriteString("(")
 		}
 	}
+	if position == vm.INFIX || position == vm.SUFFIX {
+		buf.WriteString("(")
+	}
 	for i, param := range params {
 		bits := strings.Split(param, " ")
 		if bits[1] == "bling" {

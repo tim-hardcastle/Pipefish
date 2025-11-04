@@ -361,6 +361,9 @@ func TestExternals(t *testing.T) {
 		{`zort.moo boo coo 8`, `"Moo boo coo"`},
 		{`zort.moo zoo`, `"Moo zoo"`},
 		{`zort.xuq 9 mip`, `"Xuq _ mip"`},
+		{`8 zort.spoit`, `"_ spoit"`},
+		{`8 zort.qux 9`, `"_ qux _"`},
+		{`8 zort.bing 9 bong`, `"_ bing _ bong"`},
 	}
 	test_helper.RunTest(t, "external_test.pf", tests, test_helper.TestValues)
 }

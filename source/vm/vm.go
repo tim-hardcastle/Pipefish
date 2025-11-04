@@ -693,6 +693,9 @@ loop:
 				}
 				lastWasBling = len(argLocs) > 0
 			}
+			if operatorType == INFIX || operatorType == SUFFIX {
+				buf.WriteString("(")
+			}
 			for i, loc := range argLocs {
 				serializedValue := vm.Literal(vm.Mem[loc])
 				if operatorType == INFIX && vm.Mem[loc].T == values.BLING && serializedValue == name { // Then we need to attach the namespace to the operator.
