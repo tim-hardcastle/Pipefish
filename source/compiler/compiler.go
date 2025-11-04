@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/tim-hardcastle/Pipefish/source/ast"
@@ -331,10 +332,10 @@ NodeTypeSwitch:
 			break NodeTypeSwitch
 		}
 		var argumentCompiler *Compiler
-		if node.Namespace == nil {
+		if node.Token.Namespace == "" {
 			argumentCompiler = cp.topRCompiler()
 		} else {
-			argumentCompiler = cp.getResolvingCompiler(node, node.Namespace, ac)
+			argumentCompiler = cp.getResolvingCompiler(node, ac)
 		}
 		// If we're parsing the parameters of a namespaced function, then we are allowed a
 		// window through to its public global constants, which will be in the enumCompiler.
@@ -346,7 +347,7 @@ NodeTypeSwitch:
 			cp.GlobalConsts.Ext = argumentCompiler.GlobalConsts
 		}
 		// Here we get the compiler suitable to the namespace of the identifier.
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		var v *Variable
 		var ok bool
 		if resolvingCompiler != cp {
@@ -541,10 +542,10 @@ NodeTypeSwitch:
 			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)
 		}
 	case *ast.InfixExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		if ok, _ := cp.P.CanParse(node.Token, parser.INFIX); ok {
 			cp.pushRCompiler(resolvingCompiler)
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), node.GetToken().Namespace != "")
 			cp.popRCompiler()
 			break
 		}
@@ -893,7 +894,7 @@ NodeTypeSwitch:
 			cp.addToForData(cp.vmBreakWithValue(cp.That()))
 			break
 		}
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		if cp.P.ErrorsExist() {
 			break
 		}
@@ -957,7 +958,7 @@ NodeTypeSwitch:
 		ok, _ = cp.P.CanParse(node.Token, parser.PREFIX)
 		if ok || resolvingCompiler.P.Functions.Contains(node.Operator) {
 			cp.pushRCompiler(resolvingCompiler)
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), node.GetToken().Namespace != "")
 			cp.popRCompiler()
 			break
 		}
@@ -976,7 +977,7 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.STRING), true
 		break
 	case *ast.SuffixExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		if node.GetToken().Type == token.DOTDOTDOT {
 			if len(node.Args) != 1 {
 				cp.Throw("comp/splat/args", node.GetToken())
@@ -1002,7 +1003,7 @@ NodeTypeSwitch:
 		ok, _ := cp.P.CanParse(node.Token, parser.SUFFIX)
 		if ok {
 			cp.pushRCompiler(resolvingCompiler)
-			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), len(node.Namespace) > 0)
+			rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(cp, node, ctxt.x(), node.GetToken().Namespace != "")
 			cp.popRCompiler()
 			break
 		}
@@ -1035,7 +1036,7 @@ NodeTypeSwitch:
 		cp.Emit(vm.Asgm, cp.That(), values.C_OK)
 		rtnTypes, rtnConst = AltType(values.UNSATISFIED_CONDITIONAL, values.SUCCESSFUL_VALUE), false
 	case *ast.TypeExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		if len(node.TypeArgs) == 0 {
 			abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator)
 			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
@@ -1070,7 +1071,7 @@ NodeTypeSwitch:
 			cp.Put(vm.Mpar, argsForVm...)
 		}
 	case *ast.TypeLiteral: // TODO --- can this happen any more?
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		typeName := node.Value
 		abType := resolvingCompiler.GetAbstractTypeFromAstType(typeName)
 		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
@@ -1080,8 +1081,8 @@ NodeTypeSwitch:
 		cp.Reserve(values.TYPE, abType, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.TYPE), true
 	case *ast.SigTypePrefixExpression: //TODO --- or this?
-		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args, []string{}}
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args}
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		if abType := resolvingCompiler.GetAbstractTypeFromAstType(node.Operator); abType.Len() != 1 {
 			resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
 			break
@@ -1089,19 +1090,19 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
 	case *ast.TypePrefixExpression: // TODO --- since this ends up as a PrefixExpression eventually, could it not start off as one?
 		if len(node.TypeArgs) == 0 {
-			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args, node.Namespace}
-			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args}
+			resolvingCompiler := cp.getResolvingCompiler(node, ac)
 			if abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator); abType.Len() != 1 {
 				cp.Throw("comp/type/concrete", node.GetToken())
 				break
 			}
 			rtnTypes, rtnConst = cp.CompileNode(constructor, ctxt)
 		} else {
-			typeNode := &ast.TypeExpression{Token: node.Token, Operator: node.Operator, Namespace: node.Namespace, TypeArgs: node.TypeArgs}
+			typeNode := &ast.TypeExpression{Token: node.Token, Operator: node.Operator, TypeArgs: node.TypeArgs}
 			argsWithType := append([]ast.Node{typeNode}, node.Args...)
 
 			node.Token.Literal = node.Token.Literal + "{}" // TODO --- this is heinous. Anything looking at a PrefixExpression should be looking at the operator, not the token literal.
-			constructor := &ast.PrefixExpression{node.Token, node.Operator + "{}", argsWithType, node.Namespace}
+			constructor := &ast.PrefixExpression{node.Token, node.Operator + "{}", argsWithType}
 			rtnTypes, rtnConst = cp.CompileNode(constructor, ctxt)
 		}
 	case *ast.TypeSuffixExpression: // Clone types can have type suffixes as constructors so you can use them as units.
@@ -1114,14 +1115,14 @@ NodeTypeSwitch:
 			// The fact that we're compiling this node means that we're not in a signature. Hence
 			// the compiler can do what the parser can't, and turn it into a normal suffix expression,
 			// which can then be compiled.
-			suffix := &ast.SuffixExpression{node.Token, ty.OperatorName, node.Args, node.Namespace}
-			resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+			suffix := &ast.SuffixExpression{node.Token, ty.OperatorName, node.Args}
+			resolvingCompiler := cp.getResolvingCompiler(node, ac)
 			rtnTypes, rtnConst = resolvingCompiler.CompileNode(suffix, ctxt)
 		} else {
 			cp.Throw("comp/suffix/b", node.GetToken())
 		}
 	case *ast.UnfixExpression:
-		resolvingCompiler := cp.getResolvingCompiler(node, node.Namespace, ac)
+		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		rtnTypes, rtnConst = resolvingCompiler.createFunctionCall(resolvingCompiler, node, ctxt.x(), len(node.Namespace) > 0)
 	default:
 		panic("Unimplemented node type " + reflect.TypeOf(node).String() + " at line " + strconv.Itoa(node.GetToken().Line) + " of " + node.GetToken().Source)
@@ -1205,9 +1206,15 @@ func (cp *Compiler) checkInferredTypesAgainstContext(rtnTypes AlternateType, typ
 }
 
 // Function auxiliary to CompileNode that finds the appropriate compiler for a given namespace.
-func (cp *Compiler) getResolvingCompiler(node ast.Node, namespace []string, ac CpAccess) *Compiler {
+func (cp *Compiler) getResolvingCompiler(node ast.Node, ac CpAccess) *Compiler {
+	namespace := []string{}
+	if node.GetToken().Namespace == "" {
+		return cp
+	} else {
+		namespace = strings.Split(node.GetToken().Namespace, ".")
+	}
 	resolvingCompiler := cp
-	for _, name := range namespace {
+	for _, name := range namespace[:len(namespace)-1] {
 		var ok bool
 		resolvingCompiler, ok = resolvingCompiler.Modules[name]
 		if !ok {

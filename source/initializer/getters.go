@@ -138,7 +138,7 @@ func (iz *Initializer) makeReturnTypeFromTokens(toks []token.Token) ast.TypeNode
 		iz.P.PrimeWithTokenSupplier(ts)
 		typeArgsNode := iz.P.ParseExpression(parser.LOWEST)
 		typeArgs := iz.P.RecursivelyListify(typeArgsNode)
-		return &ast.TypeExpression{Token: toks[0], Operator: toks[0].Literal, Namespace: []string{}, TypeArgs: typeArgs}
+		return &ast.TypeExpression{Token: toks[0], Operator: toks[0].Literal, TypeArgs: typeArgs}
 	}
 	return iz.makeTypeAstFromTokens(toks)
 }

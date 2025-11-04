@@ -287,15 +287,15 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						right = p.ParseExpression(FPREFIX)
 					}
 					args := p.RecursivelyListify(right)
-					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, Namespace: []string{}, TypeArgs: typeArgs}
+					leftExp = &ast.TypePrefixExpression{Token: tok, Operator: operator, Args: args, TypeArgs: typeArgs}
 					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
-						astType := p.ToAstType(&ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs})
+						astType := p.ToAstType(&ast.TypeExpression{Token: tok, Operator: operator, TypeArgs: typeArgs})
 						if astType, ok := astType.(*ast.TypeWithArguments); ok {
 							p.ParTypeInstances[astType.String()] = astType
 						}
 					}
 				} else {
-					leftExp = &ast.TypeExpression{Token: tok, Operator: operator, Namespace: []string{}, TypeArgs: typeArgs}
+					leftExp = &ast.TypeExpression{Token: tok, Operator: operator, TypeArgs: typeArgs}
 					if p.ParTypeInstances != nil { // We set this to nil after initialization so that we don't go on scraping things into it.
 						astType := p.ToAstType(leftExp.(*ast.TypeExpression))
 						if astType, ok := astType.(*ast.TypeWithArguments); ok {
@@ -334,7 +334,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 							dummyCommaTok.Literal = ","
 							p.NextToken()
 							restOfExpIs := p.ParseExpression(FPREFIX)
-							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}, []string{}}
+							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}}
 						default:
 							p.Common.BlingManager.startFunction(p.CurToken.Literal, PREFIX, resolvingParser.BlingTree)
 							leftExp = p.parsePrefixExpression()
@@ -353,8 +353,8 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		right := &ast.SnippetLiteral{p.PeekToken, p.PeekToken.Literal}
 		tok := token.Token{token.COMMA, ",", p.PeekToken.Line, p.PeekToken.ChStart,
 			p.PeekToken.ChEnd, p.PeekToken.Source, ""}
-		children := []ast.Node{leftExp, &ast.Bling{tok, ",", []string{}}, right}
-		result := &ast.InfixExpression{tok, ",", children, []string{}}
+		children := []ast.Node{leftExp, &ast.Bling{tok, ","}, right}
+		result := &ast.InfixExpression{tok, ",", children}
 		p.NextToken()
 		return result
 	}
@@ -364,7 +364,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		blingIs := &ast.Bling{Token: p.CurToken, Value: p.CurToken.Literal}
 		dummyCommaTok := p.CurToken
 		dummyCommaTok.Literal = ","
-		leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{leftExp, &ast.Bling{Value: ",", Token: dummyCommaTok}, blingIs}, []string{}}
+		leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{leftExp, &ast.Bling{Value: ",", Token: dummyCommaTok}, blingIs}}
 	}
 	for p.Common.BlingManager.canBling(p.PeekToken.Literal, MIDFIX) {
 		p.Common.BlingManager.doBling(p.PeekToken.Literal, MIDFIX)
@@ -399,7 +399,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 						Args:     p.RecursivelyListify(leftExp),
 					}
 				} else {
-					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.RecursivelyListify(leftExp), []string{}}
+					leftExp = &ast.TypeSuffixExpression{tok, typeAst, p.RecursivelyListify(leftExp)}
 				}
 			} else {
 				p.NextToken()
@@ -494,7 +494,7 @@ func (p *Parser) parseBreak() ast.Node {
 		t := p.CurToken
 		p.NextToken()                  // Skips the 'break' token
 		exp := p.ParseExpression(FUNC) // If this is a multiple return, we don't want its elements to be treated as parameters of a function. TODO --- gve 'break' its own node type?
-		return &ast.PrefixExpression{t, "break", []ast.Node{exp}, []string{}}
+		return &ast.PrefixExpression{t, "break", []ast.Node{exp}}
 	}
 	return &ast.Identifier{Token: p.CurToken, Value: "break"}
 }
@@ -798,34 +798,7 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		p.Throw("parse/namespace/lhs", left.GetToken())
 		return nil
 	}
-	name := left.GetToken().Literal
 	right := p.ParseExpression(NAMESPACE)
-	switch right := right.(type) {
-	case *ast.Bling:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.Identifier:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.InfixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.PrefixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.SigTypePrefixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.SuffixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.TypeExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.TypePrefixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.TypeSuffixExpression:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.TypeLiteral:
-		right.Namespace = append(right.Namespace, name)
-	case *ast.UnfixExpression:
-		right.Namespace = append(right.Namespace, name)
-	default:
-		p.Throw("parse/namespace/rhs", left.GetToken())
-	}
 	return right
 }
 

@@ -53,7 +53,6 @@ func (ae *AssignmentExpression) String() string {
 type Bling struct {
 	Token     token.Token
 	Value     string
-	Namespace []string
 }
 
 func (bl *Bling) Children() []Node       { return []Node{} }
@@ -180,7 +179,6 @@ func (ge *GolangExpression) String() string         { return ge.Token.Literal }
 type Identifier struct {
 	Token     token.Token
 	Value     string
-	Namespace []string
 }
 
 func (i *Identifier) Children() []Node       { return []Node{} }
@@ -211,7 +209,6 @@ type InfixExpression struct {
 	Token     token.Token
 	Operator  string
 	Args      []Node
-	Namespace []string
 }
 
 func (ie *InfixExpression) Children() []Node       { return ie.Args }
@@ -323,7 +320,6 @@ type PrefixExpression struct {
 	Token     token.Token
 	Operator  string
 	Args      []Node
-	Namespace []string
 }
 
 func (pe *PrefixExpression) Children() []Node       { return pe.Args }
@@ -403,7 +399,6 @@ type SuffixExpression struct {
 	Token     token.Token
 	Operator  string
 	Args      []Node
-	Namespace []string
 }
 
 func (se *SuffixExpression) Children() []Node       { return se.Args }
@@ -450,7 +445,6 @@ func (t *TryExpression) String() string {
 type TypeExpression struct {
 	Token     token.Token
 	Operator  string
-	Namespace []string
 	TypeArgs  []Node
 }
 
@@ -474,7 +468,6 @@ func (t *TypeExpression) String() string {
 type TypeLiteral struct {
 	Token     token.Token
 	Value     TypeNode
-	Namespace []string
 }
 
 func (t *TypeLiteral) Children() []Node       { return []Node{} }
@@ -491,7 +484,6 @@ type TypePrefixExpression struct {
 	Token     token.Token
 	Operator  string
 	Args      []Node
-	Namespace []string
 	TypeArgs  []Node
 }
 
@@ -529,7 +521,6 @@ type SigTypePrefixExpression struct {
 	Token     token.Token
 	Operator  TypeNode
 	Args      []Node
-	Namespace []string
 }
 
 func (tpe *SigTypePrefixExpression) Children() []Node       { return tpe.Args }
@@ -560,7 +551,6 @@ type TypeSuffixExpression struct {
 	Token     token.Token
 	Operator  TypeNode
 	Args      []Node
-	Namespace []string
 }
 
 func (tse *TypeSuffixExpression) Children() []Node       { return tse.Args }
