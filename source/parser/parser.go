@@ -357,13 +357,9 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 							p.NextToken()
 							restOfExpIs := p.ParseExpression(FPREFIX)
 							leftExp = &ast.InfixExpression{dummyCommaTok, ",", []ast.Node{blingIs, &ast.Bling{Value: ",", Token: dummyCommaTok}, restOfExpIs}, []string{}}
-						case resolvingParser.Prefixes.Contains(p.CurToken.Literal) :
-							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
-							leftExp = p.parseFunctionExpression()
-							p.Common.BlingManager.stopFunction()
 						default:
 							p.Common.BlingManager.startFunction(p.CurToken.Literal, FUNCTION_OR_PREFIX, resolvingParser.BlingTree)
-							leftExp = p.parseFunctionExpression()
+							leftExp = p.parsePrefixExpression()
 							p.Common.BlingManager.stopFunction()
 						}
 					}
@@ -613,23 +609,6 @@ func (p *Parser) parseFromExpression() ast.Node {
 	}
 	p.Throw("parse/from", &fromToken)
 	return nil
-}
-
-func (p *Parser) parseFunctionExpression() ast.Node {
-	p.CurrentNamespace = nil
-	expression := &ast.PrefixExpression{
-		Token:    p.CurToken,
-		Operator: p.CurToken.Literal,
-	}
-	p.NextToken()
-	var right ast.Node
-	if p.CurToken.Type == token.LPAREN || expression.Operator == "-" {
-		right = p.ParseExpression(MINUS)
-	} else {
-		right = p.ParseExpression(FPREFIX)
-	}
-	expression.Args = p.RecursivelyListify(right)
-	return expression
 }
 
 func (p *Parser) parseGolangExpression() ast.Node {
@@ -887,8 +866,13 @@ func (p *Parser) parsePrefixExpression() ast.Node {
 		Operator: p.CurToken.Literal,
 	}
 	p.NextToken()
-	node := p.ParseExpression(FPREFIX)
-	expression.Args = p.RecursivelyListify(node)
+	var right ast.Node
+	if p.CurToken.Type == token.LPAREN || expression.Operator == "-" {
+		right = p.ParseExpression(MINUS)
+	} else {
+		right = p.ParseExpression(FPREFIX)
+	}
+	expression.Args = p.RecursivelyListify(right)
 	return expression
 }
 
