@@ -25,7 +25,6 @@ type Parser struct {
 	CurToken         token.Token
 	PeekToken        token.Token
 	Logging          bool
-	CurrentNamespace []string
 
 	// Things that need to be attached to every parser: common information about the type system, functions, etc.
 	Common *CommonParserBindle
@@ -242,13 +241,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		noNativePrefix = true
 	}
 
-	// We're looking at an identifier.
-	// If we're in a namespace, we need the symbol to be resolved by the appropriate parser.
-	resolvingParser := p.getResolvingParser()
-	if resolvingParser == nil {
-		return nil
-	}
-
 	// So what we're going to do is find out if the identifier *thinks* it's a function, i.e. if it precedes
 	// something that's a prefix (in the broader sense, i.e. an identifier, literal, LPAREN, etc). But not a
 	// minus sign, that would be confusing, people can use parentheses.
@@ -266,7 +258,11 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			// Here we step in and deal with things that are functions and values, like the type conversion
 			// functions and their associated types. Before we look them up as functions, we want to
 			// be sure that they're not in such a position that they're being used as literals.
-
+			_, resolvingParser := p.CanParse(p.CurToken, PREFIX)
+			if resolvingParser == nil {
+				p.Throw("parse/namespace/prefix", &p.CurToken)
+				return nil
+			}
 			if resolvingParser.IsTypePrefix(p.CurToken.Literal) && !(p.CurToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
 				tok := p.CurToken
 				operator := tok.Literal
@@ -274,7 +270,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				if p.PeekToken.Type == token.LBRACE {
 					p.NextToken()
 					p.NextToken()
-					p.CurrentNamespace = nil
 					typeArgsNode := p.ParseExpression(FPREFIX)
 					typeArgs = p.RecursivelyListify(typeArgsNode)
 					if p.PeekToken.Type == token.RBRACE {
@@ -286,7 +281,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				if p.typeIsFunctional() {
 					p.NextToken()
 					var right ast.Node
-					p.CurrentNamespace = nil
 					if p.CurToken.Type == token.LPAREN || p.CurToken.Type == token.LBRACK {
 						right = p.ParseExpression(MINUS)
 					} else {
@@ -399,7 +393,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 				// TODO --- the namespace needs to be represented in the type ast.
 				ty := typeAst
 				if ty, ok := ty.(*ast.TypeDotDotDot); ok && ty.Right == nil {
-					p.CurrentNamespace = nil
 					leftExp = &ast.SuffixExpression{
 						Token:    p.CurToken,
 						Operator: p.CurToken.Literal,
@@ -452,6 +445,11 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			case p.CurToken.Type == token.EQ || p.CurToken.Type == token.NOT_EQ:
 				leftExp = p.parseComparisonExpression(leftExp)
 			default:
+				_, resolvingParser := p.CanParse(p.CurToken, INFIX)
+				if resolvingParser == nil {
+					p.Throw("parse/namespace/infix", &p.CurToken)
+					return nil
+				}
 				p.Common.BlingManager.startFunction(p.CurToken.Literal, INFIX, resolvingParser.BlingTree)
 				leftExp = p.parseInfixExpression(leftExp)
 				p.Common.BlingManager.stopFunction()
@@ -548,7 +546,6 @@ func (p *Parser) parseForAsInfix(left ast.Node) *ast.ForExpression {
 }
 
 func (p *Parser) parseForExpression() *ast.ForExpression {
-	p.CurrentNamespace = nil
 	expression := &ast.ForExpression{
 		Token: p.CurToken,
 	}
@@ -586,7 +583,6 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 }
 
 func (p *Parser) parseFromExpression() ast.Node {
-	p.CurrentNamespace = nil
 	fromToken := p.CurToken
 	p.NextToken()
 	expression := p.ParseExpression(LOWEST)
@@ -626,7 +622,6 @@ func (p *Parser) parseGroupedExpression() ast.Node {
 }
 
 func (p *Parser) parseIdentifier() ast.Node {
-	p.CurrentNamespace = nil
 	return &ast.Identifier{Token: p.CurToken, Value: p.CurToken.Literal}
 }
 
@@ -654,7 +649,6 @@ func (p *Parser) parseIndexExpression(left ast.Node) ast.Node {
 }
 
 func (p *Parser) parseInfixExpression(left ast.Node) ast.Node {
-	p.CurrentNamespace = nil
 	if assignmentTokens.Contains(p.CurToken.Type) {
 		return p.parseAssignmentExpression(left)
 	}
@@ -805,7 +799,6 @@ func (p *Parser) parseNamespaceExpression(left ast.Node) ast.Node {
 		return nil
 	}
 	name := left.GetToken().Literal
-	p.CurrentNamespace = append(p.CurrentNamespace, name)
 	right := p.ParseExpression(NAMESPACE)
 	switch right := right.(type) {
 	case *ast.Bling:
@@ -853,7 +846,6 @@ func (p *Parser) parseNativePrefixExpression() ast.Node {
 }
 
 func (p *Parser) parsePrefixExpression() ast.Node {
-	p.CurrentNamespace = nil
 	expression := &ast.PrefixExpression{
 		Token:    p.CurToken,
 		Operator: p.CurToken.Literal,
@@ -941,7 +933,6 @@ func (p *Parser) parseStringLiteral() ast.Node {
 }
 
 func (p *Parser) parseSuffixExpression(left ast.Node) ast.Node {
-	p.CurrentNamespace = nil
 	expression := &ast.SuffixExpression{
 		Token:    p.CurToken,
 		Operator: p.CurToken.Literal,
@@ -973,7 +964,6 @@ func (p *Parser) parseTryExpression() ast.Node {
 }
 
 func (p *Parser) parseUnfixExpression() ast.Node {
-	p.CurrentNamespace = nil
 	return &ast.UnfixExpression{Token: p.CurToken, Operator: p.CurToken.Literal}
 }
 
@@ -1006,12 +996,6 @@ func (p *Parser) RecursivelyListify(start ast.Node) []ast.Node {
 		return []ast.Node{}
 	}
 	return []ast.Node{start}
-}
-
-// The parser accumulates the names in foo.bar.troz as it goes along. Now we follow the trail of namespaces
-// to find which parser should resolve the symbol.
-func (p *Parser) getResolvingParser() *Parser {
-	return p.getParserFromNamespace(p.CurrentNamespace)
 }
 
 func (p *Parser) getParserFromNamespace(namespace []string) *Parser {
@@ -1147,7 +1131,6 @@ func (p *Parser) ResetAfterError() {
 }
 
 func (p *Parser) ResetParser() {
-	p.CurrentNamespace = []string{}
 	p.nesting = dtypes.Stack[token.Token]{}
 }
 
