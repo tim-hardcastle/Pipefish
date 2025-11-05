@@ -1,17 +1,9 @@
-~~ A module to demonstrate documentation.
+var
 
-newtype
-
-~~ All four colors of the new standard rainbow.
-Color = enum RED, YELLOW, GREEN, BLUE
+x snippet? = -- foo |2 + 2| bar
 
 def
 
-~~ Has no effect.
-foo(x string) -> string : 
-    x
-
-~~ Doubles a given value *by multiplication*, not addition.
-zort(i) : 
-    2 * i
+qux(i) : 
+    -- foo |i| bar
 

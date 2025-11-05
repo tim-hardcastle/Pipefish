@@ -1,0 +1,4 @@
+def
+
+qux(i int) :
+    -- foo |i| bar
