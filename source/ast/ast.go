@@ -380,11 +380,20 @@ func (rl *RuneLiteral) String() string         { return strconv.QuoteRune(rl.Val
 type SnippetLiteral struct {
 	Token token.Token
 	Value string
+	Values []Node
 }
 
-func (sl *SnippetLiteral) Children() []Node       { return []Node{} }
+func (sl *SnippetLiteral) Children() []Node {
+	result := []Node{} 
+	for i, bit := range sl.Values {
+		if i % 2 == 1  {
+			result = append(result, bit)
+		}
+	}
+	return result
+}
 func (sl *SnippetLiteral) GetToken() *token.Token { return &sl.Token }
-func (sl *SnippetLiteral) String() string         { return "---" + sl.Value }
+func (sl *SnippetLiteral) String() string         { return "--" + sl.Value }
 
 type StringLiteral struct {
 	Token token.Token

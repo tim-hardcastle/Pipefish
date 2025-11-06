@@ -1,9 +1,5 @@
-var
+const 
 
-x snippet? = -- foo |2 + 2| bar
+SN = -- foo |"Hello"[1]| bar
 
-def
-
-qux(i) : 
-    -- foo |i| bar
 

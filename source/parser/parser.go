@@ -204,7 +204,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	case token.ELSE:
 		leftExp = p.parseElse()
 	case token.EMDASH:
-		leftExp = p.parseSnippetLiteral()
+		leftExp = p.parseSnippetExpression(p.CurToken)
 	case token.FALSE:
 		leftExp = p.parseBooleanLiteral()
 	case token.FLOAT:
@@ -350,7 +350,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 	}
 
 	if p.PeekToken.Type == token.EMDASH {
-		right := &ast.SnippetLiteral{p.PeekToken, p.PeekToken.Literal}
+		right := p.parseSnippetExpression(p.PeekToken)
 		tok := token.Token{token.COMMA, ",", p.PeekToken.Line, p.PeekToken.ChStart,
 			p.PeekToken.ChEnd, p.PeekToken.Source, ""}
 		children := []ast.Node{leftExp, &ast.Bling{tok, ","}, right}
@@ -876,8 +876,34 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 	return exp
 }
 
-func (p *Parser) parseSnippetLiteral() ast.Node {
-	return &ast.SnippetLiteral{Token: p.CurToken, Value: p.CurToken.Literal}
+func (p *Parser) parseSnippetExpression(tok token.Token) ast.Node {
+	codeTokens := p.TokenizedCode
+	nesting := p.nesting.Copy()
+	cT := p.CurToken
+	pT := p.PeekToken
+	nodes := []ast.Node{}
+	bits, ok := text.GetTextWithBarsAsList(tok.Literal)
+	if !ok {
+		p.Throw("parse/snippet/form", &tok)
+		return nil
+	}
+	if len(bits) > 0 && len(bits[0]) > 0 && bits[0][0] == '|' {
+		bits = append([]string{""}, bits...)
+	}
+	for i, bit := range bits {
+		if i % 2 == 0 {
+			nodes = append(nodes, &ast.StringLiteral{tok, bit})
+		} else {
+			p.nesting = dtypes.Stack[token.Token]{}
+			node := p.ParseLine("embedded Pipefish in snippet", bit[1:len(bit)-1])
+			nodes = append(nodes, node)
+		}
+	}
+	p.nesting = *nesting
+	p.TokenizedCode = codeTokens
+	p.CurToken = cT 
+	p.PeekToken = pT
+	return &ast.SnippetLiteral{Token: tok, Value: tok.Literal, Values: nodes}
 }
 
 func (p *Parser) parseStringLiteral() ast.Node {
@@ -1002,7 +1028,11 @@ func (p *Parser) checkNesting() {
 		}
 	}
 	if p.CurToken.Type == token.EOF {
+		if p.nesting.Len() > 0 {
+			println("Length is", p.nesting.Len())
+		}
 		for popped, poppable := p.nesting.Pop(); poppable; popped, poppable = p.nesting.Pop() {
+			println("Throwing eol", popped.Type, popped.Literal)
 			p.Throw("parse/eol", &p.CurToken, &popped)
 		}
 	}

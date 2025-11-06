@@ -10,6 +10,13 @@ func (s *Stack[T]) Len() int {
 	return len(s.vals)
 }
 
+func (s *Stack[T]) Copy() *Stack[T] {
+	new := NewStack[T]()
+	new.vals = make([]T, len(s.vals))
+	copy(new.vals, s.vals)
+	return new
+}
+
 func (s *Stack[T]) Push(val T) {
 	s.vals = append(s.vals, val)
 }

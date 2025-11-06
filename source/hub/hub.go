@@ -572,12 +572,14 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.lastRun = []string{fname, sname}
 		if sname == "" {
 			hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) +
-				"\" as service <C>\"#" + strconv.Itoa(hub.anonymousServiceNumber) + "\"</>.\n")
+				"\" as service <C>\"#" + strconv.Itoa(hub.anonymousServiceNumber) + "\"</>.")
+			println()
 			hub.StartAnonymous(fname)
 			hub.tryMain()
 			return false
 		}
-		hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) + "\"</> as service <C>\"" + sname + "\"</>.\n")
+		hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) + "\"</> as service <C>\"" + sname + "\"</>.")
+		println()
 		hub.StartAndMakeCurrent(username, sname, fname)
 		hub.tryMain()
 		return false

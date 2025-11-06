@@ -1,4 +1,4 @@
 def
 
 qux(i int) :
-    -- foo |i| bar
+    -- foo |2 * i| bar

@@ -401,9 +401,8 @@ func TestClones(t *testing.T) {
 }
 func TestSnippet(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`1 + 1`, `2`},
 		{`(qux 5)[0]`, `"foo "`},
-		{`(qux 5)[1]`, `5`},
+		{`(qux 5)[1]`, `10`},
 		{`(qux 5)[2]`, `" bar"`},
 	}
 	test_helper.RunTest(t, "snippets_test.pf", tests, test_helper.TestValues)

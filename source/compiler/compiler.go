@@ -966,16 +966,13 @@ NodeTypeSwitch:
 	case *ast.RuneLiteral:
 		cp.Reserve(values.RUNE, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.RUNE), true
-		break
 	case *ast.SnippetLiteral:
 		snF := cp.reserveSnippetFactory(env, node, ctxt)
 		cp.Put(vm.MkSn, snF)
 		rtnTypes, rtnConst = AltType(values.SNIPPET), false
-		break
 	case *ast.StringLiteral:
 		cp.Reserve(values.STRING, node.Value, node.GetToken())
 		rtnTypes, rtnConst = AltType(values.STRING), true
-		break
 	case *ast.SuffixExpression:
 		resolvingCompiler := cp.getResolvingCompiler(node, ac)
 		if node.GetToken().Type == token.DOTDOTDOT {
@@ -1008,7 +1005,6 @@ NodeTypeSwitch:
 			break
 		}
 		cp.Throw("comp/known/suffix", node.GetToken())
-		break
 	case *ast.TryExpression:
 		ident := node.VarName
 		v, exists := env.GetVar(ident)
@@ -1981,7 +1977,7 @@ func (cp *Compiler) getLambdaStart() uint32 {
 func (cp *Compiler) reserveSnippetFactory(env *Environment, node *ast.SnippetLiteral, ctxt Context) uint32 {
 	cp.Cm("Reserving snippet factory.", &node.Token)
 	snF := &vm.SnippetFactory{}
-	snF.Bindle = cp.compileSnippet(node.GetToken(), env, node.Token.Literal, ctxt)
+	snF.Bindle = cp.compileSnippet(node.GetToken(), env, node.Values, ctxt)
 	cp.Vm.SnippetFactories = append(cp.Vm.SnippetFactories, snF)
 	return uint32(len(cp.Vm.SnippetFactories) - 1)
 }
@@ -2273,22 +2269,12 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 	return AltType(values.LIST), lhsConst && rhsConst
 }
 
-func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, sText string, ctxt Context) *values.SnippetBindle {
+func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, nodes []ast.Node, ctxt Context) *values.SnippetBindle {
 	cp.Cm("Compile snippet", tok)
 	bindle := values.SnippetBindle{}
-	bits, ok := text.GetTextWithBarsAsList(sText)
-	if !ok {
-		cp.Throw("comp/snippet/form", tok)
-		return &bindle
-	}
 	bindle.CodeLoc = cp.CodeTop()
-	if len(bits) > 0 && len(bits[0]) > 0 && bits[0][0] == '|' {
-		cp.Reserve(values.STRING, "", tok)
-		bindle.ValueLocs = append(bindle.ValueLocs, cp.That())
-	}
-	for _, bit := range bits {
-		if len(bit) > 0 && bit[0] == '|' {
-			node := cp.P.ParseLine(tok.Source, bit[1:len(bit)-1])
+	for i, node := range nodes {
+		if i % 2 == 1 {
 			newContext := ctxt
 			newContext.Env = newEnv
 			types, _ := cp.CompileNode(node, newContext)
@@ -2298,7 +2284,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, sText 
 			}
 			bindle.ValueLocs = append(bindle.ValueLocs, val)
 		} else {
-			cp.Reserve(values.STRING, bit, tok)
+			cp.Reserve(values.STRING, node.(*ast.StringLiteral).Value, tok)
 			bindle.ValueLocs = append(bindle.ValueLocs, cp.That())
 		}
 	}
