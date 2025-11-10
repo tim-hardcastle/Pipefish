@@ -267,6 +267,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"comp/clones": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "Pipefish was expecting a type, not " + emph(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The `clones` operator returns the abstract type consisting of all the clones of the given " +
+			       "base type (including itself). It therefore expects a type as its only argument."
+		},
+	},
+
+	"comp/clones/arguments": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "`clones` operator without an argument"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The `clones` operator returns the abstract type consisting of all the clones of the given " +
+			       "base type (including itself). It therefore expects a type as its only argument."
+		},
+	},
+
 	"comp/continue": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "'continue' outside of 'for' loop"
@@ -3625,8 +3645,11 @@ func blame(errors Errors, pos int, args ...string) string {
 }
 
 func emph(s any) string {
-	if t, ok := s.(string); ok {
-		s = strings.TrimSpace(t)
+	switch s := s.(type) {
+	case string:
+		return fmt.Sprintf("`%v`", strings.TrimSpace(s))
+	case token.Token:
+		return fmt.Sprintf("`%v`", s.Literal)
 	}
 	return fmt.Sprintf("`%v`", s)
 }

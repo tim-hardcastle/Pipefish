@@ -1066,24 +1066,6 @@ NodeTypeSwitch:
 			}
 			cp.Put(vm.Mpar, argsForVm...)
 		}
-	case *ast.TypeLiteral: // TODO --- can this happen any more?
-		resolvingCompiler := cp.getResolvingCompiler(node, ac)
-		typeName := node.Value
-		abType := resolvingCompiler.GetAbstractTypeFromAstType(typeName)
-		if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
-			cp.Throw("comp/private/type/b", node.GetToken())
-			break
-		}
-		cp.Reserve(values.TYPE, abType, node.GetToken())
-		rtnTypes, rtnConst = AltType(values.TYPE), true
-	case *ast.SigTypePrefixExpression: //TODO --- or this?
-		constructor := &ast.PrefixExpression{node.Token, node.Operator.String(), node.Args}
-		resolvingCompiler := cp.getResolvingCompiler(node, ac)
-		if abType := resolvingCompiler.GetAbstractTypeFromAstType(node.Operator); abType.Len() != 1 {
-			resolvingCompiler.Throw("comp/type/concrete", node.GetToken())
-			break
-		}
-		rtnTypes, rtnConst = resolvingCompiler.CompileNode(constructor, ctxt)
 	case *ast.TypePrefixExpression: // TODO --- since this ends up as a PrefixExpression eventually, could it not start off as one?
 		if len(node.TypeArgs) == 0 {
 			constructor := &ast.PrefixExpression{node.Token, node.Operator, node.Args}
