@@ -285,12 +285,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 				}
 			}
 		}
-
 		argIndex := iz.findParameterizedType(ty.Name, ty.Values())
-		if argIndex == DUMMY {
-			iz.throw("init/type/args", &ty.Token)
-			continue
-		}
 		parTypeInfo := iz.parameterizedTypes[ty.Name][argIndex]
 		private := parTypeInfo.IsPrivate
 		isClone := !(parTypeInfo.ParentType == "struct")
@@ -304,7 +299,7 @@ func (iz *Initializer) instantiateParameterizedTypes() {
 		newTypeName := ty.String()
 		parentTypeNo, ok := compiler.ClonableTypes[parTypeInfo.ParentType]
 		if !(ok || parTypeInfo.ParentType == "struct") {
-			iz.throw("init/clone/type", &ty.Token)
+			iz.throw("init/clone/type/a", &ty.Token)
 			return
 		}
 		var (
@@ -1354,7 +1349,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 						continue
 					}
 					if !compiler.Equals(variable.Types, iz.cp.GetAlternateTypeFromConcreteTypeName(param.Type)) {
-						iz.throw("init/param/var", &izFn.op, param.Name)
+						iz.throw("init/param/type", &izFn.op, param.Name)
 						continue
 					}
 				}

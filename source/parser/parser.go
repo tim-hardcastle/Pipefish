@@ -275,7 +275,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 					if p.PeekToken.Type == token.RBRACE {
 						p.NextToken()
 					} else {
-						p.Throw("parse/brace", &p.CurToken)
+						p.Throw("parse/rbrace", &p.CurToken)
 					}
 				}
 				if p.typeIsFunctional() {

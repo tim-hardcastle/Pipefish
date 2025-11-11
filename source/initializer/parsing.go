@@ -671,7 +671,7 @@ func (iz *Initializer) addCloneTypeAndConstructor(name, typeToClone string, priv
 func (iz *Initializer) addCloneType(name, typeToClone string, private bool, decTok *token.Token) (values.ValueType, bool) {
 	parentTypeNo, ok := compiler.ClonableTypes[typeToClone]
 	if !ok {
-		iz.throw("init/clone/type/c", decTok, typeToClone)
+		iz.throw("init/clone/type/b", decTok, typeToClone)
 		return DUMMY, false
 	}
 	supertype := "clones{" + typeToClone + "}"
@@ -844,7 +844,6 @@ func (iz *Initializer) createStructNames() {
 		if len(dec.params) != 0 {
 			ok := iz.registerParameterizedType(dec.op.Literal, iz.makeTypeWithParameters(dec.op, dec.params), nil, nil, "struct", dec.private, ixPtr(dec))
 			if !ok {
-				iz.throw("init/struct/exists", ixPtr(dec))
 				continue
 			}
 			iz.setDeclaration(decPARAMETERIZED, ixPtr(dec), DUMMY, DUMMY)
@@ -977,7 +976,8 @@ func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexTok 
 func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []token.Token, typeCheck *token.TokenizedCodeChunk, parentType string, private bool, tok *token.Token) bool {
 	info, ok := iz.parameterizedTypes[name]
 	if ok {
-		if iz.paramTypeExists(ty) == DUMMY { // TODO --- why?
+		if iz.paramTypeExists(ty) == DUMMY { 
+			iz.throw("init/param/types", &ty.Token, ty.String(), len(info))
 			return false
 		}
 	}

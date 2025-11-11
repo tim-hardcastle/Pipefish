@@ -410,7 +410,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool, docString string) (tok
 	}
 	iz.P.NextToken()
 	if !iz.P.CurTokenIs(token.IDENT) {
-		iz.throw("init/type/define", &iz.P.CurToken)
+		iz.throw("init/type/expect/a", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
@@ -428,7 +428,7 @@ func (iz *Initializer) ChunkTypeDeclaration(private bool, docString string) (tok
 	case "struct":
 		return iz.chunkStruct(opTok, private, docString)
 	default:
-		iz.throw("init/type/expect", &iz.P.CurToken, decliteral)
+		iz.throw("init/type/expect/b", &iz.P.CurToken, decliteral)
 		iz.finishChunk()
 		return &tokenizedEnumDeclaration{}, false
 	}
@@ -491,7 +491,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool, docString str
 		}
 		for _, pair := range params {
 			if pair.Typename[0].Literal == "*error*" {
-				iz.throw("init/struct/ptype", &pair.Name)
+				iz.throw("init/clone/typed", &pair.Name)
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false
 			}
@@ -507,7 +507,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool, docString str
 	typeTok := iz.P.CurToken
 	_, ok := compiler.ClonableTypes[typeTok.Literal]
 	if !ok {
-		iz.throw("init/clone/type", &iz.P.CurToken)
+		iz.throw("init/clone/type/a", &iz.P.CurToken)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
@@ -680,7 +680,7 @@ func (iz *Initializer) chunkStruct(opTok token.Token, private bool, docString st
 		}
 		for _, pair := range params {
 			if pair.Typename[0].Literal == "*error*" {
-				iz.throw("init/struct/ptype", &pair.Name)
+				iz.throw("init/struct/type", &pair.Name)
 				iz.finishChunk()
 				return &tokenizedStructDeclaration{}, false
 			}

@@ -217,7 +217,7 @@ func (l *lexer) getTokens() []token.Token {
 		default:
 			if l.runes.PeekRune() == '.' {
 				if tType != token.IDENT {
-					l.Throw("lex/namespace/ident/left")
+					l.Throw("lex/namespace/left")
 				}
 				l.currentNamespace = l.currentNamespace + lit + "."
 				l.runes.Next()
@@ -227,7 +227,7 @@ func (l *lexer) getTokens() []token.Token {
 				tokenIs := l.NewToken(tType, lit)
 				if l.currentNamespace != "" {
 					if tType != token.IDENT {
-						l.Throw("lex/namespace/ident/right")
+						l.Throw("lex/namespace/right")
 					} 
 					tokenIs.Namespace = l.currentNamespace
 					l.currentNamespace = ""
