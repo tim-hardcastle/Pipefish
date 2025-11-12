@@ -110,7 +110,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 					}
 				}
 			}
-			vm.Run(lambda.AddressToCall)
+			vm.run(lambda.AddressToCall)
 			result := vm.Mem[lambda.ResultLocation]
 			if result.T == values.TUPLE {
 				results := []any{}

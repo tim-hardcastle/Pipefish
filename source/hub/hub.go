@@ -240,11 +240,14 @@ func (hub *Hub) Do(line, username, password, passedServiceName string, external 
 	}
 
 	if val.T == pf.ERROR && !external {
-		hub.WriteString("\n[0] " + valToString(serviceToUse, val))
+		e := val.V.(*pf.Error)
 		hub.WriteString("\n")
-		hub.ers = []*pf.Error{val.V.(*pf.Error)}
-		if len(val.V.(*pf.Error).Values) > 0 {
-			hub.WritePretty("Values are available with `hub values`.\n\n")
+		hub.WritePretty("[0] " + text.ERROR + e.Message + text.DescribePos(e.Token))
+		hub.WriteString("\n\n")
+		hub.ers = []*pf.Error{e}
+		if len(e.Values) > 0 {
+			hub.WritePretty("Values are available with `hub values`.")
+			hub.WriteString("\n\n")
 		}
 	} else if !serviceToUse.PostHappened() {
 		serviceToUse.Output(val)
@@ -791,10 +794,11 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		}
 		for _, v := range hub.ers[0].Values {
 			if v.T == pf.BLING {
-				hub.WritePretty(BULLET_SPACING + hub.services[hub.currentServiceName()].ToLiteral(v))
+				hub.WriteString(BULLET_SPACING + hub.services[hub.currentServiceName()].ToLiteral(v))
 			} else {
-				hub.WritePretty(BULLET + hub.services[hub.currentServiceName()].ToLiteral(v))
+				hub.WriteString(BULLET + hub.services[hub.currentServiceName()].ToLiteral(v))
 			}
+			hub.WriteString("\n")
 		}
 		hub.WriteString("\n")
 		return false

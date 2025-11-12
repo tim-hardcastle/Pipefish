@@ -3006,7 +3006,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/index/list": {
 		Message: func(tok *token.Token, args ...any) string {
-			return fmt.Sprintf("index %v is out of range 0::%v", emph(args[0]), args[1])
+			return fmt.Sprintf("index %v is out of range `0::%v`", emph(args[0]), args[1])
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return fmt.Sprintf("A list is indexed over a range from and including 0 up to and excluding the length of the list.")
@@ -3281,6 +3281,17 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Please tell the author of Pipefish that he messed up. Thank you."
+		},
+	},
+
+	"vm/panic": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "VM panicked with error " + emph(args[0])
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "At this point in the development of Pipefish this error may come from " +
+			"something you've done, e.g. a stack overflow, or from an error in Pipefish itself. " +
+			"If you suspect the latter, you should contact the author."
 		},
 	},
 

@@ -47,7 +47,7 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 	return sv.initialize(scriptFilepath, sourcecode, &values.Map{})
 }
 
-//The same as the previous two functions, except that we pass in a map of values to initialize
+// The same as the previous two functions, except that we pass in a map of values to initialize
 // $store.
 // Initializes the service with the source code supplied in the string.
 func (sv *Service) InitializeFromCodeWithStore(code string, store Map) error {
@@ -247,7 +247,7 @@ func (sv *Service) Do(line string) (Value, error) {
 		return Value{}, errors.New("error compiling input")
 	}
 	sv.cp.Emit(vm.Ret)
-	sv.cp.Cm("Calling Run from Do.", node.GetToken())
+	sv.cp.Cm("Calling RunRoot from Do.", node.GetToken())
 	sv.cp.Vm.PostHappened = false
 	sv.cp.Vm.Run(cT)
 	result := sv.cp.Vm.Mem[sv.cp.That()]
@@ -671,7 +671,7 @@ var DEFAULT_TYPE_FOR = map[Type]reflect.Type{
 	TUPLE:  reflect.TypeFor[[]any](),
 }
 
-// Serializes a Map of Values into newline-separated key-value pairs, encrypting if the 
+// Serializes a Map of Values into newline-separated key-value pairs, encrypting if the
 // password is non-empty, and heading the result with "PLAINTEXT\n" if the password is empty.
 // This is the only thing that can serialize the `secret` type, exposing its contents. Hence
 // if you encrypt it at the same time, then you haven't exposed its contents.
@@ -680,7 +680,7 @@ func (sv *Service) WriteSecret(store values.Map, password string) string {
 }
 
 // This highlights the given string on the assumption that it's Pipefish
-// code, and that the `fonts` map is a theme like in `user/themes.pf``.
+// code, and that the `fonts` map is a theme like in `user/themes.pf“.
 func (sv *Service) Highlight(code []rune, fonts Map) string {
 	return sv.cp.Highlight(code, fonts)
 }

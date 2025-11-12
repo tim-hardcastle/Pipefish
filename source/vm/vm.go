@@ -160,15 +160,34 @@ func BlankVm() *Vm {
 	return vm
 }
 
-// The heart of the VM. A big loop around a switch. It will keep going until it hits a `ret`
-// and the callstack is empty.
+// The `run` function can and occasionally does call itself. If we want to catch a panic
+// from the VM, we need to unwind the stack back to where we actually entered. This is what
+// `Run` is for: everything calling `run` does so through `Run`, except `run` itself and
+// a few other places in the VM itself.
 func (vm *Vm) Run(loc uint32) {
-	if settings.SHOW_RUNTIME {
-		println()
+	if !settings.ALLOW_PANICS {
+		defer func() {
+			if r := recover(); r != nil {
+				e := err.CreateErr("vm/panic", &token.Token{}, fmt.Sprintf("%v", r))
+				vm.Mem = append(vm.Mem, values.Value{values.ERROR, e})
+			}
+		}()
 	}
-	// This is something of a kludge. T
-	stackHeight := len(vm.callstack)
+	vm.run(loc)
+}
 
+// The heart of the VM. A big loop around a switch. It will keep going until it hits a `ret`
+// and the callstack is the same height as when it was called.
+//
+// (This condition, rather than just saying "until the callstack is empty" allows `run` to
+// call itself under certain rare and harmless conditions.)
+func (vm *Vm) run(loc uint32) {
+	if settings.SHOW_RUNTIME {
+		println("Running code from", loc)
+	}
+	// We exit the loop and this function when we perform a `ret` openeration and `stackHeight``
+	// equals the length of the callstack.
+	stackHeight := len(vm.callstack)
 loop:
 	for {
 		if settings.SHOW_RUNTIME {
@@ -436,7 +455,7 @@ loop:
 				vm.Mem[typeCheck.TokNumberLoc] = values.Value{values.INT, int(args[1])}
 				vm.Mem[typeCheck.InLoc] = vm.Mem[args[3]]
 				vm.Mem[typeCheck.ResultLoc] = values.Value{typeNo, vm.Mem[args[3]].V}
-				vm.Run(typeCheck.CallAddress)
+				vm.run(typeCheck.CallAddress)
 				vm.Mem[args[0]] = vm.Mem[typeCheck.ResultLoc]
 			} else {
 				vm.Mem[args[0]] = values.Value{typeNo, vm.Mem[args[3]].V}
@@ -649,7 +668,7 @@ loop:
 					}
 				}
 			}
-			vm.Run(lambda.AddressToCall)
+			vm.run(lambda.AddressToCall)
 			vm.Mem[args[0]] = vm.Mem[lambda.ResultLocation]
 		case Dref:
 			vm.Mem[args[0]] = vm.Mem[vm.Mem[args[1]].V.(uint32)]
@@ -716,7 +735,7 @@ loop:
 				lastWasBling = false
 				buf.WriteString(serializedValue)
 			}
-			if !lastWasBling { 
+			if !lastWasBling {
 				buf.WriteString(")")
 			}
 			if operatorType == SUFFIX {
@@ -1135,7 +1154,7 @@ loop:
 			for i, v := range lf.CaptureLocations {
 				val := vm.Mem[v]
 				if val.T == values.THUNK {
-					vm.Run(val.V.(uint32))
+					vm.run(val.V.(uint32))
 					val = vm.Mem[v]
 				}
 				newLambda.Captures[i] = val
@@ -1153,7 +1172,7 @@ loop:
 				k := p.V.([]values.Value)[0]
 				v := p.V.([]values.Value)[1]
 				if !((values.NULL <= k.T && k.T < values.PAIR) || vm.ConcreteTypeInfo[k.T].IsEnum() || // TODO, we can just have a simple filter and/or a method of the interface.
-					 vm.ConcreteTypeInfo[k.T].IsStruct() ) {                                           // Or hand it off to the Set method to return an error.
+					vm.ConcreteTypeInfo[k.T].IsStruct()) { // Or hand it off to the Set method to return an error.
 					vm.Mem[args[0]] = vm.makeError("vm/map/key", args[2], k, vm.DescribeType(k.T, LITERAL))
 					break Switch
 				}
@@ -1487,7 +1506,7 @@ loop:
 				vm.Mem[typeCheck.TokNumberLoc] = values.Value{values.INT, int(args[1])}
 				vm.Mem[typeCheck.InLoc] = values.Value{typeNo, fields}
 				vm.Mem[typeCheck.ResultLoc] = values.Value{typeNo, fields}
-				vm.Run(typeCheck.CallAddress)
+				vm.run(typeCheck.CallAddress)
 				vm.Mem[args[0]] = vm.Mem[typeCheck.ResultLoc]
 			} else {
 				vm.Mem[args[0]] = values.Value{typeNo, fields}
@@ -1658,7 +1677,7 @@ loop:
 			if vm.Mem[args[0]].T == values.THUNK {
 				resultLoc := vm.Mem[args[0]].V.(values.ThunkValue).MLoc
 				codeAddr := vm.Mem[args[0]].V.(values.ThunkValue).CAddr
-				vm.Run(codeAddr)
+				vm.run(codeAddr)
 				vm.Mem[args[0]] = vm.Mem[resultLoc]
 			}
 		case Uwrp:

@@ -2256,7 +2256,7 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, nodes 
 	bindle := values.SnippetBindle{}
 	bindle.CodeLoc = cp.CodeTop()
 	for i, node := range nodes {
-		if i % 2 == 1 {
+		if i%2 == 1 {
 			newContext := ctxt
 			newContext.Env = newEnv
 			types, _ := cp.CompileNode(node, newContext)

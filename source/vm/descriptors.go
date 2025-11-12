@@ -218,7 +218,7 @@ func (vm *Vm) toString(v values.Value, flavor descriptionFlavor) string {
 		if flavor == DEFAULT {
 			return text.GREEN + "OK" + text.RESET
 		}
-		if flavor == LITERAL  || flavor == SECRET {
+		if flavor == LITERAL || flavor == SECRET {
 			return "OK"
 		}
 
@@ -320,7 +320,7 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 		return vm.toString(v, flavor)
 	}
 	vm.Mem[vm.StringifyLoReg] = v
-	vm.Run(vm.StringifyCallTo)
+	vm.run(vm.StringifyCallTo)
 	return vm.Mem[vm.StringifyOutReg].V.(string)
 }
 
@@ -330,7 +330,8 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 // Args field. The memory locations and miscellania are passed indifferently to the args field of the
 // makeError function, and it is assumed that anything of type uint32 represents a location.
 func (vm *Vm) makeError(errCode string, tokenOrdinal uint32, args ...any) values.Value {
-	result := &err.Error{ErrorId: errCode, Token: vm.Tokens[tokenOrdinal], Trace: []*token.Token{vm.Tokens[tokenOrdinal]}}
+	tok := vm.Tokens[tokenOrdinal]
+	result := &err.Error{ErrorId: errCode, Token: tok, Trace: []*token.Token{vm.Tokens[tokenOrdinal]}}
 	for _, arg := range args {
 		switch arg := arg.(type) {
 		case uint32:
@@ -341,12 +342,17 @@ func (vm *Vm) makeError(errCode string, tokenOrdinal uint32, args ...any) values
 			result.Args = append(result.Args, arg)
 		}
 	}
+	errorCreator, ok := err.ErrorCreatorMap[errCode]
+	if !ok {
+		return values.Value{values.ERROR, err.CreateErr("err/misdirect", tok, errCode)}
+	}
+	result.Message = errorCreator.Message(tok, args...)
 	return values.Value{values.ERROR, result}
 }
 
 // Actually this can dump any Map but why would you want to?
 func (vm *Vm) DumpStore(store values.Map, password string) string {
-	var plaintext strings.Builder	
+	var plaintext strings.Builder
 	plaintext.WriteString("PLAINTEXT\n")
 	for _, pair := range store.AsSlice() {
 		plaintext.WriteString(vm.toString(pair.Key, SECRET))
@@ -357,7 +363,7 @@ func (vm *Vm) DumpStore(store values.Map, password string) string {
 	if password == "" {
 		return plaintext.String()
 	}
-	plaintext.WriteString(strings.Repeat(" ", aes.BlockSize - plaintext.Len()%aes.BlockSize))
+	plaintext.WriteString(strings.Repeat(" ", aes.BlockSize-plaintext.Len()%aes.BlockSize))
 	salt := make([]byte, 32)
 	rand.Read(salt)
 	key := pbkdf2.Key([]byte(password), salt, 65536, 32, sha256.New) // sha256 has nothing to do with it but the API is stupid.
@@ -369,8 +375,8 @@ func (vm *Vm) DumpStore(store values.Map, password string) string {
 	// I copied the code from have a sense of humor).
 	ciphertext := make([]byte, aes.BlockSize+plaintext.Len())
 	iv := ciphertext[:aes.BlockSize]
-	rand.Read(iv);
+	rand.Read(iv)
 	mode := cipher.NewCBCEncrypter(block, iv)
 	mode.CryptBlocks(ciphertext[aes.BlockSize:], []byte(plaintext.String()))
 	return string(salt) + string(ciphertext)
-} 
+}

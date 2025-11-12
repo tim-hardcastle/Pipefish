@@ -87,14 +87,14 @@ func ErrorFont(s string) string {
 
 func DescribePos(token *token.Token) string {
 	if token == nil {
-		return ""
+		return "."
 	}
 	prettySource := token.Source
 	if prettySource == "" {
-		return ""
+		return "."
 	}
 	if prettySource != "REPL input" {
-		prettySource = "\"" + prettySource + "\""
+		prettySource = "<C>\"" + prettySource + "\"</>"
 	}
 	if token.Line > 0 {
 		result := strconv.Itoa(token.Line) + ":" + strconv.Itoa(token.ChStart)
@@ -102,9 +102,9 @@ func DescribePos(token *token.Token) string {
 			result = result + "-" + strconv.Itoa(token.ChEnd)
 		}
 		result = " at line <Y>" + result + "</> "
-		return result + "of " + prettySource
+		return result + "of " + prettySource + "."
 	}
-	return " in " + prettySource
+	return " in " + prettySource + "."
 }
 
 // Describes a token for the purposes of error messages etc.
