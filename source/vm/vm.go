@@ -166,7 +166,9 @@ func (vm *Vm) Run(loc uint32) {
 	if settings.SHOW_RUNTIME {
 		println()
 	}
+	// This is something of a kludge. T
 	stackHeight := len(vm.callstack)
+
 loop:
 	for {
 		if settings.SHOW_RUNTIME {
@@ -505,9 +507,6 @@ loop:
 					errorInfo := vm.TypeCheckErrors[args[3]]
 					vm.Mem[args[0]] = vm.makeError("vm/typecheck/fail", tokNumber,
 						errorInfo.Condition, errorInfo.Type, errorInfo.Tok, errorInfo.Value)
-					if len(vm.callstack) == stackHeight { // This is so that we can call "Run" when we have things on the stack and it will bottom out at the appropriate time.
-						break loop
-					}
 					loc = vm.callstack[len(vm.callstack)-1]
 					vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 				}
