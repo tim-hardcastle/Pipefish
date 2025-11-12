@@ -97,7 +97,7 @@ func TestParserErrors(t *testing.T) {
 		{`len 1,`, `parse/prefix`},
 		{`len(`, `parse/prefix`},
 		{`len(1`, `parse/line`},
-		{`troz.foo`, `parse/namespace/exist`},
+		{`troz.foo`, `parse/namespace/exists`},
 		{`2 "aardvark"`, `parse/before/a`},
 		{`func(x) wut`, `parse/colon`},
 		{`from 1`, `parse/from`},

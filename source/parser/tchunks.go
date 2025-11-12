@@ -107,7 +107,7 @@ func (p *Parser) ChunkReturns() (TokReturns, bool) {
 			p.NextToken()
 			continue
 		}
-		p.Throw("sigs/ident", &p.CurToken)
+		p.Throw("sigs/return", &p.CurToken)
 		return TokReturns{}, false
 	}
 }
@@ -219,7 +219,7 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 			p.NextToken()
 			continue
 		}
-		p.Throw("sigs/expect/b", &p.CurToken)
+		p.Throw("sigs/params", &p.CurToken)
 		return TokSig{}, false
 	}
 	return sig, true

@@ -260,7 +260,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			// be sure that they're not in such a position that they're being used as literals.
 			_, resolvingParser := p.CanParse(p.CurToken, PREFIX)
 			if resolvingParser == nil {
-				p.Throw("parse/namespace/prefix", &p.CurToken)
 				return nil
 			}
 			if resolvingParser.IsTypePrefix(p.CurToken.Literal) && !(p.CurToken.Literal == "func") { // TODO --- really it should nly happen for clones and structs.
@@ -376,7 +375,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		for {
 			ok, rp := p.CanParse(p.PeekToken, SUFFIX)
 			if rp == nil {
-				p.Throw("parse/namespace/suffix", &p.PeekToken)
 				return nil
 			}
 			if !(rp.IsTypePrefix(p.PeekToken.Literal) || ok || p.PeekToken.Type == token.DOTDOTDOT) {
@@ -417,7 +415,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 		// We move on to infixes.
 		ok, rp := p.CanParse(p.PeekToken, INFIX)
 		if rp == nil {
-			p.Throw("parse/namespace/infix", &p.PeekToken)
+			return nil
 		}
 		foundInfix := nativeInfixes.Contains(p.PeekToken.Type) ||
 			lazyInfixes.Contains(p.PeekToken.Type) ||
@@ -445,7 +443,6 @@ func (p *Parser) ParseExpression(precedence int) ast.Node {
 			default:
 				_, resolvingParser := p.CanParse(p.CurToken, INFIX)
 				if resolvingParser == nil {
-					p.Throw("parse/namespace/infix", &p.CurToken)
 					return nil
 				}
 				p.Common.BlingManager.startFunction(p.CurToken.Literal, INFIX, resolvingParser.BlingTree)
@@ -865,7 +862,7 @@ func (p *Parser) recursivelyDesugarAst(exp ast.Node) ast.Node {
 		}
 		ok, rp := p.CanParse(*exp.GetToken(), SUFFIX)
 		if rp == nil {
-			p.Throw("parse/pipe/namespace", exp.GetToken())
+			return nil
 		}
 		if ok {
 			exp = &ast.SuffixExpression{Token: *typedExp.GetToken(),
@@ -984,7 +981,7 @@ func (p *Parser) getParserFromNamespace(namespace []string) *Parser {
 			lP = s.Parser
 			continue
 		}
-		p.Throw("parse/namespace/exist", &p.CurToken, name)
+		p.Throw("parse/namespace/exists", &p.CurToken, name)
 		return nil
 	}
 	// We don't need the resolving parser to parse anything but we *do* need to call positionallyFunctional,

@@ -2580,6 +2580,26 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/instance/form": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed instance of parameterized type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish thinks you're trying to make an instance of a parameterized type, " +
+			"but in that case we'd expect a comma or a closing brace here."
+		},
+	},
+
+	"parse/instance/value": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "bad value in instance of parameterized type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The arguments you use to instantiate a parameterized type should be " + 
+			"of type `bool`, `float`, `int`, `rune`, `string`, `type`, or an enum type."
+		},
+	},
+
 	"parse/inner/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "malformed inner function declaration: unexpected occurrence of " + emph(tok.Literal)
@@ -2637,12 +2657,12 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"parse/namespace/exist": {
+	"parse/namespace/exists": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "can't find namespace " + emph(args[0])
+			return "can't find namespace " + emph(tok.Namespace)
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "You haven't declared that namespace in the " + emph("import") + " or " + emph("external") + " section"
+			return "You haven't declared that namespace in the `import`  or `external` sections"
 		},
 	},
 
@@ -2674,6 +2694,35 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 				" hasn't been supplied with a corresponding " + text.DescribeOpposite(args[0].(*token.Token)) +
 				" by the time the parser reaches the unmatching nesting closure " + text.DescribeTok(tok) +
 				text.DescribePos(tok) + "."
+		},
+	},
+
+	"parse/param/form": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "malformed parpmeterized type declaration"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "At this point PIpefish was expecting either a comma or a closing brace."
+		},
+	},
+
+	"parse/param/name": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "name " + emph(tok) + " is not a valid identifier"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "It seems like you're trying to define a parameterized type here, " +
+			"but the name you've supplied for it is not a valid identifier."
+		},
+	},
+
+	"parse/param/type": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unnecceptable type in parameters of parameterized type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "The parameters of a parameterized type should themselves be " +
+			"of type `bool`, `float`, `int`, `rune`, `string`, `type`, or an enum type."
 		},
 	},
 
@@ -2865,6 +2914,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"parse/snippet/form": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "`|` symbol in snippet left unclosed by end of snippet"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Within a snipped, the `|` characters are meant to come in pairs aorund Pipefish expressions."
+		},
+	},
+
 	"parse/struct/form/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "found unexpected " + text.DescribeTok(tok) + " in struct expression"
@@ -2907,7 +2965,66 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "found " + text.DescribeTok(tok) + " in function declaration, expected ':' or '->'"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "a function's call parameters should be followed either by a colon, or optionally by its return types."
+			return "A function's call parameters should be followed either by a colon, or optionally by its return types."
+		},
+	},
+
+	"sigs/ident": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "expected type name, found " + emph(tok)
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A return signature should consist of names of types separated by commas, " +
+			"and so at this point Pipefish was expecting a type name, which would necessarily be " +
+			"a valid identifier."
+		},
+	},
+
+	"sigs/return": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unexpected " + emph(tok) + " in return signature"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A return signature should consist of names of types separated by commas, " +
+			"and so at this point Pipefish was expecting a comma, or a colon to introduce " + 
+			"the main body of the function."
+		},
+	},
+
+	"sigs/name": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "function/command has no name"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pipefish thinks you're trying to declare a command or function, but you've " +
+			"failed to give it a name."
+		},
+	},
+
+	"sigs/params": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "found " + text.DescribeTok(tok) + " in function declaration, expected ',' or ')'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A function's call parameters should be seperated by commas and terminated by a closing parenthesis."
+		},
+	},
+
+	"sigs/paren": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "found " + text.DescribeTok(tok) + " in function declaration, expected ')'"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "A function's call parameters should be seperated by commas and terminated by a closing parenthesis."
+		},
+	},
+
+	"sigs/unfinished": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "unfinished type"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "It looks like you're trying to give the name of a type, but din't finish doing so, e.g. you have an unclosed brace."
 		},
 	},
 

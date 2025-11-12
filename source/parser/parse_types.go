@@ -109,7 +109,7 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 	for {
 		tok := &p.CurToken
 		if p.CurToken.Type != token.IDENT {
-			p.Throw("parse/type/form/c", tok)
+			p.Throw("parse/param/name", tok)
 			break
 		}
 		result.Parameters = append(result.Parameters, &ast.Parameter{p.CurToken.Literal, ""})
@@ -123,7 +123,7 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 					}
 				}
 			} else {
-				p.Throw("parse/type/form/d", tok)
+				p.Throw("parse/param/type", tok)
 			}
 			p.NextToken()
 		}
@@ -134,7 +134,7 @@ func (p *Parser) parseParams(nameTok token.Token) ast.TypeNode {
 		if p.CurToken.Type == token.RBRACE {
 			break
 		}
-		p.Throw("parse/type/form/e", tok)
+		p.Throw("parse/param/form", tok)
 		break
 	}
 	if blank {
@@ -171,7 +171,7 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 		case token.TRUE:
 			newArg = &ast.Argument{tok, values.BOOL, true}
 		default:
-			p.Throw("parse/type/form/g", &tok)
+			p.Throw("parse/instance/value", &tok)
 		}
 		result.Arguments = append(result.Arguments, newArg)
 		if tok.Type != token.IDENT || p.EnumElementNames.Contains(tok.Literal) { // In which case parsing the type will have moved us on to the next token.
@@ -184,7 +184,7 @@ func (p *Parser) parseArgs(nameTok token.Token) ast.TypeNode {
 		if p.PeekToken.Type == token.RBRACE {
 			break
 		}
-		p.Throw("parse/type/form/h", &tok)
+		p.Throw("parse/instance/form", &tok)
 		break
 	}
 	return &result
