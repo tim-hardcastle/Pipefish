@@ -245,7 +245,7 @@ func TestUserDefinedTypes(t *testing.T) {
 func TestTypeAccessErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
-		{`Suit`, `comp/private/type/a`},
+		{`Suit`, `comp/private/type`},
 		{`HEARTS`, `comp/ident/private`},
 		{`one`, `comp/ident/private`},
 	}

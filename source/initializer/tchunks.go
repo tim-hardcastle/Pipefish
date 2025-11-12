@@ -507,7 +507,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool, docString str
 	typeTok := iz.P.CurToken
 	_, ok := compiler.ClonableTypes[typeTok.Literal]
 	if !ok {
-		iz.throw("init/clone/type/a", &iz.P.CurToken)
+		iz.throw("init/clone/type/c", &iz.P.CurToken, typeTok.Literal)
 		iz.finishChunk()
 		return &tokenizedCloneDeclaration{}, false
 	}
@@ -518,7 +518,7 @@ func (iz *Initializer) chunkClone(opTok token.Token, private bool, docString str
 		for {
 			iz.P.NextToken()
 			if !iz.P.CurTokenIs(token.IDENT) {
-				iz.throw("init/clone/ident", &iz.P.CurToken)
+				iz.throw("init/clone/op", &iz.P.CurToken)
 				iz.finishChunk()
 				return &tokenizedCloneDeclaration{}, false
 			}

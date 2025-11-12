@@ -120,7 +120,7 @@ func (iz *Initializer) makeRetsFromTokenizedReturns(ts parser.TokReturns) ast.As
 	return as
 }
 
-// If this has {...} in it, this could be anything, it's a type expression.
+// If this has {...} in it, it's a type expression.
 func (iz *Initializer) makeReturnTypeFromTokens(toks []token.Token) ast.TypeNode {
 	var nilRtn ast.TypeNode
 	if len(toks) == 0 {
@@ -132,7 +132,7 @@ func (iz *Initializer) makeReturnTypeFromTokens(toks []token.Token) ast.TypeNode
 	if toks[1].Type == token.LBRACE {
 		ts := token.MakeCodeChunk(toks[2:len(toks)-1], false)
 		if ts.Length() == 0 {
-			iz.P.Throw("init/interface/self", &toks[0])
+			iz.P.Throw("init/param/missing", &toks[0])
 			return values.MakeAbstractType()
 		}
 		iz.P.PrimeWithTokenSupplier(ts)

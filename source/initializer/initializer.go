@@ -1371,7 +1371,7 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 	for k, locs := range vmap {
 		if len(locs) > 1 {
 			for _, v := range locs[1:] {
-				errLoc := iz.cp.ReserveError("vm/type/conflict", &izFn.op, k)
+				errLoc := iz.cp.ReserveError("vm/param/conflict", &izFn.op, k)
 				iz.cp.Put(vm.Eqxx, locs[0], v, errLoc) // TODO: you have specialized versions of this for speed.
 				paramChecks = append(paramChecks, iz.cp.VmConditionalEarlyReturn(vm.Qfls, iz.cp.That(), errLoc))
 			}

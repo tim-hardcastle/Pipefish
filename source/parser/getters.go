@@ -66,7 +66,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 				}
 				varType = astType
 			default:
-				p.Throw("parse/sig/ident/c", inner.GetToken())
+				p.Throw("parse/sig/ident/d", inner.GetToken())
 				return nil
 			}
 			sig = append(sig, ast.NameTypeAstPair{VarName: varName, VarType: varType})

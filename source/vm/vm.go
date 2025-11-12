@@ -189,7 +189,7 @@ loop:
 			// 6: the token
 			rType := vm.Mem[args[2]].V.(values.AbstractType)
 			if rType.Len() != 1 {
-				vm.Mem[args[0]] = vm.makeError("vm/post/type", args[5])
+				vm.Mem[args[0]] = vm.makeError("vm/sql/abstract/c", args[5], vm.DescribeAbstractType(vm.Mem[args[2]].V.(values.AbstractType), LITERAL))
 				break Switch
 			}
 			cType := rType.Types[0]
@@ -204,13 +204,13 @@ loop:
 				host, port, name, user, password)
 			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
 			if connectionError != nil {
-				vm.Mem[args[0]] = vm.makeError("vm/connect/get", args[6], connectionError.Error())
+				vm.Mem[args[0]] = vm.makeError("vm/sql/connect/a", args[6], connectionError.Error())
 				vm.Mem[args[1]] = vm.Mem[args[0]]
 				break Switch
 			}
 			pingError := sqlObj.Ping()
 			if pingError != nil {
-				vm.Mem[args[0]] = vm.makeError("vm/ping/get", args[6], pingError.Error())
+				vm.Mem[args[0]] = vm.makeError("vm/sql/ping/a", args[6], pingError.Error())
 				vm.Mem[args[1]] = vm.Mem[args[0]]
 				break Switch
 			}
@@ -245,12 +245,12 @@ loop:
 				host, port, name, user, password)
 			sqlObj, connectionError := sql.Open(database.SqlDrivers[driverNo], connectionString)
 			if connectionError != nil {
-				vm.Mem[args[0]] = vm.makeError("vm/connect/post", args[3], connectionError.Error())
+				vm.Mem[args[0]] = vm.makeError("vm/sql/connect/b", args[3], connectionError.Error())
 				break Switch
 			}
 			pingError := sqlObj.Ping()
 			if pingError != nil {
-				vm.Mem[args[0]] = vm.makeError("vm/ping/post", args[3], pingError.Error())
+				vm.Mem[args[0]] = vm.makeError("vm/sql/ping/b", args[3], pingError.Error())
 				break Switch
 			}
 			snippet := vm.Mem[args[2]].V.(values.Snippet).Data
@@ -262,7 +262,7 @@ loop:
 				} else {
 					if v.T == values.TYPE {
 						if v.V.(values.AbstractType).Len() != 1 {
-							vm.Mem[args[0]] = vm.makeError("vm/post/type", args[3])
+							vm.Mem[args[0]] = vm.makeError("vm/sql/abstract/d", args[3], vm.DescribeAbstractType(v.V.(values.AbstractType), LITERAL))
 							break Switch
 						}
 						cType := v.V.(values.AbstractType).Types[0]
@@ -530,10 +530,6 @@ loop:
 			abType := values.AbstractType{}
 			for _, v := range vm.Mem[args[1]].V.(values.AbstractType).Types {
 				clones := vm.ConcreteTypeInfo[v].IsClonedBy()
-				if len(clones.Types) == 0 {
-					vm.Mem[args[0]] = vm.makeError("vm/clones/clone", args[2])
-					break Switch
-				}
 				abType = abType.Union(clones)
 			}
 			vm.Mem[args[0]] = values.Value{values.TYPE, abType}
@@ -1065,7 +1061,7 @@ loop:
 			typeInfo := vm.ConcreteTypeInfo[vm.Mem[args[1]].T].(StructType)
 			ix := typeInfo.Resolve(vm.Mem[args[2]].V.(int))
 			if ix == -1 {
-				vm.Mem[args[0]] = vm.makeError("vm/index/z", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DefaultDescription(vm.Mem[args[2]]))
+				vm.Mem[args[0]] = vm.makeError("vm/index/u", args[3], vm.DescribeType(vm.Mem[args[1]].T, LITERAL), vm.DefaultDescription(vm.Mem[args[2]]))
 				continue
 			}
 			vm.Mem[args[0]] = vm.Mem[args[1]].V.([]values.Value)[ix]
@@ -1203,7 +1199,7 @@ loop:
 				for _, v := range vals {
 					argsAsAny = append(argsAsAny, v)
 				}
-				vm.Mem[args[0]] = vm.makeError("vm/type/params", args[2], argsAsAny...)
+				vm.Mem[args[0]] = vm.makeError("vm/param/exist", args[2], argsAsAny...)
 			} else {
 				vm.Mem[args[0]] = entry
 			}

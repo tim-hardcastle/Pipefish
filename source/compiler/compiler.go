@@ -670,7 +670,7 @@ NodeTypeSwitch:
 			}
 			lTypes, lcst := cp.CompileNode(node.Left, ctxt.x())
 			if !lTypes.Contains(values.BOOL) && lTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
-				cp.Throw("comp/bool/cond/a", node.GetToken(), lTypes.describe(cp.Vm))
+				cp.Throw("comp/bool/cond", node.GetToken(), lTypes.describe(cp.Vm))
 				break
 			}
 			if cp.trackingOn(ctxt) || cp.autoOn(ctxt) {
@@ -1036,7 +1036,7 @@ NodeTypeSwitch:
 		if len(node.TypeArgs) == 0 {
 			abType := resolvingCompiler.GetAbstractTypeFromTypeName(node.Operator)
 			if (ac == REPL || resolvingCompiler != cp) && cp.IsPrivate(abType) {
-				cp.Throw("comp/private/type/a", node.GetToken())
+				cp.Throw("comp/private/type", node.GetToken())
 				break
 			}
 			cp.Reserve(values.TYPE, abType, node.GetToken())
