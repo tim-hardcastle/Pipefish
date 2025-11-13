@@ -7,6 +7,7 @@ package text
 // in the `hub` package, and changes made here may need to be reflected there.
 
 import (
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/tim-hardcastle/Pipefish/source/settings"
 	"github.com/tim-hardcastle/Pipefish/source/token"
+	"golang.org/x/term"
 )
 
 func ExtractFileName(s string) string {
@@ -396,4 +398,18 @@ func TweakNameAndPath(name, path, source string) (string, string) {
 		path = filepath.Join(filepath.Dir(source), path)
 	}
 	return name, path
+}
+
+func ReadChar() rune {
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+    if err != nil {
+        panic(err.Error())
+    }
+    defer term.Restore(int(os.Stdin.Fd()), oldState)
+    b := make([]byte, 1)
+    _, err = os.Stdin.Read(b)
+    if err != nil {
+        panic(err.Error())
+    }
+	return rune(b[0])
 }

@@ -23,7 +23,6 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		// request for information which must be completed before returning to the regular REPL.
 		// TODO --- this can now be replaced by Pipefish's own facilities for IO.
 		if hub.CurrentForm != nil {
-
 			for {
 				queryString := hub.CurrentForm.Fields[len(hub.CurrentForm.Result)]
 				pos := strings.LastIndex(queryString, "\n")
@@ -49,7 +48,18 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		c := 0
 		for {
 			rline.SetPrompt(makePrompt(hub, ws != ""))
-			line, _ := rline.ReadlineWithDefault(ws)
+			line, err := rline.ReadlineWithDefault(ws)
+			if err == readline.ErrCtrlC {
+				print("\nQuit Pipefish? [Y/n] ")
+				ch := text.ReadChar()
+				println(string(ch))
+				if ch == 'n' || ch == 'N' {
+					println(text.Green("OK"))
+				} else {
+					hub.Quit()
+					return
+				}
+			}
 			c++
 			input = input + line + "\n"
 			ws = ""

@@ -515,7 +515,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 			return false
 		}
 	case "quit":
-		hub.quit()
+		hub.Quit()
 		return true
 	case "register":
 		hub.addUserAsGuest()
@@ -875,7 +875,7 @@ func getUnusedTestFilename(scriptFilepath string) string {
 	return tryName
 }
 
-func (hub *Hub) quit() {
+func (hub *Hub) Quit() {
 	hub.saveHubFile()
 	hub.WriteString(GREEN_OK + "\n" + Logo() + "Thank you for using Pipefish. Have a nice day!\n\n")
 }

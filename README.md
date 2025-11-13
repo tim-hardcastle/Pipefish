@@ -5,7 +5,7 @@
 </a>
 
 <a href="https://go.dev/doc/install">
-    <img src="https://img.shields.io/badge/Requires-Go_v._1.23.1+-cyan">
+    <img src="https://img.shields.io/badge/Requires-Go_v._1.24+-cyan">
 </a>
 
 <a href="https://github.com/tim-hardcastle/Pipefish/actions?query=workflow%3A%22Tests%22">

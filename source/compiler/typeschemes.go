@@ -597,12 +597,12 @@ func (fT FiniteTupleType) describe(mc *vm.Vm) string {
 	for i, v := range fT {
 		_, thisIsBling := v.(blingType)
 		if !(lastWasBling || thisIsBling) {
-			fmt.Fprintf(&buf, ",")
+			fmt.Fprint(&buf, ",")
 		}
 		if i > 0 {
-			fmt.Fprintf(&buf, " ")
+			fmt.Fprint(&buf, " ")
 		}
-		fmt.Fprintf(&buf, v.describe(mc))
+		fmt.Fprint(&buf, v.describe(mc))
 		lastWasBling = thisIsBling
 	}
 	return buf.String()

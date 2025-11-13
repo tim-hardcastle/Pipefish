@@ -37,7 +37,7 @@ func RunTest(t *testing.T, filename string, tests []TestItem, F func(cp *compile
 		}
 		if cp.P.Common.IsBroken {
 			r := cp.P.ReturnErrors()
-			t.Fatalf("There were errors initializing the service : \n" + r)
+			t.Fatal("There were errors initializing the service : \n" + r)
 		}
 		got, e := F(cp, test.Input)
 		if e != nil {
