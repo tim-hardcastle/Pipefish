@@ -2867,6 +2867,15 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
+	"vm/ctrl/c": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "process halted with CTRL+C"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "Pressing CTRL+C will halt whatever process Pipefish is running, returning you to the TUI."
+		},
+	},
+
 	"vm/div/zero/a": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "division by zero"

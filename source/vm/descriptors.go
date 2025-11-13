@@ -3,6 +3,8 @@ package vm
 // Used by the vm to describe Pipefish values and types, and also to describe bytecode for debugging purposes.
 
 import (
+	"context"
+
 	"github.com/tim-hardcastle/Pipefish/source/err"
 	"github.com/tim-hardcastle/Pipefish/source/text"
 	"github.com/tim-hardcastle/Pipefish/source/token"
@@ -320,7 +322,7 @@ func (vm *Vm) StringifyValue(v values.Value, flavor descriptionFlavor) string {
 		return vm.toString(v, flavor)
 	}
 	vm.Mem[vm.StringifyLoReg] = v
-	vm.run(vm.StringifyCallTo)
+	vm.run(vm.StringifyCallTo, context.Background()) // TODO --- does this matter?
 	return vm.Mem[vm.StringifyOutReg].V.(string)
 }
 

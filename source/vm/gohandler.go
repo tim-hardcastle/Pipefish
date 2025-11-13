@@ -3,6 +3,7 @@ package vm
 // Converts values from Pipefish to Go and back for the vm.
 
 import (
+	"context"
 	"errors"
 	"reflect"
 
@@ -110,7 +111,7 @@ func (vm *Vm) pipefishToGo(v values.Value) (any, bool) {
 					}
 				}
 			}
-			vm.run(lambda.AddressToCall)
+			vm.run(lambda.AddressToCall, context.Background()) // TODO --- probably shoul dpass the context.
 			result := vm.Mem[lambda.ResultLocation]
 			if result.T == values.TUPLE {
 				results := []any{}

@@ -1,5 +1,7 @@
-const 
+cmd 
 
-SN = -- foo |"Hello"[1]| bar
+inf :
+    for :
+        post "hello"
 
 
