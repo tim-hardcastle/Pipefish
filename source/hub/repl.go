@@ -46,6 +46,26 @@ func StartHub(hub *Hub, in io.Reader, out io.Writer) {
 		ws := ""
 		input := ""
 		c := 0
+		PAIRS := [][2]string{
+			{"(", ")"},
+			{"{", "}"},
+			{"[", "]"},
+			{"\"", "\""},
+			{"`", "`"},
+			{"|", "|"},
+		}
+		for _, pair := range PAIRS {
+			left := pair[0]
+			right := pair[1]
+			handler := func(i int, st *readline.EventState) *readline.EventReturn {
+				return &readline.EventReturn{
+					SetLine: []rune(st.Line[:st.CursorPos] + right + st.Line[st.CursorPos:]),
+					Continue: true,
+					SetPos: st.CursorPos,
+				}
+			}
+			rline.AddEvent(left, handler)
+		}
 		for {
 			rline.SetPrompt(makePrompt(hub, ws != ""))
 			line, err := rline.ReadlineWithDefault(ws)

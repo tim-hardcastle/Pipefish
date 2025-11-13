@@ -12,8 +12,6 @@ require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/apache/arrow/go/v12 v12.0.1 // indirect
 	github.com/apache/thrift v0.17.0 // indirect
-	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/caddyserver/certmagic v0.25.0 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/coreos/go-oidc/v3 v3.5.0 // indirect
 	github.com/dnephin/pflag v1.0.7 // indirect
@@ -30,7 +28,6 @@ require (
 	github.com/google/pprof v0.0.0-20250607225305-033d6d78b36a // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -67,7 +64,6 @@ require (
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240716161551-93cc26a95ae9 // indirect
@@ -82,15 +78,16 @@ require (
 )
 
 require (
+	github.com/caddyserver/certmagic v0.25.0
 	github.com/databricks/databricks-sql-go v1.5.7
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/lib/pq v1.10.9
 	github.com/lmorg/readline/v4 v4.1.3
-	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/microsoft/go-mssqldb v1.7.2
 	github.com/nakagami/firebirdsql v0.9.4
 	github.com/sijms/go-ora v1.3.2
 	golang.org/x/crypto v0.41.0
+	golang.org/x/term v0.37.0
 	modernc.org/sqlite v1.31.1
 	src.elv.sh v0.20.1
 )
