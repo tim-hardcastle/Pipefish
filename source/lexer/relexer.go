@@ -5,9 +5,9 @@ package lexer
 // to eliminate it completely by dispersing it in this way.
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 var (
@@ -155,7 +155,7 @@ func (rl *Relexer) nextSemanticToken() token.Token {
 			rl.throw("relex/log", rl.curTok)
 		}
 	}
-	rl.getToken() // We shuffle them all along before returning 'cos we sure can't do it afterwards.
+	rl.getToken()    // We shuffle them all along before returning 'cos we sure can't do it afterwards.
 	return rl.preTok // Which up until now has been the curTok
 }
 

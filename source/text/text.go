@@ -14,8 +14,8 @@ import (
 
 	"path/filepath"
 
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/token"
 	"golang.org/x/term"
 )
 
@@ -402,14 +402,14 @@ func TweakNameAndPath(name, path, source string) (string, string) {
 
 func ReadChar() rune {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-    if err != nil {
-        panic(err.Error())
-    }
-    defer term.Restore(int(os.Stdin.Fd()), oldState)
-    b := make([]byte, 1)
-    _, err = os.Stdin.Read(b)
-    if err != nil {
-        panic(err.Error())
-    }
+	if err != nil {
+		panic(err.Error())
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+	b := make([]byte, 1)
+	_, err = os.Stdin.Read(b)
+	if err != nil {
+		panic(err.Error())
+	}
 	return rune(b[0])
 }

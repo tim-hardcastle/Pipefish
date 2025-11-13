@@ -14,12 +14,12 @@ import (
 
 	"src.elv.sh/pkg/persistent/vector"
 
-	"github.com/tim-hardcastle/Pipefish/source/database"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/database"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 type Vm struct {
@@ -167,7 +167,7 @@ func BlankVm() *Vm {
 // from the VM, we need to unwind the stack back to where we actually entered. This is what
 // `Run` is for: everything calling `run` does so through `Run`, except `run` itself and
 // a few other places in the VM itself.
-// 
+//
 // In the same way we catch Ctrl+C interupts and return an appropriate error.
 func (vm *Vm) Run(loc uint32) {
 	// First the panics.
@@ -182,13 +182,13 @@ func (vm *Vm) Run(loc uint32) {
 	// Then the ctrl+c interrupts.
 	ctx, cancel := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
-    signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-    go func() {
-        <-c
-        cancel()
-        e := err.CreateErr("vm/ctrl/c", &token.Token{})
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		cancel()
+		e := err.CreateErr("vm/ctrl/c", &token.Token{})
 		vm.Mem = append(vm.Mem, values.Value{values.ERROR, e})
-    }()
+	}()
 	vm.run(loc, ctx)
 }
 

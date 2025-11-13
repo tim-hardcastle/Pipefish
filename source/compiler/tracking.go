@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"strconv"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 )
 
 // When we have tracking turned on, and the compiler reaches a point where the generated code needs to track something, we need to (a)

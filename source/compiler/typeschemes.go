@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/values"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 )
 
 // The Pipefish compiler has a rather richer view of the type system than the Pipefish language and its

@@ -4,13 +4,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 )
 
 // We have two types of external service, defined below: one for services on the same hub, one for services on
@@ -65,12 +65,12 @@ func (es ExternalHttpCallHandler) GetAPI() string {
 	return Do(es.Host, "", "hub serialize \""+es.Service+"\"", es.Username, es.Password)
 }
 
-// TODO --- the serializer doesn't send details of the sources, and until it does, 
+// TODO --- the serializer doesn't send details of the sources, and until it does,
 // we can't tell if two types are meant to be the same type.
 
 // For a description of the file format, see README-api-serialization.md
 func (iz *Initializer) SerializeApi() string {
-	
+
 	var buf strings.Builder
 	for i := int(values.FIRST_DEFINED_TYPE); i < len(iz.cp.Vm.ConcreteTypeInfo); i++ {
 		if !iz.cp.Vm.ConcreteTypeInfo[i].IsEnum() {
@@ -111,7 +111,7 @@ func (iz *Initializer) SerializeApi() string {
 		if iz.cp.Vm.ConcreteTypeInfo[ty].GetName(vm.LITERAL) != iz.cp.Vm.ConcreteTypeInfo[ty].GetName(vm.DEFAULT) {
 			continue
 		}
-		if !iz.cp.Vm.ConcreteTypeInfo[ty].IsStruct() { 
+		if !iz.cp.Vm.ConcreteTypeInfo[ty].IsStruct() {
 			continue
 		}
 		if !iz.cp.Vm.ConcreteTypeInfo[ty].IsPrivate() && !iz.cp.Vm.ConcreteTypeInfo[ty].IsMandatoryImport() {
@@ -131,7 +131,7 @@ func (iz *Initializer) SerializeApi() string {
 	for i := 0; i < len(iz.cp.Vm.AbstractTypes); i++ {
 		ty := iz.cp.Vm.AbstractTypes[i]
 		if !(iz.cp.IsPrivate(ty.AT)) && !iz.IsMandatoryImport(ty) && !iz.cp.GeneratedAbstractTypes.Contains(ty.Name) &&
-				!((len(ty.AT.Types) == 1) && (iz.cp.Vm.ConcreteTypeInfo[ty.AT.Types[0]].GetName(vm.DEFAULT) == ty.Name)) { // It may be the abstract type containing the concrete type of the same name, in which case we don't want to declare it twice.
+			!((len(ty.AT.Types) == 1) && (iz.cp.Vm.ConcreteTypeInfo[ty.AT.Types[0]].GetName(vm.DEFAULT) == ty.Name)) { // It may be the abstract type containing the concrete type of the same name, in which case we don't want to declare it twice.
 			buf.WriteString("ABSTRACT | ")
 			buf.WriteString(ty.Name)
 			buf.WriteString(" | ")
@@ -230,4 +230,3 @@ func (iz *Initializer) serializeTypescheme(t compiler.TypeScheme) string {
 	}
 	panic("Unhandled type scheme!")
 }
-

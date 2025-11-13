@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/test_helper"
-	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/test_helper"
+	"github.com/tim-hardcastle/pipefish/source/text"
 )
 
 func TestEof(t *testing.T) {

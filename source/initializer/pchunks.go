@@ -1,9 +1,9 @@
 package initializer
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 // We need to parse everything in order to sort out the dependencies between the declarations.
@@ -27,8 +27,8 @@ type parsedFunction struct {
 	// Information shared with the function tree, needed to make a function call.
 	// This includes the return signatures because if recursion is involved we don't infer them
 	// and this is the next best thing.
-	callInfo *compiler.CallInfo
-	isBoilerplate bool    // If the function has a body generated in Pipefish, i.e. presently only the `post` boilerplate around commands with refs.
+	callInfo      *compiler.CallInfo
+	isBoilerplate bool // If the function has a body generated in Pipefish, i.e. presently only the `post` boilerplate around commands with refs.
 }
 
 func (pc *parsedFunction) getToken() *token.Token { return &pc.op }
@@ -63,5 +63,3 @@ type parsedTypeInstance struct {
 }
 
 func (pc *parsedTypeInstance) getToken() *token.Token { return pc.instantiatedAt }
-
-

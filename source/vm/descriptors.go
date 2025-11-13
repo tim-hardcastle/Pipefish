@@ -5,10 +5,10 @@ package vm
 import (
 	"context"
 
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 
 	"crypto/aes"
 	"crypto/cipher"

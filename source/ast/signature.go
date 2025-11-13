@@ -1,8 +1,8 @@
 package ast
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 // This exists because we have too many ways of representing types. There I said it.

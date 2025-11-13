@@ -3,7 +3,7 @@ package lexer
 import (
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 func TestCommentsAndIndents(t *testing.T) {
@@ -28,7 +28,7 @@ w :
 else : 6
 			`
 	items := []testItem{
-		{token.IDENT, "line", 1},//0
+		{token.IDENT, "line", 1}, //0
 		{token.IDENT, "one", 1},
 		{token.NEWLINE, ";", 1},
 		{token.BEGIN, "|->", 2},
@@ -37,7 +37,7 @@ else : 6
 		{token.NEWLINE, ";", 2},
 		{token.BEGIN, "|->", 3},
 		{token.IDENT, "line", 3},
-		{token.IDENT, "three", 3}, 
+		{token.IDENT, "three", 3},
 		{token.IDENT, "line", 4}, //10
 		{token.IDENT, "threeandahalf", 4},
 		{token.COMMA, ",", 4},
@@ -46,8 +46,8 @@ else : 6
 		{token.NEWLINE, ";", 5},
 		{token.COMMENT, "This is a comment", 6},
 		{token.ILLEGAL, "lex/wsp", 7},
-		{token.IDENT, "line", 7}, 
-		{token.IDENT, "four", 7}, 
+		{token.IDENT, "line", 7},
+		{token.IDENT, "four", 7},
 		{token.NEWLINE, ";", 7}, //20
 		{token.END, "<-|", 8},
 		{token.END, "<-|", 8},
@@ -57,8 +57,8 @@ else : 6
 		{token.NEWLINE, ";", 8},
 		{token.IDENT, "w", 9},
 		{token.COLON, ":", 9},
-		{token.NEWLINE, ";", 9}, 
-		{token.BEGIN, "|->", 10}, 
+		{token.NEWLINE, ";", 9},
+		{token.BEGIN, "|->", 10},
 		{token.IDENT, "x", 10}, // 30
 		{token.COLON, ":", 10},
 		{token.NEWLINE, ";", 10},
@@ -67,8 +67,8 @@ else : 6
 		{token.COLON, ":", 11},
 		{token.NEWLINE, ";", 11},
 		{token.BEGIN, "|->", 12},
-		{token.IDENT, "z", 12}, 
-		{token.COLON, ":", 12}, 
+		{token.IDENT, "z", 12},
+		{token.COLON, ":", 12},
 		{token.INT, "1", 12}, // 40
 		{token.NEWLINE, ";", 12},
 		{token.ELSE, "else", 13},
@@ -77,8 +77,8 @@ else : 6
 		{token.NEWLINE, ";", 13},
 		{token.END, "<-|", 14},
 		{token.NEWLINE, ";", 14},
-		{token.ELSE, "else", 14}, 
-		{token.COLON, ":", 14}, 
+		{token.ELSE, "else", 14},
+		{token.COLON, ":", 14},
 		{token.NEWLINE, ";", 14}, // 50
 		{token.BEGIN, "|->", 15},
 		{token.IDENT, "v", 15},
@@ -86,8 +86,8 @@ else : 6
 		{token.INT, "3", 15},
 		{token.NEWLINE, ";", 15},
 		{token.ELSE, "else", 16},
-		{token.COLON, ":", 16}, 
-		{token.INT, "4", 16}, 
+		{token.COLON, ":", 16},
+		{token.INT, "4", 16},
 		{token.NEWLINE, ";", 16}, // 60
 		{token.END, "<-|", 17},
 		{token.END, "<-|", 17},
@@ -99,8 +99,8 @@ else : 6
 		{token.END, "<-|", 18},
 		{token.NEWLINE, ";", 18},
 		{token.ELSE, "else", 18},
-		{token.COLON, ":", 18}, 
-		{token.INT, "6", 18}, 
+		{token.COLON, ":", 18},
+		{token.INT, "6", 18},
 	}
 	testLexingString(t, input, items)
 }

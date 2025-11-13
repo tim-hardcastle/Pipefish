@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/values"
 
 	"github.com/lmorg/readline/v4"
 )
@@ -40,8 +40,8 @@ func (iH *SimpleInHandler) Get() string {
 }
 
 type SimpleOutHandler struct {
-	output  io.Writer
-	vm      *Vm
+	output io.Writer
+	vm     *Vm
 }
 
 func MakeSimpleOutHandler(out io.Writer, vm *Vm) *SimpleOutHandler {
@@ -62,8 +62,8 @@ func (oH *SimpleOutHandler) Write(s string) {
 }
 
 type LiteralOutHandler struct {
-	output  io.Writer
-	vm      *Vm
+	output io.Writer
+	vm     *Vm
 }
 
 func MakeLiteralOutHandler(out io.Writer, vm *Vm) *LiteralOutHandler {

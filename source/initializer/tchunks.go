@@ -3,12 +3,12 @@ package initializer
 import (
 	"strconv"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/parser"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/parser"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 // When we first scan the stream of tokens, it is convenient to break it down into chunks
@@ -170,16 +170,16 @@ func (tc *tokenizedExternalOrImportDeclaration) api() (string, string, bool) {
 }
 
 type tokenizedFunctionDeclaration struct {
-	decType   declarationType           // Can be commandDeclaration, functionDeclaration.
-	private   bool                      // Whether it's private.
-	op        token.Token               // The name of the fumction/operation.
-	pos       opPosition                // Whether it's a prefix, infix, suffix, or unfix.
-	sig       parser.TokSig             // The call signature, with the names of arguments as tokens and the types as lists of tokens.
-	rets      parser.TokReturns         // The return types, as lists of tokens.
-	body      *token.TokenizedCodeChunk // The body of the function.
-	given     *token.TokenizedCodeChunk // The 'given' block, if any.
-	docString string                    // Documents what it does.
-	isBoilerplate bool                  // If the function has a body generated in Pipefish, i.e. presently only the `post` boilerplate around commands with refs.
+	decType       declarationType           // Can be commandDeclaration, functionDeclaration.
+	private       bool                      // Whether it's private.
+	op            token.Token               // The name of the fumction/operation.
+	pos           opPosition                // Whether it's a prefix, infix, suffix, or unfix.
+	sig           parser.TokSig             // The call signature, with the names of arguments as tokens and the types as lists of tokens.
+	rets          parser.TokReturns         // The return types, as lists of tokens.
+	body          *token.TokenizedCodeChunk // The body of the function.
+	given         *token.TokenizedCodeChunk // The 'given' block, if any.
+	docString     string                    // Documents what it does.
+	isBoilerplate bool                      // If the function has a body generated in Pipefish, i.e. presently only the `post` boilerplate around commands with refs.
 }
 
 type opPosition int
@@ -795,7 +795,7 @@ func (iz *Initializer) ChunkFunctionSignature() (*tokenizedFunctionDeclaration, 
 			if pair.Typename[0].Literal == "bling" {
 				name = pair.Name
 				if i == len(sig)-1 {
-					position = suffix 
+					position = suffix
 				} else {
 					position = infix
 					break

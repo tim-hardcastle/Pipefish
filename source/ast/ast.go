@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 // The base Node interface
@@ -51,8 +51,8 @@ func (ae *AssignmentExpression) String() string {
 }
 
 type Bling struct {
-	Token     token.Token
-	Value     string
+	Token token.Token
+	Value string
 }
 
 func (bl *Bling) Children() []Node       { return []Node{} }
@@ -149,11 +149,11 @@ func (fe *ForExpression) String() string {
 }
 
 type FuncExpression struct {
-	Token token.Token
-	NameSig  AstSig       // The sig in AstSig form.
-	NameRets  AstSig      // The sig in AstSig form.
-	Body     Node         // The body of the function.
-	Given    Node         // The 'given' block: nil if there isn't one.
+	Token    token.Token
+	NameSig  AstSig // The sig in AstSig form.
+	NameRets AstSig // The sig in AstSig form.
+	Body     Node   // The body of the function.
+	Given    Node   // The 'given' block: nil if there isn't one.
 }
 
 func (fe *FuncExpression) Children() []Node       { return []Node{fe.Body, fe.Given} }
@@ -168,8 +168,8 @@ func (fe *FuncExpression) String() string {
 }
 
 type GolangExpression struct {
-	Token       token.Token
-	GoFunction  reflect.Value
+	Token      token.Token
+	GoFunction reflect.Value
 }
 
 func (ge *GolangExpression) Children() []Node       { return []Node{} }
@@ -177,8 +177,8 @@ func (ge *GolangExpression) GetToken() *token.Token { return &ge.Token }
 func (ge *GolangExpression) String() string         { return ge.Token.Literal }
 
 type Identifier struct {
-	Token     token.Token
-	Value     string
+	Token token.Token
+	Value string
 }
 
 func (i *Identifier) Children() []Node       { return []Node{} }
@@ -206,9 +206,9 @@ func (ie *IndexExpression) String() string {
 }
 
 type InfixExpression struct {
-	Token     token.Token
-	Operator  string
-	Args      []Node
+	Token    token.Token
+	Operator string
+	Args     []Node
 }
 
 func (ie *InfixExpression) Children() []Node       { return ie.Args }
@@ -317,9 +317,9 @@ func (ne *Nothing) GetToken() *token.Token { return &ne.Token }
 func (ne *Nothing) String() string         { return "" }
 
 type PrefixExpression struct {
-	Token     token.Token
-	Operator  string
-	Args      []Node
+	Token    token.Token
+	Operator string
+	Args     []Node
 }
 
 func (pe *PrefixExpression) Children() []Node       { return pe.Args }
@@ -378,15 +378,15 @@ func (rl *RuneLiteral) GetToken() *token.Token { return &rl.Token }
 func (rl *RuneLiteral) String() string         { return strconv.QuoteRune(rl.Value) }
 
 type SnippetLiteral struct {
-	Token token.Token
-	Value string
+	Token  token.Token
+	Value  string
 	Values []Node
 }
 
 func (sl *SnippetLiteral) Children() []Node {
-	result := []Node{} 
+	result := []Node{}
 	for i, bit := range sl.Values {
-		if i % 2 == 1  {
+		if i%2 == 1 {
 			result = append(result, bit)
 		}
 	}
@@ -405,9 +405,9 @@ func (sl *StringLiteral) GetToken() *token.Token { return &sl.Token }
 func (sl *StringLiteral) String() string         { return "\"" + sl.Token.Literal + "\"" }
 
 type SuffixExpression struct {
-	Token     token.Token
-	Operator  string
-	Args      []Node
+	Token    token.Token
+	Operator string
+	Args     []Node
 }
 
 func (se *SuffixExpression) Children() []Node       { return se.Args }
@@ -452,9 +452,9 @@ func (t *TryExpression) String() string {
 }
 
 type TypeExpression struct {
-	Token     token.Token
-	Operator  string
-	TypeArgs  []Node
+	Token    token.Token
+	Operator string
+	TypeArgs []Node
 }
 
 func (t *TypeExpression) Children() []Node       { return []Node{} }
@@ -475,8 +475,8 @@ func (t *TypeExpression) String() string {
 }
 
 type TypeLiteral struct {
-	Token     token.Token
-	Value     TypeNode
+	Token token.Token
+	Value TypeNode
 }
 
 func (t *TypeLiteral) Children() []Node       { return []Node{} }
@@ -490,10 +490,10 @@ func (t *TypeLiteral) String() string {
 }
 
 type TypePrefixExpression struct {
-	Token     token.Token
-	Operator  string
-	Args      []Node
-	TypeArgs  []Node
+	Token    token.Token
+	Operator string
+	Args     []Node
+	TypeArgs []Node
 }
 
 func (tpe *TypePrefixExpression) Children() []Node       { return append(tpe.Args, tpe.TypeArgs...) }
@@ -527,9 +527,9 @@ func (tpe *TypePrefixExpression) String() string {
 }
 
 type SigTypePrefixExpression struct {
-	Token     token.Token
-	Operator  TypeNode
-	Args      []Node
+	Token    token.Token
+	Operator TypeNode
+	Args     []Node
 }
 
 func (tpe *SigTypePrefixExpression) Children() []Node       { return tpe.Args }
@@ -557,9 +557,9 @@ func (tpe *SigTypePrefixExpression) String() string {
 }
 
 type TypeSuffixExpression struct {
-	Token     token.Token
-	Operator  TypeNode
-	Args      []Node
+	Token    token.Token
+	Operator TypeNode
+	Args     []Node
 }
 
 func (tse *TypeSuffixExpression) Children() []Node       { return tse.Args }
@@ -770,4 +770,3 @@ func ExtractNamesFromLhsAndRhsOfGivenBlock(n Node) (dtypes.Set[string], dtypes.S
 		return dtypes.Set[string]{}, dtypes.Set[string]{}
 	}
 }
-

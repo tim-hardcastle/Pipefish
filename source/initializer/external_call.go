@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/tim-hardcastle/Pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/settings"
 )
 
 type jsonRequest = struct {

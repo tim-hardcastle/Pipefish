@@ -4,7 +4,7 @@ package initializer
 // which sorts overloaded functions in order of specificity as they're added to the table.
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
 )
 
 type functionTable map[string][]*parsedFunction
@@ -58,5 +58,3 @@ func (ft functionTable) Describe(functionName string) string {
 		return "Function table has no entry for " + functionName
 	}
 }
-
-

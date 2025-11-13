@@ -4,11 +4,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 // Auxiliary functions that extract data from data.
@@ -96,7 +96,7 @@ func (p *Parser) extractSig(args []ast.Node) ast.AstSig {
 // TODO --- this function is a refactoring patch over RecursivelySlurpSignature and they could probably be more sensibly combined in a any function.
 func (p *Parser) getSigFromArgs(args []ast.Node, dflt ast.TypeNode) (ast.AstSig, *err.Error) {
 	sig := ast.AstSig{}
-	for _, arg := range args {		
+	for _, arg := range args {
 		partialSig, err := p.RecursivelySlurpSignature(arg, dflt)
 		if err != nil {
 			return nil, err
@@ -342,10 +342,11 @@ func (p *Parser) isPositionallyFunctional() bool {
 	return true
 }
 
-var (nativeInfixes = dtypes.MakeFromSlice([]token.TokenType{
-			token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
-			token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
-			token.FILTER, token.IFLOG})
+var (
+	nativeInfixes = dtypes.MakeFromSlice([]token.TokenType{
+		token.COMMA, token.EQ, token.NOT_EQ, token.ASSIGN, token.GVN_ASSIGN, token.FOR,
+		token.GIVEN, token.LBRACK, token.MAGIC_COLON, token.MAGIC_SEMICOLON, token.PIPE, token.MAPPING,
+		token.FILTER, token.IFLOG})
 	lazyInfixes = dtypes.MakeFromSlice([]token.TokenType{token.AND,
 		token.OR, token.COLON, token.SEMICOLON, token.NEWLINE})
 )

@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/test_helper"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/test_helper"
 )
+
 func TestParser(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`2 + 2`, `(2 + 2)`},

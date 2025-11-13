@@ -22,12 +22,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 )
 
 func (iz *Initializer) generateDeclarations(sb *strings.Builder, userDefinedTypes dtypes.Set[string]) {

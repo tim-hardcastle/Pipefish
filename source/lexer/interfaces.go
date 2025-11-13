@@ -3,7 +3,7 @@ package lexer
 import (
 	"fmt"
 
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 // Between the lexer and the parser we "relex" the lexer's output to make it easier for

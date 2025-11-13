@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/pf"
+	"github.com/tim-hardcastle/pipefish/source/pf"
 )
 
 type ioPair struct {

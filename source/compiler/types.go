@@ -3,8 +3,8 @@ package compiler
 import (
 	"reflect"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 var BASE_TYPES = map[string]values.ValueType{

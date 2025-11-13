@@ -1,8 +1,8 @@
 package lexer
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 // What we have here is a collection of types, each with a single implementation,
@@ -94,7 +94,7 @@ func (r *removeNewlineAfter) getTokens() []token.Token {
 		for r.acc.tok(0).Type == token.NEWLINE {
 			r.acc.next()
 		}
-	}	
+	}
 	return result
 }
 
@@ -114,7 +114,7 @@ var REMOVE_NEWLINE_BEFORE = dtypes.From[token.TokenType](
 func (r *removeNewlineBefore) getTokens() []token.Token {
 	if r.acc.tok(0).Type == token.NEWLINE {
 		peekType := r.acc.tok(1).Type
-		if REMOVE_NEWLINE_BEFORE.Contains(peekType)  {
+		if REMOVE_NEWLINE_BEFORE.Contains(peekType) {
 			r.acc.next()
 		}
 	}

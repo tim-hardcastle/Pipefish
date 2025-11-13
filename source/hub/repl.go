@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/lmorg/readline/v4"
-	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/text"
 )
 
 // TODO --- once the highlighting is semantic and not syntactic, we'll

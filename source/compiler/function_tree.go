@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 type FunctionTree = struct { // Contains the start of a function tree plus the things all the functions with the same name have in common.

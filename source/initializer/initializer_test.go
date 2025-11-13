@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/test_helper"
-	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/test_helper"
+	"github.com/tim-hardcastle/pipefish/source/text"
 )
 
 func TestIndexing(t *testing.T) {
@@ -184,7 +184,7 @@ func TestLogging(t *testing.T) {
 // tests check the internals of the initializer.
 func TestSigChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`qux :`, `qux`}, 
+		{`qux :`, `qux`},
 		{`qux () :`, `qux ()`},
 		{`qux (i ... int) :`, `qux (i ... int)`},
 		{`qux (a int) :`, `qux (a int)`},
@@ -221,8 +221,8 @@ func TestSigChunking(t *testing.T) {
 
 func TestFunctionChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{"qux : 2 + 2", `qux : 3 tokens.`}, 
-		{"qux : 2 + 2\n", `qux : 3 tokens.`}, 
+		{"qux : 2 + 2", `qux : 3 tokens.`},
+		{"qux : 2 + 2\n", `qux : 3 tokens.`},
 		{"qux : \n\t2 + 2", `qux : 5 tokens.`},
 		{"qux : \n\t2 + 2\nfoobar : 42", `qux : 5 tokens.`},
 		{"qux : \n\t2 + 2\ngiven : 42", `qux : 5 tokens; given : 1 tokens.`},
@@ -233,7 +233,7 @@ func TestFunctionChunking(t *testing.T) {
 
 func TestTypeChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{"Number = abstract int/float", `Number = abstract int/float`}, 
+		{"Number = abstract int/float", `Number = abstract int/float`},
 		{"Number = abstract int/float\n", `Number = abstract int/float`},
 		{"Foo = abstract int/list{float/int}", `Foo = abstract int/list { float / int }`},
 		{"UID = clone int", `UID = clone int`},
@@ -241,8 +241,8 @@ func TestTypeChunking(t *testing.T) {
 		{"UID = clone{s string} int", `UID = clone{s string} int`},
 		{"UID = clone{s string} int : foo bar spong", `UID = clone{s string} int : 3 tokens.`},
 		{"UID = clone int : foo bar spong", `UID = clone int : 3 tokens.`},
-		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`}, 
-		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`}, 
+		{"Color = enum RED, GREEN, BLUE", `Color = enum RED, GREEN, BLUE`},
+		{"Color = enum RED, GREEN, BLUE\n", `Color = enum RED, GREEN, BLUE`},
 		{"Foo = interface : foo ()", `Foo = interface : 1 sigs.`},
 		{"Foo = interface : foo () -> int", `Foo = interface : 1 sigs.`},
 		{"Foo = interface : foo ()\n", `Foo = interface : 1 sigs.`},
@@ -265,9 +265,9 @@ func TestTypeChunking(t *testing.T) {
 
 func TestConstOrVarChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{"a int = 2 + 2", `a int = 3 tokens.`}, 
-		{"a int = 2 + 2\n", `a int = 3 tokens.`}, 
-		{"a = 2 + 2", `a = 3 tokens.`}, 
+		{"a int = 2 + 2", `a int = 3 tokens.`},
+		{"a int = 2 + 2\n", `a int = 3 tokens.`},
+		{"a = 2 + 2", `a = 3 tokens.`},
 		{"a, b int = 2 + 2", `a int, b int = 3 tokens.`},
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestConstOrVarChunking)
@@ -275,11 +275,10 @@ func TestConstOrVarChunking(t *testing.T) {
 
 func TestExternalOrImportChunking(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{"foo::\"bar\"", `foo::"bar"`}, 
-		{"foo::\"bar\"\n", `foo::"bar"`}, 
-		{"\"bar\"", `"bar"`}, 
-		{"\"bar\"\n", `"bar"`}, 
+		{"foo::\"bar\"", `foo::"bar"`},
+		{"foo::\"bar\"\n", `foo::"bar"`},
+		{"\"bar\"", `"bar"`},
+		{"\"bar\"\n", `"bar"`},
 	}
 	test_helper.RunInitializerTest(t, tests, test_helper.TestExternalOrImportChunking)
 }
-

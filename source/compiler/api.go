@@ -3,8 +3,8 @@ package compiler
 import (
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 // This supplies the bits and pieces we need to render the API.
@@ -12,7 +12,7 @@ import (
 // we could get the font and width from a desktop client.
 
 func (cp *Compiler) Api(name string, fonts *values.Map, width int) string {
-	markdowner := text.NewMarkdown("", width, func(s string) string {return cp.Highlight([]rune(s), fonts)})
+	markdowner := text.NewMarkdown("", width, func(s string) string { return cp.Highlight([]rune(s), fonts) })
 	hasContents := false
 	result := ""
 	if name != "" || cp.DocString != "" {
@@ -32,14 +32,14 @@ func (cp *Compiler) Api(name string, fonts *values.Map, width int) string {
 		for _, item := range items {
 			stringToRender := "- " + cp.Highlight(item.Declaration, fonts)
 			if item.DocString != "" {
-				stringToRender = stringToRender + " — "  + item.DocString
+				stringToRender = stringToRender + " — " + item.DocString
 			}
 			result = result + markdowner.Render([]string{stringToRender})
 		}
 		result = result + "\n"
 	}
 	if !hasContents {
-		return("API is empty.\n")
+		return ("API is empty.\n")
 	}
 	result = result + "\n"
 	return result
@@ -47,8 +47,7 @@ func (cp *Compiler) Api(name string, fonts *values.Map, width int) string {
 
 type ApiItem struct {
 	Declaration []rune
-	DocString  string
+	DocString   string
 }
 
 var headings = []string{"Modules", "Types", "Constants", "Variables", "Commands", "Functions"}
-

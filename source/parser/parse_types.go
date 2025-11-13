@@ -3,10 +3,10 @@ package parser
 import (
 	"strconv"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 // This parses descriptions of types (a) when they're defined (b) when they're mentioned
@@ -28,7 +28,7 @@ const (
 
 func (p *Parser) IsTypePrefix(s string) bool {
 	return s == "..." || (p.Typenames.Contains(s) ||
-	PSEUDOTYPES.Contains(s) || p.ParameterizedTypes.Contains(s))
+		PSEUDOTYPES.Contains(s) || p.ParameterizedTypes.Contains(s))
 }
 
 func (p *Parser) ParseType(prec typePrecedence) ast.TypeNode {
@@ -91,7 +91,7 @@ func (p *Parser) parseParamsOrArgs() ast.TypeNode {
 	// So we're now at the token with the `{}`, which we won't skip over because sluriping
 	// the type needs to be done with a peek first and a NextToken afterwards.
 	if p.PeekToken.Type == token.IDENT && !(p.IsTypePrefix(p.PeekToken.Literal)) &&
-			!(p.IsEnumElement(p.PeekToken.Literal)){
+		!(p.IsEnumElement(p.PeekToken.Literal)) {
 		p.NextToken()
 		result := p.parseParams(nameTok)
 		return result

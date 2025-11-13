@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 // The lowest level of signature representation. We just store everything as tokens until
@@ -99,7 +99,7 @@ func (p *Parser) ChunkReturns() (TokReturns, bool) {
 		}
 		result = append(result, ty)
 		if p.PeekTokenIs(token.COLON) || p.PeekTokenIs(token.EOF) ||
-				p.PeekTokenIs(token.NEWLINE) || p.PeekTokenMatches(token.RPAREN, "<-|") {
+			p.PeekTokenIs(token.NEWLINE) || p.PeekTokenMatches(token.RPAREN, "<-|") {
 			p.NextToken()
 			return result, true
 		}
@@ -157,9 +157,9 @@ func (p *Parser) SlurpBlock(safe bool) (*token.TokenizedCodeChunk, bool) {
 type DefaultTypeChunk int
 
 const (
-	ANY_OR_NULL        DefaultTypeChunk = iota // For functions etc.
+	ANY_OR_NULL DefaultTypeChunk = iota // For functions etc.
 	INFERRED
-	MISSING_TYPE_ERROR                         // The parameters of a type should be explicitly stated.
+	MISSING_TYPE_ERROR // The parameters of a type should be explicitly stated.
 )
 
 var defaultMap = map[DefaultTypeChunk]func(token.Token) []token.Token{
@@ -201,7 +201,7 @@ func (p *Parser) ChunkNameTypePairs(dflt DefaultTypeChunk) (TokSig, bool) {
 						sig[i].Typename = typeName
 					}
 				}
-			} 
+			}
 		}
 		if p.PeekTokenIs(token.RPAREN) || p.PeekTokenIs(token.ASSIGN) ||
 			p.PeekTokenIs(token.GVN_ASSIGN) || p.PeekTokenIs(token.RBRACE) {
@@ -240,8 +240,8 @@ func (p *Parser) slurpTypeExpressionAsTokens() ([]token.Token, bool) {
 		}
 		if p.PeekTokenIs(token.RPAREN) || p.PeekTokenIs(token.ASSIGN) ||
 			p.PeekTokenIs(token.GVN_ASSIGN) || p.PeekTokenIs(token.COLON) ||
-			((p.PeekTokenIs(token.COMMA) || p.PeekTokenIs(token.RBRACE)) && braces == 0) || 
-			p.PeekTokenIs(token.EOF) || p.PeekTokenIs(token.NEWLINE)  {
+			((p.PeekTokenIs(token.COMMA) || p.PeekTokenIs(token.RBRACE)) && braces == 0) ||
+			p.PeekTokenIs(token.EOF) || p.PeekTokenIs(token.NEWLINE) {
 			return result, true
 		}
 		p.NextToken()
@@ -323,13 +323,13 @@ func StringifyTypeName(toks []token.Token) string {
 	result := ""
 	for i, tok := range toks {
 		result = result + tok.Literal
-		if i == len(toks) - 1 {
+		if i == len(toks)-1 {
 			continue
 		}
 		if tok.Type == token.COMMA ||
-		(tok.Type == token.IDENT && toks[i+1].Type == token.IDENT && !(toks[i+1].Literal == "?" || toks[i+1].Literal == "!")) ||
-		tok.Type == token.DOTDOTDOT || 
-		toks[i+1].Type == token.DOTDOTDOT {
+			(tok.Type == token.IDENT && toks[i+1].Type == token.IDENT && !(toks[i+1].Literal == "?" || toks[i+1].Literal == "!")) ||
+			tok.Type == token.DOTDOTDOT ||
+			toks[i+1].Type == token.DOTDOTDOT {
 			result = result + " "
 		}
 	}

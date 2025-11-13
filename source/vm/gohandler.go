@@ -7,7 +7,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
 )

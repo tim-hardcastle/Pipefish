@@ -1,21 +1,21 @@
 package vm
 
 import (
-	"strconv"
 	"bytes"
+	"strconv"
 
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 // This file supplies resources for generating racking information at runtims.
 
 type TrackingData struct {
-	Flavor    TrackingFlavor
-	Tok       *token.Token
-	LogToLoc  uint32 // The memory location in the compiler 
-	Args      []any
+	Flavor   TrackingFlavor
+	Tok      *token.Token
+	LogToLoc uint32 // The memory location in the compiler
+	Args     []any
 }
 
 type TrackingFlavor int

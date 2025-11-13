@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tim-hardcastle/Pipefish/source/hub"
+	"github.com/tim-hardcastle/pipefish/source/hub"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	
+
 	fmt.Print(hub.Logo())
 	h := hub.New(os.Stdin, os.Stdout)
 	appDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))

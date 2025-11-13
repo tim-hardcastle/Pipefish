@@ -6,16 +6,16 @@ import (
 	"strings"
 
 	"github.com/lmorg/readline/v4"
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/lexer"
-	"github.com/tim-hardcastle/Pipefish/source/parser"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/lexer"
+	"github.com/tim-hardcastle/pipefish/source/parser"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 	"src.elv.sh/pkg/persistent/vector"
 )
 
@@ -530,7 +530,7 @@ func (iz *Initializer) addWordsToParser(tc *tokenizedFunctionDeclaration) {
 	}
 	if tc.pos == prefix {
 		iz.P.Functions.Add(tc.op.Literal)
-		
+
 	}
 	iz.P.BlingTree.AddBling(blingList)
 }
@@ -976,7 +976,7 @@ func (iz *Initializer) makeLabelsFromSig(sig ast.AstSig, private bool, indexTok 
 func (iz *Initializer) registerParameterizedType(name string, ty *ast.TypeWithParameters, opList []token.Token, typeCheck *token.TokenizedCodeChunk, parentType string, private bool, tok *token.Token) bool {
 	info, ok := iz.parameterizedTypes[name]
 	if ok {
-		if iz.paramTypeExists(ty) == DUMMY { 
+		if iz.paramTypeExists(ty) == DUMMY {
 			iz.throw("init/param/types", &ty.Token, ty.String(), len(info))
 			return false
 		}

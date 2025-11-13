@@ -2,7 +2,7 @@ package compiler
 
 // How the compiler keeps track of where in memory the variables are stored, and what the access to them is like.
 
-import "github.com/tim-hardcastle/Pipefish/source/dtypes"
+import "github.com/tim-hardcastle/pipefish/source/dtypes"
 
 type VarAccess int
 
@@ -23,7 +23,7 @@ const (
 	UNDEFINED_THIS_VARIABLE // When 'this' hasn't been defined because we haven't finished compiling the lambda.
 	FOR_LOOP_BOUND_VARIABLE
 	FOR_LOOP_INDEX_VARIABLE
-	TYPE_ARGUMENT           // i.e. the 'i' in 'foo(x Z{i int})
+	TYPE_ARGUMENT // i.e. the 'i' in 'foo(x Z{i int})
 )
 
 // Update with:

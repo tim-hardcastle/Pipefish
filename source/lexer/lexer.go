@@ -7,22 +7,22 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 type lexer struct {
-	runes           *RuneSupplier
-	reader          strings.Reader
-	tstart          int                  // the value of char at the start of a token
-	lineNo          int
-	afterWhitespace bool                 // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
-	continuation    bool
-	whitespaceStack dtypes.Stack[string] // levels of whitespace to unindent to
-	Ers             err.Errors
-	source          string
+	runes            *RuneSupplier
+	reader           strings.Reader
+	tstart           int // the value of char at the start of a token
+	lineNo           int
+	afterWhitespace  bool // whether we are just after the (possible empty) whitespace, so .. is forbidden if not a continuation
+	continuation     bool
+	whitespaceStack  dtypes.Stack[string] // levels of whitespace to unindent to
+	Ers              err.Errors
+	source           string
 	currentNamespace string
 }
 
@@ -111,7 +111,7 @@ func (l *lexer) getTokens() []token.Token {
 			l.runes.Next()
 			docString := l.runes.ReadComment()
 			l.runes.Next()
-			return []token.Token{l.NewToken(token.DOCSTRING, strings.TrimSpace(docString) + "\n")}
+			return []token.Token{l.NewToken(token.DOCSTRING, strings.TrimSpace(docString)+"\n")}
 		}
 	// We may have a formated string.
 	case '"':
@@ -228,7 +228,7 @@ func (l *lexer) getTokens() []token.Token {
 				if l.currentNamespace != "" {
 					if tType != token.IDENT {
 						l.Throw("lex/namespace/right")
-					} 
+					}
 					tokenIs.Namespace = l.currentNamespace
 					l.currentNamespace = ""
 				}
@@ -342,8 +342,6 @@ func (l *lexer) skipWhitespaceAfterPotentialContinuation() bool {
 	l.continuation = true
 	return true
 }
-
-
 
 func (runes *RuneSupplier) ReadNumber() string {
 	result := string(runes.CurrentRune())

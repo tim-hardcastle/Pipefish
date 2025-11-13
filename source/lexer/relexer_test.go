@@ -3,7 +3,7 @@ package lexer
 import (
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/token"
 )
 
 func TestNextTokenForRelexer(t *testing.T) {

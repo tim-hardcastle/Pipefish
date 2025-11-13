@@ -6,25 +6,25 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/tim-hardcastle/Pipefish/source/ast"
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/lexer"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/ast"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/lexer"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 type Parser struct {
 
 	// Temporary state: things that are used to parse one line.
 
-	TokenizedCode    lexer.TokenSupplier
-	nesting          dtypes.Stack[token.Token]
-	CurToken         token.Token
-	PeekToken        token.Token
-	Logging          bool
+	TokenizedCode lexer.TokenSupplier
+	nesting       dtypes.Stack[token.Token]
+	CurToken      token.Token
+	PeekToken     token.Token
+	Logging       bool
 
 	// Things that need to be attached to every parser: common information about the type system, functions, etc.
 	Common *CommonParserBindle
@@ -72,12 +72,12 @@ func New(common *CommonParserBindle, source, sourceCode, namespacePath string) *
 		EnumElementNames:   make(dtypes.Set[string]),
 		ParameterizedTypes: make(dtypes.Set[string]),
 		ParTypeInstances:   map[string]*ast.TypeWithArguments{},
-		ParTypes:        make(map[string]TypeExpressionInfo),
-		NamespaceBranch: make(map[string]*ParserData),
-		ExternalParsers: make(map[string]*Parser),
-		NamespacePath:   namespacePath,
-		Common:          common,
-		BlingTree:       newBlingTree(),
+		ParTypes:           make(map[string]TypeExpressionInfo),
+		NamespaceBranch:    make(map[string]*ParserData),
+		ExternalParsers:    make(map[string]*Parser),
+		NamespacePath:      namespacePath,
+		Common:             common,
+		BlingTree:          newBlingTree(),
 	}
 	p.Common.Sources[source] = strings.Split(sourceCode, "\n") // TODO --- something else.
 	p.TokenizedCode = lexer.NewRelexer(source, sourceCode)
@@ -888,7 +888,7 @@ func (p *Parser) parseSnippetExpression(tok token.Token) ast.Node {
 		bits = append([]string{""}, bits...)
 	}
 	for i, bit := range bits {
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			nodes = append(nodes, &ast.StringLiteral{tok, bit})
 		} else {
 			p.nesting = dtypes.Stack[token.Token]{}
@@ -898,7 +898,7 @@ func (p *Parser) parseSnippetExpression(tok token.Token) ast.Node {
 	}
 	p.nesting = *nesting
 	p.TokenizedCode = codeTokens
-	p.CurToken = cT 
+	p.CurToken = cT
 	p.PeekToken = pT
 	return &ast.SnippetLiteral{Token: tok, Value: tok.Literal, Values: nodes}
 }

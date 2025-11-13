@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/tim-hardcastle/Pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/text"
 
 	// SQL drivers
 
@@ -31,20 +31,21 @@ import (
 
 type SQLDriver uint32
 
-const (COCKROACHDB           SQLDriver = iota
-	   FIREBIRD_SQL
-	   MARIADB
-	   MICROSOFT_SQL_SERVER
-	   MYSQL
-	   ORACLE 
-	   POSTGRESQL
-	   SNOWFLAKE 
-	   SQLITE
+const (
+	COCKROACHDB SQLDriver = iota
+	FIREBIRD_SQL
+	MARIADB
+	MICROSOFT_SQL_SERVER
+	MYSQL
+	ORACLE
+	POSTGRESQL
+	SNOWFLAKE
+	SQLITE
 )
 
 // Matches with the enum above, e.g. COCKROACH_DB uses the postgres driver.
 var SqlDrivers = []string{"postgres", "firebirdsql", "mysql", "sqlserver", "mysql",
-	                      "oracle", "postgres", "snowflake", "sqlite", "mysql"}
+	"oracle", "postgres", "snowflake", "sqlite", "mysql"}
 
 var driversFromPipefishEnum = map[string]string{"COCKROACHDB": "postgres", "FIREBIRD_SQL": "firebirdsql", "MARIADB": "mysql", "MICROSOFT_SQL_SERVER": "sqlserver", "MYSQL": "mysql",
 	"ORACLE": "oracle", "POSTGRESQL": "postgres", "SNOWFLAKE": "snowflake", "SQLITE": "sqlite", "TIDB": "mysql"}

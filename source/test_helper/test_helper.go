@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/err"
-	"github.com/tim-hardcastle/Pipefish/source/initializer"
-	"github.com/tim-hardcastle/Pipefish/source/parser"
-	"github.com/tim-hardcastle/Pipefish/source/settings"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/values"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/err"
+	"github.com/tim-hardcastle/pipefish/source/initializer"
+	"github.com/tim-hardcastle/pipefish/source/parser"
+	"github.com/tim-hardcastle/pipefish/source/settings"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 )
 
 // Auxiliary types and functions for testing the parser and compiler.
@@ -92,7 +92,7 @@ func TestOutput(cp *compiler.Compiler, s string) (string, error) {
 	ok := cp.Do(s)
 	if ok.T == values.ERROR {
 		return "", errors.New("runtime error with code " + ok.V.(*err.Error).ErrorId)
-	} 
+	}
 	if cp.ErrorsExist() {
 		return "", errors.New("failed to compile with code " + cp.P.Common.Errors[0].ErrorId)
 	}
@@ -138,7 +138,7 @@ func TestTypeChunking(iz *initializer.Initializer, s string) string {
 
 func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkConstOrVarDeclaration(false , false, "")
+	ty, ok := iz.ChunkConstOrVarDeclaration(false, false, "")
 	if !ok {
 		return "Couldn't parse assignment."
 	}
@@ -147,7 +147,7 @@ func TestConstOrVarChunking(iz *initializer.Initializer, s string) string {
 
 func TestExternalOrImportChunking(iz *initializer.Initializer, s string) string {
 	iz.P.PrimeWithString("test", s)
-	ty, ok := iz.ChunkImportOrExternalDeclaration(false , false, "")
+	ty, ok := iz.ChunkImportOrExternalDeclaration(false, false, "")
 	if !ok {
 		return "Couldn't parse import/external declaration."
 	}
@@ -155,22 +155,21 @@ func TestExternalOrImportChunking(iz *initializer.Initializer, s string) string 
 }
 
 var Foo8Result = "We called function `foo` - defined at line 13 - with `i` = `8`.\n" +
-        "At line 14 we evaluated the condition `i mod 2 == 0`. \n" + 
-        "The condition succeeded.\n" +
-        "At line 15 function `foo` returned \"even\".\n"
+	"At line 14 we evaluated the condition `i mod 2 == 0`. \n" +
+	"The condition succeeded.\n" +
+	"At line 15 function `foo` returned \"even\".\n"
 
 var Foo13Result = "We called function `foo` - defined at line 13 - with `i` = `13`.\n" +
-        "At line 14 we evaluated the condition `i mod 2 == 0`. \n" +
-        "The condition failed.\n" +
-        "At line 16 we took the `else` branch.\n" +
-        "At line 17 function `foo` returned \"odd\".\n"
+	"At line 14 we evaluated the condition `i mod 2 == 0`. \n" +
+	"The condition failed.\n" +
+	"At line 16 we took the `else` branch.\n" +
+	"At line 17 function `foo` returned \"odd\".\n"
 
 var Qux8Result = "Log at line 7 : We're here.\n" +
-        "Log at line 8 : We test to see if i (8) is even, which is true.\n" +
-        "Log at line 9 : We return \"even\", because 8 is even.\n"
+	"Log at line 8 : We test to see if i (8) is even, which is true.\n" +
+	"Log at line 9 : We return \"even\", because 8 is even.\n"
 
 var Qux13Result = "Log at line 7 : We're here.\n" +
-        "Log at line 8 : We test to see if i (13) is even, which is false.\n" +
-        "Log at line 10 : Guess we're taking the 'else' branch.\n" +
-        "Log at line 11 : And we return \"odd\".\n"
-
+	"Log at line 8 : We test to see if i (13) is even, which is false.\n" +
+	"Log at line 10 : Guess we're taking the 'else' branch.\n" +
+	"Log at line 11 : And we return \"odd\".\n"

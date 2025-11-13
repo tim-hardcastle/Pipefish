@@ -24,10 +24,10 @@ import (
 	"github.com/lmorg/readline/v4"
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/tim-hardcastle/Pipefish/source/database"
-	"github.com/tim-hardcastle/Pipefish/source/pf"
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/database"
+	"github.com/tim-hardcastle/pipefish/source/pf"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/values"
 )
 
 type Hub struct {
@@ -838,7 +838,7 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 		hub.WriteString("\n\n")
 		hub.WritePretty(exp + "\n\n")
 		refLine := hub.GetPretty("Error has reference `\"" + hub.ers[num].ErrorId + "\"`.")
-		padding :=  strings.Repeat(" ", hub.getSV("width").V.(int) - len(text.StripColors(refLine))-2)
+		padding := strings.Repeat(" ", hub.getSV("width").V.(int)-len(text.StripColors(refLine))-2)
 		hub.WriteString(padding)
 		hub.WritePretty(refLine)
 		hub.WriteString("\n")

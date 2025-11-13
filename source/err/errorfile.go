@@ -3,9 +3,9 @@ package err
 import (
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/text"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/values"
+	"github.com/tim-hardcastle/pipefish/source/text"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/values"
 
 	"fmt"
 	"strconv"
@@ -998,7 +998,6 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-
 	"comp/types/b": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "function " + emph(args[0]) + " cannot accept arguments of type " + args[1].(string)
@@ -1305,7 +1304,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "After `using`, Pipefish expects a comma-separated list of operations " +
-			"requested for the clone type."
+				"requested for the clone type."
 		},
 	},
 
@@ -1737,7 +1736,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "From your use of `{` Pipefish infers that you're trying to make a type " +
-			"expression, but it seems to be incomplete."
+				"expression, but it seems to be incomplete."
 		},
 	},
 
@@ -2373,7 +2372,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish thinks you're trying to make an instance of a parameterized type, " +
-			"but in that case we'd expect a comma or a closing brace here."
+				"but in that case we'd expect a comma or a closing brace here."
 		},
 	},
 
@@ -2382,8 +2381,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "bad value in instance of parameterized type"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "The arguments you use to instantiate a parameterized type should be " + 
-			"of type `bool`, `float`, `int`, `rune`, `string`, `type`, or an enum type."
+			return "The arguments you use to instantiate a parameterized type should be " +
+				"of type `bool`, `float`, `int`, `rune`, `string`, `type`, or an enum type."
 		},
 	},
 
@@ -2481,7 +2480,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "It seems like you're trying to define a parameterized type here, " +
-			"but the name you've supplied for it is not a valid identifier."
+				"but the name you've supplied for it is not a valid identifier."
 		},
 	},
 
@@ -2491,7 +2490,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The parameters of a parameterized type should themselves be " +
-			"of type `bool`, `float`, `int`, `rune`, `string`, `type`, or an enum type."
+				"of type `bool`, `float`, `int`, `rune`, `string`, `type`, or an enum type."
 		},
 	},
 
@@ -2634,8 +2633,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A return signature should consist of names of types separated by commas, " +
-			"and so at this point Pipefish was expecting a type name, which would necessarily be " +
-			"a valid identifier."
+				"and so at this point Pipefish was expecting a type name, which would necessarily be " +
+				"a valid identifier."
 		},
 	},
 
@@ -2645,8 +2644,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "A return signature should consist of names of types separated by commas, " +
-			"and so at this point Pipefish was expecting a comma, or a colon to introduce " + 
-			"the main body of the function."
+				"and so at this point Pipefish was expecting a comma, or a colon to introduce " +
+				"the main body of the function."
 		},
 	},
 
@@ -2656,7 +2655,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish thinks you're trying to declare a command or function, but you've " +
-			"failed to give it a name."
+				"failed to give it a name."
 		},
 	},
 
@@ -2712,7 +2711,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish needs to know a specific concrete type to try to convert things into, " +
-			"for much the same reason as you can't have a constructor for an abstract type."
+				"for much the same reason as you can't have a constructor for an abstract type."
 		},
 	},
 
@@ -2722,7 +2721,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish needs to know a specific concrete type to try to convert things into, " +
-			"for much the same reason as you can't have a constructor for an abstract type."
+				"for much the same reason as you can't have a constructor for an abstract type."
 		},
 	},
 
@@ -2732,7 +2731,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish needs to know a specific concrete type to try to convert things into, " +
-			"for much the same reason as you can't have a constructor for an abstract type."
+				"for much the same reason as you can't have a constructor for an abstract type."
 		},
 	},
 
@@ -2742,7 +2741,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Pipefish needs to know a specific concrete type to try to convert things into, " +
-			"for much the same reason as you can't have a constructor for an abstract type."
+				"for much the same reason as you can't have a constructor for an abstract type."
 		},
 	},
 
@@ -2863,7 +2862,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "The `clones` function returns the types that clone a given type, and so cannot " +
-			"take anything other than a type as its argument."
+				"take anything other than a type as its argument."
 		},
 	},
 
@@ -3299,8 +3298,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "At this point in the development of Pipefish this error may come from " +
-			"something you've done, e.g. a stack overflow, or from an error in Pipefish itself. " +
-			"If you suspect the latter, you should contact the author."
+				"something you've done, e.g. a stack overflow, or from an error in Pipefish itself. " +
+				"If you suspect the latter, you should contact the author."
 		},
 	},
 
@@ -3310,8 +3309,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When you use a variable in a function signature to capture a type, and you use the " +
-			"same variable for this purpose more than one in the same signature, then it must capture " +
-			"the same type each time."
+				"same variable for this purpose more than one in the same signature, then it must capture " +
+				"the same type each time."
 		},
 	},
 
@@ -3320,8 +3319,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 			return "can't make parameterized type with arguments supplied"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "While a parameterized type of the right name exists, the values you've " + 
-			"supplied are of the wrong type to construct it."
+			return "While a parameterized type of the right name exists, the values you've " +
+				"supplied are of the wrong type to construct it."
 		},
 	},
 
@@ -3539,7 +3538,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "There is a problem connecting to the database. Check that it's running " +
-			"and that you're using the right arguments to connect."
+				"and that you're using the right arguments to connect."
 		},
 	},
 
@@ -3549,7 +3548,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "There is a problem connecting to the database. Check that it's running " +
-			"and that you're using the right arguments to connect."
+				"and that you're using the right arguments to connect."
 		},
 	},
 
@@ -3559,8 +3558,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While the connection to the SQL database is good, the SQL query you " +
-			"passed it was defective in a way that hopefully will be explained in SQL's " +
-			"own error message as relayed by Pipefish."
+				"passed it was defective in a way that hopefully will be explained in SQL's " +
+				"own error message as relayed by Pipefish."
 		},
 	},
 
@@ -3580,7 +3579,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You told Pipefish to coerce the result of your SQL quesry into " +
-			"a sigle value, but it returned multiple rows."
+				"a sigle value, but it returned multiple rows."
 		},
 	},
 
@@ -3608,7 +3607,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "When the rows of the result of a SQL query are converted into a set, " +
-			"Pipefish will treat it as an error if any of the rows are duplicated."
+				"Pipefish will treat it as an error if any of the rows are duplicated."
 		},
 	},
 
@@ -3618,8 +3617,8 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "While the connection to the SQL database is good, the SQL query you " +
-			"passed it was defective in a way that hopefully will be explained in SQL's " +
-			"own error message as relayed by Pipefish."
+				"passed it was defective in a way that hopefully will be explained in SQL's " +
+				"own error message as relayed by Pipefish."
 		},
 	},
 
@@ -3647,9 +3646,9 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "We only convert a type into SQL to produce a SQL table signature from " +
-			"that type, with the row names of the table corresponding to the field names of " +
-			"the struct. It is therefore essential that the type supplied should in fact *be* " +
-			"a struct."
+				"that type, with the row names of the table corresponding to the field names of " +
+				"the struct. It is therefore essential that the type supplied should in fact *be* " +
+				"a struct."
 		},
 	},
 
@@ -3689,7 +3688,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You told Pipefish to coerce the result of your SQL quesry into " +
-			"a sigle value, but it returned no rows."
+				"a sigle value, but it returned no rows."
 		},
 	},
 

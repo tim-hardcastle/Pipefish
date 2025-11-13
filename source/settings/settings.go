@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
 )
 
 // This can be changed during initialization.
@@ -22,8 +22,8 @@ func MandatoryImportSet() dtypes.Set[string] {
 }
 
 var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).
-Add("rsc-pf/hub.pf").Add("Builtin constant").
-Add("rsc-pf/worldlite.pf").Add("user/themes.pf")
+	Add("rsc-pf/hub.pf").Add("Builtin constant").
+	Add("rsc-pf/worldlite.pf").Add("user/themes.pf")
 
 // This is replicated in the hub and any changes made here must be reflected there. TODO --- don't.
 var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "math", "path", "reflect", "regexp", "sql", "strings", "time", "unicode"})

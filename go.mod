@@ -1,4 +1,4 @@
-module github.com/tim-hardcastle/Pipefish
+module github.com/tim-hardcastle/pipefish
 
 go 1.24.0
 

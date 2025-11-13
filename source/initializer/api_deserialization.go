@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tim-hardcastle/Pipefish/source/compiler"
-	"github.com/tim-hardcastle/Pipefish/source/dtypes"
-	"github.com/tim-hardcastle/Pipefish/source/token"
-	"github.com/tim-hardcastle/Pipefish/source/vm"
+	"github.com/tim-hardcastle/pipefish/source/compiler"
+	"github.com/tim-hardcastle/pipefish/source/dtypes"
+	"github.com/tim-hardcastle/pipefish/source/token"
+	"github.com/tim-hardcastle/pipefish/source/vm"
 )
 
 // The serialization of the API belongs to the compiler, since this will if at all be demanded of the
@@ -138,7 +138,7 @@ func makeCommandOrFunctionDeclarationFromParts(parts []string, xserve uint32) st
 		buf.WriteString(bits[1])
 	}
 	if position != vm.UNFIX {
-		if len(params) == 0 || len(params) > 0 && (strings.Split(params[len(params)-1]," "))[1] != "bling" {
+		if len(params) == 0 || len(params) > 0 && (strings.Split(params[len(params)-1], " "))[1] != "bling" {
 			buf.WriteString(")")
 		}
 	}
