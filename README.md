@@ -32,23 +32,9 @@ Instructions for installing Pipefish can be found [here](https://github.com/tim-
 
 Here is some sample code: you should find it readable.
 
-```
-cmd    // An imperative command.
-
-greet :
-    get name from Input("What's your name? ")
-    post "Hello " + name + "!"
-
-def    // A pure function.
-
-factorial(n) :
-    n == 0 :
-        1
-    n > 0 :
-        n * factorial n - 1
-    else :
-        error "can't take the factorial of a negative number"
-```
+<div align="center">
+  <img src="./docs/sample code for README.png" alt="Sample code" width="710">
+</div>
 
 ## Distinguishing features
 
@@ -81,7 +67,7 @@ Here are some of Pipefish's more distinctive features:
 
 ## Our adorable mascot
 
-According to no less than Rob Pike, every language needs an adorable mascot. This is our adorable (though not cuddly) mascot, René the pipefish.
+According to Rob Pike, every language needs an adorable mascot. This is our adorable mascot, René the pipefish.
 <div align="center">
   <img src="./docs/Rene.png" alt="René the Pipefish" width="150">
 </div>
