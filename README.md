@@ -32,8 +32,8 @@ Instructions for installing Pipefish can be found [here](https://github.com/tim-
 
 Here is some sample code: you should find it readable.
 
-<div align="center">
-  <img src="./docs/sample code for README.png" alt="Sample code" width="710">
+<div align="left">
+  <img src="./docs/code sample for README.png" alt="Sample code" width="710">
 </div>
 
 ## Distinguishing features
