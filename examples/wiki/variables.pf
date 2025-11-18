@@ -1,0 +1,16 @@
+var
+
+h = "Hello world!"
+x = MONTHS_IN_A_YEAR * 2
+
+const
+
+MONTHS_IN_A_YEAR = 12
+
+cmd
+
+addAndPost(n) : 
+    global x       // Brings x into scope.
+    x = x + n      // Adds n to it.
+    post x         // Posts it to the user.
+

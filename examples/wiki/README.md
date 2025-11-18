@@ -1,0 +1,1 @@
+The files in this folder contain the snippets of code used for illustrative purposes in the Pipefish wiki. The are therefore not very complex or interesting examples of code, since each of them exists to illustrate one feature of the language at a time.

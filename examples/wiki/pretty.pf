@@ -1,0 +1,7 @@
+// Your code goes here ...
+
+def 
+
+pretty(x) :
+    "** " + (string x) + " **"
+

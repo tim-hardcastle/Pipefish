@@ -1,0 +1,14 @@
+~~ This is a docstring.
+
+// This is a comment.
+
+// And below, the two types of continuation.
+
+const
+
+HELLO = "hello " + ..
+     .. "world"
+
+LIST = [1, 2, 3, 
+     .. 4, 5, 6]
+ 
