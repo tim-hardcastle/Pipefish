@@ -184,6 +184,17 @@ func TestIndexing(t *testing.T) {
 	}
 	test_helper.RunTest(t, "index_test.pf", tests, test_helper.TestValues)
 }
+
+func TestTuples(t *testing.T) {
+	tests := []test_helper.TestItem{
+		//{`1, 2, (3, 4)`, `(1, 2, 3, 4)`},
+		{`1, 2, 3`, `(1, 2, 3)`},
+		{`()`, `()`},
+		{`(1, 2), 3`, `(1, 2, 3)`},
+		{`1, (2, 3)`, `(1, 2, 3)`},
+	}
+	test_helper.RunTest(t, "", tests, test_helper.TestValues)
+}
 func TestFunctionSyntaxCalls(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`foo "bing"`, `"foo bing"`},

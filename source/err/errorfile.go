@@ -3742,7 +3742,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/types/a": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
+			return "<For reasons, possibly bad ones, the actual error message is generated in the compiler.>"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have supplied the function with arguments of types for which no function of that name is defined."
@@ -3751,7 +3751,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/types/b": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
+			return "<For reasons, possibly bad ones, the actual error message is generated in the compiler.>"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have supplied the function with arguments of types for which no function of that name is defined."
@@ -3760,7 +3760,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"vm/types/c": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "No implementation of function " + emph(tok.Literal) + " exists for the given types"
+			return "<For reasons, possibly bad ones, the actual error message is generated in the compiler.>"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "You have supplied the function with arguments of types for which no function of that name is defined."

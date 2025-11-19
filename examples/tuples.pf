@@ -1,32 +1,38 @@
+newtype
+
+Direction = enum LEFT, RIGHT
+
 def
 
 swap (x, y) : y, x
 
-rotateLeft(t tuple) : 
-    t == () : 
-        ()
-    else : 
-        t[1::arity t] , t[0]
+trap(T tuple) :
+    len T
 
-Direction = enum LEFT, RIGHT
 
-rotate(d Direction, t tuple) : 
-    t == () : 
-        ()
-    d == RIGHT : 
-        t[arity(t) - 1] , t[0::arity(t) - 1]
-    else : 
-       rotateLeft t
+// rotateLeft(t tuple) : 
+//     t == tuple() : 
+//         ()
+//     else : 
+//         t[1::len t] , t[0]
 
-zort :
-    "No parameters"
+// rotate(d Direction, t tuple) : 
+//     t == () : 
+//         ()
+//     d == RIGHT : 
+//         t[len(t) - 1] , t[0::len(t) - 1]
+//     else : 
+//        rotateLeft t
 
-zort(s any) :
-    "Single"
+// zort :
+//     "No parameters"
 
-zort(x any, y tuple) :
-    "Single, then tuple"
+// zort(s any) :
+//     "Single"
 
-zort(t tuple) :
-    "Tuple"
+// zort(x any, y tuple) :
+//     "Single, then tuple"
+
+// zort(t tuple) :
+//     "Tuple"
 
