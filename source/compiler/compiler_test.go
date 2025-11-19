@@ -187,11 +187,12 @@ func TestIndexing(t *testing.T) {
 
 func TestTuples(t *testing.T) {
 	tests := []test_helper.TestItem{
-		//{`1, 2, (3, 4)`, `(1, 2, 3, 4)`},
 		{`1, 2, 3`, `(1, 2, 3)`},
 		{`()`, `()`},
 		{`(1, 2), 3`, `(1, 2, 3)`},
 		{`1, (2, 3)`, `(1, 2, 3)`},
+		{`1, 2, (3, 4)`, `(1, 2, 3, 4)`},
+		{`(1, 2, (3, 4)), (5, 6)`, `(1, 2, 3, 4, 5, 6)`},
 	}
 	test_helper.RunTest(t, "", tests, test_helper.TestValues)
 }
