@@ -240,7 +240,9 @@ var (
 	control              = dtypes.MakeFromSlice([]string{"break", "continue", "else", "try"})
 	reserved             = dtypes.MakeFromSlice([]string{"and", "false", "given", "not", "or", "true", "->", ">>", "?>", "--"})
 	illegalInRepl        = dtypes.MakeFromSlice([]string{"cmd", "const", "def", "external", "global", "golang", "import", "newtype", "private", "var", "\\\\", "~~"})
-	nativeTypes          = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret", "clone", "clones", "enum", "struct", "any"})
+	// Used by the syntax highlighter; should not be used by anything else without much forethought.
+	// TODO --- there must be some principled way to generate this from something else.
+	nativeTypes          = dtypes.MakeFromSlice([]string{"ok", "int", "string", "rune", "bool", "float", "error", "type", "pair", "list", "map", "set", "label", "func", "null", "snippet", "secret", "clone", "clones", "enum", "struct", "any", "ref", "tuple"})
 	enumlike, _          = regexp.Compile(`^[A-Z][A-Z_]+$`)
 	typelike, _          = regexp.Compile(`^[A-Z][A-Z]*[a-z]+[A-Za-z]*$`)
 	bracketMatch         = map[rune]rune{'(': ')', '[': ']', '{': '}'}
@@ -325,6 +327,7 @@ func (cp *Compiler) Highlight(code []rune, fonts *values.Map) string {
 		case lexer.IsDigit(runes.CurrentRune()):
 			result := runes.ReadNumber()
 			out.WriteString(wrapFont(result, "number", fonts))
+		// It could be an identifier (as the lexer defines that term, not the parser, e.g. it includes `else`.)
 		case lexer.IsLegalStart(runes.CurrentRune()):
 			result := runes.ReadIdentifier()
 			switch {
