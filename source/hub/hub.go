@@ -36,7 +36,6 @@ type Hub struct {
 	ers                    []*pf.Error            // The errors produced by the latest compilation/execution of one of the hub's services.
 	in                     io.Reader
 	out                    io.Writer
-	anonymousServiceNumber int
 	snap                   *Snap
 	oldServiceName         string // Somewhere to keep the old service name while taking a snap. TODO --- you can now take snaps on their own dedicated hub, saving a good deal of faffing around.
 	Sources                map[string][]string
@@ -568,19 +567,14 @@ func (hub *Hub) DoHubCommand(username, password, verb string, args []values.Valu
 	case "run":
 		fname := toStr(args[0])
 		sname := toStr(args[1])
+		if sname == "" {
+			sname = text.ExtractFileName(fname)
+		}
 		if filepath.IsLocal(fname) {
 			dir, _ := os.Getwd()
 			fname = filepath.Join(dir, fname)
 		}
 		hub.lastRun = []string{fname, sname}
-		if sname == "" {
-			hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) +
-				"\"</> as service <C>\"#" + strconv.Itoa(hub.anonymousServiceNumber) + "\"</>.")
-			println()
-			hub.StartAnonymous(fname)
-			hub.tryMain()
-			return false
-		}
 		hub.WritePretty("Starting script <C>\"" + filepath.Base(fname) + "\"</> as service <C>\"" + sname + "\"</>.")
 		println()
 		hub.StartAndMakeCurrent(username, sname, fname)
@@ -964,13 +958,6 @@ func init() {
 		helpStringForHelp = helpStringForHelp + BULLET + "\"" + v + "\"\n"
 	}
 	helpStrings["topics"] = helpStringForHelp
-}
-
-func (hub *Hub) StartAnonymous(scriptFilepath string) {
-	serviceName := "#" + fmt.Sprint(hub.anonymousServiceNumber)
-	hub.StartAndMakeCurrent("", serviceName, scriptFilepath)
-	hub.lastRun = []string{serviceName}
-	hub.anonymousServiceNumber = hub.anonymousServiceNumber + 1
 }
 
 func (hub *Hub) StartAndMakeCurrent(username, serviceName, scriptFilepath string) bool {
