@@ -614,11 +614,11 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 							functionAndType.T = typesAtIndex(b.types[0], len(b.types)-1)
 						}
 					case "tuple_of_varargs":
-						if len(b.types) == 0 {
-							functionAndType.T = AlternateType{FiniteTupleType{}}
-						} else {
-							functionAndType.T = AlternateType{FiniteTupleType{b.types[0]}}
+						ft := FiniteTupleType{}
+						for _, ty := range b.types {
+							ft = append(ft, ty)
 						}
+						functionAndType.T = AlternateType{ft}
 					case "tuple_of_tuple":
 						functionAndType.T = b.doneList
 					case "type_with":
