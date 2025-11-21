@@ -92,6 +92,7 @@ snippet(x ... any?) -> snippet : snippetmaker(x)
 snippetmaker(x tuple) : builtin "make_snippet" 
 snippet(x clones{snippet}) -> snippet : builtin "cast_to_snippet"      
 string(x any?) -> string : builtin "string"
+string(x tuple) -> string : builtin "string"
 tuple(x tuple) -> tuple : builtin "tuple_of_tuple"
 tuple(x ... any?) -> tuple : builtin "tuple_of_varargs"
 type(x any?) -> type : builtin "type"

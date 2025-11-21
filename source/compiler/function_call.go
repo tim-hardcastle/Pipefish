@@ -301,7 +301,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// a type match, or we're inside a conditional that has checked for one.
 
 	// Now we can recurse along the branch.
-	// If we know whether we're looking at a any or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
+	// If we know whether we're looking at a singleton or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
 	var typesFromGoingAcross, typesFromGoingDown AlternateType
 
 	if isVarargs { // Then we don't want to move along the branch of the function tree, just get a new argument and continue.

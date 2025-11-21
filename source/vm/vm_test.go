@@ -158,13 +158,18 @@ func TestBuiltins(t *testing.T) {
 
 func TestTuples(t *testing.T) {
 	tests := []test_helper.TestItem{
+		{`(1, 2), 3`, `(1, 2, 3)`},
+		{`1, (2, 3)`, `(1, 2, 3)`},
 		{`(1, 2), (3, 4)`, `(1, 2, 3, 4)`},
 		{`()`, `()`},
 		{`type tuple "foo", "bar"`, `tuple`},
 		{`len tuple "foo", "bar"`, `2`},
 		{`1 in tuple(1, 2)`, `true`},
+		{`string(X)`, `"(2, 3)"`},
+		//{`len tuple 1, X`, `3`},
+
 	}
-	test_helper.RunTest(t, "", tests, test_helper.TestValues)
+	test_helper.RunTest(t, "tuples_test.pf", tests, test_helper.TestValues)
 }
 
 func TestIndexing(t *testing.T) {

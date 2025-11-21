@@ -1,27 +1,33 @@
-newtype // We define some struct types.
+// newtype // We define some struct types.
 
-Person = struct(name string, age int)
-Cat = struct(name string, nobelPrizes int, pink bool)
+// Person = struct(name string, age int)
+// Cat = struct(name string, nobelPrizes int, pink bool)
 
-var // And make some struct values.
+// var // And make some struct values.
 
-doug = Person("Douglas", 42)
-joe = Person with name::"Joseph", age::22
-tom = Cat with pink::false, name::"Tom", nobelPrizes::2
+// doug = Person("Douglas", 42)
+// joe = Person with name::"Joseph", age::22
+// tom = Cat with pink::false, name::"Tom", nobelPrizes::2
+
+// const 
+
+// CAT_DEFAULTS tuple = nobelPrizes::0, pink::false
+
+
+// var
+
+// myCat = Cat with (name::"Felix", CAT_DEFAULTS)
+// myField = name
 
 const 
 
-CAT_DEFAULTS tuple = nobelPrizes::0, pink::false
-
-var
-
-myCat = Cat with (name::"Felix", df)
-myField = name
-df tuple = CAT_DEFAULTS
-z tuple = ()
+z tuple = 2, 3, 4, 5, 6
+w tuple = 7, 8, 9
 
 def 
 
 foo(x ... any) :
-    x
+    len x
 
+qux(x, y any, v ... any) :
+    string(x * y) + "; len " + string(len(v))
