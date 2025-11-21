@@ -1,0 +1,20 @@
+newtype // We define some struct types.
+
+Person = struct(name string, age int)
+Cat = struct(name string, nobelPrizes int, pink bool)
+
+var // And make some struct values.
+
+doug = Person("Douglas", 42)
+joe = Person with name::"Joseph", age::22
+tom = Cat with pink::false, name::"Tom", nobelPrizes::2
+
+const 
+
+CAT_DEFAULTS tuple = nobelPrizes::0, pink::false
+
+var
+
+myCat = Cat with name::"Felix", CAT_DEFAULTS
+myField = name
+
