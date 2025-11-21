@@ -86,8 +86,8 @@ func IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 		if aType.PartlyIntersects(bType) {
 			return false, false
 		}
-		asubb := aType.IsProperSubtypeOf(bType)
-		bsuba := bType.IsProperSubtypeOf(aType)
+		asubb := aType.IsProperSubtypeOf(bType) || (aType.Is(values.TUPLE) && !bType.Is(values.TUPLE))
+		bsuba := bType.IsProperSubtypeOf(aType) || (bType.Is(values.TUPLE) && !aType.Is(values.TUPLE))
 		aIsMoreSpecific = aIsMoreSpecific || asubb
 		bIsMoreSpecific = bIsMoreSpecific || bsuba
 		if aIsMoreSpecific && bIsMoreSpecific {

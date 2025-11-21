@@ -272,6 +272,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	singleTypeCheck := bkGoto(DUMMY)
 	elementOfTupleTypeCheck := bkGoto(DUMMY)
 	varargsSlurpingTupleTypeCheck := bkGoto(DUMMY)
+	tupleTypeCheck := bkGoto(DUMMY)
 	if needsLowerBranch && !acceptingTuple {
 		cp.cmP("Overlap is partial: "+overlap.describe(cp.Vm), b.tok)
 		cp.cmP("Accepted single types are "+acceptedSingleTypes.describe(cp.Vm), b.tok)
@@ -291,6 +292,10 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 			cp.Put(vm.IxTn, b.valLocs[b.argNo], uint32(b.index))
 			elementOfTupleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, cp.That(), b.tok)
 		}
+	}
+	if needsLowerBranch && acceptingTuple {
+		tupleTypeCheck = cp.emitTypeComparisonFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.tok)
+			
 	}
 	// Now we're in the 'if' part of the condition we just generated, if we did. So either we definitely had
 	// a type match, or we're inside a conditional that has checked for one.
@@ -357,9 +362,9 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	cp.cmP("Types from going across are "+typesFromGoingAcross.describe(cp.Vm), b.tok)
 
 	// And now we need to do the 'else' branch if there is one.
-	if needsLowerBranch && !acceptingTuple {
+	if needsLowerBranch {
 		skipElse := cp.vmGoTo()
-		cp.VmComeFrom(singleTypeCheck, elementOfTupleTypeCheck, varargsSlurpingTupleTypeCheck)
+		cp.VmComeFrom(singleTypeCheck, elementOfTupleTypeCheck, varargsSlurpingTupleTypeCheck, tupleTypeCheck)
 		// We recurse on the next branch down.
 		cp.cmP("Function generateBranch calls generateNextBranchDown.", b.tok)
 		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)

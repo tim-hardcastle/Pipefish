@@ -10,6 +10,13 @@ trap(T tuple) :
     len T
 
 
+multiplyBy(i int) : golang {
+    return (func(n int) int {return i*n})
+}
+
+getType(x int) :
+    type(multiplyBy(x))
+
 // rotateLeft(t tuple) : 
 //     t == tuple() : 
 //         ()

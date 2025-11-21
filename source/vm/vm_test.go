@@ -155,6 +155,18 @@ func TestBuiltins(t *testing.T) {
 	}
 	test_helper.RunTest(t, "", tests, test_helper.TestValues)
 }
+
+func TestTuples(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`(1, 2), (3, 4)`, `(1, 2, 3, 4)`},
+		{`()`, `()`},
+		{`type tuple "foo", "bar"`, `tuple`},
+		{`len tuple "foo", "bar"`, `2`},
+		{`1 in tuple(1, 2)`, `true`},
+	}
+	test_helper.RunTest(t, "", tests, test_helper.TestValues)
+}
+
 func TestIndexing(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`DARK_BLUE[shade]`, `DARK`},

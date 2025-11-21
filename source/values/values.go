@@ -243,6 +243,13 @@ func (a AbstractType) Equals(b AbstractType) bool {
 	return true
 }
 
+func (a AbstractType) Is(b ValueType) bool {
+	if len(a.Types) != 1 {
+		return false
+	}
+	return a.Types[0] == b
+}
+
 func (a AbstractType) IsSubtypeOf(b AbstractType) bool {
 	if len(a.Types) > len(b.Types) {
 		return false
