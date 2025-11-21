@@ -184,17 +184,24 @@ func TestIndexing(t *testing.T) {
 	}
 	test_helper.RunTest(t, "index_test.pf", tests, test_helper.TestValues)
 }
-
 func TestTuples(t *testing.T) {
 	tests := []test_helper.TestItem{
-		{`1, 2, 3`, `(1, 2, 3)`},
-		{`()`, `()`},
 		{`(1, 2), 3`, `(1, 2, 3)`},
 		{`1, (2, 3)`, `(1, 2, 3)`},
-		{`1, 2, (3, 4)`, `(1, 2, 3, 4)`},
-		{`(1, 2, (3, 4)), (5, 6)`, `(1, 2, 3, 4, 5, 6)`},
+		{`(1, 2), (3, 4)`, `(1, 2, 3, 4)`},
+		{`()`, `()`},
+		{`type tuple "foo", "bar"`, `tuple`},
+		{`len tuple "foo", "bar"`, `2`},
+		{`1 in tuple(1, 2)`, `true`},
+		{`string(X)`, `"(2, 3)"`},
+		{`len tuple 1, X`, `3`},
+		{`len tuple X, 1`, `3`},
+		{`len tuple W, Z`, `8`},
+		{`foo 1, X`, `3`},
+		{`foo X, 1`, `3`},
+		{`foo W, Z`, `8`},
 	}
-	test_helper.RunTest(t, "", tests, test_helper.TestValues)
+	test_helper.RunTest(t, "tuples_test.pf", tests, test_helper.TestValues)
 }
 func TestFunctionSyntaxCalls(t *testing.T) {
 	tests := []test_helper.TestItem{

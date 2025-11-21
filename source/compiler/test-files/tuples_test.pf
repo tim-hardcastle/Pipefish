@@ -1,0 +1,10 @@
+const
+
+X tuple = 2, 3
+Z tuple = 2, 3, 4, 5, 6
+W tuple = 7, 8, 9
+
+def 
+
+foo(x ... any) :
+    len x

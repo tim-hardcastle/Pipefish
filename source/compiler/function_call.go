@@ -624,8 +624,6 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 							ft = append(ft, ty)
 						}
 						functionAndType.T = AlternateType{ft}
-					case "tuple_of_tuple":
-						functionAndType.T = b.doneList
 					case "type_with":
 						functionAndType.T = AlternateType{cp.GetAlternateTypeFromTypeAst(ast.STRUCT_TYPE_AST)}.Union(AltType(values.ERROR))
 					case "struct_with":

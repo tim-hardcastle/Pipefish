@@ -26,7 +26,7 @@ w tuple = 7, 8, 9
 
 def 
 
-foo(x ... any) :
+foo(x ... any?) :
     len x
 
 qux(x, y any, v ... any) :

@@ -582,9 +582,13 @@ loop:
 			case Cv1T:
 				vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]]}}
 			case CvTT:
-				slice := make([]values.Value, len(args)-1)
-				for i := 0; i < len(slice); i++ {
-					slice[i] = vm.Mem[args[i+1]]
+				slice := []values.Value{}
+				for i := 1; i < len(args); i++ {
+					if vm.Mem[args[i]].T == values.TUPLE {
+						slice = append(slice, vm.Mem[args[i]].V.([]values.Value)...)
+					} else {
+						slice = append(slice, vm.Mem[args[i]])
+					}
 				}
 				vm.Mem[args[0]] = values.Value{values.TUPLE, slice}
 			case Diif:
