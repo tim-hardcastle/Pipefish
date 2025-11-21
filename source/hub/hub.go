@@ -968,8 +968,8 @@ func (hub *Hub) StartAndMakeCurrent(username, serviceName, scriptFilepath string
 			return false
 		}
 	}
-	hub.createService(serviceName, scriptFilepath)
 	hub.setServiceName(serviceName)
+	hub.createService(serviceName, scriptFilepath)
 	return true
 }
 
@@ -1013,15 +1013,18 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 	newService := pf.NewService()
 	newService.SetLocalExternalServices(hub.services)
 	e := newService.InitializeFromFilepathWithStore(scriptFilepath, &hub.store) // We get an error only if it completely fails to open the file, otherwise there'll be errors in the Common Parser Bindle as usual.
-	hub.services[name] = newService
 	hub.Sources, _ = newService.GetSources()
 	if newService.IsBroken() {
 		if name == "hub" {
 			fmt.Println("Pipefish: unable to compile hub: " + text.Red(newService.GetErrors()[0].ErrorId) + ".")
+			panic("That's all folks!")
 		}
 		if !newService.IsInitialized() {
 			hub.WriteError("unable to open <C>\"" + scriptFilepath + "\"</> with error `" + e.Error() + "`")
+			hub.Sources = map[string][]string{}
+			hub.makeEmptyServiceCurrent()
 		} else {
+			hub.services[name] = newService
 			hub.GetAndReportErrors(newService)
 		}
 		if name == "hub" {
@@ -1029,6 +1032,7 @@ func (hub *Hub) createService(name, scriptFilepath string) bool {
 		}
 		return false
 	}
+	hub.services[name] = newService
 	return true
 }
 
