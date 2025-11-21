@@ -278,6 +278,13 @@ func TestUserDefinedTypes(t *testing.T) {
 	}
 	test_helper.RunTest(t, "user_types_test.pf", tests, test_helper.TestValues)
 }
+func TestStructs(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`doug`, `Person with (name::"Douglas", age::42)`},
+		{`tom in Cat`, `true`},
+	}
+	test_helper.RunTest(t, "struct_test.pf", tests, test_helper.TestValues)
+}
 func TestTypeAccessErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
