@@ -1,7 +1,7 @@
-// newtype // We define some struct types.
+newtype // We define some struct types.
 
-// Person = struct(name string, age int)
-// Cat = struct(name string, nobelPrizes int, pink bool)
+Person = struct(name string, age int)
+Cat = struct(name string, nobelPrizes int, pink bool)
 
 // var // And make some struct values.
 
@@ -9,9 +9,9 @@
 // joe = Person with name::"Joseph", age::22
 // tom = Cat with pink::false, name::"Tom", nobelPrizes::2
 
-// const 
+const 
 
-// CAT_DEFAULTS tuple = nobelPrizes::0, pink::false
+CAT_DEFAULTS tuple = nobelPrizes::0, pink::false
 
 
 // var

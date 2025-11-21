@@ -167,7 +167,9 @@ func TestTuples(t *testing.T) {
 		{`1 in tuple(1, 2)`, `true`},
 		{`string(X)`, `"(2, 3)"`},
 		//{`len tuple 1, X`, `3`},
-
+		{`foo 1, X`, `3`},
+		{`foo X, 1`, `3`},
+		{`foo W, Z`, `8`},
 	}
 	test_helper.RunTest(t, "tuples_test.pf", tests, test_helper.TestValues)
 }

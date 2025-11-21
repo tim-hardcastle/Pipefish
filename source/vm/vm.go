@@ -438,7 +438,6 @@ loop:
 						if varargsTime { // We may be doing a varargs, in which case we suck the whole tuple up into the vararg.
 							vararg := vm.Mem[paramNumber].V.([]values.Value)
 							vm.Mem[paramNumber].V = append(vararg, tup...)
-							paramNumber++
 						} else { // Otherwise we need to explode it and put it into the parameters one at a time unless and untill we run out of them or we meet a varargs.
 							for ix := 0; ix < len(tup); ix++ {
 								if tupleOrVarargsData[paramNumber-args[1]] == 1 { // The vararg will slurp up what remains of the tuple.
@@ -455,7 +454,11 @@ loop:
 						if varargsTime {
 							for (argNumber < len(args)) && vm.Mem[args[argNumber]].T != values.BLING {
 								vararg := vm.Mem[paramNumber].V.([]values.Value)
-								vm.Mem[paramNumber].V = append(vararg, vm.Mem[args[argNumber]])
+								if vm.Mem[args[argNumber]].T == values.TUPLE {
+									vm.Mem[paramNumber].V = append(vararg, vm.Mem[args[argNumber]].V.([]values.Value)...)
+								} else {
+									vm.Mem[paramNumber].V = append(vararg, vm.Mem[args[argNumber]])
+								}
 								argNumber++
 							}
 							varargsTime = false
