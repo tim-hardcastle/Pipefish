@@ -1119,10 +1119,3 @@ func newError(ident string, tok *token.Token, args ...any) *err.Error {
 	return errorToReturn
 }
 
-func (p *Parser) SeekColon() bool {
-	p.SafeNextToken()
-	p.SafeNextToken()
-	for ; p.PeekToken.Type != token.EOF && p.PeekToken.Type != token.COLON; p.NextToken() {
-	}
-	return p.PeekToken.Type == token.COLON
-}
