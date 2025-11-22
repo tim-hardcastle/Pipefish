@@ -390,7 +390,7 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 					pfType = values.PAIR
 				case goType.Kind() == reflect.Slice || goType.Kind() == reflect.Array:
 					pfType = values.LIST
-				case goType.Kind() == reflect.Map: // TODO --- if you can't put this information i goTPipefishTypes you could put it in another map.
+				case goType.Kind() == reflect.Map: // TODO --- if you can't put this information in goToPipefishTypes you could put it in another map.
 					rangeType := goValue.Type().Elem()
 					if rangeType.Kind() == reflect.Struct && rangeType.NumField() == 0 {
 						pfType = values.SET

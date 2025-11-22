@@ -262,7 +262,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 
 	acceptedSingleTypes := make(AlternateType, 0)
 	acceptedTuples := make(AlternateType, 0)
-	if newBindle.index == 0 { // Otherwise we *must* be looking at the index-dx position of a tuple, and there are no single values to inspect.
+	if newBindle.index == 0 { // Otherwise we *must* be looking at the [index]th position of a tuple, and there are no single values to inspect.
 		acceptedSingleTypes, acceptedTuples = b.types[b.argNo].(AlternateType).splitSinglesAndTuples()
 	}
 
@@ -280,7 +280,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		// Then we need to generate a conditional. Which one exactly depends on whether we're looking at a any, a tuple, or both.
 		switch len(acceptedSingleTypes) {
 		case 0:
-			if isVarargs { // I think this has to be true at this point but it can do no harm to check.
+			if isVarargs { // I think this has to be true at this point but it can do no harm to check. TODO --- it can, it uses up time.
 				varargsSlurpingTupleTypeCheck = cp.emitVarargsTypeComparisonOfTupleFromAbstractType(acceptedTypes, b.valLocs[b.argNo], b.index)
 			}
 		case len(overlap):
@@ -375,13 +375,6 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	return typesFromGoingAcross.Union(typesFromGoingDown)
 }
 
-var TYPE_COMPARISONS = map[string]vm.Opcode{
-	"any":     vm.Qsng,
-	"any?":    vm.Qsnq,
-	"struct":  vm.Qstr,
-	"struct?": vm.Qstq,
-}
-
 // The reason why this and the following two functions exist is that we need to be able to emit restrictions on what values we
 // can assign to things, but these restrictions may be given by the user as 'int', 'struct' or whatever, or they can have been inferred
 // for a variable, and so be an AlternateType. At this point maybe we could translate everything to an AlternateType except that the
@@ -416,12 +409,6 @@ func (cp *Compiler) emitTypeComparisonFromTypeName(typeAsString string, mem uint
 	// It may be a tuple. TODO --- I'm not sure whether I can instead safely address this case just by adding "tuple" to the cp.TypeNameToTypeList.
 	if typeAsString == "tuple" {
 		cp.Emit(vm.Qtyp, mem, uint32(values.TUPLE), DUMMY)
-		return bkGoto(cp.CodeTop() - 1)
-	}
-	// It may be one of the built-in abstract types, 'struct', 'snippet', etc.
-	op, ok := TYPE_COMPARISONS[typeAsString]
-	if ok {
-		cp.Emit(op, mem, DUMMY)
 		return bkGoto(cp.CodeTop() - 1)
 	}
 	// It may be a user-defined abstract type.

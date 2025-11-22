@@ -97,12 +97,18 @@ tuple(x ... any?) -> tuple : builtin "tuple_of_varargs"
 type(x any?) -> type : builtin "type"
 type(x ok) -> type : builtin "type"
 type(x tuple) -> type : builtin "type_of_tuple"
-(x list) with (y ... pair) -> list : builtin "list_with"
-(x map) with (y ... pair) -> map : builtin "map_with"
-(x struct) with (y ... pair) -> struct : builtin "struct_with"
+// Note: the builtins don't understand how to gather up varargs and explode tuples
+// and so on like real functions do. Wrapping them like this takes care of it for us. 
+(x list) with (y ... pair) -> list : listWithMaker(x, y)
+listWithMaker(x clones{list}, y tuple) : builtin "list_with"
+(x map) with (y ... pair) -> map : mapWithMaker(x, y)
+mapWithMaker(x clones{map}, y tuple) : builtin "map_with"
+(x struct) with (y ... pair) -> struct : structWithMaker(x, y)
+structWithMaker(x struct, y tuple) : builtin "struct_with"
 (x type) with (y ... pair) -> struct : typeWithMaker(x, y)
 typeWithMaker(x type, y tuple) -> struct : builtin "type_with"        
-(x map) without (y ... pair) -> map : builtin "map_without"
+(x map) without (y ... any?) -> map : mapWithoutMaker(x, y)
+mapWithoutMaker(x clones{map}, y tuple) : builtin "map_without"
 
 // This supplies us with a any code address to call which will dispatch on the
 // type of x to the relevant instance of the 'string' function.

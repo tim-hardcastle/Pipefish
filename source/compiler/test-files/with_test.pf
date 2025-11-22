@@ -5,8 +5,10 @@ Person = struct(name string, age int)
 var
 
 john = Person("John", 22)
+myList = ["a", "b", "c", "d"]
+myMap = map("a"::1, "b"::2, "c"::3, "d"::4)
+otherMap = map("a"::[0, 1], "b"::[2, 3])
 
-testList = ["a", "b", "c", "d"]
-
-testMap = map("a"::1, "b"::2, "c"::3, "d"::4)
+diffMap tuple = "a"::99, "b"::99
+diffList tuple = 0::"x", 1::"y"
 

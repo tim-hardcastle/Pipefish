@@ -151,7 +151,6 @@ var OPERANDS = map[Opcode]opDescriptor{
 	IdxL: {"idxL", operands{dst, mem, mem, tok}},
 	Idxp: {"idxs", operands{dst, mem, mem, tok}},
 	Idxs: {"idxs", operands{dst, mem, mem, tok}},
-	Idxt: {"idxt", operands{dst, mem, mem, tok}},
 	IdxT: {"idxT", operands{dst, mem, mem, tok}},
 	IxTn: {"ixTn", operands{dst, mem, num}},
 	IxZl: {"ixZl", operands{dst, mem, mem, tok}},
@@ -211,19 +210,12 @@ var OPERANDS = map[Opcode]opDescriptor{
 	QlnT: {"qlnT", operands{mem, num, loc}},
 	Qlog: {"qlog", operands{loc}},
 	Qntp: {"qntp", operands{mem, typ, loc}},
-	Qnvh: {"qnvh", operands{mem, num, loc}},
-	Qnvq: {"qnvq", operands{mem, num, loc}},
 	Qsat: {"qsat", operands{mem, loc}},
-	Qsng: {"qsng", operands{mem, loc}},
 	Qsnq: {"qsnq", operands{mem, loc}},
-	Qstr: {"qstr", operands{mem, loc}},
-	Qstq: {"qstq", operands{mem, loc}},
 	Qtpt: {"qtpt", operands{mem, num, tup, loc}},
 	Qtru: {"qtru", operands{mem, loc}},
 	Qtyl: {"qtyl", operands{mem, mem, loc}},
 	Qtyp: {"qtyp", operands{mem, typ, loc}},
-	Qvch: {"qvch", operands{mem, num, loc}},
-	Qvcq: {"qvcq", operands{mem, num, loc}},
 	Psql: {"gsql", operands{dst, mem, mem, tok}},
 	Ret:  {"ret", operands{}},
 	Rpop: {"rpop", operands{}},
@@ -332,7 +324,6 @@ const (
 	IdxM
 	Idxp
 	Idxs
-	Idxt
 	IdxT
 	Inpt
 	InxL
@@ -395,20 +386,13 @@ const (
 	Qlog
 	Qntp
 	Qsat
-	Qsng
 	Qsnq
 	Qspt
 	Qspq
-	Qstr
-	Qstq
 	Qtpt
 	Qtru
 	Qtyl
 	Qtyp
-	Qnvq
-	Qnvh
-	Qvch
-	Qvcq
 	Ret
 	Rpop
 	Rpsh

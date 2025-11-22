@@ -854,19 +854,6 @@ loop:
 				} else {
 					vm.Mem[args[0]] = vm.makeError("vm/index/string", args[3], ix, len(str), args[1], args[2])
 				}
-			case Idxt:
-				typ := (vm.Mem[args[1]].V.(values.AbstractType)).Types[0]
-				if !vm.ConcreteTypeInfo[typ].IsEnum() {
-					vm.Mem[args[0]] = vm.makeError("vm/index/type/a", args[3], vm.DescribeType(typ, LITERAL))
-					break
-				}
-				ix := vm.Mem[args[2]].V.(int)
-				ok := 0 <= ix && ix < len(vm.ConcreteTypeInfo[typ].(EnumType).ElementNames)
-				if ok {
-					vm.Mem[args[0]] = values.Value{typ, ix}
-				} else {
-					vm.Mem[args[0]] = vm.makeError("vm/index/type/b", args[3], vm.DescribeType(typ, LITERAL), ix)
-				}
 			case IdxT:
 				tuple := vm.Mem[args[1]].V.([]values.Value)
 				ix := vm.Mem[args[2]].V.(int)
@@ -1322,29 +1309,8 @@ loop:
 					loc = args[2]
 				}
 				continue
-			case Qnvh:
-				if vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1]) {
-					loc = args[2]
-				} else {
-					loc = loc + 1
-				}
-				continue
-			case Qnvq:
-				if vm.Mem[args[0]].T == values.NULL || (vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1])) {
-					loc = args[2]
-				} else {
-					loc = loc + 1
-				}
-				continue
 			case Qsat:
 				if vm.Mem[args[0]].T != values.UNSATISFIED_CONDITIONAL {
-					loc = loc + 1
-				} else {
-					loc = args[1]
-				}
-				continue
-			case Qsng:
-				if vm.Mem[args[0]].T >= values.INT {
 					loc = loc + 1
 				} else {
 					loc = args[1]
@@ -1357,25 +1323,6 @@ loop:
 					loc = args[1]
 				}
 				continue
-			case Qstr:
-				switch vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
-				case StructType:
-					loc = loc + 1
-				default:
-					loc = args[1]
-				}
-				continue
-			case Qstq:
-				if vm.Mem[args[0]].T == values.NULL {
-					loc = loc + 1
-					continue
-				}
-				switch vm.ConcreteTypeInfo[vm.Mem[args[0]].T].(type) {
-				case StructType:
-					loc = loc + 1
-				default:
-					loc = args[1]
-				}
 			case Qtpt:
 				vals := vm.Mem[args[0]].V.([]values.Value)
 				slice := []values.Value{}
@@ -1413,20 +1360,6 @@ loop:
 				continue
 			case Qtyp:
 				if vm.Mem[args[0]].T == values.ValueType(args[1]) {
-					loc = loc + 1
-				} else {
-					loc = args[2]
-				}
-				continue
-			case Qvch:
-				if vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1]) {
-					loc = loc + 1
-				} else {
-					loc = args[2]
-				}
-				continue
-			case Qvcq:
-				if vm.Mem[args[0]].T == values.NULL || (vm.Mem[args[0]].T == values.STRING && len(vm.Mem[args[0]].V.(string)) <= int(args[1])) {
 					loc = loc + 1
 				} else {
 					loc = args[2]
@@ -1712,18 +1645,8 @@ loop:
 			case Vlid:
 				vm.Mem[args[0]] = values.Value{values.BOOL, vm.Mem[args[1]].T != values.ERROR}
 			case WthL:
-				var pairs []values.Value
-				if (vm.Mem[args[2]].T) == values.PAIR {
-					pairs = []values.Value{vm.Mem[args[2]]}
-				} else {
-					pairs = vm.Mem[args[2]].V.([]values.Value)
-				}
 				result := values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(vector.Vector)}
-				for _, pair := range pairs {
-					if pair.T != values.PAIR {
-						vm.Mem[args[0]] = vm.makeError("vm/with/list/a", args[3], vm.DescribeType(pair.T, LITERAL), args[1], args[2])
-						break
-					}
+				for _, pair := range vm.Mem[args[2]].V.([]values.Value) {
 					key := pair.V.([]values.Value)[0]
 					val := pair.V.([]values.Value)[1]
 					var keys []values.Value
@@ -1749,18 +1672,8 @@ loop:
 				}
 				vm.Mem[args[0]] = result
 			case WthM:
-				var pairs []values.Value
-				if (vm.Mem[args[2]].T) == values.PAIR {
-					pairs = []values.Value{vm.Mem[args[2]]}
-				} else {
-					pairs = vm.Mem[args[2]].V.([]values.Value)
-				}
 				result := values.Value{vm.Mem[args[1]].T, vm.Mem[args[1]].V.(*values.Map)}
-				for _, pair := range pairs {
-					if pair.T != values.PAIR {
-						vm.Mem[args[0]] = vm.makeError("vm/with/map/a", args[3])
-						break
-					}
+				for _, pair := range vm.Mem[args[2]].V.([]values.Value) {
 					key := pair.V.([]values.Value)[0]
 					val := pair.V.([]values.Value)[1]
 					var keys []values.Value
@@ -1846,20 +1759,10 @@ loop:
 				vm.Mem[args[0]] = values.Value{typ, outVals}
 			case WthZ:
 				typ := vm.Mem[args[1]].T
-				var pairs []values.Value
-				if (vm.Mem[args[2]].T) == values.PAIR {
-					pairs = []values.Value{vm.Mem[args[2]]}
-				} else {
-					pairs = vm.Mem[args[2]].V.([]values.Value)
-				}
 				outVals := make([]values.Value, len(vm.ConcreteTypeInfo[typ].(StructType).LabelNumbers))
 				copy(outVals, vm.Mem[args[1]].V.([]values.Value))
 				result := values.Value{typ, outVals}
-				for _, pair := range pairs {
-					if pair.T != values.PAIR {
-						vm.Mem[args[0]] = vm.makeError("vm/with/struct/a", args[3], vm.DescribeType(pair.T, LITERAL), args[1], args[2])
-						break
-					}
+				for _, pair := range vm.Mem[args[2]].V.([]values.Value) {
 					key := pair.V.([]values.Value)[0]
 					val := pair.V.([]values.Value)[1]
 					var keys []values.Value
@@ -1885,15 +1788,9 @@ loop:
 				}
 				vm.Mem[args[0]] = result
 			case WtoM:
-				var items []values.Value
-				if (vm.Mem[args[2]].T) == values.TUPLE {
-					items = vm.Mem[args[2]].V.([]values.Value)
-				} else {
-					items = []values.Value{vm.Mem[args[2]]}
-				}
 				mp := vm.Mem[args[1]].V.(*values.Map)
-				for _, key := range items {
-					if (key.T < values.NULL || key.T >= values.FUNC) && (key.T < values.LABEL || vm.ConcreteTypeInfo[key.T].IsEnum()) { // Check that the key is orderable.
+				for _, key := range vm.Mem[args[2]].V.([]values.Value) {
+					if (key.T < values.NULL || key.T >= values.FUNC) { // Check that the key is orderable.
 						vm.Mem[args[0]] = vm.makeError("vm/without", args[3], vm.DescribeType(key.T, LITERAL))
 						break Switch
 					}

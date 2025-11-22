@@ -296,7 +296,7 @@ func (cp *Compiler) btLenTuple(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btListWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WthL, dest, args[0], args[2], cp.ReserveToken(tok))
+	cp.Emit(vm.WthL, dest, args[0], args[1], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btLiteral(tok *token.Token, dest uint32, args []uint32) {
@@ -340,11 +340,11 @@ func (cp *Compiler) btMakeSet(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btMapWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WthM, dest, args[0], args[2], cp.ReserveToken(tok))
+	cp.Emit(vm.WthM, dest, args[0], args[1], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btMapWithout(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WtoM, dest, args[0], args[2], cp.ReserveToken(tok))
+	cp.Emit(vm.WtoM, dest, args[0], args[1], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btModuloIntegers(tok *token.Token, dest uint32, args []uint32) {
@@ -418,7 +418,7 @@ func (cp *Compiler) btString(tok *token.Token, dest uint32, args []uint32) {
 }
 
 func (cp *Compiler) btStructWith(tok *token.Token, dest uint32, args []uint32) {
-	cp.Emit(vm.WthZ, dest, args[0], args[2], cp.ReserveToken(tok))
+	cp.Emit(vm.WthZ, dest, args[0], args[1], cp.ReserveToken(tok))
 }
 
 func (cp *Compiler) btSubtractFloats(tok *token.Token, dest uint32, args []uint32) {

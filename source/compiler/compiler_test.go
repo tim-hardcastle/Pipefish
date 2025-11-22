@@ -285,6 +285,21 @@ func TestStructs(t *testing.T) {
 	}
 	test_helper.RunTest(t, "struct_test.pf", tests, test_helper.TestValues)
 }
+func TestWith(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`john with name::"Susan", age::23`, `Person with (name::"Susan", age::23)`},
+		{`john with age::23`, `Person with (name::"John", age::23)`},
+		{`myList with diffList`, `["x", "y", "c", "d"]`},
+		{`myMap with "a"::99`, `map("a"::99, "b"::2, "c"::3, "d"::4)`},
+		{`myMap with "z"::42`, `map("a"::1, "b"::2, "c"::3, "d"::4, "z"::42)`},
+		{`myMap with diffMap`, `map("a"::99, "b"::99, "c"::3, "d"::4)`},
+		{`otherMap with ["a", 1]::99`, `map("a"::[0, 99], "b"::[2, 3])`},
+		{`myMap with "a"::99, "z"::42`, `map("a"::99, "b"::2, "c"::3, "d"::4, "z"::42)`},
+		{`myMap without "a"`, `map("b"::2, "c"::3, "d"::4)`},
+		{`myMap without "a", "b"`, `map("c"::3, "d"::4)`},
+	}
+	test_helper.RunTest(t, "with_test.pf", tests, test_helper.TestValues)
+}
 func TestTypeAccessErrors(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`Pair 1, 2`, `comp/private`},
