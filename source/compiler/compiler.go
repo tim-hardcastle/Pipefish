@@ -418,7 +418,7 @@ NodeTypeSwitch:
 			}
 			rtnTypes = cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST_OR_ERROR)
 		}
-		if len(containerType.intersect(cp.Common.SharedTypenameToTypeList["stringlike"])) == len(containerType) {
+		if len(containerType.intersect(cp.Common.SharedTypenameToTypeList["clones{string}"])) == len(containerType) {
 			if indexType.isOnlyCloneOf(cp.Vm, values.INT) {
 				cp.Put(vm.Idxs, container, index, errTok)
 				rtnTypes = AltType(values.ERROR, values.RUNE)
