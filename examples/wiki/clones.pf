@@ -1,0 +1,14 @@
+newtype 
+
+Uid = clone int 
+Apples = clone int using + 
+Vec = clone list using slice
+
+def 
+
+(v Vec) + (w Vec) -> Vec :
+    len(v) != len(w) :
+        error "adding vectors of different lengths"
+    else :
+        Vec from r = [] for i::el = range v :
+            r + [el + w[i]]
