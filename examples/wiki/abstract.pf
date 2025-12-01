@@ -1,0 +1,16 @@
+newtype
+
+Number = abstract int/float
+
+// We can then use this to define other types:
+Widget = struct(height, width Number)
+
+var // Or when declaring variables:
+
+myNumber Number = 42
+
+def // Or the parameters of functions:
+
+double(n Number) :
+    2 * n
+
