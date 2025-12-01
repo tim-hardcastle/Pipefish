@@ -1054,12 +1054,11 @@ func (iz *Initializer) createAbstractTypes() {
 		for _, typeAsTokens := range dec.types {
 			typeTok := typeAsTokens[0]
 			tname := typeTok.Literal
-			abTypeToAdd, ok := iz.cp.TypeMap[tname]
-			if !ok {
+			if !iz.cp.TypeExists(tname) {
 				iz.throw("init/type/known", &typeTok)
 				break
 			}
-			iz.cp.TypeMap[newTypename] = iz.cp.TypeMap[newTypename].Union(abTypeToAdd)
+			iz.cp.TypeMap[newTypename] = iz.cp.TypeMap[newTypename].Union(iz.cp.GetAbstractTypeFromTypeName(tname))
 		}
 		_, typeExists := iz.getDeclaration(decABSTRACT, ixPtr(dec), DUMMY)
 		if !typeExists {

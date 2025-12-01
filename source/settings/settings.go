@@ -14,7 +14,7 @@ import (
 )
 
 // This can be changed during initialization.
-var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/world.pf", "rsc-pf/interfaces.pf"}
+var MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/world.pf", "rsc-pf/interfaces.pf", "rsc-pf/generics.pf"}
 
 // And so this is a function. TODO --- init it instead.
 func MandatoryImportSet() dtypes.Set[string] {
@@ -64,6 +64,6 @@ func init() {
 		PipefishHomeDirectory = appDir + "/"
 	}
 	if runtime.GOOS == "windows" { // This allows a cut-down version that doesn't require the plugins package.
-		MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/worldlite.pf", "rsc-pf/interfaces.pf"}
+		MandatoryImports = []string{"rsc-pf/builtins.pf", "rsc-pf/worldlite.pf", "rsc-pf/interfaces.pf", "rsc-pf/generics.pf"}
 	}
 }
