@@ -2069,53 +2069,20 @@ func (cp *Compiler) compileLog(node *ast.LogExpression, ctxt Context) (uint32, b
 // The various 'piping operators'.
 func (cp *Compiler) compilePipe(lhsTypes AlternateType, lhsConst bool, rhs ast.Node, env *Environment, ctxt Context) (AlternateType, bool) {
 	var envWithThat *Environment
-	var isAttemptedFunc bool
-	var v *Variable
-	var ok bool
-	typeIsNotFunc := BkEarlyReturn(DUMMY)
 	var rtnTypes AlternateType
 	var rtnConst bool
-	lhs := cp.That()
-	// If we have a any identifier, we wish it to contain a function ...
-	switch rhs := rhs.(type) {
-	case *ast.Identifier:
-		v, ok = env.GetVar(rhs.Value)
-		if ok {
-			cp.Throw("comp/pipe/pipe/ident", rhs.GetToken())
-			return AltType(values.ERROR), true
-		}
-		isAttemptedFunc = true
-		if !v.Types.Contains(values.FUNC) {
-			if rhs.GetToken().Literal == "that" { // Yeah it's a stupid corner case but the stupid user has a right to it.
-				isAttemptedFunc = false
-			} else {
-				cp.Throw("comp/pipe/pipe/func", rhs.GetToken())
-				return AltType(values.ERROR), true
-			}
-		}
-		if !v.Types.isOnly(values.FUNC) {
-			cp.ReserveError("vm/pipe/pipe/func", rhs.GetToken())
-			cp.Emit(vm.Qntp, v.MLoc, uint32(values.FUNC), cp.CodeTop()+3)
-			typeIsNotFunc = cp.vmEarlyReturn(cp.That())
-		}
-	default:
-		var whatAccess VarAccess
-		if lhsConst {
-			whatAccess = VERY_LOCAL_CONSTANT
-		} else {
-			whatAccess = VERY_LOCAL_VARIABLE
-		}
-		envWithThat = &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: whatAccess, Types: lhsTypes}}, Ext: env}
-	}
-	if isAttemptedFunc {
-		cp.Put(vm.Dofn, v.MLoc, lhs)
-		rtnTypes, rtnConst = cp.Common.AnyTypeScheme, ALL_CONSTANT_ACCESS.Contains(v.Access)
+	// If we have an identifier `foo`, we desugar it into `foo(that)`.
+	rhs = desugar(rhs)
+	var whatAccess VarAccess // TODO --- why?
+	if lhsConst {
+		whatAccess = VERY_LOCAL_CONSTANT
 	} else {
-		newContext := ctxt
-		newContext.Env = envWithThat
-		rtnTypes, rtnConst = cp.CompileNode(rhs, newContext)
+		whatAccess = VERY_LOCAL_VARIABLE
 	}
-	cp.VmComeFrom(typeIsNotFunc)
+	envWithThat = &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: whatAccess, Types: lhsTypes}}, Ext: env}
+	newContext := ctxt
+	newContext.Env = envWithThat
+	rtnTypes, rtnConst = cp.CompileNode(rhs, newContext)
 	return rtnTypes, rtnConst
 }
 
@@ -2160,34 +2127,10 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		}
 
 	}
-
-	// If we have a any identifier, we wish it to contain a function ...
-	switch rhs := rhs.(type) {
-	case *ast.Identifier:
-		if rhs.GetToken().Literal != "that" {
-			var ok bool
-			v, ok = env.GetVar(rhs.Value)
-			if !ok {
-				cp.Throw("comp/pipe/mf/ident", rhs.GetToken())
-				return AltType(values.ERROR), true
-			}
-			isAttemptedFunc = true
-			rhsConst = ALL_CONSTANT_ACCESS.Contains(v.Access)
-			if !v.Types.Contains(values.FUNC) {
-				cp.Throw("comp/pipe/mf/func", rhs.GetToken())
-			}
-			if !v.Types.isOnly(values.FUNC) {
-				cp.ReserveError("vm/pipe/mf/func", rhs.GetToken())
-				cp.Emit(vm.Qntp, v.MLoc, uint32(values.FUNC), cp.CodeTop()+3)
-				typeIsNotFunc = cp.vmEarlyReturn(cp.That())
-			}
-		}
-	}
-	if !isAttemptedFunc {
-		rhsConst = true
-		thatLoc = cp.Reserve(values.UNDEFINED_TYPE, DUMMY, rhs.GetToken())
-		envWithThat = &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: VERY_LOCAL_VARIABLE, Types: cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}}, Ext: env}
-	}
+	rhs = desugar(rhs)
+	rhsConst = true
+	thatLoc = cp.Reserve(values.UNDEFINED_TYPE, DUMMY, rhs.GetToken())
+	envWithThat = &Environment{Data: map[string]Variable{"that": {MLoc: cp.That(), Access: VERY_LOCAL_VARIABLE, Types: cp.GetAlternateTypeFromTypeAst(ast.ANY_NULLABLE_TYPE_AST)}}, Ext: env}
 	counter := cp.Reserve(values.INT, 0, rhs.GetToken())
 	accumulator := cp.Reserve(values.TUPLE, []values.Value{}, rhs.GetToken())
 	cp.Put(vm.LenL, sourceList)
@@ -2249,6 +2192,17 @@ func (cp *Compiler) compileMappingOrFilter(lhsTypes AlternateType, lhsConst bool
 		return AltType(values.ERROR, values.LIST), lhsConst && rhsConst
 	}
 	return AltType(values.LIST), lhsConst && rhsConst
+}
+
+// This supports the piping functions by desugaring things of the form `foo`
+// into `foo(that)`
+func desugar(node ast.Node) ast.Node {
+	if ident, ok := node.(*ast.Identifier); ok && !(ident.Value == "that") {
+		thatIdent := &ast.Identifier{token.Token{}, "that"}
+		prefix := &ast.PrefixExpression{ident.Token, ident.Value, []ast.Node{thatIdent}}
+		return prefix
+	}
+	return node
 }
 
 func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, nodes []ast.Node, ctxt Context) *values.SnippetBindle {

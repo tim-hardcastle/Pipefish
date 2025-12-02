@@ -316,6 +316,27 @@ func (ne *Nothing) Children() []Node       { return []Node{} }
 func (ne *Nothing) GetToken() *token.Token { return &ne.Token }
 func (ne *Nothing) String() string         { return "" }
 
+type PipingExpression struct {
+	Token    token.Token
+	Left     Node
+	Operator string
+	Right    Node
+}
+
+func (se *PipingExpression) Children() []Node       { return []Node{se.Left, se.Right} }
+func (se *PipingExpression) GetToken() *token.Token { return &se.Token }
+func (se *PipingExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(se.Left.String())
+	out.WriteString(" " + se.Operator + " ")
+	out.WriteString(se.Right.String())
+	out.WriteString(")")
+
+	return out.String()
+}
+
 type PrefixExpression struct {
 	Token    token.Token
 	Operator string
@@ -342,27 +363,6 @@ func (pe *PrefixExpression) String() string {
 			out.WriteString(" ")
 		}
 	}
-	out.WriteString(")")
-
-	return out.String()
-}
-
-type PipingExpression struct {
-	Token    token.Token
-	Left     Node
-	Operator string
-	Right    Node
-}
-
-func (se *PipingExpression) Children() []Node       { return []Node{se.Left, se.Right} }
-func (se *PipingExpression) GetToken() *token.Token { return &se.Token }
-func (se *PipingExpression) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("(")
-	out.WriteString(se.Left.String())
-	out.WriteString(" " + se.Operator + " ")
-	out.WriteString(se.Right.String())
 	out.WriteString(")")
 
 	return out.String()

@@ -16,9 +16,11 @@ cmd
 
 init :
     global state
-    get linesToProcess from File "locations.rsc", list
+    get info from File "locations.rsc"
+    linesToProcess = strings.split(info, "\n")
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    get linesToProcess from File "objects.rsc", list
+    get infor from File "objects.rsc"
+    linesToProcess = strings.split(info, "\n")
     state = state with objects::slurpObjects(linesToProcess)
 
 main :
@@ -76,7 +78,8 @@ given :
 // Functions for parsing input.
 
 parseUserInput(input string) :
-    input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms -> addImplicitGo
+    input -> strings.toLower -> strings.split(that, " ") ..
+       .. >> substituteSynonyms -> addImplicitGo
 
 substituteSynonyms(s string) :
     s in keys SYNONYMS :
@@ -105,9 +108,9 @@ given :
 
 describeList(L list) :
     from a = "" for i::item = range L :
-        a + objectWithArticle(s) + separator(i, len(L)-1)     
+        a + objectWithArticle(item) + separator(i, len(L)-1)     
 
-addIndefiniteArticle(s string) :
+objectWithArticle(s string) :
     s[0] in VOWELS :
         " an " + s
     else :
@@ -172,7 +175,7 @@ doLook(S GameState) :
     S with output::describe(S[playerLocation], S)
 
 // We perform any special effects.
-specialEffects(parsedInput, S) :
+specialEffects(verb, noun string, S GameState) :
     verb == "take" and noun == "cat" :
         S with output::"The cat eludes your grip."
     verb == "drop" and noun == "ring" and S[playerLocation] == "The brink of an active volcano" :
@@ -188,4 +191,4 @@ slurpLocations(L list):
 
 slurpObjects(L list): 
     from M = map() for i = 0; i < len(L); i + 3 :
-        M with L[i]::Object(L[i + 1], L[counter + 2])
+        M with L[i]::Object(L[i + 1], L[i + 2])
