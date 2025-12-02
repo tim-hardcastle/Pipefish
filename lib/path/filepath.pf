@@ -4,7 +4,7 @@ golang "path/filepath"
 
 def
 
-abs(path string) -> string/error : golang {
+abs(path string) : golang {
     r, e := filepath.Abs(path)
     if e == nil {
         return r
@@ -24,7 +24,7 @@ dir(path string) -> string : golang {
     return filepath.Dir(path)
 }
 
-evalSymlinks(path string) -> string/error : golang {
+evalSymlinks(path string) : golang {
     r, e := filepath.EvalSymlinks(path)
     if e == nil {
         return r
@@ -40,7 +40,7 @@ fromSlash(path string) -> string : golang {
     return filepath.FromSlash(path)
 }
 
-glob(path string) -> string/error : golang {
+glob(path string) : golang {
     r, e := filepath.Glob(path)
     if e == nil {
         return r
@@ -60,7 +60,7 @@ join(elem ... string) -> string : golang {
     return filepath.Join(elem ...)
 }
 
-localize(path string) -> string/error : golang {
+localize(path string) : golang {
     r, e := filepath.Localize(path)
     if e == nil {
         return r
@@ -68,7 +68,7 @@ localize(path string) -> string/error : golang {
     return e
 }
 
-match(pattern, name string) -> string/error : golang {
+match(pattern, name string) : golang {
     r, e := filepath.Match(pattern, name)
     if e == nil {
         return r
@@ -76,7 +76,7 @@ match(pattern, name string) -> string/error : golang {
     return e
 }
 
-rel(basepath, targpath string) -> string/error : golang {
+rel(basepath, targpath string) : golang {
     r, e := filepath.Rel(basepath, targpath)
     if e == nil {
         return r

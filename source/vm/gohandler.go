@@ -7,6 +7,7 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/tim-hardcastle/pipefish/source/err"
 	"github.com/tim-hardcastle/pipefish/source/values"
 
 	"src.elv.sh/pkg/persistent/vector"
@@ -303,6 +304,14 @@ func (vm *Vm) goToPipefish(goValue reflect.Value) values.Value {
 				}
 				return values.Value{values.ValueType(uint32Type), pfSet}
 			}
+		}
+	}
+	if goValue.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+		return values.Value{values.ERROR, 
+			&err.Error{
+				ErrorId: "golang/error",
+				Message: "golang returned error `" + goValue.MethodByName("Error").Call(nil)[0].Interface().(string) + "`",
+			},
 		}
 	}
 	switch someValue := someGoDatum.(type) {

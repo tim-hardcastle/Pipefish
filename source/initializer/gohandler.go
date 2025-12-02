@@ -154,7 +154,7 @@ func (iz *Initializer) compileGo() {
 	}
 }
 
-// But list, set, pair, and map can't go in here because of the recursion.
+// Maps for converting base types.
 var BUILTIN_FUNCTION_CONVERTER = map[string](func(t uint32, v any) any){
 	"bool":   func(t uint32, v any) any { return v.(bool) },
 	"float":  func(t uint32, v any) any { return v.(float64) },

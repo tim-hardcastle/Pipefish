@@ -29,7 +29,7 @@ const ( // Cross-reference with typeNames in BlankVm()
 	// And now we have types visible to the user.
 
 	TUPLE              // V : []values.Value
-	ERROR              // V : *object.Error
+	ERROR              // V : *err.Error
 	NULL               // V : nil
 	INT                // V : int
 	BOOL               // V : bool

@@ -658,6 +658,9 @@ loop:
 						vm.Mem[args[0]] = values.Value{values.ERROR, newError}
 						break
 					}
+					if val.T == values.ERROR {
+						val.V.(*err.Error).Token = vm.Mem[args[1]].V.(*err.Error).Token
+					}
 					vm.Mem[args[0]] = val
 					break Switch
 				}
