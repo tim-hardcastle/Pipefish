@@ -25,7 +25,7 @@ isAbs(p string) -> bool : golang {
     return path.IsAbs(p)
 }
 
-join(t tuple) : golang {
+join(t tuple) -> string/error : golang {
     strings := []string{}
     for _, v := range(t) {
         switch v := v.(type) {
@@ -38,7 +38,7 @@ join(t tuple) : golang {
     return path.Join(strings...)
 }
 
-match(pattern, name string) : golang {
+match(pattern, name string) -> string/error : golang {
     m, err := path.Match(pattern, name)
     if err != nil {
         return err

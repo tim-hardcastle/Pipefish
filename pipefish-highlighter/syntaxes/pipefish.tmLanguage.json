@@ -76,7 +76,7 @@
 		"types": {
 			"patterns": [{
 					"name": "entity.name.type",
-					"match": "\\b(any|bool|clone|clones|enum|error|float|int|list|map|null|ok|pair|ref|set|secret|snippet|string|struct|tuple|type)\\b\\??|\\b[A-Z][a-z][A-Za-z]*\\b\\??"
+					"match": "\\b(any|bool|clone|clones|enum|error|float|int|interface|list|map|null|ok|pair|ref|self|secret|set|snippet|string|struct|tuple|type)\\b\\??|\\b[A-Z][a-z][A-Za-z]*\\b\\??"
 			}]
 		},
 		"strings": {

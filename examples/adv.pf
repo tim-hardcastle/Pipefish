@@ -1,8 +1,8 @@
 import
 
-"lib/strings.pf"
+"strings"
 
-def
+newtype
 
 Location = struct(description, north, south, east, west string)
 Object = struct(description, location string)
@@ -16,15 +16,15 @@ cmd
 
 init :
     global state
-    get linesToProcess from File "examples/locations.rsc", list
+    get linesToProcess from File "locations.rsc", list
     state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    get linesToProcess from File "examples/objects.rsc", list
+    get linesToProcess from File "objects.rsc", list
     state = state with objects::slurpObjects(linesToProcess)
 
 main :
     global state
     post "\n" + describe(state[playerLocation], state) + "\n"
-    loop :
+    for :
         get userInput from Input "What now? "
         strings.toLower(userInput) == "quit" :
             break
@@ -32,15 +32,20 @@ main :
             state = doTheThing(userInput, state)
             post "\n" + state[output] + "\n"
    
+const
+
+VERBS = set("go", "take", "drop", "examine", "inventory", "look")
+INTRANSITIVE_VERBS = set("inventory", "look")
+SYNONYMS = map("get"::"take", "inv"::"inventory", "ex"::"examine", "n"::"north", 
+            .. "s"::"south", "e"::"east", "w"::"west", " the "::" ")
+DIRECTIONS = map("north"::north, "south"::south, "east"::east, "west"::west)
+VOWELS = set("a", "e", "i", "o", "u")
+
 def
 
-VERBS = {"go", "take", "drop", "examine", "inventory", "look"}
-INTRANSITIVE_VERBS = {"inventory", "look"}
-
-// doTheThing selects which function to call based on the parsed user input.
-
+// This selects which function to call based on the parsed user input.
 doTheThing(input string, S GameState) :
-    not (len(parsedInput) in {1, 2}) :
+    not (len(parsedInput) in set(1, 2)) :
         S with output::"I don't understand that."
     not verb in VERBS :
         S with output::"I don't know the word " + verb + "."
@@ -48,7 +53,7 @@ doTheThing(input string, S GameState) :
         S with output::"The verb " + verb + " requires a noun."
     verb in INTRANSITIVE_VERBS and len(parsedInput) == 2 :
         S with output::"The verb " + verb + " requires no noun."
-    specialEffects(parsedInput, S) 
+    specialEffects(verb, noun, S) 
     verb == "go" :
         doMove(noun, S)
     verb == "look" :
@@ -68,22 +73,10 @@ given :
     verb = parsedInput[0]
     noun = parsedInput[1]
 
-specialEffects(parsedInput, S) :
-    verb == "take" and noun == "cat" :
-        S with output::"The cat eludes your grip."
-    verb == "drop" and noun == "ring" and S[playerLocation] == "The brink of an active volcano" :
-        S with [objects, "ring", location]::"Limbo", output::"You cast the magical ring into the volcano. Oh, that's original."
-given :
-    verb = parsedInput[0]
-    noun = parsedInput[1]
-
-// Parsing input.
+// Functions for parsing input.
 
 parseUserInput(input string) :
     input -> strings.toLower -> strings.split(that, " ") >> substituteSynonyms -> addImplicitGo
-
-SYNONYMS = map("get"::"take", "inv"::"inventory", "ex"::"examine", "n"::"north", 
-            .. "s"::"south", "e"::"east", "w"::"west")
 
 substituteSynonyms(s string) :
     s in keys SYNONYMS :
@@ -111,31 +104,26 @@ given :
     objectsPresent = ((keys S[objects]) ?> S[objects][that][location] == loc)
 
 describeList(L list) :
-    (while unfinished do addToString to (0, ""))[1]
-given :
-    unfinished(counter, total) : counter < len L
-    addToString(counter, total) :
-        counter > 0 and counter < len(L) - 1 : 
-            counter + 1, total + "," + nounWithArticle
-        counter > 0 and counter == len(L) - 1 : 
-            counter > 1 :
-                counter + 1, total + ", and" + nounWithArticle
-            else :
-                counter + 1, total + " and" + nounWithArticle
-        else :
-            counter + 1, total + nounWithArticle
-    given :
-        nounWithArticle = addIndefiniteArticle(L[counter])
+    from a = "" for i::item = range L :
+        a + objectWithArticle(s) + separator(i, len(L)-1)     
 
 addIndefiniteArticle(s string) :
-    s[0] in {"a", "e", "i", "o", "u"} :
+    s[0] in VOWELS :
         " an " + s
     else :
         " a " + s
 
-// Functions for executing the end-user's instructions.
+separator(pos, end) :
+    pos == end :
+        ""
+    pos == 1 and end == 2 :
+        " and"
+    pos == end - 1 :
+        ", and"
+    else :
+        ","
 
-DIRECTIONS = map("north"::north, "south"::south, "east"::east, "west"::west)
+// Functions for executing the end-user's instructions.
 
 doMove(dir string, S GameState) : 
     not dir in keys DIRECTIONS :
@@ -167,7 +155,7 @@ doDrop(obj string, S GameState) :
 doExamine(obj string, S GameState) : 
     not obj in keys S[objects] : 
         S with output::"I don't know what that is."
-    not S[objects][obj][location] in {S[playerLocation], "Player"} :
+    not S[objects][obj][location] in set(S[playerLocation], "Player") :
         S with output::"I don't see that here."
     else :
         S with output::S[objects][obj][description]
@@ -183,18 +171,21 @@ given :
 doLook(S GameState) :
     S with output::describe(S[playerLocation], S)
 
-// Data slurpers.
+// We perform any special effects.
+specialEffects(parsedInput, S) :
+    verb == "take" and noun == "cat" :
+        S with output::"The cat eludes your grip."
+    verb == "drop" and noun == "ring" and S[playerLocation] == "The brink of an active volcano" :
+        S with [objects, "ring", location]::"Limbo",
+            .. output::"You cast the magical ring into the volcano. Oh, that's original."
+
+// These turn the raw text files we started with into appropriate
+// data structures.
 
 slurpLocations(L list): 
-    (while unfinished do getLocation to 0, map())[1]
-given :
-    unfinished(counter, locs) : counter < len(L)
-    getLocation(counter, locs) : counter + 6, locs with L[counter]:: ..
-        .. Location(L[counter + 1], L[counter + 2], L[counter + 3], L[counter + 4], L[counter + 5])
-    
+    from M = map() for i = 0; i < len(L); i + 6 :
+        M with L[i]::Location(L[i + 1], L[i + 2], L[i + 3], L[i + 4], L[i + 5])
+
 slurpObjects(L list): 
-    (while unfinished do getObject to 0, map())[1]
-given :
-    unfinished(counter, locs) : counter < len(L)
-    getObject(counter, locs) : counter + 3, locs with L[counter]:: ..
-        .. Object(L[counter + 1], L[counter + 2])
+    from M = map() for i = 0; i < len(L); i + 3 :
+        M with L[i]::Object(L[i + 1], L[counter + 2])
