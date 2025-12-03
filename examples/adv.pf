@@ -1,6 +1,7 @@
 import
 
 "strings"
+"path/filepath"
 
 newtype
 
@@ -12,19 +13,21 @@ var
 
 state = GameState(map(), map(), "", "")
 
-cmd
+cmd // The imperative shell.
 
 init :
     global state
-    get info from File "locations.rsc"
+    get info from File (filepath.join $_moduleDirectory, "locations.rsc")
     linesToProcess = strings.split(info, "\n")
-    state = state with locations::slurpLocations(linesToProcess), playerLocation::linesToProcess[0]
-    get infor from File "objects.rsc"
-    linesToProcess = strings.split(info, "\n")
-    state = state with objects::slurpObjects(linesToProcess)
+    lines = linesToProcess
+    state = state with locations::slurpLocations(linesToProcess)
+    state = state with playerLocation::linesToProcess[0]
+    get info from File (filepath.join $_moduleDirectory, "objects.rsc")
+    state = state with objects::slurpObjects(strings.split info, "\n")
 
 main :
     global state
+    post "Hi!"
     post "\n" + describe(state[playerLocation], state) + "\n"
     for :
         get userInput from Input "What now? "
@@ -34,6 +37,7 @@ main :
             state = doTheThing(userInput, state)
             post "\n" + state[output] + "\n"
    
+// And the functional core.
 const
 
 VERBS = set("go", "take", "drop", "examine", "inventory", "look")
@@ -95,14 +99,15 @@ addImplicitGo(L list) :
 
 // Functions for describing a location and its contents.
 
-describe(loc string, S GameState) : loc + "\n\n" + S[locations][loc][description] ..
-                                 .. + describeObjects(loc, S)
+describe(loc string, S GameState) : loc + "\n\n" + S[locations][loc][description] //..
+                                // .. + describeObjects(loc, S)
+
 
 describeObjects(loc, S) :
     objectsPresent == [] :
         ""
     else :
-        "\n\nThere is" + describeList(objectsPresent) + " here."
+        "\n\nThere is" + string(objectsPresent) + " here."
 given :
     objectsPresent = ((keys S[objects]) ?> S[objects][that][location] == loc)
 
@@ -185,10 +190,10 @@ specialEffects(verb, noun string, S GameState) :
 // These turn the raw text files we started with into appropriate
 // data structures.
 
-slurpLocations(L list): 
+slurpLocations(L list) : 
     from M = map() for i = 0; i < len(L); i + 6 :
         M with L[i]::Location(L[i + 1], L[i + 2], L[i + 3], L[i + 4], L[i + 5])
 
-slurpObjects(L list): 
+slurpObjects(L list) : 
     from M = map() for i = 0; i < len(L); i + 3 :
         M with L[i]::Object(L[i + 1], L[i + 2])
