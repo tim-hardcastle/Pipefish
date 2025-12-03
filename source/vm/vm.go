@@ -564,6 +564,10 @@ loop:
 					loc = vm.callstack[len(vm.callstack)-1]
 					vm.callstack = vm.callstack[0 : len(vm.callstack)-1]
 				}
+			case Chrf: // If a reference variable is an error at return time, we need to substitute the error for `OK` as the return value.
+				if vm.Mem[vm.Mem[args[1]].V.(uint32)].T == values.ERROR {
+					vm.Mem[args[0]] = vm.Mem[vm.Mem[args[1]].V.(uint32)]
+				}
 			case Clon:
 				if vm.Mem[args[1]].T != values.TYPE {
 					vm.Mem[args[0]] = vm.makeError("vm/clones/type", args[1])

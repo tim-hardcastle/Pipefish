@@ -2231,8 +2231,11 @@ func (cp *Compiler) compileSnippet(tok *token.Token, newEnv *Environment, nodes 
 // has its own problems. I should have written a Lisp in Lisp, I'd have been finished in half-an-hour.
 type typeCheckFlavor int
 
-// At present, the only three of these we actually switch on are CHECK_RETURN_TYPES, CHECK_GLOCBAL_ASSIGNMENTS, and CHECK_LAMBDA_PARAMETERS.
-// The others are just meaningful ways of saying "none of the above".
+// Some of these are not switched on and are just meaningful ways of saying
+// "none of the above".
+//
+// Typechecking of the parameters of top-level functions is done in the
+// multipl dispatch, of course, so it doesn't get an entry.
 const (
 	CHECK_RETURN_TYPES typeCheckFlavor = iota
 	CHECK_GIVEN_ASSIGNMENTS
@@ -2265,7 +2268,16 @@ func (cp *Compiler) EmitTypeChecks(loc uint32, types AlternateType, env *Environ
 	earlyReturnOnFailure := (flavor == CHECK_GLOBAL_ASSIGNMENTS || flavor == CHECK_LAMBDA_PARAMETERS)
 	// And so this is the early return address that we're going to return to the caller if necessary, which can discharge it with a ComeFrom.
 	errorCheck := BkEarlyReturn(DUMMY)
-	errorLocation := cp.ReserveError("vm/typecheck", tok)
+	errorCode := ""
+	switch flavor {
+	case CHECK_LAMBDA_PARAMETERS:
+		errorCode = "vm/typcheck"
+	case CHECK_RETURN_TYPES:
+		errorCode = "vm/typcheck/return"	
+	default:
+		errorCode = "vm/typcheck/assign"
+	}
+	errorLocation := cp.ReserveError(errorCode, tok)
 	lengthCheck := bkIf(DUMMY)
 	inputIsError := bkGoto(DUMMY)
 	successfulSingleCheck := bkGoto(DUMMY)

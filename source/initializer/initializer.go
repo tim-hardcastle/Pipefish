@@ -1313,10 +1313,12 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 	fnenv := compiler.NewEnvironment()
 	fnenv.Ext = outerEnv
 	cpFn.LoReg = iz.cp.MemTop()
+	referenceVariables := []uint32{}
 	// First we do the local variables that are in the signature of the struct.
 	for _, pair := range izFn.sig {
 		iz.cp.Reserve(values.UNDEFINED_TYPE, DUMMY, &izFn.op)
 		if ast.IsRef(pair.VarType) {
+			referenceVariables = append(referenceVariables, iz.cp.That())
 			iz.cp.AddThatAsVariable(fnenv, pair.VarName, compiler.REFERENCE_VARIABLE, iz.cp.Common.AnyTypeScheme, &izFn.op)
 			continue
 		}
@@ -1444,16 +1446,23 @@ func (iz *Initializer) compileFunction(dec declarationType, decNo int, outerEnv 
 		if nodeHasLog && log.Token.Type == token.PRELOG && log.Value != "" {
 
 		}
+		// We compile a check on the return types.
 		bodyContext := compiler.Context{fnenv, functionName, ac, true, iz.cp.ReturnSigToAlternateType(izFn.callInfo.ReturnTypes), cpFn.LoReg, areWeTracking, compiler.LF_NONE, altType()}
 		cpFn.RtnTypes, _ = iz.cp.CompileNode(izFn.body, bodyContext) // TODO --- could we in fact do anything useful if we knew it was a constant?
-		if len(paramChecks) > 0 {
+		if len(paramChecks) > 0 { // If we had to check the types of the parameters, then the function may return an error no matter what its body might do.
 			cpFn.RtnTypes = cpFn.RtnTypes.Union(altType(values.ERROR))
 		}
 		cpFn.OutReg = iz.cp.That()
-
+		// We check the return types.
 		if izFn.callInfo.ReturnTypes != nil && !(izFn.body.GetToken().Type == token.GOLANG) {
 			iz.cp.EmitTypeChecks(cpFn.OutReg, cpFn.RtnTypes, fnenv, izFn.callInfo.ReturnTypes, ac, &izFn.op, compiler.CHECK_RETURN_TYPES, bodyContext)
 		}
+		// Or, alternatively, if it's a command and it has reference variables then we may have
+		// inserted an error into them, in which case we need to return that instead of OK.
+		for _, loc := range referenceVariables {
+			iz.cp.Emit(vm.Chrf, cpFn.OutReg, loc)
+		}
+		// And we're out!
 		iz.cp.VmComeFrom(paramChecks...)
 		iz.cp.Emit(vm.Ret)
 	}

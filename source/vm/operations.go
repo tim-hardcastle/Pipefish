@@ -122,7 +122,8 @@ var OPERANDS = map[Opcode]opDescriptor{
 	CcTT: {"ccTT", operands{dst, mem, mem}},
 	Ccxx: {"ccxx", operands{dst, mem, mem}},
 	Chck: {"chck", operands{dst, mem, mem, chk}},
-	Clon: {"chck", operands{dst, mem, tok}},
+	Chrf: {"chrf", operands{dst, mem}},
+	Clon: {"clon", operands{dst, mem, tok}},
 	Cpnt: {"cpnt", operands{dst, mem}},
 	Cv1T: {"cv1T", operands{dst, mem}},
 	CvTT: {"cvTT", operands{dst, tup}},
@@ -281,22 +282,23 @@ const (
 	Auto
 	Bcon
 	Bsql
-	Cc11
-	Cc1T
-	CcT1
-	CcTT
-	Ccxx
-	Cv1T
-	CvTT
-	Cpnt
 	Call
 	CalT // Specialized for tuple capture.
 	CasP
 	Cast
 	Casx
+	Cc11
+	Cc1T
+	CcT1
+	CcTT
+	Ccxx
 	Chck
+	Chrf
 	Clon
 	CoSn
+	Cpnt
+	Cv1T
+	CvTT
 	Diif
 	Divf
 	Divi

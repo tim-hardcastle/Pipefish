@@ -1,7 +1,4 @@
-cmd 
+def 
 
-inf :
-    for :
-        post "hello"
-
-
+foo(x) -> int :
+    x
