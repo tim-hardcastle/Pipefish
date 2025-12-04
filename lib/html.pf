@@ -1,0 +1,13 @@
+import
+
+golang "html"
+
+def
+
+escapeString(s string) -> string : golang {
+   return html.EscapeString(s)
+}
+
+unescapeString(s string) -> string : golang {
+   return html.UnescapeString(s)
+}
