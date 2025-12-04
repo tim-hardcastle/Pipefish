@@ -87,6 +87,11 @@ func TestValues(cp *compiler.Compiler, s string) (string, error) {
 	return cp.Vm.Literal(v), nil
 }
 
+func TestHighlighter(cp *compiler.Compiler, s string) (string, error) {
+	v := cp.Do(`DARK_MODERN`)
+	return cp.Highlight([]rune(s), v.V.(*values.Map)), nil
+}
+
 func TestOutput(cp *compiler.Compiler, s string) (string, error) {
 	cp.Vm.OutHandle = vm.MakeCapturingOutHandler(cp.Vm)
 	ok := cp.Do(s)
@@ -173,3 +178,4 @@ var Qux13Result = "Log at line 7 : We're here.\n" +
 	"Log at line 8 : We test to see if i (13) is even, which is false.\n" +
 	"Log at line 10 : Guess we're taking the 'else' branch.\n" +
 	"Log at line 11 : And we return \"odd\".\n"
+

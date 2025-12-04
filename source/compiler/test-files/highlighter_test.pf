@@ -1,0 +1,23 @@
+newtype 
+
+Style = enum REGULAR, BOLD, ITALIC, UNDERLINE
+Font = struct(r, g, b int, style Style)
+
+const
+
+DEFAULT_DARK_BRACKETS = [Font(0xFF, 0xD7, 0x00, REGULAR),
+                      .. Font(0xDA, 0x70, 0xD6, REGULAR),
+                      .. Font(0x17, 0x9F, 0xFF, REGULAR)]
+
+DARK_MODERN = map( ..
+    .. "comment"::Font(0x6A, 0x99, 0x55, REGULAR),
+    .. "constant"::Font(0x4F, 0xC1, 0xFF, REGULAR),
+    .. "control"::Font(0xC5, 0x86, 0xC0, REGULAR),
+    .. "function"::Font(0xDC, 0xDC, 0xAA, REGULAR),
+    .. "number"::Font(0xB5, 0xCE, 0xA8, REGULAR),
+    .. "reserved"::Font(0x56, 0x9C, 0xD6, REGULAR),
+    .. "string"::Font(0xCE, 0x91, 0x78, REGULAR),
+    .. "type"::Font(0x4E, 0xC9, 0xB0, REGULAR),
+    .. "variable"::Font(0x9C, 0xDC, 0xFE, REGULAR),
+    .. "brackets"::DEFAULT_DARK_BRACKETS)
+

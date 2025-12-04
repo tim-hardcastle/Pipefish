@@ -592,3 +592,28 @@ func TestLogging(t *testing.T) {
 	}
 	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
 }
+
+func TestHighlighter(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`Type`, `[38;2;78;201;176mType[0m`},
+		{`int`, `[38;2;78;201;176mint[0m`},
+		{`int // comment`, `[38;2;78;201;176mint[0m [38;2;106;153;85m// comment[0m`},
+		{`"string"`, `[38;2;206;145;120m"string"[0m`},
+		{`42`, `[38;2;181;206;168m42[0m`},
+		{`ENUM`, `[38;2;79;193;255mENUM[0m`},
+		{`~~ docstring`, `[38;2;244;71;71m[4m~~[0m docstring`},
+		{`true`, `[38;2;86;156;214mtrue[0m`},
+		{`'q'`, `[38;2;206;145;120m'q'[0m`},
+		{`else`, `[38;2;197;134;192melse[0m`},
+		{"`foo`", "[38;2;206;145;120m`foo`[0m"},
+		{`0b10`, `[38;2;181;206;168m0b10[0m`},
+		{`0o10`, `[38;2;181;206;168m0o10[0m`},
+		{`0x10`, `[38;2;181;206;168m0x10[0m`},
+		{`foo(bar(spong()))`, `foo[38;2;255;215;0m([0mbar[38;2;218;112;214m([0mspong[38;2;23;159;255m([0m[38;2;23;159;255m)[0m[38;2;218;112;214m)[0m[38;2;255;215;0m)[0m`},
+		{`(]`, `[38;2;255;215;0m([0m[38;2;244;71;71m[4m][0m`},
+		{`int?`, `[38;2;78;201;176mint?[0m`},
+		{`int!`, `[38;2;78;201;176mint![0m`},
+		{`.`, `[38;2;86;156;214m.[0m`},
+	}
+	test_helper.RunTest(t, "highlighter_test.pf", tests, test_helper.TestHighlighter)
+}

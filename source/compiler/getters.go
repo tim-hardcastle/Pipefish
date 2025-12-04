@@ -66,26 +66,6 @@ func (cp *Compiler) IsBuiltin(name string) bool {
 	}
 }
 
-func (cp *Compiler) isEnum(name string) bool {
-	typeInfo, ok := cp.getTypeInformation(name)
-	if !ok {
-		return false
-	} else {
-		_, ok := typeInfo.(vm.EnumType)
-		return ok
-	}
-}
-
-func (cp *Compiler) isClone(name string) bool {
-	typeInfo, ok := cp.getTypeInformation(name)
-	if !ok {
-		return false
-	} else {
-		_, ok := typeInfo.(vm.CloneType)
-		return ok
-	}
-}
-
 func (cp *Compiler) IsStruct(name string) bool {
 	typeInfo, ok := cp.getTypeInformation(name)
 	if !ok {

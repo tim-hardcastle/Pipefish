@@ -2231,7 +2231,7 @@ type typeCheckFlavor int
 // "none of the above".
 //
 // Typechecking of the parameters of top-level functions is done in the
-// multipl dispatch, of course, so it doesn't get an entry.
+// multiple dispatch, of course, so it doesn't get an entry.
 const (
 	CHECK_RETURN_TYPES typeCheckFlavor = iota
 	CHECK_GIVEN_ASSIGNMENTS
