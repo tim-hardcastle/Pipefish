@@ -314,7 +314,7 @@ func TestPiping(t *testing.T) {
 		{`["fee", "fie", "fo", "fum"] -> that + ["foo"]`, `["fee", "fie", "fo", "fum", "foo"]`},
 		{`["fee", "fie", "fo", "fum"] >> that + "!"`, `["fee!", "fie!", "fo!", "fum!"]`},
 		{`[1, 2, 3, 4] ?> that mod 2 == 0`, `[2, 4]`},
-		{`ks >> mp[that]`, `["fee", "fie", "fo", "fum"]`},
+		{`ks >> MP[that]`, `["fee", "fie", "fo", "fum"]`},
 	}
 	test_helper.RunTest(t, "piping_test.pf", tests, test_helper.TestValues)
 }

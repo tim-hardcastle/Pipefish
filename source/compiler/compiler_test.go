@@ -155,6 +155,29 @@ func TestBuiltins(t *testing.T) {
 	}
 	test_helper.RunTest(t, "", tests, test_helper.TestValues)
 }
+func TestLogic(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`testNot true"`, `false`},
+		{`testNot false"`, `true`},
+		{`testNot 5"`, `vm/bool/not`},
+		{`testOr true, false`, `true`},
+		{`testOr false, false`, `false`},
+		{`testOr true, true`, `true`},
+		{`testOr true, false`, `true`},
+		{`testOr 5, false`, `vm/bool/or/left`},
+		{`testOr false, 5`, `vm/bool/or/right`},
+		{`testAnd true, false`, `false`},
+		{`testAnd false, false`, `false`},
+		{`testAnd true, true`, `true`},
+		{`testAnd true, false`, `false`},
+		{`testAnd 5, true`, `vm/bool/and/left`},
+		{`testAnd true, 5`, `vm/bool/and/right`},
+		{`testConditional true`, `true`},
+		{`testConditional false`, `false`},
+
+	}
+	test_helper.RunTest(t, "logic_test.pf", tests, test_helper.TestValues)
+}
 func TestIndexing(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`DARK_BLUE[shade]`, `DARK`},

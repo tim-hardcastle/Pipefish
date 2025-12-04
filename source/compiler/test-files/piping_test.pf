@@ -1,5 +1,12 @@
 var 
 
 ks = [1, 2, 3, 4]
-mp = map(1::"fee", 2::"fie", 3::"fo", 4::"fum")
 
+const
+
+MP = map(1::"fee", 2::"fie", 3::"fo", 4::"fum")
+
+def 
+
+foo(x) :
+    x >> MP[that]

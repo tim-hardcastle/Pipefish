@@ -360,12 +360,14 @@ func (aT AlternateType) areOnly(vts ...values.ValueType) bool {
 	for _, el := range aT {
 		switch el := el.(type) {
 		case SimpleType:
-			return types.Contains(values.ValueType(el))
+			if !types.Contains(values.ValueType(el)) {
+				return false
+			}
 		default:
 			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (aT AlternateType) isOnlyCloneOf(mc *vm.Vm, vts ...values.ValueType) bool {

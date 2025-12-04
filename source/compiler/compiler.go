@@ -552,6 +552,8 @@ NodeTypeSwitch:
 		rtnTypes, rtnConst = AltType(values.INT), true
 		break
 	case *ast.LazyInfixExpression:
+		// Instead of treating `and` and `or` and `;` as ordinary infixes, we want them to
+		// be lazy, to short-circuit. So we do the typechecking by hand at the same time.
 		leftTypecheck := BkEarlyReturn(DUMMY)
 		rightTypecheck := BkEarlyReturn(DUMMY)
 		leftError := BkEarlyReturn(DUMMY)
@@ -572,26 +574,26 @@ NodeTypeSwitch:
 					leftTypecheck = cp.VmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
 				}
 			}
-			cp.Emit(vm.Qtru, leftRg, cp.Next()+2)
-			skipElse := cp.vmGoTo()
+			shortCircuit := cp.VmConditionalEarlyReturn(vm.Qtru, leftRg, leftRg)
 			rTypes, rcst := cp.CompileNode(node.Right, ctxt.x())
 			if !rTypes.Contains(values.BOOL) && rTypes.IsNoneOf(values.COMPILE_TIME_ERROR) {
 				cp.Throw("comp/bool/or/right", node.GetToken(), rTypes.describe(cp.Vm))
 				break
 			}
 			rightRg := cp.That()
-			cp.VmComeFrom(skipElse)
+			if !rTypes.areOnly(values.BOOL, values.ERROR) {
+				cp.ReserveError("vm/bool/or/right", node.Right.GetToken())
+			}
 			if !rTypes.isOnly(values.BOOL) {
 				if rTypes.Contains(values.ERROR) {
 					rightError = cp.VmConditionalEarlyReturn(vm.Qtyp, rightRg, uint32(values.ERROR), rightRg)
 				}
 				if !rTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.ReserveError("vm/bool/or/right", node.Right.GetToken())
-					rightTypecheck = cp.VmConditionalEarlyReturn(vm.Qntp, rightRg, uint32(values.BOOL), cp.That())
+					rightTypecheck = cp.VmConditionalEarlyReturn(vm.Qtyp, rightRg, uint32(values.BOOL), rightRg)
 				}
 			}
-			cp.Put(vm.Orb, leftRg, rightRg)
-			cp.VmComeFrom(leftTypecheck, leftError, rightTypecheck, rightError)
+			cp.VmComeFrom(shortCircuit, leftTypecheck, leftError, rightTypecheck, rightError)
 			switch {
 			case lTypes.isOnly(values.BOOL) && rTypes.isOnly(values.BOOL):
 				rtnTypes = AltType(values.BOOL)
@@ -675,7 +677,7 @@ NodeTypeSwitch:
 				}
 				if !lTypes.areOnly(values.BOOL, values.ERROR) {
 					cp.ReserveError("vm/bool/cond", node.Left.GetToken())
-					leftTypecheck = cp.VmConditionalEarlyReturn(vm.Qtyp, leftRg, uint32(values.BOOL), cp.That())
+					leftTypecheck = cp.VmConditionalEarlyReturn(vm.Qntp, leftRg, uint32(values.BOOL), cp.That())
 				}
 			}
 			checkLhs := cp.vmIf(vm.Qtru, leftRg)
@@ -830,11 +832,13 @@ NodeTypeSwitch:
 				rtnTypes, rtnConst = AltType(values.BOOL), cst
 				break NodeTypeSwitch
 			case allTypes.Contains(values.BOOL):
-				boolTest := cp.vmIf(vm.Qtyp, cp.That(), uint32(values.FUNC))
-				cp.Put(vm.Notb, cp.That())
+				boolLoc := cp.That()
+				boolTest := cp.vmIf(vm.Qtyp, cp.That(), uint32(values.BOOL))
+				errorLoc := cp.ReserveError("vm/bool/not", node.GetToken())
+				cp.Put(vm.Notb, boolLoc)
 				cp.Emit(vm.Jmp, cp.CodeTop()+2)
 				cp.VmComeFrom(boolTest)
-				cp.Emit(vm.Asgm, cp.That(), cp.ReserveError("vm/bool/not", node.GetToken()), cp.That())
+				cp.Emit(vm.Asgm, cp.That(), errorLoc)
 				rtnTypes, rtnConst = AltType(values.ERROR, values.BOOL), cst
 				break NodeTypeSwitch
 			default:

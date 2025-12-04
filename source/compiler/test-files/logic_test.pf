@@ -1,0 +1,20 @@
+// We want to test that it behaves correctly with booleans
+// even when it can't typecheck in advance that they're booleans.
+
+def
+
+testNot(x) :
+    not x
+
+testOr(x, y) :
+    x or y
+
+testAnd(x, y) :
+    x and y
+
+testConditional(x) :
+    x :
+        true
+    else :
+        false
+

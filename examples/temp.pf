@@ -1,5 +1,10 @@
-var 
+def
 
-ks = [1, 2, 3, 4]
-mp = map(1::"fee", 2::"fie", 3::"fo", 4::"fum")
+f(x, y) :
+    x or y
+
+
+
+
+
 
