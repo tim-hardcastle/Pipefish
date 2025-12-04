@@ -4,7 +4,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -823,7 +822,7 @@ NodeTypeSwitch:
 		}
 		rtnConst = lhsConst && rhsConst
 		break
-	case *ast.PrefixExpression: // Note that the vmmaker will have caught xcall and builtin expressions already.
+	case *ast.PrefixExpression: 
 		if node.Token.Type == token.NOT {
 			allTypes, cst := cp.CompileNode(node.Args[0], ctxt.x())
 			switch {
@@ -951,6 +950,7 @@ NodeTypeSwitch:
 			rtnTypes = cp.Common.AnyTypeScheme
 			break NodeTypeSwitch
 		}
+		// Or it's a normal function with a prefix.
 		ok, _ = cp.P.CanParse(node.Token, parser.PREFIX)
 		if ok || resolvingCompiler.P.Functions.Contains(node.Operator) {
 			cp.pushRCompiler(resolvingCompiler)
@@ -2515,28 +2515,6 @@ func (p *Compiler) topRCompiler() *Compiler {
 }
 func (p *Compiler) popRCompiler() {
 	p.labelResolvingCompilers = p.labelResolvingCompilers[1:]
-}
-
-// A function to find out if the source has changed and we need to recompile. TODO --- because of NULL-imports there is no longer such a thing as "the" source and you'll have to keep a list.
-func (cp *Compiler) NeedsUpdate() (bool, error) {
-	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" || len(cp.ScriptFilepath) >= 11 && cp.ScriptFilepath[0:11] == "test-files/" {
-		return false, nil
-	}
-	file, err := os.Stat(cp.ScriptFilepath)
-	if err != nil {
-		return false, err
-	}
-	currentTimeStamp := file.ModTime().UnixMilli()
-	if cp.Timestamp != currentTimeStamp {
-		return true, nil
-	}
-	for _, importedCp := range cp.Modules {
-		impNeedsUpdate, impError := importedCp.NeedsUpdate()
-		if impNeedsUpdate || impError != nil {
-			return impNeedsUpdate, impError
-		}
-	}
-	return false, nil
 }
 
 // Types and functions for "backtracking". When we need to emit an opcode with operands we don't know yet (e.g.

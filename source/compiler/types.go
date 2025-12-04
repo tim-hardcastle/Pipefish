@@ -110,10 +110,6 @@ func IsMoreSpecific(sigA, sigB ast.AbstractSig) (result bool, ok bool) {
 	return aIsMoreSpecific, true
 }
 
-func (cp *Compiler) IsSameTypeOrSubtype(maybeSub, maybeSuper ast.TypeNode) bool {
-	return cp.GetAbstractTypeFromAstType(maybeSub).IsSubtypeOf(cp.GetAbstractTypeFromAstType(maybeSuper))
-}
-
 type TypeSys map[string]values.AbstractType
 
 func (ts TypeSys) String() string {

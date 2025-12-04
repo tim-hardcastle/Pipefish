@@ -310,7 +310,29 @@ func (sv *Service) NeedsUpdate() (bool, error) {
 	if sv.cp == nil {
 		return false, errors.New("service is uninitialized")
 	}
-	return sv.cp.NeedsUpdate()
+	return needsUpdate(sv.cp)
+}
+
+// TODO --- because of `NULL` imports there isn't such a thing as "the" source, you need a list.
+func needsUpdate(cp *compiler.Compiler) (bool, error) {
+	if len(cp.ScriptFilepath) >= 5 && cp.ScriptFilepath[0:5] == "http:" || len(cp.ScriptFilepath) >= 11 && cp.ScriptFilepath[0:11] == "test-files/" {
+		return false, nil
+	}
+	file, err := os.Stat(cp.ScriptFilepath)
+	if err != nil {
+		return false, err
+	}
+	currentTimeStamp := file.ModTime().UnixMilli()
+	if cp.Timestamp != currentTimeStamp {
+		return true, nil
+	}
+	for _, importedCp := range cp.Modules {
+		impNeedsUpdate, impError := needsUpdate(importedCp)
+		if impNeedsUpdate || impError != nil {
+			return impNeedsUpdate, impError
+		}
+	}
+	return false, nil
 }
 
 // Returns `true` if the last thing the service did produced errors, whether runtime

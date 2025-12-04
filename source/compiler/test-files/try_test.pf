@@ -1,0 +1,8 @@
+cmd 
+
+foo(i int) :
+    try e :
+        post(12 div i)
+    else :
+        post "Oops"
+

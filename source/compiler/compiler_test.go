@@ -617,3 +617,10 @@ func TestHighlighter(t *testing.T) {
 	}
 	test_helper.RunTest(t, "highlighter_test.pf", tests, test_helper.TestHighlighter)
 }
+func TestTry(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`foo 3`, `4`},
+		// {`foo 0`, `"Oops"`},
+	}
+	test_helper.RunTest(t, "try_test.pf", tests, test_helper.TestOutput)
+}

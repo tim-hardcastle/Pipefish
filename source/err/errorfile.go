@@ -290,7 +290,7 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 
 	"comp/error/arg": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "expression can only return error"
+			return "expression " + emph(args[0]) + " can only return error"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "One of your function arguments can only return an error value, which means that the function itself will only ever return that error value. Pipefish assumes that this is a mistake."

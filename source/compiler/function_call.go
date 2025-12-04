@@ -69,6 +69,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	backtrackList := make([]uint32, len(args))
 	var cstI bool
 	cst := true
+	mayBeErrorInArgs := false
 	for i, arg := range args {
 		backtrackList[i] = DUMMY
 		if i < cp.FunctionForest[node.GetOperator()].RefCount { // It might be a reference variable
@@ -110,13 +111,14 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 			if b.types[i].(AlternateType).Contains(values.COMPILE_TIME_ERROR) {
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
+			mayBeErrorInArgs = mayBeErrorInArgs || b.types[i].(AlternateType).Contains(values.ERROR)
 			if len(b.types[i].(AlternateType)) == 1 && (b.types[i].(AlternateType))[0] == SimpleType(values.TUPLE) {
 				b.types[i] = AlternateType{cp.Common.AnyTuple}
 			}
 			cst = cst && cstI
 			b.valLocs[i] = cp.That()
 			if b.types[i].(AlternateType).isOnly(values.ERROR) {
-				cp.Throw("comp/error/arg", arg.GetToken())
+				cp.Throw("comp/error/arg", arg.GetToken(), cp.P.PrettyPrint(arg))
 				return AltType(values.COMPILE_TIME_ERROR), false
 			}
 			if b.types[i].(AlternateType).Contains(values.ERROR) { // IMPORTANT --- find out if the ret statement is going to cause a problem with thunks as it did below before I fixed it.
@@ -131,6 +133,9 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	// Having gotten the arguments, we create the function call itself.
 	cp.cmP("Prepared bindle, making initial call into generateNewArgument.", b.tok)
 	returnTypes := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
+	if mayBeErrorInArgs {
+		returnTypes = returnTypes.Union(AltType(values.ERROR))
+	}
 	cp.cmP("Returned from initial call into generateNewArgument", b.tok)
 	cp.Put(vm.Asgm, b.outLoc)
 	if returnTypes.isOnly(values.ERROR) && node.GetToken().Literal != "error" {
