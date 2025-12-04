@@ -308,6 +308,13 @@ func TestStructs(t *testing.T) {
 	}
 	test_helper.RunTest(t, "struct_test.pf", tests, test_helper.TestValues)
 }
+func TestLambdas(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`apply DOUBLE, 42`, `84`},
+		{`apply "DOUBLE", 42`, `vm/apply/func`},
+	}
+	test_helper.RunTest(t, "lambda_test.pf", tests, test_helper.TestValues)
+}
 func TestWith(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`john with name::"Susan", age::23`, `Person with (name::"Susan", age::23)`},

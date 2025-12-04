@@ -1,0 +1,9 @@
+const
+
+DOUBLE = func(x) : 2 * x
+
+def
+
+apply(f, x) :
+    f(x)
+
