@@ -2,6 +2,7 @@ import
 
 "strings"
 "path/filepath"
+NULL::"terminal"
 
 newtype
 
@@ -27,10 +28,9 @@ init :
 
 main :
     global state
-    post "Hi!"
     post "\n" + describe(state[playerLocation], state) + "\n"
     for :
-        get userInput from Input "What now? "
+        get userInput from Keyboard "What now? "
         strings.toLower(userInput) == "quit" :
             break
         else :

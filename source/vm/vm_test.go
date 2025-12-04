@@ -368,7 +368,6 @@ func TestImports(t *testing.T) {
 		{`qux.Color(4)`, `qux.BLUE`},
 		{`qux.Person "John", 22`, `qux.Person with (name::"John", age::22)`},
 		{`qux.Tone LIGHT, BLUE`, `qux.Tone with (shade::qux.LIGHT, color::qux.BLUE)`},
-		{`qux.Time`, `Time`},
 		{`troz.sumOfSquares 3, 4`, `25`},
 	}
 	test_helper.RunTest(t, "import_test.pf", tests, test_helper.TestValues)
@@ -384,7 +383,6 @@ func TestExternals(t *testing.T) {
 		{`zort.Person "John", 22`, `zort.Person with (name::"John", age::22)`},
 		{`zort.Tone LIGHT, BLUE`, `zort.Tone with (shade::zort.LIGHT, color::zort.BLUE)`},
 		{`zort.Qux 5`, `zort.Qux(5)`},
-		{`zort.Time`, `Time`},
 	}
 	test_helper.RunTest(t, "external_test.pf", tests, test_helper.TestValues)
 }

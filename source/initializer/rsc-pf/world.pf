@@ -4,38 +4,24 @@ golang "io/ioutil"
 golang "path/filepath"
 golang "math/rand"
 golang "os"
-golang "time"
 golang "errors"
 
 newtype
 
-Clock = struct()
 File = struct(filepath string)
 FileExists = struct(filepath string)
-Input = struct(prompt string)
+
 Output = struct()
 Random = struct(params int)
 RandomSeed = struct()
-Terminal = struct()
 
 cmd
 
 posttooutputmaker(x any?) : builtin "post_to_output"
 post (x any?) to (o Output): posttooutputmaker(x)
 post (x any?) : builtin "post_to_output"
-// post (x tuple) to (o Output): posttooutputmaker(x)
-
-posttoterminalmaker(x any?) : builtin "post_to_terminal"
-post (x any?) to (t Terminal): posttoterminalmaker(x)
-
-get (x ref) from (i Input) : builtin "get_from_input"
 
 def
-
-goGetClock() -> Time : golang {
-    goNow := time.Now()
-    return Time{goNow.Year(), int(goNow.Month()), goNow.Day(), goNow.Hour(), goNow.Minute(), goNow.Second(), goNow.Nanosecond(), goNow.Location().String()}
-}
 
 goFileExists(fname string) : golang {
      _, err := os.Stat(fname)
@@ -51,9 +37,6 @@ goRandomize(i int) : golang {
 
 put (seed int) into (randomizer RandomSeed) :
     goRandomize(seed)
-
-get (x ref) from (c Clock) :
-    x = goGetClock() 
 
 def
 
@@ -130,13 +113,6 @@ put (s string) into (fileAccess File) :
 
 delete (fileAccess File) :
     goDeleteFile(fileAccess[filepath])
-
-
-
-// post(x HTML) : builtin "post_html"
-
-// This is strictly speaking not part of the "world" at all but it has to go somewhere and
-// it fights with the builtin definitions.
 
 def
 

@@ -84,7 +84,6 @@ func TestImports(t *testing.T) {
 func TestExternals(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`zort.square 5`, `25`},
-		{`zort.Time`, `Time`},
 	}
 	test_helper.RunTest(t, "external_test.pf", tests, test_helper.TestValues)
 }

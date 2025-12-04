@@ -1,0 +1,17 @@
+newtype 
+
+Keyboard = struct(prompt string)
+Screen = struct()
+
+cmd private
+
+posttoterminalmaker(x any?) : builtin "post_to_terminal"
+
+cmd
+
+post (x any?) to (t Screen): posttoterminalmaker(x)
+
+get (x ref) from (i Keyboard) : builtin "get_from_input"
+
+
+

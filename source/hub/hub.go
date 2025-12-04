@@ -26,6 +26,7 @@ import (
 
 	"github.com/tim-hardcastle/pipefish/source/database"
 	"github.com/tim-hardcastle/pipefish/source/pf"
+	"github.com/tim-hardcastle/pipefish/source/settings"
 	"github.com/tim-hardcastle/pipefish/source/text"
 	"github.com/tim-hardcastle/pipefish/source/values"
 )
@@ -919,13 +920,7 @@ var helpStrings = map[string]string{}
 
 var helpTopics = []string{}
 
-// This is replicated in the settings file and any changes made here must be reflected there.
-var StandardLibraries = map[string]struct{}{} // TODO, start using the official Go sets.
-
 func init() {
-	for _, v := range []string{"filepath", "fmt", "math", "path", "reflect", "regexp", "sql", "strings", "time", "unicode"} {
-		StandardLibraries[v] = struct{}{}
-	}
 	cwd, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	file, err := os.Open(cwd + "/rsc/text/helpfile.txt")
 	if err != nil {
@@ -1668,7 +1663,7 @@ func (h *Hub) MakeFilepath(scriptFilepath string) string {
 	if len(scriptFilepath) >= 7 && scriptFilepath[0:7] == "rsc-pf/" {
 		doctoredFilepath = filepath.Join(h.pipefishHomeDirectory, "source", "initializer", filepath.FromSlash(scriptFilepath))
 	}
-	if _, ok := StandardLibraries[scriptFilepath]; ok {
+	if settings.StandardLibraries.Contains(scriptFilepath) {
 		doctoredFilepath = h.pipefishHomeDirectory + "lib/" + scriptFilepath
 	}
 	if len(scriptFilepath) >= 3 && scriptFilepath[len(scriptFilepath)-3:] != ".pf" && len(scriptFilepath) >= 4 && scriptFilepath[len(scriptFilepath)-4:] != ".hub" {

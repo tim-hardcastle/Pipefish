@@ -26,7 +26,7 @@ var ThingsToIgnore = (dtypes.MakeFromSlice(MandatoryImports)).
 	Add("rsc-pf/worldlite.pf").Add("user/themes.pf")
 
 // This is replicated in the hub and any changes made here must be reflected there. TODO --- don't.
-var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "math", "path", "reflect", "regexp", "sql", "strings", "time", "unicode"})
+var StandardLibraries = dtypes.MakeFromSlice([]string{"path/filepath", "fmt", "html", "math", "path", "reflect", "regexp", "sql", "strings", "terminal", "time", "unicode"})
 
 const (
 	OMIT_BUILTINS      = false // If true then the file builtins.pf, world.pf, etc, will not be added to the service. Note that this means the hub won't work.
