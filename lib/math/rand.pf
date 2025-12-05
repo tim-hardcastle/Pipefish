@@ -1,0 +1,46 @@
+import 
+
+golang "math/rand"
+"reflect"
+
+newtype
+
+Random = struct(choices)
+RandomSeed = struct()
+
+cmd
+
+put (seed int) into (randomizer RandomSeed) :
+    goRandomize(seed)
+
+get (x ref) from (r Random) :
+    type r[choices] == int :
+        x = goIntn(r[choices])
+    type r[choices] == type :
+        r[choices] == bool :
+            x = (goIntn(2) == 1) 
+        r[choices] == int : 
+            x = goInt()
+    else :
+        error "can't randomize value of type`" + (string type choices) + "`"
+
+def 
+
+golang {
+    var RNG = rand.New(rand.NewSource(rand.Int63()))
+}
+
+goIntn(i int) : golang {
+    return RNG.Intn(i)
+}
+
+goInt() : golang {
+    return RNG.Int()
+}
+
+cmd
+
+goRandomize(i int) : golang {
+    RNG = rand.New(rand.NewSource(int64(i)))
+    return struct{}{}
+}
