@@ -21,6 +21,12 @@ get (x ref) from (r Random) :
             x = (goIntn(2) == 1) 
         r[choices] == int : 
             x = goInt()
+        r[choices] == float :
+            x = goFloat()
+ //       reflect.isEnum(r[choices]) :
+ //           x = cast(goIntn(len reflect.elements(r[choices])), r[choices])
+    type r[choices] == list :
+        x = r[choices][goIntn(len r[choices])]
     else :
         error "can't randomize value of type`" + (string type choices) + "`"
 
@@ -36,6 +42,10 @@ goIntn(i int) : golang {
 
 goInt() : golang {
     return RNG.Int()
+}
+
+goFloat() : golang {
+    return RNG.Float64()
 }
 
 cmd

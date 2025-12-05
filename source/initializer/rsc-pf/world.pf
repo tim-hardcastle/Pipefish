@@ -2,7 +2,6 @@ import
 
 golang "io/ioutil"
 golang "path/filepath"
-golang "math/rand"
 golang "os"
 golang "errors"
 
@@ -12,8 +11,7 @@ File = struct(filepath string)
 FileExists = struct(filepath string)
 
 Output = struct()
-Random = struct(params int)
-RandomSeed = struct()
+
 
 cmd
 
@@ -27,45 +25,6 @@ goFileExists(fname string) : golang {
      _, err := os.Stat(fname)
      return err == nil
 }
-
-cmd
-
-goRandomize(i int) : golang {
-    rand.Seed(int64(i))
-    return struct{}{}
-}
-
-put (seed int) into (randomizer RandomSeed) :
-    goRandomize(seed)
-
-def
-
-goRandomInt(i int) : golang {
-    return rand.Intn(i)
-}
-
-// randomFunctionOf(random Random) :
-//     42
-// //     type r == int : 
-// //         r <= 0 :
-// //             error "range of Random object cannot be <= 0"
-// //         else :
-// //             goRandomInt(r)
-// //     // type r == list :
-// //     //     r == [] :
-// //     //         error "can't take random element of empty list"
-// //     //     else :
-// //     //         r[goRandomInt(len r)]
-// //     else :
-// //         error "can't randomize things of type " + string(type r)
-// // given :
-// //     r = random[params]
-
-// cmd
-
-// get (x ref) from (random Random) :
-//      x = randomFunctionOf(random)  
-
 
 def
 

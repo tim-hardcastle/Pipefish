@@ -40,7 +40,6 @@ type bindle struct {
 	varargsTime  bool            // Once we've taken a varArgs path, we can discard values 'til we reach bling or run out.
 	tok          *token.Token    // For generating errors.
 	access       CpAccess        // Whether the function call is coming from the REPL, the cmd section, etc.
-	override     bool            // A kludgy flag to pass back whether we have a forward declaration that would prevent constant folding.
 	libcall      bool            // Are we in a namespace?
 	lowMem       uint32          // The lowest point in memory that the function uses. Hence the lowest point from which we could need to copy when putting memory on the recursionStack.
 }
@@ -132,7 +131,7 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 	}
 	// Having gotten the arguments, we create the function call itself.
 	cp.cmP("Prepared bindle, making initial call into generateNewArgument.", b.tok)
-	returnTypes := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
+	returnTypes, override := cp.generateNewArgument(b) // This is our path into the recursion that will in fact generate the whole function call.
 	if mayBeErrorInArgs {
 		returnTypes = returnTypes.Union(AltType(values.ERROR))
 	}
@@ -155,10 +154,10 @@ func (cp *Compiler) createFunctionCall(argCompiler *Compiler, node ast.Callable,
 		cp.Emit(vm.Adtk, cp.That(), cp.That(), cp.ReserveToken(b.tok))
 	}
 	cp.cmP("Returning from createFunctionCall.", b.tok)
-	return returnTypes, cst && !b.override
+	return returnTypes, cst && !override
 }
 
-func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
+func (cp *Compiler) generateNewArgument(b *bindle) (AlternateType, bool) { // The bool is got from `seekFunctionCall` and says whether we need to override folding.`
 	cp.cmP("Called generateNewArgument.", b.tok)
 	// Case (1) : we've used up all our arguments. In this case we should look in the function tree for a function call.
 	if b.argNo >= len(b.types) {
@@ -195,7 +194,7 @@ func (cp *Compiler) generateNewArgument(b *bindle) AlternateType {
 	return cp.generateFromTopBranchDown(&newBindle)
 }
 
-func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
+func (cp *Compiler) seekBling(b *bindle, bling string) (AlternateType, bool) {
 	cp.cmP("Called seekBling.", b.tok)
 	for i, branch := range b.treePosition.Branch {
 		if branch.Type.Contains(values.BLING) && branch.Bling == bling {
@@ -206,10 +205,10 @@ func (cp *Compiler) seekBling(b *bindle, bling string) AlternateType {
 			return cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 		}
 	}
-	return AltType(values.ERROR)
+	return AltType(values.ERROR), false
 }
 
-func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
+func (cp *Compiler) generateFromTopBranchDown(b *bindle) (AlternateType, bool) {
 	cp.cmP("Called generateFromTopBranchDown.", b.tok)
 	newBindle := *b
 	newBindle.branchNo = 0
@@ -230,7 +229,7 @@ func (cp *Compiler) generateFromTopBranchDown(b *bindle) AlternateType {
 // If "some", then we must generate a conditional where it recurses on the next argument for the types accepted by the branch
 // and on the next branch for the unaccepted types.
 // It may also be the run-off-the-end branch number, in which case we can generate an error.
-func (cp *Compiler) generateBranch(b *bindle) AlternateType {
+func (cp *Compiler) generateBranch(b *bindle) (AlternateType, bool) {
 	cp.cmP("Called generateBranch.", b.tok)
 	if b.branchNo >= len(b.treePosition.Branch) { // We've tried all the alternatives and have some left over.
 		cp.ReserveError("vm/types/a", b.tok)
@@ -241,7 +240,7 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		cp.cmP("Unthunking error 'vm/types/a'.", b.tok) // TODO: Why?
 		cp.Emit(vm.UntE, cp.That())
 		cp.Emit(vm.Asgm, b.outLoc, cp.That())
-		return AltType(values.ERROR)
+		return AltType(values.ERROR), false
 	}
 	branch := b.treePosition.Branch[b.branchNo]
 	acceptedTypes := branch.Type
@@ -308,25 +307,27 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 	// Now we can recurse along the branch.
 	// If we know whether we're looking at a singleton or a tuple, we can erase this and act accordingly, otherwise we generate a conditional.
 	var typesFromGoingAcross, typesFromGoingDown AlternateType
+	var overrideFromGoingAcross, overrideFromGoingDown bool
 
 	if isVarargs { // Then we don't want to move along the branch of the function tree, just get a new argument and continue.
 		newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
 		newBindle.varargsTime = true
 		newBindle.argNo++
 		cp.cmP("Varargs time, calling generateNewArgument.", b.tok)
-		typesFromGoingAcross = cp.generateNewArgument(&newBindle)
+		typesFromGoingAcross, overrideFromGoingAcross = cp.generateNewArgument(&newBindle)
 	} else {
 		var typesFromTuples AlternateType
 		var typesFromSingles AlternateType
+		var overrideFromSingles, overrideFromTuples bool
 		switch {
 		case len(acceptedSingleTypes) == 0 && len(acceptedTuples) > 0:
 			cp.cmP("Nothing but tuples.", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.cmP("Type is tuple. Consuming tuple value.", b.tok)
-				typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
+				typesFromGoingAcross, overrideFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
 				cp.cmP("Consuming one element of the tuple.", b.tok)
-				typesFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+				typesFromGoingAcross, overrideFromGoingAcross = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 		case len(acceptedSingleTypes) > 0 && len(acceptedTuples) == 0:
 			cp.cmP("Nothing but single types", b.tok)
@@ -339,28 +340,29 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 				cp.cmP("Unthunking error 'vm/types/b'.", b.tok)
 				cp.Emit(vm.UntE, cp.That())
 				cp.Emit(vm.Asgm, b.outLoc, cp.That())
-				return AltType(values.ERROR)
+				return AltType(values.ERROR), false
 			}
 			cp.cmP("Going across branch consuming single value.", b.tok)
-			typesFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
+			typesFromGoingAcross, overrideFromGoingAcross = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 		default:
 			skipElse := bkGoto(DUMMY)
 			cp.cmP("Mix of single and tuple types.", b.tok)
 			if acceptedTypes.Contains(values.TUPLE) {
 				cp.cmP("Type is tuple. Generating branch to consume tuple.", b.tok)
-				typesFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
+				typesFromTuples, overrideFromTuples = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 			} else {
 				singleCheck := cp.vmIf(vm.Qsnq, b.valLocs[b.argNo])
 				cp.cmP("Generating branch to check out single values.", b.tok)
-				typesFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
+				typesFromSingles, overrideFromSingles = cp.generateMoveAlongBranchViaSingleOrTupleValue(&newBindle)
 				skipElse = cp.vmGoTo()
 				cp.VmComeFrom(singleCheck)
 				cp.cmP("Generating branch to move along one element of a tuple.", b.tok)
-				typesFromTuples = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
+				typesFromTuples, overrideFromSingles = cp.generateMoveAlongBranchViaTupleElement(&newBindle)
 			}
 
 			cp.VmComeFrom(skipElse)
 			typesFromGoingAcross = typesFromSingles.Union(typesFromTuples)
+			overrideFromGoingAcross = overrideFromSingles || overrideFromTuples
 		}
 	}
 
@@ -372,12 +374,12 @@ func (cp *Compiler) generateBranch(b *bindle) AlternateType {
 		cp.VmComeFrom(singleTypeCheck, elementOfTupleTypeCheck, varargsSlurpingTupleTypeCheck, tupleTypeCheck)
 		// We recurse on the next branch down.
 		cp.cmP("Function generateBranch calls generateNextBranchDown.", b.tok)
-		typesFromGoingDown = cp.generateNextBranchDown(&newBindle)
+		typesFromGoingDown, overrideFromGoingDown = cp.generateNextBranchDown(&newBindle)
 		cp.VmComeFrom(skipElse)
 	}
 	cp.cmP("We return from generateBranch.", b.tok)
 	cp.cmP("Types from going down are "+typesFromGoingDown.describe(cp.Vm), b.tok)
-	return typesFromGoingAcross.Union(typesFromGoingDown)
+	return typesFromGoingAcross.Union(typesFromGoingDown), overrideFromGoingAcross || overrideFromGoingDown
 }
 
 // The reason why this and the following two functions exist is that we need to be able to emit restrictions on what values we
@@ -487,7 +489,7 @@ func (cp *Compiler) emitVarargsTypeComparisonOfTupleFromAbstractType(abType valu
 	return bkGoto(cp.CodeTop() - 1)
 }
 
-func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateType {
+func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) (AlternateType, bool) {
 	cp.cmP("Called generateMoveAlongBranchViaTupleElement.", b.tok)
 	// We may definitely have run off the end of all the potential tuple elements.
 	if b.index == b.maxLength {
@@ -504,27 +506,28 @@ func (cp *Compiler) generateMoveAlongBranchViaTupleElement(b *bindle) AlternateT
 	needsConditional := b.maxLength == -1 || // Then there's a non-finite tuple
 		b.lengths.Contains(newBindle.index) // Then we may have run off the end of a finite tuple.
 	var skipElse bkGoto
+	var overrideFromNewArgument bool
 	if needsConditional {
 		cp.cmP("Generating a conditional to see if we move to the next argument or move along the tuple.", b.tok)
 		lengthCheck := cp.vmIf(vm.QlnT, b.valLocs[newBindle.argNo], uint32(newBindle.index))
 		newArgumentBindle := newBindle
 		newArgumentBindle.argNo++
-		typesFromNextArgument = cp.generateNewArgument(&newArgumentBindle)
+		typesFromNextArgument, overrideFromNewArgument = cp.generateNewArgument(&newArgumentBindle)
 		skipElse = cp.vmGoTo()
 		cp.VmComeFrom(lengthCheck)
 	}
 
 	cp.cmP("Function generateMoveAlongBranchViaTupleElement calls generateFromTopBranchDown.", b.tok)
-	typesFromContinuingInTuple := cp.generateFromTopBranchDown(&newBindle)
+	typesFromContinuingInTuple, overrideFromMABVTE := cp.generateFromTopBranchDown(&newBindle)
 
 	if needsConditional {
 		cp.VmComeFrom(skipElse)
 	}
 
-	return typesFromContinuingInTuple.Union(typesFromNextArgument)
+	return typesFromContinuingInTuple.Union(typesFromNextArgument), overrideFromNewArgument || overrideFromMABVTE
 }
 
-func (cp *Compiler) generateMoveAlongBranchViaSingleOrTupleValue(b *bindle) AlternateType {
+func (cp *Compiler) generateMoveAlongBranchViaSingleOrTupleValue(b *bindle) (AlternateType, bool) {
 	cp.cmP("Called generateMoveAlongBranchViaSingleValue.", b.tok)
 	newBindle := *b
 	newBindle.treePosition = b.treePosition.Branch[b.branchNo].Node
@@ -533,7 +536,7 @@ func (cp *Compiler) generateMoveAlongBranchViaSingleOrTupleValue(b *bindle) Alte
 	return cp.generateNewArgument(&newBindle)
 }
 
-func (cp *Compiler) generateNextBranchDown(b *bindle) AlternateType {
+func (cp *Compiler) generateNextBranchDown(b *bindle) (AlternateType, bool) {
 	cp.cmP("Called generateNextBranchDown.", b.tok)
 	newBindle := *b
 	newBindle.branchNo++
@@ -543,7 +546,7 @@ func (cp *Compiler) generateNextBranchDown(b *bindle) AlternateType {
 // At this point we've used up all the arguments of the function and so either there's
 // some specific concrete function we can call at this point in the tree, or this was
 // a blind alley.
-func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
+func (cp *Compiler) seekFunctionCall(b *bindle) (AlternateType, bool) {  // The bool says whether we need to override folding.`
 	cp.cmP("Called seekFunctionCall.", b.tok)
 	// This outer loop is to deal with the possibility that we're not at the leaf of
 	// a tree, but there's a varargs as the next parameter, in which case we can move
@@ -561,8 +564,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					args := append([]uint32{DUMMY, DUMMY, DUMMY}, b.valLocs...)
 					cp.Emit(vm.Call, args...) // TODO --- find out from the sig whether this should be CalT.args := append([]uint32{DUMMY, DUMMY, DUMMY}, valLocs...)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY)
-					b.override = true
-					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes)), true
 				}
 				if fNo >= uint32(len(resolvingCompiler.Fns)) && cp == resolvingCompiler {
 					cp.cmP("Undefined function. We're doing recursion!", b.tok)
@@ -572,14 +574,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.emitCallOpcode(fNo, b.valLocs) // As the fNo doesn't exist this will just fill in dummy values for addresses and locations.
 					cp.Emit(vm.Rpop)
 					cp.Emit(vm.Asgm, b.outLoc, DUMMY) // We don't know where the function's output will be yet.
-					b.override = true                 // We can't do constant folding on a dummy function call.
-					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes))
+					return cp.rtnTypesToTypeScheme(branch.Node.CallInfo.Compiler.MakeAbstractSigFromStringSig(branch.Node.CallInfo.ReturnTypes)), true
 				}
 				F := resolvingCompiler.Fns[fNo]
 				if (b.access == REPL || b.libcall) && F.Private {
 					cp.cmP("REPL trying to access private function. Returning error.", b.tok)
 					cp.Throw("comp/private", b.tok)
-					return AltType(values.COMPILE_TIME_ERROR)
+					return AltType(values.COMPILE_TIME_ERROR), false
 				}
 				// Deal with the case where the function is a builtin.
 				builtinTag := F.Builtin
@@ -624,7 +625,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						functionAndType.T = F.RtnTypes
 					}
 					functionAndType.f(cp, b.tok, b.outLoc, b.valLocs)
-					return functionAndType.T
+					return functionAndType.T, false
 				}
 				// It could be a parameterized type constructor.
 				if text.Tail(builtinTag, "{}") {
@@ -637,7 +638,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						cp.cmP("Emitting parameterized struct constructor.", b.tok)
 						cp.Emit(vm.StrP, args...)
 					}
-					return AbstractTypeToAlternateType(cp.P.ParTypes[typeOperator].PossibleReturnTypes)
+					return AbstractTypeToAlternateType(cp.P.ParTypes[typeOperator].PossibleReturnTypes), false
 				}
 				// It could be an ordinary type constructor.
 				typeNumber, ok := cp.GetConcreteType(builtinTag)
@@ -656,7 +657,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 						typeCheck = typeInfo.(vm.CloneType).TypeCheck
 					}
 					if typeCheck == nil {
-						return AltType(typeNumber)
+						return AltType(typeNumber), false
 					}
 					cp.Emit(vm.Asgm, typeCheck.ResultLoc, b.outLoc)
 					for i, loc := range b.valLocs {
@@ -666,12 +667,12 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Asgm, typeCheck.TokNumberLoc, cp.That())
 					cp.Emit(vm.Jsr, typeCheck.CallAddress)
 					cp.Emit(vm.Asgm, b.outLoc, typeCheck.ResultLoc)
-					return AltType(values.ERROR, typeNumber)
+					return AltType(values.ERROR, typeNumber), false
 				}
 				if ok && typeInfo.IsEnum() {
 					cp.cmP("Emitting enum constructor for "+typeInfo.GetName(vm.LITERAL), b.tok)
 					cp.Emit(vm.MkEn, b.outLoc, uint32(typeNumber), b.valLocs[0], cp.ReserveToken(b.tok))
-					return AltType(values.ERROR, typeNumber)
+					return AltType(values.ERROR, typeNumber), false
 				}
 				// It could have a Golang body.
 				if F.HasGo {
@@ -681,20 +682,20 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					cp.Emit(vm.Gofn, args...)
 					if len(branch.Node.CallInfo.ReturnTypes) == 0 {
 						if F.Command {
-							return AltType(values.SUCCESSFUL_VALUE, values.ERROR)
+							return AltType(values.SUCCESSFUL_VALUE, values.ERROR), b.access == CMD
 						} else {
-							return cp.Common.AnyTypeScheme
+							return cp.Common.AnyTypeScheme, b.access == CMD
 						}
 					}
 					if len(branch.Node.CallInfo.ReturnTypes) == 1 {
-						return cp.GetAlternateTypeFromTypeAst(branch.Node.CallInfo.ReturnTypes[0].VarType)
+						return cp.GetAlternateTypeFromTypeAst(branch.Node.CallInfo.ReturnTypes[0].VarType), false
 					}
 					// Otherwise it's a tuple.
 					tt := make(AlternateType, 0, len(branch.Node.CallInfo.ReturnTypes))
 					for _, v := range branch.Node.CallInfo.ReturnTypes {
 						tt = append(tt, cp.GetAlternateTypeFromTypeAst(v.VarType))
 					}
-					return AlternateType{FiniteTupleType{tt}}
+					return AlternateType{FiniteTupleType{tt}}, false
 				}
 				// It could be a call to an external service.
 				if F.Xcall != nil {
@@ -708,13 +709,13 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 					vmArgs = append(vmArgs, cp.That())
 					vmArgs = append(vmArgs, b.valLocs...)
 					cp.Emit(vm.Extn, vmArgs...)
-					return F.RtnTypes
+					return F.RtnTypes, F.Command
 				}
 				// Otherwise it's a regular old function call, which we do like this:
 				cp.cmP("Emitting call opcode.", b.tok)
 				resolvingCompiler.emitCallOpcode(fNo, b.valLocs)
 				cp.Emit(vm.Asgm, b.outLoc, F.OutReg) // Because the different implementations of the function will have their own out register.
-				return F.RtnTypes
+				return F.RtnTypes, false
 			}
 		}
 		// We haven't found a function to call, but we may have a varargs parameter
@@ -737,5 +738,5 @@ func (cp *Compiler) seekFunctionCall(b *bindle) AlternateType {
 	cp.cmP("Unthunking error 'vm/types/c'.", b.tok)
 	cp.Emit(vm.UntE, cp.That())
 	cp.Emit(vm.Asgm, b.outLoc, cp.That())
-	return AltType(values.ERROR)
+	return AltType(values.ERROR), false
 }

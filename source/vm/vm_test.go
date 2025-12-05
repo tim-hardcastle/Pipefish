@@ -372,6 +372,7 @@ func TestImports(t *testing.T) {
 	}
 	test_helper.RunTest(t, "import_test.pf", tests, test_helper.TestValues)
 }
+
 func TestExternals(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`zort.square 5`, `25`},

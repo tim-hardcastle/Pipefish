@@ -498,6 +498,14 @@ loop:
 					vm.Mem[args[0]] = vm.Mem[args[1]]
 					break Switch
 				}
+				if enumInfo, ok := vm.ConcreteTypeInfo[targetType].(EnumType); ok && currentType == values.INT {
+					if vm.Mem[args[1]].V.(int) >= len(enumInfo.ElementNames) {
+						vm.Mem[args[0]] = vm.makeError("vm/cast/c", args[3], args[1], args[2])
+						break Switch
+					}
+					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V.(int)}
+					break Switch
+				}
 				if cloneInfoForCurrentType, ok := vm.ConcreteTypeInfo[currentType].(CloneType); ok {
 					if cloneInfoForCurrentType.Parent == targetType {
 						vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
