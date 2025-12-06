@@ -1,12 +1,18 @@
 import 
 
-golang "math/rand"
 "reflect"
+golang "math/rand"
 
 newtype
 
+Exponential = struct()
+Normal = struct()
 Random = struct(choices)
 RandomSeed = struct()
+Shuffle = struct(elements)
+Zipf = struct(s, v float, imax int)
+
+Color = enum RED, GREEN, BLUE
 
 cmd
 
@@ -26,29 +32,90 @@ get (x ref) from (r Random) :
         reflect.isEnum(r[choices]) :
             x = cast(goIntn(len reflect.elements(r[choices])), r[choices])
     type r[choices] == list :
-        x = r[choices][goIntn(len r[choices])]
+        len r[choices] == 0 :
+            error "can't choose random element from empty list"
+        else :
+            x = r[choices][goIntn(len r[choices])]
+    type r[choices] == pair :
+        (type r[choices][0] == int) and (type r[choices][1] == int) :
+            r[choices][1] <= r[choices][0] :
+                error "upper bound of range must be greater than lower bound"
+            else :
+                x = r[choices][0] + goIntn(r[choices][1] - r[choices][0])
+        (type r[choices][0] == float) and (type r[choices][1] == float) :
+            r[choices][1] <= r[choices][0] :
+                error "upper bound of range must be greater than lower bound"
+            else :
+                x = r[choices][0] + goFloat() * (r[choices][1] - r[choices][0])
+        else :
+            error "bad bounds for range"
     else :
         error "can't randomize value of type `" + (string type r[choices]) + "`"
 
-def 
+get (x ref) from (s Shuffle) :
+    type s[elements] == list :
+        x = goShuffle s[elements]
+    (type s[elements] == type) and (reflect.isEnum(s[elements])) :
+        x = goShuffle from L = [] for i::_ = range s[elements] : L + [i]
+    type s[elements] == pair :
+        (type s[elements][0] != int) or (type s[elements][1] != int) :
+            error "bounds of range to shuffle must be integers"
+        s[elements][1] <= s[elements][0] :
+            error "upper bound of range must be greater than lower bound"
+        else :
+            x = goShuffle from L = [] for _::el = range s[elements] : L + [el]
+    else :
+        error "can't shuffle value of type `" + (string type s[elements]) + "`"
+
+get (x ref) from (n Normal) : 
+    x = goNormal()
+
+get (x ref) from (e Exponential) : 
+    x = goExponential()
+
+get (x ref) from (z Zipf) : 
+    x = goZipf(z)
+
+def private
 
 golang {
     var RNG = rand.New(rand.NewSource(rand.Int63()))
 }
 
-goIntn(i int) : golang {
+goIntn(i int) -> int : golang {
     return RNG.Intn(i)
 }
 
-goInt() : golang {
+goInt() -> int : golang {
     return RNG.Int()
 }
 
-goFloat() : golang {
+goFloat() -> float : golang {
     return RNG.Float64()
 }
 
-cmd
+goExponential() -> float : golang {
+    return RNG.ExpFloat64()
+}
+
+goNormal() -> float : golang {
+    return RNG.NormFloat64()
+}
+
+goZipf(z Zipf) -> int : golang {
+    return int(rand.NewZipf(RNG, z.S, z.V, uint64(z.Imax)).Uint64())
+}
+
+goShuffle(L list) -> list : golang {
+    result := make([]any, len(L))
+    perm := RNG.Perm(len(L))
+    for i, el := range L {
+        result[perm[i]] = el
+    }
+    return result
+}
+
+cmd private
 
 goRandomize(i int) : golang {
     RNG = rand.New(rand.NewSource(int64(i)))

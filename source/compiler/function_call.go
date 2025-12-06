@@ -696,7 +696,7 @@ func (cp *Compiler) seekFunctionCall(b *bindle) (AlternateType, bool) {  // The 
 						}
 					}
 					if len(branch.Node.CallInfo.ReturnTypes) == 1 {
-						return cp.GetAlternateTypeFromTypeAst(branch.Node.CallInfo.ReturnTypes[0].VarType), false
+						return cp.GetAlternateTypeFromTypeAst(branch.Node.CallInfo.ReturnTypes[0].VarType), b.access == CMD
 					}
 					// Otherwise it's a tuple.
 					tt := make(AlternateType, 0, len(branch.Node.CallInfo.ReturnTypes))
