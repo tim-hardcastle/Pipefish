@@ -1,0 +1,8 @@
+// Some types to cast.
+
+newtype 
+
+Color = enum RED, GREEN, BLUE
+Person = struct(name string, age int)
+Uid = clone int 
+
