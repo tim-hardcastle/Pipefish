@@ -203,6 +203,14 @@ func TestIndexing(t *testing.T) {
 		{`foo myPair, myOtherNumber`, `"bar"`},
 		{`foo myWord, myNumber`, `'g'`},
 		{`"Angela"[3]`, `'e'`},
+		{`myTuple[myIntPair]`, `(1, 2)`},
+		{`myTuple[myNumber]`, `3`},
+		{`mySnippet[myNumber]`, `" troz "`},
+		{`myWord[myNumber]`, `'g'`},
+		{`goo myTuple, myIntPair`, `(1, 2)`},
+		{`goo myTuple, myNumber`, `3`},
+		{`foo mySnippet, myNumber`, `" troz "`},
+		{`foo myWord, myIntPair`, `"An"`},
 	}
 	test_helper.RunTest(t, "index_test.pf", tests, test_helper.TestValues)
 }

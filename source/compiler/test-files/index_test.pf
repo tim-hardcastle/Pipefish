@@ -38,8 +38,15 @@ myOtherNumber = 1
 
 myWord = "Angela"
 
+myTuple tuple = 1, 2, 3, 4
+
+mySnippet = -- foo |"bar"| troz |"zort"|
+
 def // Indexing when we don't know the types in advance is a different compilation from when we know one or both.
 
 foo(x, y) :
+    x[y]
+
+goo(x tuple, y) :
     x[y]
 
