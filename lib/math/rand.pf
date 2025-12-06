@@ -12,12 +12,10 @@ RandomSeed = struct()
 Shuffle = struct(elements)
 Zipf = struct(s, v float, imax int)
 
-Color = enum RED, GREEN, BLUE
-
 cmd
 
-put (seed int) into (randomizer RandomSeed) :
-    goRandomize(seed)
+put (seed int) into (randomSeed RandomSeed) :
+    goSeed(seed)
 
 get (x ref) from (r Random) :
     type r[choices] == int :
@@ -56,7 +54,8 @@ get (x ref) from (s Shuffle) :
     type s[elements] == list :
         x = goShuffle s[elements]
     (type s[elements] == type) and (reflect.isEnum(s[elements])) :
-        x = goShuffle from L = [] for i::_ = range s[elements] : L + [i]
+        perm = goShuffle from L = [] for i::_ = range s[elements] : L + [i]
+        x = from L = [] for _::pos = range perm : L + [cast pos, s[elements]]
     type s[elements] == pair :
         (type s[elements][0] != int) or (type s[elements][1] != int) :
             error "bounds of range to shuffle must be integers"
@@ -117,7 +116,8 @@ goShuffle(L list) -> list : golang {
 
 cmd private
 
-goRandomize(i int) : golang {
+goSeed(i int) : golang {
     RNG = rand.New(rand.NewSource(int64(i)))
     return struct{}{}
 }
+

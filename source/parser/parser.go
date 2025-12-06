@@ -580,7 +580,7 @@ func (p *Parser) parseForExpression() *ast.ForExpression {
 func (p *Parser) parseFromExpression() ast.Node {
 	fromToken := p.CurToken
 	p.NextToken()
-	expression := p.ParseExpression(LOWEST)
+	expression := p.ParseExpression(FUNC)
 	var givenBlock ast.Node
 	if expression.GetToken().Type == token.GIVEN {
 		givenBlock = expression.(*ast.InfixExpression).Args[2]
