@@ -237,7 +237,7 @@ func (cp *Compiler) generateBranch(b *bindle) (AlternateType, bool) {
 			cp.Vm.Mem[cp.That()].V.(*err.Error).Args = append(cp.Vm.Mem[cp.That()].V.(*err.Error).Args, loc)
 		}
 		cp.Vm.Mem[cp.That()].V.(*err.Error).Message = "no implementation of function `" + b.tok.Literal + "` exists for the given types"
-		cp.cmP("Unthunking error 'vm/types/a'.", b.tok) // TODO: Why?
+		cp.cmP("Unthunking error 'vm/types/a'.", b.tok) // Unthunking it populates the values.
 		cp.Emit(vm.UntE, cp.That())
 		cp.Emit(vm.Asgm, b.outLoc, cp.That())
 		return AltType(values.ERROR), false
@@ -593,12 +593,20 @@ func (cp *Compiler) seekFunctionCall(b *bindle) (AlternateType, bool) {  // The 
 					case "cast":
 						cp.Cm("Builtin is cast", b.tok)
 						functionAndType.T = altType(values.ERROR)
-						for _, ty := range typesAtIndex(b.types[0], 0) {
+						for _, ty := range typesAtIndex(b.types[0], 0) { // The result may be a clone of any of the input types.
 							st := values.ValueType(ty.(SimpleType))
 							cp.Cm("Simple type is "+cp.Vm.DescribeType(values.ValueType(st), vm.LITERAL), b.tok)
 							cp.Cm("Clone group is "+cp.TypeToCloneGroup[st].describe(cp.Vm), b.tok)
 							functionAndType.T = functionAndType.T.Union(cp.TypeToCloneGroup[st])
+							functionAndType.T = functionAndType.T.Union(AltType(st))
+							if st == values.INT { // If it's an int we may be casting it to an enum.
+								functionAndType.T = functionAndType.T.Union(AbstractTypeToAlternateType(cp.Common.Types["enum"]))
+							}
+							if st == values.LIST { // If it's a list we may be casting it to a struct.
+								functionAndType.T = functionAndType.T.Union(AbstractTypeToAlternateType(cp.Common.Types["struct"]))
+							}
 						}
+						// TODO --- if the rhs is const, as it often will be, we can infer further.
 					case "first_in_tuple":
 						if len(b.types) == 0 {
 							functionAndType.T = altType(values.COMPILE_TIME_ERROR)

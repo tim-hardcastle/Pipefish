@@ -442,6 +442,16 @@ func TestRef(t *testing.T) {
 	}
 	test_helper.RunTest(t, "ref_test.pf", tests, test_helper.TestValues)
 }
+func TestCast(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`cast "foo", string`, `"foo"`},
+		{`cast Uid(8), int`, `8`},
+		{`cast 8, Uid`, `Uid(8)`},
+		{`cast 0, Color`, `RED`},
+		{`cast ["John", 22], Person`, `Person with (name::"John", age::22)`},
+	}
+	test_helper.RunTest(t, "cast_test.pf", tests, test_helper.TestValues)
+}
 func TestClones(t *testing.T) {
 	tests := []test_helper.TestItem{
 		{`FloatClone(4.2) == FloatClone(4.2)`, `true`},

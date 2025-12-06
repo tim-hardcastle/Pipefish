@@ -489,7 +489,7 @@ loop:
 			case Casx:
 				castToAbstract := vm.Mem[args[2]].V.(values.AbstractType)
 				if len(castToAbstract.Types) != 1 {
-					vm.Mem[args[0]] = vm.makeError("vm/cast/a", args[3], args[1], args[2])
+					vm.Mem[args[0]] = vm.makeError("vm/cast/concrete", args[3], args[1], args[2])
 					break Switch
 				}
 				targetType := castToAbstract.Types[0]
@@ -499,11 +499,29 @@ loop:
 					break Switch
 				}
 				if enumInfo, ok := vm.ConcreteTypeInfo[targetType].(EnumType); ok && currentType == values.INT {
-					if vm.Mem[args[1]].V.(int) >= len(enumInfo.ElementNames) {
-						vm.Mem[args[0]] = vm.makeError("vm/cast/c", args[3], args[1], args[2])
+					if vm.Mem[args[1]].V.(int) >= len(enumInfo.ElementNames) || vm.Mem[args[1]].V.(int) < 0 {
+						vm.Mem[args[0]] = vm.makeError("vm/cast/enum", args[3], args[1], args[2])
 						break Switch
 					}
 					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V.(int)}
+					break Switch
+				}
+				if structInfo, ok := vm.ConcreteTypeInfo[targetType].(StructType); ok && currentType == values.LIST {
+					elements := vm.Mem[args[1]].V.(vector.Vector)
+					if elements.Len() != len(structInfo.AbstractStructFields) {
+						vm.Mem[args[0]] = vm.makeError("vm/cast/fields", args[3], args[1], args[2])
+						break Switch
+					}
+					fields := make([]values.Value, elements.Len())
+					for i := 0; i < elements.Len(); i++ {
+						el, _ := elements.Index(i)
+						if !structInfo.AbstractStructFields[i].Contains(el.(values.Value).T) {
+							vm.Mem[args[0]] = vm.makeError("vm/cast/types", args[3], args[1], args[2])
+							break Switch
+						}
+						fields[i] = el.(values.Value)
+					}
+					vm.Mem[args[0]] = values.Value{targetType, fields}
 					break Switch
 				}
 				if cloneInfoForCurrentType, ok := vm.ConcreteTypeInfo[currentType].(CloneType); ok {
@@ -521,7 +539,7 @@ loop:
 					vm.Mem[args[0]] = values.Value{targetType, vm.Mem[args[1]].V}
 					break Switch
 				}
-				vm.Mem[args[0]] = vm.makeError("vm/cast/b", args[3], args[1], args[2])
+				vm.Mem[args[0]] = vm.makeError("vm/cast", args[3], args[1], args[2])
 			case Cc11:
 				vm.Mem[args[0]] = values.Value{values.TUPLE, []values.Value{vm.Mem[args[1]], vm.Mem[args[2]]}}
 			case Cc1T:

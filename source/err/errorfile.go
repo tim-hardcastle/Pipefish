@@ -2836,23 +2836,53 @@ var ErrorCreatorMap = map[string]ErrorCreator{
 		},
 	},
 
-	"vm/cast/a": {
+	"vm/cast": {
 		Message: func(tok *token.Token, args ...any) string {
 			return "unable to perform cast"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
 			return "Types can only be cast between clones of the same parent, or the " +
-				"parent itself."
+				"parent itself; or between integers and enums; or between lists and structs."
 		},
 	},
 
-	"vm/cast/b": {
+	"vm/cast/concrete": {
 		Message: func(tok *token.Token, args ...any) string {
-			return "unable to perform cast"
+			return "can't cast to abstract type"
 		},
 		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
-			return "Types can only be cast between clones of the same parent, or the " +
-				"parent itself."
+			return "A cast changes the type of a value to the given type, which must therefore " +
+			       "be a concrete type, since a value can't have an abstract type."
+		},
+	},
+
+	"vm/cast/enum": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "cast to enum out of range"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When casting an integer to an enum type, the integer must be in a range " +
+			"from and including 0 to and excluding the length of the type."
+		},
+	},
+
+	"vm/cast/fields": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "wrong number of list elements for cast to struct"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When casting a list to a struct type, the length of the list must be " +
+			"the same as the number of fields of the struct type."
+		},
+	},
+
+	"vm/cast/types": {
+		Message: func(tok *token.Token, args ...any) string {
+			return "wrong types of list elements for cast to struct"
+		},
+		Explanation: func(errors Errors, pos int, tok *token.Token, args ...any) string {
+			return "When casting a list to a struct type, the  types of the list element must " +
+			"correspond to the types of the fields of the struct type."
 		},
 	},
 

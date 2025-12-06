@@ -573,3 +573,20 @@ func TestLogging(t *testing.T) {
 	}
 	test_helper.RunTest(t, "logging_test.pf", tests, test_helper.TestOutput)
 }
+
+func TestCast(t *testing.T) {
+	tests := []test_helper.TestItem{
+		{`cast "foo", string`, `"foo"`},
+		{`cast Uid(8), int`, `8`},
+		{`cast 8, Uid`, `Uid(8)`},
+		{`cast 0, Color`, `RED`},
+		{`cast ["John", 22], Person`, `Person with (name::"John", age::22)`},
+		{`cast "foo", enum`, `vm/cast/concrete`},
+		{`cast "foo", Person`, `vm/cast`},
+		{`cast -1, Color`, `vm/cast/enum`},
+		{`cast 99, Color`, `vm/cast/enum`},
+		{`cast ["John", 22, true], Person`, `vm/cast/fields`},
+		{`cast ["John", "22"], Person`, `vm/cast/types`},
+	}
+	test_helper.RunTest(t, "cast_test.pf", tests, test_helper.TestValues)
+}

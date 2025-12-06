@@ -20,7 +20,7 @@ var BUILTINS = map[string]functionAndReturnType{
 	"add_sets":                  {(*Compiler).btAddSets, AltType(values.SET)},
 	"add_string_to_rune":        {(*Compiler).btAddStringToRune, AltType(values.STRING)},
 	"add_strings":               {(*Compiler).btAddStrings, AltType(values.STRING)},
-	"cast":                      {(*Compiler).btCast, AltType()}, // Types have to be figured out at call site.
+	"cast":                      {(*Compiler).btCast, AltType()}, 
 	"cast_to_float":             {(*Compiler).btCastToFloat, AltType(values.FLOAT)},
 	"cast_to_int":               {(*Compiler).btCastToInt, AltType(values.INT)},
 	"cast_to_list":              {(*Compiler).btCastToList, AltType(values.LIST)},

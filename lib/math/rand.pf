@@ -23,12 +23,12 @@ get (x ref) from (r Random) :
             x = goInt()
         r[choices] == float :
             x = goFloat()
- //       reflect.isEnum(r[choices]) :
- //           x = cast(goIntn(len reflect.elements(r[choices])), r[choices])
+        reflect.isEnum(r[choices]) :
+            x = cast(goIntn(len reflect.elements(r[choices])), r[choices])
     type r[choices] == list :
         x = r[choices][goIntn(len r[choices])]
     else :
-        error "can't randomize value of type`" + (string type choices) + "`"
+        error "can't randomize value of type `" + (string type r[choices]) + "`"
 
 def 
 
