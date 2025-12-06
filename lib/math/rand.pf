@@ -7,55 +7,59 @@ newtype
 
 Exponential = struct()
 Normal = struct()
-Random = struct(choices)
-RandomSeed = struct()
+Random = struct(elements)
+Seed = struct()
 Shuffle = struct(elements)
 Zipf = struct(s, v float, imax int)
 
+
+Color = enum RED, GREEN, BLUE
+
 cmd
 
-put (seed int) into (randomSeed RandomSeed) :
-    goSeed(seed)
+put (i int) into (seed Seed) :
+    goSeed(i)
 
 get (x ref) from (r Random) :
-    type r[choices] == int :
-        x = goIntn(r[choices])
-    type r[choices] == type :
-        r[choices] == bool :
+    type r[elements] == int :
+        x = goIntn(r[elements])
+    type r[elements] == float :
+        x = r[elements] * goFloat()
+    type r[elements] == type :
+        r[elements] == bool :
             x = (goIntn(2) == 1) 
-        r[choices] == int : 
+        r[elements] == int : 
             x = goInt()
-        r[choices] == float :
+        r[elements] == float :
             x = goFloat()
-        reflect.isEnum(r[choices]) :
-            x = cast(goIntn(len reflect.elements(r[choices])), r[choices])
-    type r[choices] == list :
-        len r[choices] == 0 :
+        reflect.isEnum(r[elements]) :
+            x = cast(goIntn(len reflect.elements(r[elements])), r[elements])
+    type r[elements] == list :
+        len r[elements] == 0 :
             error "can't choose random element from empty list"
         else :
-            x = r[choices][goIntn(len r[choices])]
-    type r[choices] == pair :
-        (type r[choices][0] == int) and (type r[choices][1] == int) :
-            r[choices][1] <= r[choices][0] :
+            x = r[elements][goIntn(len r[elements])]
+    type r[elements] == pair :
+        (type r[elements][0] == int) and (type r[elements][1] == int) :
+            r[elements][1] <= r[elements][0] :
                 error "upper bound of range must be greater than lower bound"
             else :
-                x = r[choices][0] + goIntn(r[choices][1] - r[choices][0])
-        (type r[choices][0] == float) and (type r[choices][1] == float) :
-            r[choices][1] <= r[choices][0] :
+                x = r[elements][0] + goIntn(r[elements][1] - r[elements][0])
+        (type r[elements][0] == float) and (type r[elements][1] == float) :
+            r[elements][1] <= r[elements][0] :
                 error "upper bound of range must be greater than lower bound"
             else :
-                x = r[choices][0] + goFloat() * (r[choices][1] - r[choices][0])
+                x = r[elements][0] + goFloat() * (r[elements][1] - r[elements][0])
         else :
             error "bad bounds for range"
     else :
-        error "can't randomize value of type `" + (string type r[choices]) + "`"
+        error "can't randomize value of type `" + (string type r[elements]) + "`"
 
 get (x ref) from (s Shuffle) :
     type s[elements] == list :
         x = goShuffle s[elements]
     (type s[elements] == type) and (reflect.isEnum(s[elements])) :
-        perm = goShuffle from L = [] for i::_ = range s[elements] : L + [i]
-        x = from L = [] for _::pos = range perm : L + [cast pos, s[elements]]
+        x = goShuffle reflect.elements s[elements]
     type s[elements] == pair :
         (type s[elements][0] != int) or (type s[elements][1] != int) :
             error "bounds of range to shuffle must be integers"
