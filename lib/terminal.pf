@@ -9,9 +9,11 @@ posttoterminalmaker(x any?) : builtin "post_to_terminal"
 
 cmd
 
-post (x any?) to (t Screen): posttoterminalmaker(x)
+post (x any?) to (s Screen): posttoterminalmaker(x)
 
-get (x ref) from (i Keyboard) : builtin "get_from_input"
+get (x ref) from (k Keyboard) : builtin "get_from_input"
+
+get (x ref) from masked (k Keyboard) : builtin "get_from_masked_input"
 
 
 

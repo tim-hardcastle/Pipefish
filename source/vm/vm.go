@@ -897,10 +897,15 @@ loop:
 					vm.Mem[args[0]] = vm.makeError("vm/index/tuple", args[3], ix, len(tuple), args[1], args[2])
 				}
 			case Inpt:
-				if _, ok := vm.InHandle.(*StandardInHandler); ok {
+				temp := vm.InHandle
+				if vm.Mem[args[2]].V.(bool) {
+					vm.InHandle = &MaskedInHandler{vm.Mem[args[1]].V.([]values.Value)[0].V.(string)}
+				} else {
 					vm.InHandle = &StandardInHandler{vm.Mem[args[1]].V.([]values.Value)[0].V.(string)}
 				}
-				vm.Mem[args[0]] = values.Value{values.STRING, vm.InHandle.Get()}
+				response := vm.InHandle.Get()
+				vm.InHandle = temp
+				vm.Mem[vm.Mem[args[0]].V.(uint32)] = values.Value{values.STRING, response}
 			case Inte:
 				vm.Mem[args[0]] = values.Value{values.INT, vm.Mem[args[1]].V.(int)}
 			case Intf:

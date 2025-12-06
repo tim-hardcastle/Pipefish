@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/tim-hardcastle/pipefish/source/text"
 	"github.com/tim-hardcastle/pipefish/source/values"
 
 	"github.com/lmorg/readline/v4"
@@ -24,6 +25,18 @@ type StandardInHandler struct {
 
 func (iH *StandardInHandler) Get() string {
 	rline := readline.NewInstance()
+	rline.SetPrompt(iH.prompt)
+	line, _ := rline.Readline()
+	return line
+}
+
+type MaskedInHandler struct {
+	prompt string
+}
+
+func (iH *MaskedInHandler) Get() string {
+	rline := readline.NewInstance()
+	rline.PasswordMask = text.MASK
 	rline.SetPrompt(iH.prompt)
 	line, _ := rline.Readline()
 	return line

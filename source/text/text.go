@@ -191,6 +191,7 @@ const (
 	ITALIC                 = "\033[3m"
 	BOLD                   = "\033[1m"
 	BULLET                 = "  ▪ "
+	MASK                   = '▪'
 	RT_ERROR               = "<R>Error</>: "
 	ERROR                  = "<R>Error</>: "
 )

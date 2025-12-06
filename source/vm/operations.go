@@ -156,7 +156,7 @@ var OPERANDS = map[Opcode]opDescriptor{
 	IxTn: {"ixTn", operands{dst, mem, num}},
 	IxZl: {"ixZl", operands{dst, mem, mem, tok}},
 	IxZn: {"ixZn", operands{dst, mem, num}},
-	Inpt: {"inpt", operands{dst, mem}},
+	Inpt: {"inpt", operands{dst, mem, mem}},
 	InxL: {"inxL", operands{dst, mem, mem}},
 	InxS: {"inxS", operands{dst, mem, mem}},
 	Inxt: {"inxt", operands{dst, mem, mem}},
