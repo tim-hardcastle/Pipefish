@@ -23,10 +23,10 @@ class PipefishEditor extends HTMLElement {
         logo.src = new URL("../assets/icon.ico", import.meta.url);
         logo.alt = "";
 
-        const serviceName = document.createElement("button");
-        serviceName.classList.add("top-control", "service-name");
+        const projectName = document.createElement("button");
+        projectName.classList.add("top-control", "project-name");
 
-        serviceName.innerHTML = `
+        projectName.innerHTML = `
             <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path
                     d="M2.5 4.5h4l1.5 1.5h5.5v7h-11z"
@@ -37,10 +37,9 @@ class PipefishEditor extends HTMLElement {
             </svg>
             <span></span>
         `;
-
-        const serviceNameText = serviceName.querySelector("span");
-        serviceNameText.textContent = "⋮";
-        serviceName.addEventListener("click", event => {
+        const projectNameText = projectName.querySelector("span");
+        projectNameText.textContent = "⋮";
+        projectName.addEventListener("click", event => {
             event.stopPropagation();
             menu.classList.toggle("open");
         });
@@ -96,7 +95,7 @@ class PipefishEditor extends HTMLElement {
 
         controls.append(
             logo,
-            serviceName,
+            projectName,
             menu,
             minimize
         );
@@ -105,7 +104,7 @@ class PipefishEditor extends HTMLElement {
         const files = document.createElement("pf-files");
 
         const code = document.createElement("textarea");
-        code.placeholder = "Type Pipefish code here...";
+        code.placeholder = "";
         code.classList.add("code-input");
         code.spellcheck = false;
 
@@ -119,7 +118,7 @@ class PipefishEditor extends HTMLElement {
         this.editor = editor;
         this.menu = menu;
         this.files = files;
-        this.serviceName = serviceNameText;
+        this.projectName = projectNameText;
         this.minimizeButton = minimize;
         this.initialHeightSet = false;
 
@@ -535,6 +534,11 @@ class PipefishEditor extends HTMLElement {
 
     async initialize(source) {
         await this.ready;
+        
+        const firstLine = source.trim().split(/\r?\n/, 1)[0].trim();
+        this.projectName.textContent = firstLine.startsWith("./")
+            ? firstLine.replace(/\/+$/, "").split("/").pop()
+            : "⋮";
 
         const normalized =
             await this.reader.initialize(source);

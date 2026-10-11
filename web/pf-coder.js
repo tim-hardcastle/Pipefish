@@ -54,6 +54,12 @@ class PipefishCoder extends HTMLElement {
         await this.compile();
         return this.service.do(line);
     }
+
+    async getFilepath() {
+        await this.ready;
+        await this.compile();
+        return this.service.getFilepath();
+    }
     
 }
 

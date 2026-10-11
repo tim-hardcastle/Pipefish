@@ -26,7 +26,7 @@ class PipefishService extends HTMLElement {
         } else {
             files = [
                 {
-                    path: this.pipefishGetFilepath(),
+                    path: this.getFilepath(),
                     data: new TextEncoder().encode(source)
                 }
             ];
@@ -35,7 +35,7 @@ class PipefishService extends HTMLElement {
             await window.pipefishCompile(files);
 
         this.source = source;
-
+        const fp = await this.getFilepath()
         return result;
     }
 
@@ -117,6 +117,10 @@ class PipefishService extends HTMLElement {
         return window.pipefishDo(line);
     }
 
+    async getFilepath() {
+        return window.pipefishGetFilepath()
+    }
+
     async loadWasm() {
         const wasmURL = "assets/pipefish.wasm";
         const execURL = "assets/wasm_exec.js";
@@ -162,3 +166,4 @@ customElements.define(
     "pf-service",
     PipefishService
 );
+

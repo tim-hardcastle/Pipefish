@@ -42,10 +42,18 @@ class PipefishTui extends HTMLElement {
             document.createElement("div");
         inputLine.classList.add("input-line");
 
-        const prompt =
-            document.createElement("span");
+        const prompt = document.createElement("span");
         prompt.classList.add("prompt");
-        prompt.textContent = "→ ";
+
+        this.promptLabel = document.createElement("span");
+        this.promptLabel.classList.add("cyan");
+
+        const arrow = document.createElement("span");
+        arrow.textContent = " → ";
+
+        prompt.append(this.promptLabel, arrow);
+
+        this.prompt = prompt
 
         const inputEditor =
             document.createElement("div");
@@ -290,6 +298,8 @@ class PipefishTui extends HTMLElement {
     async _initialize(source) {
         await this.ready;
         await this.service.initialize(source);
+        const fp = await this.service.getFilepath()
+        this.promptLabel.textContent = getFilenameWithoutExtension(fp)
     }
 
     isEscaped(text, pos) {
@@ -490,11 +500,12 @@ class PipefishTui extends HTMLElement {
 
         entry.classList.add("transcript-input");
 
-        entry.innerHTML =
-            `<span class="prompt">→ </span>` +
-            await this.highlighter.highlight(
-                command
-            );
+        entry.append(
+            this.prompt.cloneNode(true),
+            Object.assign(document.createElement("span"), {
+                innerHTML: await this.highlighter.highlight(command)
+            })
+        );
 
         this.transcript.appendChild(entry);
 
@@ -540,6 +551,13 @@ class PipefishTui extends HTMLElement {
         highlighted.scrollLeft =
             input.scrollLeft;
     }
+}
+
+function getFilenameWithoutExtension(pathString) {
+    const baseName = pathString.split(/[\\/]/).pop();
+    const lastDotIndex = baseName.lastIndexOf('.');
+    if (lastDotIndex < 1) return baseName;
+    return baseName.slice(0, lastDotIndex);
 }
 
 customElements.define(

@@ -96,7 +96,7 @@
     pointer-events: auto;
 }
 
-.service-name {
+.project-name {
     font-weight: 500;
     color: var(--cyan);
 }
@@ -212,12 +212,12 @@
     display: flex;
 }
 
-.service-name {
+.project-name {
     gap: .4rem;
     cursor: pointer;
 }
 
-.service-name svg {
+.project-name svg {
     width: 14px;
     height: 14px;
     flex: none;

@@ -138,7 +138,6 @@ func getFileTree(this js.Value, args []js.Value) any {
 	if fs == nil {
 		return "filesystem has not been initialized"
 	}
-
 	return buildDirectoryTree(".")
 }
 
@@ -208,7 +207,6 @@ func createDirectory(this js.Value, args []js.Value) any {
 	if fs == nil {
 		return "filesystem has not been initialized"
 	}
-
 	if err := fs.CreateDirectory(args[0].String()); err != nil {
 		return err.Error()
 	}
