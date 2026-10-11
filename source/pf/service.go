@@ -143,7 +143,8 @@ func (sv *Service) InitializeFromFilepath(scriptFilepath string) error {
 
 // Initializes the service with the source code supplied in the string.
 func (sv *Service) InitializeFromCode(code string) error {
-	return sv.initialize("main.pf", code)
+	path, _ := sv.GetFilepath()
+	return sv.initialize(path, code)
 }
 
 // Initializes the service on behalf of both the previous methods. As the

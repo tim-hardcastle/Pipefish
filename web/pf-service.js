@@ -26,7 +26,7 @@ class PipefishService extends HTMLElement {
         } else {
             files = [
                 {
-                    path: "main.pf",
+                    path: this.pipefishGetFilepath(),
                     data: new TextEncoder().encode(source)
                 }
             ];

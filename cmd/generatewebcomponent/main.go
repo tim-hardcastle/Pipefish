@@ -23,6 +23,7 @@ import (
 
 var (
 	service       *pf.Service
+	mainFilepath  string
 	fs            *filesystem.VFS
 	oH            *vm.CapturingOutHandler
 	originalFiles map[string][]byte
@@ -40,6 +41,10 @@ func compile(this js.Value, args []js.Value) any {
 		path := file.Get("path").String()
 		dataJS := file.Get("data")
 
+		if mainFilepath == "" && filepath.Ext(path) == ".pf" {
+			mainFilepath = path
+		}
+
 		data := make([]byte, dataJS.Get("byteLength").Int())
 		js.CopyBytesToGo(data, dataJS)
 
@@ -53,10 +58,15 @@ func compile(this js.Value, args []js.Value) any {
 			return err.Error()
 		}
 	}
-
-	main, err := fs.ReadFile("main.pf")
-	if err != nil {
-		return err.Error()
+	var (
+		main []byte 
+		err error
+	)
+	if mainFilepath != "" {
+		main, err = fs.ReadFile(mainFilepath)
+		if err != nil {
+			return err.Error()
+		}
 	}
 
 	service = pf.NewService().Update(pf.Dependencies{FileSystem: fs})
@@ -67,6 +77,10 @@ func compile(this js.Value, args []js.Value) any {
 	}
 	service.Update(pf.Dependencies{OutHandler: service.MakeCapturingOutHandler()})
 	return nil
+}
+
+func getFilepath(this js.Value, args []js.Value) any {
+	return mainFilepath
 }
 
 func updateFile(this js.Value, args []js.Value) any {
@@ -81,11 +95,10 @@ func updateFile(this js.Value, args []js.Value) any {
 }
 
 func compileMain(this js.Value, args []js.Value) any {
-	main, err := fs.ReadFile("main.pf")
+	main, err := fs.ReadFile(mainFilepath)
 	if err != nil {
 		return err.Error()
 	}
-	
 	if err := service.InitializeFromCode(string(main)); err != nil {
 		return err.Error()
 	}
@@ -365,6 +378,11 @@ func main() {
 	js.Global().Set(
 		"pipefishDo",
 		js.FuncOf(do),
+	)
+
+	js.Global().Set(
+		"pipefishGetFilepath",
+		js.FuncOf(getFilepath),
 	)
 
 	js.Global().Set(
