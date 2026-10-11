@@ -585,8 +585,12 @@ class PipefishEditor extends HTMLElement {
             parseFloat(editorStyle.borderTopWidth) +
             parseFloat(editorStyle.borderBottomWidth);
 
+        const codeStyle = getComputedStyle(this.code);
+
+        const top = parseFloat(codeStyle.top);
+
         this.editor.style.height =
-            `${visibleLines * lineHeight + padding + borders}px`;
+            `${visibleLines * lineHeight + padding + borders + top}px`; 
 
         this.initialHeightSet = true;
     }
