@@ -2,11 +2,35 @@ export function attachEdgeToggle(
     host,
     toggle,
     {
-        overlap = 16,
+        overlap = 12,
         viewportOffset = 12,
-        inset = 17
+        inset = 18,
+        size = 36,
+        editIcon = "",
+        previewIcon = "</>",
+        editLabel = "Edit Markdown",
+        previewLabel = "Preview rendered page"
     } = {}
 ) {
+    toggle.classList.add("edge-toggle");
+
+    toggle.style.width = `${size}px`;
+    toggle.style.height = `${size}px`;
+
+    function setMode(editing) {
+        toggle.innerHTML = editing
+            ? previewIcon
+            : editIcon;
+
+        toggle.setAttribute(
+            "aria-label",
+            editing ? previewLabel : editLabel
+        );
+
+        toggle.title =
+            editing ? previewLabel : editLabel;
+    }
+
     function update() {
         if (!host.isConnected || !toggle.isConnected) {
             return;
@@ -19,10 +43,8 @@ export function attachEdgeToggle(
             return;
         }
 
-        // Keep the toggle within the host's vertical bounds,
-        // while positioning it as near the viewport top as possible.
         const minTop = rect.top + inset;
-        const maxTop = rect.bottom - height - inset;
+        const maxTop = rect.bottom - inset - height;
 
         const top = maxTop < minTop
             ? minTop
@@ -31,30 +53,46 @@ export function attachEdgeToggle(
                 Math.min(viewportOffset, maxTop)
             );
 
-        // Overlap the host's right edge.
-        const left = rect.right - overlap;
+        toggle.style.left =
+            `${rect.right - overlap}px`;
 
-        toggle.style.position = "fixed";
-        toggle.style.left = `${left}px`;
         toggle.style.top = `${top}px`;
+
+        // Hide the toggle when its host is entirely off-screen.
+        toggle.style.visibility =
+            rect.bottom <= 0 ||
+            rect.top >= window.innerHeight
+                ? "hidden"
+                : "visible";
     }
 
-    // Capture scrolling from nested scrolling containers as well.
+    toggle.style.position = "fixed";
+    toggle.style.zIndex = "1000";
+
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
 
     const observer = new ResizeObserver(update);
-
     observer.observe(host);
     observer.observe(toggle);
 
     update();
 
-    // Return a cleanup function for the caller.
-    return () => {
-        window.removeEventListener("scroll", update, true);
-        window.removeEventListener("resize", update);
+    return {
+        setMode,
 
-        observer.disconnect();
+        update,
+
+        detach() {
+            window.removeEventListener(
+                "scroll",
+                update,
+                true
+            );
+
+            window.removeEventListener("resize", update);
+
+            observer.disconnect();
+        }
     };
 }

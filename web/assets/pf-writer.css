@@ -27,27 +27,54 @@ pf-writer {
     background: inherit;
 }
 
-.pf-writer-toggle {
-    z-index: 1000;
+.pf-writer-editor:focus-visible {
+    outline: 2px solid var(--syntax-reserved);
+    outline-offset: 2px;
+}
 
-    padding: 0.55rem 0.8rem;
+.edge-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    border: 1px solid var(--code-border, #888);
+    box-sizing: border-box;
+    padding: 5px;
+
+    border: 1px solid var(--code-border);
     border-radius: 6px;
 
-    color: inherit;
-    background: var(--page-background, #fcfbf8);
+    background: var(--code-background);
+    color: var(--code-text);
 
-    font: inherit;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    line-height: 1;
+
     cursor: pointer;
-    white-space: nowrap;
+
+    box-shadow: var(--shadow-small);
+
+    transition:
+        background-color var(--transition),
+        border-color var(--transition),
+        color var(--transition);
 }
 
-.pf-writer-toggle:hover {
-    filter: brightness(0.95);
+.edge-toggle:hover {
+    border-color: var(--syntax-reserved);
 }
 
-.pf-writer-toggle:focus-visible {
-    outline: 2px solid var(--link-color, #75a8ff);
+.edge-toggle svg {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    fill: none;
+    stroke: currentColor;
+}
+
+.edge-toggle:focus-visible {
+    outline: 2px solid var(--syntax-reserved);
     outline-offset: 2px;
 }
