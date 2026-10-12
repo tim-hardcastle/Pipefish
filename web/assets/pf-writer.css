@@ -1,0 +1,53 @@
+pf-writer {
+    display: block;
+    position: relative;
+}
+
+.pf-writer-rendered[hidden],
+.pf-writer-editor[hidden] {
+    display: none;
+}
+
+.pf-writer-editor {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 60vh;
+    padding: 1rem;
+
+    resize: vertical;
+    border: 1px solid var(--code-border, #888);
+    border-radius: 6px;
+
+    font-family: monospace;
+    font-size: 1rem;
+    line-height: 1.5;
+
+    color: inherit;
+    background: inherit;
+}
+
+.pf-writer-toggle {
+    z-index: 1000;
+
+    padding: 0.55rem 0.8rem;
+
+    border: 1px solid var(--code-border, #888);
+    border-radius: 6px;
+
+    color: inherit;
+    background: var(--page-background, #fcfbf8);
+
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pf-writer-toggle:hover {
+    filter: brightness(0.95);
+}
+
+.pf-writer-toggle:focus-visible {
+    outline: 2px solid var(--link-color, #75a8ff);
+    outline-offset: 2px;
+}

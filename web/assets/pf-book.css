@@ -219,7 +219,7 @@ pf-book {
    Page
    ------------------------------------------------------------ */
 
-pf-page {
+pf-page, pf-writer {
     grid-column: 1;
 
     position: relative;
@@ -248,7 +248,7 @@ pf-page {
 
 /* Corner bling */
 
-pf-page::before {
+pf-page::before, pf-writer::before {
     content: "";
 
     position: absolute;
@@ -265,7 +265,7 @@ pf-page::before {
     pointer-events: none;
 }
 
-pf-page::after {
+pf-page::after, pf-writer::after {
     content: "";
 
     position: absolute;
@@ -283,6 +283,11 @@ pf-page::after {
 }
 
 pf-page pf-ide {
+    display: block;
+    margin-bottom: var(--space-m);
+}
+
+pf-writer pf-ide {
     display: block;
     margin-bottom: var(--space-m);
 }
@@ -365,12 +370,19 @@ pf-page h2,
 pf-page h3,
 pf-page h4,
 pf-page h5,
-pf-page h6 {
+pf-page h6,
+pf-writer h1,
+pf-writer h2,
+pf-writer h3,
+pf-writer h4,
+pf-writer h5,
+pf-writer h6  {
     color: var(--heading);
     font-weight: 400;
 }
 
-pf-page h1 {
+pf-page h1,
+pf-writer h1 {
     font-family: var(--font-heading);
     font-size: 2.5rem;
     line-height: 1.1;
@@ -381,7 +393,8 @@ pf-page h1 {
         var(--space-l);
 }
 
-pf-page h2 {
+pf-page h2,
+pf-writer h2 {
     font-family: var(--font-ui);
     font-size: 1.45rem;
     line-height: 1.3;
@@ -392,7 +405,8 @@ pf-page h2 {
         var(--space-m);
 }
 
-pf-page h3 {
+pf-page h3,
+pf-writer h3 {
     font-family: var(--font-ui);
     font-size: 1.15rem;
     line-height: 1.35;
@@ -405,11 +419,15 @@ pf-page h3 {
 
 pf-page h4,
 pf-page h5,
-pf-page h6 {
+pf-page h6,
+pf-writer h4,
+pf-writer h5,
+pf-writer h6 {
     font-family: var(--font-ui);
 }
 
-pf-page p {
+pf-page p,
+pf-writer p {
     margin:
         0
         0
@@ -417,7 +435,9 @@ pf-page p {
 }
 
 pf-page ul,
-pf-page ol {
+pf-page ol,
+pf-writer ul,
+pf-writer ol {
     margin:
         0
         0
@@ -426,15 +446,18 @@ pf-page ol {
     padding-left: 1.6rem;
 }
 
-pf-page li {
+pf-page li,
+pf-writer li {
     margin-bottom: .25rem;
 }
 
-pf-page strong {
+pf-page strong,
+pf-writer strong {
     font-weight: 700;
 }
 
-pf-page hr {
+pf-page hr,
+pf-writer hr {
     border: 0;
 
     border-top: 1px solid var(--border);
