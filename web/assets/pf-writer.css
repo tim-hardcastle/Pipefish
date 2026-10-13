@@ -43,8 +43,8 @@ pf-writer {
     border: 1px solid var(--code-border);
     border-radius: 6px;
 
-    background: var(--code-background);
-    color: var(--code-text);
+    background: var(--paper);
+    color: var(--text);
 
     font-family: var(--font-ui);
     font-size: 0.8rem;

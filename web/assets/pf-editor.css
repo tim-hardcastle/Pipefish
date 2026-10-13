@@ -67,35 +67,6 @@
     pointer-events: none;
 }
 
-.top-controls {
-    position: absolute;
-    z-index: 3;
-    top: -1.3rem;
-    left: 1rem;
-    right: 1rem;
-    height: 1.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: .35rem;
-    pointer-events: none;
-}
-
-.top-control {
-    box-sizing: border-box;
-    height: 1.75rem;
-    padding: 0 .75rem;
-    border: 1px solid var(--code-border);
-    border-radius: 7px;
-    background: var(--paper);
-    color: var(--code-text);
-    font-family: "Google Sans Code", monospace;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    pointer-events: auto;
-}
-
 .project-name {
     font-weight: 500;
     color: var(--cyan);
@@ -170,67 +141,40 @@
     overflow: hidden;
 }
 
-.menu {
+.top-controls {
     position: absolute;
-    top: calc(100% - 1px);
-    right: 1.75rem;
+    z-index: 3;
+    top: -1.3rem;
+    left: 1rem;
+    right: 1rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .35rem;
+    pointer-events: none;
+}
 
-    display: none;
-    flex-direction: column;
-
-    min-width: 8rem;
-    padding: .25rem;
-
+.top-control {
+    box-sizing: border-box;
+    height: 1.75rem;
+    padding: 0 .75rem;
     border: 1px solid var(--code-border);
     border-radius: 7px;
-
     background: var(--paper);
-    box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+    color: var(--code-text);
+    font-family: "Google Sans Code", monospace;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
     pointer-events: auto;
 }
 
-.menu button {
-    box-sizing: border-box;
-    width: 100%;
-    padding: .45rem .65rem;
-
-    border: 0;
-    border-radius: 5px;
-
-    background: transparent;
-    color: var(--code-text);
-    font-family: "Google Sans Code", monospace;
-    font-size: 13px;
-    text-align: left;
-}
-
-.menu button:hover {
-    background: var(--code-border);
-}
-
-.menu {
-    display: flex;
-}
-
-.project-name {
-    gap: .4rem;
-    cursor: pointer;
-}
-
-.project-name svg {
-    width: 14px;
-    height: 14px;
+.minimize svg {
+    width: 16px;
+    height: 16px;
     flex: none;
     display: block;
-    color: var(--code-text)
-}
-
-.menu {
-    display: none;
-}
-
-.menu.open {
-    display: flex;
 }
 
 

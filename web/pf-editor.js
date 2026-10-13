@@ -1,5 +1,6 @@
 import "./pf-reader.js";
 import "../assets/files.js";
+import "../assets/file-menu.js";
 
 class PipefishEditor extends HTMLElement {
     constructor() {
@@ -15,68 +16,23 @@ class PipefishEditor extends HTMLElement {
         const editor = document.createElement("div");
         editor.classList.add("editor");
 
-        const controls = document.createElement("div");
-        controls.classList.add("top-controls");
-
         const logo = document.createElement("img");
         logo.classList.add("logo");
         logo.src = new URL("../assets/icon.ico", import.meta.url);
         logo.alt = "";
 
-        const projectName = document.createElement("button");
-        projectName.classList.add("top-control", "project-name");
+        const projectMenu = document.createElement("pf-file-menu");
+        projectMenu.setAttribute("size", "28");
 
-        projectName.innerHTML = `
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path
-                    d="M2.5 4.5h4l1.5 1.5h5.5v7h-11z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.4"
-                    stroke-linejoin="round"/>
-            </svg>
-            <span></span>
-        `;
-        const projectNameText = projectName.querySelector("span");
-        projectNameText.textContent = "⋮";
-        projectName.addEventListener("click", event => {
-            event.stopPropagation();
-            menu.classList.toggle("open");
-        });
-
-        const menu = document.createElement("div");
-        menu.classList.add("menu");
-        for (const label of [
-            "Open",
-            "New",
-            "Rename",
-            "Delete",
-            "Revert",
-            "Download",
-        ]) {
-            const item = document.createElement("button");
-            item.textContent = label;
-
-            item.addEventListener("click", () => {
-                menu.classList.remove("open");
-
-                this.dispatchEvent(
-                    new CustomEvent("menu-select", {
-                        detail: label,
-                        bubbles: true,
-                        composed: true
-                    })
-                );
-            });
-
-            menu.append(item);
-        }
-
-        this.addEventListener("menu-select", event => {
+        projectMenu.addEventListener("menu-select", event => {
             const operation = event.detail.toLowerCase();
+
             this.files.setVFS(window.pipefishGetFileTree());
             this.files.open(operation);
         });
+
+        const controls = document.createElement("div");
+        controls.classList.add("top-controls");
 
         const minimize = document.createElement("button");
         minimize.classList.add("top-control", "minimize");
@@ -95,8 +51,7 @@ class PipefishEditor extends HTMLElement {
 
         controls.append(
             logo,
-            projectName,
-            menu,
+            projectMenu,
             minimize
         );
 
@@ -116,9 +71,8 @@ class PipefishEditor extends HTMLElement {
         this.code = code;
         this.ready = reader.ready;
         this.editor = editor;
-        this.menu = menu;
+        this.menu = projectMenu;
         this.files = files;
-        this.projectName = projectNameText;
         this.minimizeButton = minimize;
         this.initialHeightSet = false;
 
@@ -536,9 +490,10 @@ class PipefishEditor extends HTMLElement {
         await this.ready;
         
         const firstLine = source.trim().split(/\r?\n/, 1)[0].trim();
-        this.projectName.textContent = firstLine.startsWith("./")
+        this.menu.projectName = (firstLine.startsWith("./")
             ? firstLine.replace(/\/+$/, "").split("/").pop()
-            : "⋮";
+            : "⋮"
+        );
 
         const normalized =
             await this.reader.initialize(source);

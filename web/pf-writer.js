@@ -34,6 +34,15 @@ const HTML_ICON = `
     </svg>
 `;
 
+const TOGGLE_SETTINGS = {
+    size: 32,
+    overlap: 16,
+    inset: 17,
+    viewportOffset: 12,
+    editIcon: MARKDOWN_ICON,
+    previewIcon: HTML_ICON
+}
+
 function loadStylesheet() {
     if (
         document.querySelector(
@@ -128,14 +137,7 @@ class PfWriter extends PfPage {
         const edgeToggle = attachEdgeToggle(
             this,
             toggle,
-            {
-                size: 32,
-                overlap: 16,
-                inset: 17,
-                viewportOffset: 12,
-                editIcon: MARKDOWN_ICON,
-                previewIcon: HTML_ICON
-            }
+            TOGGLE_SETTINGS
         );
 
         this.detachToggle = () => edgeToggle.detach();
@@ -176,7 +178,8 @@ class PfWriter extends PfPage {
 
         this.detachToggle = attachEdgeToggle(
             this,
-            toggle
+            toggle, 
+            TOGGLE_SETTINGS
         );
 
         edgeToggle.setMode(false);

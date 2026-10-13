@@ -53,8 +53,8 @@ export function attachEdgeToggle(
                 Math.min(viewportOffset, maxTop)
             );
 
-        toggle.style.left =
-            `${rect.right - overlap}px`;
+        toggle.style.left = `${rect.right - overlap}px`;
+        toggle.style.transform = "translateX(0)";
 
         toggle.style.top = `${top}px`;
 
