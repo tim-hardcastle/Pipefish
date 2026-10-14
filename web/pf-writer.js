@@ -176,12 +176,6 @@ class PfWriter extends PfPage {
             toggle
         );
 
-        this.detachToggle = attachEdgeToggle(
-            this,
-            toggle, 
-            TOGGLE_SETTINGS
-        );
-
         edgeToggle.setMode(false);
     }
 
