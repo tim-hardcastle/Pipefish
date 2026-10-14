@@ -83,7 +83,7 @@ function parseContents(text) {
     };
 }
 
-class PfBook extends HTMLElement {
+export class PfBook extends HTMLElement {
     async connectedCallback() {
         const src = this.getAttribute("src");
         const contentsSrc =
@@ -144,7 +144,7 @@ class PfBook extends HTMLElement {
         });
 
         const pageElement =
-            this.querySelector("pf-page");
+            this.querySelector(this.pageElementName);
 
         const loaded = new Promise(resolve => {
             pageElement.addEventListener(
@@ -176,6 +176,10 @@ class PfBook extends HTMLElement {
         return this.getAttribute("src")
             .replace(/\/?$/, "/") +
             page.filename;
+    }
+
+    get pageElementName() {
+        return "pf-page";
     }
 
     render() {
@@ -315,7 +319,7 @@ class PfBook extends HTMLElement {
             }
         }
 
-        const page = document.createElement("pf-page");
+        const page = document.createElement(this.pageElementName);
 
         const body =
             document.createElement("div");
