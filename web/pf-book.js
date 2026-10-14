@@ -1,4 +1,4 @@
-import "./pf-writer.js";
+import "./pf-page.js";
 
 const DEFAULT_LOGO = "/assets/rene.png";
 const DEFAULT_ICON = "/assets/icon.ico";
@@ -144,7 +144,7 @@ class PfBook extends HTMLElement {
         });
 
         const pageElement =
-            this.querySelector("pf-writer");
+            this.querySelector("pf-page");
 
         const loaded = new Promise(resolve => {
             pageElement.addEventListener(
@@ -315,7 +315,7 @@ class PfBook extends HTMLElement {
             }
         }
 
-        const page = document.createElement("pf-writer");
+        const page = document.createElement("pf-page");
 
         const body =
             document.createElement("div");
