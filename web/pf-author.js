@@ -1,8 +1,17 @@
 import { PfBook } from "./pf-book.js";
 import "./pf-writer.js";
 import "./assets/file-menu.js";
+import { FileManager } from "./assets/file-manager.js";
+import { AuthorVFS } from "./assets/author-vfs.js";
 
 class PfAuthor extends PfBook {
+    constructor() {
+        super();
+
+        this.vfs = new AuthorVFS();
+        this.fileManager = null;
+    }
+
     get pageElementName() {
         return "pf-writer";
     }
@@ -48,6 +57,47 @@ class PfAuthor extends PfBook {
                 "Publish book"
             ],
             size
+        });
+
+        const files = document.createElement("pf-files");
+        this.appendChild(files);
+
+        this.fileManager = new FileManager(
+            files,
+            {
+                getTree: () => this.vfs.getTree(),
+                readFile: path => this.vfs.readFile(path),
+                writeFile: (path, data) => this.vfs.writeFile(path, data),
+                createDirectory: path => this.vfs.createDirectory(path),
+                renamePath: (oldPath, newPath) =>
+                    this.vfs.renamePath(oldPath, newPath),
+                deleteFile: path => this.vfs.deleteFile(path),
+                deleteDirectory: path => this.vfs.deleteDirectory(path),
+                revertFile: path => this.vfs.revertFile(path),
+                zipDirectory: path => this.vfs.zipDirectory(path)
+            },
+            {
+                openPaths: paths => {
+                    for (const path of paths) {
+                        const result = this.vfs.readFile(path);
+
+                        if (result.ok) {
+                            this.dispatchEvent(new CustomEvent("file-open", {
+                                detail: {
+                                    path,
+                                    data: result.data
+                                },
+                                bubbles: true,
+                                composed: true
+                            }));
+                        }
+                    }
+                }
+            }
+        );
+
+        filesMenu.addEventListener("menu-select", event => {
+            this.fileManager.open(event.detail.toLowerCase());
         });
 
         controls.append(filesMenu, booksMenu, themeToggle);
