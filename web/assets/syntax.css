@@ -5,7 +5,7 @@
     --code-header: #e4e9f1;
     --code-text: #202124;
     --code-border: #d6dce5;
-    
+    --sidebar-underline: #717782;
 
     --text: #202124;
     --heading: #202124;
@@ -77,6 +77,7 @@
     --code-header: #292d35;
     --code-text: #dcdcaa;
     --code-border: #414752;
+    --sidebar-underline: #8c8c7a;
 
     --inline-code-background: var(--code-background);
 

@@ -23,7 +23,7 @@ class PipefishFileMenu extends HTMLElement {
 
     connectedCallback() {
         this.menu.configure({
-            label: "⋮",
+            label: this._projectName ?? "⋮",
             icon: `
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                     <path
@@ -47,6 +47,7 @@ class PipefishFileMenu extends HTMLElement {
     }
 
     set projectName(value) {
+        this._projectName = value;
         this.menu.menuName = value;
     }
 }

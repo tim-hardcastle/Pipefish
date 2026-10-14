@@ -178,8 +178,13 @@ export class PfBook extends HTMLElement {
             page.filename;
     }
 
+    // Changed to `pf-writer` by `pf-author`.
     get pageElementName() {
         return "pf-page";
+    }
+
+    // To be overridden by pf-author to add the menus.
+    renderHeaderExtras(header, themeToggle) {
     }
 
     render() {
@@ -291,6 +296,9 @@ export class PfBook extends HTMLElement {
         header.appendChild(themeToggle);
 
         this.appendChild(header);
+
+        // Adds the menus for pf-author.
+        this.renderHeaderExtras(header, themeToggle);
 
         // ------------------------------------------------------------
         // Main book

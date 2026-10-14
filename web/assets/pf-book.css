@@ -198,6 +198,26 @@ pf-book, pf-author {
     stroke-linejoin: round;
 }
 
+.author-header-controls {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+
+.author-header-controls > * {
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.author-header-controls .theme-toggle {
+    position: static;
+    transform: none;
+}
+
 /* ------------------------------------------------------------
    Book body
    ------------------------------------------------------------ */
@@ -343,6 +363,9 @@ pf-writer pf-ide {
     color: var(--text);
 
     text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+    text-decoration-color: var(--sidebar-underline);
 
     transition:
         color var(--transition),
