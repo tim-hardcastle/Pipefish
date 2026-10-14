@@ -1,5 +1,5 @@
 import "./pf-reader.js";
-import "../assets/files.js";
+import { FileManager } from "../assets/file-manager.js";
 import "../assets/file-menu.js";
 
 class PipefishEditor extends HTMLElement {
@@ -23,13 +23,6 @@ class PipefishEditor extends HTMLElement {
 
         const projectMenu = document.createElement("pf-file-menu");
         projectMenu.setAttribute("size", "28");
-
-        projectMenu.addEventListener("menu-select", event => {
-            const operation = event.detail.toLowerCase();
-
-            this.files.setVFS(window.pipefishGetFileTree());
-            this.files.open(operation);
-        });
 
         const controls = document.createElement("div");
         controls.classList.add("top-controls");
@@ -58,6 +51,86 @@ class PipefishEditor extends HTMLElement {
         const reader = document.createElement("pf-reader");
         const files = document.createElement("pf-files");
 
+        const manager = new FileManager(files, {
+            getTree: () => window.pipefishGetFileTree(),
+            readFile: path => window.pipefishReadFile(path),
+            writeFile: (path, data) => window.pipefishUpdateFile(path, data),
+            createDirectory: path => window.pipefishCreateDirectory(path),
+            renamePath: (oldPath, newPath) =>
+                window.pipefishRenamePath(oldPath, newPath),
+            deleteFile: path => window.pipefishDeleteFile(path),
+            deleteDirectory: path => window.pipefishDeleteDirectory(path),
+            revertFile: path => window.pipefishRevertFile(path),
+            zipDirectory: path => window.pipefishZipDirectory(path)
+        }, {
+            openPaths: paths => this.reader.openPaths(paths),
+
+            renamePaths: async (oldPath, newPath) => {
+                const oldPrefix = oldPath + "/";
+
+                const renamed = path =>
+                    path === oldPath
+                        ? newPath
+                        : path.startsWith(oldPrefix)
+                            ? newPath + path.slice(oldPath.length)
+                            : path;
+
+                for (const file of this.reader.files) {
+                    file.path = renamed(file.path);
+                }
+
+                this.reader.currentFile = renamed(this.reader.currentFile);
+                this.reader.makeTabs();
+
+                if (this.reader.currentFile) {
+                    await this.reader.selectFile(this.reader.currentFile);
+                }
+            },
+
+            removePaths: paths => this.reader.removePaths(paths),
+
+            revertPaths: async (target, type) => {
+                const affectsPath = path => type === "file"
+                    ? path === target
+                    : target === "." ||
+                        path === target ||
+                        path.startsWith(target + "/");
+
+                const currentPath = this.reader.currentFile;
+                const removedPaths = [];
+
+                for (const file of this.reader.files) {
+                    if (!affectsPath(file.path)) {
+                        continue;
+                    }
+
+                    const result = window.pipefishReadFile(file.path);
+
+                    if (result.ok) {
+                        file.data = result.data;
+                    } else {
+                        removedPaths.push(file.path);
+                    }
+                }
+
+                if (removedPaths.length) {
+                    await this.reader.removePaths(removedPaths);
+                }
+
+                if (
+                    currentPath &&
+                    affectsPath(currentPath) &&
+                    !removedPaths.includes(currentPath)
+                ) {
+                    await this.reader.selectFile(currentPath);
+                }
+            }
+        });
+
+        projectMenu.addEventListener("menu-select", event => {
+            manager.open(event.detail.toLowerCase());
+        });
+
         const code = document.createElement("textarea");
         code.placeholder = "";
         code.classList.add("code-input");
@@ -73,14 +146,11 @@ class PipefishEditor extends HTMLElement {
         this.editor = editor;
         this.menu = projectMenu;
         this.files = files;
+        this.fileManager = manager;
         this.minimizeButton = minimize;
         this.initialHeightSet = false;
 
-        files.addEventListener("files-action", event => {
-            this.handleFilesAction(event).catch(error => {
-                console.error("File operation failed:", error);
-            });
-        });
+        
 
         minimize.addEventListener("click", () => {
         const minimized =
@@ -210,272 +280,6 @@ class PipefishEditor extends HTMLElement {
             this.reader.files.length === 0
         );
     }
-
-    refreshFileTree() {
-        this.files.setVFS(window.pipefishGetFileTree());
-    }
-
-    checkFileOperation(result) {
-        if (typeof result === "string" && result) {
-            throw new Error(result);
-        }
-    }
-
-    async handleFilesAction(event) {
-        const {
-            operation,
-            selection,
-            kind,
-            name,
-        } = event.detail;
-
-        const selectedPath = selection?.path ?? null;
-
-        const selectedType = selection?.node?.type;
-
-        const refresh = () => this.refreshFileTree();
-
-        switch (operation) {
-            case "open": {
-                if (selectedType === "file") {
-                    await this.reader.openPaths([selectedPath]);
-                } else if (selectedType === "folder") {
-                    const paths = (selection.children || [])
-                        .filter(child => child.type === "file")
-                        .map(child =>
-                            selectedPath === "."
-                                ? child.name
-                                : `${selectedPath}/${child.name}`
-                        );
-
-                    if (paths.length) {
-                        await this.reader.openPaths(paths);
-                    }
-                }
-
-                break;
-            }
-
-            case "download": {
-                if (selectedType === "file") {
-                    const result =
-                        window.pipefishReadFile(selectedPath);
-
-                    if (!result.ok) {
-                        throw new Error(result.error);
-                    }
-
-                    this.downloadBlob(
-                        new Blob([result.data], {
-                            type: "application/octet-stream",
-                        }),
-                        selectedPath.split("/").pop()
-                    );
-                } else if (selectedType === "folder") {
-                    const result =
-                        window.pipefishZipDirectory(selectedPath);
-
-                    if (!result.ok) {
-                        throw new Error(result.error);
-                    }
-
-                    this.downloadBlob(
-                        new Blob([result.data], {
-                            type: "application/zip",
-                        }),
-                        `${selectedPath === "." ? "vfs" : selection.node.name}.zip`
-                    );
-                }
-
-                break;
-            }
-
-            case "new": {
-                if (!name || name.includes("/") || name.includes("\\")) {
-                    throw new Error("Enter a valid file or folder name.");
-                }
-
-                const parent = selectedType === "folder"
-                    ? selectedPath
-                    : ".";
-
-                const path = parent === "."
-                    ? name
-                    : `${parent}/${name}`;
-
-                if (kind === "folder") {
-                    this.checkFileOperation(
-                        window.pipefishCreateDirectory(path)
-                    );
-                } else {
-                    this.checkFileOperation(
-                        window.pipefishUpdateFile(path, "")
-                    );
-
-                    await this.reader.openPaths([path]);
-                }
-
-                refresh();
-                break;
-            }
-
-            case "rename": {
-                if (
-                    !name ||
-                    name.includes("/") ||
-                    name.includes("\\") ||
-                    selectedPath === "."
-                ) {
-                    throw new Error("Enter a valid new name.");
-                }
-
-                const normalizedPath = selectedPath.replace(/^\.\//, "");
-
-                const parent = normalizedPath.includes("/")
-                    ? normalizedPath.slice(0, normalizedPath.lastIndexOf("/"))
-                    : "";
-
-                const newPath = parent
-                    ? `${parent}/${name}`
-                    : name;
-
-                this.checkFileOperation(
-                    window.pipefishRenamePath(normalizedPath, newPath)
-                );
-
-                const oldPrefix = normalizedPath + "/";
-                
-                const renamed = path =>
-                    path === normalizedPath
-                        ? newPath
-                        : path.startsWith(oldPrefix)
-                            ? newPath + path.slice(normalizedPath.length)
-                            : path;
-
-                for (const file of this.reader.files) {
-                    file.path = renamed(file.path);
-                }
-
-                this.reader.currentFile = renamed(this.reader.currentFile);
-
-                this.reader.makeTabs();
-                if (this.reader.currentFile) {
-                    await this.reader.selectFile(this.reader.currentFile);
-                }
-
-                refresh();
-                break;
-            }
-
-            case "delete": {
-                if (selectedType === "folder") {
-                    this.checkFileOperation(
-                        window.pipefishDeleteDirectory(selectedPath)
-                    );
-                } else {
-                    this.checkFileOperation(
-                        window.pipefishDeleteFile(selectedPath)
-                    );
-                }
-
-                const removedPaths = [];
-
-                const collectPaths = (node, path) => {
-                    if (node.type === "file") {
-                        removedPaths.push(path);
-                        return;
-                    }
-
-                    for (const child of node.children || []) {
-                        collectPaths(
-                            child,
-                            path === "."
-                                ? child.name
-                                : `${path}/${child.name}`
-                        );
-                    }
-                };
-
-                collectPaths(selection.node, selectedPath);
-
-                await this.reader.removePaths(removedPaths);
-                refresh();
-                break;
-            }
-
-            case "revert": {
-                if (selectedType !== "file" && selectedType !== "folder") {
-                    break;
-                }
-
-                const target = selectedPath.replace(/^\.\//, "");
-
-                this.checkFileOperation(
-                    window.pipefishRevertFile(target)
-                );
-
-                const affectsPath = path => {
-                    if (selectedType === "file") {
-                        return path === target;
-                    }
-
-                    return target === "." ||
-                        path === target ||
-                        path.startsWith(target + "/");
-                };
-
-                const currentPath = this.reader.currentFile;
-                const removedPaths = [];
-
-                for (const file of this.reader.files) {
-                    if (!affectsPath(file.path)) {
-                        continue;
-                    }
-
-                    const result = window.pipefishReadFile(file.path);
-
-                    if (result.ok) {
-                        file.data = result.data;
-                    } else {
-                        removedPaths.push(file.path);
-                    }
-                }
-
-                if (removedPaths.length) {
-                    await this.reader.removePaths(removedPaths);
-                }
-
-                if (
-                    currentPath &&
-                    affectsPath(currentPath) &&
-                    !removedPaths.includes(currentPath)
-                ) {
-                    await this.reader.selectFile(currentPath);
-                }
-
-                refresh();
-                break;
-            }
-        }
-    }
-
-    downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-
-        anchor.href = url;
-        anchor.download = filename;
-
-        document.body.append(anchor);
-        anchor.click();
-        anchor.remove();
-
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-
-
-
-
 
     get value() {
         return this.code.value;
