@@ -54,7 +54,8 @@ class PfAuthor extends PfBook {
             `,
             items: [
                 "Open folder as book",
-                "Publish book"
+                "Publish book",
+                "Download book"
             ],
             size
         });
