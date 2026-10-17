@@ -89,8 +89,7 @@ export class PfBook extends HTMLElement {
         const contentsSrc =
             src.replace(/\/?$/, "/Contents.md");
 
-        const response = await fetch(contentsSrc);
-        const text = await response.text();
+        const text = await this.loadText(contentsSrc);
 
         const parsed = parseContents(text);
 
@@ -125,6 +124,18 @@ export class PfBook extends HTMLElement {
         window.addEventListener("hashchange", () => {
             this.showPage(location.hash.slice(1));
         });
+    }
+
+    async loadText(src) {
+        const response = await fetch(src);
+
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load ${src}: ${response.status}`
+            );
+        }
+
+        return response.text();
     }
 
     async showPage(hash) {

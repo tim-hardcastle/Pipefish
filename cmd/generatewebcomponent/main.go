@@ -25,39 +25,36 @@ var (
 	service       *pf.Service
 	mainFilepath  string
 	fs            *filesystem.VFS
+	authorFS      *filesystem.VFS
+    bookFS        *filesystem.VFS
 	oH            *vm.CapturingOutHandler
 	originalFiles map[string][]byte
 )
 
 func compile(this js.Value, args []js.Value) any {
 	files := args[0]
-
 	fs = filesystem.NewVFS()
 	originalFiles = make(map[string][]byte)
+	mainFilepath = ""
 
 	for i := 0; i < files.Length(); i++ {
-		file := files.Index(i)
-
-		path := file.Get("path").String()
-		dataJS := file.Get("data")
-
-		if mainFilepath == "" && filepath.Ext(path) == ".pf" {
-			mainFilepath = path
-		}
-
-		data := make([]byte, dataJS.Get("byteLength").Int())
-		js.CopyBytesToGo(data, dataJS)
-
-		cleanPath := strings.TrimPrefix(path, "./")
-		cleanPath = strings.TrimPrefix(cleanPath, "/")
-		cleanPath = pathpkg.Clean(cleanPath)
-
-		originalFiles[cleanPath] = append([]byte(nil), data...)
+		item := files.Index(i)
+		path := item.Get("path").String()
+		dataValue := item.Get("data")
+		data := make([]byte, dataValue.Get("byteLength").Int())
+		js.CopyBytesToGo(data, dataValue)
 
 		if err := fs.WriteFile(path, data); err != nil {
 			return err.Error()
 		}
+
+		originalFiles[path] = data
+
+		if mainFilepath == "" && strings.HasSuffix(path, ".pf") {
+			mainFilepath = path
+		}
 	}
+
 	var (
 		main []byte 
 		err error
@@ -138,48 +135,194 @@ func getFileTree(this js.Value, args []js.Value) any {
 	if fs == nil {
 		return "filesystem has not been initialized"
 	}
-	return buildDirectoryTree(".")
+	return buildDirectoryTreeFor(fs, ".")
 }
 
-func buildDirectoryTree(directory string) (result js.Value) {
-	result = js.Global().Get("Object").New()
-	result.Set("type", "folder")
+func buildDirectoryTreeFor(vfs *filesystem.VFS, directory string) js.Value {
+    result := js.Global().Get("Object").New()
+    result.Set("type", "folder")
+    result.Set("path", directory)
 
-	name := directory
-	if directory == "." {
-		name = ""
-	} else {
-		name = filepath.Base(directory)
-	}
-	result.Set("name", name)
+    name := directory
+    if directory == "." {
+        name = ""
+    } else {
+        name = filepath.Base(directory)
+    }
+    result.Set("name", name)
 
-	children := js.Global().Get("Array").New()
+    children := js.Global().Get("Array").New()
 
-	directories, err := fs.GetDirectoryNames(directory, false)
-	if err != nil {
+    directories, err := vfs.GetDirectoryNames(directory, false)
+    if err != nil {
+        result.Set("children", children)
+        return result
+    }
+    sort.Strings(directories)
+
+    for _, child := range directories {
+        children.Call("push", buildDirectoryTreeFor(vfs, child))
+    }
+
+    files, err := vfs.GetFilenames(directory, false)
+    if err != nil {
+        result.Set("children", children)
+        return result
+    }
+    sort.Strings(files)
+
+    for _, file := range files {
+        child := js.Global().Get("Object").New()
+        child.Set("type", "file")
+        child.Set("name", filepath.Base(file))
+        child.Set("path", file)
+        children.Call("push", child)
+    }
+
+    result.Set("children", children)
+    return result
+}
+
+func initAuthorFiles(this js.Value, args []js.Value) any {
+    if len(args) < 1 || !args[0].Truthy() {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": "missing files array",
+        })
+    }
+
+    authorFS = filesystem.NewVFS()
+    bookFS = nil
+
+    files := args[0]
+
+    for i := 0; i < files.Length(); i++ {
+        item := files.Index(i)
+        path := item.Get("path").String()
+        dataValue := item.Get("data")
+
+        data := make([]byte, dataValue.Get("byteLength").Int())
+        js.CopyBytesToGo(data, dataValue)
+
+        if err := authorFS.WriteFile(path, data); err != nil {
+            authorFS = nil
+
+            return js.ValueOf(map[string]any{
+                "ok":    false,
+                "error": err.Error(),
+            })
+        }
+    }
+
+    return js.ValueOf(map[string]any{
+        "ok": true,
+    })
+}
+
+func getAuthorFileTree(this js.Value, args []js.Value) any {
+    if authorFS == nil {
+        return js.Null()
+    }
+
+    return buildDirectoryTreeFor(authorFS, ".")
+}
+
+func openBook(this js.Value, args []js.Value) any {
+    if authorFS == nil {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": "author filesystem is not initialized",
+        })
+    }
+
+    if len(args) < 1 {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": "missing directory path",
+        })
+    }
+
+    directory := args[0].String()
+
+    copied, err := authorFS.CopySubtree(directory)
+    if err != nil {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": err.Error(),
+        })
+    }
+
+    bookFS = copied
+
+    return js.ValueOf(map[string]any{
+        "ok":   true,
+        "tree": buildDirectoryTreeFor(bookFS, "."),
+    })
+}
+
+func getBookFileTree(this js.Value, args []js.Value) any {
+    if bookFS == nil {
+        return js.Null()
+    }
+
+    return buildDirectoryTreeFor(bookFS, ".")
+}
+
+func readBookFile(this js.Value, args []js.Value) interface{} {
+	if bookFS == nil {
+		result := js.Global().Get("Object").New()
+		result.Set("ok", false)
+		result.Set("error", "no book is open")
 		return result
 	}
-	sort.Strings(directories)
 
-	for _, child := range directories {
-		children.Call("push", buildDirectoryTree(child))
-	}
-
-	files, err := fs.GetFilenames(directory, false)
-	if err != nil {
+	if len(args) == 0 {
+		result := js.Global().Get("Object").New()
+		result.Set("ok", false)
+		result.Set("error", "expected a file path")
 		return result
 	}
-	sort.Strings(files)
 
-	for _, file := range files {
-		child := js.Global().Get("Object").New()
-		child.Set("type", "file")
-		child.Set("name", filepath.Base(file))
-		children.Call("push", child)
+	data, err := bookFS.ReadFile(args[0].String())
+	if err != nil {
+		result := js.Global().Get("Object").New()
+		result.Set("ok", false)
+		result.Set("error", err.Error())
+		return result
 	}
 
-	result.Set("children", children)
+	result := js.Global().Get("Object").New()
+	result.Set("ok", true)
+	result.Set("data", string(data))
 	return result
+}
+
+func writeBookFile(this js.Value, args []js.Value) interface{} {
+    result := js.Global().Get("Object").New()
+
+    if bookFS == nil {
+        result.Set("ok", false)
+        result.Set("error", "no book is open")
+        return result
+    }
+
+    if len(args) < 2 {
+        result.Set("ok", false)
+        result.Set("error", "expected a file path and contents")
+        return result
+    }
+
+    path := args[0].String()
+    contents := args[1].String()
+
+    if err := bookFS.WriteFile(path, []byte(contents)); err != nil {
+        result.Set("ok", false)
+        result.Set("error", err.Error())
+        return result
+    }
+
+    result.Set("ok", true)
+    return result
 }
 
 func readFile(this js.Value, args []js.Value) any {
@@ -460,6 +603,36 @@ func main() {
 	js.Global().Set(
 		"pipefishZipDirectory",
 		js.FuncOf(zipDirectory),
+	)
+
+	js.Global().Set(
+		"pipefishInitAuthorFiles",
+		js.FuncOf(initAuthorFiles),
+	)
+
+	js.Global().Set(
+		"pipefishGetAuthorFileTree",
+		js.FuncOf(getAuthorFileTree),
+	)
+
+	js.Global().Set(
+		"pipefishOpenBook",
+		js.FuncOf(openBook),
+	)
+
+	js.Global().Set(
+		"pipefishGetBookFileTree",
+		js.FuncOf(getBookFileTree),
+	)
+
+	js.Global().Set(
+		"pipefishReadBookFile",
+		js.FuncOf(readBookFile),
+	)
+
+	js.Global().Set(
+		"pipefishWriteBookFile",
+		js.FuncOf(writeBookFile),
 	)
 
 	select {}

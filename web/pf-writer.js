@@ -81,8 +81,27 @@ class PfWriter extends PfPage {
             return;
         }
 
-        const response = await fetch(src);
-        const markdown = await response.text();
+        let markdown;
+
+        if (src.startsWith("bookfs:")) {
+            const result = window.pipefishReadBookFile(
+                src.slice("bookfs:".length)
+            );
+
+            if (!result.ok) {
+                throw new Error(result.error);
+            }
+
+            markdown = result.data;
+        } else {
+            const response = await fetch(src);
+
+            if (!response.ok) {
+                throw new Error(`Failed to load ${src}: ${response.status}`);
+            }
+
+            markdown = await response.text();
+        }
 
         // Ignore an older request if src changed while fetching.
         if (loadId !== this.loadId) {
@@ -142,14 +161,30 @@ class PfWriter extends PfPage {
 
         this.detachToggle = () => edgeToggle.detach();
 
-        toggle.addEventListener("click", () => {
+        toggle.addEventListener("click", async () => {
             if (this.editing) {
-                this.markdown = editor.value;
+                const markdown = editor.value;
+                const src = this.getAttribute("src");
+
+                if (src?.startsWith("bookfs:")) {
+                    const result = window.pipefishWriteBookFile(
+                        src.slice("bookfs:".length),
+                        markdown
+                    );
+
+                    if (!result?.ok) {
+                        console.error(
+                            "Failed to save Markdown:",
+                            result?.error ?? "Unknown error"
+                        );
+                        return;
+                    }
+                }
+
+                this.markdown = markdown;
 
                 rendered.innerHTML =
-                    window.pipefishRenderMdAsHtml(
-                        this.markdown
-                    );
+                    window.pipefishRenderMdAsHtml(this.markdown);
 
                 editor.hidden = true;
                 rendered.hidden = false;

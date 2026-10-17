@@ -49,11 +49,12 @@ class PipefishTui extends HTMLElement {
         this.promptLabel.classList.add("cyan");
 
         const arrow = document.createElement("span");
-        arrow.textContent = " → ";
+        arrow.textContent = "→ ";
 
         prompt.append(this.promptLabel, arrow);
 
-        this.prompt = prompt
+        this.prompt = prompt;
+        this.arrow = arrow;
 
         const inputEditor =
             document.createElement("div");
@@ -300,6 +301,7 @@ class PipefishTui extends HTMLElement {
         await this.service.initialize(source);
         const fp = await this.service.getFilepath()
         this.promptLabel.textContent = getFilenameWithoutExtension(fp)
+        this.arrow.textContent = this.promptLabel.textContent == "" ? "→ " : " → ";
     }
 
     isEscaped(text, pos) {

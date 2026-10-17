@@ -1,4 +1,4 @@
-import { PfBook } from "./pf-book.js";
+import { PfBook, parseContents } from "./pf-book.js";
 import "./pf-writer.js";
 import "./assets/file-menu.js";
 import { FileManager } from "./assets/file-manager.js";
@@ -14,6 +14,52 @@ class PfAuthor extends PfBook {
 
     get pageElementName() {
         return "pf-writer";
+    }
+
+    async connectedCallback() {
+        await this.vfs.initialize();
+
+        // Start with the bundled example book open.
+        this.vfs.openBook("using-publisher");
+
+        await super.connectedCallback();
+    }
+
+    async loadText(src) {
+        const result = window.pipefishReadBookFile("Contents.md");
+
+        if (!result.ok) {
+            throw new Error(result.error);
+        }
+
+        return result.data;
+    }
+
+    pageSrc(page) {
+        return `bookfs:${page.filename}`;
+    }
+
+    async openBook(path) {
+        this.vfs.openBook(path);
+
+        const result = window.pipefishReadBookFile("Contents.md");
+
+        if (!result.ok) {
+            throw new Error(result.error);
+        }
+
+        const parsed = parseContents(result.data);
+
+        this.header = parsed.header;
+        this.contents = parsed.sections;
+
+        this.render();
+
+        const firstPage = this.contents[0]?.pages[0];
+
+        if (firstPage) {
+            await this.showPage(firstPage.hash);
+        }
     }
 
     renderHeaderExtras(header, themeToggle) {
@@ -75,7 +121,8 @@ class PfAuthor extends PfBook {
                 deleteFile: path => this.vfs.deleteFile(path),
                 deleteDirectory: path => this.vfs.deleteDirectory(path),
                 revertFile: path => this.vfs.revertFile(path),
-                zipDirectory: path => this.vfs.zipDirectory(path)
+                zipDirectory: path => this.vfs.zipDirectory(path),
+                openBook: path => this.openBook(path)
             },
             {
                 openPaths: paths => {
@@ -93,12 +140,27 @@ class PfAuthor extends PfBook {
                             }));
                         }
                     }
-                }
+                },
+                openBook: path => this.openBook(path)
             }
         );
 
         filesMenu.addEventListener("menu-select", event => {
             this.fileManager.open(event.detail.toLowerCase());
+        });
+
+        booksMenu.addEventListener("menu-select", async event => {
+            switch (event.detail) {
+                case "Open folder as book":
+                    this.fileManager.open("open-book");
+                    break;
+
+                case "Publish book":
+                    break;
+
+                case "Download book":
+                    break;
+            }
         });
 
         controls.append(filesMenu, booksMenu, themeToggle);

@@ -46,6 +46,65 @@ func (vfs *VFS) FileExists(path string) bool {
 	return exists
 }
 
+func (vfs *VFS) CopySubtree(directory string) (*VFS, error) {
+    directory = vfs.cleanPath(directory)
+
+    if directory != "." {
+        isDir, exists := vfs.dirs.Get(directory)
+        if !exists || !isDir {
+            return nil, fmt.Errorf(
+                "directory %q does not exist",
+                directory,
+            )
+        }
+    }
+
+    copy := NewVFS()
+
+    relativePath := func(path string) string {
+        if directory == "." {
+            return path
+        }
+
+        return strings.TrimPrefix(
+            strings.TrimPrefix(path, directory),
+            "/",
+        )
+    }
+
+    // Copy directories first, including empty directories.
+    directories, err := vfs.GetDirectoryNames(directory, true)
+    if err != nil {
+        return nil, err
+    }
+
+    for _, dir := range directories {
+        if err := copy.CreateDirectory(relativePath(dir)); err != nil {
+            return nil, err
+        }
+    }
+
+    // Copy file contents. ReadFile and WriteFile both copy
+    // their byte slices, so the two VFS instances are independent.
+    filenames, err := vfs.GetFilenames(directory, true)
+    if err != nil {
+        return nil, err
+    }
+
+    for _, filename := range filenames {
+        data, err := vfs.ReadFile(filename)
+        if err != nil {
+            return nil, err
+        }
+
+        if err := copy.WriteFile(relativePath(filename), data); err != nil {
+            return nil, err
+        }
+    }
+
+    return copy, nil
+}
+
 type vfsFileInfo struct {
 	name  string
 	isDir bool

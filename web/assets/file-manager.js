@@ -38,6 +38,14 @@ export class FileManager {
         const type = selection?.type ?? selection?.node?.type;
 
         switch (operation) {
+            case "open-book": {
+                if (type !== "folder") {
+                    break;
+                }
+
+                await this.host.openBook?.(path);
+                break;
+            }
             case "open": {
                 if (type === "file") {
                     await this.host.openPaths?.([path]);
