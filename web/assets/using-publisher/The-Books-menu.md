@@ -2,12 +2,6 @@ The **Books** menu tells Pipefish Publisher to treat certain folders as books, a
 
 * **Open folder as book**. This will try to do as it says and open the folder as a book, putting a new `Contents.md` file in the root of the folder if it isn't there, and otherwise using it to build the sidebar and display the book.
 
-* **Publish book**. If the book is already associated with a GitHub Pages repo (or a subfolder of one) then this will make sure that the folder contains an `index.html` file that serves up the book out of a `book` folder, which it will populate from the folder of the book you have open.
+* **Publish book**. If the book is already associated with a GitHub Pages repo (or a subfolder of one) then this will make sure that the folder contains an `index.html` file that serves up the book out of a `book` folder, which it will populate from the folder of the book you have open. If the book isn't already associated with a repo, then a pop-up will let you associate it with one, and with an access token. Other files and folders in the repo, such as a `README.md` or the license, will not be affected.
 
-If the book isn't already associated with a repo, then a pop-up will let you associate it with one, and with an access token.
-
-Other files and folders in the repo, such as a `README.md` or the license, will not be affected.
-
-* **Download book**
-
-This will download a zip file with the same name as the book's folder, containing an `index.html` file and a `books` folder with its contents: or, to put it another way, containing the same thing that **Publish book** pushes to GitHub Pages, in case you want to host it somewhere else.
+* **Download book**. This will download a zip file with the same name as the book's folder, containing an `index.html` file and a `books` folder with its contents: or, to put it another way, containing the same thing that **Publish book** pushes to GitHub Pages, in case you want to host it somewhere else.

@@ -1,9 +1,11 @@
 const SAMPLE_BOOK_FILES = [
     "Contents.md",
     "Components-overview.md",
+    "Initializing-components.md",
     "Introduction.md",
     "Markdown.md",
     "The-Books-menu.md",
+    "The-Files-menu.md",
     "The-structure-of-a-book.md"
 ];
 
@@ -27,7 +29,7 @@ export class AuthorVFS {
 
                 return {
                     path,
-                    data: await response.text()
+                    data: new TextEncoder().encode(await response.text())
                 };
             })
         );
