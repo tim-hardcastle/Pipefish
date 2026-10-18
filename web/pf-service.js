@@ -4,18 +4,46 @@ class PipefishService extends HTMLElement {
 
         this.ready = this.loadWasm();
         this.source = null;
+        this.fileExtractor = async (path, filename) => {
+            const url = new URL(
+                filename,
+                new URL(
+                    path,
+                    new URL("book/", document.baseURI)
+                )
+            );
+
+            const response = await fetch(url, {
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    `Unable to load ${url}: ` +
+                    `${response.status} ${response.statusText}`
+                );
+            }
+
+            return new Uint8Array(await response.arrayBuffer());
+        };
     }
 
     async initialize(source) {
-        await this.compile(source);
+        this.initialization = (async () => {
+            this.source = source;
+        })();
+    }
+
+    async build(fileExtractor) {
+        await this.initialization
+        if (fileExtractor) {
+            this.fileExtractor = fileExtractor
+        }
+        await this.compile(this.source)
     }
 
     async compile(source) {
         await this.ready;
-
-        if (source === this.source) {
-            return;
-        }
 
         let files = null;
 
@@ -39,30 +67,13 @@ class PipefishService extends HTMLElement {
         return result;
     }
 
-    async compileMain() {
-        await this.ready;
-        return window.pipefishCompileMain();
-    }
-
-    async loadDirectory(lines) {
+        async loadDirectory(lines) {
         const base = lines[0].trim();
         const entries = this.parseDirectory(lines.slice(1));
         const files = [];
 
         for (const path of entries) {
-            const response =
-                await fetch(new URL(path, new URL(base, document.baseURI)), {
-                    cache: "no-store"
-                });;
-
-            if (!response.ok) {
-                throw new Error(
-                    `Unable to load ${path}: ${response.status} ${response.statusText}`
-                );
-            }
-
-            const data =
-                new Uint8Array(await response.arrayBuffer());
+            const data = await this.fileExtractor(base, path);
 
             files.push({
                 path,
@@ -71,6 +82,11 @@ class PipefishService extends HTMLElement {
         }
 
         return files;
+    }
+
+    async compileMain() {
+        await this.ready;
+        return window.pipefishCompileMain();
     }
 
     parseDirectory(lines) {

@@ -291,6 +291,11 @@ class PipefishTui extends HTMLElement {
         this._service = service;
     }
 
+    async build(fileExtractor) {
+        await this.initialized;
+        await this.service.build(fileExtractor);
+    }
+
     async initialize(source) {
         this.initialized = this._initialize(source);
         return this.initialized;

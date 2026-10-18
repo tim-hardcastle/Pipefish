@@ -1,12 +1,17 @@
 const SAMPLE_BOOK_FILES = [
     "Contents.md",
     "Components-overview.md",
-    "Initializing-components.md",
+    "Initializing-components-from-code.md",
+    "Initializing-components-from-files.md",
     "Introduction.md",
     "Markdown.md",
     "The-Books-menu.md",
     "The-Files-menu.md",
-    "The-structure-of-a-book.md"
+    "The-structure-of-a-book.md",
+    "project/main.pf",
+    "project/other.pf",
+    "project/README.md",
+    "project/text/text.txt"
 ];
 
 export class AuthorVFS {

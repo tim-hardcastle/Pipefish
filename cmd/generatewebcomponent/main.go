@@ -268,6 +268,42 @@ func getBookFileTree(this js.Value, args []js.Value) any {
     return buildDirectoryTreeFor(bookFS, ".")
 }
 
+
+func readAuthorFile(this js.Value, args []js.Value) any {
+    if authorFS == nil {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": "author filesystem has not been initialized",
+        })
+    }
+
+    if len(args) == 0 {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": "expected a file path",
+        })
+    }
+
+    data, err := authorFS.ReadFile(args[0].String())
+    if err != nil {
+        return js.ValueOf(map[string]any{
+            "ok":    false,
+            "error": err.Error(),
+        })
+    }
+
+    result := js.Global().Get("Object").New()
+    result.Set("ok", true)
+
+    bytes := js.Global().Get("Uint8Array").New(len(data))
+    js.CopyBytesToJS(bytes, data)
+    result.Set("data", bytes)
+
+    return result
+}
+
+// TODO --- use code above, either converting to string with this as a mere wrapper or having just the
+// one function returning bytes.
 func readBookFile(this js.Value, args []js.Value) interface{} {
 	if bookFS == nil {
 		result := js.Global().Get("Object").New()
@@ -628,6 +664,11 @@ func main() {
 	js.Global().Set(
 		"pipefishReadBookFile",
 		js.FuncOf(readBookFile),
+	)
+
+	js.Global().Set(
+		"pipefishReadAuthorFile",
+		js.FuncOf(readAuthorFile),
 	)
 
 	js.Global().Set(

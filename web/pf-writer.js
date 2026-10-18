@@ -1,5 +1,6 @@
 import "./pf-page.js";
 import { attachEdgeToggle } from "./assets/edge-toggle.js";
+import { authorFileExtractor } from "./assets/files.js";
 
 const PfPage = customElements.get("pf-page");
 
@@ -68,6 +69,7 @@ class PfWriter extends PfPage {
         this.editing = false;
         this.loadId = 0;
         this.detachToggle = null;
+        this.fileExtractor = authorFileExtractor
     }
 
     async load() {
@@ -112,7 +114,7 @@ class PfWriter extends PfPage {
         this.editing = false;
 
         this.renderWriter();
-
+        await this.buildEmbeddedElements(this.fileExtractor);
         this.dispatchEvent(new Event("page-loaded"));
     }
 
@@ -185,6 +187,7 @@ class PfWriter extends PfPage {
 
                 rendered.innerHTML =
                     window.pipefishRenderMdAsHtml(this.markdown);
+                await this.buildEmbeddedElements(this.fileExtractor)
 
                 editor.hidden = true;
                 rendered.hidden = false;
@@ -204,6 +207,8 @@ class PfWriter extends PfPage {
             edgeToggle.setMode(this.editing);
         });
 
+        this.rendered = rendered
+
         this.append(
             title,
             rendered,
@@ -212,6 +217,14 @@ class PfWriter extends PfPage {
         );
 
         edgeToggle.setMode(false);
+    }
+
+    async buildEmbeddedElements(fileExtractor) {
+        for (const element of this.rendered.children) {
+            if (element.localName.startsWith("pf-")) {
+                await element.build(fileExtractor);
+            }
+        }
     }
 
     disconnectedCallback() {

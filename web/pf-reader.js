@@ -12,6 +12,8 @@ class PipefishReader extends HTMLElement {
 
         this.files = [];
         this.currentFile = null;
+        this.source = "";
+        this.base = "";
 
         const shadow =
             this.attachShadow({ mode: "open" });
@@ -50,28 +52,28 @@ class PipefishReader extends HTMLElement {
         this.tabs = tabs;
         this.box = box;
         this.emptyState = emptyState
-    }
+        this.fileExtractor = async (path, filename) => {
+            const url = new URL(
+                filename,
+                new URL(
+                    path,
+                    new URL("book/", document.baseURI)
+                )
+            );
 
-    connectedCallback() {
-        this.initialize(this.textContent);
-    }
+            const response = await fetch(url, {
+                cache: "no-store"
+            });
 
-    async initialize(source) {
-        const files = await this.loadFiles(source);
+            if (!response.ok) {
+                throw new Error(
+                    `Unable to load ${url}: ` +
+                    `${response.status} ${response.statusText}`
+                );
+            }
 
-        this.files = files;
-
-        if (!files.length) {
-            this.currentFile = null;
-            await this.display("");
-            return "";
-        }
-
-        this.currentFile = files[0].path;
-        this.makeTabs();
-        await this.display(files[0].data);
-
-        return files[0].data;
+            return new Uint8Array(await response.arrayBuffer());
+        };
     }
 
     async loadFiles(source) {
@@ -85,13 +87,14 @@ class PipefishReader extends HTMLElement {
             return [
                 {
                     path: "main.pf",
-                    data: normalizeSource(source)
+                    data: new TextEncoder().encode(
+                        normalizeSource(source)
+                    )
                 }
             ];
         }
 
-        const base =
-            new URL(lines[0].trim(), document.baseURI);
+        this.base = lines[0].trim();
 
         const rootFiles =
             this.getRootFiles(lines.slice(1));
@@ -99,25 +102,50 @@ class PipefishReader extends HTMLElement {
         const files = [];
 
         for (const name of rootFiles) {
-            const response =
-                await fetch(new URL(name, base), {
-                    cache: "no-store"
-                });;
-
-            if (!response.ok) {
-                throw new Error(
-                    `Unable to load ${name}: ` +
-                    `${response.status} ${response.statusText}`
-                );
-            }
+            const data = await this.fileExtractor(
+                this.base,
+                name
+            );
 
             files.push({
                 path: name,
-                data: await response.text()
+                data
             });
         }
 
         return files;
+    }
+
+    connectedCallback() {
+        this.initialize(this.textContent);
+    }
+
+    initialize(source) {
+        this.initialization = (async () => {
+            this.source = source;
+        })();
+        return this.initialization;
+    }
+
+    async build(fileExtractor) {
+        await this.initialization
+        if (fileExtractor) {
+            this.fileExtractor = fileExtractor
+        }
+        const files = await this.loadFiles(this.source);
+        this.files = files;
+
+        if (!files.length) {
+            this.currentFile = null;
+            await this.display("");
+            return "";
+        }
+
+        this.currentFile = files[0].path;
+        this.makeTabs();
+        await this.display(files[0].data);
+
+        return files[0].data;
     }
 
     getRootFiles(lines) {
@@ -250,7 +278,7 @@ class PipefishReader extends HTMLElement {
         }));
     }
 
-    async display(source) {
+    async display(data) {
         await this.ready;
 
         if (!this.currentFile) {
@@ -264,15 +292,23 @@ class PipefishReader extends HTMLElement {
                 .toLowerCase();
 
         const highlighters = {
-            ".pf": source => this.highlighter.highlight(source)
+            ".pf": async bytes =>
+                this.highlighter.highlight(
+                    new TextDecoder().decode(bytes)
+                )
         };
 
         const highlighter =
-            highlighters[extension] || (source => source);
+            highlighters[extension] ||
+            (async bytes =>
+                new TextDecoder().decode(bytes));
 
         this.box.innerHTML =
-            await highlighter(source) +
-            (source.endsWith("\n") ? "\u00a0" : "");
+            await highlighter(data) +
+            (data.length &&
+            new TextDecoder().decode(data).endsWith("\n")
+                ? "\u00a0"
+                : "");
     }
 
     async closeTab(path) {
@@ -332,9 +368,8 @@ class PipefishReader extends HTMLElement {
                 opened.push(existing);
                 continue;
             }
-            const result = window.pipefishReadFile(path);
-            if (!result.ok) throw new Error(result.error);
-            opened.push({ path, data: result.data });
+            const data = await this.fileExtractor(this.base, path);
+            opened.push({ path, data });
         }
         const openedPaths = new Set(paths);
 

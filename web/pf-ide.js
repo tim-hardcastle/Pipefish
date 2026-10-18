@@ -57,9 +57,18 @@ class PipefishIde extends HTMLElement {
         this.initialize(this.textContent);
     }
 
-    async initialize(source) {
-        await this.ready;
-        await this.tui.initialize(source);
+    initialize(source) {
+        this.initialization = (async () => {
+            await this.ready;
+            await this.tui.initialize(source);
+        })();
+
+        return this.initialization;
+    }
+
+    async build(fileExtractor) {
+        await this.initialization;
+        await this.tui.build(fileExtractor);
     }
 }
 

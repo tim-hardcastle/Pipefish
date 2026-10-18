@@ -33,11 +33,21 @@ class PipefishCoder extends HTMLElement {
         ]);
     }
 
-    async initialize(source) {
-        await this.ready;
-        await this.service.initialize(source);
-        await this.editor.initialize(source);
-        this.dirty = false;
+    initialize(source) {
+        this.initialization = (async () => {
+            await this.ready;
+            await this.service.initialize(source);
+            await this.editor.initialize(source);
+            this.dirty = false;
+        })();
+
+        return this.initialization;
+    }
+
+    async build(fileExtractor) {
+        await this.initialization;
+        await this.editor.build(fileExtractor);
+        await this.service.build(fileExtractor);
     }
 
     async compile() {

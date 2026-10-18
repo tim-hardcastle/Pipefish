@@ -290,21 +290,30 @@ class PipefishEditor extends HTMLElement {
         this.display(value);
     }
 
-    async initialize(source) {
-        await this.ready;
+    initialize(source) {
+        this.initialization = (async () => {
+            await this.ready;
         
-        const firstLine = source.trim().split(/\r?\n/, 1)[0].trim();
-        this.menu.projectName = (firstLine.startsWith("./")
-            ? firstLine.replace(/\/+$/, "").split("/").pop()
-            : "⋮"
-        );
+            const firstLine = source.trim().split(/\r?\n/, 1)[0].trim();
+            this.menu.projectName = (firstLine.startsWith("./")
+                ? firstLine.replace(/\/+$/, "").split("/").pop()
+                : "⋮"
+            );
 
-        const normalized =
-            await this.reader.initialize(source);
+            const normalized =
+                await this.reader.initialize(source);
 
-        this.code.value = normalized;
-        this.setInitialHeight();
-        this.syncScroll();
+            this.code.value = normalized;
+            this.setInitialHeight();
+            this.syncScroll();
+        })();
+
+        return this.initialization;
+    }
+
+    async build(fileExtractor) {
+        await this.initialized;
+        await this.reader.build(fileExtractor);
     }
 
     async display(source) {

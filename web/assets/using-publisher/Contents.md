@@ -8,4 +8,5 @@
 - The Books menu
 ## Components
 - Components overview
-- Initializing components
+- Initializing components from code
+- Initializing components from files
