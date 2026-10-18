@@ -294,19 +294,19 @@ class PipefishReader extends HTMLElement {
         const highlighters = {
             ".pf": async bytes =>
                 this.highlighter.highlight(
-                    new TextDecoder().decode(bytes)
+                    new TextDecoder("utf-8").decode(bytes)
                 )
         };
 
         const highlighter =
             highlighters[extension] ||
             (async bytes =>
-                new TextDecoder().decode(bytes));
+                new TextDecoder("utf-8").decode(bytes));
 
         this.box.innerHTML =
             await highlighter(data) +
             (data.length &&
-            new TextDecoder().decode(data).endsWith("\n")
+            new TextDecoder("utf-8").decode(data).endsWith("\n")
                 ? "\u00a0"
                 : "");
     }
