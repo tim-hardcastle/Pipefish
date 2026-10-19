@@ -302,8 +302,6 @@ func readAuthorFile(this js.Value, args []js.Value) any {
     return result
 }
 
-// TODO --- use code above, either converting to string with this as a mere wrapper or having just the
-// one function returning bytes.
 func readBookFile(this js.Value, args []js.Value) interface{} {
 	if bookFS == nil {
 		result := js.Global().Get("Object").New()
@@ -366,7 +364,6 @@ func readFile(this js.Value, args []js.Value) any {
 
 	if fs == nil {
 		result.Set("ok", false)
-		result.Set("error", "filesystem has not been initialized")
 		return result
 	}
 
