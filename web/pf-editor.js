@@ -188,7 +188,7 @@ class PipefishEditor extends HTMLElement {
 
             await window.pipefishUpdateFile(
                 this.reader.currentFile,
-                bytes
+                code.value
             );
 
             this.dispatchEvent(
@@ -287,13 +287,11 @@ class PipefishEditor extends HTMLElement {
     }
 
     set value(value) {
-        console.log("Called set", value)
         this.code.value = value;
         this.display(value);
     }
 
     initialize(source) {
-        console.log("Called initialize.")
         this.initialization = (async () => {
             await this.ready;
         
@@ -310,7 +308,6 @@ class PipefishEditor extends HTMLElement {
     }
 
     async build(fileExtractor) {
-        console.log("Caled build")
         await this.initialized;
         const bytes = await this.reader.build(fileExtractor);
         this.value = new TextDecoder("utf-8").decode(bytes);
@@ -319,7 +316,6 @@ class PipefishEditor extends HTMLElement {
     }
 
     async display(pfCode) {
-        console.log("Called display.", pfCode)
         await this.ready;
         await this.reader.display(new TextEncoder().encode(pfCode));
         this.setInitialHeight();
@@ -327,7 +323,6 @@ class PipefishEditor extends HTMLElement {
     }
 
     setInitialHeight() {
-        console.log("Called setInitialHeight, code is", this.code.value)
         const lines =
             Math.max(1, this.code.value.split("\n").length);
 
