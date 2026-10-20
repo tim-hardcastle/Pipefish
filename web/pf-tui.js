@@ -294,6 +294,9 @@ class PipefishTui extends HTMLElement {
     async build(fileExtractor) {
         await this.initialized;
         await this.service.build(fileExtractor);
+        const fp = await this.service.getFilepath()
+        this.promptLabel.textContent = getFilenameWithoutExtension(fp)
+        this.arrow.textContent = this.promptLabel.textContent == "" ? "→ " : " → ";
     }
 
     async initialize(source) {
@@ -304,9 +307,6 @@ class PipefishTui extends HTMLElement {
     async _initialize(source) {
         await this.ready;
         await this.service.initialize(source);
-        const fp = await this.service.getFilepath()
-        this.promptLabel.textContent = getFilenameWithoutExtension(fp)
-        this.arrow.textContent = this.promptLabel.textContent == "" ? "→ " : " → ";
     }
 
     isEscaped(text, pos) {
