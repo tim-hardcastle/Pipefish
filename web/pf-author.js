@@ -3,6 +3,7 @@ import "./pf-writer.js";
 import "./assets/file-menu.js";
 import { FileManager } from "./assets/file-manager.js";
 import { AuthorVFS } from "./assets/author-vfs.js";
+import { loadWasm } from "./assets/pf-wasm.js";
 
 class PfAuthor extends PfBook {
     constructor() {
@@ -17,11 +18,9 @@ class PfAuthor extends PfBook {
     }
 
     async connectedCallback() {
+        await loadWasm();
         await this.vfs.initialize();
-
-        // Start with the bundled example book open.
         this.vfs.openBook("using-publisher");
-
         await super.connectedCallback();
     }
 

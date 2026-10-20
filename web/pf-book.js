@@ -1,4 +1,5 @@
 import "./pf-page.js";
+import { loadWasm } from "./assets/pf-wasm.js";
 
 const DEFAULT_LOGO = "/assets/rene.png";
 const DEFAULT_ICON = "/assets/icon.ico";
@@ -85,6 +86,7 @@ function parseContents(text) {
 
 export class PfBook extends HTMLElement {
     async connectedCallback() {
+        await loadWasm();
         const src = this.getAttribute("src");
         const contentsSrc =
             src.replace(/\/?$/, "/Contents.md");

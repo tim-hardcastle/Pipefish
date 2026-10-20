@@ -51,7 +51,28 @@ const deadline = Date.now() + 10000;
         if (
             window.pipefishCompile &&
             window.pipefishDo &&
-            window.pipefishHighlight
+            window.pipefishGetFilepath &&
+            window.pipefishHighlight &&
+            window.pipefishRenderMdAsHtml &&
+            window.pipefishWasmReady &&
+            window.pipefishUpdateFile &&
+            window.pipefishCompileMain &&
+            window.pipefishGetFileTree &&
+            window.pipefishReadFile &&
+            window.pipefishCreateDirectory &&
+            window.pipefishReadFile &&
+            window.pipefishDeleteFile &&
+            window.pipefishDeleteDirectory &&
+            window.pipefishRenamePath &&
+            window.pipefishRevertFile &&
+            window.pipefishZipDirectory &&
+            window.pipefishInitAuthorFiles &&
+            window.pipefishGetAuthorFileTree &&
+            window.pipefishOpenBook &&
+            window.pipefishGetBookFileTree &&
+            window.pipefishReadBookFile &&
+            window.pipefishReadAuthorFile &&
+            window.pipefishWriteBookFile
         ) {
             resolve();
             return;

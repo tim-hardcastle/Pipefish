@@ -1,8 +1,10 @@
+import { loadWasm } from "./assets/pf-wasm.js";
+
 class PipefishService extends HTMLElement {
     constructor() {
         super();
 
-        this.ready = this.loadWasm();
+        this.ready = loadWasm();
         this.source = null;
         this.fileExtractor = async (path, filename) => {
             const url = new URL(
@@ -134,48 +136,9 @@ class PipefishService extends HTMLElement {
     }
 
     async getFilepath() {
-        return window.pipefishGetFilepath()
+        return window.pipefishGetFilepath();
     }
 
-    async loadWasm() {
-        const wasmURL = "assets/pipefish.wasm";
-        const execURL = "assets/wasm_exec.js";
-
-        if (!window.Go) {
-            await this.loadScript(execURL);
-        }
-
-        window.pipefishWasmReady = false;
-
-        this.go = new Go();
-
-        const result =
-            await WebAssembly.instantiateStreaming(
-                fetch(wasmURL),
-                this.go.importObject
-            );
-
-        this.go.run(result.instance);
-
-        while (!window.pipefishWasmReady) {
-            await new Promise(resolve =>
-                setTimeout(resolve, 0)
-            );
-        }
-    }
-
-    loadScript(url) {
-        return new Promise((resolve, reject) => {
-            const script =
-                document.createElement("script");
-
-            script.src = url;
-            script.onload = resolve;
-            script.onerror = reject;
-
-            document.head.appendChild(script);
-        });
-    }
 }
 
 customElements.define(

@@ -10,25 +10,6 @@
 
     <pf-book src="book/"></pf-book>
 
-    <script src="assets/wasm_exec.js"></script>
-    <script>
-        const go = new Go();
-
-        let resolvePipefishReady;
-        window.pipefishReady = new Promise(resolve => {
-            resolvePipefishReady = resolve;
-        });
-
-        WebAssembly.instantiateStreaming(
-            fetch("assets/pipefish.wasm"),
-            go.importObject
-        ).then(result => {
-            go.run(result.instance);
-            resolvePipefishReady();
-        });
-    </script>
-
-    <script type="module" src="pf-page.js"></script>
     <script type="module" src="pf-book.js"></script>
 
 </body>
