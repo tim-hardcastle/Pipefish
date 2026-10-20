@@ -375,8 +375,14 @@ func readFile(this js.Value, args []js.Value) any {
 	}
 
 	result.Set("ok", true)
-	result.Set("data", string(data))
+	result.Set("data", bytesToJS(data))
 	return result
+}
+
+func bytesToJS(data []byte) js.Value {
+    array := js.Global().Get("Uint8Array").New(len(data))
+    js.CopyBytesToJS(array, data)
+    return array
 }
 
 func createDirectory(this js.Value, args []js.Value) any {

@@ -368,8 +368,9 @@ class PipefishReader extends HTMLElement {
                 opened.push(existing);
                 continue;
             }
-            const data = await this.fileExtractor(this.base, path);
-            opened.push({ path, data });
+            const result = window.pipefishReadFile(path);
+            if (!result.ok) throw new Error(result.error);
+            opened.push({ path, data: result.data });
         }
         const openedPaths = new Set(paths);
 
