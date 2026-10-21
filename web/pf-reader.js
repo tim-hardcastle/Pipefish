@@ -80,26 +80,22 @@ class PipefishReader extends HTMLElement {
         const lines =
             source.replace(/\r\n/g, "\n").split("\n");
 
+        const files = [];
+
         if (
             lines.length === 0 ||
             !lines[0].trim().startsWith("./")
         ) {
-            return [
-                {
-                    path: "main.pf",
-                    data: new TextEncoder().encode(
-                        normalizeSource(source)
-                    )
-                }
-            ];
+            return [{
+                path: "main.pf",
+                data: new TextEncoder().encode(normalizeSource(source))}
+            ]
         }
 
         this.base = lines[0].trim();
 
         const rootFiles =
             this.getRootFiles(lines.slice(1));
-
-        const files = [];
 
         for (const name of rootFiles) {
             const data = await this.fileExtractor(
