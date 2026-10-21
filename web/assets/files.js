@@ -322,19 +322,23 @@ class PFFiles extends HTMLElement {
 
 customElements.define("pf-files", PFFiles);
 
-export async function authorFileExtractor(path, filename) {
-    const filepath = [path, filename]
-        .join("/")
-        .replace(/\/+/g, "/")
-        .replace(/^\.\//, "");
+export function makeAuthorFileExtractor(bookRoot) {
+    return async function authorFileExtractor(path, filename) {
+        const filepath = [bookRoot, path, filename]
+            .filter(Boolean)
+            .flatMap(part => part.split("/"))
+            .filter(part => part && part !== ".")
+            .join("/");
 
-    const result = window.pipefishReadAuthorFile(filepath);
+        const result = window.pipefishReadAuthorFile(filepath);
 
-    if (!result.ok) {
-        throw new Error(
-            `Unable to load ${filepath}: ${result.error}`
-        );
-    }
+        if (!result.ok) {
+            throw new Error(
+                `Unable to load ${filepath}: ${result.error}`
+            );
+        }
 
-    return result.data;
+        return result.data;
+    };
 }
+

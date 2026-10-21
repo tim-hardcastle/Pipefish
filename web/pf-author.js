@@ -4,6 +4,7 @@ import "./assets/file-menu.js";
 import { FileManager } from "./assets/file-manager.js";
 import { AuthorVFS } from "./assets/author-vfs.js";
 import { loadWasm } from "./assets/pf-wasm.js";
+import { makeAuthorFileExtractor } from "./assets/files.js";
 
 class PfAuthor extends PfBook {
     constructor() {
@@ -13,15 +14,18 @@ class PfAuthor extends PfBook {
         this.fileManager = null;
     }
 
-    get pageElementName() {
-        return "pf-writer";
-    }
-
     async connectedCallback() {
         await loadWasm();
         await this.vfs.initialize();
-        this.vfs.openBook("using-publisher");
+
+        this.bookRoot = "using-publisher";
+        this.vfs.openBook(this.bookRoot);
+
         await super.connectedCallback();
+    }
+
+    get pageElementName() {
+        return "pf-writer";
     }
 
     async loadText(src) {
@@ -40,6 +44,7 @@ class PfAuthor extends PfBook {
 
     async openBook(path) {
         this.vfs.openBook(path);
+        this.bookRoot = path;
 
         const result = window.pipefishReadBookFile("Contents.md");
 
@@ -59,6 +64,17 @@ class PfAuthor extends PfBook {
         if (firstPage) {
             await this.showPage(firstPage.hash);
         }
+    }
+
+    async showPage(hash) {
+        const writer = this.querySelector("pf-writer");
+
+        if (writer) {
+            writer.fileExtractor =
+                makeAuthorFileExtractor(this.bookRoot);
+        }
+
+        await super.showPage(hash);
     }
 
     renderHeaderExtras(header, themeToggle) {

@@ -1,6 +1,5 @@
 import "./pf-page.js";
 import { attachEdgeToggle } from "./assets/edge-toggle.js";
-import { authorFileExtractor } from "./assets/files.js";
 
 const PfPage = customElements.get("pf-page");
 
@@ -69,7 +68,6 @@ class PfWriter extends PfPage {
         this.editing = false;
         this.loadId = 0;
         this.detachToggle = null;
-        this.fileExtractor = authorFileExtractor
     }
 
     async load() {

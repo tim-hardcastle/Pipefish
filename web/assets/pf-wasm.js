@@ -51,8 +51,8 @@ const deadline = Date.now() + 10000;
         if (
             window.pipefishCompile &&
             window.pipefishDo &&
-            window.pipefishGetFilepath &&
             window.pipefishHighlight &&
+            window.pipefishGetFilepath &&
             window.pipefishRenderMdAsHtml &&
             window.pipefishWasmReady &&
             window.pipefishUpdateFile &&
