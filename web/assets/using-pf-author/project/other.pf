@@ -1,0 +1,7 @@
+def
+
+twice(x) :
+    x + x
+
+thrice(x) :
+    x + x

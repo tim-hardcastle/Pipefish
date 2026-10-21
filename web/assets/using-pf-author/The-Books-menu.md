@@ -1,4 +1,4 @@
-The **Books** menu tells Pipefish Publisher to treat certain folders as books, and what to do with them when it does. The menu options are as follows:
+The **Books** menu tells Pipefish Author to treat certain folders as books, and what to do with them when it does. The menu options are as follows:
 
 * **Open folder as book**. This will try to do as it says and open the folder as a book, putting a new `Contents.md` file in the root of the folder if it isn't there, and otherwise using it to build the sidebar and display the book.
 

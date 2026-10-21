@@ -37,4 +37,4 @@ A direct link to a Pipefish book without specifying the page will always take yo
 
 ## Unused pages
 
-The "Unused pages" chapter heading doesn't appear in the `Contents.md` file nor in the book as published: it's where Pipefish Publisher displays markdown files in a book which aren't listed in `Contents.md`, so that you can find and navigate to them.
+The "Unused pages" chapter heading doesn't appear in the `Contents.md` file nor in the book as published: it's where Pipefish Author displays markdown files in a book which aren't listed in `Contents.md`, so that you can find and navigate to them.

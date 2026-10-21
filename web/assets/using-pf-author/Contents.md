@@ -1,4 +1,4 @@
-## Header
+## Using Pipefish Author
 ## Introduction
 - Introduction
 ## Editing and publishing books

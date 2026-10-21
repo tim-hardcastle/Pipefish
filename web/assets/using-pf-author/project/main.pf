@@ -1,0 +1,21 @@
+import
+
+NULL::"files"
+
+var
+
+v = "aardvark"
+x = 0
+y = "foo"
+
+cmd
+
+load :
+    get text from File("text/text.txt")
+    v = text
+
+save(s string) :
+    put s into File("text/text.txt")
+
+doit :
+    post 1/x

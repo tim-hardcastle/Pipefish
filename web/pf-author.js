@@ -18,7 +18,7 @@ class PfAuthor extends PfBook {
         await loadWasm();
         await this.vfs.initialize();
 
-        this.bookRoot = "using-publisher";
+        this.bookRoot = "using-pf-author";
         this.vfs.openBook(this.bookRoot);
 
         await super.connectedCallback();
@@ -77,8 +77,7 @@ class PfAuthor extends PfBook {
         await super.showPage(hash);
     }
 
-    renderHeaderExtras(header, themeToggle) {
-        const controls = document.createElement("div");
+    renderHeaderExtras(controls, themeToggle) {
         controls.classList.add("author-header-controls");
 
         const size = parseFloat(
@@ -179,7 +178,6 @@ class PfAuthor extends PfBook {
         });
 
         controls.append(filesMenu, booksMenu, themeToggle);
-        header.appendChild(controls);
     }
 }
 

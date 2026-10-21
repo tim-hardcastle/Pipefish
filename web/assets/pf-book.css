@@ -85,21 +85,15 @@ pf-book, pf-author {
 
 .site-header {
     position: relative;
-
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-
+    align-items: flex-start;
     width: 100%;
-
-    margin:
-        var(--space-xl)
-        0
-        var(--space-l);
+    margin: var(--space-xl) 0 var(--space-l);
 }
 
 .site-logo {
     display: block;
+    flex: 0 0 auto;
 }
 
 .site-logo img {
@@ -107,19 +101,44 @@ pf-book, pf-author {
     width: 64px;
 }
 
+.site-header-content {
+    display: grid;
+    grid-template-rows: auto auto auto;
+    flex: 1;
+    min-width: 0;
+}
+
+.book-title-box,
 .top-nav {
-    position: absolute;
+    width: calc(100% + 64px);
+    transform: translateX(-32px);
+    text-align: center;
+}
 
-    left: 50%;
-    top: 50%;
+.site-header-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: .35rem;
+    margin-top: .5rem;
+}
 
-    transform: translate(-50%, -50%);
+.book-title {
+    margin: 0;
+    font-family: "Josefin Slab", serif;
+    font-size: 3.2rem;
+    line-height: 1.1;
+    font-weight: 100;
+}
 
+.top-nav {
     display: flex;
     justify-content: center;
     align-items: center;
-
+    flex-wrap: wrap;
     gap: 3rem;
+
+    margin-top: 0.75rem;
 
     font-family: var(--font-ui);
     font-size: .95rem;
@@ -127,13 +146,10 @@ pf-book, pf-author {
 
 .top-nav a {
     position: relative;
-
     padding-bottom: .25rem;
 
     color: var(--text);
-
     border-bottom: 2px solid transparent;
-
     text-decoration: none;
 
     transition:
@@ -146,12 +162,8 @@ pf-book, pf-author {
 }
 
 .theme-toggle {
-    position: absolute;
-
-    right: 0;
-    top: 50%;
-
-    transform: translateY(-50%);
+    position: static;
+    transform: none;
 
     width: 2rem;
     height: 2rem;
@@ -165,7 +177,6 @@ pf-book, pf-author {
 
     font-family: var(--font-ui);
     font-size: .8rem;
-
     cursor: pointer;
 
     transition:
@@ -200,11 +211,11 @@ pf-book, pf-author {
 
 .author-header-controls {
     display: flex;
-    flex-flow: row nowrap;
+    flex-flow: row wrap;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.35rem;
-    margin-left: auto;
+    gap: .35rem;
+    margin: 0;
 }
 
 .author-header-controls > * {

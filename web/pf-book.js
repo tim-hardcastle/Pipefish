@@ -7,7 +7,10 @@ const DEFAULT_ICON = "/assets/icon.ico";
 function parseContents(text) {
     const sections = [];
     let section = null;
-    let header = {
+    let bookTitle = null;
+    let inHeader = false;
+
+    const header = {
         links: [],
         logo: DEFAULT_LOGO,
         icon: DEFAULT_ICON
@@ -19,13 +22,15 @@ function parseContents(text) {
         if (heading) {
             const title = heading[1];
 
-            if (section && section.title !== "Header") {
-                sections.push(section);
-            }
-
-            if (title === "Header") {
-                section = null;
+            if (bookTitle === null) {
+                bookTitle = title;
+                inHeader = true;
             } else {
+                if (section) {
+                    sections.push(section);
+                }
+
+                inHeader = false;
                 section = {
                     title,
                     pages: []
@@ -39,25 +44,22 @@ function parseContents(text) {
             /^-\s+\[([^\]]+)\]\(([^)]+)\)$/
         );
 
-        if (link) {
+        if (link && inHeader) {
             const title = link[1];
             const url = link[2];
 
-            // Links immediately under ## Header
-            if (!section) {
-                if (title.toLowerCase() === "logo") {
-                    header.logo = url;
-                } else if (title.toLowerCase() === "icon") {
-                    header.icon = url;
-                } else {
-                    header.links.push({
-                        title,
-                        url
-                    });
-                }
-
-                continue;
+            if (title.toLowerCase() === "logo") {
+                header.logo = url;
+            } else if (title.toLowerCase() === "icon") {
+                header.icon = url;
+            } else {
+                header.links.push({
+                    title,
+                    url
+                });
             }
+
+            continue;
         }
 
         const page = line.match(/^-\s+(.+)$/);
@@ -74,11 +76,13 @@ function parseContents(text) {
             });
         }
     }
+
     if (section) {
         sections.push(section);
     }
 
     return {
+        bookTitle,
         header,
         sections
     };
@@ -97,6 +101,7 @@ export class PfBook extends HTMLElement {
 
         this.header = parsed.header;
         this.contents = parsed.sections;
+        this.bookTitle = parsed.bookTitle;
 
         const theme =
                 localStorage.getItem("pipefish-theme") ||
@@ -207,20 +212,14 @@ export class PfBook extends HTMLElement {
         // Header
         // ------------------------------------------------------------
 
-        const header =
-            document.createElement("header");
-
+        const header = document.createElement("header");
         header.classList.add("site-header");
 
-        const logoLink =
-            document.createElement("a");
-
+        const logoLink = document.createElement("a");
         logoLink.classList.add("site-logo");
         logoLink.href = "/";
 
-        const logo =
-            document.createElement("img");
-
+        const logo = document.createElement("img");
         logo.src = this.header.logo;
 
         logoLink.appendChild(logo);
@@ -232,86 +231,77 @@ export class PfBook extends HTMLElement {
 
         icon.rel = "icon";
         icon.href = this.header.icon;
-
         document.head.appendChild(icon);
 
-        const topNav =
-            document.createElement("nav");
+        const headerContent = document.createElement("div");
+        headerContent.classList.add("site-header-content");
 
+        const titleBox = document.createElement("div");
+        titleBox.classList.add("book-title-box");
+
+        const title = document.createElement("h1");
+        title.classList.add("book-title");
+        title.textContent = this.bookTitle || "";
+
+        titleBox.appendChild(title);
+        headerContent.appendChild(titleBox);
+
+        const topNav = document.createElement("nav");
         topNav.classList.add("top-nav");
 
         for (const link of this.header.links) {
-            const item =
-                document.createElement("a");
-
+            const item = document.createElement("a");
             item.textContent = link.title;
             item.href = link.url;
-
             topNav.appendChild(item);
         }
 
-        header.appendChild(topNav);
+        headerContent.appendChild(topNav);
 
-        const themeToggle =
-        document.createElement("button");
+        const controls = document.createElement("div");
+        controls.classList.add("site-header-controls");
 
+        const themeToggle = document.createElement("button");
         themeToggle.classList.add("theme-toggle");
         themeToggle.type = "button";
 
         const dark =
-        document.documentElement.getAttribute("data-theme") ===
-        "dark";
+            document.documentElement.getAttribute("data-theme") ===
+            "dark";
 
         setThemeToggleIcon(themeToggle, dark);
 
-        const svg = themeToggle.querySelector("svg");
-
         themeToggle.setAttribute(
-        "aria-label",
-        dark
-            ? "Switch to light mode"
-            : "Switch to dark mode"
+            "aria-label",
+            dark ? "Switch to light mode" : "Switch to dark mode"
         );
 
-        themeToggle.addEventListener(
-            "click",
-            () => {
-                const dark =
-                    document.documentElement
-                        .getAttribute("data-theme") ===
-                    "dark";
+        themeToggle.addEventListener("click", () => {
+            const dark =
+                document.documentElement.getAttribute("data-theme") ===
+                "dark";
 
-                const theme =
-                    dark ? "light" : "dark";
+            const theme = dark ? "light" : "dark";
 
-                document.documentElement
-                    .setAttribute(
-                        "data-theme",
-                        theme
-                    );
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem("pipefish-theme", theme);
 
-                localStorage.setItem(
-                    "pipefish-theme",
-                    theme
-                );
+            setThemeToggleIcon(themeToggle, !dark);
 
-                setThemeToggleIcon(themeToggle, !dark);
+            themeToggle.setAttribute(
+                "aria-label",
+                dark ? "Switch to light mode" : "Switch to dark mode"
+            );
+        });
 
-                themeToggle.setAttribute(
-                    "aria-label",
-                    dark
-                        ? "Switch to light mode"
-                        : "Switch to dark mode"
-                );
-            }
-        );
+        controls.appendChild(themeToggle);
+        headerContent.appendChild(controls);
 
-        header.appendChild(themeToggle);
-
+        header.appendChild(headerContent);
         this.appendChild(header);
 
         // Adds the menus for pf-author.
-        this.renderHeaderExtras(header, themeToggle);
+        this.renderHeaderExtras(controls, themeToggle);
 
         // ------------------------------------------------------------
         // Main book

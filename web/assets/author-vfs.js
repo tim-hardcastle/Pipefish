@@ -18,9 +18,9 @@ export class AuthorVFS {
     async initialize() {
         const files = await Promise.all(
             SAMPLE_BOOK_FILES.map(async name => {
-                const path = `using-publisher/${name}`;
+                const path = `using-pf-author/${name}`;
                 const url = new URL(
-                    `using-publisher/${name}`,
+                    `using-pf-author/${name}`,
                     import.meta.url
                 );
 
