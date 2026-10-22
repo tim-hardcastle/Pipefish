@@ -126,6 +126,7 @@ pf-book, pf-author {
 .book-title {
     margin: 0;
     font-family: "Josefin Slab", serif;
+    color: var(--text);
     font-size: 3.2rem;
     line-height: 1.1;
     font-weight: 100;
