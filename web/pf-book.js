@@ -159,6 +159,8 @@ export class PfBook extends HTMLElement {
             return;
         }
 
+        this.updatePageNavigation(hash);
+
         this.querySelectorAll("nav a").forEach(item => {
             item.classList.toggle(
                 "current",
@@ -337,13 +339,21 @@ export class PfBook extends HTMLElement {
 
         const page = document.createElement(this.pageElementName);
 
-        const body =
-            document.createElement("div");
+        const main = document.createElement("div");
+        main.classList.add("book-main");
+        main.appendChild(page);
 
+        const pageNavigation = document.createElement("nav");
+        pageNavigation.classList.add("page-navigation");
+        pageNavigation.setAttribute("aria-label", "Page navigation");
+        main.appendChild(pageNavigation);
+
+        this.pageNavigation = pageNavigation;
+
+        const body = document.createElement("div");
         body.classList.add("book-body");
 
-       
-        body.appendChild(page);
+        body.appendChild(main);
         body.appendChild(sidebar);
 
         this.appendChild(body);
@@ -365,6 +375,39 @@ export class PfBook extends HTMLElement {
 
         footer.appendChild(text);
         this.appendChild(footer);
+    }
+
+    updatePageNavigation(hash) {
+        const navigation = this.pageNavigation;
+
+        if (!navigation) {
+            return;
+        }
+
+        navigation.replaceChildren();
+
+        const pages = this.contents.flatMap(section => section.pages);
+        const index = pages.findIndex(page => page.hash === hash);
+
+        if (index === -1) {
+            return;
+        }
+
+        if (index > 0) {
+            const previous = document.createElement("a");
+            previous.classList.add("previous-page");
+            previous.href = "#" + pages[index - 1].hash;
+            previous.textContent = pages[index - 1].title;
+            navigation.appendChild(previous);
+        }
+
+        if (index < pages.length - 1) {
+            const next = document.createElement("a");
+            next.classList.add("next-page");
+            next.href = "#" + pages[index + 1].hash;
+            next.textContent = pages[index + 1].title;
+            navigation.appendChild(next);
+        }
     }
 }
 

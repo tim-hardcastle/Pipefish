@@ -330,9 +330,6 @@ pf-writer pf-ide {
 .book-sidebar {
     grid-column: 2;
 
-    position: sticky;
-    top: var(--space-l);
-
     background: var(--paper);
 
     padding: 1.5rem;
@@ -362,7 +359,8 @@ pf-writer pf-ide {
     margin-top: 0;
 }
 
-.book-sidebar a {
+.book-sidebar a,
+.page-navigation a {
     display: block;
 
     padding:
@@ -393,7 +391,6 @@ pf-writer pf-ide {
     border-left-color: var(--link);
     font-weight: 700;
 }
-
 
 /* ------------------------------------------------------------
    Typography
@@ -434,7 +431,7 @@ pf-writer h2 {
     line-height: 1.3;
 
     margin:
-        var(--space-xl)
+        var(--space-l)
         0
         var(--space-m);
 }
@@ -446,7 +443,7 @@ pf-writer h3 {
     line-height: 1.35;
 
     margin:
-        var(--space-l)
+        var(--space-m)
         0
         var(--space-s);
 }
@@ -793,47 +790,57 @@ pf-page tbody tr:hover {
    Previous / next navigation
    ------------------------------------------------------------ */
 
-.page-navigation {
-    display: grid;
-
-    grid-template-columns:
-        1fr
-        1fr;
-
-    gap: var(--space-l);
-
-    margin-top: var(--space-xl);
-
-    padding-top: var(--space-l);
-
-    border-top: 1px solid var(--border);
-
-    font-family: var(--font-ui);
-    font-size: .85rem;
+.book-main {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
 }
 
-.page-navigation .next {
+.book-sidebar {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.page-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
+}
+
+.page-navigation a {
+    display: block;
+    padding: 0.3rem 0.5rem;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+    text-decoration-color: var(--sidebar-underline);
+    transition: color var(--transition);
+}
+
+.page-navigation a:hover {
+    color: var(--link);
+}
+
+.page-navigation .previous-page::before {
+    content: "← ";
+}
+
+.page-navigation .next-page::after {
+    content: " →";
+    white-space: nowrap;
+}
+
+.page-navigation .next-page {
+    margin-left: auto;
     text-align: right;
 }
-
-.page-navigation .label {
-    display: block;
-
-    margin-bottom: .25rem;
-
-    color:
-        color-mix(
-            in srgb,
-            var(--text) 60%,
-            transparent
-        );
-
-    font-size: .7rem;
-
-    text-transform: uppercase;
-    letter-spacing: .08em;
-}
-
 
 /* ------------------------------------------------------------
    Footer
