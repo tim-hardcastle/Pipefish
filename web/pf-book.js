@@ -91,46 +91,51 @@ function parseContents(text) {
 export class PfBook extends HTMLElement {
     async connectedCallback() {
         await loadWasm();
-        const src = this.getAttribute("src");
-        const contentsSrc =
-            src.replace(/\/?$/, "/Contents.md");
 
+        const src = this.getAttribute("src");
+        const contentsSrc = src.replace(/\/?$/, "/Contents.md");
         const text = await this.loadText(contentsSrc);
 
+        this.initializeBook(text);
+        this.applyTheme();
+        this.render();
+        await this.showInitialPage();
+
+        window.addEventListener("hashchange", () => {
+            this.showPage(location.hash.slice(1));
+        });
+    }
+
+    initializeBook(text) {
         const parsed = parseContents(text);
 
         this.header = parsed.header;
         this.contents = parsed.sections;
         this.bookTitle = parsed.bookTitle;
+    }
 
+    applyTheme() {
         const theme =
-                localStorage.getItem("pipefish-theme") ||
-                (window.matchMedia("(prefers-color-scheme: dark)").matches
+            localStorage.getItem("pipefish-theme") ||
+            (window.matchMedia("(prefers-color-scheme: dark)").matches
                 ? "dark"
                 : "light");
 
         document.documentElement.dataset.theme = theme;
+    }
 
-        this.render();
-
+    async showInitialPage() {
         const hash = location.hash.slice(1);
 
         if (hash) {
             await this.showPage(hash);
         } else {
-            const firstPage =
-                this.contents[0]?.pages[0];
+            const firstPage = this.contents[0]?.pages[0];
 
             if (firstPage) {
                 await this.showPage(firstPage.hash);
             }
         }
-
-        
-
-        window.addEventListener("hashchange", () => {
-            this.showPage(location.hash.slice(1));
-        });
     }
 
     async loadText(src) {

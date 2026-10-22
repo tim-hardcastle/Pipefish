@@ -21,7 +21,50 @@ class PfAuthor extends PfBook {
         this.bookRoot = "using-pf-author";
         this.vfs.openBook(this.bookRoot);
 
-        await super.connectedCallback();
+        const result = window.pipefishReadBookFile("Contents.md");
+
+        if (!result.ok) {
+            throw new Error(result.error);
+        }
+
+        this.initializeBook(result.data);
+        this.addUnusedPages();
+        this.applyTheme();
+        this.render();
+        await this.showInitialPage();
+
+        window.addEventListener("hashchange", () => {
+            this.showPage(location.hash.slice(1));
+        });
+    }
+
+    addUnusedPages() {
+        const usedFiles = new Set(
+            this.contents.flatMap(section =>
+                section.pages.map(page => page.filename)
+            )
+        );
+
+        const tree = window.pipefishGetBookFileTree();
+
+        const unusedPages = tree.children
+            .filter(file =>
+                file.type === "file" &&
+                file.name.endsWith(".md") &&
+                !usedFiles.has(file.name)
+            )
+            .map(file => ({
+                title: file.name.slice(0, -3).replace(/-/g, " "),
+                filename: file.name,
+                hash: file.name.slice(0, -3).toLowerCase()
+            }));
+
+        if (unusedPages.length > 0) {
+            this.contents.push({
+                title: "Unused pages",
+                pages: unusedPages
+            });
+        }
     }
 
     get pageElementName() {
@@ -56,6 +99,33 @@ class PfAuthor extends PfBook {
 
         this.header = parsed.header;
         this.contents = parsed.sections;
+
+        const usedFiles = new Set(
+            this.contents.flatMap(section =>
+                section.pages.map(page => page.filename)
+            )
+        );
+
+        const tree = window.pipefishGetBookFileTree();
+
+        const unusedPages = tree.children
+            .filter(file =>
+                file.type === "file" &&
+                file.name.endsWith(".md") &&
+                !usedFiles.has(file.name)
+            )
+            .map(file => ({
+                title: file.name.slice(0, -3).replace(/-/g, " "),
+                filename: file.name,
+                hash: file.name.slice(0, -3).toLowerCase()
+            }));
+
+        if (unusedPages.length > 0) {
+            this.contents.push({
+                title: "Unused pages",
+                pages: unusedPages
+            });
+        }
 
         this.render();
 
